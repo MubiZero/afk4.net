@@ -1130,7 +1130,7 @@
   "op.map.panel.sessionUnavailable": "Сессия оператора недоступна.",
   "op.map.panel.confirmationLabel": "Готовность",
   "op.map.panel.actionDone": "Готово",
-  "op.map.panel.diagnostics": "Диагностика ПК",
+  "op.map.panel.diagnostics": "Статус ПК",
   "op.map.panel.actionsHead": "Действия",
   "op.map.panel.startSessionTitle": "Как запустить сессию",
   "op.map.panel.finishLabel": "Завершить сессию",

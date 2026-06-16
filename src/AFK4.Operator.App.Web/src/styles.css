@@ -332,24 +332,6 @@ button {
   font-weight: 600;
 }
 
-.sign-out-button {
-  height: 28px;
-  padding: 0 11px;
-  border: 1px solid var(--border-strong);
-  border-radius: 5px;
-  background: var(--surface-muted);
-  color: var(--text-strong);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.sign-out-button:hover,
-.sign-out-button:focus-visible {
-  border-color: var(--accent-hover);
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
 .window-controls {
   display: flex;
   align-items: center;
@@ -822,6 +804,10 @@ button {
   gap: 9px;
   min-height: 0;
   padding: 8px 7px 10px;
+  /* Вертикальный список иконок: скроллим только по вертикали. Явный overflow-x:hidden
+     убирает фантомный горизонтальный скролл (overflow-y:auto иначе делает и X = auto,
+     и суб-пиксельный край ловит лишнюю полосу). */
+  overflow-x: hidden;
   overflow-y: auto;
   border-right: 1px solid var(--border-soft);
   background: var(--surface-elevated);
@@ -873,6 +859,18 @@ button {
 .workspace-rail button.locked:focus-visible {
   background: var(--surface-muted);
   color: var(--text-tertiary);
+}
+
+/* Выход — в подвале рейла, отделён сверху от навигации. */
+.workspace-rail .rail-logout {
+  margin-top: auto;
+  color: var(--text-tertiary);
+}
+
+.workspace-rail .rail-logout:hover,
+.workspace-rail .rail-logout:focus-visible {
+  background: var(--danger-soft-bg);
+  color: var(--danger-text);
 }
 
 /* Колонка контента (грид-ребёнок 2-й колонки оболочки). Держит опциональную полоску вкладок
@@ -2758,11 +2756,18 @@ button {
   border-left-color: var(--success);
 }
 
-.seat-hero-top {
+.seat-hero-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+/* Зона + имя места — единый титульный блок: надзаголовок вплотную над именем. */
+.seat-hero-id {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
 }
 
 .seat-hero-zone {
@@ -7315,7 +7320,62 @@ button {
   font-size: 11px;
 }
 
+/* Единый элемент статус-бара: иконка/точка + текст, один размер и вес для всех. */
+.signals-strip .signal-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.signals-strip .signal-item svg {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.signals-strip .signal-muted {
+  color: var(--text-tertiary);
+}
+
+/* Точка-индикатор связи: цвет = severity, форма одинаковая. */
+.signal-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--text-tertiary);
+}
+
+.signal-dot.ok {
+  background: var(--success);
+}
+
+.signal-dot.warn {
+  background: var(--warning);
+}
+
+.signal-dot.bad {
+  background: var(--danger);
+}
+
+/* Правый кластер — бизнес-метрики (касса), прижат к правому краю. */
+.signals-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+  min-width: 0;
+}
+
 .signals-strip .rail-feedback {
+  color: var(--danger-text);
+}
+
+.signals-strip .rail-feedback svg {
   color: var(--danger-text);
 }
 
@@ -7832,8 +7892,8 @@ button {
 /* Сворачиваемая контекст-зона (правая колонка shell) */
 .context-zone {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr);
-  column-gap: 4px;
+  grid-template-columns: 22px minmax(0, 1fr);
+  column-gap: 2px;
   min-width: 0;
   min-height: 0;
 }
@@ -7841,13 +7901,15 @@ button {
 .context-zone-collapsed {
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
-  padding-top: 12px;
+  padding-top: 10px;
 }
 
+/* Ручка прижата к панели и выровнена по верхней кромке карточки (panel margin-top:10px),
+   чтобы кнопка не висела косо в пустом жёлобе. */
 .context-zone-handle {
   display: flex;
-  justify-content: center;
-  padding-top: 12px;
+  justify-content: flex-end;
+  padding-top: 10px;
 }
 
 .context-zone-body {
@@ -7868,10 +7930,10 @@ button {
   place-items: center;
   width: 24px;
   height: 24px;
-  border: 1px solid var(--border-default);
+  border: 0;
   border-radius: 6px;
-  background: var(--surface-muted);
-  color: var(--text-secondary);
+  background: transparent;
+  color: var(--text-tertiary);
   cursor: pointer;
 }
 

@@ -1,8 +1,8 @@
 import {
   CircleDollarSign,
   LockKeyhole,
-  Search,
-  Wifi
+  LogOut,
+  Search
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { I18nProvider, useI18n } from '@afk4/i18n';
@@ -330,6 +330,12 @@ function AppInner() {
   const contextCol = hasContextContent
     ? (contextCollapsed ? 'var(--shell-context-strip)' : 'minmax(260px, 292px)')
     : '0px';
+  // Тон точки связи в статус-баре: зелёная — на связи, янтарь — переподключение, красная — потеряна.
+  const realtimeTone = realtimeState === 'connected'
+    ? 'ok'
+    : realtimeState === 'connecting' || realtimeState === 'reconnecting'
+      ? 'warn'
+      : 'bad';
 
   return (
     <div
@@ -368,7 +374,6 @@ function AppInner() {
             {operatorDisplayNameLabel(authSession.displayName, t)} · {shellModeLabel(config.shellMode, t)}
           </button>
         </div>
-        <button type="button" className="sign-out-button" onClick={handleSignOut}>{t('shell.signOut')}</button>
         <TitlebarControls />
         <WindowControls />
       </header>
@@ -411,6 +416,12 @@ function AppInner() {
             </button>
           );
         })}
+        {/* «Выйти» живёт в подвале рейла (margin-top:auto), отдельно от навигации — выход
+            это не «ещё один раздел», а действие, и его привычное место — низ боковой панели. */}
+        <button type="button" className="rail-logout" title={t('shell.signOut')} onClick={handleSignOut}>
+          <LogOut size={20} />
+          <span>{t('shell.signOut')}</span>
+        </button>
       </nav>
 
       <div className="workspace-content">
@@ -507,8 +518,15 @@ function AppInner() {
         </ContextPanel>
       )}
 
+      {/* Статус-бар по единому стандарту: слева — система (связь, источник данных, тревоги),
+          справа — бизнес-метрика (касса). Каждый элемент — .signal-item: иконка/точка + текст,
+          один размер и вес; цветом кодируем только severity. */}
       <footer className="signals-strip">
-        <span><Wifi size={14} />{realtimeLabel(realtimeState, realtimeError, t)} · {dataSourceLabel(floorMap.source, t)}</span>
+        <span className="signal-item">
+          <i className={`signal-dot ${realtimeTone}`} aria-hidden="true" />
+          {realtimeLabel(realtimeState, realtimeError, t)}
+        </span>
+        <span className="signal-item signal-muted">{dataSourceLabel(floorMap.source, t)}</span>
         <ShellAlerts
           problems={countProblems(displayedFloorMap.seats)}
           offline={countByTone(displayedFloorMap.seats, 'offline')}
@@ -518,10 +536,12 @@ function AppInner() {
             setWorkspace('map');
           }}
         />
-        <span><CircleDollarSign size={14} />{shellPosText}</span>
-        {workspaceFeedback && (
-          <span className="rail-feedback"><LockKeyhole size={14} />{workspaceFeedback}</span>
-        )}
+        <div className="signals-right">
+          {workspaceFeedback && (
+            <span className="signal-item rail-feedback"><LockKeyhole size={13} />{workspaceFeedback}</span>
+          )}
+          <span className="signal-item signal-pos"><CircleDollarSign size={13} />{shellPosText}</span>
+        </div>
       </footer>
     </div>
   );

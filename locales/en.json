@@ -1130,7 +1130,7 @@
   "op.map.panel.sessionUnavailable": "Operator session is unavailable.",
   "op.map.panel.confirmationLabel": "Readiness",
   "op.map.panel.actionDone": "Done",
-  "op.map.panel.diagnostics": "PC diagnostics",
+  "op.map.panel.diagnostics": "PC status",
   "op.map.panel.actionsHead": "Actions",
   "op.map.panel.startSessionTitle": "How to start the session",
   "op.map.panel.finishLabel": "Finish session",

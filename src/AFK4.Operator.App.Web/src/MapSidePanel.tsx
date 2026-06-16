@@ -588,11 +588,15 @@ export function MapSidePanel({
     <aside className="context-panel">
       {/* Герой места: что я смотрю + главное число (остаток/счёт/статус) одним блоком наверху. */}
       <header className={`seat-hero state-${seat.tone}`}>
-        <div className="seat-hero-top">
-          <span className="seat-hero-zone">{zoneLabel(seat.zone, t)}</span>
+        {/* Надзаголовок «зона» вплотную над именем места — один титульный блок, а не два
+            конкурирующих заголовка; чип статуса прижат справа на уровне имени. */}
+        <div className="seat-hero-head">
+          <div className="seat-hero-id">
+            <span className="seat-hero-zone">{zoneLabel(seat.zone, t)}</span>
+            <h2 className="seat-hero-name">{seat.name}</h2>
+          </div>
           <span className={`state-chip state-${seat.tone}`}>{toneLabel(seat.tone, t)}</span>
         </div>
-        <h2 className="seat-hero-name">{seat.name}</h2>
         {/* Крупное число-герой только когда оно есть (время/счёт). Для свободного места
             ничего не дублируем — чип «Готов» и кнопка «Посадить гостя» уже всё сказали;
             для проблемных статусов показываем строку скромным размером, не гигантом. */}
