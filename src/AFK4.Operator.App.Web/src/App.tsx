@@ -103,9 +103,6 @@ function AppInner() {
   const [workspaceFeedback, setWorkspaceFeedback] = useState<string | null>(null);
   const [accountPanelOpen, setAccountPanelOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [contextCollapsed, setContextCollapsed] = useState(
-    () => localStorage.getItem('afk4.operator.contextCollapsed') === '1'
-  );
   const toast = useToast();
   const commandRegistry = useMemo(() => createCommandRegistry(), []);
   // ⌘K / Ctrl+K открывают палитру даже из поля ввода (allowInInputs). Биндинги мемоизированы —
@@ -118,13 +115,6 @@ function AppInner() {
     []
   );
   useHotkeys(paletteHotkeys);
-  const toggleContextCollapsed = () => {
-    setContextCollapsed((collapsed) => {
-      const next = !collapsed;
-      localStorage.setItem('afk4.operator.contextCollapsed', next ? '1' : '0');
-      return next;
-    });
-  };
   // Bumped by the realtime hook to make the shell KPIs reconcile event-driven instead of polled.
   const [shellReconcileSignal, setShellReconcileSignal] = useState(0);
   const activeBranchId = authSession === null ? null : resolveActiveBranchId(authSession, config.branchId);
@@ -325,9 +315,7 @@ function AppInner() {
   const activeVisibleItems = activeSection.items.filter((item) => canOpenWorkspace(authSession, item.id));
   const showWorkspaceTabs = activeVisibleItems.length > 1;
   const hasContextContent = workspace === 'map' && selectedSeat !== null;
-  const contextCol = hasContextContent
-    ? (contextCollapsed ? 'var(--shell-context-strip)' : 'minmax(260px, 292px)')
-    : '0px';
+  const contextCol = hasContextContent ? 'minmax(260px, 292px)' : '0px';
   // Тон точки связи в статус-баре: зелёная — на связи, янтарь — переподключение, красная — потеряна.
   const realtimeTone = realtimeState === 'connected'
     ? 'ok'
@@ -504,7 +492,7 @@ function AppInner() {
       </div>
 
       {workspace === 'map' && selectedSeat !== null && (
-        <ContextPanel collapsed={contextCollapsed} onToggle={toggleContextCollapsed}>
+        <ContextPanel>
           <MapSidePanel
             seat={selectedSeat}
             seats={displayedFloorMap.seats}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
-import { Clock, LockKeyhole, MonitorCheck, Power, ShieldAlert, TimerReset, UnlockKeyhole, Wifi, WifiOff, Wrench } from 'lucide-react';
+import { LockKeyhole, MonitorCheck, Power, ShieldAlert, TimerReset, UnlockKeyhole, Wifi, WifiOff, Wrench } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import { useDeferredFlag } from './useDeferredFlag';
@@ -281,12 +281,11 @@ export function MapWorkspace({
       {floorMap.loadStatus === 'failed' && (
         <FeedbackNotice feedback={{ label: t('op.map.feedbackMap'), state: 'failed', detail: floorMap.error ?? t('op.map.loadError') }} />
       )}
-      {/* Снимок зала: показываем РЕАЛЬНЫЙ текст (со временем кэша), а не генерик «ждём ответ
-          сервера». Тон честный — «офлайн/только просмотр» лишь при настоящем обрыве, иначе
-          спокойное «снимок на HH:MM», чтобы не противоречить футеру при живой связи. */}
+      {/* Только настоящий обрыв связи: данные заморожены, «только просмотр». Устаревший снимок
+          при живой связи не показываем — это тех-шум для админа. */}
       {offlineBanner !== null && (
-        <div className={`floor-snapshot-banner ${floorMap.isOffline ? 'offline' : 'stale'}`} role="status" aria-live="polite">
-          {floorMap.isOffline ? <WifiOff size={14} aria-hidden="true" /> : <Clock size={14} aria-hidden="true" />}
+        <div className="floor-snapshot-banner offline" role="status" aria-live="polite">
+          <WifiOff size={14} aria-hidden="true" />
           <span>{offlineBanner}</span>
         </div>
       )}

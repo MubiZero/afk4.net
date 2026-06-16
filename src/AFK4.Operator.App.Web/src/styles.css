@@ -7991,28 +7991,8 @@ button {
 /* Сворачиваемая контекст-зона (правая колонка shell) */
 .context-zone {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
-}
-
-.context-zone-collapsed {
-  grid-template-columns: minmax(0, 1fr);
-  justify-items: center;
-  padding-top: 10px;
-}
-
-/* Тонкая шапка зоны над панелью: кнопка сворота прижата вправо (как «collapse» у IDE-панелей),
-   а не висит отдельной полоской сбоку. Padding-right совпадает с правым margin панели. */
-.context-zone-handle {
-  display: flex;
-  justify-content: flex-end;
-  padding: 8px 10px 0 0;
-}
-
-/* Шапка зоны уже даёт верхний отступ — панель садится под неё с небольшим зазором. */
-.context-zone-body > .context-panel {
-  margin-top: 4px;
 }
 
 .context-zone-body {
@@ -8026,29 +8006,6 @@ button {
   margin: 10px 10px 0 0;
   color: var(--text-primary);
   font-size: 16px;
-}
-
-.context-zone-toggle {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-tertiary);
-  cursor: pointer;
-}
-
-.context-zone-toggle:hover {
-  border-color: var(--accent-hover);
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
-.context-zone-toggle:focus-visible {
-  outline: 2px solid var(--accent-hover);
-  outline-offset: 2px;
 }
 
 /* Строка тревог в статус-баре */

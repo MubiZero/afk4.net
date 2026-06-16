@@ -2548,7 +2548,6 @@
   "op.floor.duration.minShort": "{count} мин",
   "op.floor.duration.hourMinShort": "{hours} ч {minutes} м",
   "op.floor.offlineBanner": "Офлайн — данные от {time}, только просмотр",
-  "op.floor.staleBanner": "Снимок зала на {time}, обновляем…",
   "op.error.actionFailed.title": "Действие не выполнено",
   "op.error.actionFailed.noDetail": "Сервер не вернул подробности. Повторите действие или проверьте связь.",
   "op.players.status.vip": "VIP",

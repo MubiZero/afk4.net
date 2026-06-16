@@ -1,38 +1,31 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, mock } from 'bun:test';
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { ContextPanel } from './ContextPanel';
 
 describe('ContextPanel', () => {
-  it('shows children and a collapse button when expanded', () => {
-    const onToggle = mock(() => {});
+  it('renders the panel body and optional title', () => {
     render(
       <I18nProvider>
-        <ContextPanel collapsed={false} onToggle={onToggle} title="Details">
+        <ContextPanel title="Details">
           <div>PANEL BODY</div>
         </ContextPanel>
       </I18nProvider>
     );
 
     expect(screen.getByText('PANEL BODY')).toBeDefined();
-    const collapse = screen.getByLabelText('Свернуть панель');
-    fireEvent.click(collapse);
-    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Details')).toBeDefined();
   });
 
-  it('hides children and shows only an expand button when collapsed', () => {
-    const onToggle = mock(() => {});
+  it('renders without a title', () => {
     render(
       <I18nProvider>
-        <ContextPanel collapsed={true} onToggle={onToggle}>
+        <ContextPanel>
           <div>PANEL BODY</div>
         </ContextPanel>
       </I18nProvider>
     );
 
-    expect(screen.queryByText('PANEL BODY')).toBeNull();
-    const expand = screen.getByLabelText('Развернуть панель');
-    fireEvent.click(expand);
-    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('PANEL BODY')).toBeDefined();
   });
 });

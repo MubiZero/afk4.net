@@ -36,7 +36,7 @@ describe('offline mirror state', () => {
 
     expect(state.isOffline).toBe(false);
     expect(state.cachedAtMs).toBe(10_000);
-    expect(offlineBannerText(state, t, 10_000)).toBeNull();
+    expect(offlineBannerText(state, t)).toBeNull();
   });
 
   it('hydrates a degraded read-only state from cache', () => {
@@ -55,16 +55,16 @@ describe('offline mirror state', () => {
     const entry: FloorMapCacheEntry = { floorMap: floorMap('Cached Branch'), cachedAtMs: 1_000 };
     const state = hydrateFloorMapStateFromCache(entry, branchId, t);
 
-    const banner = offlineBannerText(state, t, 2_000);
+    const banner = offlineBannerText(state, t);
     expect(banner).not.toBeNull();
     expect(banner).toContain('Офлайн');
     expect(banner).toContain('только просмотр');
   });
 
-  it('shows the banner once a fresh load ages past 30s (D8)', () => {
+  it('stays silent while connected — no stale-snapshot noise for the admin', () => {
     const state = mapFloorMapDtoToState(floorMap('Demo Branch'), t, 0);
 
-    expect(offlineBannerText(state, t, 20_000)).toBeNull();
-    expect(offlineBannerText(state, t, 31_000)).not.toBeNull();
+    expect(state.isOffline).toBe(false);
+    expect(offlineBannerText(state, t)).toBeNull();
   });
 });

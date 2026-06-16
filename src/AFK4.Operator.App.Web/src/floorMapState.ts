@@ -12,8 +12,6 @@ type TFn = (key: MessageKey, values?: Record<string, string | number>) => string
 export type FloorMapLoadStatus = 'idle' | 'loading' | 'ready' | 'failed';
 export type FloorMapSource = 'fixture' | 'backend';
 
-const staleAfterMs = 30_000;
-
 export interface OperatorFloorMapState {
   branchId?: string;
   branchName: string;
@@ -72,24 +70,18 @@ export function hydrateFloorMapStateFromCache(
   };
 }
 
-// Operator-facing banner shown once the mirror is offline or the data has aged past 30s (D8):
-// "Офлайн — данные от HH:MM, только просмотр". Null while live and fresh.
-export function offlineBannerText(state: OperatorFloorMapState, t: TFn, nowMs = Date.now()): string | null {
-  if (state.cachedAtMs === null) {
-    return null;
-  }
-
-  const isStale = nowMs - state.cachedAtMs > staleAfterMs;
-  if (!state.isOffline && !isStale) {
+// Баннер показываем ТОЛЬКО при настоящем обрыве связи: данные заморожены, режим «только
+// просмотр» — это операционно важно. Просто устаревший снимок при живой связи админу не нужен
+// (приложение тихо обновится) — раньше D8 показывал «снимок устарел», убрано как тех-шум.
+export function offlineBannerText(state: OperatorFloorMapState, t: TFn): string | null {
+  if (!state.isOffline || state.cachedAtMs === null) {
     return null;
   }
 
   const at = new Date(state.cachedAtMs);
   const hh = String(at.getHours()).padStart(2, '0');
   const mm = String(at.getMinutes()).padStart(2, '0');
-  // Честно различаем причину: реальный обрыв связи (только просмотр) vs просто устаревший
-  // снимок при живом соединении — последнее НЕ «офлайн», иначе врём против футера.
-  return t(state.isOffline ? 'op.floor.offlineBanner' : 'op.floor.staleBanner', { time: `${hh}:${mm}` });
+  return t('op.floor.offlineBanner', { time: `${hh}:${mm}` });
 }
 
 export function mapFloorMapSeats(nextSeats: SeatStatusDto[], t: TFn, loadedAtMs = Date.now()): SeatSummary[] {
