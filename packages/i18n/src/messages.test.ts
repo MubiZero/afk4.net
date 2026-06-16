@@ -96,8 +96,6 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.logs.target.session',
     'op.logs.target.tariff',
     'op.logs.tone.session',
-    'op.map.colBilling',
-    'op.map.colPc',
     'op.map.feedbackOffline',
     'op.map.panel.confirmStatusBilling',
     'op.map.panel.packageLabel',
