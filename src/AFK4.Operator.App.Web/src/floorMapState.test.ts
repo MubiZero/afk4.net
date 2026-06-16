@@ -44,13 +44,13 @@ describe('floor-map state', () => {
     expect(state.branchName).toBe('Demo Branch');
     expect(state.seats.map((seat) => seat.name)).toEqual(['PC-01', 'PC-02']);
     expect(state.seats[0]).toMatchObject({
-      tone: 'warning',
+      tone: 'blocking',
       command: 'No route',
       remaining: 'осталось 1 ч 01 мин'
     });
     expect(state.seats[1]).toMatchObject({
       tone: 'ready',
-      stateLabel: 'Готов',
+      stateLabel: 'Свободно',
       command: 'Idle'
     });
   });
@@ -129,8 +129,8 @@ describe('floor-map state', () => {
     }, t);
 
     expect(nextSeats[0]).toMatchObject({
-      tone: 'warning',
-      stateLabel: 'В сессии',
+      tone: 'blocking',
+      stateLabel: 'Нужно действие',
       remaining: 'осталось 15 мин',
       command: 'No route'
     });

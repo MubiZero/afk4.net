@@ -67,7 +67,6 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.helper.pos.saleState.fallback',
     'op.helper.staff.cashierOperator',
     'op.helper.staff.technician',
-    'op.helper.tone.offline',
     'op.helper.update.channel.beta',
     'op.helper.update.channel.fallback',
     'op.helper.zone.bootcamp',

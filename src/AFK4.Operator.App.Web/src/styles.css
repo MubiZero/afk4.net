@@ -2174,12 +2174,9 @@ button {
 }
 
 .seat-tile {
-  --accent-rgb: 44, 197, 146;
-  /* Кант + точка плитки — насыщенный статусный цвет. */
+  /* Один цвет состояния на плитку: кант + точка + ободок (hover/focus/selected). Настроен на
+     читаемость на тёмном — серый «в сессии» видимый, янтарь/красный приглушены, не кричат. */
   --seat-color: var(--border-strong);
-  /* Ободок (hover/focus/selected) — тоже по тону, но настроен на читаемость на тёмном:
-     серые ярче (видно у «в сессии»), янтарь/красный приглушены (не кричат). */
-  --seat-ring: var(--border-strong);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2194,56 +2191,42 @@ button {
   transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
-/* Ободок выделения = цвет состояния плитки (свободно→зелёный, нужно действие→красный…),
-   через настроенный --seat-ring. Кант (border-left) держим в насыщенном --seat-color.
-   Свечение выводим из ring через color-mix, без хардкода rgba по тонам. */
+/* Ободок выделения = цвет состояния (тот же --seat-color, что кант/точка), свечение из него. */
 .seat-tile.selected {
-  border-color: var(--seat-ring);
-  border-left-color: var(--seat-color);
+  border-color: var(--seat-color);
   background: var(--surface-hover);
-  box-shadow: 0 0 0 1px var(--seat-ring), 0 0 16px color-mix(in srgb, var(--seat-ring) 16%, transparent);
+  box-shadow: 0 0 0 1px var(--seat-color), 0 0 16px color-mix(in srgb, var(--seat-color) 16%, transparent);
 }
 
-/* Пульсирует только blocking — провалившаяся команда, реальное «действуй сейчас». Остальное
-   (pending/warning) выделяется цветом канта и точкой, без постоянного мельтешения. */
+/* Пульсирует только blocking — «действуй сейчас». Остальное выделяется цветом канта и точкой. */
 .seat-tile.state-blocking:not(.selected) {
   animation: attention-pulse 2100ms ease-in-out infinite;
 }
 
-/* Ховер/фокус тоже по тону (а не фирменный зелёный для всех): кант держим в --seat-color,
-   ободок и подсветку — в --seat-ring. */
+/* Ховер/фокус тоже по тону (а не фирменный зелёный для всех). */
 .seat-tile:hover,
 .seat-tile:focus-visible {
-  border-color: var(--seat-ring);
-  border-left-color: var(--seat-color);
+  border-color: var(--seat-color);
   background: var(--surface-card);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--seat-ring) 14%, transparent), 0 8px 18px rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--seat-color) 14%, transparent), 0 8px 18px rgba(0, 0, 0, 0.18);
   outline: none;
   transform: translateY(-1px);
 }
 
-.seat-tile:focus-visible {
-  box-shadow: 0 0 0 2px var(--seat-ring), 0 8px 18px rgba(0, 0, 0, 0.18);
-}
-
-/* Клавиатурный фокус на уже выбранной плитке — ободок тоже по цвету состояния. */
+.seat-tile:focus-visible,
 .seat-tile.selected:focus-visible {
-  box-shadow: 0 0 0 2px var(--seat-ring), 0 8px 18px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 0 0 2px var(--seat-color), 0 8px 18px rgba(0, 0, 0, 0.18);
 }
 
-/* Статусная палитра канта/точки плитки. Принцип: цвет = «посмотри сюда».
-   Свободно — зелёное (можно продать, зовёт). Занято-и-исправно — нейтральное (фон смены,
-   не отвлекает). Ожидание — янтарь, проблема — красный, вне игры (офлайн/обслуживание) — серое. */
-.seat-tile.state-ready { --seat-color: var(--accent); --seat-ring: var(--accent); }
-/* «В сессии» нейтрально → ободок берём светло-серым (--text-secondary), иначе на тёмном не виден. */
-.seat-tile.state-active { --seat-color: var(--border-strong); --seat-ring: var(--text-secondary); }
-/* Ожидание: кант ярко-янтарный, но ободок приглушаем (смесь с серым), чтобы не кричал. */
-.seat-tile.state-pending,
-.seat-tile.state-warning { --seat-color: var(--warning); --seat-ring: color-mix(in srgb, var(--warning) 58%, var(--border-strong)); }
-/* Проблема: ободок — более глубокий красный (смесь с --danger-strong), менее «томатный». */
-.seat-tile.state-blocking { --seat-color: var(--danger); --seat-ring: color-mix(in srgb, var(--danger) 70%, var(--danger-strong)); }
-.seat-tile.state-offline,
-.seat-tile.state-service { --seat-color: #64748b; --seat-ring: var(--text-tertiary); }
+/* Палитра состояния (кант = точка = ободок). Цвет = «посмотри сюда»: свободно — зелёное (зовёт),
+   в сессии — видимый нейтральный (фон смены), ожидание — приглушённый янтарь, нужно действие —
+   глубокий красный (не томатный), нет связи — слейт. Янтарь/красный приглушены смесью, чтобы не
+   кричали; нейтральный поднят до видимого, чтобы ободок был заметен. */
+.seat-tile.state-ready { --seat-color: var(--accent); }
+.seat-tile.state-active { --seat-color: var(--text-tertiary); }
+.seat-tile.state-pending { --seat-color: color-mix(in srgb, var(--warning) 70%, var(--border-strong)); }
+.seat-tile.state-blocking { --seat-color: color-mix(in srgb, var(--danger) 68%, var(--danger-strong)); }
+.seat-tile.state-offline { --seat-color: #64748b; }
 
 .seat-head,
 .seat-main,
@@ -2325,8 +2308,7 @@ button {
   color: var(--accent-text);
 }
 
-.seat-tile.state-pending .state-chip,
-.seat-tile.state-warning .state-chip {
+.seat-tile.state-pending .state-chip {
   color: var(--warning-text);
 }
 
@@ -2334,8 +2316,7 @@ button {
   color: var(--danger-text);
 }
 
-.seat-tile.state-offline .state-chip,
-.seat-tile.state-service .state-chip {
+.seat-tile.state-offline .state-chip {
   color: var(--text-strong);
 }
 
@@ -2352,14 +2333,8 @@ button {
   border-color: var(--danger-soft-border);
 }
 
-.seat-tile.state-warning:not(.selected) {
-  background: var(--warning-soft-bg);
-  border-color: var(--warning-soft-border);
-}
-
-/* Вне игры (офлайн/обслуживание) — приглушаем, место «не в строю». */
-.seat-tile.state-offline,
-.seat-tile.state-service {
+/* Вне игры (нет связи) — приглушаем, место «не в строю». */
+.seat-tile.state-offline {
   opacity: 0.92;
 }
 
@@ -2602,7 +2577,6 @@ button {
   overflow-wrap: anywhere;
 }
 
-.context-status-row.state-warning,
 .context-status-row.state-pending {
   border-left-color: var(--warning);
 }
@@ -2636,8 +2610,7 @@ button {
   color: var(--success-text);
 }
 
-.state-chip.state-pending,
-.state-chip.state-warning {
+.state-chip.state-pending {
   background: rgba(245, 158, 11, 0.13);
   color: var(--warning-text);
 }
@@ -2647,8 +2620,7 @@ button {
   color: var(--danger-text);
 }
 
-.state-chip.state-offline,
-.state-chip.state-service {
+.state-chip.state-offline {
   background: rgba(148, 163, 184, 0.12);
   color: var(--text-strong);
 }
@@ -2759,7 +2731,6 @@ button {
   background: var(--surface-card);
 }
 
-.seat-hero.state-warning,
 .seat-hero.state-pending {
   border-left-color: var(--warning);
 }
@@ -2768,8 +2739,7 @@ button {
   border-left-color: var(--danger);
 }
 
-.seat-hero.state-offline,
-.seat-hero.state-service {
+.seat-hero.state-offline {
   border-left-color: #64748b;
 }
 

@@ -19,7 +19,7 @@ export type SeatTileLead =
 
 // Loud colour is reserved for Attention/Problem; calm states (ready/active/pending) stay quiet.
 export function isAttentionTone(tone: SeatTone): boolean {
-  return tone === 'warning' || tone === 'blocking' || tone === 'offline' || tone === 'service';
+  return tone === 'blocking' || tone === 'offline';
 }
 
 export function seatTileLead(seat: SeatSummary): SeatTileLead {

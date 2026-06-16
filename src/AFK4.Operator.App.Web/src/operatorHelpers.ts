@@ -7,7 +7,7 @@ import { createOperatorApiClients, type BranchDiagnosticsDto, type OperatorDashb
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 import { isHostBridgeUnavailableError } from './hostBridge';
 import { signOutOperator, type OperatorAuthSession } from './authClient';
-import { mapFloorMapDtoToState, type FloorMapLoadStatus, type OperatorFloorMapState } from './floorMapState';
+import { mapFloorMapDtoToState, seatStatusLabel, type FloorMapLoadStatus, type OperatorFloorMapState } from './floorMapState';
 import { saveFloorMapCache } from './floorMapCache';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import type { DeviceCommandResultDto, DeviceStatusChangedDto, OperatorRealtimeConnectionState, SessionLifecycleChangedDto } from './operatorRealtime';
@@ -153,20 +153,14 @@ export function mapFilterOptions(t: TFunc): Array<{ id: MapFilterId; label: stri
   ];
 }
 
+// Единый словарь подписей состояния — делегируем seatStatusLabel (плитка/панель/таблица одинаково).
 export function toneLabel(tone: SeatTone, t: TFunc): string {
-  switch (tone) {
-    case 'ready': return t('op.helper.tone.ready');
-    case 'active': return t('op.helper.tone.active');
-    case 'pending': return t('op.helper.tone.pending');
-    case 'warning': return t('op.helper.tone.warning');
-    case 'blocking': return t('op.helper.tone.blocking');
-    case 'offline': return t('op.helper.tone.offline');
-    case 'service': return t('op.helper.tone.service');
-    default: return tone;
-  }
+  return seatStatusLabel(tone, t);
 }
 
-export const problemTones = new Set<SeatTone>(['pending', 'warning', 'blocking', 'offline', 'service']);
+// Проблемы = требующие реакции: «нужно действие» (сбой/сессия-без-связи) и «нет связи».
+// Ожидание (pending) — транзитное, не проблема.
+export const problemTones = new Set<SeatTone>(['blocking', 'offline']);
 export const emptyFeedback: Feedback = { label: '', state: 'idle' };
 
 export function countByTone(nextSeats: SeatSummary[], tone: SeatTone): number {
@@ -177,14 +171,12 @@ export function countProblems(nextSeats: SeatSummary[]): number {
   return nextSeats.filter((seat) => problemTones.has(seat.tone)).length;
 }
 
-// Жёсткие критические состояния зала для строки тревог — только то, по чему есть реальные
-// данные (#37): нет связи, сбой (снят шелл / упала сессия), обслуживание. Пустые не показываем.
-// Клик по счётчику ведёт на карту, отфильтрованную точно на эти места.
+// Критические состояния зала для строки тревог: «нужно действие» (сбой/сессия-без-связи) и
+// «нет связи». Пустые не показываем; клик по счётчику ведёт на карту с точечным фильтром.
 export function criticalAlertSources(nextSeats: SeatSummary[], t: TFunc): AlertSource[] {
   return ([
-    { id: 'offline', tone: 'danger', filterId: 'offline', label: t('op.alerts.critical.offline'), count: countByTone(nextSeats, 'offline') },
     { id: 'blocking', tone: 'danger', filterId: 'blocking', label: t('op.alerts.critical.blocking'), count: countByTone(nextSeats, 'blocking') },
-    { id: 'service', tone: 'warning', filterId: 'service', label: t('op.alerts.critical.service'), count: countByTone(nextSeats, 'service') }
+    { id: 'offline', tone: 'danger', filterId: 'offline', label: t('op.alerts.critical.offline'), count: countByTone(nextSeats, 'offline') }
   ] as const).filter((source) => source.count > 0).map((source) => ({ ...source }));
 }
 
@@ -209,13 +201,9 @@ export function matchesMapFilter(seat: SeatSummary, filterId: MapFilterId): bool
     return problemTones.has(seat.tone);
   }
 
-  // Точечные тон-фильтры — их ставит строка критсостояний (в ряду фильтров их нет, чтобы не плодить кнопки).
+  // Точечный тон-фильтр — его ставит строка критсостояний (в ряду фильтров его нет, чтобы не плодить кнопки).
   if (filterId === 'blocking') {
     return seat.tone === 'blocking';
-  }
-
-  if (filterId === 'service') {
-    return seat.tone === 'service';
   }
 
   return seat.tone === 'offline' || seat.isDeviceOnline === false;
@@ -531,13 +519,6 @@ export function mapSeatStatus(seat: SeatSummary, t: TFunc) {
     };
   }
 
-  if (seat.tone === 'warning') {
-    return {
-      label: t('op.helper.map.needsCheck'),
-      value: commandLabel(seat.command, t)
-    };
-  }
-
   if (seat.tone === 'offline') {
     return {
       label: t('op.helper.map.noSignal'),
@@ -545,8 +526,9 @@ export function mapSeatStatus(seat: SeatSummary, t: TFunc) {
     };
   }
 
+  // blocking — нужно действие.
   return {
-    label: t('op.helper.map.service'),
+    label: t('op.helper.map.needsCheck'),
     value: commandLabel(seat.command, t)
   };
 }

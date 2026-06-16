@@ -80,7 +80,7 @@ describe('SeatTile', () => {
     expect(bar).not.toBeNull();
     expect(bar?.classList.contains('seat-timebar--low')).toBe(false);
 
-    const { container: low } = renderTile(seat({ tone: 'warning', hasActiveSession: true, remainingSeconds: 300, remaining: '5 мин' }));
+    const { container: low } = renderTile(seat({ tone: 'active', hasActiveSession: true, remainingSeconds: 300, remaining: '5 мин' }));
     expect(low.querySelector('.seat-timebar--low')).not.toBeNull();
   });
 

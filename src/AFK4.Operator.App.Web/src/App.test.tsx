@@ -165,7 +165,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('button', { name: /Свободно/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Свободно/ }));
 
     expect(await screen.findByRole('heading', { name: 'PC-02' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /PC-01/ })).not.toBeInTheDocument();

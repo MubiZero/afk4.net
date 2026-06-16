@@ -1,4 +1,4 @@
-import { Hourglass, OctagonAlert, Plus, TrendingUp, TriangleAlert, WifiOff, Wrench } from 'lucide-react';
+import { Hourglass, OctagonAlert, Plus, TrendingUp, WifiOff } from 'lucide-react';
 import type { ComponentType, MouseEvent as ReactMouseEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary, SeatTone } from './operatorData';
@@ -10,10 +10,8 @@ import { isAttentionTone, seatTileLead } from './seatTilePresentation';
 // тем, что реально знаем: остаток времени-герой, статус и тип проблемы — без заглушек.
 const PROBLEM_ICON: Partial<Record<SeatTone, ComponentType<{ size?: number; 'aria-hidden'?: boolean }>>> = {
   pending: Hourglass,
-  warning: TriangleAlert,
   blocking: OctagonAlert,
-  offline: WifiOff,
-  service: Wrench
+  offline: WifiOff
 };
 
 export function SeatTile({

@@ -258,7 +258,7 @@ export function MapWorkspace({
                       <button type="button" onClick={() => onSelectSeat(seat.id)}>{seat.name}</button>
                       <span>{zoneLabel(seat.zone, t)}</span>
                     </td>
-                    <td><strong>{toneLabel(seat.tone, t)}</strong><span>{seat.stateLabel}</span></td>
+                    <td><strong>{toneLabel(seat.tone, t)}</strong></td>
                     <td>{seat.player}</td>
                     <td>{seat.remaining}</td>
                     <td>{deviceStatusLabel(seat.device, t)}</td>

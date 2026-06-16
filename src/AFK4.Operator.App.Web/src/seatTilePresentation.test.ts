@@ -26,7 +26,7 @@ function seat(overrides: Partial<SeatSummary>): SeatSummary {
 
 describe('isAttentionTone', () => {
   it('marks only attention/problem tones as loud', () => {
-    const loud: SeatTone[] = ['warning', 'blocking', 'offline', 'service'];
+    const loud: SeatTone[] = ['blocking', 'offline'];
     const calm: SeatTone[] = ['ready', 'active', 'pending'];
     for (const tone of loud) {
       expect(isAttentionTone(tone)).toBe(true);
@@ -73,9 +73,9 @@ describe('seatTileLead', () => {
     }
   });
 
-  it('falls back to plain status text for offline/service/pending and other non-session seats', () => {
+  it('falls back to plain status text for offline/blocking/pending and other non-session seats', () => {
     expect(seatTileLead(seat({ tone: 'offline', remaining: 'Нет heartbeat' }))).toEqual({ kind: 'plain', remaining: 'Нет heartbeat' });
     expect(seatTileLead(seat({ tone: 'pending', remaining: 'Ожидает' }))).toEqual({ kind: 'plain', remaining: 'Ожидает' });
-    expect(seatTileLead(seat({ tone: 'service', remaining: 'Закрыт' }))).toEqual({ kind: 'plain', remaining: 'Закрыт' });
+    expect(seatTileLead(seat({ tone: 'blocking', remaining: 'Нужно действие' }))).toEqual({ kind: 'plain', remaining: 'Нужно действие' });
   });
 });

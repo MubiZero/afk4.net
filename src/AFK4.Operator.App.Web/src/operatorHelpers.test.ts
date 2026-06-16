@@ -65,8 +65,7 @@ describe('criticalAlertSources', () => {
   const seats: SeatSummary[] = [
     toneSeat('offline'), toneSeat('offline'),
     toneSeat('blocking'),
-    toneSeat('service'),
-    toneSeat('ready'), toneSeat('active'), toneSeat('warning')
+    toneSeat('ready'), toneSeat('active'), toneSeat('pending')
   ];
 
   it('counts only the hard critical tones, each routed to a precise map filter', () => {
@@ -76,8 +75,7 @@ describe('criticalAlertSources', () => {
     expect(byId.offline.filterId).toBe('offline');
     expect(byId.blocking.count).toBe(1);
     expect(byId.blocking.filterId).toBe('blocking');
-    expect(byId.service.count).toBe(1);
-    expect(byId.service.filterId).toBe('service');
+    expect(byId.service).toBeUndefined();
   });
 
   it('omits a critical type with no seats instead of showing a fake zero', () => {

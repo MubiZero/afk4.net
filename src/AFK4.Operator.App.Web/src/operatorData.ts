@@ -10,7 +10,13 @@ import {
 import type { MessageKey } from '@afk4/i18n';
 import type { WorkspaceId } from './operatorTypes';
 
-export type SeatTone = 'ready' | 'active' | 'pending' | 'warning' | 'blocking' | 'offline' | 'service';
+// Консолидированная модель: 5 состояний, цвет = действие оператора.
+//  ready    — свободно (зелёный): посадить гостя
+//  active   — в сессии (нейтральный): следить
+//  pending  — ожидание команды (янтарь): подождать
+//  blocking — нужно действие (красный): сбой ИЛИ сессия без связи с ПК
+//  offline  — нет связи (серый): ПК недоступен / выведен на обслуживание
+export type SeatTone = 'ready' | 'active' | 'pending' | 'blocking' | 'offline';
 
 export interface SeatSummary {
   id: string;
@@ -138,8 +144,8 @@ export const seats: SeatSummary[] = [
     id: 'pc-04',
     zone: 'Зал A',
     name: 'PC-04',
-    tone: 'warning',
-    stateLabel: 'Долг',
+    tone: 'active',
+    stateLabel: 'В сессии',
     player: 'Said R.',
     remaining: '7 мин',
     billing: 'Постоплата',
@@ -209,8 +215,8 @@ export const seats: SeatSummary[] = [
     id: 'pc-09',
     zone: 'Зал B',
     name: 'PC-09',
-    tone: 'service',
-    stateLabel: 'Сервис',
+    tone: 'offline',
+    stateLabel: 'Нет связи',
     player: 'Нет игрока',
     remaining: 'Закрыт',
     billing: 'N/A',
@@ -382,8 +388,8 @@ export const seats: SeatSummary[] = [
     id: 'pc-22',
     zone: 'Bootcamp',
     name: 'PC-22',
-    tone: 'warning',
-    stateLabel: 'Внимание',
+    tone: 'active',
+    stateLabel: 'В сессии',
     player: 'Olim K.',
     remaining: '5 мин',
     billing: 'Wallet',

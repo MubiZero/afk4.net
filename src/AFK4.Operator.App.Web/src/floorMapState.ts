@@ -153,7 +153,7 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     zone: dto.zoneName,
     name: dto.seatName,
     tone,
-    stateLabel: displayState(dto.state, t),
+    stateLabel: seatStatusLabel(tone, t),
     player: hasActiveSession ? t('op.floor.player.active') : tone === 'ready' ? t('op.floor.player.guest') : t('op.floor.player.none'),
     remaining: isOpenTab
       ? accruedCostText(accruedCostMinorUnits, currencyCode, t)
@@ -207,7 +207,7 @@ function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedD
   return {
     ...seat,
     tone,
-    stateLabel: displayState(nextRawState, t),
+    stateLabel: seatStatusLabel(tone, t),
     remaining: hasActiveSession
       ? seat.remaining
       : remainingText(null, normalizedState, tone, hasActiveSession, t),
@@ -266,8 +266,9 @@ function resolveTone(
   isOnline: boolean,
   hasActiveSession: boolean
 ): SeatTone {
+  // Сессия идёт, но ПК потерял связь — авария: деньги капают, контроля нет → красный.
   if (hasDevice && !isOnline && hasActiveSession) {
-    return 'warning';
+    return 'blocking';
   }
 
   if (hasDevice && !isOnline) {
@@ -276,6 +277,7 @@ function resolveTone(
 
   switch (normalizedState) {
     case 'active':
+    case 'paused':
       return 'active';
     case 'free':
     case 'locked':
@@ -283,43 +285,27 @@ function resolveTone(
     case 'requested':
     case 'ending':
       return 'pending';
-    case 'paused':
-      return 'warning';
     case 'failed':
       return 'blocking';
     case 'offline':
-      return 'offline';
     case 'maintenance':
     case 'service':
-      return 'service';
+      return 'offline';
     default:
       return 'ready';
   }
 }
 
-function displayState(value: string, t: TFn): string {
-  switch (normalizeState(value)) {
-    case 'active':
-      return t('op.floor.state.active');
-    case 'free':
-      return t('op.floor.state.free');
-    case 'locked':
-      return t('op.floor.state.locked');
-    case 'requested':
-      return t('op.floor.state.requested');
-    case 'ending':
-      return t('op.floor.state.ending');
-    case 'paused':
-      return t('op.floor.state.paused');
-    case 'failed':
-      return t('op.floor.state.failed');
-    case 'offline':
-      return t('op.floor.state.offline');
-    case 'maintenance':
-    case 'service':
-      return t('op.floor.state.service');
-    default:
-      return value.replaceAll('_', ' ');
+// Единая подпись состояния по тону — один словарь для плитки, панели и таблицы
+// (раньше плитка подписывалась по сырому статусу, панель по тону → рассинхрон).
+export function seatStatusLabel(tone: SeatTone, t: TFn): string {
+  switch (tone) {
+    case 'ready': return t('op.helper.tone.ready');
+    case 'active': return t('op.helper.tone.active');
+    case 'pending': return t('op.helper.tone.pending');
+    case 'blocking': return t('op.helper.tone.blocking');
+    case 'offline': return t('op.helper.tone.offline');
+    default: return tone;
   }
 }
 
@@ -335,7 +321,8 @@ function remainingText(
   }
 
   if (hasActiveSession) {
-    return tone === 'warning' ? t('op.floor.remaining.pcOffline') : t('op.floor.remaining.playing');
+    // Сессия без обратного отсчёта: открытый счёт «играет» или потеря связи (blocking).
+    return tone === 'blocking' ? t('op.floor.remaining.pcOffline') : t('op.floor.remaining.playing');
   }
 
   if (tone === 'ready') {
@@ -347,13 +334,13 @@ function remainingText(
   }
 
   if (tone === 'offline') {
-    return t('op.floor.remaining.noHeartbeat');
+    // Обслуживание свёрнуто в «нет связи» по цвету, но причину в строке-теле сохраняем.
+    return normalizedState === 'maintenance' || normalizedState === 'service'
+      ? t('op.floor.remaining.closed')
+      : t('op.floor.remaining.noHeartbeat');
   }
 
-  if (tone === 'service') {
-    return t('op.floor.remaining.closed');
-  }
-
+  // blocking без сессии — сбой команды.
   return t('op.floor.remaining.action');
 }
 
@@ -385,10 +372,6 @@ function commandText(
 
   if (tone === 'offline') {
     return 'No route';
-  }
-
-  if (tone === 'service') {
-    return 'Technician';
   }
 
   return 'Payment check';
