@@ -28,6 +28,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<SeatEntity> Seats => Set<SeatEntity>();
 
+    public DbSet<WallEntity> Walls => Set<WallEntity>();
+
     public DbSet<DeviceEntity> Devices => Set<DeviceEntity>();
 
     public DbSet<DeviceSeatAssignmentEntity> DeviceSeatAssignments => Set<DeviceSeatAssignmentEntity>();
@@ -305,6 +307,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.ToTable("zones");
             entity.HasKey(zone => zone.ZoneId);
             entity.Property(zone => zone.Name).HasMaxLength(120).IsRequired();
+            entity.Property(zone => zone.Color).HasMaxLength(32);
+            entity.Property(zone => zone.ZoneType).HasMaxLength(32);
             entity.HasIndex(zone => new { zone.OrganizationId, zone.BranchId, zone.SortOrder });
         });
 
@@ -313,7 +317,16 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.ToTable("seats");
             entity.HasKey(seat => seat.SeatId);
             entity.Property(seat => seat.Name).HasMaxLength(80).IsRequired();
+            entity.Property(seat => seat.SeatType).HasMaxLength(32).HasDefaultValue("pc").IsRequired();
+            entity.Property(seat => seat.Rotation).HasDefaultValue(0);
             entity.HasIndex(seat => new { seat.OrganizationId, seat.BranchId, seat.ZoneId, seat.SortOrder });
+        });
+
+        modelBuilder.Entity<WallEntity>(entity =>
+        {
+            entity.ToTable("walls");
+            entity.HasKey(wall => wall.WallId);
+            entity.HasIndex(wall => new { wall.OrganizationId, wall.BranchId });
         });
 
         modelBuilder.Entity<DeviceEntity>(entity =>
