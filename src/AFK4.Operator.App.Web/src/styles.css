@@ -2175,9 +2175,11 @@ button {
 
 .seat-tile {
   --accent-rgb: 44, 197, 146;
-  /* Статусный цвет плитки (левый кант + точка). Отдельно от --accent-rgb, который держит
-     интеракционный акцент (hover/focus/selected) — он всегда фирменный зелёный. */
+  /* Кант + точка плитки — насыщенный статусный цвет. */
   --seat-color: var(--border-strong);
+  /* Ободок (hover/focus/selected) — тоже по тону, но настроен на читаемость на тёмном:
+     серые ярче (видно у «в сессии»), янтарь/красный приглушены (не кричат). */
+  --seat-ring: var(--border-strong);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2193,13 +2195,13 @@ button {
 }
 
 /* Ободок выделения = цвет состояния плитки (свободно→зелёный, нужно действие→красный…),
-   а не фирменный зелёный для всех. Берём готовый --seat-color; полупрозрачное свечение
-   выводим из него через color-mix, чтобы не плодить хардкод rgba по тонам. */
+   через настроенный --seat-ring. Кант (border-left) держим в насыщенном --seat-color.
+   Свечение выводим из ring через color-mix, без хардкода rgba по тонам. */
 .seat-tile.selected {
-  border-color: var(--seat-color);
+  border-color: var(--seat-ring);
   border-left-color: var(--seat-color);
   background: var(--surface-hover);
-  box-shadow: 0 0 0 1px var(--seat-color), 0 0 22px color-mix(in srgb, var(--seat-color) 20%, transparent);
+  box-shadow: 0 0 0 1px var(--seat-ring), 0 0 16px color-mix(in srgb, var(--seat-ring) 16%, transparent);
 }
 
 /* Пульсирует только blocking — провалившаяся команда, реальное «действуй сейчас». Остальное
@@ -2208,34 +2210,40 @@ button {
   animation: attention-pulse 2100ms ease-in-out infinite;
 }
 
+/* Ховер/фокус тоже по тону (а не фирменный зелёный для всех): кант держим в --seat-color,
+   ободок и подсветку — в --seat-ring. */
 .seat-tile:hover,
 .seat-tile:focus-visible {
-  border-color: rgba(var(--accent-rgb), 0.95);
+  border-color: var(--seat-ring);
+  border-left-color: var(--seat-color);
   background: var(--surface-card);
-  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.12), 0 8px 18px rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--seat-ring) 14%, transparent), 0 8px 18px rgba(0, 0, 0, 0.18);
   outline: none;
   transform: translateY(-1px);
 }
 
 .seat-tile:focus-visible {
-  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.78), 0 8px 18px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 0 0 2px var(--seat-ring), 0 8px 18px rgba(0, 0, 0, 0.18);
 }
 
 /* Клавиатурный фокус на уже выбранной плитке — ободок тоже по цвету состояния. */
 .seat-tile.selected:focus-visible {
-  box-shadow: 0 0 0 2px var(--seat-color), 0 8px 18px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 0 0 2px var(--seat-ring), 0 8px 18px rgba(0, 0, 0, 0.18);
 }
 
 /* Статусная палитра канта/точки плитки. Принцип: цвет = «посмотри сюда».
    Свободно — зелёное (можно продать, зовёт). Занято-и-исправно — нейтральное (фон смены,
    не отвлекает). Ожидание — янтарь, проблема — красный, вне игры (офлайн/обслуживание) — серое. */
-.seat-tile.state-ready { --seat-color: var(--accent); }
-.seat-tile.state-active { --seat-color: var(--border-strong); }
+.seat-tile.state-ready { --seat-color: var(--accent); --seat-ring: var(--accent); }
+/* «В сессии» нейтрально → ободок берём светло-серым (--text-secondary), иначе на тёмном не виден. */
+.seat-tile.state-active { --seat-color: var(--border-strong); --seat-ring: var(--text-secondary); }
+/* Ожидание: кант ярко-янтарный, но ободок приглушаем (смесь с серым), чтобы не кричал. */
 .seat-tile.state-pending,
-.seat-tile.state-warning { --seat-color: var(--warning); }
-.seat-tile.state-blocking { --seat-color: var(--danger); }
+.seat-tile.state-warning { --seat-color: var(--warning); --seat-ring: color-mix(in srgb, var(--warning) 58%, var(--border-strong)); }
+/* Проблема: ободок — более глубокий красный (смесь с --danger-strong), менее «томатный». */
+.seat-tile.state-blocking { --seat-color: var(--danger); --seat-ring: color-mix(in srgb, var(--danger) 70%, var(--danger-strong)); }
 .seat-tile.state-offline,
-.seat-tile.state-service { --seat-color: #64748b; }
+.seat-tile.state-service { --seat-color: #64748b; --seat-ring: var(--text-tertiary); }
 
 .seat-head,
 .seat-main,
