@@ -9,6 +9,7 @@ export interface FloorInspectorSeat {
   rotation: number;
   posX: number;
   posY: number;
+  zoneId: string;
 }
 
 // Explicit literal array so each labelKey is a known MessageKey — template literals
@@ -25,11 +26,15 @@ const SEAT_TYPE_OPTIONS: { value: string; labelKey: MessageKey }[] = [
 
 export function FloorInspector({
   seat,
+  zones,
+  onSetZone,
   onRotate,
   onSetType,
   onRemove
 }: {
   seat: FloorInspectorSeat;
+  zones: { id: string; name: string }[];
+  onSetZone: (zoneId: string) => void;
   onRotate: (next: number) => void;
   onSetType: (type: string) => void;
   onRemove: (id: string) => void;
@@ -42,6 +47,16 @@ export function FloorInspector({
     <div className="floor-inspector">
       <h3 className="floor-inspector-title">{t('op.map.plan.edit.inspectorTitle')}</h3>
       <p className="floor-inspector-name">{seat.name}</p>
+
+      <div className="floor-inspector-field">
+        <span className="floor-inspector-label">{t('op.map.plan.edit.seatZoneLabel')}</span>
+        <PanelSelect
+          value={seat.zoneId}
+          options={zones.map((z) => ({ value: z.id, label: z.name }))}
+          onChange={onSetZone}
+          ariaLabel={t('op.map.plan.edit.seatZoneLabel')}
+        />
+      </div>
 
       <div className="floor-inspector-field">
         <span className="floor-inspector-label">{t('op.map.plan.edit.seatTypeLabel')}</span>
