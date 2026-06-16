@@ -156,7 +156,7 @@ describe('App', () => {
       String(init.body).includes('"type":"lock"'))).toBe(true));
   });
 
-  it('filters the floor map and switches to table view', async () => {
+  it('filters the floor map and switches to plan view', async () => {
     installSessionBridge();
 
     render(<App />);
@@ -167,13 +167,16 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'PC-02' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /PC-01/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Таблица' }));
+    fireEvent.click(screen.getByRole('button', { name: 'План' }));
 
-    expect(await screen.findByRole('table', { name: 'Таблица ПК' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Команда' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'PC-02' })).toBeInTheDocument();
+    // Fixture seats carry no coordinates → plan is empty (зал ещё не размечен).
+    expect(await screen.findByText('Зал ещё не размечен')).toBeInTheDocument();
+    // No «Таблица» button should exist anywhere on the map workspace.
+    expect(screen.queryByRole('button', { name: 'Таблица' })).not.toBeInTheDocument();
+    // Switch back to grid view to verify the filter works across view modes.
+    fireEvent.click(within(screen.getByLabelText('Вид карты')).getByRole('button', { name: 'Карта' }));
     fireEvent.click(screen.getByRole('button', { name: /Сессии/ }));
-    expect(await screen.findByRole('button', { name: 'PC-01' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /PC-01/ })).toBeInTheDocument();
   });
 
   it('uses the host currency in money surfaces', async () => {
