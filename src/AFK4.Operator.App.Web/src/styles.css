@@ -8524,6 +8524,13 @@ button {
   min-height: 0;
 }
 
+.floor-plan-editor-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
 .floor-plan-editor-confirm-actions {
   display: flex;
   gap: 8px;
