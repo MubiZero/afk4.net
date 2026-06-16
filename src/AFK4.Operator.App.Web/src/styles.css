@@ -1394,10 +1394,6 @@ button {
 .pc-status-readout {
   display: grid;
   gap: 8px;
-  padding: 9px 10px;
-  border-radius: 7px;
-  background: var(--surface-sunken);
-  animation: soft-enter 140ms ease-out;
 }
 
 /* Строка готовности к действиям — отделяем от блока действий тонкой чертой. */
