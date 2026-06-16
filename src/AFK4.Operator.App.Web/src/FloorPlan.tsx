@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { Minus, Plus } from 'lucide-react';
-import { useI18n, type MessageKey } from '@afk4/i18n';
+import { useI18n } from '@afk4/i18n';
 import { cellToPx, CANVAS_PADDING, DEFAULT_CELL_SIZE } from './floorPlanGeometry';
 import type { PlanModel } from './floorPlanState';
 import { PlanSeat } from './PlanSeat';
@@ -94,18 +94,19 @@ export function FloorPlan({
   return (
     <div className="floor-plan">
       <div className="floor-plan-toolbar">
-        <button type="button" aria-label={t('op.map.plan.zoomOut' as MessageKey)} onClick={() => zoom(-0.2)}><Minus size={16} /></button>
-        <button type="button" aria-label={t('op.map.plan.zoomReset' as MessageKey)} onClick={() => { setScale(1); setPan({ x: 0, y: 0 }); }}>{Math.round(scale * 100)}%</button>
-        <button type="button" aria-label={t('op.map.plan.zoomIn' as MessageKey)} onClick={() => zoom(0.2)}><Plus size={16} /></button>
+        <button type="button" aria-label={t('op.map.plan.zoomOut')} onClick={() => zoom(-0.2)}><Minus size={16} /></button>
+        <button type="button" aria-label={t('op.map.plan.zoomReset')} onClick={() => { setScale(1); setPan({ x: 0, y: 0 }); }}>{Math.round(scale * 100)}%</button>
+        <button type="button" aria-label={t('op.map.plan.zoomIn')} onClick={() => zoom(0.2)}><Plus size={16} /></button>
       </div>
       <div
         ref={viewportRef}
         className="floor-plan-viewport"
         role="application"
-        aria-label={t('op.map.plan.canvasLabel' as MessageKey)}
+        aria-label={t('op.map.plan.canvasLabel')}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
+        onPointerCancel={endDrag}
       >
         <div
           className="floor-plan-canvas"
