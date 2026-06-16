@@ -56,4 +56,20 @@ describe('PlanSeat', () => {
     fireEvent.contextMenu(getByRole('button'));
     expect(opened).toBe(true);
   });
+
+  it('applies a visual rotation transform', () => {
+    const { getByRole } = renderSeat(model({ rotation: 90 }));
+    expect(getByRole('button').style.transform).toContain('rotate(90deg)');
+  });
+
+  it('fires onSeatDragStart when draggable (edit mode)', () => {
+    let started = '';
+    const { getByRole } = render(
+      <I18nProvider>
+        <PlanSeat seat={model()} cellSize={56} onSelect={() => {}} draggable onSeatDragStart={(id) => { started = id; }} />
+      </I18nProvider>
+    );
+    fireEvent.pointerDown(getByRole('button'));
+    expect(started).toBe('pc-01');
+  });
 });

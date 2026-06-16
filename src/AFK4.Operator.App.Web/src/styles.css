@@ -8240,7 +8240,10 @@ button {
   cursor: pointer;
   box-sizing: border-box;
   overflow: hidden;
+  transform-origin: center;
 }
+.plan-seat--draggable { cursor: grab; }
+.plan-seat--draggable:active { cursor: grabbing; }
 .plan-seat.state-ready { --seat-color: var(--accent); }
 .plan-seat.state-active { --seat-color: var(--text-tertiary); }
 .plan-seat.state-pending { --seat-color: color-mix(in srgb, var(--warning) 70%, var(--border-strong)); }
