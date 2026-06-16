@@ -8338,6 +8338,44 @@ button {
   color: var(--text-tertiary);
 }
 
+.floor-zone-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+}
+
+.floor-palette-item.is-selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-canvas));
+}
+
+.floor-zone-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.floor-zone-add:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.floor-zone-add:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 /* ===== Floor plan editor: inspector (selected seat properties) ===== */
 .floor-inspector {
   display: flex;
