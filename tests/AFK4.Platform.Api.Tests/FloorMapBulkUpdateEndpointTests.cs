@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Identity;
@@ -189,6 +190,100 @@ public sealed class FloorMapBulkUpdateEndpointTests
         var response = await client.SendAsync(put);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BulkUpdateAsync_PersistsSeatGeometryZoneGeometryAndReplacesWalls()
+    {
+        var options = new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        var now = DateTimeOffset.Parse("2026-06-16T00:00:00Z");
+
+        await using (var seed = new PlatformDbContext(options))
+        {
+            seed.Branches.Add(new BranchEntity { BranchId = TestIds.BranchId, OrganizationId = TestIds.OrganizationId, Name = "Branch", CreatedAtUtc = now });
+            seed.Walls.Add(new WallEntity { WallId = Guid.NewGuid(), OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, X1 = 99, Y1 = 99, X2 = 99, Y2 = 99, CreatedAtUtc = now });
+            await seed.SaveChangesAsync();
+        }
+
+        string etag;
+        await using (var db = new PlatformDbContext(options))
+        {
+            etag = FloorMapEtag.Compute(
+                await db.Zones.Where(z => z.BranchId == TestIds.BranchId).ToListAsync(),
+                await db.Seats.Where(s => s.BranchId == TestIds.BranchId).ToListAsync(),
+                await db.Walls.Where(w => w.BranchId == TestIds.BranchId).ToListAsync());
+        }
+
+        var request = new FloorMapBulkUpdateRequest(
+            TestIds.OrganizationId,
+            [new FloorMapBulkZoneRequest(null, "z1", "VIP", 1, GeoX: 1, GeoY: 2, GeoWidth: 4, GeoHeight: 3, Color: "#22c55e", ZoneType: "lounge")],
+            [new FloorMapBulkSeatRequest(null, "s1", "z1", "PC-1", 1, PosX: 3, PosY: 5, Rotation: 90, SeatType: "console")],
+            [new FloorMapBulkWallRequest(0, 0, 10, 0)]);
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            var service = new EfFloorMapEditService(db, TimeProvider.System);
+            var result = await service.BulkUpdateAsync(TestIds.OrganizationId, TestIds.BranchId, etag, request, CancellationToken.None);
+            Assert.Equal(FloorMapBulkUpdateStatus.Success, result.Status);
+        }
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            var seat = await db.Seats.SingleAsync();
+            Assert.Equal(3, seat.PosX);
+            Assert.Equal("console", seat.SeatType);
+            var zone = await db.Zones.SingleAsync();
+            Assert.Equal(4, zone.GeoWidth);
+            Assert.Equal("lounge", zone.ZoneType);
+            var wall = Assert.Single(await db.Walls.ToListAsync());
+            Assert.Equal(10, wall.X2);
+        }
+    }
+
+    [Fact]
+    public async Task BulkUpdateAsync_DoesNotTouchAnotherBranchWalls()
+    {
+        var options = new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+        var now = DateTimeOffset.Parse("2026-06-16T00:00:00Z");
+
+        await using (var seed = new PlatformDbContext(options))
+        {
+            seed.Branches.Add(new BranchEntity { BranchId = TestIds.BranchId, OrganizationId = TestIds.OrganizationId, Name = "Branch A", CreatedAtUtc = now });
+            seed.Walls.Add(new WallEntity { WallId = Guid.NewGuid(), OrganizationId = TestIds.OrganizationId, BranchId = TestIds.OtherBranchId, X1 = 5, Y1 = 5, X2 = 50, Y2 = 5, CreatedAtUtc = now });
+            await seed.SaveChangesAsync();
+        }
+
+        string etag;
+        await using (var db = new PlatformDbContext(options))
+        {
+            etag = FloorMapEtag.Compute(
+                await db.Zones.Where(z => z.BranchId == TestIds.BranchId).ToListAsync(),
+                await db.Seats.Where(s => s.BranchId == TestIds.BranchId).ToListAsync(),
+                await db.Walls.Where(w => w.BranchId == TestIds.BranchId).ToListAsync());
+        }
+
+        var request = new FloorMapBulkUpdateRequest(
+            TestIds.OrganizationId,
+            [new FloorMapBulkZoneRequest(null, "z1", "Main", 1)],
+            [],
+            [new FloorMapBulkWallRequest(0, 0, 1, 1)]);
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            var service = new EfFloorMapEditService(db, TimeProvider.System);
+            var result = await service.BulkUpdateAsync(TestIds.OrganizationId, TestIds.BranchId, etag, request, CancellationToken.None);
+            Assert.Equal(FloorMapBulkUpdateStatus.Success, result.Status);
+        }
+
+        await using (var db = new PlatformDbContext(options))
+        {
+            var otherWallExists = await db.Walls.AnyAsync(w => w.BranchId == TestIds.OtherBranchId);
+            Assert.True(otherWallExists);
+        }
     }
 
     private static HttpRequestMessage BuildPut(string ifMatch, FloorMapBulkUpdateRequest request)
