@@ -222,6 +222,34 @@ describe('floor-map state', () => {
       remaining: 'осталось 58 мин'
     });
   });
+
+  it('carries seat geometry and keeps zones and walls for the plan view', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      zones: [
+        { zoneId: '44444444-4444-4444-4444-444444444444', name: 'Зал A', sortOrder: 10, geoX: 0, geoY: 0, geoWidth: 4, geoHeight: 3, color: '#22d3ee', zoneType: 'hall' },
+        { zoneId: '55555555-5555-5555-5555-555555555555', name: 'Без геометрии', sortOrder: 20 }
+      ],
+      walls: [
+        { wallId: '66666666-6666-6666-6666-666666666666', x1: 0, y1: 0, x2: 4, y2: 0 }
+      ],
+      seats: [
+        createSeat({ seatName: 'PC-01', sortOrder: 10, state: 'Locked', posX: 1, posY: 2, rotation: 90, seatType: 'console' })
+      ]
+    }, t);
+
+    expect(state.zones).toHaveLength(2);
+    expect(state.walls).toHaveLength(1);
+    expect(state.walls[0]).toMatchObject({ x1: 0, y1: 0, x2: 4, y2: 0 });
+    expect(state.seats[0]).toMatchObject({ posX: 1, posY: 2, rotation: 90, seatType: 'console' });
+  });
+
+  it('defaults zones and walls to empty arrays for fixtures', () => {
+    const state = createFixtureFloorMapState();
+    expect(state.zones).toEqual([]);
+    expect(state.walls).toEqual([]);
+  });
 });
 
 function createSeat(overrides: Partial<FloorMapDto['seats'][number]> = {}): FloorMapDto['seats'][number] {
