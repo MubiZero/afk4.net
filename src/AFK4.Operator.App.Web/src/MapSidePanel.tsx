@@ -68,6 +68,20 @@ const checkoutMethodIcons: Record<CheckoutMethod, ReactNode> = {
   wallet: <ReceiptText size={14} />
 };
 
+// Местное настенное время HH:MM начала сессии — оператор читает зал в локальном времени.
+function formatSessionClock(iso: string | null | undefined): string | null {
+  if (!iso) {
+    return null;
+  }
+
+  const at = new Date(iso);
+  if (Number.isNaN(at.getTime())) {
+    return null;
+  }
+
+  return `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
+}
+
 /**
  * Визуальный отклик на действие вместо строки текста: пока команда в полёте — спиннер,
  * при успехе — зелёная галочка (сама гаснет через эффект выше). Ошибку показываем текстом:
@@ -360,6 +374,8 @@ export function MapSidePanel({
   const hasPendingSessionCommand = hasStoredSession && isPendingSeatCommand(seat);
   const hasActionableSession = hasStoredSession && !hasPendingSessionCommand;
   const hasActiveSession = hasStoredSession || seat.hasActiveSession === true || seat.tone === 'active';
+  const startedAtClock = formatSessionClock(seat.sessionStartedAtUtc);
+  const hasSessionIdentity = hasActiveSession && Boolean(seat.playerDisplayName || seat.tariffName || startedAtClock);
   const isBusy = feedback.state === 'pending';
   const canStartPermission = hasPermission(session, permissionNames.startSession);
   const canExtendPermission = hasPermission(session, permissionNames.extendSession);
@@ -724,6 +740,22 @@ export function MapSidePanel({
             <span>{t('op.map.panel.accrued')}</span>
             <strong className="detail-value-money">{formatMinorUnits(seat.accruedCostMinorUnits, currencyCode)}</strong>
           </div>
+        </section>
+      )}
+
+      {hasSessionIdentity && (
+        // Кто на месте и по какому тарифу — реальные данные сессии из floor-map DTO (B1),
+        // а не плейсхолдеры. Каждую строку показываем только когда бэкенд её знает (#34).
+        <section className="context-section">
+          {seat.playerDisplayName && (
+            <div className="detail-row"><span>{t('op.map.colPlayer')}</span><strong>{seat.playerDisplayName}</strong></div>
+          )}
+          {seat.tariffName && (
+            <div className="detail-row"><span>{t('op.map.panel.tariffLabel')}</span><strong>{seat.tariffName}</strong></div>
+          )}
+          {startedAtClock && (
+            <div className="detail-row"><span>{t('op.map.panel.startedLabel')}</span><strong>{startedAtClock}</strong></div>
+          )}
         </section>
       )}
 

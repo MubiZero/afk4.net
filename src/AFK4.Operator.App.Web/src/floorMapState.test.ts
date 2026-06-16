@@ -79,6 +79,50 @@ describe('floor-map state', () => {
     });
   });
 
+  it('surfaces the real player name, tariff and session start from the backend DTO', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      seats: [
+        createSeat({
+          state: 'Active',
+          activeSessionId: '33333333-3333-3333-3333-333333333333',
+          remainingSeconds: 3600,
+          playerDisplayName: 'Иван Петров',
+          tariffName: 'VIP час',
+          sessionStartedAtUtc: '2026-05-21T08:48:00Z'
+        })
+      ]
+    }, t);
+
+    expect(state.seats[0]).toMatchObject({
+      player: 'Иван Петров',
+      playerDisplayName: 'Иван Петров',
+      tariffName: 'VIP час',
+      sessionStartedAtUtc: '2026-05-21T08:48:00Z'
+    });
+  });
+
+  it('falls back to the generic player placeholder for a guest session with no account name', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      seats: [
+        createSeat({
+          state: 'Active',
+          activeSessionId: '33333333-3333-3333-3333-333333333333',
+          remainingSeconds: 3600,
+          playerDisplayName: null,
+          tariffName: null
+        })
+      ]
+    }, t);
+
+    expect(state.seats[0].player).toBe(t('op.floor.player.active'));
+    expect(state.seats[0].playerDisplayName ?? null).toBeNull();
+    expect(state.seats[0].tariffName ?? null).toBeNull();
+  });
+
   it('applies SignalR device status by device id and updates free seats', () => {
     const state = mapFloorMapDtoToState({
       branchId,

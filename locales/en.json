@@ -1136,6 +1136,7 @@
   "op.map.panel.finishLabel": "Finish session",
   "op.map.panel.endWithoutPay": "End without payment",
   "op.map.panel.accrued": "Accrued",
+  "op.map.panel.startedLabel": "Started",
   "op.map.panel.connection": "Connection",
   "op.map.panel.lock": "Lock",
   "op.map.panel.versions": "Software versions",

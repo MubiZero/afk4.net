@@ -42,6 +42,11 @@ export interface SeatSummary {
   accruedCostMinorUnits?: number | null;
   currencyCode?: string | null;
   sortOrder?: number;
+  // Real session identity (B1 DTO): the account player name, the billed tariff name, and
+  // the start instant — null when the backend has none (guest, free seat) or on fixtures.
+  playerDisplayName?: string | null;
+  tariffName?: string | null;
+  sessionStartedAtUtc?: string | null;
 }
 
 export interface NavItem {

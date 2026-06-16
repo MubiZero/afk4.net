@@ -65,6 +65,22 @@ describe('MapSidePanel diagnostics (A3)', () => {
     utils.getByText('Статус ПК');
   });
 
+  it('shows the real client and tariff from the backend session, not a placeholder', () => {
+    const utils = renderPanel(seat({
+      playerDisplayName: 'Иван Петров',
+      tariffName: 'VIP час',
+      sessionStartedAtUtc: '2026-05-21T08:48:00Z'
+    }));
+    utils.getByText('Иван Петров');
+    utils.getByText('VIP час');
+    utils.getByText('Начата');
+  });
+
+  it('omits the session-identity block for a guest session with no account or tariff', () => {
+    const utils = renderPanel(seat({ playerDisplayName: null, tariffName: null, sessionStartedAtUtc: null }));
+    expect(utils.queryByText('Начата')).toBeNull();
+  });
+
   it('shows the real running total for an open tab in the host currency', () => {
     const { getByText } = renderPanel(seat({ remaining: '≈ 54 c.', remainingSeconds: null, accruedCostMinorUnits: 5400 }));
     getByText('Набежало');

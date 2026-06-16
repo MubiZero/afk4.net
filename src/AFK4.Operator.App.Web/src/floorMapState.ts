@@ -147,6 +147,11 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
   const currencyCode = dto.currencyCode ?? null;
   // Open tabs (no countdown) show the live accruing cost where fixed sessions show time left.
   const isOpenTab = hasActiveSession && remainingSeconds === null && accruedCostMinorUnits !== null;
+  // Prefer the real account name from the backend; fall back to the generic placeholder only
+  // when the session has no named player (guest) or the seat is free.
+  const playerDisplayName = dto.playerDisplayName?.trim() || null;
+  const tariffName = dto.tariffName?.trim() || null;
+  const sessionStartedAtUtc = dto.sessionStartedAtUtc ?? null;
 
   return {
     id: dto.seatId,
@@ -154,7 +159,7 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     name: dto.seatName,
     tone,
     stateLabel: seatStatusLabel(tone, t),
-    player: hasActiveSession ? t('op.floor.player.active') : tone === 'ready' ? t('op.floor.player.guest') : t('op.floor.player.none'),
+    player: playerDisplayName ?? (hasActiveSession ? t('op.floor.player.active') : tone === 'ready' ? t('op.floor.player.guest') : t('op.floor.player.none')),
     remaining: isOpenTab
       ? accruedCostText(accruedCostMinorUnits, currencyCode, t)
       : remainingText(remainingSeconds, normalizedState, tone, hasActiveSession, t),
@@ -179,7 +184,10 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     remainingDeadlineMs,
     accruedCostMinorUnits,
     currencyCode,
-    sortOrder: dto.sortOrder
+    sortOrder: dto.sortOrder,
+    playerDisplayName,
+    tariffName,
+    sessionStartedAtUtc
   };
 }
 
