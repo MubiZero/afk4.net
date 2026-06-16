@@ -1137,6 +1137,11 @@ button {
   stroke: color-mix(in srgb, var(--accent) 40%, transparent);
   stroke-width: 1.5;
 }
+.floor-plan-zone--selected {
+  fill: color-mix(in srgb, var(--accent) 16%, transparent);
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
 .floor-plan-wall {
   stroke: var(--text-primary);
   stroke-width: 4;

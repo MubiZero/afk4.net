@@ -19,7 +19,8 @@ export function FloorPlan({
   onSelectSeat,
   onSeatContextMenu,
   mode = 'view',
-  onSeatMove
+  onSeatMove,
+  selectedZoneId
 }: {
   model: PlanModel;
   selectedSeatId: string;
@@ -27,6 +28,7 @@ export function FloorPlan({
   onSeatContextMenu?: (seatId: string, event: ReactMouseEvent) => void;
   mode?: 'view' | 'edit';
   onSeatMove?: (seatId: string, posX: number, posY: number) => void;
+  selectedZoneId?: string;
 }) {
   const { t } = useI18n();
   const [scale, setScale] = useState(1);
@@ -191,7 +193,7 @@ export function FloorPlan({
             {model.zones.map((zone) => (
               <rect
                 key={zone.id}
-                className="floor-plan-zone"
+                className={zone.id === selectedZoneId ? 'floor-plan-zone floor-plan-zone--selected' : 'floor-plan-zone'}
                 rx={8}
                 x={px(zone.geoX)}
                 y={py(zone.geoY)}

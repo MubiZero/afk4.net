@@ -79,6 +79,27 @@ describe('FloorPlan edit mode', () => {
 });
 
 describe('FloorPlan', () => {
+  it('marks the selected zone rect with a highlight class', () => {
+    const model = {
+      placedSeats: [{ id: 's1', name: 'PC-1', tone: 'ready' as const, stateLabel: 'Свободно', seatType: 'pc', rotation: 0, posX: 0, posY: 0 }],
+      unplacedSeats: [],
+      zones: [
+        { id: 'zone-1', name: 'Зал', geoX: 0, geoY: 0, geoWidth: 4, geoHeight: 3, color: null, zoneType: null },
+        { id: 'zone-2', name: 'VIP', geoX: 0, geoY: 4, geoWidth: 3, geoHeight: 2, color: null, zoneType: null }
+      ],
+      walls: [],
+      bbox: { minX: 0, minY: 0, maxX: 4, maxY: 6 },
+      isEmpty: false
+    };
+    const { container } = render(
+      <I18nProvider>
+        <FloorPlan model={model} selectedSeatId="" onSelectSeat={() => {}} selectedZoneId="zone-2" />
+      </I18nProvider>
+    );
+    const selected = container.querySelectorAll('.floor-plan-zone--selected');
+    expect(selected.length).toBe(1);
+  });
+
   it('renders a seat marker per placed seat and labels the zone', () => {
     const { getByRole, getByText } = renderPlan(nonEmptyModel());
     expect(getByRole('button', { name: 'PC-01 В сессии' })).not.toBeNull();
