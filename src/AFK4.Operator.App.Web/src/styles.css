@@ -1137,6 +1137,11 @@ button {
   stroke: color-mix(in srgb, var(--accent) 40%, transparent);
   stroke-width: 1.5;
 }
+.floor-plan-zone--selected {
+  fill: color-mix(in srgb, var(--accent) 16%, transparent);
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
 .floor-plan-wall {
   stroke: var(--text-primary);
   stroke-width: 4;
@@ -8333,6 +8338,44 @@ button {
   color: var(--text-tertiary);
 }
 
+.floor-zone-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+}
+
+.floor-palette-item.is-selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-canvas));
+}
+
+.floor-zone-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.floor-zone-add:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.floor-zone-add:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 /* ===== Floor plan editor: inspector (selected seat properties) ===== */
 .floor-inspector {
   display: flex;
@@ -8405,6 +8448,62 @@ button {
   border-color: color-mix(in srgb, var(--danger) 40%, var(--border-strong));
 }
 
+.floor-inspector-field input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.floor-zone-geo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.floor-zone-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.floor-zone-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.floor-zone-swatch.is-selected {
+  border-color: var(--text-primary);
+}
+
+.floor-zone-swatch:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.floor-zone-swatch-none {
+  padding: 3px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface-canvas);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.floor-zone-delete-reason {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
 /* «План» editor: action bar on top, then palette · canvas · inspector. */
 .floor-plan-editor {
   display: flex;
@@ -8421,6 +8520,13 @@ button {
 .floor-plan-editor-body {
   display: grid;
   grid-template-columns: 200px minmax(0, 1fr) 220px;
+  gap: 12px;
+  min-height: 0;
+}
+
+.floor-plan-editor-rail {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   min-height: 0;
 }

@@ -53,4 +53,33 @@ describe('FloorPlanEditor', () => {
     expect(getByText('Отменить изменения?')).not.toBeNull();   // confirm modal shown
     expect(exited).toBe(false);                                // not exited yet
   });
+
+  it('adds a zone and shows it selected in the inspector', () => {
+    const { getByRole, getByText } = renderEditor(async () => {});
+
+    fireEvent.click(getByRole('button', { name: 'Добавить зону' }));
+
+    expect(getByText('Свойства зоны')).not.toBeNull();         // zone inspector for the new, auto-selected zone
+  });
+
+  it('blocks deleting a zone that still has seats and explains why', () => {
+    const { getByRole, getByText } = renderEditor(async () => {});
+
+    fireEvent.click(getByText('Зал A'));                       // select the seeded zone (owns both seats)
+    const del = getByRole('button', { name: 'Удалить зону' });
+
+    expect(del).toBeDisabled();
+    expect(getByText('Сначала перенесите места из этой зоны.')).not.toBeNull();
+  });
+
+  it('serializes new zones into the save request', async () => {
+    let submitted: FloorMapBulkUpdateRequest | null = null;
+    const { getByRole } = renderEditor(async (req) => { submitted = req; });
+
+    fireEvent.click(getByRole('button', { name: 'Добавить зону' }));
+    fireEvent.click(getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(submitted).not.toBeNull());
+    expect(submitted!.zones.some((z) => z.zoneId === null)).toBe(true);   // a brand-new zone is in the payload
+  });
 });
