@@ -3,27 +3,27 @@ import { MonitorCheck, TriangleAlert } from 'lucide-react';
 import type { AlertSource, MapFilterId } from './operatorTypes';
 
 interface Props {
-  problems: number;
-  offline: number;
-  // Счётчики критсостояний зала; клик ведёт на карту, отфильтрованную на эти места.
+  // Разбивка критических состояний зала по типам (нет связи / сбой / обслуживание).
+  // Клик по счётчику ведёт на карту, отфильтрованную точно на эти места.
   sources?: AlertSource[];
   onSelectSource?: (filterId: MapFilterId) => void;
 }
 
-export function ShellAlerts({ problems, offline, sources = [], onSelectSource }: Props) {
+// Статус-бар здоровья парка: либо разбивка критических состояний по типам (каждый счётчик
+// кликабелен), либо позитивное «Всё в норме». Без общего агрегата «N проблем · M офлайн» —
+// он дублировал бы те же офлайн-места, что уже считает чип «Нет связи».
+export function ShellAlerts({ sources = [], onSelectSource }: Props) {
   const { t } = useI18n();
-  const hasProblems = problems > 0;
-  // Encode state beyond color: a distinct icon + the ICU text carry the meaning for anyone who
-  // can't perceive the danger tone (the red is decoration, not the signal).
-  const Icon = hasProblems ? TriangleAlert : MonitorCheck;
+  const hasCritical = sources.length > 0;
+  // Icon + text carry the meaning so the red is decoration, not the only signal.
+  const Icon = hasCritical ? TriangleAlert : MonitorCheck;
   return (
     <span
-      className={hasProblems ? 'shell-alerts danger' : 'shell-alerts'}
+      className={hasCritical ? 'shell-alerts danger' : 'shell-alerts'}
       aria-label={t('op.alerts.label')}
     >
       <Icon size={14} aria-hidden="true" />
-      {t('op.alerts.summary', { problems, offline })}
-      {sources.length > 0 && (
+      {hasCritical ? (
         <span className="shell-alert-counters">
           {sources.map((source) => (
             <button
@@ -38,6 +38,8 @@ export function ShellAlerts({ problems, offline, sources = [], onSelectSource }:
             </button>
           ))}
         </span>
+      ) : (
+        t('op.alerts.allClear')
       )}
     </span>
   );

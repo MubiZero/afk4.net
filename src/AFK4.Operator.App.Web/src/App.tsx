@@ -58,8 +58,6 @@ import {
   firstAllowedWorkspace
 } from './operatorPermissions';
 import {
-  countByTone,
-  countProblems,
   criticalAlertSources,
   operatorDisplayNameLabel,
   dataSourceLabel,
@@ -528,8 +526,6 @@ function AppInner() {
         </span>
         <span className="signal-item signal-muted">{dataSourceLabel(floorMap.source, t)}</span>
         <ShellAlerts
-          problems={countProblems(displayedFloorMap.seats)}
-          offline={countByTone(displayedFloorMap.seats, 'offline')}
           sources={criticalAlertSources(displayedFloorMap.seats, t)}
           onSelectSource={(filterId) => {
             setMapFilter(filterId);

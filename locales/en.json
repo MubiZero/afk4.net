@@ -2192,6 +2192,7 @@
   "op.context.collapse": "Collapse panel",
   "op.context.expand": "Expand panel",
   "op.alerts.label": "Alerts",
+  "op.alerts.allClear": "All clear",
   "op.alerts.summary": "{problems, plural, =0 {No alerts} one {# issue} other {# issues}} · {offline} offline",
   "op.alerts.critical.offline": "Offline",
   "op.alerts.critical.blocking": "Fault",
@@ -2417,11 +2418,11 @@
   "op.helper.shell.modeDev": "local build",
   "op.helper.shell.modeDist": "installed build",
 
-  "op.helper.realtime.connected": "Connection active",
+  "op.helper.realtime.connected": "Network online",
   "op.helper.realtime.connecting": "Connecting",
   "op.helper.realtime.reconnecting": "Reconnecting",
-  "op.helper.realtime.lost": "Connection lost",
-  "op.helper.realtime.disconnected": "Disconnected",
+  "op.helper.realtime.lost": "Network lost",
+  "op.helper.realtime.disconnected": "Network offline",
 
   "op.helper.pos.saleState.paid": "Paid",
   "op.helper.pos.saleState.draft": "Draft",
