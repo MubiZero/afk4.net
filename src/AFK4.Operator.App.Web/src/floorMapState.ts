@@ -26,7 +26,7 @@ export interface OperatorFloorMapState {
   cachedAtMs: number | null;
 }
 
-export const fixtureBranchName = 'AFK4 Dushanbe · зал A';
+export const fixtureBranchName = 'AFK4 Dushanbe';
 
 export function createFixtureFloorMapState(): OperatorFloorMapState {
   return {

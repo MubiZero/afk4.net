@@ -7991,8 +7991,7 @@ button {
 /* Сворачиваемая контекст-зона (правая колонка shell) */
 .context-zone {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr);
-  column-gap: 2px;
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
 }
@@ -8003,12 +8002,17 @@ button {
   padding-top: 10px;
 }
 
-/* Ручка прижата к панели и выровнена по верхней кромке карточки (panel margin-top:10px),
-   чтобы кнопка не висела косо в пустом жёлобе. */
+/* Тонкая шапка зоны над панелью: кнопка сворота прижата вправо (как «collapse» у IDE-панелей),
+   а не висит отдельной полоской сбоку. Padding-right совпадает с правым margin панели. */
 .context-zone-handle {
   display: flex;
   justify-content: flex-end;
-  padding-top: 10px;
+  padding: 8px 10px 0 0;
+}
+
+/* Шапка зоны уже даёт верхний отступ — панель садится под неё с небольшим зазором. */
+.context-zone-body > .context-panel {
+  margin-top: 4px;
 }
 
 .context-zone-body {

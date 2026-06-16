@@ -38,7 +38,7 @@ const money = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
 function floorMap() {
   return {
     branchId: BRANCH,
-    branchName: 'AFK4 Dushanbe · зал A',
+    branchName: 'AFK4 Dushanbe',
     seats: [
       // Зал A — рабочий зал: смесь живых сессий, свободных и одного «ПК офлайн» (сессия идёт, связь потеряна).
       { seatId: 'a1', seatName: 'PC-01', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 10, state: 'Active', deviceId: 'd1', deviceName: 'PC-01', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's1', remainingSeconds: 2580 },
