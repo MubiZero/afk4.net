@@ -805,7 +805,7 @@ button {
   align-items: center;
   gap: 9px;
   min-height: 0;
-  padding: 8px 7px 10px;
+  padding: 8px 7px 16px;
   /* Вертикальный список иконок: скроллим только по вертикали. Явный overflow-x:hidden
      убирает фантомный горизонтальный скролл (overflow-y:auto иначе делает и X = auto,
      и суб-пиксельный край ловит лишнюю полосу). */
@@ -870,18 +870,19 @@ button {
   width: 100%;
   display: flex;
   justify-content: center;
-  padding-top: 9px;
+  margin-top: auto;
+  padding-top: 16px;
   border-top: 1px solid var(--border-soft);
 }
 
 .rail-account-trigger {
   display: grid;
   place-items: center;
-  gap: 4px;
-  width: 60px;
-  padding: 6px 0;
+  gap: 7px;
+  width: 100%;
+  padding: 8px 2px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
@@ -919,12 +920,17 @@ button {
 }
 
 .rail-account-name {
-  max-width: 56px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  max-width: 58px;
   overflow: hidden;
-  font-size: 10px;
-  line-height: 1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-secondary);
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .rail-account-menu {
