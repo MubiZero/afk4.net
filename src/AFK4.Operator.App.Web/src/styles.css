@@ -863,15 +863,140 @@ button {
   color: var(--text-tertiary);
 }
 
-/* Выход — в подвале рейла, отделён сверху от навигации. */
-.workspace-rail .rail-logout {
+/* Аккаунт оператора — в подвале рейла, отделён сверху от навигации. */
+.rail-account {
+  position: relative;
   margin-top: auto;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding-top: 9px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.rail-account-trigger {
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  width: 60px;
+  padding: 6px 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.rail-account-trigger:hover,
+.rail-account-trigger[aria-expanded='true'] {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+.rail-account-trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.rail-account-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.rail-account-avatar.lg {
+  width: 36px;
+  height: 36px;
+  font-size: 13px;
+}
+
+.rail-account-name {
+  max-width: 56px;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail-account-menu {
+  position: fixed;
+  z-index: 60;
+  width: 212px;
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+  animation: soft-enter 140ms var(--ease-out);
+}
+
+.rail-account-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.rail-account-head strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail-account-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.rail-account-item svg {
+  flex-shrink: 0;
   color: var(--text-tertiary);
 }
 
-.workspace-rail .rail-logout:hover,
-.workspace-rail .rail-logout:focus-visible {
+.rail-account-item:hover,
+.rail-account-item:focus-visible {
+  outline: none;
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.rail-account-item.danger:hover,
+.rail-account-item.danger:focus-visible {
   background: var(--danger-soft-bg);
+  color: var(--danger-text);
+}
+
+.rail-account-item.danger:hover svg,
+.rail-account-item.danger:focus-visible svg {
   color: var(--danger-text);
 }
 
@@ -7637,17 +7762,6 @@ button {
 .payment-card-session[data-health="online"] .payment-card-session-badge { background: var(--success-soft-bg); color: var(--success); }
 .payment-card-session[data-health="offline"] .payment-card-session-badge { background: var(--danger-soft-bg); color: var(--danger-text); }
 .payment-card-session[data-health="configured"] .payment-card-session-badge { background: var(--warning-soft-bg); color: var(--warning); }
-
-.top-account {
-  background: none;
-  border: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  padding: 0;
-  text-align: left;
-}
-.top-account:hover { text-decoration: underline; }
 
 .account-panel-overlay {
   position: fixed;

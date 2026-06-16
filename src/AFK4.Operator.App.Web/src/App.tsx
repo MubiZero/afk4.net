@@ -1,7 +1,6 @@
 import {
   CircleDollarSign,
   LockKeyhole,
-  LogOut,
   Search
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
@@ -20,6 +19,7 @@ import { MapSidePanel } from './MapSidePanel';
 import { ContextPanel } from './ContextPanel';
 import { QuickActionsMenu } from './QuickActionsMenu';
 import { CommandPalette } from './CommandPalette';
+import { RailAccount } from './RailAccount';
 import { ShellAlerts } from './ShellAlerts';
 import { BackendPosWorkspace } from './BackendPosWorkspace';
 import { ShopOrdersWorkspace } from './ShopOrdersWorkspace';
@@ -355,9 +355,6 @@ function AppInner() {
         </button>
         <div className="top-status">
           <span>{shellShiftText}</span>
-          <button type="button" className="top-account" aria-label={t('op.shell.myAccount')} onClick={() => setAccountPanelOpen(true)}>
-            {operatorDisplayNameLabel(authSession.displayName, t)}
-          </button>
         </div>
         <TitlebarControls />
         <WindowControls />
@@ -401,12 +398,13 @@ function AppInner() {
             </button>
           );
         })}
-        {/* «Выйти» живёт в подвале рейла (margin-top:auto), отдельно от навигации — выход
-            это не «ещё один раздел», а действие, и его привычное место — низ боковой панели. */}
-        <button type="button" className="rail-logout" title={t('shell.signOut')} onClick={handleSignOut}>
-          <LogOut size={20} />
-          <span>{t('shell.signOut')}</span>
-        </button>
+        {/* Аккаунт оператора живёт в подвале рейла (margin-top:auto) — привычное место личности
+            и выхода. Аватар раскрывает меню с профилем и «Выйти». */}
+        <RailAccount
+          displayName={operatorDisplayNameLabel(authSession.displayName, t)}
+          onOpenAccount={() => setAccountPanelOpen(true)}
+          onSignOut={handleSignOut}
+        />
       </nav>
 
       <div className="workspace-content">
