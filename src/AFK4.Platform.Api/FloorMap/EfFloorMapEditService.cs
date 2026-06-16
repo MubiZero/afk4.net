@@ -57,7 +57,7 @@ public sealed class EfFloorMapEditService(PlatformDbContext dbContext, TimeProvi
             .Where(seat => seat.OrganizationId == organizationId && seat.BranchId == branchId)
             .ToListAsync(cancellationToken);
 
-        var currentEtag = FloorMapEtag.Compute(existingZones, existingSeats);
+        var currentEtag = FloorMapEtag.Compute(existingZones, existingSeats, []);
         if (!EtagMatches(ifMatch, currentEtag))
         {
             return new FloorMapBulkUpdateResult(
@@ -238,7 +238,7 @@ public sealed class EfFloorMapEditService(PlatformDbContext dbContext, TimeProvi
             .AsNoTracking()
             .Where(seat => seat.OrganizationId == organizationId && seat.BranchId == branchId)
             .ToListAsync(cancellationToken);
-        var freshEtag = FloorMapEtag.Compute(freshZones, freshSeats);
+        var freshEtag = FloorMapEtag.Compute(freshZones, freshSeats, []);
 
         var response = new FloorMapBulkUpdateResponse(freshEtag, zoneAssignments, seatAssignments);
         return new FloorMapBulkUpdateResult(FloorMapBulkUpdateStatus.Success, null, response, freshEtag);

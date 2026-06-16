@@ -1,4 +1,6 @@
 using System.Text.Json;
+using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.FloorMap;
 using AFK4.Shared.Contracts.FloorMap;
 
 namespace AFK4.Platform.Api.Tests;
@@ -73,5 +75,26 @@ public sealed class FloorPlanGeometryContractTests
         Assert.Null(request.Seats[0].PosX);
         Assert.Equal("pc", request.Seats[0].SeatType);
         Assert.Equal(0, request.Seats[0].Rotation);
+    }
+
+    [Fact]
+    public void Etag_ChangesWhenSeatPositionChanges()
+    {
+        var seat = new SeatEntity { SeatId = Guid.NewGuid(), Name = "PC", ZoneId = Guid.NewGuid(), SortOrder = 1 };
+        var before = FloorMapEtag.Compute([], [seat], []);
+
+        seat.PosX = 7;
+        var after = FloorMapEtag.Compute([], [seat], []);
+
+        Assert.NotEqual(before, after);
+    }
+
+    [Fact]
+    public void Etag_ChangesWhenWallAdded()
+    {
+        var before = FloorMapEtag.Compute([], [], []);
+        var after = FloorMapEtag.Compute([], [], [new WallEntity { WallId = Guid.NewGuid(), X2 = 5 }]);
+
+        Assert.NotEqual(before, after);
     }
 }

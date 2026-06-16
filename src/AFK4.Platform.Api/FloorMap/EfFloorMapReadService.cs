@@ -136,7 +136,7 @@ public sealed class EfFloorMapReadService(
             Zones = zoneStatuses
         };
 
-        return new FloorMapReadResult(dto, FloorMapEtag.Compute(zones, seats));
+        return new FloorMapReadResult(dto, FloorMapEtag.Compute(zones, seats, []));
     }
 
     private SeatStatusDto CreateSeatStatus(
