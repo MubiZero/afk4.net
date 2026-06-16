@@ -59,7 +59,7 @@ import {
 import { CriticalActionConfirmation } from './operatorPrimitives';
 import { PanelModal } from './PanelModal';
 import { PanelSelect } from './PanelSelect';
-import { isAttentionTone, seatTileLead } from './seatTilePresentation';
+import { seatTileLead } from './seatTilePresentation';
 import { formatDurationCompact } from './floorMapState';
 
 const checkoutMethodIcons: Record<CheckoutMethod, ReactNode> = {
@@ -360,9 +360,6 @@ export function MapSidePanel({
   const hasPendingSessionCommand = hasStoredSession && isPendingSeatCommand(seat);
   const hasActionableSession = hasStoredSession && !hasPendingSessionCommand;
   const hasActiveSession = hasStoredSession || seat.hasActiveSession === true || seat.tone === 'active';
-  // Технические детали ПК (команда, версии) показываем только когда они actionable —
-  // место требует внимания или команда в полёте; для здоровой сессии это шум.
-  const showPcDetail = isAttentionTone(seat.tone) || hasPendingSessionCommand;
   const isBusy = feedback.state === 'pending';
   const canStartPermission = hasPermission(session, permissionNames.startSession);
   const canExtendPermission = hasPermission(session, permissionNames.extendSession);
@@ -781,18 +778,16 @@ export function MapSidePanel({
                 <strong>{seat.deviceName}</strong>
               </div>
             )}
-            {showPcDetail && (
-              <div className="detail-row">
-                <span>{t('op.map.panel.versions')}</span>
-                <strong>{appVersionsLabel(seat.app, t)}</strong>
-              </div>
-            )}
-            {showPcDetail && (
-              <div className="detail-row">
-                <span>{t('op.map.colCommand')}</span>
-                <strong>{commandLabel(seat.command, t)}</strong>
-              </div>
-            )}
+            {/* Версия ПО показывается всегда — оператору важно знать билд агента/оболочки
+                независимо от того, на связи ПК сейчас или нет. */}
+            <div className="detail-row">
+              <span>{t('op.map.panel.versions')}</span>
+              <strong>{appVersionsLabel(seat.app, t)}</strong>
+            </div>
+            <div className="detail-row">
+              <span>{t('op.map.colCommand')}</span>
+              <strong>{commandLabel(seat.command, t)}</strong>
+            </div>
           </div>
         </section>
       )}

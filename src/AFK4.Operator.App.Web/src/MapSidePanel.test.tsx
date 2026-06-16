@@ -31,14 +31,13 @@ describe('MapSidePanel diagnostics (A3)', () => {
     utils.getByText('заблокирован'); // lock state
   });
 
-  it('reveals software versions only when the seat needs troubleshooting', () => {
-    // Healthy active seat keeps the status block lean — no version noise.
+  it('always shows software versions, online or offline', () => {
+    // Версию ПО оператор должен видеть всегда — и для здоровой сессии, и для офлайн-ПК.
     const healthy = renderPanel(seat({}));
-    expect(healthy.queryByText('Агент 0.4 · Оболочка 0.4')).toBeNull();
+    expect(healthy.queryByText('Агент 0.4 · Оболочка 0.4')).not.toBeNull();
     cleanup();
-    // A seat in an attention state surfaces the versions for the operator diagnosing it.
-    const attention = renderPanel(seat({ tone: 'offline', isDeviceOnline: false }));
-    expect(attention.queryByText('Агент 0.4 · Оболочка 0.4')).not.toBeNull();
+    const offline = renderPanel(seat({ tone: 'offline', isDeviceOnline: false }));
+    expect(offline.queryByText('Агент 0.4 · Оболочка 0.4')).not.toBeNull();
   });
 
   it('does not present a fabricated session billing mode as if it were real', () => {
