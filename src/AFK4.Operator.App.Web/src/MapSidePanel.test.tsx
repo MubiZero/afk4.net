@@ -24,10 +24,10 @@ function renderPanel(s: SeatSummary) {
   );
 }
 
-// Блок «Статус ПК» спрятан, пока не нажали «Статус» — раскрываем его для проверок содержимого.
+// Статус ПК раскрывается под кнопкой «Статус» — пилюля блокировки появляется только тогда.
 async function revealStatus(utils: RenderResult) {
   fireEvent.click(utils.getByRole('button', { name: /^Статус$/ }));
-  await utils.findByText('Статус ПК');
+  await utils.findByText(/блокирован/);
 }
 
 describe('MapSidePanel diagnostics (A3)', () => {
@@ -72,8 +72,15 @@ describe('MapSidePanel diagnostics (A3)', () => {
 
   it('keeps the PC status hidden until the operator presses «Статус»', () => {
     const { queryByText } = renderPanel(seat({}));
-    expect(queryByText('Статус ПК')).toBeNull();
     expect(queryByText('Онлайн')).toBeNull();
+    expect(queryByText(/^(за|раз)блокирован$/)).toBeNull();
+  });
+
+  it('toggles the PC status closed on a second «Статус» press', async () => {
+    const utils = renderPanel(seat({}));
+    await revealStatus(utils);
+    fireEvent.click(utils.getByRole('button', { name: /^Статус$/ }));
+    expect(utils.queryByText('Онлайн')).toBeNull();
   });
 
   it('shows the real running total for an open tab in the host currency', () => {

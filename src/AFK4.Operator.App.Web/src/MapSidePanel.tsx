@@ -734,58 +734,8 @@ export function MapSidePanel({
         </section>
       )}
 
-      {/* Статус ПК спрятан, пока не нажали «Статус» в «Управление ПК» — тогда раскрываем
-          связь/блокировку пилюлями (конкретика на руках, #34), без сырого текста-отчёта. */}
-      {pcStatusShown && (
-      <section className="context-section">
-        <div className="context-section-head">
-          <MonitorCheck size={13} aria-hidden="true" />
-          <span>{t('op.map.panel.diagnostics')}</span>
-        </div>
-        {!hasDevice ? (
-          <div className="detail-row">
-            <span>{t('op.map.colDevice')}</span>
-            <strong>{t('op.helper.deviceStatus.unassigned')}</strong>
-          </div>
-        ) : (
-          <>
-            {/* Имя устройства показываем, только если оно отличается от имени места (иначе дубль героя). */}
-            {seat.deviceName && seat.deviceName !== seat.name && (
-              <div className="detail-row">
-                <span>{t('op.map.colDevice')}</span>
-                <strong>{seat.deviceName}</strong>
-              </div>
-            )}
-            <div className="pc-health">
-              <span className={`status-pill ${seat.isDeviceOnline === true ? 'ok' : seat.isDeviceOnline === false ? 'bad' : 'neutral'}`}>
-                {seat.isDeviceOnline === false ? <WifiOff size={12} aria-hidden="true" /> : <Wifi size={12} aria-hidden="true" />}
-                {connectionLabel}
-              </span>
-              <span className="status-pill neutral">
-                {seat.isDeviceLocked === true ? <Lock size={12} aria-hidden="true" /> : <Unlock size={12} aria-hidden="true" />}
-                {lockLabel}
-              </span>
-            </div>
-            {showPcDetail && (
-              <div className="detail-row">
-                <span>{t('op.map.panel.versions')}</span>
-                <strong>{appVersionsLabel(seat.app, t)}</strong>
-              </div>
-            )}
-          </>
-        )}
-        {showPcDetail && (
-          <div className="detail-row">
-            <span>{t('op.map.colCommand')}</span>
-            <strong>{commandLabel(seat.command, t)}</strong>
-          </div>
-        )}
-      </section>
-      )}
-
-      {/* Управление ПК живёт рядом со «Статусом ПК» — видишь состояние машины и тут же ей
-          командуешь. Отдельной кнопки в тулбаре больше нет: команды относятся к выбранному
-          месту, поэтому их место — в его карточке. «Статус» показывает отчёт текстом ниже. */}
+      {/* Управление ПК: команды для выбранного места. «Статус» опрашивает ПК и раскрывает
+          состояние пилюлями ПРЯМО ПОД собой (повторное нажатие — закрывает). Сырого текста нет. */}
       {canUsePcControl && hasDevice && (
         <section className="context-section">
           <div className="context-section-head">
@@ -793,9 +743,53 @@ export function MapSidePanel({
             <span>{t('op.map.pcControlLabel')}</span>
           </div>
           <div className="pc-control-actions panel-pc-actions">
-            <button type="button" disabled={pcBusy} onClick={() => void runPcControl(t('op.map.actionStatus'), 'status')}>
+            <button
+              type="button"
+              disabled={pcBusy}
+              aria-expanded={pcStatusShown}
+              onClick={() => {
+                if (pcStatusShown) {
+                  setPcStatusShown(false);
+                  setPcFeedback(emptyFeedback);
+                  return;
+                }
+                void runPcControl(t('op.map.actionStatus'), 'status');
+              }}
+            >
               {pcGlyph(t('op.map.actionStatus'), <MonitorCheck size={14} />)}<span>{t('op.map.actionStatusBtn')}</span>
             </button>
+            {pcStatusShown && (
+              <div className="pc-status-readout">
+                <div className="pc-health">
+                  <span className={`status-pill ${seat.isDeviceOnline === true ? 'ok' : seat.isDeviceOnline === false ? 'bad' : 'neutral'}`}>
+                    {seat.isDeviceOnline === false ? <WifiOff size={12} aria-hidden="true" /> : <Wifi size={12} aria-hidden="true" />}
+                    {connectionLabel}
+                  </span>
+                  <span className="status-pill neutral">
+                    {seat.isDeviceLocked === true ? <Lock size={12} aria-hidden="true" /> : <Unlock size={12} aria-hidden="true" />}
+                    {lockLabel}
+                  </span>
+                </div>
+                {seat.deviceName && seat.deviceName !== seat.name && (
+                  <div className="detail-row">
+                    <span>{t('op.map.colDevice')}</span>
+                    <strong>{seat.deviceName}</strong>
+                  </div>
+                )}
+                {showPcDetail && (
+                  <div className="detail-row">
+                    <span>{t('op.map.panel.versions')}</span>
+                    <strong>{appVersionsLabel(seat.app, t)}</strong>
+                  </div>
+                )}
+                {showPcDetail && (
+                  <div className="detail-row">
+                    <span>{t('op.map.colCommand')}</span>
+                    <strong>{commandLabel(seat.command, t)}</strong>
+                  </div>
+                )}
+              </div>
+            )}
             <button type="button" disabled={pcBusy || !seat.deviceId} onClick={() => void runPcControl(t('op.map.actionLock'), 'lock')}>
               {pcGlyph(t('op.map.actionLock'), <Lock size={14} />)}<span>{t('op.map.actionLockBtn')}</span>
             </button>

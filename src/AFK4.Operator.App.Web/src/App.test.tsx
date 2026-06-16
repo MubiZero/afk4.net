@@ -96,8 +96,8 @@ describe('App', () => {
     // «Управление ПК» теперь секция в карточке выбранного места (не отдельная кнопка в тулбаре).
     expect(screen.getByText('Управление ПК')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Завершить сессию/ })).toBeInTheDocument();
-    // Блок «Статус ПК» спрятан по умолчанию — раскрывается только по кнопке «Статус».
-    expect(screen.queryByText('Статус ПК')).not.toBeInTheDocument();
+    // Статус ПК (пилюли) спрятан по умолчанию — раскрывается только по кнопке «Статус».
+    expect(screen.queryByText(/^(за|раз)блокирован$/)).not.toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /15 мин/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Свернуть' })).toBeInTheDocument();
     expect(screen.getByText(/Оператор смены/)).toBeInTheDocument();
@@ -144,15 +144,15 @@ describe('App', () => {
     // PC controls live in the selected seat's card (no toolbar button, no popover).
     expect(screen.getByText('Управление ПК')).toBeInTheDocument();
     // Статус ПК скрыт, пока не нажали «Статус».
-    expect(screen.queryByText('Статус ПК')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^(за|раз)блокирован$/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Статус$/ }));
 
     await waitFor(() => expect(fetchMock.mock.calls.some(([input]) =>
       String(input).includes('/api/devices/11111111-1111-1111-1111-111111111111'))).toBe(true));
     await waitFor(() => expect(fetchMock.mock.calls.some(([input]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/diagnostics'))).toBe(true));
-    // Нажатие «Статус» опрашивает ПК и раскрывает блок «Статус ПК» (пилюли), без сырого текста.
-    expect(await screen.findByText('Статус ПК')).toBeInTheDocument();
+    // Нажатие «Статус» опрашивает ПК и раскрывает пилюли состояния под кнопкой, без сырого текста.
+    expect(await screen.findByText(/^(за|раз)блокирован$/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Блокировать/ }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([input, init]) =>
