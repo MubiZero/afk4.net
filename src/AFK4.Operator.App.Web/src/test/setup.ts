@@ -8,7 +8,14 @@ import * as matchers from '@testing-library/jest-dom/matchers';
 GlobalRegistrator.register({ url: 'http://localhost/' });
 expect.extend(matchers);
 
-const { cleanup } = await import('@testing-library/react');
+const { cleanup, configure } = await import('@testing-library/react');
+
+// App.test boots the whole operator app per test (native session restore → floor-map fetch → render
+// of the «AFK4 Dushanbe» heading). That async chain normally settles in well under the default
+// 1000ms findBy timeout, but under CPU contention it occasionally overruns and a genuinely-correct
+// boot times out — a flaky failure of the test, not the app (production has no such deadline). Give
+// async queries headroom so wall-clock pressure can't fail a passing assertion.
+configure({ asyncUtilTimeout: 5000 });
 
 // App.test.tsx registers a process-wide mock.module('./operatorRealtime', ...) that bun
 // cannot reliably restore for sibling files; worse, mock.module retroactively mutates the

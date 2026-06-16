@@ -49,3 +49,19 @@ export function boundingBox(inputs: {
     maxY: Math.max(...ys)
   };
 }
+
+// Snap a pixel offset (within the padded canvas, origin-normalized) back to an integer grid cell.
+// Clamped at 0 so a drag toward the top/left edge never yields a negative coordinate.
+export function pxToCell(px: number, cellSize: number = DEFAULT_CELL_SIZE): number {
+  return Math.max(0, Math.round(px / cellSize));
+}
+
+// Is a grid cell already taken by a placed seat? `exceptId` excludes the seat currently being moved.
+export function isCellOccupied(
+  seats: { id: string; posX: number; posY: number }[],
+  x: number,
+  y: number,
+  exceptId?: string
+): boolean {
+  return seats.some((seat) => seat.id !== exceptId && seat.posX === x && seat.posY === y);
+}

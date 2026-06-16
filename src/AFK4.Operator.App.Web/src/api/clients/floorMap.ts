@@ -65,10 +65,33 @@ export interface FloorMapWallDto {
   y2: number;
 }
 
+export interface FloorMapBulkZoneRequest {
+  zoneId?: Guid | null; clientId: string; name: string; sortOrder: number;
+  geoX?: number | null; geoY?: number | null; geoWidth?: number | null; geoHeight?: number | null;
+  color?: string | null; zoneType?: string | null;
+}
+export interface FloorMapBulkSeatRequest {
+  seatId?: Guid | null; clientId: string; zoneClientId: string; name: string; sortOrder: number;
+  posX?: number | null; posY?: number | null; rotation?: number; seatType?: string;
+}
+export interface FloorMapBulkWallRequest { x1: number; y1: number; x2: number; y2: number; }
+export interface FloorMapBulkUpdateRequest {
+  organizationId: Guid; zones: FloorMapBulkZoneRequest[]; seats: FloorMapBulkSeatRequest[]; walls?: FloorMapBulkWallRequest[];
+}
+export interface FloorMapBulkUpdateResponse {
+  eTag: string; zones: { clientId: string; zoneId: Guid }[]; seats: { clientId: string; seatId: Guid }[];
+}
+
 export function createFloorMapClient(api: PlatformApiClient) {
   return {
     getFloorMap(branchId: Guid): Promise<FloorMapDto> {
       return api.get<FloorMapDto>(`/api/branches/${branchId}/floor-map`);
+    },
+    getFloorMapWithEtag(branchId: Guid): Promise<{ value: FloorMapDto; etag: string | null }> {
+      return api.getWithEtag<FloorMapDto>(`/api/branches/${branchId}/floor-map`);
+    },
+    updateFloorMap(branchId: Guid, etag: string, request: FloorMapBulkUpdateRequest): Promise<FloorMapBulkUpdateResponse> {
+      return api.put<FloorMapBulkUpdateResponse, FloorMapBulkUpdateRequest>(`/api/branches/${branchId}/floor-map`, request, { ifMatch: etag });
     }
   };
 }

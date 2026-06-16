@@ -19,6 +19,9 @@ export interface OperatorFloorMapState {
   // Static layout geometry for the «План» view (B2). Realtime seat updates never touch these.
   zones: FloorMapZoneDto[];
   walls: FloorMapWallDto[];
+  // Concurrency token from the floor-map GET; required as If-Match when saving layout (B2-3).
+  // Null on fixtures and on the offline-cache mirror — the editor's save is disabled without it.
+  etag: string | null;
   source: FloorMapSource;
   loadStatus: FloorMapLoadStatus;
   error: string | null;
@@ -35,6 +38,7 @@ export function createFixtureFloorMapState(): OperatorFloorMapState {
     seats: fixtureSeats,
     zones: [],
     walls: [],
+    etag: null,
     source: 'fixture',
     loadStatus: 'idle',
     error: null,
@@ -43,13 +47,16 @@ export function createFixtureFloorMapState(): OperatorFloorMapState {
   };
 }
 
-export function mapFloorMapDtoToState(floorMap: FloorMapDto, t: TFn, loadedAtMs = Date.now()): OperatorFloorMapState {
+// etag defaults to null: tests that don't exercise concurrency may omit it; the real loader
+// (loadBackendFloorMapState) always passes the ETag captured from the GET response.
+export function mapFloorMapDtoToState(floorMap: FloorMapDto, t: TFn, etag: string | null = null, loadedAtMs = Date.now()): OperatorFloorMapState {
   return {
     branchId: floorMap.branchId,
     branchName: floorMap.branchName,
     seats: mapFloorMapSeats(floorMap.seats, t, loadedAtMs),
     zones: floorMap.zones ?? [],
     walls: floorMap.walls ?? [],
+    etag,
     source: 'backend',
     loadStatus: 'ready',
     error: null,
@@ -71,6 +78,7 @@ export function hydrateFloorMapStateFromCache(
     seats: mapFloorMapSeats(entry.floorMap.seats, t, entry.cachedAtMs),
     zones: entry.floorMap.zones ?? [],
     walls: entry.floorMap.walls ?? [],
+    etag: null,
     source: 'backend',
     loadStatus: 'ready',
     error: null,
@@ -201,7 +209,8 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     posX: dto.posX ?? null,
     posY: dto.posY ?? null,
     rotation: dto.rotation ?? 0,
-    seatType: dto.seatType ?? 'pc'
+    seatType: dto.seatType ?? 'pc',
+    zoneId: dto.zoneId
   };
 }
 

@@ -126,6 +126,32 @@ describe('PlatformApiClient', () => {
   });
 });
 
+describe('PlatformApiClient layout save support', () => {
+  function clientWith(fetchImpl: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) {
+    return new PlatformApiClient({ baseUrl: 'https://api.test/', getAccessToken: () => 'tok', fetchImpl });
+  }
+
+  it('getWithEtag returns parsed body and the ETag header', async () => {
+    const client = clientWith(async () =>
+      new Response(JSON.stringify({ ok: true }), { status: 200, headers: { ETag: 'W/"v1"' } }));
+    const result = await client.getWithEtag<{ ok: boolean }>('/x');
+    expect(result.value.ok).toBe(true);
+    expect(result.etag).toBe('W/"v1"');
+  });
+
+  it('put sends the If-Match header and JSON body', async () => {
+    let seen: Request | null = null;
+    const client = clientWith(async (input, init) => {
+      seen = new Request(input, init);
+      return new Response(JSON.stringify({ eTag: 'W/"v2"' }), { status: 200 });
+    });
+    const body = await client.put<{ eTag: string }, { a: number }>('/x', { a: 1 }, { ifMatch: 'W/"v1"' });
+    expect(body.eTag).toBe('W/"v2"');
+    expect(seen!.method).toBe('PUT');
+    expect(seen!.headers.get('If-Match')).toBe('W/"v1"');
+  });
+});
+
 function jsonResponse(body: unknown) {
   return new Response(JSON.stringify(body), {
     status: 200,

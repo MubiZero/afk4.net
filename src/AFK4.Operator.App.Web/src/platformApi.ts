@@ -59,6 +59,22 @@ export class PlatformApiClient {
     return this.send<TResponse>('DELETE', path, undefined, query);
   }
 
+  async getWithEtag<TResponse>(path: string, query?: QueryParams): Promise<{ value: TResponse; etag: string | null }> {
+    const response = await this.fetchAuthorized('GET', path, undefined, query);
+    await ensureSuccess(response);
+    const etag = response.headers.get('ETag');
+    const value = await response.json() as TResponse;
+    return { value, etag };
+  }
+
+  async put<TResponse, TRequest = unknown>(path: string, body: TRequest, options?: { ifMatch?: string }): Promise<TResponse> {
+    const extraHeaders = options?.ifMatch ? { 'If-Match': options.ifMatch } : undefined;
+    const response = await this.fetchAuthorized('PUT', path, body, undefined, extraHeaders);
+    await ensureSuccess(response);
+    if (response.status === 204) return null as TResponse;
+    return await response.json() as TResponse;
+  }
+
   buildUrl(path: string, query?: QueryParams): string {
     const url = new URL(path, this.baseUrl);
 
@@ -103,7 +119,8 @@ export class PlatformApiClient {
     method: string,
     path: string,
     body?: unknown,
-    query?: QueryParams
+    query?: QueryParams,
+    extraHeaders?: Record<string, string>
   ): Promise<Response> {
     const accessToken = await this.getAccessToken();
     if (!accessToken) {
@@ -113,6 +130,11 @@ export class PlatformApiClient {
     const headers = new Headers({
       Authorization: `Bearer ${accessToken}`
     });
+    if (extraHeaders) {
+      for (const [name, value] of Object.entries(extraHeaders)) {
+        headers.set(name, value);
+      }
+    }
     let requestBody: BodyInit | undefined;
     if (body !== undefined && body !== null) {
       headers.set('Content-Type', 'application/json');

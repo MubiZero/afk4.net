@@ -8240,7 +8240,10 @@ button {
   cursor: pointer;
   box-sizing: border-box;
   overflow: hidden;
+  transform-origin: center;
 }
+.plan-seat--draggable { cursor: grab; }
+.plan-seat--draggable:active { cursor: grabbing; }
 .plan-seat.state-ready { --seat-color: var(--accent); }
 .plan-seat.state-active { --seat-color: var(--text-tertiary); }
 .plan-seat.state-pending { --seat-color: color-mix(in srgb, var(--warning) 70%, var(--border-strong)); }
@@ -8270,4 +8273,188 @@ button {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ===== Floor plan editor: palette (unplaced seats stack) ===== */
+.floor-palette {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+}
+
+.floor-palette-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.floor-palette-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.floor-palette-item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+
+.floor-palette-item:hover {
+  background: var(--surface-hover);
+}
+
+.floor-palette-item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.floor-palette-empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* ===== Floor plan editor: inspector (selected seat properties) ===== */
+.floor-inspector {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+}
+
+.floor-inspector-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.floor-inspector-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.floor-inspector-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.floor-inspector-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.floor-inspector-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.floor-inspector-actions button {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+
+.floor-inspector-actions button:hover {
+  background: var(--surface-hover);
+}
+
+.floor-inspector-actions button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.floor-inspector-actions button.danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border-strong));
+}
+
+/* «План» editor: action bar on top, then palette · canvas · inspector. */
+.floor-plan-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.floor-plan-editor-bar {
+  display: flex;
+  gap: 8px;
+}
+
+.floor-plan-editor-body {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 220px;
+  gap: 12px;
+  min-height: 0;
+}
+
+.floor-plan-editor-confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.map-edit-layout {
+  padding: 7px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface-canvas);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.map-edit-layout:hover {
+  background: var(--surface-hover);
+}
+
+.map-empty-plan {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.map-empty-plan-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
 }

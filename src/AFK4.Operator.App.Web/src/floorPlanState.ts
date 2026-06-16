@@ -1,6 +1,7 @@
 import type { OperatorFloorMapState } from './floorMapState';
 import { boundingBox, type BoundingBox } from './floorPlanGeometry';
 import type { SeatSummary, SeatTone } from './operatorData';
+import type { PlanDraft } from './floorPlanDraft';
 
 // A seat positioned on the plan canvas. Carries just what the canvas needs to draw it.
 export interface PlanSeat {
@@ -97,4 +98,47 @@ export function toPlanModel(state: OperatorFloorMapState): PlanModel {
     bbox,
     isEmpty: bbox === null
   };
+}
+
+// Project the editor's working draft onto the same canvas model `FloorPlan` consumes. The palette
+// owns the unplaced stack, so `unplacedSeats` stays empty here — the canvas only draws placed seats,
+// geometric zones and walls. Recomputed on every draft mutation so the canvas follows live edits.
+export function planModelFromDraft(draft: PlanDraft): PlanModel {
+  const placedSeats: PlanSeat[] = draft.seats
+    .filter((seat) => seat.posX != null && seat.posY != null)
+    .map((seat) => ({
+      id: seat.id,
+      name: seat.name,
+      tone: seat.tone as SeatTone,
+      stateLabel: seat.stateLabel,
+      seatType: seat.seatType,
+      rotation: seat.rotation,
+      posX: seat.posX as number,
+      posY: seat.posY as number
+    }));
+
+  const zones: PlanZone[] = draft.zones
+    .filter((zone) => zone.geoX != null && zone.geoY != null && zone.geoWidth != null && zone.geoHeight != null)
+    .map((zone) => ({
+      id: zone.zoneId,
+      name: zone.name,
+      geoX: zone.geoX as number,
+      geoY: zone.geoY as number,
+      geoWidth: zone.geoWidth as number,
+      geoHeight: zone.geoHeight as number,
+      color: zone.color,
+      zoneType: zone.zoneType
+    }));
+
+  const walls: Wall[] = draft.walls.map((wall, index) => ({
+    id: `draft-wall-${index}`,
+    x1: wall.x1,
+    y1: wall.y1,
+    x2: wall.x2,
+    y2: wall.y2
+  }));
+
+  const bbox = boundingBox({ seats: placedSeats, zones, walls });
+
+  return { placedSeats, unplacedSeats: [], zones, walls, bbox, isEmpty: bbox === null };
 }

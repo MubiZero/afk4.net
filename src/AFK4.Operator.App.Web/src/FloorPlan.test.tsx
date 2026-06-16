@@ -28,6 +28,56 @@ function renderPlan(model: PlanModel, onSelectSeat: (id: string) => void = () =>
   );
 }
 
+describe('FloorPlan edit mode', () => {
+  it('view mode keeps seats non-draggable (regression)', () => {
+    const { container } = render(
+      <I18nProvider>
+        <FloorPlan model={nonEmptyModel()} selectedSeatId="pc-01" onSelectSeat={() => {}} />
+      </I18nProvider>
+    );
+    expect(container.querySelector('.plan-seat--draggable')).toBeNull();
+  });
+
+  it('edit mode marks seats draggable', () => {
+    const { container } = render(
+      <I18nProvider>
+        <FloorPlan model={nonEmptyModel()} selectedSeatId="pc-01" mode="edit" onSelectSeat={() => {}} onSeatMove={() => {}} />
+      </I18nProvider>
+    );
+    expect(container.querySelector('.plan-seat--draggable')).not.toBeNull();
+  });
+
+  it('edit mode reports a snapped move to a free cell', () => {
+    const moves: Array<[string, number, number]> = [];
+    const { getByRole } = render(
+      <I18nProvider>
+        <FloorPlan model={nonEmptyModel()} selectedSeatId="pc-01" mode="edit" onSelectSeat={() => {}}
+          onSeatMove={(id, x, y) => moves.push([id, x, y])} />
+      </I18nProvider>
+    );
+    const seat = getByRole('button', { name: 'PC-01 В сессии' });   // seat at (1,1)
+    fireEvent.pointerDown(seat);
+    fireEvent.pointerMove(window, { clientX: 256, clientY: 144 });   // → cell (4,2), free
+    fireEvent.pointerUp(window, { clientX: 256, clientY: 144 });
+    expect(moves).toEqual([['pc-01', 4, 2]]);
+  });
+
+  it('edit mode rejects a drop on an occupied cell', () => {
+    const moves: unknown[] = [];
+    const { getByRole } = render(
+      <I18nProvider>
+        <FloorPlan model={nonEmptyModel()} selectedSeatId="pc-01" mode="edit" onSelectSeat={() => {}}
+          onSeatMove={(...args) => moves.push(args)} />
+      </I18nProvider>
+    );
+    const seat = getByRole('button', { name: 'PC-01 В сессии' });    // (1,1)
+    fireEvent.pointerDown(seat);
+    fireEvent.pointerMove(window, { clientX: 32 + 3*56, clientY: 32 + 1*56 }); // → (3,1) = pc-02, occupied
+    fireEvent.pointerUp(window, { clientX: 32 + 3*56, clientY: 32 + 1*56 });
+    expect(moves).toEqual([]);
+  });
+});
+
 describe('FloorPlan', () => {
   it('renders a seat marker per placed seat and labels the zone', () => {
     const { getByRole, getByText } = renderPlan(nonEmptyModel());
