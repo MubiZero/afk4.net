@@ -788,7 +788,8 @@ export async function loadBackendFloorMapState(
   const floorMap = await clients.floorMap.getFloorMap(branchId);
   // Persist the last-known-good snapshot so the workspace can degrade to a read-only mirror offline (§6.5).
   saveFloorMapCache(branchId, floorMap, Date.now());
-  return mapFloorMapDtoToState(floorMap, t);
+  // etag: null — the next task (B2-3b) will wire the real ETag from the HTTP response header.
+  return mapFloorMapDtoToState(floorMap, t, null);
 }
 
 export function createIdempotencyKey(operationName: string): string {

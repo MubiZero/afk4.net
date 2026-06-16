@@ -213,7 +213,7 @@ describe('floor-map state', () => {
           remainingSeconds: 3600
         })
       ]
-    }, t, loadedAtMs);
+    }, t, null, loadedAtMs);
 
     const nextState = refreshFloorMapRemaining(state, t, loadedAtMs + 121_000);
 
@@ -252,6 +252,17 @@ describe('floor-map state', () => {
     const state = createFixtureFloorMapState();
     expect(state.zones).toEqual([]);
     expect(state.walls).toEqual([]);
+  });
+
+  it('carries zoneId on each seat and stores etag in state for the «План» editor save (B2-3a)', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      seats: [createSeat({ seatName: 'PC-01', sortOrder: 10, state: 'Locked' })]
+    }, t, 'W/"abc"', 0);
+
+    expect(state.etag).toBe('W/"abc"');
+    expect(state.seats[0].zoneId).toBe('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
   });
 });
 

@@ -52,6 +52,9 @@ export interface SeatSummary {
   posY?: number | null;
   rotation?: number;
   seatType?: string;
+  // The seat's zone: required by the «План» editor's full-replace PUT (B2-3) to bind each seat
+  // to its zone in the saved layout payload.
+  zoneId?: string | null;
 }
 
 export interface NavItem {
