@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
 import { cellToPx, CANVAS_PADDING, DEFAULT_CELL_SIZE } from './floorPlanGeometry';
@@ -28,6 +28,9 @@ export function FloorPlan({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [drag, setDrag] = useState<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
 
+  const viewportRef = useRef<HTMLDivElement>(null);
+  // Invariant: the caller renders the empty state when isEmpty, so bbox is non-null here. The
+  // fallback only guards a misuse and yields a harmless 1×1 canvas rather than crashing.
   const bbox = model.bbox ?? { minX: 0, minY: 0, maxX: 1, maxY: 1 };
   const cell = DEFAULT_CELL_SIZE;
   const originX = bbox.minX;
@@ -46,18 +49,33 @@ export function FloorPlan({
     gridLines.push({ key: `h-${y}`, x1: px(originX), y1: py(y), x2: px(bbox.maxX), y2: py(y) });
   }
 
+  // Buttons jump twice the wheel step (0.2 vs 0.1) so discrete clicks reach the limits in fewer presses.
   const zoom = (delta: number) => setScale((s) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s + delta)));
 
-  const onWheel = (event: ReactWheelEvent) => {
-    event.preventDefault();
-    zoom(event.deltaY < 0 ? 0.1 : -0.1);
-  };
+  // Wheel zoom is wired as a native non-passive listener so preventDefault reliably stops the page
+  // from scrolling (a React onWheel handler is passive by default in Chromium/WebView2).
+  useEffect(() => {
+    const node = viewportRef.current;
+    if (node === null) {
+      return;
+    }
+
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      setScale((s) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, s + (event.deltaY < 0 ? 0.1 : -0.1))));
+    };
+
+    node.addEventListener('wheel', handleWheel, { passive: false });
+    return () => node.removeEventListener('wheel', handleWheel);
+  }, []);
 
   // Pan only when the drag starts on empty canvas (not on a seat marker — those handle their own click).
+  // Capture the pointer so a fast drag that leaves the viewport keeps delivering move/up events here.
   const onPointerDown = (event: ReactPointerEvent) => {
     if ((event.target as HTMLElement).closest('.plan-seat')) {
       return;
     }
+    event.currentTarget.setPointerCapture(event.pointerId);
     setDrag({ startX: event.clientX, startY: event.clientY, panX: pan.x, panY: pan.y });
   };
   const onPointerMove = (event: ReactPointerEvent) => {
@@ -66,7 +84,12 @@ export function FloorPlan({
     }
     setPan({ x: drag.panX + (event.clientX - drag.startX), y: drag.panY + (event.clientY - drag.startY) });
   };
-  const endDrag = () => setDrag(null);
+  const endDrag = (event: ReactPointerEvent) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    setDrag(null);
+  };
 
   return (
     <div className="floor-plan">
@@ -76,14 +99,13 @@ export function FloorPlan({
         <button type="button" aria-label={t('op.map.plan.zoomIn' as MessageKey)} onClick={() => zoom(0.2)}><Plus size={16} /></button>
       </div>
       <div
+        ref={viewportRef}
         className="floor-plan-viewport"
         role="application"
         aria-label={t('op.map.plan.canvasLabel' as MessageKey)}
-        onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
-        onPointerLeave={endDrag}
       >
         <div
           className="floor-plan-canvas"
@@ -99,6 +121,7 @@ export function FloorPlan({
               <rect
                 key={zone.id}
                 className="floor-plan-zone"
+                rx={8}
                 x={px(zone.geoX)}
                 y={py(zone.geoY)}
                 width={cellToPx(zone.geoWidth, cell)}

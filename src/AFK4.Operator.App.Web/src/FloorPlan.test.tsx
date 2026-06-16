@@ -47,4 +47,15 @@ describe('FloorPlan', () => {
     const { getByRole } = renderPlan(nonEmptyModel());
     expect(getByRole('button', { name: 'PC-01 В сессии' }).className).toContain('selected');
   });
+
+  it('zooms in via the toolbar button and returns to 100% on reset', () => {
+    // i18n keys for the plan view land in a later task, so the buttons' accessible names are the
+    // raw key strings here; the reset button also shows the current zoom percentage as its text.
+    const { getByRole, getByText } = renderPlan(nonEmptyModel());
+    expect(getByText('100%')).not.toBeNull();
+    fireEvent.click(getByRole('button', { name: 'op.map.plan.zoomIn' }));
+    expect(getByText('120%')).not.toBeNull();
+    fireEvent.click(getByRole('button', { name: 'op.map.plan.zoomReset' }));
+    expect(getByText('100%')).not.toBeNull();
+  });
 });
