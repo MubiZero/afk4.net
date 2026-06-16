@@ -41,3 +41,6 @@ Secrets/
 diffstat.txt
 g_build.txt
 g_test.txt
+
+# /graphify skill output (generated knowledge-graph artifacts + AST cache)
+graphify-out/
