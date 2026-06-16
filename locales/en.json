@@ -1083,6 +1083,8 @@
   "op.map.plan.edit.deleteZoneHasSeats": "Move the seats out of this zone first.",
   "op.map.plan.edit.deleteZoneLast": "At least one zone must remain.",
   "op.map.plan.edit.seatZoneLabel": "Zone",
+  "op.map.plan.edit.wallTool": "Walls",
+  "op.map.plan.edit.wallHint": "Click grid nodes to draw a wall. Click a wall to delete it.",
   "op.map.feedbackMap": "Map",
   "op.map.feedbackOffline": "Offline",
   "op.map.feedbackQueue": "Queue",

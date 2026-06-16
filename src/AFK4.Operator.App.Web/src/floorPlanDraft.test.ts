@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { createDraft, placeSeat, moveSeat, removeSeatFromPlan, rotateSeat, setSeatType, toBulkUpdateRequest, addZone, setZoneGeometry, renameZone, setZoneColor, removeZone, setSeatZone, zoneSeatCount } from './floorPlanDraft';
+import { createDraft, placeSeat, moveSeat, removeSeatFromPlan, rotateSeat, setSeatType, toBulkUpdateRequest, addZone, setZoneGeometry, renameZone, setZoneColor, removeZone, setSeatZone, zoneSeatCount, addWall, removeWall } from './floorPlanDraft';
 import type { OperatorFloorMapState } from './floorMapState';
 
 function state(): OperatorFloorMapState {
@@ -128,5 +128,28 @@ describe('zone editing', () => {
 
     const moved = req.seats.find((s) => s.clientId === 'seat-1');
     expect(moved?.zoneClientId).toBe('new-zone-0');
+  });
+});
+
+describe('wall editing', () => {
+  it('addWall appends a segment and marks dirty', () => {
+    const draft = addWall(createDraft(stateWith()), 1, 2, 4, 2);
+    expect(draft.walls).toHaveLength(2);                 // the fixture already has one wall
+    expect(draft.walls[1]).toEqual({ x1: 1, y1: 2, x2: 4, y2: 2 });
+    expect(draft.isDirty).toBe(true);
+  });
+
+  it('removeWall drops the indexed segment and marks dirty', () => {
+    let draft = addWall(createDraft(stateWith()), 1, 2, 4, 2);
+    draft = removeWall(draft, 0);                         // drop the original fixture wall
+    expect(draft.walls).toHaveLength(1);
+    expect(draft.walls[0]).toEqual({ x1: 1, y1: 2, x2: 4, y2: 2 });
+    expect(draft.isDirty).toBe(true);
+  });
+
+  it('serializes all walls in the bulk request', () => {
+    const draft = addWall(createDraft(stateWith()), 1, 2, 4, 2);
+    const req = toBulkUpdateRequest(draft, 'org-1');
+    expect(req.walls).toHaveLength(2);
   });
 });

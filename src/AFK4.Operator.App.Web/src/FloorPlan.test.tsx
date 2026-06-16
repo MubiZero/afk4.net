@@ -76,6 +76,34 @@ describe('FloorPlan edit mode', () => {
     fireEvent.pointerUp(window, { clientX: 32 + 3*56, clientY: 32 + 1*56 });
     expect(moves).toEqual([]);
   });
+
+  it('wall tool draws a segment from two node clicks (snapped)', () => {
+    const added: Array<[number, number, number, number]> = [];
+    const { getByRole } = render(
+      <I18nProvider>
+        <FloorPlan model={nonEmptyModel()} selectedSeatId="" mode="edit" tool="wall" onSelectSeat={() => {}}
+          onAddWall={(x1, y1, x2, y2) => added.push([x1, y1, x2, y2])} />
+      </I18nProvider>
+    );
+    const viewport = getByRole('application');
+    fireEvent.pointerDown(viewport, { clientX: 32, clientY: 32 });        // node (0,0)
+    fireEvent.pointerDown(viewport, { clientX: 32 + 2*56, clientY: 32 }); // node (2,0)
+    expect(added).toEqual([[0, 0, 2, 0]]);
+  });
+
+  it('wall tool deletes a wall when its hit line is clicked', () => {
+    const removed: number[] = [];
+    const { container } = render(
+      <I18nProvider>
+        <FloorPlan model={nonEmptyModel()} selectedSeatId="" mode="edit" tool="wall" onSelectSeat={() => {}}
+          onDeleteWall={(index) => removed.push(index)} />
+      </I18nProvider>
+    );
+    const hit = container.querySelector('.floor-plan-wall-hit');
+    expect(hit).not.toBeNull();
+    fireEvent.pointerDown(hit!);
+    expect(removed).toEqual([0]);
+  });
 });
 
 describe('FloorPlan', () => {
