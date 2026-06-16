@@ -785,11 +785,10 @@ export async function loadBackendFloorMapState(
   t: TFunc
 ): Promise<OperatorFloorMapState> {
   const clients = createAuthenticatedOperatorClients(config, session);
-  const floorMap = await clients.floorMap.getFloorMap(branchId);
+  const { value: floorMap, etag } = await clients.floorMap.getFloorMapWithEtag(branchId);
   // Persist the last-known-good snapshot so the workspace can degrade to a read-only mirror offline (§6.5).
   saveFloorMapCache(branchId, floorMap, Date.now());
-  // etag: null — the next task (B2-3b) will wire the real ETag from the HTTP response header.
-  return mapFloorMapDtoToState(floorMap, t, null);
+  return mapFloorMapDtoToState(floorMap, t, etag);
 }
 
 export function createIdempotencyKey(operationName: string): string {
