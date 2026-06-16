@@ -30,4 +30,10 @@ public sealed record SeatStatusDto(
     // carry no named tariff, or a free seat.
     string? TariffName = null,
     // When the active session started (UTC) — lets the operator show real elapsed time.
-    DateTimeOffset? SessionStartedAtUtc = null);
+    DateTimeOffset? SessionStartedAtUtc = null,
+    // Floor-plan layout: grid cell + orientation + host type. Null/default until the branch is
+    // arranged in the «План» editor (B2); the abstract grid view ignores these.
+    int? PosX = null,
+    int? PosY = null,
+    int Rotation = 0,
+    string SeatType = "pc");
