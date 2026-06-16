@@ -105,6 +105,28 @@ function reservation() {
   };
 }
 
+// Деталь устройства для «Статус ПК»: machineName опускаем — описатель подставит имя места,
+// версии/состояние реальные, чтобы кнопка «Статус» показывала осмысленный отчёт в превью.
+function deviceDetail() {
+  return {
+    organizationId: ORG, branchId: BRANCH,
+    deviceId: 'preview-device', agentVersion: '0.4', shellVersion: '0.4',
+    isOnline: true, isLocked: true,
+    enrolledAtUtc: '2026-05-21T08:30:00Z', lastHeartbeatAtUtc: '2026-05-21T10:00:00Z',
+    activeCredentialCount: 1, installedAppCount: 2, recentCommands: []
+  };
+}
+
+function diagnostics() {
+  return {
+    organizationId: ORG, branchId: BRANCH, generatedAtUtc: '2026-05-21T10:00:00Z',
+    deviceSummary: { totalDevices: 10, onlineDevices: 8, lockedDevices: 5, staleDevices: 0, staleThresholdSeconds: 120, newestHeartbeatAtUtc: '2026-05-21T10:00:00Z' },
+    commandSummary: { pendingCommands: 0, failedCommands: 0, recentFailures: [] },
+    updateSummary: { activeRollouts: 0, installingDevices: 0, failedDevices: 0, rollbackDevices: 0, recentFailures: [] },
+    staleDevices: []
+  };
+}
+
 // Route a platform request to a fixture. Returns null when nothing matches, so the caller can apply
 // a safe default.
 function route(pathname: string, method: string): unknown | undefined {
@@ -115,6 +137,8 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/reservations') && method === 'GET') return { reservations: [reservation()], limit: 40 };
   if (pathname.endsWith('/inventory/stock-movements') && method === 'GET') return [];
   if (pathname.endsWith('/commands') && method === 'GET') return [];
+  if (pathname.endsWith('/diagnostics') && method === 'GET') return diagnostics();
+  if (pathname.includes('/devices/') && method === 'GET') return deviceDetail();
   return undefined;
 }
 
