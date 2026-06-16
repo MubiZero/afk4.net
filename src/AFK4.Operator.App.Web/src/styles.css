@@ -2941,6 +2941,121 @@ button {
 }
 
 /* Перенос — один аккуратный контрол: метка + (выбор места ⋮ кнопка) единым блоком. */
+/* Дропдаун в стиле приложения (замена нативного <select>): тёмный список, акцент на выбранном. */
+.panel-select {
+  position: relative;
+  min-width: 0;
+}
+
+.panel-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.panel-select-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-select-value.is-placeholder {
+  color: var(--text-quaternary);
+}
+
+.panel-select-caret {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition: transform 120ms ease;
+}
+
+.panel-select-trigger[aria-expanded='true'] .panel-select-caret {
+  transform: rotate(180deg);
+}
+
+.panel-select-trigger:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.panel-select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.panel-select-trigger:disabled {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+}
+
+.panel-select-list {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+  animation: soft-enter 140ms var(--ease-out);
+}
+
+.panel-select-list:focus-visible {
+  outline: none;
+}
+
+.panel-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.panel-select-option.is-active {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.panel-select-option.is-selected {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.panel-select-option.is-selected.is-active {
+  background: var(--accent-soft);
+}
+
+.panel-select-option svg {
+  flex-shrink: 0;
+  color: var(--accent-text);
+}
+
 .transfer-row {
   display: grid;
   gap: 6px;
@@ -2963,19 +3078,31 @@ button {
   border: 1px solid var(--border-default);
   border-radius: 7px;
   background: var(--surface-card);
-  overflow: hidden;
 }
 
-.transfer-row-controls select {
+.transfer-row-controls .transfer-select {
   flex: 1;
-  min-width: 0;
+}
+
+.transfer-row-controls .panel-select-trigger {
   height: 36px;
-  border: none;
   padding: 0 10px;
+  border: none;
+  border-radius: 7px 0 0 7px;
   background: transparent;
   color: var(--text-strong);
   font-size: 13px;
   font-weight: 700;
+}
+
+.transfer-row-controls .panel-select-trigger:hover:not(:disabled) {
+  border: none;
+  background: var(--surface-hover);
+}
+
+.transfer-row-controls .panel-select-trigger:focus-visible {
+  border: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .transfer-row-controls .transfer-go {
@@ -2984,6 +3111,7 @@ button {
   padding: 0 14px;
   border: none;
   border-left: 1px solid var(--border-default);
+  border-radius: 0 7px 7px 0;
   background: var(--surface-hover);
   color: var(--text-strong);
   font-size: 13px;
@@ -3215,18 +3343,6 @@ button {
   text-transform: uppercase;
 }
 
-.context-transfer-target select {
-  min-width: 0;
-  height: 26px;
-  border: 1px solid var(--border-default);
-  border-radius: 5px;
-  padding: 0 7px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  font-size: 12px;
-  font-weight: 500;
-}
-
 .context-transfer-target input {
   min-width: 0;
   height: 26px;
@@ -3237,10 +3353,6 @@ button {
   color: var(--text-strong);
   font-size: 12px;
   font-weight: 500;
-}
-
-.context-transfer-target select:disabled {
-  color: var(--text-quaternary);
 }
 
 .context-transfer-target input:disabled {

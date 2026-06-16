@@ -58,6 +58,7 @@ import {
 } from './operatorHelpers';
 import { CriticalActionConfirmation } from './operatorPrimitives';
 import { PanelModal } from './PanelModal';
+import { PanelSelect } from './PanelSelect';
 import { isAttentionTone, seatTileLead } from './seatTilePresentation';
 import { formatDurationCompact } from './floorMapState';
 
@@ -675,12 +676,15 @@ export function MapSidePanel({
             <div className="transfer-row">
               <span className="transfer-row-label"><ArrowRightLeft size={13} aria-hidden="true" />{t('op.map.panel.transferTo')}</span>
               <div className="transfer-row-controls">
-                <select aria-label={t('op.map.panel.transferTo')} value={targetSeatId} disabled={!actionsEnabled || !canTransferPermission || hasPendingSessionCommand || isBusy || transferCandidates.length === 0} onChange={(event) => setTargetSeatId(event.currentTarget.value)}>
-                  {transferCandidates.length === 0 && <option value="">{t('op.map.panel.noFreePc')}</option>}
-                  {transferCandidates.map((candidate) => (
-                    <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
-                  ))}
-                </select>
+                <PanelSelect
+                  className="transfer-select"
+                  ariaLabel={t('op.map.panel.transferTo')}
+                  value={targetSeatId}
+                  disabled={!actionsEnabled || !canTransferPermission || hasPendingSessionCommand || isBusy || transferCandidates.length === 0}
+                  placeholder={t('op.map.panel.noFreePc')}
+                  options={transferCandidates.map((candidate) => ({ value: candidate.id, label: candidate.name }))}
+                  onChange={setTargetSeatId}
+                />
                 <button type="button" className="transfer-go" disabled={!canTransferSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.transferAction'), { type: 'transfer', seat, targetSeatId })}>{actionGlyph(t('op.map.panel.transferAction'), null)}{t('op.map.panel.transferAction')}</button>
               </div>
             </div>
@@ -893,37 +897,33 @@ export function MapSidePanel({
             {(billingMode === 'prepaid_wallet' || billingMode === 'postpaid_debt') && (
               <label className="context-transfer-target billing-input-row">
                 <span>{t('op.map.panel.tariffLabel')}</span>
-                <select
-                  aria-label={t('op.map.panel.tariffSession')}
+                <PanelSelect
+                  ariaLabel={t('op.map.panel.tariffSession')}
                   value={selectedTariffVersionId}
                   disabled={!actionsEnabled || isBusy || tariffOptions.length === 0}
-                  onChange={(event) => setSelectedTariffVersionId(event.currentTarget.value)}
-                >
-                  {tariffOptions.length === 0 && <option value="">{t('op.map.panel.noTariffs')}</option>}
-                  {tariffOptions.map((tariff) => (
-                    <option key={readString(tariff, 'tariffVersionId')} value={readString(tariff, 'tariffVersionId')}>
-                      {tariffOptionLabel(tariff, currencyCode, t)}
-                    </option>
-                  ))}
-                </select>
+                  placeholder={t('op.map.panel.noTariffs')}
+                  options={tariffOptions.map((tariff) => ({
+                    value: readString(tariff, 'tariffVersionId'),
+                    label: tariffOptionLabel(tariff, currencyCode, t)
+                  }))}
+                  onChange={setSelectedTariffVersionId}
+                />
               </label>
             )}
             {billingMode === 'package' && (
               <label className="context-transfer-target billing-input-row">
                 <span>{t('op.map.panel.packageLabel')}</span>
-                <select
-                  aria-label={t('op.map.panel.packageSession')}
+                <PanelSelect
+                  ariaLabel={t('op.map.panel.packageSession')}
                   value={selectedPlayerPackageId}
                   disabled={!actionsEnabled || isBusy || !selectedPlayer || playerPackages.length === 0}
-                  onChange={(event) => setSelectedPlayerPackageId(event.currentTarget.value)}
-                >
-                  {playerPackages.length === 0 && <option value="">{t('op.map.panel.noPackages')}</option>}
-                  {playerPackages.map((playerPackage) => (
-                    <option key={readString(playerPackage, 'playerPackageId')} value={readString(playerPackage, 'playerPackageId')}>
-                      {playerPackageLabel(playerPackage, t)}
-                    </option>
-                  ))}
-                </select>
+                  placeholder={t('op.map.panel.noPackages')}
+                  options={playerPackages.map((playerPackage) => ({
+                    value: readString(playerPackage, 'playerPackageId'),
+                    label: playerPackageLabel(playerPackage, t)
+                  }))}
+                  onChange={setSelectedPlayerPackageId}
+                />
               </label>
             )}
             <div className="detail-row billing-meta">
