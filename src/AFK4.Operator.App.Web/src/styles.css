@@ -1259,6 +1259,46 @@ button {
   min-height: 34px;
 }
 
+/* «Скоро» — следующий слой PC-команд: пунктирные строки-заглушки label + причина. */
+.pc-soon-group {
+  display: grid;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.pc-soon-label {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pc-soon-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 9px;
+  border: 1px dashed var(--border-default);
+  border-radius: 6px;
+}
+
+.pc-soon-row strong {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pc-soon-row em {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+}
+
 /* Результат «Статус ПК» — отчёт читается текстом (#34). */
 .pc-control-result {
   margin: 0;
@@ -7905,6 +7945,9 @@ button {
   display: grid;
   min-width: 0;
   min-height: 0;
+  /* Опускаем панель на уровень сетки мест: верх карточки встаёт вровень с доской зала,
+     а не с тулбаром. 72px = высота шапки карты (заголовок ~30 + сегмент-фильтры ~42). */
+  padding-top: 72px;
 }
 
 .context-zone-body {

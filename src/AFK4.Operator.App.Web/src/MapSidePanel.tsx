@@ -797,6 +797,16 @@ export function MapSidePanel({
           {(pcFeedback.state === 'confirmed' || pcFeedback.state === 'failed') && pcFeedback.detail && (
             <p className={`pc-control-result ${pcFeedback.state}`} role="status">{pcFeedback.detail}</p>
           )}
+          {/* «Скоро» — следующий слой команд питания (как в ПКМ-меню). Честные заглушки с
+              причиной (#37): видно, что в планах, но они ещё не кликабельны. */}
+          {hasPermission(session, permissionNames.dispatchDeviceCommand) && (
+            <div className="pc-soon-group">
+              <span className="pc-soon-label">{t('op.map.menu.sectionSoon')}</span>
+              <div className="pc-soon-row"><strong>{t('op.map.rebootBtn')}</strong><em>{t('op.map.rebootHint')}</em></div>
+              <div className="pc-soon-row"><strong>{t('op.map.shutdownBtn')}</strong><em>{t('op.map.shutdownHint')}</em></div>
+              <div className="pc-soon-row"><strong>{t('op.map.wakeBtn')}</strong><em>{t('op.map.wakeHint')}</em></div>
+            </div>
+          )}
         </section>
       )}
 
