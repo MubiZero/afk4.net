@@ -619,58 +619,6 @@ export function MapSidePanel({
 
   return (
     <aside className="context-panel">
-      {/* Статус ПК — самый верх: онлайн ли машина и не заблокирована ли, видно до выбора места. */}
-      <section className="context-section pc-status-section">
-        <div className="context-section-head">
-          <MonitorCheck size={13} aria-hidden="true" />
-          <span>{t('op.map.panel.diagnostics')}</span>
-        </div>
-        {!hasDevice ? (
-          <div className="detail-row">
-            <span>{t('op.map.colDevice')}</span>
-            <strong>{t('op.helper.deviceStatus.unassigned')}</strong>
-          </div>
-        ) : (
-          <>
-            {/* Имя устройства показываем, только если оно отличается от имени места (иначе дубль героя). */}
-            {seat.deviceName && seat.deviceName !== seat.name && (
-              <div className="detail-row">
-                <span>{t('op.map.colDevice')}</span>
-                <strong>{seat.deviceName}</strong>
-              </div>
-            )}
-            <div className="pc-health">
-              <span className={`status-pill ${seat.isDeviceOnline === true ? 'ok' : seat.isDeviceOnline === false ? 'bad' : 'neutral'}`}>
-                {seat.isDeviceOnline === false ? <WifiOff size={12} aria-hidden="true" /> : <Wifi size={12} aria-hidden="true" />}
-                {connectionLabel}
-              </span>
-              <span className="status-pill neutral">
-                {seat.isDeviceLocked === true ? <Lock size={12} aria-hidden="true" /> : <Unlock size={12} aria-hidden="true" />}
-                {lockLabel}
-              </span>
-            </div>
-            {showPcDetail && (
-              <div className="detail-row">
-                <span>{t('op.map.panel.versions')}</span>
-                <strong>{appVersionsLabel(seat.app, t)}</strong>
-              </div>
-            )}
-          </>
-        )}
-        {showPcDetail && (
-          <div className="detail-row">
-            <span>{t('op.map.colCommand')}</span>
-            <strong>{commandLabel(seat.command, t)}</strong>
-          </div>
-        )}
-        {!isHealthyIdle && (
-          <div className="detail-row">
-            <span>{t('op.map.panel.confirmationLabel')}</span>
-            <strong>{confirmationText}</strong>
-          </div>
-        )}
-      </section>
-
       {/* Герой места: что я смотрю + главное число (остаток/счёт/статус) одним блоком наверху. */}
       <header className={`seat-hero state-${seat.tone}`}>
         {/* Надзаголовок «зона» вплотную над именем места — один титульный блок, а не два
@@ -769,6 +717,58 @@ export function MapSidePanel({
         </section>
       )}
 
+      {/* Статус ПК — конкретика, которая уже на руках (#34): связь/блокировка пилюлями. */}
+      <section className="context-section">
+        <div className="context-section-head">
+          <MonitorCheck size={13} aria-hidden="true" />
+          <span>{t('op.map.panel.diagnostics')}</span>
+        </div>
+        {!hasDevice ? (
+          <div className="detail-row">
+            <span>{t('op.map.colDevice')}</span>
+            <strong>{t('op.helper.deviceStatus.unassigned')}</strong>
+          </div>
+        ) : (
+          <>
+            {/* Имя устройства показываем, только если оно отличается от имени места (иначе дубль героя). */}
+            {seat.deviceName && seat.deviceName !== seat.name && (
+              <div className="detail-row">
+                <span>{t('op.map.colDevice')}</span>
+                <strong>{seat.deviceName}</strong>
+              </div>
+            )}
+            <div className="pc-health">
+              <span className={`status-pill ${seat.isDeviceOnline === true ? 'ok' : seat.isDeviceOnline === false ? 'bad' : 'neutral'}`}>
+                {seat.isDeviceOnline === false ? <WifiOff size={12} aria-hidden="true" /> : <Wifi size={12} aria-hidden="true" />}
+                {connectionLabel}
+              </span>
+              <span className="status-pill neutral">
+                {seat.isDeviceLocked === true ? <Lock size={12} aria-hidden="true" /> : <Unlock size={12} aria-hidden="true" />}
+                {lockLabel}
+              </span>
+            </div>
+            {showPcDetail && (
+              <div className="detail-row">
+                <span>{t('op.map.panel.versions')}</span>
+                <strong>{appVersionsLabel(seat.app, t)}</strong>
+              </div>
+            )}
+          </>
+        )}
+        {showPcDetail && (
+          <div className="detail-row">
+            <span>{t('op.map.colCommand')}</span>
+            <strong>{commandLabel(seat.command, t)}</strong>
+          </div>
+        )}
+        {!isHealthyIdle && (
+          <div className="detail-row">
+            <span>{t('op.map.panel.confirmationLabel')}</span>
+            <strong>{confirmationText}</strong>
+          </div>
+        )}
+      </section>
+
       {/* Управление ПК живёт рядом со «Статусом ПК» — видишь состояние машины и тут же ей
           командуешь. Отдельной кнопки в тулбаре больше нет: команды относятся к выбранному
           месту, поэтому их место — в его карточке. «Статус» показывает отчёт текстом ниже. */}
@@ -796,16 +796,6 @@ export function MapSidePanel({
           </div>
           {(pcFeedback.state === 'confirmed' || pcFeedback.state === 'failed') && pcFeedback.detail && (
             <p className={`pc-control-result ${pcFeedback.state}`} role="status">{pcFeedback.detail}</p>
-          )}
-          {/* «Скоро» — следующий слой команд питания (как в ПКМ-меню). Честные заглушки с
-              причиной (#37): видно, что в планах, но они ещё не кликабельны. */}
-          {hasPermission(session, permissionNames.dispatchDeviceCommand) && (
-            <div className="pc-soon-group">
-              <span className="pc-soon-label">{t('op.map.menu.sectionSoon')}</span>
-              <div className="pc-soon-row"><strong>{t('op.map.rebootBtn')}</strong><em>{t('op.map.rebootHint')}</em></div>
-              <div className="pc-soon-row"><strong>{t('op.map.shutdownBtn')}</strong><em>{t('op.map.shutdownHint')}</em></div>
-              <div className="pc-soon-row"><strong>{t('op.map.wakeBtn')}</strong><em>{t('op.map.wakeHint')}</em></div>
-            </div>
           )}
         </section>
       )}
