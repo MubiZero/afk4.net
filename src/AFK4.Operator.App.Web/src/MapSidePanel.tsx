@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ArrowRightLeft, Banknote, CircleDollarSign, Lock, MonitorCheck, Plus, ReceiptText, TimerReset, Unlock, Wifi, WifiOff, X } from 'lucide-react';
+import { ArrowRightLeft, Banknote, Check, CircleDollarSign, Loader2, Lock, MonitorCheck, Plus, ReceiptText, TimerReset, TriangleAlert, Unlock, Wifi, WifiOff, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { currencySymbol } from '@afk4/money';
 import { projectOperatorError } from './apiErrors';
@@ -42,7 +42,6 @@ import {
   defaultTariffRuleVersionId,
   guestBillingSelection,
   emptyFeedback,
-  feedbackText,
   formatMinorUnits,
   isPendingSeatCommand,
   mapSeatStatus,
@@ -55,7 +54,7 @@ import {
   projectPlayerClient,
   zoneLabel
 } from './operatorHelpers';
-import { CriticalActionConfirmation, FeedbackNotice } from './operatorPrimitives';
+import { CriticalActionConfirmation } from './operatorPrimitives';
 import { PanelModal } from './PanelModal';
 import { isAttentionTone, seatTileLead } from './seatTilePresentation';
 import { formatDurationCompact } from './floorMapState';
@@ -65,6 +64,40 @@ const checkoutMethodIcons: Record<CheckoutMethod, ReactNode> = {
   card_manual: <CircleDollarSign size={14} />,
   wallet: <ReceiptText size={14} />
 };
+
+/**
+ * Визуальный отклик на действие вместо строки текста: пока команда в полёте — спиннер,
+ * при успехе — зелёная галочка (сама гаснет через эффект выше). Ошибку показываем текстом:
+ * её надо прочитать (#34). Так подтверждение читается «языком», а не абзацем.
+ */
+function ActionFeedback({ feedback }: { feedback: Feedback }) {
+  const { t } = useI18n();
+  if (feedback.state === 'idle') {
+    return null;
+  }
+  if (feedback.state === 'pending') {
+    return (
+      <div className="action-feedback pending" role="status" aria-live="polite">
+        <Loader2 size={15} className="spin" aria-hidden="true" />
+        <span>{feedback.label}</span>
+      </div>
+    );
+  }
+  if (feedback.state === 'confirmed') {
+    return (
+      <div className="action-feedback done" role="status" aria-live="polite">
+        <span className="action-feedback-check" aria-hidden="true"><Check size={14} strokeWidth={3} /></span>
+        <span>{t('op.map.panel.actionDone')}</span>
+      </div>
+    );
+  }
+  return (
+    <div className="action-feedback failed" role="alert">
+      <TriangleAlert size={15} aria-hidden="true" />
+      <span>{feedback.detail || t('op.helper.feedback.failed', { label: feedback.label })}</span>
+    </div>
+  );
+}
 
 /**
  * "Завершить и принять оплату": fetches the read-only checkout quote, shows the
@@ -363,6 +396,8 @@ export function MapSidePanel({
   const canExtendSession = actionsEnabled && canExtendPermission && billingReady && hasActionableSession;
   const canEndSession = actionsEnabled && canEndPermission && hasActionableSession;
   const canTransferSession = actionsEnabled && canTransferPermission && hasActionableSession && targetSeatId.length > 0;
+  // Строка отражает только готовность (можно ли действовать и почему нет), а не результат
+  // последнего действия — результат теперь показывает визуальный ActionFeedback (галочка/спиннер).
   const confirmationText = !actionsEnabled
     ? t('op.map.panel.confirmStatusUnavailable')
     : !hasAnySessionActionPermission
@@ -371,13 +406,11 @@ export function MapSidePanel({
         ? t('op.map.panel.confirmStatusBilling', { missing: billingMissing ?? '' })
       : hasPendingSessionCommand
         ? t('op.map.panel.confirmStatusPending')
-      : feedback.state === 'idle'
-        ? t('op.map.panel.confirmStatusWaiting')
-        : feedbackText(feedback, t);
-  // Строку подтверждения показываем только когда есть что сообщить: нет бэка / прав / биллинга,
-  // команда в полёте или результат действия. Здоровое «ожидает команды» — это шум, прячем.
+        : t('op.map.panel.confirmStatusWaiting');
+  // Строку готовности показываем только когда есть реальное препятствие: нет бэка / прав /
+  // биллинга или команда в полёте. Здоровое «готов к работе» — это шум, прячем.
   const isHealthyIdle = actionsEnabled && hasAnySessionActionPermission && billingReady
-    && !hasPendingSessionCommand && feedback.state === 'idle';
+    && !hasPendingSessionCommand;
   const billingLoadText = billingStatus === 'backend'
     ? t('op.map.panel.billingLoadData')
     : billingStatus === 'loading'
@@ -438,6 +471,16 @@ export function MapSidePanel({
     setCriticalAction(null);
     setStartDialogOpen(false);
   }, [seat.id, seat.activeSessionId]);
+
+  // Успех показываем галочкой и сами гасим — оператору не нужно его закрывать.
+  // Ошибку оставляем на экране: её надо прочитать и решить.
+  useEffect(() => {
+    if (feedback.state !== 'confirmed') {
+      return;
+    }
+    const timer = window.setTimeout(() => setFeedback(emptyFeedback), 1600);
+    return () => window.clearTimeout(timer);
+  }, [feedback]);
 
   useEffect(() => {
     let disposed = false;
@@ -526,6 +569,21 @@ export function MapSidePanel({
     }
   };
 
+  // Иконка на самой кнопке: пока её действие в полёте — спиннер, при успехе — галочка,
+  // иначе обычная иконка. Так подтверждение читается на кнопке, без отдельной строки текста.
+  const actionGlyph = (label: string, fallback: ReactNode): ReactNode => {
+    if (feedback.label !== label) {
+      return fallback;
+    }
+    if (feedback.state === 'pending') {
+      return <Loader2 size={14} className="spin" aria-hidden="true" />;
+    }
+    if (feedback.state === 'confirmed') {
+      return <Check size={14} aria-hidden="true" />;
+    }
+    return fallback;
+  };
+
   return (
     <aside className="context-panel">
       {/* Герой места: что я смотрю + главное число (остаток/счёт/статус) одним блоком наверху. */}
@@ -535,14 +593,19 @@ export function MapSidePanel({
           <span className={`state-chip state-${seat.tone}`}>{toneLabel(seat.tone, t)}</span>
         </div>
         <h2 className="seat-hero-name">{seat.name}</h2>
-        <div className="seat-hero-metric">
-          {heroLabel && <span className="seat-hero-label">{heroLabel}</span>}
-          <strong className={`seat-hero-value${lead.kind === 'postpaid' ? ' is-money' : ''}`}>
-            {lead.kind === 'prepaid' && seat.remainingSeconds != null
-              ? formatDurationCompact(seat.remainingSeconds, t)
-              : seat.remaining}
-          </strong>
-        </div>
+        {/* Крупное число-герой только когда оно есть (время/счёт). Для свободного места
+            ничего не дублируем — чип «Готов» и кнопка «Посадить гостя» уже всё сказали;
+            для проблемных статусов показываем строку скромным размером, не гигантом. */}
+        {lead.kind !== 'free' && (
+          <div className="seat-hero-metric">
+            {heroLabel && <span className="seat-hero-label">{heroLabel}</span>}
+            <strong className={`seat-hero-value${lead.kind === 'postpaid' ? ' is-money' : ''}${lead.kind === 'plain' ? ' is-text' : ''}`}>
+              {lead.kind === 'prepaid' && seat.remainingSeconds != null
+                ? formatDurationCompact(seat.remainingSeconds, t)
+                : seat.remaining}
+            </strong>
+          </div>
+        )}
         {lead.kind === 'prepaid' && (
           <span className={`seat-timebar${lead.low ? ' seat-timebar--low' : ''}`} aria-hidden="true">
             <i style={{ width: `${Math.round(lead.barRatio * 100)}%` }} />
@@ -556,8 +619,8 @@ export function MapSidePanel({
         {hasActiveSession ? (
           <>
             <div className="quick-extend">
-              <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.extend15Action'), { type: 'extend', seat, minutes: 15, billing: billingSelection })}><Plus size={14} />{t('op.map.panel.extend15Action')}</button>
-              <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.extend30Action'), { type: 'extend', seat, minutes: 30, billing: billingSelection })}><TimerReset size={14} />{t('op.map.panel.extend30Action')}</button>
+              <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.extend15Action'), { type: 'extend', seat, minutes: 15, billing: billingSelection })}>{actionGlyph(t('op.map.panel.extend15Action'), <Plus size={14} />)}{t('op.map.panel.extend15Action')}</button>
+              <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.extend30Action'), { type: 'extend', seat, minutes: 30, billing: billingSelection })}>{actionGlyph(t('op.map.panel.extend30Action'), <TimerReset size={14} />)}{t('op.map.panel.extend30Action')}</button>
             </div>
             {/* Одна кнопка «Завершить»: онлайн ведёт в расчёт (с опцией «без оплаты»),
                 офлайн — в простое подтверждение завершения. Отдельный «Стоп» убран. */}
@@ -573,7 +636,7 @@ export function MapSidePanel({
                     <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
                   ))}
                 </select>
-                <button type="button" className="transfer-go" disabled={!canTransferSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.transferAction'), { type: 'transfer', seat, targetSeatId })}>{t('op.map.panel.transferAction')}</button>
+                <button type="button" className="transfer-go" disabled={!canTransferSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.transferAction'), { type: 'transfer', seat, targetSeatId })}>{actionGlyph(t('op.map.panel.transferAction'), null)}{t('op.map.panel.transferAction')}</button>
               </div>
             </div>
           </>
@@ -605,7 +668,7 @@ export function MapSidePanel({
           onEndWithoutPayment={() => void runSeatAction(t('op.map.panel.stopAction'), { type: 'end', seat })}
         />
       )}
-      <FeedbackNotice feedback={feedback} />
+      <ActionFeedback feedback={feedback} />
 
       {hasActiveSession && seat.remainingSeconds == null && seat.accruedCostMinorUnits != null && (
         // Открытый счёт: набежавшая сумма — настоящие деньги, которые уже на руках (#34).

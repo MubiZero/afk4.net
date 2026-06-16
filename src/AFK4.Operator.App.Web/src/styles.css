@@ -93,6 +93,34 @@ button {
   }
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Галочка успеха «впрыгивает»: чуть проскочила масштаб и осела — физический «щелчок». */
+@keyframes check-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.spin {
+  animation: spin 720ms linear infinite;
+}
+
 .floor-workspace,
 .workspace-screen {
   animation: soft-enter 140ms ease-out;
@@ -1630,6 +1658,73 @@ button {
   color: var(--danger-text);
 }
 
+/* Визуальный отклик на действие в панели карты: спиннер «в работе», галочка «готово»,
+   текст — только для ошибки. Компактный ряд, иконка ведёт, минимум слов. */
+.action-feedback {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 26px;
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  animation: soft-enter 140ms ease-out;
+}
+
+.action-feedback svg {
+  flex: none;
+}
+
+.action-feedback span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.action-feedback.pending {
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+}
+
+.action-feedback.done {
+  background: var(--success-soft-bg);
+  color: var(--success-text);
+}
+
+/* Кружок-галочка успеха: зелёный диск + впрыгивающая галочка. */
+.action-feedback-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--success);
+  color: #08130d;
+  animation: check-pop 280ms cubic-bezier(0.22, 1.2, 0.4, 1);
+}
+
+.action-feedback.failed {
+  background: var(--danger-soft-bg);
+  color: var(--danger-text);
+}
+
+/* Галочка/спиннер прямо на кнопке действия (продление, перенос) — успех читается там,
+   где оператор только что нажал. */
+.quick-extend button .spin,
+.transfer-go .spin {
+  color: var(--text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Спиннер-загрузку оставляем (нужная индикация), убираем декоративный всплеск/въезд. */
+  .action-feedback,
+  .action-feedback-check {
+    animation: none;
+  }
+}
+
 .critical-confirmation {
   display: grid;
   gap: 9px;
@@ -2311,9 +2406,9 @@ button {
 }
 
 .seat-invite-label {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 /* Постоплата / открытый счёт: набегающая сумма наверху, со стрелкой роста. */
@@ -2713,6 +2808,16 @@ button {
 
 .seat-hero-value.is-money {
   color: var(--accent-text);
+}
+
+/* Текстовый статус (проблема/ожидание) — не число-герой: показываем спокойнее,
+   чтобы он не кричал размером 26px там, где это просто слово. */
+.seat-hero-value.is-text {
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: normal;
 }
 
 .seat-hero .seat-timebar {

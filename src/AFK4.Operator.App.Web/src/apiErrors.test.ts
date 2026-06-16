@@ -15,7 +15,7 @@ describe('projectOperatorError', () => {
   it('uses a stable fallback when the failure has no details', () => {
     expect(projectOperatorError(undefined, t)).toEqual({
       title: 'Действие не выполнено',
-      detail: 'Платформа не вернула подробности. Повторите действие или проверьте связь.'
+      detail: 'Сервер не вернул подробности. Повторите действие или проверьте связь.'
     });
   });
 });

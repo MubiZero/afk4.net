@@ -28,12 +28,12 @@ function renderMenu(onSelect: (item: SeatMenuItem) => void, onClose: () => void)
 
 describe('SeatContextMenu', () => {
   it('renders an accessible menu and dispatches the picked item', () => {
-    const onSelect = mock(() => {});
+    const onSelect = mock((_item: SeatMenuItem) => {});
     const { getByRole, getByText } = renderMenu(onSelect, () => {});
     expect(getByRole('menu')).not.toBeNull();
     fireEvent.click(getByText('+15 мин'));
     expect(onSelect).toHaveBeenCalledTimes(1);
-    expect((onSelect.mock.calls[0][0] as SeatMenuItem).id).toBe('extend-15');
+    expect(onSelect.mock.calls[0][0].id).toBe('extend-15');
   });
 
   it('closes on Escape so the keyboard user is never trapped', () => {
