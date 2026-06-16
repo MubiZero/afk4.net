@@ -22,4 +22,12 @@ public sealed record SeatStatusDto(
     string? CurrencyCode = null,
     // Optimistic-concurrency version of the active session; the operator echoes it back as
     // ExpectedVersion on a seat mutation so a stale view loses the race with a 409.
-    int? SessionVersion = null);
+    int? SessionVersion = null,
+    // Who is on the seat right now: the active session's player display name. Null for a
+    // guest session with no account, or a free seat.
+    string? PlayerDisplayName = null,
+    // The tariff the active session bills against. Null for guest/package sessions that
+    // carry no named tariff, or a free seat.
+    string? TariffName = null,
+    // When the active session started (UTC) — lets the operator show real elapsed time.
+    DateTimeOffset? SessionStartedAtUtc = null);

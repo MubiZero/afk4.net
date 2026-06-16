@@ -222,6 +222,7 @@ public sealed class EfSessionCommandService(
                 TariffRuleVersionId = string.IsNullOrWhiteSpace(billingValidation.TariffRuleVersionId)
                     ? request.TariffRuleVersionId
                     : billingValidation.TariffRuleVersionId,
+                BillingMode = billingMode,
                 State = SessionStateNames.Active,
                 RequestedAtUtc = now,
                 StartedAtUtc = now,
@@ -385,6 +386,13 @@ public sealed class EfSessionCommandService(
 
         var playerAccountId = session.PlayerAccountId ?? request.PlayerAccountId;
 
+        // Money-path guard: an extend that omits the billing mode inherits what the session was
+        // started with — never silently fall back to a free guest top-up for a paid session. An
+        // explicit mode in the request still wins (e.g. an operator comping the extension).
+        var effectiveBillingMode = string.IsNullOrWhiteSpace(request.BillingMode)
+            ? session.BillingMode
+            : request.BillingMode;
+
         Guid? deviceIdToNotify = null;
         DeviceCommandDto? commandToNotify = null;
         var result = await ExecuteVersionedMutationAsync(sessionId, async () =>
@@ -393,7 +401,7 @@ public sealed class EfSessionCommandService(
                 session.OrganizationId,
                 session.BranchId,
                 playerAccountId,
-                request.BillingMode,
+                effectiveBillingMode,
                 request.TariffVersionId,
                 request.PlayerPackageId,
                 request.AdditionalMinutes,
@@ -424,7 +432,7 @@ public sealed class EfSessionCommandService(
                     billingValidation,
                     playerAccountId.Value,
                     request.PlayerPackageId,
-                    request.BillingMode,
+                    effectiveBillingMode,
                     now,
                     cancellationToken);
             }

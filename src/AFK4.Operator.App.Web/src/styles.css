@@ -93,6 +93,34 @@ button {
   }
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Галочка успеха «впрыгивает»: чуть проскочила масштаб и осела — физический «щелчок». */
+@keyframes check-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.spin {
+  animation: spin 720ms linear infinite;
+}
+
 .floor-workspace,
 .workspace-screen {
   animation: soft-enter 140ms ease-out;
@@ -202,7 +230,9 @@ button {
 .brand-block {
   display: flex;
   align-items: center;
-  gap: 12px;
+  /* Лого обрезан по глифу (viewBox), поэтому небольшой gap делает расстояние лого→разделитель
+     равным разделитель→«Оператор» (12px у span). */
+  gap: 8px;
   width: max-content;
   line-height: 1;
 }
@@ -304,24 +334,6 @@ button {
   font-weight: 600;
 }
 
-.sign-out-button {
-  height: 28px;
-  padding: 0 11px;
-  border: 1px solid var(--border-strong);
-  border-radius: 5px;
-  background: var(--surface-muted);
-  color: var(--text-strong);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.sign-out-button:hover,
-.sign-out-button:focus-visible {
-  border-color: var(--accent-hover);
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
 .window-controls {
   display: flex;
   align-items: center;
@@ -383,7 +395,7 @@ button {
   background: var(--surface-muted);
   color: var(--text-strong);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 0.04em;
   transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
 }
@@ -443,7 +455,7 @@ button {
   margin: 0;
   color: var(--text-primary);
   font-size: 24px;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.015em;
   line-height: 1.1;
 }
@@ -658,7 +670,7 @@ button {
   background: var(--accent);
   color: var(--text-on-accent);
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 0.01em;
   transition: background 120ms ease, transform 200ms cubic-bezier(0.34, 1.4, 0.7, 1), box-shadow 120ms ease;
 }
@@ -733,7 +745,7 @@ button {
   background: var(--surface-card);
   color: var(--text-secondary);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
   transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
 }
 
@@ -793,7 +805,11 @@ button {
   align-items: center;
   gap: 9px;
   min-height: 0;
-  padding: 8px 7px 10px;
+  padding: 8px 7px 16px;
+  /* Вертикальный список иконок: скроллим только по вертикали. Явный overflow-x:hidden
+     убирает фантомный горизонтальный скролл (overflow-y:auto иначе делает и X = auto,
+     и суб-пиксельный край ловит лишнюю полосу). */
+  overflow-x: hidden;
   overflow-y: auto;
   border-right: 1px solid var(--border-soft);
   background: var(--surface-elevated);
@@ -845,6 +861,149 @@ button {
 .workspace-rail button.locked:focus-visible {
   background: var(--surface-muted);
   color: var(--text-tertiary);
+}
+
+/* Аккаунт оператора — в подвале рейла, отделён сверху от навигации. */
+.rail-account {
+  position: relative;
+  margin-top: auto;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.rail-account-trigger {
+  display: grid;
+  place-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 8px 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.rail-account-trigger:hover,
+.rail-account-trigger[aria-expanded='true'] {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+.rail-account-trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.rail-account-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.rail-account-avatar.lg {
+  width: 36px;
+  height: 36px;
+  font-size: 13px;
+}
+
+.rail-account-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  max-width: 58px;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-secondary);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.rail-account-menu {
+  position: fixed;
+  z-index: 60;
+  width: 212px;
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+  animation: soft-enter 140ms var(--ease-out);
+}
+
+.rail-account-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.rail-account-head strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail-account-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.rail-account-item svg {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.rail-account-item:hover,
+.rail-account-item:focus-visible {
+  outline: none;
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.rail-account-item.danger:hover,
+.rail-account-item.danger:focus-visible {
+  background: var(--danger-soft-bg);
+  color: var(--danger-text);
+}
+
+.rail-account-item.danger:hover svg,
+.rail-account-item.danger:focus-visible svg {
+  color: var(--danger-text);
 }
 
 /* Колонка контента (грид-ребёнок 2-й колонки оболочки). Держит опциональную полоску вкладок
@@ -1045,7 +1204,7 @@ button {
 .screen-head h1 {
   margin: 1px 0 0;
   color: var(--text-primary);
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.15;
 }
 
@@ -1171,7 +1330,7 @@ button {
   border-color: var(--border-accent);
   background: var(--surface-hover);
   color: var(--accent-bright);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .dashboard-period-filter .export-button:hover,
@@ -1190,86 +1349,6 @@ button {
   outline-offset: 2px;
 }
 
-.map-tool-action {
-  border-color: var(--border-accent);
-  background: var(--surface-muted);
-  color: var(--accent-bright);
-  font-weight: 800;
-}
-
-.map-tool-action:hover,
-.map-tool-action:focus-visible {
-  border-color: var(--border-accent);
-  background: var(--surface-hover);
-}
-
-.pc-control-panel {
-  position: absolute;
-  top: 46px;
-  right: 10px;
-  z-index: 8;
-  display: grid;
-  width: min(410px, calc(100% - 20px));
-  gap: 10px;
-  border: 1px solid var(--border-accent);
-  border-radius: 7px;
-  padding: 10px;
-  background: var(--surface-elevated);
-  box-shadow: var(--shadow-elevated);
-}
-
-.pc-control-panel header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
-}
-
-.pc-control-panel header div {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.pc-control-panel header span {
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.pc-control-panel header strong {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pc-control-summary {
-  display: grid;
-  gap: 4px;
-  border-top: 1px solid var(--border-soft);
-  padding-top: 8px;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.pc-control-summary span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pc-control-section-title {
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
 .pc-control-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1281,7 +1360,7 @@ button {
   min-width: 0;
   min-height: 32px;
   overflow: hidden;
-  font-weight: 800;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1292,51 +1371,209 @@ button {
   text-overflow: ellipsis;
 }
 
-.pc-control-actions.future button {
-  justify-content: start;
-  min-height: 44px;
-  border-color: var(--border-default);
-  background: var(--surface-card);
-  color: var(--text-secondary);
-  text-align: left;
-  white-space: normal;
-}
-
-.pc-control-actions.future button:hover,
-.pc-control-actions.future button:focus-visible {
-  border-color: var(--border-accent);
-  background: var(--surface-hover);
-  color: var(--text-strong);
-}
-
-.pc-control-actions.future button span {
-  display: grid;
-  gap: 2px;
-}
-
-.pc-control-actions.future button strong {
-  overflow: hidden;
-  color: inherit;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pc-control-actions.future button em {
-  overflow: hidden;
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .pc-control-actions button:disabled {
   border-color: var(--border-default);
   background: var(--surface-card);
   color: var(--text-quaternary);
   opacity: 0.78;
+}
+
+/* PC-команды в боковой панели: вертикальный столбик, иконка+подпись слева. */
+.panel-pc-actions {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+.panel-pc-actions button {
+  justify-content: flex-start;
+  gap: 7px;
+  min-height: 34px;
+}
+
+/* Статус ПК раскрывается прямо под кнопкой «Статус» — обособленный блок-вкладка. */
+.pc-status-readout {
+  display: grid;
+  gap: 8px;
+}
+
+/* Строка готовности к действиям — отделяем от блока действий тонкой чертой. */
+.panel-readiness {
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+/* Результат «Статус ПК» — отчёт читается текстом (#34). */
+.pc-control-result {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.pc-control-result.failed {
+  color: var(--danger-text);
+}
+
+/* Контекст-меню места по правому клику — якорь у курсора. */
+.seat-menu {
+  position: fixed;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  width: min(264px, calc(100vw - 16px));
+  border: 1px solid var(--border-accent);
+  border-radius: 8px;
+  padding: 5px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+  transform-origin: top left;
+  animation: seat-menu-in 120ms ease-out;
+}
+
+@keyframes seat-menu-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seat-menu { animation: none; }
+}
+
+.seat-menu-head {
+  display: grid;
+  gap: 1px;
+  padding: 5px 8px 7px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.seat-menu-head strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.seat-menu-head span {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.seat-menu-section {
+  display: grid;
+  gap: 1px;
+  padding: 4px 0;
+}
+
+.seat-menu-section + .seat-menu-section {
+  border-top: 1px solid var(--border-soft);
+}
+
+.seat-menu-section-title {
+  padding: 3px 8px 2px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.seat-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.seat-menu-item svg {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.seat-menu-item-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seat-menu-item:hover,
+.seat-menu-item:focus-visible {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+  outline: none;
+}
+
+.seat-menu-item:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.seat-menu-item:active {
+  transform: scale(0.98);
+}
+
+.seat-menu-item:disabled {
+  color: var(--text-quaternary);
+  cursor: default;
+  opacity: 0.6;
+}
+
+.seat-menu-item:disabled:hover {
+  background: transparent;
+}
+
+.seat-menu-item.soon {
+  color: var(--text-secondary);
+}
+
+.seat-menu-item.soon svg {
+  color: var(--text-tertiary);
+}
+
+.seat-menu-soon-tag {
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.seat-menu-item-hint {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.seat-menu-foot {
+  padding: 6px 8px 4px;
+  border-top: 1px solid var(--border-soft);
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+.seat-menu-empty {
+  padding: 10px 8px;
+  color: var(--text-tertiary);
+  font-size: 12px;
 }
 
 .screen-actions {
@@ -1347,7 +1584,7 @@ button {
   border-color: var(--border-accent);
   background: var(--surface-hover);
   color: var(--accent-bright);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .booking-create-action:hover,
@@ -1409,24 +1646,121 @@ button {
   margin-bottom: 8px;
 }
 
-.map-filter-row {
+/* Самостоятельный заголовок карты — надзаголовок «Карта» убран (секция ясна из навигации). */
+.map-toolbar-title h1 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Фильтры и переключатель вида — единый сегмент-контрол: один трек, активный сегмент залит
+   акцентом, а не россыпь отдельных пилюль (легаси-вид). */
+.map-filter-row,
+.map-view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   min-width: 0;
+  padding: 3px;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  background: var(--surface-sunken);
+}
+
+.map-filter-row {
+  justify-self: start;
+  max-width: 100%;
   overflow-x: auto;
-  padding-bottom: 1px;
-}
-
-.map-filter-row button {
-  min-width: 78px;
-  justify-content: space-between;
-}
-
-.map-filter-row button strong {
-  color: var(--text-primary);
-  font-size: 11px;
 }
 
 .map-view-switch {
   flex: 0 0 auto;
+}
+
+.map-filter-row button,
+.map-view-switch button {
+  height: 26px;
+  min-width: 0;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 11px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.map-filter-row button {
+  gap: 7px;
+  justify-content: space-between;
+}
+
+.map-filter-row button:hover,
+.map-view-switch button:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.map-filter-row button.active,
+.map-view-switch button.active {
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+}
+
+/* Счётчик в фильтре — компактный бейдж, тише подписи. */
+.map-filter-row button strong {
+  min-width: 17px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.map-filter-row button.active strong {
+  color: var(--accent-bright);
+}
+
+/* Баннер снимка зала: спокойный info-ряд (не pending-спиннер). Реальный обрыв связи —
+   предупреждение «только просмотр»; устаревший снимок при живой связи — нейтральный тон. */
+.floor-snapshot-banner {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 26px;
+  max-width: 100%;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--text-tertiary);
+  border-radius: 6px;
+  padding: 5px 10px;
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  animation: soft-enter 140ms ease-out;
+}
+
+.floor-snapshot-banner svg {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.floor-snapshot-banner span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.floor-snapshot-banner.offline {
+  border-left-color: var(--warning);
+  color: var(--warning-text);
+}
+
+.floor-snapshot-banner.offline svg {
+  color: var(--warning-text);
 }
 
 .feedback-notice {
@@ -1443,7 +1777,7 @@ button {
   background: var(--surface-elevated);
   color: var(--accent-on-soft);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
   line-height: 1.15;
   animation: soft-enter 140ms ease-out;
 }
@@ -1468,6 +1802,73 @@ button {
 .feedback-notice.failed {
   border-left-color: var(--danger);
   color: var(--danger-text);
+}
+
+/* Визуальный отклик на действие в панели карты: спиннер «в работе», галочка «готово»,
+   текст — только для ошибки. Компактный ряд, иконка ведёт, минимум слов. */
+.action-feedback {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 26px;
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  animation: soft-enter 140ms ease-out;
+}
+
+.action-feedback svg {
+  flex: none;
+}
+
+.action-feedback span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.action-feedback.pending {
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+}
+
+.action-feedback.done {
+  background: var(--success-soft-bg);
+  color: var(--success-text);
+}
+
+/* Кружок-галочка успеха: зелёный диск + впрыгивающая галочка. */
+.action-feedback-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--success);
+  color: #08130d;
+  animation: check-pop 280ms cubic-bezier(0.22, 1.2, 0.4, 1);
+}
+
+.action-feedback.failed {
+  background: var(--danger-soft-bg);
+  color: var(--danger-text);
+}
+
+/* Галочка/спиннер прямо на кнопке действия (продление, перенос) — успех читается там,
+   где оператор только что нажал. */
+.quick-extend button .spin,
+.transfer-go .spin {
+  color: var(--text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Спиннер-загрузку оставляем (нужная индикация), убираем декоративный всплеск/въезд. */
+  .action-feedback,
+  .action-feedback-check {
+    animation: none;
+  }
 }
 
 .critical-confirmation {
@@ -1545,7 +1946,7 @@ button {
   padding: 0 10px;
   background: var(--surface-card);
   color: var(--text-strong);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .critical-confirmation-actions button.danger {
@@ -1572,7 +1973,7 @@ button {
   padding: 0 12px;
   background: var(--success-soft-bg);
   color: var(--success-text);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .checkout-action:hover:not(:disabled),
@@ -1624,7 +2025,7 @@ button {
   margin-top: 3px;
   padding-top: 5px;
   border-top: 1px solid var(--border-default);
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-primary) !important;
 }
 
@@ -1738,13 +2139,70 @@ button {
   position: relative;
   z-index: 2;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
-  grid-auto-rows: 88px;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-auto-rows: 116px;
   align-content: start;
-  gap: 10px;
+  gap: 12px;
   height: 100%;
   overflow-y: auto;
   padding: 30px 46px 28px;
+}
+
+/* Группировка «Сетки» по залам: заголовок зоны + сетка мест под ним. */
+.seat-zones {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  height: 100%;
+  overflow-y: auto;
+  padding: 22px 46px 28px;
+}
+
+.zone-group {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.zone-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zone-group-head span {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.zone-group-head strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.zone-group-head::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-soft);
+}
+
+/* Внутри группы сеткой владеет .seat-zones — свой скролл/паддинг не нужен. */
+.zone-group .seat-grid {
+  height: auto;
+  padding: 0;
+  overflow: visible;
 }
 
 .map-empty-state {
@@ -1763,7 +2221,7 @@ button {
 
 .map-empty-state span {
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .seat-table-wrap {
@@ -1787,7 +2245,7 @@ button {
   background: var(--surface-canvas);
   color: var(--text-tertiary);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 600;
   text-align: left;
   text-transform: uppercase;
 }
@@ -1849,7 +2307,7 @@ button {
   background: transparent;
   color: var(--text-primary);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .seat-table button:hover,
@@ -1859,82 +2317,59 @@ button {
 }
 
 .seat-tile {
-  --accent-rgb: 44, 197, 146;
-  display: grid;
-  grid-template-rows: auto auto 1fr;
+  /* Один цвет состояния на плитку: кант + точка + ободок (hover/focus/selected). Настроен на
+     читаемость на тёмном — серый «в сессии» видимый, янтарь/красный приглушены, не кричат. */
+  --seat-color: var(--border-strong);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   min-width: 0;
-  min-height: 88px;
-  padding: 8px 9px 8px 12px;
+  min-height: 118px;
+  padding: 11px 13px 12px 14px;
   border: 1px solid var(--border-default);
-  border-left: 3px solid rgba(var(--accent-rgb), 0.85);
-  border-radius: 6px;
+  border-left: 3px solid var(--seat-color);
+  border-radius: 8px;
   background: var(--surface-elevated);
   box-shadow: var(--shadow-card);
   transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
+/* Ободок выделения = цвет состояния (тот же --seat-color, что кант/точка), свечение из него. */
 .seat-tile.selected {
-  border-color: var(--accent-hover);
-  border-left-color: var(--accent-hover);
+  border-color: var(--seat-color);
   background: var(--surface-hover);
-  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.7), 0 0 22px rgba(var(--accent-rgb), 0.18);
+  box-shadow: 0 0 0 1px var(--seat-color), 0 0 16px color-mix(in srgb, var(--seat-color) 16%, transparent);
 }
 
-.seat-tile.state-pending:not(.selected),
-.seat-tile.state-warning:not(.selected),
+/* Пульсирует только blocking — «действуй сейчас». Остальное выделяется цветом канта и точкой. */
 .seat-tile.state-blocking:not(.selected) {
   animation: attention-pulse 2100ms ease-in-out infinite;
 }
 
+/* Ховер/фокус тоже по тону (а не фирменный зелёный для всех). */
 .seat-tile:hover,
 .seat-tile:focus-visible {
-  border-color: rgba(var(--accent-rgb), 0.95);
+  border-color: var(--seat-color);
   background: var(--surface-card);
-  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.12), 0 8px 18px rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--seat-color) 14%, transparent), 0 8px 18px rgba(0, 0, 0, 0.18);
   outline: none;
   transform: translateY(-1px);
 }
 
-.seat-tile:focus-visible {
-  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.78), 0 8px 18px rgba(0, 0, 0, 0.18);
+.seat-tile:focus-visible,
+.seat-tile.selected:focus-visible {
+  box-shadow: 0 0 0 2px var(--seat-color), 0 8px 18px rgba(0, 0, 0, 0.18);
 }
 
-.zone-a {
-  --accent-rgb: 34, 197, 94;
-}
-
-.zone-b {
-  --accent-rgb: 34, 197, 94;
-}
-
-.zone-c {
-  --accent-rgb: 34, 197, 94;
-}
-
-.zone-vip {
-  --accent-rgb: 34, 197, 94;
-}
-
-.zone-bootcamp {
-  --accent-rgb: 34, 197, 94;
-}
-
-.state-offline,
-.state-service {
-  --accent-rgb: 100, 116, 139;
-}
-
-.state-warning {
-  --accent-rgb: 245, 158, 11;
-}
-
-.state-blocking {
-  --accent-rgb: 239, 68, 68;
-}
-
-.state-pending {
-  --accent-rgb: 245, 158, 11;
-}
+/* Палитра состояния (кант = точка = ободок). Цвет = «посмотри сюда»: свободно — зелёное (зовёт),
+   в сессии — видимый нейтральный (фон смены), ожидание — приглушённый янтарь, нужно действие —
+   глубокий красный (не томатный), нет связи — слейт. Янтарь/красный приглушены смесью, чтобы не
+   кричали; нейтральный поднят до видимого, чтобы ободок был заметен. */
+.seat-tile.state-ready { --seat-color: var(--accent); }
+.seat-tile.state-active { --seat-color: var(--text-tertiary); }
+.seat-tile.state-pending { --seat-color: color-mix(in srgb, var(--warning) 70%, var(--border-strong)); }
+.seat-tile.state-blocking { --seat-color: color-mix(in srgb, var(--danger) 68%, var(--danger-strong)); }
+.seat-tile.state-offline { --seat-color: #64748b; }
 
 .seat-head,
 .seat-main,
@@ -1958,7 +2393,7 @@ button {
 .seat-head strong {
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1973,7 +2408,7 @@ button {
 }
 
 .seat-main {
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .seat-main span,
@@ -1993,7 +2428,7 @@ button {
 .seat-tile footer strong {
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2013,11 +2448,10 @@ button {
 
 .seat-tile.state-active .state-chip,
 .seat-tile.state-ready .state-chip {
-  color: var(--accent-on-soft);
+  color: var(--accent-text);
 }
 
-.seat-tile.state-pending .state-chip,
-.seat-tile.state-warning .state-chip {
+.seat-tile.state-pending .state-chip {
   color: var(--warning-text);
 }
 
@@ -2025,22 +2459,219 @@ button {
   color: var(--danger-text);
 }
 
-.seat-tile.state-offline .state-chip,
-.seat-tile.state-service .state-chip {
+.seat-tile.state-offline .state-chip {
   color: var(--text-strong);
+}
+
+/* --- Этап 1 · A1: язык плиток --- */
+/* Громкий акцент только на Внимание/Проблема; спокойные тоны (active/ready/pending) — тихие. */
+.seat-tile--alert {
+  border-left-width: 4px;
+}
+
+/* Тонировка фона проблемных плиток — по готовым soft-bg токенам, не самодельным смешением.
+   :not(.selected) уступает выделению/наведению приоритет, чтобы клик по плитке был виден. */
+.seat-tile.state-blocking:not(.selected) {
+  background: var(--danger-soft-bg);
+  border-color: var(--danger-soft-border);
+}
+
+/* Вне игры (нет связи) — приглушаем, место «не в строю». */
+.seat-tile.state-offline {
+  opacity: 0.92;
+}
+
+/* Шапка плитки: статус-точка + имя ПК. Точка дублирует статус канта на уровне текста
+   (помогает и при дальтонизме, и делает цвет читаемым крупнее тонкого канта). */
+.seat-id {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.seat-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--seat-color);
+}
+
+/* Активная сессия — живое состояние: зелёная точка, хотя кант остаётся нейтральным
+   (яркий зелёный кант приберегаем для «свободно»). */
+.seat-tile.state-active .seat-dot {
+  background: var(--accent);
+}
+
+/* Тело плитки тянется на всю высоту: «кто» сверху, ведущая метрика (таймбар) прижата вниз. */
+.seat-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Ведущая метрика (время-герой + полоса / ярлык счёта) прижата к низу плитки. */
+.seat-body--metric {
+  justify-content: flex-end;
+}
+
+/* Проблемное/ожидающее место — иконка типа проблемы + строка состояния, по центру. */
+.seat-body--status {
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.seat-body--status svg {
+  flex: none;
+  color: var(--seat-color);
+}
+
+/* Свободное место — крупный «＋» и подпись-аффорданс по центру всей плитки. */
+.seat-invite {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.seat-invite-label {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Постоплата / открытый счёт: набегающая сумма наверху, со стрелкой роста. */
+.seat-amount {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 96px;
+  overflow: hidden;
+  color: var(--warning-text);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.seat-amount svg {
+  flex: none;
+}
+
+/* Предоплата: время-герой. Мелкая подпись «осталось» + крупное само время в одну строку. */
+.seat-clock-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+
+.seat-clock-label {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.seat-clock {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Открытый счёт: честный ярлык состояния оплаты под суммой из шапки. */
+.seat-open-tab {
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.seat-timebar {
+  display: block;
+  width: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.seat-timebar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  /* Здоровый остаток — зелёный, независимо от статусного цвета канта. */
+  background: var(--accent);
+  transition: width 200ms ease;
+}
+
+.seat-timebar--low i {
+  background: var(--warning);
+}
+
+/* Свободное место зовёт действием — крупный мягкий «＋» в фирменном зелёном. */
+.seat-free {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 28px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+/* Имя игрока (или «Гость»/«Нет игрока») — главная строка под названием ПК. */
+.seat-player {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Режим оплаты сессии — человеческий ярлык, не технический. */
+.seat-billing {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+/* Человеческая строка состояния для проблемных мест (Нет связи / Нужно действие / Закрыт). */
+.seat-status-line {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .context-panel {
   display: grid;
   align-content: start;
-  gap: 12px;
+  gap: 16px;
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
   margin: 10px 10px 10px 0;
-  padding: 12px;
+  padding: 16px 14px;
   border: 1px solid var(--border-soft);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--surface-elevated);
 }
 
@@ -2073,7 +2704,7 @@ button {
   overflow: hidden;
   color: var(--text-secondary);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2089,7 +2720,6 @@ button {
   overflow-wrap: anywhere;
 }
 
-.context-status-row.state-warning,
 .context-status-row.state-pending {
   border-left-color: var(--warning);
 }
@@ -2112,7 +2742,7 @@ button {
   border-radius: 999px;
   padding: 0 8px;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2123,8 +2753,7 @@ button {
   color: var(--success-text);
 }
 
-.state-chip.state-pending,
-.state-chip.state-warning {
+.state-chip.state-pending {
   background: rgba(245, 158, 11, 0.13);
   color: var(--warning-text);
 }
@@ -2134,34 +2763,32 @@ button {
   color: var(--danger-text);
 }
 
-.state-chip.state-offline,
-.state-chip.state-service {
+.state-chip.state-offline {
   background: rgba(148, 163, 184, 0.12);
   color: var(--text-strong);
 }
 
 .context-section {
   display: grid;
-  gap: 8px;
-  padding-top: 10px;
+  gap: 10px;
+  padding-top: 14px;
   border-top: 1px solid var(--border-soft);
 }
 
 .session-timer {
   justify-content: start;
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--accent-hover);
   border-radius: 6px;
-  padding: 10px;
+  padding: 10px 12px;
   background: var(--surface-card);
-}
-
-.session-timer div {
-  display: grid;
-  gap: 1px;
 }
 
 .session-timer strong {
   color: var(--text-primary);
-  font-size: 18px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .detail-row strong {
@@ -2172,6 +2799,607 @@ button {
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Набежавшая сумма открытого счёта — деньги акцентируем зелёным. */
+.detail-row strong.detail-value-money {
+  color: var(--accent-text);
+}
+
+/* Заголовок группы внутри карточки места — якорь для глаза, режет «список» на блоки. */
+.context-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-tertiary);
+}
+
+.context-section-head svg {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.context-section-head span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Статус-пилюля здоровья ПК (связь/блокировка) — состояние читается иконкой + цветом + текстом. */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-pill svg {
+  flex-shrink: 0;
+}
+
+.status-pill.ok {
+  background: rgba(34, 197, 94, 0.13);
+  color: var(--success-text);
+}
+
+.status-pill.bad {
+  background: var(--danger-soft-bg);
+  color: var(--danger-text);
+}
+
+.status-pill.warn {
+  background: var(--warning-soft-bg);
+  color: var(--warning-text);
+}
+
+.status-pill.neutral {
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+
+/* ── Боковая панель места: командная карточка ── */
+.seat-hero {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--surface-card);
+}
+
+.seat-hero.state-pending {
+  border-left-color: var(--warning);
+}
+
+.seat-hero.state-blocking {
+  border-left-color: var(--danger);
+}
+
+.seat-hero.state-offline {
+  border-left-color: #64748b;
+}
+
+.seat-hero.state-ready {
+  border-left-color: var(--success);
+}
+
+.seat-hero-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Зона + имя места — единый титульный блок: надзаголовок вплотную над именем. */
+.seat-hero-id {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.seat-hero-zone {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.seat-hero-name {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.seat-hero-metric {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.seat-hero-label {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.seat-hero-value {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seat-hero-value.is-money {
+  color: var(--accent-text);
+}
+
+/* Текстовый статус (проблема/ожидание) — не число-герой: показываем спокойнее,
+   чтобы он не кричал размером 26px там, где это просто слово. */
+.seat-hero-value.is-text {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: normal;
+}
+
+.seat-hero .seat-timebar {
+  width: 100%;
+}
+
+.seat-hero-sub {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.quick-extend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.action-row-secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.quick-extend button,
+.action-row-secondary button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  border: 1px solid var(--border-default);
+  border-radius: 7px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 700;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease, color 120ms ease;
+}
+
+.quick-extend button:hover:not(:disabled),
+.action-row-secondary button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  transform: translateY(-1px);
+}
+
+.action-row-secondary button.danger {
+  border-color: var(--danger-soft-border);
+  color: var(--danger-text);
+}
+
+.action-row-secondary button.danger:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: var(--danger-soft-bg);
+}
+
+.cta-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 14px;
+  font-weight: 700;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.cta-primary:hover:not(:disabled) {
+  border-color: var(--accent-text);
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.cta-primary:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.panel-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.panel-actions button:disabled {
+  cursor: not-allowed;
+  border-color: var(--border-default);
+  background: var(--surface-muted);
+  color: var(--text-quaternary);
+  transform: none;
+}
+
+.pc-health {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Перенос — один аккуратный контрол: метка + (выбор места ⋮ кнопка) единым блоком. */
+/* Дропдаун в стиле приложения (замена нативного <select>): тёмный список, акцент на выбранном. */
+.panel-select {
+  position: relative;
+  min-width: 0;
+}
+
+.panel-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.panel-select-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-select-value.is-placeholder {
+  color: var(--text-quaternary);
+}
+
+.panel-select-caret {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition: transform 120ms ease;
+}
+
+.panel-select-trigger[aria-expanded='true'] .panel-select-caret {
+  transform: rotate(180deg);
+}
+
+.panel-select-trigger:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.panel-select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.panel-select-trigger:disabled {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+}
+
+.panel-select-list {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+  animation: soft-enter 140ms var(--ease-out);
+}
+
+.panel-select-list:focus-visible {
+  outline: none;
+}
+
+.panel-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.panel-select-option.is-active {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.panel-select-option.is-selected {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.panel-select-option.is-selected.is-active {
+  background: var(--accent-soft);
+}
+
+.panel-select-option svg {
+  flex-shrink: 0;
+  color: var(--accent-text);
+}
+
+.transfer-row {
+  display: grid;
+  gap: 6px;
+}
+
+.transfer-row-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.transfer-row-controls {
+  display: flex;
+  min-width: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 7px;
+  background: var(--surface-card);
+}
+
+.transfer-row-controls .transfer-select {
+  flex: 1;
+}
+
+.transfer-row-controls .panel-select-trigger {
+  height: 36px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 7px 0 0 7px;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.transfer-row-controls .panel-select-trigger:hover:not(:disabled) {
+  border: none;
+  background: var(--surface-hover);
+}
+
+.transfer-row-controls .panel-select-trigger:focus-visible {
+  border: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.transfer-row-controls .transfer-go {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-left: 1px solid var(--border-default);
+  border-radius: 0 7px 7px 0;
+  background: var(--surface-hover);
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 700;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.transfer-row-controls .transfer-go:hover:not(:disabled),
+.transfer-row-controls .transfer-go:focus-visible {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  outline: none;
+}
+
+.transfer-row-controls .transfer-go:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.transfer-row-controls .transfer-go:disabled {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+}
+
+/* Центрированное модальное окно (старт сессии, расчёт) — поверх всего, с полной шириной формы. */
+.panel-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.55);
+  animation: panel-modal-fade 120ms ease-out;
+}
+
+.panel-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 100%);
+  max-height: min(86vh, 760px);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+  overflow: hidden;
+  animation: panel-modal-pop 140ms ease-out;
+}
+
+.panel-modal.warning {
+  border-top: 3px solid var(--warning);
+}
+
+.panel-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.panel-modal-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.panel-modal-title strong {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.panel-modal-title span {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-modal-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.panel-modal-close:hover,
+.panel-modal-close:focus-visible {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text-strong);
+  outline: none;
+}
+
+.panel-modal-body {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px 18px;
+  overflow-y: auto;
+}
+
+.start-dialog-body {
+  display: grid;
+  gap: 12px;
+}
+
+@keyframes panel-modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes panel-modal-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-modal-backdrop,
+  .panel-modal {
+    animation: none;
+  }
+}
+
+/* «Завершить без оплаты» в диалоге расчёта — тихая запасная дорожка, не конкурент кнопке оплаты. */
+.checkout-end-plain {
+  align-self: flex-start;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.checkout-end-plain:hover:not(:disabled),
+.checkout-end-plain:focus-visible {
+  color: var(--danger-text);
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-extend button,
+  .action-row-secondary button,
+  .cta-primary {
+    transition: none;
+  }
 }
 
 .action-grid {
@@ -2238,20 +3466,8 @@ button {
 .context-transfer-target span {
   color: var(--text-tertiary);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 600;
   text-transform: uppercase;
-}
-
-.context-transfer-target select {
-  min-width: 0;
-  height: 26px;
-  border: 1px solid var(--border-default);
-  border-radius: 5px;
-  padding: 0 7px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  font-size: 12px;
-  font-weight: 800;
 }
 
 .context-transfer-target input {
@@ -2263,11 +3479,7 @@ button {
   background: var(--surface-card);
   color: var(--text-strong);
   font-size: 12px;
-  font-weight: 800;
-}
-
-.context-transfer-target select:disabled {
-  color: var(--text-quaternary);
+  font-weight: 500;
 }
 
 .context-transfer-target input:disabled {
@@ -2279,32 +3491,29 @@ button {
 }
 
 .billing-panel-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 4px 8px;
-}
-
-.billing-panel-head span,
-.billing-panel-head em {
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 800;
-  text-transform: uppercase;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
 }
 
 .billing-panel-head strong {
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .billing-panel-head em {
-  grid-column: 1 / -1;
+  min-width: 0;
   overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-transform: none;
 }
 
 .billing-mode {
@@ -2324,17 +3533,19 @@ button {
 .billing-selection-panel .billing-mode button {
   justify-content: center;
   min-width: 0;
-  height: 42px;
-  padding: 4px 6px;
+  height: 50px;
+  padding: 6px 8px;
   flex-direction: column;
-  gap: 1px;
+  gap: 3px;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .billing-selection-panel .billing-mode small {
   overflow: hidden;
   color: var(--text-secondary);
-  font-size: 9px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2388,7 +3599,7 @@ button {
   margin: 0;
   color: var(--text-secondary);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .billing-meta strong {
@@ -2534,8 +3745,8 @@ button {
 
 .dashboard-panel-title span {
   color: var(--text-primary);
-  font-size: 17px;
-  font-weight: 900;
+  font-size: 16px;
+  font-weight: 700;
   line-height: 1.08;
 }
 
@@ -2712,7 +3923,7 @@ button {
 .dashboard-selected-signal span {
   color: var(--text-secondary);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .dashboard-selected-signal strong {
@@ -2801,8 +4012,8 @@ button {
   gap: 6px;
   min-width: 0;
   color: var(--text-primary);
-  font-size: 26px;
-  font-weight: 900;
+  font-size: 24px;
+  font-weight: 800;
   line-height: 1;
 }
 
@@ -2852,7 +4063,7 @@ button {
 .donut-chart strong {
   color: var(--text-primary);
   font-size: 24px;
-  font-weight: 900;
+  font-weight: 800;
   line-height: 1;
 }
 
@@ -2987,8 +4198,8 @@ button {
 .booking-panel-title span {
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 17px;
-  font-weight: 900;
+  font-size: 16px;
+  font-weight: 700;
   line-height: 1.08;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3055,7 +4266,7 @@ button {
 .booking-time {
   color: var(--text-primary);
   font-size: 20px;
-  font-weight: 900;
+  font-weight: 800;
   line-height: 1;
 }
 
@@ -3110,7 +4321,7 @@ button {
 .booking-status-card span {
   color: var(--text-secondary);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .booking-status-card strong {
@@ -3145,7 +4356,7 @@ button {
   background: var(--surface-card);
   color: var(--text-strong);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
   transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
 }
 
@@ -3239,7 +4450,7 @@ button {
 .booking-request-card span {
   color: var(--text-primary);
   font-size: 16px;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .booking-request-card strong {
@@ -3273,7 +4484,7 @@ button {
   min-width: 0;
   color: var(--text-tertiary);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .booking-form-grid input {
@@ -3359,8 +4570,8 @@ button {
 .pos-panel-title span {
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 17px;
-  font-weight: 900;
+  font-size: 16px;
+  font-weight: 700;
   line-height: 1.08;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3413,7 +4624,7 @@ button {
   background: var(--surface-card);
   color: var(--text-strong);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .pos-category-row button.active {
@@ -3574,7 +4785,7 @@ button {
   background: var(--surface-card);
   color: var(--text-strong);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .pos-client-search {
@@ -3673,7 +4884,7 @@ button {
   background: var(--surface-card);
   color: var(--text-strong);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .pos-new-client-form button:not(:disabled):hover,
@@ -3755,7 +4966,7 @@ button {
   background: var(--surface-card);
   color: var(--text-strong);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .pos-payment-methods button.active,
@@ -3890,7 +5101,7 @@ button {
   background: var(--surface-card);
   color: var(--text-strong);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .pos-receipt-actions button:disabled {
@@ -3922,7 +5133,7 @@ button {
   overflow: hidden;
   color: var(--text-secondary);
   font-size: 10px;
-  font-weight: 850;
+  font-weight: 600;
   letter-spacing: 0;
   line-height: 1;
   text-overflow: ellipsis;
@@ -3940,7 +5151,7 @@ button {
   background: var(--surface-sunken);
   color: var(--text-primary);
   font-size: 11px;
-  font-weight: 750;
+  font-weight: 500;
 }
 
 .pos-stock-form input:disabled,
@@ -3961,7 +5172,7 @@ button {
   background: var(--accent);
   color: var(--text-on-accent);
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -4058,8 +5269,8 @@ button {
 .clients-panel-title span {
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 17px;
-  font-weight: 900;
+  font-size: 16px;
+  font-weight: 700;
   line-height: 1.08;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4184,7 +5395,7 @@ button {
   overflow: hidden;
   color: var(--accent-on-soft);
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4269,8 +5480,8 @@ button {
   border-radius: 50%;
   background: var(--accent);
   color: var(--text-on-accent);
-  font-size: 17px;
-  font-weight: 900;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .client-profile-card div:last-child {
@@ -4280,7 +5491,7 @@ button {
 }
 
 .client-profile-card strong {
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1.05;
 }
 
@@ -4367,7 +5578,7 @@ button {
   gap: 4px;
   color: var(--text-secondary);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .clients-money-form input,
@@ -4583,8 +5794,8 @@ button {
 .payments-panel-title span {
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 17px;
-  font-weight: 900;
+  font-size: 16px;
+  font-weight: 700;
   line-height: 1.08;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -4766,7 +5977,7 @@ button {
 .payments-operation-detail span {
   color: var(--text-secondary);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .payments-operation-detail strong {
@@ -4791,7 +6002,7 @@ button {
 }
 
 .payments-metric-grid strong {
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1;
 }
 
@@ -4835,7 +6046,7 @@ button {
   gap: 4px;
   color: var(--text-secondary);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .payments-open-form input,
@@ -4864,7 +6075,7 @@ button {
   background: var(--surface-card);
   color: var(--text-strong);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .payments-open-form button:hover,
@@ -4896,7 +6107,7 @@ button {
   gap: 4px;
   color: var(--text-secondary);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .payments-cash-form input,
@@ -4929,7 +6140,7 @@ button {
   background: var(--surface-card);
   color: var(--text-strong);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .payments-cash-form button:hover,
@@ -4959,7 +6170,7 @@ button {
   background: var(--accent);
   color: var(--text-on-accent);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .payments-primary-action:hover,
@@ -5005,7 +6216,7 @@ button {
 }
 
 .payment-method-card b {
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1;
   text-align: left;
 }
@@ -5045,7 +6256,7 @@ button {
   background: var(--surface-card);
   color: var(--text-strong);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
   text-align: left;
 }
 
@@ -5122,8 +6333,8 @@ button {
 .logs-panel-title span {
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 17px;
-  font-weight: 900;
+  font-size: 16px;
+  font-weight: 700;
   line-height: 1.08;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5313,7 +6524,7 @@ button {
   background: var(--surface-card);
   color: var(--text-strong);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
   text-align: left;
   transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
 }
@@ -5341,7 +6552,7 @@ button {
   gap: 4px;
   color: var(--text-secondary);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .logs-audit-filter-form input {
@@ -5364,7 +6575,7 @@ button {
   background: var(--accent);
   color: var(--text-on-accent);
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 600;
 }
 
 .logs-period-presets {
@@ -5504,7 +6715,7 @@ button {
 .settings-nav-panel > span {
   color: var(--text-secondary);
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .settings-nav-panel button {
@@ -5603,7 +6814,7 @@ button {
 .settings-panel-title span {
   color: var(--text-primary);
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1.08;
 }
 
@@ -5625,7 +6836,7 @@ button {
   gap: 4px;
   color: var(--text-secondary);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .settings-form-grid input {
@@ -5668,14 +6879,14 @@ button {
 
 .settings-section-title span {
   color: var(--text-primary);
-  font-size: 15px;
-  font-weight: 900;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .settings-section-title strong {
   color: var(--text-secondary);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .settings-section-actions {
@@ -5695,7 +6906,7 @@ button {
   background: var(--surface-card);
   color: var(--text-strong);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .settings-section-title button:disabled,
@@ -5748,7 +6959,7 @@ button {
   background: var(--accent);
   color: var(--text-on-accent);
   font-size: 11px;
-  font-weight: 850;
+  font-weight: 600;
 }
 
 .settings-device-form button:disabled,
@@ -5809,7 +7020,7 @@ button {
 .settings-command-history strong {
   color: var(--text-tertiary);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 500;
   text-transform: uppercase;
 }
 
@@ -5817,7 +7028,7 @@ button {
 .settings-command-history b {
   color: var(--text-strong);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 500;
 }
 
 .settings-command-history em {
@@ -5938,7 +7149,7 @@ button {
   background: var(--surface-elevated);
   color: var(--text-secondary);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .settings-tariff-row {
@@ -6053,7 +7264,7 @@ button {
 
 .settings-config-grid strong {
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .settings-config-grid span,
@@ -6078,7 +7289,7 @@ button {
   background: var(--accent);
   color: var(--text-on-accent);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -6355,7 +7566,62 @@ button {
   font-size: 11px;
 }
 
+/* Единый элемент статус-бара: иконка/точка + текст, один размер и вес для всех. */
+.signals-strip .signal-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.signals-strip .signal-item svg {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.signals-strip .signal-muted {
+  color: var(--text-tertiary);
+}
+
+/* Точка-индикатор связи: цвет = severity, форма одинаковая. */
+.signal-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--text-tertiary);
+}
+
+.signal-dot.ok {
+  background: var(--success);
+}
+
+.signal-dot.warn {
+  background: var(--warning);
+}
+
+.signal-dot.bad {
+  background: var(--danger);
+}
+
+/* Правый кластер — бизнес-метрики (касса), прижат к правому краю. */
+.signals-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+  min-width: 0;
+}
+
 .signals-strip .rail-feedback {
+  color: var(--danger-text);
+}
+
+.signals-strip .rail-feedback svg {
   color: var(--danger-text);
 }
 
@@ -6499,17 +7765,6 @@ button {
 .payment-card-session[data-health="offline"] .payment-card-session-badge { background: var(--danger-soft-bg); color: var(--danger-text); }
 .payment-card-session[data-health="configured"] .payment-card-session-badge { background: var(--warning-soft-bg); color: var(--warning); }
 
-.top-account {
-  background: none;
-  border: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  padding: 0;
-  text-align: left;
-}
-.top-account:hover { text-decoration: underline; }
-
 .account-panel-overlay {
   position: fixed;
   inset: 0;
@@ -6538,7 +7793,7 @@ button {
   background: none;
   border: none;
   color: inherit;
-  font-size: 22px;
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
   opacity: 0.7;
@@ -6548,7 +7803,7 @@ button {
 }
 
 .account-phone { display: flex; flex-direction: column; gap: 12px; }
-.account-phone h3 { margin: 0; font-size: 15px; }
+.account-phone h3 { margin: 0; font-size: 14px; }
 .account-phone-hint { color: var(--text-tertiary); font-size: 13px; }
 .account-phone-error { color: var(--danger-text); font-size: 13px; }
 .account-phone-load-error { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
@@ -6808,7 +8063,7 @@ button {
   border-radius: 7px;
   background: var(--surface-sunken);
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .command-palette-input:focus-visible {
@@ -6872,22 +8127,11 @@ button {
 /* Сворачиваемая контекст-зона (правая колонка shell) */
 .context-zone {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr);
-  column-gap: 4px;
   min-width: 0;
   min-height: 0;
-}
-
-.context-zone-collapsed {
-  grid-template-columns: minmax(0, 1fr);
-  justify-items: center;
-  padding-top: 12px;
-}
-
-.context-zone-handle {
-  display: flex;
-  justify-content: center;
-  padding-top: 12px;
+  /* Опускаем панель на уровень сетки мест: верх карточки встаёт вровень с доской зала,
+     а не с тулбаром. 72px = высота шапки карты (заголовок ~30 + сегмент-фильтры ~42). */
+  padding-top: 72px;
 }
 
 .context-zone-body {
@@ -6903,29 +8147,6 @@ button {
   font-size: 16px;
 }
 
-.context-zone-toggle {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--surface-muted);
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
-.context-zone-toggle:hover {
-  border-color: var(--accent-hover);
-  background: var(--surface-hover);
-  color: var(--text-primary);
-}
-
-.context-zone-toggle:focus-visible {
-  outline: 2px solid var(--accent-hover);
-  outline-offset: 2px;
-}
-
 /* Строка тревог в статус-баре */
 .shell-alerts {
   display: inline-flex;
@@ -6937,4 +8158,74 @@ button {
 .shell-alerts.danger {
   color: var(--danger-strong);
   font-weight: 700;
+}
+
+.shell-alert-counters {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 4px;
+}
+
+.shell-alert-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 22px;
+  padding: 2px 4px 2px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.shell-alert-chip strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.shell-alert-chip:hover,
+.shell-alert-chip:focus-visible {
+  border-color: var(--border-strong);
+  color: var(--text-strong);
+  outline: none;
+}
+
+.shell-alert-chip:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.shell-alert-chip.danger {
+  border-color: var(--danger-soft-border);
+  background: var(--danger-soft-bg);
+  color: var(--danger-strong);
+}
+
+.shell-alert-chip.danger strong {
+  background: var(--danger);
+  color: #1a0c0c;
+}
+
+.shell-alert-chip.warning {
+  border-color: var(--warning-soft-border);
+  background: var(--warning-soft-bg);
+  color: var(--warning-text);
+}
+
+.shell-alert-chip.warning strong {
+  background: var(--warning);
+  color: #2a1c00;
 }

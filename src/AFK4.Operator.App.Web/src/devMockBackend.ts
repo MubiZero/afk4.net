@@ -38,14 +38,23 @@ const money = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
 function floorMap() {
   return {
     branchId: BRANCH,
-    branchName: 'AFK4 Dushanbe · зал A',
+    branchName: 'AFK4 Dushanbe',
     seats: [
-      { seatId: 'a1', seatName: 'PC-01', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 10, state: 'Active', deviceId: 'd1', deviceName: 'PC-01', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's1', remainingSeconds: 2580 },
-      { seatId: 'a2', seatName: 'PC-02', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 20, state: 'Ready', deviceId: 'd2', deviceName: 'PC-02', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
-      { seatId: 'a3', seatName: 'PC-03', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 30, state: 'Warning', deviceId: 'd3', deviceName: 'PC-03', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's3', remainingSeconds: 240 },
-      { seatId: 'a4', seatName: 'PC-04', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 40, state: 'Blocking', deviceId: 'd4', deviceName: 'PC-04', isDeviceOnline: false, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T09:40:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
-      { seatId: 'b1', seatName: 'VIP-01', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 10, state: 'Active', deviceId: 'd5', deviceName: 'VIP-01', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's5', remainingSeconds: 5400 },
-      { seatId: 'b2', seatName: 'VIP-02', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 20, state: 'Service', deviceId: 'd6', deviceName: 'VIP-02', isDeviceOnline: false, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T08:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null }
+      // Зал A — рабочий зал: смесь живых сессий, свободных и одного «ПК офлайн» (сессия идёт, связь потеряна).
+      { seatId: 'a1', seatName: 'PC-01', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 10, state: 'Active', deviceId: 'd1', deviceName: 'PC-01', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's1', remainingSeconds: 2580, playerDisplayName: 'Амир К.', tariffName: 'Стандарт', sessionStartedAtUtc: '2026-05-21T09:17:00Z' },
+      { seatId: 'a2', seatName: 'PC-02', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 20, state: 'Free', deviceId: 'd2', deviceName: 'PC-02', isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
+      { seatId: 'a3', seatName: 'PC-03', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 30, state: 'Active', deviceId: 'd3', deviceName: 'PC-03', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's3', remainingSeconds: null, accruedCostMinorUnits: 5400, currencyCode: 'TJS', playerDisplayName: 'Юсуф А.', tariffName: 'Почасовой', sessionStartedAtUtc: '2026-05-21T09:06:00Z' },
+      { seatId: 'a4', seatName: 'PC-04', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 40, state: 'Active', deviceId: 'd4', deviceName: 'PC-04', isDeviceOnline: false, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T09:50:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's4', remainingSeconds: 1200 },
+      { seatId: 'a5', seatName: 'PC-05', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 50, state: 'Requested', deviceId: 'd7', deviceName: 'PC-05', isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
+      { seatId: 'a6', seatName: 'PC-06', zoneId: 'z-a', zoneName: 'Зал A', sortOrder: 60, state: 'Free', deviceId: 'd8', deviceName: 'PC-06', isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
+      // VIP — поменьше, с одним местом на обслуживании.
+      { seatId: 'b1', seatName: 'VIP-01', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 10, state: 'Active', deviceId: 'd5', deviceName: 'VIP-01', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's5', remainingSeconds: 5400, playerDisplayName: 'Мадина С.', tariffName: 'VIP час', sessionStartedAtUtc: '2026-05-21T08:48:00Z' },
+      { seatId: 'b2', seatName: 'VIP-02', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 20, state: 'Maintenance', deviceId: 'd6', deviceName: 'VIP-02', isDeviceOnline: false, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T08:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
+      { seatId: 'b3', seatName: 'VIP-03', zoneId: 'z-vip', zoneName: 'VIP', sortOrder: 30, state: 'Free', deviceId: 'd9', deviceName: 'VIP-03', isDeviceOnline: true, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
+      // Зал B — две проблемы (ошибка команды + нет связи) и одна сессия.
+      { seatId: 'c1', seatName: 'PC-07', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 10, state: 'Failed', deviceId: 'd10', deviceName: 'PC-07', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
+      { seatId: 'c2', seatName: 'PC-08', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 20, state: 'Offline', deviceId: 'd11', deviceName: 'PC-08', isDeviceOnline: false, isDeviceLocked: true, lastHeartbeatAtUtc: '2026-05-21T07:30:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: null, remainingSeconds: null },
+      { seatId: 'c3', seatName: 'PC-09', zoneId: 'z-b', zoneName: 'Зал B', sortOrder: 30, state: 'Active', deviceId: 'd12', deviceName: 'PC-09', isDeviceOnline: true, isDeviceLocked: false, lastHeartbeatAtUtc: '2026-05-21T10:00:00Z', agentVersion: '0.4', shellVersion: '0.4', activeSessionId: 's9', remainingSeconds: 900 }
     ]
   };
 }
@@ -96,6 +105,28 @@ function reservation() {
   };
 }
 
+// Деталь устройства для «Статус ПК»: machineName опускаем — описатель подставит имя места,
+// версии/состояние реальные, чтобы кнопка «Статус» показывала осмысленный отчёт в превью.
+function deviceDetail() {
+  return {
+    organizationId: ORG, branchId: BRANCH,
+    deviceId: 'preview-device', agentVersion: '0.4', shellVersion: '0.4',
+    isOnline: true, isLocked: true,
+    enrolledAtUtc: '2026-05-21T08:30:00Z', lastHeartbeatAtUtc: '2026-05-21T10:00:00Z',
+    activeCredentialCount: 1, installedAppCount: 2, recentCommands: []
+  };
+}
+
+function diagnostics() {
+  return {
+    organizationId: ORG, branchId: BRANCH, generatedAtUtc: '2026-05-21T10:00:00Z',
+    deviceSummary: { totalDevices: 10, onlineDevices: 8, lockedDevices: 5, staleDevices: 0, staleThresholdSeconds: 120, newestHeartbeatAtUtc: '2026-05-21T10:00:00Z' },
+    commandSummary: { pendingCommands: 0, failedCommands: 0, recentFailures: [] },
+    updateSummary: { activeRollouts: 0, installingDevices: 0, failedDevices: 0, rollbackDevices: 0, recentFailures: [] },
+    staleDevices: []
+  };
+}
+
 // Route a platform request to a fixture. Returns null when nothing matches, so the caller can apply
 // a safe default.
 function route(pathname: string, method: string): unknown | undefined {
@@ -106,6 +137,8 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/reservations') && method === 'GET') return { reservations: [reservation()], limit: 40 };
   if (pathname.endsWith('/inventory/stock-movements') && method === 'GET') return [];
   if (pathname.endsWith('/commands') && method === 'GET') return [];
+  if (pathname.endsWith('/diagnostics') && method === 'GET') return diagnostics();
+  if (pathname.includes('/devices/') && method === 'GET') return deviceDetail();
   return undefined;
 }
 

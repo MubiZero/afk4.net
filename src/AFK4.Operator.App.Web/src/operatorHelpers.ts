@@ -7,19 +7,21 @@ import { createOperatorApiClients, type BranchDiagnosticsDto, type OperatorDashb
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 import { isHostBridgeUnavailableError } from './hostBridge';
 import { signOutOperator, type OperatorAuthSession } from './authClient';
-import { mapFloorMapDtoToState, type FloorMapLoadStatus, type OperatorFloorMapState } from './floorMapState';
+import { mapFloorMapDtoToState, seatStatusLabel, type FloorMapLoadStatus, type OperatorFloorMapState } from './floorMapState';
 import { saveFloorMapCache } from './floorMapCache';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import type { DeviceCommandResultDto, DeviceStatusChangedDto, OperatorRealtimeConnectionState, SessionLifecycleChangedDto } from './operatorRealtime';
 import type { SeatSummary, SeatTone } from './operatorData';
 import type {
+  AlertSource,
   Feedback,
   FeedbackState,
   LoadStatus,
   MapFilterId,
   OperatorBackendContext,
   OperatorConfig,
-  SessionBillingModeId
+  SessionBillingModeId,
+  SessionBillingSelection
 } from './operatorTypes';
 import type { MessageKey } from '@afk4/i18n';
 
@@ -116,6 +118,17 @@ export function feedbackText(feedback: Feedback, t: TFunc) {
 
 export const defaultSessionDurationMinutes = 60;
 export const defaultTariffRuleVersionId = 'manual-v1';
+
+// Незабилленный гость по дефолтному правилу — самый частый старт и единственный режим,
+// который можно посадить «в один тап» без выбора игрока/тарифа. Панель и контекст-меню
+// должны брать его отсюда, чтобы быстрый старт и старт из панели не разъехались.
+export const guestBillingSelection: SessionBillingSelection = {
+  mode: 'guest',
+  tariffRuleVersionId: defaultTariffRuleVersionId,
+  playerAccountId: null,
+  tariffVersionId: null,
+  playerPackageId: null
+};
 // Dashboard KPIs are now event-driven: a sessionLifecycleChanged push (or a reconnect) reconciles
 // them immediately, so this poll is only a slow safety net that corrects drift / covers a realtime
 // outage, not the primary refresh path.
@@ -140,20 +153,14 @@ export function mapFilterOptions(t: TFunc): Array<{ id: MapFilterId; label: stri
   ];
 }
 
+// Единый словарь подписей состояния — делегируем seatStatusLabel (плитка/панель/таблица одинаково).
 export function toneLabel(tone: SeatTone, t: TFunc): string {
-  switch (tone) {
-    case 'ready': return t('op.helper.tone.ready');
-    case 'active': return t('op.helper.tone.active');
-    case 'pending': return t('op.helper.tone.pending');
-    case 'warning': return t('op.helper.tone.warning');
-    case 'blocking': return t('op.helper.tone.blocking');
-    case 'offline': return t('op.helper.tone.offline');
-    case 'service': return t('op.helper.tone.service');
-    default: return tone;
-  }
+  return seatStatusLabel(tone, t);
 }
 
-export const problemTones = new Set<SeatTone>(['pending', 'warning', 'blocking', 'offline', 'service']);
+// Проблемы = требующие реакции: «нужно действие» (сбой/сессия-без-связи) и «нет связи».
+// Ожидание (pending) — транзитное, не проблема.
+export const problemTones = new Set<SeatTone>(['blocking', 'offline']);
 export const emptyFeedback: Feedback = { label: '', state: 'idle' };
 
 export function countByTone(nextSeats: SeatSummary[], tone: SeatTone): number {
@@ -162,6 +169,15 @@ export function countByTone(nextSeats: SeatSummary[], tone: SeatTone): number {
 
 export function countProblems(nextSeats: SeatSummary[]): number {
   return nextSeats.filter((seat) => problemTones.has(seat.tone)).length;
+}
+
+// Критические состояния зала для строки тревог: «нужно действие» (сбой/сессия-без-связи) и
+// «нет связи». Пустые не показываем; клик по счётчику ведёт на карту с точечным фильтром.
+export function criticalAlertSources(nextSeats: SeatSummary[], t: TFunc): AlertSource[] {
+  return ([
+    { id: 'blocking', tone: 'danger', filterId: 'blocking', label: t('op.alerts.critical.blocking'), count: countByTone(nextSeats, 'blocking') },
+    { id: 'offline', tone: 'danger', filterId: 'offline', label: t('op.alerts.critical.offline'), count: countByTone(nextSeats, 'offline') }
+  ] as const).filter((source) => source.count > 0).map((source) => ({ ...source }));
 }
 
 export function isPendingSeatCommand(seat: SeatSummary): boolean {
@@ -183,6 +199,11 @@ export function matchesMapFilter(seat: SeatSummary, filterId: MapFilterId): bool
 
   if (filterId === 'attention') {
     return problemTones.has(seat.tone);
+  }
+
+  // Точечный тон-фильтр — его ставит строка критсостояний (в ряду фильтров его нет, чтобы не плодить кнопки).
+  if (filterId === 'blocking') {
+    return seat.tone === 'blocking';
   }
 
   return seat.tone === 'offline' || seat.isDeviceOnline === false;
@@ -452,6 +473,18 @@ export function commandLabel(command: string, t: TFunc) {
   return command;
 }
 
+// Локализует только слова Agent/Shell в строке версий («Agent 0.4 · Shell 0.4»); номера версий
+// оставляет как есть. Если версий нет (фолбэк-строка 'Shell') — честный прочерк, а не «Оболочка».
+export function appVersionsLabel(app: string, t: TFunc): string {
+  if (!app || app.trim() === 'Shell') {
+    return '—';
+  }
+
+  return app
+    .replaceAll('Agent', t('op.helper.appVer.agent'))
+    .replaceAll('Shell', t('op.helper.appVer.shell'));
+}
+
 export function deviceStatusLabel(device: string, t: TFunc) {
   return device
     .replace('Device unassigned', t('op.helper.deviceStatus.unassigned'))
@@ -486,13 +519,6 @@ export function mapSeatStatus(seat: SeatSummary, t: TFunc) {
     };
   }
 
-  if (seat.tone === 'warning') {
-    return {
-      label: t('op.helper.map.needsCheck'),
-      value: commandLabel(seat.command, t)
-    };
-  }
-
   if (seat.tone === 'offline') {
     return {
       label: t('op.helper.map.noSignal'),
@@ -500,8 +526,9 @@ export function mapSeatStatus(seat: SeatSummary, t: TFunc) {
     };
   }
 
+  // blocking — нужно действие.
   return {
-    label: t('op.helper.map.service'),
+    label: t('op.helper.map.needsCheck'),
     value: commandLabel(seat.command, t)
   };
 }

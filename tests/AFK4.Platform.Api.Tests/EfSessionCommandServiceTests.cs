@@ -469,6 +469,55 @@ public sealed class EfSessionCommandServiceTests
     }
 
     [Fact]
+    public async Task StartGuestSessionAsync_PersistsTheBillingModeOnTheSession()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var service = CreateService(db, new RecordingCommandDispatchService());
+
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1",
+                SessionDurationModes.Open, null, Guid.NewGuid(), BillingModeNames.PostpaidDebt),
+            CancellationToken.None);
+
+        Assert.NotNull(start.Response);
+        var session = await db.Sessions.SingleAsync();
+        Assert.Equal(BillingModeNames.PostpaidDebt, session.BillingMode);
+    }
+
+    [Fact]
+    public async Task ExtendSessionAsync_WithoutBillingMode_InheritsTheSessionModeNotFreeGuest()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var billing = new FakeSessionBillingService();
+        var service = CreateService(db, new RecordingCommandDispatchService(), billing);
+        var start = await service.StartGuestSessionAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new StartGuestSessionRequest(
+                TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1",
+                SessionDurationModes.Open, null, Guid.NewGuid(), BillingModeNames.PostpaidDebt),
+            CancellationToken.None);
+        Assert.NotNull(start.Response);
+
+        // Operator hits the panel's +30 button, which carries no billing mode in the request.
+        var result = await service.ExtendSessionAsync(
+            start.Response.Session.SessionId,
+            ActorStaffUserId,
+            new ExtendSessionRequest(30, "manual-v1", "extend-1", ExpectedVersion: 1),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        // The footgun: an empty extend mode must NOT silently degrade a paid session to a free
+        // guest top-up — it inherits the mode the session was started with.
+        Assert.Equal(BillingModeNames.PostpaidDebt, billing.LastExtendBillingMode);
+    }
+
+    [Fact]
     public async Task EndSessionAsync_WithStaleExpectedVersion_ReturnsStaleVersionConflict()
     {
         await using var db = CreateDbContext();

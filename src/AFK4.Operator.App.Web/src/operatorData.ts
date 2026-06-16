@@ -10,7 +10,13 @@ import {
 import type { MessageKey } from '@afk4/i18n';
 import type { WorkspaceId } from './operatorTypes';
 
-export type SeatTone = 'ready' | 'active' | 'pending' | 'warning' | 'blocking' | 'offline' | 'service';
+// Консолидированная модель: 5 состояний, цвет = действие оператора.
+//  ready    — свободно (зелёный): посадить гостя
+//  active   — в сессии (нейтральный): следить
+//  pending  — ожидание команды (янтарь): подождать
+//  blocking — нужно действие (красный): сбой ИЛИ сессия без связи с ПК
+//  offline  — нет связи (серый): ПК недоступен / выведен на обслуживание
+export type SeatTone = 'ready' | 'active' | 'pending' | 'blocking' | 'offline';
 
 export interface SeatSummary {
   id: string;
@@ -36,6 +42,11 @@ export interface SeatSummary {
   accruedCostMinorUnits?: number | null;
   currencyCode?: string | null;
   sortOrder?: number;
+  // Real session identity (B1 DTO): the account player name, the billed tariff name, and
+  // the start instant — null when the backend has none (guest, free seat) or on fixtures.
+  playerDisplayName?: string | null;
+  tariffName?: string | null;
+  sessionStartedAtUtc?: string | null;
 }
 
 export interface NavItem {
@@ -104,7 +115,9 @@ export const seats: SeatSummary[] = [
     billing: 'Wallet',
     device: 'Online · unlocked · Agent 0.4',
     command: 'Сессия подтверждена',
-    app: 'Rust'
+    app: 'Rust',
+    hasActiveSession: true,
+    remainingSeconds: 2580
   },
   {
     id: 'pc-02',
@@ -136,14 +149,16 @@ export const seats: SeatSummary[] = [
     id: 'pc-04',
     zone: 'Зал A',
     name: 'PC-04',
-    tone: 'warning',
-    stateLabel: 'Долг',
+    tone: 'active',
+    stateLabel: 'В сессии',
     player: 'Said R.',
-    remaining: '12 мин',
+    remaining: '7 мин',
     billing: 'Постоплата',
     device: 'Online · unlocked',
     command: 'Payment check',
-    app: 'Valorant'
+    app: 'Valorant',
+    hasActiveSession: true,
+    remainingSeconds: 420
   },
   {
     id: 'pc-05',
@@ -169,7 +184,9 @@ export const seats: SeatSummary[] = [
     billing: 'Package',
     device: 'Online · unlocked · Agent 0.4',
     command: 'Сессия подтверждена',
-    app: 'Dota 2'
+    app: 'Dota 2',
+    hasActiveSession: true,
+    remainingSeconds: 4320
   },
   {
     id: 'pc-07',
@@ -195,14 +212,16 @@ export const seats: SeatSummary[] = [
     billing: 'Wallet',
     device: 'Online · unlocked',
     command: 'Сессия подтверждена',
-    app: 'CS2'
+    app: 'CS2',
+    hasActiveSession: true,
+    remainingSeconds: 1080
   },
   {
     id: 'pc-09',
     zone: 'Зал B',
     name: 'PC-09',
-    tone: 'service',
-    stateLabel: 'Сервис',
+    tone: 'offline',
+    stateLabel: 'Нет связи',
     player: 'Нет игрока',
     remaining: 'Закрыт',
     billing: 'N/A',
@@ -217,11 +236,15 @@ export const seats: SeatSummary[] = [
     tone: 'active',
     stateLabel: 'В сессии',
     player: 'Yusuf A.',
-    remaining: '54 мин',
-    billing: 'Wallet',
+    remaining: '≈ 54 с.',
+    billing: 'Открытый счёт',
     device: 'Online · unlocked · Shell 0.4',
     command: 'Сессия подтверждена',
-    app: 'Fortnite'
+    app: 'Fortnite',
+    hasActiveSession: true,
+    remainingSeconds: null,
+    accruedCostMinorUnits: 5400,
+    currencyCode: 'TJS'
   },
   {
     id: 'pc-11',
@@ -370,8 +393,8 @@ export const seats: SeatSummary[] = [
     id: 'pc-22',
     zone: 'Bootcamp',
     name: 'PC-22',
-    tone: 'warning',
-    stateLabel: 'Внимание',
+    tone: 'active',
+    stateLabel: 'В сессии',
     player: 'Olim K.',
     remaining: '5 мин',
     billing: 'Wallet',

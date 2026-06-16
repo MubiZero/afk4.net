@@ -44,13 +44,13 @@ describe('floor-map state', () => {
     expect(state.branchName).toBe('Demo Branch');
     expect(state.seats.map((seat) => seat.name)).toEqual(['PC-01', 'PC-02']);
     expect(state.seats[0]).toMatchObject({
-      tone: 'warning',
+      tone: 'blocking',
       command: 'No route',
       remaining: 'осталось 1 ч 01 мин'
     });
     expect(state.seats[1]).toMatchObject({
       tone: 'ready',
-      stateLabel: 'Готов',
+      stateLabel: 'Свободно',
       command: 'Idle'
     });
   });
@@ -77,6 +77,50 @@ describe('floor-map state', () => {
       accruedCostMinorUnits: 2250,
       currencyCode: 'TJS'
     });
+  });
+
+  it('surfaces the real player name, tariff and session start from the backend DTO', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      seats: [
+        createSeat({
+          state: 'Active',
+          activeSessionId: '33333333-3333-3333-3333-333333333333',
+          remainingSeconds: 3600,
+          playerDisplayName: 'Иван Петров',
+          tariffName: 'VIP час',
+          sessionStartedAtUtc: '2026-05-21T08:48:00Z'
+        })
+      ]
+    }, t);
+
+    expect(state.seats[0]).toMatchObject({
+      player: 'Иван Петров',
+      playerDisplayName: 'Иван Петров',
+      tariffName: 'VIP час',
+      sessionStartedAtUtc: '2026-05-21T08:48:00Z'
+    });
+  });
+
+  it('falls back to the generic player placeholder for a guest session with no account name', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      seats: [
+        createSeat({
+          state: 'Active',
+          activeSessionId: '33333333-3333-3333-3333-333333333333',
+          remainingSeconds: 3600,
+          playerDisplayName: null,
+          tariffName: null
+        })
+      ]
+    }, t);
+
+    expect(state.seats[0].player).toBe(t('op.floor.player.active'));
+    expect(state.seats[0].playerDisplayName ?? null).toBeNull();
+    expect(state.seats[0].tariffName ?? null).toBeNull();
   });
 
   it('applies SignalR device status by device id and updates free seats', () => {
@@ -129,8 +173,8 @@ describe('floor-map state', () => {
     }, t);
 
     expect(nextSeats[0]).toMatchObject({
-      tone: 'warning',
-      stateLabel: 'В сессии',
+      tone: 'blocking',
+      stateLabel: 'Внимание',
       remaining: 'осталось 15 мин',
       command: 'No route'
     });

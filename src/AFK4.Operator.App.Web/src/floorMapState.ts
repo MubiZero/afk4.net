@@ -12,8 +12,6 @@ type TFn = (key: MessageKey, values?: Record<string, string | number>) => string
 export type FloorMapLoadStatus = 'idle' | 'loading' | 'ready' | 'failed';
 export type FloorMapSource = 'fixture' | 'backend';
 
-const staleAfterMs = 30_000;
-
 export interface OperatorFloorMapState {
   branchId?: string;
   branchName: string;
@@ -26,7 +24,7 @@ export interface OperatorFloorMapState {
   cachedAtMs: number | null;
 }
 
-export const fixtureBranchName = 'AFK4 Dushanbe · зал A';
+export const fixtureBranchName = 'AFK4 Dushanbe';
 
 export function createFixtureFloorMapState(): OperatorFloorMapState {
   return {
@@ -72,15 +70,11 @@ export function hydrateFloorMapStateFromCache(
   };
 }
 
-// Operator-facing banner shown once the mirror is offline or the data has aged past 30s (D8):
-// "Офлайн — данные от HH:MM, только просмотр". Null while live and fresh.
-export function offlineBannerText(state: OperatorFloorMapState, t: TFn, nowMs = Date.now()): string | null {
-  if (state.cachedAtMs === null) {
-    return null;
-  }
-
-  const isStale = nowMs - state.cachedAtMs > staleAfterMs;
-  if (!state.isOffline && !isStale) {
+// Баннер показываем ТОЛЬКО при настоящем обрыве связи: данные заморожены, режим «только
+// просмотр» — это операционно важно. Просто устаревший снимок при живой связи админу не нужен
+// (приложение тихо обновится) — раньше D8 показывал «снимок устарел», убрано как тех-шум.
+export function offlineBannerText(state: OperatorFloorMapState, t: TFn): string | null {
+  if (!state.isOffline || state.cachedAtMs === null) {
     return null;
   }
 
@@ -153,14 +147,19 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
   const currencyCode = dto.currencyCode ?? null;
   // Open tabs (no countdown) show the live accruing cost where fixed sessions show time left.
   const isOpenTab = hasActiveSession && remainingSeconds === null && accruedCostMinorUnits !== null;
+  // Prefer the real account name from the backend; fall back to the generic placeholder only
+  // when the session has no named player (guest) or the seat is free.
+  const playerDisplayName = dto.playerDisplayName?.trim() || null;
+  const tariffName = dto.tariffName?.trim() || null;
+  const sessionStartedAtUtc = dto.sessionStartedAtUtc ?? null;
 
   return {
     id: dto.seatId,
     zone: dto.zoneName,
     name: dto.seatName,
     tone,
-    stateLabel: displayState(dto.state, t),
-    player: hasActiveSession ? t('op.floor.player.active') : tone === 'ready' ? t('op.floor.player.guest') : t('op.floor.player.none'),
+    stateLabel: seatStatusLabel(tone, t),
+    player: playerDisplayName ?? (hasActiveSession ? t('op.floor.player.active') : tone === 'ready' ? t('op.floor.player.guest') : t('op.floor.player.none')),
     remaining: isOpenTab
       ? accruedCostText(accruedCostMinorUnits, currencyCode, t)
       : remainingText(remainingSeconds, normalizedState, tone, hasActiveSession, t),
@@ -185,7 +184,10 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     remainingDeadlineMs,
     accruedCostMinorUnits,
     currencyCode,
-    sortOrder: dto.sortOrder
+    sortOrder: dto.sortOrder,
+    playerDisplayName,
+    tariffName,
+    sessionStartedAtUtc
   };
 }
 
@@ -213,7 +215,7 @@ function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedD
   return {
     ...seat,
     tone,
-    stateLabel: displayState(nextRawState, t),
+    stateLabel: seatStatusLabel(tone, t),
     remaining: hasActiveSession
       ? seat.remaining
       : remainingText(null, normalizedState, tone, hasActiveSession, t),
@@ -272,8 +274,9 @@ function resolveTone(
   isOnline: boolean,
   hasActiveSession: boolean
 ): SeatTone {
+  // Сессия идёт, но ПК потерял связь — авария: деньги капают, контроля нет → красный.
   if (hasDevice && !isOnline && hasActiveSession) {
-    return 'warning';
+    return 'blocking';
   }
 
   if (hasDevice && !isOnline) {
@@ -282,6 +285,7 @@ function resolveTone(
 
   switch (normalizedState) {
     case 'active':
+    case 'paused':
       return 'active';
     case 'free':
     case 'locked':
@@ -289,43 +293,27 @@ function resolveTone(
     case 'requested':
     case 'ending':
       return 'pending';
-    case 'paused':
-      return 'warning';
     case 'failed':
       return 'blocking';
     case 'offline':
-      return 'offline';
     case 'maintenance':
     case 'service':
-      return 'service';
+      return 'offline';
     default:
       return 'ready';
   }
 }
 
-function displayState(value: string, t: TFn): string {
-  switch (normalizeState(value)) {
-    case 'active':
-      return t('op.floor.state.active');
-    case 'free':
-      return t('op.floor.state.free');
-    case 'locked':
-      return t('op.floor.state.locked');
-    case 'requested':
-      return t('op.floor.state.requested');
-    case 'ending':
-      return t('op.floor.state.ending');
-    case 'paused':
-      return t('op.floor.state.paused');
-    case 'failed':
-      return t('op.floor.state.failed');
-    case 'offline':
-      return t('op.floor.state.offline');
-    case 'maintenance':
-    case 'service':
-      return t('op.floor.state.service');
-    default:
-      return value.replaceAll('_', ' ');
+// Единая подпись состояния по тону — один словарь для плитки, панели и таблицы
+// (раньше плитка подписывалась по сырому статусу, панель по тону → рассинхрон).
+export function seatStatusLabel(tone: SeatTone, t: TFn): string {
+  switch (tone) {
+    case 'ready': return t('op.helper.tone.ready');
+    case 'active': return t('op.helper.tone.active');
+    case 'pending': return t('op.helper.tone.pending');
+    case 'blocking': return t('op.helper.tone.blocking');
+    case 'offline': return t('op.helper.tone.offline');
+    default: return tone;
   }
 }
 
@@ -341,7 +329,8 @@ function remainingText(
   }
 
   if (hasActiveSession) {
-    return tone === 'warning' ? t('op.floor.remaining.pcOffline') : t('op.floor.remaining.playing');
+    // Сессия без обратного отсчёта: открытый счёт «играет» или потеря связи (blocking).
+    return tone === 'blocking' ? t('op.floor.remaining.pcOffline') : t('op.floor.remaining.playing');
   }
 
   if (tone === 'ready') {
@@ -353,13 +342,13 @@ function remainingText(
   }
 
   if (tone === 'offline') {
-    return t('op.floor.remaining.noHeartbeat');
+    // Обслуживание свёрнуто в «нет связи» по цвету, но причину в строке-теле сохраняем.
+    return normalizedState === 'maintenance' || normalizedState === 'service'
+      ? t('op.floor.remaining.closed')
+      : t('op.floor.remaining.noHeartbeat');
   }
 
-  if (tone === 'service') {
-    return t('op.floor.remaining.closed');
-  }
-
+  // blocking без сессии — сбой команды.
   return t('op.floor.remaining.action');
 }
 
@@ -391,10 +380,6 @@ function commandText(
 
   if (tone === 'offline') {
     return 'No route';
-  }
-
-  if (tone === 'service') {
-    return 'Technician';
   }
 
   return 'Payment check';
@@ -446,6 +431,22 @@ function formatDuration(seconds: number, t: TFn): string {
   return hours === 0
     ? t('op.floor.duration.min', { count: minutes })
     : t('op.floor.duration.hourMin', { hours, minutes: String(minutes).padStart(2, '0') });
+}
+
+// Компактная длительность без слова «осталось» — для плитки, где время идёт «героем», а сам
+// предлог «осталось» вынесен в отдельную мелкую подпись (иначе строка не влезает и режется).
+export function formatDurationCompact(seconds: number, t: TFn): string {
+  if (seconds < 60) {
+    return t('op.floor.duration.secShort', { count: seconds });
+  }
+
+  const totalMinutes = Math.ceil(seconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  return hours === 0
+    ? t('op.floor.duration.minShort', { count: minutes })
+    : t('op.floor.duration.hourMinShort', { hours, minutes: String(minutes).padStart(2, '0') });
 }
 
 function normalizeState(value: string): string {

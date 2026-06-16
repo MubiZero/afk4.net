@@ -20,6 +20,14 @@ export interface SeatStatusDto {
   // Live accrued cost for an open-tab session (count-up); null for fixed sessions.
   accruedCostMinorUnits?: number | null;
   currencyCode?: string | null;
+  // Who is on the seat: the active session's player display name. Null for a guest session
+  // with no account, or a free seat.
+  playerDisplayName?: string | null;
+  // The tariff the active session bills against. Null for guest/package sessions with no
+  // named tariff, or a free seat.
+  tariffName?: string | null;
+  // When the active session started (UTC); lets the operator see real elapsed time.
+  sessionStartedAtUtc?: string | null;
 }
 
 export interface FloorMapDto {

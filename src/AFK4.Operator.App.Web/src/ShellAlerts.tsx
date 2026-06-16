@@ -1,34 +1,46 @@
 import { useI18n } from '@afk4/i18n';
 import { MonitorCheck, TriangleAlert } from 'lucide-react';
-
-// Seam for the «Карта» stage: once map-driven alert feeds land they'll arrive as a list of
-// typed sources. Declared now so the status-bar element's shape is stable, but intentionally
-// not consumed yet (YAGNI) — wiring it before there's a producer would be dead code.
-export interface AlertSource {
-  id: string;
-  tone: 'warning' | 'danger';
-  label: string;
-}
+import type { AlertSource, MapFilterId } from './operatorTypes';
 
 interface Props {
-  problems: number;
-  offline: number;
-  sources?: AlertSource[]; // reserved for the «Карта» stage; do not consume yet
+  // Разбивка критических состояний зала по типам (нет связи / сбой / обслуживание).
+  // Клик по счётчику ведёт на карту, отфильтрованную точно на эти места.
+  sources?: AlertSource[];
+  onSelectSource?: (filterId: MapFilterId) => void;
 }
 
-export function ShellAlerts({ problems, offline }: Props) {
+// Статус-бар здоровья парка: либо разбивка критических состояний по типам (каждый счётчик
+// кликабелен), либо позитивное «Всё в норме». Без общего агрегата «N проблем · M офлайн» —
+// он дублировал бы те же офлайн-места, что уже считает чип «Нет связи».
+export function ShellAlerts({ sources = [], onSelectSource }: Props) {
   const { t } = useI18n();
-  const hasProblems = problems > 0;
-  // Encode state beyond color: a distinct icon + the ICU text carry the meaning for anyone who
-  // can't perceive the danger tone (the red is decoration, not the signal).
-  const Icon = hasProblems ? TriangleAlert : MonitorCheck;
+  const hasCritical = sources.length > 0;
+  // Icon + text carry the meaning so the red is decoration, not the only signal.
+  const Icon = hasCritical ? TriangleAlert : MonitorCheck;
   return (
     <span
-      className={hasProblems ? 'shell-alerts danger' : 'shell-alerts'}
+      className={hasCritical ? 'shell-alerts danger' : 'shell-alerts'}
       aria-label={t('op.alerts.label')}
     >
       <Icon size={14} aria-hidden="true" />
-      {t('op.alerts.summary', { problems, offline })}
+      {hasCritical ? (
+        <span className="shell-alert-counters">
+          {sources.map((source) => (
+            <button
+              key={source.id}
+              type="button"
+              className={`shell-alert-chip ${source.tone}`}
+              onClick={() => onSelectSource?.(source.filterId)}
+              title={t('op.alerts.critical.jump', { label: source.label })}
+            >
+              <span>{source.label}</span>
+              <strong>{source.count}</strong>
+            </button>
+          ))}
+        </span>
+      ) : (
+        t('op.alerts.allClear')
+      )}
     </span>
   );
 }

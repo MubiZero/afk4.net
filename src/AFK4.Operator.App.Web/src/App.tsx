@@ -1,8 +1,7 @@
 import {
   CircleDollarSign,
   LockKeyhole,
-  Search,
-  Wifi
+  Search
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { I18nProvider, useI18n } from '@afk4/i18n';
@@ -20,6 +19,7 @@ import { MapSidePanel } from './MapSidePanel';
 import { ContextPanel } from './ContextPanel';
 import { QuickActionsMenu } from './QuickActionsMenu';
 import { CommandPalette } from './CommandPalette';
+import { RailAccount } from './RailAccount';
 import { ShellAlerts } from './ShellAlerts';
 import { BackendPosWorkspace } from './BackendPosWorkspace';
 import { ShopOrdersWorkspace } from './ShopOrdersWorkspace';
@@ -48,6 +48,7 @@ import { useHotkeys } from './useHotkeys';
 import type {
   WorkspaceId,
   AuthStatus,
+  MapFilterId,
   OperatorBackendContext
 } from './operatorTypes';
 import {
@@ -57,13 +58,11 @@ import {
   firstAllowedWorkspace
 } from './operatorPermissions';
 import {
-  countByTone,
-  countProblems,
+  criticalAlertSources,
   operatorDisplayNameLabel,
   dataSourceLabel,
   shellShiftLabel,
   shellPosLabel,
-  shellModeLabel,
   projectAuthHostError,
   realtimeLabel,
   resolveActiveBranchId,
@@ -95,6 +94,7 @@ function AppInner() {
     handleChangeConnection
   } = useOperatorConnection(baseConfig);
   const [workspace, setWorkspace] = useState<WorkspaceId>('map');
+  const [mapFilter, setMapFilter] = useState<MapFilterId>('all');
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
   const [authSession, setAuthSession] = useState<OperatorAuthSession | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -102,9 +102,6 @@ function AppInner() {
   const [workspaceFeedback, setWorkspaceFeedback] = useState<string | null>(null);
   const [accountPanelOpen, setAccountPanelOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [contextCollapsed, setContextCollapsed] = useState(
-    () => localStorage.getItem('afk4.operator.contextCollapsed') === '1'
-  );
   const toast = useToast();
   const commandRegistry = useMemo(() => createCommandRegistry(), []);
   // ⌘K / Ctrl+K открывают палитру даже из поля ввода (allowInInputs). Биндинги мемоизированы —
@@ -117,13 +114,6 @@ function AppInner() {
     []
   );
   useHotkeys(paletteHotkeys);
-  const toggleContextCollapsed = () => {
-    setContextCollapsed((collapsed) => {
-      const next = !collapsed;
-      localStorage.setItem('afk4.operator.contextCollapsed', next ? '1' : '0');
-      return next;
-    });
-  };
   // Bumped by the realtime hook to make the shell KPIs reconcile event-driven instead of polled.
   const [shellReconcileSignal, setShellReconcileSignal] = useState(0);
   const activeBranchId = authSession === null ? null : resolveActiveBranchId(authSession, config.branchId);
@@ -324,9 +314,13 @@ function AppInner() {
   const activeVisibleItems = activeSection.items.filter((item) => canOpenWorkspace(authSession, item.id));
   const showWorkspaceTabs = activeVisibleItems.length > 1;
   const hasContextContent = workspace === 'map' && selectedSeat !== null;
-  const contextCol = hasContextContent
-    ? (contextCollapsed ? 'var(--shell-context-strip)' : 'minmax(260px, 292px)')
-    : '0px';
+  const contextCol = hasContextContent ? 'minmax(260px, 292px)' : '0px';
+  // Тон точки связи в статус-баре: зелёная — на связи, янтарь — переподключение, красная — потеряна.
+  const realtimeTone = realtimeState === 'connected'
+    ? 'ok'
+    : realtimeState === 'connecting' || realtimeState === 'reconnecting'
+      ? 'warn'
+      : 'bad';
 
   return (
     <div
@@ -361,11 +355,7 @@ function AppInner() {
         </button>
         <div className="top-status">
           <span>{shellShiftText}</span>
-          <button type="button" className="top-account" aria-label={t('op.shell.myAccount')} onClick={() => setAccountPanelOpen(true)}>
-            {operatorDisplayNameLabel(authSession.displayName, t)} · {shellModeLabel(config.shellMode, t)}
-          </button>
         </div>
-        <button type="button" className="sign-out-button" onClick={handleSignOut}>{t('shell.signOut')}</button>
         <TitlebarControls />
         <WindowControls />
       </header>
@@ -408,6 +398,13 @@ function AppInner() {
             </button>
           );
         })}
+        {/* Аккаунт оператора живёт в подвале рейла (margin-top:auto) — привычное место личности
+            и выхода. Аватар раскрывает меню с профилем и «Выйти». */}
+        <RailAccount
+          displayName={operatorDisplayNameLabel(authSession.displayName, t)}
+          onOpenAccount={() => setAccountPanelOpen(true)}
+          onSignOut={handleSignOut}
+        />
       </nav>
 
       <div className="workspace-content">
@@ -436,11 +433,15 @@ function AppInner() {
       {workspace === 'map' && (
         <MapWorkspace
           floorMap={displayedFloorMap}
-          canUsePcControl={canUsePcControl}
+          session={authSession}
+          actionsEnabled={floorMap.source === 'backend' && floorMap.loadStatus === 'ready'}
           selectedSeatId={selectedSeat?.id ?? ''}
+          activeFilter={mapFilter}
           offlineActionAudit={offlineActionAudit}
           onSelectSeat={setSelectedSeatId}
+          onFilterChange={setMapFilter}
           onPcControlAction={handlePcControlAction}
+          onSeatAction={handleSeatAction}
         />
       )}
       {workspace === 'dashboard' && (
@@ -487,25 +488,42 @@ function AppInner() {
       </div>
 
       {workspace === 'map' && selectedSeat !== null && (
-        <ContextPanel collapsed={contextCollapsed} onToggle={toggleContextCollapsed}>
+        <ContextPanel>
           <MapSidePanel
             seat={selectedSeat}
             seats={displayedFloorMap.seats}
             currencyCode={config.currencyCode}
             backend={backendContext}
             actionsEnabled={floorMap.source === 'backend' && floorMap.loadStatus === 'ready'}
+            canUsePcControl={canUsePcControl}
             onSeatAction={handleSeatAction}
+            onPcControlAction={handlePcControlAction}
           />
         </ContextPanel>
       )}
 
+      {/* Статус-бар по единому стандарту: слева — система (связь, источник данных, тревоги),
+          справа — бизнес-метрика (касса). Каждый элемент — .signal-item: иконка/точка + текст,
+          один размер и вес; цветом кодируем только severity. */}
       <footer className="signals-strip">
-        <span><Wifi size={14} />{realtimeLabel(realtimeState, realtimeError, t)} · {dataSourceLabel(floorMap.source, t)}</span>
-        <ShellAlerts problems={countProblems(displayedFloorMap.seats)} offline={countByTone(displayedFloorMap.seats, 'offline')} />
-        <span><CircleDollarSign size={14} />{shellPosText}</span>
-        {workspaceFeedback && (
-          <span className="rail-feedback"><LockKeyhole size={14} />{workspaceFeedback}</span>
-        )}
+        <span className="signal-item">
+          <i className={`signal-dot ${realtimeTone}`} aria-hidden="true" />
+          {realtimeLabel(realtimeState, realtimeError, t)}
+        </span>
+        <span className="signal-item signal-muted">{dataSourceLabel(floorMap.source, t)}</span>
+        <ShellAlerts
+          sources={criticalAlertSources(displayedFloorMap.seats, t)}
+          onSelectSource={(filterId) => {
+            setMapFilter(filterId);
+            setWorkspace('map');
+          }}
+        />
+        <div className="signals-right">
+          {workspaceFeedback && (
+            <span className="signal-item rail-feedback"><LockKeyhole size={13} />{workspaceFeedback}</span>
+          )}
+          <span className="signal-item signal-pos"><CircleDollarSign size={13} />{shellPosText}</span>
+        </div>
       </footer>
     </div>
   );
