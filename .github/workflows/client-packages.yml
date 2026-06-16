@@ -475,6 +475,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: afk4-client-packages-${{ inputs.version }}-${{ inputs.channel }}
-          path: artifacts/client-packages/*.msi
+          path: |
+            artifacts/client-packages/afk4-client-*.exe
+            artifacts/client-packages/intermediates/*.msi
           if-no-files-found: error
           retention-days: 3
