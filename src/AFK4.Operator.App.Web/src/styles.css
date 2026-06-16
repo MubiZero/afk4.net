@@ -2406,9 +2406,9 @@ button {
 }
 
 .seat-invite-label {
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 700;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 /* Постоплата / открытый счёт: набегающая сумма наверху, со стрелкой роста. */
@@ -3249,7 +3249,7 @@ button {
 
 .billing-panel-head strong {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
 }
 
@@ -3257,9 +3257,9 @@ button {
   min-width: 0;
   overflow: hidden;
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: 11px;
   font-style: normal;
-  font-weight: 800;
+  font-weight: 700;
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3282,17 +3282,19 @@ button {
 .billing-selection-panel .billing-mode button {
   justify-content: center;
   min-width: 0;
-  height: 42px;
-  padding: 4px 6px;
+  height: 50px;
+  padding: 6px 8px;
   flex-direction: column;
-  gap: 1px;
+  gap: 3px;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .billing-selection-panel .billing-mode small {
   overflow: hidden;
   color: var(--text-secondary);
-  font-size: 9px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
