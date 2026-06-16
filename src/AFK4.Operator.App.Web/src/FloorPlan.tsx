@@ -2,31 +2,44 @@ import { useEffect, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
-import { cellToPx, CANVAS_PADDING, DEFAULT_CELL_SIZE } from './floorPlanGeometry';
+import { cellToPx, pxToCell, isCellOccupied, CANVAS_PADDING, DEFAULT_CELL_SIZE } from './floorPlanGeometry';
 import type { PlanModel } from './floorPlanState';
 import { PlanSeat } from './PlanSeat';
 
 const MIN_SCALE = 0.4;
 const MAX_SCALE = 2.5;
 
-// Top-down floor-plan canvas (read-only in B2-2): an SVG underlay (grid, zones, walls) with a DOM
-// layer of seat markers on top. Pan by dragging empty space, zoom with the wheel or the +/- buttons.
+// Top-down floor-plan canvas: an SVG underlay (grid, zones, walls) with a DOM layer of seat markers
+// on top. Pan by dragging empty space, zoom with the wheel or the +/- buttons.
+// In edit mode (mode='edit') seats become draggable — drop onto a free cell fires onSeatMove.
 // Assumes a non-empty model — the caller renders the «зал ещё не размечен» empty state instead.
 export function FloorPlan({
   model,
   selectedSeatId,
   onSelectSeat,
-  onSeatContextMenu
+  onSeatContextMenu,
+  mode = 'view',
+  onSeatMove
 }: {
   model: PlanModel;
   selectedSeatId: string;
   onSelectSeat: (seatId: string) => void;
   onSeatContextMenu?: (seatId: string, event: ReactMouseEvent) => void;
+  mode?: 'view' | 'edit';
+  onSeatMove?: (seatId: string, posX: number, posY: number) => void;
 }) {
   const { t } = useI18n();
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [drag, setDrag] = useState<{ startX: number; startY: number; panX: number; panY: number } | null>(null);
+
+  // Edit-mode state: which seat is currently being dragged (null = no drag).
+  const [draggingSeatId, setDraggingSeatId] = useState<string | null>(null);
+
+  // We need scale/originX/originY inside the window pointer listeners. Keep refs to avoid
+  // stale closures — the effect re-runs only when draggingSeatId changes (the listener lifetime).
+  const scaleRef = useRef(scale);
+  scaleRef.current = scale;
 
   const viewportRef = useRef<HTMLDivElement>(null);
   // Invariant: the caller renders the empty state when isEmpty, so bbox is non-null here. The
@@ -40,6 +53,16 @@ export function FloorPlan({
   // Map an absolute cell to a pixel inside the padded canvas (origin shifted so nothing is negative).
   const px = (c: number) => cellToPx(c - originX, cell) + CANVAS_PADDING;
   const py = (c: number) => cellToPx(c - originY, cell) + CANVAS_PADDING;
+
+  const originXRef = useRef(originX);
+  originXRef.current = originX;
+  const originYRef = useRef(originY);
+  originYRef.current = originY;
+
+  const modelRef = useRef(model);
+  modelRef.current = model;
+  const onSeatMoveRef = useRef(onSeatMove);
+  onSeatMoveRef.current = onSeatMove;
 
   const gridLines: { key: string; x1: number; y1: number; x2: number; y2: number }[] = [];
   for (let x = originX; x <= bbox.maxX; x += 1) {
@@ -68,6 +91,53 @@ export function FloorPlan({
     node.addEventListener('wheel', handleWheel, { passive: false });
     return () => node.removeEventListener('wheel', handleWheel);
   }, []);
+
+  // Edit mode: attach global pointer move/up listeners while a seat drag is active.
+  // Using window listeners (not React synthetic events on the canvas) so the pointer can move
+  // fast outside the element without losing events — mirrors how the wheel listener is wired.
+  useEffect(() => {
+    if (draggingSeatId === null) {
+      return;
+    }
+
+    const computeTargetCell = (clientX: number, clientY: number): { x: number; y: number } => {
+      // Get the canvas bounding rect. In jsdom it returns {left:0,top:0} so tests work naturally.
+      const rect = viewportRef.current?.getBoundingClientRect() ?? { left: 0, top: 0 };
+
+      // Step 1: pointer position relative to the viewport's top-left corner.
+      const relX = clientX - rect.left;
+      const relY = clientY - rect.top;
+
+      // Step 2: divide by scale — the canvas is CSS-transformed with scale(s), so 1 CSS pixel
+      // inside the canvas covers `scale` screen pixels. Without this division the snap target
+      // drifts from the real cell whenever scale ≠ 1.
+      const canvasX = relX / scaleRef.current;
+      const canvasY = relY / scaleRef.current;
+
+      // Step 3: subtract CANVAS_PADDING to get an origin-normalized pixel offset,
+      // then convert to an integer cell index.
+      const cellRelX = pxToCell(canvasX - CANVAS_PADDING, cell);
+      const cellRelY = pxToCell(canvasY - CANVAS_PADDING, cell);
+
+      // Step 4: add the layout origin so the result is an ABSOLUTE grid coordinate.
+      // Without this addition the target would be off when the layout doesn't start at (0,0).
+      return { x: cellRelX + originXRef.current, y: cellRelY + originYRef.current };
+    };
+
+    const handlePointerUp = (event: PointerEvent) => {
+      const { x, y } = computeTargetCell(event.clientX, event.clientY);
+      const seats = modelRef.current.placedSeats;
+      if (!isCellOccupied(seats, x, y, draggingSeatId)) {
+        onSeatMoveRef.current?.(draggingSeatId, x, y);
+      }
+      setDraggingSeatId(null);
+    };
+
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => {
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [draggingSeatId, cell]);
 
   // Pan only when the drag starts on empty canvas (not on a seat marker — those handle their own click).
   // Capture the pointer so a fast drag that leaves the viewport keeps delivering move/up events here.
@@ -152,6 +222,8 @@ export function FloorPlan({
                 selected={seat.id === selectedSeatId}
                 onSelect={() => onSelectSeat(seat.id)}
                 onContextMenu={onSeatContextMenu ? (event) => onSeatContextMenu(seat.id, event) : undefined}
+                draggable={mode === 'edit'}
+                onSeatDragStart={mode === 'edit' ? setDraggingSeatId : undefined}
               />
             ))}
           </div>
