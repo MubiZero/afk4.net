@@ -2548,6 +2548,7 @@
   "op.floor.duration.minShort": "{count} дақ",
   "op.floor.duration.hourMinShort": "{hours} с {minutes} дақ",
   "op.floor.offlineBanner": "Офлайн — маълумот аз {time}, танҳо намоиш",
+  "op.floor.staleBanner": "Аксбардории толор то {time}, нав мешавад…",
   "op.error.actionFailed.title": "Амал иҷро нашуд",
   "op.error.actionFailed.noDetail": "Сервер тафсилот наовард. Амалро такрор кунед ё пайвастро санҷед.",
   "op.players.status.vip": "VIP",

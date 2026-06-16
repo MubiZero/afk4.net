@@ -87,7 +87,9 @@ export function offlineBannerText(state: OperatorFloorMapState, t: TFn, nowMs = 
   const at = new Date(state.cachedAtMs);
   const hh = String(at.getHours()).padStart(2, '0');
   const mm = String(at.getMinutes()).padStart(2, '0');
-  return t('op.floor.offlineBanner', { time: `${hh}:${mm}` });
+  // Честно различаем причину: реальный обрыв связи (только просмотр) vs просто устаревший
+  // снимок при живом соединении — последнее НЕ «офлайн», иначе врём против футера.
+  return t(state.isOffline ? 'op.floor.offlineBanner' : 'op.floor.staleBanner', { time: `${hh}:${mm}` });
 }
 
 export function mapFloorMapSeats(nextSeats: SeatStatusDto[], t: TFn, loadedAtMs = Date.now()): SeatSummary[] {

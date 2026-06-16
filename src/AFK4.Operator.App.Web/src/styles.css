@@ -230,7 +230,9 @@ button {
 .brand-block {
   display: flex;
   align-items: center;
-  gap: 12px;
+  /* Лого обрезан по глифу (viewBox), поэтому небольшой gap делает расстояние лого→разделитель
+     равным разделитель→«Оператор» (12px у span). */
+  gap: 8px;
   width: max-content;
   line-height: 1;
 }
@@ -1595,24 +1597,121 @@ button {
   margin-bottom: 8px;
 }
 
-.map-filter-row {
+/* Самостоятельный заголовок карты — надзаголовок «Карта» убран (секция ясна из навигации). */
+.map-toolbar-title h1 {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Фильтры и переключатель вида — единый сегмент-контрол: один трек, активный сегмент залит
+   акцентом, а не россыпь отдельных пилюль (легаси-вид). */
+.map-filter-row,
+.map-view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   min-width: 0;
+  padding: 3px;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  background: var(--surface-sunken);
+}
+
+.map-filter-row {
+  justify-self: start;
+  max-width: 100%;
   overflow-x: auto;
-  padding-bottom: 1px;
-}
-
-.map-filter-row button {
-  min-width: 78px;
-  justify-content: space-between;
-}
-
-.map-filter-row button strong {
-  color: var(--text-primary);
-  font-size: 11px;
 }
 
 .map-view-switch {
   flex: 0 0 auto;
+}
+
+.map-filter-row button,
+.map-view-switch button {
+  height: 26px;
+  min-width: 0;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 11px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.map-filter-row button {
+  gap: 7px;
+  justify-content: space-between;
+}
+
+.map-filter-row button:hover,
+.map-view-switch button:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.map-filter-row button.active,
+.map-view-switch button.active {
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+}
+
+/* Счётчик в фильтре — компактный бейдж, тише подписи. */
+.map-filter-row button strong {
+  min-width: 17px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.map-filter-row button.active strong {
+  color: var(--accent-bright);
+}
+
+/* Баннер снимка зала: спокойный info-ряд (не pending-спиннер). Реальный обрыв связи —
+   предупреждение «только просмотр»; устаревший снимок при живой связи — нейтральный тон. */
+.floor-snapshot-banner {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 26px;
+  max-width: 100%;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--text-tertiary);
+  border-radius: 6px;
+  padding: 5px 10px;
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  animation: soft-enter 140ms ease-out;
+}
+
+.floor-snapshot-banner svg {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.floor-snapshot-banner span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.floor-snapshot-banner.offline {
+  border-left-color: var(--warning);
+  color: var(--warning-text);
+}
+
+.floor-snapshot-banner.offline svg {
+  color: var(--warning-text);
 }
 
 .feedback-notice {

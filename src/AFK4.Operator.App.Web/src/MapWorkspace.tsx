@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
-import { LockKeyhole, MonitorCheck, Power, ShieldAlert, TimerReset, UnlockKeyhole, Wifi, Wrench } from 'lucide-react';
+import { Clock, LockKeyhole, MonitorCheck, Power, ShieldAlert, TimerReset, UnlockKeyhole, Wifi, WifiOff, Wrench } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import { useDeferredFlag } from './useDeferredFlag';
@@ -193,8 +193,7 @@ export function MapWorkspace({
   return (
     <main className="floor-workspace">
       <section className="map-toolbar">
-        <div>
-          <span>{t('op.map.title')}</span>
+        <div className="map-toolbar-title">
           <h1>{floorMap.branchName}</h1>
         </div>
         <div className="screen-actions">
@@ -282,8 +281,14 @@ export function MapWorkspace({
       {floorMap.loadStatus === 'failed' && (
         <FeedbackNotice feedback={{ label: t('op.map.feedbackMap'), state: 'failed', detail: floorMap.error ?? t('op.map.loadError') }} />
       )}
+      {/* Снимок зала: показываем РЕАЛЬНЫЙ текст (со временем кэша), а не генерик «ждём ответ
+          сервера». Тон честный — «офлайн/только просмотр» лишь при настоящем обрыве, иначе
+          спокойное «снимок на HH:MM», чтобы не противоречить футеру при живой связи. */}
       {offlineBanner !== null && (
-        <FeedbackNotice feedback={{ label: t('op.map.feedbackOffline'), state: 'pending', detail: offlineBanner }} />
+        <div className={`floor-snapshot-banner ${floorMap.isOffline ? 'offline' : 'stale'}`} role="status" aria-live="polite">
+          {floorMap.isOffline ? <WifiOff size={14} aria-hidden="true" /> : <Clock size={14} aria-hidden="true" />}
+          <span>{offlineBanner}</span>
+        </div>
       )}
       {offlineActionAudit.map((note, index) => (
         <FeedbackNotice key={`offline-audit-${index}`} feedback={{ label: t('op.map.feedbackQueue'), state: 'failed', detail: note }} />

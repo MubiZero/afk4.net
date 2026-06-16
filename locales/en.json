@@ -2548,6 +2548,7 @@
   "op.floor.duration.minShort": "{count} min",
   "op.floor.duration.hourMinShort": "{hours} h {minutes} m",
   "op.floor.offlineBanner": "Offline — data from {time}, view only",
+  "op.floor.staleBanner": "Floor snapshot from {time}, refreshing…",
   "op.error.actionFailed.title": "Action failed",
   "op.error.actionFailed.noDetail": "The server returned no details. Retry the action or check the connection.",
   "op.players.status.vip": "VIP",
