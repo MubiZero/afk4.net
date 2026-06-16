@@ -79,18 +79,21 @@ jobs:
             -Version $env:AFK4_PACKAGE_VERSION `
             -Channel internal
 
-      - name: Verify MSI artifacts
+      - name: Verify package artifacts
         shell: pwsh
         run: |
+          # The deliverable is now the single master installer (Burn bundle); the per-app MSIs
+          # are bundle inputs and live under intermediates\ (see scripts/build-client-packages.ps1).
           $expectedArtifacts = @(
-            "artifacts/client-packages/afk4-operator-app-$env:AFK4_PACKAGE_VERSION-internal.msi",
-            "artifacts/client-packages/afk4-agent-$env:AFK4_PACKAGE_VERSION-internal.msi",
-            "artifacts/client-packages/afk4-player-shell-$env:AFK4_PACKAGE_VERSION-internal.msi"
+            "artifacts/client-packages/afk4-client-$env:AFK4_PACKAGE_VERSION-internal.exe",
+            "artifacts/client-packages/intermediates/afk4-operator-app-$env:AFK4_PACKAGE_VERSION-internal.msi",
+            "artifacts/client-packages/intermediates/afk4-agent-$env:AFK4_PACKAGE_VERSION-internal.msi",
+            "artifacts/client-packages/intermediates/afk4-player-shell-$env:AFK4_PACKAGE_VERSION-internal.msi"
           )
 
           foreach ($artifact in $expectedArtifacts) {
             if (-not (Test-Path -LiteralPath $artifact)) {
-              throw "Expected MSI artifact was not produced: $artifact"
+              throw "Expected package artifact was not produced: $artifact"
             }
           }
 
@@ -215,11 +218,13 @@ jobs:
             -RequestPath $playerShellPackageRequestPath `
             -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN
 
-      - name: Upload MSI artifacts
+      - name: Upload package artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: afk4-package-smoke-msi-0.1.${{ github.run_number }}-internal
-          path: artifacts/client-packages/*.msi
+          name: afk4-package-smoke-0.1.${{ github.run_number }}-internal
+          path: |
+            artifacts/client-packages/afk4-client-*-internal.exe
+            artifacts/client-packages/intermediates/*.msi
           if-no-files-found: error
           retention-days: 3
 

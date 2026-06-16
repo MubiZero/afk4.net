@@ -257,9 +257,24 @@ $resolvedDotnetPath = Require-File $DotnetPath 'dotnet executable'
 $resolvedPackageDirectory = Require-Directory $PackageDirectory 'Package directory'
 $resolvedOutputDirectory = Resolve-OutputDirectory $OutputDirectory
 
-$operatorMsi = Require-File (Join-Path $resolvedPackageDirectory "afk4-operator-app-$Version-$Channel.msi") 'Operator App MSI'
-$agentMsi = Require-File (Join-Path $resolvedPackageDirectory "afk4-agent-$Version-$Channel.msi") 'Agent MSI'
-$playerShellMsi = Require-File (Join-Path $resolvedPackageDirectory "afk4-player-shell-$Version-$Channel.msi") 'Player Shell MSI'
+# The build now leaves only the master bundle .exe in the package root and moves the per-app MSIs
+# (still the per-component update inputs) into an intermediates\ subfolder. Resolve from there,
+# falling back to the package root for older builds that kept the MSIs at the top level.
+$intermediatesDirectory = Join-Path $resolvedPackageDirectory 'intermediates'
+function Resolve-PackageMsi {
+    param([string] $FileName, [string] $Description)
+
+    $intermediateCandidate = Join-Path $intermediatesDirectory $FileName
+    if (Test-Path -LiteralPath $intermediateCandidate -PathType Leaf) {
+        return (Resolve-Path -LiteralPath $intermediateCandidate).Path
+    }
+
+    return Require-File (Join-Path $resolvedPackageDirectory $FileName) $Description
+}
+
+$operatorMsi = Resolve-PackageMsi "afk4-operator-app-$Version-$Channel.msi" 'Operator App MSI'
+$agentMsi = Resolve-PackageMsi "afk4-agent-$Version-$Channel.msi" 'Agent MSI'
+$playerShellMsi = Resolve-PackageMsi "afk4-player-shell-$Version-$Channel.msi" 'Player Shell MSI'
 
 $usingSigningKeyPath = -not [string]::IsNullOrWhiteSpace($SigningKeyPath)
 $usingSigningKeyEnvVar = -not [string]::IsNullOrWhiteSpace($SigningKeyEnvVar)
