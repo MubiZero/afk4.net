@@ -47,6 +47,11 @@ export interface SeatSummary {
   playerDisplayName?: string | null;
   tariffName?: string | null;
   sessionStartedAtUtc?: string | null;
+  // Floor-plan geometry (B2 DTO). Null/default until the seat is placed in the «План» editor.
+  posX?: number | null;
+  posY?: number | null;
+  rotation?: number;
+  seatType?: string;
 }
 
 export interface NavItem {

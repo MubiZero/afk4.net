@@ -28,12 +28,19 @@ export interface SeatStatusDto {
   tariffName?: string | null;
   // When the active session started (UTC); lets the operator see real elapsed time.
   sessionStartedAtUtc?: string | null;
+  // Floor-plan layout (B2): grid cell + orientation + host type. Null/default until the
+  // branch is arranged in the «План» editor; the abstract grid view ignores these.
+  posX?: number | null;
+  posY?: number | null;
+  rotation?: number;
+  seatType?: string;
 }
 
 export interface FloorMapDto {
   branchId: Guid;
   branchName: string;
   zones?: FloorMapZoneDto[];
+  walls?: FloorMapWallDto[];
   seats: SeatStatusDto[];
 }
 
@@ -41,6 +48,21 @@ export interface FloorMapZoneDto {
   zoneId: Guid;
   name: string;
   sortOrder: number;
+  // Floor-plan rectangle in grid cells; null until arranged in the «План» editor (B2).
+  geoX?: number | null;
+  geoY?: number | null;
+  geoWidth?: number | null;
+  geoHeight?: number | null;
+  color?: string | null;
+  zoneType?: string | null;
+}
+
+export interface FloorMapWallDto {
+  wallId: Guid;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
 }
 
 export function createFloorMapClient(api: PlatformApiClient) {
