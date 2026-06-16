@@ -20,6 +20,11 @@ public sealed class SessionEntity
 
     public string TariffRuleVersionId { get; set; } = string.Empty;
 
+    // The billing mode the session was started with (guest / prepaid_wallet / postpaid_debt /
+    // package). Persisted so an extend that omits the mode inherits it instead of silently
+    // defaulting to a free guest top-up. Empty for legacy rows started before this column.
+    public string BillingMode { get; set; } = string.Empty;
+
     public string State { get; set; } = string.Empty;
 
     public DateTimeOffset RequestedAtUtc { get; set; }

@@ -7,6 +7,12 @@ internal sealed class FakeSessionBillingService : ISessionBillingService
     // The comp value the fake returns from ComputeCompValueAsync; lets a test drive the §5.4 gate.
     public long CompValueMinorUnits { get; set; }
 
+    // The billing mode the service last passed to validation — lets a test assert that an extend
+    // without an explicit mode inherits the session's mode instead of defaulting to a free guest.
+    public string? LastStartBillingMode { get; private set; }
+
+    public string? LastExtendBillingMode { get; private set; }
+
     public Task<SessionBillingValidationResult> ComputeCompValueAsync(
         Guid organizationId,
         Guid branchId,
@@ -34,6 +40,7 @@ internal sealed class FakeSessionBillingService : ISessionBillingService
         int durationMinutes,
         CancellationToken cancellationToken)
     {
+        LastStartBillingMode = billingMode;
         return Task.FromResult(Valid(durationMinutes));
     }
 
@@ -47,6 +54,7 @@ internal sealed class FakeSessionBillingService : ISessionBillingService
         int additionalMinutes,
         CancellationToken cancellationToken)
     {
+        LastExtendBillingMode = billingMode;
         return Task.FromResult(Valid(additionalMinutes));
     }
 

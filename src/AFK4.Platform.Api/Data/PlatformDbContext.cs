@@ -388,6 +388,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(session => session.SessionId);
             entity.Property(session => session.PlayerKind).HasMaxLength(32).IsRequired();
             entity.Property(session => session.TariffRuleVersionId).HasMaxLength(128).IsRequired();
+            entity.Property(session => session.BillingMode).HasMaxLength(32).IsRequired().HasDefaultValue(string.Empty);
             entity.Property(session => session.State).HasMaxLength(32).IsRequired();
             entity.Property(session => session.Version).IsConcurrencyToken();
             // One active-ish session per seat, enforced by the database so two concurrent starts
