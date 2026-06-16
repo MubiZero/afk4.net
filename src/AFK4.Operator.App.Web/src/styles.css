@@ -8229,3 +8229,50 @@ button {
   background: var(--warning);
   color: #2a1c00;
 }
+
+/* ===== Floor plan: seat markers ===== */
+.plan-seat {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 48px;
+  height: 48px;
+  padding: 4px 6px;
+  border: 1px solid color-mix(in srgb, var(--seat-color, var(--accent)) 60%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--seat-color, var(--accent)) 16%, var(--surface-canvas));
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.plan-seat.state-ready { --seat-color: var(--accent); }
+.plan-seat.state-active { --seat-color: var(--text-tertiary); }
+.plan-seat.state-pending { --seat-color: color-mix(in srgb, var(--warning) 70%, var(--border-strong)); }
+.plan-seat.state-blocking { --seat-color: color-mix(in srgb, var(--danger) 68%, var(--danger-strong)); }
+.plan-seat.state-offline { --seat-color: #64748b; }
+.plan-seat:hover,
+.plan-seat:focus-visible {
+  outline: 2px solid var(--seat-color, var(--accent));
+  outline-offset: 1px;
+}
+.plan-seat.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.plan-seat-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--seat-color, var(--accent));
+}
+.plan-seat-name {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
