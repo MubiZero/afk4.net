@@ -2192,11 +2192,14 @@ button {
   transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
+/* Ободок выделения = цвет состояния плитки (свободно→зелёный, нужно действие→красный…),
+   а не фирменный зелёный для всех. Берём готовый --seat-color; полупрозрачное свечение
+   выводим из него через color-mix, чтобы не плодить хардкод rgba по тонам. */
 .seat-tile.selected {
-  border-color: var(--accent-hover);
-  border-left-color: var(--accent-hover);
+  border-color: var(--seat-color);
+  border-left-color: var(--seat-color);
   background: var(--surface-hover);
-  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.7), 0 0 22px rgba(var(--accent-rgb), 0.18);
+  box-shadow: 0 0 0 1px var(--seat-color), 0 0 22px color-mix(in srgb, var(--seat-color) 20%, transparent);
 }
 
 /* Пульсирует только blocking — провалившаяся команда, реальное «действуй сейчас». Остальное
@@ -2216,6 +2219,11 @@ button {
 
 .seat-tile:focus-visible {
   box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.78), 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+/* Клавиатурный фокус на уже выбранной плитке — ободок тоже по цвету состояния. */
+.seat-tile.selected:focus-visible {
+  box-shadow: 0 0 0 2px var(--seat-color), 0 8px 18px rgba(0, 0, 0, 0.18);
 }
 
 /* Статусная палитра канта/точки плитки. Принцип: цвет = «посмотри сюда».
