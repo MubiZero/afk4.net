@@ -3,7 +3,7 @@ import { useI18n } from '@afk4/i18n';
 import type { SeatSummary } from '../operatorData';
 import type { Feedback } from '../operatorTypes';
 import { formatTime, zoneLabel } from '../operatorHelpers';
-import { FeedbackNotice } from '../operatorPrimitives';
+import { FeedbackNotice, Skeleton } from '../operatorPrimitives';
 import type { BookingItem } from './bookingModel';
 
 export interface BookingDraft {
@@ -69,7 +69,7 @@ export function BookingDrawer(props: BookingDrawerProps) {
           <FeedbackNotice feedback={feedback} />
           <button type="button" className="booking-primary-action" disabled={!canManage || busy || freeSeats.length === 0 || !draft.seatId} onClick={props.onCreate}>{t('op.booking.create.submit')}</button>
         </div>
-      ) : selected && (
+      ) : selected ? (
         <div className="booking-drawer-body">
           <div className={`booking-status-card ${selected.tone}`}>
             <span>{selected.state}</span>
@@ -103,6 +103,10 @@ export function BookingDrawer(props: BookingDrawerProps) {
             <div><span>{t('op.booking.detail.comment')}</span><strong>{selected.note || t('op.booking.noComment')}</strong></div>
             <div><span>{t('op.booking.detail.source')}</span><strong>{selected.source === 'online' ? t('op.booking.source.online') : t('op.booking.source.operator')}</strong></div>
           </div>
+        </div>
+      ) : (
+        <div className="booking-drawer-body">
+          <Skeleton className="booking-detail-skel" />
         </div>
       )}
     </aside>

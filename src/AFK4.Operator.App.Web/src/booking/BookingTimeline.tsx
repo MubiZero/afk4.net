@@ -42,7 +42,7 @@ export function BookingTimeline({
   }
 
   // Перевод клика по дорожке в момент времени на оси.
-  const cellStartMs = (event: MouseEvent<HTMLButtonElement>): number => {
+  const cellStartMs = (event: MouseEvent<HTMLDivElement>): number => {
     const rect = event.currentTarget.getBoundingClientRect();
     const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
     return axis.startMs + ratio * axis.spanMs;
@@ -73,26 +73,23 @@ export function BookingTimeline({
             {group.rows.map((row) => (
               <div className="booking-grid-row" key={row.seat.id}>
                 <span className="booking-row-label" title={row.seat.name}>{row.seat.name}</span>
-                <button
-                  type="button"
+                <div
                   className="booking-row-track"
-                  aria-label={t('op.booking.cellCreateAria')}
+                  role="group"
                   onClick={(event) => onCellCreate(row.seat, cellStartMs(event))}
                 >
                   {row.blocks.map((block) => (
-                    <span
+                    <button
                       key={block.item.reservationId}
-                      role="button"
-                      tabIndex={0}
+                      type="button"
                       className={`booking-block ${block.item.tone}${block.item.reservationId === selectedReservationId ? ' active' : ''}`}
                       style={{ left: `${block.leftPct}%`, width: `${block.widthPct}%` }}
                       onClick={(event) => { event.stopPropagation(); onSelectBlock(block.item); }}
-                      onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectBlock(block.item); } }}
                     >
                       <b>{block.item.customerName}</b>
-                    </span>
+                    </button>
                   ))}
-                </button>
+                </div>
               </div>
             ))}
           </section>
