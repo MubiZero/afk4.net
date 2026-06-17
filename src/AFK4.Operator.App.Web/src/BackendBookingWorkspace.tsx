@@ -113,6 +113,7 @@ export function BackendBookingWorkspace({
   const axis = useMemo(() => computeAxis(items, dayStartMs, nowMs), [items, dayStartMs, nowMs]);
   const { groups, unplaced: _unplaced } = useMemo(() => buildSeatRows(floorMap.seats, items, axis), [floorMap.seats, items, axis]);
   const requests = unseatedOnlineRequests(items);
+  const requestCount = onlineRequestCount(items);
 
   const showSkeleton = useDeferredFlag(loadStatus === 'loading');
 
@@ -259,7 +260,7 @@ export function BackendBookingWorkspace({
         <StateFlag label={t('op.booking.strip.busy')} value={String(activeSeats.length)} />
         <StateFlag label={t('op.booking.strip.problems')} value={String(problemSeats.length)} critical={problemSeats.length > 0} />
         <StateFlag label={t('op.booking.strip.bookings')} value={String(items.length)} critical={loadStatus === 'failed'} />
-        <StateFlag label={t('op.booking.strip.requests')} value={String(onlineRequestCount(items))} critical={onlineRequestCount(items) > 0} />
+        <StateFlag label={t('op.booking.strip.requests')} value={String(requestCount)} critical={requestCount > 0} />
       </section>
 
       {loadStatus === 'failed' && (
