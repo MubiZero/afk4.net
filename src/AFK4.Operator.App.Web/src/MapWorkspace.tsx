@@ -6,7 +6,7 @@ import { projectOperatorError } from './apiErrors';
 import { useDeferredFlag } from './useDeferredFlag';
 import { offlineBannerText, type OperatorFloorMapState } from './floorMapState';
 import type { OperatorAuthSession } from './authClient';
-import type { Feedback, MapFilterId, MapViewMode, PcControlActionId, PcControlActionResult, SeatActionRequest, SeatActionResult } from './operatorTypes';
+import type { Feedback, MapFilterId, PcControlActionId, PcControlActionResult, SeatActionRequest, SeatActionResult } from './operatorTypes';
 import type { SeatSummary } from './operatorData';
 import {
   countByMapFilter,
@@ -22,10 +22,6 @@ import { buildSeatMenu, type SeatMenuItem } from './seatMenu';
 import { EmptyState, FeedbackNotice, Skeleton } from './operatorPrimitives';
 import { SeatContextMenu } from './SeatContextMenu';
 import { SeatTile } from './SeatTile';
-import { FloorPlan } from './FloorPlan';
-import { FloorPlanEditor } from './FloorPlanEditor';
-import { toPlanModel } from './floorPlanState';
-import type { FloorMapBulkUpdateRequest } from './api/clients/floorMap';
 
 export function MapWorkspace({
   floorMap,
@@ -37,8 +33,7 @@ export function MapWorkspace({
   onSelectSeat,
   onFilterChange,
   onPcControlAction,
-  onSeatAction,
-  onSaveLayout
+  onSeatAction
 }: {
   floorMap: OperatorFloorMapState;
   session: OperatorAuthSession | null;
@@ -50,17 +45,9 @@ export function MapWorkspace({
   onFilterChange: (filter: MapFilterId) => void;
   onPcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
   onSeatAction: (request: SeatActionRequest) => Promise<SeatActionResult>;
-  onSaveLayout: (request: FloorMapBulkUpdateRequest) => Promise<void>;
 }) {
   const { t } = useI18n();
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
-  const [viewMode, setViewMode] = useState<MapViewMode>('grid');
-  const [editing, setEditing] = useState(false);
-  // Editing requires the layout.manage right AND a real ETag — without the concurrency token (offline
-  // mirror / fixtures) the save would be rejected, so we don't offer the entry point.
-  const canEditLayout = hasPermission(session, permissionNames.manageLayout)
-    && floorMap.source === 'backend'
-    && floorMap.etag !== null;
   const [seatMenu, setSeatMenu] = useState<{ seat: SeatSummary; x: number; y: number } | null>(null);
   const seatMenuCaps = useMemo(() => ({
     actionsEnabled,
@@ -88,7 +75,6 @@ export function MapWorkspace({
     return groups;
   }, [visibleSeats]);
   const selectedSeat = floorMap.seats.find((seat) => seat.id === selectedSeatId) ?? null;
-  const planModel = useMemo(() => toPlanModel(floorMap), [floorMap]);
   const isLoadingSeats = floorMap.seats.length === 0 && (floorMap.loadStatus === 'loading' || floorMap.loadStatus === 'idle');
   const showSeatSkeleton = useDeferredFlag(isLoadingSeats);
   const offlineBanner = offlineBannerText(floorMap, t);
@@ -187,13 +173,6 @@ export function MapWorkspace({
             </button>
           ))}
         </div>
-        <div className="filter-row map-view-switch" aria-label={t('op.map.viewLabel')}>
-          <button type="button" className={viewMode === 'grid' ? 'active' : undefined} onClick={() => setViewMode('grid')}>{t('op.map.viewGrid')}</button>
-          <button type="button" className={viewMode === 'plan' ? 'active' : undefined} onClick={() => setViewMode('plan')}>{t('op.map.viewPlan')}</button>
-        </div>
-        {viewMode === 'plan' && canEditLayout && !editing && !planModel.isEmpty && (
-          <button type="button" className="map-edit-layout" onClick={() => setEditing(true)}>{t('op.map.plan.edit.enter')}</button>
-        )}
       </section>
       {floorMap.loadStatus === 'failed' && (
         <FeedbackNotice feedback={{ label: t('op.map.feedbackMap'), state: 'failed', detail: floorMap.error ?? t('op.map.loadError') }} />
@@ -211,7 +190,7 @@ export function MapWorkspace({
       ))}
       <FeedbackNotice feedback={feedback} />
 
-      <section className={`map-board ${viewMode === 'plan' ? 'plan-mode' : ''}`} aria-label={t('op.map.seatsLabel')}>
+      <section className="map-board" aria-label={t('op.map.seatsLabel')}>
         {isLoadingSeats ? (
           showSeatSkeleton ? (
             <div className="seat-grid" role="status" aria-label={t('op.map.loading')}>
@@ -220,41 +199,6 @@ export function MapWorkspace({
               ))}
             </div>
           ) : null
-        ) : viewMode === 'plan' ? (
-          editing ? (
-            <FloorPlanEditor
-              floorMap={floorMap}
-              organizationId={session?.organizationId ?? ''}
-              onSave={onSaveLayout}
-              onExit={() => setEditing(false)}
-            />
-          ) : planModel.isEmpty ? (
-            <div className="map-empty-plan">
-              <EmptyState title={t('op.map.plan.emptyTitle')} description={t('op.map.plan.emptyHint')} className="map-empty-state" />
-              {canEditLayout ? (
-                <button type="button" className="map-edit-layout" onClick={() => setEditing(true)}>{t('op.map.plan.edit.arrange')}</button>
-              ) : !hasPermission(session, permissionNames.manageLayout) ? (
-                <p className="map-empty-plan-hint">{t('op.map.plan.edit.noManagePermission')}</p>
-              ) : null}
-            </div>
-          ) : (
-            <>
-              <FloorPlan
-                model={planModel}
-                selectedSeatId={selectedSeatId}
-                onSelectSeat={onSelectSeat}
-                onSeatContextMenu={(seatId, event) => {
-                  const seat = floorMap.seats.find((candidate) => candidate.id === seatId);
-                  if (seat) {
-                    openSeatMenu(seat, event);
-                  }
-                }}
-              />
-              {planModel.unplacedSeats.length > 0 && (
-                <p className="floor-plan-unplaced">{t('op.map.plan.unplacedNote', { count: planModel.unplacedSeats.length })}</p>
-              )}
-            </>
-          )
         ) : visibleSeats.length === 0 ? (
           <EmptyState title={t('op.map.emptyTitle')} description={t('op.map.emptyHint')} className="map-empty-state" />
         ) : (
