@@ -17,7 +17,6 @@ import {
   type OperatorCommandType
 } from './actionOutbox';
 import { seats, type SeatSummary } from './operatorData';
-import type { FloorMapBulkUpdateRequest } from './api/clients/floorMap';
 import type {
   AuthStatus,
   OperatorConfig,
@@ -68,7 +67,6 @@ export interface FloorMap {
   offlineActionAudit: string[];
   handleSeatAction: (request: SeatActionRequest) => Promise<SeatActionResult>;
   handlePcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
-  handleSaveLayout: (request: FloorMapBulkUpdateRequest) => Promise<void>;
 }
 
 // Owns the operator floor map: authoritative load (with token-refresh + offline-cache fallback), the
@@ -412,31 +410,6 @@ export function useFloorMap({
     throw new Error(t('op.shell.err.commandUnsupported'));
   };
 
-  // Save the whole «План» layout in one transaction (full-replace, guarded by the loaded ETag), then
-  // reload the authoritative map so the new positions + fresh ETag take effect — mirrors handleSeatAction.
-  const handleSaveLayout = async (request: FloorMapBulkUpdateRequest): Promise<void> => {
-    const session = authSession;
-    if (session === null) {
-      throw new Error(t('op.shell.err.notSignedIn'));
-    }
-
-    const branchId = resolveActiveBranchId(session, config.branchId);
-    if (!branchId) {
-      throw new Error(t('op.dashboard.noBranch'));
-    }
-
-    if (floorMap.source !== 'backend' || floorMap.etag === null) {
-      throw new Error(t('op.shell.err.mapNotLoaded'));
-    }
-
-    const clients = createAuthenticatedOperatorClients(config, session);
-    await clients.floorMap.updateFloorMap(branchId, floorMap.etag, request);
-
-    const nextState = await loadBackendFloorMapState(config, session, branchId, t);
-    setFloorMap(nextState);
-    setSelectedSeatId((current) => (nextState.seats.some((seat) => seat.id === current) ? current : nextState.seats[0]?.id ?? ''));
-  };
-
   return {
     floorMap,
     floorMapRef,
@@ -447,7 +420,6 @@ export function useFloorMap({
     setFloorMap,
     offlineActionAudit,
     handleSeatAction,
-    handlePcControlAction,
-    handleSaveLayout
+    handlePcControlAction
   };
 }
