@@ -1,0 +1,352 @@
+/* Центрированное модальное окно (старт сессии, расчёт) — поверх всего, с полной шириной формы. */
+.panel-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.55);
+  animation: panel-modal-fade 120ms ease-out;
+}
+
+.panel-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(440px, 100%);
+  max-height: min(86vh, 760px);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+  overflow: hidden;
+  animation: panel-modal-pop 140ms ease-out;
+}
+
+.panel-modal.warning {
+  border-top: 3px solid var(--warning);
+}
+
+.panel-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.panel-modal-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.panel-modal-title strong {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.panel-modal-title span {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-modal-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.panel-modal-close:hover,
+.panel-modal-close:focus-visible {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text-strong);
+  outline: none;
+}
+
+.panel-modal-body {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px 18px;
+  overflow-y: auto;
+}
+
+.start-dialog-body {
+  display: grid;
+  gap: 12px;
+}
+
+@keyframes panel-modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes panel-modal-pop {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-modal-backdrop,
+  .panel-modal {
+    animation: none;
+  }
+}
+
+/* «Завершить без оплаты» в диалоге расчёта — тихая запасная дорожка, не конкурент кнопке оплаты. */
+.checkout-end-plain {
+  align-self: flex-start;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.checkout-end-plain:hover:not(:disabled),
+.checkout-end-plain:focus-visible {
+  color: var(--danger-text);
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-extend button,
+  .action-row-secondary button,
+  .cta-primary {
+    transition: none;
+  }
+}
+
+.action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.action-grid button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 32px;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 12px;
+  font-weight: 700;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.action-grid button:hover,
+.action-grid button:focus-visible {
+  border-color: var(--accent-text);
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.action-grid button.danger {
+  border-color: var(--danger-strong);
+  background: var(--danger-strong);
+}
+
+.action-grid button.danger:hover,
+.action-grid button.danger:focus-visible {
+  border-color: var(--danger);
+  background: var(--danger);
+}
+
+.action-grid button:disabled,
+.action-grid button:disabled:hover,
+.action-grid button:disabled:focus-visible {
+  cursor: not-allowed;
+  border-color: var(--border-default);
+  background: var(--surface-muted);
+  color: var(--text-quaternary);
+  transform: none;
+}
+
+.context-transfer-target {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: var(--surface-elevated);
+}
+
+.context-transfer-target span {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.context-transfer-target input {
+  min-width: 0;
+  height: 26px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  padding: 0 7px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.context-transfer-target input:disabled {
+  color: var(--text-quaternary);
+}
+
+.billing-selection-panel {
+  gap: 8px;
+}
+
+.billing-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.billing-panel-head strong {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.billing-panel-head em {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.billing-mode {
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
+  flex-wrap: wrap;
+}
+
+.billing-selection-panel .billing-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.billing-selection-panel .billing-mode button {
+  justify-content: center;
+  min-width: 0;
+  height: 50px;
+  padding: 6px 8px;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.billing-selection-panel .billing-mode small {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.billing-selection-panel .billing-mode button.active small {
+  color: var(--accent-on-soft);
+}
+
+.billing-input-row {
+  grid-template-columns: 48px minmax(0, 1fr);
+}
+
+.billing-candidate-list {
+  display: grid;
+  gap: 6px;
+}
+
+.billing-candidate-list button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  min-height: 40px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: var(--surface-elevated);
+  color: var(--text-strong);
+  text-align: left;
+}
+
+.billing-candidate-list button.active {
+  border-color: var(--accent);
+  background: var(--surface-accent-soft);
+}
+
+.billing-candidate-list strong,
+.billing-candidate-list span,
+.billing-candidate-list p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.billing-candidate-list strong {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.billing-candidate-list span,
+.billing-candidate-list p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.billing-meta strong {
+  max-width: 190px;
+}
+
+.smart-grid {
+  display: grid;
+  gap: 10px;
+  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px) - 20px - 35px);
+  min-height: 626px;
+  overflow: hidden;
+}
+

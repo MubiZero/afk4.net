@@ -1,0 +1,399 @@
+/* ── Боковая панель места: командная карточка ── */
+.seat-hero {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--surface-card);
+}
+
+.seat-hero.state-pending {
+  border-left-color: var(--warning);
+}
+
+.seat-hero.state-blocking {
+  border-left-color: var(--danger);
+}
+
+.seat-hero.state-offline {
+  border-left-color: #64748b;
+}
+
+.seat-hero.state-ready {
+  border-left-color: var(--success);
+}
+
+.seat-hero-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Зона + имя места — единый титульный блок: надзаголовок вплотную над именем. */
+.seat-hero-id {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.seat-hero-zone {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.seat-hero-name {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.seat-hero-metric {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.seat-hero-label {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.seat-hero-value {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seat-hero-value.is-money {
+  color: var(--accent-text);
+}
+
+/* Текстовый статус (проблема/ожидание) — не число-герой: показываем спокойнее,
+   чтобы он не кричал размером 26px там, где это просто слово. */
+.seat-hero-value.is-text {
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: normal;
+}
+
+.seat-hero .seat-timebar {
+  width: 100%;
+}
+
+.seat-hero-sub {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.quick-extend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.action-row-secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.quick-extend button,
+.action-row-secondary button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  border: 1px solid var(--border-default);
+  border-radius: 7px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 700;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease, color 120ms ease;
+}
+
+.quick-extend button:hover:not(:disabled),
+.action-row-secondary button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  transform: translateY(-1px);
+}
+
+.action-row-secondary button.danger {
+  border-color: var(--danger-soft-border);
+  color: var(--danger-text);
+}
+
+.action-row-secondary button.danger:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: var(--danger-soft-bg);
+}
+
+.cta-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 14px;
+  font-weight: 700;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.cta-primary:hover:not(:disabled) {
+  border-color: var(--accent-text);
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.cta-primary:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.panel-actions button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.panel-actions button:disabled {
+  cursor: not-allowed;
+  border-color: var(--border-default);
+  background: var(--surface-muted);
+  color: var(--text-quaternary);
+  transform: none;
+}
+
+.pc-health {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Перенос — один аккуратный контрол: метка + (выбор места ⋮ кнопка) единым блоком. */
+/* Дропдаун в стиле приложения (замена нативного <select>): тёмный список, акцент на выбранном. */
+.panel-select {
+  position: relative;
+  min-width: 0;
+}
+
+.panel-select-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.panel-select-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-select-value.is-placeholder {
+  color: var(--text-quaternary);
+}
+
+.panel-select-caret {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition: transform 120ms ease;
+}
+
+.panel-select-trigger[aria-expanded='true'] .panel-select-caret {
+  transform: rotate(180deg);
+}
+
+.panel-select-trigger:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.panel-select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.panel-select-trigger:disabled {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+}
+
+.panel-select-list {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+  animation: soft-enter 140ms var(--ease-out);
+}
+
+.panel-select-list:focus-visible {
+  outline: none;
+}
+
+.panel-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.panel-select-option.is-active {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.panel-select-option.is-selected {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.panel-select-option.is-selected.is-active {
+  background: var(--accent-soft);
+}
+
+.panel-select-option svg {
+  flex-shrink: 0;
+  color: var(--accent-text);
+}
+
+.transfer-row {
+  display: grid;
+  gap: 6px;
+}
+
+.transfer-row-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.transfer-row-controls {
+  display: flex;
+  min-width: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 7px;
+  background: var(--surface-card);
+}
+
+.transfer-row-controls .transfer-select {
+  flex: 1;
+}
+
+.transfer-row-controls .panel-select-trigger {
+  height: 36px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 7px 0 0 7px;
+  background: transparent;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.transfer-row-controls .panel-select-trigger:hover:not(:disabled) {
+  border: none;
+  background: var(--surface-hover);
+}
+
+.transfer-row-controls .panel-select-trigger:focus-visible {
+  border: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.transfer-row-controls .transfer-go {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-left: 1px solid var(--border-default);
+  border-radius: 0 7px 7px 0;
+  background: var(--surface-hover);
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 700;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.transfer-row-controls .transfer-go:hover:not(:disabled),
+.transfer-row-controls .transfer-go:focus-visible {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  outline: none;
+}
+
+.transfer-row-controls .transfer-go:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.transfer-row-controls .transfer-go:disabled {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+}
+

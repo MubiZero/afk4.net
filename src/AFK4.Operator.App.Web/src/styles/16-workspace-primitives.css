@@ -1,0 +1,249 @@
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  height: 42px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.panel-head strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.panel-head span {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  margin: 10px 12px;
+  padding: 0 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  background: var(--surface-sunken);
+  color: var(--text-tertiary);
+}
+
+.panel-search input,
+.compact-form input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.task-list,
+.quick-actions {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.task-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) minmax(120px, auto);
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.task-row span {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.task-row strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-row em {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.quick-action {
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  text-align: left;
+}
+
+.quick-action {
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+.catalog-item,
+.settings-card {
+  display: grid;
+  gap: 4px;
+  min-height: 74px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 10px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  text-align: left;
+}
+
+.catalog-item strong,
+.settings-card strong {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.catalog-item span,
+.settings-card span {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.catalog-item b {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.compact-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 12px 10px;
+}
+
+.compact-form.booking-form {
+  grid-template-columns: 1fr;
+  padding-top: 12px;
+}
+
+.compact-form label {
+  display: grid;
+  gap: 4px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+.compact-form input {
+  height: 30px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  padding: 0 9px;
+  background: var(--surface-sunken);
+}
+
+.dark-table {
+  width: calc(100% - 24px);
+  margin: 0 12px 12px;
+  border-collapse: collapse;
+  color: var(--text-strong);
+  font-size: 12px;
+}
+
+.dark-table th,
+.dark-table td {
+  height: 34px;
+  border-bottom: 1px solid var(--border-soft);
+  padding: 0 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.dark-table th {
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.dark-table td:last-child,
+.dark-table th:last-child {
+  text-align: right;
+}
+
+.payment-row {
+  display: flex;
+  gap: 7px;
+  padding: 0 12px 12px;
+}
+
+.payment-row button {
+  height: 28px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  padding: 0 10px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 12px;
+}
+
+.payment-row button.active {
+  border-color: var(--accent);
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+}
+
+.total-line {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 12px 12px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.total-line strong {
+  color: var(--text-primary);
+  font-size: 18px;
+}
+
+.primary-wide {
+  width: calc(100% - 24px);
+  height: 34px;
+  margin: 0 12px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-weight: 700;
+}
+
+.settings-cards {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 12px;
+}
+

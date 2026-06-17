@@ -1,0 +1,251 @@
+.operator-shell {
+  position: relative;
+  display: grid;
+  width: 100vw;
+  height: 100vh;
+  min-width: 960px;
+  min-height: 600px;
+  grid-template-columns: 74px minmax(0, 1fr) var(--shell-context-col, minmax(260px, 292px));
+  grid-template-rows: 46px minmax(0, 1fr) 26px;
+  background: var(--surface-canvas);
+  --shell-context-strip: 36px;
+}
+
+.window-resize-handles {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.window-resize-handle {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.window-resize-handle.top,
+.window-resize-handle.bottom {
+  left: 8px;
+  right: 8px;
+  height: 7px;
+  cursor: ns-resize;
+}
+
+.window-resize-handle.top {
+  top: 0;
+}
+
+.window-resize-handle.bottom {
+  bottom: 0;
+}
+
+.window-resize-handle.left,
+.window-resize-handle.right {
+  top: 8px;
+  bottom: 8px;
+  width: 7px;
+  cursor: ew-resize;
+}
+
+.window-resize-handle.left {
+  left: 0;
+}
+
+.window-resize-handle.right {
+  right: 0;
+}
+
+.window-resize-handle.top-left,
+.window-resize-handle.top-right,
+.window-resize-handle.bottom-left,
+.window-resize-handle.bottom-right {
+  width: 12px;
+  height: 12px;
+}
+
+.window-resize-handle.top-left {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+
+.window-resize-handle.top-right {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+
+.window-resize-handle.bottom-left {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+
+.window-resize-handle.bottom-right {
+  right: 0;
+  bottom: 0;
+  cursor: nwse-resize;
+}
+
+.top-command {
+  grid-column: 1 / 4;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  /* Лого обрезан по глифу (viewBox), поэтому небольшой gap делает расстояние лого→разделитель
+     равным разделитель→«Оператор» (12px у span). */
+  gap: 8px;
+  width: max-content;
+  line-height: 1;
+}
+
+.brand-block .brand-logo {
+  display: block;
+  height: 34px;
+  width: auto;
+}
+
+/* «Оператор» сидит справа от лого как ярлык секции, отделён тонкой вертикальной чертой,
+   чтобы не сливаться с wordmark «AFK4.NET» в самом логотипе. */
+.brand-block span {
+  position: relative;
+  padding-left: 12px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.brand-block span::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 16px;
+  background: var(--border-strong);
+}
+
+.command-search {
+  display: flex;
+  flex: 0 1 min(460px, 36vw);
+  align-items: center;
+  gap: 7px;
+  width: min(460px, 36vw);
+  min-width: 180px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface-sunken);
+  color: var(--text-tertiary);
+}
+
+.command-search {
+  cursor: text;
+  font: inherit;
+  text-align: left;
+}
+
+.command-search:hover {
+  border-color: var(--accent-hover);
+}
+
+.command-search:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 2px;
+}
+
+.command-search span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.top-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.top-status span,
+.signals-strip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.top-status span {
+  max-width: 240px;
+  overflow: hidden;
+  height: 25px;
+  padding: 0 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text-strong);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.window-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+}
+
+.window-controls button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 28px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.window-controls button:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.window-controls button:last-child:hover {
+  background: var(--danger-strong);
+  color: var(--text-on-accent);
+}
+
+.auth-shell {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 46px minmax(0, 1fr);
+  background: var(--surface-canvas);
+}
+
+.auth-shell .top-command {
+  grid-column: 1;
+}
+
+/* Only brand + language/window controls on the auth titlebar — no status pills. */
+.auth-top-command {
+  justify-content: space-between;
+}
+

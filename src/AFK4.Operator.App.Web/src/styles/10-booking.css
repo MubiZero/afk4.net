@@ -1,0 +1,361 @@
+.booking-layout {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "timeline timeline selected selected"
+    "requests requests create create";
+  gap: 10px;
+  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px) - 20px - 42px - 28px - 8px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.booking-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: var(--surface-elevated);
+}
+
+.booking-timeline-panel {
+  grid-area: timeline;
+}
+
+.booking-selected-panel {
+  grid-area: selected;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding-bottom: 12px;
+}
+
+.booking-requests-panel {
+  grid-area: requests;
+}
+
+.booking-create-panel {
+  grid-area: create;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding-bottom: 12px;
+}
+
+.booking-panel-title {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 12px 12px 0;
+}
+
+.booking-panel-title span {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.08;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-panel-title strong {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-list {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.booking-card {
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr) minmax(150px, 0.8fr) 112px;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--text-tertiary);
+  border-radius: 6px;
+  padding: 0 12px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  text-align: left;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.booking-card:hover,
+.booking-card:focus-visible,
+.booking-card.active {
+  border-color: var(--border-accent);
+  background: var(--surface-hover);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.booking-card.active {
+  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.22);
+}
+
+.booking-card.confirmed {
+  border-left-color: var(--success);
+}
+
+.booking-card.online,
+.booking-card.pending {
+  border-left-color: var(--warning);
+}
+
+.booking-card.strict {
+  border-left-color: var(--accent-hover);
+}
+
+.booking-time {
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.booking-client {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.booking-client strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-client em,
+.booking-meta,
+.booking-request-card em,
+.booking-detail-list span {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-card b {
+  justify-self: end;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: var(--accent-on-soft);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.booking-status-card {
+  display: grid;
+  gap: 5px;
+  margin: 0 12px;
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--success);
+  border-radius: 7px;
+  padding: 12px;
+  background: var(--surface-card);
+}
+
+.booking-status-card span {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.booking-status-card strong {
+  color: var(--text-primary);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.booking-status-card em {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.booking-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.booking-action-grid button,
+.booking-request-card button,
+.booking-primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 600;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.booking-action-grid button:hover,
+.booking-action-grid button:focus-visible,
+.booking-request-card button:hover,
+.booking-request-card button:focus-visible,
+.booking-primary-action:hover,
+.booking-primary-action:focus-visible {
+  border-color: var(--border-accent);
+  background: var(--surface-accent-soft);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.booking-action-grid button:first-child,
+.booking-request-card button:first-child,
+.booking-primary-action {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.booking-action-grid button.danger {
+  border-color: var(--danger-strong);
+  background: var(--danger-strong);
+  color: var(--text-on-accent);
+}
+
+.booking-create-action:disabled,
+.booking-create-action:disabled:hover,
+.booking-create-action:disabled:focus-visible,
+.booking-action-grid button:disabled,
+.booking-action-grid button:disabled:hover,
+.booking-action-grid button:disabled:focus-visible,
+.booking-request-card button:disabled,
+.booking-request-card button:disabled:hover,
+.booking-request-card button:disabled:focus-visible,
+.booking-primary-action:disabled,
+.booking-primary-action:disabled:hover,
+.booking-primary-action:disabled:focus-visible {
+  cursor: not-allowed;
+  border-color: var(--border-default);
+  background: var(--surface-muted);
+  color: var(--text-quaternary);
+  transform: none;
+}
+
+.booking-detail-list {
+  display: grid;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.booking-detail-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.booking-detail-list strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-request-list {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.booking-request-card {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) minmax(140px, 0.8fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--warning);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--surface-card);
+}
+
+.booking-request-card span {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.booking-request-card strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-request-card div {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.booking-request-card button {
+  height: 30px;
+  padding: 0 9px;
+}
+
+.booking-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 12px 0;
+}
+
+.booking-form-grid label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.booking-form-grid input {
+  height: 32px;
+  min-width: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  padding: 0 9px;
+  outline: 0;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.booking-primary-action {
+  margin: 0 12px;
+}
+

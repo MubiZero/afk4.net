@@ -1,0 +1,140 @@
+.review-segments {
+  display: flex;
+  gap: 8px;
+  padding: 0 24px;
+  margin-bottom: 12px;
+}
+
+.review-segments button {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.review-segments button.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.review-panel {
+  margin: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.review-request-row,
+.review-audit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.review-request-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.review-request-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.review-request-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.review-request-actions button {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.review-reject-form label,
+.review-audit-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.review-audit-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.review-audit-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 1fr 120px;
+  align-items: center;
+}
+
+.review-empty {
+  opacity: 0.7;
+  padding: 16px;
+}
+
+.review-expiry-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.review-expiry-badge.soon {
+  background: var(--warning-soft-bg);
+  color: var(--warning-text);
+}
+
+.review-expiry-badge.overdue {
+  background: var(--danger-soft-border);
+  color: var(--danger-text);
+}
+
+.payment-cards-screen { display: grid; gap: 16px; padding: 18px 22px; }
+.payment-cards-screen .screen-head h1 { margin: 0 0 4px; }
+.payment-cards-error { color: var(--danger-text); background: var(--danger-soft-bg); border-radius: 8px; padding: 8px 12px; }
+.payment-cards-provision { display: flex; flex-wrap: wrap; gap: 12px; align-items: end;
+  background: var(--surface-card); border-radius: 12px; padding: 14px 16px; }
+.payment-cards-provision label { display: grid; gap: 4px; font-size: 13px; }
+.payment-cards-provision input[type="text"],
+.payment-cards-provision input { background: var(--surface-canvas); color: var(--text-primary); border: 1px solid var(--border-default);
+  border-radius: 8px; padding: 8px 10px; }
+.payment-cards-list { display: grid; gap: 10px; }
+.payment-card-row { display: grid; gap: 8px; background: var(--surface-card); border-radius: 12px; padding: 14px 16px;
+  grid-template-columns: auto auto 1fr; align-items: center; }
+.payment-card-row[data-status="pending_telegram"] { border-left: 3px solid var(--warning); }
+.payment-card-row[data-status="active"] { border-left: 3px solid var(--success); }
+.payment-card-row[data-status="disabled"] { border-left: 3px solid var(--border-strong); opacity: 0.7; }
+.payment-card-pan { font-variant-numeric: tabular-nums; font-weight: 600; }
+.payment-card-disable { justify-self: start; background: var(--danger-soft-bg); color: var(--danger-text);
+  border: 1px solid var(--danger-soft-border); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.payment-card-disable:disabled { opacity: 0.5; cursor: default; }
+.payment-card-attach { grid-column: 1 / -1; display: grid; gap: 8px; border-top: 1px solid var(--border-default);
+  padding-top: 10px; }
+.payment-card-attached { color: var(--success); }
+.payment-card-session { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  font-size: 13px; color: var(--text-secondary); }
+.payment-card-session-badge { font-weight: 600; padding: 2px 8px; border-radius: 999px;
+  background: var(--surface-card); color: var(--text-secondary); }
+.payment-card-session[data-health="online"] .payment-card-session-badge { background: var(--success-soft-bg); color: var(--success); }
+.payment-card-session[data-health="offline"] .payment-card-session-badge { background: var(--danger-soft-bg); color: var(--danger-text); }
+.payment-card-session[data-health="configured"] .payment-card-session-badge { background: var(--warning-soft-bg); color: var(--warning); }
+

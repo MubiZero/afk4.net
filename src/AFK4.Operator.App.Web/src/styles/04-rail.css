@@ -1,0 +1,207 @@
+.workspace-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  min-height: 0;
+  padding: 8px 7px 16px;
+  /* Вертикальный список иконок: скроллим только по вертикали. Явный overflow-x:hidden
+     убирает фантомный горизонтальный скролл (overflow-y:auto иначе делает и X = auto,
+     и суб-пиксельный край ловит лишнюю полосу). */
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-right: 1px solid var(--border-soft);
+  background: var(--surface-elevated);
+}
+
+.workspace-rail button {
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  width: 60px;
+  height: 46px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-tertiary);
+}
+
+.workspace-rail button span {
+  max-width: 56px;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-rail button:not(.active):not(.locked):hover {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+.workspace-rail button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.workspace-rail button.active {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.workspace-rail button:disabled,
+.workspace-rail button.locked {
+  color: var(--text-quaternary);
+  opacity: 0.62;
+}
+
+.workspace-rail button.locked:hover,
+.workspace-rail button.locked:focus-visible {
+  background: var(--surface-muted);
+  color: var(--text-tertiary);
+}
+
+/* Аккаунт оператора — в подвале рейла, отделён сверху от навигации. */
+.rail-account {
+  position: relative;
+  margin-top: auto;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.rail-account-trigger {
+  display: grid;
+  place-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 8px 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.rail-account-trigger:hover,
+.rail-account-trigger[aria-expanded='true'] {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+.rail-account-trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.rail-account-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.rail-account-avatar.lg {
+  width: 36px;
+  height: 36px;
+  font-size: 13px;
+}
+
+.rail-account-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  max-width: 58px;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-secondary);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.rail-account-menu {
+  position: fixed;
+  z-index: 60;
+  width: 212px;
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+  animation: soft-enter 140ms var(--ease-out);
+}
+
+.rail-account-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.rail-account-head strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rail-account-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.rail-account-item svg {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.rail-account-item:hover,
+.rail-account-item:focus-visible {
+  outline: none;
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.rail-account-item.danger:hover,
+.rail-account-item.danger:focus-visible {
+  background: var(--danger-soft-bg);
+  color: var(--danger-text);
+}
+
+.rail-account-item.danger:hover svg,
+.rail-account-item.danger:focus-visible svg {
+  color: var(--danger-text);
+}
+
