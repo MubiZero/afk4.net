@@ -1,5 +1,5 @@
 import type { SeatSummary } from '../operatorData';
-import { readArray, readString, readNumber } from '../operatorHelpers';
+import { readString, readNumber } from '../operatorHelpers';
 
 export type BookingTone = 'confirmed' | 'online' | 'pending' | 'seated' | 'cancelled';
 
