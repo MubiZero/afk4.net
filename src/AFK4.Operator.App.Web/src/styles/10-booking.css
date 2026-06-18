@@ -1,176 +1,1446 @@
+/* ── Вкладка «Брони»: таймлайн-гант + боковой drawer + лейн заявок ──────── */
+
+/* Корневой layout: таймлайн + опциональный drawer бок о бок.
+   Высота совпадает с картой (map-board), чтобы гант не обрезался и прокрутка
+   была только внутри тела гантa (booking-grid-body). */
 .booking-layout {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "timeline timeline selected selected"
-    "requests requests create create";
-  gap: 10px;
-  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px) - 20px - 42px - 28px - 8px);
-  min-height: 0;
-  overflow: hidden;
-}
-
-.booking-panel {
-  min-width: 0;
-  min-height: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  /* лейн в один ряд (+34); шапка (заголовок+метрики) слита в одну строку-подложку (~50px) */
+  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px) - 20px - 50px - 8px + 34px);
+  min-height: 360px;
   overflow: hidden;
   border: 1px solid var(--border-soft);
   border-radius: 7px;
+  background: var(--surface-canvas);
+}
+
+/* Drawer открыт — делим пространство: гант слева, drawer 360px справа. */
+.booking-layout.with-drawer {
+  grid-template-columns: minmax(0, 1fr) 360px;
+}
+
+/* Шапка экрана: заголовок + метрики в одной строке на мягкой подложке —
+   заголовок не «лежит голым текстом», а якорит строку с чипами. */
+.booking-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+  padding: 7px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
   background: var(--surface-elevated);
 }
 
-.booking-timeline-panel {
-  grid-area: timeline;
-}
-
-.booking-selected-panel {
-  grid-area: selected;
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  padding-bottom: 12px;
-}
-
-.booking-requests-panel {
-  grid-area: requests;
-}
-
-.booking-create-panel {
-  grid-area: create;
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  padding-bottom: 12px;
-}
-
-.booking-panel-title {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  padding: 12px 12px 0;
-}
-
-.booking-panel-title span {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1.08;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.booking-panel-title strong {
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.booking-list {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-}
-
-.booking-card {
-  display: grid;
-  grid-template-columns: 62px minmax(0, 1fr) minmax(150px, 0.8fr) 112px;
-  align-items: center;
-  gap: 10px;
-  min-height: 58px;
-  border: 1px solid var(--border-default);
-  border-left: 3px solid var(--text-tertiary);
-  border-radius: 6px;
-  padding: 0 12px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  text-align: left;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
-}
-
-.booking-card:hover,
-.booking-card:focus-visible,
-.booking-card.active {
-  border-color: var(--border-accent);
-  background: var(--surface-hover);
-  outline: none;
-  transform: translateY(-1px);
-}
-
-.booking-card.active {
-  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.22);
-}
-
-.booking-card.confirmed {
-  border-left-color: var(--success);
-}
-
-.booking-card.online,
-.booking-card.pending {
-  border-left-color: var(--warning);
-}
-
-.booking-card.strict {
-  border-left-color: var(--accent-hover);
-}
-
-.booking-time {
-  color: var(--text-primary);
-  font-size: 20px;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.booking-client {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-}
-
-.booking-client strong {
+.booking-header h1 {
+  margin: 0;
   overflow: hidden;
   color: var(--text-primary);
   font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.booking-client em,
-.booking-meta,
-.booking-request-card em,
-.booking-detail-list span {
+/* «Брони» — жирным акцентом, подзаголовок-пояснение тише. */
+.booking-header-name {
+  font-weight: 700;
+}
+
+.booking-header-tagline {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.booking-header-metrics {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 7px;
+}
+
+/* ── Навигатор дат ────────────────────────────────────────────────────────── */
+.booking-date-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  height: 27px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  background: var(--surface-card);
+  overflow: hidden;
+}
+
+.booking-date-nav button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 16px;
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.booking-date-nav button:hover {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.booking-date-nav button:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: -2px;
+}
+
+.booking-date-nav button:active {
+  background: var(--surface-sunken);
+  transform: scale(0.96);
+}
+
+.booking-date-nav strong {
+  padding: 0 10px;
+  border-left: 1px solid var(--border-default);
+  border-right: 1px solid var(--border-default);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Кнопка «+ Бронь» в шапке — переопределяет generic screen-actions button.
+   Уже объявлена в 06-map-grid.css; дублировать не нужно. */
+
+/* ── Статус-полоска Бронь ─────────────────────────────────────────────────── */
+/* .booking-state-strip наследует .state-strip из 06-map-grid.css — дополнений нет. */
+
+/* ── Лейн входящих заявок ─────────────────────────────────────────────────── */
+/* Полоса над гантом: рендерится всегда (в шапке — кнопка «+ Бронь»). Акцентный кант и
+   карточки — только при наличии заявок; пустой вид нейтральный. */
+.booking-requests-lane {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--warning);
+  border-radius: 7px;
+  padding: 10px 12px;
+  background: var(--surface-elevated);
+  animation: soft-enter 140ms ease-out;
+}
+
+.booking-requests-lane.is-empty {
+  justify-content: flex-end;
+  border-left-color: var(--border-default);
+  animation: none;
+}
+
+.booking-lane-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+/* Вертикальная полоса слева от кнопки «+ Бронь» (отделяет её от заявок). */
+.booking-lane-sep {
+  flex: none;
+  width: 1px;
+  align-self: stretch;
+  background: var(--border-soft);
+}
+
+.booking-lane-title span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Заявок может быть и 20 — карточки фиксированной ширины едут горизонтально
+   внутри своей дорожки, не ломая высоту строки и не выдавливая кнопку. */
+.booking-lane-cards {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+  scroll-padding-inline: 8px;
+  padding-bottom: 2px;
+}
+
+.booking-lane-cards::-webkit-scrollbar {
+  height: 6px;
+}
+
+.booking-lane-cards::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: var(--border-strong);
+}
+
+.booking-lane-card {
+  display: grid;
+  gap: 6px;
+  flex: none;
+  width: 200px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 7px 9px;
+  background: var(--surface-card);
+}
+
+/* Время + имя в одну строку: время ведёт, имя забирает остаток и обрезается. */
+.booking-lane-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.booking-lane-head strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-lane-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.booking-lane-card button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  padding: 0 9px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 11px;
+  font-weight: 600;
+  transition: border-color 100ms ease, background 100ms ease, transform 100ms ease;
+}
+
+.booking-lane-card button:first-child {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.booking-lane-card button:hover:not(:disabled) {
+  border-color: var(--border-accent);
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+  transform: translateY(-1px);
+}
+
+.booking-lane-card button:first-child:hover:not(:disabled) {
+  background: var(--accent-hover);
+  color: var(--text-on-accent);
+}
+
+.booking-lane-card button:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.booking-lane-card button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.booking-lane-card button:disabled {
+  cursor: not-allowed;
+  border-color: var(--border-default);
+  background: var(--surface-muted);
+  color: var(--text-quaternary);
+  transform: none;
+}
+
+.booking-lane-time {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.booking-lane-dash {
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+/* ── Гант-грид ────────────────────────────────────────────────────────────── */
+/* Весь гант: ось + тело. Фикс-переменная для отступа-метки — используется
+   в сдвиге now-line и в grid-template-columns строки. */
+.booking-grid {
+  --booking-gutter: 120px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Ось времени: липкая шапка, разбита на отступ-метку + трек засечек. */
+.booking-grid-axis {
+  display: grid;
+  grid-template-columns: var(--booking-gutter) 1fr;
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  height: 28px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-canvas);
+}
+
+.booking-axis-gutter {
+  border-right: 1px solid var(--border-soft);
+  background: var(--surface-canvas);
+}
+
+/* Дата-навигация в «нулевой» ячейке оси: стрелки ‹ › + дата, занимает весь гаттер. */
+.booking-gutter-datenav {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+}
+
+.booking-gutter-datenav button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 15px;
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.booking-gutter-datenav button:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.booking-gutter-datenav button:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: -2px;
+}
+
+.booking-gutter-datenav strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-axis-track {
+  position: relative;
+  overflow: hidden;
+}
+
+.booking-axis-tick {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+  white-space: nowrap;
+  user-select: none;
+}
+
+/* Тело гантa: вертикальный скролл внутри. */
+.booking-grid-body {
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Вертикаль «сейчас»: фирменный акцент (не красный — красный в этом UI = ошибка/сбой,
+   а это просто текущий момент). z-index выше полос залов (sticky, z-3), чтобы линия шла
+   непрерывно сверху донизу, а не рвалась за заголовками зон. */
+.booking-now-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 4;
+  width: 2px;
+  background: var(--accent);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.booking-now-line::before {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translateX(-50%);
+}
+
+/* ── Группа зоны ─────────────────────────────────────────────────────────── */
+.booking-zone {
+  display: grid;
+  min-width: 0;
+}
+
+/* Полоса-разделитель зоны: ярче дорожек (через осветление, тёмная тема), читается как
+   статический заголовок секции — поэтому никакого hover-аффорданса (cursor default). */
+.booking-zone-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-top: 1px solid var(--border-default);
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-card);
+  cursor: default;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+.booking-zone-head span {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Счётчик мест зоны — сразу после названия, через разделитель «·» (не уезжает вправо). */
+.booking-zone-head strong {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.booking-zone-head strong::before {
+  content: "·";
+  margin-right: 6px;
+  color: var(--text-quaternary);
+}
+
+/* ── Строка места ─────────────────────────────────────────────────────────── */
+/* Сетка: метка-слот фиксированной ширины + треk. */
+.booking-grid-row {
+  display: grid;
+  grid-template-columns: var(--booking-gutter) 1fr;
+  min-height: 38px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.booking-grid-row:last-child {
+  border-bottom: none;
+}
+
+/* Метка места: имя + текущий статус ПК в две строки, тон-точка ведёт. */
+.booking-row-label {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  overflow: hidden;
+  border-right: 1px solid var(--border-soft);
+  padding: 0 8px;
+  background: var(--surface-canvas);
+  user-select: none;
+}
+
+.booking-row-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
   overflow: hidden;
   color: var(--text-secondary);
   font-size: 11px;
-  font-style: normal;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.booking-card b {
-  justify-self: end;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  padding: 4px 8px;
-  color: var(--accent-on-soft);
-  font-size: 11px;
-  line-height: 1;
+/* Точка-статус места — цвет по тону (та же семантика, что у плиток карты). */
+.booking-seat-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+}
+
+.booking-seat-dot.state-ready { background: var(--accent); }
+.booking-seat-dot.state-active { background: var(--text-tertiary); }
+.booking-seat-dot.state-pending { background: var(--warning); }
+.booking-seat-dot.state-blocking { background: var(--danger); }
+.booking-seat-dot.state-offline { background: #64748b; }
+
+.booking-row-status {
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.1;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* Дорожка места: клик/протягивание создаёт бронь (cursor crosshair = аффорданс). */
+.booking-row-track {
+  position: relative;
+  cursor: crosshair;
+  transition: background 80ms ease;
+}
+
+.booking-row-track:hover {
+  background: rgba(var(--accent-rgb), 0.04);
+}
+
+/* Во время протягивания гасим выделение текста и держим crosshair над всем гантом. */
+.booking-grid.dragging {
+  cursor: crosshair;
+  user-select: none;
+}
+
+/* Ghost-выделение интервала при протягивании: пунктир + подпись «старт – конец». */
+.booking-ghost {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2px;
+  border: 1px dashed var(--accent);
+  border-radius: 4px;
+  background: rgba(var(--accent-rgb), 0.16);
+  pointer-events: none;
+  /* overflow видимый: на суточной оси узкий блок не должен резать подпись времени. */
+  overflow: visible;
+}
+
+/* Подпись времени — пилюля, читается даже когда выходит за узкий блок. */
+.booking-ghost span {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--surface-elevated);
+  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.35);
+  color: var(--accent-bright);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* Зафиксированное выделение, пока открыто окно создания: чуть спокойнее живого drag,
+   сплошная рамка-акцент — «вот эту бронь ты создаёшь». */
+.booking-ghost.preview {
+  border-style: solid;
+  background: rgba(var(--accent-rgb), 0.1);
+}
+
+/* Выбор нескольких строк (массовая бронь) — сплошная рамка на каждой захваченной дорожке. */
+.booking-ghost.group {
+  border-style: solid;
+}
+
+/* ── Чипы выбранных мест в окне массовой брони ───────────────────────────────── */
+.booking-seat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.booking-seat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 4px 0 9px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Конфликтное место (вернулось 409) — красный кант, не пропадает, оператор сам его убирает. */
+.booking-seat-chip.is-conflict {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.booking-seat-chip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-tertiary);
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.booking-seat-chip button:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.booking-seat-chip.is-conflict button {
+  color: var(--danger);
+}
+
+.booking-seat-chip button:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 1px;
+}
+
+/* Пометка в detail-drawer: выбранная бронь — часть массовой группы. */
+.booking-group-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ── Блок брони (кнопка на дорожке) ──────────────────────────────────────── */
+.booking-block {
+  /* Один цвет состояния на блок: левый кант + ободок фокуса/выделения. Ховер/выбор красят
+     в цвет самого блока (его тон), а не во всеобщий зелёный акцент — как плитки на карте. */
+  --block-color: var(--border-strong);
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  min-width: 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0 6px;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: opacity 100ms ease, transform 100ms ease, box-shadow 100ms ease;
+
+  /* Тон по умолчанию — нейтральный */
+  background: var(--surface-elevated);
+  border-color: var(--border-default);
+  color: var(--text-strong);
+}
+
+/* Тоны состояний брони — левый кант + мягкий фон + цвет текста + цвет ободка (--block-color). */
+.booking-block.confirmed {
+  --block-color: var(--success);
+  background: rgba(34, 197, 94, 0.13);
+  border-color: rgba(34, 197, 94, 0.32);
+  border-left: 3px solid var(--success);
+  color: var(--success-text);
+}
+
+/* online — онлайн-бронь, которая уже подтверждена (source=online, state≠pending). */
+.booking-block.online {
+  --block-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.11);
+  border-color: rgba(var(--accent-rgb), 0.28);
+  border-left: 3px solid var(--accent);
+  color: var(--accent-bright);
+}
+
+/* pending — ожидает подтверждения. */
+.booking-block.pending {
+  --block-color: var(--warning);
+  background: rgba(245, 158, 11, 0.13);
+  border-color: rgba(245, 158, 11, 0.32);
+  border-left: 3px solid var(--warning);
+  color: var(--warning-text);
+}
+
+/* seated — игрок уже посажен. */
+.booking-block.seated {
+  --block-color: var(--text-tertiary);
+  background: rgba(148, 163, 184, 0.11);
+  border-color: rgba(148, 163, 184, 0.24);
+  border-left: 3px solid var(--text-tertiary);
+  color: var(--text-secondary);
+}
+
+.booking-block:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+}
+
+/* Фокус — ободок в цвет самого блока (его тон), не всеобщий зелёный. */
+.booking-block:focus-visible {
+  outline: 2px solid var(--block-color);
+  outline-offset: 2px;
+  opacity: 1;
+}
+
+.booking-block:active {
+  transform: scale(0.98) translateY(0);
+  opacity: 0.95;
+}
+
+/* Активный (выбранный) блок — обводка в цвет состояния (тот же --block-color, что кант). */
+.booking-block.active {
+  box-shadow: 0 0 0 2px var(--block-color), 0 2px 10px rgba(0, 0, 0, 0.28);
+  opacity: 1;
+  z-index: 1;
+}
+
+/* Сородич по группе: наведение/выбор любого блока группы подсвечивает все её блоки тонким
+   ободком в цвет состояния — видно, что это одна массовая бронь на несколько ПК. */
+.booking-block.group-peer:not(.active) {
+  box-shadow: 0 0 0 1px var(--block-color);
+  opacity: 1;
+}
+
+.booking-block b {
+  display: block;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+/* ── Идущие сессии (фоновый слой занятости) ──────────────────────────────────── */
+/* Сессия ПК «сейчас»: приглушённая штриховка под бронями (брони рисуются поверх, в DOM позже).
+   Не перехватывает мышь — поверх сессии можно протянуть/создать бронь на будущее. */
+.booking-session {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 2px;
+  padding: 0 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: repeating-linear-gradient(135deg,
+    rgba(148, 163, 184, 0.12) 0, rgba(148, 163, 184, 0.12) 5px,
+    rgba(148, 163, 184, 0.04) 5px, rgba(148, 163, 184, 0.04) 11px);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.booking-session-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Открытая сессия — конца нет: правый край растворяется, рядом с именем стрелка «дальше». */
+.booking-session.open {
+  border-right: none;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  -webkit-mask-image: linear-gradient(to right, #000 80%, transparent);
+  mask-image: linear-gradient(to right, #000 80%, transparent);
+}
+
+.booking-session-arrow {
+  flex: none;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+/* ── Скелетоны загрузки ───────────────────────────────────────────────────── */
+.booking-row-label-skel {
+  display: block;
+  height: 14px;
+  width: 56px;
+  border-radius: 4px;
+}
+
+.booking-row-track-skel {
+  display: block;
+  height: 22px;
+  margin: 8px 12px;
+  border-radius: 4px;
+}
+
+/* Детальный скелетон в drawer (fallback пока данные не пришли). */
+.booking-detail-skel {
+  display: block;
+  height: 96px;
+  margin: 12px;
+  border-radius: 7px;
+}
+
+/* ── Пустое состояние гантa ───────────────────────────────────────────────── */
+.booking-empty {
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  height: 100%;
+  padding: 32px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* ── Боковой drawer ───────────────────────────────────────────────────────── */
+.booking-drawer {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  border-left: 1px solid var(--border-soft);
+  background: var(--surface-elevated);
+  animation: soft-enter 140ms ease-out;
+}
+
+.booking-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  height: 40px;
+  border-bottom: 1px solid var(--border-soft);
+  padding: 0 14px;
+}
+
+.booking-drawer-head strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-drawer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+
+.booking-drawer-close:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.booking-drawer-close:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.booking-drawer-close:active {
+  transform: scale(0.95);
+}
+
+.booking-drawer-body {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  overflow-y: auto;
+  padding: 14px 0 20px;
+}
+
+/* ── Поле формы в drawer ──────────────────────────────────────────────────── */
+/* label + input/select стопкой: метка сверху, контрол снизу. */
+.booking-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 14px;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.booking-field input,
+.booking-field select {
+  height: 32px;
+  min-width: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  padding: 0 9px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  color-scheme: dark;
+  font-size: 12px;
+  font-weight: 500;
+  transition: border-color 100ms ease, box-shadow 100ms ease;
+  outline: none;
+}
+
+.booking-field input:hover:not(:disabled),
+.booking-field select:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.booking-field input:focus,
+.booking-field select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.22);
+}
+
+.booking-field input:disabled,
+.booking-field select:disabled {
+  opacity: 0.54;
+  cursor: not-allowed;
+}
+
+/* Кастомный дропдаун (PanelSelect) в полях drawer — выравниваем под соседние input'ы:
+   та же высота 32px и утопленный фон, чтобы поля читались одним рядом. */
+.booking-field .panel-select-trigger {
+  height: 32px;
+  background: var(--surface-sunken);
+}
+
+/* ── Поиск клиента (привязка аккаунта + режим «гость») ──────────────────────── */
+.booking-client-picker {
+  position: relative;
+  display: grid;
+  gap: 4px;
+}
+
+.booking-client-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  background: var(--surface-sunken);
+  transition: border-color 100ms ease, box-shadow 100ms ease;
+}
+
+.booking-client-field:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.22);
+}
+
+.booking-client-field.is-linked {
+  border-color: var(--border-accent);
+}
+
+.booking-client-lead {
+  flex: none;
+  color: var(--text-tertiary);
+}
+
+.booking-client-field.is-linked .booking-client-lead {
+  color: var(--accent);
+}
+
+.booking-client-field input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  outline: none;
+}
+
+.booking-client-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary);
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.booking-client-clear:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.booking-client-clear:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 1px;
+}
+
+.booking-client-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: start;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Результаты — блоком в потоке (как POS), чтобы не обрезаться в скролле drawer. */
+.booking-client-results {
+  margin: 2px 0 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 196px;
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-elevated);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.booking-client-msg {
+  padding: 8px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  text-align: center;
+}
+
+.booking-client-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.booking-client-option strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-client-option span {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.booking-client-option.is-active {
+  background: var(--surface-accent-soft);
+}
+
+.booking-client-option.is-active strong {
+  color: var(--accent-bright);
+}
+
+/* Поле телефона: фиксированный префикс +992 + локальная маска (как на экране входа). */
+.booking-phone-field {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+  transition: border-color 100ms ease, box-shadow 100ms ease;
+}
+
+.booking-phone-field:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.22);
+}
+
+.booking-phone-prefix {
+  flex: none;
+  padding: 0 6px 0 9px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.booking-phone-field input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  outline: none;
+  padding-right: 9px;
+}
+
+.booking-phone-field input:disabled {
+  opacity: 0.54;
+  cursor: not-allowed;
+}
+
+/* Длительность: число + суффикс «мин» в поле, человекочитаемая строка под ним. */
+.booking-duration-field {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+  transition: border-color 100ms ease, box-shadow 100ms ease;
+}
+
+.booking-duration-field:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.22);
+}
+
+.booking-duration-field input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  outline: none;
+  padding: 0 4px 0 9px;
+}
+
+.booking-duration-field input:disabled {
+  opacity: 0.54;
+  cursor: not-allowed;
+}
+
+.booking-duration-suffix {
+  flex: none;
+  padding: 0 9px 0 2px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Заголовок поля с инлайн-подписью (напр. длительность: «Длительность · 2 часа 45 минут»). */
+.booking-field-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.booking-duration-human {
+  color: var(--accent-bright);
+  font-size: 10px;
+  font-weight: 600;
+  font-style: normal;
+}
+
+/* ── Компактный выбор даты+времени (Старт): дата стрелками + дропдауны часы:минуты ── */
+.booking-dtp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Дата стрелками ‹ › — как навигатор дат вверху экрана. */
+.booking-dtp-date {
+  display: inline-flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.booking-dtp-date button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: background 100ms ease, color 100ms ease, transform 100ms ease;
+}
+
+.booking-dtp-date button:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.booking-dtp-date button:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: -2px;
+}
+
+.booking-dtp-date button:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.booking-dtp-date button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.booking-dtp-date strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Время — два дропдауна (PanelSelect) часы:минуты. */
+.booking-dtp-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.booking-dtp-select {
+  width: 56px;
+}
+
+.booking-dtp-select .panel-select-trigger {
+  height: 32px;
+  padding: 0 6px;
+  background: var(--surface-sunken);
+}
+
+.booking-dtp-select .panel-select-list {
+  max-height: 168px;
+  overflow-x: hidden;
+}
+
+/* Компактные часы/минуты: число по центру, без галочки (узкий список) — иначе горизонтальный скролл. */
+.booking-dtp-select .panel-select-option {
+  justify-content: center;
+  padding: 7px 4px;
+}
+
+.booking-dtp-select .panel-select-option svg {
+  display: none;
+}
+
+.booking-dtp-colon {
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ── Баланс выбранного клиента (чип под полем «Клиент») ─────────────────────── */
+.booking-balance {
+  display: inline-flex;
+  align-items: center;
+  align-self: start;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.booking-balance svg {
+  flex: none;
+}
+
+.booking-balance.is-low {
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+}
+
+.booking-balance.is-debt {
+  background: var(--danger-soft-bg);
+  color: var(--danger-text);
+}
+
+/* ── Предупреждение о конфликте брони ──────────────────────────────────────── */
+.booking-conflict {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 14px;
+  padding: 8px 11px;
+  border: 1px solid var(--warning);
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--warning-text);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.booking-conflict svg {
+  flex: none;
+  color: var(--warning);
+}
+
+/* ── Сводка создаваемой брони (review-карточка над кнопкой) ─────────────────── */
+.booking-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--accent);
+  border-radius: 7px;
+  background: var(--surface-card);
+}
+
+.booking-summary svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.booking-summary div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.booking-summary strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-summary span {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+/* Быстрый выбор длительности — чипы под полем: один тап вместо набора числа (быстрый кокпит). */
+.booking-duration-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: -4px;
+  padding: 0 14px;
+}
+
+.booking-duration-quick button {
+  height: 26px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  padding: 0 11px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  transition: border-color 100ms ease, background 100ms ease, color 100ms ease, transform 100ms ease;
+}
+
+.booking-duration-quick button:hover:not(:disabled) {
+  border-color: var(--border-accent);
+  color: var(--accent-bright);
+}
+
+.booking-duration-quick button.active {
+  border-color: var(--accent);
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+}
+
+.booking-duration-quick button:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.booking-duration-quick button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.booking-duration-quick button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Карточка статуса в drawer (переиспользуется) ────────────────────────── */
 .booking-status-card {
   display: grid;
   gap: 5px;
-  margin: 0 12px;
+  margin: 0 14px;
   border: 1px solid var(--border-default);
   border-left: 3px solid var(--success);
   border-radius: 7px;
-  padding: 12px;
+  padding: 12px 14px;
   background: var(--surface-card);
 }
 
@@ -182,8 +1452,10 @@
 
 .booking-status-card strong {
   color: var(--text-primary);
-  font-size: 28px;
+  font-size: 26px;
+  font-weight: 800;
   line-height: 1;
+  letter-spacing: -0.01em;
 }
 
 .booking-status-card em {
@@ -192,16 +1464,32 @@
   font-style: normal;
 }
 
+/* Тоны статус-карточки. */
+.booking-status-card.confirmed {
+  border-left-color: var(--success);
+}
+
+.booking-status-card.online {
+  border-left-color: var(--accent);
+}
+
+.booking-status-card.pending {
+  border-left-color: var(--warning);
+}
+
+.booking-status-card.seated {
+  border-left-color: var(--text-tertiary);
+}
+
+/* ── Грид действий в drawer (переиспользуется) ───────────────────────────── */
 .booking-action-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding: 0 12px;
+  gap: 7px;
+  padding: 0 14px;
 }
 
-.booking-action-grid button,
-.booking-request-card button,
-.booking-primary-action {
+.booking-action-grid button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -213,47 +1501,36 @@
   color: var(--text-strong);
   font-size: 12px;
   font-weight: 600;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+  transition: border-color 100ms ease, background 100ms ease, transform 100ms ease;
 }
 
-.booking-action-grid button:hover,
-.booking-action-grid button:focus-visible,
-.booking-request-card button:hover,
-.booking-request-card button:focus-visible,
-.booking-primary-action:hover,
-.booking-primary-action:focus-visible {
+.booking-action-grid button:hover:not(:disabled) {
   border-color: var(--border-accent);
   background: var(--surface-accent-soft);
-  outline: none;
+  color: var(--accent-bright);
   transform: translateY(-1px);
 }
 
-.booking-action-grid button:first-child,
-.booking-request-card button:first-child,
-.booking-primary-action {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--text-on-accent);
+.booking-action-grid button:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.booking-action-grid button:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .booking-action-grid button.danger {
-  border-color: var(--danger-strong);
-  background: var(--danger-strong);
-  color: var(--text-on-accent);
+  border-color: var(--danger-soft-border);
+  color: var(--danger-text);
 }
 
-.booking-create-action:disabled,
-.booking-create-action:disabled:hover,
-.booking-create-action:disabled:focus-visible,
-.booking-action-grid button:disabled,
-.booking-action-grid button:disabled:hover,
-.booking-action-grid button:disabled:focus-visible,
-.booking-request-card button:disabled,
-.booking-request-card button:disabled:hover,
-.booking-request-card button:disabled:focus-visible,
-.booking-primary-action:disabled,
-.booking-primary-action:disabled:hover,
-.booking-primary-action:disabled:focus-visible {
+.booking-action-grid button.danger:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: var(--danger-soft-bg);
+}
+
+.booking-action-grid button:disabled {
   cursor: not-allowed;
   border-color: var(--border-default);
   background: var(--surface-muted);
@@ -261,10 +1538,11 @@
   transform: none;
 }
 
+/* ── Список деталей в drawer (переиспользуется) ──────────────────────────── */
 .booking-detail-list {
   display: grid;
   gap: 8px;
-  padding: 0 12px;
+  padding: 0 14px;
 }
 
 .booking-detail-list div {
@@ -275,87 +1553,114 @@
   min-width: 0;
 }
 
+.booking-detail-list span {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .booking-detail-list strong {
   overflow: hidden;
   color: var(--text-primary);
   font-size: 12px;
+  font-weight: 600;
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.booking-request-list {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-}
-
-.booking-request-card {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) minmax(140px, 0.8fr) auto;
-  align-items: center;
-  gap: 10px;
-  min-height: 52px;
-  border: 1px solid var(--border-default);
-  border-left: 3px solid var(--warning);
-  border-radius: 6px;
-  padding: 8px 10px;
-  background: var(--surface-card);
-}
-
-.booking-request-card span {
-  color: var(--text-primary);
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.booking-request-card strong {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.booking-request-card div {
-  display: inline-flex;
-  gap: 6px;
-}
-
-.booking-request-card button {
-  height: 30px;
-  padding: 0 9px;
-}
-
-.booking-form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding: 12px 12px 0;
-}
-
-.booking-form-grid label {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.booking-form-grid input {
-  height: 32px;
-  min-width: 0;
-  border: 1px solid var(--border-default);
-  border-radius: 5px;
-  padding: 0 9px;
-  outline: 0;
-  background: var(--surface-sunken);
-  color: var(--text-primary);
-  font-size: 12px;
-}
-
+/* ── Основное действие в drawer (переиспользуется) ───────────────────────── */
 .booking-primary-action {
-  margin: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: calc(100% - 28px);
+  margin: 4px 14px 0;
+  min-height: 40px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 13px;
+  font-weight: 700;
+  transition: background 100ms ease, border-color 100ms ease, transform 100ms ease;
 }
 
+.booking-primary-action:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-text);
+  transform: translateY(-1px);
+}
+
+.booking-primary-action:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.booking-primary-action:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.booking-primary-action:disabled {
+  cursor: not-allowed;
+  border-color: var(--border-default);
+  background: var(--surface-muted);
+  color: var(--text-quaternary);
+  transform: none;
+}
+
+/* ── Алерт результата действия внутри drawer (перенос/посадка/отмена/создание) ── */
+/* Точечная подгонка общего .feedback-notice под контекст drawer: выровнен по полям,
+   ведущая цветная точка усиливает статус сверх левого канта. Глобальный примитив не трогаем. */
+.booking-drawer .feedback-notice {
+  margin: 0 14px;
+  border-radius: 6px;
+  padding: 8px 11px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.booking-drawer .feedback-notice::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-right: 9px;
+  border-radius: 50%;
+  background: var(--accent-hover);
+}
+
+.booking-drawer .feedback-notice.confirmed::before {
+  background: var(--success);
+}
+
+.booking-drawer .feedback-notice.pending::before {
+  background: var(--warning);
+}
+
+.booking-drawer .feedback-notice.failed::before {
+  background: var(--danger);
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .booking-drawer,
+  .booking-requests-lane {
+    animation: none;
+  }
+
+  .booking-block,
+  .booking-date-nav button,
+  .booking-action-grid button,
+  .booking-primary-action,
+  .booking-drawer-close,
+  .booking-lane-card button,
+  .booking-duration-quick button,
+  .booking-dtp-date button,
+  .booking-row-track {
+    transition: none;
+  }
+}

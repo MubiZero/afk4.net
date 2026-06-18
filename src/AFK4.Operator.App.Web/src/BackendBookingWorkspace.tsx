@@ -1,52 +1,99 @@
-import { useEffect, useState } from 'react';
-import { ArrowRightLeft, MonitorCheck, Plus, Square, UserRoundPlus } from 'lucide-react';
-import { useI18n, type MessageKey } from '@afk4/i18n';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
-import { createOperatorApiClients, type ReservationSearchResultDto } from './operatorApiClients';
+import { createOperatorApiClients, type ReservationSearchResultDto, type SessionTimelineResult } from './operatorApiClients';
+import { PlatformApiError } from './platformApi';
 import type { OperatorFloorMapState } from './floorMapState';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
+  addDays,
   addMinutes,
   createAuthenticatedOperatorClients,
   emptyFeedback,
-  formatTime,
-  problemTones,
+  projectPlayerClient,
   readArray,
-  readNumber,
-  readString,
   requireBackend,
   toDateInputValue,
-  toDateTimeInputValue
+  toDateTimeInputValue,
+  type PlayerClientItem
 } from './operatorHelpers';
+import { localPhoneDigits } from './phoneFormat';
+
+// Старт по умолчанию выравниваем по 15 мин, чтобы он совпадал с шагом дропдауна минут.
+function roundToQuarter(date: Date): Date {
+  const next = new Date(date);
+  next.setMinutes(Math.round(next.getMinutes() / 15) * 15, 0, 0);
+  return next;
+}
 import { FeedbackNotice, StateFlag } from './operatorPrimitives';
+import { useDeferredFlag } from './useDeferredFlag';
+import {
+  mapReservationsToItems,
+  mapSessionDtosToItems,
+  computeAxis,
+  buildSeatRows,
+  unseatedOnlineRequests,
+  onlineRequestCount,
+  type SessionDtoLike
+} from './booking/bookingModel';
+import type { BookingDraft } from './booking/BookingDrawer';
+import { BookingDrawer } from './booking/BookingDrawer';
+import { BookingTimeline } from './booking/BookingTimeline';
+import { BookingRequestsLane } from './booking/BookingRequestsLane';
+import type { SeatSummary } from './operatorData';
 
 export function BackendBookingWorkspace({
   floorMap,
   backend,
+  currencyCode,
   onOpenSeat
 }: {
   floorMap: OperatorFloorMapState;
   backend: OperatorBackendContext | null;
+  currencyCode: string;
   onOpenSeat: (seatId: string) => void;
 }) {
-  const { t } = useI18n();
-  const [selectedBookingIndex, setSelectedBookingIndex] = useState(0);
+  const { t, locale } = useI18n();
+
+  const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [reservationResult, setReservationResult] = useState<ReservationSearchResultDto | null>(null);
+  const [sessionResult, setSessionResult] = useState<SessionTimelineResult | null>(null);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('loading');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadVersion, setReloadVersion] = useState(0);
-  const [draftCustomerName, setDraftCustomerName] = useState(() => t('op.booking.guest'));
-  const [draftPhoneNumber, setDraftPhoneNumber] = useState('');
-  const [draftStartsAt, setDraftStartsAt] = useState(() => toDateTimeInputValue(addMinutes(new Date(), 15)));
-  const [draftDurationMinutes, setDraftDurationMinutes] = useState(60);
+
+  const [drawerMode, setDrawerMode] = useState<'detail' | 'create' | null>(null);
+  const [selectedReservationId, setSelectedReservationId] = useState('');
+  const [draft, setDraft] = useState<BookingDraft>({
+    customerName: '',
+    phoneNumber: '',
+    playerAccountId: '',
+    clientBalanceMinorUnits: null,
+    clientDebtMinorUnits: null,
+    startsAt: toDateTimeInputValue(roundToQuarter(addMinutes(new Date(), 15))),
+    durationMinutes: 60,
+    seatId: '',
+    seatIds: []
+  });
+  const [groupConflicts, setGroupConflicts] = useState<Set<string>>(new Set());
+
+  // Поиск клиента клуба для привязки брони к аккаунту (если есть право просмотра клиентов).
+  const searchClients = useCallback(async (query: string): Promise<PlayerClientItem[]> => {
+    if (backend === null || !hasPermission(backend.session, permissionNames.viewPlayers)) {
+      return [];
+    }
+    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+    const raw = await clients.players.searchPlayers(backend.branchId, query, 8);
+    return (Array.isArray(raw) ? raw : []).map((player) => projectPlayerClient(player, t));
+  }, [backend, t]);
+
   const readySeats = floorMap.seats.filter((seat) => seat.tone === 'ready' && !seat.activeSessionId);
   const activeSeats = floorMap.seats.filter((seat) => seat.tone === 'active' || seat.activeSessionId);
-  const problemSeats = floorMap.seats.filter((seat) => problemTones.has(seat.tone));
-  const today = new Date();
-  const bookingFromUtc = `${toDateInputValue(today)}T00:00:00.000Z`;
-  const bookingToUtc = `${toDateInputValue(today)}T23:59:59.999Z`;
+
+  const bookingFromUtc = `${toDateInputValue(selectedDate)}T00:00:00.000Z`;
+  const bookingToUtc = `${toDateInputValue(selectedDate)}T23:59:59.999Z`;
 
   useEffect(() => {
     let disposed = false;
@@ -68,18 +115,12 @@ export function BackendBookingWorkspace({
       limit: 40
     })
       .then((result) => {
-        if (disposed) {
-          return;
-        }
-
+        if (disposed) return;
         setReservationResult(result);
         setLoadStatus('backend');
       })
       .catch((error) => {
-        if (disposed) {
-          return;
-        }
-
+        if (disposed) return;
         setReservationResult(null);
         setLoadStatus('failed');
         setLoadError(projectOperatorError(error, t).detail);
@@ -90,112 +131,80 @@ export function BackendBookingWorkspace({
     };
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, bookingFromUtc, bookingToUtc, reloadVersion]);
 
-  const reservations = readArray<Record<string, unknown>>(reservationResult, 'reservations');
-  const bookings = reservations.map((reservation) => {
-    const state = readString(reservation, 'state', 'pending');
-    const source = readString(reservation, 'source', 'operator');
-    const startsAtUtc = readString(reservation, 'startsAtUtc');
-    const durationMinutes = readNumber(reservation, 'durationMinutes', 60);
-    const seatName = readString(reservation, 'seatName', '');
-    const zoneName = readString(reservation, 'zoneName', t('op.booking.zoneNone'));
-    const tone = state === 'cancelled'
-      ? 'blocking'
-      : state === 'seated'
-        ? 'confirmed'
-        : source === 'online'
-          ? 'online'
-          : 'pending';
-
-    return {
-      reservationId: readString(reservation, 'reservationId'),
-      state,
-      time: formatTime(startsAtUtc),
-      client: readString(reservation, 'customerName', t('op.booking.guest')),
-      seats: seatName ? t('op.booking.seatsOne') : t('op.booking.seatsNone'),
-      zone: seatName ? `${zoneName} · ${seatName}` : zoneName,
-      duration: t('op.booking.durationMin', { count: durationMinutes }),
-      status: reservationStateLabel(state, t),
-      tone,
-      note: readString(reservation, 'note', readString(reservation, 'phoneNumber', t('op.booking.noComment'))),
-      seatId: readString(reservation, 'seatId'),
-      source
-    };
-  });
-  const selectedBooking = bookings[selectedBookingIndex] ?? bookings[0] ?? {
-    reservationId: '',
-    time: '—',
-    client: loadStatus === 'failed' ? t('op.booking.fallback.failedClient') : t('op.booking.fallback.emptyClient'),
-    seats: t('op.booking.fallback.zeroSeats'),
-    zone: floorMap.branchName,
-    duration: '—',
-    status: loadStatus === 'loading' ? t('a11y.loading') : t('state.empty'),
-    tone: 'pending',
-    note: loadError ?? t('op.booking.fallback.note'),
-    seatId: '',
-    source: 'operator',
-    state: 'empty'
-  };
+  // Сессии за тот же день — отдельный best-effort fetch: их слой не должен валить экран броней,
+  // поэтому при ошибке просто скрываем сессии, а заявки/брони продолжают грузиться своим путём.
   useEffect(() => {
-    if (bookings.length > 0 && selectedBookingIndex >= bookings.length) {
-      setSelectedBookingIndex(0);
+    let disposed = false;
+    if (backend === null) {
+      setSessionResult(null);
+      return undefined;
     }
-  }, [bookings.length, selectedBookingIndex]);
 
-  const onlineRequests = bookings.filter((booking) => booking.source === 'online' && booking.state === 'pending');
-  const selectedReadySeat = readySeats.find((seat) => seat.id === selectedBooking.seatId) ?? readySeats[0] ?? null;
+    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+    if (!hasPermission(backend.session, permissionNames.viewSessions)) {
+      setSessionResult(null);
+      return undefined;
+    }
+
+    clients.sessions.timeline(backend.branchId, { fromUtc: bookingFromUtc, toUtc: bookingToUtc, limit: null })
+      .then((result) => { if (!disposed) setSessionResult(result); })
+      .catch(() => { if (!disposed) setSessionResult(null); });
+
+    return () => { disposed = true; };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, bookingFromUtc, bookingToUtc, reloadVersion]);
+
+  const items = mapReservationsToItems(
+    readArray<Record<string, unknown>>(reservationResult, 'reservations'),
+    t('op.booking.guest')
+  );
+
+  const dayStartMs = new Date(`${toDateInputValue(selectedDate)}T00:00:00`).getTime();
+  const nowMs = Date.now();
+  const axis = useMemo(() => computeAxis(items, dayStartMs, nowMs), [items, dayStartMs, nowMs]);
+  // Сессии (активные и завершённые) приходят отдельным эндпоинтом и привязываются к строкам мест
+  // по seatId — единый источник, независимый от снимка floor-map.
+  const sessionItems = useMemo(
+    () => mapSessionDtosToItems(readArray<SessionDtoLike>(sessionResult, 'sessions')),
+    [sessionResult]
+  );
+  const { groups, unplaced: _unplaced } = useMemo(() => buildSeatRows(floorMap.seats, items, axis, sessionItems), [floorMap.seats, items, axis, sessionItems]);
+  const requests = unseatedOnlineRequests(items);
+  const requestCount = onlineRequestCount(items);
+
+  const showSkeleton = useDeferredFlag(loadStatus === 'loading');
+
   const reservationBusy = feedback.state === 'pending';
   const canManageReservations = backend !== null && hasPermission(backend.session, permissionNames.manageReservations);
-  const hasSelectedReservation = selectedBooking.reservationId.length > 0;
-  const selectedReservationActive = selectedBooking.state !== 'seated' && selectedBooking.state !== 'cancelled' && selectedBooking.state !== 'empty';
-  const canCreateReservation = canManageReservations && loadStatus === 'backend' && selectedReadySeat !== null && !reservationBusy;
-  const canSeatSelectedReservation = canManageReservations && hasSelectedReservation && selectedReservationActive && selectedBooking.seatId.length > 0 && !reservationBusy;
-  const canMoveSelectedReservation = canManageReservations &&
-    hasSelectedReservation &&
-    selectedReservationActive &&
-    readySeats.some((seat) => seat.id !== selectedBooking.seatId) &&
-    !reservationBusy;
-  const canCancelSelectedReservation = canManageReservations && hasSelectedReservation && selectedReservationActive && !reservationBusy;
-  const loadLabel = loadStatus === 'backend'
-    ? t('op.booking.load.backend')
-    : loadStatus === 'loading'
-      ? t('op.booking.load.loading')
-      : t('op.booking.load.failed');
+
   const runReservationAction = async (
     label: string,
     operation: (clients: ReturnType<typeof createOperatorApiClients>) => Promise<unknown>,
     afterSuccess?: () => void
   ) => {
     setFeedback({ label, state: 'pending' });
-
     try {
       const nextBackend = requireBackend(backend, t);
       if (!hasPermission(nextBackend.session, permissionNames.manageReservations)) {
         throw new Error(t('op.booking.error.noPermission'));
       }
-
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       await operation(clients);
       setFeedback({ label, state: 'confirmed' });
-      setReloadVersion((value) => value + 1);
+      setReloadVersion((v) => v + 1);
       afterSuccess?.();
     } catch (error) {
       setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
-  const requireSelectedReservationId = () => {
-    if (!selectedBooking.reservationId) {
-      throw new Error(t('op.booking.error.selectReservation'));
-    }
 
-    return selectedBooking.reservationId;
-  };
   const createReservation = () => runReservationAction(t('op.booking.create.submit'), async (clients) => {
     const nextBackend = requireBackend(backend, t);
-    if (!selectedReadySeat) {
+    const seatId = draft.seatId;
+    if (!seatId) {
       throw new Error(t('op.booking.error.noFreeSeat'));
     }
 
-    const startsAt = new Date(draftStartsAt);
+    const startsAt = new Date(draft.startsAt);
     if (Number.isNaN(startsAt.getTime())) {
       throw new Error(t('op.booking.error.invalidStart'));
     }
@@ -204,196 +213,306 @@ export function BackendBookingWorkspace({
       throw new Error(t('op.booking.error.startPassed'));
     }
 
+    const seat = floorMap.seats.find((s) => s.id === seatId);
+    const localDigits = localPhoneDigits(draft.phoneNumber);
     return await clients.reservations.create(nextBackend.branchId, {
       organizationId: nextBackend.session.organizationId,
-      seatId: selectedReadySeat.id,
-      customerName: draftCustomerName.trim() || t('op.booking.guest'),
-      phoneNumber: draftPhoneNumber.trim() || null,
+      playerAccountId: draft.playerAccountId || null,
+      seatId,
+      customerName: draft.customerName.trim() || t('op.booking.guest'),
+      phoneNumber: localDigits ? `+992${localDigits}` : null,
       startsAtUtc: startsAt.toISOString(),
-      durationMinutes: Math.max(15, draftDurationMinutes),
+      durationMinutes: Math.max(15, draft.durationMinutes),
       source: 'operator',
-      note: t('op.booking.note.created', { seat: selectedReadySeat.name })
+      note: t('op.booking.note.created', { seat: seat?.name ?? seatId })
     });
-  });
+  }, () => setDrawerMode(null));
+
+  // Массовая бронь: один групповой вызов на набор мест. На 409 (хотя бы один ПК занят) — сервер
+  // ничего не пишет и возвращает список конфликтных мест; подсвечиваем их в окне, drawer не закрываем.
+  const createGroupReservation = async () => {
+    const label = t('op.booking.create.submitGroup', { count: draft.seatIds.length });
+    setFeedback({ label, state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend, t);
+      if (!hasPermission(nextBackend.session, permissionNames.manageReservations)) {
+        throw new Error(t('op.booking.error.noPermission'));
+      }
+      if (draft.seatIds.length === 0) {
+        throw new Error(t('op.booking.error.noFreeSeat'));
+      }
+      const startsAt = new Date(draft.startsAt);
+      if (Number.isNaN(startsAt.getTime())) {
+        throw new Error(t('op.booking.error.invalidStart'));
+      }
+      if (startsAt.getTime() < Date.now() - 60000) {
+        throw new Error(t('op.booking.error.startPassed'));
+      }
+      const localDigits = localPhoneDigits(draft.phoneNumber);
+      const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      await clients.reservations.createGroup(nextBackend.branchId, {
+        organizationId: nextBackend.session.organizationId,
+        playerAccountId: draft.playerAccountId || null,
+        seatIds: draft.seatIds,
+        customerName: draft.customerName.trim() || t('op.booking.guest'),
+        phoneNumber: localDigits ? `+992${localDigits}` : null,
+        startsAtUtc: startsAt.toISOString(),
+        durationMinutes: Math.max(15, draft.durationMinutes),
+        source: 'operator',
+        note: t('op.booking.note.group', { count: draft.seatIds.length })
+      });
+      setGroupConflicts(new Set());
+      setFeedback({ label, state: 'confirmed' });
+      setReloadVersion((v) => v + 1);
+      setDrawerMode(null);
+    } catch (error) {
+      if (error instanceof PlatformApiError && error.status === 409) {
+        try {
+          const body = JSON.parse(error.body) as { conflicts?: Array<{ seatId: string }> };
+          setGroupConflicts(new Set((body.conflicts ?? []).map((c) => c.seatId)));
+          setFeedback({ label, state: 'failed', detail: t('op.booking.group.conflict') });
+          return;
+        } catch {
+          // тело не разобрать — падаем в общий обработчик ниже
+        }
+      }
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
+    }
+  };
+
   const confirmReservation = (reservationId: string, label: string) => runReservationAction(label, async (clients) => {
     const nextBackend = requireBackend(backend, t);
     return await clients.reservations.confirm(reservationId, { organizationId: nextBackend.session.organizationId });
   });
+
   const seatReservation = () => runReservationAction(t('op.booking.action.seat'), async (clients) => {
     const nextBackend = requireBackend(backend, t);
-    return await clients.reservations.seat(requireSelectedReservationId(), { organizationId: nextBackend.session.organizationId });
+    if (!selectedReservationId) throw new Error(t('op.booking.error.selectReservation'));
+    return await clients.reservations.seat(selectedReservationId, { organizationId: nextBackend.session.organizationId });
   }, () => {
-    if (selectedBooking.seatId) {
-      onOpenSeat(selectedBooking.seatId);
-    }
+    const item = items.find((i) => i.reservationId === selectedReservationId);
+    if (item?.seatId) onOpenSeat(item.seatId);
   });
-  const moveReservation = () => runReservationAction(t('op.booking.action.move'), async (clients) => {
-    const nextBackend = requireBackend(backend, t);
-    const targetSeat = readySeats.find((seat) => seat.id !== selectedBooking.seatId);
-    if (!targetSeat) {
-      throw new Error(t('op.booking.error.noOtherSeat'));
-    }
 
-    return await clients.reservations.update(requireSelectedReservationId(), {
+  const moveReservation = (targetSeatId: string) => runReservationAction(t('op.booking.action.move'), async (clients) => {
+    const nextBackend = requireBackend(backend, t);
+    if (!selectedReservationId) throw new Error(t('op.booking.error.selectReservation'));
+    const seat = floorMap.seats.find((s) => s.id === targetSeatId);
+    return await clients.reservations.update(selectedReservationId, {
       organizationId: nextBackend.session.organizationId,
-      seatId: targetSeat.id,
-      note: t('op.booking.note.moved', { seat: targetSeat.name })
+      seatId: targetSeatId,
+      note: t('op.booking.note.moved', { seat: seat?.name ?? targetSeatId })
     });
   });
+
   const cancelReservation = () => runReservationAction(t('op.booking.action.cancel'), async (clients) => {
     const nextBackend = requireBackend(backend, t);
-    return await clients.reservations.cancel(requireSelectedReservationId(), {
+    if (!selectedReservationId) throw new Error(t('op.booking.error.selectReservation'));
+    return await clients.reservations.cancel(selectedReservationId, {
       organizationId: nextBackend.session.organizationId,
       reason: t('op.booking.note.cancelReason')
     });
   });
 
+  // Отмена всей группы: отменяем каждую активную бронь с тем же ReservationGroupId по очереди.
+  const cancelReservationGroup = () => runReservationAction(t('op.booking.group.cancelAll'), async (clients) => {
+    const nextBackend = requireBackend(backend, t);
+    const groupId = selectedItem?.reservationGroupId;
+    if (!groupId) throw new Error(t('op.booking.error.selectReservation'));
+    const members = items.filter((item) => item.reservationGroupId === groupId && item.state !== 'cancelled');
+    for (const member of members) {
+      await clients.reservations.cancel(member.reservationId, {
+        organizationId: nextBackend.session.organizationId,
+        reason: t('op.booking.note.cancelReason')
+      });
+    }
+  }, () => setDrawerMode(null));
+
+  const openCreateDrawer = () => {
+    setFeedback(emptyFeedback);
+    setGroupConflicts(new Set());
+    setDraft({
+      customerName: '',
+      phoneNumber: '',
+      playerAccountId: '',
+      clientBalanceMinorUnits: null,
+      clientDebtMinorUnits: null,
+      startsAt: toDateTimeInputValue(roundToQuarter(addMinutes(new Date(), 15))),
+      durationMinutes: 60,
+      seatId: readySeats[0]?.id ?? '',
+      seatIds: []
+    });
+    setDrawerMode('create');
+  };
+
+  const openCreateDrawerForCell = (seat: SeatSummary, startMs: number, durationMinutes = 60) => {
+    setFeedback(emptyFeedback);
+    setGroupConflicts(new Set());
+    setDraft({
+      customerName: '',
+      phoneNumber: '',
+      playerAccountId: '',
+      clientBalanceMinorUnits: null,
+      clientDebtMinorUnits: null,
+      startsAt: toDateTimeInputValue(new Date(startMs)),
+      durationMinutes,
+      seatId: seat.id,
+      seatIds: []
+    });
+    setDrawerMode('create');
+  };
+
+  // Протягивание по нескольким строкам → массовая (групповая) бронь: окно создания с набором мест.
+  const openGroupDrawer = (seats: SeatSummary[], startMs: number, durationMinutes: number) => {
+    setFeedback(emptyFeedback);
+    setGroupConflicts(new Set());
+    setDraft({
+      customerName: '',
+      phoneNumber: '',
+      playerAccountId: '',
+      clientBalanceMinorUnits: null,
+      clientDebtMinorUnits: null,
+      startsAt: toDateTimeInputValue(new Date(startMs)),
+      durationMinutes,
+      seatId: '',
+      seatIds: seats.map((seat) => seat.id)
+    });
+    setDrawerMode('create');
+  };
+
+  const removeGroupSeat = (seatId: string) => {
+    setDraft((d) => ({ ...d, seatIds: d.seatIds.filter((id) => id !== seatId) }));
+    setGroupConflicts((prev) => {
+      if (!prev.has(seatId)) return prev;
+      const next = new Set(prev);
+      next.delete(seatId);
+      return next;
+    });
+  };
+
+  const openDetailDrawer = (reservationId: string) => {
+    setFeedback(emptyFeedback);
+    setSelectedReservationId(reservationId);
+    setDrawerMode('detail');
+  };
+
+  const selectedItem = items.find((i) => i.reservationId === selectedReservationId) ?? null;
+  const selectedGroupSize = selectedItem?.reservationGroupId
+    ? items.filter((i) => i.reservationGroupId === selectedItem.reservationGroupId && i.state !== 'cancelled').length
+    : 0;
+
+  // Подсветка выбранного интервала на таймлайне, пока открыто окно создания — следует за формой.
+  const previewStartMs = drawerMode === 'create' ? new Date(draft.startsAt).getTime() : Number.NaN;
+  const draftEndMs = previewStartMs + Math.max(15, draft.durationMinutes) * 60_000;
+  // Места для персистентной подсветки: групповой режим — весь набор, одиночный — одно место.
+  const previewSeatIds = draft.seatIds.length > 0 ? draft.seatIds : (draft.seatId ? [draft.seatId] : []);
+  const previewBlock = drawerMode === 'create' && previewSeatIds.length > 0 && Number.isFinite(previewStartMs)
+    ? { seatIds: previewSeatIds, startMs: previewStartMs, endMs: draftEndMs }
+    : null;
+
+  // Конфликт: бронь на это же место, пересекающаяся по времени (пред-проверка до отправки).
+  const conflict = drawerMode === 'create' && draft.seatId && Number.isFinite(previewStartMs)
+    ? items.find((item) => item.seatId === draft.seatId && item.state !== 'cancelled' && item.startMs < draftEndMs && previewStartMs < item.endMs) ?? null
+    : null;
+
+  // Пересекается ли место по времени с активной бронью ИЛИ идущей сессией (открытая = до бесконечности).
+  const seatHasClash = (seatId: string): boolean =>
+    Number.isFinite(previewStartMs) && (
+      items.some((item) => item.seatId === seatId && item.state !== 'cancelled' && item.startMs < draftEndMs && previewStartMs < item.endMs)
+      || sessionItems.some((s) => s.seatId === seatId && s.startMs < draftEndMs && previewStartMs < (s.endMs ?? Number.POSITIVE_INFINITY))
+    );
+
+  // Проактивные конфликты массовой брони: считаем на фронте (бронь + сессия) ещё до отправки и
+  // объединяем с тем, что вернул бэк на 409 — конфликтные ПК подсвечиваются и блокируют создание.
+  const predictedGroupConflicts = drawerMode === 'create' && draft.seatIds.length > 0
+    ? new Set(draft.seatIds.filter(seatHasClash))
+    : new Set<string>();
+  const mergedGroupConflicts = predictedGroupConflicts.size > 0
+    ? new Set<string>([...groupConflicts, ...predictedGroupConflicts])
+    : groupConflicts;
+
+  // Одиночное место: тот же критерий, что у массовой (бронь ИЛИ сессия). `conflict` выше — только
+  // бронь (для детальной подписи); это покрывает ещё и сессии и блокирует создание.
+  const singleSeatConflict = drawerMode === 'create' && draft.seatId !== '' && seatHasClash(draft.seatId);
+
+  const dateLabel = toDateInputValue(selectedDate) === toDateInputValue(new Date())
+    ? t('op.booking.dateNav.today')
+    : new Date(selectedDate).toLocaleDateString(locale, { day: '2-digit', month: 'long' });
+
   return (
     <main className="workspace-screen booking-screen">
-      <section className="screen-head booking-head">
-        <div>
-          <span>{t('op.booking.eyebrow')}</span>
-          <h1>{t('op.booking.title')}</h1>
-        </div>
-        <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{loadLabel}</span>
-          <button type="button" className="booking-create-action" disabled={!canCreateReservation} onClick={createReservation}><Plus size={14} />{t('op.booking.createBtn')}</button>
+      <section className="booking-header">
+        <h1><strong className="booking-header-name">{t('op.booking.title')}</strong> · <span className="booking-header-tagline">{t('op.booking.tagline')}</span></h1>
+        <div className="booking-header-metrics">
+          <StateFlag label={t('op.booking.strip.busy')} value={String(activeSeats.length)} />
+          <StateFlag label={t('op.booking.strip.free')} value={String(readySeats.length)} />
+          <StateFlag label={t('op.booking.strip.requests')} value={String(requestCount)} tone={requestCount > 0 ? 'warning' : undefined} />
         </div>
       </section>
 
-      <section className="state-strip booking-state-strip">
-        <StateFlag label={t('op.booking.strip.free')} value={String(readySeats.length)} />
-        <StateFlag label={t('op.booking.strip.busy')} value={String(activeSeats.length)} />
-        <StateFlag label={t('op.booking.strip.problems')} value={String(problemSeats.length)} critical={problemSeats.length > 0} />
-        <StateFlag label={t('op.booking.strip.bookings')} value={String(bookings.length)} critical={loadStatus === 'failed'} />
-        <StateFlag label={t('op.booking.strip.requests')} value={String(onlineRequests.length)} critical={onlineRequests.length > 0} />
-      </section>
+      {loadStatus === 'failed' && (
+        <FeedbackNotice feedback={{ label: t('op.booking.eyebrow'), state: 'failed', detail: loadError ?? t('op.booking.load.failed') }} />
+      )}
 
-      <section className="booking-layout">
-        <section className="booking-panel booking-timeline-panel">
-          <header className="booking-panel-title">
-            <span>{t('op.booking.timeline.title')}</span>
-            <strong>{t('op.booking.timeline.subtitle')}</strong>
-          </header>
-          <div className="booking-list">
-            {bookings.map((booking, index) => (
-              <button
-                key={`${booking.time}-${booking.seatId}`}
-                type="button"
-                className={`booking-card ${booking.tone}${index === selectedBookingIndex ? ' active' : ''}`}
-                onClick={() => setSelectedBookingIndex(index)}
-              >
-                <span className="booking-time">{booking.time}</span>
-                <span className="booking-client">
-                  <strong>{booking.client}</strong>
-                  <em>{booking.note}</em>
-                </span>
-                <span className="booking-meta">{booking.seats} · {booking.zone} · {booking.duration}</span>
-                <b>{booking.status}</b>
-              </button>
-            ))}
-            {bookings.length === 0 && (
-              <article className="booking-card pending">
-                <span className="booking-time">—</span>
-                <span className="booking-client">
-                  <strong>{loadStatus === 'loading' ? t('op.booking.load.loading') : t('op.booking.timeline.empty')}</strong>
-                  <em>{loadError ?? t('op.booking.timeline.emptyDetail')}</em>
-                </span>
-                <span className="booking-meta">{floorMap.branchName}</span>
-                <b>{loadStatus === 'failed' ? t('op.booking.timeline.errorTag') : t('state.empty')}</b>
-              </article>
-            )}
-          </div>
-        </section>
+      {!drawerMode && <FeedbackNotice feedback={feedback} />}
 
-        <section className="booking-panel booking-selected-panel">
-          <header className="booking-panel-title">
-            <span>{t('op.booking.selected.title')}</span>
-            <strong>{selectedBooking.client} · {selectedBooking.time}</strong>
-          </header>
-          <div className={`booking-status-card ${selectedBooking.tone}`}>
-            <span>{selectedBooking.status}</span>
-            <strong>{selectedBooking.time}</strong>
-            <em>{selectedBooking.seats} · {selectedBooking.zone} · {selectedBooking.duration}</em>
-          </div>
-          <div className="booking-action-grid" aria-label={t('op.booking.actions.aria')}>
-            <button type="button" disabled={!selectedBooking.seatId || reservationBusy} onClick={() => selectedBooking.seatId ? onOpenSeat(selectedBooking.seatId) : setFeedback({ label: t('op.booking.actions.openMap'), state: 'failed', detail: t('op.booking.actions.openMapNoSeat') })}><MonitorCheck size={15} />{t('op.booking.actions.openMap')}</button>
-            <button type="button" disabled={!canSeatSelectedReservation} onClick={seatReservation}><UserRoundPlus size={15} />{t('op.booking.actions.seat')}</button>
-            <button type="button" disabled={!canMoveSelectedReservation} onClick={moveReservation}><ArrowRightLeft size={15} />{t('op.booking.actions.move')}</button>
-            <button type="button" className="danger" disabled={!canCancelSelectedReservation} onClick={cancelReservation}><Square size={15} />{t('op.booking.actions.cancel')}</button>
-          </div>
-          <FeedbackNotice feedback={feedback} />
-          <div className="booking-detail-list">
-            <div><span>{t('op.booking.client')}</span><strong>{selectedBooking.client}</strong></div>
-            <div><span>{t('op.booking.detail.comment')}</span><strong>{selectedBooking.note}</strong></div>
-            <div><span>{t('op.booking.detail.source')}</span><strong>{selectedBooking.source === 'online' ? t('op.booking.source.online') : t('op.booking.source.operator')}</strong></div>
-          </div>
-        </section>
+      <BookingRequestsLane
+        requests={requests}
+        busy={reservationBusy}
+        canManage={canManageReservations}
+        onCreate={openCreateDrawer}
+        onAccept={(item) => confirmReservation(item.reservationId, t('op.booking.requests.acceptLabel', { client: item.customerName }))}
+        onClarify={(item) => openDetailDrawer(item.reservationId)}
+      />
 
-        <section className="booking-panel booking-requests-panel">
-          <header className="booking-panel-title">
-            <span>{t('op.booking.requests.title')}</span>
-            <strong>{t('op.booking.requests.subtitle')}</strong>
-          </header>
-          <div className="booking-request-list">
-            {onlineRequests.map((request) => (
-              <article key={request.reservationId} className="booking-request-card">
-                <span>{request.time}</span>
-                <strong>{request.client}</strong>
-                <em>{request.note}</em>
-                <div>
-                  <button type="button" disabled={!canManageReservations || reservationBusy} onClick={() => confirmReservation(request.reservationId, t('op.booking.requests.acceptLabel', { client: request.client }))}>{t('op.booking.requests.accept')}</button>
-                  <button type="button" onClick={() => {
-                    const index = bookings.findIndex((booking) => booking.reservationId === request.reservationId);
-                    if (index >= 0) {
-                      setSelectedBookingIndex(index);
-                    }
-                  }}>{t('op.booking.requests.clarify')}</button>
-                </div>
-              </article>
-            ))}
-            {onlineRequests.length === 0 && (
-              <article className="booking-request-card">
-                <span>—</span>
-                <strong>{t('op.booking.requests.empty')}</strong>
-                <em>{loadStatus === 'failed' ? loadError ?? t('op.booking.requests.emptyFailed') : t('op.booking.requests.emptyDetail')}</em>
-              </article>
-            )}
-          </div>
-        </section>
+      <section className={`booking-layout${drawerMode ? ' with-drawer' : ''}`}>
+        <BookingTimeline
+          groups={groups}
+          axis={axis}
+          nowMs={nowMs}
+          loading={loadStatus === 'loading'}
+          showSkeleton={showSkeleton}
+          selectedReservationId={selectedReservationId}
+          branchName={floorMap.branchName}
+          previewBlock={previewBlock}
+          dateLabel={dateLabel}
+          onPrevDay={() => setSelectedDate((d) => addDays(d, -1))}
+          onNextDay={() => setSelectedDate((d) => addDays(d, 1))}
+          onSelectBlock={(item) => openDetailDrawer(item.reservationId)}
+          onCellCreate={openCreateDrawerForCell}
+          onSeatsCreate={openGroupDrawer}
+        />
 
-        <section className="booking-panel booking-create-panel">
-          <header className="booking-panel-title">
-            <span>{t('op.booking.create.title')}</span>
-            <strong>{selectedReadySeat ? `${selectedReadySeat.zone} · ${selectedReadySeat.name}` : t('op.booking.create.noSeat')}</strong>
-          </header>
-          <div className="booking-form-grid">
-            <label>{t('op.booking.client')}<input value={draftCustomerName} disabled={reservationBusy} onChange={(event) => setDraftCustomerName(event.target.value)} /></label>
-            <label>{t('clients.field.phone')}<input value={draftPhoneNumber} disabled={reservationBusy} onChange={(event) => setDraftPhoneNumber(event.target.value)} /></label>
-            <label>{t('op.booking.create.start')}<input type="datetime-local" value={draftStartsAt} disabled={reservationBusy} onChange={(event) => setDraftStartsAt(event.target.value)} /></label>
-            <label>{t('op.booking.create.duration')}<input type="number" min={15} step={15} value={draftDurationMinutes} disabled={reservationBusy} onChange={(event) => setDraftDurationMinutes(Number(event.target.value) || 60)} /></label>
-          </div>
-          <button type="button" className="booking-primary-action" disabled={!canCreateReservation} onClick={createReservation}>{t('op.booking.create.submit')}</button>
-        </section>
+        {drawerMode && (
+          <BookingDrawer
+            mode={drawerMode}
+            selected={selectedItem}
+            freeSeats={readySeats}
+            allSeats={floorMap.seats}
+            draft={draft}
+            feedback={feedback}
+            busy={reservationBusy}
+            canManage={canManageReservations}
+            currencyCode={currencyCode}
+            conflict={conflict}
+            seatConflict={singleSeatConflict}
+            groupConflicts={mergedGroupConflicts}
+            groupSize={selectedGroupSize}
+            searchClients={searchClients}
+            onClose={() => setDrawerMode(null)}
+            onChangeDraft={(patch) => setDraft((d) => ({ ...d, ...patch }))}
+            onCreate={createReservation}
+            onCreateGroup={createGroupReservation}
+            onRemoveSeat={removeGroupSeat}
+            onCancelGroup={cancelReservationGroup}
+            onSeat={seatReservation}
+            onMove={moveReservation}
+            onCancel={cancelReservation}
+            onConfirm={(item) => confirmReservation(item.reservationId, t('op.booking.requests.acceptLabel', { client: item.customerName }))}
+            onOpenMap={onOpenSeat}
+          />
+        )}
       </section>
     </main>
   );
-}
-
-function reservationStateLabel(
-  state: string,
-  t: (key: MessageKey, values?: Record<string, string | number>) => string
-) {
-  switch (state) {
-    case 'confirmed':
-      return t('op.booking.state.confirmed');
-    case 'pending':
-      return t('op.booking.state.pending');
-    case 'seated':
-      return t('op.booking.state.seated');
-    case 'cancelled':
-      return t('op.booking.state.cancelled');
-    default:
-      return state || t('op.booking.state.unknown');
-  }
 }

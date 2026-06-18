@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
@@ -129,6 +130,104 @@ public sealed class EfReservationService(
 
         return ReservationServiceResult<ReservationDto>.Ok(
             (await ProjectAsync([reservation], cancellationToken))[0]);
+    }
+
+    public async Task<CreateReservationGroupResult> CreateGroupAsync(
+        Guid branchId,
+        Guid actorStaffUserId,
+        CreateReservationGroupRequest request,
+        CancellationToken cancellationToken)
+    {
+        var seatIds = (request.SeatIds ?? [])
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToList();
+        if (seatIds.Count == 0)
+        {
+            return CreateReservationGroupResult.Invalid("At least one seat is required for a group reservation.");
+        }
+
+        var endsAtUtc = request.StartsAtUtc.AddMinutes(request.DurationMinutes);
+
+        // Validate the shared shape against every seat (seat exists & belongs to the branch, time/source ok).
+        foreach (var seatId in seatIds)
+        {
+            var validation = await ValidateReservationShapeAsync(
+                request.OrganizationId,
+                branchId,
+                request.PlayerAccountId,
+                seatId,
+                request.CustomerName,
+                request.StartsAtUtc,
+                request.DurationMinutes,
+                request.Source,
+                cancellationToken);
+            if (validation is not null)
+            {
+                return CreateReservationGroupResult.Invalid(validation);
+            }
+        }
+
+        // All-or-nothing: a group is one booking, so any taken seat (active reservation OR blocking
+        // session) rejects the whole group. Report every conflicting seat so the UI can adjust.
+        var conflicts = new List<ReservationGroupConflictDto>();
+        foreach (var seatId in seatIds)
+        {
+            var conflict = await FindConflictAsync(
+                request.OrganizationId,
+                branchId,
+                seatId,
+                request.StartsAtUtc,
+                endsAtUtc,
+                excludedReservationId: null,
+                cancellationToken);
+            if (conflict is not null)
+            {
+                conflicts.Add(new ReservationGroupConflictDto(seatId, conflict));
+            }
+        }
+        if (conflicts.Count > 0)
+        {
+            return CreateReservationGroupResult.Conflict(new ReservationGroupResultDto(null, [], conflicts));
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var source = NormalizeSource(request.Source);
+        var state = source == ReservationSourceNames.Online
+            ? ReservationStateNames.Pending
+            : ReservationStateNames.Confirmed;
+        var groupId = Guid.NewGuid();
+        var customerName = request.CustomerName.Trim();
+        var phoneNumber = NormalizeNullable(request.PhoneNumber);
+        var note = NormalizeText(request.Note);
+
+        var reservations = seatIds.Select(seatId => new ReservationEntity
+        {
+            ReservationId = Guid.NewGuid(),
+            OrganizationId = request.OrganizationId,
+            BranchId = branchId,
+            ReservationGroupId = groupId,
+            PlayerAccountId = request.PlayerAccountId,
+            SeatId = seatId,
+            CustomerName = customerName,
+            PhoneNumber = phoneNumber,
+            StartsAtUtc = request.StartsAtUtc,
+            EndsAtUtc = endsAtUtc,
+            State = state,
+            Source = source,
+            Note = note,
+            CreatedByStaffUserId = actorStaffUserId,
+            UpdatedByStaffUserId = actorStaffUserId,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now,
+            CancelReason = string.Empty
+        }).ToList();
+
+        dbContext.Reservations.AddRange(reservations);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var dtos = await ProjectAsync(reservations, cancellationToken);
+        return CreateReservationGroupResult.Created(new ReservationGroupResultDto(groupId, dtos, []));
     }
 
     public async Task<ReservationServiceResult<ReservationDto>> UpdateAsync(
@@ -451,6 +550,19 @@ public sealed class EfReservationService(
             cancellationToken);
     }
 
+    // Auto-confirm gate for self-service bookings: the player has spendable funds (positive wallet,
+    // not in debt). Read-only on money — the hold/charge lifecycle is a separate deferred feature.
+    private async Task<bool> ShouldAutoConfirmOnlineAsync(Guid playerAccountId, CancellationToken cancellationToken)
+    {
+        var summary = await LedgerBalanceProjector.GetWalletSummaryAsync(dbContext, playerAccountId, cancellationToken);
+        if (summary is null)
+        {
+            return false;
+        }
+
+        return summary.WalletBalance.MinorUnits > 0 && summary.DebtBalance.MinorUnits <= 0;
+    }
+
     private async Task<ReservationEntity?> LoadForWriteAsync(
         Guid organizationId,
         Guid reservationId,
@@ -519,7 +631,8 @@ public sealed class EfReservationService(
                 reservation.CreatedAtUtc,
                 reservation.UpdatedAtUtc,
                 reservation.CancelledAtUtc,
-                reservation.CancelReason);
+                reservation.CancelReason,
+                reservation.ReservationGroupId);
         }).ToList();
     }
 
@@ -638,6 +751,10 @@ public sealed class EfReservationService(
         }
 
         var now = timeProvider.GetUtcNow();
+        // Auto-confirm self-service bookings when the player has funds (positive wallet, no debt):
+        // «free slot + has balance → book without operator». Otherwise stay Pending for operator
+        // review (the requests lane stays a fallback for funded-later / disputed cases).
+        var autoConfirm = await ShouldAutoConfirmOnlineAsync(playerAccountId, cancellationToken);
         var reservation = new ReservationEntity
         {
             ReservationId = Guid.NewGuid(),
@@ -649,8 +766,9 @@ public sealed class EfReservationService(
             PhoneNumber = account.PhoneNumber,
             StartsAtUtc = request.StartsAtUtc,
             EndsAtUtc = endsAtUtc,
-            // Online source → Pending state (same logic as CreateAsync)
-            State = ReservationStateNames.Pending,
+            State = autoConfirm
+                ? ReservationStateNames.Confirmed
+                : ReservationStateNames.Pending,
             Source = ReservationSourceNames.Online,
             Note = NormalizeText(request.Note),
             // Guid.Empty = self-service sentinel; no staff actor for online bookings.

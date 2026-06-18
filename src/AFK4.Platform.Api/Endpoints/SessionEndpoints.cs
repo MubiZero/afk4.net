@@ -76,6 +76,68 @@ internal static class SessionEndpoints
 {
     public static void MapSessionEndpoints(this WebApplication app)
     {
+        // Started sessions (running and completed) overlapping a day window — feeds the booking
+        // timeline's session layer. Defaults to today when the window is omitted.
+        app.MapGet("/api/branches/{branchId:guid}/sessions", async (
+            Guid branchId,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            ISessionTimelineReadService sessionTimelineReadService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                StaffPermissionNames.ViewSession,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    branchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.ViewSessions,
+                    "Session",
+                    null,
+                    AuditOutcome.Denied,
+                    new { fromUtc, toUtc, authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var from = fromUtc ?? new DateTimeOffset(DateTimeOffset.UtcNow.Date, TimeSpan.Zero);
+            var to = toUtc ?? from.AddDays(1);
+            var result = await sessionTimelineReadService.GetSessionsAsync(
+                authorization.StaffContext!.OrganizationId,
+                branchId,
+                from,
+                to,
+                cancellationToken);
+
+            await WriteAuditAsync(
+                auditRecordWriter,
+                authorization.StaffContext.OrganizationId,
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                AuditActionNames.ViewSessions,
+                "Session",
+                null,
+                AuditOutcome.Succeeded,
+                new { fromUtc = from, toUtc = to, ResultCount = result.Sessions.Count },
+                cancellationToken);
+
+            return Results.Ok(result);
+        });
+
         app.MapPost("/api/branches/{branchId:guid}/sessions/start", async (
             Guid branchId,
             StartGuestSessionRequest request,

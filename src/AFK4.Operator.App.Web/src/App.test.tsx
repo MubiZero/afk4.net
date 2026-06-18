@@ -819,16 +819,20 @@ describe('App', () => {
     expect(screen.getByText('1 чек')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Брони'));
-    const bookingHead = screen.getByRole('heading', { name: /Брони/ }).closest('.screen-head');
+    const bookingHead = screen.getByRole('heading', { name: /Брони/ }).closest('.booking-header');
     expect(bookingHead).toBeInTheDocument();
-    expect(bookingHead).not.toHaveTextContent('Сегодня');
+    // Дата-нав нового дизайна: кнопки «‹»/«›» + метка текущей даты (не вкладки «Завтра»/«Неделя»).
     expect(bookingHead).not.toHaveTextContent('Завтра');
     expect(bookingHead).not.toHaveTextContent('Неделя');
-    expect(screen.getByText('Лента броней')).toBeInTheDocument();
-    expect(screen.getByText('Выбранная бронь')).toBeInTheDocument();
-    expect(screen.getByText('Онлайн-заявки')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Открыть карту/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Создать бронь/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Предыдущий день' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Следующий день' })).toBeInTheDocument();
+    // Таймлайн-гант загружен с данными сервера: блок брони из мока отрисован.
+    expect(await screen.findByText('Aziz P.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Таймлайн броней по местам')).toBeInTheDocument();
+    // Бронь из мока (Aziz P.) отрисована блоком на строке места в гриде.
+    expect(screen.getByText('Aziz P.')).toBeInTheDocument();
+    // Кнопка создания брони в тулбаре над таймлайном.
+    expect(screen.getByRole('button', { name: 'Добавить бронь' })).toBeInTheDocument();
 
     gotoWorkspace('Продажи');
     const posHead = screen.getByRole('heading', { name: /Продажи/ }).closest('.screen-head');
@@ -1750,20 +1754,43 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Брони'));
-    expect(await screen.findByText('Данные сервера')).toBeInTheDocument();
-    expect(screen.getAllByText('Aziz P.').length).toBeGreaterThan(0);
+    // Бронь из мока отрисована в гриде таймлайна — значит данные сервера получены.
+    expect((await screen.findAllByText('Aziz P.')).length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole('button', { name: /^Создать бронь$/ }));
+    // Создание: кнопка «Добавить бронь» в тулбаре открывает drawer → submit «Создать бронь» → бэкенд-вызов.
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить бронь' }));
+    const createDrawer = await screen.findByRole('dialog', { name: 'Новая бронь' });
+    expect(createDrawer).toBeInTheDocument();
+    fireEvent.click(within(createDrawer).getByRole('button', { name: 'Создать бронь' }));
     expect(await screen.findByText('Создать бронь: подтверждено')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/reservations') &&
       init?.method === 'POST')).toBe(true);
 
-    fireEvent.click(screen.getByRole('button', { name: /Отменить/ }));
+    // Отмена: клик по блоку брони открывает drawer детали → кнопка «Отменить» → бэкенд-вызов.
+    // После создания drawer закрывается (afterSuccess: setDrawerMode(null)), и бронь обновляется.
+    // Ждём появления блока (данные могут перезагружаться после создания).
+    await screen.findByRole('button', { name: 'Aziz P.' });
+    // act() гарантирует, что клик + все React-обновления (setSelectedReservationId, setDrawerMode)
+    // зафиксированы до того, как мы ищем кнопки внутри drawer.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Aziz P.' }));
+    });
+    // Ждём drawer детали — содержит заголовок «Бронь».
+    const detailDrawer = await screen.findByRole('dialog', { name: 'Бронь' });
+    expect(detailDrawer).toBeInTheDocument();
+    // «Отменить» — кнопка в action-grid detail-режима drawer.
+    const cancelBtn = within(detailDrawer).getByRole('button', { name: 'Отменить' });
+    await act(async () => {
+      fireEvent.click(cancelBtn);
+    });
+    // Сначала убедиться, что бэкенд-вызов отмены реально произошёл, потом проверять текст.
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.some(([input, init]) =>
+        String(input).includes('/api/reservations/99999999-9999-9999-9999-999999999999/cancel') &&
+        init?.method === 'POST')).toBe(true);
+    });
     expect(await screen.findByText('Отменить бронь: подтверждено')).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/reservations/99999999-9999-9999-9999-999999999999/cancel') &&
-      init?.method === 'POST')).toBe(true);
   });
 
   it('keeps booking mutation controls disabled without reservation manage permission', async () => {
@@ -1773,14 +1800,30 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Брони'));
-    expect(await screen.findByText('Данные сервера')).toBeInTheDocument();
+    expect(await screen.findByText('Aziz P.')).toBeInTheDocument();
 
-    expect(screen.getByRole('button', { name: 'Создать' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Создать бронь' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Посадить/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Перенести/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Отменить/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: /Принять/ })).toBeDisabled();
+    // Кнопка создания брони в тулбаре заблокирована без права manageReservations.
+    expect(screen.getByRole('button', { name: 'Добавить бронь' })).toBeDisabled();
+
+    // Клик по треку дорожки (не по блоку) открывает create-drawer вне зависимости от прав,
+    // чтобы проверить, что кнопка submit внутри тоже заблокирована.
+    const track = document.querySelector<HTMLElement>('.booking-row-track');
+    expect(track).not.toBeNull();
+    fireEvent.click(track!);
+    const createDrawer = await screen.findByRole('dialog', { name: 'Новая бронь' });
+    expect(within(createDrawer).getByRole('button', { name: 'Создать бронь' })).toBeDisabled();
+    // Закрываем create-drawer перед открытием detail-drawer.
+    fireEvent.click(within(createDrawer).getByRole('button', { name: 'Отмена' }));
+
+    // Клик по блоку брони открывает detail-drawer — все мутационные контролы заблокированы.
+    fireEvent.click(screen.getByText('Aziz P.'));
+    const detailDrawer = await screen.findByRole('dialog', { name: 'Бронь' });
+    expect(within(detailDrawer).getByRole('button', { name: 'Посадить' })).toBeDisabled();
+    // «Перенести на место» — select, а не button; проверяем его disabled.
+    expect(within(detailDrawer).getByRole('combobox')).toBeDisabled();
+    expect(within(detailDrawer).getByRole('button', { name: 'Отменить' })).toBeDisabled();
+    // «Принять» виден только для online+pending брони (мок: source=online, state=pending).
+    expect(within(detailDrawer).getByRole('button', { name: 'Принять' })).toBeDisabled();
   });
 
   it('creates a reservation from the selected backend player card', async () => {

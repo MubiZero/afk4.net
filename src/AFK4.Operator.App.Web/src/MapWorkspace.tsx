@@ -153,13 +153,14 @@ export function MapWorkspace({
 
   return (
     <main className="floor-workspace">
-      <section className="map-toolbar">
-        <div className="map-toolbar-title">
-          <h1>{floorMap.branchName}</h1>
-        </div>
-      </section>
-
-      <section className="map-controls-row" aria-label={t('op.map.filtersAndViewLabel')}>
+      {/* Шапка экрана на мягкой подложке: заголовок зала + фильтры-статусы в одной строке —
+          единый блок (как на «Бронях»), а не голый заголовок над россыпью фильтров. */}
+      <section className="map-header">
+        <h1>
+          <strong className="map-header-name">{floorMap.branchName}</strong>
+          {' · '}
+          <span className="map-header-tagline">{t('op.map.tagline')}</span>
+        </h1>
         <div className="filter-row map-filter-row" aria-label={t('op.map.filterLabel')}>
           {mapFilterOptions(t).map((option) => (
             <button

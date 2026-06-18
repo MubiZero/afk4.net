@@ -1,0 +1,96 @@
+using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Reservations;
+using AFK4.Shared.Contracts.Reservations;
+using AFK4.Shared.Contracts.Sessions;
+using Microsoft.EntityFrameworkCore;
+
+namespace AFK4.Platform.Api.Tests;
+
+public sealed class EfReservationGroupServiceTests
+{
+    private static readonly Guid OrgId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08");
+    private static readonly Guid BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2");
+    private static readonly Guid ZoneId = Guid.Parse("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa");
+    private static readonly Guid SeatA = Guid.Parse("a1111111-1111-4111-1111-111111111111");
+    private static readonly Guid SeatB = Guid.Parse("b2222222-2222-4222-2222-222222222222");
+    private static readonly Guid SeatC = Guid.Parse("c3333333-3333-4333-3333-333333333333");
+    private static readonly Guid Actor = Guid.Parse("d4444444-4444-4444-4444-444444444444");
+    private static readonly DateTimeOffset Start = DateTimeOffset.Parse("2026-06-18T14:00:00Z");
+
+    private static DbContextOptions<PlatformDbContext> NewOptions() =>
+        new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+
+    private static async Task SeedAsync(DbContextOptions<PlatformDbContext> options, bool sessionOnSeatC)
+    {
+        await using var db = new PlatformDbContext(options);
+        db.Zones.Add(new ZoneEntity { ZoneId = ZoneId, OrganizationId = OrgId, BranchId = BranchId, Name = "Зал A", SortOrder = 1, CreatedAtUtc = Start });
+        foreach (var (seatId, order) in new[] { (SeatA, 10), (SeatB, 20), (SeatC, 30) })
+        {
+            db.Seats.Add(new SeatEntity { SeatId = seatId, OrganizationId = OrgId, BranchId = BranchId, ZoneId = ZoneId, Name = $"PC-{order}", SortOrder = order, CreatedAtUtc = Start });
+        }
+        if (sessionOnSeatC)
+        {
+            // Открытая сессия на SeatC блокирует его под бронь в любом будущем окне.
+            db.Sessions.Add(new SessionEntity
+            {
+                SessionId = Guid.NewGuid(), OrganizationId = OrgId, BranchId = BranchId, SeatId = SeatC,
+                DeviceId = Guid.NewGuid(), CreatedByStaffUserId = Actor, PlayerKind = "guest",
+                TariffRuleVersionId = "guest", State = SessionStateNames.Active,
+                RequestedAtUtc = Start.AddMinutes(-30), StartedAtUtc = Start.AddMinutes(-30),
+                EndsAtUtc = null, EndedAtUtc = null, UpdatedAtUtc = Start.AddMinutes(-30)
+            });
+        }
+        await db.SaveChangesAsync();
+    }
+
+    private static CreateReservationGroupRequest Request(params Guid[] seatIds) => new(
+        OrganizationId: OrgId,
+        PlayerAccountId: null,
+        SeatIds: seatIds,
+        CustomerName: "Группа гостей",
+        PhoneNumber: "+992900000009",
+        StartsAtUtc: Start,
+        DurationMinutes: 60,
+        Source: "operator",
+        Note: "массовая бронь");
+
+    [Fact]
+    public async Task CreateGroupAsync_CreatesOneReservationPerSeat_SharingGroupId()
+    {
+        var options = NewOptions();
+        await SeedAsync(options, sessionOnSeatC: false);
+
+        await using var db = new PlatformDbContext(options);
+        var service = new EfReservationService(db, TimeProvider.System);
+        var result = await service.CreateGroupAsync(BranchId, Actor, Request(SeatA, SeatB), CancellationToken.None);
+
+        Assert.Equal(ReservationGroupStatus.Created, result.Status);
+        Assert.NotNull(result.Result!.ReservationGroupId);
+        Assert.Equal(2, result.Result.Reservations.Count);
+        Assert.Empty(result.Result.Conflicts);
+        // Both rows carry the same group id.
+        Assert.All(result.Result.Reservations, r => Assert.Equal(result.Result.ReservationGroupId, r.ReservationGroupId));
+        Assert.Equal(new[] { SeatA, SeatB }.OrderBy(x => x), result.Result.Reservations.Select(r => r.SeatId!.Value).OrderBy(x => x));
+        Assert.Equal(2, await db.Reservations.CountAsync());
+    }
+
+    [Fact]
+    public async Task CreateGroupAsync_RejectsWholeGroup_WhenAnySeatHasBlockingSession()
+    {
+        var options = NewOptions();
+        await SeedAsync(options, sessionOnSeatC: true);
+
+        await using var db = new PlatformDbContext(options);
+        var service = new EfReservationService(db, TimeProvider.System);
+        var result = await service.CreateGroupAsync(BranchId, Actor, Request(SeatA, SeatC), CancellationToken.None);
+
+        Assert.Equal(ReservationGroupStatus.Conflict, result.Status);
+        Assert.Null(result.Result!.ReservationGroupId);
+        var conflict = Assert.Single(result.Result.Conflicts);
+        Assert.Equal(SeatC, conflict.SeatId);
+        // All-or-nothing: nothing was written, not even the free SeatA.
+        Assert.Equal(0, await db.Reservations.CountAsync());
+    }
+}

@@ -15,6 +15,7 @@ public sealed class ReservationContractSerializationTests
         var organizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08");
         var branchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2");
         var seatId = Guid.Parse("aaaaaaaa-1111-4111-8111-111111111111");
+        var groupId = Guid.Parse("88888888-1111-4111-8111-888888888888");
 
         var search = new ReservationSearchResultDto(
             [
@@ -37,7 +38,8 @@ public sealed class ReservationContractSerializationTests
                     CreatedAtUtc: DateTimeOffset.Parse("2026-05-21T10:00:00Z"),
                     UpdatedAtUtc: DateTimeOffset.Parse("2026-05-21T10:00:00Z"),
                     CancelledAtUtc: null,
-                    CancelReason: string.Empty)
+                    CancelReason: string.Empty,
+                    ReservationGroupId: groupId)
             ],
             Limit: 40);
         var create = new CreateReservationRequest(
@@ -65,6 +67,7 @@ public sealed class ReservationContractSerializationTests
         Assert.NotNull(searchCopy);
         Assert.Equal(reservationId, Assert.Single(searchCopy.Reservations).ReservationId);
         Assert.Equal(ReservationStateNames.Confirmed, searchCopy.Reservations[0].State);
+        Assert.Equal(groupId, searchCopy.Reservations[0].ReservationGroupId);
         Assert.NotNull(createCopy);
         Assert.Equal(60, createCopy.DurationMinutes);
         Assert.NotNull(cancelCopy);

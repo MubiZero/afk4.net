@@ -54,8 +54,15 @@ export function PanelSelect({
   useEffect(() => {
     if (!open) return;
     const selectedIndex = options.findIndex((option) => option.value === value);
-    setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0);
-    listRef.current?.focus();
+    const index = selectedIndex >= 0 ? selectedIndex : 0;
+    setActiveIndex(index);
+    const list = listRef.current;
+    list?.focus();
+    // Прокрутить выбранный пункт в центр списка, а не открывать всегда с начала.
+    const option = list?.children[index] as HTMLElement | undefined;
+    if (list && option) {
+      list.scrollTop = option.offsetTop - list.clientHeight / 2 + option.clientHeight / 2;
+    }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function commit(index: number) {

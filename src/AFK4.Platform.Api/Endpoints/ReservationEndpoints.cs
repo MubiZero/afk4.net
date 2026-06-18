@@ -201,6 +201,77 @@ internal static class ReservationEndpoints
             return Results.Ok(result.Response);
         });
 
+        // Group create: several seats booked together as one reservation (drag across timeline rows).
+        // All-or-nothing — any conflicting seat returns 409 with the conflict list, nothing is written.
+        app.MapPost("/api/branches/{branchId:guid}/reservations/group", async (
+            Guid branchId,
+            CreateReservationGroupRequest request,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IReservationService reservationService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                StaffPermissionNames.ManageReservations,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    branchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.CreateReservation,
+                    "Reservation",
+                    null,
+                    AuditOutcome.Denied,
+                    new { request.CustomerName, request.StartsAtUtc, SeatCount = request.SeatIds?.Count ?? 0, authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+            {
+                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+            }
+
+            var result = await reservationService.CreateGroupAsync(
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                request,
+                cancellationToken);
+
+            switch (result.Status)
+            {
+                case ReservationGroupStatus.Invalid:
+                    return Results.BadRequest(new { Error = result.Error });
+                case ReservationGroupStatus.Conflict:
+                    return Results.Json(result.Result, statusCode: StatusCodes.Status409Conflict);
+                default:
+                    await WriteAuditAsync(
+                        auditRecordWriter,
+                        authorization.StaffContext.OrganizationId,
+                        branchId,
+                        authorization.StaffContext.StaffUserId,
+                        AuditActionNames.CreateReservation,
+                        "Reservation",
+                        result.Result!.ReservationGroupId?.ToString("D"),
+                        AuditOutcome.Succeeded,
+                        new { request.CustomerName, request.StartsAtUtc, SeatCount = result.Result.Reservations.Count, result.Result.ReservationGroupId },
+                        cancellationToken);
+
+                    return Results.Ok(result.Result);
+            }
+        });
+
         app.MapPatch("/api/reservations/{reservationId:guid}", async (
             Guid reservationId,
             UpdateReservationRequest request,

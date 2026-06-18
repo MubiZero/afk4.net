@@ -84,6 +84,7 @@ export function WorkspaceRouter({
         <BackendBookingWorkspace
           floorMap={displayedFloorMap}
           backend={backend}
+          currencyCode={currencyCode}
           onOpenSeat={onOpenSeat}
         />
       )}

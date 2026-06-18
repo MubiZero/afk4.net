@@ -29,6 +29,12 @@ public interface IReservationService
         CreateReservationRequest request,
         CancellationToken cancellationToken);
 
+    Task<CreateReservationGroupResult> CreateGroupAsync(
+        Guid branchId,
+        Guid actorStaffUserId,
+        CreateReservationGroupRequest request,
+        CancellationToken cancellationToken);
+
     Task<ReservationServiceResult<ReservationDto>> UpdateAsync(
         Guid reservationId,
         Guid actorStaffUserId,

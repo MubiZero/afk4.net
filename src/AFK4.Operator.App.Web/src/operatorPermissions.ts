@@ -9,6 +9,7 @@ export const permissionNames = {
   extendSession: 'sessions.extend',
   transferSession: 'sessions.transfer',
   endSession: 'sessions.end',
+  viewSessions: 'sessions.view',
   viewPlayers: 'players.view',
   createPlayerAccount: 'players.create',
   viewBilling: 'billing.view',
