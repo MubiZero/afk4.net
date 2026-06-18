@@ -2,6 +2,7 @@ import { it, expect } from 'bun:test';
 import type { SeatSummary } from '../operatorData';
 import {
   mapReservationsToItems,
+  mapSeatsToSessionItems,
   computeAxis,
   buildSeatRows,
   unseatedOnlineRequests
@@ -95,6 +96,55 @@ it('buildSeatRows: отменённые на грид не попадают', ()
   const axis = computeAxis(items, day, day + 10 * HOUR);
   const { groups } = buildSeatRows(seats, items, axis);
   expect(groups[0].rows[0].blocks).toHaveLength(0);
+});
+
+const sessionSeat = (id: string, over: Partial<SeatSummary>): SeatSummary => ({
+  id, zone: 'Зал A', name: id, tone: 'active', command: '', remaining: '', status: '', deviceName: id,
+  hasActiveSession: true, activeSessionId: `s-${id}`, ...over
+} as unknown as SeatSummary);
+
+it('mapSeatsToSessionItems: открытый таб (нет дедлайна) → open, endMs=null', () => {
+  const sessions = mapSeatsToSessionItems([
+    sessionSeat('a1', { sessionStartedAtUtc: new Date(day + 9 * HOUR).toISOString(), remainingDeadlineMs: null, playerDisplayName: 'Юсуф' })
+  ]);
+  expect(sessions).toHaveLength(1);
+  expect(sessions[0].open).toBe(true);
+  expect(sessions[0].endMs).toBeNull();
+  expect(sessions[0].startMs).toBe(day + 9 * HOUR);
+  expect(sessions[0].playerName).toBe('Юсуф');
+});
+
+it('mapSeatsToSessionItems: с дедлайном → ограниченная (open=false, endMs задан)', () => {
+  const deadline = day + 11 * HOUR;
+  const sessions = mapSeatsToSessionItems([
+    sessionSeat('a1', { sessionStartedAtUtc: new Date(day + 9 * HOUR).toISOString(), remainingDeadlineMs: deadline })
+  ]);
+  expect(sessions[0].open).toBe(false);
+  expect(sessions[0].endMs).toBe(deadline);
+});
+
+it('mapSeatsToSessionItems: без сессии или без старта → пропуск', () => {
+  const sessions = mapSeatsToSessionItems([
+    sessionSeat('free', { hasActiveSession: false, activeSessionId: null }),
+    sessionSeat('noStart', { sessionStartedAtUtc: null, remainingDeadlineMs: null })
+  ]);
+  expect(sessions).toHaveLength(0);
+});
+
+it('buildSeatRows: сессия ложится на строку своего места', () => {
+  const seats = [seat('a1', 'Зал A', 'PC-01'), seat('a2', 'Зал A', 'PC-02')];
+  const axis = computeAxis([], day, day + 10 * HOUR);
+  const sessions = mapSeatsToSessionItems([
+    sessionSeat('a1', { sessionStartedAtUtc: new Date(day + 9 * HOUR).toISOString(), remainingDeadlineMs: null })
+  ]);
+  const { groups } = buildSeatRows(seats, [], axis, sessions);
+  const rowA1 = groups[0].rows.find((r) => r.seat.id === 'a1')!;
+  const rowA2 = groups[0].rows.find((r) => r.seat.id === 'a2')!;
+  expect(rowA1.sessions).toHaveLength(1);
+  expect(rowA1.sessions[0].open).toBe(true);
+  // открытая тянется до правого края оси
+  expect(rowA1.sessions[0].leftPct + rowA1.sessions[0].widthPct).toBeCloseTo(100, 5);
+  expect(rowA2.sessions).toHaveLength(0);
 });
 
 it('unseatedOnlineRequests: только online+pending без места', () => {

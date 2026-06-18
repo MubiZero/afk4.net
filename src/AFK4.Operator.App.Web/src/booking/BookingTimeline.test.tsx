@@ -17,7 +17,7 @@ function seat(): SeatSummary {
 
 const SPAN = 12 * 3_600_000; // 12 часов
 const axis: TimelineAxis = { startMs: 0, endMs: SPAN, spanMs: SPAN, ticks: [] };
-const groups: ZoneRowGroup[] = [{ zone: 'Зал A', rows: [{ seat: seat(), blocks: [] }] }];
+const groups: ZoneRowGroup[] = [{ zone: 'Зал A', rows: [{ seat: seat(), blocks: [], sessions: [] }] }];
 
 function renderTimeline(
   onCellCreate: (seat: SeatSummary, startMs: number, durationMinutes?: number) => void,

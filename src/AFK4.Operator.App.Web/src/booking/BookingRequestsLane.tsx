@@ -22,12 +22,16 @@ export function BookingRequestsLane({
     <section className={`booking-requests-lane${hasRequests ? '' : ' is-empty'}`} aria-label={t('op.booking.requests.laneTitle')}>
       {hasRequests && (
         <>
-          <div className="booking-lane-title"><span>{t('op.booking.requests.laneTitle')}</span><strong>{requests.length}</strong></div>
+          <div className="booking-lane-title"><span>{t('op.booking.requests.laneTitle')}</span></div>
           <div className="booking-lane-cards">
             {requests.map((request) => (
               <article key={request.reservationId} className="booking-lane-card" title={request.note || undefined}>
                 <div className="booking-lane-head">
-                  <span className="booking-lane-time">{formatTime(new Date(request.startMs).toISOString())}</span>
+                  <span className="booking-lane-time">
+                    {formatTime(new Date(request.startMs).toISOString())}
+                    <span className="booking-lane-dash" aria-hidden="true">–</span>
+                    {formatTime(new Date(request.endMs).toISOString())}
+                  </span>
                   <strong>{request.customerName}</strong>
                 </div>
                 <div className="booking-lane-actions">

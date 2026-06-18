@@ -819,7 +819,7 @@ describe('App', () => {
     expect(screen.getByText('1 чек')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Брони'));
-    const bookingHead = screen.getByRole('heading', { name: /Брони/ }).closest('.screen-head');
+    const bookingHead = screen.getByRole('heading', { name: /Брони/ }).closest('.booking-header');
     expect(bookingHead).toBeInTheDocument();
     // Дата-нав нового дизайна: кнопки «‹»/«›» + метка текущей даты (не вкладки «Завтра»/«Неделя»).
     expect(bookingHead).not.toHaveTextContent('Завтра');
@@ -832,7 +832,7 @@ describe('App', () => {
     // Бронь из мока (Aziz P.) отрисована блоком на строке места в гриде.
     expect(screen.getByText('Aziz P.')).toBeInTheDocument();
     // Кнопка создания брони в тулбаре над таймлайном.
-    expect(screen.getByRole('button', { name: 'Бронь' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Добавить бронь' })).toBeInTheDocument();
 
     gotoWorkspace('Продажи');
     const posHead = screen.getByRole('heading', { name: /Продажи/ }).closest('.screen-head');
@@ -1757,8 +1757,8 @@ describe('App', () => {
     // Бронь из мока отрисована в гриде таймлайна — значит данные сервера получены.
     expect((await screen.findAllByText('Aziz P.')).length).toBeGreaterThan(0);
 
-    // Создание: кнопка «Бронь» в тулбаре открывает drawer → submit «Создать бронь» → бэкенд-вызов.
-    fireEvent.click(screen.getByRole('button', { name: 'Бронь' }));
+    // Создание: кнопка «Добавить бронь» в тулбаре открывает drawer → submit «Создать бронь» → бэкенд-вызов.
+    fireEvent.click(screen.getByRole('button', { name: 'Добавить бронь' }));
     const createDrawer = await screen.findByRole('dialog', { name: 'Новая бронь' });
     expect(createDrawer).toBeInTheDocument();
     fireEvent.click(within(createDrawer).getByRole('button', { name: 'Создать бронь' }));
@@ -1803,7 +1803,7 @@ describe('App', () => {
     expect(await screen.findByText('Aziz P.')).toBeInTheDocument();
 
     // Кнопка создания брони в тулбаре заблокирована без права manageReservations.
-    expect(screen.getByRole('button', { name: 'Бронь' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Добавить бронь' })).toBeDisabled();
 
     // Клик по треку дорожки (не по блоку) открывает create-drawer вне зависимости от прав,
     // чтобы проверить, что кнопка submit внутри тоже заблокирована.

@@ -29,6 +29,7 @@ import { FeedbackNotice, StateFlag } from './operatorPrimitives';
 import { useDeferredFlag } from './useDeferredFlag';
 import {
   mapReservationsToItems,
+  mapSeatsToSessionItems,
   computeAxis,
   buildSeatRows,
   unseatedOnlineRequests,
@@ -133,7 +134,14 @@ export function BackendBookingWorkspace({
   const dayStartMs = new Date(`${toDateInputValue(selectedDate)}T00:00:00`).getTime();
   const nowMs = Date.now();
   const axis = useMemo(() => computeAxis(items, dayStartMs, nowMs), [items, dayStartMs, nowMs]);
-  const { groups, unplaced: _unplaced } = useMemo(() => buildSeatRows(floorMap.seats, items, axis), [floorMap.seats, items, axis]);
+  // Сессии — это занятость «сейчас», поэтому осмысленны только на сегодняшней дате.
+  // (Историю завершённых сессий на прошлые даты подтянем отдельным бэкенд-эндпоинтом.)
+  const isToday = toDateInputValue(selectedDate) === toDateInputValue(new Date());
+  const sessionItems = useMemo(
+    () => (isToday ? mapSeatsToSessionItems(floorMap.seats) : []),
+    [isToday, floorMap.seats]
+  );
+  const { groups, unplaced: _unplaced } = useMemo(() => buildSeatRows(floorMap.seats, items, axis, sessionItems), [floorMap.seats, items, axis, sessionItems]);
   const requests = unseatedOnlineRequests(items);
   const requestCount = onlineRequestCount(items);
 
@@ -284,16 +292,13 @@ export function BackendBookingWorkspace({
 
   return (
     <main className="workspace-screen booking-screen">
-      <section className="screen-head booking-head">
-        <div>
-          <h1>{t('op.booking.title')}</h1>
+      <section className="booking-header">
+        <h1><strong className="booking-header-name">{t('op.booking.title')}</strong> · <span className="booking-header-tagline">{t('op.booking.tagline')}</span></h1>
+        <div className="booking-header-metrics">
+          <StateFlag label={t('op.booking.strip.busy')} value={String(activeSeats.length)} />
+          <StateFlag label={t('op.booking.strip.free')} value={String(readySeats.length)} />
+          <StateFlag label={t('op.booking.strip.requests')} value={String(requestCount)} tone={requestCount > 0 ? 'warning' : undefined} />
         </div>
-      </section>
-
-      <section className="state-strip booking-state-strip">
-        <StateFlag label={t('op.booking.strip.busy')} value={String(activeSeats.length)} />
-        <StateFlag label={t('op.booking.strip.free')} value={String(readySeats.length)} />
-        <StateFlag label={t('op.booking.strip.requests')} value={String(requestCount)} tone={requestCount > 0 ? 'warning' : undefined} />
       </section>
 
       {loadStatus === 'failed' && (

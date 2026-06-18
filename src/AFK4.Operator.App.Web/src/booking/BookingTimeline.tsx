@@ -4,7 +4,7 @@ import { useI18n } from '@afk4/i18n';
 import type { SeatSummary } from '../operatorData';
 import { zoneLabel } from '../operatorHelpers';
 import { EmptyState, Skeleton } from '../operatorPrimitives';
-import type { BookingItem, TimelineAxis, ZoneRowGroup } from './bookingModel';
+import type { BookingItem, SessionItem, TimelineAxis, ZoneRowGroup } from './bookingModel';
 
 // Протягивание по дорожке выставляет интервал брони: снап по 15 мин, короткое
 // нажатие без движения трактуем как клик (бронь по умолчанию на 60 мин в родителе).
@@ -72,6 +72,12 @@ export function BookingTimeline({
   };
 
   const moved = drag !== null && Math.abs(drag.currentMs - drag.anchorMs) >= CLICK_THRESHOLD_MS;
+
+  // Подпись-тултип сессии: кто играет + признак открытой (без конца).
+  const sessionTitle = (s: SessionItem): string => {
+    const who = s.playerName || t('op.booking.guest');
+    return s.open ? t('op.booking.session.titleOpen', { who }) : t('op.booking.session.titleBounded', { who });
+  };
 
   // Начало возможного протягивания. Обычный клик (без движения) обрабатывает onClick ниже,
   // поэтому здесь только запускаем отслеживание; click-аффорданс сохраняется для тестов и мыши.
@@ -202,6 +208,20 @@ export function BookingTimeline({
                   onMouseDown={(event) => beginDrag(event, row.seat)}
                   onClick={(event) => handleTrackClick(event, row.seat)}
                 >
+                  {/* Фоновый слой: идущие сессии (занятость ПК сейчас). Открытая тянется до края
+                      и растворяется — конец неизвестен. Не перехватывает мышь — поверх создаются брони. */}
+                  {row.sessions.map((session) => (
+                    <div
+                      key={session.item.sessionId}
+                      className={`booking-session${session.open ? ' open' : ''}`}
+                      style={{ left: `${session.leftPct}%`, width: `${session.widthPct}%` }}
+                      title={sessionTitle(session.item)}
+                      aria-hidden="true"
+                    >
+                      <span className="booking-session-label">{session.item.playerName || t('op.booking.guest')}</span>
+                      {session.open && <span className="booking-session-arrow" aria-hidden="true">→</span>}
+                    </div>
+                  ))}
                   {row.blocks.map((block) => (
                     <button
                       key={block.item.reservationId}

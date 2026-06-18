@@ -32,9 +32,29 @@ export interface BookingBlock {
   widthPct: number;
 }
 
+// Игровая сессия на месте: открытая (endMs=null — конца нет, занято «неограниченно») либо
+// ограниченная дедлайном (фикс/предоплата). В отличие от брони — это факт занятости ПК сейчас.
+export interface SessionItem {
+  sessionId: string;
+  seatId: string;
+  startMs: number;
+  endMs: number | null;
+  open: boolean;
+  playerName: string;
+  tariffName: string | null;
+}
+
+export interface SessionBlock {
+  item: SessionItem;
+  leftPct: number;
+  widthPct: number;
+  open: boolean;
+}
+
 export interface SeatRow {
   seat: SeatSummary;
   blocks: BookingBlock[];
+  sessions: SessionBlock[];
 }
 
 export interface ZoneRowGroup {
@@ -109,10 +129,45 @@ function toBlock(item: BookingItem, axis: TimelineAxis): BookingBlock {
   return { item, leftPct, widthPct };
 }
 
+// Открытая сессия тянется до правого края оси (конца нет); ограниченная — до дедлайна.
+function toSessionBlock(item: SessionItem, axis: TimelineAxis): SessionBlock {
+  const endMs = item.open ? axis.endMs : (item.endMs ?? axis.endMs);
+  const rawLeft = ((item.startMs - axis.startMs) / axis.spanMs) * 100;
+  const rawWidth = ((endMs - item.startMs) / axis.spanMs) * 100;
+  const leftPct = Math.min(100, Math.max(0, rawLeft));
+  const widthPct = Math.min(100 - leftPct, Math.max(0.6, rawWidth));
+  return { item, leftPct, widthPct, open: item.open };
+}
+
+// Активные сессии с мест floor-map → элементы таймлайна. Только места с живой сессией и известным
+// стартом; открытый таб (нет дедлайна) — open, иначе ограничена remainingDeadlineMs.
+export function mapSeatsToSessionItems(seats: SeatSummary[]): SessionItem[] {
+  const out: SessionItem[] = [];
+  for (const seat of seats) {
+    const hasSession = seat.hasActiveSession === true || (seat.activeSessionId != null && seat.activeSessionId !== '');
+    if (!hasSession || !seat.sessionStartedAtUtc) continue;
+    const startMs = new Date(seat.sessionStartedAtUtc).getTime();
+    if (Number.isNaN(startMs)) continue;
+    const deadline = seat.remainingDeadlineMs ?? null;
+    const open = deadline === null;
+    out.push({
+      sessionId: seat.activeSessionId ?? seat.id,
+      seatId: seat.id,
+      startMs,
+      endMs: open ? null : deadline,
+      open,
+      playerName: seat.playerDisplayName ?? seat.player ?? '',
+      tariffName: seat.tariffName ?? null
+    });
+  }
+  return out;
+}
+
 export function buildSeatRows(
   seats: SeatSummary[],
   items: BookingItem[],
-  axis: TimelineAxis
+  axis: TimelineAxis,
+  sessions: SessionItem[] = []
 ): { groups: ZoneRowGroup[]; unplaced: BookingItem[] } {
   const placeable = items.filter((i) => i.state !== 'cancelled' && i.seatId.length > 0);
   const bySeat = new Map<string, BookingBlock[]>();
@@ -129,10 +184,18 @@ export function buildSeatRows(
     bySeat.set(item.seatId, list);
   }
 
+  const sessionsBySeat = new Map<string, SessionBlock[]>();
+  for (const session of sessions) {
+    if (!seatIds.has(session.seatId)) continue;
+    const list = sessionsBySeat.get(session.seatId) ?? [];
+    list.push(toSessionBlock(session, axis));
+    sessionsBySeat.set(session.seatId, list);
+  }
+
   const groups: ZoneRowGroup[] = [];
   const indexByZone = new Map<string, number>();
   for (const seat of seats) {
-    const row: SeatRow = { seat, blocks: bySeat.get(seat.id) ?? [] };
+    const row: SeatRow = { seat, blocks: bySeat.get(seat.id) ?? [], sessions: sessionsBySeat.get(seat.id) ?? [] };
     const at = indexByZone.get(seat.zone);
     if (at === undefined) {
       indexByZone.set(seat.zone, groups.length);
