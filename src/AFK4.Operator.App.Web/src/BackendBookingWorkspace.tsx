@@ -51,7 +51,7 @@ export function BackendBookingWorkspace({
   currencyCode: string;
   onOpenSeat: (seatId: string) => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
@@ -280,7 +280,7 @@ export function BackendBookingWorkspace({
 
   const dateLabel = toDateInputValue(selectedDate) === toDateInputValue(new Date())
     ? t('op.booking.dateNav.today')
-    : new Date(selectedDate).toLocaleDateString('ru-RU', { day: '2-digit', month: 'long' });
+    : new Date(selectedDate).toLocaleDateString(locale, { day: '2-digit', month: 'long' });
 
   return (
     <main className="workspace-screen booking-screen">
