@@ -1580,6 +1580,8 @@
   "op.booking.create.submitGroup": "Брон барои {count} ПК",
   "op.booking.group.conflict": "Ин ҷойҳо банданд — онҳоро хориҷ кунед ё вақтро иваз кунед.",
   "op.booking.group.remove": "Хориҷ кардани {seat}",
+  "op.booking.group.badge": "Гурӯҳ · {count, plural, one {# ҷой} other {# ҷой}}",
+  "op.booking.group.cancelAll": "Бекор кардани гурӯҳ",
   "op.booking.note.group": "брони гурӯҳӣ · {count} ПК",
   "op.booking.action.seat": "Нишондани брон",
   "op.booking.action.move": "Кӯчондани брон",

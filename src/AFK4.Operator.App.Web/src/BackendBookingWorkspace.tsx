@@ -314,6 +314,20 @@ export function BackendBookingWorkspace({
     });
   });
 
+  // Отмена всей группы: отменяем каждую активную бронь с тем же ReservationGroupId по очереди.
+  const cancelReservationGroup = () => runReservationAction(t('op.booking.group.cancelAll'), async (clients) => {
+    const nextBackend = requireBackend(backend, t);
+    const groupId = selectedItem?.reservationGroupId;
+    if (!groupId) throw new Error(t('op.booking.error.selectReservation'));
+    const members = items.filter((item) => item.reservationGroupId === groupId && item.state !== 'cancelled');
+    for (const member of members) {
+      await clients.reservations.cancel(member.reservationId, {
+        organizationId: nextBackend.session.organizationId,
+        reason: t('op.booking.note.cancelReason')
+      });
+    }
+  }, () => setDrawerMode(null));
+
   const openCreateDrawer = () => {
     setFeedback(emptyFeedback);
     setGroupConflicts(new Set());
@@ -383,6 +397,9 @@ export function BackendBookingWorkspace({
   };
 
   const selectedItem = items.find((i) => i.reservationId === selectedReservationId) ?? null;
+  const selectedGroupSize = selectedItem?.reservationGroupId
+    ? items.filter((i) => i.reservationGroupId === selectedItem.reservationGroupId && i.state !== 'cancelled').length
+    : 0;
 
   // Подсветка выбранного интервала на таймлайне, пока открыто окно создания — следует за формой.
   const previewStartMs = drawerMode === 'create' ? new Date(draft.startsAt).getTime() : Number.NaN;
@@ -457,12 +474,14 @@ export function BackendBookingWorkspace({
             currencyCode={currencyCode}
             conflict={conflict}
             groupConflicts={groupConflicts}
+            groupSize={selectedGroupSize}
             searchClients={searchClients}
             onClose={() => setDrawerMode(null)}
             onChangeDraft={(patch) => setDraft((d) => ({ ...d, ...patch }))}
             onCreate={createReservation}
             onCreateGroup={createGroupReservation}
             onRemoveSeat={removeGroupSeat}
+            onCancelGroup={cancelReservationGroup}
             onSeat={seatReservation}
             onMove={moveReservation}
             onCancel={cancelReservation}

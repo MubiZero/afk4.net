@@ -118,10 +118,12 @@ function booking(
   customerName: string,
   phoneNumber: string,
   seat: { id: string; name: string; zone: string } | null,
-  note: string
+  note: string,
+  groupId: string | null = null
 ) {
   return {
     reservationId: id, organizationId: ORG, branchId: BRANCH, playerAccountId: null,
+    reservationGroupId: groupId,
     seatId: seat?.id ?? '', seatName: seat?.name ?? '', zoneName: seat?.zone ?? '',
     customerName, phoneNumber,
     startsAtUtc: todayAtUtc(startHour), endsAtUtc: todayAtUtc(startHour, durationMinutes),
@@ -143,7 +145,10 @@ function reservations() {
     booking('r3', 14, 60, 'pending', 'online', 'Камрон Р.', '+992900000003', null, 'онлайн-заявка'),
     booking('r4', 16, 90, 'pending', 'online', 'Сабина М.', '+992900000004', null, 'онлайн-заявка, ждёт места'),
     booking('r5', 18, 60, 'confirmed', 'operator', 'Фаррух Н.', '+992900000005', vip03, 'бронь оператора'),
-    booking('r6', 20, 60, 'pending', 'operator', 'Шерзод Б.', '+992900000006', pc01, 'предварительная бронь')
+    booking('r6', 20, 60, 'pending', 'operator', 'Шерзод Б.', '+992900000006', pc01, 'предварительная бронь'),
+    // Массовая бронь: две брони на разных ПК с общим reservationGroupId (для превью связи группы).
+    booking('g1', 15, 60, 'confirmed', 'operator', 'Турнир «Алиф»', '+992900000007', pc02, 'массовая бронь · 2 ПК', 'grp-demo'),
+    booking('g2', 15, 60, 'confirmed', 'operator', 'Турнир «Алиф»', '+992900000007', pc06, 'массовая бронь · 2 ПК', 'grp-demo')
   ];
 }
 

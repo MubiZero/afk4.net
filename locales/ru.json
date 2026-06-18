@@ -1580,6 +1580,8 @@
   "op.booking.create.submitGroup": "Создать на {count} ПК",
   "op.booking.group.conflict": "Эти места уже заняты — уберите их или измените время.",
   "op.booking.group.remove": "Убрать {seat}",
+  "op.booking.group.badge": "Группа · {count, plural, one {# место} few {# места} many {# мест} other {# места}}",
+  "op.booking.group.cancelAll": "Отменить группу",
   "op.booking.note.group": "массовая бронь · {count} ПК",
   "op.booking.action.seat": "Посадить бронь",
   "op.booking.action.move": "Перенести бронь",

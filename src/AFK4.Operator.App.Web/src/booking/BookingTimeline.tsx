@@ -46,6 +46,16 @@ export function BookingTimeline({
   const flatSeats = groups.flatMap((g) => g.rows.map((r) => r.seat));
   const seatIndex = new Map(flatSeats.map((seat, i) => [seat.id, i] as const));
 
+  // Связь блоков одной группы: наведение на любой блок подсвечивает все блоки его группы (через
+  // залы); группа выбранной брони подсвечена постоянно. Пустой id не группирует.
+  const [hoveredGroupId, setHoveredGroupId] = useState<string>('');
+  const selectedGroupId = groups
+    .flatMap((g) => g.rows)
+    .flatMap((r) => r.blocks)
+    .find((b) => b.item.reservationId === selectedReservationId)?.item.reservationGroupId ?? '';
+  const isGroupPeer = (groupId: string): boolean =>
+    groupId !== '' && (groupId === hoveredGroupId || groupId === selectedGroupId);
+
   const [drag, setDrag] = useState<DragState | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const rowEls = useRef<Map<string, HTMLElement>>(new Map());
@@ -267,8 +277,10 @@ export function BookingTimeline({
                     <button
                       key={block.item.reservationId}
                       type="button"
-                      className={`booking-block ${block.item.tone}${block.item.reservationId === selectedReservationId ? ' active' : ''}`}
+                      className={`booking-block ${block.item.tone}${block.item.reservationId === selectedReservationId ? ' active' : ''}${isGroupPeer(block.item.reservationGroupId) ? ' group-peer' : ''}`}
                       style={{ left: `${block.leftPct}%`, width: `${block.widthPct}%` }}
+                      onMouseEnter={() => setHoveredGroupId(block.item.reservationGroupId)}
+                      onMouseLeave={() => setHoveredGroupId('')}
                       onClick={(event) => { event.stopPropagation(); onSelectBlock(block.item); }}
                     >
                       <b>{block.item.customerName}</b>

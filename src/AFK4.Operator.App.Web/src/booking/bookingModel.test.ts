@@ -28,6 +28,15 @@ it('mapReservationsToItems: парсит поля и считает endMs из �
   expect(items[0].tone).toBe('online');
 });
 
+it('mapReservationsToItems: читает reservationGroupId (пусто если нет)', () => {
+  const items = mapReservationsToItems([
+    { reservationId: 'g1', startsAtUtc: '2026-06-17T14:00:00Z', durationMinutes: 60, reservationGroupId: 'grp-7' },
+    { reservationId: 's1', startsAtUtc: '2026-06-17T14:00:00Z', durationMinutes: 60 }
+  ], 'Гость');
+  expect(items[0].reservationGroupId).toBe('grp-7');
+  expect(items[1].reservationGroupId).toBe('');
+});
+
 it('mapReservationsToItems: пустое имя → гость', () => {
   const items = mapReservationsToItems([
     { reservationId: 'r1', startsAtUtc: '2026-06-17T14:00:00Z', durationMinutes: 30 }

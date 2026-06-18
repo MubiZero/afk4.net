@@ -1,4 +1,4 @@
-import { Clock, MonitorCheck, Plus, Square, TriangleAlert, UserRoundPlus, Wallet, X } from 'lucide-react';
+import { Clock, Layers, MonitorCheck, Plus, Square, TriangleAlert, UserRoundPlus, Wallet, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary } from '../operatorData';
 import type { Feedback } from '../operatorTypes';
@@ -34,12 +34,14 @@ export interface BookingDrawerProps {
   currencyCode: string;
   conflict: BookingItem | null;
   groupConflicts: Set<string>;
+  groupSize: number; // сколько активных броней в группе выбранной (detail), 0 если не группа
   searchClients: (query: string) => Promise<PlayerClientItem[]>;
   onClose: () => void;
   onChangeDraft: (patch: Partial<BookingDraft>) => void;
   onCreate: () => void;
   onCreateGroup: () => void;
   onRemoveSeat: (seatId: string) => void;
+  onCancelGroup: () => void;
   onSeat: () => void;
   onMove: (targetSeatId: string) => void;
   onCancel: () => void;
@@ -67,7 +69,7 @@ function groupSeatsByZone(seats: SeatSummary[]): SeatSummary[] {
 
 export function BookingDrawer(props: BookingDrawerProps) {
   const { t } = useI18n();
-  const { mode, selected, freeSeats, allSeats, draft, feedback, busy, canManage, currencyCode, conflict, groupConflicts } = props;
+  const { mode, selected, freeSeats, allSeats, draft, feedback, busy, canManage, currencyCode, conflict, groupConflicts, groupSize } = props;
   const title = mode === 'create' ? t('op.booking.drawer.createTitle') : t('op.booking.drawer.detailTitle');
   const freeIds = new Set(freeSeats.map((seat) => seat.id));
 
@@ -247,6 +249,13 @@ export function BookingDrawer(props: BookingDrawerProps) {
             <em>{selected.seatName ? `${zoneLabel(selected.zoneName, t)} · ${selected.seatName}` : zoneLabel(selected.zoneName, t)} · {t('op.booking.durationMin', { count: selected.durationMinutes })}</em>
           </div>
 
+          {selected.reservationGroupId && groupSize > 1 && (
+            <div className="booking-group-note">
+              <Layers size={13} aria-hidden="true" />
+              <span>{t('op.booking.group.badge', { count: groupSize })}</span>
+            </div>
+          )}
+
           <div className="booking-action-grid">
             <button type="button" disabled={!selected.seatId || busy} onClick={() => props.onOpenMap(selected.seatId)}><MonitorCheck size={15} />{t('op.booking.actions.openMap')}</button>
             <button type="button" disabled={!canManage || busy || !selected.seatId} onClick={props.onSeat}><UserRoundPlus size={15} />{t('op.booking.actions.seat')}</button>
@@ -254,6 +263,9 @@ export function BookingDrawer(props: BookingDrawerProps) {
               <button type="button" disabled={!canManage || busy} onClick={() => props.onConfirm(selected)}><Plus size={15} />{t('op.booking.requests.accept')}</button>
             )}
             <button type="button" className="danger" disabled={!canManage || busy} onClick={props.onCancel}><Square size={15} />{t('op.booking.actions.cancel')}</button>
+            {selected.reservationGroupId && groupSize > 1 && (
+              <button type="button" className="danger" disabled={!canManage || busy} onClick={props.onCancelGroup}><Layers size={15} />{t('op.booking.group.cancelAll')}</button>
+            )}
           </div>
 
           <div className="booking-field">
