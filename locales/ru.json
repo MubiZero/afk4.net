@@ -1559,6 +1559,7 @@
   "op.booking.client.balance": "Баланс {amount}",
   "op.booking.client.debt": "Долг {amount}",
   "op.booking.conflict": "Место занято бронью {from}–{to} · {client}",
+  "op.booking.conflictSeat": "Это место уже занято — выберите другое или измените время.",
   "op.booking.detail.comment": "Комментарий",
   "op.booking.detail.source": "Источник",
   "op.booking.source.online": "онлайн-заявка",

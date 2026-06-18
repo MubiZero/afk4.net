@@ -1559,6 +1559,7 @@
   "op.booking.client.balance": "Баланси ҳамён: {amount}",
   "op.booking.client.debt": "Қарз {amount}",
   "op.booking.conflict": "Ҷой банд аст {from}–{to} · {client}",
+  "op.booking.conflictSeat": "Ин ҷой банд аст — дигарашро интихоб кунед ё вақтро иваз кунед.",
   "op.booking.detail.comment": "Шарҳ",
   "op.booking.detail.source": "Манбаъ",
   "op.booking.source.online": "дархости онлайн",

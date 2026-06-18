@@ -431,6 +431,10 @@ export function BackendBookingWorkspace({
     ? new Set<string>([...groupConflicts, ...predictedGroupConflicts])
     : groupConflicts;
 
+  // Одиночное место: тот же критерий, что у массовой (бронь ИЛИ сессия). `conflict` выше — только
+  // бронь (для детальной подписи); это покрывает ещё и сессии и блокирует создание.
+  const singleSeatConflict = drawerMode === 'create' && draft.seatId !== '' && seatHasClash(draft.seatId);
+
   const dateLabel = toDateInputValue(selectedDate) === toDateInputValue(new Date())
     ? t('op.booking.dateNav.today')
     : new Date(selectedDate).toLocaleDateString(locale, { day: '2-digit', month: 'long' });
@@ -491,6 +495,7 @@ export function BackendBookingWorkspace({
             canManage={canManageReservations}
             currencyCode={currencyCode}
             conflict={conflict}
+            seatConflict={singleSeatConflict}
             groupConflicts={mergedGroupConflicts}
             groupSize={selectedGroupSize}
             searchClients={searchClients}

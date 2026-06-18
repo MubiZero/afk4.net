@@ -1559,6 +1559,7 @@
   "op.booking.client.balance": "Balance {amount}",
   "op.booking.client.debt": "Debt {amount}",
   "op.booking.conflict": "Seat booked {from}–{to} · {client}",
+  "op.booking.conflictSeat": "This seat is taken — pick another or change the time.",
   "op.booking.detail.comment": "Comment",
   "op.booking.detail.source": "Source",
   "op.booking.source.online": "online request",

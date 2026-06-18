@@ -32,7 +32,8 @@ export interface BookingDrawerProps {
   busy: boolean;
   canManage: boolean;
   currencyCode: string;
-  conflict: BookingItem | null;
+  conflict: BookingItem | null;      // пересечение с бронью (для детальной подписи)
+  seatConflict: boolean;             // место занято бронью ИЛИ сессией — блокирует одиночное создание
   groupConflicts: Set<string>;
   groupSize: number; // сколько активных броней в группе выбранной (detail), 0 если не группа
   searchClients: (query: string) => Promise<PlayerClientItem[]>;
@@ -69,7 +70,7 @@ function groupSeatsByZone(seats: SeatSummary[]): SeatSummary[] {
 
 export function BookingDrawer(props: BookingDrawerProps) {
   const { t } = useI18n();
-  const { mode, selected, freeSeats, allSeats, draft, feedback, busy, canManage, currencyCode, conflict, groupConflicts, groupSize } = props;
+  const { mode, selected, freeSeats, allSeats, draft, feedback, busy, canManage, currencyCode, conflict, seatConflict, groupConflicts, groupSize } = props;
   const title = mode === 'create' ? t('op.booking.drawer.createTitle') : t('op.booking.drawer.detailTitle');
   const freeIds = new Set(freeSeats.map((seat) => seat.id));
 
@@ -223,6 +224,12 @@ export function BookingDrawer(props: BookingDrawerProps) {
               })}</span>
             </div>
           )}
+          {!conflict && seatConflict && (
+            <div className="booking-conflict" role="alert">
+              <TriangleAlert size={14} aria-hidden="true" />
+              <span>{t('op.booking.conflictSeat')}</span>
+            </div>
+          )}
           {summaryEnd && (
             <div className="booking-summary">
               <Clock size={14} aria-hidden="true" />
@@ -238,7 +245,7 @@ export function BookingDrawer(props: BookingDrawerProps) {
           {isGroup ? (
             <button type="button" className="booking-primary-action" disabled={!canManage || busy || groupSeats.length === 0 || hasGroupConflict} onClick={props.onCreateGroup}><Plus size={15} />{t('op.booking.create.submitGroup', { count: groupSeats.length })}</button>
           ) : (
-            <button type="button" className="booking-primary-action" disabled={!canManage || busy || allSeats.length === 0 || !draft.seatId || Boolean(conflict)} onClick={props.onCreate}><Plus size={15} />{t('op.booking.create.submit')}</button>
+            <button type="button" className="booking-primary-action" disabled={!canManage || busy || allSeats.length === 0 || !draft.seatId || seatConflict} onClick={props.onCreate}><Plus size={15} />{t('op.booking.create.submit')}</button>
           )}
         </div>
       ) : selected ? (
