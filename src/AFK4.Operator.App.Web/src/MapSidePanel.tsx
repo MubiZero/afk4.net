@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ArrowRightLeft, Banknote, Check, CircleDollarSign, Loader2, Lock, MonitorCheck, Plus, ReceiptText, TimerReset, TriangleAlert, Unlock, Wifi, WifiOff, Wrench, X } from 'lucide-react';
+import { ArrowRightLeft, Banknote, Check, CircleDollarSign, Loader2, Lock, MonitorCheck, Plus, ReceiptText, TriangleAlert, Unlock, Wifi, WifiOff, Wrench, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { currencySymbol } from '@afk4/money';
 import { projectOperatorError } from './apiErrors';
@@ -671,7 +671,7 @@ export function MapSidePanel({
           <>
             <div className="quick-extend">
               <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.extend15Action'), { type: 'extend', seat, minutes: 15, billing: billingSelection })}>{actionGlyph(t('op.map.panel.extend15Action'), <Plus size={14} />)}{t('op.map.panel.extend15Action')}</button>
-              <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.extend30Action'), { type: 'extend', seat, minutes: 30, billing: billingSelection })}>{actionGlyph(t('op.map.panel.extend30Action'), <TimerReset size={14} />)}{t('op.map.panel.extend30Action')}</button>
+              <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.extend30Action'), { type: 'extend', seat, minutes: 30, billing: billingSelection })}>{actionGlyph(t('op.map.panel.extend30Action'), <Plus size={14} />)}{t('op.map.panel.extend30Action')}</button>
             </div>
             {/* Одна кнопка «Завершить»: онлайн ведёт в расчёт (с опцией «без оплаты»),
                 офлайн — в простое подтверждение завершения. Отдельный «Стоп» убран. */}

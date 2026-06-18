@@ -69,17 +69,19 @@
   width: 100%;
   display: flex;
   justify-content: center;
-  margin-top: auto;
-  padding-top: 16px;
+  padding-top: 12px;
   border-top: 1px solid var(--border-soft);
 }
 
-.rail-account-trigger {
+/* Селектор с двумя классами, чтобы перебить общий `.workspace-rail button` (gap:4px, height:46px),
+   который иначе зажимает аккаунт. height:auto даёт аватару и ярлыку дышать (gap между ними). */
+.rail-account .rail-account-trigger {
   display: grid;
   place-items: center;
-  gap: 7px;
+  gap: 9px;
   width: 100%;
-  padding: 8px 2px;
+  height: auto;
+  padding: 9px 2px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -118,18 +120,18 @@
   font-size: 13px;
 }
 
+/* Короткий фиксированный ярлык «Аккаунт» в стиле остальных кнопок рейла — одна строка, без
+   обрезания. Полное имя оператора живёт в поповере и в окне аккаунта, а не в узком рейле. */
 .rail-account-name {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  max-width: 58px;
+  max-width: 56px;
   overflow: hidden;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1;
   color: var(--text-secondary);
   text-align: center;
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rail-account-menu {

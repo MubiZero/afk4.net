@@ -31,7 +31,7 @@ describe('SeatContextMenu', () => {
     const onSelect = mock((_item: SeatMenuItem) => {});
     const { getByRole, getByText } = renderMenu(onSelect, () => {});
     expect(getByRole('menu')).not.toBeNull();
-    fireEvent.click(getByText('+15 мин'));
+    fireEvent.click(getByText('15 мин'));
     expect(onSelect).toHaveBeenCalledTimes(1);
     expect(onSelect.mock.calls[0][0].id).toBe('extend-15');
   });

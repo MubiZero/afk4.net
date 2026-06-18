@@ -14,9 +14,9 @@ function renderWidget(onOpenAccount = () => {}, onSignOut = () => {}) {
 }
 
 describe('RailAccount', () => {
-  it('shows the operator name with a collapsed menu by default', () => {
+  it('shows the account label with a collapsed menu by default', () => {
     const { getByText, queryByRole } = renderWidget();
-    getByText('Оператор смены');
+    getByText('Аккаунт');
     expect(queryByRole('menu')).toBeNull();
   });
 

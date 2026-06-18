@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { LogOut, UserRound } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 
-function initialsOf(name: string): string {
+export function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
@@ -71,7 +71,7 @@ export function RailAccount({ displayName, onOpenAccount, onSignOut }: {
         onClick={toggle}
       >
         <span className="rail-account-avatar" aria-hidden="true">{initials}</span>
-        <span className="rail-account-name">{displayName}</span>
+        <span className="rail-account-name">{t('op.shell.account')}</span>
       </button>
       {open && createPortal(
         <div
