@@ -12,6 +12,10 @@ public sealed class ReservationEntity
 
     public Guid? SeatId { get; set; }
 
+    // Groups several seats booked together as one logical reservation (drag across rows). Null for a
+    // single-seat booking. Members share this id so the group can be shown/managed as a unit.
+    public Guid? ReservationGroupId { get; set; }
+
     public string CustomerName { get; set; } = string.Empty;
 
     public string? PhoneNumber { get; set; }

@@ -217,11 +217,32 @@ function filterPlayers(query: string | null): ReturnType<typeof players> {
     || (digits.length > 0 && p.phoneNumber.replace(/\D/g, '').includes(digits)));
 }
 
+// Массовая бронь в превью: эхо успешного результата по seatId из тела (без конфликтов).
+function groupReservationResult(init?: RequestInit): unknown {
+  let req: Record<string, unknown> = {};
+  try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
+  const seatIds = Array.isArray(req.seatIds) ? (req.seatIds as string[]) : [];
+  const startsAtUtc = typeof req.startsAtUtc === 'string' ? req.startsAtUtc : todayAtUtc(12);
+  const groupId = 'grp-preview';
+  const reservations = seatIds.map((seatId, i) => ({
+    reservationId: `grp-${i}`, organizationId: ORG, branchId: BRANCH, reservationGroupId: groupId,
+    playerAccountId: (req.playerAccountId as string | null) ?? null, seatId, seatName: '', zoneName: '',
+    customerName: (req.customerName as string) ?? 'Группа', phoneNumber: (req.phoneNumber as string | null) ?? null,
+    startsAtUtc, endsAtUtc: startsAtUtc, durationMinutes: (req.durationMinutes as number) ?? 60,
+    state: 'confirmed', source: (req.source as string) ?? 'operator', note: (req.note as string) ?? '',
+    createdAtUtc: startsAtUtc, updatedAtUtc: startsAtUtc, cancelledAtUtc: null, cancelReason: ''
+  }));
+  return { reservationGroupId: groupId, reservations, conflicts: [] };
+}
+
 export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = new URL(String(input));
   const method = init?.method ?? 'GET';
   if (url.pathname.endsWith('/players') && method === 'GET') {
     return json(filterPlayers(url.searchParams.get('query')));
+  }
+  if (url.pathname.endsWith('/reservations/group') && method === 'POST') {
+    return json(groupReservationResult(init));
   }
   const matched = route(url.pathname, method);
   if (matched !== undefined) {

@@ -14,6 +14,30 @@ export interface CreateReservationRequest extends Record<string, unknown> {
   organizationId: Guid;
 }
 
+export interface CreateReservationGroupRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  playerAccountId?: Guid | null;
+  seatIds: Guid[];
+  customerName: string;
+  phoneNumber?: string | null;
+  startsAtUtc: string;
+  durationMinutes: number;
+  source: string;
+  note?: string | null;
+}
+
+export interface ReservationGroupConflictDto {
+  seatId: Guid;
+  reason: string;
+}
+
+// На 409 это же тело приходит в PlatformApiError.body (массовая бронь — all-or-nothing).
+export interface ReservationGroupResultDto {
+  reservationGroupId: Guid | null;
+  reservations: ReservationDto[];
+  conflicts: ReservationGroupConflictDto[];
+}
+
 export interface UpdateReservationRequest extends Record<string, unknown> {
   organizationId: Guid;
 }
@@ -38,6 +62,9 @@ export function createReservationClient(api: PlatformApiClient) {
     },
     create(branchId: Guid, request: CreateReservationRequest): Promise<ReservationDto> {
       return api.post<ReservationDto, CreateReservationRequest>(`/api/branches/${branchId}/reservations`, request);
+    },
+    createGroup(branchId: Guid, request: CreateReservationGroupRequest): Promise<ReservationGroupResultDto> {
+      return api.post<ReservationGroupResultDto, CreateReservationGroupRequest>(`/api/branches/${branchId}/reservations/group`, request);
     },
     update(reservationId: Guid, request: UpdateReservationRequest): Promise<ReservationDto> {
       return api.patch<ReservationDto, UpdateReservationRequest>(`/api/reservations/${reservationId}`, request);

@@ -19,7 +19,8 @@ public sealed record ReservationDto(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc,
     DateTimeOffset? CancelledAtUtc,
-    string CancelReason);
+    string CancelReason,
+    Guid? ReservationGroupId);
 
 public sealed record ReservationSearchResultDto(
     IReadOnlyList<ReservationDto> Reservations,
