@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
@@ -549,6 +550,19 @@ public sealed class EfReservationService(
             cancellationToken);
     }
 
+    // Auto-confirm gate for self-service bookings: the player has spendable funds (positive wallet,
+    // not in debt). Read-only on money — the hold/charge lifecycle is a separate deferred feature.
+    private async Task<bool> ShouldAutoConfirmOnlineAsync(Guid playerAccountId, CancellationToken cancellationToken)
+    {
+        var summary = await LedgerBalanceProjector.GetWalletSummaryAsync(dbContext, playerAccountId, cancellationToken);
+        if (summary is null)
+        {
+            return false;
+        }
+
+        return summary.WalletBalance.MinorUnits > 0 && summary.DebtBalance.MinorUnits <= 0;
+    }
+
     private async Task<ReservationEntity?> LoadForWriteAsync(
         Guid organizationId,
         Guid reservationId,
@@ -737,6 +751,10 @@ public sealed class EfReservationService(
         }
 
         var now = timeProvider.GetUtcNow();
+        // Auto-confirm self-service bookings when the player has funds (positive wallet, no debt):
+        // «free slot + has balance → book without operator». Otherwise stay Pending for operator
+        // review (the requests lane stays a fallback for funded-later / disputed cases).
+        var autoConfirm = await ShouldAutoConfirmOnlineAsync(playerAccountId, cancellationToken);
         var reservation = new ReservationEntity
         {
             ReservationId = Guid.NewGuid(),
@@ -748,8 +766,9 @@ public sealed class EfReservationService(
             PhoneNumber = account.PhoneNumber,
             StartsAtUtc = request.StartsAtUtc,
             EndsAtUtc = endsAtUtc,
-            // Online source → Pending state (same logic as CreateAsync)
-            State = ReservationStateNames.Pending,
+            State = autoConfirm
+                ? ReservationStateNames.Confirmed
+                : ReservationStateNames.Pending,
             Source = ReservationSourceNames.Online,
             Note = NormalizeText(request.Note),
             // Guid.Empty = self-service sentinel; no staff actor for online bookings.
