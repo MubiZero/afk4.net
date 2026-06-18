@@ -43,8 +43,6 @@ export interface ZoneRowGroup {
 }
 
 const HOUR_MS = 3_600_000;
-const MIN_SPAN_MS = 6 * HOUR_MS;
-const PAD_MS = 30 * 60_000;
 
 function bookingTone(state: string, source: string): BookingTone {
   if (state === 'cancelled') return 'cancelled';
@@ -94,32 +92,13 @@ function buildTicks(startMs: number, endMs: number): { ms: number; label: string
   return ticks;
 }
 
-export function computeAxis(items: BookingItem[], dayStartMs: number, nowMs: number): TimelineAxis {
-  const dayEndMs = dayStartMs + 24 * HOUR_MS;
-  const placed = items.filter((i) => i.state !== 'cancelled' && i.startMs > 0);
-
-  let start: number;
-  let end: number;
-  if (placed.length === 0) {
-    const center = Math.min(Math.max(nowMs, dayStartMs), dayEndMs);
-    start = center - HOUR_MS;
-    end = center + 5 * HOUR_MS;
-  } else {
-    start = Math.min(...placed.map((i) => i.startMs)) - PAD_MS;
-    end = Math.max(...placed.map((i) => i.endMs)) + PAD_MS;
-  }
-
-  start = Math.max(dayStartMs, start);
-  end = Math.min(dayEndMs, end);
-
-  if (end - start < MIN_SPAN_MS) {
-    const deficit = MIN_SPAN_MS - (end - start);
-    start = Math.max(dayStartMs, start - deficit / 2);
-    end = Math.min(dayEndMs, start + MIN_SPAN_MS);
-    start = Math.max(dayStartMs, end - MIN_SPAN_MS);
-  }
-
-  return { startMs: start, endMs: end, spanMs: end - start, ticks: buildTicks(start, end) };
+// Таймлайн всегда показывает полные сутки 00:00–24:00 по часам — стабильно и независимо от броней.
+// (items/nowMs больше не влияют на ось; параметры сохранены для совместимости вызова.)
+export function computeAxis(_items: BookingItem[], dayStartMs: number, _nowMs: number): TimelineAxis {
+  const startMs = dayStartMs;
+  const endMs = dayStartMs + 24 * HOUR_MS;
+  // endMs - 1, чтобы последняя засечка была 23:00, а не дублирующая 00:00 следующих суток у края.
+  return { startMs, endMs, spanMs: endMs - startMs, ticks: buildTicks(startMs, endMs - 1) };
 }
 
 function toBlock(item: BookingItem, axis: TimelineAxis): BookingBlock {

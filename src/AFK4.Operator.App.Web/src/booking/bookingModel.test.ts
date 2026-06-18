@@ -33,29 +33,31 @@ it('mapReservationsToItems: пустое имя → гость', () => {
   expect(items[0].customerName).toBe('Гость');
 });
 
-it('computeAxis: нет броней → окно вокруг now, минимум 6ч, в пределах суток', () => {
-  const now = day + 12 * HOUR;
-  const axis = computeAxis([], day, now);
-  expect(axis.endMs - axis.startMs).toBeGreaterThanOrEqual(6 * HOUR);
-  expect(axis.startMs).toBeGreaterThanOrEqual(day);
-  expect(axis.endMs).toBeLessThanOrEqual(day + 24 * HOUR);
-});
+it('computeAxis: всегда полные сутки 00:00–24:00, независимо от броней', () => {
+  const empty = computeAxis([], day, day + 12 * HOUR);
+  expect(empty.startMs).toBe(day);
+  expect(empty.endMs).toBe(day + 24 * HOUR);
+  expect(empty.spanMs).toBe(24 * HOUR);
 
-it('computeAxis: одна короткая бронь → диапазон расширен до минимума 6ч', () => {
+  // С бронями ось не меняется — те же сутки.
   const items = mapReservationsToItems([
     { reservationId: 'r1', startsAtUtc: new Date(day + 14 * HOUR).toISOString(), durationMinutes: 30 }
   ], 'Гость');
-  const axis = computeAxis(items, day, day + 10 * HOUR);
-  expect(axis.endMs - axis.startMs).toBeGreaterThanOrEqual(6 * HOUR);
+  const withItems = computeAxis(items, day, day + 10 * HOUR);
+  expect(withItems.startMs).toBe(day);
+  expect(withItems.endMs).toBe(day + 24 * HOUR);
 });
 
-it('computeAxis: ticks стоят на часовых границах внутри окна', () => {
+it('computeAxis: часовые засечки на все сутки, шагом в час', () => {
   const axis = computeAxis([], day, day + 12 * HOUR);
+  expect(axis.ticks.length).toBeGreaterThanOrEqual(23);
   for (const tick of axis.ticks) {
     expect(tick.ms).toBeGreaterThanOrEqual(axis.startMs);
     expect(tick.ms).toBeLessThanOrEqual(axis.endMs);
   }
-  expect(axis.ticks.length).toBeGreaterThan(0);
+  for (let i = 1; i < axis.ticks.length; i += 1) {
+    expect(axis.ticks[i].ms - axis.ticks[i - 1].ms).toBe(HOUR);
+  }
 });
 
 it('buildSeatRows: блок ложится на свою строку, %-позиция в [0,100]', () => {

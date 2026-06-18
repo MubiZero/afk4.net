@@ -397,17 +397,43 @@
   justify-content: flex-end;
 }
 
+/* Самодостаточная кнопка «+ Бронь» (раньше полагалась на базовый .screen-actions button,
+   из-за чего вне шапки выглядела сломанной). */
 .booking-create-action {
-  border-color: var(--border-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: none;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--border-accent);
+  border-radius: 6px;
   background: var(--surface-hover);
   color: var(--accent-bright);
+  font-size: 12px;
   font-weight: 600;
+  transition: border-color 100ms ease, background 100ms ease, transform 100ms ease;
 }
 
-.booking-create-action:hover,
+.booking-create-action:hover:not(:disabled),
 .booking-create-action:focus-visible {
   border-color: var(--border-accent);
   background: var(--surface-accent-soft);
+}
+
+.booking-create-action:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.booking-create-action:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.booking-create-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .state-strip {
@@ -452,6 +478,28 @@
 }
 
 .state-flag.critical strong {
+  color: var(--text-primary);
+}
+
+/* Тон «warning» — жёлтая точка-статус (напр. ждущие онлайн-заявки), в цвет их акцента. */
+.state-flag.warning {
+  border-color: var(--border-strong);
+  background: var(--surface-elevated);
+}
+
+.state-flag.warning::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--warning);
+  content: "";
+}
+
+.state-flag.warning span {
+  color: var(--text-secondary);
+}
+
+.state-flag.warning strong {
   color: var(--text-primary);
 }
 

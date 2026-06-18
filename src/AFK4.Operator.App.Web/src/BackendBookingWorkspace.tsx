@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import { createOperatorApiClients, type ReservationSearchResultDto } from './operatorApiClients';
@@ -11,12 +10,21 @@ import {
   addMinutes,
   createAuthenticatedOperatorClients,
   emptyFeedback,
-  problemTones,
+  projectPlayerClient,
   readArray,
   requireBackend,
   toDateInputValue,
-  toDateTimeInputValue
+  toDateTimeInputValue,
+  type PlayerClientItem
 } from './operatorHelpers';
+import { localPhoneDigits } from './phoneFormat';
+
+// Старт по умолчанию выравниваем по 15 мин, чтобы он совпадал с шагом дропдауна минут.
+function roundToQuarter(date: Date): Date {
+  const next = new Date(date);
+  next.setMinutes(Math.round(next.getMinutes() / 15) * 15, 0, 0);
+  return next;
+}
 import { FeedbackNotice, StateFlag } from './operatorPrimitives';
 import { useDeferredFlag } from './useDeferredFlag';
 import {
@@ -35,10 +43,12 @@ import type { SeatSummary } from './operatorData';
 export function BackendBookingWorkspace({
   floorMap,
   backend,
+  currencyCode,
   onOpenSeat
 }: {
   floorMap: OperatorFloorMapState;
   backend: OperatorBackendContext | null;
+  currencyCode: string;
   onOpenSeat: (seatId: string) => void;
 }) {
   const { t } = useI18n();
@@ -55,14 +65,26 @@ export function BackendBookingWorkspace({
   const [draft, setDraft] = useState<BookingDraft>({
     customerName: '',
     phoneNumber: '',
-    startsAt: toDateTimeInputValue(addMinutes(new Date(), 15)),
+    playerAccountId: '',
+    clientBalanceMinorUnits: null,
+    clientDebtMinorUnits: null,
+    startsAt: toDateTimeInputValue(roundToQuarter(addMinutes(new Date(), 15))),
     durationMinutes: 60,
     seatId: ''
   });
 
+  // Поиск клиента клуба для привязки брони к аккаунту (если есть право просмотра клиентов).
+  const searchClients = useCallback(async (query: string): Promise<PlayerClientItem[]> => {
+    if (backend === null || !hasPermission(backend.session, permissionNames.viewPlayers)) {
+      return [];
+    }
+    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+    const raw = await clients.players.searchPlayers(backend.branchId, query, 8);
+    return (Array.isArray(raw) ? raw : []).map((player) => projectPlayerClient(player, t));
+  }, [backend, t]);
+
   const readySeats = floorMap.seats.filter((seat) => seat.tone === 'ready' && !seat.activeSessionId);
   const activeSeats = floorMap.seats.filter((seat) => seat.tone === 'active' || seat.activeSessionId);
-  const problemSeats = floorMap.seats.filter((seat) => problemTones.has(seat.tone));
 
   const bookingFromUtc = `${toDateInputValue(selectedDate)}T00:00:00.000Z`;
   const bookingToUtc = `${toDateInputValue(selectedDate)}T23:59:59.999Z`;
@@ -120,12 +142,6 @@ export function BackendBookingWorkspace({
   const reservationBusy = feedback.state === 'pending';
   const canManageReservations = backend !== null && hasPermission(backend.session, permissionNames.manageReservations);
 
-  const loadLabel = loadStatus === 'backend'
-    ? t('op.booking.load.backend')
-    : loadStatus === 'loading'
-      ? t('op.booking.load.loading')
-      : t('op.booking.load.failed');
-
   const runReservationAction = async (
     label: string,
     operation: (clients: ReturnType<typeof createOperatorApiClients>) => Promise<unknown>,
@@ -164,11 +180,13 @@ export function BackendBookingWorkspace({
     }
 
     const seat = floorMap.seats.find((s) => s.id === seatId);
+    const localDigits = localPhoneDigits(draft.phoneNumber);
     return await clients.reservations.create(nextBackend.branchId, {
       organizationId: nextBackend.session.organizationId,
+      playerAccountId: draft.playerAccountId || null,
       seatId,
       customerName: draft.customerName.trim() || t('op.booking.guest'),
-      phoneNumber: draft.phoneNumber.trim() || null,
+      phoneNumber: localDigits ? `+992${localDigits}` : null,
       startsAtUtc: startsAt.toISOString(),
       durationMinutes: Math.max(15, draft.durationMinutes),
       source: 'operator',
@@ -211,28 +229,55 @@ export function BackendBookingWorkspace({
   });
 
   const openCreateDrawer = () => {
+    setFeedback(emptyFeedback);
     setDraft({
       customerName: '',
       phoneNumber: '',
-      startsAt: toDateTimeInputValue(addMinutes(new Date(), 15)),
+      playerAccountId: '',
+      clientBalanceMinorUnits: null,
+      clientDebtMinorUnits: null,
+      startsAt: toDateTimeInputValue(roundToQuarter(addMinutes(new Date(), 15))),
       durationMinutes: 60,
       seatId: readySeats[0]?.id ?? ''
     });
     setDrawerMode('create');
   };
 
-  const openCreateDrawerForCell = (seat: SeatSummary, startMs: number) => {
+  const openCreateDrawerForCell = (seat: SeatSummary, startMs: number, durationMinutes = 60) => {
+    setFeedback(emptyFeedback);
     setDraft({
       customerName: '',
       phoneNumber: '',
+      playerAccountId: '',
+      clientBalanceMinorUnits: null,
+      clientDebtMinorUnits: null,
       startsAt: toDateTimeInputValue(new Date(startMs)),
-      durationMinutes: 60,
+      durationMinutes,
       seatId: seat.id
     });
     setDrawerMode('create');
   };
 
+  const openDetailDrawer = (reservationId: string) => {
+    setFeedback(emptyFeedback);
+    setSelectedReservationId(reservationId);
+    setDrawerMode('detail');
+  };
+
   const selectedItem = items.find((i) => i.reservationId === selectedReservationId) ?? null;
+
+  // Подсветка выбранного интервала на таймлайне, пока открыто окно создания — следует за формой.
+  const previewStartMs = drawerMode === 'create' ? new Date(draft.startsAt).getTime() : Number.NaN;
+  const draftEndMs = previewStartMs + Math.max(15, draft.durationMinutes) * 60_000;
+  const previewBlock = drawerMode === 'create' && draft.seatId && Number.isFinite(previewStartMs)
+    ? { seatId: draft.seatId, startMs: previewStartMs, endMs: draftEndMs }
+    : null;
+
+  // Конфликт: бронь на это же место, пересекающаяся по времени (пред-проверка до отправки).
+  const conflict = drawerMode === 'create' && draft.seatId && Number.isFinite(previewStartMs)
+    ? items.find((item) => item.seatId === draft.seatId && item.state !== 'cancelled' && item.startMs < draftEndMs && previewStartMs < item.endMs) ?? null
+    : null;
+
   const dateLabel = toDateInputValue(selectedDate) === toDateInputValue(new Date())
     ? t('op.booking.dateNav.today')
     : new Date(selectedDate).toLocaleDateString('ru-RU', { day: '2-digit', month: 'long' });
@@ -241,38 +286,29 @@ export function BackendBookingWorkspace({
     <main className="workspace-screen booking-screen">
       <section className="screen-head booking-head">
         <div>
-          <span>{t('op.booking.eyebrow')}</span>
           <h1>{t('op.booking.title')}</h1>
-        </div>
-        <div className="screen-actions">
-          <div className="booking-date-nav">
-            <button type="button" aria-label={t('op.booking.dateNav.prev')} onClick={() => setSelectedDate((d) => addDays(d, -1))}>‹</button>
-            <strong>{dateLabel}</strong>
-            <button type="button" aria-label={t('op.booking.dateNav.next')} onClick={() => setSelectedDate((d) => addDays(d, 1))}>›</button>
-          </div>
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{loadLabel}</span>
-          <button type="button" className="booking-create-action" disabled={!canManageReservations} onClick={openCreateDrawer}><Plus size={14} />{t('op.booking.createBtn')}</button>
         </div>
       </section>
 
       <section className="state-strip booking-state-strip">
-        <StateFlag label={t('op.booking.strip.free')} value={String(readySeats.length)} />
         <StateFlag label={t('op.booking.strip.busy')} value={String(activeSeats.length)} />
-        <StateFlag label={t('op.booking.strip.problems')} value={String(problemSeats.length)} critical={problemSeats.length > 0} />
-        <StateFlag label={t('op.booking.strip.bookings')} value={String(items.length)} critical={loadStatus === 'failed'} />
-        <StateFlag label={t('op.booking.strip.requests')} value={String(requestCount)} critical={requestCount > 0} />
+        <StateFlag label={t('op.booking.strip.free')} value={String(readySeats.length)} />
+        <StateFlag label={t('op.booking.strip.requests')} value={String(requestCount)} tone={requestCount > 0 ? 'warning' : undefined} />
       </section>
 
       {loadStatus === 'failed' && (
         <FeedbackNotice feedback={{ label: t('op.booking.eyebrow'), state: 'failed', detail: loadError ?? t('op.booking.load.failed') }} />
       )}
 
+      {!drawerMode && <FeedbackNotice feedback={feedback} />}
+
       <BookingRequestsLane
         requests={requests}
         busy={reservationBusy}
         canManage={canManageReservations}
+        onCreate={openCreateDrawer}
         onAccept={(item) => confirmReservation(item.reservationId, t('op.booking.requests.acceptLabel', { client: item.customerName }))}
-        onClarify={(item) => { setSelectedReservationId(item.reservationId); setDrawerMode('detail'); }}
+        onClarify={(item) => openDetailDrawer(item.reservationId)}
       />
 
       <section className={`booking-layout${drawerMode ? ' with-drawer' : ''}`}>
@@ -284,7 +320,11 @@ export function BackendBookingWorkspace({
           showSkeleton={showSkeleton}
           selectedReservationId={selectedReservationId}
           branchName={floorMap.branchName}
-          onSelectBlock={(item) => { setSelectedReservationId(item.reservationId); setDrawerMode('detail'); }}
+          previewBlock={previewBlock}
+          dateLabel={dateLabel}
+          onPrevDay={() => setSelectedDate((d) => addDays(d, -1))}
+          onNextDay={() => setSelectedDate((d) => addDays(d, 1))}
+          onSelectBlock={(item) => openDetailDrawer(item.reservationId)}
           onCellCreate={openCreateDrawerForCell}
         />
 
@@ -293,10 +333,14 @@ export function BackendBookingWorkspace({
             mode={drawerMode}
             selected={selectedItem}
             freeSeats={readySeats}
+            allSeats={floorMap.seats}
             draft={draft}
             feedback={feedback}
             busy={reservationBusy}
             canManage={canManageReservations}
+            currencyCode={currencyCode}
+            conflict={conflict}
+            searchClients={searchClients}
             onClose={() => setDrawerMode(null)}
             onChangeDraft={(patch) => setDraft((d) => ({ ...d, ...patch }))}
             onCreate={createReservation}
