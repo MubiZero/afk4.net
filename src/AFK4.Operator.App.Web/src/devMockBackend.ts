@@ -95,14 +95,50 @@ function posProduct() {
   };
 }
 
-function reservation() {
+// Брони привязываем к «сегодня» (локальный день оператора): таймлайн строится вокруг текущей
+// даты, поэтому фикстуры на статичную дату оставляли бы превью брони вечно пустым.
+function todayAtUtc(hour: number, minute = 0): string {
+  const d = new Date();
+  d.setHours(hour, minute, 0, 0);
+  return d.toISOString();
+}
+
+function booking(
+  id: string,
+  startHour: number,
+  durationMinutes: number,
+  state: string,
+  source: string,
+  customerName: string,
+  phoneNumber: string,
+  seat: { id: string; name: string; zone: string } | null,
+  note: string
+) {
   return {
-    reservationId: 'r1', organizationId: ORG, branchId: BRANCH, playerAccountId: null,
-    seatId: 'a2', seatName: 'PC-02', zoneName: 'Зал A', customerName: 'Азиз П.', phoneNumber: '+992900000001',
-    startsAtUtc: '2026-05-21T16:00:00Z', endsAtUtc: '2026-05-21T17:00:00Z', durationMinutes: 60,
-    state: 'pending', source: 'online', note: 'онлайн-заявка', createdAtUtc: '2026-05-21T10:00:00Z',
-    updatedAtUtc: '2026-05-21T10:00:00Z', cancelledAtUtc: null, cancelReason: ''
+    reservationId: id, organizationId: ORG, branchId: BRANCH, playerAccountId: null,
+    seatId: seat?.id ?? '', seatName: seat?.name ?? '', zoneName: seat?.zone ?? '',
+    customerName, phoneNumber,
+    startsAtUtc: todayAtUtc(startHour), endsAtUtc: todayAtUtc(startHour, durationMinutes),
+    durationMinutes, state, source, note,
+    createdAtUtc: todayAtUtc(8), updatedAtUtc: todayAtUtc(8), cancelledAtUtc: null, cancelReason: ''
   };
+}
+
+// Набор на день: две онлайн-заявки без места (уходят в лейн «новых заявок») + размещённые брони
+// разных статусов на дорожках мест, чтобы превью показывало все тона таймлайна и drawer.
+function reservations() {
+  const pc01 = { id: 'a1', name: 'PC-01', zone: 'Зал A' };
+  const pc02 = { id: 'a2', name: 'PC-02', zone: 'Зал A' };
+  const pc06 = { id: 'a6', name: 'PC-06', zone: 'Зал A' };
+  const vip03 = { id: 'b3', name: 'VIP-03', zone: 'VIP' };
+  return [
+    booking('r1', 10, 90, 'seated', 'operator', 'Дилноза Х.', '+992900000001', pc06, 'посажена на место'),
+    booking('r2', 12, 120, 'confirmed', 'online', 'Азиз П.', '+992900000002', pc02, 'онлайн-заявка, подтверждена'),
+    booking('r3', 14, 60, 'pending', 'online', 'Камрон Р.', '+992900000003', null, 'онлайн-заявка'),
+    booking('r4', 16, 90, 'pending', 'online', 'Сабина М.', '+992900000004', null, 'онлайн-заявка, ждёт места'),
+    booking('r5', 18, 60, 'confirmed', 'operator', 'Фаррух Н.', '+992900000005', vip03, 'бронь оператора'),
+    booking('r6', 20, 60, 'pending', 'operator', 'Шерзод Б.', '+992900000006', pc01, 'предварительная бронь')
+  ];
 }
 
 // Деталь устройства для «Статус ПК»: machineName опускаем — описатель подставит имя места,
@@ -134,7 +170,7 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/dashboard/summary')) return dashboardSummary();
   if (pathname.endsWith('/shifts/current')) return currentShift();
   if (pathname.endsWith('/pos/catalog')) return [posProduct()];
-  if (pathname.endsWith('/reservations') && method === 'GET') return { reservations: [reservation()], limit: 40 };
+  if (pathname.endsWith('/reservations') && method === 'GET') return { reservations: reservations(), limit: 40 };
   if (pathname.endsWith('/inventory/stock-movements') && method === 'GET') return [];
   if (pathname.endsWith('/commands') && method === 'GET') return [];
   if (pathname.endsWith('/diagnostics') && method === 'GET') return diagnostics();
@@ -142,9 +178,32 @@ function route(pathname: string, method: string): unknown | undefined {
   return undefined;
 }
 
+// Клиенты клуба для поиска в брони/POS: фильтр по имени или цифрам телефона.
+function players() {
+  return [
+    { playerAccountId: 'pl-1', displayName: 'Фариза Назарова', phoneNumber: '+992 93 100 20 30', walletBalanceMinorUnits: 45000, debtBalanceMinorUnits: 0, activePackageCount: 1, isActive: true },
+    { playerAccountId: 'pl-2', displayName: 'Азиз Пиров', phoneNumber: '+992 90 555 22 11', walletBalanceMinorUnits: 12000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true },
+    { playerAccountId: 'pl-3', displayName: 'Мадина Саидова', phoneNumber: '+992 98 700 11 22', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 3500, activePackageCount: 0, isActive: true },
+    { playerAccountId: 'pl-4', displayName: 'Камрон Рахимов', phoneNumber: '+992 92 333 44 55', walletBalanceMinorUnits: 8000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true },
+    { playerAccountId: 'pl-5', displayName: 'Дилноза Холова', phoneNumber: '+992 91 222 33 44', walletBalanceMinorUnits: 26000, debtBalanceMinorUnits: 0, activePackageCount: 2, isActive: true }
+  ];
+}
+
+function filterPlayers(query: string | null): ReturnType<typeof players> {
+  const q = (query ?? '').trim().toLowerCase();
+  if (!q) return players();
+  const digits = q.replace(/\D/g, '');
+  return players().filter((p) =>
+    p.displayName.toLowerCase().includes(q)
+    || (digits.length > 0 && p.phoneNumber.replace(/\D/g, '').includes(digits)));
+}
+
 export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = new URL(String(input));
   const method = init?.method ?? 'GET';
+  if (url.pathname.endsWith('/players') && method === 'GET') {
+    return json(filterPlayers(url.searchParams.get('query')));
+  }
   const matched = route(url.pathname, method);
   if (matched !== undefined) {
     return json(matched);
