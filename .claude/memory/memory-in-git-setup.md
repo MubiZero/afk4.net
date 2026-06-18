@@ -1,26 +1,18 @@
 ---
 name: memory-in-git-setup
-description: Project memory is version-controlled in the repo via a directory junction; how it works and how to set it up on a new device
+description: Память проекта версионируется в гите через симлинк/junction на <repo>/.claude/memory
 metadata: 
   node_type: memory
   type: reference
   originSessionId: 6262e69c-029c-4aaa-9867-0fb5498c555f
 ---
 
-Память проекта **версионируется в гите**, а не только в `~/.claude`. Сделано 2026-06-15.
+Память проекта **версионируется в гите**: живёт в `<repo>/.claude/memory/` (git-tracked). Живая папка Claude `~/.claude/projects/<mangled>/memory` — симлинк/junction на неё, поэтому всё, что Claude пишет, физически лежит в репо и коммитится обычным `git add .claude/memory`.
 
-**Как устроено:**
-- В репо память живёт в `<repo>/.claude/memory/` (трекается гитом).
-- `.gitignore` игнорит `.claude/*` и вложенные `**/.claude/`, но **re-include**'ит корневую память: `!/.claude/memory/` + `!/.claude/memory/**` (плюс `!/.claude/` чтобы перебить `**/.claude/`). Если новые файлы памяти «молча не коммитятся» — проверь, что эти строки на месте и идут ПОСЛЕ `**/.claude/`.
-- Живая папка Claude `~/.claude/projects/<mangled-repo-path>/memory` — это **directory junction** на `<repo>/.claude/memory`. Поэтому всё, что Claude пишет в память, физически лежит в репо и попадает в гит как обычные файлы.
-- На этом устройстве: `<mangled-repo-path>` = `D--afk4-net` (из `D:\afk4.net`).
+**`.gitignore`**: игнор `.claude/*` + `**/.claude/`, но re-include корневой памяти — `!/.claude/` + `!/.claude/memory/` + `!/.claude/memory/**` ПОСЛЕ `**/.claude/`. Если новый файл «молча не коммитится» — проверь эти строки.
 
-**Новое устройство (одноразово):** `git clone`, затем (PowerShell, без админа; имя папки проекта = `<диск>--<путь>`, Claude создаёт её при первом запуске в проекте):
-```powershell
-$live="$HOME\.claude\projects\<mangled>\memory"
-Remove-Item -Recurse -Force $live   # если Claude уже создал пустую
-New-Item -ItemType Junction -Path $live -Target "<repo>\.claude\memory"
-```
-Сделай junction ДО активной работы, иначе память раздвоится (часть в репо, часть в пустой живой папке).
+**Новое устройство (одноразово, ДО активной работы — иначе раздвоение):** `git clone`, затем заменить пустую живую папку ссылкой на репо-память.
+- **WSL/Linux** (репо `/home/<u>/projects/afk4.net`, mangled `-home-<u>-projects-afk4-net`): `rm -rf $live && ln -s <repo>/.claude/memory $live`.
+- **Windows** (репо `D:\afk4.net`, mangled `D--afk4-net`): PowerShell `New-Item -ItemType Junction -Path $live -Target <repo>\.claude\memory`.
 
-**Коммит памяти:** обычными `git add .claude/memory && git commit`. Дрейфа нет — источник один.
+Работа идёт с обеих машин (Windows native + WSL); junction настроен на каждой.
