@@ -28,7 +28,7 @@ export function BookingTimeline({
   showSkeleton: boolean;
   selectedReservationId: string;
   branchName: string;
-  previewBlock: { seatId: string; startMs: number; endMs: number } | null;
+  previewBlock: { seatIds: string[]; startMs: number; endMs: number } | null;
   dateLabel: string;
   onPrevDay: () => void;
   onNextDay: () => void;
@@ -185,11 +185,13 @@ export function BookingTimeline({
         return { seatIds: new Set(seats.map((seat) => seat.id)), labelSeatId: seats[0]?.id ?? null, left, width: pctOf(hi) - left, label: `${hhmm(lo)} – ${hhmm(hi)}` };
       })()
     : null;
-  const preview = previewBlock && Number.isFinite(previewBlock.startMs) && Number.isFinite(previewBlock.endMs)
+  const preview = previewBlock && previewBlock.seatIds.length > 0 && Number.isFinite(previewBlock.startMs) && Number.isFinite(previewBlock.endMs)
     ? (() => {
         const left = Math.min(100, Math.max(0, pctOf(previewBlock.startMs)));
         const right = Math.min(100, Math.max(0, pctOf(previewBlock.endMs)));
-        return { seatId: previewBlock.seatId, left, width: Math.max(0.6, right - left), label: `${hhmm(previewBlock.startMs)} – ${hhmm(previewBlock.endMs)}` };
+        const ids = new Set(previewBlock.seatIds);
+        const labelSeatId = flatSeats.find((seat) => ids.has(seat.id))?.id ?? null;
+        return { seatIds: ids, labelSeatId, left, width: Math.max(0.6, right - left), label: `${hhmm(previewBlock.startMs)} – ${hhmm(previewBlock.endMs)}` };
       })()
     : null;
 
@@ -291,9 +293,9 @@ export function BookingTimeline({
                       {row.seat.id === ghost.labelSeatId && <span>{ghost.label}</span>}
                     </div>
                   )}
-                  {!ghost && preview && preview.seatId === row.seat.id && (
-                    <div className="booking-ghost preview" style={{ left: `${preview.left}%`, width: `${preview.width}%` }}>
-                      <span>{preview.label}</span>
+                  {!ghost && preview && preview.seatIds.has(row.seat.id) && (
+                    <div className={`booking-ghost preview${preview.seatIds.size > 1 ? ' group' : ''}`} style={{ left: `${preview.left}%`, width: `${preview.width}%` }}>
+                      {row.seat.id === preview.labelSeatId && <span>{preview.label}</span>}
                     </div>
                   )}
                 </div>

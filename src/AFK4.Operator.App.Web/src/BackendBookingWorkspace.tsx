@@ -404,8 +404,10 @@ export function BackendBookingWorkspace({
   // Подсветка выбранного интервала на таймлайне, пока открыто окно создания — следует за формой.
   const previewStartMs = drawerMode === 'create' ? new Date(draft.startsAt).getTime() : Number.NaN;
   const draftEndMs = previewStartMs + Math.max(15, draft.durationMinutes) * 60_000;
-  const previewBlock = drawerMode === 'create' && draft.seatId && Number.isFinite(previewStartMs)
-    ? { seatId: draft.seatId, startMs: previewStartMs, endMs: draftEndMs }
+  // Места для персистентной подсветки: групповой режим — весь набор, одиночный — одно место.
+  const previewSeatIds = draft.seatIds.length > 0 ? draft.seatIds : (draft.seatId ? [draft.seatId] : []);
+  const previewBlock = drawerMode === 'create' && previewSeatIds.length > 0 && Number.isFinite(previewStartMs)
+    ? { seatIds: previewSeatIds, startMs: previewStartMs, endMs: draftEndMs }
     : null;
 
   // Конфликт: бронь на это же место, пересекающаяся по времени (пред-проверка до отправки).

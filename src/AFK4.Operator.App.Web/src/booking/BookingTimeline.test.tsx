@@ -21,7 +21,7 @@ const groups: ZoneRowGroup[] = [{ zone: 'Зал A', rows: [{ seat: seat(), block
 
 function renderTimeline(
   onCellCreate: (seat: SeatSummary, startMs: number, durationMinutes?: number) => void,
-  previewBlock: { seatId: string; startMs: number; endMs: number } | null = null
+  previewBlock: { seatIds: string[]; startMs: number; endMs: number } | null = null
 ) {
   const result = render(
     <I18nProvider>
@@ -79,7 +79,7 @@ describe('BookingTimeline drag-to-create', () => {
   });
 
   it('держит персистентную подсветку выбранного интервала', () => {
-    const track = renderTimeline(() => {}, { seatId: 'a3', startMs: 2 * 3_600_000, endMs: 3 * 3_600_000 });
+    const track = renderTimeline(() => {}, { seatIds: ['a3'], startMs: 2 * 3_600_000, endMs: 3 * 3_600_000 });
     const preview = track.querySelector('.booking-ghost.preview');
     expect(preview).not.toBeNull();
     expect(preview?.textContent).toContain('–');
@@ -115,5 +115,27 @@ describe('BookingTimeline drag-to-create', () => {
     expect(onSeatsCreate).toHaveBeenCalledTimes(1);
     const [seats] = onSeatsCreate.mock.calls[0];
     expect(seats.map((s) => s.id)).toEqual(['a1', 'a2']);
+  });
+
+  it('персистентная подсветка массовой брони покрывает все её строки', () => {
+    const seatA: SeatSummary = { ...seat(), id: 'a1', name: 'PC-01' };
+    const seatB: SeatSummary = { ...seat(), id: 'a2', name: 'PC-02' };
+    const twoRows: ZoneRowGroup[] = [{ zone: 'Зал A', rows: [
+      { seat: seatA, blocks: [], sessions: [] },
+      { seat: seatB, blocks: [], sessions: [] }
+    ] }];
+    const result = render(
+      <I18nProvider>
+        <BookingTimeline
+          groups={twoRows} axis={axis} nowMs={-1} loading={false} showSkeleton={false}
+          selectedReservationId="" branchName="AFK4"
+          previewBlock={{ seatIds: ['a1', 'a2'], startMs: 2 * 3_600_000, endMs: 3 * 3_600_000 }}
+          dateLabel="Сегодня" onPrevDay={() => {}} onNextDay={() => {}} onSelectBlock={() => {}}
+          onCellCreate={() => {}} onSeatsCreate={() => {}}
+        />
+      </I18nProvider>
+    );
+    // Призрак-preview на каждой из двух строк группы (раньше показывался только на одной).
+    expect(result.container.querySelectorAll('.booking-ghost.preview').length).toBe(2);
   });
 });
