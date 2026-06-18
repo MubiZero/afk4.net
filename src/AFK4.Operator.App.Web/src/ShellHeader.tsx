@@ -41,6 +41,7 @@ export function ShellHeader({
         <span>{shiftText}</span>
       </div>
       <TitlebarControls />
+      <span className="titlebar-separator" aria-hidden="true" />
       <WindowControls />
     </header>
   );

@@ -8,7 +8,9 @@
   grid-template-columns: 74px minmax(0, 1fr) var(--shell-context-col, minmax(260px, 292px));
   grid-template-rows: 46px minmax(0, 1fr) 26px;
   background: var(--surface-canvas);
-  --shell-context-strip: 36px;
+  /* Высота тулбара карты (.map-header) — единый источник: по ней же правый context-zone опускает
+     карточку вровень с доской зала. Меняешь шапку — правь это число, отступ панели едет сам. */
+  --map-toolbar-h: 38px;
 }
 
 .window-resize-handles {
@@ -126,15 +128,22 @@
   letter-spacing: 0.04em;
 }
 
+/* One hairline separator, reused in both titlebar corners: the brand wordmark divider (here) and the
+   app-controls / window-controls divider on the right (.titlebar-separator) share this line spec —
+   change it once, both corners follow. */
+.brand-block span::before,
+.titlebar-separator {
+  width: 1px;
+  height: 16px;
+  background: var(--border-strong);
+}
+
 .brand-block span::before {
   content: "";
   position: absolute;
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  width: 1px;
-  height: 16px;
-  background: var(--border-strong);
 }
 
 .command-search {
@@ -206,11 +215,18 @@
   font-weight: 600;
 }
 
+/* Divides the app controls (language/theme) from the OS window controls (min/max/close). Line spec
+   (1px hairline) is shared with the brand divider above; here we only add flex behaviour + a small
+   left nudge toward the window controls (whose icons are inset in wider hit-targets). */
+.titlebar-separator {
+  flex: none;
+  margin-left: 8px;
+}
+
 .window-controls {
   display: flex;
   align-items: center;
   gap: 2px;
-  margin-left: 4px;
 }
 
 .window-controls button {

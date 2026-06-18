@@ -140,6 +140,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.settings.updates.channel',
     'op.settings.updates.version',
     'op.settings.updates.versionFallback',
+    'op.shell.account',
     'op.shell.appName',
     'op.shell.nav.dashboard',
     'op.shell.platform',

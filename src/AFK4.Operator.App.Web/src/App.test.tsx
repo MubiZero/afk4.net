@@ -101,6 +101,8 @@ describe('App', () => {
     expect(screen.getByText(/^(за|раз)блокирован$/)).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /15 мин/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Свернуть' })).toBeInTheDocument();
+    // Имя оператора из восстановленной сессии живёт в меню аккаунта (рейл показывает ярлык «Аккаунт»).
+    fireEvent.click(screen.getByRole('button', { name: 'Мой аккаунт' }));
     expect(screen.getByText(/Оператор смены/)).toBeInTheDocument();
   });
 

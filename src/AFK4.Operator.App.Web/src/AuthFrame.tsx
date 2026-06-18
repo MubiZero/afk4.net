@@ -21,6 +21,7 @@ export function AuthFrame({ children }: { children: ReactNode }) {
         </div>
         <div className="auth-titlebar-controls">
           <TitlebarControls />
+          <span className="titlebar-separator" aria-hidden="true" />
           <WindowControls />
         </div>
       </header>

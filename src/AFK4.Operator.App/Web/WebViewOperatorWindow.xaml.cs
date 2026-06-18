@@ -81,6 +81,72 @@ public partial class WebViewOperatorWindow : Window
         StatusText.Text = localization.T("operator.host.loading");
     }
 
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        ApplyModernWindowChrome(handle);
+
+        // Borderless (WindowStyle=None) windows maximize to the full monitor rect plus the invisible
+        // resize border, so they spill ~8px off every screen edge (content clipped) and cover the
+        // taskbar. Clamp the maximized bounds to the monitor work area via WM_GETMINMAXINFO.
+        HwndSource.FromHwnd(handle)?.AddHook(WindowProc);
+    }
+
+    // Borderless windows lose the OS-managed rounded corners, drop shadow and crisp edge. Faking
+    // corners with a XAML CornerRadius leaves the real window pixels square (dark corner triangles +
+    // no shadow), so let DWM round/clip the whole window — including the WebView2 child — and draw a
+    // 1px contour. No-ops on pre-Win11; failures are intentionally ignored.
+    private static void ApplyModernWindowChrome(IntPtr handle)
+    {
+        var cornerPreference = DwmwcpRound;
+        DwmSetWindowAttribute(handle, DwmwaWindowCornerPreference, ref cornerPreference, sizeof(int));
+
+        var borderColor = ContourBorderColor;
+        DwmSetWindowAttribute(handle, DwmwaBorderColor, ref borderColor, sizeof(int));
+    }
+
+    private IntPtr WindowProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WmGetMinMaxInfo)
+        {
+            ClampMaximizedToWorkArea(hwnd, lParam);
+            handled = true;
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private static void ClampMaximizedToWorkArea(IntPtr hwnd, IntPtr lParam)
+    {
+        var monitor = MonitorFromWindow(hwnd, MonitorDefaultToNearest);
+        if (monitor == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var monitorInfo = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+        if (!GetMonitorInfo(monitor, ref monitorInfo))
+        {
+            return;
+        }
+
+        var info = Marshal.PtrToStructure<MinMaxInfo>(lParam);
+        var work = monitorInfo.WorkArea;
+        var bounds = monitorInfo.MonitorArea;
+        info.MaxPosition.X = work.Left - bounds.Left;
+        info.MaxPosition.Y = work.Top - bounds.Top;
+        info.MaxSize.X = work.Right - work.Left;
+        info.MaxSize.Y = work.Bottom - work.Top;
+        Marshal.StructureToPtr(info, lParam, true);
+    }
+
     protected override async void OnContentRendered(EventArgs e)
     {
         base.OnContentRendered(e);
@@ -388,6 +454,62 @@ public partial class WebViewOperatorWindow : Window
             tokenStore,
             connectionStore);
     }
+
+    // DWM window-attribute ids (Windows 11 22000+): 33 = corner preference, 34 = border colour.
+    private const int DwmwaWindowCornerPreference = 33;
+    private const int DwmwaBorderColor = 34;
+    private const int DwmwcpRound = 2;
+
+    // COLORREF is 0x00BBGGRR. #1B2330 — a dim neutral barely above the #0E1117 surface, so the edge
+    // reads as a thin grain rather than a bright frame.
+    private const int ContourBorderColor = 0x0030231B;
+
+    private const int WmGetMinMaxInfo = 0x0024;
+    private const int MonitorDefaultToNearest = 0x00000002;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativePoint
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeRect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MinMaxInfo
+    {
+        public NativePoint Reserved;
+        public NativePoint MaxSize;
+        public NativePoint MaxPosition;
+        public NativePoint MinTrackSize;
+        public NativePoint MaxTrackSize;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MonitorInfo
+    {
+        public int Size;
+        public NativeRect MonitorArea;
+        public NativeRect WorkArea;
+        public uint Flags;
+    }
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int valueSize);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, int flags);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MonitorInfo monitorInfo);
 
     [DllImport("user32.dll")]
     private static extern bool ReleaseCapture();
