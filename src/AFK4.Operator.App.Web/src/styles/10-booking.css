@@ -580,6 +580,66 @@
   background: rgba(var(--accent-rgb), 0.1);
 }
 
+/* Выбор нескольких строк (массовая бронь) — сплошная рамка на каждой захваченной дорожке. */
+.booking-ghost.group {
+  border-style: solid;
+}
+
+/* ── Чипы выбранных мест в окне массовой брони ───────────────────────────────── */
+.booking-seat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.booking-seat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 4px 0 9px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Конфликтное место (вернулось 409) — красный кант, не пропадает, оператор сам его убирает. */
+.booking-seat-chip.is-conflict {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.booking-seat-chip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-tertiary);
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.booking-seat-chip button:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text-strong);
+}
+
+.booking-seat-chip.is-conflict button {
+  color: var(--danger);
+}
+
+.booking-seat-chip button:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 1px;
+}
+
 /* ── Блок брони (кнопка на дорожке) ──────────────────────────────────────── */
 .booking-block {
   /* Один цвет состояния на блок: левый кант + ободок фокуса/выделения. Ховер/выбор красят

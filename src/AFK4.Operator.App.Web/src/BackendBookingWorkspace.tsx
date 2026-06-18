@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import { createOperatorApiClients, type ReservationSearchResultDto, type SessionTimelineResult } from './operatorApiClients';
+import { PlatformApiError } from './platformApi';
 import type { OperatorFloorMapState } from './floorMapState';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
 import { hasPermission, permissionNames } from './operatorPermissions';
@@ -73,8 +74,10 @@ export function BackendBookingWorkspace({
     clientDebtMinorUnits: null,
     startsAt: toDateTimeInputValue(roundToQuarter(addMinutes(new Date(), 15))),
     durationMinutes: 60,
-    seatId: ''
+    seatId: '',
+    seatIds: []
   });
+  const [groupConflicts, setGroupConflicts] = useState<Set<string>>(new Set());
 
   // Поиск клиента клуба для привязки брони к аккаунту (если есть право просмотра клиентов).
   const searchClients = useCallback(async (query: string): Promise<PlayerClientItem[]> => {
@@ -225,6 +228,58 @@ export function BackendBookingWorkspace({
     });
   }, () => setDrawerMode(null));
 
+  // Массовая бронь: один групповой вызов на набор мест. На 409 (хотя бы один ПК занят) — сервер
+  // ничего не пишет и возвращает список конфликтных мест; подсвечиваем их в окне, drawer не закрываем.
+  const createGroupReservation = async () => {
+    const label = t('op.booking.create.submitGroup', { count: draft.seatIds.length });
+    setFeedback({ label, state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend, t);
+      if (!hasPermission(nextBackend.session, permissionNames.manageReservations)) {
+        throw new Error(t('op.booking.error.noPermission'));
+      }
+      if (draft.seatIds.length === 0) {
+        throw new Error(t('op.booking.error.noFreeSeat'));
+      }
+      const startsAt = new Date(draft.startsAt);
+      if (Number.isNaN(startsAt.getTime())) {
+        throw new Error(t('op.booking.error.invalidStart'));
+      }
+      if (startsAt.getTime() < Date.now() - 60000) {
+        throw new Error(t('op.booking.error.startPassed'));
+      }
+      const localDigits = localPhoneDigits(draft.phoneNumber);
+      const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      await clients.reservations.createGroup(nextBackend.branchId, {
+        organizationId: nextBackend.session.organizationId,
+        playerAccountId: draft.playerAccountId || null,
+        seatIds: draft.seatIds,
+        customerName: draft.customerName.trim() || t('op.booking.guest'),
+        phoneNumber: localDigits ? `+992${localDigits}` : null,
+        startsAtUtc: startsAt.toISOString(),
+        durationMinutes: Math.max(15, draft.durationMinutes),
+        source: 'operator',
+        note: t('op.booking.note.group', { count: draft.seatIds.length })
+      });
+      setGroupConflicts(new Set());
+      setFeedback({ label, state: 'confirmed' });
+      setReloadVersion((v) => v + 1);
+      setDrawerMode(null);
+    } catch (error) {
+      if (error instanceof PlatformApiError && error.status === 409) {
+        try {
+          const body = JSON.parse(error.body) as { conflicts?: Array<{ seatId: string }> };
+          setGroupConflicts(new Set((body.conflicts ?? []).map((c) => c.seatId)));
+          setFeedback({ label, state: 'failed', detail: t('op.booking.group.conflict') });
+          return;
+        } catch {
+          // тело не разобрать — падаем в общий обработчик ниже
+        }
+      }
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
+    }
+  };
+
   const confirmReservation = (reservationId: string, label: string) => runReservationAction(label, async (clients) => {
     const nextBackend = requireBackend(backend, t);
     return await clients.reservations.confirm(reservationId, { organizationId: nextBackend.session.organizationId });
@@ -261,6 +316,7 @@ export function BackendBookingWorkspace({
 
   const openCreateDrawer = () => {
     setFeedback(emptyFeedback);
+    setGroupConflicts(new Set());
     setDraft({
       customerName: '',
       phoneNumber: '',
@@ -269,13 +325,15 @@ export function BackendBookingWorkspace({
       clientDebtMinorUnits: null,
       startsAt: toDateTimeInputValue(roundToQuarter(addMinutes(new Date(), 15))),
       durationMinutes: 60,
-      seatId: readySeats[0]?.id ?? ''
+      seatId: readySeats[0]?.id ?? '',
+      seatIds: []
     });
     setDrawerMode('create');
   };
 
   const openCreateDrawerForCell = (seat: SeatSummary, startMs: number, durationMinutes = 60) => {
     setFeedback(emptyFeedback);
+    setGroupConflicts(new Set());
     setDraft({
       customerName: '',
       phoneNumber: '',
@@ -284,9 +342,38 @@ export function BackendBookingWorkspace({
       clientDebtMinorUnits: null,
       startsAt: toDateTimeInputValue(new Date(startMs)),
       durationMinutes,
-      seatId: seat.id
+      seatId: seat.id,
+      seatIds: []
     });
     setDrawerMode('create');
+  };
+
+  // Протягивание по нескольким строкам → массовая (групповая) бронь: окно создания с набором мест.
+  const openGroupDrawer = (seats: SeatSummary[], startMs: number, durationMinutes: number) => {
+    setFeedback(emptyFeedback);
+    setGroupConflicts(new Set());
+    setDraft({
+      customerName: '',
+      phoneNumber: '',
+      playerAccountId: '',
+      clientBalanceMinorUnits: null,
+      clientDebtMinorUnits: null,
+      startsAt: toDateTimeInputValue(new Date(startMs)),
+      durationMinutes,
+      seatId: '',
+      seatIds: seats.map((seat) => seat.id)
+    });
+    setDrawerMode('create');
+  };
+
+  const removeGroupSeat = (seatId: string) => {
+    setDraft((d) => ({ ...d, seatIds: d.seatIds.filter((id) => id !== seatId) }));
+    setGroupConflicts((prev) => {
+      if (!prev.has(seatId)) return prev;
+      const next = new Set(prev);
+      next.delete(seatId);
+      return next;
+    });
   };
 
   const openDetailDrawer = (reservationId: string) => {
@@ -354,6 +441,7 @@ export function BackendBookingWorkspace({
           onNextDay={() => setSelectedDate((d) => addDays(d, 1))}
           onSelectBlock={(item) => openDetailDrawer(item.reservationId)}
           onCellCreate={openCreateDrawerForCell}
+          onSeatsCreate={openGroupDrawer}
         />
 
         {drawerMode && (
@@ -368,10 +456,13 @@ export function BackendBookingWorkspace({
             canManage={canManageReservations}
             currencyCode={currencyCode}
             conflict={conflict}
+            groupConflicts={groupConflicts}
             searchClients={searchClients}
             onClose={() => setDrawerMode(null)}
             onChangeDraft={(patch) => setDraft((d) => ({ ...d, ...patch }))}
             onCreate={createReservation}
+            onCreateGroup={createGroupReservation}
+            onRemoveSeat={removeGroupSeat}
             onSeat={seatReservation}
             onMove={moveReservation}
             onCancel={cancelReservation}

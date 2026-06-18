@@ -12,13 +12,14 @@ const SNAP_MS = 15 * 60_000;
 const CLICK_THRESHOLD_MS = 5 * 60_000;
 
 interface DragState {
-  seat: SeatSummary;
+  anchorSeatId: string;
+  currentSeatId: string;
   anchorMs: number;
   currentMs: number;
 }
 
 export function BookingTimeline({
-  groups, axis, nowMs, loading, showSkeleton, selectedReservationId, branchName, previewBlock, dateLabel, onPrevDay, onNextDay, onSelectBlock, onCellCreate
+  groups, axis, nowMs, loading, showSkeleton, selectedReservationId, branchName, previewBlock, dateLabel, onPrevDay, onNextDay, onSelectBlock, onCellCreate, onSeatsCreate
 }: {
   groups: ZoneRowGroup[];
   axis: TimelineAxis;
@@ -33,6 +34,7 @@ export function BookingTimeline({
   onNextDay: () => void;
   onSelectBlock: (item: BookingItem) => void;
   onCellCreate: (seat: SeatSummary, startMs: number, durationMinutes?: number) => void;
+  onSeatsCreate: (seats: SeatSummary[], startMs: number, durationMinutes: number) => void;
 }) {
   const { t } = useI18n();
   const hasRows = groups.some((g) => g.rows.length > 0);
@@ -40,8 +42,13 @@ export function BookingTimeline({
     ? ((nowMs - axis.startMs) / axis.spanMs) * 100
     : null;
 
+  // Плоский порядок мест (через все залы) — для выбора диапазона строк протягиванием по вертикали.
+  const flatSeats = groups.flatMap((g) => g.rows.map((r) => r.seat));
+  const seatIndex = new Map(flatSeats.map((seat, i) => [seat.id, i] as const));
+
   const [drag, setDrag] = useState<DragState | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const rowEls = useRef<Map<string, HTMLElement>>(new Map());
   const dragRef = useRef<DragState | null>(null);
   const draggedRef = useRef(false); // только что было протягивание — хвостовой click надо погасить
   dragRef.current = drag;
@@ -71,6 +78,28 @@ export function BookingTimeline({
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
 
+  // Какая строка под курсором по вертикали: попадание в трек, иначе ближайший по расстоянию
+  // (курсор в шапке зала или промежутке между залами — тянемся к ближайшему месту).
+  const seatIdAtClientY = (clientY: number): string | null => {
+    let nearestId: string | null = null;
+    let nearestGap = Infinity;
+    for (const [id, el] of rowEls.current) {
+      const rect = el.getBoundingClientRect();
+      if (clientY >= rect.top && clientY <= rect.bottom) return id;
+      const gap = clientY < rect.top ? rect.top - clientY : clientY - rect.bottom;
+      if (gap < nearestGap) { nearestGap = gap; nearestId = id; }
+    }
+    return nearestId;
+  };
+
+  // Места выбранного протягиванием диапазона строк (от якоря до текущей, в плоском порядке).
+  const seatsInRange = (state: DragState): SeatSummary[] => {
+    const a = seatIndex.get(state.anchorSeatId);
+    const b = seatIndex.get(state.currentSeatId);
+    if (a === undefined || b === undefined) return [];
+    return flatSeats.slice(Math.min(a, b), Math.max(a, b) + 1);
+  };
+
   const moved = drag !== null && Math.abs(drag.currentMs - drag.anchorMs) >= CLICK_THRESHOLD_MS;
 
   // Подпись-тултип сессии: кто играет + признак открытой (без конца).
@@ -87,7 +116,7 @@ export function BookingTimeline({
     draggedRef.current = false; // новый жест — сбрасываем гаситель клика
     trackRef.current = event.currentTarget;
     const ms = msFromClientX(event.currentTarget, event.clientX);
-    setDrag({ seat, anchorMs: ms, currentMs: ms });
+    setDrag({ anchorSeatId: seat.id, currentSeatId: seat.id, anchorMs: ms, currentMs: ms });
   };
 
   // Клик по дорожке создаёт бронь по умолчанию (60 мин). После настоящего протягивания
@@ -102,7 +131,9 @@ export function BookingTimeline({
     const onMove = (e: MouseEvent): void => {
       const track = trackRef.current;
       if (!track) return;
-      setDrag((d) => (d ? { ...d, currentMs: msFromClientX(track, e.clientX) } : d));
+      const ms = msFromClientX(track, e.clientX);
+      const overSeatId = seatIdAtClientY(e.clientY);
+      setDrag((d) => (d ? { ...d, currentMs: ms, currentSeatId: overSeatId ?? d.currentSeatId } : d));
     };
     const onUp = (): void => {
       const d = dragRef.current;
@@ -115,7 +146,15 @@ export function BookingTimeline({
       draggedRef.current = true; // настоящий drag — погасить хвостовой click
       const start = snap(lo);
       const end = Math.max(start + SNAP_MS, snap(hi));
-      onCellCreate(d.seat, start, Math.round((end - start) / 60_000));
+      const minutes = Math.round((end - start) / 60_000);
+      const seats = seatsInRange(d);
+      if (seats.length === 0) return;
+      // Одна строка → обычная бронь; несколько строк → массовая (групповая) бронь.
+      if (seats.length === 1) {
+        onCellCreate(seats[0], start, minutes);
+      } else {
+        onSeatsCreate(seats, start, minutes);
+      }
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
@@ -132,7 +171,8 @@ export function BookingTimeline({
         const lo = snap(Math.min(drag.anchorMs, drag.currentMs));
         const hi = Math.max(lo + SNAP_MS, snap(Math.max(drag.anchorMs, drag.currentMs)));
         const left = pctOf(lo);
-        return { seatId: drag.seat.id, left, width: pctOf(hi) - left, label: `${hhmm(lo)} – ${hhmm(hi)}` };
+        const seats = seatsInRange(drag);
+        return { seatIds: new Set(seats.map((seat) => seat.id)), labelSeatId: seats[0]?.id ?? null, left, width: pctOf(hi) - left, label: `${hhmm(lo)} – ${hhmm(hi)}` };
       })()
     : null;
   const preview = previewBlock && Number.isFinite(previewBlock.startMs) && Number.isFinite(previewBlock.endMs)
@@ -205,6 +245,7 @@ export function BookingTimeline({
                 <div
                   className="booking-row-track"
                   role="group"
+                  ref={(el) => { if (el) rowEls.current.set(row.seat.id, el); else rowEls.current.delete(row.seat.id); }}
                   onMouseDown={(event) => beginDrag(event, row.seat)}
                   onClick={(event) => handleTrackClick(event, row.seat)}
                 >
@@ -233,9 +274,9 @@ export function BookingTimeline({
                       <b>{block.item.customerName}</b>
                     </button>
                   ))}
-                  {ghost && ghost.seatId === row.seat.id && (
-                    <div className="booking-ghost" style={{ left: `${ghost.left}%`, width: `${ghost.width}%` }}>
-                      <span>{ghost.label}</span>
+                  {ghost && ghost.seatIds.has(row.seat.id) && (
+                    <div className={`booking-ghost${ghost.seatIds.size > 1 ? ' group' : ''}`} style={{ left: `${ghost.left}%`, width: `${ghost.width}%` }}>
+                      {row.seat.id === ghost.labelSeatId && <span>{ghost.label}</span>}
                     </div>
                   )}
                   {!ghost && preview && preview.seatId === row.seat.id && (

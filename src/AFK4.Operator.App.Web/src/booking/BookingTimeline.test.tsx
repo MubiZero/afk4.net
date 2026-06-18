@@ -39,6 +39,7 @@ function renderTimeline(
         onNextDay={() => {}}
         onSelectBlock={() => {}}
         onCellCreate={onCellCreate}
+        onSeatsCreate={() => {}}
       />
     </I18nProvider>
   );
@@ -82,5 +83,37 @@ describe('BookingTimeline drag-to-create', () => {
     const preview = track.querySelector('.booking-ghost.preview');
     expect(preview).not.toBeNull();
     expect(preview?.textContent).toContain('–');
+  });
+
+  it('протягивание по нескольким строкам создаёт массовую бронь (onSeatsCreate)', () => {
+    const onSeatsCreate = mock((_seats: SeatSummary[], _start: number, _dur: number) => {});
+    const seatA: SeatSummary = { ...seat(), id: 'a1', name: 'PC-01' };
+    const seatB: SeatSummary = { ...seat(), id: 'a2', name: 'PC-02' };
+    const twoRows: ZoneRowGroup[] = [{ zone: 'Зал A', rows: [
+      { seat: seatA, blocks: [], sessions: [] },
+      { seat: seatB, blocks: [], sessions: [] }
+    ] }];
+    const result = render(
+      <I18nProvider>
+        <BookingTimeline
+          groups={twoRows} axis={axis} nowMs={-1} loading={false} showSkeleton={false}
+          selectedReservationId="" branchName="AFK4" previewBlock={null} dateLabel="Сегодня"
+          onPrevDay={() => {}} onNextDay={() => {}} onSelectBlock={() => {}}
+          onCellCreate={() => {}} onSeatsCreate={onSeatsCreate}
+        />
+      </I18nProvider>
+    );
+    const tracks = result.container.querySelectorAll<HTMLElement>('.booking-row-track');
+    const rect = (top: number, bottom: number) => () => ({ left: 0, top, width: 1000, height: bottom - top, right: 1000, bottom, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
+    tracks[0].getBoundingClientRect = rect(0, 38);
+    tracks[1].getBoundingClientRect = rect(38, 76);
+
+    fireEvent.mouseDown(tracks[0], { button: 0, clientX: 100, clientY: 10 });
+    fireEvent.mouseMove(document, { clientX: 300, clientY: 50 }); // курсор ушёл во вторую строку
+    fireEvent.mouseUp(document, { clientX: 300, clientY: 50 });
+
+    expect(onSeatsCreate).toHaveBeenCalledTimes(1);
+    const [seats] = onSeatsCreate.mock.calls[0];
+    expect(seats.map((s) => s.id)).toEqual(['a1', 'a2']);
   });
 });
