@@ -415,6 +415,22 @@ export function BackendBookingWorkspace({
     ? items.find((item) => item.seatId === draft.seatId && item.state !== 'cancelled' && item.startMs < draftEndMs && previewStartMs < item.endMs) ?? null
     : null;
 
+  // Пересекается ли место по времени с активной бронью ИЛИ идущей сессией (открытая = до бесконечности).
+  const seatHasClash = (seatId: string): boolean =>
+    Number.isFinite(previewStartMs) && (
+      items.some((item) => item.seatId === seatId && item.state !== 'cancelled' && item.startMs < draftEndMs && previewStartMs < item.endMs)
+      || sessionItems.some((s) => s.seatId === seatId && s.startMs < draftEndMs && previewStartMs < (s.endMs ?? Number.POSITIVE_INFINITY))
+    );
+
+  // Проактивные конфликты массовой брони: считаем на фронте (бронь + сессия) ещё до отправки и
+  // объединяем с тем, что вернул бэк на 409 — конфликтные ПК подсвечиваются и блокируют создание.
+  const predictedGroupConflicts = drawerMode === 'create' && draft.seatIds.length > 0
+    ? new Set(draft.seatIds.filter(seatHasClash))
+    : new Set<string>();
+  const mergedGroupConflicts = predictedGroupConflicts.size > 0
+    ? new Set<string>([...groupConflicts, ...predictedGroupConflicts])
+    : groupConflicts;
+
   const dateLabel = toDateInputValue(selectedDate) === toDateInputValue(new Date())
     ? t('op.booking.dateNav.today')
     : new Date(selectedDate).toLocaleDateString(locale, { day: '2-digit', month: 'long' });
@@ -475,7 +491,7 @@ export function BackendBookingWorkspace({
             canManage={canManageReservations}
             currencyCode={currencyCode}
             conflict={conflict}
-            groupConflicts={groupConflicts}
+            groupConflicts={mergedGroupConflicts}
             groupSize={selectedGroupSize}
             searchClients={searchClients}
             onClose={() => setDrawerMode(null)}

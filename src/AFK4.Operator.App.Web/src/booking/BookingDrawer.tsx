@@ -236,9 +236,9 @@ export function BookingDrawer(props: BookingDrawerProps) {
           )}
           <FeedbackNotice feedback={feedback} />
           {isGroup ? (
-            <button type="button" className="booking-primary-action" disabled={!canManage || busy || groupSeats.length === 0} onClick={props.onCreateGroup}><Plus size={15} />{t('op.booking.create.submitGroup', { count: groupSeats.length })}</button>
+            <button type="button" className="booking-primary-action" disabled={!canManage || busy || groupSeats.length === 0 || hasGroupConflict} onClick={props.onCreateGroup}><Plus size={15} />{t('op.booking.create.submitGroup', { count: groupSeats.length })}</button>
           ) : (
-            <button type="button" className="booking-primary-action" disabled={!canManage || busy || allSeats.length === 0 || !draft.seatId} onClick={props.onCreate}><Plus size={15} />{t('op.booking.create.submit')}</button>
+            <button type="button" className="booking-primary-action" disabled={!canManage || busy || allSeats.length === 0 || !draft.seatId || Boolean(conflict)} onClick={props.onCreate}><Plus size={15} />{t('op.booking.create.submit')}</button>
           )}
         </div>
       ) : selected ? (
