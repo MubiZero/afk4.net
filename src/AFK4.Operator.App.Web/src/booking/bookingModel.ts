@@ -139,25 +139,36 @@ function toSessionBlock(item: SessionItem, axis: TimelineAxis): SessionBlock {
   return { item, leftPct, widthPct, open: item.open };
 }
 
-// Активные сессии с мест floor-map → элементы таймлайна. Только места с живой сессией и известным
-// стартом; открытый таб (нет дедлайна) — open, иначе ограничена remainingDeadlineMs.
-export function mapSeatsToSessionItems(seats: SeatSummary[]): SessionItem[] {
+// Структурная форма DTO сессии с бэкенда (см. SessionTimelineItemDto) — модель не зависит от клиента.
+export interface SessionDtoLike {
+  sessionId: string;
+  seatId: string;
+  state: string;
+  playerDisplayName: string | null;
+  tariffName: string | null;
+  startedAtUtc: string;
+  endsAtUtc: string | null;
+  endedAtUtc: string | null;
+}
+
+// DTO сессий (активных и завершённых) → элементы таймлайна. Конец = фактический (endedAtUtc) или
+// плановый (endsAtUtc); если обоих нет — открытый таб, рисуется без конца.
+export function mapSessionDtosToItems(dtos: SessionDtoLike[]): SessionItem[] {
   const out: SessionItem[] = [];
-  for (const seat of seats) {
-    const hasSession = seat.hasActiveSession === true || (seat.activeSessionId != null && seat.activeSessionId !== '');
-    if (!hasSession || !seat.sessionStartedAtUtc) continue;
-    const startMs = new Date(seat.sessionStartedAtUtc).getTime();
+  for (const dto of dtos) {
+    const startMs = new Date(dto.startedAtUtc).getTime();
     if (Number.isNaN(startMs)) continue;
-    const deadline = seat.remainingDeadlineMs ?? null;
-    const open = deadline === null;
+    const endIso = dto.endedAtUtc ?? dto.endsAtUtc ?? null;
+    const endMs = endIso ? new Date(endIso).getTime() : Number.NaN;
+    const open = endIso === null || Number.isNaN(endMs);
     out.push({
-      sessionId: seat.activeSessionId ?? seat.id,
-      seatId: seat.id,
+      sessionId: dto.sessionId,
+      seatId: dto.seatId,
       startMs,
-      endMs: open ? null : deadline,
+      endMs: open ? null : endMs,
       open,
-      playerName: seat.playerDisplayName ?? seat.player ?? '',
-      tariffName: seat.tariffName ?? null
+      playerName: dto.playerDisplayName ?? '',
+      tariffName: dto.tariffName ?? null
     });
   }
   return out;

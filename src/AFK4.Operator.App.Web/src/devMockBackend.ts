@@ -147,6 +147,18 @@ function reservations() {
   ];
 }
 
+// Сессии для таймлайна: две завершённые сегодня (история, закрытые полосы) + активные с floor-map
+// (открытый таб без конца и две ограниченные дедлайном). minutesAgoUtc(-N) = «сейчас + N мин».
+function sessionsTimeline() {
+  return [
+    { sessionId: 'h1', seatId: 'a1', seatName: 'PC-01', zoneId: 'z-a', zoneName: 'Зал A', state: 'ended', playerDisplayName: 'Дилноза Х.', tariffName: 'Стандарт', startedAtUtc: todayAtUtc(4, 0), endsAtUtc: null, endedAtUtc: todayAtUtc(5, 0) },
+    { sessionId: 'h2', seatId: 'c1', seatName: 'PC-07', zoneId: 'z-b', zoneName: 'Зал B', state: 'ended', playerDisplayName: 'Рустам К.', tariffName: 'Почасовой', startedAtUtc: todayAtUtc(6, 30), endsAtUtc: null, endedAtUtc: todayAtUtc(8, 0) },
+    { sessionId: 's3', seatId: 'a3', seatName: 'PC-03', zoneId: 'z-a', zoneName: 'Зал A', state: 'active', playerDisplayName: 'Юсуф А.', tariffName: 'Почасовой', startedAtUtc: minutesAgoUtc(110), endsAtUtc: null, endedAtUtc: null },
+    { sessionId: 's1', seatId: 'a1', seatName: 'PC-01', zoneId: 'z-a', zoneName: 'Зал A', state: 'active', playerDisplayName: 'Амир К.', tariffName: 'Стандарт', startedAtUtc: minutesAgoUtc(75), endsAtUtc: minutesAgoUtc(-43), endedAtUtc: null },
+    { sessionId: 's5', seatId: 'b1', seatName: 'VIP-01', zoneId: 'z-vip', zoneName: 'VIP', state: 'active', playerDisplayName: 'Мадина С.', tariffName: 'VIP час', startedAtUtc: minutesAgoUtc(50), endsAtUtc: minutesAgoUtc(-90), endedAtUtc: null }
+  ];
+}
+
 // Деталь устройства для «Статус ПК»: machineName опускаем — описатель подставит имя места,
 // версии/состояние реальные, чтобы кнопка «Статус» показывала осмысленный отчёт в превью.
 function deviceDetail() {
@@ -177,6 +189,7 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/shifts/current')) return currentShift();
   if (pathname.endsWith('/pos/catalog')) return [posProduct()];
   if (pathname.endsWith('/reservations') && method === 'GET') return { reservations: reservations(), limit: 40 };
+  if (pathname.endsWith('/sessions') && method === 'GET') return { sessions: sessionsTimeline() };
   if (pathname.endsWith('/inventory/stock-movements') && method === 'GET') return [];
   if (pathname.endsWith('/commands') && method === 'GET') return [];
   if (pathname.endsWith('/diagnostics') && method === 'GET') return diagnostics();

@@ -1,5 +1,6 @@
 import { PlatformApiClient } from '../../platformApi';
-import type { Guid, MoneyDto } from '../types';
+import type { Guid, MoneyDto, ReportQuery } from '../types';
+import { normalizeReportQuery } from '../queryHelpers';
 
 export interface StartGuestSessionRequest {
   organizationId: Guid;
@@ -74,8 +75,30 @@ export interface SessionCheckoutQuoteResponse {
   walletBalance?: MoneyDto | null;
 }
 
+// Сессия для таймлайна броней: старт + плановый/фактический конец. Открытый таб — оба конца null.
+export interface SessionTimelineItemDto {
+  sessionId: Guid;
+  seatId: Guid;
+  seatName: string;
+  zoneId: Guid;
+  zoneName: string;
+  state: string;
+  playerDisplayName: string | null;
+  tariffName: string | null;
+  startedAtUtc: string;
+  endsAtUtc: string | null;
+  endedAtUtc: string | null;
+}
+
+export interface SessionTimelineResult {
+  sessions: SessionTimelineItemDto[];
+}
+
 export function createSessionClient(api: PlatformApiClient) {
   return {
+    timeline(branchId: Guid, query?: ReportQuery): Promise<SessionTimelineResult> {
+      return api.get<SessionTimelineResult>(`/api/branches/${branchId}/sessions`, normalizeReportQuery(query));
+    },
     startGuestSession(branchId: Guid, request: StartGuestSessionRequest): Promise<SessionCommandResponse> {
       return api.post<SessionCommandResponse, StartGuestSessionRequest>(`/api/branches/${branchId}/sessions/start`, request);
     },

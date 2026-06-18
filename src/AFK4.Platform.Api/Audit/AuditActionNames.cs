@@ -103,6 +103,8 @@ public static class AuditActionNames
 
     public const string ViewReservations = "reservations.view";
 
+    public const string ViewSessions = "sessions.view";
+
     public const string CreateReservation = "reservations.create";
 
     public const string UpdateReservation = "reservations.update";

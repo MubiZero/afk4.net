@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
-import { createOperatorApiClients, type ReservationSearchResultDto } from './operatorApiClients';
+import { createOperatorApiClients, type ReservationSearchResultDto, type SessionTimelineResult } from './operatorApiClients';
 import type { OperatorFloorMapState } from './floorMapState';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
 import { hasPermission, permissionNames } from './operatorPermissions';
@@ -29,11 +29,12 @@ import { FeedbackNotice, StateFlag } from './operatorPrimitives';
 import { useDeferredFlag } from './useDeferredFlag';
 import {
   mapReservationsToItems,
-  mapSeatsToSessionItems,
+  mapSessionDtosToItems,
   computeAxis,
   buildSeatRows,
   unseatedOnlineRequests,
-  onlineRequestCount
+  onlineRequestCount,
+  type SessionDtoLike
 } from './booking/bookingModel';
 import type { BookingDraft } from './booking/BookingDrawer';
 import { BookingDrawer } from './booking/BookingDrawer';
@@ -57,6 +58,7 @@ export function BackendBookingWorkspace({
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   const [reservationResult, setReservationResult] = useState<ReservationSearchResultDto | null>(null);
+  const [sessionResult, setSessionResult] = useState<SessionTimelineResult | null>(null);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('loading');
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadVersion, setReloadVersion] = useState(0);
@@ -126,6 +128,28 @@ export function BackendBookingWorkspace({
     };
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, bookingFromUtc, bookingToUtc, reloadVersion]);
 
+  // Сессии за тот же день — отдельный best-effort fetch: их слой не должен валить экран броней,
+  // поэтому при ошибке просто скрываем сессии, а заявки/брони продолжают грузиться своим путём.
+  useEffect(() => {
+    let disposed = false;
+    if (backend === null) {
+      setSessionResult(null);
+      return undefined;
+    }
+
+    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+    if (!hasPermission(backend.session, permissionNames.viewSessions)) {
+      setSessionResult(null);
+      return undefined;
+    }
+
+    clients.sessions.timeline(backend.branchId, { fromUtc: bookingFromUtc, toUtc: bookingToUtc, limit: null })
+      .then((result) => { if (!disposed) setSessionResult(result); })
+      .catch(() => { if (!disposed) setSessionResult(null); });
+
+    return () => { disposed = true; };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, bookingFromUtc, bookingToUtc, reloadVersion]);
+
   const items = mapReservationsToItems(
     readArray<Record<string, unknown>>(reservationResult, 'reservations'),
     t('op.booking.guest')
@@ -134,12 +158,11 @@ export function BackendBookingWorkspace({
   const dayStartMs = new Date(`${toDateInputValue(selectedDate)}T00:00:00`).getTime();
   const nowMs = Date.now();
   const axis = useMemo(() => computeAxis(items, dayStartMs, nowMs), [items, dayStartMs, nowMs]);
-  // Сессии — это занятость «сейчас», поэтому осмысленны только на сегодняшней дате.
-  // (Историю завершённых сессий на прошлые даты подтянем отдельным бэкенд-эндпоинтом.)
-  const isToday = toDateInputValue(selectedDate) === toDateInputValue(new Date());
+  // Сессии (активные и завершённые) приходят отдельным эндпоинтом и привязываются к строкам мест
+  // по seatId — единый источник, независимый от снимка floor-map.
   const sessionItems = useMemo(
-    () => (isToday ? mapSeatsToSessionItems(floorMap.seats) : []),
-    [isToday, floorMap.seats]
+    () => mapSessionDtosToItems(readArray<SessionDtoLike>(sessionResult, 'sessions')),
+    [sessionResult]
   );
   const { groups, unplaced: _unplaced } = useMemo(() => buildSeatRows(floorMap.seats, items, axis, sessionItems), [floorMap.seats, items, axis, sessionItems]);
   const requests = unseatedOnlineRequests(items);

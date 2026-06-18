@@ -169,6 +169,7 @@ builder.Services.AddScoped<IDeviceCommandDispatchService, DeviceCommandDispatchS
 builder.Services.AddScoped<IDeviceHeartbeatService, DeviceHeartbeatService>();
 builder.Services.AddScoped<IFloorMapReadService, EfFloorMapReadService>();
 builder.Services.AddScoped<IFloorMapEditService, EfFloorMapEditService>();
+builder.Services.AddScoped<ISessionTimelineReadService, EfSessionTimelineReadService>();
 builder.Services.AddScoped<IStaffTokenService, OpaqueStaffTokenService>();
 builder.Services.AddScoped<IPlayerTokenService, OpaquePlayerTokenService>();
 builder.Services.AddScoped<IPlayerCredentialService, PlayerCredentialService>();
