@@ -1049,29 +1049,26 @@
   "op.map.selectPcDetail": "Выберите ПК.",
   "op.map.panel.checkoutLabel": "Завершить и принять оплату",
   "op.map.panel.checkoutSubtitle": "После оплаты сессия закрывается, ПК блокируется.",
+  "op.map.panel.checkoutDue": "К оплате",
+  "op.map.panel.checkoutNoPayment": "Оплата не требуется",
+  "op.map.panel.checkoutFinish": "Завершить",
+  "op.map.panel.cashTendered": "Получено",
   "op.map.panel.noActiveSession": "На выбранном ПК нет активной сессии.",
   "op.map.panel.checkoutLoading": "Расчёт счёта…",
   "op.map.panel.checkoutFailed": "Не удалось получить счёт.",
-  "op.map.panel.billableTime": "Наиграно",
-  "op.map.panel.billableTimeCharge": "Время",
   "op.map.panel.billableSnacks": "Снеки",
-  "op.map.panel.billableTotal": "Итого",
   "op.map.panel.paymentMethod": "Способ оплаты",
   "op.map.panel.paymentAmount": "Сумма",
   "op.map.panel.removePaymentRow": "Убрать строку",
   "op.map.panel.addPaymentMethod": "Ещё способ",
-  "op.map.panel.walletSuggest": "Депозит ({amount})",
   "op.map.panel.checkoutBalanced": "Сумма совпадает",
-  "op.map.panel.confirmPayment": "Принять оплату",
   "op.map.panel.quickActions": "Быстрые действия",
   "op.map.panel.extend15Action": "15 мин",
   "op.map.panel.extend30Action": "30 мин",
   "op.map.panel.transferAction": "Перенос",
   "op.map.panel.stopAction": "Стоп",
   "op.map.panel.noSession": "Нет сессии",
-  "op.map.panel.startFixed": "Старт 60 мин",
   "op.map.panel.startOpen": "Старт · открытый счёт",
-  "op.map.panel.startOpenAction": "Старт (открытый счёт)",
   "op.map.panel.transferTo": "Перенести на",
   "op.map.panel.noFreePc": "Нет свободных ПК",
   "op.map.panel.stopConfirmTitle": "Подтвердите остановку сессии",
@@ -1080,14 +1077,8 @@
   "op.map.panel.paymentAction": "Оплата",
   "op.map.panel.activeSession": "Активная сессия",
   "op.map.panel.billingSession": "Биллинг сессии",
-  "op.map.panel.billingModeLabel": "Режим биллинга",
   "op.map.panel.sessionDuration": "Длительность сессии",
-  "op.map.panel.duration60": "60 мин",
-  "op.map.panel.duration60Detail": "фиксировано",
-  "op.map.panel.duration60Title": "Фиксированные 60 минут",
   "op.map.panel.openTab": "Открытый счёт",
-  "op.map.panel.openTabAllowed": "оплата при завершении",
-  "op.map.panel.openTabDisabled": "гость / постоплата",
   "op.map.panel.openTabAllowedTitle": "Время идёт, оплата при завершении",
   "op.map.panel.openTabDisabledTitle": "Доступно для гостя или постоплаты",
   "op.map.panel.playerSearch": "имя или телефон",
@@ -1101,8 +1092,6 @@
   "op.map.panel.packageLabel": "Пакет",
   "op.map.panel.packageSession": "Пакет для сессии",
   "op.map.panel.noPackages": "Нет активных пакетов",
-  "op.map.panel.billingChoice": "Выбор",
-  "op.map.panel.billingReady": "{mode} готов",
   "op.map.panel.billingSetup": "Настройка биллинга",
   "op.map.panel.billingMissingPlayer": "выберите игрока",
   "op.map.panel.billingMissingTariff": "выберите тариф",
@@ -1112,16 +1101,22 @@
   "op.map.panel.confirmStatusBilling": "Биллинг: {missing}",
   "op.map.panel.confirmStatusPending": "Команда уже отправлена. Дождитесь подтверждения ПК.",
   "op.map.panel.confirmStatusWaiting": "Готов к работе",
-  "op.map.panel.billingLoadData": "данные сервера",
-  "op.map.panel.billingLoadLoading": "загрузка",
-  "op.map.panel.billingLoadError": "ошибка загрузки",
-  "op.map.panel.billingLoadWaiting": "ожидает сервер",
   "op.map.panel.sessionUnavailable": "Сессия оператора недоступна.",
   "op.map.panel.confirmationLabel": "Готовность",
   "op.map.panel.actionDone": "Готово",
   "op.map.panel.diagnostics": "Статус ПК",
   "op.map.panel.actionsHead": "Действия",
-  "op.map.panel.startSessionTitle": "Как запустить сессию",
+  "op.map.panel.startSessionTitle": "Новая сессия",
+  "op.map.panel.startTimeHead": "Время",
+  "op.map.panel.startPlayerHead": "Игрок",
+  "op.map.panel.startPlanLabel": "Запустим",
+  "op.map.panel.startNeed": "Нужно",
+  "op.map.panel.startWhoHead": "Кто играет",
+  "op.map.panel.startMember": "Клиент клуба",
+  "op.map.panel.startChargeHead": "Списание",
+  "op.map.panel.startPriceEstimate": "за {duration} ≈ {amount}",
+  "op.map.panel.startBalanceCoverage": "баланс {balance} · хватит на ~{duration}",
+  "op.map.panel.startCta": "Старт · {duration}",
   "op.map.panel.playerLabel": "Игрок",
   "op.map.panel.deviceLabel": "Устройство",
   "op.map.panel.commandLabel": "Команда",
@@ -1165,7 +1160,6 @@
   "op.review.applyFilter": "Применить фильтр",
   "op.review.emptyAudit": "Записей нет — задайте фильтр",
   "op.review.actionDebtWriteOff": "Списание долга",
-
   "op.pos.title": "Продажи",
   "op.pos.heading": "Продажи · чек и кассовые операции",
   "op.pos.platformConnected": "Сервер на связи",
@@ -1177,7 +1171,6 @@
   "op.pos.strip.salesSummaryLabel": "Сводка продаж",
   "op.pos.strip.stockLow": "{count} низко",
   "op.pos.strip.positions": "{count} поз.",
-
   "op.pos.catalog.title": "Каталог",
   "op.pos.catalog.subtitle": "активные товары, остатки и поиск",
   "op.pos.catalog.searchPlaceholder": "Товар, услуга, SKU",
@@ -1189,7 +1182,6 @@
   "op.pos.catalog.productFallback": "Товар",
   "op.pos.catalog.categoryFallback": "Каталог",
   "op.pos.catalog.note": "{sku} · {count, plural, one {# шт.} few {# шт.} many {# шт.} other {# шт.}}",
-
   "op.pos.cart.title": "Корзина",
   "op.pos.cart.shiftOpen": "смена открыта",
   "op.pos.cart.shiftClosed": "откройте смену",
@@ -1217,7 +1209,6 @@
   "op.pos.cart.lastSaleAccepted": "последний чек принят",
   "op.pos.cart.pendingReceipt": "чек создаётся после подтверждения сервера",
   "op.pos.cart.productAdded": "{name} добавлен",
-
   "op.pos.payment.title": "Оплата",
   "op.pos.payment.subtitle": "чек и подтверждение оплаты",
   "op.pos.payment.methodCash": "Наличные",
@@ -1231,7 +1222,6 @@
   "op.pos.payment.shiftNone": "Нет",
   "op.pos.payment.acceptBtn": "Принять оплату",
   "op.pos.payment.clearCartBtn": "Очистить корзину",
-
   "op.pos.receipts.title": "Последние чеки",
   "op.pos.receipts.subtitle": "чеки за смену",
   "op.pos.receipts.emptyLabel": "Чеков нет",
@@ -1242,7 +1232,6 @@
   "op.pos.receipts.productFallback": "Товар",
   "op.pos.receipts.printBtn": "Печать",
   "op.pos.receipts.exportBtn": "Экспорт",
-
   "op.pos.quick.title": "Быстрые операции",
   "op.pos.quick.subtitle": "действия ждут подтверждения сервера",
   "op.pos.quick.writeOffLabel": "Списание",
@@ -1277,7 +1266,6 @@
   "op.pos.quick.voidConfirmImpact": "Черновик чека будет создан и аннулирован после подтверждения сервера.",
   "op.pos.quick.voidConfirmBtn": "Подтвердить аннулирование",
   "op.pos.quick.voidReasonLabel": "Причина аннулирования",
-
   "op.pos.feedback.pos": "Касса",
   "op.pos.feedback.client": "Клиент",
   "op.pos.feedback.newCard": "Новая карта",
@@ -1289,7 +1277,6 @@
   "op.pos.feedback.print": "Печать чека",
   "op.pos.feedback.export": "Экспорт чека",
   "op.pos.feedback.void": "Аннулировать черновик",
-
   "op.pos.error.noPermissionNewCard": "Нет прав на создание карты клиента.",
   "op.pos.error.enterClientName": "Введите имя клиента для новой карты.",
   "op.pos.error.noPermissionStock": "Нет прав на управление остатками.",
@@ -1313,7 +1300,6 @@
   "op.pos.error.shiftRequiredForVoid": "Открытая смена обязательна для аннулирования черновика.",
   "op.pos.error.enterVoidReason": "Введите причину аннулирования.",
   "op.pos.error.draftNotConfirmed": "Сервер не подтвердил черновик чека. Повторите операцию или обратитесь в поддержку.",
-
   "op.pos.fixture.cola": "Кола 0.5",
   "op.pos.fixture.water": "Вода 0.5",
   "op.pos.fixture.hotdog": "Хот-дог",
@@ -1325,7 +1311,6 @@
   "op.pos.defaultWriteOffReason": "операторское списание",
   "op.pos.defaultRefundReason": "Возврат по запросу клиента",
   "op.pos.defaultVoidReason": "Ошибка в черновике чека",
-
   "op.payments.title": "Платежи",
   "op.payments.heading": "Платежи · касса смены и сверка",
   "op.payments.loadedLabel": "Отчёты загружены",
@@ -1335,7 +1320,6 @@
   "op.payments.strip.refunds": "Возвраты",
   "op.payments.strip.shift": "Смена",
   "op.payments.strip.reconcile": "К сверке",
-
   "op.payments.ledger.title": "Операции смены",
   "op.payments.ledger.subtitle": "продажи, возвраты и наличные",
   "op.payments.ledger.searchPlaceholder": "Клиент, чек, ПК, сумма",
@@ -1343,7 +1327,6 @@
   "op.payments.ledger.noShift": "Без смены",
   "op.payments.ledger.typeSale": "Продажа",
   "op.payments.ledger.typeCash": "Движение наличных",
-
   "op.payments.ph.noMatch.title": "Нет совпадений",
   "op.payments.ph.noMatch.hint": "измените поиск или период",
   "op.payments.ph.noMatch.source": "Поиск",
@@ -1357,7 +1340,6 @@
   "op.payments.ph.local.title": "Локально: операций нет",
   "op.payments.ph.local.hint": "локальные данные без сервера",
   "op.payments.ph.local.source": "локально",
-
   "op.payments.summary.title": "Итоги смены",
   "op.payments.summary.subtitle": "выручка и выбранная операция",
   "op.payments.summary.selectedAt": "Всего · выбрано {time}",
@@ -1370,7 +1352,6 @@
   "op.payments.summary.metricCash": "Наличные",
   "op.payments.summary.metricRefunds": "Возвраты",
   "op.payments.summary.metricShifts": "Смены",
-
   "op.payments.reconcile.title": "Сверка кассы",
   "op.payments.reconcile.subtitle": "проверка перед закрытием",
   "op.payments.reconcile.startingCashLabel": "Старт наличных",
@@ -1388,7 +1369,6 @@
   "op.payments.reconcile.confirmImpact": "После подтверждения смена будет закрыта, новые продажи потребуют открытия следующей смены.",
   "op.payments.reconcile.confirmBtn": "Закрыть смену",
   "op.payments.reconcile.notIndicated": "Не указано",
-
   "op.payments.methods.title": "Методы оплаты",
   "op.payments.methods.subtitle": "структура отчёта",
   "op.payments.methods.cash": "Наличные",
@@ -1403,7 +1383,6 @@
   "op.payments.methods.byReconcile": "по сверке",
   "op.payments.methods.cashOps": "{count, plural, one {# операция} few {# операции} many {# операций} other {# операции}}",
   "op.payments.methods.receipts": "{count, plural, one {# чек} few {# чека} many {# чеков} other {# чека}}",
-
   "op.payments.cash.title": "Движение наличных",
   "op.payments.cash.subtitle": "кассовые движения",
   "op.payments.cash.typeLabel": "Тип",
@@ -1413,14 +1392,12 @@
   "op.payments.cash.reasonLabel": "Причина",
   "op.payments.cash.addBtn": "Добавить движение",
   "op.payments.cash.defaultReason": "Размен кассы",
-
   "op.payments.export.title": "Отчёты",
   "op.payments.export.subtitle": "файлы для сверки",
   "op.payments.export.shiftSummary": "Сводка смены",
   "op.payments.export.cashMovements": "Движение кассы",
   "op.payments.export.receiptList": "Список чеков",
   "op.payments.export.reconciliation": "Сверка смены",
-
   "op.payments.error.noPermOpenShift": "Нет прав на открытие смены.",
   "op.payments.error.shiftAlreadyOpen": "Смена уже открыта.",
   "op.payments.error.invalidStartingCash": "Введите стартовую сумму наличных не ниже нуля.",
@@ -1430,10 +1407,8 @@
   "op.payments.error.noPermCloseShift": "Нет прав на закрытие смены.",
   "op.payments.error.noShiftToClose": "Нет открытой смены для закрытия.",
   "op.payments.error.invalidCountedCash": "Введите фактическую сумму наличных больше нуля.",
-
   "op.payments.default.openingNote": "Открытие смены",
   "op.payments.default.closingNote": "Сверка оператором",
-
   "op.players.title": "Клиенты",
   "op.players.heading": "Клиенты · поиск, депозит и долги",
   "op.players.strip.label": "Сводка клиентов",
@@ -1616,7 +1591,6 @@
   "op.booking.drawer.detailTitle": "Бронь",
   "op.booking.drawer.createTitle": "Новая бронь",
   "op.booking.cellCreateAria": "Создать бронь на это место и время",
-
   "op.logs.head.title": "Журнал",
   "op.logs.head.subtitle": "Журнал · события смены",
   "op.logs.loadedLabel": "Журнал загружен",
@@ -1627,14 +1601,11 @@
   "op.logs.strip.commands": "Команды ПК",
   "op.logs.strip.records": "Записи",
   "op.logs.strip.source": "Источник",
-
   "op.logs.events.title": "Журнал событий",
   "op.logs.events.subtitle": "события сервера и ПК",
   "op.logs.events.searchPlaceholder": "ПК, клиент, оператор, событие",
-
   "op.logs.detail.title": "Детали события",
   "op.logs.detail.subtitle": "без внутренних ID",
-
   "op.logs.filter.title": "Фильтры",
   "op.logs.filter.subtitle": "найти нужные записи",
   "op.logs.filter.periodAria": "Период аудита",
@@ -1650,44 +1621,36 @@
   "op.logs.filter.phSection": "сессии / касса / ПК",
   "op.logs.filter.phFrom": "2026-05-21 00:00",
   "op.logs.filter.phTo": "2026-05-21 23:59",
-
   "op.logs.audit.title": "Операции смены",
   "op.logs.audit.subtitle": "последние действия",
-
   "op.logs.sources.title": "Источники",
   "op.logs.sources.subtitle": "каналы событий",
-
   "op.logs.export.title": "Экспорт",
   "op.logs.export.subtitle": "для проверки и поддержки",
   "op.logs.export.shiftSummary": "Сводка смены",
   "op.logs.export.onlyProblems": "Только проблемы",
   "op.logs.export.actionList": "Список действий",
   "op.logs.export.supportBundle": "Пакет для поддержки",
-
   "op.logs.period.today": "Сегодня",
   "op.logs.period.last24h": "24 часа",
   "op.logs.period.last7d": "7 дней",
-
   "op.logs.logFilter.allEvents": "Все события",
   "op.logs.logFilter.errorsOnly": "Только ошибки",
   "op.logs.logFilter.pcAndNet": "ПК и связь",
   "op.logs.logFilter.pos": "Касса",
   "op.logs.logFilter.operator": "Оператор",
   "op.logs.logFilter.system": "Системные",
-
   "op.logs.source.all": "Все",
   "op.logs.source.agent": "Агент",
   "op.logs.source.pos": "Касса",
   "op.logs.source.operator": "Оператор",
   "op.logs.source.platform": "Сервер",
   "op.logs.source.updates": "Обновления",
-
   "op.logs.source.all.detail": "{count} событий",
   "op.logs.source.agent.detail": "{count} событий · зависших {stale}",
   "op.logs.source.pos.detail": "{count} записей",
   "op.logs.source.operator.detail": "{count} действий",
   "op.logs.source.platform.detail": "{count} событий",
-
   "op.logs.ph.noMatch.title": "Нет совпадений",
   "op.logs.ph.noMatch.hint": "измените поиск или фильтр",
   "op.logs.ph.loading.title": "Загружаем события",
@@ -1700,14 +1663,12 @@
   "op.logs.ph.local.hint": "локальные данные без сервера",
   "op.logs.ph.source.operator": "Оператор",
   "op.logs.ph.source.platform": "Сервер",
-
   "op.logs.outcome.success": "успешно",
   "op.logs.outcome.failed": "ошибка",
   "op.logs.outcome.denied": "отказ",
   "op.logs.outcome.pending": "ожидает",
   "op.logs.outcome.unknown": "состояние неизвестно",
   "op.logs.outcome.empty": "неизвестно",
-
   "op.logs.target.receipt": "Чек",
   "op.logs.target.session": "Сессия",
   "op.logs.target.device": "ПК",
@@ -1719,12 +1680,10 @@
   "op.logs.target.update": "Обновление",
   "op.logs.target.branch": "Филиал",
   "op.logs.target.object": "Объект",
-
   "op.logs.sourceApp.platform": "Сервер",
   "op.logs.sourceApp.operator": "Приложение оператора",
   "op.logs.sourceApp.agent": "Агент",
   "op.logs.sourceApp.setup": "Мастер установки",
-
   "op.logs.detailKey.reason": "Причина",
   "op.logs.detailKey.amount": "Сумма",
   "op.logs.detailKey.currency": "Валюта",
@@ -1738,7 +1697,6 @@
   "op.logs.detailKey.staff": "Сотрудник",
   "op.logs.detailKey.branch": "Филиал",
   "op.logs.detailKey.param": "Параметр",
-
   "op.logs.detailVal.null": "не указано",
   "op.logs.detailVal.yes": "да",
   "op.logs.detailVal.no": "нет",
@@ -1746,10 +1704,8 @@
   "op.logs.detailVal.record": "заполнено",
   "op.logs.detailVal.guid": "указано",
   "op.logs.detailVal.url": "ссылка",
-
   "op.logs.compact.noDetails": "нет подробностей",
   "op.logs.compact.freeform": "подробности в свободном формате",
-
   "op.logs.row.event": "Событие",
   "op.logs.row.result": "Результат",
   "op.logs.row.section": "Раздел",
@@ -1771,29 +1727,23 @@
   "op.logs.row.unknown": "неизвестно",
   "op.logs.row.deviceFallback": "Устройство",
   "op.logs.row.updateFallback": "Обновление",
-
   "op.logs.diag.notResponding": "не отвечает",
   "op.logs.diag.staleSeconds": "{count, plural, other {# сек. без сигнала}}",
   "op.logs.diag.pauseSeconds": "{count, plural, other {# сек.}}",
-
   "op.logs.tone.warning": "требует внимания",
   "op.logs.tone.device": "ПК и связь",
   "op.logs.tone.money": "касса",
   "op.logs.tone.session": "сессия",
   "op.logs.tone.audit": "запись",
-
   "op.logs.kind.commandFailure": "команда ПК",
   "op.logs.kind.updateFailure": "обновление",
   "op.logs.kind.staleDevice": "связь с ПК",
   "op.logs.kind.placeholder": "пустой результат",
   "op.logs.kind.audit": "аудит",
-
   "op.logs.export.branch": "текущий филиал",
   "op.logs.export.noBranch": "филиал не выбран",
-
   "op.settings.title": "Настройки",
   "op.settings.heading": "Настройки · клуб и правила работы",
-
   "op.settings.section.profile": "Профиль клуба",
   "op.settings.section.profile.detail": "название, город, валюта",
   "op.settings.section.layout": "Залы и ПК",
@@ -1806,9 +1756,7 @@
   "op.settings.section.goods.detail": "товары, остатки, чеки",
   "op.settings.section.integrations": "Интеграции",
   "op.settings.section.integrations.detail": "платежи, обновления, экспорт",
-
   "op.settings.sections.label": "Разделы",
-
   "op.settings.readiness.title": "Готовность клуба",
   "op.settings.readiness.detail": "срез настроек сервера",
   "op.settings.readiness.profile": "Профиль клуба",
@@ -1820,10 +1768,8 @@
   "op.settings.readiness.staffCount": "{count, plural, one {# сотрудник} few {# сотрудника} many {# сотрудников} other {# сотрудников}}",
   "op.settings.readiness.posDetail": "{currencyCode} · отчёты сервера",
   "op.settings.readiness.devicesOnline": "{online} из {total} онлайн",
-
   "op.settings.quickActions.title": "Быстрые настройки",
   "op.settings.quickActions.detail": "частые действия администратора",
-
   "op.settings.action.addSeat": "Добавить ПК",
   "op.settings.action.addSeat.detail": "новое рабочее место",
   "op.settings.action.createTariff": "Создать тариф",
@@ -1836,7 +1782,6 @@
   "op.settings.action.updateStaffProfile.detailDenied": "нет прав доступа",
   "op.settings.action.checkDevices": "Проверить устройства",
   "op.settings.action.checkDevices.detail": "обновить диагностику",
-
   "op.settings.action.createZone": "Добавить зал",
   "op.settings.action.updateZone": "Обновить зал",
   "op.settings.action.deleteZone": "Удалить зал",
@@ -1866,7 +1811,6 @@
   "op.settings.action.createRollout": "Создать публикацию обновления",
   "op.settings.action.changePackageState": "Изменить состояние пакета",
   "op.settings.action.changeRolloutState": "Изменить состояние публикации",
-
   "op.settings.profile.clubName": "Название клуба",
   "op.settings.profile.city": "Город",
   "op.settings.profile.currency": "Валюта",
@@ -1879,7 +1823,6 @@
   "op.settings.profile.errorRequiredFields": "Заполните обязательные поля.",
   "op.settings.profile.feedbackLabel": "Профиль клуба",
   "op.settings.profile.loadFeedbackLabel": "Настройки загружены",
-
   "op.settings.layout.title": "Залы и рабочие места",
   "op.settings.layout.zoneName": "Название зала",
   "op.settings.layout.zoneOrder": "Порядок зала",
@@ -1893,14 +1836,12 @@
   "op.settings.layout.sortOrder": "порядок {order}",
   "op.settings.layout.createZoneBtn": "Создать зал",
   "op.settings.layout.addSeatBtn": "Создать ПК",
-
   "op.settings.layout.confirmDeleteZone.title": "Подтвердите удаление зала",
   "op.settings.layout.confirmDeleteZone.impact": "Зал будет удален из схемы клуба. Удаление доступно только для пустых залов.",
   "op.settings.layout.confirmDeleteZone.confirm": "Подтвердить удаление зала",
   "op.settings.layout.confirmDeleteSeat.title": "Подтвердите удаление ПК",
   "op.settings.layout.confirmDeleteSeat.impact": "Рабочее место будет удалено из схемы клуба. Проверьте активные сессии и привязку устройства до удаления.",
   "op.settings.layout.confirmDeleteSeat.confirm": "Подтвердить удаление ПК",
-
   "op.settings.layout.error.noPermLayout": "Нет прав на управление залами и рабочими местами.",
   "op.settings.layout.error.fillZone": "Заполните название зала и целый порядок сортировки.",
   "op.settings.layout.error.selectZone": "Выберите зал для обновления.",
@@ -1909,7 +1850,6 @@
   "op.settings.layout.error.fillSeat": "Заполните название ПК и целый порядок сортировки.",
   "op.settings.layout.error.selectSeat": "Выберите ПК для обновления.",
   "op.settings.layout.error.selectSeatDelete": "Выберите ПК для удаления.",
-
   "op.settings.devices.title": "Подключение устройств",
   "op.settings.devices.branchHistory": "История команд филиала",
   "op.settings.devices.branchHistoryCount": "{count} последних",
@@ -1945,7 +1885,6 @@
   "op.settings.devices.deviceSummary": "Агент {agentVersion} · приложений {appCount} · в работе {pending} · ошибок {failed} · {lastHeartbeat}",
   "op.settings.devices.ariaInventory": "Устройства филиала",
   "op.settings.devices.ariaDevice": "Устройство",
-
   "op.settings.devices.detail.device": "Устройство",
   "op.settings.devices.detail.status": "Статус",
   "op.settings.devices.detail.seat": "Место",
@@ -1954,15 +1893,12 @@
   "op.settings.devices.detail.shell": "Оболочка",
   "op.settings.devices.detail.credentials": "Ключи",
   "op.settings.devices.detail.apps": "Приложения",
-
   "op.settings.devices.credentialRotated": "готов к отзыву для {deviceName}",
   "op.settings.devices.credentialEmpty": "сначала смените ключ",
-
   "op.settings.devices.confirmRevokeKey.title": "Подтвердите отзыв ключа",
   "op.settings.devices.confirmRevokeKey.detail": "{deviceName} · новый ключ устройства",
   "op.settings.devices.confirmRevokeKey.impact": "После отзыва этот ключ больше нельзя использовать для подключения выбранного ПК.",
   "op.settings.devices.confirmRevokeKey.confirm": "Отозвать ключ",
-
   "op.settings.devices.error.noPermCommandHistory": "Нет прав на просмотр истории команд устройств.",
   "op.settings.devices.error.noPermEnrollment": "Нет прав на создание кода подключения устройства.",
   "op.settings.devices.error.enrollmentRange": "Срок действия кода должен быть от 1 минуты до 24 часов.",
@@ -1975,7 +1911,6 @@
   "op.settings.devices.error.noPermRotateKey": "Нет прав на смену ключа устройства.",
   "op.settings.devices.error.noPermRevokeKey": "Нет прав на отзыв ключа устройства.",
   "op.settings.devices.error.selectDeviceAndKey": "Выберите устройство и ключ для отзыва.",
-
   "op.settings.tariffs.title": "Тарифы",
   "op.settings.tariffs.name": "Название тарифа",
   "op.settings.tariffs.pricePerHour": "Цена за час",
@@ -1986,11 +1921,9 @@
   "op.settings.tariffs.minLabel": "минимум {min} мин · шаг {step} мин · {state}",
   "op.settings.tariffs.active": "активен",
   "op.settings.tariffs.inactive": "снят",
-
   "op.settings.tariffs.error.noPerm": "Нет прав на управление тарифами.",
   "op.settings.tariffs.error.fillCreate": "Заполните название тарифа, цену за час, минимум и округление.",
   "op.settings.tariffs.error.fillUpdate": "Выберите тариф и заполните название, цену за час, минимум и округление.",
-
   "op.settings.packages.title": "Пакеты",
   "op.settings.packages.name": "Название пакета",
   "op.settings.packages.price": "Цена",
@@ -1999,11 +1932,9 @@
   "op.settings.packages.expiresDays": "Срок, дней",
   "op.settings.packages.packageFallback": "Пакет",
   "op.settings.packages.minutesDetail": "{minutes} мин · +{bonus} бонус · действует {days} дн.",
-
   "op.settings.packages.error.noPerm": "Нет прав на управление пакетами.",
   "op.settings.packages.error.fillCreate": "Заполните название, цену, минуты, бонус и срок действия пакета.",
   "op.settings.packages.error.fillUpdate": "Выберите пакет и заполните название, цену, минуты, бонус и срок действия.",
-
   "op.settings.staff.title": "Сотрудники",
   "op.settings.staff.loginLabel": "Логин для входа",
   "op.settings.staff.displayName": "Имя в смене",
@@ -2020,7 +1951,6 @@
   "op.settings.staff.roleEmpty": "роль не задана",
   "op.settings.staff.active": "активен",
   "op.settings.staff.inactive": "отключен",
-
   "op.settings.staff.error.noPerm": "Нет прав на управление сотрудниками.",
   "op.settings.staff.error.fillInvite": "Заполните имя пользователя, имя сотрудника и email.",
   "op.settings.staff.error.fillProfile": "Выберите сотрудника и заполните логин и имя профиля.",
@@ -2028,7 +1958,6 @@
   "op.settings.staff.error.selectStaffAndRole": "Выберите сотрудника и роль.",
   "op.settings.staff.error.selectStaff": "Выберите сотрудника.",
   "op.settings.staff.error.passwordTooShort": "Выберите сотрудника и задайте пароль не короче 8 символов.",
-
   "op.settings.pos.title": "Каталог товаров",
   "op.settings.pos.category": "Категория",
   "op.settings.pos.productName": "Товар",
@@ -2041,12 +1970,10 @@
   "op.settings.pos.no": "нет",
   "op.settings.pos.productFallback": "Товар",
   "op.settings.pos.stockOnHand": "остаток {count}",
-
   "op.settings.pos.error.noPerm": "Нет прав на управление каталогом товаров.",
   "op.settings.pos.error.fillCreate": "Заполните категорию, товар, артикул и цену больше нуля.",
   "op.settings.pos.error.categoryNotConfirmed": "Категория создана, но сервер не подтвердил её. Повторите операцию или обратитесь в поддержку.",
   "op.settings.pos.error.fillUpdate": "Выберите товар и заполните товар, артикул и цену больше нуля.",
-
   "op.settings.stock.title": "Остатки",
   "op.settings.stock.recordBtn": "Записать движение",
   "op.settings.stock.product": "Товар склада",
@@ -2059,15 +1986,12 @@
   "op.settings.stock.noTrackedProducts": "нет товаров с остатками",
   "op.settings.stock.reasonFallback": "причина не указана",
   "op.settings.stock.stockOnHand": "· остаток {count}",
-
   "op.settings.stock.history.title": "История склада",
   "op.settings.stock.history.count": "{count} последних",
   "op.settings.stock.history.empty": "Нет движений",
   "op.settings.stock.history.emptyDetail": "движений по складу пока нет",
-
   "op.settings.stock.error.noPerm": "Нет прав на управление остатками.",
   "op.settings.stock.error.fillFields": "Выберите товар с учётом остатков, количество не равное нулю, себестоимость и причину.",
-
   "op.settings.integrations.payments": "Платежи",
   "op.settings.integrations.payments.detail": "ручное подтверждение",
   "op.settings.integrations.updates": "Обновления",
@@ -2077,7 +2001,6 @@
   "op.settings.integrations.connectionOk": "подключена",
   "op.settings.integrations.connectionLocal": "локальные данные",
   "op.settings.integrations.rolloutCount": "публикаций: {count}",
-
   "op.settings.updates.packagesTitle": "Пакеты для обновления",
   "op.settings.updates.addBtn": "Добавить пакет",
   "op.settings.updates.component": "Приложение",
@@ -2090,12 +2013,10 @@
   "op.settings.updates.fileSizeKb": "Размер файла, КБ",
   "op.settings.updates.releaseNotes": "Описание релиза",
   "op.settings.updates.versionFallback": "версия",
-
   "op.settings.updates.error.noPerm": "Нет прав на управление пакетами обновлений.",
   "op.settings.updates.error.fillFields": "Заполните приложение, версию, канал, ссылку на установщик, проверочную сумму, подпись, способ проверки подписи и размер файла.",
   "op.settings.updates.error.invalidUrl": "Ссылка на установщик должна быть полной.",
   "op.settings.updates.error.packageNotConfirmed": "Пакет обновления создан, но сервер не подтвердил его. Повторите операцию или обратитесь в поддержку.",
-
   "op.settings.rollouts.title": "Публикации обновлений",
   "op.settings.rollouts.createBtn": "Создать публикацию",
   "op.settings.rollouts.packageForRollout": "Пакет для публикации",
@@ -2111,7 +2032,6 @@
   "op.settings.rollouts.selectedRollout": "выбранная публикация",
   "op.settings.rollouts.noDevices": "нет подключенных устройств",
   "op.settings.rollouts.rolloutTargetDetail": "{targetKind} · {batchPercent}% · ПК: {deviceCount}",
-
   "op.settings.rollouts.detail.rollout": "Публикация",
   "op.settings.rollouts.detail.state": "Состояние",
   "op.settings.rollouts.detail.target": "Цель",
@@ -2121,10 +2041,8 @@
   "op.settings.rollouts.detail.completed": "Завершено",
   "op.settings.rollouts.detail.devices": "ПК",
   "op.settings.rollouts.detail.versionArrow": "{from} → {to}",
-
   "op.settings.rollouts.error.noPermRollouts": "Нет прав на управление публикациями обновлений.",
   "op.settings.rollouts.error.fillFields": "Выберите пакет, канал, цель, долю, старт и причину публикации.",
-
   "op.settings.packageState.title": "Состояния обновлений",
   "op.settings.packageState.packageLabel": "Пакет обновления",
   "op.settings.packageState.stateLabel": "Состояние пакета",
@@ -2134,7 +2052,6 @@
   "op.settings.packageState.rolloutReasonLabel": "Причина публикации",
   "op.settings.packageState.noPackages": "нет пакетов",
   "op.settings.packageState.selectedPackage": "выбранный пакет",
-
   "op.settings.packageState.confirmPackage.title": "Подтвердите состояние пакета",
   "op.settings.packageState.confirmPackage.packageFallback": "Пакет",
   "op.settings.packageState.confirmPackage.impact": "Причина будет записана в журнал: {reason}",
@@ -2145,18 +2062,14 @@
   "op.settings.packageState.confirmRollout.impact": "Изменение повлияет на выдачу обновлений устройствам. Причина: {reason}",
   "op.settings.packageState.confirmRollout.impactNoReason": "не указана",
   "op.settings.packageState.confirmRollout.confirm": "Подтвердить состояние публикации",
-
   "op.settings.packageState.error.noPermPackages": "Нет прав на управление пакетами обновлений.",
   "op.settings.packageState.error.fillPackageState": "Выберите пакет, состояние и причину.",
   "op.settings.packageState.error.fillRolloutState": "Выберите публикацию, состояние и причину.",
-
   "op.settings.generic.error.notConnected": "Действие настроек пока не подключено к серверу.",
-
   "op.helper.error.noContract": "Для этого действия нет контракта сервера.",
   "op.helper.feedback.pending": "{label}: ждём ответ сервера",
   "op.helper.feedback.failed": "{label}: нужен повтор или проверка",
   "op.helper.feedback.confirmed": "{label}: подтверждено",
-
   "op.helper.billing.guest": "Гость",
   "op.helper.billing.guestDetail": "без списания",
   "op.helper.billing.prepaid": "Депозит",
@@ -2166,29 +2079,24 @@
   "op.helper.billing.postpaid": "Постоплата",
   "op.helper.billing.postpaidDetail": "долг игрока",
   "op.helper.billing.notSet": "Не задан",
-
   "op.helper.zone.filter.all": "Все",
   "op.helper.zone.filter.ready": "Свободно",
   "op.helper.zone.filter.active": "Сессии",
   "op.helper.zone.filter.offline": "Нет связи",
-
   "op.helper.tone.ready": "Свободно",
   "op.helper.tone.active": "В сессии",
   "op.helper.tone.pending": "Ожидание",
   "op.helper.tone.offline": "Нет связи",
   "op.helper.tone.service": "Обслуживание",
-
   "op.helper.billing.deposit": "Депозит",
   "op.helper.billing.postpaidLabel": "Постоплата",
   "op.helper.billing.guestLabel": "Гость",
   "op.helper.billing.openTab": "Открытый счёт",
   "op.helper.billing.cash": "Наличные",
-
   "op.helper.zone.consoleLounge": "Консольная зона",
   "op.helper.zone.mainHall": "Основной зал",
   "op.helper.zone.vipRoom": "VIP-зал",
   "op.helper.zone.bootcamp": "Буткемп",
-
   "op.helper.staff.cashierOperator": "Кассир-оператор",
   "op.helper.staff.shiftSupervisor": "Старший смены",
   "op.helper.staff.branchManager": "Управляющий",
@@ -2198,7 +2106,6 @@
   "op.helper.staff.shiftOperator": "Оператор смены",
   "op.helper.staff.clubAdmin": "Администратор клуба",
   "op.helper.staff.branchMgr": "Менеджер филиала",
-
   "op.helper.update.component.operatorApp": "Приложение оператора",
   "op.helper.update.component.agentService": "Сервис агента",
   "op.helper.update.component.playerShell": "Оболочка игрока",
@@ -2227,7 +2134,6 @@
   "op.helper.update.deviceStatus.pending": "Ожидает",
   "op.helper.update.deviceStatus.failed": "Ошибка",
   "op.helper.update.deviceStatus.unknown": "Неизвестно",
-
   "op.helper.command.leased": "Сессия подтверждена",
   "op.helper.command.unlockPending": "Разблокировка в процессе",
   "op.helper.command.startPending": "Запуск в процессе",
@@ -2238,7 +2144,6 @@
   "op.helper.command.failed": "Команда не выполнена",
   "op.helper.command.tech": "Техобслуживание",
   "op.helper.command.lowBalance": "Мало средств",
-
   "op.helper.command.type.lock": "Блокировка",
   "op.helper.command.type.unlock": "Разблокировка",
   "op.helper.command.type.transfer": "Перенос",
@@ -2251,7 +2156,6 @@
   "op.helper.command.status.done": "выполнена",
   "op.helper.command.status.failed": "не выполнена",
   "op.helper.command.status.cancelled": "отменена",
-
   "op.helper.map.sessionActive": "Сессия активна",
   "op.helper.map.ready": "Свободен",
   "op.helper.map.readyValue": "готов к старту",
@@ -2259,7 +2163,6 @@
   "op.helper.map.needsCheck": "Требует проверки",
   "op.helper.map.noSignal": "Нет связи",
   "op.helper.map.service": "Сервис",
-
   "op.helper.shift.mapUpdating": "Обновляем карту",
   "op.helper.shift.mapLoading": "Загружаем карту",
   "op.helper.shift.platformError": "Ошибка сервера · {error}",
@@ -2276,19 +2179,16 @@
   "op.helper.shift.error": "Смена · ошибка сервера",
   "op.helper.shift.noAccess": "Смена · нет доступа",
   "op.helper.shift.notOpen": "Смена не открыта",
-
   "op.helper.shell.posChecks": "Касса: {count, plural, one {# чек} few {# чека} many {# чеков} other {# чеков}} сегодня",
   "op.helper.shell.posLoading": "Касса: загрузка",
   "op.helper.shell.posNoData": "Касса: нет данных",
   "op.helper.shell.modeDev": "локальная сборка",
   "op.helper.shell.modeDist": "установленная сборка",
-
   "op.helper.realtime.connected": "Сеть подключена",
   "op.helper.realtime.connecting": "Сеть подключается",
   "op.helper.realtime.reconnecting": "Сеть восстанавливается",
   "op.helper.realtime.lost": "Сеть потеряна",
   "op.helper.realtime.disconnected": "Сеть отключена",
-
   "op.helper.pos.saleState.paid": "Оплачен",
   "op.helper.pos.saleState.draft": "Черновик",
   "op.helper.pos.saleState.voided": "Аннулирован",
@@ -2308,7 +2208,6 @@
   "op.helper.pos.receiptTotal": "Итого: {total}",
   "op.helper.pos.productFallback": "Товар",
   "op.helper.pos.unitSuffix": "шт.",
-
   "op.helper.billing.cashOp.opening": "Открытие смены",
   "op.helper.billing.cashOp.closing": "Закрытие смены",
   "op.helper.billing.cashOp.cashIn": "Внесение",
@@ -2319,7 +2218,6 @@
   "op.helper.billing.paySource.cash": "Наличные",
   "op.helper.billing.paySource.sale": "Продажа",
   "op.helper.billing.paySource.fallback": "Касса",
-
   "op.helper.player.detail": "{phone} · {packages, plural, one {# пакет} few {# пакета} many {# пакетов} other {# пакетов}}",
   "op.helper.player.noPhone": "без телефона",
   "op.helper.player.packageCount": "{count} пак.",
@@ -2333,11 +2231,9 @@
   "op.helper.player.packageOptionLabel": "{name} · {price} · {minutes} мин",
   "op.helper.player.tariffFallback": "Тариф",
   "op.helper.player.packageFallback": "Пакет",
-
   "op.helper.command.platformConfirmed": "Команда принята",
   "op.helper.command.sentToPc": "отправлена на ПК",
   "op.helper.command.statusUnavailable": "статус недоступен: {detail}",
-
   "op.helper.audit.saleCreated": "Продажа создана",
   "op.helper.audit.saleRefund": "Возврат по чеку",
   "op.helper.audit.saleVoid": "Чек аннулирован",
@@ -2358,20 +2254,16 @@
   "op.helper.audit.record": "Запись аудита",
   "op.helper.audit.system": "Система",
   "op.helper.audit.staff": "Сотрудник",
-
   "op.helper.error.sessionUnavailable": "Сессия оператора недоступна.",
-
   "op.helper.stock.purchase": "Приход",
   "op.helper.stock.adjustment": "Коррекция",
   "op.helper.stock.sale": "Продажа",
   "op.helper.stock.writeOff": "Списание",
   "op.helper.stock.fallback": "Движение",
-
   "op.helper.error.sessionEnded": "Сеанс уже завершается или завершён. Дождитесь обновления карты.",
   "op.helper.error.sessionExpired": "Сессия оператора устарела. Войдите снова.",
   "op.helper.error.badRequest": "Сервер отклонил запрос:",
   "op.helper.error.serverError": "Сервер временно недоступен:",
-
   "op.shell.window": "Окно",
   "op.shell.changeLanguage": "Сменить язык",
   "op.shell.themeToLight": "Светлая тема",
@@ -2597,12 +2489,21 @@
   "op.checkout.method.cash": "Наличные",
   "op.checkout.method.card": "Карта",
   "op.checkout.method.wallet": "Депозит",
+  "op.checkout.change": "Сдача",
+  "op.checkout.tab.split": "Смешанно",
+  "op.checkout.exact": "Ровно",
+  "op.checkout.confirmAmount": "Принять {amount}",
+  "op.checkout.startedAt": "начало {time}",
+  "op.checkout.lineTime": "Время",
+  "op.checkout.cardExact": "Точная сумма спишется с карты",
+  "op.checkout.depositFull": "Спишется с депозита: {amount}",
+  "op.checkout.depositPlusCash": "С депозита {cover} + наличными {rest}",
   "op.checkout.duration.min": "{minutes}м",
   "op.checkout.duration.hourMin": "{hours}ч {minutes}м",
   "op.checkout.error.invalidAmount": "Проверьте сумму платежа.",
   "op.checkout.error.walletExceeds": "Оплата с депозита превышает баланс.",
+  "op.checkout.error.cardOver": "Карта и депозит больше счёта на {amount}",
   "op.checkout.error.short": "Не хватает {amount}",
-  "op.checkout.error.over": "Превышение на {amount}",
   "op.shell.queuedCommand": "Команда «{action}» поставлена в очередь — будет отправлена после восстановления связи.",
   "op.outbox.dropped": "{seat}: команда {command} отменена — состояние изменилось на сервере",
   "op.toast.close": "Закрыть",

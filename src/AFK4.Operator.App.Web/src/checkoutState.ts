@@ -29,10 +29,17 @@ export interface CheckoutPaymentDraft {
 }
 
 export interface CheckoutValidation {
+  /** Что реально идёт в счёт: карта+депозит целиком + наличные в пределах остатка. */
   paidMinorUnits: number;
+  /** Наличные, протянутые оператором. Излишек над остатком — это сдача, не переплата. */
+  cashTenderedMinorUnits: number;
   walletMinorUnits: number;
-  /** grandTotal − paid; positive means still owed, negative means over-paid. */
+  /** Сдача наличными = протянуто − (остаток под наличные). 0, если наличных нет или недобор. */
+  changeMinorUnits: number;
+  /** grandTotal − paid; positive means still owed. */
   remainingMinorUnits: number;
+  /** Карта+депозит уже больше счёта: их сдачи не бывает — это ошибка ввода. */
+  cardOverMinorUnits: number;
   isBalanced: boolean;
   walletWithinBalance: boolean;
   hasInvalidAmount: boolean;
@@ -79,7 +86,8 @@ export function validateCheckoutPayments(
   walletBalanceMinorUnits: number | null,
   t: TFn
 ): CheckoutValidation {
-  let paidMinorUnits = 0;
+  let cashTenderedMinorUnits = 0;
+  let nonCashMinorUnits = 0;
   let walletMinorUnits = 0;
   let hasInvalidAmount = false;
 
@@ -95,38 +103,55 @@ export function validateCheckoutPayments(
       hasInvalidAmount = true;
       continue;
     }
-    paidMinorUnits += minorUnits;
-    if (draft.method === 'wallet') {
-      walletMinorUnits += minorUnits;
+    if (draft.method === 'cash') {
+      // Наличные — это «получено»: оператор вводит купюру, а не точную сумму к счёту.
+      cashTenderedMinorUnits += minorUnits;
+    } else {
+      nonCashMinorUnits += minorUnits;
+      if (draft.method === 'wallet') {
+        walletMinorUnits += minorUnits;
+      }
     }
   }
 
+  // Карта/депозит — безналичные: оператор сам задаёт точную сумму списания, сдачи с них не бывает.
+  // Если они уже перекрыли счёт — это ошибка ввода, а не «лишние деньги».
+  const cardOverMinorUnits = Math.max(0, nonCashMinorUnits - grandTotalMinorUnits);
+  // Остаток, который должны закрыть наличными после безнала.
+  const cashDueMinorUnits = Math.max(0, grandTotalMinorUnits - nonCashMinorUnits);
+  const appliedCashMinorUnits = Math.min(cashTenderedMinorUnits, cashDueMinorUnits);
+  // Сдача — только с наличных и только когда безнал не перекрыл счёт.
+  const changeMinorUnits = cardOverMinorUnits > 0 ? 0 : Math.max(0, cashTenderedMinorUnits - cashDueMinorUnits);
+  const paidMinorUnits = Math.min(nonCashMinorUnits, grandTotalMinorUnits) + appliedCashMinorUnits;
   const remainingMinorUnits = grandTotalMinorUnits - paidMinorUnits;
-  const isBalanced = paidMinorUnits === grandTotalMinorUnits;
+  const isBalanced = cardOverMinorUnits === 0 && remainingMinorUnits === 0;
   const walletWithinBalance = walletMinorUnits <= (walletBalanceMinorUnits ?? 0);
 
   // A zero-total bill settles with no payment parts at all.
   const canSubmit =
     !hasInvalidAmount &&
     walletWithinBalance &&
-    (grandTotalMinorUnits === 0 ? paidMinorUnits === 0 : isBalanced);
+    cardOverMinorUnits === 0 &&
+    (grandTotalMinorUnits === 0 ? nonCashMinorUnits === 0 && cashTenderedMinorUnits === 0 : isBalanced);
 
   let error: string | null = null;
   if (hasInvalidAmount) {
     error = t('op.checkout.error.invalidAmount');
   } else if (!walletWithinBalance) {
     error = t('op.checkout.error.walletExceeds');
-  } else if (!canSubmit) {
-    error =
-      remainingMinorUnits > 0
-        ? t('op.checkout.error.short', { amount: formatCheckoutAmount(remainingMinorUnits) })
-        : t('op.checkout.error.over', { amount: formatCheckoutAmount(-remainingMinorUnits) });
+  } else if (cardOverMinorUnits > 0) {
+    error = t('op.checkout.error.cardOver', { amount: formatCheckoutAmount(cardOverMinorUnits) });
+  } else if (remainingMinorUnits > 0) {
+    error = t('op.checkout.error.short', { amount: formatCheckoutAmount(remainingMinorUnits) });
   }
 
   return {
     paidMinorUnits,
+    cashTenderedMinorUnits,
     walletMinorUnits,
+    changeMinorUnits,
     remainingMinorUnits,
+    cardOverMinorUnits,
     isBalanced,
     walletWithinBalance,
     hasInvalidAmount,
@@ -136,21 +161,34 @@ export function validateCheckoutPayments(
 }
 
 /** Build the API payment parts from the drafts, dropping blank/zero rows and
- * converting to minor units in the bill currency. */
+ * converting to minor units in the bill currency. Non-cash parts are recorded as
+ * entered; cash is recorded as the amount *applied* to the bill (tendered minus
+ * change), so the till entry matches the bill while the operator still sees the
+ * change to hand back. */
 export function buildCheckoutPayments(
   drafts: readonly CheckoutPaymentDraft[],
-  currencyCode: string
+  currencyCode: string,
+  grandTotalMinorUnits: number
 ): PaymentPartDto[] {
   const payments: PaymentPartDto[] = [];
+  let nonCashMinorUnits = 0;
+  let cashTenderedMinorUnits = 0;
   for (const draft of drafts) {
     const minorUnits = parseCheckoutAmount(draft.amountText);
     if (minorUnits === null || minorUnits <= 0) {
       continue;
     }
-    payments.push({
-      paymentMethod: draft.method,
-      amount: { currencyCode, minorUnits }
-    });
+    if (draft.method === 'cash') {
+      cashTenderedMinorUnits += minorUnits;
+      continue;
+    }
+    payments.push({ paymentMethod: draft.method, amount: { currencyCode, minorUnits } });
+    nonCashMinorUnits += minorUnits;
+  }
+
+  const appliedCashMinorUnits = Math.min(cashTenderedMinorUnits, Math.max(0, grandTotalMinorUnits - nonCashMinorUnits));
+  if (appliedCashMinorUnits > 0) {
+    payments.push({ paymentMethod: 'cash', amount: { currencyCode, minorUnits: appliedCashMinorUnits } });
   }
   return payments;
 }

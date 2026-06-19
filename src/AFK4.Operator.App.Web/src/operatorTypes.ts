@@ -33,7 +33,7 @@ export type SeatActionResult = {
 };
 export type SessionStartDurationMode = 'fixed' | 'open';
 export type SeatActionRequest =
-  | { type: 'start'; seat: SeatSummary; billing: SessionBillingSelection; durationMode: SessionStartDurationMode }
+  | { type: 'start'; seat: SeatSummary; billing: SessionBillingSelection; durationMode: SessionStartDurationMode; durationMinutes?: number | null }
   | { type: 'extend'; seat: SeatSummary; minutes: number; billing: SessionBillingSelection }
   | { type: 'transfer'; seat: SeatSummary; targetSeatId: string }
   | { type: 'end'; seat: SeatSummary }

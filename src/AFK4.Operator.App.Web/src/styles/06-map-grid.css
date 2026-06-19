@@ -30,14 +30,6 @@
   gap: 6px;
 }
 
-.duration-mode {
-  margin-top: 8px;
-}
-
-.duration-mode button {
-  flex: 1;
-}
-
 .map-load-state {
   display: inline-flex;
   align-items: center;
@@ -824,20 +816,21 @@
 .critical-confirmation-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 7px;
+  gap: 8px;
 }
 
 .critical-confirmation-actions button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 30px;
+  min-height: 40px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  padding: 0 10px;
+  border-radius: 8px;
+  padding: 0 18px;
   background: var(--surface-card);
   color: var(--text-strong);
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .critical-confirmation-actions button.danger {
@@ -877,12 +870,19 @@
   opacity: 0.5;
 }
 
+.checkout-subtitle {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .checkout-dialog .checkout-loading,
 .checkout-dialog .checkout-error,
 .checkout-dialog .checkout-balanced {
   margin: 0;
-  font-size: 11px;
-  line-height: 1.3;
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .checkout-error {
@@ -891,60 +891,246 @@
 
 .checkout-balanced {
   color: var(--success-text);
-}
-
-.checkout-breakdown {
-  display: grid;
-  gap: 3px;
-  margin: 0;
-}
-
-.checkout-breakdown > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 11px;
-  color: var(--text-strong);
-}
-
-.checkout-breakdown dt,
-.checkout-breakdown dd {
-  margin: 0;
-}
-
-.checkout-breakdown-total {
-  margin-top: 3px;
-  padding-top: 5px;
-  border-top: 1px solid var(--border-default);
-  font-weight: 700;
-  color: var(--text-primary) !important;
-}
-
-.checkout-breakdown-total dd {
   font-size: 13px;
+  font-weight: 700;
+}
+
+/* Чек: позиции + крупный итог «К оплате» — как лента кассового чека. */
+.checkout-receipt {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface-sunken);
+}
+
+.checkout-context {
+  margin: 0 0 2px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.checkout-receipt-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.checkout-receipt-line b {
+  color: var(--text-strong);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.checkout-receipt-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-default);
+}
+
+.checkout-receipt-total span {
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.checkout-receipt-total strong {
+  color: var(--text-primary);
+  font-size: 32px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* Сдача — деньги, которые оператор отдаёт клиенту обратно: спокойный успех, не ошибка. */
+.checkout-change {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 11px 14px;
+  border: 1px solid var(--success-soft-border);
+  border-radius: 8px;
+  background: var(--success-soft-bg);
+  color: var(--success-text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.checkout-change strong {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.checkout-no-payment {
+  margin: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.checkout-pay {
+  display: grid;
+  gap: 12px;
+}
+
+/* Способ оплаты — сегмент-вкладки кассы. */
+.checkout-tabs {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  background: var(--surface-sunken);
+}
+
+.checkout-tabs button {
+  min-height: 34px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.checkout-tabs button:hover:not(:disabled),
+.checkout-tabs button:focus-visible:not(:disabled) {
+  color: var(--text-strong);
+  outline: none;
+}
+
+.checkout-tabs button.active {
+  background: var(--surface-card);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.checkout-tabs button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Наличные: крупное поле «получено» + быстрые номиналы → касса считает сдачу. */
+.checkout-cash {
+  display: grid;
+  gap: 10px;
+}
+
+.checkout-received {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.checkout-received span {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.checkout-received input {
+  min-width: 0;
+  height: 48px;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 0 14px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.checkout-cash-chips {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.checkout-cash-chips button {
+  min-height: 38px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.checkout-cash-chips button:hover:not(:disabled),
+.checkout-cash-chips button:focus-visible:not(:disabled) {
+  border-color: var(--border-accent);
+  background: var(--surface-hover);
+  outline: none;
+}
+
+.checkout-cash-chips button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.checkout-pay-note {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .checkout-payments {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .checkout-payment-row {
   display: grid;
-  grid-template-columns: 1fr auto 84px auto;
+  grid-template-columns: 1fr auto 96px auto;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .checkout-payment-row select,
 .checkout-payment-row input {
   min-width: 0;
-  height: 30px;
+  height: 38px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  padding: 0 9px;
+  border-radius: 8px;
+  padding: 0 11px;
   background: var(--surface-sunken);
   color: var(--text-primary);
+  font-size: 14px;
 }
 
 .checkout-payment-row input {
@@ -960,10 +1146,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 38px;
+  height: 38px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--surface-card);
   color: var(--text-secondary);
 }
@@ -981,14 +1167,14 @@
 .checkout-payment-controls button {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  min-height: 28px;
+  gap: 6px;
+  min-height: 34px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  padding: 0 9px;
+  border-radius: 8px;
+  padding: 0 12px;
   background: var(--surface-card);
   color: var(--text-strong);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
 }
 

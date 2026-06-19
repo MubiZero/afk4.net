@@ -33,6 +33,7 @@ export function WorkspaceRouter({
   mapFilter,
   offlineActionAudit,
   onSelectSeat,
+  onStartSeat,
   onFilterChange,
   onPcControlAction,
   onSeatAction,
@@ -49,6 +50,7 @@ export function WorkspaceRouter({
   mapFilter: MapFilterId;
   offlineActionAudit: string[];
   onSelectSeat: (seatId: string) => void;
+  onStartSeat?: (seatId: string) => void;
   onFilterChange: (filter: MapFilterId) => void;
   onPcControlAction: ComponentProps<typeof MapWorkspace>['onPcControlAction'];
   onSeatAction: ComponentProps<typeof MapWorkspace>['onSeatAction'];
@@ -67,6 +69,7 @@ export function WorkspaceRouter({
           activeFilter={mapFilter}
           offlineActionAudit={offlineActionAudit}
           onSelectSeat={onSelectSeat}
+          onStartSeat={onStartSeat}
           onFilterChange={onFilterChange}
           onPcControlAction={onPcControlAction}
           onSeatAction={onSeatAction}

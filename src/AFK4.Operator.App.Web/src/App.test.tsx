@@ -202,7 +202,7 @@ describe('App', () => {
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
-    await within(dialog).findByText('Итого');
+    await within(dialog).findByText('К оплате');
     expect(within(dialog).getAllByText(/\$/).length).toBeGreaterThan(0);
   });
 
@@ -439,13 +439,14 @@ describe('App', () => {
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
 
-    // Finish opens the checkout modal; ending without taking payment is the secondary path inside it.
+    // Finish opens the checkout modal; with nothing owed (zero-bill quote) the primary action
+    // just ends the session through /end without recording a payment.
     const finishDialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
     expect(finishDialog).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/sessions/22222222-2222-2222-2222-222222222222/end') &&
       init?.method === 'POST')).toBe(false);
-    fireEvent.click(within(finishDialog).getByRole('button', { name: 'Завершить без оплаты' }));
+    fireEvent.click(await within(finishDialog).findByRole('button', { name: 'Завершить' }));
 
     expect((await screen.findAllByText('Готово')).length).toBeGreaterThan(0);
     const postCall = fetchMock.mock.calls.find(([input, init]) =>
@@ -498,12 +499,13 @@ describe('App', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
-    await within(dialog).findByText('Итого');
+    await within(dialog).findByText('К оплате');
     expect(dialog).toHaveTextContent('45м');
-    // Quote pre-fills a single cash row with the whole grand total.
+    // Cash tab pre-fills "получено" with the whole grand total → exact, change zero.
     await waitFor(() => expect(within(dialog).getByText('Сумма совпадает')).toBeInTheDocument());
 
-    const confirm = within(dialog).getByRole('button', { name: 'Принять оплату' });
+    // Confirm carries the amount: «Принять 22,50 …».
+    const confirm = within(dialog).getByRole('button', { name: /Принять/ });
     expect(confirm).toBeEnabled();
     await act(async () => {
       fireEvent.click(confirm);
@@ -557,7 +559,7 @@ describe('App', () => {
     await waitFor(() => expect(realtimeMock.clients).toHaveLength(1));
     fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
     const realtimeFinishDialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
-    fireEvent.click(within(realtimeFinishDialog).getByRole('button', { name: 'Завершить без оплаты' }));
+    fireEvent.click(await within(realtimeFinishDialog).findByRole('button', { name: 'Завершить' }));
     await waitFor(() => expect(floorMapRequestCount).toBeGreaterThanOrEqual(2));
 
     commandResultReported = true;
@@ -658,9 +660,10 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
+    // «+» свободной плитки открывает запуск; гость по умолчанию, длительность 1 час.
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
-    fireEvent.click(await screen.findByRole('button', { name: /Посадить гостя/ }));
-    const startButton = await screen.findByRole('button', { name: /Старт 60 мин/ });
+    const startDialog = await screen.findByRole('dialog', { name: 'Новая сессия' });
+    const startButton = await within(startDialog).findByRole('button', { name: /Старт · 1 ч/ });
     expect(startButton).toBeEnabled();
     fireEvent.click(startButton);
 
@@ -688,9 +691,10 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
-    fireEvent.click(await screen.findByRole('button', { name: /Посадить гостя/ }));
-    fireEvent.click(await screen.findByRole('button', { name: /Открытый счёт оплата при завершении/ }));
-    const startButton = await screen.findByRole('button', { name: /Старт · открытый счёт/ });
+    const startDialog = await screen.findByRole('dialog', { name: 'Новая сессия' });
+    // Открытый счёт — отдельный чип длительности (для гостя доступен).
+    fireEvent.click(within(startDialog).getByRole('button', { name: 'Открытый счёт' }));
+    const startButton = await within(startDialog).findByRole('button', { name: /Старт · открытый счёт/ });
     expect(startButton).toBeEnabled();
     fireEvent.click(startButton);
 
@@ -712,14 +716,18 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
+    // «+» свободной плитки открывает запуск сессии сразу (выбрав место).
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
-    fireEvent.click(await screen.findByRole('button', { name: /Посадить гостя/ }));
-    fireEvent.click(await screen.findByRole('button', { name: /Депозит/ }));
+    const startDialog = await screen.findByRole('dialog', { name: 'Новая сессия' });
+    // Клиент клуба → списание по умолчанию «Депозит» (prepaid_wallet).
+    fireEvent.click(within(startDialog).getByRole('tab', { name: 'Клиент клуба' }));
     fireEvent.change(screen.getByLabelText('Игрок для биллинга'), { target: { value: 'Madina' } });
     fireEvent.click(await screen.findByRole('button', { name: /Madina S\./ }));
-    expect(await screen.findByText('Депозит готов')).toBeInTheDocument();
+    // Биллинг готов → окно показывает превью «Запустим …».
+    expect(await screen.findByText('Запустим')).toBeInTheDocument();
 
-    const startButton = await screen.findByRole('button', { name: /Старт 60 мин/ });
+    // Длительность по умолчанию — 1 час; кнопка несёт её: «Старт · 1 ч».
+    const startButton = await screen.findByRole('button', { name: /Старт · 1 ч/ });
     expect(startButton).toBeEnabled();
     fireEvent.click(startButton);
 

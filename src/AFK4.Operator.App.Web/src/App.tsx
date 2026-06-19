@@ -85,6 +85,9 @@ function AppInner() {
   });
   const [accountPanelOpen, setAccountPanelOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Токен «открыть запуск сессии» — растёт по клику на «+» свободной плитки; боковая панель
+  // реагирует на изменение и открывает старт-диалог для выбранного места.
+  const [startSeatToken, setStartSeatToken] = useState(0);
   // ⌘K / Ctrl+K открывают палитру даже из поля ввода (allowInInputs). Биндинги мемоизированы —
   // useHotkeys пересоздаёт слушатель только при смене массива.
   const paletteHotkeys = useMemo(
@@ -195,6 +198,13 @@ function AppInner() {
   const handleOpenSeat = (seatId: string) => {
     setSelectedSeatId(seatId);
     setWorkspace('map');
+  };
+
+  // Клик по «+» свободной плитки: выбрать место, остаться на карте и открыть запуск сессии.
+  const handleStartSeat = (seatId: string) => {
+    setSelectedSeatId(seatId);
+    setWorkspace('map');
+    setStartSeatToken((value) => value + 1);
   };
 
   if (blockedResolution !== null) {
@@ -311,6 +321,7 @@ function AppInner() {
           mapFilter={mapFilter}
           offlineActionAudit={offlineActionAudit}
           onSelectSeat={setSelectedSeatId}
+          onStartSeat={handleStartSeat}
           onFilterChange={setMapFilter}
           onPcControlAction={handlePcControlAction}
           onSeatAction={handleSeatAction}
@@ -328,6 +339,7 @@ function AppInner() {
             backend={backendContext}
             actionsEnabled={actionsEnabled}
             canUsePcControl={canUsePcControl}
+            startRequestToken={startSeatToken}
             onSeatAction={handleSeatAction}
             onPcControlAction={handlePcControlAction}
           />

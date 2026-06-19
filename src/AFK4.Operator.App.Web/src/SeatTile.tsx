@@ -18,11 +18,13 @@ export function SeatTile({
   seat,
   selected,
   onSelect,
+  onStartSession,
   onContextMenu
 }: {
   seat: SeatSummary;
   selected?: boolean;
   onSelect: () => void;
+  onStartSession?: () => void;
   onContextMenu?: (event: ReactMouseEvent) => void;
 }) {
   const { t } = useI18n();
@@ -34,18 +36,21 @@ export function SeatTile({
   // Сессия идёт, но ПК без связи: тон серый, время/сумма сессии остаются — значок обрыва говорит,
   // что деньги капают без контроля над ПК (сессия не теряется, см. модель SeatTone).
   const sessionOffline = seat.isDeviceOnline === false && (lead.kind === 'prepaid' || lead.kind === 'postpaid');
+  // Свободная плитка — это и есть «＋»-приглашение: клик сразу открывает запуск сессии (выбрав место).
+  // Остальные плитки просто выбираются (раскрывают карточку справа).
+  const activate = lead.kind === 'free' && onStartSession ? onStartSession : onSelect;
 
   return (
     <article
       className={className}
       aria-label={`${seat.name} ${seat.stateLabel}`}
       aria-pressed={selected}
-      onClick={onSelect}
+      onClick={activate}
       onContextMenu={onContextMenu}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          onSelect();
+          activate();
         }
       }}
       role="button"

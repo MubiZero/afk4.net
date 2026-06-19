@@ -1,7 +1,6 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowRightLeft, Banknote, Check, CircleDollarSign, Loader2, Lock, MonitorCheck, Plus, ReceiptText, TriangleAlert, Unlock, Wifi, WifiOff, Wrench, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
-import { currencySymbol } from '@afk4/money';
 import { projectOperatorError } from './apiErrors';
 import {
   buildCheckoutPayments,
@@ -37,7 +36,6 @@ import type { SeatSummary } from './operatorData';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
   appVersionsLabel,
-  billingModeLabel,
   billingModeOptions,
   commandLabel,
   createAuthenticatedOperatorClients,
@@ -48,6 +46,7 @@ import {
   isPendingSeatCommand,
   playerPackageLabel,
   projectOperatorFacingError,
+  readNumber,
   readString,
   tariffOptionLabel,
   toneLabel,
@@ -66,6 +65,15 @@ const checkoutMethodIcons: Record<CheckoutMethod, ReactNode> = {
   card_manual: <CircleDollarSign size={14} />,
   wallet: <ReceiptText size={14} />
 };
+
+// Способ оплаты как вкладка кассы. «Смешанно» — редкий сплит на несколько способов.
+type PayMode = 'cash' | 'card' | 'deposit' | 'split';
+
+// Быстрые купюры (номиналы сомони): один тап = «клиент дал столько», касса считает сдачу.
+const CASH_DENOMINATIONS = [10, 20, 50, 100, 200] as const;
+
+// Чипы длительности старта сессии (минуты). «Открытый счёт» добавляется отдельной кнопкой.
+const START_DURATIONS = [30, 60, 120, 180] as const;
 
 // Местное настенное время HH:MM начала сессии — оператор читает зал в локальном времени.
 function formatSessionClock(iso: string | null | undefined): string | null {
@@ -140,7 +148,11 @@ function CheckoutDialog({
   const [quote, setQuote] = useState<SessionCheckoutQuoteResponse | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
   const [error, setError] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<CheckoutPaymentDraft[]>([{ method: 'cash', amountText: '' }]);
+  const [payMode, setPayMode] = useState<PayMode>('cash');
+  // Касса наличными: «получено» от клиента. Пусто = ровно по счёту (частый случай — ноль кликов).
+  const [cashReceivedText, setCashReceivedText] = useState('');
+  // Сплит (вкладка «Смешанно») — отдельный редактируемый набор строк.
+  const [splitDrafts, setSplitDrafts] = useState<CheckoutPaymentDraft[]>([{ method: 'cash', amountText: '' }]);
 
   useEffect(() => {
     let disposed = false;
@@ -160,8 +172,11 @@ function CheckoutDialog({
           return;
         }
 
+        const total = result.grandTotal?.minorUnits ?? 0;
         setQuote(result);
-        setDrafts(initialCheckoutDrafts(result.grandTotal?.minorUnits ?? 0));
+        setSplitDrafts(initialCheckoutDrafts(total));
+        setCashReceivedText(total > 0 ? formatCheckoutAmount(total) : '');
+        setPayMode('cash');
         setStatus('ready');
       })
       .catch((fetchError) => {
@@ -182,32 +197,50 @@ function CheckoutDialog({
   const currencyCode = quote?.grandTotal?.currencyCode ?? '';
   const grandTotal = quote?.grandTotal?.minorUnits ?? 0;
   const walletBalance = quote?.walletBalance?.minorUnits ?? null;
+  const hasWallet = walletBalance !== null && walletBalance > 0;
+
+  // Депозит закрывает счёт в пределах баланса; остаток — наличными (точно, без сдачи).
+  const depositCover = hasWallet ? Math.min(walletBalance, grandTotal) : 0;
+  const depositRemainder = grandTotal - depositCover;
+  const depositDrafts: CheckoutPaymentDraft[] = depositRemainder > 0
+    ? [{ method: 'wallet', amountText: formatCheckoutAmount(depositCover) }, { method: 'cash', amountText: formatCheckoutAmount(depositRemainder) }]
+    : [{ method: 'wallet', amountText: formatCheckoutAmount(grandTotal) }];
+
+  // Платёжные строки, которые реально уходят на бэк, зависят от выбранной вкладки кассы.
+  const drafts: CheckoutPaymentDraft[] = payMode === 'cash'
+    ? [{ method: 'cash', amountText: cashReceivedText !== '' ? cashReceivedText : (grandTotal > 0 ? formatCheckoutAmount(grandTotal) : '') }]
+    : payMode === 'card'
+      ? [{ method: 'card_manual', amountText: formatCheckoutAmount(grandTotal) }]
+      : payMode === 'deposit'
+        ? depositDrafts
+        : splitDrafts;
+
   const validation = validateCheckoutPayments(drafts, grandTotal, walletBalance, t);
   const canConfirm = status === 'ready' && !disabled && validation.canSubmit;
+  const isZeroBill = status === 'ready' && grandTotal === 0;
 
-  const updateDraft = (index: number, patch: Partial<CheckoutPaymentDraft>) => {
-    setDrafts((current) => current.map((draft, position) => (position === index ? { ...draft, ...patch } : draft)));
+  const setReceivedMinor = (minorUnits: number) => setCashReceivedText(formatCheckoutAmount(minorUnits));
+  const updateSplitDraft = (index: number, patch: Partial<CheckoutPaymentDraft>) => {
+    setSplitDrafts((current) => current.map((draft, position) => (position === index ? { ...draft, ...patch } : draft)));
   };
-  const addDraft = () => {
-    setDrafts((current) => [...current, { method: 'cash', amountText: '' }]);
+  const addSplitDraft = () => setSplitDrafts((current) => [...current, { method: 'cash', amountText: '' }]);
+  const removeSplitDraft = (index: number) => {
+    setSplitDrafts((current) => (current.length <= 1 ? current : current.filter((_, position) => position !== index)));
   };
-  const removeDraft = (index: number) => {
-    setDrafts((current) => (current.length <= 1 ? current : current.filter((_, position) => position !== index)));
-  };
-  const suggestWallet = () => {
-    if (walletBalance === null) {
-      return;
-    }
 
-    const fromWallet = Math.min(walletBalance, grandTotal);
-    const remainder = grandTotal - fromWallet;
-    const next: CheckoutPaymentDraft[] = [{ method: 'wallet', amountText: formatCheckoutAmount(fromWallet) }];
-    if (remainder > 0) {
-      next.push({ method: 'cash', amountText: formatCheckoutAmount(remainder) });
-    }
+  const payTabs: Array<{ id: PayMode; label: string }> = [
+    { id: 'cash', label: t('op.checkout.method.cash') },
+    { id: 'card', label: t('op.checkout.method.card') },
+    ...(hasWallet ? [{ id: 'deposit' as PayMode, label: t('op.checkout.method.wallet') }] : []),
+    { id: 'split', label: t('op.checkout.tab.split') }
+  ];
 
-    setDrafts(next);
-  };
+  // Шапка-контекст: тариф и время старта — данные, что уже на руках (#34).
+  const startedClock = formatSessionClock(seat.sessionStartedAtUtc);
+  const contextParts = [
+    seat.tariffName,
+    startedClock ? t('op.checkout.startedAt', { time: startedClock }) : null
+  ].filter((part): part is string => Boolean(part));
 
   return (
     <PanelModal
@@ -223,66 +256,135 @@ function CheckoutDialog({
 
       {status === 'ready' && quote && (
         <>
-          <dl className="checkout-breakdown">
-            <div><dt>{t('op.map.panel.billableTime')}</dt><dd>{formatBilledDuration(quote.billableSeconds ?? 0, t)}</dd></div>
-            <div><dt>{t('op.map.panel.billableTimeCharge')}</dt><dd>{formatMinorUnits(quote.timeCharge?.minorUnits ?? 0, currencyCode)}</dd></div>
-            <div><dt>{t('op.map.panel.billableSnacks')}</dt><dd>{formatMinorUnits(quote.posTotal?.minorUnits ?? 0, currencyCode)}</dd></div>
-            <div className="checkout-breakdown-total"><dt>{t('op.map.panel.billableTotal')}</dt><dd>{formatMinorUnits(grandTotal, currencyCode)}</dd></div>
-          </dl>
-
-          <div className="checkout-payments">
-            {drafts.map((draft, index) => (
-              <div className="checkout-payment-row" key={index}>
-                <select
-                  aria-label={t('op.map.panel.paymentMethod')}
-                  value={draft.method}
-                  disabled={disabled}
-                  onChange={(event) => updateDraft(index, { method: event.currentTarget.value as CheckoutMethod })}
-                >
-                  {checkoutMethods.map((method) => (
-                    <option key={method} value={method}>{checkoutMethodLabel(method, t)}</option>
-                  ))}
-                </select>
-                <span className="checkout-payment-icon">{checkoutMethodIcons[draft.method]}</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  aria-label={t('op.map.panel.paymentAmount')}
-                  placeholder="0.00"
-                  value={draft.amountText}
-                  disabled={disabled}
-                  onChange={(event) => updateDraft(index, { amountText: event.currentTarget.value })}
-                />
-                <button
-                  type="button"
-                  className="checkout-payment-remove"
-                  aria-label={t('op.map.panel.removePaymentRow')}
-                  disabled={disabled || drafts.length <= 1}
-                  onClick={() => removeDraft(index)}
-                >
-                  <X size={14} />
-                </button>
+          {/* Чек: позиции сверху, «К оплате» крупным итогом снизу — как настоящий чек кассы. */}
+          <div className="checkout-receipt">
+            {contextParts.length > 0 && <p className="checkout-context">{contextParts.join(' · ')}</p>}
+            <div className="checkout-receipt-line">
+              <span>{t('op.checkout.lineTime')} · {formatBilledDuration(quote.billableSeconds ?? 0, t)}</span>
+              <b>{formatMinorUnits(quote.timeCharge?.minorUnits ?? 0, currencyCode)}</b>
+            </div>
+            {(quote.posTotal?.minorUnits ?? 0) > 0 && (
+              <div className="checkout-receipt-line">
+                <span>{t('op.map.panel.billableSnacks')}</span>
+                <b>{formatMinorUnits(quote.posTotal?.minorUnits ?? 0, currencyCode)}</b>
               </div>
-            ))}
-            <div className="checkout-payment-controls">
-              <button type="button" disabled={disabled} onClick={addDraft}><Plus size={14} />{t('op.map.panel.addPaymentMethod')}</button>
-              {walletBalance !== null && walletBalance > 0 && (
-                <button type="button" disabled={disabled} onClick={suggestWallet}>
-                  <ReceiptText size={14} />{t('op.map.panel.walletSuggest', { amount: formatMinorUnits(walletBalance, currencyCode) })}
-                </button>
-              )}
+            )}
+            <div className="checkout-receipt-total">
+              <span>{t('op.map.panel.checkoutDue')}</span>
+              <strong>{formatMinorUnits(grandTotal, currencyCode)}</strong>
             </div>
           </div>
 
-          {validation.error
-            ? <p className="checkout-error">{validation.error}</p>
-            : <p className="checkout-balanced">{t('op.map.panel.checkoutBalanced')}</p>}
+          {isZeroBill ? (
+            <p className="checkout-no-payment">{t('op.map.panel.checkoutNoPayment')}</p>
+          ) : (
+            <div className="checkout-pay">
+              <div className="checkout-tabs" role="tablist" aria-label={t('op.map.panel.paymentMethod')}>
+                {payTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={payMode === tab.id}
+                    className={payMode === tab.id ? 'active' : undefined}
+                    disabled={disabled}
+                    onClick={() => setPayMode(tab.id)}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {payMode === 'cash' && (
+                <div className="checkout-cash">
+                  <label className="checkout-received">
+                    <span>{t('op.map.panel.cashTendered')}</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={cashReceivedText}
+                      disabled={disabled}
+                      placeholder={formatCheckoutAmount(grandTotal)}
+                      onChange={(event) => setCashReceivedText(event.currentTarget.value)}
+                    />
+                  </label>
+                  <div className="checkout-cash-chips">
+                    <button type="button" disabled={disabled} onClick={() => setReceivedMinor(grandTotal)}>{t('op.checkout.exact')}</button>
+                    {CASH_DENOMINATIONS.map((denomination) => (
+                      <button key={denomination} type="button" disabled={disabled} onClick={() => setReceivedMinor(denomination * 100)}>
+                        {denomination}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {payMode === 'card' && <p className="checkout-pay-note">{t('op.checkout.cardExact')}</p>}
+
+              {payMode === 'deposit' && (
+                <p className="checkout-pay-note">
+                  {depositRemainder > 0
+                    ? t('op.checkout.depositPlusCash', { cover: formatMinorUnits(depositCover, currencyCode), rest: formatMinorUnits(depositRemainder, currencyCode) })
+                    : t('op.checkout.depositFull', { amount: formatMinorUnits(grandTotal, currencyCode) })}
+                </p>
+              )}
+
+              {payMode === 'split' && (
+                <div className="checkout-payments">
+                  {splitDrafts.map((draft, index) => (
+                    <div className="checkout-payment-row" key={index}>
+                      <select
+                        aria-label={t('op.map.panel.paymentMethod')}
+                        value={draft.method}
+                        disabled={disabled}
+                        onChange={(event) => updateSplitDraft(index, { method: event.currentTarget.value as CheckoutMethod })}
+                      >
+                        {checkoutMethods.map((method) => (
+                          <option key={method} value={method}>{checkoutMethodLabel(method, t)}</option>
+                        ))}
+                      </select>
+                      <span className="checkout-payment-icon">{checkoutMethodIcons[draft.method]}</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        aria-label={draft.method === 'cash' ? t('op.map.panel.cashTendered') : t('op.map.panel.paymentAmount')}
+                        placeholder="0.00"
+                        value={draft.amountText}
+                        disabled={disabled}
+                        onChange={(event) => updateSplitDraft(index, { amountText: event.currentTarget.value })}
+                      />
+                      <button
+                        type="button"
+                        className="checkout-payment-remove"
+                        aria-label={t('op.map.panel.removePaymentRow')}
+                        disabled={disabled || splitDrafts.length <= 1}
+                        onClick={() => removeSplitDraft(index)}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="checkout-payment-controls">
+                    <button type="button" disabled={disabled} onClick={addSplitDraft}><Plus size={14} />{t('op.map.panel.addPaymentMethod')}</button>
+                  </div>
+                </div>
+              )}
+
+              {validation.error
+                ? <p className="checkout-error">{validation.error}</p>
+                : validation.changeMinorUnits > 0
+                  ? <p className="checkout-change"><span>{t('op.checkout.change')}</span><strong>{formatMinorUnits(validation.changeMinorUnits, currencyCode)}</strong></p>
+                  : <p className="checkout-balanced">{t('op.map.panel.checkoutBalanced')}</p>}
+            </div>
+          )}
         </>
       )}
 
-      <button type="button" className="checkout-end-plain" onClick={onEndWithoutPayment} disabled={disabled}>
-        {t('op.map.panel.endWithoutPay')}
-      </button>
+      {!isZeroBill && (
+        <button type="button" className="checkout-end-plain" onClick={onEndWithoutPayment} disabled={disabled}>
+          {t('op.map.panel.endWithoutPay')}
+        </button>
+      )}
 
       <div className="critical-confirmation-actions">
         <button type="button" onClick={onCancel} disabled={disabled}>{t('common.cancel')}</button>
@@ -290,9 +392,9 @@ function CheckoutDialog({
           type="button"
           className="danger"
           disabled={!canConfirm}
-          onClick={() => onConfirm(buildCheckoutPayments(drafts, currencyCode))}
+          onClick={() => (isZeroBill ? onEndWithoutPayment() : onConfirm(buildCheckoutPayments(drafts, currencyCode, grandTotal)))}
         >
-          {t('op.map.panel.confirmPayment')}
+          {isZeroBill ? t('op.map.panel.checkoutFinish') : t('op.checkout.confirmAmount', { amount: formatMinorUnits(grandTotal, currencyCode) })}
         </button>
       </div>
     </PanelModal>
@@ -306,6 +408,7 @@ export function MapSidePanel({
   backend,
   actionsEnabled,
   canUsePcControl,
+  startRequestToken,
   onSeatAction,
   onPcControlAction
 }: {
@@ -315,6 +418,7 @@ export function MapSidePanel({
   backend: OperatorBackendContext | null;
   actionsEnabled: boolean;
   canUsePcControl: boolean;
+  startRequestToken?: number;
   onSeatAction: (request: SeatActionRequest) => Promise<SeatActionResult>;
   onPcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
 }) {
@@ -351,7 +455,8 @@ export function MapSidePanel({
   // Отклик команд блокировки/разблокировки ПК: спиннер→галочка на самой кнопке.
   const [pcFeedback, setPcFeedback] = useState<Feedback>(emptyFeedback);
   const [billingMode, setBillingMode] = useState<SessionBillingModeId>('guest');
-  const [durationMode, setDurationMode] = useState<SessionStartDurationMode>('fixed');
+  // Выбор длительности: число минут (фикс) или 'open' (открытый счёт). Чипы старт-диалога.
+  const [durationChoice, setDurationChoice] = useState<number | 'open'>(60);
   const [playerSearch, setPlayerSearch] = useState('');
   const [billingPlayers, setBillingPlayers] = useState<PlayerClientItem[]>([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState('');
@@ -390,6 +495,8 @@ export function MapSidePanel({
     canExtendPermission ||
     canTransferPermission ||
     canEndPermission;
+  // Гость — manual-тариф (оплата по факту на кассе), как и было; пакет несёт своё время; депозит/
+  // постоплата — по явно выбранному тарифу (ставке), чтобы показать цену заранее.
   const billingSelection: SessionBillingSelection = billingMode === 'guest'
     ? guestBillingSelection
     : billingMode === 'package'
@@ -415,10 +522,25 @@ export function MapSidePanel({
         ? t('op.map.panel.billingMissingPackage')
         : null;
   const billingReady = billingMissing === null;
-  // An open tab (no fixed duration, settled later at checkout) is only valid for
-  // an unbilled guest or a postpaid-debt player; other modes must be fixed.
+  const isGuest = billingMode === 'guest';
+  // Открытый счёт (оплата при завершении) валиден только для гостя и постоплаты; остальное — фикс.
   const openTabAllowed = billingMode === 'guest' || billingMode === 'postpaid_debt';
-  const effectiveDurationMode: SessionStartDurationMode = openTabAllowed ? durationMode : 'fixed';
+  const effectiveDurationMode: SessionStartDurationMode = durationChoice === 'open' && openTabAllowed ? 'open' : 'fixed';
+  const effectiveDurationMinutes = effectiveDurationMode === 'open'
+    ? null
+    : (typeof durationChoice === 'number' ? durationChoice : 60);
+  const durationLabel = formatDurationCompact((effectiveDurationMinutes ?? 60) * 60, t);
+  // Цена-превью и покрытие баланса — концретика, что уже на руках (#34): ставка тарифа × минуты,
+  // и на сколько хватит депозита игрока.
+  // Цена-превью только для платных режимов с выбранным тарифом (гость платит по факту на кассе,
+  // его ставка не предопределена — показывать цену было бы враньём, #37).
+  const tariffPricePerMin = !isGuest && selectedTariff ? readNumber(selectedTariff, 'pricePerMinuteMinorUnits', 0) : 0;
+  const estimatedCostMinor = effectiveDurationMode === 'fixed' && billingMode !== 'package' && tariffPricePerMin > 0 && effectiveDurationMinutes != null
+    ? tariffPricePerMin * effectiveDurationMinutes
+    : null;
+  const coverageMinutes = billingMode === 'prepaid_wallet' && selectedPlayer && tariffPricePerMin > 0
+    ? Math.floor((selectedPlayer.balanceMinorUnits ?? 0) / tariffPricePerMin)
+    : null;
   const canStartSession = actionsEnabled && canStartPermission && billingReady && !hasActionableSession && seat.tone === 'ready';
   const canExtendSession = actionsEnabled && canExtendPermission && billingReady && hasActionableSession;
   const canEndSession = actionsEnabled && canEndPermission && hasActionableSession;
@@ -438,13 +560,19 @@ export function MapSidePanel({
   // биллинга или команда в полёте. Здоровое «готов к работе» — это шум, прячем.
   const isHealthyIdle = actionsEnabled && hasAnySessionActionPermission && billingReady
     && !hasPendingSessionCommand;
-  const billingLoadText = billingStatus === 'backend'
-    ? t('op.map.panel.billingLoadData')
-    : billingStatus === 'loading'
-      ? t('op.map.panel.billingLoadLoading')
-      : billingStatus === 'failed'
-        ? billingError ?? t('op.map.panel.billingLoadError')
-        : t('op.map.panel.billingLoadWaiting');
+  // Превью «что сейчас запустим» — кто · тариф/пакет · сколько · цена. Решение одной строкой
+  // перед стартом.
+  const startPlanWho = isGuest ? t('op.helper.billing.guest') : (selectedPlayer?.name ?? '');
+  const startPlanRate = billingMode === 'package'
+    ? (selectedPlayerPackage ? readString(selectedPlayerPackage, 'name') : '')
+    : (selectedTariff ? readString(selectedTariff, 'name') : '');
+  const startPlanDuration = billingMode === 'package'
+    ? ''
+    : effectiveDurationMode === 'open'
+      ? t('op.map.panel.openTab')
+      : durationLabel;
+  const startPlanPrice = estimatedCostMinor != null ? formatMinorUnits(estimatedCostMinor, currencyCode) : '';
+  const startPlan = [startPlanWho, startPlanRate, startPlanDuration, startPlanPrice].filter(Boolean).join(' · ');
 
   useEffect(() => {
     if (targetSeatId.length > 0 && transferCandidates.some((candidate) => candidate.id === targetSeatId)) {
@@ -499,6 +627,21 @@ export function MapSidePanel({
     setStartDialogOpen(false);
     setPcFeedback(emptyFeedback);
   }, [seat.id, seat.activeSessionId]);
+
+  // Клик по «+» свободной плитки (App растит startRequestToken) — открыть запуск сессии сразу,
+  // если место свободно. Реагируем ТОЛЬКО на реальное изменение токена, а не на каждый mount:
+  // иначе при возврате на карту с другого таба (remount с ненулевым токеном) окно бы само
+  // открывалось. Ref инициализируется текущим значением → первый прогон/remount ничего не делает.
+  const lastStartTokenRef = useRef(startRequestToken);
+  useEffect(() => {
+    if (startRequestToken === lastStartTokenRef.current) {
+      return;
+    }
+    lastStartTokenRef.current = startRequestToken;
+    if (startRequestToken && seat.tone === 'ready' && !seat.activeSessionId) {
+      setStartDialogOpen(true);
+    }
+  }, [startRequestToken]);
 
   // Успех показываем галочкой и сами гасим — оператору не нужно его закрывать.
   // Ошибку оставляем на экране: её надо прочитать и решить.
@@ -838,68 +981,46 @@ export function MapSidePanel({
       {startDialogOpen && (
       <PanelModal
         title={t('op.map.panel.startSessionTitle')}
-        subtitle={`${seat.name} · ${currencySymbol(currencyCode)}`}
+        subtitle={seat.name}
         onClose={() => setStartDialogOpen(false)}
       >
         <div className="billing-selection-panel start-dialog-body">
-        <div className="billing-panel-head">
-          <strong>{billingModeLabel(billingMode, t)}</strong>
-          <em>{billingLoadText}</em>
+        {/* КТО ИГРАЕТ: гость (walk-in) vs клиент клуба (по аккаунту). */}
+        <div className="start-section-head">{t('op.map.panel.startWhoHead')}</div>
+        <div className="start-segment" role="tablist" aria-label={t('op.map.panel.startWhoHead')}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={isGuest}
+            className={isGuest ? 'active' : undefined}
+            disabled={!actionsEnabled || isBusy}
+            onClick={() => setBillingMode('guest')}
+          >
+            {t('op.helper.billing.guest')}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!isGuest}
+            className={!isGuest ? 'active' : undefined}
+            disabled={!actionsEnabled || isBusy || !hasPermission(session, permissionNames.viewBilling)}
+            onClick={() => { if (isGuest) { setBillingMode('prepaid_wallet'); } }}
+          >
+            {t('op.map.panel.startMember')}
+          </button>
         </div>
-        <div className="billing-mode" aria-label={t('op.map.panel.billingModeLabel')}>
-          {billingModeOptions(t).map((option) => {
-            const isBilledMode = option.id !== 'guest';
-            return (
-              <button
-                key={option.id}
-                type="button"
-                className={option.id === billingMode ? 'active' : undefined}
-                disabled={!actionsEnabled || isBusy || (isBilledMode && !hasPermission(session, permissionNames.viewBilling))}
-                title={option.detail}
-                onClick={() => setBillingMode(option.id)}
-              >
-                <span>{option.label}</span>
-                <small>{option.detail}</small>
-              </button>
-            );
-          })}
-        </div>
-        {!hasActiveSession && (
-          <div className="billing-mode duration-mode" aria-label={t('op.map.panel.sessionDuration')}>
-            <button
-              type="button"
-              className={effectiveDurationMode === 'fixed' ? 'active' : undefined}
-              disabled={!actionsEnabled || isBusy}
-              title={t('op.map.panel.duration60Title')}
-              onClick={() => setDurationMode('fixed')}
-            >
-              <span>{t('op.map.panel.duration60')}</span>
-              <small>{t('op.map.panel.duration60Detail')}</small>
-            </button>
-            <button
-              type="button"
-              className={effectiveDurationMode === 'open' ? 'active' : undefined}
-              disabled={!actionsEnabled || isBusy || !openTabAllowed}
-              title={openTabAllowed ? t('op.map.panel.openTabAllowedTitle') : t('op.map.panel.openTabDisabledTitle')}
-              onClick={() => setDurationMode('open')}
-            >
-              <span>{t('op.map.panel.openTab')}</span>
-              <small>{openTabAllowed ? t('op.map.panel.openTabAllowed') : t('op.map.panel.openTabDisabled')}</small>
-            </button>
-          </div>
-        )}
-        {billingMode !== 'guest' && (
+
+        {!isGuest && (
           <>
-            <label className="context-transfer-target billing-input-row">
-              <span>{t('op.map.panel.playerLabel')}</span>
-              <input
-                aria-label={t('op.map.panel.playerInput')}
-                value={playerSearch}
-                disabled={!actionsEnabled || isBusy || !hasPermission(session, permissionNames.viewPlayers)}
-                placeholder={t('op.map.panel.playerSearch')}
-                onChange={(event) => setPlayerSearch(event.currentTarget.value)}
-              />
-            </label>
+            <div className="start-section-head">{t('op.map.panel.startPlayerHead')}</div>
+            <input
+              className="start-field"
+              aria-label={t('op.map.panel.playerInput')}
+              value={playerSearch}
+              disabled={!actionsEnabled || isBusy || !hasPermission(session, permissionNames.viewPlayers)}
+              placeholder={t('op.map.panel.playerSearch')}
+              onChange={(event) => setPlayerSearch(event.currentTarget.value)}
+            />
             <div className="billing-candidate-list" aria-label={t('op.map.panel.playersFoundLabel')}>
               {billingPlayers.map((player) => (
                 <button
@@ -917,53 +1038,120 @@ export function MapSidePanel({
                 <p>{t('op.map.panel.playerNotFound')}</p>
               )}
             </div>
-            {(billingMode === 'prepaid_wallet' || billingMode === 'postpaid_debt') && (
-              <label className="context-transfer-target billing-input-row">
-                <span>{t('op.map.panel.tariffLabel')}</span>
-                <PanelSelect
-                  ariaLabel={t('op.map.panel.tariffSession')}
-                  value={selectedTariffVersionId}
-                  disabled={!actionsEnabled || isBusy || tariffOptions.length === 0}
-                  placeholder={t('op.map.panel.noTariffs')}
-                  options={tariffOptions.map((tariff) => ({
-                    value: readString(tariff, 'tariffVersionId'),
-                    label: tariffOptionLabel(tariff, currencyCode, t)
-                  }))}
-                  onChange={setSelectedTariffVersionId}
-                />
-              </label>
-            )}
-            {billingMode === 'package' && (
-              <label className="context-transfer-target billing-input-row">
-                <span>{t('op.map.panel.packageLabel')}</span>
-                <PanelSelect
-                  ariaLabel={t('op.map.panel.packageSession')}
-                  value={selectedPlayerPackageId}
-                  disabled={!actionsEnabled || isBusy || !selectedPlayer || playerPackages.length === 0}
-                  placeholder={t('op.map.panel.noPackages')}
-                  options={playerPackages.map((playerPackage) => ({
-                    value: readString(playerPackage, 'playerPackageId'),
-                    label: playerPackageLabel(playerPackage, t)
-                  }))}
-                  onChange={setSelectedPlayerPackageId}
-                />
-              </label>
-            )}
-            <div className="detail-row billing-meta">
-              <span>{t('op.map.panel.billingChoice')}</span>
-              <strong>{billingMissing ?? t('op.map.panel.billingReady', { mode: billingModeLabel(billingMode, t) })}</strong>
+            <div className="start-section-head">{t('op.map.panel.startChargeHead')}</div>
+            <div className="start-segment three" role="tablist" aria-label={t('op.map.panel.startChargeHead')}>
+              {billingModeOptions(t).filter((option) => option.id !== 'guest').map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={billingMode === option.id}
+                  className={billingMode === option.id ? 'active' : undefined}
+                  disabled={!actionsEnabled || isBusy}
+                  title={option.detail}
+                  onClick={() => setBillingMode(option.id)}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
+            {coverageMinutes != null && selectedPlayer && (
+              <p className="start-coverage">
+                {t('op.map.panel.startBalanceCoverage', {
+                  balance: formatMinorUnits(selectedPlayer.balanceMinorUnits, currencyCode),
+                  duration: formatDurationCompact(coverageMinutes * 60, t)
+                })}
+              </p>
+            )}
           </>
         )}
+
+        {/* ТАРИФ (ставка) — для депозита/постоплаты; гость платит по факту, пакет несёт своё время. */}
+        {!isGuest && billingMode !== 'package' && (
+          <>
+            <div className="start-section-head">{t('op.map.panel.tariffLabel')}</div>
+            <PanelSelect
+              className="start-select"
+              ariaLabel={t('op.map.panel.tariffSession')}
+              value={selectedTariffVersionId}
+              disabled={!actionsEnabled || isBusy || tariffOptions.length === 0}
+              placeholder={t('op.map.panel.noTariffs')}
+              options={tariffOptions.map((tariff) => ({
+                value: readString(tariff, 'tariffVersionId'),
+                label: tariffOptionLabel(tariff, currencyCode, t)
+              }))}
+              onChange={setSelectedTariffVersionId}
+            />
+          </>
+        )}
+        {billingMode === 'package' && (
+          <>
+            <div className="start-section-head">{t('op.map.panel.packageLabel')}</div>
+            <PanelSelect
+              className="start-select"
+              ariaLabel={t('op.map.panel.packageSession')}
+              value={selectedPlayerPackageId}
+              disabled={!actionsEnabled || isBusy || !selectedPlayer || playerPackages.length === 0}
+              placeholder={t('op.map.panel.noPackages')}
+              options={playerPackages.map((playerPackage) => ({
+                value: readString(playerPackage, 'playerPackageId'),
+                label: playerPackageLabel(playerPackage, t)
+              }))}
+              onChange={setSelectedPlayerPackageId}
+            />
+          </>
+        )}
+
+        {/* СКОЛЬКО ВРЕМЕНИ: чипы длительности + открытый счёт; цена-превью под ними. */}
+        {billingMode !== 'package' && (
+          <>
+            <div className="start-section-head">{t('op.map.panel.startTimeHead')}</div>
+            <div className="start-duration-chips" role="group" aria-label={t('op.map.panel.sessionDuration')}>
+              {START_DURATIONS.map((minutes) => (
+                <button
+                  key={minutes}
+                  type="button"
+                  className={effectiveDurationMode === 'fixed' && durationChoice === minutes ? 'active' : undefined}
+                  disabled={!actionsEnabled || isBusy}
+                  onClick={() => setDurationChoice(minutes)}
+                >
+                  {formatDurationCompact(minutes * 60, t)}
+                </button>
+              ))}
+              <button
+                type="button"
+                className={effectiveDurationMode === 'open' ? 'active' : undefined}
+                disabled={!actionsEnabled || isBusy || !openTabAllowed}
+                title={openTabAllowed ? t('op.map.panel.openTabAllowedTitle') : t('op.map.panel.openTabDisabledTitle')}
+                onClick={() => setDurationChoice('open')}
+              >
+                {t('op.map.panel.openTab')}
+              </button>
+            </div>
+            {estimatedCostMinor != null && (
+              <p className="start-price">
+                {t('op.map.panel.startPriceEstimate', { duration: durationLabel, amount: formatMinorUnits(estimatedCostMinor, currencyCode) })}
+              </p>
+            )}
+          </>
+        )}
+
+        {/* Реальную ошибку загрузки тарифов показываем как ошибку, а не прячем за dev-статусом (#34). */}
+        {billingStatus === 'failed' && billingError && <p className="checkout-error">{billingError}</p>}
+        {/* Превью решения целиком: либо что запустим, либо чего не хватает. */}
+        <div className={`start-plan${billingMissing ? ' is-missing' : ''}`}>
+          <span>{billingMissing ? t('op.map.panel.startNeed') : t('op.map.panel.startPlanLabel')}</span>
+          <strong>{billingMissing ?? startPlan}</strong>
+        </div>
         <div className="critical-confirmation-actions">
           <button type="button" onClick={() => setStartDialogOpen(false)} disabled={isBusy}>{t('common.cancel')}</button>
           <button
             type="button"
             className="cta-primary"
             disabled={!canStartSession || isBusy}
-            onClick={() => void runSeatAction(effectiveDurationMode === 'open' ? t('op.map.panel.startOpenAction') : t('op.map.panel.startFixed'), { type: 'start', seat, billing: billingSelection, durationMode: effectiveDurationMode })}
+            onClick={() => void runSeatAction(effectiveDurationMode === 'open' ? t('op.map.panel.startOpen') : t('op.map.panel.startCta', { duration: durationLabel }), { type: 'start', seat, billing: billingSelection, durationMode: effectiveDurationMode, durationMinutes: effectiveDurationMinutes })}
           >
-            <Plus size={16} />{effectiveDurationMode === 'open' ? t('op.map.panel.startOpen') : t('op.map.panel.startFixed')}
+            <Plus size={16} />{effectiveDurationMode === 'open' ? t('op.map.panel.startOpen') : t('op.map.panel.startCta', { duration: durationLabel })}
           </button>
         </div>
         </div>
