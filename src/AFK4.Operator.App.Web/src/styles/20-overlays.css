@@ -215,6 +215,7 @@
 
 .command-palette {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 10px;
   width: min(560px, 92vw);
   max-height: 64vh;
@@ -285,6 +286,14 @@
   padding: 9px 10px;
   color: var(--text-tertiary);
   font-size: 14px;
+}
+
+/* Подсказка об отсечённом хвосте списка — не молчим, что показаны не все. */
+.command-palette-more {
+  margin: 4px 0 0;
+  padding: 6px 10px 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
 }
 
 .command-palette-soon {

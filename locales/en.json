@@ -2131,6 +2131,7 @@
   "op.command.palette.navHeading": "Go to screen",
   "op.command.palette.entitySoon": "Search for clients, PCs and receipts is coming later",
   "op.command.palette.empty": "Nothing found",
+  "op.command.palette.more": "+{count} more — refine your search",
   "op.command.palette.close": "Close",
   "op.context.collapse": "Collapse panel",
   "op.context.expand": "Expand panel",

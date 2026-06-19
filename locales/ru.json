@@ -2329,6 +2329,7 @@
   "op.command.palette.navHeading": "Переход к экрану",
   "op.command.palette.entitySoon": "Поиск клиентов, ПК и чеков появится позже",
   "op.command.palette.empty": "Ничего не найдено",
+  "op.command.palette.more": "+{count} ещё — уточните запрос",
   "op.command.palette.close": "Закрыть",
   "op.context.collapse": "Свернуть панель",
   "op.context.expand": "Развернуть панель",

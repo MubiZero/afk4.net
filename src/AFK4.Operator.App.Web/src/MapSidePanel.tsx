@@ -456,7 +456,8 @@ export function MapSidePanel({
   const [pcFeedback, setPcFeedback] = useState<Feedback>(emptyFeedback);
   const [billingMode, setBillingMode] = useState<SessionBillingModeId>('guest');
   // Выбор длительности: число минут (фикс) или 'open' (открытый счёт). Чипы старт-диалога.
-  const [durationChoice, setDurationChoice] = useState<number | 'open'>(60);
+  // По умолчанию — открытый счёт (гость чаще играет «пока не уйдёт», оплата по факту на кассе).
+  const [durationChoice, setDurationChoice] = useState<number | 'open'>('open');
   const [playerSearch, setPlayerSearch] = useState('');
   const [billingPlayers, setBillingPlayers] = useState<PlayerClientItem[]>([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState('');

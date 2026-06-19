@@ -10,6 +10,9 @@ interface NavTarget {
   label: string;
 }
 
+// Максимум строк в палитре — чтобы окно не переполнялось; остальное отсекаем с подсказкой.
+const MAX_VISIBLE = 8;
+
 export function CommandPalette({ session, onNavigate, onClose }: {
   session: OperatorAuthSession | null;
   onNavigate: (id: WorkspaceId) => void;
@@ -34,14 +37,19 @@ export function CommandPalette({ session, onNavigate, onClose }: {
     return allowed.filter((target) => target.label.toLowerCase().includes(needle));
   }, [allowed, query]);
 
+  // Показываем не весь список, а первые MAX_VISIBLE — иначе окно переполняется. Остаток не прячем
+  // молча: подсказываем уточнить запрос (#34). Навигация/выбор работают по видимому срезу.
+  const visible = filtered.slice(0, MAX_VISIBLE);
+  const hiddenCount = filtered.length - visible.length;
+
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
   useEffect(() => {
-    // Держим активную строку в пределах текущего отфильтрованного списка.
-    setActiveIndex((index) => Math.min(index, Math.max(0, filtered.length - 1)));
-  }, [filtered.length]);
+    // Держим активную строку в пределах видимого среза.
+    setActiveIndex((index) => Math.min(index, Math.max(0, visible.length - 1)));
+  }, [visible.length]);
 
   const optionId = (index: number) => `command-palette-option-${index}`;
   const listboxId = 'command-palette-listbox';
@@ -54,7 +62,7 @@ export function CommandPalette({ session, onNavigate, onClose }: {
     }
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      setActiveIndex((index) => Math.min(index + 1, Math.max(0, filtered.length - 1)));
+      setActiveIndex((index) => Math.min(index + 1, Math.max(0, visible.length - 1)));
       return;
     }
     if (event.key === 'ArrowUp') {
@@ -64,7 +72,7 @@ export function CommandPalette({ session, onNavigate, onClose }: {
     }
     if (event.key === 'Enter') {
       event.preventDefault();
-      const target = filtered[activeIndex];
+      const target = visible[activeIndex];
       if (target) {
         onNavigate(target.id);
         onClose();
@@ -92,7 +100,7 @@ export function CommandPalette({ session, onNavigate, onClose }: {
           onChange={(event) => setQuery(event.target.value)}
           aria-label={t('op.command.palette.label')}
           placeholder={t('op.command.palette.placeholder')}
-          aria-activedescendant={filtered.length ? optionId(activeIndex) : undefined}
+          aria-activedescendant={visible.length ? optionId(activeIndex) : undefined}
         />
         <div className="command-palette-group">
           <p className="command-palette-heading">{t('op.command.palette.navHeading')}</p>
@@ -100,7 +108,7 @@ export function CommandPalette({ session, onNavigate, onClose }: {
             <p className="command-palette-empty">{t('op.command.palette.empty')}</p>
           ) : (
             <ul id={listboxId} className="command-palette-list" role="listbox">
-              {filtered.map((target, index) => (
+              {visible.map((target, index) => (
                 <li
                   key={target.id}
                   id={optionId(index)}
@@ -117,6 +125,9 @@ export function CommandPalette({ session, onNavigate, onClose }: {
                 </li>
               ))}
             </ul>
+          )}
+          {hiddenCount > 0 && (
+            <p className="command-palette-more">{t('op.command.palette.more', { count: hiddenCount })}</p>
           )}
         </div>
         <p className="command-palette-soon">{t('op.command.palette.entitySoon')}</p>

@@ -72,8 +72,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 8px 4px;
+  gap: 8px;
+  padding: 4px;
   border: 1px solid var(--border-soft);
   border-radius: 9px;
   background: var(--surface-sunken);
@@ -87,7 +87,7 @@
   gap: 9px;
   width: 100%;
   height: auto;
-  padding: 9px 2px;
+  padding: 2px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -153,6 +153,7 @@
 }
 
 .rail-shift-value {
+  position: relative;
   color: var(--text-secondary);
   font-size: 12px;
   font-weight: 700;
@@ -161,9 +162,14 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* «с» перед часами начала смены — тише и мельче самого времени. */
+/* «с» перед часами начала смены — тише и мельче. Вынесен из потока влево от цифр, чтобы
+   само время оставалось ровно по центру под словом «Смена», а префикс висел слева. */
 .rail-shift-prefix {
-  margin-right: 1px;
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 2px;
   color: var(--text-tertiary);
   font-size: 9px;
   font-weight: 600;

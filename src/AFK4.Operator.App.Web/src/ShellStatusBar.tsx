@@ -3,8 +3,8 @@ import { useI18n } from '@afk4/i18n';
 import type { OperatorRealtimeConnectionState } from './operatorRealtime';
 import { dataSourceLabel, realtimeLabel } from './operatorHelpers';
 
-// Нижний статус-бар: слева — связь, источник данных и касса; справа — разовый фид-бэк действия.
-// Тон точки связи кодирует только severity.
+// Нижний статус-бар: слева — касса (и разовый фид-бэк действия), справа — связь с точкой-severity
+// в самом углу. Тон точки связи кодирует только severity.
 export function ShellStatusBar({
   realtimeState,
   realtimeError,
@@ -31,16 +31,17 @@ export function ShellStatusBar({
   const dataSourceText = dataSourceLabel(dataSource, t);
   return (
     <footer className="signals-strip">
-      {/* Один индикатор связи: точка severity + статус сети. Источник данных скрыт в подсказке —
-          по наведению видно оба статуса целиком, не загромождая бар. */}
-      <span className="signal-item signal-conn" title={`${realtimeText} · ${dataSourceText}`}>
-        <i className={`signal-dot ${connectionTone}`} aria-hidden="true" />
-        {realtimeText}
-      </span>
+      {/* Касса — в левом углу. */}
       <span className="signal-item signal-pos"><CircleDollarSign size={13} />{posText}</span>
       {workspaceFeedback && (
-        <span className="signal-item rail-feedback signals-right"><LockKeyhole size={13} />{workspaceFeedback}</span>
+        <span className="signal-item rail-feedback"><LockKeyhole size={13} />{workspaceFeedback}</span>
       )}
+      {/* Связь — в правом углу: статус сети, а точка-severity в самом углу (после текста).
+          Источник данных скрыт в подсказке — по наведению видно оба статуса целиком. */}
+      <span className="signal-item signal-conn signals-right" title={`${realtimeText} · ${dataSourceText}`}>
+        {realtimeText}
+        <i className={`signal-dot ${connectionTone}`} aria-hidden="true" />
+      </span>
     </footer>
   );
 }

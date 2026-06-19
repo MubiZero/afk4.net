@@ -2131,6 +2131,7 @@
   "op.command.palette.navHeading": "Гузариш ба экран",
   "op.command.palette.entitySoon": "Ҷустуҷӯи муштариён, компютерҳо ва чекҳо дертар пайдо мешавад",
   "op.command.palette.empty": "Чизе ёфт нашуд",
+  "op.command.palette.more": "+{count} боз — ҷустуҷӯро аниқ кунед",
   "op.command.palette.close": "Пӯшидан",
   "op.context.collapse": "Печонидани панел",
   "op.context.expand": "Кушодани панел",

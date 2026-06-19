@@ -660,10 +660,10 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    // «+» свободной плитки открывает запуск; гость по умолчанию, длительность 1 час.
+    // «+» свободной плитки открывает запуск; гость по умолчанию идёт открытым счётом.
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
     const startDialog = await screen.findByRole('dialog', { name: 'Новая сессия' });
-    const startButton = await within(startDialog).findByRole('button', { name: /Старт · 1 ч/ });
+    const startButton = await within(startDialog).findByRole('button', { name: /Старт · открытый счёт/ });
     expect(startButton).toBeEnabled();
     fireEvent.click(startButton);
 
@@ -676,7 +676,8 @@ describe('App', () => {
     expect(body).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
       seatId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
-      durationMinutes: 60,
+      durationMode: 'open',
+      durationMinutes: null,
       tariffRuleVersionId: 'manual-v1',
       billingMode: ''
     });

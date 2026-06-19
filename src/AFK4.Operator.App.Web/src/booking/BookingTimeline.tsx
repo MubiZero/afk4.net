@@ -10,6 +10,11 @@ import type { BookingItem, SessionItem, TimelineAxis, ZoneRowGroup } from './boo
 // нажатие без движения трактуем как клик (бронь по умолчанию на 60 мин в родителе).
 const SNAP_MS = 15 * 60_000;
 const CLICK_THRESHOLD_MS = 5 * 60_000;
+const HOUR_MS = 3_600_000;
+const QUARTER_MS = 15 * 60_000;
+// Минимум ширины на час, при котором часовые подписи не наезжают друг на друга. Ниже — показываем
+// метки реже (раз в LABEL_STEP_HOURS, т.е. major), как было: это режим узкого/минимального окна.
+const HOURLY_LABEL_MIN_PX = 46;
 
 interface DragState {
   anchorSeatId: string;
@@ -55,6 +60,35 @@ export function BookingTimeline({
     .find((b) => b.item.reservationId === selectedReservationId)?.item.reservationGroupId ?? '';
   const isGroupPeer = (groupId: string): boolean =>
     groupId !== '' && (groupId === hoveredGroupId || groupId === selectedGroupId);
+
+  // Ширина оси времени → плотность подписей. Широкое окно — метки каждый час; узкое/минимальное —
+  // реже (каждые LABEL_STEP_HOURS), чтобы подписи не наезжали.
+  const axisTrackRef = useRef<HTMLDivElement | null>(null);
+  const [axisWidth, setAxisWidth] = useState(0);
+  useEffect(() => {
+    const el = axisTrackRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') {
+      return undefined;
+    }
+    const observer = new ResizeObserver((entries) => {
+      setAxisWidth(entries[0]?.contentRect.width ?? 0);
+    });
+    observer.observe(el);
+    setAxisWidth(el.getBoundingClientRect().width);
+    return () => observer.disconnect();
+  }, []);
+  const hourCount = Math.max(1, Math.round(axis.spanMs / HOUR_MS));
+  const showHourlyLabels = axisWidth > 0 && axisWidth / hourCount >= HOURLY_LABEL_MIN_PX;
+  // Часовой режим — мельче засечки: короткие риски каждые 15 мин между подписями (сами часы
+  // несут подпись). В 3-часовом режиме засечки остаются часовыми (немажорные тики axis.ticks).
+  const quarterTicks: number[] = [];
+  if (showHourlyLabels) {
+    for (let ms = axis.startMs + QUARTER_MS; ms < axis.endMs; ms += QUARTER_MS) {
+      if ((ms - axis.startMs) % HOUR_MS !== 0) {
+        quarterTicks.push(ms);
+      }
+    }
+  }
 
   const [drag, setDrag] = useState<DragState | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -206,13 +240,25 @@ export function BookingTimeline({
           <button type="button" aria-label={t('op.booking.dateNav.next')} onClick={onNextDay}>›</button>
         </div>
       </div>
-      <div className="booking-axis-track">
-        {axis.ticks.slice(1).map((tick) => (
+      <div className="booking-axis-track" ref={axisTrackRef}>
+        {axis.ticks.slice(1).map((tick) => {
+          // Подпись — у major-часов всегда, у промежуточных только когда ось широкая.
+          const labeled = tick.major || showHourlyLabels;
+          return (
+            <span
+              key={tick.ms}
+              className={`booking-axis-tick${labeled ? ' is-major' : ' is-minor'}`}
+              style={{ left: `${((tick.ms - axis.startMs) / axis.spanMs) * 100}%` }}
+            >{labeled ? tick.label : null}</span>
+          );
+        })}
+        {/* Часовой режим: короткие риски каждые 15 мин между часовыми подписями. */}
+        {quarterTicks.map((ms) => (
           <span
-            key={tick.ms}
-            className={`booking-axis-tick${tick.major ? ' is-major' : ' is-minor'}`}
-            style={{ left: `${((tick.ms - axis.startMs) / axis.spanMs) * 100}%` }}
-          >{tick.major ? tick.label : null}</span>
+            key={`q-${ms}`}
+            className="booking-axis-tick is-minor"
+            style={{ left: `${((ms - axis.startMs) / axis.spanMs) * 100}%` }}
+          />
         ))}
       </div>
     </div>
