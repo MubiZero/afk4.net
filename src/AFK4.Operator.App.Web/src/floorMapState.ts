@@ -269,7 +269,9 @@ function refreshSeatRemaining(seat: SeatSummary, t: TFn, nowMs: number): SeatSum
     return seat;
   }
 
-  const remainingSeconds = Math.max(0, Math.ceil((seat.remainingDeadlineMs - nowMs) / 1000));
+  // Не обрезаем в ноль: после дедлайна остаток уходит в минус — это «просрочка», по ней панель
+  // показывает «вышло N назад». Форматтеры и таймбар сами трактуют <=0 как «Время вышло».
+  const remainingSeconds = Math.ceil((seat.remainingDeadlineMs - nowMs) / 1000);
   const normalizedState = normalizeState(seat.rawState ?? '');
   const nextRemaining = remainingText(remainingSeconds, normalizedState, seat.tone, true, t);
   return nextRemaining === seat.remaining && remainingSeconds === seat.remainingSeconds
@@ -297,11 +299,14 @@ function resolveTone(
   isOnline: boolean,
   hasActiveSession: boolean
 ): SeatTone {
-  // Сессия идёт, но ПК потерял связь — авария: деньги капают, контроля нет → красный.
-  if (hasDevice && !isOnline && hasActiveSession) {
-    return 'blocking';
+  // Обслуживание — намеренное отключение: спокойный серый «service», и побеждает связь
+  // (ПК на обслуживании обычно выключен), поэтому проверяем до офлайна.
+  if (normalizedState === 'maintenance' || normalizedState === 'service') {
+    return 'service';
   }
 
+  // ПК без связи (с сессией или без) — серый «нет связи»: деньги по сессии видны на плитке,
+  // но контроля над ПК нет. Один бакет вместо прежних красного «сбоя» и серого «офлайна».
   if (hasDevice && !isOnline) {
     return 'offline';
   }
@@ -316,11 +321,9 @@ function resolveTone(
     case 'requested':
     case 'ending':
       return 'pending';
+    // Сбой команды и мёртвый heartbeat — серый «нет связи».
     case 'failed':
-      return 'blocking';
     case 'offline':
-    case 'maintenance':
-    case 'service':
       return 'offline';
     default:
       return 'ready';
@@ -334,8 +337,8 @@ export function seatStatusLabel(tone: SeatTone, t: TFn): string {
     case 'ready': return t('op.helper.tone.ready');
     case 'active': return t('op.helper.tone.active');
     case 'pending': return t('op.helper.tone.pending');
-    case 'blocking': return t('op.helper.tone.blocking');
     case 'offline': return t('op.helper.tone.offline');
+    case 'service': return t('op.helper.tone.service');
     default: return tone;
   }
 }
@@ -352,8 +355,8 @@ function remainingText(
   }
 
   if (hasActiveSession) {
-    // Сессия без обратного отсчёта: открытый счёт «играет» или потеря связи (blocking).
-    return tone === 'blocking' ? t('op.floor.remaining.pcOffline') : t('op.floor.remaining.playing');
+    // Сессия без обратного отсчёта: открытый счёт «играет» или ПК без связи.
+    return tone === 'offline' ? t('op.floor.remaining.pcOffline') : t('op.floor.remaining.playing');
   }
 
   if (tone === 'ready') {
@@ -364,14 +367,19 @@ function remainingText(
     return t('op.floor.remaining.pending');
   }
 
-  if (tone === 'offline') {
-    // Обслуживание свёрнуто в «нет связи» по цвету, но причину в строке-теле сохраняем.
-    return normalizedState === 'maintenance' || normalizedState === 'service'
-      ? t('op.floor.remaining.closed')
-      : t('op.floor.remaining.noHeartbeat');
+  if (tone === 'service') {
+    return t('op.helper.tone.service');
   }
 
-  // blocking без сессии — сбой команды.
+  if (tone === 'offline') {
+    // Один серый тон, но причину в строке-теле сохраняем: неудачная команда → «Сбой команды»,
+    // иначе мёртвый heartbeat → «Нет связи с ПК».
+    if (normalizedState === 'failed') {
+      return t('op.floor.remaining.action');
+    }
+    return t('op.floor.remaining.noHeartbeat');
+  }
+
   return t('op.floor.remaining.action');
 }
 
@@ -397,8 +405,12 @@ function commandText(
     return normalizedState === 'ending' ? 'Stop pending' : 'Unlock pending';
   }
 
-  if (tone === 'blocking') {
+  if (normalizedState === 'failed') {
     return 'Command failed';
+  }
+
+  if (tone === 'service') {
+    return 'Technician';
   }
 
   if (tone === 'offline') {
@@ -443,6 +455,11 @@ function versionPart(label: string, version?: string | null): string {
 }
 
 function formatDuration(seconds: number, t: TFn): string {
+  // Отсчёт дошёл до нуля (или ушёл за него) — сессия не «осталось 0 с», а время вышло.
+  if (seconds <= 0) {
+    return t('op.floor.duration.expired');
+  }
+
   if (seconds < 60) {
     return t('op.floor.duration.sec', { count: seconds });
   }
@@ -459,6 +476,10 @@ function formatDuration(seconds: number, t: TFn): string {
 // Компактная длительность без слова «осталось» — для плитки, где время идёт «героем», а сам
 // предлог «осталось» вынесен в отдельную мелкую подпись (иначе строка не влезает и режется).
 export function formatDurationCompact(seconds: number, t: TFn): string {
+  if (seconds <= 0) {
+    return t('op.floor.duration.expiredShort');
+  }
+
   if (seconds < 60) {
     return t('op.floor.duration.secShort', { count: seconds });
   }

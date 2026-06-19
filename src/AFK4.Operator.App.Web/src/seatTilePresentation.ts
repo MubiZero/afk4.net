@@ -14,12 +14,13 @@ export const SEAT_TIME_LOW_SECONDS = 600;
 export type SeatTileLead =
   | { kind: 'free' }
   | { kind: 'postpaid'; amount: string }
-  | { kind: 'prepaid'; remaining: string; barRatio: number; low: boolean }
+  | { kind: 'prepaid'; remaining: string; barRatio: number; low: boolean; expired: boolean }
   | { kind: 'plain'; remaining: string };
 
-// Loud colour is reserved for Attention/Problem; calm states (ready/active/pending) stay quiet.
+// Loud accent is reserved for the one problem tone (offline = «нет связи»); calm states
+// (ready/active/pending) stay quiet.
 export function isAttentionTone(tone: SeatTone): boolean {
-  return tone === 'blocking' || tone === 'offline';
+  return tone === 'offline';
 }
 
 export function seatTileLead(seat: SeatSummary): SeatTileLead {
@@ -32,9 +33,10 @@ export function seatTileLead(seat: SeatSummary): SeatTileLead {
   }
 
   // Prepaid fixed session: time is counting down → lead with the remaining time + a depleting bar.
+  // At (or past) zero the countdown has run out — the tile says "expired", not "0 left".
   if (hasSession && seconds !== null) {
     const barRatio = Math.max(0, Math.min(1, seconds / SEAT_TIME_BAR_CEILING_SECONDS));
-    return { kind: 'prepaid', remaining: seat.remaining, barRatio, low: seconds <= SEAT_TIME_LOW_SECONDS };
+    return { kind: 'prepaid', remaining: seat.remaining, barRatio, low: seconds <= SEAT_TIME_LOW_SECONDS, expired: seconds <= 0 };
   }
 
   // Free seat ready to seat someone → an inviting "+".
@@ -42,6 +44,6 @@ export function seatTileLead(seat: SeatSummary): SeatTileLead {
     return { kind: 'free' };
   }
 
-  // Pending / offline / service / blocking-without-session, or active-but-offline → plain status.
+  // Pending / offline (нет связи / сбой / обслуживание) without a session → plain status.
   return { kind: 'plain', remaining: seat.remaining };
 }

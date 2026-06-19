@@ -46,7 +46,6 @@ import {
   emptyFeedback,
   formatMinorUnits,
   isPendingSeatCommand,
-  mapSeatStatus,
   playerPackageLabel,
   projectOperatorFacingError,
   readString,
@@ -321,16 +320,22 @@ export function MapSidePanel({
 }) {
   const { t } = useI18n();
   const session = backend?.session ?? null;
-  const status = mapSeatStatus(seat, t);
   const lead = seatTileLead(seat);
-  // Подпись над герой-значением: что это за число (осталось / открытый счёт / статус проблемы).
+  // Сессия с оплаченным временем дотикала до нуля: «осталось» больше не уместно — это «Время вышло».
+  const isExpired = lead.kind === 'prepaid' && lead.expired === true;
+  // Просрочка в секундах (сколько ПК уже сидит занятым после нуля) — для строки «вышло N назад».
+  const overtimeSeconds = isExpired && seat.remainingSeconds != null ? Math.max(0, -seat.remainingSeconds) : 0;
+  // Plain-статус (нет связи / обслуживание / ожидание) уже назван чипом справа. Значение-герой
+  // показываем, только если оно добавляет конкретику сверх чипа (как «Нет связи с ПК» к «Нет
+  // связи»); если совпадает с чипом (как «Обслуживание»), это дубль — прячем.
+  const plainStatusRedundant = lead.kind === 'plain' && seat.remaining === toneLabel(seat.tone, t);
+  // Подпись над герой-значением — только для чисел (осталось / открытый счёт); у plain-статуса
+  // и истёкшей сессии подписи нет (чип/значение говорят сами за себя).
   const heroLabel = lead.kind === 'prepaid'
-    ? t('op.map.seatLeft')
+    ? (lead.expired ? null : t('op.map.seatLeft'))
     : lead.kind === 'postpaid'
       ? t('op.map.seatOpenTab')
-      : lead.kind === 'plain'
-        ? status.label
-        : null;
+      : null;
   const hasDevice = Boolean(seat.deviceId) || Boolean(seat.deviceName);
   const connectionLabel = seat.isDeviceOnline === true
     ? t('op.helper.deviceStatus.online')
@@ -644,21 +649,25 @@ export function MapSidePanel({
           </div>
           <span className={`state-chip state-${seat.tone}`}>{toneLabel(seat.tone, t)}</span>
         </div>
-        {/* Крупное число-герой только когда оно есть (время/счёт). Для свободного места
-            ничего не дублируем — чип «Готов» и кнопка «Посадить гостя» уже всё сказали;
-            для проблемных статусов показываем строку скромным размером, не гигантом. */}
-        {lead.kind !== 'free' && (
+        {/* Крупное число-герой только когда оно есть (время/счёт). Для свободного места и для
+            статуса, дублирующего чип (напр. «Обслуживание»), ничего не показываем — чип уже всё
+            сказал; для остальных проблемных статусов даём строку скромным размером. */}
+        {lead.kind !== 'free' && !plainStatusRedundant && (
           <div className="seat-hero-metric">
             {heroLabel && <span className="seat-hero-label">{heroLabel}</span>}
-            <strong className={`seat-hero-value${lead.kind === 'postpaid' ? ' is-money' : ''}${lead.kind === 'plain' ? ' is-text' : ''}`}>
+            <strong className={`seat-hero-value${lead.kind === 'postpaid' ? ' is-money' : ''}${lead.kind === 'plain' ? ' is-text' : ''}${isExpired ? ' is-expired' : ''}`}>
               {lead.kind === 'prepaid' && seat.remainingSeconds != null
                 ? formatDurationCompact(seat.remainingSeconds, t)
                 : seat.remaining}
             </strong>
           </div>
         )}
+        {/* Сколько ПК уже сидит занятым после нуля — оператор видит, что место «зависло». */}
+        {isExpired && overtimeSeconds >= 60 && (
+          <span className="seat-hero-sub">{t('op.map.expiredAgo', { duration: formatDurationCompact(overtimeSeconds, t) })}</span>
+        )}
         {lead.kind === 'prepaid' && (
-          <span className={`seat-timebar${lead.low ? ' seat-timebar--low' : ''}`} aria-hidden="true">
+          <span className={`seat-timebar${lead.expired ? ' seat-timebar--expired' : lead.low ? ' seat-timebar--low' : ''}`} aria-hidden="true">
             <i style={{ width: `${Math.round(lead.barRatio * 100)}%` }} />
           </span>
         )}
@@ -669,6 +678,8 @@ export function MapSidePanel({
         <div className="context-section-head"><span>{t('op.map.panel.actionsHead')}</span></div>
         {hasActiveSession ? (
           <>
+            {/* Время вышло: спокойная подсказка, что у оператора два пути — продлить или завершить. */}
+            {isExpired && <p className="panel-expired-hint">{t('op.map.panel.expiredHint')}</p>}
             <div className="quick-extend">
               <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.extend15Action'), { type: 'extend', seat, minutes: 15, billing: billingSelection })}>{actionGlyph(t('op.map.panel.extend15Action'), <Plus size={14} />)}{t('op.map.panel.extend15Action')}</button>
               <button type="button" disabled={!canExtendSession || isBusy} onClick={() => runSeatAction(t('op.map.panel.extend30Action'), { type: 'extend', seat, minutes: 30, billing: billingSelection })}>{actionGlyph(t('op.map.panel.extend30Action'), <Plus size={14} />)}{t('op.map.panel.extend30Action')}</button>

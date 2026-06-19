@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'bun:test';
 import { createTranslator } from '@afk4/i18n';
-import { billingLabel, criticalAlertSources, matchesLifecycleScope, matchesMapFilter } from './operatorHelpers';
+import { billingLabel, matchesLifecycleScope, matchesMapFilter } from './operatorHelpers';
 import type { OperatorAuthSession } from './authClient';
-import type { SeatSummary, SeatTone } from './operatorData';
+import type { SeatSummary } from './operatorData';
 import type { SessionLifecycleChangedDto } from './operatorRealtime';
 
 const t = createTranslator('ru');
@@ -57,37 +57,34 @@ describe('matchesLifecycleScope', () => {
   });
 });
 
-describe('criticalAlertSources', () => {
-  const toneSeat = (tone: SeatTone): SeatSummary => ({
-    id: tone, zone: 'Зал A', name: tone, tone, stateLabel: tone, player: '—',
-    remaining: '—', billing: 'N/A', device: 'Device', command: 'Idle', app: 'Shell'
-  });
-  const seats: SeatSummary[] = [
-    toneSeat('offline'), toneSeat('offline'),
-    toneSeat('blocking'),
-    toneSeat('ready'), toneSeat('active'), toneSeat('pending')
-  ];
-
-  it('counts only the hard critical tones, each routed to a precise map filter', () => {
-    const sources = criticalAlertSources(seats, t);
-    const byId = Object.fromEntries(sources.map((source) => [source.id, source]));
-    expect(byId.offline.count).toBe(2);
-    expect(byId.offline.filterId).toBe('offline');
-    expect(byId.blocking.count).toBe(1);
-    expect(byId.blocking.filterId).toBe('blocking');
-    expect(byId.service).toBeUndefined();
+describe('matchesMapFilter (simplified zoo: all/ready/active/offline)', () => {
+  const seat = (overrides: Partial<SeatSummary>): SeatSummary => ({
+    id: 's', zone: 'Зал A', name: 'PC', tone: 'ready', stateLabel: '—', player: '—',
+    remaining: '—', billing: 'N/A', device: 'Device', command: 'Idle', app: 'Shell', ...overrides
   });
 
-  it('omits a critical type with no seats instead of showing a fake zero', () => {
-    const sources = criticalAlertSources([toneSeat('ready'), toneSeat('offline')], t);
-    expect(sources.map((source) => source.id)).toEqual(['offline']);
+  it('«Свободно» — только свободные места без сессии', () => {
+    expect(matchesMapFilter(seat({ tone: 'ready' }), 'ready')).toBe(true);
+    expect(matchesMapFilter(seat({ tone: 'ready', activeSessionId: 'x' }), 'ready')).toBe(false);
+    expect(matchesMapFilter(seat({ tone: 'active' }), 'ready')).toBe(false);
   });
 
-  it('each source filter actually selects its own tone on the map', () => {
-    const sources = criticalAlertSources(seats, t);
-    for (const source of sources) {
-      const matched = seats.filter((seat) => matchesMapFilter(seat, source.filterId));
-      expect(matched.length).toBe(source.count);
-    }
+  it('«Сессии» — только здоровые сессии (ПК на связи), не офлайн-сессии', () => {
+    expect(matchesMapFilter(seat({ tone: 'active', hasActiveSession: true }), 'active')).toBe(true);
+    // Сессия на отвалившемся ПК — тон offline → НЕ в «Сессии» (иначе двойной учёт).
+    expect(matchesMapFilter(seat({ tone: 'offline', hasActiveSession: true, isDeviceOnline: false }), 'active')).toBe(false);
+  });
+
+  it('«Нет связи» — серый бакет: сбой, мёртвый heartbeat, офлайн-сессия; но НЕ обслуживание', () => {
+    expect(matchesMapFilter(seat({ tone: 'offline' }), 'offline')).toBe(true);
+    expect(matchesMapFilter(seat({ tone: 'offline', hasActiveSession: true, isDeviceOnline: false }), 'offline')).toBe(true);
+    expect(matchesMapFilter(seat({ tone: 'active', isDeviceOnline: true }), 'offline')).toBe(false);
+    // Обслуживание — намеренное, не «нет связи»: в бакет не попадает даже при offline-устройстве.
+    expect(matchesMapFilter(seat({ tone: 'service', isDeviceOnline: false }), 'offline')).toBe(false);
+  });
+
+  it('«Все» — всё', () => {
+    expect(matchesMapFilter(seat({ tone: 'offline' }), 'all')).toBe(true);
+    expect(matchesMapFilter(seat({ tone: 'ready' }), 'all')).toBe(true);
   });
 });

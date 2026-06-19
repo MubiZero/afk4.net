@@ -1027,6 +1027,16 @@
   border: 1px solid var(--border-soft);
   border-radius: 7px;
   background: var(--surface-canvas);
+  /* Доска — утопленная «сцена», на которой плавают плитки: лёгкая внутренняя тень даёт глубину
+     независимо от темы. */
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+/* На светлой теме плитки белые, а один шаг canvas (#eef2f7) от белого почти неотличим — доска
+   «пропадала». Утопляем поле доски на ступень глубже (серое поле), чтобы белые карточки явно на
+   нём читались. На тёмной теме canvas уже контрастен с плитками, поэтому правка только для light. */
+[data-theme="light"] .map-board {
+  background: var(--border-soft);
 }
 
 .seat-grid {
@@ -1046,7 +1056,8 @@
 .seat-zones {
   display: grid;
   align-content: start;
-  gap: 18px;
+  /* Зазор между залами задаёт сам разделитель (.zone-group + .zone-group), а не gap. */
+  gap: 0;
   height: 100%;
   overflow-y: auto;
   padding: 22px 46px 28px;
@@ -1056,6 +1067,15 @@
   display: grid;
   gap: 10px;
   min-width: 0;
+}
+
+/* Залы — обособленные секции: между соседними полноширинная черта с симметричным воздухом.
+   Цвет --border-default темнее фона доски (в т.ч. серого поля светлой темы), поэтому линия видна
+   и залы не сливаются в один фон. */
+.zone-group + .zone-group {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border-default);
 }
 
 .zone-group-head {
@@ -1085,12 +1105,6 @@
   font-size: 11px;
 }
 
-.zone-group-head::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border-soft);
-}
 
 /* Внутри группы сеткой владеет .seat-zones — свой скролл/паддинг не нужен. */
 .zone-group .seat-grid {
@@ -1149,11 +1163,6 @@
   box-shadow: 0 0 0 1px var(--seat-color), 0 0 16px color-mix(in srgb, var(--seat-color) 16%, transparent);
 }
 
-/* Пульсирует только blocking — «действуй сейчас». Остальное выделяется цветом канта и точкой. */
-.seat-tile.state-blocking:not(.selected) {
-  animation: attention-pulse 2100ms ease-in-out infinite;
-}
-
 /* Ховер/фокус тоже по тону (а не фирменный зелёный для всех). */
 .seat-tile:hover,
 .seat-tile:focus-visible {
@@ -1170,14 +1179,15 @@
 }
 
 /* Палитра состояния (кант = точка = ободок). Цвет = «посмотри сюда»: свободно — зелёное (зовёт),
-   в сессии — видимый нейтральный (фон смены), ожидание — приглушённый янтарь, нужно действие —
-   глубокий красный (не томатный), нет связи — слейт. Янтарь/красный приглушены смесью, чтобы не
-   кричали; нейтральный поднят до видимого, чтобы ободок был заметен. */
+   в сессии — видимый нейтральный (фон смены), ожидание — приглушённый янтарь, нет связи — слейт.
+   Янтарь приглушён смесью, чтобы не кричал; нейтральный поднят до видимого, чтобы ободок был
+   заметен. Красного на карте больше нет — «нет связи» это серый бакет, не алярм. */
 .seat-tile.state-ready { --seat-color: var(--accent); }
 .seat-tile.state-active { --seat-color: var(--text-tertiary); }
 .seat-tile.state-pending { --seat-color: color-mix(in srgb, var(--warning) 70%, var(--border-strong)); }
-.seat-tile.state-blocking { --seat-color: color-mix(in srgb, var(--danger) 68%, var(--danger-strong)); }
 .seat-tile.state-offline { --seat-color: #64748b; }
+/* Обслуживание — тот же серый, что «нет связи», но спокойный (без 4px-канта-тревоги). */
+.seat-tile.state-service { --seat-color: #64748b; }
 
 .seat-head,
 .seat-main,
@@ -1242,57 +1252,30 @@
   white-space: nowrap;
 }
 
-.seat-tile .state-chip {
-  height: 20px;
-  max-width: 74px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  padding: 0 7px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.seat-tile.state-active .state-chip,
-.seat-tile.state-ready .state-chip {
-  color: var(--accent-text);
-}
-
-.seat-tile.state-pending .state-chip {
-  color: var(--warning-text);
-}
-
-.seat-tile.state-blocking .state-chip {
-  color: var(--danger-text);
-}
-
-.seat-tile.state-offline .state-chip {
-  color: var(--text-strong);
-}
-
 /* --- Этап 1 · A1: язык плиток --- */
 /* Громкий акцент только на Внимание/Проблема; спокойные тоны (active/ready/pending) — тихие. */
 .seat-tile--alert {
   border-left-width: 4px;
 }
 
-/* Тонировка фона проблемных плиток — по готовым soft-bg токенам, не самодельным смешением.
-   :not(.selected) уступает выделению/наведению приоритет, чтобы клик по плитке был виден. */
-.seat-tile.state-blocking:not(.selected) {
-  background: var(--danger-soft-bg);
-  border-color: var(--danger-soft-border);
+/* Вне игры — приглушаем, место «не в строю». «Нет связи» ведёт 4px-кант (через --alert) +
+   значок обрыва; «обслуживание» — тот же серый, но спокойный (тонкий кант, без тревоги). */
+.seat-tile.state-offline,
+.seat-tile.state-service {
+  opacity: 0.92;
 }
 
-/* Вне игры (нет связи) — приглушаем, место «не в строю». */
-.seat-tile.state-offline {
-  opacity: 0.92;
+/* Значок обрыва связи на плитке с активной сессией (деньги капают, ПК не на связи). */
+.seat-offline-mark {
+  flex: none;
+  color: var(--text-tertiary);
 }
 
 /* Шапка плитки: статус-точка + имя ПК. Точка дублирует статус канта на уровне текста
    (помогает и при дальтонизме, и делает цвет читаемым крупнее тонкого канта). */
 .seat-id {
   display: flex;
+  flex: 1;
   align-items: center;
   gap: 7px;
   min-width: 0;
@@ -1411,7 +1394,9 @@
   width: 100%;
   height: 5px;
   border-radius: 999px;
-  background: var(--surface-sunken);
+  /* Трек полосы — видимая «дорожка», а не фон-в-фон: на светлой теме --surface-sunken почти белый
+     на белой плитке, и пустая (истёкшая) полоса пропадала. --border-default читается в обеих темах. */
+  background: var(--border-default);
   overflow: hidden;
 }
 
@@ -1426,6 +1411,18 @@
 
 .seat-timebar--low i {
   background: var(--warning);
+}
+
+/* Время вышло — спокойный янтарный сигнал «нужно действие» (не алярм-красный): трек пустой
+   (время «съедено») и слегка подсвечен янтарём, текст-герой — янтарный и помельче (это фраза-
+   статус, а не число-таймер). */
+.seat-timebar--expired {
+  background: var(--warning-soft-bg);
+}
+
+.seat-clock--expired {
+  color: var(--warning-text);
+  font-size: 13px;
 }
 
 /* Свободное место зовёт действием — крупный мягкий «＋» в фирменном зелёном. */
@@ -1532,9 +1529,10 @@
   border-left-color: var(--warning);
 }
 
-.context-status-row.state-blocking,
-.context-status-row.state-offline {
-  border-left-color: var(--danger);
+/* «Нет связи» и «обслуживание» — спокойный серый кант (не красный). */
+.context-status-row.state-offline,
+.context-status-row.state-service {
+  border-left-color: #64748b;
 }
 
 .context-status-row.state-ready {
@@ -1566,12 +1564,8 @@
   color: var(--warning-text);
 }
 
-.state-chip.state-blocking {
-  background: rgba(239, 68, 68, 0.16);
-  color: var(--danger-text);
-}
-
-.state-chip.state-offline {
+.state-chip.state-offline,
+.state-chip.state-service {
   background: rgba(148, 163, 184, 0.12);
   color: var(--text-strong);
 }

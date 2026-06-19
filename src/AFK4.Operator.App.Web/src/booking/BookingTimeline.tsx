@@ -210,9 +210,9 @@ export function BookingTimeline({
         {axis.ticks.slice(1).map((tick) => (
           <span
             key={tick.ms}
-            className="booking-axis-tick"
+            className={`booking-axis-tick${tick.major ? ' is-major' : ' is-minor'}`}
             style={{ left: `${((tick.ms - axis.startMs) / axis.spanMs) * 100}%` }}
-          >{tick.label}</span>
+          >{tick.major ? tick.label : null}</span>
         ))}
       </div>
     </div>

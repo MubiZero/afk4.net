@@ -13,11 +13,8 @@
   border-left-color: var(--warning);
 }
 
-.seat-hero.state-blocking {
-  border-left-color: var(--danger);
-}
-
-.seat-hero.state-offline {
+.seat-hero.state-offline,
+.seat-hero.state-service {
   border-left-color: #64748b;
 }
 
@@ -94,6 +91,14 @@
   white-space: normal;
 }
 
+/* «Время вышло» — фраза-статус, не таймер: янтарный «нужно действие», помельче числа-героя. */
+.seat-hero-value.is-expired {
+  color: var(--warning-text);
+  font-size: 18px;
+  letter-spacing: 0;
+  white-space: normal;
+}
+
 .seat-hero .seat-timebar {
   width: 100%;
 }
@@ -110,6 +115,20 @@
 .panel-actions {
   display: grid;
   gap: 10px;
+}
+
+/* Подсказка «время вышло» над действиями: спокойный янтарный info-ряд, направляет оператора
+   (продлить или завершить), не алярм. */
+.panel-expired-hint {
+  margin: 0;
+  border-left: 3px solid var(--warning);
+  border-radius: 6px;
+  padding: 7px 10px;
+  background: var(--warning-soft-bg);
+  color: var(--warning-text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .quick-extend {

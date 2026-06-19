@@ -63,14 +63,20 @@
 }
 
 /* Аккаунт оператора — в подвале рейла, отделён сверху от навигации. */
+/* Подвал аккаунта — единая подложка: аватар юзера сверху и статус смены снизу в одной карточке. */
 .rail-account {
   position: relative;
   margin-top: auto;
+  box-sizing: border-box;
   width: 100%;
   display: flex;
-  justify-content: center;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-soft);
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+  background: var(--surface-sunken);
 }
 
 /* Селектор с двумя классами, чтобы перебить общий `.workspace-rail button` (gap:4px, height:46px),
@@ -120,18 +126,51 @@
   font-size: 13px;
 }
 
-/* Короткий фиксированный ярлык «Аккаунт» в стиле остальных кнопок рейла — одна строка, без
-   обрезания. Полное имя оператора живёт в поповере и в окне аккаунта, а не в узком рейле. */
-.rail-account-name {
-  max-width: 56px;
-  overflow: hidden;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--text-secondary);
+/* Аватар в рейле чуть крупнее базового — якорь личности в подвале, но без перебора. */
+.rail-account-trigger .rail-account-avatar {
+  width: 36px;
+  height: 36px;
+  font-size: 13px;
+}
+
+/* Статус смены под аватаром — на месте бывшей подписи «Аккаунт». Двухстрочный бейдж фиксированной
+   компоновки: «Смена» (caption) над коротким значением. Высота постоянна → текст не смещается. */
+.rail-shift {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
   text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.rail-shift-cap {
+  color: var(--text-tertiary);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rail-shift-value {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  /* Моноширинные цифры — время 13:00→09:57 не дёргает ширину строки. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* «с» перед часами начала смены — тише и мельче самого времени. */
+.rail-shift-prefix {
+  margin-right: 1px;
+  color: var(--text-tertiary);
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.rail-shift.tone-open .rail-shift-value {
+  color: var(--text-primary);
 }
 
 .rail-account-menu {

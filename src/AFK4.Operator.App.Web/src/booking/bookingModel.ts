@@ -24,7 +24,7 @@ export interface TimelineAxis {
   startMs: number;
   endMs: number;
   spanMs: number;
-  ticks: { ms: number; label: string }[];
+  ticks: { ms: number; label: string; major: boolean }[];
 }
 
 export interface BookingBlock {
@@ -102,14 +102,20 @@ export function mapReservationsToItems(
   });
 }
 
-function buildTicks(startMs: number, endMs: number): { ms: number; label: string }[] {
-  const ticks: { ms: number; label: string }[] = [];
+// Засечка на каждый час (ровная сетка), но подпись HH:00 ставится не на каждой, а раз в
+// LABEL_STEP_HOURS — иначе на узкой оси 24 метки наезжают друг на друга. Промежуточные часы
+// остаются «минорными» (мелкая риска без текста) — масштаб виден, подписи не слипаются.
+const LABEL_STEP_HOURS = 3;
+
+function buildTicks(startMs: number, endMs: number): TimelineAxis['ticks'] {
+  const ticks: TimelineAxis['ticks'] = [];
   const first = new Date(startMs);
   first.setMinutes(0, 0, 0);
   if (first.getTime() < startMs) first.setHours(first.getHours() + 1);
   for (let ms = first.getTime(); ms <= endMs; ms += HOUR_MS) {
     const d = new Date(ms);
-    ticks.push({ ms, label: `${String(d.getHours()).padStart(2, '0')}:00` });
+    const hours = d.getHours();
+    ticks.push({ ms, label: `${String(hours).padStart(2, '0')}:00`, major: hours % LABEL_STEP_HOURS === 0 });
   }
   return ticks;
 }

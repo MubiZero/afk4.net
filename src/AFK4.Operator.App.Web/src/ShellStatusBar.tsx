@@ -1,50 +1,46 @@
 import { CircleDollarSign, LockKeyhole } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
-import type { SeatSummary } from './operatorData';
-import type { MapFilterId } from './operatorTypes';
 import type { OperatorRealtimeConnectionState } from './operatorRealtime';
-import { ShellAlerts } from './ShellAlerts';
-import { criticalAlertSources, dataSourceLabel, realtimeLabel } from './operatorHelpers';
+import { dataSourceLabel, realtimeLabel } from './operatorHelpers';
 
-// Нижний статус-бар по единому стандарту: слева — система (связь, источник данных, тревоги),
-// справа — бизнес-метрика (касса). Тон точки связи кодирует только severity.
+// Нижний статус-бар: слева — связь, источник данных и касса; справа — разовый фид-бэк действия.
+// Тон точки связи кодирует только severity.
 export function ShellStatusBar({
   realtimeState,
   realtimeError,
   dataSource,
-  seats,
   workspaceFeedback,
-  posText,
-  onSelectAlertSource
+  posText
 }: {
   realtimeState: OperatorRealtimeConnectionState;
   realtimeError: string | null;
   dataSource: string;
-  seats: SeatSummary[];
   workspaceFeedback: string | null;
   posText: string;
-  onSelectAlertSource: (filterId: MapFilterId) => void;
 }) {
   const { t } = useI18n();
-  const realtimeTone = realtimeState === 'connected'
+  const networkTone = realtimeState === 'connected'
     ? 'ok'
     : realtimeState === 'connecting' || realtimeState === 'reconnecting'
       ? 'warn'
       : 'bad';
+  // Точка краснеет, если сеть потеряна ИЛИ сервер не на связи (данные локальные, не из backend).
+  // Переходные состояния сети (подключение/переподключение) остаются жёлтыми — это процесс, не сбой.
+  const connectionTone = dataSource === 'backend' ? networkTone : 'bad';
+  const realtimeText = realtimeLabel(realtimeState, realtimeError, t);
+  const dataSourceText = dataSourceLabel(dataSource, t);
   return (
     <footer className="signals-strip">
-      <span className="signal-item">
-        <i className={`signal-dot ${realtimeTone}`} aria-hidden="true" />
-        {realtimeLabel(realtimeState, realtimeError, t)}
+      {/* Один индикатор связи: точка severity + статус сети. Источник данных скрыт в подсказке —
+          по наведению видно оба статуса целиком, не загромождая бар. */}
+      <span className="signal-item signal-conn" title={`${realtimeText} · ${dataSourceText}`}>
+        <i className={`signal-dot ${connectionTone}`} aria-hidden="true" />
+        {realtimeText}
       </span>
-      <span className="signal-item signal-muted">{dataSourceLabel(dataSource, t)}</span>
-      <ShellAlerts sources={criticalAlertSources(seats, t)} onSelectSource={onSelectAlertSource} />
-      <div className="signals-right">
-        {workspaceFeedback && (
-          <span className="signal-item rail-feedback"><LockKeyhole size={13} />{workspaceFeedback}</span>
-        )}
-        <span className="signal-item signal-pos"><CircleDollarSign size={13} />{posText}</span>
-      </div>
+      <span className="signal-item signal-pos"><CircleDollarSign size={13} />{posText}</span>
+      {workspaceFeedback && (
+        <span className="signal-item rail-feedback signals-right"><LockKeyhole size={13} />{workspaceFeedback}</span>
+      )}
     </footer>
   );
 }

@@ -5,18 +5,21 @@ import { RailAccount } from './RailAccount';
 
 afterEach(cleanup);
 
-function renderWidget(onOpenAccount = () => {}, onSignOut = () => {}) {
+const openShift = { tone: 'open' as const, value: '13:00', full: 'Смена открыта · с 13:00' };
+
+function renderWidget(onOpenAccount = () => {}, onSignOut = () => {}, shift = openShift) {
   return render(
     <I18nProvider>
-      <RailAccount displayName="Оператор смены" onOpenAccount={onOpenAccount} onSignOut={onSignOut} />
+      <RailAccount displayName="Оператор смены" shift={shift} onOpenAccount={onOpenAccount} onSignOut={onSignOut} />
     </I18nProvider>
   );
 }
 
 describe('RailAccount', () => {
-  it('shows the account label with a collapsed menu by default', () => {
-    const { getByText, queryByRole } = renderWidget();
-    getByText('Аккаунт');
+  it('shows the shift badge value under the avatar with a collapsed menu by default', () => {
+    const { getByText, getByTitle, queryByRole } = renderWidget();
+    getByText('13:00');
+    getByTitle(/Смена открыта/);
     expect(queryByRole('menu')).toBeNull();
   });
 

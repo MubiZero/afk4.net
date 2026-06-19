@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LogOut, UserRound } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
+import type { ShellShiftBadgeData } from './operatorHelpers';
 
 export function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -16,8 +17,9 @@ export function initialsOf(name: string): string {
  * не читалась как кнопка и стояла не на своём месте — место аккаунта внизу боковой панели.
  * Меню рендерим в портал: рейл скроллит с overflow-x:hidden и иначе обрезал бы поповер.
  */
-export function RailAccount({ displayName, onOpenAccount, onSignOut }: {
+export function RailAccount({ displayName, shift, onOpenAccount, onSignOut }: {
   displayName: string;
+  shift: ShellShiftBadgeData;
   onOpenAccount: () => void;
   onSignOut: () => void;
 }) {
@@ -71,8 +73,17 @@ export function RailAccount({ displayName, onOpenAccount, onSignOut }: {
         onClick={toggle}
       >
         <span className="rail-account-avatar" aria-hidden="true">{initials}</span>
-        <span className="rail-account-name">{t('op.shell.account')}</span>
       </button>
+      {/* Статус смены под аватаром (бывшее место подписи «Аккаунт»). Стабильная двухстрочная
+          компоновка: точка тона + слово «Смена» сверху, короткое значение (время/символ) снизу —
+          высота не прыгает между состояниями. Полная фраза — в title. */}
+      <div className={`rail-shift tone-${shift.tone}`} title={shift.full}>
+        <span className="rail-shift-cap">{t('op.pos.strip.shift')}</span>
+        <strong className="rail-shift-value">
+          {shift.tone === 'open' && <span className="rail-shift-prefix">с </span>}
+          {shift.value}
+        </strong>
+      </div>
       {open && createPortal(
         <div
           ref={menuRef}

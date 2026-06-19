@@ -25,9 +25,9 @@ function seat(overrides: Partial<SeatSummary>): SeatSummary {
 }
 
 describe('isAttentionTone', () => {
-  it('marks only attention/problem tones as loud', () => {
-    const loud: SeatTone[] = ['blocking', 'offline'];
-    const calm: SeatTone[] = ['ready', 'active', 'pending'];
+  it('marks only the offline («нет связи») tone as loud; service stays calm', () => {
+    const loud: SeatTone[] = ['offline'];
+    const calm: SeatTone[] = ['ready', 'active', 'pending', 'service'];
     for (const tone of loud) {
       expect(isAttentionTone(tone)).toBe(true);
     }
@@ -66,16 +66,27 @@ describe('seatTileLead', () => {
     const low = seatTileLead(seat({ tone: 'active', hasActiveSession: true, remainingSeconds: SEAT_TIME_LOW_SECONDS - 1 }));
     if (over.kind === 'prepaid') {
       expect(over.barRatio).toBe(1);
+      expect(over.expired).toBe(false);
     }
     if (low.kind === 'prepaid') {
       expect(low.low).toBe(true);
       expect(low.barRatio).toBeGreaterThan(0);
+      expect(low.expired).toBe(false);
     }
   });
 
-  it('falls back to plain status text for offline/blocking/pending and other non-session seats', () => {
-    expect(seatTileLead(seat({ tone: 'offline', remaining: 'Нет heartbeat' }))).toEqual({ kind: 'plain', remaining: 'Нет heartbeat' });
+  it('flags a prepaid session whose countdown hit zero as expired (not "0 left")', () => {
+    const lead = seatTileLead(seat({ tone: 'active', hasActiveSession: true, remainingSeconds: 0 }));
+    expect(lead.kind).toBe('prepaid');
+    if (lead.kind === 'prepaid') {
+      expect(lead.expired).toBe(true);
+      expect(lead.low).toBe(true);
+      expect(lead.barRatio).toBe(0);
+    }
+  });
+
+  it('falls back to plain status text for offline/pending and other non-session seats', () => {
+    expect(seatTileLead(seat({ tone: 'offline', remaining: 'Нет связи с ПК' }))).toEqual({ kind: 'plain', remaining: 'Нет связи с ПК' });
     expect(seatTileLead(seat({ tone: 'pending', remaining: 'Ожидает' }))).toEqual({ kind: 'plain', remaining: 'Ожидает' });
-    expect(seatTileLead(seat({ tone: 'blocking', remaining: 'Нужно действие' }))).toEqual({ kind: 'plain', remaining: 'Нужно действие' });
   });
 });
