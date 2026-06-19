@@ -435,7 +435,10 @@ export function BackendBookingWorkspace({
   // бронь (для детальной подписи); это покрывает ещё и сессии и блокирует создание.
   const singleSeatConflict = drawerMode === 'create' && draft.seatId !== '' && seatHasClash(draft.seatId);
 
-  const dateLabel = toDateInputValue(selectedDate) === toDateInputValue(new Date())
+  const todayValue = toDateInputValue(new Date());
+  const dateValue = toDateInputValue(selectedDate);
+  const isToday = dateValue === todayValue;
+  const dateLabel = isToday
     ? t('op.booking.dateNav.today')
     : new Date(selectedDate).toLocaleDateString(locale, { day: '2-digit', month: 'long' });
 
@@ -476,8 +479,12 @@ export function BackendBookingWorkspace({
           branchName={floorMap.branchName}
           previewBlock={previewBlock}
           dateLabel={dateLabel}
+          dateValue={dateValue}
+          isToday={isToday}
           onPrevDay={() => setSelectedDate((d) => addDays(d, -1))}
           onNextDay={() => setSelectedDate((d) => addDays(d, 1))}
+          onToday={() => setSelectedDate(new Date())}
+          onPickDate={(value) => { const picked = new Date(`${value}T00:00:00`); if (!Number.isNaN(picked.getTime())) setSelectedDate(picked); }}
           onSelectBlock={(item) => openDetailDrawer(item.reservationId)}
           onCellCreate={openCreateDrawerForCell}
           onSeatsCreate={openGroupDrawer}

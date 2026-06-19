@@ -6,6 +6,7 @@ import {
   computeAxis,
   buildSeatRows,
   unseatedOnlineRequests,
+  bookingStateLabelKey,
   type SessionDtoLike
 } from './bookingModel';
 
@@ -16,6 +17,15 @@ const seat = (id: string, zone: string, name: string): SeatSummary => ({
 
 const HOUR = 3_600_000;
 const day = Date.UTC(2026, 5, 17, 0, 0, 0); // локальная полночь в тесте трактуется как старт оси-входа
+
+it('bookingStateLabelKey: каждое известное состояние → свой i18n-ключ, неизвестное → unknown', () => {
+  expect(bookingStateLabelKey('confirmed')).toBe('op.booking.state.confirmed');
+  expect(bookingStateLabelKey('pending')).toBe('op.booking.state.pending');
+  expect(bookingStateLabelKey('seated')).toBe('op.booking.state.seated');
+  expect(bookingStateLabelKey('cancelled')).toBe('op.booking.state.cancelled');
+  expect(bookingStateLabelKey('expired')).toBe('op.booking.state.unknown');
+  expect(bookingStateLabelKey('')).toBe('op.booking.state.unknown');
+});
 
 it('mapReservationsToItems: парсит поля и считает endMs из длительности', () => {
   const items = mapReservationsToItems([

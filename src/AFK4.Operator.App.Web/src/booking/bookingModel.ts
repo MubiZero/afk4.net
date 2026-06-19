@@ -72,6 +72,25 @@ function bookingTone(state: string, source: string): BookingTone {
   return source === 'online' ? 'online' : 'pending';
 }
 
+// i18n-ключ человекочитаемого состояния брони. Состояние приходит с бэка строкой
+// (confirmed/pending/seated/cancelled) — её нельзя показывать оператору как есть.
+type BookingStateKey =
+  | 'op.booking.state.confirmed'
+  | 'op.booking.state.pending'
+  | 'op.booking.state.seated'
+  | 'op.booking.state.cancelled'
+  | 'op.booking.state.unknown';
+
+export function bookingStateLabelKey(state: string): BookingStateKey {
+  switch (state) {
+    case 'confirmed': return 'op.booking.state.confirmed';
+    case 'pending': return 'op.booking.state.pending';
+    case 'seated': return 'op.booking.state.seated';
+    case 'cancelled': return 'op.booking.state.cancelled';
+    default: return 'op.booking.state.unknown';
+  }
+}
+
 export function mapReservationsToItems(
   reservations: Record<string, unknown>[],
   guestName: string

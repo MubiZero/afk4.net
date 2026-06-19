@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react';
+import { RotateCcw } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary } from '../operatorData';
 import { zoneLabel } from '../operatorHelpers';
@@ -24,7 +25,7 @@ interface DragState {
 }
 
 export function BookingTimeline({
-  groups, axis, nowMs, loading, showSkeleton, selectedReservationId, branchName, previewBlock, dateLabel, onPrevDay, onNextDay, onSelectBlock, onCellCreate, onSeatsCreate
+  groups, axis, nowMs, loading, showSkeleton, selectedReservationId, branchName, previewBlock, dateLabel, dateValue, isToday, onPrevDay, onNextDay, onToday, onPickDate, onSelectBlock, onCellCreate, onSeatsCreate
 }: {
   groups: ZoneRowGroup[];
   axis: TimelineAxis;
@@ -35,8 +36,12 @@ export function BookingTimeline({
   branchName: string;
   previewBlock: { seatIds: string[]; startMs: number; endMs: number } | null;
   dateLabel: string;
+  dateValue: string;   // yyyy-mm-dd для нативного выбора дня
+  isToday: boolean;
   onPrevDay: () => void;
   onNextDay: () => void;
+  onToday: () => void;
+  onPickDate: (value: string) => void;
   onSelectBlock: (item: BookingItem) => void;
   onCellCreate: (seat: SeatSummary, startMs: number, durationMinutes?: number) => void;
   onSeatsCreate: (seats: SeatSummary[], startMs: number, durationMinutes: number) => void;
@@ -236,8 +241,17 @@ export function BookingTimeline({
       <div className="booking-axis-gutter">
         <div className="booking-gutter-datenav">
           <button type="button" aria-label={t('op.booking.dateNav.prev')} onClick={onPrevDay}>‹</button>
-          <strong>{dateLabel}</strong>
+          {/* Клик по дате открывает нативный выбор дня; прозрачный input лежит поверх подписи. */}
+          <label className="booking-gutter-date">
+            <strong>{dateLabel}</strong>
+            <input type="date" value={dateValue} aria-label={t('op.booking.dateNav.pick')} onChange={(e) => onPickDate(e.currentTarget.value)} />
+          </label>
           <button type="button" aria-label={t('op.booking.dateNav.next')} onClick={onNextDay}>›</button>
+          {!isToday && (
+            <button type="button" className="booking-gutter-today" aria-label={t('op.booking.dateNav.backToToday')} title={t('op.booking.dateNav.backToToday')} onClick={onToday}>
+              <RotateCcw size={13} aria-hidden="true" />
+            </button>
+          )}
         </div>
       </div>
       <div className="booking-axis-track" ref={axisTrackRef}>
