@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json;
 using System.Net.Http;
 using System.Runtime.InteropServices;
@@ -79,6 +80,38 @@ public partial class WebViewOperatorWindow : Window
         InitializeComponent();
 
         StatusText.Text = localization.T("operator.host.loading");
+        RestoreSavedPlacement();
+    }
+
+    // Re-open the window at the size/position/maximized-state the operator last left it. Applied in the
+    // constructor (before the window is shown) so there is no visible jump from the default geometry.
+    private void RestoreSavedPlacement()
+    {
+        var saved = OperatorWindowPlacementStore.Load();
+        var sane = saved?.Sanitize(
+            SystemParameters.VirtualScreenLeft,
+            SystemParameters.VirtualScreenTop,
+            SystemParameters.VirtualScreenWidth,
+            SystemParameters.VirtualScreenHeight,
+            MinWidth,
+            MinHeight);
+        if (sane is null)
+        {
+            return;
+        }
+
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        Left = sane.Left;
+        Top = sane.Top;
+        Width = sane.Width;
+        Height = sane.Height;
+
+        // The restore bounds above become the un-maximize size; WM_GETMINMAXINFO clamps the maximized
+        // rect to the work area, so re-maximizing here is safe on any monitor.
+        if (saved!.Maximized)
+        {
+            WindowState = WindowState.Maximized;
+        }
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -116,35 +149,45 @@ public partial class WebViewOperatorWindow : Window
     {
         if (msg == WmGetMinMaxInfo)
         {
-            ClampMaximizedToWorkArea(hwnd, lParam);
+            ClampWindowTrackSize(hwnd, lParam);
             handled = true;
         }
 
         return IntPtr.Zero;
     }
 
-    private static void ClampMaximizedToWorkArea(IntPtr hwnd, IntPtr lParam)
+    // Owns WM_GETMINMAXINFO to (1) clamp the maximized rect to the monitor work area and (2) enforce the
+    // window's minimum size. Both must be set here: because we mark the message handled, WindowChrome no
+    // longer pushes MinWidth/MinHeight into ptMinTrackSize, so without (2) the border drags far below the
+    // minimum and the WebView2 content clips instead of the window simply refusing to shrink further.
+    private void ClampWindowTrackSize(IntPtr hwnd, IntPtr lParam)
     {
-        var monitor = MonitorFromWindow(hwnd, MonitorDefaultToNearest);
-        if (monitor == IntPtr.Zero)
-        {
-            return;
-        }
-
-        var monitorInfo = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
-        if (!GetMonitorInfo(monitor, ref monitorInfo))
-        {
-            return;
-        }
-
         var info = Marshal.PtrToStructure<MinMaxInfo>(lParam);
-        var work = monitorInfo.WorkArea;
-        var bounds = monitorInfo.MonitorArea;
-        info.MaxPosition.X = work.Left - bounds.Left;
-        info.MaxPosition.Y = work.Top - bounds.Top;
-        info.MaxSize.X = work.Right - work.Left;
-        info.MaxSize.Y = work.Bottom - work.Top;
+
+        var monitor = MonitorFromWindow(hwnd, MonitorDefaultToNearest);
+        var monitorInfo = new MonitorInfo { Size = Marshal.SizeOf<MonitorInfo>() };
+        if (monitor != IntPtr.Zero && GetMonitorInfo(monitor, ref monitorInfo))
+        {
+            var work = monitorInfo.WorkArea;
+            var bounds = monitorInfo.MonitorArea;
+            info.MaxPosition.X = work.Left - bounds.Left;
+            info.MaxPosition.Y = work.Top - bounds.Top;
+            info.MaxSize.X = work.Right - work.Left;
+            info.MaxSize.Y = work.Bottom - work.Top;
+        }
+
+        // MinWidth/MinHeight are DIPs; ptMinTrackSize is physical pixels — scale by the window's DPI.
+        var dpiScale = DpiScaleForWindow(hwnd);
+        info.MinTrackSize.X = (int)Math.Ceiling(MinWidth * dpiScale);
+        info.MinTrackSize.Y = (int)Math.Ceiling(MinHeight * dpiScale);
+
         Marshal.StructureToPtr(info, lParam, true);
+    }
+
+    private static double DpiScaleForWindow(IntPtr hwnd)
+    {
+        var dpi = GetDpiForWindow(hwnd);
+        return dpi == 0 ? 1.0 : dpi / 96.0;
     }
 
     protected override async void OnContentRendered(EventArgs e)
@@ -158,6 +201,34 @@ public partial class WebViewOperatorWindow : Window
 
         browserInitializationStarted = true;
         await InitializeBrowserAsync();
+    }
+
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        base.OnClosing(e);
+        SaveCurrentPlacement();
+    }
+
+    // Persist the geometry to restore next launch. When maximized we save RestoreBounds (the normal-state
+    // size to fall back to) plus the maximized flag; a minimized window keeps its restore bounds too.
+    private void SaveCurrentPlacement()
+    {
+        var bounds = WindowState == WindowState.Normal
+            ? new Rect(Left, Top, ActualWidth, ActualHeight)
+            : RestoreBounds;
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return;
+        }
+
+        OperatorWindowPlacementStore.Save(new OperatorWindowPlacement
+        {
+            Left = bounds.X,
+            Top = bounds.Y,
+            Width = bounds.Width,
+            Height = bounds.Height,
+            Maximized = WindowState == WindowState.Maximized,
+        });
     }
 
     protected override void OnClosed(EventArgs e)
@@ -507,6 +578,9 @@ public partial class WebViewOperatorWindow : Window
 
     [DllImport("user32.dll")]
     private static extern IntPtr MonitorFromWindow(IntPtr hwnd, int flags);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
 
     [DllImport("user32.dll")]
     private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MonitorInfo monitorInfo);
