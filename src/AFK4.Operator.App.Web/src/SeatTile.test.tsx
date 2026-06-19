@@ -15,7 +15,6 @@ function seat(overrides: Partial<SeatSummary>): SeatSummary {
     stateLabel: 'Свободно',
     player: 'Гость',
     remaining: 'Свободно',
-    billing: 'Fast guest',
     device: 'Device',
     command: 'Idle',
     app: 'Shell',
@@ -46,7 +45,7 @@ describe('SeatTile', () => {
 
   it('leads an active prepaid session with the remaining time and no placeholder data', () => {
     const { container } = renderTile(
-      seat({ tone: 'active', hasActiveSession: true, remainingSeconds: 1800, remaining: '30 мин', billing: 'Wallet', app: 'Agent 0.4 · Shell 0.4' })
+      seat({ tone: 'active', hasActiveSession: true, remainingSeconds: 1800, remaining: '30 мин', app: 'Agent 0.4 · Shell 0.4' })
     );
     // The remaining time is the hero — it's the one real per-seat datum we have.
     const clock = container.querySelector('.seat-clock');
@@ -100,5 +99,25 @@ describe('SeatTile', () => {
 
     const { container: quiet } = renderTile(seat({ tone: 'active', hasActiveSession: true, remainingSeconds: 1800 }));
     expect(quiet.querySelector('.seat-tile')?.classList.contains('seat-tile--alert')).toBe(false);
+  });
+
+  it('shows the real client name next to the PC name for a named session', () => {
+    const { container } = renderTile(
+      seat({ tone: 'active', hasActiveSession: true, remainingSeconds: 1800, playerDisplayName: 'Сабрина М.' })
+    );
+    const client = container.querySelector('.seat-client');
+    expect(client?.textContent).toBe('Сабрина М.');
+  });
+
+  it('shows «Гость» next to the PC name for a guest session without an account', () => {
+    const { container } = renderTile(
+      seat({ tone: 'active', hasActiveSession: true, remainingSeconds: 1800, playerDisplayName: null })
+    );
+    expect(container.querySelector('.seat-client')?.textContent).toBe('Гость');
+  });
+
+  it('shows no client line for a free seat (the "+" invite stands alone)', () => {
+    const { container } = renderTile(seat({ tone: 'ready', hasActiveSession: false }));
+    expect(container.querySelector('.seat-client')).toBeNull();
   });
 });

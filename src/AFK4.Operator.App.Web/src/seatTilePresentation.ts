@@ -1,9 +1,8 @@
 import type { SeatSummary, SeatTone } from './operatorData';
 
-// Reference ceiling for the prepaid time bar: a full bar ≈ 60 min left, clamped to [0,1].
-// This is a glanceable "how much time is left" magnitude, NOT a percent-of-session — the
-// floor-map DTO carries no session total, so we deliberately scale against a fixed reference
-// instead of inventing a denominator. The bar shrinks toward 0 as the session runs out.
+// Fallback ceiling for the prepaid time bar when we can't compute a real fraction: a full bar
+// ≈ 60 min left, clamped to [0,1]. Used only when the session has no start instant (so we can't
+// know its total length). With a start instant we scale against the real session length below.
 export const SEAT_TIME_BAR_CEILING_SECONDS = 3600;
 // Below this the bar turns "low" (urgent) so the operator notices a session about to end.
 export const SEAT_TIME_LOW_SECONDS = 600;
@@ -23,7 +22,7 @@ export function isAttentionTone(tone: SeatTone): boolean {
   return tone === 'offline';
 }
 
-export function seatTileLead(seat: SeatSummary): SeatTileLead {
+export function seatTileLead(seat: SeatSummary, nowMs: number = Date.now()): SeatTileLead {
   const hasSession = seat.hasActiveSession === true || Boolean(seat.activeSessionId) || seat.tone === 'active';
   const seconds = seat.remainingSeconds ?? null;
 
@@ -35,7 +34,7 @@ export function seatTileLead(seat: SeatSummary): SeatTileLead {
   // Prepaid fixed session: time is counting down → lead with the remaining time + a depleting bar.
   // At (or past) zero the countdown has run out — the tile says "expired", not "0 left".
   if (hasSession && seconds !== null) {
-    const barRatio = Math.max(0, Math.min(1, seconds / SEAT_TIME_BAR_CEILING_SECONDS));
+    const barRatio = prepaidBarRatio(seat, seconds, nowMs);
     return { kind: 'prepaid', remaining: seat.remaining, barRatio, low: seconds <= SEAT_TIME_LOW_SECONDS, expired: seconds <= 0 };
   }
 
@@ -46,4 +45,21 @@ export function seatTileLead(seat: SeatSummary): SeatTileLead {
 
   // Pending / offline (нет связи / сбой / обслуживание) without a session → plain status.
   return { kind: 'plain', remaining: seat.remaining };
+}
+
+// Доля заполнения полосы остатка. Когда известно начало сессии — это НАСТОЯЩИЙ процент:
+// полная длина = прошло + осталось (продление само поднимет и остаток, и полную длину).
+// Без начала сессии длины не знаем → фолбэк на «остаток от условного часа».
+function prepaidBarRatio(seat: SeatSummary, seconds: number, nowMs: number): number {
+  const remaining = Math.max(0, seconds);
+  const startedMs = seat.sessionStartedAtUtc ? new Date(seat.sessionStartedAtUtc).getTime() : NaN;
+  if (!Number.isNaN(startedMs)) {
+    const elapsed = Math.max(0, (nowMs - startedMs) / 1000);
+    const total = elapsed + remaining;
+    if (total > 0) {
+      return Math.max(0, Math.min(1, remaining / total));
+    }
+  }
+
+  return Math.max(0, Math.min(1, remaining / SEAT_TIME_BAR_CEILING_SECONDS));
 }

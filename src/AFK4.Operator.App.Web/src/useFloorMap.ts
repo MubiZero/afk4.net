@@ -16,7 +16,7 @@ import {
   reconcileActionOutbox,
   type OperatorCommandType
 } from './actionOutbox';
-import { seats, type SeatSummary } from './operatorData';
+import type { SeatSummary } from './operatorData';
 import type {
   AuthStatus,
   OperatorConfig,
@@ -83,7 +83,7 @@ export function useFloorMap({
 }: UseFloorMapOptions): FloorMap {
   const [floorMap, setFloorMap] = useState<OperatorFloorMapState>(() => createFixtureFloorMapState());
   const floorMapRef = useRef(floorMap);
-  const [selectedSeatId, setSelectedSeatId] = useState(seats[0].id);
+  const [selectedSeatId, setSelectedSeatId] = useState('');
   const [remainingNowMs, setRemainingNowMs] = useState(() => Date.now());
   const [offlineActionAudit, setOfflineActionAudit] = useState<string[]>([]);
 
@@ -105,7 +105,7 @@ export function useFloorMap({
   useEffect(() => {
     if (authStatus !== 'signed-in' || authSession === null) {
       setFloorMap(createFixtureFloorMapState());
-      setSelectedSeatId(seats[0].id);
+      setSelectedSeatId('');
       return undefined;
     }
 
@@ -136,7 +136,7 @@ export function useFloorMap({
         }
 
         setFloorMap(nextState);
-        setSelectedSeatId(nextState.seats[0]?.id ?? seats[0].id);
+        setSelectedSeatId(nextState.seats[0]?.id ?? '');
         void drainQueuedActions(nextState.seats);
       } catch (error) {
         if (isUnauthorizedPlatformError(error)) {
@@ -154,7 +154,7 @@ export function useFloorMap({
 
             setAuthSession(nextSession);
             setFloorMap(nextState);
-            setSelectedSeatId(nextState.seats[0]?.id ?? seats[0].id);
+            setSelectedSeatId(nextState.seats[0]?.id ?? '');
             return;
           } catch (refreshError) {
             await clearStoredOperatorSession();
@@ -166,7 +166,7 @@ export function useFloorMap({
             setAuthStatus('signed-out');
             setAuthError(projectAuthHostError(refreshError, config, t));
             setFloorMap(createFixtureFloorMapState());
-            setSelectedSeatId(seats[0].id);
+            setSelectedSeatId('');
             return;
           }
         }
@@ -181,7 +181,7 @@ export function useFloorMap({
         if (cached) {
           const degraded = hydrateFloorMapStateFromCache(cached, branchId, t);
           setFloorMap(degraded);
-          setSelectedSeatId((current) => current ?? degraded.seats[0]?.id ?? seats[0].id);
+          setSelectedSeatId((current) => current || degraded.seats[0]?.id || '');
           return;
         }
 

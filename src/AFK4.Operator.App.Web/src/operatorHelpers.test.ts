@@ -60,7 +60,7 @@ describe('matchesLifecycleScope', () => {
 describe('matchesMapFilter (simplified zoo: all/ready/active/offline)', () => {
   const seat = (overrides: Partial<SeatSummary>): SeatSummary => ({
     id: 's', zone: 'Зал A', name: 'PC', tone: 'ready', stateLabel: '—', player: '—',
-    remaining: '—', billing: 'N/A', device: 'Device', command: 'Idle', app: 'Shell', ...overrides
+    remaining: '—', device: 'Device', command: 'Idle', app: 'Shell', ...overrides
   });
 
   it('«Свободно» — только свободные места без сессии', () => {

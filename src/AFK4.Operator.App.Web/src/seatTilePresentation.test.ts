@@ -16,7 +16,6 @@ function seat(overrides: Partial<SeatSummary>): SeatSummary {
     stateLabel: 'Свободно',
     player: 'Гость',
     remaining: 'Свободно',
-    billing: 'Fast guest',
     device: '',
     command: '',
     app: '',
@@ -50,7 +49,7 @@ describe('seatTileLead', () => {
     expect(lead).toEqual({ kind: 'postpaid', amount: '≈ 54 с.' });
   });
 
-  it('shows time + bar for a prepaid fixed session, bar scaled to the ceiling', () => {
+  it('falls back to the ceiling ratio when the session has no start instant', () => {
     const half = Math.round(SEAT_TIME_BAR_CEILING_SECONDS / 2);
     const lead = seatTileLead(seat({ tone: 'active', hasActiveSession: true, remainingSeconds: half, remaining: '30 мин' }));
     expect(lead.kind).toBe('prepaid');
@@ -58,6 +57,21 @@ describe('seatTileLead', () => {
       expect(lead.remaining).toBe('30 мин');
       expect(lead.barRatio).toBeCloseTo(0.5, 5);
       expect(lead.low).toBe(false);
+    }
+  });
+
+  it('scales the bar to the REAL session length when the start instant is known', () => {
+    const startedAtUtc = '2026-06-19T12:00:00Z';
+    const startedMs = new Date(startedAtUtc).getTime();
+    // 90 мин прошло, 30 мин осталось → полная сессия 120 мин → доля 0.25,
+    // а не 0.5 «от условного часа» (так старый костыль соврал бы).
+    const lead = seatTileLead(
+      seat({ tone: 'active', hasActiveSession: true, remainingSeconds: 1800, sessionStartedAtUtc: startedAtUtc }),
+      startedMs + 90 * 60_000
+    );
+    expect(lead.kind).toBe('prepaid');
+    if (lead.kind === 'prepaid') {
+      expect(lead.barRatio).toBeCloseTo(0.25, 5);
     }
   });
 

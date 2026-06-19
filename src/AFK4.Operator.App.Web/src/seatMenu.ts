@@ -111,6 +111,7 @@ export function buildSeatMenu(seat: SeatSummary, caps: SeatMenuCaps): SeatMenuSe
     soon.push({ id: 'soon-wake', labelKey: 'op.map.wakeBtn', feedbackKey: 'op.map.actionWake', hintKey: 'op.map.wakeHint', run: { kind: 'soon', detailKey: 'op.map.wakeDetail' }, disabled: false, soon: true });
   }
   if (hasSession) {
+    soon.push({ id: 'soon-active-window', labelKey: 'op.map.menu.activeWindow', feedbackKey: 'op.map.menu.activeWindow', hintKey: 'op.map.menu.activeWindowHint', run: { kind: 'soon', detailKey: 'op.map.menu.activeWindowDetail' }, disabled: false, soon: true });
     soon.push({ id: 'soon-fine', labelKey: 'op.map.menu.fine', feedbackKey: 'op.map.menu.fine', hintKey: 'op.map.menu.fineHint', run: { kind: 'soon', detailKey: 'op.map.menu.fineDetail' }, disabled: false, soon: true });
     soon.push({ id: 'soon-notify', labelKey: 'op.map.menu.notify', feedbackKey: 'op.map.menu.notify', hintKey: 'op.map.menu.notifyHint', run: { kind: 'soon', detailKey: 'op.map.menu.notifyDetail' }, disabled: false, soon: true });
   }

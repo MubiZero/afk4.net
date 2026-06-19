@@ -4,7 +4,7 @@ import { formatMinorUnits } from './currencyFormat';
 import { type MessageKey } from '@afk4/i18n';
 import type { FloorMapCacheEntry } from './floorMapCache';
 import type { FloorMapDto, FloorMapZoneDto, FloorMapWallDto, SeatStatusDto } from './operatorApiClients';
-import { seats as fixtureSeats, type SeatSummary, type SeatTone } from './operatorData';
+import type { SeatSummary, SeatTone } from './operatorData';
 import type { DeviceStatusChangedDto } from './operatorRealtime';
 
 type TFn = (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -32,10 +32,12 @@ export interface OperatorFloorMapState {
 
 export const fixtureBranchName = 'AFK4 Dushanbe';
 
+// Стартовое состояние карты до ответа бэка: пустой набор мест, source 'fixture' (гейтит живые
+// действия до загрузки). Пустые seats → MapWorkspace показывает скелетон, а не фейковые ПК.
 export function createFixtureFloorMapState(): OperatorFloorMapState {
   return {
     branchName: fixtureBranchName,
-    seats: fixtureSeats,
+    seats: [],
     zones: [],
     walls: [],
     etag: null,
@@ -180,7 +182,6 @@ function mapFloorMapSeat(dto: SeatStatusDto, t: TFn, loadedAtMs: number): SeatSu
     remaining: isOpenTab
       ? accruedCostText(accruedCostMinorUnits, currencyCode, t)
       : remainingText(remainingSeconds, normalizedState, tone, hasActiveSession, t),
-    billing: isOpenTab ? 'Открытый счёт' : hasActiveSession ? 'Wallet' : tone === 'ready' ? 'Fast guest' : 'N/A',
     device: formatDeviceSummary({
       deviceName: dto.deviceName,
       isOnline: isDeviceOnline,
@@ -242,7 +243,6 @@ function applyDeviceStatusToSeat(seat: SeatSummary, status: DeviceStatusChangedD
     remaining: hasActiveSession
       ? seat.remaining
       : remainingText(null, normalizedState, tone, hasActiveSession, t),
-    billing: hasActiveSession ? seat.billing : tone === 'ready' ? 'Fast guest' : 'N/A',
     device: formatDeviceSummary({
       deviceName: seat.deviceName ?? status.machineName,
       isOnline: status.isOnline,
