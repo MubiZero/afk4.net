@@ -186,9 +186,51 @@ function diagnostics() {
   };
 }
 
+// Реалистичный счёт для окна завершения сессии: наигранное время + снеки + депозит игрока,
+// чтобы в превью была видна вся касса (вкладки/купюры/сдача), а не пустое «оплата не требуется».
+function checkoutQuote() {
+  return {
+    sessionId: 's-preview',
+    timeCharge: money(5000),
+    posTotal: money(450),
+    grandTotal: money(5450),
+    billableSeconds: 3720,
+    playerAccountId: null,
+    walletBalance: money(3000)
+  };
+}
+
+// Эхо успешной оплаты — чтобы подтверждение кассы в превью отрабатывало без ошибки.
+function checkoutResult(init?: RequestInit) {
+  let req: Record<string, unknown> = {};
+  try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
+  return {
+    idempotencyKey: (req.idempotencyKey as string) ?? 'session-checkout-preview',
+    sessionId: 's-preview',
+    timeCharge: money(5000),
+    posTotal: money(450),
+    grandTotal: money(5450),
+    payments: Array.isArray(req.payments) ? req.payments : [],
+    receipt: {},
+    session: { sessionId: 's-preview', state: 'Ending' },
+    deviceCommands: []
+  };
+}
+
+// Тарифы для окна запуска сессии: ставка за минуту → видна цена-превью и покрытие баланса.
+function tariffOptions() {
+  return [
+    { tariffVersionId: 'tv-hourly', tariffRuleVersionId: 'rule-hourly', name: 'Почасовой', pricePerMinuteMinorUnits: 80, currencyCode: 'TJS' },
+    { tariffVersionId: 'tv-vip', tariffRuleVersionId: 'rule-vip', name: 'VIP час', pricePerMinuteMinorUnits: 150, currencyCode: 'TJS' },
+    { tariffVersionId: 'tv-night', tariffRuleVersionId: 'rule-night', name: 'Ночной', pricePerMinuteMinorUnits: 50, currencyCode: 'TJS' }
+  ];
+}
+
 // Route a platform request to a fixture. Returns null when nothing matches, so the caller can apply
 // a safe default.
 function route(pathname: string, method: string): unknown | undefined {
+  if (pathname.endsWith('/checkout/quote') && method === 'GET') return checkoutQuote();
+  if (pathname.endsWith('/tariffs/options')) return tariffOptions();
   if (pathname.endsWith('/floor-map')) return floorMap();
   if (pathname.endsWith('/dashboard/summary')) return dashboardSummary();
   if (pathname.endsWith('/shifts/current')) return currentShift();
@@ -248,6 +290,9 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.endsWith('/reservations/group') && method === 'POST') {
     return json(groupReservationResult(init));
+  }
+  if (url.pathname.endsWith('/checkout') && method === 'POST') {
+    return json(checkoutResult(init));
   }
   const matched = route(url.pathname, method);
   if (matched !== undefined) {
