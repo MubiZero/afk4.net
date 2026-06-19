@@ -13,7 +13,6 @@ import { hasPermission, permissionNames } from './operatorPermissions';
 import type { DeviceCommandResultDto, DeviceStatusChangedDto, OperatorRealtimeConnectionState, SessionLifecycleChangedDto } from './operatorRealtime';
 import type { SeatSummary, SeatTone } from './operatorData';
 import type {
-  AlertSource,
   Feedback,
   FeedbackState,
   LoadStatus,
@@ -148,7 +147,6 @@ export function mapFilterOptions(t: TFunc): Array<{ id: MapFilterId; label: stri
     { id: 'all', label: t('op.helper.zone.filter.all') },
     { id: 'ready', label: t('op.helper.zone.filter.ready') },
     { id: 'active', label: t('op.helper.zone.filter.active') },
-    { id: 'attention', label: t('op.helper.zone.filter.attention') },
     { id: 'offline', label: t('op.helper.zone.filter.offline') }
   ];
 }
@@ -158,26 +156,10 @@ export function toneLabel(tone: SeatTone, t: TFunc): string {
   return seatStatusLabel(tone, t);
 }
 
-// Проблемы = требующие реакции: «нужно действие» (сбой/сессия-без-связи) и «нет связи».
-// Ожидание (pending) — транзитное, не проблема.
-export const problemTones = new Set<SeatTone>(['blocking', 'offline']);
 export const emptyFeedback: Feedback = { label: '', state: 'idle' };
 
 export function countByTone(nextSeats: SeatSummary[], tone: SeatTone): number {
   return nextSeats.filter((seat) => seat.tone === tone).length;
-}
-
-export function countProblems(nextSeats: SeatSummary[]): number {
-  return nextSeats.filter((seat) => problemTones.has(seat.tone)).length;
-}
-
-// Критические состояния зала для строки тревог: «нужно действие» (сбой/сессия-без-связи) и
-// «нет связи». Пустые не показываем; клик по счётчику ведёт на карту с точечным фильтром.
-export function criticalAlertSources(nextSeats: SeatSummary[], t: TFunc): AlertSource[] {
-  return ([
-    { id: 'blocking', tone: 'danger', filterId: 'blocking', label: t('op.alerts.critical.blocking'), count: countByTone(nextSeats, 'blocking') },
-    { id: 'offline', tone: 'danger', filterId: 'offline', label: t('op.alerts.critical.offline'), count: countByTone(nextSeats, 'offline') }
-  ] as const).filter((source) => source.count > 0).map((source) => ({ ...source }));
 }
 
 export function isPendingSeatCommand(seat: SeatSummary): boolean {
@@ -194,18 +176,17 @@ export function matchesMapFilter(seat: SeatSummary, filterId: MapFilterId): bool
   }
 
   if (filterId === 'active') {
-    return seat.tone === 'active' || seat.hasActiveSession === true || Boolean(seat.activeSessionId);
+    // Только здоровые сессии (ПК на связи). Сессия на отвалившемся ПК — тон offline, её место
+    // в бакете «нет связи», не здесь (иначе двойной учёт).
+    return seat.tone === 'active';
   }
 
-  if (filterId === 'attention') {
-    return problemTones.has(seat.tone);
+  // Обслуживание — намеренное отключение, это НЕ «нет связи», в бакет не считаем (только «Все»).
+  if (seat.tone === 'service') {
+    return false;
   }
 
-  // Точечный тон-фильтр — его ставит строка критсостояний (в ряду фильтров его нет, чтобы не плодить кнопки).
-  if (filterId === 'blocking') {
-    return seat.tone === 'blocking';
-  }
-
+  // «Нет связи» — единый серый бакет: сбой команды, мёртвый heartbeat, сессия без связи с ПК.
   return seat.tone === 'offline' || seat.isDeviceOnline === false;
 }
 
@@ -606,6 +587,40 @@ export function shellShiftLabel(
   }
 
   return t('op.helper.shift.notOpen');
+}
+
+export type ShellShiftTone = 'open' | 'closed' | 'idle';
+
+export interface ShellShiftBadgeData {
+  tone: ShellShiftTone;
+  value: string;
+  full: string;
+}
+
+// Компактный бейдж смены для подвала рейла. Отдаёт короткое стабильное `value` (время или символ),
+// чтобы строка не меняла высоту между состояниями — высота скачет, когда длинный текст переносится.
+// Полная человеческая фраза остаётся в `full` (идёт в title-подсказку).
+export function shellShiftBadge(
+  shift: ShiftDto | null,
+  summary: OperatorDashboardSummaryDto | null,
+  status: LoadStatus,
+  error: string | null,
+  t: TFunc
+): ShellShiftBadgeData {
+  const full = shellShiftLabel(shift, summary, status, error, t);
+  const shiftSource = shift ?? readRecord(summary, 'shift');
+  if (shiftSource !== null) {
+    const state = readString(shiftSource, 'state').toLowerCase();
+    if (state === 'open') {
+      return { tone: 'open', value: formatTime(readString(shiftSource, 'openedAtUtc')), full };
+    }
+    if (state === 'closed') {
+      return { tone: 'closed', value: formatTime(readString(shiftSource, 'closedAtUtc')), full };
+    }
+    return { tone: 'idle', value: '—', full };
+  }
+
+  return { tone: 'idle', value: status === 'loading' ? '…' : '—', full };
 }
 
 export function shellPosLabel(summary: OperatorDashboardSummaryDto | null, status: LoadStatus, t: TFunc): string {

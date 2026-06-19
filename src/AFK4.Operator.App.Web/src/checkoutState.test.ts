@@ -48,10 +48,31 @@ describe('validateCheckoutPayments', () => {
     expect(result.error).toContain('Не хватает');
   });
 
-  it('reports overpayment', () => {
+  it('treats cash above the bill as change due, not an error', () => {
     const result = validateCheckoutPayments([{ method: 'cash', amountText: '30.00' }], 2250, null, t);
+    expect(result.canSubmit).toBe(true);
+    expect(result.error).toBeNull();
+    expect(result.changeMinorUnits).toBe(750);
+    expect(result.remainingMinorUnits).toBe(0);
+  });
+
+  it('rejects card/deposit that overshoot the bill (no change from non-cash)', () => {
+    const result = validateCheckoutPayments([{ method: 'card_manual', amountText: '30.00' }], 2250, null, t);
     expect(result.canSubmit).toBe(false);
-    expect(result.error).toContain('Превышение');
+    expect(result.cardOverMinorUnits).toBe(750);
+    expect(result.changeMinorUnits).toBe(0);
+    expect(result.error).toContain('больше счёта');
+  });
+
+  it('gives change on the cash remainder after a card part', () => {
+    const drafts: CheckoutPaymentDraft[] = [
+      { method: 'card_manual', amountText: '20.00' },
+      { method: 'cash', amountText: '5.00' }
+    ];
+    const result = validateCheckoutPayments(drafts, 2250, null, t);
+    expect(result.canSubmit).toBe(true);
+    expect(result.changeMinorUnits).toBe(250);
+    expect(result.paidMinorUnits).toBe(2250);
   });
 
   it('accepts a split of wallet + cash within the wallet balance', () => {
@@ -91,10 +112,17 @@ describe('buildCheckoutPayments', () => {
       { method: 'cash', amountText: '' },
       { method: 'card_manual', amountText: '2.50' }
     ];
-    const payments = buildCheckoutPayments(drafts, 'TJS');
+    const payments = buildCheckoutPayments(drafts, 'TJS', 2250);
     expect(payments).toEqual([
       { paymentMethod: 'wallet', amount: { currencyCode: 'TJS', minorUnits: 2000 } },
       { paymentMethod: 'card_manual', amount: { currencyCode: 'TJS', minorUnits: 250 } }
+    ]);
+  });
+
+  it('records cash applied to the bill, not the tendered amount (change is physical)', () => {
+    const payments = buildCheckoutPayments([{ method: 'cash', amountText: '30.00' }], 'TJS', 2250);
+    expect(payments).toEqual([
+      { paymentMethod: 'cash', amount: { currencyCode: 'TJS', minorUnits: 2250 } }
     ]);
   });
 });

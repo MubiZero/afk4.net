@@ -1049,29 +1049,26 @@
   "op.map.selectPcDetail": "Select a PC.",
   "op.map.panel.checkoutLabel": "Check out and accept payment",
   "op.map.panel.checkoutSubtitle": "After payment the session closes and the PC is locked.",
+  "op.map.panel.checkoutDue": "Amount due",
+  "op.map.panel.checkoutNoPayment": "No payment needed",
+  "op.map.panel.checkoutFinish": "Finish",
+  "op.map.panel.cashTendered": "Received",
   "op.map.panel.noActiveSession": "No active session on the selected PC.",
   "op.map.panel.checkoutLoading": "Calculating bill…",
   "op.map.panel.checkoutFailed": "Failed to retrieve the bill.",
-  "op.map.panel.billableTime": "Play time",
-  "op.map.panel.billableTimeCharge": "Time charge",
   "op.map.panel.billableSnacks": "Snacks",
-  "op.map.panel.billableTotal": "Total",
   "op.map.panel.paymentMethod": "Payment method",
   "op.map.panel.paymentAmount": "Amount",
   "op.map.panel.removePaymentRow": "Remove row",
   "op.map.panel.addPaymentMethod": "Add method",
-  "op.map.panel.walletSuggest": "Deposit ({amount})",
   "op.map.panel.checkoutBalanced": "Amount matches",
-  "op.map.panel.confirmPayment": "Accept payment",
   "op.map.panel.quickActions": "Quick actions",
   "op.map.panel.extend15Action": "15 min",
   "op.map.panel.extend30Action": "30 min",
   "op.map.panel.transferAction": "Transfer",
   "op.map.panel.stopAction": "Stop",
   "op.map.panel.noSession": "No session",
-  "op.map.panel.startFixed": "Start 60 min",
   "op.map.panel.startOpen": "Start · open tab",
-  "op.map.panel.startOpenAction": "Start (open tab)",
   "op.map.panel.transferTo": "Transfer to",
   "op.map.panel.noFreePc": "No free PCs",
   "op.map.panel.stopConfirmTitle": "Confirm session stop",
@@ -1080,14 +1077,8 @@
   "op.map.panel.paymentAction": "Payment",
   "op.map.panel.activeSession": "Active session",
   "op.map.panel.billingSession": "Session billing",
-  "op.map.panel.billingModeLabel": "Billing mode",
   "op.map.panel.sessionDuration": "Session duration",
-  "op.map.panel.duration60": "60 min",
-  "op.map.panel.duration60Detail": "fixed",
-  "op.map.panel.duration60Title": "Fixed 60 minutes",
   "op.map.panel.openTab": "Open tab",
-  "op.map.panel.openTabAllowed": "pay at checkout",
-  "op.map.panel.openTabDisabled": "guest / postpaid",
   "op.map.panel.openTabAllowedTitle": "Time runs, pay at checkout",
   "op.map.panel.openTabDisabledTitle": "Available for guest or postpaid",
   "op.map.panel.playerSearch": "name or phone",
@@ -1101,8 +1092,6 @@
   "op.map.panel.packageLabel": "Package",
   "op.map.panel.packageSession": "Package for session",
   "op.map.panel.noPackages": "No active packages",
-  "op.map.panel.billingChoice": "Selection",
-  "op.map.panel.billingReady": "{mode} ready",
   "op.map.panel.billingSetup": "Billing setup",
   "op.map.panel.billingMissingPlayer": "select a player",
   "op.map.panel.billingMissingTariff": "select a tariff",
@@ -1112,16 +1101,22 @@
   "op.map.panel.confirmStatusBilling": "Billing: {missing}",
   "op.map.panel.confirmStatusPending": "Command already sent. Wait for PC confirmation.",
   "op.map.panel.confirmStatusWaiting": "Ready",
-  "op.map.panel.billingLoadData": "server data",
-  "op.map.panel.billingLoadLoading": "loading",
-  "op.map.panel.billingLoadError": "load error",
-  "op.map.panel.billingLoadWaiting": "waiting for server",
   "op.map.panel.sessionUnavailable": "Operator session is unavailable.",
   "op.map.panel.confirmationLabel": "Readiness",
   "op.map.panel.actionDone": "Done",
   "op.map.panel.diagnostics": "PC status",
   "op.map.panel.actionsHead": "Actions",
-  "op.map.panel.startSessionTitle": "How to start the session",
+  "op.map.panel.startSessionTitle": "New session",
+  "op.map.panel.startTimeHead": "Time",
+  "op.map.panel.startPlayerHead": "Player",
+  "op.map.panel.startPlanLabel": "Will start",
+  "op.map.panel.startNeed": "Needed",
+  "op.map.panel.startWhoHead": "Who's playing",
+  "op.map.panel.startMember": "Member",
+  "op.map.panel.startChargeHead": "Charge from",
+  "op.map.panel.startPriceEstimate": "{duration} ≈ {amount}",
+  "op.map.panel.startBalanceCoverage": "balance {balance} · covers ~{duration}",
+  "op.map.panel.startCta": "Start · {duration}",
   "op.map.panel.playerLabel": "Player",
   "op.map.panel.deviceLabel": "Device",
   "op.map.panel.commandLabel": "Command",
@@ -1165,7 +1160,6 @@
   "op.review.applyFilter": "Apply filter",
   "op.review.emptyAudit": "No records — apply a filter",
   "op.review.actionDebtWriteOff": "Debt write-off",
-
   "op.pos.title": "Sales",
   "op.pos.heading": "Sales · receipt and cashier operations",
   "op.pos.platformConnected": "Server online",
@@ -1177,7 +1171,6 @@
   "op.pos.strip.salesSummaryLabel": "Sales summary",
   "op.pos.strip.stockLow": "{count} low",
   "op.pos.strip.positions": "{count} items",
-
   "op.pos.catalog.title": "Catalog",
   "op.pos.catalog.subtitle": "active products, stock and search",
   "op.pos.catalog.searchPlaceholder": "Product, service, SKU",
@@ -1189,7 +1182,6 @@
   "op.pos.catalog.productFallback": "Product",
   "op.pos.catalog.categoryFallback": "Catalog",
   "op.pos.catalog.note": "{sku} · {count, plural, one {# item} other {# items}}",
-
   "op.pos.cart.title": "Cart",
   "op.pos.cart.shiftOpen": "shift open",
   "op.pos.cart.shiftClosed": "open a shift",
@@ -1217,7 +1209,6 @@
   "op.pos.cart.lastSaleAccepted": "last receipt accepted",
   "op.pos.cart.pendingReceipt": "receipt is created after server confirmation",
   "op.pos.cart.productAdded": "{name} added",
-
   "op.pos.payment.title": "Payment",
   "op.pos.payment.subtitle": "receipt and payment confirmation",
   "op.pos.payment.methodCash": "Cash",
@@ -1231,7 +1222,6 @@
   "op.pos.payment.shiftNone": "None",
   "op.pos.payment.acceptBtn": "Accept payment",
   "op.pos.payment.clearCartBtn": "Clear cart",
-
   "op.pos.receipts.title": "Recent receipts",
   "op.pos.receipts.subtitle": "receipts for shift",
   "op.pos.receipts.emptyLabel": "No receipts",
@@ -1242,7 +1232,6 @@
   "op.pos.receipts.productFallback": "Product",
   "op.pos.receipts.printBtn": "Print",
   "op.pos.receipts.exportBtn": "Export",
-
   "op.pos.quick.title": "Quick actions",
   "op.pos.quick.subtitle": "actions await server confirmation",
   "op.pos.quick.writeOffLabel": "Write-off",
@@ -1277,7 +1266,6 @@
   "op.pos.quick.voidConfirmImpact": "The draft receipt will be created and voided after server confirmation.",
   "op.pos.quick.voidConfirmBtn": "Confirm voiding",
   "op.pos.quick.voidReasonLabel": "Void reason",
-
   "op.pos.feedback.pos": "POS",
   "op.pos.feedback.client": "Client",
   "op.pos.feedback.newCard": "New card",
@@ -1289,7 +1277,6 @@
   "op.pos.feedback.print": "Print receipt",
   "op.pos.feedback.export": "Export receipt",
   "op.pos.feedback.void": "Void draft",
-
   "op.pos.error.noPermissionNewCard": "No permission to create a client card.",
   "op.pos.error.enterClientName": "Enter a client name for the new card.",
   "op.pos.error.noPermissionStock": "No permission to manage stock.",
@@ -1313,7 +1300,6 @@
   "op.pos.error.shiftRequiredForVoid": "An open shift is required to void a draft.",
   "op.pos.error.enterVoidReason": "Enter a void reason.",
   "op.pos.error.draftNotConfirmed": "The server did not confirm the draft receipt. Retry the operation or contact support.",
-
   "op.pos.fixture.cola": "Cola 0.5",
   "op.pos.fixture.water": "Water 0.5",
   "op.pos.fixture.hotdog": "Hot dog",
@@ -1325,7 +1311,6 @@
   "op.pos.defaultWriteOffReason": "operator write-off",
   "op.pos.defaultRefundReason": "Client request refund",
   "op.pos.defaultVoidReason": "Error in draft receipt",
-
   "op.payments.title": "Payments",
   "op.payments.heading": "Payments · shift cash desk & reconciliation",
   "op.payments.loadedLabel": "Reports loaded",
@@ -1335,7 +1320,6 @@
   "op.payments.strip.refunds": "Refunds",
   "op.payments.strip.shift": "Shift",
   "op.payments.strip.reconcile": "Reconcile",
-
   "op.payments.ledger.title": "Shift operations",
   "op.payments.ledger.subtitle": "sales, refunds and cash",
   "op.payments.ledger.searchPlaceholder": "Client, receipt, PC, amount",
@@ -1343,7 +1327,6 @@
   "op.payments.ledger.noShift": "No shift",
   "op.payments.ledger.typeSale": "Sale",
   "op.payments.ledger.typeCash": "Cash movement",
-
   "op.payments.ph.noMatch.title": "No matches",
   "op.payments.ph.noMatch.hint": "change search or period",
   "op.payments.ph.noMatch.source": "Search",
@@ -1357,7 +1340,6 @@
   "op.payments.ph.local.title": "Local: no operations",
   "op.payments.ph.local.hint": "local data without the server",
   "op.payments.ph.local.source": "local",
-
   "op.payments.summary.title": "Shift totals",
   "op.payments.summary.subtitle": "revenue and selected operation",
   "op.payments.summary.selectedAt": "Total · selected {time}",
@@ -1370,7 +1352,6 @@
   "op.payments.summary.metricCash": "Cash",
   "op.payments.summary.metricRefunds": "Refunds",
   "op.payments.summary.metricShifts": "Shifts",
-
   "op.payments.reconcile.title": "Cash reconciliation",
   "op.payments.reconcile.subtitle": "check before closing",
   "op.payments.reconcile.startingCashLabel": "Starting cash",
@@ -1388,7 +1369,6 @@
   "op.payments.reconcile.confirmImpact": "After confirmation the shift will be closed; new sales will require opening the next shift.",
   "op.payments.reconcile.confirmBtn": "Close shift",
   "op.payments.reconcile.notIndicated": "Not specified",
-
   "op.payments.methods.title": "Payment methods",
   "op.payments.methods.subtitle": "report breakdown",
   "op.payments.methods.cash": "Cash",
@@ -1403,7 +1383,6 @@
   "op.payments.methods.byReconcile": "by reconcile",
   "op.payments.methods.cashOps": "{count, plural, one {# operation} other {# operations}}",
   "op.payments.methods.receipts": "{count, plural, one {# receipt} other {# receipts}}",
-
   "op.payments.cash.title": "Cash movements",
   "op.payments.cash.subtitle": "cash desk movements",
   "op.payments.cash.typeLabel": "Type",
@@ -1413,14 +1392,12 @@
   "op.payments.cash.reasonLabel": "Reason",
   "op.payments.cash.addBtn": "Add movement",
   "op.payments.cash.defaultReason": "Till change",
-
   "op.payments.export.title": "Reports",
   "op.payments.export.subtitle": "files for reconciliation",
   "op.payments.export.shiftSummary": "Shift summary",
   "op.payments.export.cashMovements": "Cash movements",
   "op.payments.export.receiptList": "Receipt list",
   "op.payments.export.reconciliation": "Shift reconciliation",
-
   "op.payments.error.noPermOpenShift": "No permission to open shift.",
   "op.payments.error.shiftAlreadyOpen": "Shift is already open.",
   "op.payments.error.invalidStartingCash": "Enter a starting cash amount of zero or more.",
@@ -1430,10 +1407,8 @@
   "op.payments.error.noPermCloseShift": "No permission to close shift.",
   "op.payments.error.noShiftToClose": "No open shift to close.",
   "op.payments.error.invalidCountedCash": "Enter the actual cash amount above zero.",
-
   "op.payments.default.openingNote": "Shift open",
   "op.payments.default.closingNote": "Operator reconciliation",
-
   "op.players.title": "Clients",
   "op.players.heading": "Clients · search, deposit & debts",
   "op.players.strip.label": "Clients overview",
@@ -1616,7 +1591,6 @@
   "op.booking.drawer.detailTitle": "Reservation",
   "op.booking.drawer.createTitle": "New reservation",
   "op.booking.cellCreateAria": "Create a reservation for this seat and time",
-
   "op.logs.head.title": "Journal",
   "op.logs.head.subtitle": "Journal · shift events",
   "op.logs.loadedLabel": "Journal loaded",
@@ -1627,14 +1601,11 @@
   "op.logs.strip.commands": "PC commands",
   "op.logs.strip.records": "Records",
   "op.logs.strip.source": "Source",
-
   "op.logs.events.title": "Event log",
   "op.logs.events.subtitle": "server and PC events",
   "op.logs.events.searchPlaceholder": "PC, client, operator, event",
-
   "op.logs.detail.title": "Event details",
   "op.logs.detail.subtitle": "without internal IDs",
-
   "op.logs.filter.title": "Filters",
   "op.logs.filter.subtitle": "find the records you need",
   "op.logs.filter.periodAria": "Audit period",
@@ -1650,44 +1621,36 @@
   "op.logs.filter.phSection": "sessions / pos / PC",
   "op.logs.filter.phFrom": "2026-05-21 00:00",
   "op.logs.filter.phTo": "2026-05-21 23:59",
-
   "op.logs.audit.title": "Shift operations",
   "op.logs.audit.subtitle": "recent actions",
-
   "op.logs.sources.title": "Sources",
   "op.logs.sources.subtitle": "event channels",
-
   "op.logs.export.title": "Export",
   "op.logs.export.subtitle": "for review and support",
   "op.logs.export.shiftSummary": "Shift summary",
   "op.logs.export.onlyProblems": "Problems only",
   "op.logs.export.actionList": "Action list",
   "op.logs.export.supportBundle": "Support bundle",
-
   "op.logs.period.today": "Today",
   "op.logs.period.last24h": "24 hours",
   "op.logs.period.last7d": "7 days",
-
   "op.logs.logFilter.allEvents": "All events",
   "op.logs.logFilter.errorsOnly": "Errors only",
   "op.logs.logFilter.pcAndNet": "PC & network",
   "op.logs.logFilter.pos": "POS",
   "op.logs.logFilter.operator": "Operator",
   "op.logs.logFilter.system": "System",
-
   "op.logs.source.all": "All",
   "op.logs.source.agent": "Agent",
   "op.logs.source.pos": "POS",
   "op.logs.source.operator": "Operator",
   "op.logs.source.platform": "Server",
   "op.logs.source.updates": "Updates",
-
   "op.logs.source.all.detail": "{count} events",
   "op.logs.source.agent.detail": "{count} events · stale {stale}",
   "op.logs.source.pos.detail": "{count} records",
   "op.logs.source.operator.detail": "{count} actions",
   "op.logs.source.platform.detail": "{count} events",
-
   "op.logs.ph.noMatch.title": "No matches",
   "op.logs.ph.noMatch.hint": "change your search or filter",
   "op.logs.ph.loading.title": "Loading events",
@@ -1700,14 +1663,12 @@
   "op.logs.ph.local.hint": "local data without the server",
   "op.logs.ph.source.operator": "Operator",
   "op.logs.ph.source.platform": "Server",
-
   "op.logs.outcome.success": "success",
   "op.logs.outcome.failed": "error",
   "op.logs.outcome.denied": "denied",
   "op.logs.outcome.pending": "pending",
   "op.logs.outcome.unknown": "unknown state",
   "op.logs.outcome.empty": "unknown",
-
   "op.logs.target.receipt": "Receipt",
   "op.logs.target.session": "Session",
   "op.logs.target.device": "PC",
@@ -1719,12 +1680,10 @@
   "op.logs.target.update": "Update",
   "op.logs.target.branch": "Branch",
   "op.logs.target.object": "Object",
-
   "op.logs.sourceApp.platform": "Server",
   "op.logs.sourceApp.operator": "Operator app",
   "op.logs.sourceApp.agent": "Agent",
   "op.logs.sourceApp.setup": "Setup wizard",
-
   "op.logs.detailKey.reason": "Reason",
   "op.logs.detailKey.amount": "Amount",
   "op.logs.detailKey.currency": "Currency",
@@ -1738,7 +1697,6 @@
   "op.logs.detailKey.staff": "Staff",
   "op.logs.detailKey.branch": "Branch",
   "op.logs.detailKey.param": "Parameter",
-
   "op.logs.detailVal.null": "not set",
   "op.logs.detailVal.yes": "yes",
   "op.logs.detailVal.no": "no",
@@ -1746,10 +1704,8 @@
   "op.logs.detailVal.record": "filled",
   "op.logs.detailVal.guid": "set",
   "op.logs.detailVal.url": "link",
-
   "op.logs.compact.noDetails": "no details",
   "op.logs.compact.freeform": "details in free format",
-
   "op.logs.row.event": "Event",
   "op.logs.row.result": "Result",
   "op.logs.row.section": "Section",
@@ -1771,29 +1727,23 @@
   "op.logs.row.unknown": "unknown",
   "op.logs.row.deviceFallback": "Device",
   "op.logs.row.updateFallback": "Update",
-
   "op.logs.diag.notResponding": "not responding",
   "op.logs.diag.staleSeconds": "{count, plural, one {# sec without signal} other {# sec without signal}}",
   "op.logs.diag.pauseSeconds": "{count, plural, one {# sec} other {# sec}}",
-
   "op.logs.tone.warning": "needs attention",
   "op.logs.tone.device": "PC & network",
   "op.logs.tone.money": "POS",
   "op.logs.tone.session": "session",
   "op.logs.tone.audit": "record",
-
   "op.logs.kind.commandFailure": "PC command",
   "op.logs.kind.updateFailure": "update",
   "op.logs.kind.staleDevice": "PC connection",
   "op.logs.kind.placeholder": "empty result",
   "op.logs.kind.audit": "audit",
-
   "op.logs.export.branch": "current branch",
   "op.logs.export.noBranch": "no branch selected",
-
   "op.settings.title": "Settings",
   "op.settings.heading": "Settings · club configuration",
-
   "op.settings.section.profile": "Club Profile",
   "op.settings.section.profile.detail": "name, city, currency",
   "op.settings.section.layout": "Zones & PCs",
@@ -1806,9 +1756,7 @@
   "op.settings.section.goods.detail": "products, stock, receipts",
   "op.settings.section.integrations": "Integrations",
   "op.settings.section.integrations.detail": "payments, updates, export",
-
   "op.settings.sections.label": "Sections",
-
   "op.settings.readiness.title": "Club Readiness",
   "op.settings.readiness.detail": "server settings snapshot",
   "op.settings.readiness.profile": "Club Profile",
@@ -1820,10 +1768,8 @@
   "op.settings.readiness.staffCount": "{count, plural, one {# employee} other {# employees}}",
   "op.settings.readiness.posDetail": "{currencyCode} · server reports",
   "op.settings.readiness.devicesOnline": "{online} of {total} online",
-
   "op.settings.quickActions.title": "Quick Settings",
   "op.settings.quickActions.detail": "common admin actions",
-
   "op.settings.action.addSeat": "Add PC",
   "op.settings.action.addSeat.detail": "new workstation",
   "op.settings.action.createTariff": "Create tariff",
@@ -1836,7 +1782,6 @@
   "op.settings.action.updateStaffProfile.detailDenied": "no access",
   "op.settings.action.checkDevices": "Check devices",
   "op.settings.action.checkDevices.detail": "refresh diagnostics",
-
   "op.settings.action.createZone": "Add zone",
   "op.settings.action.updateZone": "Update zone",
   "op.settings.action.deleteZone": "Delete zone",
@@ -1866,7 +1811,6 @@
   "op.settings.action.createRollout": "Create update rollout",
   "op.settings.action.changePackageState": "Change package state",
   "op.settings.action.changeRolloutState": "Change rollout state",
-
   "op.settings.profile.clubName": "Club name",
   "op.settings.profile.city": "City",
   "op.settings.profile.currency": "Currency",
@@ -1879,7 +1823,6 @@
   "op.settings.profile.errorRequiredFields": "Fill in the required fields.",
   "op.settings.profile.feedbackLabel": "Club Profile",
   "op.settings.profile.loadFeedbackLabel": "Settings loaded",
-
   "op.settings.layout.title": "Zones and workstations",
   "op.settings.layout.zoneName": "Zone name",
   "op.settings.layout.zoneOrder": "Zone order",
@@ -1893,14 +1836,12 @@
   "op.settings.layout.sortOrder": "order {order}",
   "op.settings.layout.createZoneBtn": "Create zone",
   "op.settings.layout.addSeatBtn": "Create PC",
-
   "op.settings.layout.confirmDeleteZone.title": "Confirm zone deletion",
   "op.settings.layout.confirmDeleteZone.impact": "The zone will be removed from the club layout. Only empty zones can be deleted.",
   "op.settings.layout.confirmDeleteZone.confirm": "Confirm zone deletion",
   "op.settings.layout.confirmDeleteSeat.title": "Confirm PC deletion",
   "op.settings.layout.confirmDeleteSeat.impact": "The workstation will be removed from the club layout. Check active sessions and device assignment before deleting.",
   "op.settings.layout.confirmDeleteSeat.confirm": "Confirm PC deletion",
-
   "op.settings.layout.error.noPermLayout": "No permission to manage zones and workstations.",
   "op.settings.layout.error.fillZone": "Fill in the zone name and sort order (integer).",
   "op.settings.layout.error.selectZone": "Select a zone to update.",
@@ -1909,7 +1850,6 @@
   "op.settings.layout.error.fillSeat": "Fill in the PC name and sort order (integer).",
   "op.settings.layout.error.selectSeat": "Select a PC to update.",
   "op.settings.layout.error.selectSeatDelete": "Select a PC to delete.",
-
   "op.settings.devices.title": "Device enrollment",
   "op.settings.devices.branchHistory": "Branch command history",
   "op.settings.devices.branchHistoryCount": "{count} latest",
@@ -1945,7 +1885,6 @@
   "op.settings.devices.deviceSummary": "Agent {agentVersion} · apps {appCount} · pending {pending} · errors {failed} · {lastHeartbeat}",
   "op.settings.devices.ariaInventory": "Branch devices",
   "op.settings.devices.ariaDevice": "Device",
-
   "op.settings.devices.detail.device": "Device",
   "op.settings.devices.detail.status": "Status",
   "op.settings.devices.detail.seat": "Seat",
@@ -1954,15 +1893,12 @@
   "op.settings.devices.detail.shell": "Shell",
   "op.settings.devices.detail.credentials": "Keys",
   "op.settings.devices.detail.apps": "Apps",
-
   "op.settings.devices.credentialRotated": "ready to revoke for {deviceName}",
   "op.settings.devices.credentialEmpty": "issue a new key first",
-
   "op.settings.devices.confirmRevokeKey.title": "Confirm key revocation",
   "op.settings.devices.confirmRevokeKey.detail": "{deviceName} · new device key",
   "op.settings.devices.confirmRevokeKey.impact": "After revocation this key can no longer be used to connect the selected PC.",
   "op.settings.devices.confirmRevokeKey.confirm": "Revoke key",
-
   "op.settings.devices.error.noPermCommandHistory": "No permission to view device command history.",
   "op.settings.devices.error.noPermEnrollment": "No permission to create a device enrollment code.",
   "op.settings.devices.error.enrollmentRange": "Code expiry must be between 1 minute and 24 hours.",
@@ -1975,7 +1911,6 @@
   "op.settings.devices.error.noPermRotateKey": "No permission to rotate device credentials.",
   "op.settings.devices.error.noPermRevokeKey": "No permission to revoke device credentials.",
   "op.settings.devices.error.selectDeviceAndKey": "Select a device and a key to revoke.",
-
   "op.settings.tariffs.title": "Tariffs",
   "op.settings.tariffs.name": "Tariff name",
   "op.settings.tariffs.pricePerHour": "Price per hour",
@@ -1986,11 +1921,9 @@
   "op.settings.tariffs.minLabel": "min {min} min · step {step} min · {state}",
   "op.settings.tariffs.active": "active",
   "op.settings.tariffs.inactive": "retired",
-
   "op.settings.tariffs.error.noPerm": "No permission to manage tariffs.",
   "op.settings.tariffs.error.fillCreate": "Fill in the tariff name, price per hour, minimum and rounding.",
   "op.settings.tariffs.error.fillUpdate": "Select a tariff and fill in the name, price per hour, minimum and rounding.",
-
   "op.settings.packages.title": "Packages",
   "op.settings.packages.name": "Package name",
   "op.settings.packages.price": "Price",
@@ -1999,11 +1932,9 @@
   "op.settings.packages.expiresDays": "Validity, days",
   "op.settings.packages.packageFallback": "Package",
   "op.settings.packages.minutesDetail": "{minutes} min · +{bonus} bonus · valid {days} days",
-
   "op.settings.packages.error.noPerm": "No permission to manage packages.",
   "op.settings.packages.error.fillCreate": "Fill in the name, price, minutes, bonus and expiry for the package.",
   "op.settings.packages.error.fillUpdate": "Select a package and fill in the name, price, minutes, bonus and expiry.",
-
   "op.settings.staff.title": "Staff",
   "op.settings.staff.loginLabel": "Login",
   "op.settings.staff.displayName": "Display name",
@@ -2020,7 +1951,6 @@
   "op.settings.staff.roleEmpty": "no role set",
   "op.settings.staff.active": "active",
   "op.settings.staff.inactive": "disabled",
-
   "op.settings.staff.error.noPerm": "No permission to manage staff.",
   "op.settings.staff.error.fillInvite": "Fill in username, display name and email.",
   "op.settings.staff.error.fillProfile": "Select a staff member and fill in the login and profile name.",
@@ -2028,7 +1958,6 @@
   "op.settings.staff.error.selectStaffAndRole": "Select a staff member and a role.",
   "op.settings.staff.error.selectStaff": "Select a staff member.",
   "op.settings.staff.error.passwordTooShort": "Select a staff member and set a password of at least 8 characters.",
-
   "op.settings.pos.title": "Product catalog",
   "op.settings.pos.category": "Category",
   "op.settings.pos.productName": "Product",
@@ -2041,12 +1970,10 @@
   "op.settings.pos.no": "no",
   "op.settings.pos.productFallback": "Product",
   "op.settings.pos.stockOnHand": "stock {count}",
-
   "op.settings.pos.error.noPerm": "No permission to manage the product catalog.",
   "op.settings.pos.error.fillCreate": "Fill in the category, product, SKU and a price greater than zero.",
   "op.settings.pos.error.categoryNotConfirmed": "Category created, but the server did not confirm it. Retry or contact support.",
   "op.settings.pos.error.fillUpdate": "Select a product and fill in the name, SKU and a price greater than zero.",
-
   "op.settings.stock.title": "Stock",
   "op.settings.stock.recordBtn": "Record movement",
   "op.settings.stock.product": "Stock product",
@@ -2059,15 +1986,12 @@
   "op.settings.stock.noTrackedProducts": "no products with stock tracking",
   "op.settings.stock.reasonFallback": "no reason given",
   "op.settings.stock.stockOnHand": "· stock {count}",
-
   "op.settings.stock.history.title": "Stock history",
   "op.settings.stock.history.count": "{count} latest",
   "op.settings.stock.history.empty": "No movements",
   "op.settings.stock.history.emptyDetail": "no stock movements yet",
-
   "op.settings.stock.error.noPerm": "No permission to manage stock.",
   "op.settings.stock.error.fillFields": "Select a tracked product, a non-zero quantity, unit cost and a reason.",
-
   "op.settings.integrations.payments": "Payments",
   "op.settings.integrations.payments.detail": "manual confirmation",
   "op.settings.integrations.updates": "Updates",
@@ -2077,7 +2001,6 @@
   "op.settings.integrations.connectionOk": "connected",
   "op.settings.integrations.connectionLocal": "local data",
   "op.settings.integrations.rolloutCount": "rollouts: {count}",
-
   "op.settings.updates.packagesTitle": "Update packages",
   "op.settings.updates.addBtn": "Add package",
   "op.settings.updates.component": "Application",
@@ -2090,12 +2013,10 @@
   "op.settings.updates.fileSizeKb": "File size, KB",
   "op.settings.updates.releaseNotes": "Release notes",
   "op.settings.updates.versionFallback": "version",
-
   "op.settings.updates.error.noPerm": "No permission to manage update packages.",
   "op.settings.updates.error.fillFields": "Fill in application, version, channel, installer URL, checksum, signature, verification method and file size.",
   "op.settings.updates.error.invalidUrl": "The installer URL must be a complete URL.",
   "op.settings.updates.error.packageNotConfirmed": "Update package created, but the server did not confirm it. Retry or contact support.",
-
   "op.settings.rollouts.title": "Update rollouts",
   "op.settings.rollouts.createBtn": "Create rollout",
   "op.settings.rollouts.packageForRollout": "Package for rollout",
@@ -2111,7 +2032,6 @@
   "op.settings.rollouts.selectedRollout": "selected rollout",
   "op.settings.rollouts.noDevices": "no connected devices",
   "op.settings.rollouts.rolloutTargetDetail": "{targetKind} · {batchPercent}% · PCs: {deviceCount}",
-
   "op.settings.rollouts.detail.rollout": "Rollout",
   "op.settings.rollouts.detail.state": "State",
   "op.settings.rollouts.detail.target": "Target",
@@ -2121,10 +2041,8 @@
   "op.settings.rollouts.detail.completed": "Completed",
   "op.settings.rollouts.detail.devices": "PCs",
   "op.settings.rollouts.detail.versionArrow": "{from} → {to}",
-
   "op.settings.rollouts.error.noPermRollouts": "No permission to manage update rollouts.",
   "op.settings.rollouts.error.fillFields": "Select package, channel, target, batch %, start time and reason.",
-
   "op.settings.packageState.title": "Update states",
   "op.settings.packageState.packageLabel": "Update package",
   "op.settings.packageState.stateLabel": "Package state",
@@ -2134,7 +2052,6 @@
   "op.settings.packageState.rolloutReasonLabel": "Rollout reason",
   "op.settings.packageState.noPackages": "no packages",
   "op.settings.packageState.selectedPackage": "selected package",
-
   "op.settings.packageState.confirmPackage.title": "Confirm package state",
   "op.settings.packageState.confirmPackage.packageFallback": "Package",
   "op.settings.packageState.confirmPackage.impact": "The reason will be recorded in the log: {reason}",
@@ -2145,13 +2062,10 @@
   "op.settings.packageState.confirmRollout.impact": "This change affects update delivery to devices. Reason: {reason}",
   "op.settings.packageState.confirmRollout.impactNoReason": "not specified",
   "op.settings.packageState.confirmRollout.confirm": "Confirm rollout state",
-
   "op.settings.packageState.error.noPermPackages": "No permission to manage update packages.",
   "op.settings.packageState.error.fillPackageState": "Select a package, state and reason.",
   "op.settings.packageState.error.fillRolloutState": "Select a rollout, state and reason.",
-
   "op.settings.generic.error.notConnected": "This settings action is not yet connected to the server.",
-
   "op.shell.window": "Window",
   "op.shell.changeLanguage": "Change language",
   "op.shell.themeToLight": "Light theme",
@@ -2217,16 +2131,13 @@
   "op.command.palette.navHeading": "Go to screen",
   "op.command.palette.entitySoon": "Search for clients, PCs and receipts is coming later",
   "op.command.palette.empty": "Nothing found",
+  "op.command.palette.more": "+{count} more — refine your search",
   "op.command.palette.close": "Close",
   "op.context.collapse": "Collapse panel",
   "op.context.expand": "Expand panel",
   "op.alerts.label": "Alerts",
   "op.alerts.allClear": "All clear",
   "op.alerts.summary": "{problems, plural, =0 {No alerts} one {# issue} other {# issues}} · {offline} offline",
-  "op.alerts.critical.offline": "Offline",
-  "op.alerts.critical.blocking": "Fault",
-  "op.alerts.critical.service": "Service",
-  "op.alerts.critical.jump": "Show on the map: {label}",
   "op.shopOrders.title": "Shop orders",
   "op.shopOrders.empty": "No active orders",
   "op.shopOrders.seat": "Seat",
@@ -2312,12 +2223,10 @@
   "op.shell.focus.lockFailed": "Lock failed",
   "op.shell.focus.unlockFailed": "Unlock failed",
   "op.shell.focus.failed": "failed",
-
   "op.helper.error.noContract": "No server contract for this action.",
   "op.helper.feedback.pending": "{label}: waiting for server",
   "op.helper.feedback.failed": "{label}: retry or check required",
   "op.helper.feedback.confirmed": "{label}: confirmed",
-
   "op.helper.billing.guest": "Guest",
   "op.helper.billing.guestDetail": "no charge",
   "op.helper.billing.prepaid": "Deposit",
@@ -2327,30 +2236,24 @@
   "op.helper.billing.postpaid": "Postpaid",
   "op.helper.billing.postpaidDetail": "player debt",
   "op.helper.billing.notSet": "Not set",
-
   "op.helper.zone.filter.all": "All",
   "op.helper.zone.filter.ready": "Free",
   "op.helper.zone.filter.active": "Sessions",
-  "op.helper.zone.filter.attention": "Issues",
   "op.helper.zone.filter.offline": "Offline",
-
   "op.helper.tone.ready": "Free",
   "op.helper.tone.active": "In session",
   "op.helper.tone.pending": "Waiting",
-  "op.helper.tone.blocking": "Attention",
   "op.helper.tone.offline": "No link",
-
+  "op.helper.tone.service": "Maintenance",
   "op.helper.billing.deposit": "Deposit",
   "op.helper.billing.postpaidLabel": "Postpaid",
   "op.helper.billing.guestLabel": "Guest",
   "op.helper.billing.openTab": "Open tab",
   "op.helper.billing.cash": "Cash",
-
   "op.helper.zone.consoleLounge": "Console Lounge",
   "op.helper.zone.mainHall": "Main Hall",
   "op.helper.zone.vipRoom": "VIP Room",
   "op.helper.zone.bootcamp": "Bootcamp",
-
   "op.helper.staff.cashierOperator": "Cashier operator",
   "op.helper.staff.shiftSupervisor": "Shift supervisor",
   "op.helper.staff.branchManager": "Branch manager",
@@ -2360,7 +2263,6 @@
   "op.helper.staff.shiftOperator": "Shift operator",
   "op.helper.staff.clubAdmin": "Club administrator",
   "op.helper.staff.branchMgr": "Branch manager",
-
   "op.helper.update.component.operatorApp": "Operator app",
   "op.helper.update.component.agentService": "Agent service",
   "op.helper.update.component.playerShell": "Player shell",
@@ -2389,7 +2291,6 @@
   "op.helper.update.deviceStatus.pending": "Pending",
   "op.helper.update.deviceStatus.failed": "Error",
   "op.helper.update.deviceStatus.unknown": "Unknown",
-
   "op.helper.command.leased": "Session confirmed",
   "op.helper.command.unlockPending": "Unlocking in progress",
   "op.helper.command.startPending": "Starting in progress",
@@ -2400,7 +2301,6 @@
   "op.helper.command.failed": "Command failed",
   "op.helper.command.tech": "Maintenance",
   "op.helper.command.lowBalance": "Low balance",
-
   "op.helper.command.type.lock": "Lock",
   "op.helper.command.type.unlock": "Unlock",
   "op.helper.command.type.transfer": "Transfer",
@@ -2413,7 +2313,6 @@
   "op.helper.command.status.done": "completed",
   "op.helper.command.status.failed": "failed",
   "op.helper.command.status.cancelled": "cancelled",
-
   "op.helper.map.sessionActive": "Session active",
   "op.helper.map.ready": "Free",
   "op.helper.map.readyValue": "ready to start",
@@ -2421,7 +2320,6 @@
   "op.helper.map.needsCheck": "Needs check",
   "op.helper.map.noSignal": "No signal",
   "op.helper.map.service": "Service",
-
   "op.helper.shift.mapUpdating": "Updating map",
   "op.helper.shift.mapLoading": "Loading map",
   "op.helper.shift.platformError": "Server error · {error}",
@@ -2438,19 +2336,16 @@
   "op.helper.shift.error": "Shift · server error",
   "op.helper.shift.noAccess": "Shift · no access",
   "op.helper.shift.notOpen": "Shift not open",
-
   "op.helper.shell.posChecks": "POS: {count, plural, one {# receipt} other {# receipts}} today",
   "op.helper.shell.posLoading": "POS: loading",
   "op.helper.shell.posNoData": "POS: no data",
   "op.helper.shell.modeDev": "local build",
   "op.helper.shell.modeDist": "installed build",
-
   "op.helper.realtime.connected": "Network online",
   "op.helper.realtime.connecting": "Connecting",
   "op.helper.realtime.reconnecting": "Reconnecting",
   "op.helper.realtime.lost": "Network lost",
   "op.helper.realtime.disconnected": "Network offline",
-
   "op.helper.pos.saleState.paid": "Paid",
   "op.helper.pos.saleState.draft": "Draft",
   "op.helper.pos.saleState.voided": "Voided",
@@ -2470,7 +2365,6 @@
   "op.helper.pos.receiptTotal": "Total: {total}",
   "op.helper.pos.productFallback": "Product",
   "op.helper.pos.unitSuffix": "pcs",
-
   "op.helper.billing.cashOp.opening": "Shift open",
   "op.helper.billing.cashOp.closing": "Shift close",
   "op.helper.billing.cashOp.cashIn": "Cash in",
@@ -2481,7 +2375,6 @@
   "op.helper.billing.paySource.cash": "Cash",
   "op.helper.billing.paySource.sale": "Sale",
   "op.helper.billing.paySource.fallback": "POS",
-
   "op.helper.player.detail": "{phone} · {packages, plural, one {# package} other {# packages}}",
   "op.helper.player.noPhone": "no phone",
   "op.helper.player.packageCount": "{count} pkg",
@@ -2495,11 +2388,9 @@
   "op.helper.player.packageOptionLabel": "{name} · {price} · {minutes} min",
   "op.helper.player.tariffFallback": "Tariff",
   "op.helper.player.packageFallback": "Package",
-
   "op.helper.command.platformConfirmed": "Command accepted",
   "op.helper.command.sentToPc": "sent to PC",
   "op.helper.command.statusUnavailable": "status unavailable: {detail}",
-
   "op.helper.audit.saleCreated": "Sale created",
   "op.helper.audit.saleRefund": "Receipt refund",
   "op.helper.audit.saleVoid": "Receipt voided",
@@ -2520,15 +2411,12 @@
   "op.helper.audit.record": "Audit record",
   "op.helper.audit.system": "System",
   "op.helper.audit.staff": "Staff",
-
   "op.helper.error.sessionUnavailable": "Operator session unavailable.",
-
   "op.helper.stock.purchase": "Purchase",
   "op.helper.stock.adjustment": "Adjustment",
   "op.helper.stock.sale": "Sale",
   "op.helper.stock.writeOff": "Write-off",
   "op.helper.stock.fallback": "Movement",
-
   "op.helper.error.sessionEnded": "Session is already ending or ended. Wait for the map to refresh.",
   "op.helper.error.sessionExpired": "Operator session is stale. Sign in again.",
   "op.helper.error.badRequest": "Server rejected the request:",
@@ -2566,7 +2454,6 @@
   "op.floor.remaining.playing": "playing now",
   "op.floor.remaining.pending": "Pending",
   "op.floor.remaining.noHeartbeat": "No connection",
-  "op.floor.remaining.closed": "Closed",
   "op.floor.remaining.action": "Command failed",
   "op.floor.duration.sec": "{count} s left",
   "op.floor.duration.min": "{count} min left",
@@ -2574,6 +2461,10 @@
   "op.floor.duration.secShort": "{count} s",
   "op.floor.duration.minShort": "{count} min",
   "op.floor.duration.hourMinShort": "{hours} h {minutes} m",
+  "op.floor.duration.expired": "Time's up",
+  "op.floor.duration.expiredShort": "Time's up",
+  "op.map.expiredAgo": "{duration} over",
+  "op.map.panel.expiredHint": "Time's up — extend or end the session.",
   "op.floor.offlineBanner": "Offline — data from {time}, view only",
   "op.error.actionFailed.title": "Action failed",
   "op.error.actionFailed.noDetail": "The server returned no details. Retry the action or check the connection.",
@@ -2599,12 +2490,21 @@
   "op.checkout.method.cash": "Cash",
   "op.checkout.method.card": "Card",
   "op.checkout.method.wallet": "Deposit",
+  "op.checkout.change": "Change",
+  "op.checkout.tab.split": "Split",
+  "op.checkout.exact": "Exact",
+  "op.checkout.confirmAmount": "Accept {amount}",
+  "op.checkout.startedAt": "started {time}",
+  "op.checkout.lineTime": "Time",
+  "op.checkout.cardExact": "Exact amount charged to card",
+  "op.checkout.depositFull": "Charged to deposit: {amount}",
+  "op.checkout.depositPlusCash": "Deposit {cover} + cash {rest}",
   "op.checkout.duration.min": "{minutes}m",
   "op.checkout.duration.hourMin": "{hours}h {minutes}m",
   "op.checkout.error.invalidAmount": "Check the payment amount.",
   "op.checkout.error.walletExceeds": "Deposit payment exceeds the balance.",
+  "op.checkout.error.cardOver": "Card and deposit exceed the bill by {amount}",
   "op.checkout.error.short": "Short by {amount}",
-  "op.checkout.error.over": "Over by {amount}",
   "op.shell.queuedCommand": "Command «{action}» queued — it will be sent once the connection is restored.",
   "op.outbox.dropped": "{seat}: command {command} cancelled — state changed on the server",
   "op.toast.close": "Close",

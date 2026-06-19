@@ -10,16 +10,10 @@ export type FeedbackState = 'idle' | 'pending' | 'confirmed' | 'failed';
 export type Feedback = { label: string; state: FeedbackState; detail?: string };
 export type CriticalConfirmationTone = 'warning' | 'danger';
 export type LoadStatus = 'fixture' | 'loading' | 'backend' | 'failed';
-export type MapFilterId = 'all' | 'ready' | 'active' | 'attention' | 'offline' | 'blocking' | 'service';
+// Фильтры карты: всё / свободно / сессии / нет связи. Один серый бакет «нет связи» вместо
+// прежнего зоопарка (проблемы/сбой/обслуживание) — см. SeatTone.
+export type MapFilterId = 'all' | 'ready' | 'active' | 'offline';
 export type MapViewMode = 'grid' | 'plan';
-// Счётчик критического состояния зала для строки тревог: метка + число + куда фильтровать карту.
-export interface AlertSource {
-  id: string;
-  tone: 'warning' | 'danger';
-  label: string;
-  count: number;
-  filterId: MapFilterId;
-}
 export type OperatorConfig = ReturnType<typeof getOperatorConfig>;
 export type OperatorBackendContext = {
   config: OperatorConfig;
@@ -39,7 +33,7 @@ export type SeatActionResult = {
 };
 export type SessionStartDurationMode = 'fixed' | 'open';
 export type SeatActionRequest =
-  | { type: 'start'; seat: SeatSummary; billing: SessionBillingSelection; durationMode: SessionStartDurationMode }
+  | { type: 'start'; seat: SeatSummary; billing: SessionBillingSelection; durationMode: SessionStartDurationMode; durationMinutes?: number | null }
   | { type: 'extend'; seat: SeatSummary; minutes: number; billing: SessionBillingSelection }
   | { type: 'transfer'; seat: SeatSummary; targetSeatId: string }
   | { type: 'end'; seat: SeatSummary }

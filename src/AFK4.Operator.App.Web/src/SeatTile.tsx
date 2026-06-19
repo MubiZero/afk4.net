@@ -1,4 +1,4 @@
-import { Hourglass, OctagonAlert, Plus, TrendingUp, WifiOff } from 'lucide-react';
+import { Hourglass, Plus, TrendingUp, Wrench, WifiOff } from 'lucide-react';
 import type { ComponentType, MouseEvent as ReactMouseEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary, SeatTone } from './operatorData';
@@ -10,19 +10,21 @@ import { isAttentionTone, seatTileLead } from './seatTilePresentation';
 // тем, что реально знаем: остаток времени-герой, статус и тип проблемы — без заглушек.
 const PROBLEM_ICON: Partial<Record<SeatTone, ComponentType<{ size?: number; 'aria-hidden'?: boolean }>>> = {
   pending: Hourglass,
-  blocking: OctagonAlert,
-  offline: WifiOff
+  offline: WifiOff,
+  service: Wrench
 };
 
 export function SeatTile({
   seat,
   selected,
   onSelect,
+  onStartSession,
   onContextMenu
 }: {
   seat: SeatSummary;
   selected?: boolean;
   onSelect: () => void;
+  onStartSession?: () => void;
   onContextMenu?: (event: ReactMouseEvent) => void;
 }) {
   const { t } = useI18n();
@@ -31,18 +33,24 @@ export function SeatTile({
     isAttentionTone(seat.tone) ? 'seat-tile--alert' : '',
     selected ? 'selected' : ''].filter(Boolean).join(' ');
   const ProblemIcon = lead.kind === 'plain' ? PROBLEM_ICON[seat.tone] : undefined;
+  // Сессия идёт, но ПК без связи: тон серый, время/сумма сессии остаются — значок обрыва говорит,
+  // что деньги капают без контроля над ПК (сессия не теряется, см. модель SeatTone).
+  const sessionOffline = seat.isDeviceOnline === false && (lead.kind === 'prepaid' || lead.kind === 'postpaid');
+  // Свободная плитка — это и есть «＋»-приглашение: клик сразу открывает запуск сессии (выбрав место).
+  // Остальные плитки просто выбираются (раскрывают карточку справа).
+  const activate = lead.kind === 'free' && onStartSession ? onStartSession : onSelect;
 
   return (
     <article
       className={className}
       aria-label={`${seat.name} ${seat.stateLabel}`}
       aria-pressed={selected}
-      onClick={onSelect}
+      onClick={activate}
       onContextMenu={onContextMenu}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          onSelect();
+          activate();
         }
       }}
       role="button"
@@ -50,16 +58,19 @@ export function SeatTile({
     >
       <header className="seat-head">
         <span className="seat-id">
+          {/* Цвет точки = состояние места (--seat-color); имя ПК — главная идентификация,
+              поэтому видно целиком, а статус-слово несут точка и тело плитки, не отдельный чип. */}
           <span className="seat-dot" aria-hidden="true" />
           <strong>{seat.name}</strong>
         </span>
-        {lead.kind === 'postpaid' ? (
+        {sessionOffline && (
+          <WifiOff className="seat-offline-mark" size={13} aria-label={t('op.floor.remaining.pcOffline')} />
+        )}
+        {lead.kind === 'postpaid' && (
           <span className="seat-amount" aria-label={t('op.map.seatRising')}>
             {lead.amount}
             <TrendingUp size={12} aria-hidden="true" />
           </span>
-        ) : (
-          <span className="state-chip">{seat.stateLabel}</span>
         )}
       </header>
 
@@ -74,12 +85,17 @@ export function SeatTile({
         // под ним убывающая полоса.
         <div className="seat-body seat-body--metric">
           <div className="seat-clock-wrap">
-            <span className="seat-clock-label">{t('op.map.seatLeft')}</span>
-            <strong className="seat-clock">
+            {/* «осталось» — только пока время ещё идёт; при истечении герой сам несёт «Истекло». */}
+            {!lead.expired && <span className="seat-clock-label">{t('op.map.seatLeft')}</span>}
+            <strong className={`seat-clock${lead.expired ? ' seat-clock--expired' : ''}`}>
               {seat.remainingSeconds != null ? formatDurationCompact(seat.remainingSeconds, t) : lead.remaining}
             </strong>
           </div>
-          <span className={`seat-timebar${lead.low ? ' seat-timebar--low' : ''}`} aria-hidden="true">
+          {/* Время вышло — пустой трек (время «съедено»), подсвечен янтарём; иначе убывающая, low → янтарь. */}
+          <span
+            className={`seat-timebar${lead.expired ? ' seat-timebar--expired' : lead.low ? ' seat-timebar--low' : ''}`}
+            aria-hidden="true"
+          >
             <i style={{ width: `${Math.round(lead.barRatio * 100)}%` }} />
           </span>
         </div>

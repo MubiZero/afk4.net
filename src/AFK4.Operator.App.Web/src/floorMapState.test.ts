@@ -43,8 +43,10 @@ describe('floor-map state', () => {
     expect(state.source).toBe('backend');
     expect(state.branchName).toBe('Demo Branch');
     expect(state.seats.map((seat) => seat.name)).toEqual(['PC-01', 'PC-02']);
+    // Сессия идёт, но ПК без связи → серый «нет связи» (бывший красный blocking), а время сессии
+    // на плитке сохраняется (без потери активной сессии).
     expect(state.seats[0]).toMatchObject({
-      tone: 'blocking',
+      tone: 'offline',
       command: 'No route',
       remaining: 'осталось 1 ч 01 мин'
     });
@@ -76,6 +78,21 @@ describe('floor-map state', () => {
       billing: 'Открытый счёт',
       accruedCostMinorUnits: 2250,
       currencyCode: 'TJS'
+    });
+  });
+
+  it('maps a maintenance PC to the calm "service" tone, separate from the «нет связи» bucket', () => {
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      seats: [createSeat({ state: 'Maintenance', isDeviceOnline: false })]
+    }, t);
+
+    // Обслуживание побеждает офлайн-устройство: спокойный серый «service», тело «Обслуживание».
+    expect(state.seats[0]).toMatchObject({
+      tone: 'service',
+      stateLabel: 'Обслуживание',
+      remaining: 'Обслуживание'
     });
   });
 
@@ -172,9 +189,10 @@ describe('floor-map state', () => {
       observedAtUtc: '2026-05-21T10:00:00Z'
     }, t);
 
+    // ПК без связи → серый «нет связи» (бывший красный blocking), но время сессии сохраняется.
     expect(nextSeats[0]).toMatchObject({
-      tone: 'blocking',
-      stateLabel: 'Внимание',
+      tone: 'offline',
+      stateLabel: 'Нет связи',
       remaining: 'осталось 15 мин',
       command: 'No route'
     });
@@ -221,6 +239,27 @@ describe('floor-map state', () => {
       remainingSeconds: 3479,
       remaining: 'осталось 58 мин'
     });
+  });
+
+  it('lets remaining time go negative past the deadline and reads it as "time up"', () => {
+    const loadedAtMs = 1000;
+    const state = mapFloorMapDtoToState({
+      branchId,
+      branchName: 'Demo Branch',
+      seats: [
+        createSeat({
+          state: 'Active',
+          activeSessionId: '33333333-3333-3333-3333-333333333333',
+          remainingSeconds: 60
+        })
+      ]
+    }, t, null, loadedAtMs);
+
+    // 121s later the paid minute is long gone — overtime, not "0 left".
+    const nextState = refreshFloorMapRemaining(state, t, loadedAtMs + 121_000);
+
+    expect(nextState.seats[0].remainingSeconds).toBeLessThan(0);
+    expect(nextState.seats[0].remaining).toBe('Время вышло');
   });
 
   it('carries seat geometry and keeps zones and walls for the plan view', () => {

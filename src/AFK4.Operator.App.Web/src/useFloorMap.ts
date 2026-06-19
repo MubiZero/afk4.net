@@ -236,7 +236,7 @@ export function useFloorMap({
         organizationId: session.organizationId,
         seatId: request.seat.id,
         durationMode: isOpenTab ? 'open' : 'fixed',
-        durationMinutes: isOpenTab ? null : defaultSessionDurationMinutes,
+        durationMinutes: isOpenTab ? null : (request.durationMinutes ?? defaultSessionDurationMinutes),
         tariffRuleVersionId: billing.tariffRuleVersionId,
         idempotencyKey: createIdempotencyKey('session-start'),
         playerAccountId: billing.playerAccountId ?? null,

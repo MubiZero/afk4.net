@@ -84,6 +84,16 @@ describe('SeatTile', () => {
     expect(low.querySelector('.seat-timebar--low')).not.toBeNull();
   });
 
+  it('reads "Время вышло" instead of "осталось 0 с" when the countdown has run out', () => {
+    const { container } = renderTile(seat({ tone: 'active', hasActiveSession: true, remainingSeconds: 0, remaining: 'Время вышло' }));
+    // No "осталось" prefix and no "0 с" — the hero itself states the time is up.
+    expect(container.textContent).not.toContain('осталось');
+    expect(container.textContent).not.toContain('0 с');
+    expect(container.querySelector('.seat-clock')?.textContent).toContain('Время вышло');
+    // Bar drops to the expired variant (empty, depleted track), not a misleading full bar.
+    expect(container.querySelector('.seat-timebar--expired')).not.toBeNull();
+  });
+
   it('adds the alert modifier only for attention/problem tones', () => {
     const { container: loud } = renderTile(seat({ tone: 'offline', remaining: 'Нет heartbeat' }));
     expect(loud.querySelector('.seat-tile')?.classList.contains('seat-tile--alert')).toBe(true);

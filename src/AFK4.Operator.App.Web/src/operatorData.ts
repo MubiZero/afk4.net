@@ -10,13 +10,16 @@ import {
 import type { MessageKey } from '@afk4/i18n';
 import type { WorkspaceId } from './operatorTypes';
 
-// Консолидированная модель: 5 состояний, цвет = действие оператора.
+// Консолидированная модель: 4 состояния, цвет = действие оператора.
 //  ready    — свободно (зелёный): посадить гостя
 //  active   — в сессии (нейтральный): следить
 //  pending  — ожидание команды (янтарь): подождать
-//  blocking — нужно действие (красный): сбой ИЛИ сессия без связи с ПК
-//  offline  — нет связи (серый): ПК недоступен / выведен на обслуживание
-export type SeatTone = 'ready' | 'active' | 'pending' | 'blocking' | 'offline';
+//  offline  — нет связи / ПК недоступен (серый, требует внимания): сбой команды, мёртвый
+//             heartbeat или сессия без связи с ПК — один бакет «иди проверь ПК». Конкретную
+//             причину несёт строка-тело плитки; активная сессия (время/сумма) сохраняется.
+//  service  — обслуживание (тот же серый, но спокойный): ПК намеренно снят с линии. Это НЕ
+//             сбой связи, поэтому в фильтр «Нет связи» не попадает (только в «Все»).
+export type SeatTone = 'ready' | 'active' | 'pending' | 'offline' | 'service';
 
 export interface SeatSummary {
   id: string;
@@ -228,10 +231,10 @@ export const seats: SeatSummary[] = [
     id: 'pc-09',
     zone: 'Зал B',
     name: 'PC-09',
-    tone: 'offline',
-    stateLabel: 'Нет связи',
+    tone: 'service',
+    stateLabel: 'Обслуживание',
     player: 'Нет игрока',
-    remaining: 'Закрыт',
+    remaining: 'Обслуживание',
     billing: 'N/A',
     device: 'Устройство не назначено',
     command: 'Technician',
@@ -258,7 +261,7 @@ export const seats: SeatSummary[] = [
     id: 'pc-11',
     zone: 'VIP',
     name: 'PC-11',
-    tone: 'blocking',
+    tone: 'offline',
     stateLabel: 'Ошибка',
     player: 'Гость',
     remaining: 'Нужно действие',

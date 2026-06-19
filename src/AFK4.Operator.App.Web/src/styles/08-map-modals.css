@@ -14,10 +14,10 @@
 .panel-modal {
   display: flex;
   flex-direction: column;
-  width: min(440px, 100%);
-  max-height: min(86vh, 760px);
+  width: min(500px, 100%);
+  max-height: min(88vh, 820px);
   border: 1px solid var(--border-default);
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--surface-elevated);
   box-shadow: var(--shadow-elevated);
   overflow: hidden;
@@ -33,26 +33,26 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 18px;
+  padding: 20px 22px;
   border-bottom: 1px solid var(--border-soft);
 }
 
 .panel-modal-title {
   display: grid;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
 }
 
 .panel-modal-title strong {
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: 19px;
   font-weight: 700;
 }
 
 .panel-modal-title span {
   overflow: hidden;
   color: var(--text-tertiary);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -83,14 +83,50 @@
 
 .panel-modal-body {
   display: grid;
-  gap: 12px;
-  padding: 16px 18px 18px;
+  gap: 16px;
+  padding: 20px 22px 22px;
   overflow-y: auto;
 }
 
 .start-dialog-body {
   display: grid;
-  gap: 12px;
+  gap: 10px;
+}
+
+/* Поле игрока и дропдауны старта — одна рамка, лейбл живёт отдельным оверлайном сверху
+   (никаких «рамок в рамке»). */
+.start-field {
+  width: 100%;
+  height: 42px;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  padding: 0 13px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: 15px;
+}
+
+.start-field::placeholder {
+  color: var(--text-quaternary);
+}
+
+.start-field:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.start-field:disabled {
+  opacity: 0.55;
+}
+
+.start-select .panel-select-trigger {
+  height: 42px;
+  border-radius: 9px;
+  padding: 0 13px;
+  background: var(--surface-sunken);
+  font-size: 15px;
+  font-weight: 600;
 }
 
 @keyframes panel-modal-fade {
@@ -117,7 +153,7 @@
   border: none;
   background: transparent;
   color: var(--text-tertiary);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -187,111 +223,147 @@
   transform: none;
 }
 
-.context-transfer-target {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  min-height: 30px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 5px 8px;
-  background: var(--surface-elevated);
-}
-
-.context-transfer-target span {
+/* Заголовок шага в окне запуска: «Кто играет», «Игрок», «Время» — спокойный оверлайн над группой.
+   Доп. отступ сверху (складывается с grid-gap 10px) даёт «воздух» между группами, при этом сам
+   заголовок остаётся близко к своему контролу (между ними только базовый gap). */
+.start-section-head {
+  margin-top: 8px;
   color: var(--text-tertiary);
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
-.context-transfer-target input {
-  min-width: 0;
-  height: 26px;
+.start-dialog-body > .start-section-head:first-child {
+  margin-top: 0;
+}
+
+/* Превью «что запустим» (или «чего не хватает») — стопкой: подпись сверху, значение крупно и
+   с переносом (не обрезаем хвост, как раньше делал .detail-row с max-width). */
+.start-plan {
+  display: grid;
+  gap: 5px;
+  margin-top: 2px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.start-plan > span {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.start-plan > strong {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.start-plan.is-missing > strong {
+  color: var(--warning-text);
+}
+
+/* Сегмент-переключатель: «Гость / Клиент клуба» и «Депозит / Пакет / Постоплата». */
+.start-segment {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+  padding: 3px;
   border: 1px solid var(--border-default);
-  border-radius: 5px;
-  padding: 0 7px;
+  border-radius: 9px;
+  background: var(--surface-sunken);
+}
+
+.start-segment button {
+  min-height: 40px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.start-segment button:hover:not(:disabled),
+.start-segment button:focus-visible:not(:disabled) {
+  color: var(--text-strong);
+  outline: none;
+}
+
+.start-segment button.active {
+  background: var(--surface-card);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.start-segment button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Чипы длительности: 4 пресета в ряд + «Открытый счёт» во всю ширину снизу. */
+.start-duration-chips {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.start-duration-chips button {
+  min-height: 40px;
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
   background: var(--surface-card);
   color: var(--text-strong);
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.context-transfer-target input:disabled {
-  color: var(--text-quaternary);
-}
-
-.billing-selection-panel {
-  gap: 8px;
-}
-
-.billing-panel-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-}
-
-.billing-panel-head strong {
-  color: var(--text-primary);
   font-size: 14px;
   font-weight: 700;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
 }
 
-.billing-panel-head em {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 700;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.start-duration-chips button:last-child {
+  grid-column: 1 / -1;
 }
 
-.billing-mode {
-  padding-top: 10px;
-  border-top: 1px solid var(--border-soft);
-  flex-wrap: wrap;
-}
-
-.billing-selection-panel .billing-mode {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7px;
-  padding-top: 0;
-  border-top: 0;
-}
-
-.billing-selection-panel .billing-mode button {
-  justify-content: center;
-  min-width: 0;
-  height: 50px;
-  padding: 6px 8px;
-  flex-direction: column;
-  gap: 3px;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.billing-selection-panel .billing-mode small {
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.billing-selection-panel .billing-mode button.active small {
+.start-duration-chips button.active {
+  border-color: var(--accent);
+  background: var(--surface-accent-soft);
   color: var(--accent-on-soft);
 }
 
-.billing-input-row {
-  grid-template-columns: 48px minmax(0, 1fr);
+.start-duration-chips button:hover:not(:disabled):not(.active),
+.start-duration-chips button:focus-visible:not(:disabled):not(.active) {
+  border-color: var(--border-accent);
+  background: var(--surface-hover);
+  outline: none;
+}
+
+.start-duration-chips button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Цена-превью (за N времени ≈ сумма) и покрытие баланса игрока. */
+.start-price {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.start-coverage {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .billing-candidate-list {
@@ -302,11 +374,11 @@
 .billing-candidate-list button {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 2px;
-  min-height: 40px;
+  gap: 3px;
+  min-height: 46px;
   border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 6px 8px;
+  border-radius: 7px;
+  padding: 8px 11px;
   background: var(--surface-elevated);
   color: var(--text-strong);
   text-align: left;
@@ -327,19 +399,15 @@
 
 .billing-candidate-list strong {
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .billing-candidate-list span,
 .billing-candidate-list p {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
-}
-
-.billing-meta strong {
-  max-width: 190px;
 }
 
 .smart-grid {

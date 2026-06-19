@@ -91,7 +91,10 @@
 
 .top-command {
   grid-column: 1 / 4;
-  display: flex;
+  /* Три зоны: бренд слева, поиск строго по центру панели, оконные контролы справа.
+     Боковые колонки равны (1fr), поэтому поиск центрируется по всей ширине навбара. */
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 12px;
   min-width: 0;
@@ -99,6 +102,17 @@
   border-bottom: 1px solid var(--border-soft);
   background: var(--surface-elevated);
   color: var(--text-primary);
+}
+
+.top-command .brand-block {
+  justify-self: start;
+}
+
+.top-command .top-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  justify-self: end;
 }
 
 .brand-block {
@@ -148,7 +162,7 @@
 
 .command-search {
   display: flex;
-  flex: 0 1 min(460px, 36vw);
+  justify-self: center;
   align-items: center;
   gap: 7px;
   width: min(460px, 36vw);
@@ -261,7 +275,10 @@
 }
 
 /* Only brand + language/window controls on the auth titlebar — no status pills. */
+/* Экран входа: тот же titlebar, но без поиска по центру — возвращаем flex, чтобы бренд был
+   слева, а контролы окна у правого края (grid 1fr/auto/1fr основного шелла тут не нужен). */
 .auth-top-command {
+  display: flex;
   justify-content: space-between;
 }
 

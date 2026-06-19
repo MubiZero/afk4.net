@@ -84,8 +84,8 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
-    expect(await screen.findByText(/Смена открыта/)).toBeInTheDocument();
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
+    expect(await screen.findByTitle(/Смена открыта/)).toBeInTheDocument();
     expect(await screen.findByText('Касса: 1 чек сегодня')).toBeInTheDocument();
     expect(screen.queryByText(/Смена #24/)).not.toBeInTheDocument();
     expect(screen.queryByText(/неоплаченных чека/)).not.toBeInTheDocument();
@@ -142,7 +142,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
 
     // PC controls live in the selected seat's card (no toolbar button, no popover).
     expect(screen.getByText('Управление ПК')).toBeInTheDocument();
@@ -164,7 +164,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Свободно/ }));
 
     expect(await screen.findByRole('heading', { name: 'PC-02' })).toBeInTheDocument();
@@ -199,10 +199,10 @@ describe('App', () => {
 
     // Money surfaces (the checkout breakdown) render amounts in the configured host currency.
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
     const dialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
-    await within(dialog).findByText('Итого');
+    await within(dialog).findByText('К оплате');
     expect(within(dialog).getAllByText(/\$/).length).toBeGreaterThan(0);
   });
 
@@ -436,16 +436,17 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
 
-    // Finish opens the checkout modal; ending without taking payment is the secondary path inside it.
+    // Finish opens the checkout modal; with nothing owed (zero-bill quote) the primary action
+    // just ends the session through /end without recording a payment.
     const finishDialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
     expect(finishDialog).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/sessions/22222222-2222-2222-2222-222222222222/end') &&
       init?.method === 'POST')).toBe(false);
-    fireEvent.click(within(finishDialog).getByRole('button', { name: 'Завершить без оплаты' }));
+    fireEvent.click(await within(finishDialog).findByRole('button', { name: 'Завершить' }));
 
     expect((await screen.findAllByText('Готово')).length).toBeGreaterThan(0);
     const postCall = fetchMock.mock.calls.find(([input, init]) =>
@@ -494,16 +495,17 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
-    await within(dialog).findByText('Итого');
+    await within(dialog).findByText('К оплате');
     expect(dialog).toHaveTextContent('45м');
-    // Quote pre-fills a single cash row with the whole grand total.
+    // Cash tab pre-fills "получено" with the whole grand total → exact, change zero.
     await waitFor(() => expect(within(dialog).getByText('Сумма совпадает')).toBeInTheDocument());
 
-    const confirm = within(dialog).getByRole('button', { name: 'Принять оплату' });
+    // Confirm carries the amount: «Принять 22,50 …».
+    const confirm = within(dialog).getByRole('button', { name: /Принять/ });
     expect(confirm).toBeEnabled();
     await act(async () => {
       fireEvent.click(confirm);
@@ -557,7 +559,7 @@ describe('App', () => {
     await waitFor(() => expect(realtimeMock.clients).toHaveLength(1));
     fireEvent.click(await screen.findByRole('button', { name: /Завершить сессию/ }));
     const realtimeFinishDialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
-    fireEvent.click(within(realtimeFinishDialog).getByRole('button', { name: 'Завершить без оплаты' }));
+    fireEvent.click(await within(realtimeFinishDialog).findByRole('button', { name: 'Завершить' }));
     await waitFor(() => expect(floorMapRequestCount).toBeGreaterThanOrEqual(2));
 
     commandResultReported = true;
@@ -657,10 +659,11 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
+    // «+» свободной плитки открывает запуск; гость по умолчанию идёт открытым счётом.
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
-    fireEvent.click(await screen.findByRole('button', { name: /Посадить гостя/ }));
-    const startButton = await screen.findByRole('button', { name: /Старт 60 мин/ });
+    const startDialog = await screen.findByRole('dialog', { name: 'Новая сессия' });
+    const startButton = await within(startDialog).findByRole('button', { name: /Старт · открытый счёт/ });
     expect(startButton).toBeEnabled();
     fireEvent.click(startButton);
 
@@ -673,7 +676,8 @@ describe('App', () => {
     expect(body).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
       seatId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
-      durationMinutes: 60,
+      durationMode: 'open',
+      durationMinutes: null,
       tariffRuleVersionId: 'manual-v1',
       billingMode: ''
     });
@@ -686,11 +690,12 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
-    fireEvent.click(await screen.findByRole('button', { name: /Посадить гостя/ }));
-    fireEvent.click(await screen.findByRole('button', { name: /Открытый счёт оплата при завершении/ }));
-    const startButton = await screen.findByRole('button', { name: /Старт · открытый счёт/ });
+    const startDialog = await screen.findByRole('dialog', { name: 'Новая сессия' });
+    // Открытый счёт — отдельный чип длительности (для гостя доступен).
+    fireEvent.click(within(startDialog).getByRole('button', { name: 'Открытый счёт' }));
+    const startButton = await within(startDialog).findByRole('button', { name: /Старт · открытый счёт/ });
     expect(startButton).toBeEnabled();
     fireEvent.click(startButton);
 
@@ -711,15 +716,19 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
+    // «+» свободной плитки открывает запуск сессии сразу (выбрав место).
     fireEvent.click(await screen.findByRole('button', { name: /PC-02/ }));
-    fireEvent.click(await screen.findByRole('button', { name: /Посадить гостя/ }));
-    fireEvent.click(await screen.findByRole('button', { name: /Депозит/ }));
+    const startDialog = await screen.findByRole('dialog', { name: 'Новая сессия' });
+    // Клиент клуба → списание по умолчанию «Депозит» (prepaid_wallet).
+    fireEvent.click(within(startDialog).getByRole('tab', { name: 'Клиент клуба' }));
     fireEvent.change(screen.getByLabelText('Игрок для биллинга'), { target: { value: 'Madina' } });
     fireEvent.click(await screen.findByRole('button', { name: /Madina S\./ }));
-    expect(await screen.findByText('Депозит готов')).toBeInTheDocument();
+    // Биллинг готов → окно показывает превью «Запустим …».
+    expect(await screen.findByText('Запустим')).toBeInTheDocument();
 
-    const startButton = await screen.findByRole('button', { name: /Старт 60 мин/ });
+    // Длительность по умолчанию — 1 час; кнопка несёт её: «Старт · 1 ч».
+    const startButton = await screen.findByRole('button', { name: /Старт · 1 ч/ });
     expect(startButton).toBeEnabled();
     fireEvent.click(startButton);
 
@@ -748,7 +757,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     expect(screen.getByTitle('Касса')).toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByTitle('Брони')).toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(screen.getByTitle('Брони'));
@@ -1179,7 +1188,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     gotoWorkspace('Продажи');
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Клиент'), { target: { value: 'Madina' } });
     fireEvent.click(await screen.findByRole('button', { name: /Madina S\./ }));
     const cardPaymentButton = screen.getAllByRole('button', { name: 'Карта' })
@@ -1218,7 +1227,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     gotoWorkspace('Продажи');
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Клиент'), { target: { value: 'Madina' } });
     fireEvent.click(await screen.findByRole('button', { name: /Madina S\./ }));
     fireEvent.click(screen.getByRole('button', { name: /Пополнить депозит/ }));
@@ -1244,7 +1253,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     gotoWorkspace('Продажи');
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Имя клиента'), { target: { value: 'Zarina N.' } });
     fireEvent.change(screen.getByLabelText('Телефон клиента'), { target: { value: '+992 90 777 88 99' } });
     fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
@@ -1284,7 +1293,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     gotoWorkspace('Продажи');
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Возврат по чеку/ }));
 
     expect(await screen.findByRole('alertdialog', { name: 'Подтвердите возврат' })).toBeInTheDocument();
@@ -1314,7 +1323,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     gotoWorkspace('Продажи');
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /25 с\./ }));
     expect(await screen.findByText('Детали чека: подтверждено')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Возврат по чеку/ }));
@@ -1335,7 +1344,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     gotoWorkspace('Продажи');
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole('button', { name: /Оплачен/ })[0]);
 
     expect(await screen.findByText('Детали чека: подтверждено')).toBeInTheDocument();
@@ -1380,7 +1389,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     gotoWorkspace('Продажи');
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole('button', { name: /Оплачен/ })[0]);
     expect(await screen.findByText('POS-20260521-0001')).toBeInTheDocument();
 
@@ -1406,7 +1415,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     gotoWorkspace('Продажи');
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Аннулировать черновик/ }));
 
     expect(await screen.findByRole('alertdialog', { name: 'Подтвердите аннулирование' })).toBeInTheDocument();
@@ -1448,7 +1457,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     gotoWorkspace('Продажи');
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Товар для списания'), {
       target: { value: '77777777-7777-7777-7777-777777777777' }
     });
@@ -1835,7 +1844,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     expect((await screen.findAllByText('Madina S.')).length).toBeGreaterThan(0);
     const createReservationButton = screen.getByRole('button', { name: /Создать бронь/ });
     await waitFor(() => expect(createReservationButton).toBeEnabled());
@@ -1864,7 +1873,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
 
     expect(screen.getByRole('button', { name: /Создать бронь/ })).toBeDisabled();
   });
@@ -1876,7 +1885,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', { name: /Купить пакет/ })).toBeEnabled());
     fireEvent.change(await screen.findByLabelText('Пакет для покупки'), { target: { value: 'cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd' } });
     const purchasePackageButton = await screen.findByRole('button', { name: /Купить пакет/ });
@@ -1903,7 +1912,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
 
     expect(await screen.findByText(/180 мин/)).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
@@ -1918,7 +1927,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Сумма пополнения'), { target: { value: '123.45' } });
     fireEvent.change(screen.getByLabelText('Причина пополнения'), { target: { value: 'cash desk deposit' } });
     const topUpWalletButton = screen.getByRole('button', { name: /Пополнить депозит/ });
@@ -1946,7 +1955,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeEnabled());
     fireEvent.click(await screen.findByRole('button', { name: /Olim K\./ }));
     fireEvent.change(await screen.findByLabelText('Сумма долга'), { target: { value: '20.00' } });
@@ -1976,7 +1985,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
-    expect((await screen.findAllByText(/Сервер на связи/)).length).toBeGreaterThan(0);
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Имя нового клиента'), { target: { value: 'Zarina N.' } });
     fireEvent.change(screen.getByLabelText('Телефон нового клиента'), { target: { value: '+992 90 777 88 99' } });
     fireEvent.click(screen.getByRole('button', { name: /Новая карта/ }));

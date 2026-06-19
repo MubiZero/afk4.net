@@ -1,5 +1,6 @@
 import { useI18n } from '@afk4/i18n';
 import type { OperatorAuthSession } from './authClient';
+import type { ShellShiftBadgeData } from './operatorHelpers';
 import { navSections, type NavSection } from './operatorData';
 import { canOpenWorkspace } from './operatorPermissions';
 import { RailAccount } from './RailAccount';
@@ -10,6 +11,7 @@ export function WorkspaceRail({
   session,
   activeSectionKey,
   displayName,
+  shift,
   onNavigateSection,
   onOpenAccount,
   onSignOut
@@ -17,6 +19,7 @@ export function WorkspaceRail({
   session: OperatorAuthSession | null;
   activeSectionKey: string;
   displayName: string;
+  shift: ShellShiftBadgeData;
   onNavigateSection: (section: NavSection) => void;
   onOpenAccount: () => void;
   onSignOut: () => void;
@@ -44,7 +47,7 @@ export function WorkspaceRail({
       })}
       {/* Аккаунт оператора живёт в подвале рейла (margin-top:auto) — привычное место личности
           и выхода. Аватар раскрывает меню с профилем и «Выйти». */}
-      <RailAccount displayName={displayName} onOpenAccount={onOpenAccount} onSignOut={onSignOut} />
+      <RailAccount displayName={displayName} shift={shift} onOpenAccount={onOpenAccount} onSignOut={onSignOut} />
     </nav>
   );
 }

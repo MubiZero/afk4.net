@@ -1,15 +1,21 @@
 /* ── Вкладка «Брони»: таймлайн-гант + боковой drawer + лейн заявок ──────── */
 
-/* Корневой layout: таймлайн + опциональный drawer бок о бок.
-   Высота совпадает с картой (map-board), чтобы гант не обрезался и прокрутка
-   была только внутри тела гантa (booking-grid-body). */
+/* Экран — flex-колонка (как .floor-workspace на «Карте»): шапка и лейн заявок занимают
+   свою естественную высоту, гант забирает остаток. Так низ ганта всегда у нижнего края
+   окна, а высота шапки/лейна меняется свободно — без хрупкого calc(100vh − …) под неё. */
+.booking-screen {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Корневой layout ганта: таймлайн + опциональный drawer бок о бок. Тянется на остаток
+   высоты экрана-колонки (flex:1), как .map-board, — без calc по фикс-числам. */
 .booking-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
-  /* лейн в один ряд (+34); шапка (заголовок+метрики) слита в одну строку-подложку (~50px) */
-  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px) - 20px - 50px - 8px + 34px);
-  min-height: 360px;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
   border: 1px solid var(--border-soft);
   border-radius: 7px;
@@ -24,22 +30,27 @@
 /* Шапка экрана: заголовок + метрики в одной строке на мягкой подложке —
    заголовок не «лежит голым текстом», а якорит строку с чипами. */
 .booking-header {
+  box-sizing: border-box;
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 8px;
-  padding: 7px 12px;
+  gap: 10px;
+  min-height: var(--map-toolbar-h);
+  margin-bottom: 6px;
+  padding: 3px 9px;
   border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border-radius: 7px;
   background: var(--surface-elevated);
 }
 
 .booking-header h1 {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
   line-height: 1.2;
   text-overflow: ellipsis;
@@ -60,7 +71,7 @@
   display: flex;
   align-items: center;
   flex: none;
-  gap: 7px;
+  gap: 6px;
 }
 
 /* ── Навигатор дат ────────────────────────────────────────────────────────── */
@@ -124,14 +135,15 @@
 /* Полоса над гантом: рендерится всегда (в шапке — кнопка «+ Бронь»). Акцентный кант и
    карточки — только при наличии заявок; пустой вид нейтральный. */
 .booking-requests-lane {
+  flex: none;
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 6px;
   border: 1px solid var(--border-default);
   border-left: 3px solid var(--warning);
   border-radius: 7px;
-  padding: 10px 12px;
+  padding: 6px 10px;
   background: var(--surface-elevated);
   animation: soft-enter 140ms ease-out;
 }
@@ -145,7 +157,7 @@
 .booking-lane-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex: none;
 }
 
@@ -169,7 +181,7 @@
   display: flex;
   flex: 1;
   min-width: 0;
-  gap: 8px;
+  gap: 6px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
@@ -189,12 +201,12 @@
 
 .booking-lane-card {
   display: grid;
-  gap: 6px;
+  gap: 5px;
   flex: none;
   width: 200px;
   border: 1px solid var(--border-default);
   border-radius: 6px;
-  padding: 7px 9px;
+  padding: 5px 8px;
   background: var(--surface-card);
 }
 
@@ -226,10 +238,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 26px;
+  height: 24px;
   border: 1px solid var(--border-default);
   border-radius: 5px;
-  padding: 0 9px;
+  padding: 0 8px;
   background: var(--surface-card);
   color: var(--text-strong);
   font-size: 11px;
@@ -369,15 +381,28 @@
 
 .booking-axis-tick {
   position: absolute;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Подпись часа (раз в LABEL_STEP_HOURS) — по центру высоты оси. */
+.booking-axis-tick.is-major {
   top: 50%;
   transform: translate(-50%, -50%);
   color: var(--text-tertiary);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.03em;
-  pointer-events: none;
   white-space: nowrap;
-  user-select: none;
+}
+
+/* Промежуточный час — короткая риска без подписи: держит масштаб, не споря с метками. */
+.booking-axis-tick.is-minor {
+  top: 0;
+  width: 1px;
+  height: 5px;
+  transform: translateX(-50%);
+  background: var(--border-default);
 }
 
 /* Тело гантa: вертикальный скролл внутри. */
@@ -512,8 +537,8 @@
 .booking-seat-dot.state-ready { background: var(--accent); }
 .booking-seat-dot.state-active { background: var(--text-tertiary); }
 .booking-seat-dot.state-pending { background: var(--warning); }
-.booking-seat-dot.state-blocking { background: var(--danger); }
 .booking-seat-dot.state-offline { background: #64748b; }
+.booking-seat-dot.state-service { background: #64748b; }
 
 .booking-row-status {
   overflow: hidden;

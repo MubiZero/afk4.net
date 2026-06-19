@@ -22,8 +22,7 @@ import { useShellData } from './useShellData';
 import { useOperatorRealtime } from './useOperatorRealtime';
 import { useOperatorConnection } from './useOperatorConnection';
 import { useFloorMap } from './useFloorMap';
-import { ToastProvider, useToast } from './operatorToast';
-import { createCommandRegistry, type QuickAction } from './operatorCommands';
+import { ToastProvider } from './operatorToast';
 import { useHotkeys } from './useHotkeys';
 import type {
   WorkspaceId,
@@ -38,7 +37,7 @@ import {
 } from './operatorPermissions';
 import {
   operatorDisplayNameLabel,
-  shellShiftLabel,
+  shellShiftBadge,
   shellPosLabel,
   resolveActiveBranchId
 } from './operatorHelpers';
@@ -86,8 +85,9 @@ function AppInner() {
   });
   const [accountPanelOpen, setAccountPanelOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const toast = useToast();
-  const commandRegistry = useMemo(() => createCommandRegistry(), []);
+  // Токен «открыть запуск сессии» — растёт по клику на «+» свободной плитки; боковая панель
+  // реагирует на изменение и открывает старт-диалог для выбранного места.
+  const [startSeatToken, setStartSeatToken] = useState(0);
   // ⌘K / Ctrl+K открывают палитру даже из поля ввода (allowInInputs). Биндинги мемоизированы —
   // useHotkeys пересоздаёт слушатель только при смене массива.
   const paletteHotkeys = useMemo(
@@ -144,7 +144,7 @@ function AppInner() {
   const canUsePcControl = (hasPermission(authSession, permissionNames.viewDiagnostics)
     && hasPermission(authSession, permissionNames.viewDeviceDetail))
     || hasPermission(authSession, permissionNames.dispatchDeviceCommand);
-  const shellShiftText = shellShiftLabel(shellCurrentShift, shellDashboardSummary, shellLoadStatus, shellLoadError, t);
+  const shellShift = shellShiftBadge(shellCurrentShift, shellDashboardSummary, shellLoadStatus, shellLoadError, t);
   const shellPosText = shellPosLabel(shellDashboardSummary, shellLoadStatus, t);
 
   useEffect(() => {
@@ -195,15 +195,16 @@ function AppInner() {
     void handleWorkspaceNavigation(target.id, t(target.labelKey), allowedItem != null);
   };
 
-  const handleQuickAction = (action: QuickAction) => {
-    if (!commandRegistry.dispatch(action.id)) {
-      toast.info(t('op.command.deferred', { stage: t(action.stageKey) }));
-    }
-  };
-
   const handleOpenSeat = (seatId: string) => {
     setSelectedSeatId(seatId);
     setWorkspace('map');
+  };
+
+  // Клик по «+» свободной плитки: выбрать место, остаться на карте и открыть запуск сессии.
+  const handleStartSeat = (seatId: string) => {
+    setSelectedSeatId(seatId);
+    setWorkspace('map');
+    setStartSeatToken((value) => value + 1);
   };
 
   if (blockedResolution !== null) {
@@ -256,12 +257,7 @@ function AppInner() {
       } as CSSProperties}
     >
       <WindowResizeHandles />
-      <ShellHeader
-        session={authSession}
-        shiftText={shellShiftText}
-        onOpenPalette={() => setPaletteOpen(true)}
-        onQuickAction={handleQuickAction}
-      />
+      <ShellHeader onOpenPalette={() => setPaletteOpen(true)} />
 
       {accountPanelOpen && backendContext !== null && (
         <AccountPanel
@@ -286,6 +282,7 @@ function AppInner() {
         session={authSession}
         activeSectionKey={activeSection.key}
         displayName={operatorDisplayName}
+        shift={shellShift}
         onNavigateSection={handleSectionNavigation}
         onOpenAccount={() => setAccountPanelOpen(true)}
         onSignOut={handleSignOut}
@@ -324,6 +321,7 @@ function AppInner() {
           mapFilter={mapFilter}
           offlineActionAudit={offlineActionAudit}
           onSelectSeat={setSelectedSeatId}
+          onStartSeat={handleStartSeat}
           onFilterChange={setMapFilter}
           onPcControlAction={handlePcControlAction}
           onSeatAction={handleSeatAction}
@@ -341,6 +339,7 @@ function AppInner() {
             backend={backendContext}
             actionsEnabled={actionsEnabled}
             canUsePcControl={canUsePcControl}
+            startRequestToken={startSeatToken}
             onSeatAction={handleSeatAction}
             onPcControlAction={handlePcControlAction}
           />
@@ -351,13 +350,8 @@ function AppInner() {
         realtimeState={realtimeState}
         realtimeError={realtimeError}
         dataSource={floorMap.source}
-        seats={displayedFloorMap.seats}
         workspaceFeedback={workspaceFeedback}
         posText={shellPosText}
-        onSelectAlertSource={(filterId) => {
-          setMapFilter(filterId);
-          setWorkspace('map');
-        }}
       />
     </div>
   );

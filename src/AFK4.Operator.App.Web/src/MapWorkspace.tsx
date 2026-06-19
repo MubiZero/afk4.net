@@ -31,6 +31,7 @@ export function MapWorkspace({
   activeFilter,
   offlineActionAudit,
   onSelectSeat,
+  onStartSeat,
   onFilterChange,
   onPcControlAction,
   onSeatAction
@@ -42,6 +43,7 @@ export function MapWorkspace({
   activeFilter: MapFilterId;
   offlineActionAudit: string[];
   onSelectSeat: (seatId: string) => void;
+  onStartSeat?: (seatId: string) => void;
   onFilterChange: (filter: MapFilterId) => void;
   onPcControlAction: (seat: SeatSummary, action: PcControlActionId) => Promise<PcControlActionResult>;
   onSeatAction: (request: SeatActionRequest) => Promise<SeatActionResult>;
@@ -217,6 +219,7 @@ export function MapWorkspace({
                       seat={seat}
                       selected={seat.id === selectedSeatId}
                       onSelect={() => onSelectSeat(seat.id)}
+                      onStartSession={onStartSeat ? () => onStartSeat(seat.id) : undefined}
                       onContextMenu={(event) => openSeatMenu(seat, event)}
                     />
                   ))}
