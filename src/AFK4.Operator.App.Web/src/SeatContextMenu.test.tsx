@@ -10,7 +10,7 @@ afterEach(cleanup);
 function seat(overrides: Partial<SeatSummary>): SeatSummary {
   return {
     id: 's', zone: 'Зал A', name: 'PC-07', tone: 'active', stateLabel: 'В сессии',
-    player: 'Гость', remaining: '30 мин', billing: 'Wallet', device: 'Device',
+    player: 'Гость', remaining: '30 мин', device: 'Device',
     command: 'Idle', app: 'Shell', deviceId: 'dev-1', activeSessionId: 'sess-1', ...overrides
   };
 }

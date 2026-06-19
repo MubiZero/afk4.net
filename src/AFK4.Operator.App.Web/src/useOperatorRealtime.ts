@@ -8,7 +8,6 @@ import {
   type OperatorRealtimeConnectionState,
   type SessionLifecycleChangedDto
 } from './operatorRealtime';
-import { seats } from './operatorData';
 import type { AuthStatus, OperatorConfig } from './operatorTypes';
 import {
   resolveActiveBranchId,
@@ -94,7 +93,7 @@ export function useOperatorRealtime({
             setFloorMap(nextState);
             setSelectedSeatId((currentSeatId) => nextState.seats.some((seat) => seat.id === currentSeatId)
               ? currentSeatId
-              : nextState.seats[0]?.id ?? seats[0].id);
+              : nextState.seats[0]?.id ?? '');
           })
           .catch((error) => {
             if (!disposed) {

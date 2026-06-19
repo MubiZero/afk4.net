@@ -1486,6 +1486,19 @@
   background: var(--seat-color);
 }
 
+/* Клиент за местом — справа от имени ПК, вторичным весом. Тянется на остаток ширины и
+   усекается многоточием: имена бывают длинными, плитка не должна разъезжаться. */
+.seat-client {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Активная сессия — живое состояние: зелёная точка, хотя кант остаётся нейтральным
    (яркий зелёный кант приберегаем для «свободно»). */
 .seat-tile.state-active .seat-dot {

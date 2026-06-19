@@ -10,7 +10,7 @@ afterEach(cleanup);
 function seat(): SeatSummary {
   return {
     id: 'a3', zone: 'Зал A', name: 'PC-03', tone: 'active', stateLabel: 'В сессии',
-    player: 'Гость', remaining: '30 мин', billing: 'Wallet', device: 'Device',
+    player: 'Гость', remaining: '30 мин', device: 'Device',
     command: 'Idle', app: 'Shell', deviceId: 'dev-1', activeSessionId: 'sess-1'
   };
 }
@@ -35,8 +35,12 @@ function renderTimeline(
         branchName="AFK4"
         previewBlock={previewBlock}
         dateLabel="Сегодня"
+        dateValue="2026-06-19"
+        isToday={true}
         onPrevDay={() => {}}
         onNextDay={() => {}}
+        onToday={() => {}}
+        onPickDate={() => {}}
         onSelectBlock={() => {}}
         onCellCreate={onCellCreate}
         onSeatsCreate={() => {}}
@@ -98,7 +102,8 @@ describe('BookingTimeline drag-to-create', () => {
         <BookingTimeline
           groups={twoRows} axis={axis} nowMs={-1} loading={false} showSkeleton={false}
           selectedReservationId="" branchName="AFK4" previewBlock={null} dateLabel="Сегодня"
-          onPrevDay={() => {}} onNextDay={() => {}} onSelectBlock={() => {}}
+          dateValue="2026-06-19" isToday={true}
+          onPrevDay={() => {}} onNextDay={() => {}} onToday={() => {}} onPickDate={() => {}} onSelectBlock={() => {}}
           onCellCreate={() => {}} onSeatsCreate={onSeatsCreate}
         />
       </I18nProvider>
@@ -117,6 +122,44 @@ describe('BookingTimeline drag-to-create', () => {
     expect(seats.map((s) => s.id)).toEqual(['a1', 'a2']);
   });
 
+  it('кнопка возврата к сегодня видна только не на текущей дате и зовёт onToday', () => {
+    const onToday = mock(() => {});
+    const props = {
+      groups, axis, nowMs: -1, loading: false, showSkeleton: false,
+      selectedReservationId: '', branchName: 'AFK4', previewBlock: null,
+      dateLabel: '20 июня', dateValue: '2026-06-20',
+      onPrevDay: () => {}, onNextDay: () => {}, onPickDate: () => {},
+      onSelectBlock: () => {}, onCellCreate: () => {}, onSeatsCreate: () => {}
+    };
+    const today = render(<I18nProvider><BookingTimeline {...props} isToday={true} dateLabel="Сегодня" onToday={onToday} /></I18nProvider>);
+    expect(today.container.querySelector('.booking-gutter-today')).toBeNull();
+    cleanup();
+
+    const other = render(<I18nProvider><BookingTimeline {...props} isToday={false} onToday={onToday} /></I18nProvider>);
+    const back = other.container.querySelector<HTMLButtonElement>('.booking-gutter-today');
+    expect(back).not.toBeNull();
+    fireEvent.click(back!);
+    expect(onToday).toHaveBeenCalledTimes(1);
+  });
+
+  it('выбор даты в нативном инпуте зовёт onPickDate с yyyy-mm-dd', () => {
+    const onPickDate = mock((_value: string) => {});
+    const result = render(
+      <I18nProvider>
+        <BookingTimeline
+          groups={groups} axis={axis} nowMs={-1} loading={false} showSkeleton={false}
+          selectedReservationId="" branchName="AFK4" previewBlock={null}
+          dateLabel="Сегодня" dateValue="2026-06-19" isToday={true}
+          onPrevDay={() => {}} onNextDay={() => {}} onToday={() => {}} onPickDate={onPickDate}
+          onSelectBlock={() => {}} onCellCreate={() => {}} onSeatsCreate={() => {}}
+        />
+      </I18nProvider>
+    );
+    const input = result.container.querySelector<HTMLInputElement>('.booking-gutter-date input[type="date"]')!;
+    fireEvent.change(input, { target: { value: '2026-07-01' } });
+    expect(onPickDate).toHaveBeenCalledWith('2026-07-01');
+  });
+
   it('персистентная подсветка массовой брони покрывает все её строки', () => {
     const seatA: SeatSummary = { ...seat(), id: 'a1', name: 'PC-01' };
     const seatB: SeatSummary = { ...seat(), id: 'a2', name: 'PC-02' };
@@ -130,7 +173,8 @@ describe('BookingTimeline drag-to-create', () => {
           groups={twoRows} axis={axis} nowMs={-1} loading={false} showSkeleton={false}
           selectedReservationId="" branchName="AFK4"
           previewBlock={{ seatIds: ['a1', 'a2'], startMs: 2 * 3_600_000, endMs: 3 * 3_600_000 }}
-          dateLabel="Сегодня" onPrevDay={() => {}} onNextDay={() => {}} onSelectBlock={() => {}}
+          dateLabel="Сегодня" dateValue="2026-06-19" isToday={true}
+          onPrevDay={() => {}} onNextDay={() => {}} onToday={() => {}} onPickDate={() => {}} onSelectBlock={() => {}}
           onCellCreate={() => {}} onSeatsCreate={() => {}}
         />
       </I18nProvider>

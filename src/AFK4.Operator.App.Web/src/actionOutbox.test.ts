@@ -40,7 +40,6 @@ function seat(deviceId: string, activeSessionId: string | null): SeatSummary {
     stateLabel: 'В сессии',
     player: 'Активный клиент',
     remaining: 'играет сейчас',
-    billing: 'Wallet',
     device: 'PC-010 · Online · unlocked',
     command: 'Lease fresh',
     app: 'Shell',

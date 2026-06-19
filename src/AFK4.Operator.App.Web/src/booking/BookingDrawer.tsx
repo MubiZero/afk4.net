@@ -1,14 +1,15 @@
-import { Clock, Layers, MonitorCheck, Plus, Square, TriangleAlert, UserRoundPlus, Wallet, X } from 'lucide-react';
+import { useState } from 'react';
+import { Check, Clock, Copy, Layers, MonitorCheck, Plus, Square, TriangleAlert, UserRoundPlus, Wallet, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary } from '../operatorData';
 import type { Feedback } from '../operatorTypes';
 import { formatMinorUnits, formatTime, zoneLabel, type PlayerClientItem } from '../operatorHelpers';
-import { formatLocal } from '../phoneFormat';
+import { formatLocal, localPhoneDigits } from '../phoneFormat';
 import { FeedbackNotice, Skeleton } from '../operatorPrimitives';
 import { PanelSelect } from '../PanelSelect';
 import { ClientPicker } from './ClientPicker';
 import { DateTimePicker } from './DateTimePicker';
-import type { BookingItem } from './bookingModel';
+import { bookingStateLabelKey, type BookingItem } from './bookingModel';
 
 export interface BookingDraft {
   customerName: string;
@@ -66,6 +67,28 @@ function groupSeatsByZone(seats: SeatSummary[]): SeatSummary[] {
     }
   }
   return zoneOrder.flatMap((zone) => byZone.get(zone) ?? []);
+}
+
+// Телефон клиента в детали брони: он у нас уже есть, поэтому показываем его явно и даём оператору
+// скопировать в один клик (десктоп-станция — позвонить из самой панели нельзя, копия в буфер полезнее).
+function CopyablePhone({ phone }: { phone: string }) {
+  const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
+  const e164 = `+992${localPhoneDigits(phone)}`;
+  const copy = () => {
+    void navigator.clipboard?.writeText(e164);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <div className="booking-detail-phone">
+      <span>{t('clients.field.phone')}</span>
+      <button type="button" className="booking-phone-copy" onClick={copy} aria-label={t('op.booking.detail.copyPhone')}>
+        <strong>+992 {formatLocal(phone)}</strong>
+        {copied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
+      </button>
+    </div>
+  );
 }
 
 export function BookingDrawer(props: BookingDrawerProps) {
@@ -251,7 +274,7 @@ export function BookingDrawer(props: BookingDrawerProps) {
       ) : selected ? (
         <div className="booking-drawer-body">
           <div className={`booking-status-card ${selected.tone}`}>
-            <span>{selected.state}</span>
+            <span>{t(bookingStateLabelKey(selected.state))}</span>
             <strong>{formatTime(new Date(selected.startMs).toISOString())}</strong>
             <em>{selected.seatName ? `${zoneLabel(selected.zoneName, t)} · ${selected.seatName}` : zoneLabel(selected.zoneName, t)} · {t('op.booking.durationMin', { count: selected.durationMinutes })}</em>
           </div>
@@ -294,6 +317,7 @@ export function BookingDrawer(props: BookingDrawerProps) {
 
           <div className="booking-detail-list">
             <div><span>{t('op.booking.client')}</span><strong>{selected.customerName}</strong></div>
+            {localPhoneDigits(selected.phoneNumber).length > 0 && <CopyablePhone phone={selected.phoneNumber} />}
             <div><span>{t('op.booking.detail.comment')}</span><strong>{selected.note || t('op.booking.noComment')}</strong></div>
             <div><span>{t('op.booking.detail.source')}</span><strong>{selected.source === 'online' ? t('op.booking.source.online') : t('op.booking.source.operator')}</strong></div>
           </div>

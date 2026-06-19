@@ -6,8 +6,8 @@ import { formatDurationCompact } from './floorMapState';
 import { isAttentionTone, seatTileLead } from './seatTilePresentation';
 
 // Иконка типа проблемы для мест без сессии — настоящий сигнификатор «что не так», по тону.
-// Имя игрока/тариф/режим оплаты floor-map ещё не отдаёт (придёт в B1), поэтому плитку наполняем
-// тем, что реально знаем: остаток времени-герой, статус и тип проблемы — без заглушек.
+// На занятом месте рядом с именем ПК показываем клиента (реальное имя из floor-map DTO или «Гость»),
+// остальное наполнение — остаток времени-герой, статус и тип проблемы. Без заглушек.
 const PROBLEM_ICON: Partial<Record<SeatTone, ComponentType<{ size?: number; 'aria-hidden'?: boolean }>>> = {
   pending: Hourglass,
   offline: WifiOff,
@@ -29,6 +29,10 @@ export function SeatTile({
 }) {
   const { t } = useI18n();
   const lead = seatTileLead(seat);
+  const hasSession = seat.hasActiveSession === true || Boolean(seat.activeSessionId) || seat.tone === 'active';
+  // Кто за местом: реальное имя из DTO, иначе «Гость» для сессии без аккаунта. Для свободного
+  // и проблемного места без сессии — ничего (там приглашение «＋» или строка-причина).
+  const clientName = hasSession ? (seat.playerDisplayName?.trim() || t('op.floor.player.guest')) : null;
   const className = ['seat-tile', `state-${seat.tone}`,
     isAttentionTone(seat.tone) ? 'seat-tile--alert' : '',
     selected ? 'selected' : ''].filter(Boolean).join(' ');
@@ -62,6 +66,7 @@ export function SeatTile({
               поэтому видно целиком, а статус-слово несут точка и тело плитки, не отдельный чип. */}
           <span className="seat-dot" aria-hidden="true" />
           <strong>{seat.name}</strong>
+          {clientName && <span className="seat-client">{clientName}</span>}
         </span>
         {sessionOffline && (
           <WifiOff className="seat-offline-mark" size={13} aria-label={t('op.floor.remaining.pcOffline')} />

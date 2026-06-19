@@ -374,6 +374,46 @@
   white-space: nowrap;
 }
 
+/* Кликабельная дата: подпись + прозрачный нативный date-input поверх неё. */
+.booking-gutter-date {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  cursor: pointer;
+}
+
+.booking-gutter-date input[type='date'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.booking-gutter-date:hover strong {
+  color: var(--accent);
+}
+
+.booking-gutter-date:focus-within {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+/* Возврат к сегодня — компактная icon-кнопка, появляется только при уходе от текущей даты. */
+.booking-gutter-today {
+  flex: none;
+  width: 22px;
+  color: var(--accent);
+}
+
 .booking-axis-track {
   position: relative;
   overflow: hidden;
@@ -1594,6 +1634,56 @@
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Строка телефона в детали: лейбл слева, кликабельный номер с иконкой копирования справа. */
+.booking-detail-phone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.booking-detail-phone > span {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-phone-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+
+.booking-phone-copy strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-phone-copy:hover {
+  border-color: var(--border-soft);
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.booking-phone-copy:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 1px;
 }
 
 /* ── Основное действие в drawer (переиспользуется) ───────────────────────── */

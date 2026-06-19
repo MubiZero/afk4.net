@@ -11,7 +11,6 @@ function seat(overrides: Partial<SeatSummary>): SeatSummary {
     stateLabel: 'Свободно',
     player: 'Гость',
     remaining: 'Свободно',
-    billing: 'Fast guest',
     device: 'Device',
     command: 'Idle',
     app: 'Shell',

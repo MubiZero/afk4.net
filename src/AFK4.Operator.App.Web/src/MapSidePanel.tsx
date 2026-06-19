@@ -971,10 +971,14 @@ export function MapSidePanel({
               <span>{t('op.map.panel.versions')}</span>
               <strong>{appVersionsLabel(seat.app, t)}</strong>
             </div>
-            <div className="detail-row">
-              <span>{t('op.map.panel.commandLabel')}</span>
-              <strong>{commandLabel(seat.command, t)}</strong>
-            </div>
+            {/* Команда несёт смысл только в проблемных состояниях (ожидание/сбой/нет связи) —
+                для активной/свободной сессии она дублирует чип статуса, поэтому её прячем. */}
+            {(seat.tone === 'pending' || seat.tone === 'offline') && (
+              <div className="detail-row">
+                <span>{t('op.map.panel.commandLabel')}</span>
+                <strong>{commandLabel(seat.command, t)}</strong>
+              </div>
+            )}
           </div>
         </section>
       )}

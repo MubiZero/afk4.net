@@ -14,12 +14,12 @@ const deviceId = '11111111-1111-1111-1111-111111111111';
 const t = createTranslator('ru');
 
 describe('floor-map state', () => {
-  it('creates a fixture fallback state for offline browser-dev runs', () => {
+  it('starts from an empty seat set so the map shows a skeleton, not placeholder PCs', () => {
     const state = createFixtureFloorMapState();
 
     expect(state.source).toBe('fixture');
     expect(state.loadStatus).toBe('idle');
-    expect(state.seats.length).toBeGreaterThan(0);
+    expect(state.seats).toEqual([]);
   });
 
   it('maps backend floor-map DTOs to sorted operator seat summaries', () => {
@@ -75,7 +75,6 @@ describe('floor-map state', () => {
     expect(state.seats[0]).toMatchObject({
       tone: 'active',
       remaining: '≈ 22,5 с.',
-      billing: 'Открытый счёт',
       accruedCostMinorUnits: 2250,
       currencyCode: 'TJS'
     });
