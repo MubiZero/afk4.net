@@ -159,7 +159,16 @@ export function ClientDetail(props: {
           />
         )}
         {props.activeTab === 'history' && (
-          <HistorySection entries={props.recentEntries} currencyCode={props.currencyCode} />
+          // TODO Task 7: заменить заглушки на оркестраторные пропсы (activeFilter/onFilterChange/hasMore/onLoadMore/loading)
+          <HistorySection
+            entries={props.recentEntries}
+            currencyCode={props.currencyCode}
+            activeFilter={null}
+            onFilterChange={() => {}}
+            hasMore={false}
+            onLoadMore={() => {}}
+            loading={false}
+          />
         )}
       </div>
     </section>
