@@ -47,6 +47,13 @@ export interface WalletSummaryDto {
   recentEntries: LedgerEntryDto[];
 }
 
+// Зеркало AFK4.Shared.Contracts.Common.CursorPage<T> (camelCase): страница + курсор следующей
+// страницы (null = больше нет).
+export interface CursorPageDto<T> {
+  items: T[];
+  nextCursor: string | null;
+}
+
 export interface PlayerPackageDto {
   playerPackageId: Guid;
   packageDefinitionId: Guid;
@@ -98,6 +105,17 @@ export function createPlayerClient(api: PlatformApiClient) {
     },
     getWalletSummary(playerAccountId: Guid): Promise<WalletSummaryDto> {
       return api.get<WalletSummaryDto>(`/api/players/${playerAccountId}/wallet-summary`);
+    },
+    getLedger(
+      playerAccountId: Guid,
+      params: { entryType?: string; accountType?: string; cursor?: string; limit?: number } = {}
+    ): Promise<CursorPageDto<LedgerEntryDto>> {
+      const query: Record<string, string | number> = {};
+      if (params.entryType) query.entryType = params.entryType;
+      if (params.accountType) query.accountType = params.accountType;
+      if (params.cursor) query.before = params.cursor; // курсор уходит на бэк как `before`
+      if (params.limit !== undefined) query.limit = params.limit;
+      return api.get<CursorPageDto<LedgerEntryDto>>(`/api/players/${playerAccountId}/ledger`, query);
     },
     getPlayerPackages(playerAccountId: Guid): Promise<PlayerPackageDto[]> {
       return api.get<PlayerPackageDto[]>(`/api/players/${playerAccountId}/packages`);
