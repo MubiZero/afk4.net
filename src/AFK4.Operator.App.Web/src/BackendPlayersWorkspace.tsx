@@ -12,17 +12,12 @@ import {
   createIdempotencyKey,
   dataSourceLabel,
   emptyFeedback,
-  fixturePlayers,
   formatMinorUnits,
   formatMoney,
   formatTime,
   packageOptionLabel,
   parseMoneyInputMinorUnits,
   formatMoneyInputMinorUnits,
-  playerPackageLabel,
-  playerStatusLabel,
-  type PlayerClientItem,
-  projectPlayerClient,
   readArray,
   readMoney,
   readNumber,
@@ -30,6 +25,7 @@ import {
   requireBackend,
   workspaceLoadStatusLabel
 } from './operatorHelpers';
+import { fixturePlayers, playerPackageLabel, playerStatusLabel, projectPlayerClient, type PlayerClientItem } from './players/playersModel';
 import { FeedbackNotice, StateFlag } from './operatorPrimitives';
 
 type PlayerActionId = 'topUp' | 'writeOffDebt' | 'buyPackage' | 'booking' | 'newCard';
