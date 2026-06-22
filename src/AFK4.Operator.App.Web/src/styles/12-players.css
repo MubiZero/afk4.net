@@ -1,55 +1,76 @@
+/* ── Вкладка «Клиенты»: master-detail (список + карточка с табами) ──────────── */
+
+.clients-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .clients-head {
   margin-bottom: 8px;
 }
 
-.clients-state-strip {
-  margin-bottom: 8px;
+.clients-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
+.clients-new-client-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0 12px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 12px;
+  font-weight: 700;
+  transition: background 100ms ease, transform 100ms ease;
+}
+
+.clients-new-client-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.clients-new-client-btn:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.clients-new-client-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.clients-new-client-btn:disabled {
+  cursor: not-allowed;
+  border-color: var(--border-default);
+  background: var(--surface-muted);
+  color: var(--text-quaternary);
+}
+
+/* Layout: список фиксированной ширины + карточка на остаток; тянется на остаток высоты. */
 .clients-layout {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: minmax(0, 1fr) 187px;
-  grid-template-areas:
-    "list list profile actions"
-    "segments segments history history";
+  grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
   gap: 10px;
-  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px) - 20px - 43px - 36px);
+  flex: 1;
   min-height: 0;
   overflow: hidden;
 }
 
 .clients-panel {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--border-soft);
   border-radius: 7px;
   background: var(--surface-elevated);
-}
-
-.clients-list-panel {
-  grid-area: list;
-}
-
-.clients-profile-panel {
-  grid-area: profile;
-  display: grid;
-  align-content: start;
-  gap: 10px;
-}
-
-.clients-actions-panel {
-  grid-area: actions;
-  overflow: auto;
-}
-
-.clients-segments-panel {
-  grid-area: segments;
-}
-
-.clients-history-panel {
-  grid-area: history;
 }
 
 .clients-panel-title {
@@ -62,7 +83,7 @@
 .clients-panel-title span {
   overflow: hidden;
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.08;
   text-overflow: ellipsis;
@@ -73,12 +94,13 @@
   overflow: hidden;
   color: var(--text-secondary);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* ── Список (master) ────────────────────────────────────────────────────────── */
 .clients-search {
   display: flex;
   align-items: center;
@@ -102,86 +124,115 @@
   font-size: 12px;
 }
 
+.clients-segment-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 12px 8px;
+}
+
+.clients-segment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  padding: 0 11px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.clients-segment-chip b {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.clients-segment-chip:hover:not(.active),
+.clients-segment-chip:focus-visible {
+  border-color: var(--border-accent);
+  color: var(--accent-bright);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.clients-segment-chip:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.clients-segment-chip.active {
+  border-color: var(--accent);
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+}
+
+.clients-segment-chip.active b {
+  color: var(--accent-bright);
+}
+
 .clients-list {
   display: grid;
+  align-content: start;
   gap: 5px;
   padding: 0 12px 10px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.clients-list-skeleton {
+  display: grid;
+  gap: 5px;
+}
+
+.client-row-skel {
+  height: 44px;
+  border-radius: 6px;
 }
 
 .client-row {
   display: grid;
-  grid-template-columns: 74px minmax(0, 1fr) 96px 96px;
+  grid-template-columns: 70px minmax(0, 1fr) 90px;
+  grid-template-rows: auto;
   align-items: center;
-  gap: 9px;
-  min-height: 36px;
+  gap: 4px 9px;
+  min-height: 40px;
   border: 1px solid var(--border-default);
   border-left: 3px solid var(--text-tertiary);
   border-radius: 6px;
-  padding: 4px 9px;
+  padding: 5px 9px;
   background: var(--surface-card);
   color: var(--text-strong);
   text-align: left;
   transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
 }
 
-.clients-empty-state {
-  display: grid;
-  gap: 4px;
-  min-height: 56px;
-  border: 1px dashed var(--border-strong);
-  border-radius: 6px;
-  padding: 12px;
-  background: var(--surface-elevated);
-  color: var(--text-secondary);
-}
-
-.clients-empty-state strong {
-  color: var(--text-primary);
-  font-size: 13px;
-}
-
-.clients-empty-state span {
-  font-size: 11px;
-  line-height: 1.25;
-}
-
 .client-row:hover,
-.client-row:focus-visible,
-.clients-action-card:hover,
-.clients-action-card:focus-visible {
+.client-row:focus-visible {
   border-color: var(--border-accent);
   background: var(--surface-hover);
   outline: none;
   transform: translateY(-1px);
 }
 
-.clients-action-card:disabled,
-.clients-action-card:disabled:hover,
-.clients-action-card:disabled:focus-visible {
-  cursor: not-allowed;
-  border-color: var(--border-default);
-  background: var(--surface-muted);
-  color: var(--text-quaternary);
-  transform: none;
+.client-row:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
 }
 
-.client-row.vip {
-  border-left-color: var(--accent-hover);
-}
-
-.client-row.active,
-.client-row.booking {
-  border-left-color: var(--success);
-}
+.client-row.vip { border-left-color: var(--accent-hover); }
+.client-row.active { border-left-color: var(--success); }
+.client-row.regular { border-left-color: var(--text-tertiary); }
+.client-row.debt { border-left-color: var(--danger); }
 
 .client-row.selected {
   border-color: var(--border-accent);
   background: var(--surface-hover);
   box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.22);
-}
-
-.client-row.debt {
-  border-left-color: var(--danger);
 }
 
 .client-row > span {
@@ -199,30 +250,15 @@
   gap: 2px;
 }
 
-.client-row strong,
-.clients-action-card strong,
-.client-history-row strong,
-.clients-segment-grid strong,
-.client-profile-card strong,
-.client-metrics-grid strong {
+.client-row strong {
   overflow: hidden;
   color: var(--text-primary);
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.client-row strong {
-  font-size: 13px;
-}
-
-.client-row em,
-.client-row small,
-.clients-action-card span,
-.client-history-row span,
-.clients-segment-grid span,
-.client-profile-card span,
-.client-profile-card em,
-.client-metrics-grid span {
+.client-row em {
   overflow: hidden;
   color: var(--text-secondary);
   font-size: 11px;
@@ -240,29 +276,29 @@
   white-space: nowrap;
 }
 
-.client-row small {
+.client-row-debt {
+  grid-column: 3;
+  color: var(--danger-text);
+  font-size: 11px;
+  font-weight: 600;
   text-align: right;
 }
 
-.client-profile-card {
+/* ── Карточка (detail) ──────────────────────────────────────────────────────── */
+.clients-detail-panel {
+  gap: 10px;
+}
+
+.client-detail-head {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  margin: 0 12px;
+  margin: 12px 12px 0;
   border: 1px solid var(--border-default);
   border-radius: 7px;
   padding: 12px;
   background: var(--surface-card);
-}
-
-.client-profile-card.empty {
-  border-style: dashed;
-  background: var(--surface-elevated);
-}
-
-.client-profile-card.empty .client-avatar {
-  background: var(--border-strong);
 }
 
 .client-avatar {
@@ -277,25 +313,78 @@
   font-weight: 700;
 }
 
-.client-profile-card div:last-child {
+.client-detail-ident {
   display: grid;
   min-width: 0;
   gap: 3px;
 }
 
-.client-profile-card strong {
-  font-size: 20px;
-  line-height: 1.05;
+.client-detail-status {
+  color: var(--accent-on-soft);
+  font-size: 11px;
+  font-weight: 600;
 }
 
-.client-metrics-grid {
+.client-detail-ident strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 20px;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-detail-ident em {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-detail-reservation {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 0 12px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 600;
+  transition: border-color 100ms ease, background 100ms ease, color 100ms ease, transform 100ms ease;
+}
+
+.client-detail-reservation:hover:not(:disabled) {
+  border-color: var(--border-accent);
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+  transform: translateY(-1px);
+}
+
+.client-detail-reservation:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.client-detail-reservation:disabled {
+  cursor: not-allowed;
+  border-color: var(--border-default);
+  background: var(--surface-muted);
+  color: var(--text-quaternary);
+}
+
+.client-detail-chips {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   padding: 0 12px;
 }
 
-.client-metrics-grid div {
+.client-chip {
   display: grid;
   gap: 3px;
   border: 1px solid var(--border-default);
@@ -304,69 +393,124 @@
   background: var(--surface-elevated);
 }
 
-.client-metrics-grid strong {
+.client-chip span {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.client-chip strong {
+  color: var(--text-primary);
   font-size: 18px;
   line-height: 1;
 }
 
-.client-package-list {
-  display: grid;
-  gap: 6px;
-  padding: 0 12px;
+.client-chip.is-debt {
+  border-color: var(--danger-soft-border);
+  background: var(--danger-soft-bg);
 }
 
-.client-package-row {
+.client-chip.is-debt strong {
+  color: var(--danger-text);
+}
+
+.client-detail-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.client-detail-tab {
+  height: 32px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 10px;
+  transition: color 100ms ease, border-color 100ms ease;
+}
+
+.client-detail-tab:hover {
+  color: var(--text-primary);
+}
+
+.client-detail-tab:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: -2px;
+}
+
+.client-detail-tab.active {
+  color: var(--accent-bright);
+  border-bottom-color: var(--accent);
+}
+
+.client-detail-content {
+  overflow-y: auto;
+  min-height: 0;
+  padding: 0 12px 12px;
+}
+
+/* ── Кошелёк ─────────────────────────────────────────────────────────────────── */
+.clients-wallet-section {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 58px;
-  gap: 2px 8px;
-  min-height: 34px;
+  gap: 12px;
+}
+
+.clients-wallet-figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.clients-wallet-figure {
+  display: grid;
+  gap: 3px;
   border: 1px solid var(--border-default);
   border-radius: 6px;
-  padding: 7px 9px;
+  padding: 10px;
   background: var(--surface-elevated);
 }
 
-.client-package-row strong,
-.client-package-row span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-package-row strong {
-  color: var(--text-primary);
-  font-size: 12px;
-}
-
-.client-package-row span {
+.clients-wallet-figure span {
   color: var(--text-secondary);
-  font-size: 10px;
-}
-
-.client-package-row b {
-  grid-row: 1 / 3;
-  grid-column: 2;
-  align-self: center;
-  color: var(--accent-on-soft);
   font-size: 11px;
-  text-align: right;
-  white-space: nowrap;
 }
 
-.clients-action-grid {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
+.clients-wallet-figure strong {
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
 }
 
-.clients-money-form {
+.clients-wallet-figure.is-debt strong {
+  color: var(--danger-text);
+}
+
+.clients-wallet-form {
   display: grid;
   gap: 7px;
-  padding: 10px 12px 0;
+  border: 1px solid var(--border-default);
+  border-radius: 7px;
+  padding: 10px 12px;
+  background: var(--surface-card);
 }
 
-.clients-money-form label,
-.clients-package-form label {
+.clients-wallet-form.is-muted {
+  opacity: 0.62;
+}
+
+.clients-section-title {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.clients-wallet-form label,
+.clients-package-select,
+.clients-new-form label {
   display: grid;
   gap: 4px;
   color: var(--text-secondary);
@@ -374,9 +518,10 @@
   font-weight: 600;
 }
 
-.clients-money-form input,
-.clients-package-form select {
-  height: 28px;
+.clients-wallet-form input,
+.clients-package-select select,
+.clients-new-form input {
+  height: 30px;
   min-width: 0;
   border: 1px solid var(--border-default);
   border-radius: 5px;
@@ -384,18 +529,134 @@
   outline: 0;
   background: var(--surface-sunken);
   color: var(--text-primary);
+  color-scheme: dark;
   font-size: 12px;
+  transition: border-color 100ms ease, box-shadow 100ms ease;
 }
 
-.clients-money-form input:disabled,
-.clients-package-form select:disabled {
+.clients-wallet-form input:focus,
+.clients-package-select select:focus,
+.clients-new-form input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.22);
+}
+
+.clients-wallet-form input:disabled,
+.clients-package-select select:disabled {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+}
+
+.clients-primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  margin-top: 2px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 12px;
+  font-weight: 700;
+  transition: background 100ms ease, transform 100ms ease;
+}
+
+.clients-primary-action:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.clients-primary-action:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.clients-primary-action:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.clients-primary-action:disabled {
+  cursor: not-allowed;
+  border-color: var(--border-default);
+  background: var(--surface-muted);
   color: var(--text-quaternary);
 }
 
-.clients-package-form {
+.clients-debt-action {
+  border-color: var(--danger-soft-border);
+  background: transparent;
+  color: var(--danger-text);
+}
+
+.clients-debt-action:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: var(--danger-soft-bg);
+  color: var(--danger-text);
+}
+
+/* ── Пакеты ──────────────────────────────────────────────────────────────────── */
+.clients-packages-section {
+  display: grid;
+  gap: 12px;
+}
+
+.client-package-list {
+  display: grid;
+  gap: 6px;
+}
+
+.client-package-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 9px 11px;
+  background: var(--surface-elevated);
+}
+
+.client-package-row.is-expired {
+  opacity: 0.6;
+}
+
+.client-package-row strong {
+  grid-column: 1;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-package-row span {
+  grid-column: 1;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.client-package-bonus {
+  color: var(--accent-on-soft) !important;
+}
+
+.client-package-row b {
+  grid-row: 1 / 3;
+  grid-column: 2;
+  align-self: center;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.clients-package-buy {
   display: grid;
   gap: 8px;
-  padding: 10px 12px 0;
+  border: 1px solid var(--border-default);
+  border-radius: 7px;
+  padding: 10px 12px;
+  background: var(--surface-card);
 }
 
 .clients-package-preview {
@@ -415,8 +676,8 @@
 }
 
 .clients-package-preview span.attention {
-  border-color: rgba(239, 68, 68, 0.56);
-  background: rgba(127, 29, 29, 0.18);
+  border-color: var(--danger-soft-border);
+  background: var(--danger-soft-bg);
 }
 
 .clients-package-preview strong,
@@ -436,83 +697,97 @@
   font-size: 12px;
 }
 
-.clients-action-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  align-items: center;
-  gap: 2px 8px;
-  min-height: 54px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 9px 10px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  text-align: left;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
-}
-
-.clients-action-card svg {
-  grid-row: 1 / 3;
-  color: var(--accent-text);
-}
-
-.clients-action-card strong {
-  font-size: 13px;
-}
-
-.clients-segment-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding: 8px 12px 10px;
-}
-
-.clients-segment-grid button {
-  display: grid;
-  gap: 3px;
-  min-height: 40px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 7px 10px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  text-align: left;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
-}
-
-.clients-segment-grid button:hover,
-.clients-segment-grid button:focus-visible,
-.clients-segment-grid button.active {
-  border-color: var(--border-accent);
-  background: var(--surface-hover);
-  outline: none;
-  transform: translateY(-1px);
-}
-
-.clients-segment-grid strong {
-  font-size: 13px;
-}
-
+/* ── История ─────────────────────────────────────────────────────────────────── */
 .clients-history-list {
   display: grid;
-  gap: 6px;
-  padding: 8px 12px 10px;
+  gap: 4px;
 }
 
 .client-history-row {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr) auto;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 9px;
-  min-height: 28px;
+  gap: 10px;
+  min-height: 36px;
   border-bottom: 1px solid var(--border-soft);
+  padding: 6px 2px;
 }
 
-.client-history-row b {
+.client-history-time {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.client-history-body {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.client-history-body strong {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
   color: var(--text-primary);
-  font-size: 13px;
-  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.client-history-reversal {
+  flex: none;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.client-history-detail {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.client-history-amount {
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.client-history-row.is-credit .client-history-amount {
+  color: var(--success-text);
+}
+
+.client-history-row.is-debit .client-history-amount {
+  color: var(--danger-text);
+}
+
+/* ── Модалка нового клиента (поверх .panel-modal) ───────────────────────────── */
+.clients-new-form {
+  display: grid;
+  gap: 10px;
+  min-width: 280px;
+}
+
+/* ── Reduced motion ───────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .client-row,
+  .clients-segment-chip,
+  .client-detail-tab,
+  .clients-primary-action,
+  .clients-new-client-btn,
+  .client-detail-reservation {
+    transition: none;
+  }
+}
