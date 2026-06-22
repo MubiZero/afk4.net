@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5174",
     "build": "tsc -b && vite build",
-    "test": "bun test $(ls src/*.test.ts src/*.test.tsx | grep -v App.test) && bun test src/App.test.tsx",
+    "test": "bun test $(find src -name '*.test.ts' -o -name '*.test.tsx' | grep -v App.test) && bun test src/App.test.tsx",
     "preview": "vite preview --host 127.0.0.1 --port 4174"
   },
   "dependencies": {
