@@ -7,7 +7,7 @@ metadata:
   originSessionId: af6ceac8-6e34-4042-8419-c1df5efb0a7c
 ---
 
-Этап 3 «Клиенты» программы редизайна Operator (см. [[operator-redesign-phase0-decisions]]) — **в работе** на ветке `feat/operator-clients-overhaul`. Раздел = воркспейс `players` (`BackendPlayersWorkspace.tsx`, ~650 строк, **НЕ заглушка**: поиск/профиль/кошелёк/пакеты/долг/создание уже работают). Сущность на бэке = **Player/PlayerAccount**, в вебе зовётся client.
+Этап 3 «Клиенты» программы редизайна Operator (см. [[operator-redesign-phase0-decisions]]) — **в работе** на ветке `feat/operator-clients-overhaul`. **S0 готов → PR #103** (типизация API-клиента игроков, feature-папка `src/players/`+тесты, заполнен dev-mock; no-behavior-change, 359/359 тестов). Дальше: S1 (визуал master-detail) — план ещё не написан. Раздел = воркспейс `players` (`BackendPlayersWorkspace.tsx`, ~650 строк, **НЕ заглушка**: поиск/профиль/кошелёк/пакеты/долг/создание уже работают). Сущность на бэке = **Player/PlayerAccount**, в вебе зовётся client.
 
 **Объём (полный овэрхол): и редизайн, и функц-дыры.** Решения:
 - **Подход A** — master-detail (список слева + богатая карточка с табами Кошелёк/Пакеты/История) + drawer/модалки для редкого/чувствительного (паттерн `BookingDrawer`).
