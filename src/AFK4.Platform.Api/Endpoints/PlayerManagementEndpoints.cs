@@ -261,6 +261,56 @@ internal static class PlayerManagementEndpoints
                 : Results.Ok(summary);
         });
 
+        app.MapGet("/api/players/{playerAccountId:guid}/ledger", async (
+            Guid playerAccountId,
+            string? entryType,
+            string? accountType,
+            string? before,
+            int? limit,
+            PlatformDbContext dbContext,
+            IStaffContextAccessor staffContextAccessor,
+            StaffAuthorizationService authorizationService,
+            CancellationToken cancellationToken) =>
+        {
+            if (!PlayerLedgerFilter.IsValidEntryType(entryType))
+            {
+                return Results.BadRequest(new { Error = $"Unknown entryType '{entryType}'." });
+            }
+
+            if (!PlayerLedgerFilter.IsValidAccountType(accountType))
+            {
+                return Results.BadRequest(new { Error = $"Unknown accountType '{accountType}'." });
+            }
+
+            var player = await LoadPlayerScopedEndpointAsync(
+                dbContext,
+                staffContextAccessor,
+                authorizationService,
+                playerAccountId,
+                StaffPermissionNames.ViewBilling,
+                cancellationToken);
+            if (player.Result is not null)
+            {
+                return player.Result;
+            }
+
+            if (!player.Authorization!.IsAllowed)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var page = await PlayerLedgerProjector.GetLedgerPageAsync(
+                dbContext,
+                playerAccountId,
+                entryType,
+                accountType,
+                before,
+                PlayerLedgerFilter.ClampLimit(limit),
+                cancellationToken);
+
+            return Results.Ok(page);
+        });
+
         app.MapPost("/api/players/{playerAccountId:guid}/wallet/top-ups", async (
             Guid playerAccountId,
             TopUpWalletRequest request,
