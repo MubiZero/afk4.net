@@ -860,16 +860,17 @@ describe('App', () => {
     expect(screen.getByText('Быстрые операции')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Клиенты'));
-    const clientsHead = screen.getByRole('heading', { name: /Клиенты/ }).closest('.screen-head');
+    const clientsHead = (await screen.findByRole('heading', { name: /Клиенты/ })).closest('.screen-head');
     expect(clientsHead).toBeInTheDocument();
-    expect(clientsHead).not.toHaveTextContent('Все');
-    expect(clientsHead).not.toHaveTextContent('VIP');
-    expect(clientsHead).not.toHaveTextContent('Долги');
+    // глобальные метрики в шапке — но НЕ per-client сегменты/числа
+    expect(clientsHead).not.toHaveTextContent('Долг');
     expect(screen.getByText('Список клиентов')).toBeInTheDocument();
-    expect(screen.getByText('Карточка клиента')).toBeInTheDocument();
-    expect(screen.getByText('Операции')).toBeInTheDocument();
+    // master-detail: табы карточки (появляются после загрузки клиентов)
+    expect(await screen.findByRole('tab', { name: 'Кошелёк' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Пакеты' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'История' })).toBeInTheDocument();
+    // кнопка действия на активном табе (Кошелёк)
     expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeInTheDocument();
-    expect(screen.getByText('История клиента')).toBeInTheDocument();
 
     gotoWorkspace('Платежи');
     const paymentsHead = screen.getByRole('heading', { name: /Платежи/ }).closest('.screen-head');
@@ -1846,7 +1847,7 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     expect((await screen.findAllByText('Madina S.')).length).toBeGreaterThan(0);
-    const createReservationButton = screen.getByRole('button', { name: /Создать бронь/ });
+    const createReservationButton = screen.getByRole('button', { name: 'Бронь' });
     await waitFor(() => expect(createReservationButton).toBeEnabled());
     fireEvent.click(createReservationButton);
 
@@ -1875,7 +1876,7 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
 
-    expect(screen.getByRole('button', { name: /Создать бронь/ })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Бронь' })).toBeDisabled();
   });
 
   it('purchases a backend package from the selected client card', async () => {
@@ -1886,6 +1887,7 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Пакеты' }));
     await waitFor(() => expect(screen.getByRole('button', { name: /Купить пакет/ })).toBeEnabled());
     fireEvent.change(await screen.findByLabelText('Пакет для покупки'), { target: { value: 'cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd' } });
     const purchasePackageButton = await screen.findByRole('button', { name: /Купить пакет/ });
@@ -1913,8 +1915,8 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-
-    expect(await screen.findByText(/180 мин/)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Пакеты' }));
+    expect(await screen.findByText(/180 мин в пакете/)).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/packages') &&
       init?.method !== 'POST')).toBe(true);
@@ -1928,7 +1930,7 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Сумма пополнения'), { target: { value: '123.45' } });
+    fireEvent.change(await screen.findByLabelText('Сумма пополнения'), { target: { value: '123.45' } });
     fireEvent.change(screen.getByLabelText('Причина пополнения'), { target: { value: 'cash desk deposit' } });
     const topUpWalletButton = screen.getByRole('button', { name: /Пополнить депозит/ });
     await waitFor(() => expect(topUpWalletButton).toBeEnabled());
@@ -1986,9 +1988,11 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Имя нового клиента'), { target: { value: 'Zarina N.' } });
-    fireEvent.change(screen.getByLabelText('Телефон нового клиента'), { target: { value: '+992 90 777 88 99' } });
-    fireEvent.click(screen.getByRole('button', { name: /Новая карта/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Новый клиент/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Новый клиент' });
+    fireEvent.change(within(dialog).getByLabelText('Имя нового клиента'), { target: { value: 'Zarina N.' } });
+    fireEvent.change(within(dialog).getByLabelText('Телефон нового клиента'), { target: { value: '+992 90 777 88 99' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Создать/ }));
 
     expect(await screen.findByText('Новая карта: подтверждено')).toBeInTheDocument();
     const createPlayerCall = fetchMock.mock.calls.find(([input, init]) =>
