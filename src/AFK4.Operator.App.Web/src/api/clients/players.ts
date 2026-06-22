@@ -49,6 +49,8 @@ export interface WalletSummaryDto {
 
 export interface PlayerPackageDto {
   playerPackageId: Guid;
+  packageDefinitionId: Guid;
+  playerAccountId: Guid;
   name: string;
   purchasedPrice: MoneyDto;
   includedSeconds: number;
