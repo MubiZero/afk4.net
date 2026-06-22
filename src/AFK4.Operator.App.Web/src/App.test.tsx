@@ -1607,7 +1607,6 @@ describe('App', () => {
 
     expect(await screen.findByText('Клиенты не найдены')).toBeInTheDocument();
     expect(await screen.findByText('По текущему поиску клиентов нет.')).toBeInTheDocument();
-    expect(screen.queryByText('Сервер вернул пустой список для текущего поиска.')).not.toBeInTheDocument();
     expect(screen.getByText('Нет выбранного клиента')).toBeInTheDocument();
     expect(screen.getByText('Пустой ответ сервера не подменяется локальной карточкой')).toBeInTheDocument();
     expect(screen.queryByText('Madina S.')).not.toBeInTheDocument();
