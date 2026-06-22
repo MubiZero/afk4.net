@@ -791,3 +791,105 @@
     transition: none;
   }
 }
+
+/* ── История: фильтр-чипы + «Показать ещё» + скелетон (S1b) ─────────────────── */
+.clients-history-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.clients-history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.clients-history-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  padding: 0 11px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.clients-history-chip:hover:not(.active) {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.clients-history-chip:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.clients-history-chip:active {
+  transform: scale(0.97);
+}
+
+.clients-history-chip.active {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.16);
+  color: var(--text-primary);
+}
+
+.clients-history-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.client-history-skel {
+  height: 38px;
+  border-radius: 6px;
+}
+
+.clients-history-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: center;
+  height: 30px;
+  margin-top: 4px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 0 14px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.clients-history-more:hover:not(:disabled) {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.clients-history-more:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.clients-history-more:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.clients-history-more:disabled {
+  cursor: not-allowed;
+  color: var(--text-quaternary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clients-history-chip,
+  .clients-history-more {
+    transition: none;
+  }
+}
