@@ -300,6 +300,18 @@ function ledgerLog(): Array<Record<string, unknown>> {
   return log; // уже newest-first (i=0 — самая свежая)
 }
 
+// Мутируемое хранилище журнала для превью: write-действия (корректировка/возврат) добавляют сюда
+// записи, чтобы История/баланс в превью обновлялись. Лениво инициализируется из ledgerLog().
+let mutableLedger: Array<Record<string, unknown>> | null = null;
+function ledger(): Array<Record<string, unknown>> {
+  if (mutableLedger === null) mutableLedger = ledgerLog();
+  return mutableLedger;
+}
+let nextLedgerSeq = 1000;
+function prependLedger(entry: Record<string, unknown>): void {
+  ledger().unshift(entry);
+}
+
 // Keyset-страница для /ledger: фильтр по entryType/accountType, курсор по индексу записи в журнале.
 // Курсор = base64(`${index}`) — простой и детерминированный (на бэке курсор иной, но клиенту он
 // непрозрачен, важна лишь корректность «следующей страницы»).
@@ -309,7 +321,7 @@ function ledgerPage(searchParams: URLSearchParams): { items: Array<Record<string
   const before = searchParams.get('before');
   const limit = Math.min(Math.max(Number.parseInt(searchParams.get('limit') ?? '50', 10) || 50, 1), 100);
 
-  let all = ledgerLog();
+  let all = ledger();
   if (entryType) all = all.filter((e) => e.entryType === entryType);
   if (accountType) all = all.filter((e) => e.accountType === accountType);
 
@@ -327,8 +339,19 @@ function ledgerPage(searchParams: URLSearchParams): { items: Array<Record<string
   return { items, nextCursor };
 }
 
+// Сумма wallet-проводок в исходном журнале — вычитаем, чтобы стартовый баланс превью был 45000.
+const ledgerLogWalletBaseline = ledgerLog()
+  .filter((e) => e.accountType === 'wallet')
+  .reduce((acc, e) => acc + ((e.amount as { minorUnits: number }).minorUnits ?? 0), 0);
+
 function walletSummary() {
-  return { playerAccountId: 'pl-1', walletBalance: money(45000), debtBalance: money(0), recentEntries: ledgerLog().slice(0, 5) };
+  const log = ledger();
+  const sumByAccount = (account: string) =>
+    log.filter((e) => e.accountType === account)
+      .reduce((acc, e) => acc + ((e.amount as { minorUnits: number }).minorUnits ?? 0), 0);
+  const wallet = 45000 + sumByAccount('wallet') - ledgerLogWalletBaseline;
+  const debt = Math.max(0, sumByAccount('debt'));
+  return { playerAccountId: 'pl-1', walletBalance: money(wallet), debtBalance: money(debt), recentEntries: log.slice(0, 5) };
 }
 
 function playerPackages() {
@@ -385,6 +408,39 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   const matched = route(url.pathname, method);
   if (matched !== undefined) {
     return json(matched);
+  }
+  if (url.pathname.endsWith('/ledger/manual-corrections') && method === 'POST') {
+    let req: Record<string, unknown> = {};
+    try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
+    const amount = req.amount as { currencyCode: string; minorUnits: number } | undefined;
+    prependLedger({
+      ledgerEntryId: `le-c${nextLedgerSeq++}`, organizationId: ORG, branchId: BRANCH, playerAccountId: 'pl-1',
+      sessionId: null, playerPackageId: null, entryType: 'manual_correction',
+      accountType: (req.accountType as string) ?? 'wallet', amount: amount ?? money(0),
+      quantitySeconds: 0, description: 'Ручная корректировка', reason: (req.reason as string) ?? '',
+      reversesLedgerEntryId: null, createdByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
+      createdAtUtc: minutesAgoUtc(0)
+    });
+    return json(walletSummary());
+  }
+  if (url.pathname.endsWith('/refunds') && url.pathname.includes('/ledger/') && method === 'POST') {
+    let req: Record<string, unknown> = {};
+    try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
+    const amount = req.amount as { currencyCode: string; minorUnits: number } | undefined;
+    const reversedId = (req.ledgerEntryId as string) ?? null;
+    const entry = {
+      ledgerEntryId: `le-r${nextLedgerSeq++}`, organizationId: ORG, branchId: BRANCH, playerAccountId: 'pl-1',
+      sessionId: null, playerPackageId: null, entryType: 'refund', accountType: 'wallet',
+      amount: money(-Math.abs(amount?.minorUnits ?? 0)), quantitySeconds: 0,
+      description: 'Возврат операции', reason: (req.reason as string) ?? '',
+      reversesLedgerEntryId: reversedId, createdByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
+      createdAtUtc: minutesAgoUtc(0)
+    };
+    prependLedger(entry);
+    return json(entry);
+  }
+  if (url.pathname.endsWith('/pin') && method === 'POST') {
+    return noContent();
   }
   // Writes acknowledge with no content; unmatched reads return an empty list so list-driven screens
   // render their themed empty state instead of throwing.
