@@ -1099,7 +1099,7 @@ export function MapSidePanel({
               disabled={!actionsEnabled || isBusy || !selectedPlayer || playerPackages.length === 0}
               placeholder={t('op.map.panel.noPackages')}
               options={playerPackages.map((playerPackage) => ({
-                value: readString(playerPackage, 'playerPackageId'),
+                value: playerPackage.playerPackageId,
                 label: playerPackageLabel(playerPackage, t)
               }))}
               onChange={setSelectedPlayerPackageId}

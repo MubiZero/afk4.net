@@ -3,7 +3,7 @@ import { formatDateParts } from '@afk4/formatting';
 import { formatMinorUnits } from './currencyFormat';
 import { getOperatorConfig } from './operatorConfig';
 import { projectOperatorError } from './apiErrors';
-import { createOperatorApiClients, type BranchDiagnosticsDto, type OperatorDashboardSummaryDto, type PosSaleDto, type ShiftDto } from './operatorApiClients';
+import { createOperatorApiClients, type BranchDiagnosticsDto, type OperatorDashboardSummaryDto, type PlayerPackageDto, type PosSaleDto, type ShiftDto } from './operatorApiClients';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 import { isHostBridgeUnavailableError } from './hostBridge';
 import { signOutOperator, type OperatorAuthSession } from './authClient';
@@ -1160,10 +1160,9 @@ export function tariffOptionLabel(tariff: Record<string, unknown>, currencyCode:
   return t('op.helper.player.tariffPerMin', { name, price: formatMinorUnits(price, currency) });
 }
 
-export function playerPackageLabel(playerPackage: Record<string, unknown>, t: TFunc) {
-  const remainingSeconds = readNumber(playerPackage, 'remainingIncludedSeconds', 0) +
-    readNumber(playerPackage, 'remainingBonusSeconds', 0);
-  const name = readString(playerPackage, 'name', t('op.helper.player.packageFallback'));
+export function playerPackageLabel(playerPackage: PlayerPackageDto, t: TFunc) {
+  const remainingSeconds = playerPackage.remainingIncludedSeconds + playerPackage.remainingBonusSeconds;
+  const name = playerPackage.name ?? t('op.helper.player.packageFallback');
   const minutes = Math.floor(remainingSeconds / 60);
   return t('op.helper.player.packageLabel', { name, minutes });
 }
