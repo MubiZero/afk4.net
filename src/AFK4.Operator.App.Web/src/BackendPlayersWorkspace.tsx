@@ -23,8 +23,11 @@ import { useDeferredFlag } from './useDeferredFlag';
 import { ClientList } from './players/ClientList';
 import { ClientDetail, type ClientDetailTab } from './players/ClientDetail';
 import { NewClientModal } from './players/NewClientModal';
+import { CorrectionModal, type CorrectionAccount, type CorrectionDirection } from './players/CorrectionModal';
+import { RefundModal } from './players/RefundModal';
+import { PinModal } from './players/PinModal';
 
-type PlayerActionId = 'topUp' | 'writeOffDebt' | 'buyPackage' | 'booking' | 'newCard';
+type PlayerActionId = 'topUp' | 'writeOffDebt' | 'buyPackage' | 'booking' | 'newCard' | 'correction' | 'refund' | 'setPin';
 
 export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
   const { t } = useI18n();
@@ -50,6 +53,16 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [ledgerCursor, setLedgerCursor] = useState<string | null>(null);
   const [ledgerFilter, setLedgerFilter] = useState<string | null>(null);
   const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [correctionOpen, setCorrectionOpen] = useState(false);
+  const [correctionAccount, setCorrectionAccount] = useState<CorrectionAccount>('wallet');
+  const [correctionDirection, setCorrectionDirection] = useState<CorrectionDirection>('credit');
+  const [correctionAmount, setCorrectionAmount] = useState('50.00');
+  const [correctionReason, setCorrectionReason] = useState(() => t('op.players.correction.reasonDefault'));
+  const [refundTarget, setRefundTarget] = useState<LedgerEntryDto | null>(null);
+  const [refundReason, setRefundReason] = useState(() => t('op.players.refund.reasonDefault'));
+  const [pinOpen, setPinOpen] = useState(false);
+  const [pinValue, setPinValue] = useState('');
+  const [ledgerReloadNonce, setLedgerReloadNonce] = useState(0);
 
   useEffect(() => {
     if (backend === null) {
@@ -196,7 +209,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     selectedClient?.playerAccountId,
     selectedClient?.source,
     ledgerFilter,
-    canViewLedger
+    canViewLedger,
+    ledgerReloadNonce
   ]);
 
   const segments = buildClientSegments(clients, t);
@@ -248,6 +262,21 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     && selectedClient.source === 'backend'
     && Boolean(selectedClient.playerAccountId)
     && hasPermission(backend.session, permissionNames.manageReservations);
+  const canManualCorrect = backend !== null
+    && selectedClient !== null
+    && selectedClient.source === 'backend'
+    && Boolean(selectedClient.playerAccountId)
+    && hasPermission(backend.session, permissionNames.manualCorrection);
+  const canRefundLedger = backend !== null
+    && selectedClient !== null
+    && selectedClient.source === 'backend'
+    && Boolean(selectedClient.playerAccountId)
+    && hasPermission(backend.session, permissionNames.refundLedgerEntry);
+  const canSetClientPin = backend !== null
+    && selectedClient !== null
+    && selectedClient.source === 'backend'
+    && Boolean(selectedClient.playerAccountId)
+    && hasPermission(backend.session, permissionNames.createPlayerAccount);
 
   const requireSelectedBackendClient = (): PlayerClientItem & { playerAccountId: string; source: 'backend' } => {
     if (selectedClient === null || selectedClient.source !== 'backend' || !selectedClient.playerAccountId) {
@@ -388,6 +417,67 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           // note sent to the API; surfaces in the audit log shown to operators
           note: t('op.players.note.createdFromCard')
         });
+      } else if (id === 'correction') {
+        if (!hasPermission(nextBackend.session, permissionNames.manualCorrection)) {
+          throw new Error(t('op.players.error.noPermCorrection'));
+        }
+
+        const backendClient = requireSelectedBackendClient();
+
+        const magnitude = parseMoneyInputMinorUnits(correctionAmount);
+        const reason = correctionReason.trim();
+        if (magnitude === null || magnitude <= 0 || !reason) {
+          throw new Error(t('op.players.error.correctionInvalid'));
+        }
+
+        const signed = correctionDirection === 'debit' ? -magnitude : magnitude;
+        const wallet = await apiClients.players.manualCorrection(backendClient.playerAccountId, {
+          organizationId: nextBackend.session.organizationId,
+          accountType: correctionAccount,
+          amount: { currencyCode, minorUnits: signed },
+          quantitySeconds: 0,
+          reason,
+          idempotencyKey: createIdempotencyKey('manual-correction')
+        });
+        setWalletSummary(wallet);
+        bumpLedger();
+        setCorrectionOpen(false);
+      } else if (id === 'refund') {
+        if (!hasPermission(nextBackend.session, permissionNames.refundLedgerEntry)) {
+          throw new Error(t('op.players.error.noPermRefund'));
+        }
+
+        const backendClient = requireSelectedBackendClient();
+        if (refundTarget === null || refundTarget.reversesLedgerEntryId !== null) {
+          throw new Error(t('op.players.error.refundInvalid'));
+        }
+
+        const reason = refundReason.trim();
+        await apiClients.players.refundLedgerEntry(backendClient.playerAccountId, refundTarget.ledgerEntryId, {
+          organizationId: nextBackend.session.organizationId,
+          ledgerEntryId: refundTarget.ledgerEntryId,
+          amount: { currencyCode, minorUnits: Math.abs(refundTarget.amount.minorUnits) },
+          reason,
+          idempotencyKey: createIdempotencyKey('ledger-refund')
+        });
+        const wallet = await apiClients.players.getWalletSummary(backendClient.playerAccountId);
+        setWalletSummary(wallet);
+        bumpLedger();
+        setRefundTarget(null);
+      } else if (id === 'setPin') {
+        if (!hasPermission(nextBackend.session, permissionNames.createPlayerAccount)) {
+          throw new Error(t('op.players.error.noPermPin'));
+        }
+
+        const backendClient = requireSelectedBackendClient();
+        const pin = pinValue.trim();
+        if (pin.length < 4) {
+          throw new Error(t('op.players.error.pinInvalid'));
+        }
+
+        await apiClients.players.setPlayerPin(nextBackend.branchId, backendClient.playerAccountId, { pin });
+        setPinValue('');
+        setPinOpen(false);
       } else {
         throw new Error(t('op.players.error.actionNotConnected'));
       }
@@ -429,6 +519,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
       setLedgerLoading(false);
     }
   };
+
+  const bumpLedger = () => setLedgerReloadNonce((n) => n + 1);
 
   // Смена фильтра: сброс журнала и курсора — эффект перезагрузит первую страницу (ledgerFilter в deps).
   const changeLedgerFilter = (entryType: string | null) => {
@@ -505,6 +597,12 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           onSelectOption={setSelectedPackageDefinitionId}
           onBuy={() => runClientAction('buyPackage', t('op.players.actions.buyPackageBtn'))}
           onCreateReservation={() => runClientAction('booking', t('op.players.actions.bookingBtn'))}
+          canSetPin={canSetClientPin}
+          onSetPin={() => setPinOpen(true)}
+          canCorrect={canManualCorrect}
+          onCorrect={() => setCorrectionOpen(true)}
+          canRefund={canRefundLedger}
+          onRefund={(entry) => setRefundTarget(entry)}
         />
       </section>
 
@@ -516,6 +614,44 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           onChangePhone={setNewPlayerPhone}
           onClose={() => setNewClientOpen(false)}
           onSubmit={() => void submitNewClient()}
+        />
+      )}
+
+      {correctionOpen && (
+        <CorrectionModal
+          account={correctionAccount}
+          direction={correctionDirection}
+          amount={correctionAmount}
+          reason={correctionReason}
+          onChangeAccount={setCorrectionAccount}
+          onChangeDirection={setCorrectionDirection}
+          onChangeAmount={setCorrectionAmount}
+          onChangeReason={setCorrectionReason}
+          onClose={() => setCorrectionOpen(false)}
+          onSubmit={() => void runClientAction('correction', t('op.players.actions.correctionLabel'))}
+          busy={feedback.state === 'pending'}
+        />
+      )}
+
+      {refundTarget !== null && (
+        <RefundModal
+          entry={refundTarget}
+          currencyCode={currencyCode}
+          reason={refundReason}
+          onChangeReason={setRefundReason}
+          onClose={() => setRefundTarget(null)}
+          onConfirm={() => void runClientAction('refund', t('op.players.actions.refundLabel'))}
+          busy={feedback.state === 'pending'}
+        />
+      )}
+
+      {pinOpen && (
+        <PinModal
+          pin={pinValue}
+          onChangePin={setPinValue}
+          onClose={() => setPinOpen(false)}
+          onSubmit={() => void runClientAction('setPin', t('op.players.actions.pinLabel'))}
+          busy={feedback.state === 'pending'}
         />
       )}
     </main>
