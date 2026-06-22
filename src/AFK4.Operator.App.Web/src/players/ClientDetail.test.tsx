@@ -16,7 +16,12 @@ type DetailProps = {
   currencyCode: string;
   packages: PlayerPackageDto[];
   options: PackageOptionDto[];
-  recentEntries: LedgerEntryDto[];
+  ledgerEntries: LedgerEntryDto[];
+  ledgerFilter: string | null;
+  ledgerHasMore: boolean;
+  ledgerLoading: boolean;
+  onLedgerFilterChange: (entryType: string | null) => void;
+  onLedgerLoadMore: () => void;
   selectedPackageDefinitionId: string;
   topUpAmount: string;
   topUpReason: string;
@@ -52,7 +57,12 @@ const baseProps: DetailProps = {
   currencyCode: 'TJS',
   packages: [],
   options: [],
-  recentEntries: [],
+  ledgerEntries: [],
+  ledgerFilter: null,
+  ledgerHasMore: false,
+  ledgerLoading: false,
+  onLedgerFilterChange: () => {},
+  onLedgerLoadMore: () => {},
   selectedPackageDefinitionId: '',
   topUpAmount: '100.00', topUpReason: 'пополнение через кассу',
   debtAmount: '', debtReason: 'оплата долга через кассу',
@@ -91,7 +101,7 @@ describe('ClientDetail', () => {
   });
 
   it('renders the history section on the history tab', () => {
-    renderDetail({ activeTab: 'history', recentEntries: [] });
+    renderDetail({ activeTab: 'history', ledgerEntries: [], ledgerLoading: false });
     expect(screen.getByText('Операций нет')).toBeInTheDocument();
   });
 

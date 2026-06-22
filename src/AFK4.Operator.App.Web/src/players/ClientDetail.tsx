@@ -30,7 +30,12 @@ export function ClientDetail(props: {
   currencyCode: string;
   packages: PlayerPackageDto[];
   options: PackageOptionDto[];
-  recentEntries: LedgerEntryDto[];
+  ledgerEntries: LedgerEntryDto[];
+  ledgerFilter: string | null;
+  ledgerHasMore: boolean;
+  ledgerLoading: boolean;
+  onLedgerFilterChange: (entryType: string | null) => void;
+  onLedgerLoadMore: () => void;
   selectedPackageDefinitionId: string;
   topUpAmount: string;
   topUpReason: string;
@@ -159,15 +164,14 @@ export function ClientDetail(props: {
           />
         )}
         {props.activeTab === 'history' && (
-          // TODO Task 7: заменить заглушки на оркестраторные пропсы (activeFilter/onFilterChange/hasMore/onLoadMore/loading)
           <HistorySection
-            entries={props.recentEntries}
+            entries={props.ledgerEntries}
             currencyCode={props.currencyCode}
-            activeFilter={null}
-            onFilterChange={() => {}}
-            hasMore={false}
-            onLoadMore={() => {}}
-            loading={false}
+            activeFilter={props.ledgerFilter}
+            onFilterChange={props.onLedgerFilterChange}
+            hasMore={props.ledgerHasMore}
+            onLoadMore={props.onLedgerLoadMore}
+            loading={props.ledgerLoading}
           />
         )}
       </div>

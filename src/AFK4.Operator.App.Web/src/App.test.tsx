@@ -2007,6 +2007,29 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^player-create-/);
   });
 
+  it('История клиента читает серверный журнал /ledger и фильтрует по типу', async () => {
+    installSessionBridge();
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Клиенты'));
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'История' }));
+
+    // первая запись журнала из /ledger (top_up) — описание видно
+    expect(await screen.findByText(/Пополнение кошелька/)).toBeInTheDocument();
+    // источник — именно /ledger, не recentEntries из wallet-summary
+    expect(fetchMock.mock.calls.some(([input]) =>
+      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/ledger'))).toBe(true);
+
+    // фильтр по типу top_up → перезапрос /ledger?entryType=top_up
+    fireEvent.click(screen.getByRole('button', { name: 'Пополнение' }));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) =>
+      String(input).includes('/ledger') && String(input).includes('entryType=top_up'))).toBe(true));
+  });
+
   it('invites a staff member from the Settings personnel form and shows the code', async () => {
     installSessionBridge();
 
@@ -3137,6 +3160,17 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/players')) {
     return jsonResponse(createPlayers());
+  }
+
+  if (pathname.endsWith('/ledger')) {
+    const url = new URL(String(input));
+    const entryType = url.searchParams.get('entryType');
+    const all = [
+      { ledgerEntryId: '13131313-1313-1313-1313-131313131313', organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08', branchId: 'acfc0212-967f-4d84-94be-9003387b09c2', playerAccountId: '12121212-1212-1212-1212-121212121212', sessionId: null, playerPackageId: null, entryType: 'top_up', accountType: 'wallet', amount: { currencyCode: 'TJS', minorUnits: 20000 }, quantitySeconds: 0, description: 'Пополнение кошелька', reason: 'Касса', reversesLedgerEntryId: null, createdByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', createdAtUtc: '2026-05-21T09:00:00Z' },
+      { ledgerEntryId: '14141414-1414-1414-1414-141414141414', organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08', branchId: 'acfc0212-967f-4d84-94be-9003387b09c2', playerAccountId: '12121212-1212-1212-1212-121212121212', sessionId: null, playerPackageId: null, entryType: 'gameplay_charge', accountType: 'wallet', amount: { currencyCode: 'TJS', minorUnits: -1200 }, quantitySeconds: 0, description: 'Списание за игру', reason: 'Сессия', reversesLedgerEntryId: null, createdByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', createdAtUtc: '2026-05-21T08:00:00Z' }
+    ];
+    const items = entryType ? all.filter((e) => e.entryType === entryType) : all;
+    return jsonResponse({ items, nextCursor: null });
   }
 
   if (pathname.endsWith('/wallet-summary')) {

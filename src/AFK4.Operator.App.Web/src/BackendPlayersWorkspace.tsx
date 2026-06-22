@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { UserRoundPlus } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
-import type { PackageOptionDto, PlayerPackageDto, WalletSummaryDto } from './operatorApiClients';
+import type { LedgerEntryDto, PackageOptionDto, PlayerPackageDto, WalletSummaryDto } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
@@ -46,6 +46,10 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [debtPaymentReason, setDebtPaymentReason] = useState(() => t('op.players.actions.writeOffDebtDefault'));
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerPhone, setNewPlayerPhone] = useState('');
+  const [ledgerEntries, setLedgerEntries] = useState<LedgerEntryDto[]>([]);
+  const [ledgerCursor, setLedgerCursor] = useState<string | null>(null);
+  const [ledgerFilter, setLedgerFilter] = useState<string | null>(null);
+  const [ledgerLoading, setLedgerLoading] = useState(false);
 
   useEffect(() => {
     if (backend === null) {
@@ -99,6 +103,12 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     ?? clients[0]
     ?? null;
 
+  const canViewLedger = backend !== null
+    && selectedClient !== null
+    && selectedClient.source === 'backend'
+    && Boolean(selectedClient.playerAccountId)
+    && hasPermission(backend.session, permissionNames.viewBilling);
+
   useEffect(() => {
     if (backend === null || selectedClient === null || !selectedClient.playerAccountId || selectedClient.source !== 'backend') {
       setWalletSummary(null);
@@ -135,6 +145,60 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     };
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, selectedClient?.playerAccountId, selectedClient?.source]);
 
+  // Журнал истории: серверный источник (paged ledger-эндпоинт), отдельно от wallet-summary.
+  // Грузим первую страницу при входе на таб «История» / смене клиента / смене фильтра.
+  useEffect(() => {
+    if (!canViewLedger || activeTab !== 'history' || selectedClient === null || !selectedClient.playerAccountId) {
+      return undefined;
+    }
+
+    const nextBackend = backend;
+    if (nextBackend === null) {
+      return undefined;
+    }
+
+    const playerAccountId = selectedClient.playerAccountId;
+    let disposed = false;
+    const loadLedger = async () => {
+      setLedgerLoading(true);
+      try {
+        const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+        const page = await apiClients.players.getLedger(playerAccountId, {
+          entryType: ledgerFilter ?? undefined,
+          limit: 50
+        });
+        if (!disposed) {
+          setLedgerEntries(page.items);
+          setLedgerCursor(page.nextCursor);
+        }
+      } catch (error) {
+        if (!disposed) {
+          setLedgerEntries([]);
+          setLedgerCursor(null);
+          setFeedback({ label: t('op.players.tabs.history'), state: 'failed', detail: projectOperatorError(error, t).detail });
+        }
+      } finally {
+        if (!disposed) {
+          setLedgerLoading(false);
+        }
+      }
+    };
+
+    void loadLedger();
+    return () => {
+      disposed = true;
+    };
+  }, [
+    backend?.branchId,
+    backend?.config.platformBaseUrl,
+    backend?.session.accessToken,
+    activeTab,
+    selectedClient?.playerAccountId,
+    selectedClient?.source,
+    ledgerFilter,
+    canViewLedger
+  ]);
+
   const segments = buildClientSegments(clients, t);
   const visibleClients = clients.filter((client) => {
     const searchMatches = `${client.name} ${playerStatusLabel(client.status, t)} ${client.detail} ${client.last}`
@@ -145,7 +209,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
   const balance = readMoney(walletSummary, 'walletBalance')?.minorUnits ?? selectedClient?.balanceMinorUnits ?? 0;
   const debt = readMoney(walletSummary, 'debtBalance')?.minorUnits ?? selectedClient?.debtMinorUnits ?? 0;
-  const recentEntries = walletSummary?.recentEntries ?? [];
   const selectedClientPackageCount = selectedClientPackages.length || Number.parseInt(selectedClient?.last ?? '', 10) || 0;
   const selectedPackageOption = packageOptions.find((option) => readString(option, 'packageDefinitionId') === selectedPackageDefinitionId)
     ?? packageOptions[0]
@@ -343,6 +406,36 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     setNewClientOpen(false);
   };
 
+  const loadMoreLedger = async () => {
+    if (backend === null || selectedClient === null || !selectedClient.playerAccountId || ledgerCursor === null) {
+      return;
+    }
+
+    const playerAccountId = selectedClient.playerAccountId;
+    setLedgerLoading(true);
+    try {
+      const apiClients = createAuthenticatedOperatorClients(backend.config, backend.session);
+      const page = await apiClients.players.getLedger(playerAccountId, {
+        entryType: ledgerFilter ?? undefined,
+        cursor: ledgerCursor,
+        limit: 50
+      });
+      setLedgerEntries((current) => [...current, ...page.items]);
+      setLedgerCursor(page.nextCursor);
+    } catch (error) {
+      setFeedback({ label: t('op.players.tabs.history'), state: 'failed', detail: projectOperatorError(error, t).detail });
+    } finally {
+      setLedgerLoading(false);
+    }
+  };
+
+  // Смена фильтра: сброс журнала и курсора — эффект перезагрузит первую страницу (ledgerFilter в deps).
+  const changeLedgerFilter = (entryType: string | null) => {
+    setLedgerEntries([]);
+    setLedgerCursor(null);
+    setLedgerFilter(entryType);
+  };
+
   return (
     <main className="workspace-screen clients-screen">
       <section className="screen-head clients-head">
@@ -386,7 +479,12 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           currencyCode={currencyCode}
           packages={selectedClientPackages}
           options={packageOptions}
-          recentEntries={recentEntries}
+          ledgerEntries={ledgerEntries}
+          ledgerFilter={ledgerFilter}
+          ledgerHasMore={ledgerCursor !== null}
+          ledgerLoading={ledgerLoading}
+          onLedgerFilterChange={changeLedgerFilter}
+          onLedgerLoadMore={() => void loadMoreLedger()}
           selectedPackageDefinitionId={selectedPackageDefinitionId}
           topUpAmount={walletTopUpAmount}
           topUpReason={walletTopUpReason}
