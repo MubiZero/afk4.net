@@ -3,7 +3,7 @@ import { formatDateParts } from '@afk4/formatting';
 import { formatMinorUnits } from './currencyFormat';
 import { getOperatorConfig } from './operatorConfig';
 import { projectOperatorError } from './apiErrors';
-import { createOperatorApiClients, type BranchDiagnosticsDto, type OperatorDashboardSummaryDto, type PosSaleDto, type ShiftDto } from './operatorApiClients';
+import { createOperatorApiClients, type BranchDiagnosticsDto, type OperatorDashboardSummaryDto, type PlayerPackageDto, type PosSaleDto, type ShiftDto } from './operatorApiClients';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 import { isHostBridgeUnavailableError } from './hostBridge';
 import { signOutOperator, type OperatorAuthSession } from './authClient';
@@ -24,7 +24,7 @@ import type {
 } from './operatorTypes';
 import type { MessageKey } from '@afk4/i18n';
 
-type TFunc = (key: MessageKey, values?: Record<string, string | number>) => string;
+export type TFunc = (key: MessageKey, values?: Record<string, string | number>) => string;
 
 export function toDateInputValue(date: Date) {
   const year = date.getFullYear();
@@ -1160,10 +1160,9 @@ export function tariffOptionLabel(tariff: Record<string, unknown>, currencyCode:
   return t('op.helper.player.tariffPerMin', { name, price: formatMinorUnits(price, currency) });
 }
 
-export function playerPackageLabel(playerPackage: Record<string, unknown>, t: TFunc) {
-  const remainingSeconds = readNumber(playerPackage, 'remainingIncludedSeconds', 0) +
-    readNumber(playerPackage, 'remainingBonusSeconds', 0);
-  const name = readString(playerPackage, 'name', t('op.helper.player.packageFallback'));
+export function playerPackageLabel(playerPackage: PlayerPackageDto, t: TFunc) {
+  const remainingSeconds = playerPackage.remainingIncludedSeconds + playerPackage.remainingBonusSeconds;
+  const name = playerPackage.name ?? t('op.helper.player.packageFallback');
   const minutes = Math.floor(remainingSeconds / 60);
   return t('op.helper.player.packageLabel', { name, minutes });
 }
@@ -1319,33 +1318,6 @@ export type PlayerClientItem = {
   phoneNumber: string;
   source: 'fixture' | 'backend';
 };
-
-export function fixturePlayers(currencyCode: string, t: TFunc): PlayerClientItem[] {
-  const example = t('op.helper.player.fixture.example');
-  return [
-    { name: 'Madina S.', status: 'vip', balanceMinorUnits: 46000, debtMinorUnits: 0, last: example, tone: 'vip', detail: t('op.helper.player.fixture.localCard'), phoneNumber: '+992 90 555 22 11', source: 'fixture' },
-    { name: 'Amir K.', status: 'active', balanceMinorUnits: 12000, debtMinorUnits: 0, last: example, tone: 'active', detail: formatMinorUnits(12000, currencyCode), phoneNumber: '', source: 'fixture' },
-    { name: 'Olim K.', status: 'debt', balanceMinorUnits: 0, debtMinorUnits: 3500, last: example, tone: 'debt', detail: t('op.helper.player.fixture.debtDetail'), phoneNumber: '', source: 'fixture' }
-  ];
-}
-
-// Maps the stable status key from projectPlayerClient/fixturePlayers to a localized label.
-export function playerStatusLabel(status: string, t: TFunc): string {
-  switch (status) {
-    case 'vip':
-      return t('op.players.status.vip');
-    case 'active':
-      return t('op.players.status.active');
-    case 'debt':
-      return t('op.players.status.debt');
-    case 'package':
-      return t('op.players.status.package');
-    case 'inactive':
-      return t('op.players.status.inactive');
-    default:
-      return status;
-  }
-}
 
 export function projectPlayerClient(player: unknown, t: TFunc): PlayerClientItem {
   const debt = readNumber(player, 'debtBalanceMinorUnits', 0);

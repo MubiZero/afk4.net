@@ -1,28 +1,88 @@
 import { PlatformApiClient } from '../../platformApi';
 import type { Guid, MoneyDto } from '../types';
 
-export type PlayerSearchResultDto = Record<string, unknown>;
-export type PlayerAccountDto = Record<string, unknown>;
-export type WalletSummaryDto = Record<string, unknown>;
-export type PlayerPackageDto = Record<string, unknown>;
-
-export interface CreatePlayerAccountRequest extends Record<string, unknown> {
-  organizationId: Guid;
+// Зеркала контрактов AFK4.Shared.Contracts (camelCase).
+export interface PlayerSearchResultDto {
+  playerAccountId: Guid;
+  displayName: string;
+  phoneNumber: string | null;
+  walletBalanceMinorUnits: number;
+  debtBalanceMinorUnits: number;
+  activePackageCount: number;
+  isActive: boolean;
 }
 
-export interface TopUpWalletRequest extends Record<string, unknown> {
+export interface PlayerAccountDto {
+  playerAccountId: Guid;
   organizationId: Guid;
+  homeBranchId: Guid;
+  displayName: string;
+  phoneNumber: string | null;
+  isActive: boolean;
+  createdAtUtc: string;
+}
+
+export interface LedgerEntryDto {
+  ledgerEntryId: Guid;
+  organizationId: Guid;
+  branchId: Guid;
+  playerAccountId: Guid;
+  sessionId: Guid | null;
+  playerPackageId: Guid | null;
+  entryType: string;
+  accountType: string;
   amount: MoneyDto;
+  quantitySeconds: number;
+  description: string;
+  reason: string;
+  reversesLedgerEntryId: Guid | null;
+  createdByStaffUserId: Guid;
+  createdAtUtc: string;
+}
+
+export interface WalletSummaryDto {
+  playerAccountId: Guid;
+  walletBalance: MoneyDto;
+  debtBalance: MoneyDto;
+  recentEntries: LedgerEntryDto[];
+}
+
+export interface PlayerPackageDto {
+  playerPackageId: Guid;
+  packageDefinitionId: Guid;
+  playerAccountId: Guid;
+  name: string;
+  purchasedPrice: MoneyDto;
+  includedSeconds: number;
+  bonusSeconds: number;
+  remainingIncludedSeconds: number;
+  remainingBonusSeconds: number;
+  purchasedAtUtc: string;
+  expiresAtUtc: string | null;
+}
+
+export interface CreatePlayerAccountRequest {
+  organizationId: Guid;
+  displayName: string;
+  phoneNumber: string | null;
   idempotencyKey: string;
 }
 
-export interface PayDebtRequest extends Record<string, unknown> {
+export interface TopUpWalletRequest {
   organizationId: Guid;
   amount: MoneyDto;
+  reason: string;
   idempotencyKey: string;
 }
 
-export interface PurchasePackageRequest extends Record<string, unknown> {
+export interface PayDebtRequest {
+  organizationId: Guid;
+  amount: MoneyDto;
+  reason: string;
+  idempotencyKey: string;
+}
+
+export interface PurchasePackageRequest {
   organizationId: Guid;
   packageDefinitionId: Guid;
   idempotencyKey: string;

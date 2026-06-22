@@ -478,7 +478,7 @@ export function MapSidePanel({
   const selectedTariff = tariffOptions.find((tariff) => readString(tariff, 'tariffVersionId') === selectedTariffVersionId) ??
     tariffOptions[0] ??
     null;
-  const selectedPlayerPackage = playerPackages.find((playerPackage) => readString(playerPackage, 'playerPackageId') === selectedPlayerPackageId) ??
+  const selectedPlayerPackage = playerPackages.find((playerPackage) => playerPackage.playerPackageId === selectedPlayerPackageId) ??
     playerPackages[0] ??
     null;
   const hasStoredSession = Boolean(seat.activeSessionId);
@@ -1099,7 +1099,7 @@ export function MapSidePanel({
               disabled={!actionsEnabled || isBusy || !selectedPlayer || playerPackages.length === 0}
               placeholder={t('op.map.panel.noPackages')}
               options={playerPackages.map((playerPackage) => ({
-                value: readString(playerPackage, 'playerPackageId'),
+                value: playerPackage.playerPackageId,
                 label: playerPackageLabel(playerPackage, t)
               }))}
               onChange={setSelectedPlayerPackageId}

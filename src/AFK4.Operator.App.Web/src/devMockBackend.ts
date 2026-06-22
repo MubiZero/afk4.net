@@ -264,6 +264,33 @@ function filterPlayers(query: string | null): ReturnType<typeof players> {
     || (digits.length > 0 && p.phoneNumber.replace(/\D/g, '').includes(digits)));
 }
 
+// История операций клиента для превью: разные типы записей (пополнение, списание за игру,
+// покупка пакета, погашение долга, бонус) с человекочитаемыми описаниями.
+function ledgerEntries() {
+  const staff = '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134';
+  const base = (over: Record<string, unknown>) => ({
+    organizationId: ORG, branchId: BRANCH, playerAccountId: 'pl-1', sessionId: null,
+    playerPackageId: null, quantitySeconds: 0, reversesLedgerEntryId: null, createdByStaffUserId: staff, ...over
+  });
+  return [
+    base({ ledgerEntryId: 'le-1', entryType: 'top_up', accountType: 'wallet', amount: money(50000), description: 'Пополнение кошелька', reason: 'Касса', createdAtUtc: minutesAgoUtc(180) }),
+    base({ ledgerEntryId: 'le-2', entryType: 'gameplay_charge', accountType: 'wallet', amount: money(-12000), description: 'Списание за игру', reason: 'Сессия PC-03', quantitySeconds: 3600, createdAtUtc: minutesAgoUtc(120) }),
+    base({ ledgerEntryId: 'le-3', entryType: 'package_purchase', accountType: 'wallet', amount: money(-25000), description: 'Покупка пакета «Ночной 5ч»', reason: 'Пакет', createdAtUtc: minutesAgoUtc(90) }),
+    base({ ledgerEntryId: 'le-4', entryType: 'bonus_grant', accountType: 'bonus_time', amount: money(0), quantitySeconds: 1800, description: 'Бонус 30 мин', reason: 'Лояльность', createdAtUtc: minutesAgoUtc(90) }),
+    base({ ledgerEntryId: 'le-5', entryType: 'debt_payment', accountType: 'debt', amount: money(3500), description: 'Погашение долга', reason: 'Касса', createdAtUtc: minutesAgoUtc(30) })
+  ];
+}
+
+function walletSummary() {
+  return { playerAccountId: 'pl-1', walletBalance: money(45000), debtBalance: money(0), recentEntries: ledgerEntries() };
+}
+
+function playerPackages() {
+  return [
+    { playerPackageId: 'pp-1', name: 'Ночной 5ч', purchasedPrice: money(25000), includedSeconds: 18000, bonusSeconds: 1800, remainingIncludedSeconds: 9000, remainingBonusSeconds: 1800, purchasedAtUtc: minutesAgoUtc(1440), expiresAtUtc: FAR_FUTURE }
+  ];
+}
+
 // Массовая бронь в превью: эхо успешного результата по seatId из тела (без конфликтов).
 function groupReservationResult(init?: RequestInit): unknown {
   let req: Record<string, unknown> = {};
@@ -293,6 +320,18 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.endsWith('/checkout') && method === 'POST') {
     return json(checkoutResult(init));
+  }
+  if (url.pathname.endsWith('/wallet-summary') && method === 'GET') {
+    return json(walletSummary());
+  }
+  if (url.pathname.includes('/players/') && url.pathname.endsWith('/packages') && method === 'GET') {
+    return json(playerPackages());
+  }
+  if (url.pathname.endsWith('/packages/purchases') && method === 'POST') {
+    return json(playerPackages()[0]);
+  }
+  if ((url.pathname.endsWith('/wallet/top-ups') || url.pathname.endsWith('/debts/payments')) && method === 'POST') {
+    return json(walletSummary());
   }
   const matched = route(url.pathname, method);
   if (matched !== undefined) {

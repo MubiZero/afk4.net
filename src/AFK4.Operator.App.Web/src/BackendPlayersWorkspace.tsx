@@ -12,17 +12,12 @@ import {
   createIdempotencyKey,
   dataSourceLabel,
   emptyFeedback,
-  fixturePlayers,
   formatMinorUnits,
   formatMoney,
   formatTime,
   packageOptionLabel,
   parseMoneyInputMinorUnits,
   formatMoneyInputMinorUnits,
-  playerPackageLabel,
-  playerStatusLabel,
-  type PlayerClientItem,
-  projectPlayerClient,
   readArray,
   readMoney,
   readNumber,
@@ -30,6 +25,7 @@ import {
   requireBackend,
   workspaceLoadStatusLabel
 } from './operatorHelpers';
+import { fixturePlayers, playerPackageLabel, playerStatusLabel, projectPlayerClient, type PlayerClientItem } from './players/playersModel';
 import { FeedbackNotice, StateFlag } from './operatorPrimitives';
 
 type PlayerActionId = 'topUp' | 'writeOffDebt' | 'buyPackage' | 'booking' | 'newCard';
@@ -528,10 +524,10 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           </div>
           <div className="client-package-list" aria-label={t('op.players.profile.packagesLabel')}>
             {selectedClientPackages.slice(0, 3).map((playerPackage) => (
-              <article key={readString(playerPackage, 'playerPackageId')} className="client-package-row">
-                <strong>{readString(playerPackage, 'name', t('op.players.profile.packageFallback'))}</strong>
+              <article key={playerPackage.playerPackageId} className="client-package-row">
+                <strong>{playerPackage.name ?? t('op.players.profile.packageFallback')}</strong>
                 <span>{playerPackageLabel(playerPackage, t)}</span>
-                <b>{readString(playerPackage, 'state', 'active')}</b>
+                <b>active</b>
               </article>
             ))}
             {selectedClientPackages.length === 0 && (
