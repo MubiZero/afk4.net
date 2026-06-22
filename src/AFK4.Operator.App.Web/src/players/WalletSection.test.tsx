@@ -8,6 +8,7 @@ afterEach(cleanup);
 const renderSection = (over: Partial<Parameters<typeof WalletSection>[0]> = {}) => {
   const onTopUp = mock(() => {});
   const onPayDebt = mock(() => {});
+  const onCorrect = mock(() => {});
   render(
     <I18nProvider initialLocale="ru">
       <WalletSection
@@ -20,17 +21,19 @@ const renderSection = (over: Partial<Parameters<typeof WalletSection>[0]> = {}) 
         debtReason="оплата долга через кассу"
         canTopUp
         canPayDebt={false}
+        canCorrect={false}
         onChangeTopUpAmount={() => {}}
         onChangeTopUpReason={() => {}}
         onChangeDebtAmount={() => {}}
         onChangeDebtReason={() => {}}
         onTopUp={onTopUp}
         onPayDebt={onPayDebt}
+        onCorrect={onCorrect}
         {...over}
       />
     </I18nProvider>
   );
-  return { onTopUp, onPayDebt };
+  return { onTopUp, onPayDebt, onCorrect };
 };
 
 describe('WalletSection', () => {
@@ -57,5 +60,17 @@ describe('WalletSection', () => {
     expect(screen.getByLabelText('Причина долга')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Списать долг/ }));
     expect(onPayDebt).toHaveBeenCalled();
+  });
+
+  it('fires onCorrect when the correction link is clicked', () => {
+    const onCorrect = mock(() => {});
+    renderSection({ canCorrect: true, onCorrect });
+    fireEvent.click(screen.getByRole('button', { name: /Ручная корректировка/ }));
+    expect(onCorrect).toHaveBeenCalled();
+  });
+
+  it('hides the correction link without permission', () => {
+    renderSection({ canCorrect: false });
+    expect(screen.queryByRole('button', { name: /Ручная корректировка/ })).toBeNull();
   });
 });

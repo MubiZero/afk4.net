@@ -1,10 +1,9 @@
 import { useI18n } from '@afk4/i18n';
-import { CircleDollarSign, ReceiptText } from 'lucide-react';
+import { CircleDollarSign, ReceiptText, SlidersHorizontal } from 'lucide-react';
 import { formatMinorUnits } from '../operatorHelpers';
 
 // Кошелёк: крупно баланс/долг + две раздельные формы (Пополнить / Погасить долг).
 // Долговая форма активна только при debt>0 (управляется canPayDebt из оркестратора).
-// «Ручная корректировка» — S2, здесь не добавляем.
 // feedback показывается глобально в оркестраторе — единый источник, здесь не дублируем.
 export function WalletSection({
   balanceMinorUnits,
@@ -16,12 +15,14 @@ export function WalletSection({
   debtReason,
   canTopUp,
   canPayDebt,
+  canCorrect,
   onChangeTopUpAmount,
   onChangeTopUpReason,
   onChangeDebtAmount,
   onChangeDebtReason,
   onTopUp,
   onPayDebt,
+  onCorrect,
 }: {
   balanceMinorUnits: number;
   debtMinorUnits: number;
@@ -32,12 +33,14 @@ export function WalletSection({
   debtReason: string;
   canTopUp: boolean;
   canPayDebt: boolean;
+  canCorrect: boolean;
   onChangeTopUpAmount: (value: string) => void;
   onChangeTopUpReason: (value: string) => void;
   onChangeDebtAmount: (value: string) => void;
   onChangeDebtReason: (value: string) => void;
   onTopUp: () => void;
   onPayDebt: () => void;
+  onCorrect: () => void;
 }) {
   const { t } = useI18n();
   const hasDebt = debtMinorUnits > 0;
@@ -112,6 +115,13 @@ export function WalletSection({
           {t('op.players.actions.writeOffDebtBtn')}
         </button>
       </form>
+
+      {canCorrect && (
+        <button type="button" className="clients-wallet-correction-link" onClick={onCorrect}>
+          <SlidersHorizontal size={14} aria-hidden="true" />
+          {t('op.players.correction.openLink')}
+        </button>
+      )}
     </div>
   );
 }
