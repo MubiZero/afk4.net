@@ -31,6 +31,12 @@ type DetailProps = {
   canPayDebt: boolean;
   canPurchase: boolean;
   canCreateReservation: boolean;
+  canSetPin: boolean;
+  onSetPin: () => void;
+  canCorrect: boolean;
+  onCorrect: () => void;
+  canRefund: boolean;
+  onRefund: (entry: LedgerEntryDto) => void;
   onSelectTab: (tab: ClientDetailTab) => void;
   onChangeTopUpAmount: (v: string) => void;
   onChangeTopUpReason: (v: string) => void;
@@ -67,6 +73,9 @@ const baseProps: DetailProps = {
   topUpAmount: '100.00', topUpReason: 'пополнение через кассу',
   debtAmount: '', debtReason: 'оплата долга через кассу',
   canTopUp: true, canPayDebt: false, canPurchase: true, canCreateReservation: true,
+  canSetPin: false, onSetPin: () => {},
+  canCorrect: false, onCorrect: () => {},
+  canRefund: false, onRefund: () => {},
   onSelectTab: () => {}, onChangeTopUpAmount: () => {}, onChangeTopUpReason: () => {},
   onChangeDebtAmount: () => {}, onChangeDebtReason: () => {}, onTopUp: () => {}, onPayDebt: () => {},
   onSelectOption: () => {}, onBuy: () => {}, onCreateReservation: () => {}
@@ -110,5 +119,17 @@ describe('ClientDetail', () => {
     renderDetail({ onCreateReservation });
     fireEvent.click(screen.getByRole('button', { name: /Бронь/ }));
     expect(onCreateReservation).toHaveBeenCalled();
+  });
+
+  it('shows the PIN button in the header when canSetPin', () => {
+    const onSetPin = mock(() => {});
+    renderDetail({ canSetPin: true, onSetPin });
+    fireEvent.click(screen.getByRole('button', { name: /PIN/ }));
+    expect(onSetPin).toHaveBeenCalled();
+  });
+
+  it('hides the PIN button without permission', () => {
+    renderDetail({ canSetPin: false });
+    expect(screen.queryByRole('button', { name: /PIN/ })).toBeNull();
   });
 });

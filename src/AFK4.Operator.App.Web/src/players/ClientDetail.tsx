@@ -1,5 +1,5 @@
 import { useI18n } from '@afk4/i18n';
-import { CalendarClock } from 'lucide-react';
+import { CalendarClock, KeyRound } from 'lucide-react';
 import type { PlayerClientItem } from '../operatorHelpers';
 import { dataSourceLabel, formatMinorUnits } from '../operatorHelpers';
 import type { LedgerEntryDto, PackageOptionDto, PlayerPackageDto } from '../operatorApiClients';
@@ -45,6 +45,12 @@ export function ClientDetail(props: {
   canPayDebt: boolean;
   canPurchase: boolean;
   canCreateReservation: boolean;
+  canSetPin: boolean;
+  onSetPin: () => void;
+  canCorrect: boolean;
+  onCorrect: () => void;
+  canRefund: boolean;
+  onRefund: (entry: LedgerEntryDto) => void;
   onSelectTab: (tab: ClientDetailTab) => void;
   onChangeTopUpAmount: (value: string) => void;
   onChangeTopUpReason: (value: string) => void;
@@ -90,6 +96,12 @@ export function ClientDetail(props: {
             {dataSourceLabel(client.source, t)}
           </em>
         </div>
+        {props.canSetPin && (
+          <button type="button" className="client-detail-pin" onClick={props.onSetPin}>
+            <KeyRound size={15} aria-hidden="true" />
+            {t('op.players.pin.openBtn')}
+          </button>
+        )}
         <button
           type="button"
           className="client-detail-reservation"
@@ -149,6 +161,8 @@ export function ClientDetail(props: {
             onChangeDebtReason={props.onChangeDebtReason}
             onTopUp={props.onTopUp}
             onPayDebt={props.onPayDebt}
+            canCorrect={props.canCorrect}
+            onCorrect={props.onCorrect}
           />
         )}
         {props.activeTab === 'packages' && (
@@ -172,6 +186,8 @@ export function ClientDetail(props: {
             hasMore={props.ledgerHasMore}
             onLoadMore={props.onLedgerLoadMore}
             loading={props.ledgerLoading}
+            canRefund={props.canRefund}
+            onRefund={props.onRefund}
           />
         )}
       </div>
