@@ -11,6 +11,8 @@ describe('playerStatusLabel', () => {
     expect(playerStatusLabel('vip', t)).toBe('op.players.status.vip');
     expect(playerStatusLabel('debt', t)).toBe('op.players.status.debt');
     expect(playerStatusLabel('inactive', t)).toBe('op.players.status.inactive');
+    expect(playerStatusLabel('active', t)).toBe('op.players.status.active');
+    expect(playerStatusLabel('package', t)).toBe('op.players.status.package');
     expect(playerStatusLabel('mystery', t)).toBe('mystery');
   });
 });
@@ -20,6 +22,7 @@ describe('fixturePlayers', () => {
     const players = fixturePlayers('TJS', t);
     expect(players).toHaveLength(3);
     expect(players.map((p) => p.tone)).toEqual(['vip', 'active', 'debt']);
+    expect(players.map((p) => p.name)).toEqual(['Madina S.', 'Amir K.', 'Olim K.']);
     expect(players.every((p) => p.source === 'fixture')).toBe(true);
   });
 });
