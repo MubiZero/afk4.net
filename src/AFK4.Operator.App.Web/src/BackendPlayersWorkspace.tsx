@@ -407,7 +407,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   };
 
   const loadMoreLedger = async () => {
-    if (backend === null || selectedClient === null || !selectedClient.playerAccountId || ledgerCursor === null) {
+    // ledgerLoading в guard: повторный клик «Показать ещё» в полёте иначе задвоил бы страницу (аппенд дважды).
+    if (backend === null || selectedClient === null || !selectedClient.playerAccountId || ledgerCursor === null || ledgerLoading) {
       return;
     }
 
