@@ -30,7 +30,12 @@ export function ClientDetail(props: {
   currencyCode: string;
   packages: PlayerPackageDto[];
   options: PackageOptionDto[];
-  recentEntries: LedgerEntryDto[];
+  ledgerEntries: LedgerEntryDto[];
+  ledgerFilter: string | null;
+  ledgerHasMore: boolean;
+  ledgerLoading: boolean;
+  onLedgerFilterChange: (entryType: string | null) => void;
+  onLedgerLoadMore: () => void;
   selectedPackageDefinitionId: string;
   topUpAmount: string;
   topUpReason: string;
@@ -159,7 +164,15 @@ export function ClientDetail(props: {
           />
         )}
         {props.activeTab === 'history' && (
-          <HistorySection entries={props.recentEntries} currencyCode={props.currencyCode} />
+          <HistorySection
+            entries={props.ledgerEntries}
+            currencyCode={props.currencyCode}
+            activeFilter={props.ledgerFilter}
+            onFilterChange={props.onLedgerFilterChange}
+            hasMore={props.ledgerHasMore}
+            onLoadMore={props.onLedgerLoadMore}
+            loading={props.ledgerLoading}
+          />
         )}
       </div>
     </section>

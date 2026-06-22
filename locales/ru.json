@@ -1475,6 +1475,8 @@
   "op.players.history.emptyTitle": "Операций нет",
   "op.players.history.emptyDescription": "По клиенту пока нет операций.",
   "op.players.history.reversalBadge": "сторно",
+  "op.players.history.filterAll": "Все",
+  "op.players.history.loadMore": "Показать ещё",
   "op.players.wallet.balanceLabel": "Баланс",
   "op.players.wallet.debtLabel": "Долг",
   "op.players.wallet.topUpTitle": "Пополнить депозит",

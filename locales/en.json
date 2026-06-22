@@ -1475,6 +1475,8 @@
   "op.players.history.emptyTitle": "No operations",
   "op.players.history.emptyDescription": "No operations for this client yet.",
   "op.players.history.reversalBadge": "reversal",
+  "op.players.history.filterAll": "All",
+  "op.players.history.loadMore": "Show more",
   "op.players.wallet.balanceLabel": "Balance",
   "op.players.wallet.debtLabel": "Debt",
   "op.players.wallet.topUpTitle": "Top up deposit",

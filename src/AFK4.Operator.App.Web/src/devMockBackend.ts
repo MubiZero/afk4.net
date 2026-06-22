@@ -264,25 +264,71 @@ function filterPlayers(query: string | null): ReturnType<typeof players> {
     || (digits.length > 0 && p.phoneNumber.replace(/\D/g, '').includes(digits)));
 }
 
-// История операций клиента для превью: разные типы записей (пополнение, списание за игру,
-// покупка пакета, погашение долга, бонус) с человекочитаемыми описаниями.
-function ledgerEntries() {
+// Длинный детерминированный журнал операций клиента для превью пагинации/фильтра. Фикс-даты
+// (без Date.now) — keyset стабилен между рендерами. 48 записей разных типов.
+const LEDGER_BASE_DAY = '2026-05-13';
+function ledgerLog(): Array<Record<string, unknown>> {
   const staff = '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134';
-  const base = (over: Record<string, unknown>) => ({
-    organizationId: ORG, branchId: BRANCH, playerAccountId: 'pl-1', sessionId: null,
-    playerPackageId: null, quantitySeconds: 0, reversesLedgerEntryId: null, createdByStaffUserId: staff, ...over
-  });
-  return [
-    base({ ledgerEntryId: 'le-1', entryType: 'top_up', accountType: 'wallet', amount: money(50000), description: 'Пополнение кошелька', reason: 'Касса', createdAtUtc: minutesAgoUtc(180) }),
-    base({ ledgerEntryId: 'le-2', entryType: 'gameplay_charge', accountType: 'wallet', amount: money(-12000), description: 'Списание за игру', reason: 'Сессия PC-03', quantitySeconds: 3600, createdAtUtc: minutesAgoUtc(120) }),
-    base({ ledgerEntryId: 'le-3', entryType: 'package_purchase', accountType: 'wallet', amount: money(-25000), description: 'Покупка пакета «Ночной 5ч»', reason: 'Пакет', createdAtUtc: minutesAgoUtc(90) }),
-    base({ ledgerEntryId: 'le-4', entryType: 'bonus_grant', accountType: 'bonus_time', amount: money(0), quantitySeconds: 1800, description: 'Бонус 30 мин', reason: 'Лояльность', createdAtUtc: minutesAgoUtc(90) }),
-    base({ ledgerEntryId: 'le-5', entryType: 'debt_payment', accountType: 'debt', amount: money(3500), description: 'Погашение долга', reason: 'Касса', createdAtUtc: minutesAgoUtc(30) })
+  // Курируемый цикл типов, чтобы фильтр-чипы давали непустые наборы.
+  const cycle: Array<{ type: string; account: string; amount: number; description: string; reason: string }> = [
+    { type: 'top_up', account: 'wallet', amount: 50000, description: 'Пополнение кошелька', reason: 'Касса' },
+    { type: 'gameplay_charge', account: 'wallet', amount: -12000, description: 'Списание за игру', reason: 'Сессия PC-03' },
+    { type: 'package_purchase', account: 'wallet', amount: -25000, description: 'Покупка пакета «Ночной 5ч»', reason: 'Пакет' },
+    { type: 'debt_payment', account: 'debt', amount: 3500, description: 'Погашение долга', reason: 'Касса' },
+    { type: 'refund', account: 'wallet', amount: -5000, description: 'Возврат операции', reason: 'Ошибочное списание' },
+    { type: 'manual_correction', account: 'wallet', amount: 2000, description: 'Ручная корректировка', reason: 'Сверка кассы' }
   ];
+  const log: Array<Record<string, unknown>> = [];
+  for (let i = 0; i < 48; i++) {
+    const spec = cycle[i % cycle.length];
+    // Время убывает с ростом i: самые свежие записи — с меньшим i (час 23 → вниз).
+    const minutesBack = i * 17;
+    const totalMinutes = 23 * 60 - minutesBack;
+    const hh = String(Math.max(0, Math.floor(totalMinutes / 60))).padStart(2, '0');
+    const mm = String(((totalMinutes % 60) + 60) % 60).padStart(2, '0');
+    const isRefund = spec.type === 'refund';
+    log.push({
+      ledgerEntryId: `le-${String(i + 1).padStart(3, '0')}`,
+      organizationId: ORG, branchId: BRANCH, playerAccountId: 'pl-1', sessionId: null, playerPackageId: null,
+      entryType: spec.type, accountType: spec.account, amount: money(spec.amount),
+      quantitySeconds: 0, description: spec.description, reason: spec.reason,
+      reversesLedgerEntryId: isRefund ? 'le-001' : null,
+      createdByStaffUserId: staff,
+      createdAtUtc: `${LEDGER_BASE_DAY}T${hh}:${mm}:00Z`
+    });
+  }
+  return log; // уже newest-first (i=0 — самая свежая)
+}
+
+// Keyset-страница для /ledger: фильтр по entryType/accountType, курсор по индексу записи в журнале.
+// Курсор = base64(`${index}`) — простой и детерминированный (на бэке курсор иной, но клиенту он
+// непрозрачен, важна лишь корректность «следующей страницы»).
+function ledgerPage(searchParams: URLSearchParams): { items: Array<Record<string, unknown>>; nextCursor: string | null } {
+  const entryType = searchParams.get('entryType');
+  const accountType = searchParams.get('accountType');
+  const before = searchParams.get('before');
+  const limit = Math.min(Math.max(Number.parseInt(searchParams.get('limit') ?? '50', 10) || 50, 1), 100);
+
+  let all = ledgerLog();
+  if (entryType) all = all.filter((e) => e.entryType === entryType);
+  if (accountType) all = all.filter((e) => e.accountType === accountType);
+
+  let start = 0;
+  if (before) {
+    try {
+      const decoded = Number.parseInt(atob(before), 10);
+      if (Number.isFinite(decoded)) start = decoded;
+    } catch { start = 0; }
+  }
+
+  const items = all.slice(start, start + limit);
+  const nextIndex = start + limit;
+  const nextCursor = nextIndex < all.length ? btoa(String(nextIndex)) : null;
+  return { items, nextCursor };
 }
 
 function walletSummary() {
-  return { playerAccountId: 'pl-1', walletBalance: money(45000), debtBalance: money(0), recentEntries: ledgerEntries() };
+  return { playerAccountId: 'pl-1', walletBalance: money(45000), debtBalance: money(0), recentEntries: ledgerLog().slice(0, 5) };
 }
 
 function playerPackages() {
@@ -326,6 +372,9 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.includes('/players/') && url.pathname.endsWith('/packages') && method === 'GET') {
     return json(playerPackages());
+  }
+  if (url.pathname.includes('/players/') && url.pathname.endsWith('/ledger') && method === 'GET') {
+    return json(ledgerPage(url.searchParams));
   }
   if (url.pathname.endsWith('/packages/purchases') && method === 'POST') {
     return json(playerPackages()[0]);

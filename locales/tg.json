@@ -1475,6 +1475,8 @@
   "op.players.history.emptyTitle": "Амалиёт нест",
   "op.players.history.emptyDescription": "Барои ин муштарӣ ҳоло амалиёт нест.",
   "op.players.history.reversalBadge": "сторно",
+  "op.players.history.filterAll": "Ҳама",
+  "op.players.history.loadMore": "Бештар нишон диҳед",
   "op.players.wallet.balanceLabel": "Бақия",
   "op.players.wallet.debtLabel": "Қарз",
   "op.players.wallet.topUpTitle": "Пур кардани депозит",

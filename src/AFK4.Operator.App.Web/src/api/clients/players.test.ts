@@ -2,11 +2,11 @@ import { describe, expect, it } from 'bun:test';
 import { createPlayerClient } from './players';
 
 function fakeApi() {
-  const calls: Array<{ method: string; path: string; body?: unknown }> = [];
+  const calls: Array<{ method: string; path: string; body?: unknown; query?: unknown }> = [];
   const api = {
     get: async <T,>(path: string, query?: unknown) => {
-      calls.push({ method: 'GET', path, body: query });
-      return [] as unknown as T;
+      calls.push({ method: 'GET', path, query });
+      return { items: [], nextCursor: null } as unknown as T;
     },
     post: async <T,>(path: string, body: unknown) => {
       calls.push({ method: 'POST', path, body });
@@ -46,5 +46,35 @@ describe('createPlayerClient', () => {
       `POST /api/players/${playerId}/debts/payments`
     ]);
     expect(calls[1].body).toMatchObject({ reason: 'Касса', amount: { minorUnits: 10000 } });
+  });
+
+  it('builds the ledger route with entryType/accountType/before/limit query', async () => {
+    const { api, calls } = fakeApi();
+    const client = createPlayerClient(api as never);
+
+    await client.getLedger(playerId, { entryType: 'top_up', cursor: 'cur-123', limit: 50 });
+
+    expect(calls[0].method).toBe('GET');
+    expect(calls[0].path).toBe(`/api/players/${playerId}/ledger`);
+    // cursor → query-параметр `before`; пустые поля не отправляются.
+    expect(calls[0].query).toEqual({ entryType: 'top_up', before: 'cur-123', limit: 50 });
+  });
+
+  it('omits empty filter params from the ledger query', async () => {
+    const { api, calls } = fakeApi();
+    const client = createPlayerClient(api as never);
+
+    await client.getLedger(playerId);
+
+    expect(calls[0].query).toEqual({});
+  });
+
+  it('returns the cursor page shape', async () => {
+    const { api } = fakeApi();
+    const client = createPlayerClient(api as never);
+
+    const page = await client.getLedger(playerId, { entryType: 'refund' });
+
+    expect(page).toEqual({ items: [], nextCursor: null });
   });
 });
