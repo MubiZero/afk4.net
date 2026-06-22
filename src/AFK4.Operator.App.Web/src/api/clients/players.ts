@@ -95,6 +95,27 @@ export interface PurchasePackageRequest {
   idempotencyKey: string;
 }
 
+export interface ManualLedgerCorrectionRequest {
+  organizationId: Guid;
+  accountType: string;
+  amount: MoneyDto;
+  quantitySeconds: number;
+  reason: string;
+  idempotencyKey: string;
+}
+
+export interface RefundLedgerEntryRequest {
+  organizationId: Guid;
+  ledgerEntryId: Guid;
+  amount: MoneyDto;
+  reason: string;
+  idempotencyKey: string;
+}
+
+export interface SetPlayerPinRequest {
+  pin: string;
+}
+
 export function createPlayerClient(api: PlatformApiClient) {
   return {
     searchPlayers(branchId: Guid, query: string, limit: number): Promise<PlayerSearchResultDto[]> {
@@ -128,6 +149,15 @@ export function createPlayerClient(api: PlatformApiClient) {
     },
     payDebt(playerAccountId: Guid, request: PayDebtRequest): Promise<WalletSummaryDto> {
       return api.post<WalletSummaryDto, PayDebtRequest>(`/api/players/${playerAccountId}/debts/payments`, request);
+    },
+    manualCorrection(playerAccountId: Guid, request: ManualLedgerCorrectionRequest): Promise<WalletSummaryDto> {
+      return api.post<WalletSummaryDto, ManualLedgerCorrectionRequest>(`/api/players/${playerAccountId}/ledger/manual-corrections`, request);
+    },
+    refundLedgerEntry(playerAccountId: Guid, ledgerEntryId: Guid, request: RefundLedgerEntryRequest): Promise<LedgerEntryDto> {
+      return api.post<LedgerEntryDto, RefundLedgerEntryRequest>(`/api/players/${playerAccountId}/ledger/${ledgerEntryId}/refunds`, request);
+    },
+    setPlayerPin(branchId: Guid, playerAccountId: Guid, request: SetPlayerPinRequest): Promise<void> {
+      return api.post<void, SetPlayerPinRequest>(`/api/branches/${branchId}/players/${playerAccountId}/pin`, request);
     }
   };
 }

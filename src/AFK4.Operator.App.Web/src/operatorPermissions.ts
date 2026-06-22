@@ -51,6 +51,8 @@ export const permissionNames = {
   viewDeviceCommandStatus: 'devices.commands.status.view',
   viewAudit: 'audit.view',
   approveMoneyAction: 'billing.money_action.approve',
+  manualCorrection: 'billing.manual_correction',
+  refundLedgerEntry: 'billing.refund',
   managePaymentGateways: 'payments.gateways.manage',
   manageLoyaltySettings: 'loyalty.settings.manage',
   manageNews: 'news.manage'
