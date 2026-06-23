@@ -28,14 +28,15 @@
 - [Tajik i18n honesty](tg-i18n-honesty.md) — guard-тест против `tg===ru` (whitelist loanwords); добавляешь tg-ключ → реально таджикский; переводы НЕ native-reviewed.
 
 ## Активный бэклог / эпики
-- [Operator «Клиенты» (Этап 3)](afk4-operator-clients-epic.md) — **ЭПИК ЗАВЕРШЁН**: S0/S1/S1b/S2 смержены (PR #103/#104/#105/#106), **S3 правка профиля+деактивация в PR #107**. Долг: server-side `IsActive`-guard на money-path для неактивных (UI-гейт есть, бэк нет).
+- [Operator «Касса» (Этап 2)](operator-redesign-phase0-decisions.md) — **В РАБОТЕ** (стартовали 2026-06-23). Единого раздела на фронте НЕТ: функции распылены по `pos`/`payments`/`shifts`/`review`; бэк богатый и почти готов (смены open/close+сверка, POS, money-actions, отчёты+CSV). Стартовые факты разведки — в phase0-памяти. Свой файл памяти заведём при brainstorming.
 - [Online booking auto-confirm + hold](afk4-online-booking-autoconfirm-epic.md) — авто-confirm онлайн-броней при балансе (Slice 1 в main); холд денег — бэклог, решения зафиксированы, гейт на мобилку. Канон-док `docs/superpowers/specs/2026-06-18-online-booking-autoconfirm-hold.md`.
 - [Multi-tenant payments](afk4-multitenant-payments-state.md) — dcgate per-branch; money-path FROZEN внешним bank-bot; `Secrets:EncryptionKeyBase64` критичен (потеря = недешифруемые creds); prod afk4 не задеплоен.
 - [Time handling audit](afk4-time-handling-audit.md) — деньги server-authoritative/безопасны; реальный риск = skew/implicit-tz; рискованный lease/grace rewrite отложен до drift-логов; tz-multiregion YAGNI.
 - [SP4 backlog](afk4-sp4-shipped.md) — SP4 в main; deferred: Player OTP, per-tenant PWA icons, SignalR Redis backplane, G5 hardware-smoke.
 
 ## Закрытые эпики (durable-уроки)
-- [Operator redesign — Этапы](operator-redesign-phase0-decisions.md) — программа этапов (впереди 2 Касса/3 Клиенты/5 Отчёты/6 Управление); currency = const-мапа `@afk4/money`; App.test отдельным `bun test`-прогоном.
+- [Operator redesign — Этапы](operator-redesign-phase0-decisions.md) — Этапы 0/1/3/4 ЗАКРЫТЫ, 2 Касса в работе, впереди 5 Отчёты/6 Управление; currency = const-мапа `@afk4/money`; App.test отдельным `bun test`-прогоном.
+- [Operator «Клиенты» (Этап 3)](afk4-operator-clients-epic.md) — **ЗАКРЫТ** (PR #103–#108 в main, merge `b5dce420`). Durable: долг=виртуальный debt-счёт из ledger, пакеты=предоплач.время; **money-path IsActive-guard в 2 слоя** (5 per-player эндпоинтов + `EfMoneyActionExecutor` для approval-очереди — иначе over-threshold редирект обходил); раздел на всю ширину 3 зоны + кросс-контекст профиля.
 - [Operator «Карта»](afk4-operator-map-epic.md) — карта = только ГРИД (вид «План» удалён); бэк-техдолг: мёртвый PUT `/floor-map`; `floor.*`/Platform.Web = ДРУГОЙ (venue) редактор.
 - [Competitor UX teardown](operator-competitor-ux-teardown.md) — паттерны SmartShell/Langame для будущих этапов (Касса/Клиенты/Отчёты); раздел «опровергнутые верификацией факты».
 - [Email identity parity](email-identity-parity.md) — инвариант phone↔email; reset-экраны построены (`ForgotPassword*.tsx`); ICU i18n.
