@@ -9,11 +9,9 @@ const t = ((key: string) => key) as unknown as TFunc;
 
 describe('playerStatusLabel', () => {
   it('maps known status keys to localized keys and passes through unknown', () => {
-    expect(playerStatusLabel('vip', t)).toBe('op.players.status.vip');
     expect(playerStatusLabel('debt', t)).toBe('op.players.status.debt');
     expect(playerStatusLabel('inactive', t)).toBe('op.players.status.inactive');
     expect(playerStatusLabel('active', t)).toBe('op.players.status.active');
-    expect(playerStatusLabel('package', t)).toBe('op.players.status.package');
     expect(playerStatusLabel('mystery', t)).toBe('mystery');
   });
 });
@@ -22,14 +20,14 @@ describe('fixturePlayers', () => {
   it('returns three offline-fixture clients with stable tones', () => {
     const players = fixturePlayers('TJS', t);
     expect(players).toHaveLength(3);
-    expect(players.map((p) => p.tone)).toEqual(['vip', 'active', 'debt']);
+    expect(players.map((p) => p.tone)).toEqual(['active', 'active', 'debt']);
     expect(players.map((p) => p.name)).toEqual(['Madina S.', 'Amir K.', 'Olim K.']);
     expect(players.every((p) => p.source === 'fixture')).toBe(true);
   });
 });
 
 describe('projectPlayerClient', () => {
-  it('derives status/tone from debt and package counts', () => {
+  it('derives status/tone from debt and active-state only (packages do not change status)', () => {
     const debtor = projectPlayerClient(
       { playerAccountId: 'p1', displayName: 'Olim', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 3500, activePackageCount: 0, isActive: true },
       t
@@ -39,11 +37,13 @@ describe('projectPlayerClient', () => {
     expect(debtor.debtMinorUnits).toBe(3500);
     expect(debtor.source).toBe('backend');
 
+    // Активный клиент с пакетами, но без долга — обычный 'active' (пакеты не делают особый статус).
     const withPackages = projectPlayerClient(
       { playerAccountId: 'p2', displayName: 'Madina', walletBalanceMinorUnits: 46000, debtBalanceMinorUnits: 0, activePackageCount: 2, isActive: true },
       t
     );
-    expect(withPackages.status).toBe('package');
+    expect(withPackages.status).toBe('active');
+    expect(withPackages.tone).toBe('active');
     expect(withPackages.balanceMinorUnits).toBe(46000);
 
     const inactive = projectPlayerClient(
@@ -133,27 +133,23 @@ describe('projectPlayerPackage', () => {
 });
 
 describe('client segments (stable ids — survive locale change)', () => {
-  it('buildClientSegments returns four stable-id segments with correct counts', () => {
+  it('buildClientSegments returns three stable-id segments with correct counts', () => {
     const clients = [
-      client({ tone: 'vip', status: 'package' }),
       client({ debtMinorUnits: 3500, status: 'debt' }),
       client({ status: 'inactive', tone: 'regular' }),
       client({ status: 'active' })
     ];
     const segments = buildClientSegments(clients, t);
-    expect(segments.map((s) => s.id)).toEqual(['all', 'vip', 'debt', 'inactive']);
+    expect(segments.map((s) => s.id)).toEqual(['all', 'debt', 'inactive']);
     const byId = (id: ClientSegmentId) => segments.find((s) => s.id === id)!;
-    expect(byId('all').count).toBe(4);
-    expect(byId('vip').count).toBe(1);
+    expect(byId('all').count).toBe(3);
     expect(byId('debt').count).toBe(1);
     expect(byId('inactive').count).toBe(1);
     expect(byId('all').label).toBe('op.players.segments.all');
   });
 
   it('matchesSegment filters by real fields', () => {
-    expect(matchesSegment(client({ tone: 'vip' }), 'all')).toBe(true);
-    expect(matchesSegment(client({ tone: 'vip' }), 'vip')).toBe(true);
-    expect(matchesSegment(client({ tone: 'active' }), 'vip')).toBe(false);
+    expect(matchesSegment(client({ status: 'active' }), 'all')).toBe(true);
     expect(matchesSegment(client({ debtMinorUnits: 100 }), 'debt')).toBe(true);
     expect(matchesSegment(client({ debtMinorUnits: 0 }), 'debt')).toBe(false);
     expect(matchesSegment(client({ status: 'inactive' }), 'inactive')).toBe(true);

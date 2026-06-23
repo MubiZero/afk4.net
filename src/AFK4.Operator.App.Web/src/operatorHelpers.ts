@@ -1332,11 +1332,12 @@ export function projectPlayerClient(player: unknown, t: TFunc): PlayerClientItem
     playerAccountId: readString(player, 'playerAccountId') || undefined,
     name: readString(player, 'displayName', t('op.helper.player.nameFallback')),
     // Stable status key — rendered via playerStatusLabel and filtered on in BackendPlayersWorkspace.
-    status: debt > 0 ? 'debt' : packages > 0 ? 'package' : isActive ? 'active' : 'inactive',
+    // Бейдж подсвечивает только отклонения (долг/деактивация); активный без долга — без подписи.
+    status: debt > 0 ? 'debt' : isActive ? 'active' : 'inactive',
     balanceMinorUnits: readNumber(player, 'walletBalanceMinorUnits', 0),
     debtMinorUnits: debt,
     last: lastLabel,
-    tone: debt > 0 ? 'debt' : packages > 0 ? 'vip' : isActive ? 'active' : 'regular',
+    tone: debt > 0 ? 'debt' : isActive ? 'active' : 'regular',
     detail,
     phoneNumber: readString(player, 'phoneNumber', ''),
     source: 'backend'

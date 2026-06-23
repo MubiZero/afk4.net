@@ -860,7 +860,7 @@ describe('App', () => {
     expect(screen.getByText('Быстрые операции')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Клиенты'));
-    const clientsHead = (await screen.findByRole('heading', { name: /Клиенты/ })).closest('.screen-head');
+    const clientsHead = (await screen.findByRole('heading', { name: /Клиенты/ })).closest('.clients-head');
     expect(clientsHead).toBeInTheDocument();
     // глобальные метрики в шапке — но НЕ per-client сегменты/числа
     expect(clientsHead).not.toHaveTextContent('Долг');

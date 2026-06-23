@@ -17,6 +17,7 @@ type DetailProps = {
   packages: PlayerPackageDto[];
   options: PackageOptionDto[];
   ledgerEntries: LedgerEntryDto[];
+  recentEntries: LedgerEntryDto[];
   ledgerFilter: string | null;
   ledgerHasMore: boolean;
   ledgerLoading: boolean;
@@ -52,8 +53,8 @@ type DetailProps = {
 };
 
 const client: PlayerClientItem = {
-  playerAccountId: 'p1', name: 'Madina S.', status: 'vip', balanceMinorUnits: 46000,
-  debtMinorUnits: 0, last: '', tone: 'vip', detail: '', phoneNumber: '+992 90 555 22 11', source: 'backend'
+  playerAccountId: 'p1', name: 'Madina S.', status: 'active', balanceMinorUnits: 46000,
+  debtMinorUnits: 0, last: '', tone: 'active', detail: '', phoneNumber: '+992 90 555 22 11', source: 'backend'
 };
 
 const baseProps: DetailProps = {
@@ -66,6 +67,7 @@ const baseProps: DetailProps = {
   packages: [],
   options: [],
   ledgerEntries: [],
+  recentEntries: [],
   ledgerFilter: null,
   ledgerHasMore: false,
   ledgerLoading: false,

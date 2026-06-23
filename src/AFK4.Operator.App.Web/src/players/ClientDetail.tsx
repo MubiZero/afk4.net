@@ -1,7 +1,7 @@
 import { useI18n } from '@afk4/i18n';
 import { CalendarClock } from 'lucide-react';
 import type { PlayerClientItem } from '../operatorHelpers';
-import { dataSourceLabel, formatMinorUnits } from '../operatorHelpers';
+import { formatMinorUnits } from '../operatorHelpers';
 import type { LedgerEntryDto, PackageOptionDto, PlayerPackageDto } from '../operatorApiClients';
 import { EmptyState } from '../operatorPrimitives';
 import { playerStatusLabel } from './playersModel';
@@ -32,6 +32,7 @@ export function ClientDetail(props: {
   packages: PlayerPackageDto[];
   options: PackageOptionDto[];
   ledgerEntries: LedgerEntryDto[];
+  recentEntries: LedgerEntryDto[];
   ledgerFilter: string | null;
   ledgerHasMore: boolean;
   ledgerLoading: boolean;
@@ -91,31 +92,31 @@ export function ClientDetail(props: {
       <header className="client-detail-head">
         <div className="client-avatar">{initials(client.name)}</div>
         <div className="client-detail-ident">
-          <span className="client-detail-status">{playerStatusLabel(client.status, t)}</span>
+          {client.status !== 'active' && (
+            <span className={`client-detail-status is-${client.status}`}>{playerStatusLabel(client.status, t)}</span>
+          )}
           <strong>{client.name}</strong>
-          <em>
-            {client.phoneNumber || t('op.pos.cart.clientNoPhone')}
-            {' · '}
-            {dataSourceLabel(client.source, t)}
-          </em>
+          <em>{client.phoneNumber || t('op.pos.cart.clientNoPhone')}</em>
         </div>
-        {props.canManageClient && (
-          <ClientActionsMenu
-            isActive={client.status !== 'inactive'}
-            onEditProfile={props.onEditProfile}
-            onSetPin={props.onSetPin}
-            onToggleActive={props.onToggleActive}
-          />
-        )}
-        <button
-          type="button"
-          className="client-detail-reservation"
-          disabled={!props.canCreateReservation}
-          onClick={props.onCreateReservation}
-        >
-          <CalendarClock size={15} aria-hidden="true" />
-          {t('op.players.detail.reservationBtn')}
-        </button>
+        <div className="client-detail-actions">
+          <button
+            type="button"
+            className="client-detail-reservation"
+            disabled={!props.canCreateReservation}
+            onClick={props.onCreateReservation}
+          >
+            <CalendarClock size={15} aria-hidden="true" />
+            {t('op.players.detail.reservationBtn')}
+          </button>
+          {props.canManageClient && (
+            <ClientActionsMenu
+              isActive={client.status !== 'inactive'}
+              onEditProfile={props.onEditProfile}
+              onSetPin={props.onSetPin}
+              onToggleActive={props.onToggleActive}
+            />
+          )}
+        </div>
       </header>
 
       {client.status === 'inactive' && (
@@ -157,9 +158,10 @@ export function ClientDetail(props: {
       <div className="client-detail-content">
         {props.activeTab === 'wallet' && (
           <WalletSection
-            balanceMinorUnits={props.balanceMinorUnits}
             debtMinorUnits={props.debtMinorUnits}
             currencyCode={props.currencyCode}
+            recentEntries={props.recentEntries}
+            onShowHistory={() => props.onSelectTab('history')}
             topUpAmount={props.topUpAmount}
             topUpReason={props.topUpReason}
             debtAmount={props.debtAmount}

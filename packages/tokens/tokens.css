@@ -11,6 +11,19 @@
   --radius-lg: 12px;
   --radius-pill: 999px;
 
+  /* Spacing scale (base 4px) — единая шкала зазоров для всех экранов */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Control heights — все интерактивные контролы сводятся к этим высотам */
+  --control-sm: 28px;
+  --control-md: 36px;
+  --control-lg: 44px;
+
   /* Motion */
   --duration-fast: 120ms;
   --duration-medium: 200ms;

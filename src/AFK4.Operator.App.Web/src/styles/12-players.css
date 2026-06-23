@@ -6,24 +6,51 @@
   min-height: 0;
 }
 
+/* Заголовок-якорь с подложкой — зеркало .booking-header (Карта/Брони): единый блок, а не голый текст */
 .clients-head {
-  margin-bottom: 8px;
-}
-
-.clients-head-actions {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--map-toolbar-h);
+  margin-bottom: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+}
+
+.clients-head h1 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clients-head-name {
+  font-weight: 700;
+}
+
+.clients-head-tagline {
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .clients-new-client-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
+  gap: var(--space-2);
+  height: var(--control-md);
   border: 1px solid var(--accent);
-  border-radius: 6px;
-  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-3);
   background: var(--accent);
   color: var(--text-on-accent);
   font-size: 12px;
@@ -74,10 +101,18 @@
 }
 
 .clients-panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3) var(--space-3) 0;
+}
+
+.clients-panel-title-text {
   display: grid;
   gap: 3px;
   min-width: 0;
-  padding: 12px 12px 0;
 }
 
 .clients-panel-title span {
@@ -104,12 +139,12 @@
 .clients-search {
   display: flex;
   align-items: center;
-  gap: 8px;
-  height: 30px;
-  margin: 8px 12px 7px;
+  gap: var(--space-2);
+  height: var(--control-md);
+  margin: var(--space-2) var(--space-3) var(--space-2);
   border: 1px solid var(--border-default);
-  border-radius: 5px;
-  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-3);
   background: var(--surface-sunken);
   color: var(--text-tertiary);
 }
@@ -134,11 +169,11 @@
 .clients-segment-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 26px;
+  gap: var(--space-2);
+  height: var(--control-sm);
   border: 1px solid var(--border-default);
-  border-radius: 999px;
-  padding: 0 11px;
+  border-radius: var(--radius-pill);
+  padding: 0 var(--space-3);
   background: var(--surface-card);
   color: var(--text-secondary);
   font-size: 11px;
@@ -179,7 +214,8 @@
   display: grid;
   align-content: start;
   gap: 5px;
-  padding: 0 12px 10px;
+  /* padding-top — запас под hover-подъём первой строки (translateY иначе срезается кромкой прокрутки) */
+  padding: 2px 12px 10px;
   overflow-y: auto;
   min-height: 0;
 }
@@ -196,11 +232,10 @@
 
 .client-row {
   display: grid;
-  grid-template-columns: 70px minmax(0, 1fr) 90px;
-  grid-template-rows: auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 4px 9px;
-  min-height: 40px;
+  gap: var(--space-1) var(--space-2);
+  min-height: var(--control-lg);
   border: 1px solid var(--border-default);
   border-left: 3px solid var(--text-tertiary);
   border-radius: 6px;
@@ -224,7 +259,6 @@
   outline-offset: 2px;
 }
 
-.client-row.vip { border-left-color: var(--accent-hover); }
 .client-row.active { border-left-color: var(--success); }
 .client-row.regular { border-left-color: var(--text-tertiary); }
 .client-row.debt { border-left-color: var(--danger); }
@@ -235,27 +269,55 @@
   box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.22);
 }
 
-.client-row > span {
-  overflow: hidden;
-  color: var(--accent-on-soft);
-  font-size: 11px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-row div {
-  display: grid;
+.client-row-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   min-width: 0;
-  gap: 2px;
 }
 
-.client-row strong {
+.client-row-name-text {
   overflow: hidden;
   color: var(--text-primary);
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Бейдж-pill рядом с именем — только для отклонений (долг/деактивация). */
+.client-row-badge {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.client-row-badge.is-debt {
+  background: var(--danger-soft-bg);
+  color: var(--danger-text);
+}
+
+.client-row-badge.is-inactive {
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+}
+
+.client-row-info {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+/* Баланс + (опционально) долг одной стопкой в колонке 3 — чтобы долг не уезжал во второй
+   grid-ряд и не делал строку выше: высоту строки всегда диктует левая колонка (имя+телефон). */
+.client-row-figures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
 }
 
 .client-row em {
@@ -277,7 +339,6 @@
 }
 
 .client-row-debt {
-  grid-column: 3;
   color: var(--danger-text);
   font-size: 11px;
   font-weight: 600;
@@ -286,18 +347,19 @@
 
 /* ── Карточка (detail) ──────────────────────────────────────────────────────── */
 .clients-detail-panel {
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .client-detail-head {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  margin: 12px 12px 0;
+  gap: var(--space-3);
+  max-width: 1040px;
+  margin: var(--space-3) var(--space-3) 0;
   border: 1px solid var(--border-default);
-  border-radius: 7px;
-  padding: 12px;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
   background: var(--surface-card);
 }
 
@@ -320,9 +382,16 @@
 }
 
 .client-detail-status {
-  color: var(--accent-on-soft);
   font-size: 11px;
   font-weight: 600;
+}
+
+.client-detail-status.is-debt {
+  color: var(--danger-text);
+}
+
+.client-detail-status.is-inactive {
+  color: var(--text-secondary);
 }
 
 .client-detail-ident strong {
@@ -343,14 +412,20 @@
   white-space: nowrap;
 }
 
+.client-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .client-detail-reservation {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 32px;
+  gap: var(--space-2);
+  height: var(--control-md);
   border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 0 12px;
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-3);
   background: var(--surface-card);
   color: var(--text-strong);
   font-size: 12px;
@@ -377,19 +452,21 @@
   color: var(--text-quaternary);
 }
 
+/* Сводка-чипы — на общую рабочую сетку (3 равные колонки, одна кромка с телом вкладок). */
 .client-detail-chips {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  padding: 0 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  max-width: 1040px;
+  padding: 0 var(--space-3);
 }
 
 .client-chip {
   display: grid;
-  gap: 3px;
+  gap: var(--space-1);
   border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 10px;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
   background: var(--surface-elevated);
 }
 
@@ -415,13 +492,14 @@
 
 .client-detail-tabs {
   display: flex;
-  gap: 4px;
-  margin: 0 12px;
+  gap: var(--space-1);
+  max-width: 1040px;
+  margin: 0 var(--space-3);
   border-bottom: 1px solid var(--border-soft);
 }
 
 .client-detail-tab {
-  height: 32px;
+  height: var(--control-md);
   border: none;
   border-bottom: 2px solid transparent;
   background: transparent;
@@ -449,52 +527,148 @@
 .client-detail-content {
   overflow-y: auto;
   min-height: 0;
-  padding: 0 12px 12px;
+  max-width: 1040px;
+  /* padding-top — запас под hover-подъём верхнего ряда чипов (иначе translateY срезается кромкой прокрутки) */
+  padding: var(--space-1) var(--space-3) var(--space-3);
 }
 
-/* ── Кошелёк ─────────────────────────────────────────────────────────────────── */
-.clients-wallet-section {
+/* ── Кошелёк: слева действия, справа мини-лента последних операций ──────────────
+   Баланс/долг живут в чипах-сводке — здесь не дублируем. */
+.clients-wallet-layout {
   display: grid;
-  gap: 12px;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: var(--space-4);
+  align-items: stretch;
 }
 
-.clients-wallet-figures {
+.clients-wallet-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: var(--space-3);
+  align-content: start;
 }
 
-.clients-wallet-figure {
-  display: grid;
-  gap: 3px;
+/* Узкое окно — колонки в стопку (история под действиями) */
+@media (max-width: 1024px) {
+  .clients-wallet-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Блок погашения долга — мягкий красный акцент в рамке, чтобы отличался от пополнения */
+.clients-wallet-form-debt {
+  border-color: var(--danger-soft-border);
+}
+
+/* Мини-лента последних операций (read-only, со ссылкой на полную «Историю») */
+.clients-wallet-recent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  height: 100%;
   border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 10px;
-  background: var(--surface-elevated);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--surface-card);
 }
 
-.clients-wallet-figure span {
-  color: var(--text-secondary);
-  font-size: 11px;
-}
-
-.clients-wallet-figure strong {
+.clients-wallet-recent-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--text-primary);
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 1;
 }
 
-.clients-wallet-figure.is-debt strong {
+.clients-wallet-recent-head strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.clients-wallet-recent-empty {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.clients-wallet-recent-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.clients-wallet-recent-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.clients-wallet-recent-row:last-child {
+  border-bottom: none;
+}
+
+.clients-wallet-recent-time {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.clients-wallet-recent-type {
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clients-wallet-recent-amount {
+  font-size: 12px;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.clients-wallet-recent-row.is-credit .clients-wallet-recent-amount {
+  color: var(--success-text);
+}
+
+.clients-wallet-recent-row.is-debit .clients-wallet-recent-amount {
   color: var(--danger-text);
+}
+
+.clients-wallet-recent-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+  margin-top: auto;
+  padding: 4px 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--accent-bright);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.clients-wallet-recent-link:hover {
+  color: var(--accent-hover);
+}
+
+.clients-wallet-recent-link:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
 }
 
 .clients-wallet-form {
   display: grid;
-  gap: 7px;
+  gap: var(--space-2);
   border: 1px solid var(--border-default);
-  border-radius: 7px;
-  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
   background: var(--surface-card);
 }
 
@@ -504,13 +678,17 @@
 
 .clients-section-title {
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
 }
 
 .clients-wallet-form label,
 .clients-package-select,
-.clients-new-form label {
+.clients-new-form label,
+.clients-correction-form label,
+.clients-edit-form label,
+.clients-pin-form label,
+.clients-refund-form label {
   display: grid;
   gap: 4px;
   color: var(--text-secondary);
@@ -520,11 +698,15 @@
 
 .clients-wallet-form input,
 .clients-package-select select,
-.clients-new-form input {
-  height: 30px;
+.clients-new-form input,
+.clients-correction-form input,
+.clients-edit-form input,
+.clients-pin-form input,
+.clients-refund-form input {
+  height: var(--control-md);
   min-width: 0;
   border: 1px solid var(--border-default);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   padding: 0 9px;
   outline: 0;
   background: var(--surface-sunken);
@@ -536,13 +718,21 @@
 
 .clients-wallet-form input:focus,
 .clients-package-select select:focus,
-.clients-new-form input:focus {
+.clients-new-form input:focus,
+.clients-correction-form input:focus,
+.clients-edit-form input:focus,
+.clients-pin-form input:focus,
+.clients-refund-form input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.22);
 }
 
 .clients-wallet-form input:disabled,
-.clients-package-select select:disabled {
+.clients-package-select select:disabled,
+.clients-correction-form input:disabled,
+.clients-edit-form input:disabled,
+.clients-pin-form input:disabled,
+.clients-refund-form input:disabled {
   color: var(--text-quaternary);
   cursor: not-allowed;
 }
@@ -599,21 +789,21 @@
 /* ── Пакеты ──────────────────────────────────────────────────────────────────── */
 .clients-packages-section {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .client-package-list {
   display: grid;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .client-package-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 2px 10px;
+  gap: var(--space-1) var(--space-3);
   border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 9px 11px;
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
   background: var(--surface-elevated);
 }
 
@@ -652,26 +842,26 @@
 
 .clients-package-buy {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
   border: 1px solid var(--border-default);
-  border-radius: 7px;
-  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
   background: var(--surface-card);
 }
 
 .clients-package-preview {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .clients-package-preview span {
   display: grid;
-  gap: 2px;
+  gap: var(--space-1);
   min-width: 0;
   border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
   background: var(--surface-elevated);
 }
 
@@ -784,6 +974,7 @@
 @media (prefers-reduced-motion: reduce) {
   .client-row,
   .clients-segment-chip,
+  .clients-segment button,
   .client-detail-tab,
   .clients-primary-action,
   .clients-new-client-btn,
@@ -809,10 +1000,10 @@
 .clients-history-filter {
   display: inline-flex;
   align-items: center;
-  height: 26px;
+  height: var(--control-sm);
   border: 1px solid var(--border-default);
-  border-radius: 999px;
-  padding: 0 11px;
+  border-radius: var(--radius-pill);
+  padding: 0 var(--space-3);
   background: var(--surface-card);
   color: var(--text-secondary);
   font-size: 11px;
@@ -854,13 +1045,13 @@
 .clients-history-more {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   align-self: center;
-  height: 30px;
-  margin-top: 4px;
+  height: var(--control-md);
+  margin-top: var(--space-1);
   border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-4);
   background: var(--surface-card);
   color: var(--text-secondary);
   font-size: 12px;
@@ -897,6 +1088,7 @@
 /* ── S2 power-tools: сегменты, формы модалок, входные кнопки ─────────────── */
 .clients-segment {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   border: none;
   padding: 0;
@@ -904,20 +1096,47 @@
 }
 
 .clients-segment legend {
-  font-size: 12px;
-  opacity: 0.7;
+  width: 100%;
   margin-bottom: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .clients-segment button {
   flex: 1;
-  padding: 8px 10px;
-  border-radius: 8px;
+  min-height: var(--control-md);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.clients-segment button:hover:not(:disabled):not(.active) {
+  border-color: var(--border-accent);
+  color: var(--accent-bright);
+  transform: translateY(-1px);
+}
+
+.clients-segment button:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.clients-segment button:disabled {
+  cursor: not-allowed;
+  color: var(--text-quaternary);
 }
 
 .clients-segment button.active {
-  font-weight: 600;
+  border-color: var(--accent);
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+  font-weight: 700;
 }
 
 .clients-correction-form,
@@ -934,31 +1153,68 @@
   justify-content: space-between;
   gap: 8px;
   margin: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 7px;
+  padding: 10px 12px;
+  background: var(--surface-sunken);
+}
+
+.clients-refund-summary span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.clients-refund-summary strong {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.clients-refund-summary em {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
 }
 
 .clients-pin-hint {
-  font-size: 12px;
-  opacity: 0.7;
+  color: var(--text-tertiary);
+  font-size: 11px;
 }
 
+/* Корректировка — вторичная кнопка-outline: заметна, но не конкурирует с primary «Пополнить». */
 .clients-wallet-correction-link {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px 0;
+  justify-content: center;
+  gap: var(--space-2);
+  height: var(--control-md);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-card);
   color: var(--accent-bright);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
 }
 
 .clients-wallet-correction-link:hover {
-  color: var(--accent-hover);
+  border-color: var(--border-accent);
+  background: var(--surface-accent-soft);
+  transform: translateY(-1px);
 }
 
 .clients-wallet-correction-link:focus-visible {
   outline: 2px solid rgba(var(--accent-rgb), 0.82);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clients-wallet-correction-link {
+    transition: none;
+  }
 }
 
 .client-detail-pin {
@@ -1046,10 +1302,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: var(--control-md);
+  height: var(--control-md);
   border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--surface-elevated);
   color: var(--text-secondary);
   cursor: pointer;

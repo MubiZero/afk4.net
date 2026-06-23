@@ -11,7 +11,7 @@ export { projectPlayerClient, playerPackageLabel, type PlayerClientItem } from '
 export function fixturePlayers(currencyCode: string, t: TFunc): PlayerClientItem[] {
   const example = t('op.helper.player.fixture.example');
   return [
-    { name: 'Madina S.', status: 'vip', balanceMinorUnits: 46000, debtMinorUnits: 0, last: example, tone: 'vip', detail: t('op.helper.player.fixture.localCard'), phoneNumber: '+992 90 555 22 11', source: 'fixture' },
+    { name: 'Madina S.', status: 'active', balanceMinorUnits: 46000, debtMinorUnits: 0, last: example, tone: 'active', detail: t('op.helper.player.fixture.localCard'), phoneNumber: '+992 90 555 22 11', source: 'fixture' },
     { name: 'Amir K.', status: 'active', balanceMinorUnits: 12000, debtMinorUnits: 0, last: example, tone: 'active', detail: formatMinorUnits(12000, currencyCode), phoneNumber: '', source: 'fixture' },
     { name: 'Olim K.', status: 'debt', balanceMinorUnits: 0, debtMinorUnits: 3500, last: example, tone: 'debt', detail: t('op.helper.player.fixture.debtDetail'), phoneNumber: '', source: 'fixture' }
   ];
@@ -20,14 +20,10 @@ export function fixturePlayers(currencyCode: string, t: TFunc): PlayerClientItem
 // Maps the stable status key from projectPlayerClient/fixturePlayers to a localized label.
 export function playerStatusLabel(status: string, t: TFunc): string {
   switch (status) {
-    case 'vip':
-      return t('op.players.status.vip');
     case 'active':
       return t('op.players.status.active');
     case 'debt':
       return t('op.players.status.debt');
-    case 'package':
-      return t('op.players.status.package');
     case 'inactive':
       return t('op.players.status.inactive');
     default:
@@ -113,7 +109,7 @@ export function projectPlayerPackage(pkg: PlayerPackageDto, t: TFunc, locale: st
 
 // Честные сегменты по реальным полям, на СТАБИЛЬНЫХ id (label локализуется на render —
 // id не зависит от языка, что чинит латентный баг с фильтром по локализованной строке).
-export type ClientSegmentId = 'all' | 'vip' | 'debt' | 'inactive';
+export type ClientSegmentId = 'all' | 'debt' | 'inactive';
 
 export interface ClientSegment {
   id: ClientSegmentId;
@@ -125,8 +121,6 @@ export function matchesSegment(client: PlayerClientItem, id: ClientSegmentId): b
   switch (id) {
     case 'all':
       return true;
-    case 'vip':
-      return client.tone === 'vip';
     case 'debt':
       return client.debtMinorUnits > 0;
     case 'inactive':
@@ -137,10 +131,9 @@ export function matchesSegment(client: PlayerClientItem, id: ClientSegmentId): b
 }
 
 export function buildClientSegments(clients: PlayerClientItem[], t: TFunc): ClientSegment[] {
-  const ids: ClientSegmentId[] = ['all', 'vip', 'debt', 'inactive'];
+  const ids: ClientSegmentId[] = ['all', 'debt', 'inactive'];
   const labels: Record<ClientSegmentId, MessageKey> = {
     all: 'op.players.segments.all',
-    vip: 'op.players.segments.vip',
     debt: 'op.players.segments.debt',
     inactive: 'op.players.segments.inactive'
   };

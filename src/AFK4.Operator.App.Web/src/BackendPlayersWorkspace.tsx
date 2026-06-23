@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { UserRoundPlus } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import type { LedgerEntryDto, PackageOptionDto, PlayerPackageDto, WalletSummaryDto } from './operatorApiClients';
@@ -14,11 +13,10 @@ import {
   readMoney,
   readNumber,
   readString,
-  requireBackend,
-  workspaceLoadStatusLabel
+  requireBackend
 } from './operatorHelpers';
 import { fixturePlayers, playerStatusLabel, projectPlayerClient, buildClientSegments, matchesSegment, type PlayerClientItem, type ClientSegmentId } from './players/playersModel';
-import { FeedbackNotice, StateFlag } from './operatorPrimitives';
+import { FeedbackNotice } from './operatorPrimitives';
 import { useDeferredFlag } from './useDeferredFlag';
 import { ClientList } from './players/ClientList';
 import { ClientDetail, type ClientDetailTab } from './players/ClientDetail';
@@ -52,6 +50,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerPhone, setNewPlayerPhone] = useState('');
   const [ledgerEntries, setLedgerEntries] = useState<LedgerEntryDto[]>([]);
+  const [recentEntries, setRecentEntries] = useState<LedgerEntryDto[]>([]);
   const [ledgerCursor, setLedgerCursor] = useState<string | null>(null);
   const [ledgerFilter, setLedgerFilter] = useState<string | null>(null);
   const [ledgerLoading, setLedgerLoading] = useState(false);
@@ -219,6 +218,48 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     ledgerReloadNonce
   ]);
 
+  // Мини-лента последних операций для вкладки «Кошелёк» — отдельно от фильтруемого журнала
+  // вкладки «История»: всегда последние 5 без фильтра. Обновляется после денежных действий (nonce).
+  useEffect(() => {
+    if (!canViewLedger || selectedClient === null || !selectedClient.playerAccountId) {
+      setRecentEntries([]);
+      return undefined;
+    }
+
+    const nextBackend = backend;
+    if (nextBackend === null) {
+      return undefined;
+    }
+
+    const playerAccountId = selectedClient.playerAccountId;
+    let disposed = false;
+    const loadRecent = async () => {
+      try {
+        const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+        const page = await apiClients.players.getLedger(playerAccountId, { limit: 5 });
+        if (!disposed) {
+          setRecentEntries(page.items.slice(0, 5));
+        }
+      } catch {
+        if (!disposed) {
+          setRecentEntries([]);
+        }
+      }
+    };
+
+    void loadRecent();
+    return () => {
+      disposed = true;
+    };
+  }, [
+    backend?.branchId,
+    backend?.config.platformBaseUrl,
+    backend?.session.accessToken,
+    selectedClient?.playerAccountId,
+    canViewLedger,
+    ledgerReloadNonce
+  ]);
+
   const segments = buildClientSegments(clients, t);
   const visibleClients = clients.filter((client) => {
     const searchMatches = `${client.name} ${playerStatusLabel(client.status, t)} ${client.detail} ${client.last}`
@@ -331,6 +372,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           idempotencyKey: createIdempotencyKey('wallet-top-up')
         });
         setWalletSummary(wallet);
+        bumpLedger();
       } else if (id === 'writeOffDebt') {
         if (!hasPermission(nextBackend.session, permissionNames.payDebt)) {
           throw new Error(t('op.players.error.noPermDebt'));
@@ -351,6 +393,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           idempotencyKey: createIdempotencyKey('debt-payment')
         });
         setWalletSummary(wallet);
+        bumpLedger();
       } else if (id === 'newCard') {
         if (!hasPermission(nextBackend.session, permissionNames.createPlayerAccount)) {
           throw new Error(t('op.players.error.noPermCreate'));
@@ -417,6 +460,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         ]);
         setWalletSummary(wallet);
         setSelectedClientPackages(Array.isArray(packages) ? packages : [purchasedPackage]);
+        bumpLedger();
       } else if (id === 'booking') {
         if (!hasPermission(nextBackend.session, permissionNames.manageReservations)) {
           throw new Error(t('op.players.error.noPermBooking'));
@@ -591,19 +635,12 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
   return (
     <main className="workspace-screen clients-screen">
-      <section className="screen-head clients-head">
-        <div>
-          <span>{t('op.players.title')}</span>
-          <h1>{t('op.players.heading')}</h1>
-        </div>
-        <div className="screen-actions clients-head-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.pos.platformConnected'), t)}</span>
-          <StateFlag label={t('op.players.strip.clients')} value={String(clients.length)} />
-          <StateFlag label={t('op.players.strip.platform')} value={String(clients.filter((client) => client.source === 'backend').length)} critical={loadStatus !== 'backend'} />
-          <button type="button" className="clients-new-client-btn" disabled={!canCreatePlayer} onClick={() => setNewClientOpen(true)}>
-            <UserRoundPlus size={15} aria-hidden="true" />{t('op.players.newClient.openBtn')}
-          </button>
-        </div>
+      <section className="clients-head">
+        <h1>
+          <strong className="clients-head-name">{t('op.players.title')}</strong>
+          {' · '}
+          <span className="clients-head-tagline">{t('op.players.tagline')}</span>
+        </h1>
       </section>
 
       <FeedbackNotice feedback={feedback} />
@@ -618,6 +655,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           showSkeleton={showSkeleton}
           emptyDescription={emptyDescription}
           currencyCode={currencyCode}
+          canCreatePlayer={canCreatePlayer}
+          onNewClient={() => setNewClientOpen(true)}
           onSearchChange={setClientSearch}
           onSelectSegment={setActiveSegment}
           onSelectClient={setSelectedClientId}
@@ -633,6 +672,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           packages={selectedClientPackages}
           options={packageOptions}
           ledgerEntries={ledgerEntries}
+          recentEntries={recentEntries}
           ledgerFilter={ledgerFilter}
           ledgerHasMore={ledgerCursor !== null}
           ledgerLoading={ledgerLoading}

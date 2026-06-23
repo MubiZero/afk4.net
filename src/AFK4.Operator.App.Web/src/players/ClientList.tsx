@@ -1,5 +1,5 @@
 import { useI18n } from '@afk4/i18n';
-import { Search, Users } from 'lucide-react';
+import { Search, UserRoundPlus, Users } from 'lucide-react';
 import type { PlayerClientItem } from '../operatorHelpers';
 import { formatMinorUnits } from '../operatorHelpers';
 import { Skeleton, EmptyState } from '../operatorPrimitives';
@@ -15,6 +15,8 @@ export function ClientList({
   showSkeleton,
   emptyDescription,
   currencyCode,
+  canCreatePlayer,
+  onNewClient,
   onSearchChange,
   onSelectSegment,
   onSelectClient
@@ -27,6 +29,8 @@ export function ClientList({
   showSkeleton: boolean;
   emptyDescription: string;
   currencyCode: string;
+  canCreatePlayer: boolean;
+  onNewClient: () => void;
   onSearchChange: (value: string) => void;
   onSelectSegment: (id: ClientSegmentId) => void;
   onSelectClient: (playerAccountId: string | null) => void;
@@ -36,8 +40,15 @@ export function ClientList({
   return (
     <section className="clients-panel clients-list-panel">
       <header className="clients-panel-title">
-        <span>{t('op.players.list.title')}</span>
-        <strong>{t('op.players.list.subtitle')}</strong>
+        <div className="clients-panel-title-text">
+          <span>{t('op.players.list.title')}</span>
+          <strong>{t('op.players.list.subtitle')}</strong>
+        </div>
+        {canCreatePlayer && (
+          <button type="button" className="clients-new-client-btn" onClick={onNewClient}>
+            <UserRoundPlus size={15} aria-hidden="true" />{t('op.players.newClient.openBtn')}
+          </button>
+        )}
       </header>
 
       <label className="clients-search">
@@ -84,15 +95,21 @@ export function ClientList({
               className={`client-row ${client.tone}${client.status === 'inactive' ? ' is-inactive' : ''}${client.playerAccountId === selectedClientId ? ' selected' : ''}`}
               onClick={() => onSelectClient(client.playerAccountId ?? null)}
             >
-              <span className="client-row-status" aria-hidden="true">{playerStatusLabel(client.status, t)}</span>
               <div className="client-row-info">
-                <strong className="client-row-name">{client.name}</strong>
+                <strong className="client-row-name">
+                  <span className="client-row-name-text">{client.name}</span>
+                  {client.status !== 'active' && (
+                    <span className={`client-row-badge is-${client.status}`}>{playerStatusLabel(client.status, t)}</span>
+                  )}
+                </strong>
                 <em className="client-row-detail">{client.detail}</em>
               </div>
-              <b className="client-row-balance">{formatMinorUnits(client.balanceMinorUnits, currencyCode)}</b>
-              {client.debtMinorUnits > 0 && (
-                <small className="client-row-debt">{formatMinorUnits(client.debtMinorUnits, currencyCode)}</small>
-              )}
+              <div className="client-row-figures">
+                <b className="client-row-balance">{formatMinorUnits(client.balanceMinorUnits, currencyCode)}</b>
+                {client.debtMinorUnits > 0 && (
+                  <small className="client-row-debt">{formatMinorUnits(client.debtMinorUnits, currencyCode)}</small>
+                )}
+              </div>
             </button>
           ))
         )}
