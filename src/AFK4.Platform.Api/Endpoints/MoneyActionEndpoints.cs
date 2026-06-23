@@ -432,6 +432,12 @@ internal static class MoneyActionEndpoints
                 return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
             }
 
+            var inactiveGuard = RejectInactivePlayerMoneyAction(player.Player);
+            if (inactiveGuard is not null)
+            {
+                return inactiveGuard;
+            }
+
             var result = await billingCommandService.PayDebtAsync(
                 playerAccountId,
                 player.BranchId,
