@@ -5,6 +5,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Packages;
+using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Tariffs;
 using Microsoft.EntityFrameworkCore;
@@ -57,6 +58,113 @@ public sealed class BillingEndpointTests
         Assert.Equal(AuditActionNames.CreatePlayerAccount, audit.Action);
         Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
         Assert.Equal(body.PlayerAccountId.ToString("D"), audit.TargetId);
+    }
+
+    [Fact]
+    public async Task UpdatePlayer_WithCashier_UpdatesNameAndPhoneAndAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await SeedPlayerAsync(factory);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}",
+            new UpdatePlayerAccountRequest(TestIds.OrganizationId, "Player Renamed", "+992000000099"));
+        var body = await response.Content.ReadFromJsonAsync<PlayerAccountDto>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.Equal("Player Renamed", body.DisplayName);
+        Assert.Equal("+992000000099", body.PhoneNumber);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var stored = await dbContext.PlayerAccounts.SingleAsync(p => p.PlayerAccountId == PlayerAccountId);
+        Assert.Equal("Player Renamed", stored.DisplayName);
+        var audit = await dbContext.AuditRecords.SingleAsync(a => a.Action == AuditActionNames.UpdatePlayerAccount);
+        Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
+        Assert.Equal(PlayerAccountId.ToString("D"), audit.TargetId);
+    }
+
+    [Fact]
+    public async Task UpdatePlayer_BlankName_ReturnsBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await SeedPlayerAsync(factory);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}",
+            new UpdatePlayerAccountRequest(TestIds.OrganizationId, "   ", null));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdatePlayer_UnknownPlayer_ReturnsNotFound()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/players/{Guid.NewGuid():D}",
+            new UpdatePlayerAccountRequest(TestIds.OrganizationId, "Ghost", null));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeactivatePlayer_WithCashier_SetsInactiveAndAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await SeedPlayerAsync(factory);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}/active-state",
+            new SetPlayerActiveStateRequest(TestIds.OrganizationId, false));
+        var body = await response.Content.ReadFromJsonAsync<PlayerAccountDto>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.False(body.IsActive);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var stored = await dbContext.PlayerAccounts.SingleAsync(p => p.PlayerAccountId == PlayerAccountId);
+        Assert.False(stored.IsActive);
+        var audit = await dbContext.AuditRecords.SingleAsync(a => a.Action == AuditActionNames.DeactivatePlayerAccount);
+        Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
+    }
+
+    [Fact]
+    public async Task ReactivatePlayer_WithCashier_SetsActiveAndAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await SeedPlayerAsync(factory);
+        // деактивируем, затем реактивируем
+        await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}/active-state",
+            new SetPlayerActiveStateRequest(TestIds.OrganizationId, false));
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}/active-state",
+            new SetPlayerActiveStateRequest(TestIds.OrganizationId, true));
+        var body = await response.Content.ReadFromJsonAsync<PlayerAccountDto>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.True(body.IsActive);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.True(await dbContext.AuditRecords.AnyAsync(a => a.Action == AuditActionNames.ActivatePlayerAccount));
     }
 
     [Fact]

@@ -184,6 +184,146 @@ internal static class PlayerManagementEndpoints
             return Results.NoContent();
         });
 
+        app.MapPatch("/api/branches/{branchId:guid}/players/{playerAccountId:guid}", async (
+            Guid branchId,
+            Guid playerAccountId,
+            UpdatePlayerAccountRequest request,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IBillingCommandService billingCommandService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                StaffPermissionNames.CreatePlayerAccount,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    branchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.UpdatePlayerAccount,
+                    "PlayerAccount",
+                    playerAccountId.ToString("D"),
+                    AuditOutcome.Denied,
+                    new { request.DisplayName, authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+            {
+                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+            }
+
+            var result = await billingCommandService.UpdatePlayerAccountAsync(
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                playerAccountId,
+                request,
+                cancellationToken);
+
+            if (!result.Succeeded)
+            {
+                return ToHttpResult(result);
+            }
+
+            await WriteAuditAsync(
+                auditRecordWriter,
+                authorization.StaffContext.OrganizationId,
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                AuditActionNames.UpdatePlayerAccount,
+                "PlayerAccount",
+                playerAccountId.ToString("D"),
+                AuditOutcome.Succeeded,
+                new { request.DisplayName },
+                cancellationToken);
+
+            return Results.Ok(result.Response);
+        });
+
+        app.MapPost("/api/branches/{branchId:guid}/players/{playerAccountId:guid}/active-state", async (
+            Guid branchId,
+            Guid playerAccountId,
+            SetPlayerActiveStateRequest request,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IBillingCommandService billingCommandService,
+            CancellationToken cancellationToken) =>
+        {
+            var auditAction = request.IsActive
+                ? AuditActionNames.ActivatePlayerAccount
+                : AuditActionNames.DeactivatePlayerAccount;
+
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                StaffPermissionNames.CreatePlayerAccount,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    branchId,
+                    authorization.StaffContext.StaffUserId,
+                    auditAction,
+                    "PlayerAccount",
+                    playerAccountId.ToString("D"),
+                    AuditOutcome.Denied,
+                    new { request.IsActive, authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+            {
+                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+            }
+
+            var result = await billingCommandService.SetPlayerActiveStateAsync(
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                playerAccountId,
+                request,
+                cancellationToken);
+
+            if (!result.Succeeded)
+            {
+                return ToHttpResult(result);
+            }
+
+            await WriteAuditAsync(
+                auditRecordWriter,
+                authorization.StaffContext.OrganizationId,
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                auditAction,
+                "PlayerAccount",
+                playerAccountId.ToString("D"),
+                AuditOutcome.Succeeded,
+                new { request.IsActive },
+                cancellationToken);
+
+            return Results.Ok(result.Response);
+        });
+
         app.MapGet("/api/branches/{branchId:guid}/players", async (
             Guid branchId,
             string? query,
