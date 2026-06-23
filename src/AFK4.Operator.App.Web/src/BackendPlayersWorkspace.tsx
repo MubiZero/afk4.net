@@ -334,6 +334,15 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     ledgerReloadNonce
   ]);
 
+  // Смена клиента: синхронно гасим кросс-контекст и мини-ленту прошлого клиента, чтобы при
+  // переключении не мелькнули чужая активная сессия («играет на РС-XX») и чужие операции,
+  // пока грузятся данные нового. Журнал/кошелёк сбрасывают себя сами в своих эффектах.
+  const handleSelectClient = (id: string | null) => {
+    setSelectedClientId(id);
+    setLiveContext({ session: null, nextBooking: null });
+    setRecentEntries([]);
+  };
+
   const segments = buildClientSegments(clients, t);
   const overview = buildClientOverview(clients);
   const visibleClients = clients.filter((client) => {
@@ -495,7 +504,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           isActive: true
         }, t);
         setClients((items) => [createdClient, ...items]);
-        setSelectedClientId(createdClient.playerAccountId ?? null);
+        handleSelectClient(createdClient.playerAccountId ?? null);
         setNewPlayerName('');
         setNewPlayerPhone('');
       } else if (id === 'buyPackage') {
@@ -745,7 +754,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           onNewClient={() => setNewClientOpen(true)}
           onSearchChange={setClientSearch}
           onSelectSegment={setActiveSegment}
-          onSelectClient={setSelectedClientId}
+          onSelectClient={handleSelectClient}
         />
 
         <ClientDetail

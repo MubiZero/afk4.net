@@ -215,12 +215,21 @@ describe('buildClientContext (играет сейчас + ближайшая б�
     const ctx = buildClientContext(
       [],
       [
-        { reservationId: 'r0', state: 'cancelled', startsAtUtc: '2026-06-23T17:00:00Z', seatName: 'PC-01' },
-        { reservationId: 'r1', state: 'confirmed', startsAtUtc: '2026-06-23T18:00:00Z', seatName: 'PC-02' }
+        { reservationId: 'r0', playerAccountId: 'p1', state: 'cancelled', startsAtUtc: '2026-06-23T17:00:00Z', seatName: 'PC-01' },
+        { reservationId: 'r1', playerAccountId: 'p1', state: 'confirmed', startsAtUtc: '2026-06-23T18:00:00Z', seatName: 'PC-02' }
       ],
       'p1'
     );
     expect(ctx.nextBooking?.seatName).toBe('PC-02');
     expect(ctx.nextBooking?.timeLabel).not.toBe('');
+  });
+
+  it('игнорирует бронь чужого клиента (страховка от незафильтрованного бэкенда)', () => {
+    const ctx = buildClientContext(
+      [],
+      [{ reservationId: 'r9', playerAccountId: 'other', state: 'confirmed', startsAtUtc: '2026-06-23T18:00:00Z', seatName: 'PC-09' }],
+      'p1'
+    );
+    expect(ctx.nextBooking).toBeNull();
   });
 });

@@ -1415,7 +1415,6 @@
   "op.payments.default.openingNote": "Открытие смены",
   "op.payments.default.closingNote": "Сверка оператором",
   "op.players.title": "Клиенты",
-  "op.players.heading": "Клиенты · поиск, депозит и долги",
   "op.players.tagline": "поиск, депозит и долги",
   "op.players.strip.clients": "Клиенты",
   "op.players.strip.platform": "Сервер",

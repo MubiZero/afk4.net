@@ -184,7 +184,10 @@ export function buildClientContext(
     BLOCKING_SESSION_STATES.includes(session.state)
   ) ?? null;
 
+  // Брони уже отфильтрованы сервером по playerAccountId, но перепроверяем на клиенте: если бэкенд
+  // когда-нибудь проигнорирует параметр, в профиль не должна просочиться чужая бронь.
   const nextBooking = reservations.find((reservation) =>
+    readString(reservation, 'playerAccountId') === playerAccountId &&
     UPCOMING_RESERVATION_STATES.includes(readString(reservation, 'state'))
   ) ?? null;
 
