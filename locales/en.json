@@ -1522,7 +1522,6 @@
   "op.players.pin.label": "New PIN",
   "op.players.pin.hint": "At least 4 characters.",
   "op.players.pin.submit": "Save PIN",
-  "op.players.pin.openBtn": "PIN",
   "op.players.actions.correctionLabel": "Manual correction",
   "op.players.actions.refundLabel": "Refund operation",
   "op.players.actions.pinLabel": "Client PIN",

@@ -1522,7 +1522,6 @@
   "op.players.pin.label": "Новый PIN",
   "op.players.pin.hint": "Минимум 4 символа.",
   "op.players.pin.submit": "Сохранить PIN",
-  "op.players.pin.openBtn": "PIN",
   "op.players.actions.correctionLabel": "Ручная корректировка",
   "op.players.actions.refundLabel": "Возврат операции",
   "op.players.actions.pinLabel": "PIN клиента",

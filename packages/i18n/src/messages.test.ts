@@ -40,7 +40,6 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'ledger.type.reversal',
     // «сторно» — международный бухгалтерский термин-заимствование (как ledger.type.reversal)
     'op.players.history.reversalBadge',
-    'op.players.pin.openBtn',
     'nav.billing',
     'nav.group.account',
     'nav.group.branch',

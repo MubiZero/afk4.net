@@ -57,4 +57,20 @@ describe('ClientActionsMenu', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
+
+  it('focuses first menuitem on open', () => {
+    renderMenu();
+    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
+    const items = screen.getAllByRole('menuitem');
+    expect(document.activeElement).toBe(items[0]);
+  });
+
+  it('moves focus to next item on ArrowDown', () => {
+    renderMenu();
+    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
+    const items = screen.getAllByRole('menuitem');
+    // Фокус уже на первом пункте (автофокус при открытии).
+    fireEvent.keyDown(items[0], { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(items[1]);
+  });
 });
