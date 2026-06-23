@@ -4,6 +4,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Players;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Billing;
@@ -86,6 +87,58 @@ public sealed class EfBillingCommandService(
             request.IdempotencyKey,
             request,
             cancellationToken), cancellationToken);
+    }
+
+    public async Task<BillingCommandServiceResult<PlayerAccountDto>> UpdatePlayerAccountAsync(
+        Guid branchId,
+        Guid actorStaffUserId,
+        Guid playerAccountId,
+        UpdatePlayerAccountRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.DisplayName))
+        {
+            return BillingCommandServiceResult<PlayerAccountDto>.Invalid("Display name is required.");
+        }
+
+        var player = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
+            p => p.PlayerAccountId == playerAccountId
+                && p.OrganizationId == request.OrganizationId
+                && p.HomeBranchId == branchId,
+            cancellationToken);
+        if (player is null)
+        {
+            return BillingCommandServiceResult<PlayerAccountDto>.Missing("Player not found.");
+        }
+
+        player.DisplayName = request.DisplayName.Trim();
+        player.PhoneNumber = string.IsNullOrWhiteSpace(request.PhoneNumber) ? null : request.PhoneNumber.Trim();
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return BillingCommandServiceResult<PlayerAccountDto>.Ok(ToDto(player));
+    }
+
+    public async Task<BillingCommandServiceResult<PlayerAccountDto>> SetPlayerActiveStateAsync(
+        Guid branchId,
+        Guid actorStaffUserId,
+        Guid playerAccountId,
+        SetPlayerActiveStateRequest request,
+        CancellationToken cancellationToken)
+    {
+        var player = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
+            p => p.PlayerAccountId == playerAccountId
+                && p.OrganizationId == request.OrganizationId
+                && p.HomeBranchId == branchId,
+            cancellationToken);
+        if (player is null)
+        {
+            return BillingCommandServiceResult<PlayerAccountDto>.Missing("Player not found.");
+        }
+
+        player.IsActive = request.IsActive;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return BillingCommandServiceResult<PlayerAccountDto>.Ok(ToDto(player));
     }
 
     public Task<BillingCommandServiceResult<WalletSummaryDto>> TopUpWalletAsync(
