@@ -16,7 +16,7 @@ export function PanelModal({
   subtitle?: string;
   onClose: () => void;
   children: ReactNode;
-  tone?: 'warning';
+  tone?: 'warning' | 'danger';
 }) {
   const { t } = useI18n();
 
