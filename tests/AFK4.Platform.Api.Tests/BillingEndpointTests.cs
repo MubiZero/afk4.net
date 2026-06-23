@@ -4,6 +4,7 @@ using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Operator;
 using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Shifts;
@@ -674,6 +675,29 @@ public sealed class BillingEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+    }
+
+    [Fact]
+    public async Task SearchPlayers_ExcludesInactiveByDefault_IncludesWhenRequested()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await SeedPlayerAsync(factory);
+        // деактивируем сид-игрока
+        await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}/active-state",
+            new SetPlayerActiveStateRequest(TestIds.OrganizationId, false));
+
+        var defaultSearch = await client.GetFromJsonAsync<List<PlayerSearchResultDto>>(
+            $"/api/branches/{TestIds.BranchId:D}/players?query=Player");
+        var inclusiveSearch = await client.GetFromJsonAsync<List<PlayerSearchResultDto>>(
+            $"/api/branches/{TestIds.BranchId:D}/players?query=Player&includeInactive=true");
+
+        Assert.NotNull(defaultSearch);
+        Assert.DoesNotContain(defaultSearch!, p => p.PlayerAccountId == PlayerAccountId);
+        Assert.NotNull(inclusiveSearch);
+        Assert.Contains(inclusiveSearch!, p => p.PlayerAccountId == PlayerAccountId && !p.IsActive);
     }
 
     private static async Task SeedPlayerAsync(PlatformApiFactory factory)

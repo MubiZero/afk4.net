@@ -18,6 +18,7 @@ public sealed class EfOperatorReferenceDataService(
         Guid branchId,
         string? query,
         int limit,
+        bool includeInactive,
         CancellationToken cancellationToken)
     {
         var trimmedQuery = query?.Trim() ?? string.Empty;
@@ -36,7 +37,7 @@ public sealed class EfOperatorReferenceDataService(
             .Where(player =>
                 player.OrganizationId == organizationId &&
                 player.HomeBranchId == branchId &&
-                player.IsActive)
+                (includeInactive || player.IsActive))
             .Where(player =>
                 player.DisplayName.ToUpper().Contains(normalizedQuery) ||
                 (player.PhoneNumber != null && player.PhoneNumber.Contains(trimmedQuery)))

@@ -328,6 +328,7 @@ internal static class PlayerManagementEndpoints
             Guid branchId,
             string? query,
             int? limit,
+            bool? includeInactive,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
             IOperatorReferenceDataService referenceDataService,
@@ -365,6 +366,7 @@ internal static class PlayerManagementEndpoints
                 branchId,
                 query,
                 limit ?? 20,
+                includeInactive ?? false,
                 cancellationToken);
 
             return Results.Ok(players);
