@@ -119,10 +119,11 @@ function booking(
   phoneNumber: string,
   seat: { id: string; name: string; zone: string } | null,
   note: string,
-  groupId: string | null = null
+  groupId: string | null = null,
+  playerAccountId: string | null = null
 ) {
   return {
-    reservationId: id, organizationId: ORG, branchId: BRANCH, playerAccountId: null,
+    reservationId: id, organizationId: ORG, branchId: BRANCH, playerAccountId,
     reservationGroupId: groupId,
     seatId: seat?.id ?? '', seatName: seat?.name ?? '', zoneName: seat?.zone ?? '',
     customerName, phoneNumber,
@@ -146,6 +147,8 @@ function reservations() {
     booking('r4', 16, 90, 'pending', 'online', 'Сабина М.', '+992900000004', null, 'онлайн-заявка, ждёт места'),
     booking('r5', 18, 60, 'confirmed', 'operator', 'Фаррух Н.', '+992900000005', vip03, 'бронь оператора'),
     booking('r6', 20, 60, 'pending', 'operator', 'Шерзод Б.', '+992900000006', pc01, 'предварительная бронь'),
+    // Бронь конкретного клиента (pl-1) — чтобы профиль показывал полосу «ближайшая бронь».
+    booking('rp1', 19, 60, 'confirmed', 'operator', 'Фариза Назарова', '+992 93 100 20 30', vip03, 'бронь клиента', null, 'pl-1'),
     // Массовая бронь: две брони на разных ПК с общим reservationGroupId (для превью связи группы).
     booking('g1', 15, 60, 'confirmed', 'operator', 'Турнир «Алиф»', '+992900000007', pc02, 'массовая бронь · 2 ПК', 'grp-demo'),
     booking('g2', 15, 60, 'confirmed', 'operator', 'Турнир «Алиф»', '+992900000007', pc06, 'массовая бронь · 2 ПК', 'grp-demo')
@@ -156,11 +159,13 @@ function reservations() {
 // (открытый таб без конца и две ограниченные дедлайном). minutesAgoUtc(-N) = «сейчас + N мин».
 function sessionsTimeline() {
   return [
-    { sessionId: 'h1', seatId: 'a1', seatName: 'PC-01', zoneId: 'z-a', zoneName: 'Зал A', state: 'ended', playerDisplayName: 'Дилноза Х.', tariffName: 'Стандарт', startedAtUtc: todayAtUtc(4, 0), endsAtUtc: null, endedAtUtc: todayAtUtc(5, 0) },
-    { sessionId: 'h2', seatId: 'c1', seatName: 'PC-07', zoneId: 'z-b', zoneName: 'Зал B', state: 'ended', playerDisplayName: 'Рустам К.', tariffName: 'Почасовой', startedAtUtc: todayAtUtc(6, 30), endsAtUtc: null, endedAtUtc: todayAtUtc(8, 0) },
-    { sessionId: 's3', seatId: 'a3', seatName: 'PC-03', zoneId: 'z-a', zoneName: 'Зал A', state: 'active', playerDisplayName: 'Юсуф А.', tariffName: 'Почасовой', startedAtUtc: minutesAgoUtc(110), endsAtUtc: null, endedAtUtc: null },
-    { sessionId: 's1', seatId: 'a1', seatName: 'PC-01', zoneId: 'z-a', zoneName: 'Зал A', state: 'active', playerDisplayName: 'Амир К.', tariffName: 'Стандарт', startedAtUtc: minutesAgoUtc(75), endsAtUtc: minutesAgoUtc(-43), endedAtUtc: null },
-    { sessionId: 's5', seatId: 'b1', seatName: 'VIP-01', zoneId: 'z-vip', zoneName: 'VIP', state: 'active', playerDisplayName: 'Мадина С.', tariffName: 'VIP час', startedAtUtc: minutesAgoUtc(50), endsAtUtc: minutesAgoUtc(-90), endedAtUtc: null }
+    { sessionId: 'h1', seatId: 'a1', seatName: 'PC-01', zoneId: 'z-a', zoneName: 'Зал A', state: 'ended', playerAccountId: null, playerDisplayName: 'Дилноза Х.', tariffName: 'Стандарт', startedAtUtc: todayAtUtc(4, 0), endsAtUtc: null, endedAtUtc: todayAtUtc(5, 0) },
+    { sessionId: 'h2', seatId: 'c1', seatName: 'PC-07', zoneId: 'z-b', zoneName: 'Зал B', state: 'ended', playerAccountId: null, playerDisplayName: 'Рустам К.', tariffName: 'Почасовой', startedAtUtc: todayAtUtc(6, 30), endsAtUtc: null, endedAtUtc: todayAtUtc(8, 0) },
+    { sessionId: 's3', seatId: 'a3', seatName: 'PC-03', zoneId: 'z-a', zoneName: 'Зал A', state: 'active', playerAccountId: null, playerDisplayName: 'Юсуф А.', tariffName: 'Почасовой', startedAtUtc: minutesAgoUtc(110), endsAtUtc: null, endedAtUtc: null },
+    // pl-1 (Фариза) играет сейчас на PC-01 с дедлайном → полоса «играет · до HH:MM» на её профиле.
+    { sessionId: 's1', seatId: 'a1', seatName: 'PC-01', zoneId: 'z-a', zoneName: 'Зал A', state: 'active', playerAccountId: 'pl-1', playerDisplayName: 'Фариза Назарова', tariffName: 'Стандарт', startedAtUtc: minutesAgoUtc(75), endsAtUtc: minutesAgoUtc(-43), endedAtUtc: null },
+    // pl-3 (Мадина) — открытый счёт на VIP-01.
+    { sessionId: 's5', seatId: 'b1', seatName: 'VIP-01', zoneId: 'z-vip', zoneName: 'VIP', state: 'active', playerAccountId: 'pl-3', playerDisplayName: 'Мадина Саидова', tariffName: 'VIP час', startedAtUtc: minutesAgoUtc(50), endsAtUtc: minutesAgoUtc(-90), endedAtUtc: null }
   ];
 }
 
@@ -412,6 +417,14 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if ((url.pathname.endsWith('/wallet/top-ups') || url.pathname.endsWith('/debts/payments')) && method === 'POST') {
     return json(walletSummary());
+  }
+  // Брони с фильтром по клиенту (профиль «Клиенты» спрашивает ближайшую бронь конкретного игрока).
+  // Без фильтра (экран «Брони») возвращаем весь набор. Имитирует серверный playerAccountId-фильтр.
+  if (url.pathname.endsWith('/reservations') && method === 'GET') {
+    const playerAccountId = url.searchParams.get('playerAccountId');
+    const all = reservations();
+    const filtered = playerAccountId ? all.filter((r) => r.playerAccountId === playerAccountId) : all;
+    return json({ reservations: filtered, limit: 40 });
   }
   const matched = route(url.pathname, method);
   if (matched !== undefined) {

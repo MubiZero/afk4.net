@@ -54,6 +54,11 @@ public sealed class EfReservationService(
             reservationsQuery = reservationsQuery.Where(reservation => reservation.Source == query.Source);
         }
 
+        if (query.PlayerAccountId is Guid playerAccountId)
+        {
+            reservationsQuery = reservationsQuery.Where(reservation => reservation.PlayerAccountId == playerAccountId);
+        }
+
         var reservations = await reservationsQuery
             .OrderBy(reservation => reservation.StartsAtUtc)
             .ThenBy(reservation => reservation.CreatedAtUtc)

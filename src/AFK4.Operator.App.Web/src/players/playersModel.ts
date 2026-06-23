@@ -2,8 +2,8 @@
 // (projectPlayerClient/playerPackageLabel/PlayerClientItem) остаются в operatorHelpers,
 // т.к. их используют POS/Брони/Карта — здесь только ре-экспорт, чтобы у фичи был
 // единый импорт. Players-эксклюзивные чистые функции живут здесь.
-import { formatMinorUnits, formatTime, type PlayerClientItem, type TFunc } from '../operatorHelpers';
-import type { LedgerEntryDto, PlayerPackageDto } from '../operatorApiClients';
+import { formatMinorUnits, formatTime, readString, type PlayerClientItem, type TFunc } from '../operatorHelpers';
+import type { LedgerEntryDto, PlayerPackageDto, SessionTimelineItemDto } from '../operatorApiClients';
 import type { MessageKey } from '@afk4/i18n';
 
 export { projectPlayerClient, playerPackageLabel, type PlayerClientItem } from '../operatorHelpers';
@@ -11,7 +11,7 @@ export { projectPlayerClient, playerPackageLabel, type PlayerClientItem } from '
 export function fixturePlayers(currencyCode: string, t: TFunc): PlayerClientItem[] {
   const example = t('op.helper.player.fixture.example');
   return [
-    { name: 'Madina S.', status: 'vip', balanceMinorUnits: 46000, debtMinorUnits: 0, last: example, tone: 'vip', detail: t('op.helper.player.fixture.localCard'), phoneNumber: '+992 90 555 22 11', source: 'fixture' },
+    { name: 'Madina S.', status: 'active', balanceMinorUnits: 46000, debtMinorUnits: 0, last: example, tone: 'active', detail: t('op.helper.player.fixture.localCard'), phoneNumber: '+992 90 555 22 11', source: 'fixture' },
     { name: 'Amir K.', status: 'active', balanceMinorUnits: 12000, debtMinorUnits: 0, last: example, tone: 'active', detail: formatMinorUnits(12000, currencyCode), phoneNumber: '', source: 'fixture' },
     { name: 'Olim K.', status: 'debt', balanceMinorUnits: 0, debtMinorUnits: 3500, last: example, tone: 'debt', detail: t('op.helper.player.fixture.debtDetail'), phoneNumber: '', source: 'fixture' }
   ];
@@ -20,14 +20,10 @@ export function fixturePlayers(currencyCode: string, t: TFunc): PlayerClientItem
 // Maps the stable status key from projectPlayerClient/fixturePlayers to a localized label.
 export function playerStatusLabel(status: string, t: TFunc): string {
   switch (status) {
-    case 'vip':
-      return t('op.players.status.vip');
     case 'active':
       return t('op.players.status.active');
     case 'debt':
       return t('op.players.status.debt');
-    case 'package':
-      return t('op.players.status.package');
     case 'inactive':
       return t('op.players.status.inactive');
     default:
@@ -113,7 +109,7 @@ export function projectPlayerPackage(pkg: PlayerPackageDto, t: TFunc, locale: st
 
 // Честные сегменты по реальным полям, на СТАБИЛЬНЫХ id (label локализуется на render —
 // id не зависит от языка, что чинит латентный баг с фильтром по локализованной строке).
-export type ClientSegmentId = 'all' | 'vip' | 'debt' | 'inactive';
+export type ClientSegmentId = 'all' | 'debt' | 'inactive';
 
 export interface ClientSegment {
   id: ClientSegmentId;
@@ -125,8 +121,6 @@ export function matchesSegment(client: PlayerClientItem, id: ClientSegmentId): b
   switch (id) {
     case 'all':
       return true;
-    case 'vip':
-      return client.tone === 'vip';
     case 'debt':
       return client.debtMinorUnits > 0;
     case 'inactive':
@@ -137,10 +131,9 @@ export function matchesSegment(client: PlayerClientItem, id: ClientSegmentId): b
 }
 
 export function buildClientSegments(clients: PlayerClientItem[], t: TFunc): ClientSegment[] {
-  const ids: ClientSegmentId[] = ['all', 'vip', 'debt', 'inactive'];
+  const ids: ClientSegmentId[] = ['all', 'debt', 'inactive'];
   const labels: Record<ClientSegmentId, MessageKey> = {
     all: 'op.players.segments.all',
-    vip: 'op.players.segments.vip',
     debt: 'op.players.segments.debt',
     inactive: 'op.players.segments.inactive'
   };
@@ -149,4 +142,63 @@ export function buildClientSegments(clients: PlayerClientItem[], t: TFunc): Clie
     label: t(labels[id]),
     count: clients.filter((c) => matchesSegment(c, id)).length
   }));
+}
+
+// Сводка «по всей базе» для шапки раздела (зеркало счётчиков в шапке «Карты»/«Броней»):
+// сколько клиентов, сумма депозитов и сумма долгов по загруженному списку. Это денежная
+// картина базы — намеренно отличается от сегмент-чипов списка (те — фильтры-навигация).
+export interface ClientOverview {
+  count: number;
+  depositMinorUnits: number;
+  debtMinorUnits: number;
+}
+
+export function buildClientOverview(clients: PlayerClientItem[]): ClientOverview {
+  return clients.reduce<ClientOverview>((acc, c) => ({
+    count: acc.count + 1,
+    depositMinorUnits: acc.depositMinorUnits + Math.max(0, c.balanceMinorUnits),
+    debtMinorUnits: acc.debtMinorUnits + Math.max(0, c.debtMinorUnits)
+  }), { count: 0, depositMinorUnits: 0, debtMinorUnits: 0 });
+}
+
+// ── Кросс-контекст профиля: «играет сейчас» + «ближайшая бронь» ──────────────────
+// Сессия «занимает место», если совпадает аккаунт, она не завершена и в активном состоянии.
+const BLOCKING_SESSION_STATES = ['active', 'paused', 'ending'];
+// «Живые» брони (не отменены/не отыграны). Сервер уже отсортировал по времени старта,
+// поэтому первая подходящая — ближайшая.
+const UPCOMING_RESERVATION_STATES = ['pending', 'confirmed'];
+
+export interface ClientLiveContext {
+  session: { seatName: string; untilLabel: string | null } | null; // untilLabel null = открытый счёт
+  nextBooking: { timeLabel: string; seatName: string | null } | null;
+}
+
+export function buildClientContext(
+  sessions: SessionTimelineItemDto[],
+  reservations: Array<Record<string, unknown>>,
+  playerAccountId: string
+): ClientLiveContext {
+  const activeSession = sessions.find((session) =>
+    session.playerAccountId === playerAccountId &&
+    session.endedAtUtc == null &&
+    BLOCKING_SESSION_STATES.includes(session.state)
+  ) ?? null;
+
+  // Брони уже отфильтрованы сервером по playerAccountId, но перепроверяем на клиенте: если бэкенд
+  // когда-нибудь проигнорирует параметр, в профиль не должна просочиться чужая бронь.
+  const nextBooking = reservations.find((reservation) =>
+    readString(reservation, 'playerAccountId') === playerAccountId &&
+    UPCOMING_RESERVATION_STATES.includes(readString(reservation, 'state'))
+  ) ?? null;
+
+  return {
+    session: activeSession === null ? null : {
+      seatName: activeSession.seatName,
+      untilLabel: activeSession.endsAtUtc ? formatTime(activeSession.endsAtUtc) : null
+    },
+    nextBooking: nextBooking === null ? null : {
+      timeLabel: formatTime(readString(nextBooking, 'startsAtUtc')),
+      seatName: readString(nextBooking, 'seatName') || null
+    }
+  };
 }

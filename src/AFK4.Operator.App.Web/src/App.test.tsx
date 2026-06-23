@@ -860,10 +860,11 @@ describe('App', () => {
     expect(screen.getByText('Быстрые операции')).toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Клиенты'));
-    const clientsHead = (await screen.findByRole('heading', { name: /Клиенты/ })).closest('.screen-head');
+    const clientsHead = (await screen.findByRole('heading', { name: /Клиенты/ })).closest('.clients-head');
     expect(clientsHead).toBeInTheDocument();
-    // глобальные метрики в шапке — но НЕ per-client сегменты/числа
-    expect(clientsHead).not.toHaveTextContent('Долг');
+    // глобальные метрики базы в шапке: Клиентов / Депозиты / Долги (сумма по базе, не per-client)
+    expect(clientsHead).toHaveTextContent('Клиентов');
+    expect(clientsHead).toHaveTextContent('Долги');
     expect(screen.getByText('Список клиентов')).toBeInTheDocument();
     // master-detail: табы карточки (появляются после загрузки клиентов)
     expect(await screen.findByRole('tab', { name: 'Кошелёк' })).toBeInTheDocument();
@@ -3060,6 +3061,11 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/reservations')) {
     return jsonResponse(createReservationSearch());
+  }
+
+  // Таймлайн сессий: экран «Клиенты» тянет его для полосы «играет сейчас» (best-effort).
+  if (pathname.endsWith('/sessions')) {
+    return jsonResponse({ sessions: [] });
   }
 
   if (pathname.endsWith('/pos/categories') && init?.method === 'POST') {

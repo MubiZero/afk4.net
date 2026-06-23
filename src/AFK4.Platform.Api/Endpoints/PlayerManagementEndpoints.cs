@@ -498,6 +498,12 @@ internal static class PlayerManagementEndpoints
                 return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
             }
 
+            var inactiveGuard = RejectInactivePlayerMoneyAction(player.Player);
+            if (inactiveGuard is not null)
+            {
+                return inactiveGuard;
+            }
+
             var result = await billingCommandService.TopUpWalletAsync(
                 playerAccountId,
                 player.BranchId,
@@ -575,6 +581,12 @@ internal static class PlayerManagementEndpoints
             if (request.LedgerEntryId != ledgerEntryId)
             {
                 return Results.BadRequest(new { Error = "Route ledgerEntryId must match request LedgerEntryId." });
+            }
+
+            var inactiveGuard = RejectInactivePlayerMoneyAction(player.Player);
+            if (inactiveGuard is not null)
+            {
+                return inactiveGuard;
             }
 
             var originalEntry = await dbContext.LedgerEntries
@@ -680,6 +692,12 @@ internal static class PlayerManagementEndpoints
             if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
             {
                 return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+            }
+
+            var inactiveGuard = RejectInactivePlayerMoneyAction(player.Player);
+            if (inactiveGuard is not null)
+            {
+                return inactiveGuard;
             }
 
             // §5.2: gate the direct correction through the same guard as /money-actions. Over-threshold/over-cap

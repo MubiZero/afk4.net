@@ -83,6 +83,7 @@ export interface SessionTimelineItemDto {
   zoneId: Guid;
   zoneName: string;
   state: string;
+  playerAccountId: Guid | null;
   playerDisplayName: string | null;
   tariffName: string | null;
   startedAtUtc: string;

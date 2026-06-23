@@ -297,6 +297,12 @@ internal static class PackageEndpoints
                 return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
             }
 
+            var inactiveGuard = RejectInactivePlayerMoneyAction(player.Player);
+            if (inactiveGuard is not null)
+            {
+                return inactiveGuard;
+            }
+
             var result = await packageService.PurchasePackageAsync(
                 playerAccountId,
                 player.BranchId,

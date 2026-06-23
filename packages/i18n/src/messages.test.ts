@@ -107,8 +107,6 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.players.editProfile.phoneLabel',
     'op.players.profile.packageFallback',
     'op.players.profile.platformSource',
-    'op.players.segments.vip',
-    'op.players.status.vip',
     'op.players.strip.platform',
     'op.pos.cart.newCardPhoneLabel',
     'op.pos.catalog.categoryFallback',

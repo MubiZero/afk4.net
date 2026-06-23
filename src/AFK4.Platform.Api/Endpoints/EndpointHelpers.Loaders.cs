@@ -181,6 +181,19 @@ internal static partial class EndpointHelpers
             : new PlayerScopedEndpointResult(player, branchId, authorization, null);
     }
 
+    /// <summary>
+    /// Money mutations (top-up, debt payment, manual correction, package purchase, refund) are not
+    /// allowed on a deactivated player account — a server-side mirror of the operator UI gate, and the
+    /// same stance POS already takes on sales to inactive players. Read-only pre-check that mutates
+    /// nothing: returns a 400 result when the player is inactive, otherwise null. The online top-up
+    /// webhook is intentionally NOT routed through here (funds are already captured upstream, so a
+    /// blocked credit would strand the payer's money).
+    /// </summary>
+    internal static IResult? RejectInactivePlayerMoneyAction(PlayerAccountEntity? player)
+        => player is { IsActive: false }
+            ? Results.BadRequest(new { Error = "Player account is inactive." })
+            : null;
+
     public static Task<ScopedEntityEndpointResult<ShiftEntity>> LoadShiftScopedEndpointAsync(
         PlatformDbContext dbContext,
         IStaffContextAccessor staffContextAccessor,

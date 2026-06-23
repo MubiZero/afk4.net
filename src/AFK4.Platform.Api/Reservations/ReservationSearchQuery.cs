@@ -5,4 +5,5 @@ public sealed record ReservationSearchQuery(
     DateTimeOffset? ToUtc,
     string? State,
     string? Source,
-    int? Limit);
+    int? Limit,
+    Guid? PlayerAccountId = null);

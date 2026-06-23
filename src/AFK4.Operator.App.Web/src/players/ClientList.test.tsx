@@ -8,14 +8,13 @@ import type { ClientSegment } from './playersModel';
 afterEach(cleanup);
 
 const client = (over: Partial<PlayerClientItem>): PlayerClientItem => ({
-  playerAccountId: 'p1', name: 'Madina S.', status: 'vip', balanceMinorUnits: 46000,
-  debtMinorUnits: 0, last: '', tone: 'vip', detail: '+992 90 555 22 11', phoneNumber: '+992 90 555 22 11',
+  playerAccountId: 'p1', name: 'Madina S.', status: 'active', balanceMinorUnits: 46000,
+  debtMinorUnits: 0, last: '', tone: 'active', detail: '+992 90 555 22 11', phoneNumber: '+992 90 555 22 11',
   source: 'backend', ...over
 });
 
 const segments: ClientSegment[] = [
   { id: 'all', label: 'Все', count: 2 },
-  { id: 'vip', label: 'VIP', count: 1 },
   { id: 'debt', label: 'Есть долг', count: 1 },
   { id: 'inactive', label: 'Неактивные', count: 0 }
 ];
@@ -24,6 +23,7 @@ const renderList = (over: Partial<Parameters<typeof ClientList>[0]> = {}) => {
   const onSearchChange = mock(() => {});
   const onSelectSegment = mock(() => {});
   const onSelectClient = mock(() => {});
+  const onNewClient = mock(() => {});
   const { container } = render(
     <I18nProvider initialLocale="ru">
       <ClientList
@@ -35,6 +35,8 @@ const renderList = (over: Partial<Parameters<typeof ClientList>[0]> = {}) => {
         showSkeleton={false}
         emptyDescription="По текущему поиску клиентов нет."
         currencyCode="TJS"
+        canCreatePlayer
+        onNewClient={onNewClient}
         onSearchChange={onSearchChange}
         onSelectSegment={onSelectSegment}
         onSelectClient={onSelectClient}
@@ -42,7 +44,7 @@ const renderList = (over: Partial<Parameters<typeof ClientList>[0]> = {}) => {
       />
     </I18nProvider>
   );
-  return { onSearchChange, onSelectSegment, onSelectClient, container };
+  return { onSearchChange, onSelectSegment, onSelectClient, onNewClient, container };
 };
 
 describe('ClientList', () => {
@@ -61,8 +63,8 @@ describe('ClientList', () => {
 
   it('fires onSelectSegment when a segment chip is clicked', () => {
     const { onSelectSegment } = renderList();
-    fireEvent.click(screen.getByRole('button', { name: /VIP/ }));
-    expect(onSelectSegment).toHaveBeenCalledWith('vip');
+    fireEvent.click(screen.getByRole('button', { name: /Есть долг/ }));
+    expect(onSelectSegment).toHaveBeenCalledWith('debt');
   });
 
   it('fires onSearchChange on input', () => {

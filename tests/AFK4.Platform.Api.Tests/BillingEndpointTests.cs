@@ -218,6 +218,71 @@ public sealed class BillingEndpointTests
         Assert.Equal(unknownPlayerId.ToString("D"), audit.TargetId);
     }
 
+    // ── Server-side IsActive guard: денежные операции запрещены по деактивированному игроку ──
+    // (зеркало UI-гейта; вебхук онлайн-пополнения сюда не попадает — деньги уже сняты у плательщика).
+    [Fact]
+    public async Task TopUpWallet_ForInactivePlayer_RejectsWithoutMovingMoney()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await SeedPlayerAsync(factory, isActive: false);
+        await SeedOpenShiftAsync(factory);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/players/{PlayerAccountId:D}/wallet/top-ups",
+            new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "front desk cash top-up", "topup-inactive-001"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("inactive", await response.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.False(await dbContext.LedgerEntries.AnyAsync());
+    }
+
+    [Fact]
+    public async Task PayDebt_ForInactivePlayer_RejectsWithoutMovingMoney()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await SeedPlayerAsync(factory, isActive: false);
+        await SeedOpenShiftAsync(factory);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/players/{PlayerAccountId:D}/debts/payments",
+            new PayDebtRequest(TestIds.OrganizationId, new MoneyDto("TJS", 1000), "settle debt", "paydebt-inactive-001"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("inactive", await response.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.False(await dbContext.LedgerEntries.AnyAsync());
+    }
+
+    [Fact]
+    public async Task PurchasePackage_ForInactivePlayer_RejectsWithoutMovingMoney()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await SeedPlayerAsync(factory, isActive: false);
+        await SeedOpenShiftAsync(factory);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/players/{PlayerAccountId:D}/packages/purchases",
+            new PurchasePackageRequest(TestIds.OrganizationId, Guid.NewGuid(), "purchase-inactive-001"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("inactive", await response.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.False(await dbContext.LedgerEntries.AnyAsync());
+    }
+
     [Fact]
     public async Task TopUpWallet_WithCashierForUnknownPlayer_ReturnsNotFoundAfterAuthorization()
     {
@@ -700,7 +765,7 @@ public sealed class BillingEndpointTests
         Assert.Contains(inclusiveSearch!, p => p.PlayerAccountId == PlayerAccountId && !p.IsActive);
     }
 
-    private static async Task SeedPlayerAsync(PlatformApiFactory factory)
+    private static async Task SeedPlayerAsync(PlatformApiFactory factory, bool isActive = true)
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -711,7 +776,7 @@ public sealed class BillingEndpointTests
             HomeBranchId = TestIds.BranchId,
             DisplayName = "Player One",
             PhoneNumber = "+992000000001",
-            IsActive = true,
+            IsActive = isActive,
             CreatedAtUtc = Now
         });
         await dbContext.SaveChangesAsync();

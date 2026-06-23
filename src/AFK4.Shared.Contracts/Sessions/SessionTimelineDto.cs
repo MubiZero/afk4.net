@@ -12,6 +12,7 @@ public sealed record SessionTimelineItemDto(
     Guid ZoneId,
     string ZoneName,
     string State,
+    Guid? PlayerAccountId,
     string? PlayerDisplayName,
     string? TariffName,
     DateTimeOffset StartedAtUtc,
