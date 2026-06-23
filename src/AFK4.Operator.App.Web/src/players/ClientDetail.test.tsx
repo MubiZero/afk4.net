@@ -31,8 +31,10 @@ type DetailProps = {
   canPayDebt: boolean;
   canPurchase: boolean;
   canCreateReservation: boolean;
-  canSetPin: boolean;
+  canManageClient: boolean;
   onSetPin: () => void;
+  onEditProfile: () => void;
+  onToggleActive: () => void;
   canCorrect: boolean;
   onCorrect: () => void;
   canRefund: boolean;
@@ -73,7 +75,7 @@ const baseProps: DetailProps = {
   topUpAmount: '100.00', topUpReason: 'пополнение через кассу',
   debtAmount: '', debtReason: 'оплата долга через кассу',
   canTopUp: true, canPayDebt: false, canPurchase: true, canCreateReservation: true,
-  canSetPin: false, onSetPin: () => {},
+  canManageClient: false, onSetPin: () => {}, onEditProfile: () => {}, onToggleActive: () => {},
   canCorrect: false, onCorrect: () => {},
   canRefund: false, onRefund: () => {},
   onSelectTab: () => {}, onChangeTopUpAmount: () => {}, onChangeTopUpReason: () => {},
@@ -121,15 +123,18 @@ describe('ClientDetail', () => {
     expect(onCreateReservation).toHaveBeenCalled();
   });
 
-  it('shows the PIN button in the header when canSetPin', () => {
-    const onSetPin = mock(() => {});
-    renderDetail({ canSetPin: true, onSetPin });
-    fireEvent.click(screen.getByRole('button', { name: /PIN/ }));
-    expect(onSetPin).toHaveBeenCalled();
+  it('renders the actions menu when the staff can manage the client', () => {
+    renderDetail({ canManageClient: true });
+    expect(screen.getByRole('button', { name: 'Действия с клиентом' })).toBeInTheDocument();
   });
 
-  it('hides the PIN button without permission', () => {
-    renderDetail({ canSetPin: false });
-    expect(screen.queryByRole('button', { name: /PIN/ })).toBeNull();
+  it('hides the actions menu without manage permission', () => {
+    renderDetail({ canManageClient: false });
+    expect(screen.queryByRole('button', { name: 'Действия с клиентом' })).not.toBeInTheDocument();
+  });
+
+  it('shows the deactivated banner for an inactive client', () => {
+    renderDetail({ client: { ...client, status: 'inactive' } });
+    expect(screen.getByText(/Клиент деактивирован/)).toBeInTheDocument();
   });
 });

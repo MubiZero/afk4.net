@@ -28,7 +28,7 @@
 - [Tajik i18n honesty](tg-i18n-honesty.md) — guard-тест против `tg===ru` (whitelist loanwords); добавляешь tg-ключ → реально таджикский; переводы НЕ native-reviewed.
 
 ## Активный бэклог / эпики
-- [Operator «Клиенты» (Этап 3)](afk4-operator-clients-epic.md) — активен на ветке `feat/operator-clients-overhaul`; Подход A (master-detail+drawer), 4 фичи+S1b пагинация, слайсы S0..S3; спека+план S0 закоммичены.
+- [Operator «Клиенты» (Этап 3)](afk4-operator-clients-epic.md) — **ЭПИК ЗАВЕРШЁН**: S0/S1/S1b/S2 смержены (PR #103/#104/#105/#106), **S3 правка профиля+деактивация в PR #107**. Долг: server-side `IsActive`-guard на money-path для неактивных (UI-гейт есть, бэк нет).
 - [Online booking auto-confirm + hold](afk4-online-booking-autoconfirm-epic.md) — авто-confirm онлайн-броней при балансе (Slice 1 в main); холд денег — бэклог, решения зафиксированы, гейт на мобилку. Канон-док `docs/superpowers/specs/2026-06-18-online-booking-autoconfirm-hold.md`.
 - [Multi-tenant payments](afk4-multitenant-payments-state.md) — dcgate per-branch; money-path FROZEN внешним bank-bot; `Secrets:EncryptionKeyBase64` критичен (потеря = недешифруемые creds); prod afk4 не задеплоен.
 - [Time handling audit](afk4-time-handling-audit.md) — деньги server-authoritative/безопасны; реальный риск = skew/implicit-tz; рискованный lease/grace rewrite отложен до drift-логов; tz-multiregion YAGNI.

@@ -116,10 +116,23 @@ export interface SetPlayerPinRequest {
   pin: string;
 }
 
+export interface UpdatePlayerAccountRequest {
+  organizationId: Guid;
+  displayName: string;
+  phoneNumber: string | null;
+}
+
+export interface SetPlayerActiveStateRequest {
+  organizationId: Guid;
+  isActive: boolean;
+}
+
 export function createPlayerClient(api: PlatformApiClient) {
   return {
-    searchPlayers(branchId: Guid, query: string, limit: number): Promise<PlayerSearchResultDto[]> {
-      return api.get<PlayerSearchResultDto[]>(`/api/branches/${branchId}/players`, { query, limit });
+    searchPlayers(branchId: Guid, query: string, limit: number, includeInactive = false): Promise<PlayerSearchResultDto[]> {
+      const params: Record<string, string | number> = { query, limit };
+      if (includeInactive) params.includeInactive = 'true';
+      return api.get<PlayerSearchResultDto[]>(`/api/branches/${branchId}/players`, params);
     },
     createPlayer(branchId: Guid, request: CreatePlayerAccountRequest): Promise<PlayerAccountDto> {
       return api.post<PlayerAccountDto, CreatePlayerAccountRequest>(`/api/branches/${branchId}/players`, request);
@@ -158,6 +171,12 @@ export function createPlayerClient(api: PlatformApiClient) {
     },
     setPlayerPin(branchId: Guid, playerAccountId: Guid, request: SetPlayerPinRequest): Promise<void> {
       return api.post<void, SetPlayerPinRequest>(`/api/branches/${branchId}/players/${playerAccountId}/pin`, request);
+    },
+    updateProfile(branchId: Guid, playerAccountId: Guid, request: UpdatePlayerAccountRequest): Promise<PlayerAccountDto> {
+      return api.patch<PlayerAccountDto, UpdatePlayerAccountRequest>(`/api/branches/${branchId}/players/${playerAccountId}`, request);
+    },
+    setActiveState(branchId: Guid, playerAccountId: Guid, request: SetPlayerActiveStateRequest): Promise<PlayerAccountDto> {
+      return api.post<PlayerAccountDto, SetPlayerActiveStateRequest>(`/api/branches/${branchId}/players/${playerAccountId}/active-state`, request);
     }
   };
 }

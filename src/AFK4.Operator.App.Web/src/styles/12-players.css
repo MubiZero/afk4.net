@@ -1036,3 +1036,116 @@
   outline: 2px solid var(--danger);
   outline-offset: 2px;
 }
+
+/* S3 — меню «⋯», модалки правки/деактивации, баннер, неактивная строка */
+.client-actions-menu {
+  position: relative;
+}
+
+.client-actions-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.client-actions-trigger:hover:not(:disabled) {
+  border-color: var(--border-accent);
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+}
+
+.client-actions-trigger:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.client-actions-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface-card);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+.client-actions-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.client-actions-item:hover {
+  background: var(--surface-accent-soft);
+}
+
+.client-actions-item:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: -2px;
+}
+
+.client-actions-item.is-danger {
+  color: var(--danger-text);
+}
+
+.client-actions-item.is-danger:hover {
+  background: var(--danger-soft-bg);
+}
+
+.client-detail-banner {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--danger);
+  border-radius: 9px;
+  background: var(--danger-soft-bg);
+  color: var(--danger-text);
+  font-size: 13px;
+}
+
+.clients-edit-form,
+.clients-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.clients-confirm-impact {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.client-row.is-inactive {
+  opacity: 0.62;
+}
+
+.client-row.is-inactive .client-row-status {
+  color: var(--danger-text);
+}
+
+.panel-modal.danger .panel-modal-head {
+  border-bottom-color: var(--danger);
+}

@@ -9,6 +9,7 @@ public interface IOperatorReferenceDataService
         Guid branchId,
         string? query,
         int limit,
+        bool includeInactive,
         CancellationToken cancellationToken);
 
     Task<IReadOnlyList<TariffOptionDto>> GetTariffOptionsAsync(

@@ -1,5 +1,5 @@
 import { useI18n } from '@afk4/i18n';
-import { CalendarClock, KeyRound } from 'lucide-react';
+import { CalendarClock } from 'lucide-react';
 import type { PlayerClientItem } from '../operatorHelpers';
 import { dataSourceLabel, formatMinorUnits } from '../operatorHelpers';
 import type { LedgerEntryDto, PackageOptionDto, PlayerPackageDto } from '../operatorApiClients';
@@ -8,6 +8,7 @@ import { playerStatusLabel } from './playersModel';
 import { WalletSection } from './WalletSection';
 import { PackagesSection } from './PackagesSection';
 import { HistorySection } from './HistorySection';
+import { ClientActionsMenu } from './ClientActionsMenu';
 
 export type ClientDetailTab = 'wallet' | 'packages' | 'history';
 
@@ -45,8 +46,10 @@ export function ClientDetail(props: {
   canPayDebt: boolean;
   canPurchase: boolean;
   canCreateReservation: boolean;
-  canSetPin: boolean;
+  canManageClient: boolean;
   onSetPin: () => void;
+  onEditProfile: () => void;
+  onToggleActive: () => void;
   canCorrect: boolean;
   onCorrect: () => void;
   canRefund: boolean;
@@ -96,11 +99,13 @@ export function ClientDetail(props: {
             {dataSourceLabel(client.source, t)}
           </em>
         </div>
-        {props.canSetPin && (
-          <button type="button" className="client-detail-pin" onClick={props.onSetPin}>
-            <KeyRound size={15} aria-hidden="true" />
-            {t('op.players.pin.openBtn')}
-          </button>
+        {props.canManageClient && (
+          <ClientActionsMenu
+            isActive={client.status !== 'inactive'}
+            onEditProfile={props.onEditProfile}
+            onSetPin={props.onSetPin}
+            onToggleActive={props.onToggleActive}
+          />
         )}
         <button
           type="button"
@@ -112,6 +117,12 @@ export function ClientDetail(props: {
           {t('op.players.detail.reservationBtn')}
         </button>
       </header>
+
+      {client.status === 'inactive' && (
+        <div className="client-detail-banner" role="status">
+          {t('op.players.detail.deactivatedBanner')}
+        </div>
+      )}
 
       <div className="client-detail-chips">
         <div className="client-chip">

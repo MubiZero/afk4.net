@@ -1,4 +1,5 @@
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Players;
 
 namespace AFK4.Platform.Api.Billing;
 
@@ -8,6 +9,20 @@ public interface IBillingCommandService
         Guid branchId,
         Guid actorStaffUserId,
         CreatePlayerAccountRequest request,
+        CancellationToken cancellationToken);
+
+    Task<BillingCommandServiceResult<PlayerAccountDto>> UpdatePlayerAccountAsync(
+        Guid branchId,
+        Guid actorStaffUserId,
+        Guid playerAccountId,
+        UpdatePlayerAccountRequest request,
+        CancellationToken cancellationToken);
+
+    Task<BillingCommandServiceResult<PlayerAccountDto>> SetPlayerActiveStateAsync(
+        Guid branchId,
+        Guid actorStaffUserId,
+        Guid playerAccountId,
+        SetPlayerActiveStateRequest request,
         CancellationToken cancellationToken);
 
     Task<BillingCommandServiceResult<WalletSummaryDto>> TopUpWalletAsync(

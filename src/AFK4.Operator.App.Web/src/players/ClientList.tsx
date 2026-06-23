@@ -81,7 +81,7 @@ export function ClientList({
             <button
               key={client.playerAccountId ?? client.name}
               type="button"
-              className={`client-row ${client.tone}${client.playerAccountId === selectedClientId ? ' selected' : ''}`}
+              className={`client-row ${client.tone}${client.status === 'inactive' ? ' is-inactive' : ''}${client.playerAccountId === selectedClientId ? ' selected' : ''}`}
               onClick={() => onSelectClient(client.playerAccountId ?? null)}
             >
               <span className="client-row-status" aria-hidden="true">{playerStatusLabel(client.status, t)}</span>

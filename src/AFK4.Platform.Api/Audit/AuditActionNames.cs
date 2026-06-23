@@ -38,6 +38,12 @@ public static class AuditActionNames
 
     public const string ViewPlayers = "players.view";
 
+    public const string UpdatePlayerAccount = "players.update";
+
+    public const string DeactivatePlayerAccount = "players.deactivate";
+
+    public const string ActivatePlayerAccount = "players.activate";
+
     public const string TopUpWallet = "billing.wallet.top_up";
 
     public const string RefundLedgerEntry = "billing.refund";
