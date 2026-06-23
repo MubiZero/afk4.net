@@ -1,25 +1,29 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
-import type { LedgerEntryDto, PackageOptionDto, PlayerPackageDto, WalletSummaryDto } from './operatorApiClients';
+import type { LedgerEntryDto, PackageOptionDto, PlayerPackageDto, SessionTimelineItemDto, WalletSummaryDto } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
   createAuthenticatedOperatorClients,
   createIdempotencyKey,
   emptyFeedback,
+  formatMinorUnits,
   formatMoneyInputMinorUnits,
   parseMoneyInputMinorUnits,
+  readArray,
   readMoney,
   readNumber,
   readString,
   requireBackend
 } from './operatorHelpers';
-import { fixturePlayers, playerStatusLabel, projectPlayerClient, buildClientSegments, matchesSegment, type PlayerClientItem, type ClientSegmentId } from './players/playersModel';
-import { FeedbackNotice } from './operatorPrimitives';
+import { fixturePlayers, playerStatusLabel, projectPlayerClient, buildClientSegments, buildClientOverview, buildClientContext, matchesSegment, type PlayerClientItem, type ClientSegmentId, type ClientLiveContext } from './players/playersModel';
+import { FeedbackNotice, StateFlag } from './operatorPrimitives';
 import { useDeferredFlag } from './useDeferredFlag';
+import { useMediaQuery } from './useMediaQuery';
 import { ClientList } from './players/ClientList';
 import { ClientDetail, type ClientDetailTab } from './players/ClientDetail';
+import { ClientLedgerRail } from './players/ClientLedgerRail';
 import { NewClientModal } from './players/NewClientModal';
 import { CorrectionModal, type CorrectionAccount, type CorrectionDirection } from './players/CorrectionModal';
 import { RefundModal } from './players/RefundModal';
@@ -31,6 +35,9 @@ type PlayerActionId = 'topUp' | 'writeOffDebt' | 'buyPackage' | 'booking' | 'new
 
 export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
   const { t } = useI18n();
+  // ≥1280px: полный журнал уезжает в постоянный правый рейл (третья колонка),
+  // карточка остаётся читаемой шириной. Уже это переключает и раскладку, и загрузку данных.
+  const wideLayout = useMediaQuery('(min-width: 1280px)');
   const [clientSearch, setClientSearch] = useState('');
   const [activeSegment, setActiveSegment] = useState<ClientSegmentId>('all');
   const [activeTab, setActiveTab] = useState<ClientDetailTab>('wallet');
@@ -54,6 +61,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [ledgerCursor, setLedgerCursor] = useState<string | null>(null);
   const [ledgerFilter, setLedgerFilter] = useState<string | null>(null);
   const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [packagesLoading, setPackagesLoading] = useState(false);
   const [correctionOpen, setCorrectionOpen] = useState(false);
   const [correctionAccount, setCorrectionAccount] = useState<CorrectionAccount>('wallet');
   const [correctionDirection, setCorrectionDirection] = useState<CorrectionDirection>('credit');
@@ -68,6 +76,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [editPhone, setEditPhone] = useState('');
   const [activeStateOpen, setActiveStateOpen] = useState(false);
   const [ledgerReloadNonce, setLedgerReloadNonce] = useState(0);
+  const [liveContext, setLiveContext] = useState<ClientLiveContext>({ session: null, nextBooking: null });
 
   useEffect(() => {
     if (backend === null) {
@@ -127,16 +136,23 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     && Boolean(selectedClient.playerAccountId)
     && hasPermission(backend.session, permissionNames.viewBilling);
 
+  // Рейл с журналом — только на широком экране и только когда журнал вообще доступен.
+  const showLedgerRail = wideLayout && canViewLedger;
+  // Журнал грузим, когда он виден: либо постоянным рейлом (широкий экран), либо вкладкой «История».
+  const ledgerPaneVisible = canViewLedger && (showLedgerRail || activeTab === 'history');
+
   useEffect(() => {
     if (backend === null || selectedClient === null || !selectedClient.playerAccountId || selectedClient.source !== 'backend') {
       setWalletSummary(null);
       setSelectedClientPackages([]);
+      setPackagesLoading(false);
       return undefined;
     }
 
     const client = selectedClient as PlayerClientItem & { playerAccountId: string; source: 'backend' };
     let disposed = false;
     const loadWallet = async () => {
+      setPackagesLoading(true);
       try {
         const apiClients = createAuthenticatedOperatorClients(backend.config, backend.session);
         const [wallet, packages] = await Promise.all([
@@ -154,6 +170,10 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           setFeedback({ label: client.name, state: 'failed', detail: projectOperatorError(error, t).detail });
           setSelectedClientPackages([]);
         }
+      } finally {
+        if (!disposed) {
+          setPackagesLoading(false);
+        }
       }
     };
 
@@ -166,7 +186,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   // Журнал истории: серверный источник (paged ledger-эндпоинт), отдельно от wallet-summary.
   // Грузим первую страницу при входе на таб «История» / смене клиента / смене фильтра.
   useEffect(() => {
-    if (!canViewLedger || activeTab !== 'history' || selectedClient === null || !selectedClient.playerAccountId) {
+    if (!ledgerPaneVisible || selectedClient === null || !selectedClient.playerAccountId) {
       return undefined;
     }
 
@@ -210,18 +230,18 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     backend?.branchId,
     backend?.config.platformBaseUrl,
     backend?.session.accessToken,
-    activeTab,
+    ledgerPaneVisible,
     selectedClient?.playerAccountId,
     selectedClient?.source,
     ledgerFilter,
-    canViewLedger,
     ledgerReloadNonce
   ]);
 
   // Мини-лента последних операций для вкладки «Кошелёк» — отдельно от фильтруемого журнала
   // вкладки «История»: всегда последние 5 без фильтра. Обновляется после денежных действий (nonce).
+  // На широком экране её заменяет рейл с полным журналом — там она не нужна, не грузим.
   useEffect(() => {
-    if (!canViewLedger || selectedClient === null || !selectedClient.playerAccountId) {
+    if (!canViewLedger || wideLayout || selectedClient === null || !selectedClient.playerAccountId) {
       setRecentEntries([]);
       return undefined;
     }
@@ -257,10 +277,65 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     backend?.session.accessToken,
     selectedClient?.playerAccountId,
     canViewLedger,
+    wideLayout,
+    ledgerReloadNonce
+  ]);
+
+  // Кросс-контекст профиля: активная сессия (играет сейчас) и ближайшая бронь клиента.
+  // Best-effort и не критичный — при отсутствии прав/ошибке просто ничего не показываем,
+  // экран клиентов от этого не страдает.
+  useEffect(() => {
+    if (backend === null || selectedClient === null || !selectedClient.playerAccountId || selectedClient.source !== 'backend') {
+      setLiveContext({ session: null, nextBooking: null });
+      return undefined;
+    }
+
+    const nextBackend = backend;
+    const playerAccountId = selectedClient.playerAccountId;
+    const canSessions = hasPermission(nextBackend.session, permissionNames.viewSessions);
+    const canReservations = hasPermission(nextBackend.session, permissionNames.viewReservations);
+    if (!canSessions && !canReservations) {
+      setLiveContext({ session: null, nextBooking: null });
+      return undefined;
+    }
+
+    let disposed = false;
+    const loadContext = async () => {
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const nowIso = new Date().toISOString();
+      const horizonIso = new Date(Date.now() + 14 * 24 * 60 * 60_000).toISOString();
+      const [sessionsResult, reservationsResult] = await Promise.all([
+        canSessions
+          ? apiClients.sessions.timeline(nextBackend.branchId, { limit: null }).catch(() => null)
+          : Promise.resolve(null),
+        canReservations
+          ? apiClients.reservations.search(nextBackend.branchId, { fromUtc: nowIso, toUtc: horizonIso, limit: 40, playerAccountId }).catch(() => null)
+          : Promise.resolve(null)
+      ]);
+      if (disposed) {
+        return;
+      }
+
+      const sessions = readArray<SessionTimelineItemDto>(sessionsResult, 'sessions');
+      const reservations = readArray<Record<string, unknown>>(reservationsResult, 'reservations');
+      setLiveContext(buildClientContext(sessions, reservations, playerAccountId));
+    };
+
+    void loadContext();
+    return () => {
+      disposed = true;
+    };
+  }, [
+    backend?.branchId,
+    backend?.config.platformBaseUrl,
+    backend?.session.accessToken,
+    selectedClient?.playerAccountId,
+    selectedClient?.source,
     ledgerReloadNonce
   ]);
 
   const segments = buildClientSegments(clients, t);
+  const overview = buildClientOverview(clients);
   const visibleClients = clients.filter((client) => {
     const searchMatches = `${client.name} ${playerStatusLabel(client.status, t)} ${client.detail} ${client.last}`
       .toLowerCase()
@@ -480,6 +555,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           // note sent to the API; surfaces in the audit log shown to operators
           note: t('op.players.note.createdFromCard')
         });
+        // Обновляем кросс-контекст профиля, чтобы новая бронь сразу появилась полосой «ближайшая бронь».
+        bumpLedger();
       } else if (id === 'correction') {
         if (!hasPermission(nextBackend.session, permissionNames.manualCorrection)) {
           throw new Error(t('op.players.error.noPermCorrection'));
@@ -641,11 +718,20 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           {' · '}
           <span className="clients-head-tagline">{t('op.players.tagline')}</span>
         </h1>
+        <div className="clients-head-metrics">
+          <StateFlag label={t('op.players.overview.clients')} value={String(overview.count)} />
+          <StateFlag label={t('op.players.overview.deposits')} value={formatMinorUnits(overview.depositMinorUnits, currencyCode)} />
+          <StateFlag
+            label={t('op.players.overview.debts')}
+            value={formatMinorUnits(overview.debtMinorUnits, currencyCode)}
+            tone={overview.debtMinorUnits > 0 ? 'warning' : undefined}
+          />
+        </div>
       </section>
 
       <FeedbackNotice feedback={feedback} />
 
-      <section className="clients-layout">
+      <section className={`clients-layout${showLedgerRail ? ' has-ledger-rail' : ''}`}>
         <ClientList
           clients={visibleClients}
           segments={segments}
@@ -665,6 +751,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         <ClientDetail
           client={selectedClient}
           activeTab={activeTab}
+          showLedgerRail={showLedgerRail}
+          liveContext={liveContext}
           balanceMinorUnits={balance}
           debtMinorUnits={debt}
           packageCount={selectedClientPackageCount}
@@ -679,6 +767,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           onLedgerFilterChange={changeLedgerFilter}
           onLedgerLoadMore={() => void loadMoreLedger()}
           selectedPackageDefinitionId={selectedPackageDefinitionId}
+          packageBusy={feedback.state === 'pending'}
+          packagesLoading={packagesLoading}
           topUpAmount={walletTopUpAmount}
           topUpReason={walletTopUpReason}
           debtAmount={debtPaymentAmount}
@@ -706,6 +796,20 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           canRefund={canRefundLedger}
           onRefund={(entry) => setRefundTarget(entry)}
         />
+
+        {showLedgerRail && (
+          <ClientLedgerRail
+            entries={ledgerEntries}
+            currencyCode={currencyCode}
+            activeFilter={ledgerFilter}
+            onFilterChange={changeLedgerFilter}
+            hasMore={ledgerCursor !== null}
+            onLoadMore={() => void loadMoreLedger()}
+            loading={ledgerLoading}
+            canRefund={canRefundLedger}
+            onRefund={(entry) => setRefundTarget(entry)}
+          />
+        )}
       </section>
 
       {newClientOpen && (

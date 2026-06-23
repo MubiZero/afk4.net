@@ -40,10 +40,7 @@ export function ClientList({
   return (
     <section className="clients-panel clients-list-panel">
       <header className="clients-panel-title">
-        <div className="clients-panel-title-text">
-          <span>{t('op.players.list.title')}</span>
-          <strong>{t('op.players.list.subtitle')}</strong>
-        </div>
+        <span className="clients-panel-title-text">{t('op.players.list.title')}</span>
         {canCreatePlayer && (
           <button type="button" className="clients-new-client-btn" onClick={onNewClient}>
             <UserRoundPlus size={15} aria-hidden="true" />{t('op.players.newClient.openBtn')}

@@ -8,6 +8,7 @@ export type ReservationSearchResultDto = Record<string, unknown>;
 export type ReservationSearchQuery = ReportQuery & {
   state?: string | null;
   source?: string | null;
+  playerAccountId?: Guid | null;
 };
 
 export interface CreateReservationRequest extends Record<string, unknown> {

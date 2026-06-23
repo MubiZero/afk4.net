@@ -43,10 +43,19 @@
   font-weight: 500;
 }
 
+/* Счётчики-обзор базы в шапке — зеркало .booking-header-metrics («Карта»/«Брони»). */
+.clients-head-metrics {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 6px;
+}
+
 .clients-new-client-btn {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  flex: none;
   height: var(--control-md);
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
@@ -55,6 +64,7 @@
   color: var(--text-on-accent);
   font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
   transition: background 100ms ease, transform 100ms ease;
 }
 
@@ -89,6 +99,15 @@
   overflow: hidden;
 }
 
+/* Широкий экран: третья колонка — рейл с полным журналом. Карточка держится
+   читаемой шириной (≤680), рейл забирает остаток, чтобы пространство справа
+   не пустовало (зеркало того, как «Карта»/«Брони» используют всю ширину). */
+@media (min-width: 1280px) {
+  .clients-layout.has-ledger-rail {
+    grid-template-columns: minmax(0, 320px) minmax(480px, 680px) minmax(0, 1fr);
+  }
+}
+
 .clients-panel {
   display: flex;
   flex-direction: column;
@@ -104,33 +123,21 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-2);
+  gap: var(--space-3);
   min-width: 0;
-  padding: var(--space-3) var(--space-3) 0;
+  /* Щедрый вертикальный воздух: строка заголовка не лепится к полю поиска. */
+  padding: var(--space-3) var(--space-3) var(--space-2);
 }
 
+/* Заголовок панели — одна строка; при нехватке места усекается сам, а кнопка остаётся целой. */
 .clients-panel-title-text {
-  display: grid;
-  gap: 3px;
+  flex: 1;
   min-width: 0;
-}
-
-.clients-panel-title span {
   overflow: hidden;
   color: var(--text-primary);
   font-size: 15px;
   font-weight: 700;
-  line-height: 1.08;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.clients-panel-title strong {
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.15;
+  line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -554,6 +561,11 @@
   }
 }
 
+/* Широкий экран: мини-ленты нет (её заменил рейл), кошелёк — одна колонка действий. */
+.clients-wallet-layout.is-solo {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 /* Блок погашения долга — мягкий красный акцент в рамке, чтобы отличался от пополнения */
 .clients-wallet-form-debt {
   border-color: var(--danger-soft-border);
@@ -680,6 +692,27 @@
   color: var(--text-primary);
   font-size: 13px;
   font-weight: 700;
+}
+
+/* Сумма + причина в один ряд: форма перестаёт растягиваться на 4 строки полей.
+   Сумма — узкая колонка (число короткое), причина — широкая (текст). */
+.clients-wallet-fields {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.8fr) minmax(0, 1.2fr);
+  gap: var(--space-3);
+}
+
+.clients-wallet-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* Совсем узко — поля в стопку, чтобы не зажимались. */
+@media (max-width: 560px) {
+  .clients-wallet-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .clients-wallet-form label,
@@ -865,11 +898,6 @@
   background: var(--surface-elevated);
 }
 
-.clients-package-preview span.attention {
-  border-color: var(--danger-soft-border);
-  background: var(--danger-soft-bg);
-}
-
 .clients-package-preview strong,
 .clients-package-preview b {
   overflow: hidden;
@@ -885,6 +913,44 @@
 .clients-package-preview b {
   color: var(--text-primary);
   font-size: 12px;
+}
+
+/* Депозит-гейт во всю ширину: именно он решает, можно ли купить, — выделяем явно. */
+.clients-package-deposit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-elevated);
+}
+
+.clients-package-deposit.attention {
+  border-color: var(--danger-soft-border);
+  background: var(--danger-soft-bg);
+}
+
+.clients-package-deposit strong {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.clients-package-deposit b {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.clients-package-deposit.attention b {
+  color: var(--danger-text);
+}
+
+.client-package-skeleton {
+  height: 52px;
+  border-radius: var(--radius-md);
 }
 
 /* ── История ─────────────────────────────────────────────────────────────────── */
@@ -1380,6 +1446,40 @@
   font-size: 13px;
 }
 
+/* ── Кросс-контекст профиля: «играет сейчас» / «ближайшая бронь» ──────────────── */
+.client-context-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  max-width: 1040px;
+  margin: 0 var(--space-3);
+}
+
+.client-context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--control-sm);
+  padding: 3px var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.client-context-chip.is-live {
+  border-color: var(--success-soft-border);
+  background: var(--success-soft-bg);
+  color: var(--success-text);
+}
+
+.client-context-chip.is-booking {
+  border-color: var(--border-accent);
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+}
+
 .clients-edit-form,
 .clients-confirm {
   display: flex;
@@ -1404,4 +1504,28 @@
 
 .panel-modal.danger .panel-modal-head {
   border-bottom-color: var(--danger);
+}
+
+/* ── Рейл журнала операций (третья колонка, ≥1280px) ───────────────────────── */
+.clients-ledger-rail-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-primary);
+}
+
+.clients-ledger-rail-head strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.clients-ledger-rail-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* padding-top — запас под hover-подъём фильтр-чипов (translateY иначе срезается кромкой прокрутки) */
+  padding: var(--space-3);
 }

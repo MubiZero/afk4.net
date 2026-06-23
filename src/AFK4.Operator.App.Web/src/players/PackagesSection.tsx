@@ -1,8 +1,8 @@
 import { useI18n } from '@afk4/i18n';
-import { Package, TimerReset } from 'lucide-react';
+import { Loader2, Package, ShoppingBag, TimerReset } from 'lucide-react';
 import type { PlayerPackageDto, PackageOptionDto } from '../operatorApiClients';
 import { formatMinorUnits, packageOptionLabel, readNumber, readString } from '../operatorHelpers';
-import { EmptyState } from '../operatorPrimitives';
+import { EmptyState, Skeleton } from '../operatorPrimitives';
 import { projectPlayerPackage } from './playersModel';
 
 // Человекочитаемые активные пакеты + инлайн-покупка. Заменяет хардкод <b>active</b>.
@@ -13,6 +13,8 @@ export function PackagesSection({
   balanceMinorUnits,
   currencyCode,
   canPurchase,
+  busy,
+  loading,
   onSelectOption,
   onBuy
 }: {
@@ -22,6 +24,8 @@ export function PackagesSection({
   balanceMinorUnits: number;
   currencyCode: string;
   canPurchase: boolean;
+  busy: boolean;
+  loading: boolean;
   onSelectOption: (packageDefinitionId: string) => void;
   onBuy: () => void;
 }) {
@@ -37,10 +41,17 @@ export function PackagesSection({
   const totalMinutes = includedMinutes + bonusMinutes;
   const expiresDays = selectedOption === null ? 0 : readNumber(selectedOption, 'expiresAfterDays', 0);
   const canAfford = selectedOption !== null && balanceMinorUnits >= priceMinorUnits;
+  const shortfallMinorUnits = Math.max(0, priceMinorUnits - balanceMinorUnits);
+  const hasOptions = options.length > 0;
 
   return (
     <div className="clients-packages-section">
-      {packages.length === 0 ? (
+      {loading ? (
+        <div className="client-package-list" aria-busy="true">
+          <Skeleton className="client-package-skeleton" />
+          <Skeleton className="client-package-skeleton" />
+        </div>
+      ) : packages.length === 0 ? (
         <EmptyState
           icon={<Package size={20} aria-hidden="true" />}
           title={t('op.players.packages.emptyTitle')}
@@ -73,51 +84,66 @@ export function PackagesSection({
 
       <div className="clients-package-buy">
         <strong className="clients-section-title">{t('op.players.packages.buyTitle')}</strong>
-        <label className="clients-package-select">
-          {t('op.players.actions.packageSelectLabel')}
-          <select
-            value={selectedOption === null ? '' : readString(selectedOption, 'packageDefinitionId')}
-            disabled={!canPurchase || options.length === 0}
-            onChange={(e) => onSelectOption(e.currentTarget.value)}
-          >
-            {options.length === 0 && <option value="">{t('op.map.panel.noPackages')}</option>}
-            {options.map((o) => (
-              <option key={readString(o, 'packageDefinitionId')} value={readString(o, 'packageDefinitionId')}>
-                {packageOptionLabel(o, currencyCode, t)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="clients-package-preview" aria-label={t('op.players.actions.packagePreviewLabel')}>
-          <span>
-            <strong>{t('op.players.actions.packagePrice')}</strong>
-            <b>{formatMinorUnits(priceMinorUnits, optionCurrency)}</b>
-          </span>
-          <span>
-            <strong>{t('op.players.actions.packageMinutes')}</strong>
-            <b>{totalMinutes}</b>
-          </span>
-          <span>
-            <strong>{t('op.players.actions.packageBonus')}</strong>
-            <b>{bonusMinutes}</b>
-          </span>
-          <span>
-            <strong>{t('op.players.actions.packageExpiry')}</strong>
-            <b>{expiresDays > 0 ? t('op.players.actions.packageExpiryDays', { count: expiresDays }) : t('op.players.actions.packageNoExpiry')}</b>
-          </span>
-          <span className={canAfford ? undefined : 'attention'}>
-            <strong>{t('op.pos.payment.methodDeposit')}</strong>
-            <b>{canAfford ? t('op.players.actions.depositOk') : t('op.players.actions.depositLow')}</b>
-          </span>
-        </div>
-        <button
-          type="button"
-          className="clients-primary-action"
-          disabled={!canPurchase || options.length === 0 || !canAfford}
-          onClick={onBuy}
-        >
-          <TimerReset size={15} aria-hidden="true" />{t('op.players.actions.buyPackageBtn')}
-        </button>
+        {!hasOptions ? (
+          <EmptyState
+            icon={<ShoppingBag size={20} aria-hidden="true" />}
+            title={t('op.players.packages.noOptionsTitle')}
+            description={t('op.players.packages.noOptionsDescription')}
+          />
+        ) : (
+          <>
+            <label className="clients-package-select">
+              {t('op.players.actions.packageSelectLabel')}
+              <select
+                value={selectedOption === null ? '' : readString(selectedOption, 'packageDefinitionId')}
+                disabled={!canPurchase || busy}
+                onChange={(e) => onSelectOption(e.currentTarget.value)}
+              >
+                {options.map((o) => (
+                  <option key={readString(o, 'packageDefinitionId')} value={readString(o, 'packageDefinitionId')}>
+                    {packageOptionLabel(o, currencyCode, t)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="clients-package-preview" aria-label={t('op.players.actions.packagePreviewLabel')}>
+              <span>
+                <strong>{t('op.players.actions.packagePrice')}</strong>
+                <b>{formatMinorUnits(priceMinorUnits, optionCurrency)}</b>
+              </span>
+              <span>
+                <strong>{t('op.players.actions.packageIncluded')}</strong>
+                <b>{t('op.players.actions.packageMinShort', { minutes: includedMinutes })}</b>
+              </span>
+              <span>
+                <strong>{t('op.players.actions.packageBonus')}</strong>
+                <b>{bonusMinutes > 0 ? `+${t('op.players.actions.packageMinShort', { minutes: bonusMinutes })}` : '—'}</b>
+              </span>
+              <span>
+                <strong>{t('op.players.actions.packageTotal')}</strong>
+                <b>{t('op.players.actions.packageMinShort', { minutes: totalMinutes })}</b>
+              </span>
+              <span>
+                <strong>{t('op.players.actions.packageExpiry')}</strong>
+                <b>{expiresDays > 0 ? t('op.players.actions.packageExpiryDays', { count: expiresDays }) : t('op.players.actions.packageNoExpiry')}</b>
+              </span>
+            </div>
+            <div className={`clients-package-deposit${canAfford ? '' : ' attention'}`}>
+              <strong>{t('op.pos.payment.methodDeposit')}</strong>
+              <b>{canAfford ? t('op.players.actions.depositOk') : t('op.players.actions.depositLow', { amount: formatMinorUnits(shortfallMinorUnits, optionCurrency) })}</b>
+            </div>
+            <button
+              type="button"
+              className="clients-primary-action"
+              disabled={!canPurchase || busy || !canAfford}
+              onClick={onBuy}
+            >
+              {busy
+                ? <><Loader2 size={15} className="spin" aria-hidden="true" />{t('op.players.actions.buyPackagePending')}</>
+                : <><TimerReset size={15} aria-hidden="true" />{t('op.players.actions.buyPackageBtn')}</>}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

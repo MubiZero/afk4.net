@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { fixturePlayers, playerStatusLabel, projectPlayerClient, ledgerTypeLabel, projectLedgerEntry, projectPlayerPackage, buildClientSegments, matchesSegment, type ClientSegmentId } from './playersModel';
+import { fixturePlayers, playerStatusLabel, projectPlayerClient, ledgerTypeLabel, projectLedgerEntry, projectPlayerPackage, buildClientSegments, buildClientOverview, buildClientContext, matchesSegment, type ClientSegmentId } from './playersModel';
 import type { TFunc, PlayerClientItem } from '../operatorHelpers';
-import type { LedgerEntryDto, PlayerPackageDto } from '../operatorApiClients';
+import type { LedgerEntryDto, PlayerPackageDto, SessionTimelineItemDto } from '../operatorApiClients';
 
 // Стаб переводчика: возвращает ключ, игнорируя параметры — тесты проверяют только
 // структурные поля проекции, не локализованный текст.
@@ -154,5 +154,73 @@ describe('client segments (stable ids — survive locale change)', () => {
     expect(matchesSegment(client({ debtMinorUnits: 0 }), 'debt')).toBe(false);
     expect(matchesSegment(client({ status: 'inactive' }), 'inactive')).toBe(true);
     expect(matchesSegment(client({ status: 'active' }), 'inactive')).toBe(false);
+  });
+});
+
+describe('buildClientOverview (сводка по базе для шапки)', () => {
+  it('counts clients and sums positive deposits and debts', () => {
+    const overview = buildClientOverview([
+      client({ balanceMinorUnits: 45000, debtMinorUnits: 0 }),
+      client({ balanceMinorUnits: 12000, debtMinorUnits: 0 }),
+      client({ balanceMinorUnits: 0, debtMinorUnits: 3500 })
+    ]);
+    expect(overview.count).toBe(3);
+    expect(overview.depositMinorUnits).toBe(57000);
+    expect(overview.debtMinorUnits).toBe(3500);
+  });
+
+  it('ignores negative balances in the deposit sum and returns zeros for an empty base', () => {
+    expect(buildClientOverview([client({ balanceMinorUnits: -500, debtMinorUnits: 0 })]).depositMinorUnits).toBe(0);
+    expect(buildClientOverview([])).toEqual({ count: 0, depositMinorUnits: 0, debtMinorUnits: 0 });
+  });
+});
+
+const session = (over: Partial<SessionTimelineItemDto>): SessionTimelineItemDto => ({
+  sessionId: 's', seatId: 'seat', seatName: 'PC-03', zoneId: 'z', zoneName: 'Зал A',
+  state: 'active', playerAccountId: 'p1', playerDisplayName: 'X', tariffName: null,
+  startedAtUtc: '2026-06-23T10:00:00Z', endsAtUtc: '2026-06-23T11:00:00Z', endedAtUtc: null, ...over
+});
+
+describe('buildClientContext (играет сейчас + ближайшая бронь)', () => {
+  it('picks the active blocking session for the player and projects seat + until', () => {
+    const ctx = buildClientContext(
+      [session({ playerAccountId: 'p1', seatName: 'PC-03' }), session({ playerAccountId: 'other', seatName: 'PC-09' })],
+      [],
+      'p1'
+    );
+    expect(ctx.session?.seatName).toBe('PC-03');
+    expect(ctx.session?.untilLabel).not.toBeNull();
+    expect(ctx.nextBooking).toBeNull();
+  });
+
+  it('treats an open tab (no scheduled end) as untilLabel null', () => {
+    const ctx = buildClientContext([session({ playerAccountId: 'p1', endsAtUtc: null })], [], 'p1');
+    expect(ctx.session?.untilLabel).toBeNull();
+  });
+
+  it('ignores ended, non-blocking and other-player sessions', () => {
+    const ctx = buildClientContext(
+      [
+        session({ playerAccountId: 'p1', endedAtUtc: '2026-06-23T10:30:00Z' }),
+        session({ playerAccountId: 'p1', state: 'requested' }),
+        session({ playerAccountId: 'p2' })
+      ],
+      [],
+      'p1'
+    );
+    expect(ctx.session).toBeNull();
+  });
+
+  it('selects the first pending/confirmed booking and skips cancelled', () => {
+    const ctx = buildClientContext(
+      [],
+      [
+        { reservationId: 'r0', state: 'cancelled', startsAtUtc: '2026-06-23T17:00:00Z', seatName: 'PC-01' },
+        { reservationId: 'r1', state: 'confirmed', startsAtUtc: '2026-06-23T18:00:00Z', seatName: 'PC-02' }
+      ],
+      'p1'
+    );
+    expect(ctx.nextBooking?.seatName).toBe('PC-02');
+    expect(ctx.nextBooking?.timeLabel).not.toBe('');
   });
 });

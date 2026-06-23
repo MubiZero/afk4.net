@@ -4,7 +4,8 @@ import type { PlayerClientItem } from '../operatorHelpers';
 import { formatMinorUnits } from '../operatorHelpers';
 import type { LedgerEntryDto, PackageOptionDto, PlayerPackageDto } from '../operatorApiClients';
 import { EmptyState } from '../operatorPrimitives';
-import { playerStatusLabel } from './playersModel';
+import { playerStatusLabel, type ClientLiveContext } from './playersModel';
+import { ClientContextStrip } from './ClientContextStrip';
 import { WalletSection } from './WalletSection';
 import { PackagesSection } from './PackagesSection';
 import { HistorySection } from './HistorySection';
@@ -25,6 +26,11 @@ function initials(name: string): string {
 export function ClientDetail(props: {
   client: PlayerClientItem | null;
   activeTab: ClientDetailTab;
+  // На широком экране полный журнал живёт в постоянном правом рейле: вкладка «История»
+  // и мини-лента «Кошелька» здесь скрываются, чтобы не дублировать его.
+  showLedgerRail: boolean;
+  // Кросс-контекст: играет ли сейчас и ближайшая бронь (пустой объект = ничего не показываем).
+  liveContext: ClientLiveContext;
   balanceMinorUnits: number;
   debtMinorUnits: number;
   packageCount: number;
@@ -39,6 +45,8 @@ export function ClientDetail(props: {
   onLedgerFilterChange: (entryType: string | null) => void;
   onLedgerLoadMore: () => void;
   selectedPackageDefinitionId: string;
+  packageBusy: boolean;
+  packagesLoading: boolean;
   topUpAmount: string;
   topUpReason: string;
   debtAmount: string;
@@ -84,8 +92,10 @@ export function ClientDetail(props: {
   const tabs: Array<{ id: ClientDetailTab; label: string }> = [
     { id: 'wallet', label: t('op.players.tabs.wallet') },
     { id: 'packages', label: t('op.players.tabs.packages') },
-    { id: 'history', label: t('op.players.tabs.history') },
+    ...(props.showLedgerRail ? [] : [{ id: 'history' as const, label: t('op.players.tabs.history') }]),
   ];
+  // Если рейл забрал «Историю», а активной была именно она — показываем «Кошелёк».
+  const activeTab: ClientDetailTab = props.showLedgerRail && props.activeTab === 'history' ? 'wallet' : props.activeTab;
 
   return (
     <section className="clients-panel clients-detail-panel">
@@ -125,6 +135,8 @@ export function ClientDetail(props: {
         </div>
       )}
 
+      <ClientContextStrip context={props.liveContext} />
+
       <div className="client-detail-chips">
         <div className="client-chip">
           <span>{t('op.players.chip.balance')}</span>
@@ -146,8 +158,8 @@ export function ClientDetail(props: {
             key={tab.id}
             type="button"
             role="tab"
-            aria-selected={props.activeTab === tab.id}
-            className={`client-detail-tab${props.activeTab === tab.id ? ' active' : ''}`}
+            aria-selected={activeTab === tab.id}
+            className={`client-detail-tab${activeTab === tab.id ? ' active' : ''}`}
             onClick={() => props.onSelectTab(tab.id)}
           >
             {tab.label}
@@ -156,11 +168,12 @@ export function ClientDetail(props: {
       </div>
 
       <div className="client-detail-content">
-        {props.activeTab === 'wallet' && (
+        {activeTab === 'wallet' && (
           <WalletSection
             debtMinorUnits={props.debtMinorUnits}
             currencyCode={props.currencyCode}
             recentEntries={props.recentEntries}
+            showRecent={!props.showLedgerRail}
             onShowHistory={() => props.onSelectTab('history')}
             topUpAmount={props.topUpAmount}
             topUpReason={props.topUpReason}
@@ -178,7 +191,7 @@ export function ClientDetail(props: {
             onCorrect={props.onCorrect}
           />
         )}
-        {props.activeTab === 'packages' && (
+        {activeTab === 'packages' && (
           <PackagesSection
             packages={props.packages}
             options={props.options}
@@ -186,11 +199,13 @@ export function ClientDetail(props: {
             balanceMinorUnits={props.balanceMinorUnits}
             currencyCode={props.currencyCode}
             canPurchase={props.canPurchase}
+            busy={props.packageBusy}
+            loading={props.packagesLoading}
             onSelectOption={props.onSelectOption}
             onBuy={props.onBuy}
           />
         )}
-        {props.activeTab === 'history' && (
+        {activeTab === 'history' && (
           <HistorySection
             entries={props.ledgerEntries}
             currencyCode={props.currencyCode}

@@ -6,6 +6,8 @@ import { projectLedgerEntry } from './playersModel';
 
 // Кошелёк = зона ДЕЙСТВИЙ слева (баланс/долг показывает сводка-чипы, здесь не дублируем) +
 // мини-лента последних операций справа (read-only, со ссылкой на полную вкладку «История»).
+// На широком экране (showRecent=false) мини-лента не нужна: её заменяет постоянный
+// правый рейл с полным журналом — здесь остаются только действия одной колонкой.
 // Пополнение — основное действие; форма погашения появляется только при наличии долга.
 // feedback показывается глобально в оркестраторе — единый источник, здесь не дублируем.
 export function WalletSection({
@@ -19,6 +21,7 @@ export function WalletSection({
   canPayDebt,
   canCorrect,
   recentEntries,
+  showRecent = true,
   onShowHistory,
   onChangeTopUpAmount,
   onChangeTopUpReason,
@@ -38,6 +41,7 @@ export function WalletSection({
   canPayDebt: boolean;
   canCorrect: boolean;
   recentEntries: LedgerEntryDto[];
+  showRecent?: boolean;
   onShowHistory: () => void;
   onChangeTopUpAmount: (value: string) => void;
   onChangeTopUpReason: (value: string) => void;
@@ -51,7 +55,7 @@ export function WalletSection({
   const hasDebt = debtMinorUnits > 0;
 
   return (
-    <div className="clients-wallet-layout">
+    <div className={`clients-wallet-layout${showRecent ? '' : ' is-solo'}`}>
       <div className="clients-wallet-actions">
         <form
           className="clients-wallet-form"
@@ -61,21 +65,27 @@ export function WalletSection({
           }}
         >
           <strong className="clients-section-title">{t('op.players.wallet.topUpTitle')}</strong>
-          <label htmlFor="wallet-topup-amount">{t('op.players.actions.topUpAmountLabel')}</label>
-          <input
-            id="wallet-topup-amount"
-            inputMode="decimal"
-            value={topUpAmount}
-            disabled={!canTopUp}
-            onChange={(event) => onChangeTopUpAmount(event.currentTarget.value)}
-          />
-          <label htmlFor="wallet-topup-reason">{t('op.players.actions.topUpReasonLabel')}</label>
-          <input
-            id="wallet-topup-reason"
-            value={topUpReason}
-            disabled={!canTopUp}
-            onChange={(event) => onChangeTopUpReason(event.currentTarget.value)}
-          />
+          <div className="clients-wallet-fields">
+            <div className="clients-wallet-field">
+              <label htmlFor="wallet-topup-amount">{t('op.players.actions.topUpAmountLabel')}</label>
+              <input
+                id="wallet-topup-amount"
+                inputMode="decimal"
+                value={topUpAmount}
+                disabled={!canTopUp}
+                onChange={(event) => onChangeTopUpAmount(event.currentTarget.value)}
+              />
+            </div>
+            <div className="clients-wallet-field">
+              <label htmlFor="wallet-topup-reason">{t('op.players.actions.topUpReasonLabel')}</label>
+              <input
+                id="wallet-topup-reason"
+                value={topUpReason}
+                disabled={!canTopUp}
+                onChange={(event) => onChangeTopUpReason(event.currentTarget.value)}
+              />
+            </div>
+          </div>
           <button type="submit" className="clients-primary-action" disabled={!canTopUp}>
             <CircleDollarSign size={15} aria-hidden="true" />
             {t('op.players.actions.topUpBtn')}
@@ -91,21 +101,27 @@ export function WalletSection({
             }}
           >
             <strong className="clients-section-title">{t('op.players.wallet.payDebtTitle')}</strong>
-            <label htmlFor="wallet-debt-amount">{t('op.players.actions.debtAmountLabel')}</label>
-            <input
-              id="wallet-debt-amount"
-              inputMode="decimal"
-              value={debtAmount}
-              disabled={!canPayDebt}
-              onChange={(event) => onChangeDebtAmount(event.currentTarget.value)}
-            />
-            <label htmlFor="wallet-debt-reason">{t('op.players.actions.debtReasonLabel')}</label>
-            <input
-              id="wallet-debt-reason"
-              value={debtReason}
-              disabled={!canPayDebt}
-              onChange={(event) => onChangeDebtReason(event.currentTarget.value)}
-            />
+            <div className="clients-wallet-fields">
+              <div className="clients-wallet-field">
+                <label htmlFor="wallet-debt-amount">{t('op.players.actions.debtAmountLabel')}</label>
+                <input
+                  id="wallet-debt-amount"
+                  inputMode="decimal"
+                  value={debtAmount}
+                  disabled={!canPayDebt}
+                  onChange={(event) => onChangeDebtAmount(event.currentTarget.value)}
+                />
+              </div>
+              <div className="clients-wallet-field">
+                <label htmlFor="wallet-debt-reason">{t('op.players.actions.debtReasonLabel')}</label>
+                <input
+                  id="wallet-debt-reason"
+                  value={debtReason}
+                  disabled={!canPayDebt}
+                  onChange={(event) => onChangeDebtReason(event.currentTarget.value)}
+                />
+              </div>
+            </div>
             <button type="submit" className="clients-primary-action clients-debt-action" disabled={!canPayDebt}>
               <ReceiptText size={15} aria-hidden="true" />
               {t('op.players.actions.writeOffDebtBtn')}
@@ -121,6 +137,7 @@ export function WalletSection({
         )}
       </div>
 
+      {showRecent && (
       <aside className="clients-wallet-recent">
         <div className="clients-wallet-recent-head">
           <History size={14} aria-hidden="true" />
@@ -149,6 +166,7 @@ export function WalletSection({
           <ArrowRight size={13} aria-hidden="true" />
         </button>
       </aside>
+      )}
     </div>
   );
 }

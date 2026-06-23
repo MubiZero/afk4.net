@@ -2,8 +2,8 @@
 // (projectPlayerClient/playerPackageLabel/PlayerClientItem) остаются в operatorHelpers,
 // т.к. их используют POS/Брони/Карта — здесь только ре-экспорт, чтобы у фичи был
 // единый импорт. Players-эксклюзивные чистые функции живут здесь.
-import { formatMinorUnits, formatTime, type PlayerClientItem, type TFunc } from '../operatorHelpers';
-import type { LedgerEntryDto, PlayerPackageDto } from '../operatorApiClients';
+import { formatMinorUnits, formatTime, readString, type PlayerClientItem, type TFunc } from '../operatorHelpers';
+import type { LedgerEntryDto, PlayerPackageDto, SessionTimelineItemDto } from '../operatorApiClients';
 import type { MessageKey } from '@afk4/i18n';
 
 export { projectPlayerClient, playerPackageLabel, type PlayerClientItem } from '../operatorHelpers';
@@ -142,4 +142,60 @@ export function buildClientSegments(clients: PlayerClientItem[], t: TFunc): Clie
     label: t(labels[id]),
     count: clients.filter((c) => matchesSegment(c, id)).length
   }));
+}
+
+// Сводка «по всей базе» для шапки раздела (зеркало счётчиков в шапке «Карты»/«Броней»):
+// сколько клиентов, сумма депозитов и сумма долгов по загруженному списку. Это денежная
+// картина базы — намеренно отличается от сегмент-чипов списка (те — фильтры-навигация).
+export interface ClientOverview {
+  count: number;
+  depositMinorUnits: number;
+  debtMinorUnits: number;
+}
+
+export function buildClientOverview(clients: PlayerClientItem[]): ClientOverview {
+  return clients.reduce<ClientOverview>((acc, c) => ({
+    count: acc.count + 1,
+    depositMinorUnits: acc.depositMinorUnits + Math.max(0, c.balanceMinorUnits),
+    debtMinorUnits: acc.debtMinorUnits + Math.max(0, c.debtMinorUnits)
+  }), { count: 0, depositMinorUnits: 0, debtMinorUnits: 0 });
+}
+
+// ── Кросс-контекст профиля: «играет сейчас» + «ближайшая бронь» ──────────────────
+// Сессия «занимает место», если совпадает аккаунт, она не завершена и в активном состоянии.
+const BLOCKING_SESSION_STATES = ['active', 'paused', 'ending'];
+// «Живые» брони (не отменены/не отыграны). Сервер уже отсортировал по времени старта,
+// поэтому первая подходящая — ближайшая.
+const UPCOMING_RESERVATION_STATES = ['pending', 'confirmed'];
+
+export interface ClientLiveContext {
+  session: { seatName: string; untilLabel: string | null } | null; // untilLabel null = открытый счёт
+  nextBooking: { timeLabel: string; seatName: string | null } | null;
+}
+
+export function buildClientContext(
+  sessions: SessionTimelineItemDto[],
+  reservations: Array<Record<string, unknown>>,
+  playerAccountId: string
+): ClientLiveContext {
+  const activeSession = sessions.find((session) =>
+    session.playerAccountId === playerAccountId &&
+    session.endedAtUtc == null &&
+    BLOCKING_SESSION_STATES.includes(session.state)
+  ) ?? null;
+
+  const nextBooking = reservations.find((reservation) =>
+    UPCOMING_RESERVATION_STATES.includes(readString(reservation, 'state'))
+  ) ?? null;
+
+  return {
+    session: activeSession === null ? null : {
+      seatName: activeSession.seatName,
+      untilLabel: activeSession.endsAtUtc ? formatTime(activeSession.endsAtUtc) : null
+    },
+    nextBooking: nextBooking === null ? null : {
+      timeLabel: formatTime(readString(nextBooking, 'startsAtUtc')),
+      seatName: readString(nextBooking, 'seatName') || null
+    }
+  };
 }

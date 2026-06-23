@@ -2,6 +2,7 @@ import { describe, expect, it, afterEach, mock } from 'bun:test';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { ClientDetail, type ClientDetailTab } from './ClientDetail';
+import type { ClientLiveContext } from './playersModel';
 import type { PlayerClientItem } from '../operatorHelpers';
 import type { LedgerEntryDto, PackageOptionDto, PlayerPackageDto } from '../operatorApiClients';
 
@@ -10,6 +11,8 @@ afterEach(cleanup);
 type DetailProps = {
   client: PlayerClientItem | null;
   activeTab: ClientDetailTab;
+  showLedgerRail: boolean;
+  liveContext: ClientLiveContext;
   balanceMinorUnits: number;
   debtMinorUnits: number;
   packageCount: number;
@@ -24,6 +27,8 @@ type DetailProps = {
   onLedgerFilterChange: (entryType: string | null) => void;
   onLedgerLoadMore: () => void;
   selectedPackageDefinitionId: string;
+  packageBusy: boolean;
+  packagesLoading: boolean;
   topUpAmount: string;
   topUpReason: string;
   debtAmount: string;
@@ -60,6 +65,8 @@ const client: PlayerClientItem = {
 const baseProps: DetailProps = {
   client,
   activeTab: 'wallet',
+  showLedgerRail: false,
+  liveContext: { session: null, nextBooking: null },
   balanceMinorUnits: 46000,
   debtMinorUnits: 0,
   packageCount: 1,
@@ -74,6 +81,8 @@ const baseProps: DetailProps = {
   onLedgerFilterChange: () => {},
   onLedgerLoadMore: () => {},
   selectedPackageDefinitionId: '',
+  packageBusy: false,
+  packagesLoading: false,
   topUpAmount: '100.00', topUpReason: 'пополнение через кассу',
   debtAmount: '', debtReason: 'оплата долга через кассу',
   canTopUp: true, canPayDebt: false, canPurchase: true, canCreateReservation: true,
@@ -138,5 +147,25 @@ describe('ClientDetail', () => {
   it('shows the deactivated banner for an inactive client', () => {
     renderDetail({ client: { ...client, status: 'inactive' } });
     expect(screen.getByText(/Клиент деактивирован/)).toBeInTheDocument();
+  });
+
+  it('shows the live-context strip: playing now + next booking', () => {
+    renderDetail({
+      liveContext: {
+        session: { seatName: 'PC-03', untilLabel: '14:30' },
+        nextBooking: { timeLabel: '18:00', seatName: null }
+      }
+    });
+    expect(screen.getByText(/PC-03/)).toBeInTheDocument();
+    expect(screen.getByText(/14:30/)).toBeInTheDocument();
+    expect(screen.getByText(/18:00/)).toBeInTheDocument();
+  });
+
+  it('drops the History tab and wallet mini-feed when the ledger rail is shown', () => {
+    renderDetail({ showLedgerRail: true, recentEntries: [] });
+    expect(screen.queryByRole('tab', { name: 'История' })).toBeNull();
+    expect(screen.queryByText('Последние операции')).toBeNull();
+    // вкладка «Кошелёк» по-прежнему рабочая
+    expect(screen.getByLabelText('Сумма пополнения')).toBeInTheDocument();
   });
 });
