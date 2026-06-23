@@ -222,6 +222,76 @@ public sealed class MoneyActionEndpointTests
         Assert.Equal(HttpStatusCode.Forbidden, approve.StatusCode);
     }
 
+    [Fact]
+    public async Task Submit_ForInactivePlayer_UnderThreshold_NotExecuted_NoLedgerWrite()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await SeedBaseAsync(factory);
+        var entryId = await SeedRefundableTopUpAsync(factory, 10000);
+        await SetPlayerActiveAsync(factory, isActive: false);
+        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", StaffRoleNames.ShiftSupervisor);
+
+        // Under-threshold would normally execute immediately — the inactive guard must stop it.
+        var response = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/money-actions",
+            SubmitRefund(entryId, 3000, "money-1"));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Empty(await db.LedgerEntries.Where(e => e.EntryType == LedgerEntryTypeNames.Refund).ToListAsync());
+        Assert.Empty(await db.MoneyActionRequests.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Approve_AfterPlayerDeactivated_Blocked_NoLedgerWrite()
+    {
+        // The hole: an over-threshold refund is held pending while the player is active, then the
+        // player is deactivated, then a manager approves. The approval replays the payload through the
+        // executor — which must re-check IsActive and refuse, leaving no ledger movement.
+        await using var factory = new PlatformApiFactory();
+        await SeedBaseAsync(factory);
+        var entryId = await SeedRefundableTopUpAsync(factory, 10000);
+
+        Guid requestId;
+        using (var supervisorClient = factory.CreateClient())
+        {
+            await AuthorizeAsAsync(factory, supervisorClient, Supervisor, "supervisor@afk4.test", StaffRoleNames.ShiftSupervisor);
+            var submit = await supervisorClient.PostAsJsonAsync(
+                $"/api/branches/{TestIds.BranchId:D}/money-actions",
+                SubmitRefund(entryId, 6000, "money-1"));
+            requestId = (await submit.Content.ReadFromJsonAsync<MoneyActionSubmitResponse>())!.MoneyActionRequestId!.Value;
+        }
+
+        await SetPlayerActiveAsync(factory, isActive: false);
+
+        using var managerClient = factory.CreateClient();
+        await AuthorizeAsAsync(factory, managerClient, Manager, "manager@afk4.test", StaffRoleNames.BranchManager);
+        var approve = await managerClient.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/money-actions/{requestId:D}/approve",
+            new MoneyActionDecisionRequest("verified receipt"));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, approve.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Empty(await db.LedgerEntries.Where(e => e.EntryType == LedgerEntryTypeNames.Refund).ToListAsync());
+        // The pending request is preserved (not consumed) so it can expire or be retried.
+        var request = await db.MoneyActionRequests.SingleAsync();
+        Assert.Equal(MoneyActionRequestStateNames.Pending, request.State);
+    }
+
+    private static async Task SetPlayerActiveAsync(PlatformApiFactory factory, bool isActive)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var player = await db.PlayerAccounts.SingleAsync(p => p.PlayerAccountId == PlayerAccountId);
+        player.IsActive = isActive;
+        await db.SaveChangesAsync();
+    }
+
     private static MoneyActionSubmitRequest SubmitRefund(Guid ledgerEntryId, long amount, string key) =>
         new(
             OrganizationId: TestIds.OrganizationId,
