@@ -83,6 +83,7 @@ internal static class ReservationEndpoints
             string? state,
             string? source,
             int? limit,
+            Guid? playerAccountId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
             IReservationService reservationService,
@@ -109,7 +110,7 @@ internal static class ReservationEndpoints
                     "Reservation",
                     null,
                     AuditOutcome.Denied,
-                    new { fromUtc, toUtc, state, source, limit, authorization.DenialReason },
+                    new { fromUtc, toUtc, state, source, limit, playerAccountId, authorization.DenialReason },
                     cancellationToken);
 
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
@@ -118,7 +119,7 @@ internal static class ReservationEndpoints
             var result = await reservationService.SearchAsync(
                 authorization.StaffContext!.OrganizationId,
                 branchId,
-                new ReservationSearchQuery(fromUtc, toUtc, state, source, limit),
+                new ReservationSearchQuery(fromUtc, toUtc, state, source, limit, playerAccountId),
                 cancellationToken);
 
             await WriteAuditAsync(
@@ -130,7 +131,7 @@ internal static class ReservationEndpoints
                 "Reservation",
                 null,
                 AuditOutcome.Succeeded,
-                new { fromUtc, toUtc, state, source, limit, ResultCount = result.Reservations.Count },
+                new { fromUtc, toUtc, state, source, limit, playerAccountId, ResultCount = result.Reservations.Count },
                 cancellationToken);
 
             return Results.Ok(result);

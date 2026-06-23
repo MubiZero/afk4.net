@@ -80,12 +80,14 @@ public sealed class EfSessionTimelineReadServiceTests
             Assert.Equal("PC-01", ordered[0].SeatName);
             Assert.Equal("Зал A", ordered[0].ZoneName);
             Assert.Equal("Амир К.", ordered[0].PlayerDisplayName);
+            Assert.Equal(PlayerId, ordered[0].PlayerAccountId);
 
             // Open tab second — no end at all (UI renders open-ended).
             Assert.Equal(openId, ordered[1].SessionId);
             Assert.Null(ordered[1].EndsAtUtc);
             Assert.Null(ordered[1].EndedAtUtc);
             Assert.Null(ordered[1].PlayerDisplayName);
+            Assert.Null(ordered[1].PlayerAccountId);
         }
     }
 }

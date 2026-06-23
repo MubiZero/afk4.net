@@ -108,6 +108,7 @@ public sealed class EfSessionTimelineReadService(PlatformDbContext dbContext) : 
             ZoneId: seat?.ZoneId ?? Guid.Empty,
             ZoneName: zone?.Name ?? string.Empty,
             State: session.State,
+            PlayerAccountId: session.PlayerAccountId,
             PlayerDisplayName: GetPlayerDisplayName(session, playerAccountsById),
             TariffName: GetTariffName(session, tariffVersionsById, tariffsById),
             // StartedAtUtc is guaranteed non-null by the query filter.
