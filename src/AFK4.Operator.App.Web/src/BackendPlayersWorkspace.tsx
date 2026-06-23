@@ -26,8 +26,10 @@ import { NewClientModal } from './players/NewClientModal';
 import { CorrectionModal, type CorrectionAccount, type CorrectionDirection } from './players/CorrectionModal';
 import { RefundModal } from './players/RefundModal';
 import { PinModal } from './players/PinModal';
+import { EditProfileModal } from './players/EditProfileModal';
+import { ActiveStateConfirmModal } from './players/ActiveStateConfirmModal';
 
-type PlayerActionId = 'topUp' | 'writeOffDebt' | 'buyPackage' | 'booking' | 'newCard' | 'correction' | 'refund' | 'setPin';
+type PlayerActionId = 'topUp' | 'writeOffDebt' | 'buyPackage' | 'booking' | 'newCard' | 'correction' | 'refund' | 'setPin' | 'updateProfile' | 'toggleActive';
 
 export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
   const { t } = useI18n();
@@ -62,6 +64,10 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [refundReason, setRefundReason] = useState(() => t('op.players.refund.reasonDefault'));
   const [pinOpen, setPinOpen] = useState(false);
   const [pinValue, setPinValue] = useState('');
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [activeStateOpen, setActiveStateOpen] = useState(false);
   const [ledgerReloadNonce, setLedgerReloadNonce] = useState(0);
 
   useEffect(() => {
@@ -78,7 +84,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
       setLoadStatus('loading');
       try {
         const apiClients = createAuthenticatedOperatorClients(backend.config, backend.session);
-        const players = await apiClients.players.searchPlayers(backend.branchId, clientSearch, 25);
+        const players = await apiClients.players.searchPlayers(backend.branchId, clientSearch, 25, true);
         const nextPackageOptions = hasPermission(backend.session, permissionNames.viewPackages) || hasPermission(backend.session, permissionNames.purchasePackage)
           ? await apiClients.settings.getPackageOptions(backend.branchId).catch(() => [])
           : [];
@@ -240,39 +246,52 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     });
   }, [debt, selectedClient?.playerAccountId]);
 
+  const isSelectedInactive = selectedClient !== null && selectedClient.status === 'inactive';
   const canPurchasePackage = backend !== null
     && selectedClient !== null
     && selectedClient.source === 'backend'
     && Boolean(selectedClient.playerAccountId)
+    && !isSelectedInactive
     && hasPermission(backend.session, permissionNames.purchasePackage);
   const canTopUpWallet = backend !== null
     && selectedClient !== null
     && selectedClient.source === 'backend'
     && Boolean(selectedClient.playerAccountId)
+    && !isSelectedInactive
     && hasPermission(backend.session, permissionNames.topUpWallet);
   const canPayDebt = backend !== null
     && selectedClient !== null
     && selectedClient.source === 'backend'
     && Boolean(selectedClient.playerAccountId)
     && debt > 0
+    && !isSelectedInactive
     && hasPermission(backend.session, permissionNames.payDebt);
   const canCreatePlayer = backend !== null && hasPermission(backend.session, permissionNames.createPlayerAccount);
   const canCreateClientReservation = backend !== null
     && selectedClient !== null
     && selectedClient.source === 'backend'
     && Boolean(selectedClient.playerAccountId)
+    && !isSelectedInactive
     && hasPermission(backend.session, permissionNames.manageReservations);
   const canManualCorrect = backend !== null
     && selectedClient !== null
     && selectedClient.source === 'backend'
     && Boolean(selectedClient.playerAccountId)
+    && !isSelectedInactive
     && hasPermission(backend.session, permissionNames.manualCorrection);
   const canRefundLedger = backend !== null
     && selectedClient !== null
     && selectedClient.source === 'backend'
     && Boolean(selectedClient.playerAccountId)
+    && !isSelectedInactive
     && hasPermission(backend.session, permissionNames.refundLedgerEntry);
   const canSetClientPin = backend !== null
+    && selectedClient !== null
+    && selectedClient.source === 'backend'
+    && Boolean(selectedClient.playerAccountId)
+    && !isSelectedInactive
+    && hasPermission(backend.session, permissionNames.createPlayerAccount);
+  const canManageClient = backend !== null
     && selectedClient !== null
     && selectedClient.source === 'backend'
     && Boolean(selectedClient.playerAccountId)
@@ -478,6 +497,41 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         await apiClients.players.setPlayerPin(nextBackend.branchId, backendClient.playerAccountId, { pin });
         setPinValue('');
         setPinOpen(false);
+      } else if (id === 'updateProfile') {
+        if (!hasPermission(nextBackend.session, permissionNames.createPlayerAccount)) {
+          throw new Error(t('op.players.error.noPermEditProfile'));
+        }
+
+        const backendClient = requireSelectedBackendClient();
+        const displayName = editName.trim();
+        if (!displayName) {
+          throw new Error(t('op.players.error.editNameRequired'));
+        }
+
+        const updated = await apiClients.players.updateProfile(nextBackend.branchId, backendClient.playerAccountId, {
+          organizationId: nextBackend.session.organizationId,
+          displayName,
+          phoneNumber: editPhone.trim() || null
+        });
+        setClients((items) => items.map((c) => c.playerAccountId === backendClient.playerAccountId
+          ? { ...c, name: updated.displayName, phoneNumber: updated.phoneNumber ?? '' }
+          : c));
+        setEditOpen(false);
+      } else if (id === 'toggleActive') {
+        if (!hasPermission(nextBackend.session, permissionNames.createPlayerAccount)) {
+          throw new Error(t('op.players.error.noPermActiveState'));
+        }
+
+        const backendClient = requireSelectedBackendClient();
+        const nextActive = backendClient.status === 'inactive';
+        const updated = await apiClients.players.setActiveState(nextBackend.branchId, backendClient.playerAccountId, {
+          organizationId: nextBackend.session.organizationId,
+          isActive: nextActive
+        });
+        setClients((items) => items.map((c) => c.playerAccountId === backendClient.playerAccountId
+          ? { ...c, status: updated.isActive ? 'active' : 'inactive', tone: updated.isActive ? 'active' : 'regular' }
+          : c));
+        setActiveStateOpen(false);
       } else {
         throw new Error(t('op.players.error.actionNotConnected'));
       }
@@ -521,6 +575,12 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   };
 
   const bumpLedger = () => setLedgerReloadNonce((n) => n + 1);
+
+  const openEditProfile = () => {
+    setEditName(selectedClient?.name ?? '');
+    setEditPhone(selectedClient?.phoneNumber ?? '');
+    setEditOpen(true);
+  };
 
   // Смена фильтра: сброс журнала и курсора — эффект перезагрузит первую страницу (ledgerFilter в deps).
   const changeLedgerFilter = (entryType: string | null) => {
@@ -597,8 +657,10 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           onSelectOption={setSelectedPackageDefinitionId}
           onBuy={() => runClientAction('buyPackage', t('op.players.actions.buyPackageBtn'))}
           onCreateReservation={() => runClientAction('booking', t('op.players.actions.bookingBtn'))}
-          canSetPin={canSetClientPin}
+          canManageClient={canManageClient}
           onSetPin={() => setPinOpen(true)}
+          onEditProfile={openEditProfile}
+          onToggleActive={() => setActiveStateOpen(true)}
           canCorrect={canManualCorrect}
           onCorrect={() => setCorrectionOpen(true)}
           canRefund={canRefundLedger}
@@ -651,6 +713,27 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           onChangePin={setPinValue}
           onClose={() => setPinOpen(false)}
           onSubmit={() => void runClientAction('setPin', t('op.players.actions.pinLabel'))}
+          busy={feedback.state === 'pending'}
+        />
+      )}
+
+      {editOpen && (
+        <EditProfileModal
+          name={editName}
+          phone={editPhone}
+          onChangeName={setEditName}
+          onChangePhone={setEditPhone}
+          onClose={() => setEditOpen(false)}
+          onSubmit={() => void runClientAction('updateProfile', t('op.players.actions.editProfileLabel'))}
+          busy={feedback.state === 'pending'}
+        />
+      )}
+
+      {activeStateOpen && (
+        <ActiveStateConfirmModal
+          mode={isSelectedInactive ? 'reactivate' : 'deactivate'}
+          onClose={() => setActiveStateOpen(false)}
+          onConfirm={() => void runClientAction('toggleActive', isSelectedInactive ? t('op.players.actions.reactivateLabel') : t('op.players.actions.deactivateLabel'))}
           busy={feedback.state === 'pending'}
         />
       )}
