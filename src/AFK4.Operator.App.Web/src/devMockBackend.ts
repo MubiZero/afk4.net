@@ -244,24 +244,32 @@ function route(pathname: string, method: string): unknown | undefined {
   return undefined;
 }
 
-// Клиенты клуба для поиска в брони/POS: фильтр по имени или цифрам телефона.
-function players() {
-  return [
-    { playerAccountId: 'pl-1', displayName: 'Фариза Назарова', phoneNumber: '+992 93 100 20 30', walletBalanceMinorUnits: 45000, debtBalanceMinorUnits: 0, activePackageCount: 1, isActive: true },
-    { playerAccountId: 'pl-2', displayName: 'Азиз Пиров', phoneNumber: '+992 90 555 22 11', walletBalanceMinorUnits: 12000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true },
-    { playerAccountId: 'pl-3', displayName: 'Мадина Саидова', phoneNumber: '+992 98 700 11 22', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 3500, activePackageCount: 0, isActive: true },
-    { playerAccountId: 'pl-4', displayName: 'Камрон Рахимов', phoneNumber: '+992 92 333 44 55', walletBalanceMinorUnits: 8000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true },
-    { playerAccountId: 'pl-5', displayName: 'Дилноза Холова', phoneNumber: '+992 91 222 33 44', walletBalanceMinorUnits: 26000, debtBalanceMinorUnits: 0, activePackageCount: 2, isActive: true }
-  ];
+// Клиенты клуба для поиска: мутируемые (write-действия S3 меняют имя/активность), один неактивный.
+type MockPlayer = { playerAccountId: string; displayName: string; phoneNumber: string; walletBalanceMinorUnits: number; debtBalanceMinorUnits: number; activePackageCount: number; isActive: boolean };
+let mutablePlayers: MockPlayer[] | null = null;
+function players(): MockPlayer[] {
+  if (mutablePlayers === null) {
+    mutablePlayers = [
+      { playerAccountId: 'pl-1', displayName: 'Фариза Назарова', phoneNumber: '+992 93 100 20 30', walletBalanceMinorUnits: 45000, debtBalanceMinorUnits: 0, activePackageCount: 1, isActive: true },
+      { playerAccountId: 'pl-2', displayName: 'Азиз Пиров', phoneNumber: '+992 90 555 22 11', walletBalanceMinorUnits: 12000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true },
+      { playerAccountId: 'pl-3', displayName: 'Мадина Саидова', phoneNumber: '+992 98 700 11 22', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 3500, activePackageCount: 0, isActive: true },
+      { playerAccountId: 'pl-4', displayName: 'Камрон Рахимов', phoneNumber: '+992 92 333 44 55', walletBalanceMinorUnits: 8000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true },
+      { playerAccountId: 'pl-5', displayName: 'Дилноза Холова', phoneNumber: '+992 91 222 33 44', walletBalanceMinorUnits: 26000, debtBalanceMinorUnits: 0, activePackageCount: 2, isActive: true },
+      { playerAccountId: 'pl-6', displayName: 'Бахром Сафаров', phoneNumber: '+992 93 444 55 66', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: false }
+    ];
+  }
+  return mutablePlayers;
 }
 
-function filterPlayers(query: string | null): ReturnType<typeof players> {
+function filterPlayers(query: string | null, includeInactive: boolean): MockPlayer[] {
   const q = (query ?? '').trim().toLowerCase();
-  if (!q) return players();
   const digits = q.replace(/\D/g, '');
-  return players().filter((p) =>
-    p.displayName.toLowerCase().includes(q)
-    || (digits.length > 0 && p.phoneNumber.replace(/\D/g, '').includes(digits)));
+  return players().filter((p) => {
+    if (!includeInactive && !p.isActive) return false;
+    if (!q) return true;
+    return p.displayName.toLowerCase().includes(q)
+      || (digits.length > 0 && p.phoneNumber.replace(/\D/g, '').includes(digits));
+  });
 }
 
 // Длинный детерминированный журнал операций клиента для превью пагинации/фильтра. Фикс-даты
@@ -382,7 +390,7 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   const url = new URL(String(input));
   const method = init?.method ?? 'GET';
   if (url.pathname.endsWith('/players') && method === 'GET') {
-    return json(filterPlayers(url.searchParams.get('query')));
+    return json(filterPlayers(url.searchParams.get('query'), url.searchParams.get('includeInactive') === 'true'));
   }
   if (url.pathname.endsWith('/reservations/group') && method === 'POST') {
     return json(groupReservationResult(init));
@@ -441,6 +449,25 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.endsWith('/pin') && method === 'POST') {
     return noContent();
+  }
+  if (url.pathname.endsWith('/active-state') && method === 'POST') {
+    let req: Record<string, unknown> = {};
+    try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
+    const id = url.pathname.split('/').slice(-2)[0];
+    const player = players().find((p) => p.playerAccountId === id);
+    if (player) player.isActive = Boolean(req.isActive);
+    return json(player ?? {});
+  }
+  if (/\/players\/[^/]+$/.test(url.pathname) && method === 'PATCH') {
+    let req: Record<string, unknown> = {};
+    try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
+    const id = url.pathname.split('/').pop();
+    const player = players().find((p) => p.playerAccountId === id);
+    if (player) {
+      if (typeof req.displayName === 'string') player.displayName = req.displayName;
+      player.phoneNumber = typeof req.phoneNumber === 'string' ? req.phoneNumber : '';
+    }
+    return json(player ?? {});
   }
   // Writes acknowledge with no content; unmatched reads return an empty list so list-driven screens
   // render their themed empty state instead of throwing.
