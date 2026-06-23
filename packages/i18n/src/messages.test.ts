@@ -105,6 +105,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.map.panel.tariffLabel',
     'op.news.fieldBranch',
     'op.players.actions.packageBonus',
+    'op.players.editProfile.phoneLabel',
     'op.players.profile.packageFallback',
     'op.players.profile.platformSource',
     'op.players.segments.vip',
