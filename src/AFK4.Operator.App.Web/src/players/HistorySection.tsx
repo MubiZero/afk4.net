@@ -1,5 +1,5 @@
 import { useI18n } from '@afk4/i18n';
-import { History, RefreshCw } from 'lucide-react';
+import { History, RefreshCw, Undo2 } from 'lucide-react';
 import type { LedgerEntryDto } from '../operatorApiClients';
 import { formatMinorUnits } from '../operatorHelpers';
 import { EmptyState, Skeleton } from '../operatorPrimitives';
@@ -18,7 +18,9 @@ export function HistorySection({
   onFilterChange,
   hasMore,
   onLoadMore,
-  loading
+  loading,
+  canRefund,
+  onRefund,
 }: {
   entries: LedgerEntryDto[];
   currencyCode: string;
@@ -27,6 +29,8 @@ export function HistorySection({
   hasMore: boolean;
   onLoadMore: () => void;
   loading: boolean;
+  canRefund: boolean;
+  onRefund: (entry: LedgerEntryDto) => void;
 }) {
   const { t } = useI18n();
 
@@ -85,7 +89,19 @@ export function HistorySection({
                       </span>
                     )}
                   </div>
-                  <b className="client-history-amount">{sign}{amount}</b>
+                  <div className="client-history-aside">
+                    <b className="client-history-amount">{sign}{amount}</b>
+                    {canRefund && !view.isReversal && (
+                      <button
+                        type="button"
+                        className="client-history-refund"
+                        onClick={() => onRefund(raw)}
+                      >
+                        <Undo2 size={13} aria-hidden="true" />
+                        {t('op.players.refund.rowBtn')}
+                      </button>
+                    )}
+                  </div>
                 </article>
               );
             })}

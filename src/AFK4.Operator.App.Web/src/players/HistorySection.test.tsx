@@ -17,6 +17,7 @@ const entry = (over: Partial<LedgerEntryDto>): LedgerEntryDto => ({
 const renderSection = (over: Partial<Parameters<typeof HistorySection>[0]> = {}) => {
   const onFilterChange = mock(() => {});
   const onLoadMore = mock(() => {});
+  const onRefund = mock(() => {});
   const { container } = render(
     <I18nProvider initialLocale="ru">
       <HistorySection
@@ -27,11 +28,13 @@ const renderSection = (over: Partial<Parameters<typeof HistorySection>[0]> = {})
         hasMore={false}
         onLoadMore={onLoadMore}
         loading={false}
+        canRefund={false}
+        onRefund={onRefund}
         {...over}
       />
     </I18nProvider>
   );
-  return { onFilterChange, onLoadMore, container };
+  return { onFilterChange, onLoadMore, onRefund, container };
 };
 
 describe('HistorySection', () => {
@@ -84,5 +87,17 @@ describe('HistorySection', () => {
     const { container } = renderSection({ entries: [], loading: true });
     expect(container.querySelector('.skeleton-block')).not.toBeNull();
     expect(screen.queryByText('Операций нет')).not.toBeInTheDocument();
+  });
+
+  it('renders a refund button on non-reversal rows when canRefund', () => {
+    const onRefund = mock(() => {});
+    renderSection({ entries: [entry({ entryType: 'top_up', reversesLedgerEntryId: null })], canRefund: true, onRefund });
+    fireEvent.click(screen.getByRole('button', { name: 'Вернуть' }));
+    expect(onRefund).toHaveBeenCalled();
+  });
+
+  it('hides the refund button on reversal rows', () => {
+    renderSection({ entries: [entry({ entryType: 'refund', reversesLedgerEntryId: 'le-001' })], canRefund: true });
+    expect(screen.queryByRole('button', { name: 'Вернуть' })).toBeNull();
   });
 });
