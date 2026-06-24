@@ -34,7 +34,7 @@ function applyAction(orders: ShopOrderDto[], updated: ShopOrderDto): ShopOrderDt
   return sortByPlacedAt([...without, updated]);
 }
 
-export function ShopOrdersWorkspace({ backend }: { backend: OperatorBackendContext | null }) {
+export function ShopOrdersWorkspace({ backend, embedded = false }: { backend: OperatorBackendContext | null; embedded?: boolean }) {
   const { t } = useI18n();
   const toast = useToast();
   const [orders, setOrders] = useState<ShopOrderDto[]>([]);
@@ -112,11 +112,13 @@ export function ShopOrdersWorkspace({ backend }: { backend: OperatorBackendConte
     }
   };
 
-  return (
-    <main className="workspace-screen shop-orders-screen">
-      <section className="screen-head">
-        <h1>{t('op.shopOrders.title')}</h1>
-      </section>
+  const body = (
+    <>
+      {!embedded && (
+        <section className="screen-head">
+          <h1>{t('op.shopOrders.title')}</h1>
+        </section>
+      )}
 
       {status === 'loading' ? (
         <p className="workspace-loading">{t('op.shopOrders.loading')}</p>
@@ -159,6 +161,10 @@ export function ShopOrdersWorkspace({ backend }: { backend: OperatorBackendConte
           ))}
         </ul>
       )}
-    </main>
+    </>
   );
+
+  return embedded
+    ? <section className="shop-orders-embed">{body}</section>
+    : <main className="workspace-screen shop-orders-screen">{body}</main>;
 }
