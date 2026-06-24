@@ -196,3 +196,47 @@
 .cash-report-time { margin: 0; font-size: 12px; color: var(--text-secondary); }
 .cash-report-section { display: flex; flex-direction: column; gap: var(--space-1); }
 .cash-report-section h3 { margin: 0 0 var(--space-1); font-size: 13px; color: var(--text-secondary); font-weight: 600; }
+
+/* S3: вкладка «Продажи» = сегменты «Касса | Заказы» + встроенные POS/Заказы */
+.cash-sales-screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Сегмент-бар идентичен журналу кассы (единый дизайн-стандарт) */
+.cash-sales-segments {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-soft);
+}
+.cash-sales-segments button {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: var(--space-1) var(--space-2);
+  min-height: var(--control-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+.cash-sales-segments button:hover { color: var(--text-primary); }
+.cash-sales-segments button.active { color: var(--accent-bright); border-bottom-color: var(--accent); }
+.cash-sales-segments button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Встроенные режимы: без паддинга/скролла уровня страницы — их даёт .cash-tab-content */
+.pos-embed,
+.shop-orders-embed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Нотис ошибки экспорта CSV (Task 8) — компактный, не разрушающий лейаут */
+.cash-export-error {
+  margin: 0;
+  color: var(--danger, #d3403a);
+  font-size: var(--text-sm);
+}
