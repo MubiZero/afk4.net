@@ -55,6 +55,7 @@ export function CashShiftWorkspace({
   const [cashRows, setCashRows] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     if (revenueClient === null || reports === null) return undefined;
@@ -79,15 +80,20 @@ export function CashShiftWorkspace({
 
   const exportCsv = async (kind: 'shifts' | 'cash' | 'sales') => {
     if (backend === null) return;
-    // Клиент строится lazy, только при клике — не на рендере.
-    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    if (kind === 'shifts') {
-      downloadTextFile(`afk4-shift-summary-${stamp}.csv`, await clients.shifts.exportShiftReportCsv(branchId, { limit: 50 }), 'text/csv;charset=utf-8');
-    } else if (kind === 'cash') {
-      downloadTextFile(`afk4-cash-movements-${stamp}.csv`, await clients.shifts.exportCashOperationReportCsv(branchId, { limit: 50 }), 'text/csv;charset=utf-8');
-    } else {
-      downloadTextFile(`afk4-check-list-${stamp}.csv`, await clients.shifts.exportSalesReportCsv(branchId, { limit: 50 }), 'text/csv;charset=utf-8');
+    try {
+      // Клиент строится lazy, только при клике — не на рендере.
+      const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      if (kind === 'shifts') {
+        downloadTextFile(`afk4-shift-summary-${stamp}.csv`, await clients.shifts.exportShiftReportCsv(branchId, { limit: 50 }), 'text/csv;charset=utf-8');
+      } else if (kind === 'cash') {
+        downloadTextFile(`afk4-cash-movements-${stamp}.csv`, await clients.shifts.exportCashOperationReportCsv(branchId, { limit: 50 }), 'text/csv;charset=utf-8');
+      } else {
+        downloadTextFile(`afk4-check-list-${stamp}.csv`, await clients.shifts.exportSalesReportCsv(branchId, { limit: 50 }), 'text/csv;charset=utf-8');
+      }
+      setExportError(null);
+    } catch (error) {
+      setExportError(projectOperatorError(error, t).detail);
     }
   };
 
@@ -150,6 +156,7 @@ export function CashShiftWorkspace({
               <button type="button" onClick={() => void exportCsv('cash')}><Banknote size={15} aria-hidden="true" />{t('op.cash.shift.exportCashMovements')}</button>
               <button type="button" onClick={() => void exportCsv('sales')}><ArrowRightLeft size={15} aria-hidden="true" />{t('op.cash.shift.exportReceipts')}</button>
             </div>
+            {exportError && <p className="cash-export-error" role="alert">{exportError}</p>}
           </section>
         </div>
       ) : (

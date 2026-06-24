@@ -43,6 +43,7 @@ export function CashOperationsLedger({
   const [report, setReport] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
 
   useEffect(() => {
@@ -68,9 +69,14 @@ export function CashOperationsLedger({
 
   const exportCsv = async () => {
     if (backend === null) return;
-    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    downloadTextFile(`afk4-cash-operations-${stamp}.csv`, await clients.shifts.exportCashOperationReportCsv(branchId, { limit: 200 }), 'text/csv;charset=utf-8');
+    try {
+      const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      downloadTextFile(`afk4-cash-operations-${stamp}.csv`, await clients.shifts.exportCashOperationReportCsv(branchId, { limit: 200 }), 'text/csv;charset=utf-8');
+      setExportError(null);
+    } catch (error) {
+      setExportError(projectOperatorError(error, t).detail);
+    }
   };
 
   if (loading) return <p className="workspace-loading">{t('op.cash.journal.loading')}</p>;
@@ -95,6 +101,7 @@ export function CashOperationsLedger({
           <Download size={14} aria-hidden="true" />{t('op.cash.journal.export')}
         </button>
       </div>
+      {exportError && <p className="cash-export-error" role="alert">{exportError}</p>}
       {filtered.length === 0 ? (
         <p className="cash-shift-empty-note">{rows.length === 0 ? t('op.cash.journal.empty') : t('op.cash.journal.noMatch')}</p>
       ) : (
