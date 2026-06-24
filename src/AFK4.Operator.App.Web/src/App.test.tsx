@@ -787,7 +787,8 @@ describe('App', () => {
     expect(rail.getByTitle('Касса')).toBeEnabled();
 
     gotoWorkspace('Продажи');
-    expect(screen.getByRole('heading', { name: /Продажи/ })).toBeInTheDocument();
+    // POS встроен в сегмент «Касса» — собственного heading нет; убеждаемся, что POS отрисован.
+    expect(await screen.findByText('Каталог')).toBeInTheDocument();
 
     expect(rail.getByTitle('Управление')).toBeEnabled();
     gotoWorkspace('Настройки');
@@ -846,18 +847,21 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Добавить бронь' })).toBeInTheDocument();
 
     gotoWorkspace('Продажи');
-    const posHead = screen.getByRole('heading', { name: /Продажи/ }).closest('.screen-head');
-    expect(posHead).toBeInTheDocument();
-    expect(posHead).not.toHaveTextContent('Продажа');
-    expect(posHead).not.toHaveTextContent('Возврат');
-    expect(posHead).not.toHaveTextContent('Склад');
-    expect(posHead).not.toHaveTextContent('История');
+    // Вкладка «Продажи»: сегмент «Касса» (POS) активен по умолчанию, POS встроен (section.pos-embed,
+    // без собственной screen-head). Проверяем сегмент-бар + панели POS.
+    expect(screen.getByRole('tab', { name: 'Касса' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Заказы' })).toBeInTheDocument();
+    expect(document.querySelector('section.pos-embed')).not.toBeNull();
     expect(screen.getByText('Каталог')).toBeInTheDocument();
     expect(screen.getByText('Корзина')).toBeInTheDocument();
     expect(screen.getByText('Оплата')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Принять оплату/ })).toBeInTheDocument();
     expect(screen.getByText('Последние чеки')).toBeInTheDocument();
     expect(screen.getByText('Быстрые операции')).toBeInTheDocument();
+    // Переключение на сегмент «Заказы» показывает встроенную очередь вместо POS.
+    fireEvent.click(screen.getByRole('tab', { name: 'Заказы' }));
+    await waitFor(() => expect(document.querySelector('section.shop-orders-embed')).not.toBeNull());
+    expect(document.querySelector('section.pos-embed')).toBeNull();
 
     fireEvent.click(screen.getByTitle('Клиенты'));
     const clientsHead = (await screen.findByRole('heading', { name: /Клиенты/ })).closest('.clients-head');
