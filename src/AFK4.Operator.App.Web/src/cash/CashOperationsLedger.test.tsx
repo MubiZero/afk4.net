@@ -45,4 +45,23 @@ describe('CashOperationsLedger', () => {
     renderLedger([]);
     await waitFor(() => expect(screen.getByText('Кассовых операций нет')).toBeInTheDocument());
   });
+
+  it('провал экспорта показывает inline-нотис ошибки', async () => {
+    // config:'x' роняет построение боевого клиента в exportCsv → попадает в catch.
+    const brokenBackend = { config: 'x', session: 's', branchId: 'b' } as never;
+    render(
+      <I18nProvider initialLocale="ru">
+        <CashOperationsLedger
+          backend={brokenBackend}
+          branchId="b"
+          currencyCode="TJS"
+          reports={{ getCashOperationReport: async () => ({ rows: [] }) }}
+        />
+      </I18nProvider>
+    );
+    await waitFor(() => expect(screen.getByText('Кассовых операций нет')).toBeInTheDocument());
+    expect(document.querySelector('.cash-export-error')).toBeNull(); // в норме нотиса нет
+    fireEvent.click(screen.getByRole('button', { name: /Экспорт/i }));
+    await waitFor(() => expect(document.querySelector('.cash-export-error')).not.toBeNull());
+  });
 });

@@ -6,7 +6,6 @@ afterEach(cleanup);
 
 const tabs: { id: CashTab; label: string }[] = [
   { id: 'sales', label: 'Продажи' },
-  { id: 'orders', label: 'Заказы' },
   { id: 'shift', label: 'Смена' },
   { id: 'journal', label: 'Журнал кассы' }
 ];
@@ -14,7 +13,7 @@ const tabs: { id: CashTab; label: string }[] = [
 describe('CashTabBar', () => {
   it('рендерит все вкладки, активная помечена aria-selected', () => {
     render(<CashTabBar tabs={tabs} activeTab="sales" onSelect={() => {}} />);
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Продажи', 'Заказы', 'Смена', 'Журнал кассы']);
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Продажи', 'Смена', 'Журнал кассы']);
     expect(screen.getByRole('tab', { name: 'Продажи' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Журнал кассы' })).toHaveAttribute('aria-selected', 'false');
   });

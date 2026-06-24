@@ -83,7 +83,7 @@ function projectPosProduct(product: PosProductDto, currencyCode: string, t: Retu
   };
 }
 
-export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
+export function BackendPosWorkspace({ currencyCode, backend, embedded = false }: { currencyCode: string; backend: OperatorBackendContext | null; embedded?: boolean }) {
   const { t } = useI18n();
 
   const [activeCategory, setActiveCategory] = useState(CATEGORY_ALL);
@@ -716,17 +716,20 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
     }
   ];
 
+  const Root = embedded ? 'section' : 'main';
   return (
-    <main className="workspace-screen pos-screen">
-      <section className="screen-head pos-head">
-        <div>
-          <span>{t('op.pos.title')}</span>
-          <h1>{t('op.pos.heading')}</h1>
-        </div>
-        <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.pos.platformConnected'), t)}</span>
-        </div>
-      </section>
+    <Root className={embedded ? 'pos-screen pos-embed' : 'workspace-screen pos-screen'}>
+      {!embedded && (
+        <section className="screen-head pos-head">
+          <div>
+            <span>{t('op.pos.title')}</span>
+            <h1>{t('op.pos.heading')}</h1>
+          </div>
+          <div className="screen-actions">
+            <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.pos.platformConnected'), t)}</span>
+          </div>
+        </section>
+      )}
 
       <section className="state-strip pos-state-strip" aria-label={t('op.pos.strip.salesSummaryLabel')}>
         <StateFlag label={t('op.pos.strip.sales')} value={`${salesRows.length} · ${formatMoney(grossSales, currencyCode)}`} />
@@ -1106,6 +1109,6 @@ export function BackendPosWorkspace({ currencyCode, backend }: { currencyCode: s
           )}
         </section>
       </section>
-    </main>
+    </Root>
   );
 }

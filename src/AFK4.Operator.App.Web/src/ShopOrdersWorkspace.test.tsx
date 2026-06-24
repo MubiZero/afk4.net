@@ -90,4 +90,10 @@ describe('ShopOrdersWorkspace', () => {
     expect(await screen.findByText(/ошибка|error|network/i)).toBeInTheDocument();
     expect(screen.queryByText(/активных заказов нет/i)).toBeNull();
   });
+
+  it('embedded: корень — section.shop-orders-embed, без собственного <main>', async () => {
+    render(<I18nProvider><ToastProvider><ShopOrdersWorkspace backend={null} embedded /></ToastProvider></I18nProvider>);
+    await waitFor(() => expect(document.querySelector('section.shop-orders-embed')).not.toBeNull());
+    expect(document.querySelector('main.shop-orders-screen')).toBeNull();
+  });
 });

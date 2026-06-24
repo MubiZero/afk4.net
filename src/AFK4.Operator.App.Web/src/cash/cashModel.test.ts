@@ -46,8 +46,8 @@ function session(permissions: string[]) {
 }
 
 describe('visibleCashTabs (per-tab гранулярность прав)', () => {
-  it('только право продаж → Продажи + Заказы', () => {
-    expect(visibleCashTabs(session(['pos.sales.create']))).toEqual(['sales', 'orders']);
+  it('только право продаж → только Продажи (sales — суперсет, orders-вкладка удалена)', () => {
+    expect(visibleCashTabs(session(['pos.sales.create']))).toEqual(['sales']);
   });
   it('reports.view → Смена + Журнал (суперсет прав)', () => {
     expect(visibleCashTabs(session(['reports.view']))).toEqual(['shift', 'journal']);
@@ -64,10 +64,10 @@ describe('visibleCashTabs (per-tab гранулярность прав)', () => 
   it('null сессия → пусто', () => {
     expect(visibleCashTabs(null)).toEqual([]);
   });
-  it('все права → все 4 вкладки по порядку', () => {
+  it('все права → все 3 вкладки по порядку', () => {
     expect(visibleCashTabs(session([
       'pos.sales.create', 'pos.sales.pay', 'pos.sales.refund', 'pos.sales.void',
       'shifts.view', 'shifts.open', 'reports.view', 'billing.money_action.approve'
-    ]))).toEqual(['sales', 'orders', 'shift', 'journal']);
+    ]))).toEqual(['sales', 'shift', 'journal']);
   });
 });

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { CashShiftWorkspace } from './CashShiftWorkspace';
 import type { ShiftRevenueDto } from '../operatorApiClients';
@@ -65,5 +65,31 @@ describe('CashShiftWorkspace', () => {
       { operationId: 'c1', createdAtUtc: '2026-06-24T10:00:00Z', operationType: 'cash_in', cashImpact: m(5000), reason: 'Размен' }
     ]);
     await waitFor(() => expect(screen.getByText('Движение наличных')).toBeInTheDocument());
+  });
+
+  it('провал экспорта показывает inline-нотис ошибки', async () => {
+    // config:'x' роняет построение боевого клиента в exportCsv → попадает в catch.
+    const brokenBackend = { config: 'x', session: 's', branchId: 'b' } as never;
+    const empty = {
+      current: async () => openShift(),
+      history: async () => ({ shifts: [], limit: 20 })
+    };
+    render(
+      <I18nProvider initialLocale="ru">
+        <CashShiftWorkspace
+          backend={brokenBackend}
+          branchId="b"
+          currencyCode="TJS"
+          revenueClient={empty}
+          reports={{ getCashOperationReport: async () => ({ rows: [] }) }}
+        />
+      </I18nProvider>
+    );
+    // Дождаться окончания загрузки — кнопки экспорта появляются после рендера смены.
+    // Кнопка «Сводка смены» = op.cash.shift.exportShiftSummary.
+    const exportBtn = await screen.findByRole('button', { name: /Сводка смены/i });
+    expect(document.querySelector('.cash-export-error')).toBeNull();
+    fireEvent.click(exportBtn);
+    await waitFor(() => expect(document.querySelector('.cash-export-error')).not.toBeNull());
   });
 });
