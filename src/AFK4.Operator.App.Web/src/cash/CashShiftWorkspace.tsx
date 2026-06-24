@@ -121,8 +121,8 @@ export function CashShiftWorkspace({
             <div className="cash-shift-row"><span>{t('op.cash.shift.starting')}</span><strong>{formatMoney(current.cash.starting, currencyCode)}</strong></div>
             <div className="cash-shift-row"><span>{t('op.cash.shift.expected')}</span><strong>{formatMoney(current.cash.expected, currencyCode)}</strong></div>
             <div className="cash-shift-row"><span>{t('op.cash.shift.counted')}</span><strong>{current.cash.counted ? formatMoney(current.cash.counted, currencyCode) : t('op.cash.shift.notClosed')}</strong></div>
-            <div className={`cash-shift-row${current.cash.difference && current.cash.difference.minorUnits !== 0 ? ' attention' : ''}`}>
-              <span>{t('op.cash.shift.difference')}</span><strong>{formatMoney(current.cash.difference, currencyCode)}</strong>
+            <div className={`cash-shift-row${current.cash.difference !== null && current.cash.difference.minorUnits !== 0 ? ' attention' : ''}`}>
+              <span>{t('op.cash.shift.difference')}</span><strong>{current.cash.difference === null ? t('op.cash.shift.notClosed') : formatMoney(current.cash.difference, currencyCode)}</strong>
             </div>
           </section>
 

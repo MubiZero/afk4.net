@@ -33,6 +33,9 @@ export function CashShiftHeader({
   actions?: CashShiftActionsClient;
 }) {
   const { t } = useI18n();
+  // Боевой клиент строим только при backend && !injectedClient: тесты подают injectedClient с
+  // фейковым backend, на котором createAuthenticatedOperatorClients/PlatformApiClient падает на init.
+  // injectedClient — в deps массива (закрывает exhaustive-deps; иначе тест с фейк-backend ломался — урок S0).
   const memoizedClient = useMemo(
     () => (backend && !injectedClient ? createAuthenticatedOperatorClients(backend.config, backend.session).shiftRevenue : null),
     [backend?.config, backend?.session, injectedClient]

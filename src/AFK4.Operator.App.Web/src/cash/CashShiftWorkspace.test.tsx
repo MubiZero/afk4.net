@@ -47,6 +47,19 @@ describe('CashShiftWorkspace', () => {
     await waitFor(() => expect(screen.getByText('Нет открытой смены')).toBeInTheDocument());
   });
 
+  it('открытая смена → «Расхождение» показывает «Смена не закрыта», не «0 с.»', async () => {
+    renderWs(openShift()); // difference === null
+    await waitFor(() => expect(screen.getByText('Сверка кассы')).toBeInTheDocument());
+    const rows = screen.getAllByText('Смена не закрыта');
+    // Должны быть минимум две строки «Смена не закрыта» (Посчитано + Расхождение)
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+    // Строка «Расхождение» НЕ должна содержать «0,00» (formatMoney(null) давал «0,00 с.»)
+    const differenceLabels = screen.getAllByText('Расхождение');
+    expect(differenceLabels).toHaveLength(1);
+    const differenceRow = differenceLabels[0].closest('div')!;
+    expect(differenceRow.textContent).not.toMatch(/0[,.]00/);
+  });
+
   it('последние движения наличных в списке', async () => {
     renderWs(openShift(), [
       { operationId: 'c1', createdAtUtc: '2026-06-24T10:00:00Z', operationType: 'cash_in', cashImpact: m(5000), reason: 'Размен' }
