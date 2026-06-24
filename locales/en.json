@@ -979,7 +979,7 @@
   "op.cash.shift.historyEmpty": "No closed shifts",
   "op.cash.shift.exportTitle": "Export",
   "op.cash.shift.exportShiftSummary": "Shift summary",
-  "op.cash.shift.exportCashMovements": "Cash movements",
+  "op.cash.shift.exportCashMovements": "Cash movements (CSV)",
   "op.cash.shift.exportReceipts": "Receipt list",
   "op.cash.shift.exportReconciliation": "Reconciliation",
   "op.cash.shift.loadError": "Failed to load the shift.",

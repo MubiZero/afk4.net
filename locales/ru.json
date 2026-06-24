@@ -979,7 +979,7 @@
   "op.cash.shift.historyEmpty": "Закрытых смен нет",
   "op.cash.shift.exportTitle": "Экспорт",
   "op.cash.shift.exportShiftSummary": "Сводка смены",
-  "op.cash.shift.exportCashMovements": "Движение наличных",
+  "op.cash.shift.exportCashMovements": "Движение наличных (CSV)",
   "op.cash.shift.exportReceipts": "Список чеков",
   "op.cash.shift.exportReconciliation": "Сверка кассы",
   "op.cash.shift.loadError": "Не удалось загрузить смену.",
