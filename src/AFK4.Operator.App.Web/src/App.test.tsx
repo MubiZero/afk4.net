@@ -878,6 +878,15 @@ describe('App', () => {
     expect(screen.getByText('Сверка кассы')).toBeInTheDocument();
     expect(screen.getByText('Ожидается')).toBeInTheDocument();
     expect(screen.getByText('История смен')).toBeInTheDocument();
+    // дренаж: CashShiftHeader делает отдельный фетч /shifts/revenue/current независимо от Workspace;
+    // ждём завершения обоих (>= 2 вызовов сделано И ответы обработаны) перед уходом со вкладки
+    await waitFor(() => {
+      const revenueCalls = fetchMock.mock.calls.filter(([input]) =>
+        String(input).includes('/shifts/revenue/current')).length;
+      expect(revenueCalls).toBeGreaterThanOrEqual(2);
+    });
+    // flush pending microtasks чтобы .then() callbacks от fetch-промисов успели выполниться
+    await act(async () => { await Promise.resolve(); });
 
     gotoWorkspace('Логи');
     const logsHead = screen.getByRole('heading', { name: /Журнал/ }).closest('.screen-head');
@@ -1505,6 +1514,8 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Комментарий'), { target: { value: 'Утренняя смена' } });
     // submit модалки (вторая кнопка «Открыть смену» — внутри формы модалки)
     const dialog = screen.getByRole('dialog');
+    const revenueCallsBefore = fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes('/shifts/revenue/current')).length;
     fireEvent.click(within(dialog).getByRole('button', { name: 'Открыть смену' }));
 
     const openCall = await waitFor(() => {
@@ -1520,6 +1531,12 @@ describe('App', () => {
       openingNote: 'Утренняя смена'
     });
     expect(body.idempotencyKey).toMatch(/^shift-open-/);
+    // дренаж второй волны рефетчей: onShiftChanged → shiftNonce++ → Header + Workspace рефетчат /shifts/revenue/current
+    await waitFor(() => {
+      const revenueCallsAfter = fetchMock.mock.calls.filter(([input]) =>
+        String(input).includes('/shifts/revenue/current')).length;
+      expect(revenueCallsAfter).toBeGreaterThanOrEqual(revenueCallsBefore + 2);
+    });
   });
 
   it('renders the shift tab without errors on empty reports', async () => {
@@ -1666,6 +1683,8 @@ describe('App', () => {
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/shifts/66666666-6666-6666-6666-666666666666/close') &&
       init?.method === 'POST')).toBe(false);
+    const revenueCallsBeforeClose = fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes('/shifts/revenue/current')).length;
     fireEvent.click(within(closeDialog).getByRole('button', { name: 'Закрыть смену' }));
 
     expect(await screen.findByText('Закрыть смену: подтверждено')).toBeInTheDocument();
@@ -1680,6 +1699,12 @@ describe('App', () => {
       closingNote: 'Смена закрыта оператором'
     });
     expect(body.idempotencyKey).toMatch(/^shift-close-/);
+    // дренаж второй волны рефетчей: onShiftChanged → shiftNonce++ → Header + Workspace рефетчат /shifts/revenue/current
+    await waitFor(() => {
+      const revenueCallsAfter = fetchMock.mock.calls.filter(([input]) =>
+        String(input).includes('/shifts/revenue/current')).length;
+      expect(revenueCallsAfter).toBeGreaterThanOrEqual(revenueCallsBeforeClose + 2);
+    });
   });
 
   it('records a cash movement from the cash header modal through the backend', async () => {
@@ -1695,6 +1720,8 @@ describe('App', () => {
     const movementDialog = screen.getByRole('dialog');
     fireEvent.change(within(movementDialog).getByLabelText('Сумма'), { target: { value: '25.50' } });
     fireEvent.change(within(movementDialog).getByLabelText('Причина'), { target: { value: 'Размен перед турниром' } });
+    const revenueCallsBeforeMovement = fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes('/shifts/revenue/current')).length;
     fireEvent.click(within(movementDialog).getByRole('button', { name: 'Подтвердить' }));
 
     expect(await screen.findByText('Внесение наличных: подтверждено')).toBeInTheDocument();
@@ -1710,6 +1737,12 @@ describe('App', () => {
       reason: 'Размен перед турниром'
     });
     expect(body.idempotencyKey).toMatch(/^shift-cash-movement-/);
+    // дренаж второй волны рефетчей: onShiftChanged → shiftNonce++ → Header + Workspace рефетчат /shifts/revenue/current
+    await waitFor(() => {
+      const revenueCallsAfter = fetchMock.mock.calls.filter(([input]) =>
+        String(input).includes('/shifts/revenue/current')).length;
+      expect(revenueCallsAfter).toBeGreaterThanOrEqual(revenueCallsBeforeMovement + 2);
+    });
   });
 
   it('confirms booking create and cancel only after reservation backend calls resolve', async () => {
