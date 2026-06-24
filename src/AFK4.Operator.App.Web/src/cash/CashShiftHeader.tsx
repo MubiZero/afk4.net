@@ -24,7 +24,7 @@ export function CashShiftHeader({
   const { t } = useI18n();
   const memoizedClient = useMemo(
     () => (backend && !injectedClient ? createAuthenticatedOperatorClients(backend.config, backend.session).shiftRevenue : null),
-    [backend?.config, backend?.session, injectedClient]
+    [backend?.config, backend?.session]
   );
   const client = injectedClient ?? memoizedClient;
   const [revenue, setRevenue] = useState<ShiftRevenueDto | null>(null);
@@ -32,6 +32,7 @@ export function CashShiftHeader({
   useEffect(() => {
     if (client === null || backend === null) return undefined;
     let active = true;
+    setRevenue(null);
     client.current(backend.branchId)
       .then((cur) => { if (active) setRevenue(cur); })
       .catch(() => { if (active) setRevenue(null); });
