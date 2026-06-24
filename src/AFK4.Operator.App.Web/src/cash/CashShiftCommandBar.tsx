@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { Lock, ArrowDownToLine, ArrowUpFromLine, Unlock } from 'lucide-react';
+import { Lock, ArrowDownToLine, ArrowUpFromLine, Unlock, FileText } from 'lucide-react';
 import {
   createAuthenticatedOperatorClients,
   createIdempotencyKey,
@@ -13,6 +13,9 @@ import { hasPermission, permissionNames } from '../operatorPermissions';
 import type { OperatorBackendContext, Feedback } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import type { OpenShiftRequest, RecordCashMovementRequest, CloseShiftRequest } from '../api/clients/shifts';
+import type { ShiftRevenueDto } from '../operatorApiClients';
+import { ShiftReportModal } from './ShiftReportModal';
+import { buildShiftReportData, buildShiftReportText, printShiftReport, type ShiftReportData } from './shiftReport';
 import { OpenShiftModal } from './OpenShiftModal';
 import { CashMovementModal } from './CashMovementModal';
 import { CloseShiftModal } from './CloseShiftModal';
@@ -34,6 +37,7 @@ export function CashShiftCommandBar({
   isOpen,
   expectedCash,
   currencyCode,
+  revenue = null,
   onShiftChanged,
   actions: injectedActions
 }: {
@@ -43,6 +47,7 @@ export function CashShiftCommandBar({
   isOpen: boolean;
   expectedCash: { currencyCode: string; minorUnits: number } | null;
   currencyCode: string;
+  revenue?: ShiftRevenueDto | null;
   onShiftChanged: () => void;
   actions?: CashShiftActionsClient;
 }) {
@@ -56,6 +61,7 @@ export function CashShiftCommandBar({
   };
 
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
+  const [report, setReport] = useState<{ variant: 'x' | 'z'; data: ShiftReportData } | null>(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>({ label: '', state: 'idle' });
   const [startingCash, setStartingCash] = useState('0.00');
@@ -68,6 +74,7 @@ export function CashShiftCommandBar({
   const canOpen = !isOpen && hasPermission(session, permissionNames.openShift);
   const canCash = isOpen && hasPermission(session, permissionNames.manageShiftCash);
   const canClose = isOpen && hasPermission(session, permissionNames.closeShift);
+  const canXReport = isOpen && hasPermission(session, permissionNames.viewReports);
 
   const run = async (label: string, fn: (actions: CashShiftActionsClient) => Promise<void>) => {
     const actions = getActions();
@@ -119,13 +126,21 @@ export function CashShiftCommandBar({
     run(t('op.cash.action.close'), async (actions) => {
       const minor = parseNonNegativeMoneyInputMinorUnits(countedCash);
       if (minor === null || shiftId === null) throw new Error(t('op.cash.close.countedLabel'));
-      await actions.closeShift(shiftId, {
+      const closed = await actions.closeShift(shiftId, {
         organizationId: backend!.session.organizationId,
         countedCash: { currencyCode, minorUnits: minor },
         closingNote: closingNote.trim(),
         idempotencyKey: createIdempotencyKey('shift-close')
       });
+      // Z-сводка: снимок выручки (revenue) + counted/difference/closedAt из ответа close.
+      if (revenue) setReport({ variant: 'z', data: buildShiftReportData(revenue, closed as Record<string, unknown>) });
     });
+
+  const printReport = () => {
+    if (report === null) return;
+    const title = report.variant === 'x' ? t('op.cash.report.xTitle') : t('op.cash.report.zTitle');
+    printShiftReport(title, buildShiftReportText(report.data, report.variant, currencyCode, t));
+  };
 
   return (
     <div className="cash-head-commands">
@@ -147,6 +162,11 @@ export function CashShiftCommandBar({
       {canClose && (
         <button type="button" className="cash-command-btn danger" onClick={() => setActiveModal('close')}>
           <Lock size={14} aria-hidden="true" />{t('op.cash.action.close')}
+        </button>
+      )}
+      {canXReport && revenue && (
+        <button type="button" className="cash-command-btn" onClick={() => setReport({ variant: 'x', data: buildShiftReportData(revenue) })}>
+          <FileText size={14} aria-hidden="true" />{t('op.cash.action.xReport')}
         </button>
       )}
       {feedback.state !== 'idle' && <FeedbackNotice feedback={feedback} />}
@@ -185,6 +205,15 @@ export function CashShiftCommandBar({
           onClose={() => setActiveModal(null)}
           onSubmit={submitClose}
           busy={busy}
+        />
+      )}
+      {report && (
+        <ShiftReportModal
+          variant={report.variant}
+          data={report.data}
+          currencyCode={currencyCode}
+          onClose={() => setReport(null)}
+          onPrint={printReport}
         />
       )}
     </div>
