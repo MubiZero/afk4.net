@@ -3,27 +3,36 @@ import { useI18n } from '@afk4/i18n';
 import { createAuthenticatedOperatorClients, formatMoney } from '../operatorHelpers';
 import { StateFlag } from '../operatorPrimitives';
 import type { OperatorBackendContext } from '../operatorTypes';
+import type { OperatorAuthSession } from '../authClient';
 import type { ShiftRevenueDto } from '../operatorApiClients';
 import { buildCashHeader } from './cashModel';
+import { CashShiftCommandBar, type CashShiftActionsClient } from './CashShiftCommandBar';
 
 interface ShiftRevenueReader {
   current(branchId: string): Promise<ShiftRevenueDto | null>;
 }
 
-// Якорь раздела «Касса»: статус текущей смены виден из любой вкладки. На S0 — read-only
-// (кнопки Открыть/Закрыть/Внести/Изъять добавляет S1). Грузит revenue best-effort: ошибка → «нет смены».
+// Якорь раздела «Касса»: статус текущей смены (виден из любой вкладки) + командная панель смены
+// (открыть/внести/изъять/закрыть). Действие → onShiftChanged → раздел бампает shiftNonce →
+// шапка и вкладка «Смена» перечитывают смену.
 export function CashShiftHeader({
   backend,
   currencyCode,
-  client: injectedClient
+  session = null,
+  shiftNonce = 0,
+  onShiftChanged = () => {},
+  client: injectedClient,
+  actions
 }: {
   backend: OperatorBackendContext | null;
   currencyCode: string;
+  session?: OperatorAuthSession | null;
+  shiftNonce?: number;
+  onShiftChanged?: () => void;
   client?: ShiftRevenueReader;
+  actions?: CashShiftActionsClient;
 }) {
   const { t } = useI18n();
-  // Боевой клиент строим только когда нет инжектнутого (тесты подают injectedClient с фейковым
-  // backend, на котором createAuthenticatedOperatorClients падать не должен). injectedClient — в deps.
   const memoizedClient = useMemo(
     () => (backend && !injectedClient ? createAuthenticatedOperatorClients(backend.config, backend.session).shiftRevenue : null),
     [backend?.config, backend?.session, injectedClient]
@@ -39,7 +48,7 @@ export function CashShiftHeader({
       .then((cur) => { if (active) setRevenue(cur); })
       .catch(() => { if (active) setRevenue(null); });
     return () => { active = false; };
-  }, [client, backend?.branchId]);
+  }, [client, backend?.branchId, shiftNonce]);
 
   const header = buildCashHeader(revenue);
 
@@ -58,6 +67,16 @@ export function CashShiftHeader({
           <StateFlag label={t('op.cash.metric.revenue')} value={formatMoney(header.revenueTotal, currencyCode)} />
         </div>
       )}
+      <CashShiftCommandBar
+        backend={backend}
+        session={session}
+        shiftId={revenue?.shiftId ?? null}
+        isOpen={header.isOpen}
+        expectedCash={header.cashInHand}
+        currencyCode={currencyCode}
+        onShiftChanged={onShiftChanged}
+        actions={actions}
+      />
     </section>
   );
 }

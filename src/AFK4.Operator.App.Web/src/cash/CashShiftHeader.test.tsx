@@ -4,6 +4,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { CashShiftHeader } from './CashShiftHeader';
 import type { ShiftRevenueDto } from '../operatorApiClients';
+import type { CashShiftActionsClient } from './CashShiftCommandBar';
 
 afterEach(cleanup);
 
@@ -44,5 +45,27 @@ describe('CashShiftHeader', () => {
     renderHeader(null);
     await waitFor(() => expect(screen.getByText('Смена не открыта')).toBeInTheDocument());
     expect(screen.queryByText('В кассе')).not.toBeInTheDocument();
+  });
+
+  it('открытая смена + право shifts.close → кнопка «Закрыть смену» в шапке', async () => {
+    const session = { permissions: ['shifts.close'], organizationId: 'o' } as never;
+    const actions: CashShiftActionsClient = {
+      openShift: async () => ({}),
+      recordCashMovement: async () => ({}),
+      closeShift: async () => ({})
+    };
+    render(
+      <I18nProvider initialLocale="ru">
+        <CashShiftHeader
+          backend={backend}
+          currencyCode="TJS"
+          session={session}
+          client={{ current: async () => openShift() }}
+          actions={actions}
+        />
+      </I18nProvider>
+    );
+    await waitFor(() => expect(screen.getByText('Смена открыта')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Закрыть смену' })).toBeInTheDocument();
   });
 });
