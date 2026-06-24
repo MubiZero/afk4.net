@@ -7,7 +7,7 @@ import type { HostBridgeMessageEvent } from './hostBridge';
 // одиночные — клик по кнопке рельса; вкладочные — сперва открыть раздел, затем вкладку (клик
 // по вкладке скоупим внутри полоски раздела, чтобы не задеть одноимённые внутренние вкладки экранов).
 const TAB_SECTION: Record<string, string> = {
-  'Продажи': 'Касса', 'Платежи': 'Касса', 'Проверка': 'Касса',
+  'Продажи': 'Касса', 'Смена': 'Касса', 'Проверка': 'Касса',
   'Дашборд': 'Отчёты',
   'Настройки': 'Управление', 'Приём платежей': 'Управление', 'Лояльность': 'Управление', 'Новости': 'Управление', 'Логи': 'Управление'
 };
@@ -873,18 +873,20 @@ describe('App', () => {
     // кнопка действия на активном табе (Кошелёк)
     expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeInTheDocument();
 
-    gotoWorkspace('Платежи');
-    const paymentsHead = screen.getByRole('heading', { name: /Платежи/ }).closest('.screen-head');
-    expect(paymentsHead).toBeInTheDocument();
-    expect(paymentsHead).not.toHaveTextContent('Смена');
-    expect(paymentsHead).not.toHaveTextContent('Операции');
-    expect(paymentsHead).not.toHaveTextContent('Сверка');
-    expect(paymentsHead).not.toHaveTextContent('Экспорт');
-    expect(screen.getByText('Операции смены')).toBeInTheDocument();
-    expect(screen.getByText('Итоги смены')).toBeInTheDocument();
+    gotoWorkspace('Смена');
+    expect(await screen.findByText('Выручка смены')).toBeInTheDocument();
     expect(screen.getByText('Сверка кассы')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Подготовить закрытие/ })).toBeInTheDocument();
-    expect(screen.getByText('Методы оплаты')).toBeInTheDocument();
+    expect(screen.getByText('Ожидается')).toBeInTheDocument();
+    expect(screen.getByText('История смен')).toBeInTheDocument();
+    // дренаж: CashShiftHeader делает отдельный фетч /shifts/revenue/current независимо от Workspace;
+    // ждём завершения обоих (>= 2 вызовов сделано И ответы обработаны) перед уходом со вкладки
+    await waitFor(() => {
+      const revenueCalls = fetchMock.mock.calls.filter(([input]) =>
+        String(input).includes('/shifts/revenue/current')).length;
+      expect(revenueCalls).toBeGreaterThanOrEqual(2);
+    });
+    // flush pending microtasks чтобы .then() callbacks от fetch-промисов успели выполниться
+    await act(async () => { await Promise.resolve(); });
 
     gotoWorkspace('Логи');
     const logsHead = screen.getByRole('heading', { name: /Журнал/ }).closest('.screen-head');
@@ -1484,7 +1486,7 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^stock-write-off-/);
   });
 
-  it('opens a shift from Payments when no current shift exists', async () => {
+  it('opens a shift from the cash header modal when no current shift exists', async () => {
     installSessionBridge();
     let shiftOpened = false;
     fetchMock.mockImplementation((input, init) => {
@@ -1492,80 +1494,67 @@ describe('App', () => {
       if (url.pathname.endsWith('/shifts/current') && !shiftOpened) {
         return Promise.resolve(new Response('', { status: 404, statusText: 'Not Found' }));
       }
-
+      if (url.pathname.endsWith('/shifts/revenue/current') && !shiftOpened) {
+        return Promise.resolve(new Response('', { status: 404, statusText: 'Not Found' }));
+      }
       if (url.pathname.endsWith('/shifts/open') && init?.method === 'POST') {
         shiftOpened = true;
       }
-
       return mockPlatformFetch(input, init);
     });
 
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Платежи');
-    expect(await screen.findByText('\u041e\u0442\u0447\u0451\u0442\u044b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Старт наличных'), { target: { value: '150.00' } });
-    fireEvent.change(screen.getByLabelText('Открытие'), { target: { value: 'Утренняя смена' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Открыть смену' }));
+    gotoWorkspace('Смена');
 
-    expect(await screen.findByText('Открыть смену: подтверждено')).toBeInTheDocument();
-    const openCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/shifts/open') &&
-      init?.method === 'POST');
-    expect(openCall).toBeDefined();
-    const body = JSON.parse(String(openCall?.[1]?.body));
+    // Смена закрыта → в шапке кнопка «Открыть смену» открывает модалку.
+    fireEvent.click(await screen.findByRole('button', { name: 'Открыть смену' }));
+    fireEvent.change(screen.getByLabelText('Старт наличных'), { target: { value: '150.00' } });
+    fireEvent.change(screen.getByLabelText('Комментарий'), { target: { value: 'Утренняя смена' } });
+    // submit модалки (вторая кнопка «Открыть смену» — внутри формы модалки)
+    const dialog = screen.getByRole('dialog');
+    const revenueCallsBefore = fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes('/shifts/revenue/current')).length;
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Открыть смену' }));
+
+    const openCall = await waitFor(() => {
+      const call = fetchMock.mock.calls.find(([input, init]) =>
+        String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/shifts/open') && init?.method === 'POST');
+      expect(call).toBeDefined();
+      return call!;
+    });
+    const body = JSON.parse(String(openCall[1]?.body));
     expect(body).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
       startingCash: { currencyCode: 'TJS', minorUnits: 15000 },
       openingNote: 'Утренняя смена'
     });
     expect(body.idempotencyKey).toMatch(/^shift-open-/);
+    // дренаж второй волны рефетчей: onShiftChanged → shiftNonce++ → Header + Workspace рефетчат /shifts/revenue/current
+    await waitFor(() => {
+      const revenueCallsAfter = fetchMock.mock.calls.filter(([input]) =>
+        String(input).includes('/shifts/revenue/current')).length;
+      expect(revenueCallsAfter).toBeGreaterThanOrEqual(revenueCallsBefore + 2);
+    });
   });
 
-  it('shows successful empty Payments reports without backend-empty copy', async () => {
+  it('renders the shift tab without errors on empty reports', async () => {
     installSessionBridge();
     const zero = { currencyCode: 'TJS', minorUnits: 0 };
     fetchMock.mockImplementation((input, init) => {
       const pathname = new URL(String(input)).pathname;
-      if (pathname.endsWith('/reports/sales')) {
-        return Promise.resolve(jsonResponse({
-          ...createSalesReport(),
-          rows: [],
-          grossSalesTotal: zero,
-          refundsTotal: zero,
-          netSalesTotal: zero
-        }));
-      }
-
       if (pathname.endsWith('/reports/cash-operations')) {
-        return Promise.resolve(jsonResponse({
-          ...createCashReport(),
-          rows: [],
-          cashInTotal: zero,
-          cashOutTotal: zero,
-          netCashTotal: zero
-        }));
+        return Promise.resolve(jsonResponse({ ...createCashReport(), rows: [], cashInTotal: zero, cashOutTotal: zero, netCashTotal: zero }));
       }
-
-      if (pathname.endsWith('/reports/shifts')) {
-        return Promise.resolve(jsonResponse({
-          ...createShiftReport(),
-          rows: []
-        }));
-      }
-
       return mockPlatformFetch(input, init);
     });
 
     render(<App />);
-
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Платежи');
-    expect(await screen.findByText('\u041e\u0442\u0447\u0451\u0442\u044b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-
-    expect((await screen.findAllByText('Операций за период нет')).length).toBeGreaterThan(0);
-    expect(screen.queryByText('Нет backend операций')).not.toBeInTheDocument();
+    gotoWorkspace('Смена');
+    expect(await screen.findByText('Выручка смены')).toBeInTheDocument();
+    expect(screen.getByText('Движений нет')).toBeInTheDocument();
   });
 
   it('does not replace an empty backend POS catalog with demo products', async () => {
@@ -1613,40 +1602,27 @@ describe('App', () => {
     expect(screen.queryByText('Madina S.')).not.toBeInTheDocument();
   });
 
-  it('shows backend detail for the selected Payments operation', async () => {
+  it('shows shift cockpit data from the backend in the shift tab', async () => {
     installSessionBridge();
 
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Платежи');
-    expect(await screen.findByText('\u041e\u0442\u0447\u0451\u0442\u044b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
+    gotoWorkspace('Смена');
 
-    const detailPanel = document.querySelector('.payments-summary-panel') as HTMLElement;
-    expect(detailPanel).toHaveTextContent('Оплачен');
-    expect(detailPanel).toHaveTextContent('В отчёте смены');
-    expect(detailPanel).toHaveTextContent('Продажа');
-    expect(detailPanel).toHaveTextContent('1 строка · 1 шт.');
-    expect(detailPanel).not.toHaveTextContent('99999999');
-    expect(detailPanel).not.toHaveTextContent('aaaaaaaa');
-
-    fireEvent.click(screen.getByRole('button', { name: /Открытие смены/ }));
-    expect(detailPanel).toHaveTextContent('Открытие смены');
-    expect(detailPanel).toHaveTextContent('Движение наличных');
-    expect(detailPanel).toHaveTextContent('test');
-    expect(detailPanel).not.toHaveTextContent('aaaaaaaa');
+    // Кокпит вкладки «Смена» загружает данные из мока и показывает выручку + сверку.
+    expect(await screen.findByText('Выручка смены')).toBeInTheDocument();
+    expect(screen.getByText('Сверка кассы')).toBeInTheDocument();
+    // Проверяем, что реальные данные смены из мока доехали до кокпита (нет generic заглушек).
+    expect(screen.queryByText('Нет открытой смены')).not.toBeInTheDocument();
+    // Движение наличных — одна строка из createCashReport (operationType=opening, reason='test').
+    expect(screen.getByText('Движение наличных')).toBeInTheDocument();
   });
 
-  it('downloads Payments operator-facing exports without raw shift IDs', async () => {
+  it('downloads shift tab CSV exports from the backend', async () => {
     installSessionBridge();
-    const exportedBlobs: Blob[] = [];
-    const createObjectUrl = mock((blob: Blob) => {
-      exportedBlobs.push(blob);
-      return 'blob:payments';
-    });
-    const revokeObjectUrl = mock();
-    Object.defineProperty(window.URL, 'createObjectURL', { value: createObjectUrl, configurable: true });
-    Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeObjectUrl, configurable: true });
+    Object.defineProperty(window.URL, 'createObjectURL', { value: mock(() => 'blob:shift-export'), configurable: true });
+    Object.defineProperty(window.URL, 'revokeObjectURL', { value: mock(), configurable: true });
     const downloads: string[] = [];
     const createElement = document.createElement.bind(document);
     const createElementSpy = spyOn(document, 'createElement').mockImplementation((tagName: string) => {
@@ -1657,68 +1633,61 @@ describe('App', () => {
           configurable: true
         });
       }
-
       return element;
     });
 
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Платежи');
-    expect(await screen.findByText('\u041e\u0442\u0447\u0451\u0442\u044b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    const exportPanel = document.querySelector('.payments-export-panel') as HTMLElement;
-    expect(within(exportPanel).queryByRole('button', { name: /Таблица продаж/ })).not.toBeInTheDocument();
-    expect(within(exportPanel).queryByRole('button', { name: /Кассовый отчёт/ })).not.toBeInTheDocument();
-    fireEvent.click(within(exportPanel).getByRole('button', { name: /Список чеков/ }));
+    gotoWorkspace('Смена');
 
-    expect(await screen.findByText('Список чеков: подтверждено')).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/sales/export.csv'))).toBe(true);
-    expect(downloads.some((download) => download.startsWith('afk4-check-list-') && download.endsWith('.csv'))).toBe(true);
+    // Ждём загрузки кокпита — заголовок «Экспорт» появляется после разрешения промисов.
+    await screen.findByText('Экспорт');
+    // Кнопки экспорта в секции «Экспорт» вкладки «Смена».
+    const exportSection = document.querySelector('.cash-shift-exports') as HTMLElement;
+    expect(exportSection).toBeInTheDocument();
 
-    fireEvent.click(within(exportPanel).getByRole('button', { name: /Движение кассы/ }));
-    expect(await screen.findByText('Движение кассы: подтверждено')).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/cash-operations/export.csv'))).toBe(true);
-    expect(downloads.some((download) => download.startsWith('afk4-cash-movements-') && download.endsWith('.csv'))).toBe(true);
+    // «Список чеков» → /reports/sales/export.csv → afk4-check-list-*.csv
+    fireEvent.click(within(exportSection).getByRole('button', { name: /Список чеков/ }));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/sales/export.csv'))).toBe(true));
+    expect(downloads.some((d) => d.startsWith('afk4-check-list-') && d.endsWith('.csv'))).toBe(true);
 
-    fireEvent.click(within(exportPanel).getByRole('button', { name: /Сверка смены/ }));
-    expect(await screen.findByText('Сверка смены: подтверждено')).toBeInTheDocument();
-    expect(downloads.some((download) => download.startsWith('afk4-shift-reconciliation-') && download.endsWith('.json'))).toBe(true);
-    expect(createObjectUrl).toHaveBeenCalledTimes(3);
-    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:payments');
-    const reconciliationBlob = exportedBlobs.at(-1);
-    expect(reconciliationBlob).toBeDefined();
-    const reconciliationText = await reconciliationBlob!.text();
-    expect(reconciliationText).toContain('"summary"');
-    expect(reconciliationText).toContain('"shifts"');
-    expect(reconciliationText).not.toContain('shiftId');
-    expect(reconciliationText).not.toContain('organizationId');
-    expect(reconciliationText).not.toContain('branchId');
-    expect(reconciliationText).not.toContain('openedByStaffUserId');
-    expect(reconciliationText).not.toContain('66666666-6666-6666-6666-666666666666');
-    expect(reconciliationText).not.toContain('acfc0212-967f-4d84-94be-9003387b09c2');
-    expect(reconciliationText).not.toContain('3db1367b-88c6-4b1c-99c3-bcbb5f4d5134');
+    // «Движение наличных» → /reports/cash-operations/export.csv → afk4-cash-movements-*.csv
+    fireEvent.click(within(exportSection).getByRole('button', { name: /Движение наличных/ }));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/cash-operations/export.csv'))).toBe(true));
+    expect(downloads.some((d) => d.startsWith('afk4-cash-movements-') && d.endsWith('.csv'))).toBe(true);
+
+    // «Сводка смены» → /reports/shifts/export.csv → afk4-shift-summary-*.csv
+    fireEvent.click(within(exportSection).getByRole('button', { name: /Сводка смены/ }));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/shifts/export.csv'))).toBe(true));
+    expect(downloads.some((d) => d.startsWith('afk4-shift-summary-') && d.endsWith('.csv'))).toBe(true);
+
     createElementSpy.mockRestore();
   });
 
-  it('closes the current shift from Payments through the backend', async () => {
+  it('closes the current shift from the cash header modal through the backend', async () => {
     installSessionBridge();
 
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Платежи');
-    expect(await screen.findByText('\u041e\u0442\u0447\u0451\u0442\u044b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Факт в кассе'), { target: { value: '1120.00' } });
-    fireEvent.change(screen.getByLabelText('Комментарий'), { target: { value: 'Смена закрыта оператором' } });
-    fireEvent.click(screen.getByRole('button', { name: /Подготовить закрытие/ }));
+    gotoWorkspace('Смена');
 
-    expect(await screen.findByRole('alertdialog', { name: 'Подтвердите закрытие смены' })).toBeInTheDocument();
+    // Шапка-якорь: смена открыта → кнопка «Закрыть смену» открывает модалку.
+    fireEvent.click(await screen.findByRole('button', { name: 'Закрыть смену' }));
+    const closeDialog = screen.getByRole('dialog');
+    fireEvent.change(within(closeDialog).getByLabelText('Факт в кассе'), { target: { value: '1120.00' } });
+    fireEvent.change(within(closeDialog).getByLabelText('Комментарий'), { target: { value: 'Смена закрыта оператором' } });
+
+    // Закрытие ещё не произошло — кнопка submit внутри модалки.
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/shifts/66666666-6666-6666-6666-666666666666/close') &&
       init?.method === 'POST')).toBe(false);
-    fireEvent.click(screen.getByRole('button', { name: 'Закрыть смену' }));
+    const revenueCallsBeforeClose = fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes('/shifts/revenue/current')).length;
+    fireEvent.click(within(closeDialog).getByRole('button', { name: 'Закрыть смену' }));
 
-    expect(await screen.findByText('Подготовить закрытие: подтверждено')).toBeInTheDocument();
+    expect(await screen.findByText('Закрыть смену: подтверждено')).toBeInTheDocument();
     const closeCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/shifts/66666666-6666-6666-6666-666666666666/close') &&
       init?.method === 'POST');
@@ -1730,21 +1699,32 @@ describe('App', () => {
       closingNote: 'Смена закрыта оператором'
     });
     expect(body.idempotencyKey).toMatch(/^shift-close-/);
+    // дренаж второй волны рефетчей: onShiftChanged → shiftNonce++ → Header + Workspace рефетчат /shifts/revenue/current
+    await waitFor(() => {
+      const revenueCallsAfter = fetchMock.mock.calls.filter(([input]) =>
+        String(input).includes('/shifts/revenue/current')).length;
+      expect(revenueCallsAfter).toBeGreaterThanOrEqual(revenueCallsBeforeClose + 2);
+    });
   });
 
-  it('records a cash movement from Payments through the backend', async () => {
+  it('records a cash movement from the cash header modal through the backend', async () => {
     installSessionBridge();
 
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Платежи');
-    expect(await screen.findByText('\u041e\u0442\u0447\u0451\u0442\u044b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Сумма'), { target: { value: '25.50' } });
-    fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Размен перед турниром' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Добавить движение' }));
+    gotoWorkspace('Смена');
 
-    expect(await screen.findByText('Добавить движение: подтверждено')).toBeInTheDocument();
+    // Шапка-якорь: смена открыта → кнопка «Внести» открывает модалку внесения.
+    fireEvent.click(await screen.findByRole('button', { name: 'Внести' }));
+    const movementDialog = screen.getByRole('dialog');
+    fireEvent.change(within(movementDialog).getByLabelText('Сумма'), { target: { value: '25.50' } });
+    fireEvent.change(within(movementDialog).getByLabelText('Причина'), { target: { value: 'Размен перед турниром' } });
+    const revenueCallsBeforeMovement = fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes('/shifts/revenue/current')).length;
+    fireEvent.click(within(movementDialog).getByRole('button', { name: 'Подтвердить' }));
+
+    expect(await screen.findByText('Внесение наличных: подтверждено')).toBeInTheDocument();
     const movementCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/shifts/66666666-6666-6666-6666-666666666666/cash-movements') &&
       init?.method === 'POST');
@@ -1757,6 +1737,12 @@ describe('App', () => {
       reason: 'Размен перед турниром'
     });
     expect(body.idempotencyKey).toMatch(/^shift-cash-movement-/);
+    // дренаж второй волны рефетчей: onShiftChanged → shiftNonce++ → Header + Workspace рефетчат /shifts/revenue/current
+    await waitFor(() => {
+      const revenueCallsAfter = fetchMock.mock.calls.filter(([input]) =>
+        String(input).includes('/shifts/revenue/current')).length;
+      expect(revenueCallsAfter).toBeGreaterThanOrEqual(revenueCallsBeforeMovement + 2);
+    });
   });
 
   it('confirms booking create and cancel only after reservation backend calls resolve', async () => {
@@ -3097,6 +3083,14 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createStockMovement(body));
   }
 
+  if (pathname.endsWith('/shifts/revenue/current')) {
+    return jsonResponse(createCurrentShiftRevenue());
+  }
+
+  if (pathname.endsWith('/shifts/revenue')) {
+    return jsonResponse({ shifts: [], limit: 20 });
+  }
+
   if (pathname.endsWith('/shifts/current')) {
     return jsonResponse(createCurrentShift());
   }
@@ -3911,6 +3905,36 @@ function createCurrentShift() {
     difference: { currencyCode: 'TJS', minorUnits: 0 },
     openingNote: 'test',
     closingNote: '',
+    openedAtUtc: '2026-05-21T08:00:00Z',
+    closedAtUtc: null
+  };
+}
+
+function createCurrentShiftRevenue() {
+  return {
+    shiftId: '66666666-6666-6666-6666-666666666666',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+    branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
+    openedByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
+    closedByStaffUserId: null,
+    state: 'open',
+    earned: {
+      time: { currencyCode: 'TJS', minorUnits: 82000 },
+      goods: { currencyCode: 'TJS', minorUnits: 41000 },
+      total: { currencyCode: 'TJS', minorUnits: 123000 }
+    },
+    inflow: {
+      cash: { currencyCode: 'TJS', minorUnits: 90000 },
+      nonCash: { currencyCode: 'TJS', minorUnits: 33000 },
+      walletTopUps: { currencyCode: 'TJS', minorUnits: 15000 },
+      directTotal: { currencyCode: 'TJS', minorUnits: 123000 }
+    },
+    cash: {
+      starting: { currencyCode: 'TJS', minorUnits: 100000 },
+      expected: { currencyCode: 'TJS', minorUnits: 190000 },
+      counted: null,
+      difference: null
+    },
     openedAtUtc: '2026-05-21T08:00:00Z',
     closedAtUtc: null
   };

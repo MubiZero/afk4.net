@@ -17,12 +17,11 @@ export interface CashHeaderState {
 const CASH_TAB_PERMISSIONS: Record<CashTab, readonly string[]> = {
   sales: [permissionNames.createPosSale, permissionNames.payPosSale, permissionNames.refundPosSale, permissionNames.voidPosSale],
   orders: [permissionNames.createPosSale],
-  payments: [permissionNames.viewShift, permissionNames.openShift, permissionNames.viewReports],
-  shifts: [permissionNames.viewReports],
+  shift: [permissionNames.viewShift, permissionNames.openShift, permissionNames.closeShift, permissionNames.manageShiftCash, permissionNames.viewReports],
   review: [permissionNames.approveMoneyAction]
 };
 
-const CASH_TAB_ORDER: CashTab[] = ['sales', 'orders', 'payments', 'shifts', 'review'];
+const CASH_TAB_ORDER: CashTab[] = ['sales', 'orders', 'shift', 'review'];
 
 export function visibleCashTabs(session: OperatorAuthSession | null): CashTab[] {
   return CASH_TAB_ORDER.filter((id) => hasAnyPermission(session, CASH_TAB_PERMISSIONS[id]));
