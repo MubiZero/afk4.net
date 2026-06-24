@@ -22,9 +22,11 @@ export function CashShiftHeader({
   client?: ShiftRevenueReader;
 }) {
   const { t } = useI18n();
+  // Боевой клиент строим только когда нет инжектнутого (тесты подают injectedClient с фейковым
+  // backend, на котором createAuthenticatedOperatorClients падать не должен). injectedClient — в deps.
   const memoizedClient = useMemo(
     () => (backend && !injectedClient ? createAuthenticatedOperatorClients(backend.config, backend.session).shiftRevenue : null),
-    [backend?.config, backend?.session]
+    [backend?.config, backend?.session, injectedClient]
   );
   const client = injectedClient ?? memoizedClient;
   const [revenue, setRevenue] = useState<ShiftRevenueDto | null>(null);
