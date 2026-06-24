@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { I18nProvider } from '@afk4/i18n';
 import { CashShiftCommandBar, type CashShiftActionsClient } from './CashShiftCommandBar';
 import type { OperatorAuthSession } from '../authClient';
+import type { ShiftRevenueDto } from '../operatorApiClients';
 
 afterEach(cleanup);
 
@@ -20,7 +21,7 @@ function fakeActions(): CashShiftActionsClient & { calls: Record<string, unknown
   };
 }
 
-function renderBar(opts: { isOpen: boolean; perms?: string[]; actions?: CashShiftActionsClient; onShiftChanged?: () => void; revenue?: object | null }) {
+function renderBar(opts: { isOpen: boolean; perms?: string[]; actions?: CashShiftActionsClient; onShiftChanged?: () => void; revenue?: ShiftRevenueDto | null }) {
   render(
     <I18nProvider initialLocale="ru">
       <CashShiftCommandBar
