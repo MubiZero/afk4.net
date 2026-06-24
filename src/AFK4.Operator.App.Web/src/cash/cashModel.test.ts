@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { buildCashHeader } from './cashModel';
+import { buildCashHeader, visibleCashTabs } from './cashModel';
 import type { ShiftRevenueDto } from '../operatorApiClients';
 
 function m(minorUnits: number) {
@@ -38,5 +38,30 @@ describe('buildCashHeader', () => {
   it('state !== open (closed) → закрыто', () => {
     const s = buildCashHeader(openShift({ state: 'closed' }));
     expect(s.isOpen).toBe(false);
+  });
+});
+
+function session(permissions: string[]) {
+  return { permissions } as unknown as import('../authClient').OperatorAuthSession;
+}
+
+describe('visibleCashTabs (per-tab гранулярность прав)', () => {
+  it('только право продаж → Продажи + Заказы', () => {
+    expect(visibleCashTabs(session(['pos.sales.create']))).toEqual(['sales', 'orders']);
+  });
+  it('только reports.view → Платежи + Смены', () => {
+    expect(visibleCashTabs(session(['reports.view']))).toEqual(['payments', 'shifts']);
+  });
+  it('только approveMoneyAction → Проверка', () => {
+    expect(visibleCashTabs(session(['billing.money_action.approve']))).toEqual(['review']);
+  });
+  it('null сессия → пусто', () => {
+    expect(visibleCashTabs(null)).toEqual([]);
+  });
+  it('все права → все 5 вкладок по порядку', () => {
+    expect(visibleCashTabs(session([
+      'pos.sales.create', 'pos.sales.pay', 'pos.sales.refund', 'pos.sales.void',
+      'shifts.view', 'shifts.open', 'reports.view', 'billing.money_action.approve'
+    ]))).toEqual(['sales', 'orders', 'payments', 'shifts', 'review']);
   });
 });

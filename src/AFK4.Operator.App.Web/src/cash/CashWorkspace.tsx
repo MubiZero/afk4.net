@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { OperatorAuthSession } from '../authClient';
 import type { OperatorBackendContext } from '../operatorTypes';
-import { hasPermission, permissionNames } from '../operatorPermissions';
+import { visibleCashTabs } from './cashModel';
 import { CashShiftHeader } from './CashShiftHeader';
 import { CashTabBar, type CashTab } from './CashTabBar';
 import { BackendPosWorkspace } from '../BackendPosWorkspace';
@@ -23,9 +23,9 @@ export function CashWorkspace({
   session: OperatorAuthSession | null;
 }) {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<CashTab>('sales');
-  const canReview = hasPermission(session, permissionNames.approveMoneyAction);
+  const [activeTab, setActiveTab] = useState<CashTab>(() => visibleCashTabs(session)[0] ?? 'sales');
 
+  const visible = new Set(visibleCashTabs(session));
   const allTabs: { id: CashTab; label: string }[] = [
     { id: 'sales', label: t('op.shell.nav.pos') },
     { id: 'orders', label: t('op.shell.nav.shop_orders') },
@@ -33,7 +33,7 @@ export function CashWorkspace({
     { id: 'shifts', label: t('op.shifts.nav') },
     { id: 'review', label: t('op.shell.nav.review') }
   ];
-  const tabs = allTabs.filter((tab) => tab.id !== 'review' || canReview);
+  const tabs = allTabs.filter((tab) => visible.has(tab.id));
 
   return (
     <main className="workspace-screen cash-screen">
