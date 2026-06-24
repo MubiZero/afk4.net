@@ -7,7 +7,7 @@ import type { HostBridgeMessageEvent } from './hostBridge';
 // одиночные — клик по кнопке рельса; вкладочные — сперва открыть раздел, затем вкладку (клик
 // по вкладке скоупим внутри полоски раздела, чтобы не задеть одноимённые внутренние вкладки экранов).
 const TAB_SECTION: Record<string, string> = {
-  'Продажи': 'Касса', 'Смена': 'Касса', 'Проверка': 'Касса',
+  'Продажи': 'Касса', 'Смена': 'Касса', 'Журнал кассы': 'Касса',
   'Дашборд': 'Отчёты',
   'Настройки': 'Управление', 'Приём платежей': 'Управление', 'Лояльность': 'Управление', 'Новости': 'Управление', 'Логи': 'Управление'
 };
@@ -1699,12 +1699,14 @@ describe('App', () => {
       closingNote: 'Смена закрыта оператором'
     });
     expect(body.idempotencyKey).toMatch(/^shift-close-/);
-    // дренаж второй волны рефетчей: onShiftChanged → shiftNonce++ → Header + Workspace рефетчат /shifts/revenue/current
+    // Z-сводка показана по результату закрытия.
+    expect(await screen.findByText('Z-отчёт')).toBeInTheDocument();
+    // Дренаж второй волны рефетчей (onShiftChanged → shiftNonce++), чтобы async не утёк в соседние тесты.
     await waitFor(() => {
-      const revenueCallsAfter = fetchMock.mock.calls.filter(([input]) =>
-        String(input).includes('/shifts/revenue/current')).length;
-      expect(revenueCallsAfter).toBeGreaterThanOrEqual(revenueCallsBeforeClose + 2);
+      const after = fetchMock.mock.calls.filter(([input]) => String(input).includes('/shifts/revenue/current')).length;
+      expect(after).toBeGreaterThanOrEqual(revenueCallsBeforeClose + 2);
     });
+    await act(async () => { await Promise.resolve(); });
   });
 
   it('records a cash movement from the cash header modal through the backend', async () => {
@@ -2877,32 +2879,35 @@ describe('App', () => {
     });
   });
 
-  it('hides the review tab without the approve permission', async () => {
+  it('hides the cash journal tab without cash/review permissions', async () => {
     installSessionBridge(createSession({ permissions: ['pos.sales.create', 'pos.sales.pay'] }));
     render(<App />);
     await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
 
-    // Без права approve раздел «Касса» открывается, но вкладка «Проверка» в нём отсутствует.
+    // Без прав cash/approve раздел «Касса» открывается, но вкладка «Журнал кассы» в нём отсутствует.
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Рабочие места' })).getByTitle('Касса'));
     const strip = screen.getByRole('tablist', { name: 'Касса' });
     expect(within(strip).getByRole('tab', { name: 'Продажи' })).toBeInTheDocument();
-    expect(within(strip).queryByRole('tab', { name: 'Проверка' })).toBeNull();
+    expect(within(strip).queryByRole('tab', { name: 'Журнал кассы' })).toBeNull();
   });
 
-  it('opens the review workspace for a manager', async () => {
+  it('opens the cash journal for a manager', async () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
     await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
 
-    gotoWorkspace('Проверка');
-    expect(await screen.findByRole('heading', { name: /Проверка/ })).toBeInTheDocument();
+    gotoWorkspace('Журнал кассы');
+    expect(await screen.findByRole('heading', { name: /Операции и проверка/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'Проверка' }));
+    expect(await screen.findByText('Клиент отменил заказ')).toBeInTheDocument();
   });
 
   it('renders the pending money-action queue and approves a request', async () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
     await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
-    gotoWorkspace('Проверка');
+    gotoWorkspace('Журнал кассы');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Проверка' }));
 
     expect(await screen.findByText('Клиент отменил заказ')).toBeInTheDocument();
     expect(screen.getByText(/Возврат/)).toBeInTheDocument();
@@ -2921,7 +2926,8 @@ describe('App', () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
     await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
-    gotoWorkspace('Проверка');
+    gotoWorkspace('Журнал кассы');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Проверка' }));
     await screen.findByText('Клиент отменил заказ');
 
     fireEvent.click(screen.getByRole('button', { name: 'Отклонить' }));
@@ -2944,7 +2950,8 @@ describe('App', () => {
     installSessionBridge(createSession({ displayName: 'Manager One' }));
     render(<App />);
     await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
-    gotoWorkspace('Проверка');
+    gotoWorkspace('Журнал кассы');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Проверка' }));
     await screen.findByText('Клиент отменил заказ');
 
     fireEvent.click(screen.getByRole('tab', { name: 'Журнал операций' }));
@@ -2961,6 +2968,28 @@ describe('App', () => {
       expect(url).toContain('minAmount=1000');
       expect(url).toContain('maxAmount=5000');
     });
+  });
+
+  it('shows the cash operations ledger in the cash journal', async () => {
+    installSessionBridge(createSession({ displayName: 'Manager One' }));
+    render(<App />);
+    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+
+    gotoWorkspace('Журнал кассы');
+    // По умолчанию активен сегмент «Кассовые операции» (первый сегмент)
+    expect(await screen.findByText('Итого по кассе')).toBeInTheDocument();
+  });
+
+  it('opens the X report from the cash header', async () => {
+    installSessionBridge();
+    render(<App />);
+    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    gotoWorkspace('Смена');
+
+    fireEvent.click(await screen.findByRole('button', { name: /X-отчёт/ }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('X-отчёт')).toBeInTheDocument();
+    expect(within(dialog).getByText('Выручка смены')).toBeInTheDocument();
   });
 });
 
