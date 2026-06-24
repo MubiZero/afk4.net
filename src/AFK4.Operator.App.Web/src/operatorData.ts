@@ -85,10 +85,7 @@ export const navSections: NavSection[] = [
     labelKey: 'op.shell.navGroup.cashier',
     icon: ReceiptText,
     items: [
-      { id: 'pos', labelKey: 'op.shell.nav.pos' },
-      { id: 'shop_orders', labelKey: 'op.shell.nav.shop_orders' },
-      { id: 'payments', labelKey: 'op.shell.nav.payments' },
-      { id: 'review', labelKey: 'op.shell.nav.review' }
+      { id: 'cash', labelKey: 'op.shell.navGroup.cashier' }
     ]
   },
   {
@@ -96,8 +93,7 @@ export const navSections: NavSection[] = [
     labelKey: 'op.shell.navGroup.reports',
     icon: LayoutDashboard,
     items: [
-      { id: 'dashboard', labelKey: 'op.shell.nav.dashboard' },
-      { id: 'shifts', labelKey: 'op.shifts.nav' }
+      { id: 'dashboard', labelKey: 'op.shell.nav.dashboard' }
     ]
   },
   {

@@ -1,7 +1,7 @@
 import type { OperatorAuthSession } from './authClient';
 import type { WorkspaceId } from './operatorTypes';
 
-export const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'pos', 'shop_orders', 'players', 'payments', 'payment_cards', 'logs', 'settings', 'review', 'loyalty', 'news', 'shifts'];
+export const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'cash', 'players', 'payment_cards', 'logs', 'settings', 'loyalty', 'news'];
 
 export const permissionNames = {
   viewFloorMap: 'floor_map.view',
@@ -64,13 +64,16 @@ export const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = 
   map: [permissionNames.viewFloorMap],
   dashboard: [permissionNames.viewReports],
   booking: [permissionNames.viewReservations],
-  pos: [
+  cash: [
     permissionNames.createPosSale,
     permissionNames.payPosSale,
     permissionNames.refundPosSale,
-    permissionNames.voidPosSale
+    permissionNames.voidPosSale,
+    permissionNames.viewShift,
+    permissionNames.openShift,
+    permissionNames.viewReports,
+    permissionNames.approveMoneyAction
   ],
-  shop_orders: [permissionNames.createPosSale],
   players: [
     permissionNames.viewPlayers,
     permissionNames.createPlayerAccount,
@@ -80,7 +83,6 @@ export const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = 
     permissionNames.viewPackages,
     permissionNames.purchasePackage
   ],
-  payments: [permissionNames.viewShift, permissionNames.openShift, permissionNames.viewReports],
   payment_cards: [permissionNames.managePaymentGateways],
   logs: [permissionNames.viewAudit, permissionNames.viewDiagnostics],
   settings: [
@@ -97,10 +99,8 @@ export const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = 
     permissionNames.manageUpdateRollouts,
     permissionNames.manageTariffs
   ],
-  review: [permissionNames.approveMoneyAction],
   loyalty: [permissionNames.manageLoyaltySettings],
-  news: [permissionNames.manageNews],
-  shifts: [permissionNames.viewReports]
+  news: [permissionNames.manageNews]
 };
 
 export function hasPermission(session: OperatorAuthSession | null, permission: string) {

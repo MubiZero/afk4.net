@@ -299,8 +299,8 @@ export function DashboardWorkspace({
 
   const controlCards: Array<[WorkspaceId, string, string, string, LucideIcon]> = [
     ['map', t('op.dashboard.card.map'), t('op.dashboard.pcs', { count: totalPcs }), t('op.dashboard.signals', { count: attentionCount }), MonitorCheck],
-    ['pos', t('op.dashboard.card.sales'), t('op.dashboard.checks', { count: posChecks }), t('op.dashboard.forPeriod', { period: activePeriodLabel }), ReceiptText],
-    ['payments', t('op.dashboard.card.cash'), formatMinorUnits(totalRevenue.minorUnits, totalRevenue.currencyCode), t('op.dashboard.forPeriod', { period: activePeriodLabel }), CircleDollarSign],
+    ['cash', t('op.dashboard.card.sales'), t('op.dashboard.checks', { count: posChecks }), t('op.dashboard.forPeriod', { period: activePeriodLabel }), ReceiptText],
+    ['cash', t('op.dashboard.card.cash'), formatMinorUnits(totalRevenue.minorUnits, totalRevenue.currencyCode), t('op.dashboard.forPeriod', { period: activePeriodLabel }), CircleDollarSign],
     ['players', t('op.dashboard.card.client'), t('op.dashboard.newClients', { count: newClients }), t('op.dashboard.forPeriod', { period: activePeriodLabel }), UserRoundPlus]
   ];
 

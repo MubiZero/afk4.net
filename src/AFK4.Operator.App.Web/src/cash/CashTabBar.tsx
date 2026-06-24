@@ -5,14 +5,16 @@ export type CashTab = 'sales' | 'orders' | 'payments' | 'shifts' | 'review';
 export function CashTabBar({
   tabs,
   activeTab,
-  onSelect
+  onSelect,
+  label
 }: {
   tabs: { id: CashTab; label: string }[];
   activeTab: CashTab;
   onSelect: (id: CashTab) => void;
+  label?: string;
 }) {
   return (
-    <div className="cash-tabs" role="tablist">
+    <div className="cash-tabs" role="tablist" aria-label={label}>
       {tabs.map((tab) => (
         <button
           key={tab.id}
