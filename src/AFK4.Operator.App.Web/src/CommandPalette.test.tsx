@@ -74,7 +74,7 @@ describe('CommandPalette', () => {
 
   it('hides screens the session cannot open (cashier has no management screen)', () => {
     renderPalette(cashierPerms);
-    expect(screen.getByText('Продажи')).toBeDefined();
+    expect(screen.getByText('Касса')).toBeDefined();
     expect(screen.queryByText('Настройки')).toBeNull();
   });
 });

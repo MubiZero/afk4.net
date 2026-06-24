@@ -7,17 +7,13 @@ import { WorkspaceErrorBoundary } from './WorkspaceErrorBoundary';
 import { MapWorkspace } from './MapWorkspace';
 import { DashboardWorkspace } from './DashboardWorkspace';
 import { BackendBookingWorkspace } from './BackendBookingWorkspace';
-import { BackendPosWorkspace } from './BackendPosWorkspace';
-import { ShopOrdersWorkspace } from './ShopOrdersWorkspace';
+import { CashWorkspace } from './cash/CashWorkspace';
 import { BackendPlayersWorkspace } from './BackendPlayersWorkspace';
-import { BackendPaymentsWorkspace } from './BackendPaymentsWorkspace';
 import { PaymentGatewaysWorkspace } from './PaymentGatewaysWorkspace';
 import { BackendLogsWorkspace } from './BackendLogsWorkspace';
 import { BackendSettingsWorkspace } from './BackendSettingsWorkspace';
-import { ReviewWorkspace } from './ReviewWorkspace';
 import { LoyaltySettingsWorkspace } from './LoyaltySettingsWorkspace';
 import { NewsWorkspace } from './NewsWorkspace';
-import { ShiftsWorkspace } from './ShiftsWorkspace';
 
 // Маршрутизатор контента: какой экран показать под активным workspace. Обёрнут в
 // WorkspaceErrorBoundary с key={workspace} — переключение раздела сбрасывает границу ошибок.
@@ -91,24 +87,18 @@ export function WorkspaceRouter({
           onOpenSeat={onOpenSeat}
         />
       )}
-      {workspace === 'pos' && <BackendPosWorkspace currencyCode={currencyCode} backend={backend} />}
-      {workspace === 'shop_orders' && <ShopOrdersWorkspace backend={backend} />}
+      {workspace === 'cash' && <CashWorkspace currencyCode={currencyCode} backend={backend} session={session} />}
       {workspace === 'players' && <BackendPlayersWorkspace currencyCode={currencyCode} backend={backend} />}
-      {workspace === 'payments' && <BackendPaymentsWorkspace currencyCode={currencyCode} backend={backend} />}
       {workspace === 'payment_cards' && backend !== null && (
         <PaymentGatewaysWorkspace backend={backend} />
       )}
       {workspace === 'logs' && <BackendLogsWorkspace currencyCode={currencyCode} backend={backend} />}
       {workspace === 'settings' && <BackendSettingsWorkspace currencyCode={currencyCode} backend={backend} />}
-      {workspace === 'review' && <ReviewWorkspace currencyCode={currencyCode} backend={backend} />}
       {workspace === 'loyalty' && backend !== null && (
         <LoyaltySettingsWorkspace backend={backend} />
       )}
       {workspace === 'news' && backend !== null && (
         <NewsWorkspace backend={backend} />
-      )}
-      {workspace === 'shifts' && backend !== null && (
-        <ShiftsWorkspace backend={backend} branchId={backend.branchId} currencyCode={currencyCode} />
       )}
     </WorkspaceErrorBoundary>
   );

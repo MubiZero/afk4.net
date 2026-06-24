@@ -1,0 +1,63 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useI18n } from '@afk4/i18n';
+import { createAuthenticatedOperatorClients, formatMoney } from '../operatorHelpers';
+import { StateFlag } from '../operatorPrimitives';
+import type { OperatorBackendContext } from '../operatorTypes';
+import type { ShiftRevenueDto } from '../operatorApiClients';
+import { buildCashHeader } from './cashModel';
+
+interface ShiftRevenueReader {
+  current(branchId: string): Promise<ShiftRevenueDto | null>;
+}
+
+// Якорь раздела «Касса»: статус текущей смены виден из любой вкладки. На S0 — read-only
+// (кнопки Открыть/Закрыть/Внести/Изъять добавляет S1). Грузит revenue best-effort: ошибка → «нет смены».
+export function CashShiftHeader({
+  backend,
+  currencyCode,
+  client: injectedClient
+}: {
+  backend: OperatorBackendContext | null;
+  currencyCode: string;
+  client?: ShiftRevenueReader;
+}) {
+  const { t } = useI18n();
+  // Боевой клиент строим только когда нет инжектнутого (тесты подают injectedClient с фейковым
+  // backend, на котором createAuthenticatedOperatorClients падать не должен). injectedClient — в deps.
+  const memoizedClient = useMemo(
+    () => (backend && !injectedClient ? createAuthenticatedOperatorClients(backend.config, backend.session).shiftRevenue : null),
+    [backend?.config, backend?.session, injectedClient]
+  );
+  const client = injectedClient ?? memoizedClient;
+  const [revenue, setRevenue] = useState<ShiftRevenueDto | null>(null);
+
+  useEffect(() => {
+    if (client === null || backend === null) return undefined;
+    let active = true;
+    setRevenue(null);
+    client.current(backend.branchId)
+      .then((cur) => { if (active) setRevenue(cur); })
+      .catch(() => { if (active) setRevenue(null); });
+    return () => { active = false; };
+  }, [client, backend?.branchId]);
+
+  const header = buildCashHeader(revenue);
+
+  return (
+    <section className="cash-head">
+      <h1>
+        <strong className="cash-head-name">{t('op.cash.title')}</strong>
+        {' · '}
+        <span className="cash-head-tagline">
+          {header.isOpen ? t('op.cash.header.open') : t('op.cash.header.closed')}
+        </span>
+      </h1>
+      {header.isOpen && (
+        <div className="cash-head-metrics">
+          <StateFlag label={t('op.cash.metric.inHand')} value={formatMoney(header.cashInHand, currencyCode)} />
+          <StateFlag label={t('op.cash.metric.revenue')} value={formatMoney(header.revenueTotal, currencyCode)} />
+        </div>
+      )}
+    </section>
+  );
+}

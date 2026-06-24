@@ -49,6 +49,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.booking.fallback.zeroSeats',
     'op.booking.seatsOne',
     'op.booking.source.operator',
+    'op.cash.title',
     'op.command.stage.cashier',
     'op.dashboard.pcs',
     'op.dashboard.signalsShort',

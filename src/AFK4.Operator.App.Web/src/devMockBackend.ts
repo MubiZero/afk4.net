@@ -87,6 +87,18 @@ function currentShift() {
   };
 }
 
+function currentShiftRevenue() {
+  const m = (minorUnits: number) => money(minorUnits);
+  return {
+    shiftId: 'sh1', organizationId: ORG, branchId: BRANCH,
+    openedByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', closedByStaffUserId: null, state: 'open',
+    earned: { time: m(82000), goods: m(41000), total: m(123000) },
+    inflow: { cash: m(90000), nonCash: m(33000), walletTopUps: m(15000), directTotal: m(123000) },
+    cash: { starting: m(100000), expected: m(190000), counted: null, difference: null },
+    openedAtUtc: '2026-05-21T08:00:00Z', closedAtUtc: null
+  };
+}
+
 function posProduct() {
   return {
     productId: 'prod1', organizationId: ORG, branchId: BRANCH, categoryId: 'cat1',
@@ -238,6 +250,8 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/tariffs/options')) return tariffOptions();
   if (pathname.endsWith('/floor-map')) return floorMap();
   if (pathname.endsWith('/dashboard/summary')) return dashboardSummary();
+  if (pathname.endsWith('/shifts/revenue/current')) return currentShiftRevenue();
+  if (pathname.endsWith('/shifts/revenue')) return { shifts: [], limit: 20 };
   if (pathname.endsWith('/shifts/current')) return currentShift();
   if (pathname.endsWith('/pos/catalog')) return [posProduct()];
   if (pathname.endsWith('/reservations') && method === 'GET') return { reservations: reservations(), limit: 40 };
