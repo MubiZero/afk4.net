@@ -68,7 +68,7 @@ function makeFixtureProducts(t: ReturnType<typeof useI18n>['t']): PosCatalogItem
   ];
 }
 
-function projectPosProduct(product: PosProductDto, currencyCode: string, t: ReturnType<typeof useI18n>['t']): PosCatalogItem {
+function projectPosProduct(product: PosProductDto, t: ReturnType<typeof useI18n>['t']): PosCatalogItem {
   const price = readMoney(product, 'price');
   const sku = readString(product, 'sku', 'SKU');
   const stockOnHand = readNumber(product, 'stockOnHand', 0);
@@ -79,7 +79,9 @@ function projectPosProduct(product: PosProductDto, currencyCode: string, t: Retu
     category: readString(product, 'categoryName', readString(product, 'categoryId', t('op.pos.catalog.categoryFallback'))),
     note: t('op.pos.catalog.note', { sku, count: stockOnHand }),
     stockOnHand,
-    source: price?.currencyCode === currencyCode || price !== null ? 'backend' : 'backend'
+    // projectPosProduct обрабатывает только реальные бэкенд-продукты (фикстуры идут через
+    // makeFixtureProducts с source:'fixture'), поэтому источник всегда 'backend'.
+    source: 'backend'
   };
 }
 
@@ -144,7 +146,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
       ]);
 
       const products = Array.isArray(nextCatalog)
-        ? nextCatalog.map((product) => projectPosProduct(product, currencyCode, t))
+        ? nextCatalog.map((product) => projectPosProduct(product, t))
         : [];
 
       const backendProducts = products.filter((product) => product.source === 'backend' && product.productId);
