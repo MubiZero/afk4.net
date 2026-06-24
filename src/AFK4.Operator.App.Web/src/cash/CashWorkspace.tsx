@@ -5,8 +5,7 @@ import type { OperatorBackendContext } from '../operatorTypes';
 import { visibleCashTabs } from './cashModel';
 import { CashShiftHeader } from './CashShiftHeader';
 import { CashTabBar, type CashTab } from './CashTabBar';
-import { BackendPosWorkspace } from '../BackendPosWorkspace';
-import { ShopOrdersWorkspace } from '../ShopOrdersWorkspace';
+import { CashSalesWorkspace } from './CashSalesWorkspace';
 import { CashShiftWorkspace } from './CashShiftWorkspace';
 import { CashJournalWorkspace } from './CashJournalWorkspace';
 
@@ -27,8 +26,7 @@ export function CashWorkspace({
 
   const visible = new Set(visibleCashTabs(session));
   const allTabs: { id: CashTab; label: string }[] = [
-    { id: 'sales', label: t('op.shell.nav.pos') },
-    { id: 'orders', label: t('op.shell.nav.shop_orders') },
+    { id: 'sales', label: t('op.cash.sales.tab') },
     { id: 'shift', label: t('op.cash.tab.shift') },
     { id: 'journal', label: t('op.cash.journal.tab') }
   ];
@@ -45,8 +43,7 @@ export function CashWorkspace({
       />
       <CashTabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} label={t('op.shell.navGroup.cashier')} />
       <div className="cash-tab-content">
-        {activeTab === 'sales' && <BackendPosWorkspace currencyCode={currencyCode} backend={backend} />}
-        {activeTab === 'orders' && <ShopOrdersWorkspace backend={backend} />}
+        {activeTab === 'sales' && <CashSalesWorkspace backend={backend} currencyCode={currencyCode} session={session} />}
         {activeTab === 'shift' && backend !== null && (
           <CashShiftWorkspace backend={backend} branchId={backend.branchId} currencyCode={currencyCode} shiftNonce={shiftNonce} />
         )}

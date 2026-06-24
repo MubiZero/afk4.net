@@ -2160,8 +2160,6 @@
   "op.shell.nav.map": "Map",
   "op.shell.nav.dashboard": "Dashboard",
   "op.shell.nav.booking": "Bookings",
-  "op.shell.nav.pos": "Sales",
-  "op.shell.nav.shop_orders": "Orders",
   "op.shell.nav.players": "Clients",
   "op.shell.nav.payments": "Payments",
   "op.shell.nav.payment_cards": "Accept payments",
