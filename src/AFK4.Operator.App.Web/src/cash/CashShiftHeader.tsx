@@ -77,6 +77,7 @@ export function CashShiftHeader({
         isOpen={header.isOpen}
         expectedCash={header.cashInHand}
         currencyCode={currencyCode}
+        revenue={revenue}
         onShiftChanged={onShiftChanged}
         actions={actions}
       />

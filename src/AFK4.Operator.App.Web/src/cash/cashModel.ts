@@ -18,10 +18,10 @@ const CASH_TAB_PERMISSIONS: Record<CashTab, readonly string[]> = {
   sales: [permissionNames.createPosSale, permissionNames.payPosSale, permissionNames.refundPosSale, permissionNames.voidPosSale],
   orders: [permissionNames.createPosSale],
   shift: [permissionNames.viewShift, permissionNames.openShift, permissionNames.closeShift, permissionNames.manageShiftCash, permissionNames.viewReports],
-  review: [permissionNames.approveMoneyAction]
+  journal: [permissionNames.approveMoneyAction, permissionNames.viewReports, permissionNames.viewShift, permissionNames.manageShiftCash]
 };
 
-const CASH_TAB_ORDER: CashTab[] = ['sales', 'orders', 'shift', 'review'];
+const CASH_TAB_ORDER: CashTab[] = ['sales', 'orders', 'shift', 'journal'];
 
 export function visibleCashTabs(session: OperatorAuthSession | null): CashTab[] {
   return CASH_TAB_ORDER.filter((id) => hasAnyPermission(session, CASH_TAB_PERMISSIONS[id]));

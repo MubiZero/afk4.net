@@ -8,7 +8,7 @@ import { CashTabBar, type CashTab } from './CashTabBar';
 import { BackendPosWorkspace } from '../BackendPosWorkspace';
 import { ShopOrdersWorkspace } from '../ShopOrdersWorkspace';
 import { CashShiftWorkspace } from './CashShiftWorkspace';
-import { ReviewWorkspace } from '../ReviewWorkspace';
+import { CashJournalWorkspace } from './CashJournalWorkspace';
 
 // Единый раздел «Касса» = шапка-якорь смены (статус + командная панель) + под-вкладки.
 // S1: payments+shifts слиты во вкладку «Смена» (shift); действия смены живут в шапке.
@@ -30,7 +30,7 @@ export function CashWorkspace({
     { id: 'sales', label: t('op.shell.nav.pos') },
     { id: 'orders', label: t('op.shell.nav.shop_orders') },
     { id: 'shift', label: t('op.cash.tab.shift') },
-    { id: 'review', label: t('op.shell.nav.review') }
+    { id: 'journal', label: t('op.cash.journal.tab') }
   ];
   const tabs = allTabs.filter((tab) => visible.has(tab.id));
 
@@ -50,7 +50,7 @@ export function CashWorkspace({
         {activeTab === 'shift' && backend !== null && (
           <CashShiftWorkspace backend={backend} branchId={backend.branchId} currencyCode={currencyCode} shiftNonce={shiftNonce} />
         )}
-        {activeTab === 'review' && <ReviewWorkspace currencyCode={currencyCode} backend={backend} />}
+        {activeTab === 'journal' && <CashJournalWorkspace backend={backend} currencyCode={currencyCode} session={session} />}
       </div>
     </main>
   );

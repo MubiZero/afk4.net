@@ -8,21 +8,21 @@ const tabs: { id: CashTab; label: string }[] = [
   { id: 'sales', label: 'Продажи' },
   { id: 'orders', label: 'Заказы' },
   { id: 'shift', label: 'Смена' },
-  { id: 'review', label: 'Проверка' }
+  { id: 'journal', label: 'Журнал кассы' }
 ];
 
 describe('CashTabBar', () => {
   it('рендерит все вкладки, активная помечена aria-selected', () => {
     render(<CashTabBar tabs={tabs} activeTab="sales" onSelect={() => {}} />);
-    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Продажи', 'Заказы', 'Смена', 'Проверка']);
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Продажи', 'Заказы', 'Смена', 'Журнал кассы']);
     expect(screen.getByRole('tab', { name: 'Продажи' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: 'Проверка' })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('tab', { name: 'Журнал кассы' })).toHaveAttribute('aria-selected', 'false');
   });
 
   it('клик по вкладке вызывает onSelect с её id', () => {
     const onSelect = mock(() => {});
     render(<CashTabBar tabs={tabs} activeTab="sales" onSelect={onSelect} />);
-    fireEvent.click(screen.getByRole('tab', { name: 'Проверка' }));
-    expect(onSelect).toHaveBeenCalledWith('review');
+    fireEvent.click(screen.getByRole('tab', { name: 'Журнал кассы' }));
+    expect(onSelect).toHaveBeenCalledWith('journal');
   });
 });

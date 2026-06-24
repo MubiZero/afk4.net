@@ -1,4 +1,4 @@
-export type CashTab = 'sales' | 'orders' | 'shift' | 'review';
+export type CashTab = 'sales' | 'orders' | 'shift' | 'journal';
 
 // Презентационная полоса под-вкладок раздела «Касса». Вынесена из CashWorkspace, чтобы
 // тестироваться изолированно — без рендера тяжёлых дочерних воркспейсов и без mock.module.

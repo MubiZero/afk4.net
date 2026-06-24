@@ -49,7 +49,7 @@ function reviewExpiryBadge(expiresAtUtc: string, nowMs: number, t: (key: Message
   return null;
 }
 
-export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
+export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { currencyCode: string; backend: OperatorBackendContext | null; embedded?: boolean }) {
   const { t } = useI18n();
   const [activeSegment, setActiveSegment] = useState<ReviewSegment>('queue');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
@@ -171,17 +171,19 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
   const auditRecords = readArray<Record<string, unknown>>(auditResult, 'records');
   const staffOptions = Object.entries(staffNames);
 
-  return (
-    <main className="workspace-screen review-screen">
-      <section className="screen-head review-head">
-        <div>
-          <span>{t('op.review.title')}</span>
-          <h1>{t('op.review.heading')}</h1>
-        </div>
-        <div className="screen-actions">
-          <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.review.loadedLabel'), t)}</span>
-        </div>
-      </section>
+  const body = (
+    <>
+      {!embedded && (
+        <section className="screen-head review-head">
+          <div>
+            <span>{t('op.review.title')}</span>
+            <h1>{t('op.review.heading')}</h1>
+          </div>
+          <div className="screen-actions">
+            <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>{workspaceLoadStatusLabel(loadStatus, t('op.review.loadedLabel'), t)}</span>
+          </div>
+        </section>
+      )}
 
       <section className="state-strip review-state-strip" aria-label={t('op.review.summaryLabel')}>
         <StateFlag label={t('op.review.flagRequests')} value={String(requests.length)} critical={requests.length > 0} />
@@ -271,6 +273,7 @@ export function ReviewWorkspace({ currencyCode, backend }: { currencyCode: strin
           <FeedbackNotice feedback={feedback} />
         </section>
       )}
-    </main>
+    </>
   );
+  return embedded ? <section className="review-embed">{body}</section> : <main className="workspace-screen review-screen">{body}</main>;
 }
