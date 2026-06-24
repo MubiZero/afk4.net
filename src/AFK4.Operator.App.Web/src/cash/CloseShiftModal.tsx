@@ -1,10 +1,11 @@
 import { useI18n } from '@afk4/i18n';
 import { Lock } from 'lucide-react';
 import { PanelModal } from '../PanelModal';
-import { formatMoney, parseMoneyInputMinorUnits } from '../operatorHelpers';
+import { formatMoney, parseNonNegativeMoneyInputMinorUnits } from '../operatorHelpers';
 
 // Презентационная модалка закрытия смены со сверкой. Превью расхождения = факт − ожидается,
-// считается живо при валидном вводе. Критичное действие (tone="danger"). Реальный вызов — снаружи.
+// считается живо при валидном вводе (включая 0 — реально пустая касса валидна).
+// Критичное действие (tone="danger"). Реальный вызов — снаружи.
 export function CloseShiftModal({
   expectedCash,
   counted,
@@ -27,7 +28,7 @@ export function CloseShiftModal({
   busy: boolean;
 }) {
   const { t } = useI18n();
-  const countedMinor = parseMoneyInputMinorUnits(counted);
+  const countedMinor = parseNonNegativeMoneyInputMinorUnits(counted);
   const difference =
     countedMinor === null || expectedCash === null
       ? null
@@ -46,7 +47,7 @@ export function CloseShiftModal({
           <div><span>{t('op.cash.close.expected')}</span><strong>{formatMoney(expectedCash, currencyCode)}</strong></div>
           <div className={difference && difference.minorUnits !== 0 ? 'attention' : undefined}>
             <span>{t('op.cash.close.difference')}</span>
-            <strong>{formatMoney(difference, currencyCode)}</strong>
+            <strong>{difference === null ? '—' : formatMoney(difference, currencyCode)}</strong>
           </div>
         </div>
         <label htmlFor="close-shift-counted">{t('op.cash.close.countedLabel')}</label>

@@ -45,4 +45,15 @@ describe('CloseShiftModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Закрыть смену' }));
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
+
+  it('при counted="" расхождение показывает «—» (пустой/невалидный ввод)', () => {
+    renderModal({ counted: '' });
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('при counted="0" расхождение = 0 − 115 = −115 с. (formatMoney даёт «-115 с.»)', () => {
+    renderModal({ counted: '0' });
+    // -11500 minor TJS → '-115 с.' (ASCII дефис, без дробной части)
+    expect(screen.getByText('-115 с.')).toBeInTheDocument();
+  });
 });

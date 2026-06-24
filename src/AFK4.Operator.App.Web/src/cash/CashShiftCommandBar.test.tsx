@@ -1,0 +1,92 @@
+import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { I18nProvider } from '@afk4/i18n';
+import { CashShiftCommandBar, type CashShiftActionsClient } from './CashShiftCommandBar';
+import type { OperatorAuthSession } from '../authClient';
+
+afterEach(cleanup);
+
+const backend = { config: { platformBaseUrl: 'x' }, session: { accessToken: 't', organizationId: 'org1' }, branchId: 'b1' } as never;
+const allPerms = ['shifts.open', 'shifts.close', 'shifts.cash.manage'];
+const session = (perms: string[]) => ({ permissions: perms, organizationId: 'org1' } as unknown as OperatorAuthSession);
+
+function fakeActions(): CashShiftActionsClient & { calls: Record<string, unknown[]> } {
+  const calls: Record<string, unknown[]> = { open: [], movement: [], close: [] };
+  return {
+    calls,
+    openShift: mock(async (branchId: string, request: unknown) => { calls.open.push({ branchId, request }); return {}; }),
+    recordCashMovement: mock(async (shiftId: string, request: unknown) => { calls.movement.push({ shiftId, request }); return {}; }),
+    closeShift: mock(async (shiftId: string, request: unknown) => { calls.close.push({ shiftId, request }); return {}; })
+  };
+}
+
+function renderBar(opts: { isOpen: boolean; perms?: string[]; actions?: CashShiftActionsClient; onShiftChanged?: () => void }) {
+  render(
+    <I18nProvider initialLocale="ru">
+      <CashShiftCommandBar
+        backend={backend}
+        session={session(opts.perms ?? allPerms)}
+        shiftId={opts.isOpen ? 's1' : null}
+        isOpen={opts.isOpen}
+        expectedCash={{ currencyCode: 'TJS', minorUnits: 11500 }}
+        currencyCode="TJS"
+        onShiftChanged={opts.onShiftChanged ?? (() => {})}
+        actions={opts.actions}
+      />
+    </I18nProvider>
+  );
+}
+
+describe('CashShiftCommandBar', () => {
+  it('закрытая смена → только кнопка «Открыть смену»', () => {
+    renderBar({ isOpen: false });
+    expect(screen.getByRole('button', { name: 'Открыть смену' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Внести' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Закрыть смену' })).not.toBeInTheDocument();
+  });
+
+  it('открытая смена → Внести/Изъять/Закрыть, без «Открыть»', () => {
+    renderBar({ isOpen: true });
+    expect(screen.getByRole('button', { name: 'Внести' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Изъять' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Закрыть смену' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Открыть смену' })).not.toBeInTheDocument();
+  });
+
+  it('права гейтят кнопки: без shifts.open закрытая смена не даёт «Открыть»', () => {
+    renderBar({ isOpen: false, perms: [] });
+    expect(screen.queryByRole('button', { name: 'Открыть смену' })).not.toBeInTheDocument();
+  });
+
+  it('открытие смены: модалка → submit → openShift с payload + onShiftChanged', async () => {
+    const actions = fakeActions();
+    const onShiftChanged = mock(() => {});
+    renderBar({ isOpen: false, actions, onShiftChanged });
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть смену' }));
+    // в модалке поля предзаполнены; меняем старт наличных
+    fireEvent.change(screen.getByLabelText('Старт наличных'), { target: { value: '150.00' } });
+    // После открытия модалки есть ДВЕ кнопки «Открыть смену» — ищем submit внутри диалога
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Открыть смену' }));
+    await waitFor(() => expect(actions.calls.open.length).toBe(1));
+    const { branchId, request } = actions.calls.open[0] as { branchId: string; request: Record<string, unknown> };
+    expect(branchId).toBe('b1');
+    expect(request).toMatchObject({ organizationId: 'org1', startingCash: { currencyCode: 'TJS', minorUnits: 15000 } });
+    expect(String(request.idempotencyKey)).toMatch(/^shift-open-/);
+    await waitFor(() => expect(onShiftChanged).toHaveBeenCalledTimes(1));
+  });
+
+  it('закрытие смены: модалка → submit → closeShift с countedCash', async () => {
+    const actions = fakeActions();
+    renderBar({ isOpen: true, actions });
+    fireEvent.click(screen.getByRole('button', { name: 'Закрыть смену' }));
+    fireEvent.change(screen.getByLabelText('Факт в кассе'), { target: { value: '115.00' } });
+    // После открытия модалки есть ДВЕ кнопки «Закрыть смену» — ищем submit внутри диалога
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Закрыть смену' }));
+    await waitFor(() => expect(actions.calls.close.length).toBe(1));
+    const { shiftId, request } = actions.calls.close[0] as { shiftId: string; request: Record<string, unknown> };
+    expect(shiftId).toBe('s1');
+    expect(request).toMatchObject({ countedCash: { currencyCode: 'TJS', minorUnits: 11500 } });
+  });
+});
