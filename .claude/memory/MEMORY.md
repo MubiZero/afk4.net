@@ -2,6 +2,7 @@
 
 ## Поведение / процесс
 - [Working style — bias to action](feedback_working_style.md) — внутри утверждённого плана выполнять задача-за-задачей без чек-инов; паузить только на блокерах/изменении объёма/деструктиве.
+- [Auto-merge authorized](afk4-auto-merge-authorized.md) — мержить слайс-PR самому после зелёного CI (PR #109 и последующие); полный цикл слайса автономен.
 - [«Открой превью» = дай ссылку](afk4-preview-means-give-link.md) — `bun run dev` → отдать URL (http://127.0.0.1:5174/), НЕ headless-скриншоты.
 - [TodoWrite → Task tools](tooling-todowrite-is-task-tools.md) — TodoWrite нет; использовать TaskCreate/TaskUpdate/TaskList.
 
