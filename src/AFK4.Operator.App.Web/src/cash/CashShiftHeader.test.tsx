@@ -26,7 +26,7 @@ const backend = { config: { platformBaseUrl: 'x' }, session: { accessToken: 't' 
 
 function renderHeader(current: ShiftRevenueDto | null) {
   return render(
-    <I18nProvider locale="ru">
+    <I18nProvider initialLocale="ru">
       <CashShiftHeader backend={backend} currencyCode="TJS" client={{ current: async () => current }} />
     </I18nProvider>
   );

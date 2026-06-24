@@ -2,13 +2,12 @@ import { useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { OperatorBackendContext } from '../operatorTypes';
 import { CashShiftHeader } from './CashShiftHeader';
+import { CashTabBar, type CashTab } from './CashTabBar';
 import { BackendPosWorkspace } from '../BackendPosWorkspace';
 import { ShopOrdersWorkspace } from '../ShopOrdersWorkspace';
 import { BackendPaymentsWorkspace } from '../BackendPaymentsWorkspace';
 import { ShiftsWorkspace } from '../ShiftsWorkspace';
 import { ReviewWorkspace } from '../ReviewWorkspace';
-
-export type CashTab = 'sales' | 'orders' | 'payments' | 'shifts' | 'review';
 
 // S0: единый раздел «Касса» = шапка-якорь смены + под-вкладки, переносящие существующие
 // воркспейсы 1:1 (без слияния контента). Слияние Платежи+Смены → S1, Продажи+Заказы → S3.
@@ -33,20 +32,7 @@ export function CashWorkspace({
   return (
     <main className="workspace-screen cash-screen">
       <CashShiftHeader backend={backend} currencyCode={currencyCode} />
-      <div className="cash-tabs" role="tablist">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            className={`cash-tab${activeTab === tab.id ? ' active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <CashTabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} />
       <div className="cash-tab-content">
         {activeTab === 'sales' && <BackendPosWorkspace currencyCode={currencyCode} backend={backend} />}
         {activeTab === 'orders' && <ShopOrdersWorkspace backend={backend} />}
