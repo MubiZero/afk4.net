@@ -2153,6 +2153,8 @@
   "op.stock.summary.orderTitle": "Фармоиш диҳед",
   "op.stock.summary.orderBtn": "Қабул кардан",
   "op.stock.summary.orderBtnSoon": "Қабул — ба зудӣ",
+  "op.stock.action.receive": "Қабули мол",
+  "op.stock.action.writeOff": "Ҳисоб кардани мол",
   "op.command.menuLabel": "Менюи зуд",
   "op.command.menuButton": "Сохтан",
   "op.command.group.sessions_clients": "Ҷаласаҳо ва муштариён",

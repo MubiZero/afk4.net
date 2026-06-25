@@ -93,7 +93,7 @@ export function StockLevelsWorkspace({
   }
 
   const filtered = items.filter((item) => {
-    if (filter === 'low') return stockStatus(item) === 'low';
+    if (filter === 'low') { const s = stockStatus(item); return s === 'low' || s === 'out'; }
     if (filter === 'out') return stockStatus(item) === 'out';
     return true;
   }).filter((item) => {
@@ -105,8 +105,6 @@ export function StockLevelsWorkspace({
   const summary = summarize(items);
   const orderItems = items.filter((i) => stockStatus(i) !== 'ok');
 
-  const lowCount = items.filter((i) => filter === 'low').length || summary.lowCount;
-  const outCount = items.filter((i) => filter === 'out').length || summary.outCount;
 
   return (
     <div className="stock-layout">
@@ -118,29 +116,27 @@ export function StockLevelsWorkspace({
             <button
               type="button"
               className={filter === 'all' ? 'on' : ''}
-              aria-label={`${t('op.stock.filter.all')} · ${items.length}`}
               aria-pressed={filter === 'all'}
               onClick={() => setFilter('all')}
-              data-count={items.length}
             >
               {t('op.stock.filter.all')} · {items.length}
             </button>
             <button
               type="button"
               className={filter === 'low' ? 'on' : ''}
-              aria-label={t('op.stock.filter.low')}
               aria-pressed={filter === 'low'}
               onClick={() => setFilter('low')}
-              data-count={summary.lowCount}
-            />
+            >
+              {t('op.stock.filter.low')} · {summary.lowCount}
+            </button>
             <button
               type="button"
               className={filter === 'out' ? 'on' : ''}
-              aria-label={t('op.stock.filter.out')}
               aria-pressed={filter === 'out'}
               onClick={() => setFilter('out')}
-              data-count={summary.outCount}
-            />
+            >
+              {t('op.stock.filter.out')} · {summary.outCount}
+            </button>
           </div>
           <div className="panel-search">
             <input
@@ -219,8 +215,8 @@ export function StockLevelsWorkspace({
                     </div>
                     {/* Действия (S0 — заглушки) */}
                     <div className="rowact">
-                      <button type="button" className="iact" disabled title={t('op.stock.summary.orderBtnSoon')} aria-label="+" aria-disabled="true">＋</button>
-                      <button type="button" className="iact minus" disabled title={t('op.stock.summary.orderBtnSoon')} aria-label="−" aria-disabled="true">−</button>
+                      <button type="button" className="iact" disabled title={t('op.stock.summary.orderBtnSoon')} aria-label={t('op.stock.action.receive')} aria-disabled="true">＋</button>
+                      <button type="button" className="iact minus" disabled title={t('op.stock.summary.orderBtnSoon')} aria-label={t('op.stock.action.writeOff')} aria-disabled="true">−</button>
                     </div>
                   </div>
                 </li>
@@ -259,8 +255,7 @@ export function StockLevelsWorkspace({
               const s = stockStatus(item);
               return (
                 <div key={item.productId} className="order-item" title={item.name}>
-                  {/* data-name: рендерим через CSS attr() чтобы не дублировать текст в DOM */}
-                  <strong className="order-item-name" data-name={item.name} />
+                  <strong className="order-item-name">{item.name}</strong>
                   <span className={`oq ${s}`}>{item.stockOnHand}/{item.reorderThreshold}</span>
                 </div>
               );
