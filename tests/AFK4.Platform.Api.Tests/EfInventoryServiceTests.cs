@@ -486,6 +486,49 @@ public sealed class EfInventoryServiceTests
         Assert.Equal(StockMovementTypeNames.Adjustment, movement.MovementType);
     }
 
+    [Fact]
+    public async Task Purchase_SetsAvgCost_OnFirstReceipt()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var product = await CreateTrackedProductAsync(service);
+        await service.CreateStockMovementAsync(TestIds.BranchId, ActorStaffUserId, new CreateStockMovementRequest(
+            TestIds.OrganizationId, product.ProductId, StockMovementTypeNames.Purchase,
+            10, new MoneyDto("TJS", 400), "поставка", "buy-1"), CancellationToken.None);
+        var entity = await db.PosProducts.SingleAsync(p => p.ProductId == product.ProductId);
+        Assert.Equal(400, entity.AvgCostMinorUnits);
+    }
+
+    [Fact]
+    public async Task Purchase_RecomputesWeightedAverage()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var product = await CreateTrackedProductAsync(service);
+        // 10 @ 400  → avg 400
+        await service.CreateStockMovementAsync(TestIds.BranchId, ActorStaffUserId, new CreateStockMovementRequest(
+            TestIds.OrganizationId, product.ProductId, StockMovementTypeNames.Purchase, 10, new MoneyDto("TJS", 400), "p1", "buy-a"), CancellationToken.None);
+        // + 30 @ 600 → (10*400 + 30*600)/40 = 550
+        await service.CreateStockMovementAsync(TestIds.BranchId, ActorStaffUserId, new CreateStockMovementRequest(
+            TestIds.OrganizationId, product.ProductId, StockMovementTypeNames.Purchase, 30, new MoneyDto("TJS", 600), "p2", "buy-b"), CancellationToken.None);
+        var entity = await db.PosProducts.SingleAsync(p => p.ProductId == product.ProductId);
+        Assert.Equal(550, entity.AvgCostMinorUnits);
+    }
+
+    [Fact]
+    public async Task Sale_DoesNotChangeAvgCost()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var product = await CreateTrackedProductAsync(service);
+        await service.CreateStockMovementAsync(TestIds.BranchId, ActorStaffUserId, new CreateStockMovementRequest(
+            TestIds.OrganizationId, product.ProductId, StockMovementTypeNames.Purchase, 10, new MoneyDto("TJS", 400), "p", "buy-c"), CancellationToken.None);
+        await service.CreateStockMovementAsync(TestIds.BranchId, ActorStaffUserId, new CreateStockMovementRequest(
+            TestIds.OrganizationId, product.ProductId, StockMovementTypeNames.Sale, -2, new MoneyDto("TJS", 0), "чек", "sale-c"), CancellationToken.None);
+        var entity = await db.PosProducts.SingleAsync(p => p.ProductId == product.ProductId);
+        Assert.Equal(400, entity.AvgCostMinorUnits);
+    }
+
     private static PlatformDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()
