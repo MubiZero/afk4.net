@@ -16,4 +16,5 @@ public sealed record PosProductDto(
     int StockOnHand,
     DateTimeOffset CreatedAtUtc,
     int ReorderThreshold = 0,
-    bool AvailableInShell = false);
+    bool AvailableInShell = false,
+    long AvgCostMinorUnits = 0);

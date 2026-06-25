@@ -764,7 +764,8 @@ public sealed class EfInventoryService(
             stockOnHand,
             product.CreatedAtUtc,
             product.ReorderThreshold,
-            product.AvailableInShell);
+            product.AvailableInShell,
+            product.AvgCostMinorUnits);
     }
 
     private static StockMovementDto ToDto(StockMovementEntity movement)
