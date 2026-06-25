@@ -127,7 +127,7 @@ export function StockLevelsWorkspace({
               aria-pressed={filter === 'low'}
               onClick={() => setFilter('low')}
             >
-              {t('op.stock.filter.low')} · {summary.lowCount}
+              {t('op.stock.filter.low')} · {summary.lowCount + summary.outCount}
             </button>
             <button
               type="button"

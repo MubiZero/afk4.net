@@ -1,4 +1,4 @@
-import { readString, readNumber, readBoolean } from '../operatorHelpers';
+import { readString, readNumber, readBoolean, readMoney } from '../operatorHelpers';
 import type { PosProductDto } from '../api/clients/pos';
 
 export interface StockItem {
@@ -40,7 +40,7 @@ export function mapCatalogToStock(catalog: PosProductDto[]): StockItem[] {
       stockOnHand: readNumber(product, 'stockOnHand', 0),
       reorderThreshold: readNumber(product, 'reorderThreshold', 0),
       avgCostMinorUnits: readNumber(product, 'avgCostMinorUnits', 0),
-      priceMinorUnits: readNumber(product, 'priceMinorUnits', 0),
+      priceMinorUnits: readMoney(product, 'price')?.minorUnits ?? 0,
     }));
 }
 
