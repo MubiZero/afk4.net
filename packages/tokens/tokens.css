@@ -36,6 +36,11 @@
   --focus-ring: 0 0 0 3px var(--accent-ring);
   --focus-ring-danger: 0 0 0 3px rgba(220, 38, 38, 0.22);
 
+  /* Fonts — body = system humanist grotesk; mono = register/terminal readout for
+     all numerics (money, SKU, quantities, times). Stack is Windows-reliable
+     (Cascadia ships with Terminal/VS, Consolas is always present). */
+  --font-mono: "Cascadia Code", "Cascadia Mono", Consolas, "SF Mono", "Roboto Mono", ui-monospace, monospace;
+
   /* Type scale */
   --text-xs: 11px;
   --text-sm: 13px;

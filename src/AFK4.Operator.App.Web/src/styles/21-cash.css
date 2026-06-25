@@ -8,10 +8,23 @@
   gap: var(--space-2);
   min-height: var(--map-toolbar-h);
   margin-bottom: var(--space-2);
-  padding: 3px 9px;
+  padding: 3px var(--space-3);
   border: 1px solid var(--border-soft);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--surface-elevated);
+}
+/* Деньги шапки = язык тоталайзера: белый моноширинный ридаут (заголовочные деньги смены).
+   Янтарь зарезервирован за предупреждениями (низкий остаток), а не за суммами. */
+.cash-head-metrics .state-flag span {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 10px;
+  font-weight: 600;
+}
+.cash-head-metrics .state-flag strong {
+  color: var(--text-strong);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .cash-head h1 {
   flex: 1;
@@ -49,7 +62,26 @@
 .cash-tab:hover { color: var(--text-primary); }
 .cash-tab.active { color: var(--accent-bright); border-bottom-color: var(--accent); }
 .cash-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.cash-tab-content { min-height: 0; }
+/* Вертикальная цепочка высот раздела: оболочка даёт .cash-screen ограниченную высоту
+   (flex:1), дальше — флексом, без магических calc. Так встроенный POS и его нижние панели
+   («Последние чеки» / «Быстрые операции») не уезжают под нижний край вьюпорта. */
+.cash-screen {
+  display: flex;
+  flex-direction: column;
+}
+.cash-tab-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.cash-shift-screen,
+.cash-journal-screen,
+.cash-stock-screen {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
 
 /* S1: командная панель смены в шапке-якоре + формы модалок смены. */
 .cash-head-commands { display: flex; align-items: center; flex: none; gap: var(--space-2); }
@@ -199,39 +231,25 @@
 
 /* S3: вкладка «Продажи» = сегменты «Касса | Заказы» + встроенные POS/Заказы */
 .cash-sales-screen {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
 }
 
-/* Сегмент-бар идентичен журналу кассы (единый дизайн-стандарт) */
-.cash-sales-segments {
-  display: flex;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-  border-bottom: 1px solid var(--border-soft);
-}
-.cash-sales-segments button {
-  appearance: none;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: var(--space-1) var(--space-2);
-  min-height: var(--control-sm);
-  color: var(--text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-}
-.cash-sales-segments button:hover { color: var(--text-primary); }
-.cash-sales-segments button.active { color: var(--accent-bright); border-bottom-color: var(--accent); }
-.cash-sales-segments button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-/* Встроенные режимы: без паддинга/скролла уровня страницы — их даёт .cash-tab-content */
-.pos-embed,
-.shop-orders-embed {
+/* Встроенный POS заполняет контейнер флексом, а НЕ магическим calc отдельного экрана. */
+.pos-embed {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+.pos-embed .pos-layout {
+  height: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 /* Нотис ошибки экспорта CSV (Task 8) — компактный, не разрушающий лейаут */
@@ -240,3 +258,95 @@
   color: var(--danger, #d3403a);
   font-size: var(--text-sm);
 }
+
+/* Вкладка «Склад»: списание + остатки (язык кассы — карточки, моно-цифры). */
+.cash-stock-screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.cash-stock-writeoff,
+.cash-stock-levels {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--surface-elevated);
+}
+.cash-stock-writeoff h2,
+.cash-stock-levels h2 {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+.cash-stock-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) 96px minmax(0, 1.4fr) auto;
+  gap: var(--space-2);
+  align-items: end;
+}
+.cash-stock-form label { display: grid; min-width: 0; gap: var(--space-1); }
+.cash-stock-form span { color: var(--text-tertiary); font-size: var(--text-xs); }
+.cash-stock-form input,
+.cash-stock-form select {
+  min-width: 0;
+  height: var(--control-md);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-2);
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+.cash-stock-form input { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cash-stock-form button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  height: var(--control-md);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cash-stock-form button:disabled { cursor: not-allowed; border-color: var(--border-default); background: var(--surface-muted); color: var(--text-quaternary); }
+.cash-stock-ok { margin: 0; color: var(--accent-text); font-size: var(--text-sm); }
+
+.cash-stock-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.cash-stock-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-card);
+}
+.cash-stock-row svg { color: var(--text-tertiary); }
+.cash-stock-row strong { overflow: hidden; color: var(--text-primary); font-size: var(--text-sm); text-overflow: ellipsis; white-space: nowrap; }
+.cash-stock-row em { color: var(--text-quaternary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--text-xs); font-style: normal; }
+.cash-stock-row b { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--text-sm); }
+.cash-stock-row.low b { color: var(--warning); }
+.cash-stock-low-tag {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--warning);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* Сегмент «Чеки» в журнале: список переиспользует .pos-receipt-* (язык кассы). */
+.cash-receipts { display: flex; flex-direction: column; gap: var(--space-2); }
+.cash-receipts .pos-receipt-list { padding: 0; }
