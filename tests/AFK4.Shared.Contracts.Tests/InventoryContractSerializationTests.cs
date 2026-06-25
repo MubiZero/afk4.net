@@ -2,6 +2,7 @@ using System.Text.Json;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Inventory;
+using AFK4.Shared.Contracts.Pos;
 
 namespace AFK4.Shared.Contracts.Tests;
 
@@ -85,5 +86,18 @@ public sealed class InventoryContractSerializationTests
     {
         Assert.Equal("inventory.stock.manage", StaffPermissionNames.ManageInventoryStock);
         Assert.Equal("inventory.view", StaffPermissionNames.ViewInventory);
+    }
+
+    [Fact]
+    public void PosProductDto_RoundTrips_AvgCostMinorUnits()
+    {
+        var dto = new PosProductDto(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            "Snickers", "SNICKERS", new MoneyDto("TJS", 1000),
+            true, false, true, 15, DateTimeOffset.UnixEpoch,
+            ReorderThreshold: 10, AvailableInShell: false, AvgCostMinorUnits: 500);
+        var json = JsonSerializer.Serialize(dto);
+        var back = JsonSerializer.Deserialize<PosProductDto>(json);
+        Assert.Equal(500, back!.AvgCostMinorUnits);
     }
 }

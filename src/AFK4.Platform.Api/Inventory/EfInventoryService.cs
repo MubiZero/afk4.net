@@ -354,6 +354,27 @@ public sealed class EfInventoryService(
             };
 
             dbContext.StockMovements.Add(movement);
+
+            if (movement.MovementType == StockMovementTypeNames.Purchase)
+            {
+                // Stock-on-hand ДО этого прихода = сумма прежних дельт (movement ещё не учтён в БД-сумме на этот момент).
+                var priorQuantity = await dbContext.StockMovements
+                    .Where(existing =>
+                        existing.OrganizationId == product.OrganizationId &&
+                        existing.BranchId == product.BranchId &&
+                        existing.ProductId == product.ProductId &&
+                        existing.StockMovementId != movement.StockMovementId)
+                    .SumAsync(existing => (int?)existing.QuantityDelta, cancellationToken) ?? 0;
+                var basePrior = Math.Max(priorQuantity, 0);
+                var inboundQty = movement.QuantityDelta; // purchase > 0 (validation отвергает 0)
+                var denominator = basePrior + inboundQty;
+                product.AvgCostMinorUnits = denominator <= 0
+                    ? movement.UnitCostMinorUnits
+                    : (long)Math.Round(
+                        (basePrior * (double)product.AvgCostMinorUnits + inboundQty * (double)movement.UnitCostMinorUnits) / denominator,
+                        MidpointRounding.AwayFromZero);
+            }
+
             await dbContext.SaveChangesAsync(cancellationToken);
 
             if (lowStockNotifier is not null)
@@ -764,7 +785,8 @@ public sealed class EfInventoryService(
             stockOnHand,
             product.CreatedAtUtc,
             product.ReorderThreshold,
-            product.AvailableInShell);
+            product.AvailableInShell,
+            product.AvgCostMinorUnits);
     }
 
     private static StockMovementDto ToDto(StockMovementEntity movement)

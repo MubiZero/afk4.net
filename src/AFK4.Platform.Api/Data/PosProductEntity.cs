@@ -18,6 +18,9 @@ public sealed class PosProductEntity
 
     public long PriceMinorUnits { get; set; }
 
+    /// <summary>Средневзвешенная закупочная себестоимость единицы (minor units). Пересчитывается при purchase-движении.</summary>
+    public long AvgCostMinorUnits { get; set; }
+
     public bool TrackStock { get; set; }
 
     public bool AllowNegativeStock { get; set; }

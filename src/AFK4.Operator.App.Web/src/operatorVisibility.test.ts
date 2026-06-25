@@ -55,10 +55,10 @@ const rolePermissions: Record<string, string[]> = {
 // §2 contract: which rail sections (navSections[].key) each role may see.
 const expectedSections: Record<string, string[]> = {
   cashier_operator: ['map', 'booking', 'players', 'cashier'],
-  shift_supervisor: ['map', 'booking', 'players', 'cashier', 'reports'],
-  branch_manager: ['map', 'booking', 'players', 'cashier', 'reports', 'admin'],
-  technician: ['map', 'admin'],
-  accountant_auditor: ['booking', 'players', 'cashier', 'reports', 'admin']
+  shift_supervisor: ['map', 'booking', 'players', 'cashier', 'reports', 'stock'],
+  branch_manager: ['map', 'booking', 'players', 'cashier', 'reports', 'admin', 'stock'],
+  technician: ['map', 'admin', 'stock'],
+  accountant_auditor: ['booking', 'players', 'cashier', 'reports', 'admin', 'stock']
 };
 
 function visibleSections(permissions: string[]): string[] {
@@ -75,4 +75,21 @@ describe('role → visible rail sections (Этап 0 §2 contract)', () => {
       expect(visibleSections(rolePermissions[role])).toEqual([...expectedSections[role]].sort());
     });
   }
+});
+
+describe('stock workspace visibility', () => {
+  it('inventory.view grants access to stock workspace', () => {
+    const session = { permissions: ['inventory.view'] } as OperatorAuthSession;
+    expect(canOpenWorkspace(session, 'stock')).toBe(true);
+  });
+
+  it('inventory.stock.manage grants access to stock workspace', () => {
+    const session = { permissions: ['inventory.stock.manage'] } as OperatorAuthSession;
+    expect(canOpenWorkspace(session, 'stock')).toBe(true);
+  });
+
+  it('session without inventory permissions cannot open stock workspace', () => {
+    const session = { permissions: ['floor_map.view', 'sessions.view'] } as OperatorAuthSession;
+    expect(canOpenWorkspace(session, 'stock')).toBe(false);
+  });
 });
