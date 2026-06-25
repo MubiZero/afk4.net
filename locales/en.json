@@ -2122,6 +2122,8 @@
   "op.shell.navGroup.reports": "Reports",
   "op.shell.navGroup.management": "Management",
   "op.shell.navGroup.warehouse": "Stock",
+  "op.stock.title": "Stock",
+  "op.stock.tab.levels": "Levels",
   "op.command.menuLabel": "Quick menu",
   "op.command.menuButton": "Create",
   "op.command.group.sessions_clients": "Sessions and clients",

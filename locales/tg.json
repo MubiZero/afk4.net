@@ -2122,6 +2122,8 @@
   "op.shell.navGroup.reports": "Ҳисоботҳо",
   "op.shell.navGroup.management": "Идоракунӣ",
   "op.shell.navGroup.warehouse": "Анбор",
+  "op.stock.title": "Анбор",
+  "op.stock.tab.levels": "Бақияҳо",
   "op.command.menuLabel": "Менюи зуд",
   "op.command.menuButton": "Сохтан",
   "op.command.group.sessions_clients": "Ҷаласаҳо ва муштариён",
