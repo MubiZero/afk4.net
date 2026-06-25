@@ -2739,6 +2739,18 @@ describe('App', () => {
     expect(within(dialog).getByText('X-отчёт')).toBeInTheDocument();
     expect(within(dialog).getByText('Выручка смены')).toBeInTheDocument();
   });
+
+  it('opens the Склад rail section and shows the Остатки screen', async () => {
+    installSessionBridge();
+    render(<App />);
+
+    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    // Раздел «Склад» — одиночный элемент рейла, открывается прямым кликом (нет таб-секции).
+    gotoWorkspace('Склад');
+    // Экран Остатков: заголовок секции + кнопка фильтра «Все»
+    expect(await screen.findByText('Остатки на складе')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Все/ })).toBeInTheDocument();
+  });
 });
 
 async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
