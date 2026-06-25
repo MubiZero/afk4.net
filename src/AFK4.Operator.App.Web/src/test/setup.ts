@@ -35,7 +35,7 @@ configure({ asyncUtilTimeout: 5000 });
   __afk4RealOperatorApiClients?: typeof import('../operatorApiClients');
 }).__afk4RealOperatorApiClients = { ...(await import('../operatorApiClients')) };
 
-// Same hazard for operatorHelpers: ShopOrdersWorkspace's test installs a partial
+// Same hazard for operatorHelpers: PosOrdersTicker's test installs a partial
 // mock.module('./operatorHelpers') to stub createAuthenticatedOperatorClients. Snapshot the
 // genuine helpers here so that file can restore the real implementation afterwards.
 (globalThis as typeof globalThis & {

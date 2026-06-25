@@ -1,18 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowRightLeft, Banknote, Check, CircleDollarSign, Loader2, Lock, MonitorCheck, Plus, ReceiptText, TriangleAlert, Unlock, Wifi, WifiOff, Wrench, X } from 'lucide-react';
+import { ArrowRightLeft, Check, Loader2, Lock, MonitorCheck, Plus, ReceiptText, TriangleAlert, Unlock, Wifi, WifiOff, Wrench } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
-import {
-  buildCheckoutPayments,
-  checkoutMethods,
-  checkoutMethodLabel,
-  formatBilledDuration,
-  formatCheckoutAmount,
-  initialCheckoutDrafts,
-  validateCheckoutPayments,
-  type CheckoutMethod,
-  type CheckoutPaymentDraft
-} from './checkoutState';
+import { formatBilledDuration } from './checkoutState';
 import {
   type PaymentPartDto,
   type PlayerPackageDto,
@@ -56,21 +46,10 @@ import {
 } from './operatorHelpers';
 import { CriticalActionConfirmation } from './operatorPrimitives';
 import { PanelModal } from './PanelModal';
+import { PaymentDialog, type PaymentBillLine } from './PaymentDialog';
 import { PanelSelect } from './PanelSelect';
 import { seatTileLead } from './seatTilePresentation';
 import { formatDurationCompact } from './floorMapState';
-
-const checkoutMethodIcons: Record<CheckoutMethod, ReactNode> = {
-  cash: <Banknote size={14} />,
-  card_manual: <CircleDollarSign size={14} />,
-  wallet: <ReceiptText size={14} />
-};
-
-// Способ оплаты как вкладка кассы. «Смешанно» — редкий сплит на несколько способов.
-type PayMode = 'cash' | 'card' | 'deposit' | 'split';
-
-// Быстрые купюры (номиналы сомони): один тап = «клиент дал столько», касса считает сдачу.
-const CASH_DENOMINATIONS = [10, 20, 50, 100, 200] as const;
 
 // Чипы длительности старта сессии (минуты). «Открытый счёт» добавляется отдельной кнопкой.
 const START_DURATIONS = [30, 60, 120, 180] as const;
@@ -148,11 +127,6 @@ function CheckoutDialog({
   const [quote, setQuote] = useState<SessionCheckoutQuoteResponse | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
   const [error, setError] = useState<string | null>(null);
-  const [payMode, setPayMode] = useState<PayMode>('cash');
-  // Касса наличными: «получено» от клиента. Пусто = ровно по счёту (частый случай — ноль кликов).
-  const [cashReceivedText, setCashReceivedText] = useState('');
-  // Сплит (вкладка «Смешанно») — отдельный редактируемый набор строк.
-  const [splitDrafts, setSplitDrafts] = useState<CheckoutPaymentDraft[]>([{ method: 'cash', amountText: '' }]);
 
   useEffect(() => {
     let disposed = false;
@@ -172,11 +146,7 @@ function CheckoutDialog({
           return;
         }
 
-        const total = result.grandTotal?.minorUnits ?? 0;
         setQuote(result);
-        setSplitDrafts(initialCheckoutDrafts(total));
-        setCashReceivedText(total > 0 ? formatCheckoutAmount(total) : '');
-        setPayMode('cash');
         setStatus('ready');
       })
       .catch((fetchError) => {
@@ -193,47 +163,9 @@ function CheckoutDialog({
     };
   }, [seat.activeSessionId, backend.config.platformBaseUrl, backend.session.accessToken]);
 
-  // Защищаемся от неполной котировки: карточка вне error-boundary, любой бросок здесь гасит весь экран.
   const currencyCode = quote?.grandTotal?.currencyCode ?? '';
   const grandTotal = quote?.grandTotal?.minorUnits ?? 0;
   const walletBalance = quote?.walletBalance?.minorUnits ?? null;
-  const hasWallet = walletBalance !== null && walletBalance > 0;
-
-  // Депозит закрывает счёт в пределах баланса; остаток — наличными (точно, без сдачи).
-  const depositCover = hasWallet ? Math.min(walletBalance, grandTotal) : 0;
-  const depositRemainder = grandTotal - depositCover;
-  const depositDrafts: CheckoutPaymentDraft[] = depositRemainder > 0
-    ? [{ method: 'wallet', amountText: formatCheckoutAmount(depositCover) }, { method: 'cash', amountText: formatCheckoutAmount(depositRemainder) }]
-    : [{ method: 'wallet', amountText: formatCheckoutAmount(grandTotal) }];
-
-  // Платёжные строки, которые реально уходят на бэк, зависят от выбранной вкладки кассы.
-  const drafts: CheckoutPaymentDraft[] = payMode === 'cash'
-    ? [{ method: 'cash', amountText: cashReceivedText !== '' ? cashReceivedText : (grandTotal > 0 ? formatCheckoutAmount(grandTotal) : '') }]
-    : payMode === 'card'
-      ? [{ method: 'card_manual', amountText: formatCheckoutAmount(grandTotal) }]
-      : payMode === 'deposit'
-        ? depositDrafts
-        : splitDrafts;
-
-  const validation = validateCheckoutPayments(drafts, grandTotal, walletBalance, t);
-  const canConfirm = status === 'ready' && !disabled && validation.canSubmit;
-  const isZeroBill = status === 'ready' && grandTotal === 0;
-
-  const setReceivedMinor = (minorUnits: number) => setCashReceivedText(formatCheckoutAmount(minorUnits));
-  const updateSplitDraft = (index: number, patch: Partial<CheckoutPaymentDraft>) => {
-    setSplitDrafts((current) => current.map((draft, position) => (position === index ? { ...draft, ...patch } : draft)));
-  };
-  const addSplitDraft = () => setSplitDrafts((current) => [...current, { method: 'cash', amountText: '' }]);
-  const removeSplitDraft = (index: number) => {
-    setSplitDrafts((current) => (current.length <= 1 ? current : current.filter((_, position) => position !== index)));
-  };
-
-  const payTabs: Array<{ id: PayMode; label: string }> = [
-    { id: 'cash', label: t('op.checkout.method.cash') },
-    { id: 'card', label: t('op.checkout.method.card') },
-    ...(hasWallet ? [{ id: 'deposit' as PayMode, label: t('op.checkout.method.wallet') }] : []),
-    { id: 'split', label: t('op.checkout.tab.split') }
-  ];
 
   // Шапка-контекст: тариф и время старта — данные, что уже на руках (#34).
   const startedClock = formatSessionClock(seat.sessionStartedAtUtc);
@@ -241,6 +173,19 @@ function CheckoutDialog({
     seat.tariffName,
     startedClock ? t('op.checkout.startedAt', { time: startedClock }) : null
   ].filter((part): part is string => Boolean(part));
+
+  // Позиции чека сессии: время (по наигранным секундам) + снеки/POS, если есть.
+  const lines: PaymentBillLine[] = quote
+    ? [
+        {
+          label: `${t('op.checkout.lineTime')} · ${formatBilledDuration(quote.billableSeconds ?? 0, t)}`,
+          amountMinorUnits: quote.timeCharge?.minorUnits ?? 0
+        },
+        ...((quote.posTotal?.minorUnits ?? 0) > 0
+          ? [{ label: t('op.map.panel.billableSnacks'), amountMinorUnits: quote.posTotal?.minorUnits ?? 0 }]
+          : [])
+      ]
+    : [];
 
   return (
     <PanelModal
@@ -255,148 +200,21 @@ function CheckoutDialog({
       {status === 'failed' && <p className="checkout-error">{error ?? t('op.map.panel.checkoutFailed')}</p>}
 
       {status === 'ready' && quote && (
-        <>
-          {/* Чек: позиции сверху, «К оплате» крупным итогом снизу — как настоящий чек кассы. */}
-          <div className="checkout-receipt">
-            {contextParts.length > 0 && <p className="checkout-context">{contextParts.join(' · ')}</p>}
-            <div className="checkout-receipt-line">
-              <span>{t('op.checkout.lineTime')} · {formatBilledDuration(quote.billableSeconds ?? 0, t)}</span>
-              <b>{formatMinorUnits(quote.timeCharge?.minorUnits ?? 0, currencyCode)}</b>
-            </div>
-            {(quote.posTotal?.minorUnits ?? 0) > 0 && (
-              <div className="checkout-receipt-line">
-                <span>{t('op.map.panel.billableSnacks')}</span>
-                <b>{formatMinorUnits(quote.posTotal?.minorUnits ?? 0, currencyCode)}</b>
-              </div>
-            )}
-            <div className="checkout-receipt-total">
-              <span>{t('op.map.panel.checkoutDue')}</span>
-              <strong>{formatMinorUnits(grandTotal, currencyCode)}</strong>
-            </div>
-          </div>
-
-          {isZeroBill ? (
-            <p className="checkout-no-payment">{t('op.map.panel.checkoutNoPayment')}</p>
-          ) : (
-            <div className="checkout-pay">
-              <div className="checkout-tabs" role="tablist" aria-label={t('op.map.panel.paymentMethod')}>
-                {payTabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={payMode === tab.id}
-                    className={payMode === tab.id ? 'active' : undefined}
-                    disabled={disabled}
-                    onClick={() => setPayMode(tab.id)}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              {payMode === 'cash' && (
-                <div className="checkout-cash">
-                  <label className="checkout-received">
-                    <span>{t('op.map.panel.cashTendered')}</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={cashReceivedText}
-                      disabled={disabled}
-                      placeholder={formatCheckoutAmount(grandTotal)}
-                      onChange={(event) => setCashReceivedText(event.currentTarget.value)}
-                    />
-                  </label>
-                  <div className="checkout-cash-chips">
-                    <button type="button" disabled={disabled} onClick={() => setReceivedMinor(grandTotal)}>{t('op.checkout.exact')}</button>
-                    {CASH_DENOMINATIONS.map((denomination) => (
-                      <button key={denomination} type="button" disabled={disabled} onClick={() => setReceivedMinor(denomination * 100)}>
-                        {denomination}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {payMode === 'card' && <p className="checkout-pay-note">{t('op.checkout.cardExact')}</p>}
-
-              {payMode === 'deposit' && (
-                <p className="checkout-pay-note">
-                  {depositRemainder > 0
-                    ? t('op.checkout.depositPlusCash', { cover: formatMinorUnits(depositCover, currencyCode), rest: formatMinorUnits(depositRemainder, currencyCode) })
-                    : t('op.checkout.depositFull', { amount: formatMinorUnits(grandTotal, currencyCode) })}
-                </p>
-              )}
-
-              {payMode === 'split' && (
-                <div className="checkout-payments">
-                  {splitDrafts.map((draft, index) => (
-                    <div className="checkout-payment-row" key={index}>
-                      <select
-                        aria-label={t('op.map.panel.paymentMethod')}
-                        value={draft.method}
-                        disabled={disabled}
-                        onChange={(event) => updateSplitDraft(index, { method: event.currentTarget.value as CheckoutMethod })}
-                      >
-                        {checkoutMethods.map((method) => (
-                          <option key={method} value={method}>{checkoutMethodLabel(method, t)}</option>
-                        ))}
-                      </select>
-                      <span className="checkout-payment-icon">{checkoutMethodIcons[draft.method]}</span>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        aria-label={draft.method === 'cash' ? t('op.map.panel.cashTendered') : t('op.map.panel.paymentAmount')}
-                        placeholder="0.00"
-                        value={draft.amountText}
-                        disabled={disabled}
-                        onChange={(event) => updateSplitDraft(index, { amountText: event.currentTarget.value })}
-                      />
-                      <button
-                        type="button"
-                        className="checkout-payment-remove"
-                        aria-label={t('op.map.panel.removePaymentRow')}
-                        disabled={disabled || splitDrafts.length <= 1}
-                        onClick={() => removeSplitDraft(index)}
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
-                  <div className="checkout-payment-controls">
-                    <button type="button" disabled={disabled} onClick={addSplitDraft}><Plus size={14} />{t('op.map.panel.addPaymentMethod')}</button>
-                  </div>
-                </div>
-              )}
-
-              {validation.error
-                ? <p className="checkout-error">{validation.error}</p>
-                : validation.changeMinorUnits > 0
-                  ? <p className="checkout-change"><span>{t('op.checkout.change')}</span><strong>{formatMinorUnits(validation.changeMinorUnits, currencyCode)}</strong></p>
-                  : <p className="checkout-balanced">{t('op.map.panel.checkoutBalanced')}</p>}
-            </div>
-          )}
-        </>
+        <PaymentDialog
+          contextLine={contextParts.length > 0 ? contextParts.join(' · ') : undefined}
+          lines={lines}
+          dueLabel={t('op.map.panel.checkoutDue')}
+          grandTotalMinorUnits={grandTotal}
+          currencyCode={currencyCode}
+          walletBalanceMinorUnits={walletBalance}
+          allowSplit
+          disabled={disabled}
+          confirmVariant="danger"
+          endWithoutPayment={{ label: t('op.map.panel.endWithoutPay'), onEnd: onEndWithoutPayment }}
+          onCancel={onCancel}
+          onConfirm={onConfirm}
+        />
       )}
-
-      {!isZeroBill && (
-        <button type="button" className="checkout-end-plain" onClick={onEndWithoutPayment} disabled={disabled}>
-          {t('op.map.panel.endWithoutPay')}
-        </button>
-      )}
-
-      <div className="critical-confirmation-actions">
-        <button type="button" onClick={onCancel} disabled={disabled}>{t('common.cancel')}</button>
-        <button
-          type="button"
-          className="danger"
-          disabled={!canConfirm}
-          onClick={() => (isZeroBill ? onEndWithoutPayment() : onConfirm(buildCheckoutPayments(drafts, currencyCode, grandTotal)))}
-        >
-          {isZeroBill ? t('op.map.panel.checkoutFinish') : t('op.checkout.confirmAmount', { amount: formatMinorUnits(grandTotal, currencyCode) })}
-        </button>
-      </div>
     </PanelModal>
   );
 }

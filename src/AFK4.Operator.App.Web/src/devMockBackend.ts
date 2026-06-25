@@ -94,17 +94,103 @@ function currentShiftRevenue() {
     openedByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', closedByStaffUserId: null, state: 'open',
     earned: { time: m(82000), goods: m(41000), total: m(123000) },
     inflow: { cash: m(90000), nonCash: m(33000), walletTopUps: m(15000), directTotal: m(123000) },
-    cash: { starting: m(100000), expected: m(190000), counted: null, difference: null },
+    // expected (касса в ящике) = netCashTotal движений (58000) + наличные продажи (90000) = 148000.
+    cash: { starting: m(100000), expected: m(148000), counted: null, difference: null },
     openedAtUtc: '2026-05-21T08:00:00Z', closedAtUtc: null
   };
 }
 
-function posProduct() {
-  return {
-    productId: 'prod1', organizationId: ORG, branchId: BRANCH, categoryId: 'cat1',
-    name: 'Cola 0.5', sku: 'COLA-05', price: money(1200), trackStock: true, allowNegativeStock: false,
-    isActive: true, stockOnHand: 12, createdAtUtc: '2026-05-21T08:00:00Z'
+// История закрытых смен для вкладки «Смена». Три прошлых дня с разными расхождениями
+// (недостача / в ноль / излишек), чтобы превью показало все тона строки истории.
+function shiftHistory() {
+  const closed = (shiftId: string, day: string, earnedTotal: number, differenceMinor: number) => {
+    const cashSales = Math.round(earnedTotal * 0.7);
+    const expected = 100000 + cashSales;
+    return {
+      shiftId, organizationId: ORG, branchId: BRANCH,
+      openedByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', closedByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
+      state: 'closed',
+      earned: { time: money(Math.round(earnedTotal * 0.66)), goods: money(earnedTotal - Math.round(earnedTotal * 0.66)), total: money(earnedTotal) },
+      inflow: { cash: money(cashSales), nonCash: money(Math.round(earnedTotal * 0.2)), walletTopUps: money(Math.round(earnedTotal * 0.1)), directTotal: money(earnedTotal) },
+      cash: { starting: money(100000), expected: money(expected), counted: money(expected + differenceMinor), difference: money(differenceMinor) },
+      openedAtUtc: `${day}T08:00:00Z`, closedAtUtc: `${day}T22:00:00Z`
+    };
   };
+  return {
+    shifts: [
+      closed('sh-prev-1', '2026-05-20', 234000, -5000),
+      closed('sh-prev-2', '2026-05-19', 198000, 0),
+      closed('sh-prev-3', '2026-05-18', 275000, 12000)
+    ],
+    limit: 20
+  };
+}
+
+// Приходно-расходные операции кассового ящика (НЕ продажи): открытие · внесение · изъятие · возврат.
+// Лента в «Смене» (последние 6) и «Журнале кассы» (полный список + поиск + сводка).
+function cashOperationReport() {
+  const row = (operationId: string, operationType: string, impactMinor: number, reason: string, minutesBack: number) =>
+    ({ operationId, operationType, cashImpact: money(impactMinor), reason, createdAtUtc: minutesAgoUtc(minutesBack) });
+  return {
+    cashInTotal: money(150000),  // открытие 1000 + внесение 500
+    cashOutTotal: money(92000),  // изъятие 800 + возврат 120
+    netCashTotal: money(58000),  // 1500 − 920
+    rows: [
+      row('co-04', 'cash_out', -80000, 'Инкассация в сейф', 30),
+      row('co-03', 'cash_in', 50000, 'Доложен разменный фонд', 120),
+      row('co-02', 'refund', -12000, 'Возврат за отменённый заказ', 180),
+      row('co-01', 'opening', 100000, 'Открытие смены · разменный фонд', 240)
+    ]
+  };
+}
+
+// Отчёт по продажам POS — «Последние чеки» в кассе + строка-метрика «Продажи N · сумма».
+// Суммы оплаченных чеков складываются в grossSalesTotal (41000 = goods-выручка смены).
+function salesReport() {
+  const row = (posSaleId: string, state: string, totalMinor: number, lineCount: number, itemQuantity: number, minutesBack: number) =>
+    ({ posSaleId, state, total: money(totalMinor), lineCount, itemQuantity, createdAtUtc: minutesAgoUtc(minutesBack) });
+  return {
+    grossSalesTotal: money(41000),
+    refundsTotal: money(3000),
+    rows: [
+      row('ps-06', 'paid', 1200, 1, 1, 10),
+      row('ps-05', 'paid', 5600, 2, 3, 40),
+      row('ps-04', 'paid', 2500, 1, 1, 60),
+      row('ps-03', 'paid', 12000, 3, 4, 90),
+      row('ps-02', 'paid', 19700, 3, 5, 120),
+      row('ps-01', 'refunded', 3000, 1, 1, 150)
+    ]
+  };
+}
+
+// Очередь заказов из Player Shell (Заказы): игрок оформляет с места, касса лишь меняет статус.
+// placed → ждёт принятия; accepted → ждёт выдачи. seatId показывается как есть (читаемое имя места).
+function shopOrders() {
+  const line = (productId: string, name: string, unitMinor: number, quantity: number) =>
+    ({ productId, name, unitPrice: money(unitMinor), quantity, lineTotal: money(unitMinor * quantity) });
+  return [
+    { id: 'so-1', branchId: BRANCH, seatId: 'PC-01', playerAccountId: 'pl-2', playerDisplayName: 'Амир Каримов', status: 'placed', total: money(8600), lines: [line('prod-hotdog', 'Хот-дог', 2800, 1), line('prod-cola', 'Cola 0.5', 1200, 1), line('prod-chips', 'Чипсы Lays', 1400, 2), line('prod-energy', 'Энергетик Red Bull', 1800, 1)], placedAtUtc: minutesAgoUtc(5), acceptedAtUtc: null, deliveredAtUtc: null, cancelledAtUtc: null, version: 1 },
+    { id: 'so-2', branchId: BRANCH, seatId: 'PC-09', playerAccountId: 'pl-4', playerDisplayName: 'Юсуф Ахмедов', status: 'accepted', total: money(1200), lines: [line('prod-cola', 'Cola 0.5', 1200, 1)], placedAtUtc: minutesAgoUtc(15), acceptedAtUtc: minutesAgoUtc(10), deliveredAtUtc: null, cancelledAtUtc: null, version: 2 },
+    { id: 'so-3', branchId: BRANCH, seatId: 'VIP-01', playerAccountId: 'pl-3', playerDisplayName: 'Мадина Саидова', status: 'placed', total: money(3600), lines: [line('prod-energy', 'Энергетик Red Bull', 1800, 2)], placedAtUtc: minutesAgoUtc(2), acceptedAtUtc: null, deliveredAtUtc: null, cancelledAtUtc: null, version: 1 }
+  ];
+}
+
+// Каталог POS: напитки / снеки / услуги, с парой позиций на нуле и низком остатке —
+// чтобы превью показывало чипы категорий, метрику «Склад N низко» и реальные продажи.
+function posCatalog() {
+  const p = (productId: string, categoryName: string, name: string, sku: string, priceMinor: number, stockOnHand: number, trackStock = true) =>
+    ({ productId, organizationId: ORG, branchId: BRANCH, categoryId: categoryName, categoryName, name, sku, price: money(priceMinor), trackStock, allowNegativeStock: false, isActive: true, stockOnHand, createdAtUtc: '2026-05-21T08:00:00Z' });
+  return [
+    p('prod-cola', 'Напитки', 'Cola 0.5', 'COLA-05', 1200, 12),
+    p('prod-water', 'Напитки', 'Вода 0.5', 'WATER-05', 600, 30),
+    p('prod-energy', 'Напитки', 'Энергетик Red Bull', 'ENERGY-RB', 1800, 8),
+    p('prod-juice', 'Напитки', 'Сок апельсиновый', 'JUICE-OR', 1500, 0),
+    p('prod-hotdog', 'Снеки', 'Хот-дог', 'HOTDOG', 2800, 6),
+    p('prod-chips', 'Снеки', 'Чипсы Lays', 'CHIPS-LAYS', 1400, 2),
+    p('prod-snickers', 'Снеки', 'Шоколад Snickers', 'SNICKERS', 1100, 15),
+    p('prod-guesthour', 'Услуги', 'Гостевой час', 'GUEST-HOUR', 2500, 0, false),
+    p('prod-headset', 'Услуги', 'Аренда наушников', 'HEADSET', 500, 0, false)
+  ];
 }
 
 // Брони привязываем к «сегодня» (локальный день оператора): таймлайн строится вокруг текущей
@@ -251,9 +337,12 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/floor-map')) return floorMap();
   if (pathname.endsWith('/dashboard/summary')) return dashboardSummary();
   if (pathname.endsWith('/shifts/revenue/current')) return currentShiftRevenue();
-  if (pathname.endsWith('/shifts/revenue')) return { shifts: [], limit: 20 };
+  if (pathname.endsWith('/shifts/revenue')) return shiftHistory();
   if (pathname.endsWith('/shifts/current')) return currentShift();
-  if (pathname.endsWith('/pos/catalog')) return [posProduct()];
+  if (pathname.endsWith('/reports/cash-operations') && method === 'GET') return cashOperationReport();
+  if (pathname.endsWith('/reports/sales') && method === 'GET') return salesReport();
+  if (pathname.endsWith('/shop/orders') && method === 'GET') return shopOrders();
+  if (pathname.endsWith('/pos/catalog')) return posCatalog();
   if (pathname.endsWith('/reservations') && method === 'GET') return { reservations: reservations(), limit: 40 };
   if (pathname.endsWith('/sessions') && method === 'GET') return { sessions: sessionsTimeline() };
   if (pathname.endsWith('/inventory/stock-movements') && method === 'GET') return [];
@@ -335,6 +424,7 @@ function ledger(): Array<Record<string, unknown>> {
   return mutableLedger;
 }
 let nextLedgerSeq = 1000;
+let nextPosSaleSeq = 1;
 function prependLedger(entry: Record<string, unknown>): void {
   ledger().unshift(entry);
 }
@@ -473,6 +563,12 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     };
     prependLedger(entry);
     return json(entry);
+  }
+  if (url.pathname.endsWith('/pos/sales') && method === 'POST') {
+    return json({ posSaleId: `ps-${nextPosSaleSeq++}`, state: 'created' });
+  }
+  if (url.pathname.includes('/pos/sales/') && url.pathname.endsWith('/payments/manual') && method === 'POST') {
+    return json({ paymentId: `pp-${nextPosSaleSeq}`, posSaleId: url.pathname.split('/').slice(-3)[0], state: 'paid' });
   }
   if (url.pathname.endsWith('/pin') && method === 'POST') {
     return noContent();

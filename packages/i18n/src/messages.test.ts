@@ -109,7 +109,6 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.players.profile.packageFallback',
     'op.players.profile.platformSource',
     'op.players.strip.platform',
-    'op.pos.cart.newCardPhoneLabel',
     'op.pos.catalog.categoryFallback',
     'op.pos.catalog.title',
     'op.pos.fixture.cola',

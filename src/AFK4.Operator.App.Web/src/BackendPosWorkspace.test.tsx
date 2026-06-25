@@ -15,13 +15,14 @@ function renderPos(embedded: boolean) {
 }
 
 describe('BackendPosWorkspace', () => {
-  it('standalone: рендерит шапку «Продажи» и панели каталог/корзина/оплата', () => {
+  it('standalone: рендерит шапку «Продажи» и панели каталог + продажа (корзина+оплата)', () => {
     renderPos(false);
     expect(screen.getByRole('heading', { name: /Продажи/ })).toBeInTheDocument();
     expect(document.querySelector('main.pos-screen')).not.toBeNull();
     expect(screen.getByText('Каталог')).toBeInTheDocument();
     expect(screen.getByText('Корзина')).toBeInTheDocument();
-    expect(screen.getByText('Оплата')).toBeInTheDocument();
+    // Оплата слита в колонку «продажи» — отдельной панели нет, остаётся действие.
+    expect(document.querySelector('.pos-sale-panel')).not.toBeNull();
     expect(screen.getByRole('button', { name: /Принять оплату/ })).toBeInTheDocument();
   });
 
@@ -32,6 +33,6 @@ describe('BackendPosWorkspace', () => {
     expect(document.querySelector('main.pos-screen')).toBeNull();
     expect(document.querySelector('section.pos-embed')).not.toBeNull();
     expect(screen.getByText('Каталог')).toBeInTheDocument();
-    expect(screen.getByText('Оплата')).toBeInTheDocument();
+    expect(document.querySelector('.pos-sale-panel')).not.toBeNull();
   });
 });

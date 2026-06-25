@@ -847,21 +847,14 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Добавить бронь' })).toBeInTheDocument();
 
     gotoWorkspace('Продажи');
-    // Вкладка «Продажи»: сегмент «Касса» (POS) активен по умолчанию, POS встроен (section.pos-embed,
-    // без собственной screen-head). Проверяем сегмент-бар + панели POS.
-    expect(screen.getByRole('tab', { name: 'Касса' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Заказы' })).toBeInTheDocument();
+    // Вкладка «Продажи»: POS встроен (section.pos-embed, без собственной screen-head) + лента
+    // входящих заказов сверху (section.pos-orders-ticker). Сегментов-переключателей больше нет.
+    expect(document.querySelector('section.pos-orders-ticker')).not.toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Заказы' })).toBeNull();
     expect(document.querySelector('section.pos-embed')).not.toBeNull();
     expect(screen.getByText('Каталог')).toBeInTheDocument();
     expect(screen.getByText('Корзина')).toBeInTheDocument();
-    expect(screen.getByText('Оплата')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Принять оплату/ })).toBeInTheDocument();
-    expect(screen.getByText('Последние чеки')).toBeInTheDocument();
-    expect(screen.getByText('Быстрые операции')).toBeInTheDocument();
-    // Переключение на сегмент «Заказы» показывает встроенную очередь вместо POS.
-    fireEvent.click(screen.getByRole('tab', { name: 'Заказы' }));
-    await waitFor(() => expect(document.querySelector('section.shop-orders-embed')).not.toBeNull());
-    expect(document.querySelector('section.pos-embed')).toBeNull();
 
     fireEvent.click(screen.getByTitle('Клиенты'));
     const clientsHead = (await screen.findByRole('heading', { name: /Клиенты/ })).closest('.clients-head');
@@ -1164,8 +1157,15 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     gotoWorkspace('Продажи');
-    await waitFor(() => expect(screen.getByLabelText('\u0422\u043e\u0432\u0430\u0440 \u0434\u043b\u044f \u0441\u043f\u0438\u0441\u0430\u043d\u0438\u044f')).toBeEnabled());
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Принять оплату/ })).toBeEnabled());
     fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
+
+    // «Принять оплату» открывает окно оплаты; подтверждаем (наличные — метод по умолчанию).
+    const payDialog = await screen.findByRole('dialog', { name: 'Оплата' });
+    await act(async () => {
+      fireEvent.click(within(payDialog).getByRole('button', { name: /Принять/ }));
+    });
 
     expect(await screen.findByText('Оплата: подтверждено')).toBeInTheDocument();
     const saleCall = fetchMock.mock.calls.find(([input, init]) =>
@@ -1197,13 +1197,19 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     gotoWorkspace('Продажи');
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
+    // Выбор клиента свёрнут в строку «Гость» — разворачиваем поиск по «Выбрать».
+    fireEvent.click(screen.getByRole('button', { name: 'Выбрать' }));
     fireEvent.change(screen.getByLabelText('Клиент'), { target: { value: 'Madina' } });
     fireEvent.click(await screen.findByRole('button', { name: /Madina S\./ }));
-    const cardPaymentButton = screen.getAllByRole('button', { name: 'Карта' })
-      .find((button) => button.closest('.pos-payment-methods'));
-    expect(cardPaymentButton).toBeDefined();
-    fireEvent.click(cardPaymentButton!);
+    await waitFor(() => expect(screen.getByRole('button', { name: /Принять оплату/ })).toBeEnabled());
     fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
+
+    // В окне оплаты выбираем способ «Карта» и подтверждаем.
+    const payDialog = await screen.findByRole('dialog', { name: 'Оплата' });
+    fireEvent.click(within(payDialog).getByRole('tab', { name: 'Карта' }));
+    await act(async () => {
+      fireEvent.click(within(payDialog).getByRole('button', { name: /Принять/ }));
+    });
 
     expect(await screen.findByText('Оплата: подтверждено')).toBeInTheDocument();
     const saleCall = fetchMock.mock.calls.find(([input, init]) =>
@@ -1226,268 +1232,6 @@ describe('App', () => {
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
       paymentMethod: 'card_manual'
     });
-  });
-
-  it('tops up the selected POS client wallet from the cart total', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Продажи');
-    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Клиент'), { target: { value: 'Madina' } });
-    fireEvent.click(await screen.findByRole('button', { name: /Madina S\./ }));
-    fireEvent.click(screen.getByRole('button', { name: /Пополнить депозит/ }));
-
-    expect(await screen.findByText('Пополнить депозит: 12 с.')).toBeInTheDocument();
-    const topUpCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/wallet/top-ups') &&
-      init?.method === 'POST');
-    expect(topUpCall).toBeDefined();
-    const body = JSON.parse(String(topUpCall?.[1]?.body));
-    expect(body).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      amount: { currencyCode: 'TJS', minorUnits: 1200 },
-      reason: 'operator POS wallet top-up'
-    });
-    expect(body.idempotencyKey).toMatch(/^wallet-top-up-/);
-  });
-
-  it('creates a POS customer card from the cart and attaches it to checkout', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Продажи');
-    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Имя клиента'), { target: { value: 'Zarina N.' } });
-    fireEvent.change(screen.getByLabelText('Телефон клиента'), { target: { value: '+992 90 777 88 99' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Создать' }));
-
-    expect(await screen.findByText('Новая карта: подтверждено')).toBeInTheDocument();
-    expect(screen.getByText('Zarina N.')).toBeInTheDocument();
-    const createPlayerCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/players') &&
-      init?.method === 'POST');
-    expect(createPlayerCall).toBeDefined();
-    const createPlayerBody = JSON.parse(String(createPlayerCall?.[1]?.body));
-    expect(createPlayerBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      displayName: 'Zarina N.',
-      phoneNumber: '+992 90 777 88 99'
-    });
-    expect(createPlayerBody.idempotencyKey).toMatch(/^player-create-/);
-
-    fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
-
-    expect(await screen.findByText('Оплата: подтверждено')).toBeInTheDocument();
-    const saleCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/sales') &&
-      init?.method === 'POST');
-    expect(saleCall).toBeDefined();
-    const saleBody = JSON.parse(String(saleCall?.[1]?.body));
-    expect(saleBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      playerAccountId: '45454545-4545-4545-4545-454545454545'
-    });
-  });
-
-  it('refunds the latest backend POS sale from quick operations', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Продажи');
-    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Возврат по чеку/ }));
-
-    expect(await screen.findByRole('alertdialog', { name: 'Подтвердите возврат' })).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/refunds') &&
-      init?.method === 'POST')).toBe(false);
-    fireEvent.change(screen.getByLabelText('Причина возврата'), { target: { value: 'Клиент вернул товар' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить возврат' }));
-
-    expect(await screen.findByText('Возврат по чеку: подтверждено')).toBeInTheDocument();
-    const refundCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/refunds') &&
-      init?.method === 'POST');
-    expect(refundCall).toBeDefined();
-    const body = JSON.parse(String(refundCall?.[1]?.body));
-    expect(body).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      reason: 'Клиент вернул товар'
-    });
-    expect(body.idempotencyKey).toMatch(/^pos-refund-/);
-  });
-
-  it('refunds the selected backend POS sale from quick operations', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Продажи');
-    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /25 с\./ }));
-    expect(await screen.findByText('Детали чека: подтверждено')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Возврат по чеку/ }));
-    expect(await screen.findByRole('alertdialog', { name: 'Подтвердите возврат' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить возврат' }));
-
-    expect(await screen.findByText('Возврат по чеку: подтверждено')).toBeInTheDocument();
-    const refundCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/pos/sales/88888888-8888-8888-8888-888888888888/refunds') &&
-      init?.method === 'POST');
-    expect(refundCall).toBeDefined();
-  });
-
-  it('loads backend POS sale details from the recent receipt list', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Продажи');
-    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole('button', { name: /Оплачен/ })[0]);
-
-    expect(await screen.findByText('Детали чека: подтверждено')).toBeInTheDocument();
-    expect(screen.getAllByText(/Cola 0.5/).length).toBeGreaterThan(0);
-    expect(await screen.findByText('POS-20260521-0001')).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999') &&
-      init?.method !== 'POST')).toBe(true);
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/receipts/11111111-1111-1111-1111-111111111111') &&
-      init?.method !== 'POST')).toBe(true);
-  });
-
-  it('prints and exports the loaded backend POS receipt', async () => {
-    installSessionBridge();
-    const writeMock = mock();
-    const printMock = mock();
-    const openSpy = spyOn(window, 'open').mockReturnValue({
-      document: {
-        write: writeMock,
-        close: mock()
-      },
-      focus: mock(),
-      print: printMock
-    } as unknown as Window);
-    const createObjectUrl = mock(() => 'blob:receipt');
-    const revokeObjectUrl = mock();
-    Object.defineProperty(window.URL, 'createObjectURL', { value: createObjectUrl, configurable: true });
-    Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeObjectUrl, configurable: true });
-    const linkClick = mock();
-    const createElement = document.createElement.bind(document);
-    const createElementSpy = spyOn(document, 'createElement').mockImplementation((tagName: string) => {
-      const element = createElement(tagName);
-      if (tagName.toLowerCase() === 'a') {
-        Object.defineProperty(element, 'click', { value: linkClick, configurable: true });
-      }
-
-      return element;
-    });
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Продажи');
-    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole('button', { name: /Оплачен/ })[0]);
-    expect(await screen.findByText('POS-20260521-0001')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Печать' }));
-    expect(await screen.findByText('Печать чека: подтверждено')).toBeInTheDocument();
-    expect(openSpy).toHaveBeenCalled();
-    expect(writeMock.mock.calls[0]?.[0]).toContain('POS-20260521-0001');
-    expect(writeMock.mock.calls[0]?.[0]).toContain('Cola 0.5');
-    expect(printMock).toHaveBeenCalled();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Экспорт' }));
-    expect(await screen.findByText('Экспорт чека: подтверждено')).toBeInTheDocument();
-    expect(createObjectUrl).toHaveBeenCalled();
-    expect(linkClick).toHaveBeenCalled();
-    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:receipt');
-    createElementSpy.mockRestore();
-  });
-
-  it('voids a backend POS draft from the current cart', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Продажи');
-    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Аннулировать черновик/ }));
-
-    expect(await screen.findByRole('alertdialog', { name: 'Подтвердите аннулирование' })).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/void') &&
-      init?.method === 'POST')).toBe(false);
-    fireEvent.change(screen.getByLabelText('Причина аннулирования'), { target: { value: 'Ошибочная корзина' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Подтвердить аннулирование' }));
-
-    expect(await screen.findByText('Аннулировать черновик: подтверждено')).toBeInTheDocument();
-    const saleCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/sales') &&
-      init?.method === 'POST');
-    expect(saleCall).toBeDefined();
-    const saleBody = JSON.parse(String(saleCall?.[1]?.body));
-    expect(saleBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      shiftId: '66666666-6666-6666-6666-666666666666'
-    });
-    expect(saleBody.lines).toHaveLength(1);
-    expect(saleBody.idempotencyKey).toMatch(/^pos-sale-draft-/);
-
-    const voidCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/void') &&
-      init?.method === 'POST');
-    expect(voidCall).toBeDefined();
-    const voidBody = JSON.parse(String(voidCall?.[1]?.body));
-    expect(voidBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      reason: 'Ошибочная корзина'
-    });
-    expect(voidBody.idempotencyKey).toMatch(/^pos-void-/);
-  });
-
-  it('records a POS stock write-off from quick operations', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Продажи');
-    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Товар для списания'), {
-      target: { value: '77777777-7777-7777-7777-777777777777' }
-    });
-    fireEvent.change(screen.getByLabelText('Количество списания'), { target: { value: '3' } });
-    fireEvent.change(screen.getByLabelText('Причина списания'), { target: { value: 'broken bottle' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Списать' }));
-
-    expect(await screen.findByText('Списание склада: подтверждено')).toBeInTheDocument();
-    const stockCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/inventory/stock-movements') &&
-      init?.method === 'POST');
-    expect(stockCall).toBeDefined();
-    const body = JSON.parse(String(stockCall?.[1]?.body));
-    expect(body).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      productId: '77777777-7777-7777-7777-777777777777',
-      movementType: 'adjustment',
-      quantityDelta: -3,
-      unitCost: { currencyCode: 'TJS', minorUnits: 0 },
-      reason: 'broken bottle'
-    });
-    expect(body.idempotencyKey).toMatch(/^stock-write-off-/);
   });
 
   it('opens a shift from the cash header modal when no current shift exists', async () => {
@@ -3003,6 +2747,11 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/floor-map')) {
     return jsonResponse(createFloorMap());
+  }
+
+  // Лента заказов POS (PosOrdersTicker) монтируется на вкладке «Продажи» и сразу тянет очередь.
+  if (pathname.endsWith('/shop/orders') && init?.method !== 'POST') {
+    return jsonResponse([]);
   }
 
   if (pathname.endsWith('/sessions/start') && init?.method === 'POST') {

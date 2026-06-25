@@ -4,9 +4,10 @@ import { hasAnyPermission, permissionNames } from '../operatorPermissions';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import { CashOperationsLedger } from './CashOperationsLedger';
+import { CashReceiptsLedger } from './CashReceiptsLedger';
 import { ReviewWorkspace } from '../ReviewWorkspace';
 
-type JournalSegment = 'ops' | 'review';
+type JournalSegment = 'ops' | 'receipts' | 'review';
 
 // Вкладка «Журнал кассы» = лента кассовых операций + аппрув возвратов/коррекций (ReviewWorkspace
 // во встроенном режиме). Сегменты гейтятся правами — оператор не видит сегмент без доступа.
@@ -21,10 +22,12 @@ export function CashJournalWorkspace({
 }) {
   const { t } = useI18n();
   const canOps = hasAnyPermission(session, [permissionNames.viewReports, permissionNames.viewShift, permissionNames.manageShiftCash]);
+  const canReceipts = hasAnyPermission(session, [permissionNames.viewReceipt, permissionNames.refundPosSale]);
   const canReview = hasAnyPermission(session, [permissionNames.approveMoneyAction]);
 
   const segments: { id: JournalSegment; label: string }[] = [];
   if (canOps) segments.push({ id: 'ops', label: t('op.cash.journal.segOps') });
+  if (canReceipts) segments.push({ id: 'receipts', label: t('op.cash.journal.segReceipts') });
   if (canReview) segments.push({ id: 'review', label: t('op.cash.journal.segReview') });
 
   const [active, setActive] = useState<JournalSegment>(() => segments[0]?.id ?? 'ops');
@@ -60,6 +63,9 @@ export function CashJournalWorkspace({
       )}
       {active === 'ops' && canOps && backend === null && (
         <CashOperationsLedger backend={null} branchId="" currencyCode={currencyCode} reports={{ getCashOperationReport: async () => ({ rows: [] }) }} />
+      )}
+      {active === 'receipts' && canReceipts && backend !== null && (
+        <CashReceiptsLedger backend={backend} branchId={backend.branchId} currencyCode={currencyCode} session={session} />
       )}
       {active === 'review' && canReview && <ReviewWorkspace currencyCode={currencyCode} backend={backend} embedded />}
     </main>
