@@ -14,6 +14,7 @@ import { BackendLogsWorkspace } from './BackendLogsWorkspace';
 import { BackendSettingsWorkspace } from './BackendSettingsWorkspace';
 import { LoyaltySettingsWorkspace } from './LoyaltySettingsWorkspace';
 import { NewsWorkspace } from './NewsWorkspace';
+import { StockWorkspace } from './stock/StockWorkspace';
 
 // Маршрутизатор контента: какой экран показать под активным workspace. Обёрнут в
 // WorkspaceErrorBoundary с key={workspace} — переключение раздела сбрасывает границу ошибок.
@@ -88,6 +89,7 @@ export function WorkspaceRouter({
         />
       )}
       {workspace === 'cash' && <CashWorkspace currencyCode={currencyCode} backend={backend} session={session} />}
+      {workspace === 'stock' && <StockWorkspace currencyCode={currencyCode} backend={backend} session={session} />}
       {workspace === 'players' && <BackendPlayersWorkspace currencyCode={currencyCode} backend={backend} />}
       {workspace === 'payment_cards' && backend !== null && (
         <PaymentGatewaysWorkspace backend={backend} />
