@@ -4,6 +4,7 @@ import { projectOperatorError } from '../apiErrors';
 import type { PosProductDto } from '../operatorApiClients';
 import type { Feedback, OperatorBackendContext } from '../operatorTypes';
 import { hasPermission, permissionNames } from '../operatorPermissions';
+import { ProductBarcodesSection } from './ProductBarcodesSection';
 import {
   createAuthenticatedOperatorClients,
   createIdempotencyKey,
@@ -54,6 +55,7 @@ export function SettingsGoodsSection({
   const [productTrackStock, setProductTrackStock] = useState(true);
   const [productAllowNegativeStock, setProductAllowNegativeStock] = useState(false);
   const [productAvailableInShell, setProductAvailableInShell] = useState(false);
+  const [productReorderThreshold, setProductReorderThreshold] = useState('0');
   const [selectedProductId, setSelectedProductId] = useState('');
   const [stockProductId, setStockProductId] = useState('');
   const [stockMovementType, setStockMovementType] = useState('purchase');
@@ -81,6 +83,7 @@ export function SettingsGoodsSection({
     setProductTrackStock(readBoolean(product, 'trackStock', true));
     setProductAllowNegativeStock(readBoolean(product, 'allowNegativeStock'));
     setProductAvailableInShell(readBoolean(product, 'availableInShell'));
+    setProductReorderThreshold(String(readNumber(product, 'reorderThreshold', 0)));
     triggerFeedback(onFeedback, readString(product, 'name', t('op.settings.pos.productFallback')), 'confirmed');
   };
 
@@ -121,6 +124,7 @@ export function SettingsGoodsSection({
           trackStock: productTrackStock,
           allowNegativeStock: productAllowNegativeStock,
           availableInShell: productAvailableInShell,
+          reorderThreshold: Number(productReorderThreshold) || 0,
           idempotencyKey: createIdempotencyKey('pos-product-create')
         });
         onCatalogChange([...catalog, product]);
@@ -155,6 +159,7 @@ export function SettingsGoodsSection({
           trackStock: productTrackStock,
           allowNegativeStock: productAllowNegativeStock,
           availableInShell: productAvailableInShell,
+          reorderThreshold: Number(productReorderThreshold) || 0,
           isActive: label !== delistProductActionKey
         });
         if (label === delistProductActionKey) {
@@ -232,7 +237,21 @@ export function SettingsGoodsSection({
         <label>{t('op.settings.pos.availableInShell')}
           <input type="checkbox" checked={productAvailableInShell} disabled={!canManagePosCatalog} onChange={(event) => setProductAvailableInShell(event.currentTarget.checked)} />
         </label>
+        <label>{t('op.settings.pos.reorderThreshold')}
+          <input inputMode="numeric" value={productReorderThreshold} disabled={!canManagePosCatalog} onChange={(event) => setProductReorderThreshold(event.currentTarget.value)} />
+          <span className="settings-field-hint">{t('op.settings.pos.reorderThresholdHint')}</span>
+        </label>
       </div>
+      {selectedProductId ? (
+        <ProductBarcodesSection
+          productId={selectedProductId}
+          backend={backend}
+          organizationId={backend?.session.organizationId ?? ''}
+          canManage={canManageInventoryStock}
+        />
+      ) : canManagePosCatalog ? (
+        <p className="settings-barcodes-save-hint">{t('op.barcode.saveFirst')}</p>
+      ) : null}
       <div className="settings-section-title">
         <span>{t('op.settings.stock.title')}</span>
         <button type="button" disabled={!canManageInventoryStock || trackedCatalog.length === 0} onClick={() => runAction(recordMovementActionKey)}>{t('op.settings.stock.recordBtn')}</button>

@@ -801,3 +801,34 @@
 .stock-summary .totrow b.in { color: var(--accent-text); }
 .stock-summary .totrow b.wn { color: var(--warning); }
 .stock-summary .totrow.net b { font-weight: 700; }
+
+
+/* ── Штрих-коды в карточке товара (ProductBarcodesSection) ── */
+.settings-barcodes-section { margin-top: var(--space-4); }
+.settings-barcodes-empty { font-size: 13px; color: var(--text-secondary); margin: 0; }
+.settings-barcodes-error { font-size: 12px; color: var(--danger, #e05260); margin: var(--space-2) 0 0; }
+.settings-barcodes-save-hint { font-size: 12px; color: var(--text-secondary); margin: var(--space-2) 0; }
+
+.barcode-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.barcode-chip {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  border: 1px solid var(--border-default); border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-2);
+  font-family: var(--font-mono); color: var(--text-primary); background: var(--surface-elevated);
+}
+.barcode-chip.is-primary { border-color: var(--accent); }
+.barcode-chip .primary-label { font-family: "Segoe UI", sans-serif; font-size: 10px; color: var(--accent); }
+.barcode-chip .barcode-code { font-size: 13px; }
+.barcode-remove-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; padding: 0 2px;
+  color: var(--text-secondary); line-height: 1;
+  font-size: 14px;
+}
+.barcode-remove-btn:hover { color: var(--text-primary); }
+
+.barcode-add-row {
+  display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-3);
+  flex-wrap: wrap;
+}
+.barcode-add-row input { flex: 1; min-width: 160px; }
