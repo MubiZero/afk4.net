@@ -8,7 +8,7 @@
 
 ## Окружение / тулчейн
 - [Env quirks](afk4-env-quirks.md) — bun полный путь, bun test+build гейты, rtk→/tmp/x.sh, dotnet ef на Linux traps, Coolify runbook, WPF-мост через D:\ clone, agent-test WSL baseline.
-- [Frontends on bun test](frontends-on-bun-test.md) — все фронты на `bun test` (не vitest, happy-dom+jest-dom), `mock.module` течёт process-wide, build=tsc+vite (тесты не тайпчекают).
+- [Frontends on bun test](frontends-on-bun-test.md) — все фронты на `bun test` (не vitest, happy-dom+jest-dom), `mock.module` течёт process-wide; build=`tsc -b && vite` И тайпчекает тест-файлы (зелёный `bun test` ≠ зелёная сборка → типизировать bun-моки; финал слайса обязан включать `bun run build`).
 - [Coolify reference](coolify-reference.md) — staging cool.mubi.dev, API /api/v1 Bearer; токен в `~/.config/afk4/coolify.token`.
 - [Memory in git](memory-in-git-setup.md) — память версионируется в гите через симлинк/junction на `<repo>/.claude/memory`; новое устройство = clone + пересоздать линк ДО работы (WSL и Windows).
 - [Setup Wizard preview launch](setup-wizard-preview-launch.md) — `dotnet run --project AFK4.SetupWizard -- --preview` + Vite 5175 + env URL; devDeps → `bun install --force`.
@@ -29,7 +29,7 @@
 - [Tajik i18n honesty](tg-i18n-honesty.md) — guard-тест против `tg===ru` (whitelist loanwords); добавляешь tg-ключ → реально таджикский; переводы НЕ native-reviewed.
 
 ## Активный бэклог / эпики
-- [Operator «Склад» эпик](afk4-operator-stock-epic.md) — вынос склада в отдельную секцию рейла; слайсы S0–S4; S0 (каркас+Остатки v2, avg-cost) в PR #116; spec/plan/мокапы; money price=nested DTO vs avgCost=плоское; реальный per-product порог вместо хардкода.
+- [Operator «Склад» эпик](afk4-operator-stock-epic.md) — вынос склада в отдельную секцию рейла; слайсы S0–S4; S0 (каркас+Остатки v2, avg-cost) в PR #116, **S1 Приёмка в PR #117** (+ ＋/−/Оформить ожили, WriteOffDialog); дальше S2 Журнал/S3 Штрихи/S4 Инвентаризация; money price=nested DTO vs avgCost=плоское; `tsc -b` тайпчекает тесты.
 - [Online booking auto-confirm + hold](afk4-online-booking-autoconfirm-epic.md) — авто-confirm онлайн-броней при балансе (Slice 1 в main); холд денег — бэклог, решения зафиксированы, гейт на мобилку. Канон-док `docs/superpowers/specs/2026-06-18-online-booking-autoconfirm-hold.md`.
 - [Multi-tenant payments](afk4-multitenant-payments-state.md) — dcgate per-branch; money-path FROZEN внешним bank-bot; `Secrets:EncryptionKeyBase64` критичен (потеря = недешифруемые creds); prod afk4 не задеплоен.
 - [Time handling audit](afk4-time-handling-audit.md) — деньги server-authoritative/безопасны; реальный риск = skew/implicit-tz; рискованный lease/grace rewrite отложен до drift-логов; tz-multiregion YAGNI.
