@@ -2361,7 +2361,6 @@
   "op.stock.summary.outCount": "Закончились",
   "op.stock.summary.orderTitle": "Заказать",
   "op.stock.summary.orderBtn": "Оформить приёмку",
-  "op.stock.summary.orderBtnSoon": "Приёмка — скоро",
   "op.stock.action.receive": "Приёмка товара",
   "op.stock.action.writeOff": "Списание товара",
   "op.stock.writeoff.title": "Списание товара",

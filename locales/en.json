@@ -2163,7 +2163,6 @@
   "op.stock.summary.outCount": "Out of stock",
   "op.stock.summary.orderTitle": "To order",
   "op.stock.summary.orderBtn": "Record receipt",
-  "op.stock.summary.orderBtnSoon": "Receipt — coming soon",
   "op.stock.action.receive": "Receive goods",
   "op.stock.action.writeOff": "Write off goods",
   "op.stock.writeoff.title": "Write off stock",
