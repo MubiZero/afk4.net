@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { feedScanner, EMPTY_SCANNER } from './barcodeScanner';
+import { feedScanner, EMPTY_SCANNER, matchByBarcode } from './barcodeScanner';
 
 function run(keys: Array<[string, number]>) {
   let state = EMPTY_SCANNER;
@@ -43,5 +43,31 @@ describe('feedScanner', () => {
   it('ignores modifier/navigation keys, keeps digit buffer', () => {
     const { scanned } = run([['4', 0], ['Shift', 10], ['6', 20], ['0', 30], ['1', 40], ['Enter', 50]]);
     expect(scanned).toBe('4601');
+  });
+});
+
+describe('matchByBarcode', () => {
+  const catalog = [
+    { name: 'Cola', barcodes: ['111', '222'] },
+    { name: 'Water', barcodes: ['333'] },
+    { name: 'NoCode' }
+  ];
+
+  it('finds item by matching barcode', () => {
+    expect(matchByBarcode(catalog, '111')?.name).toBe('Cola');
+    expect(matchByBarcode(catalog, '222')?.name).toBe('Cola');
+    expect(matchByBarcode(catalog, '333')?.name).toBe('Water');
+  });
+
+  it('returns undefined for unknown code', () => {
+    expect(matchByBarcode(catalog, '999')).toBeUndefined();
+  });
+
+  it('handles items without barcodes field', () => {
+    expect(matchByBarcode(catalog, 'NoCode')).toBeUndefined();
+  });
+
+  it('returns undefined for empty catalog', () => {
+    expect(matchByBarcode([], '111')).toBeUndefined();
   });
 });

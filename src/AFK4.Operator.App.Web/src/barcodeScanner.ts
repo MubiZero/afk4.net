@@ -1,6 +1,12 @@
 export interface ScannerState { buffer: string; lastKeyMs: number }
 export const EMPTY_SCANNER: ScannerState = { buffer: '', lastKeyMs: 0 };
 
+// Общий хелпер: найти товар по штрих-коду из каталога.
+// Переиспользуется в POS (T8) и Приёмке (T9).
+export function matchByBarcode<T extends { barcodes?: string[] }>(items: T[], code: string): T | undefined {
+  return items.find((item) => item.barcodes?.includes(code));
+}
+
 export interface ScannerOptions { minLength?: number; maxInterKeyMs?: number }
 export interface ScannerStep { state: ScannerState; scanned?: string; capture: boolean }
 

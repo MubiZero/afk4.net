@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'bun:test';
 import { cleanup, render, screen } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { BackendPosWorkspace } from './BackendPosWorkspace';
+import { ToastProvider } from './operatorToast';
 
 afterEach(cleanup);
 
@@ -9,7 +10,9 @@ afterEach(cleanup);
 function renderPos(embedded: boolean) {
   render(
     <I18nProvider initialLocale="ru">
-      <BackendPosWorkspace currencyCode="TJS" backend={null} embedded={embedded} />
+      <ToastProvider>
+        <BackendPosWorkspace currencyCode="TJS" backend={null} embedded={embedded} />
+      </ToastProvider>
     </I18nProvider>
   );
 }

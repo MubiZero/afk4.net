@@ -2851,6 +2851,10 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createPosCategory(body));
   }
 
+  if (pathname.includes('/pos/products/') && pathname.endsWith('/barcodes') && (!init?.method || init.method === 'GET')) {
+    return jsonResponse([]);
+  }
+
   if (pathname.includes('/pos/products/') && init?.method === 'PATCH') {
     const body = JSON.parse(String(init.body));
     const productId = pathname.split('/').at(-1);

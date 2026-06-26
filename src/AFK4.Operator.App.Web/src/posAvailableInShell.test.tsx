@@ -21,6 +21,7 @@ const settingsClient = {
   getLayoutZones: empty,
   getTariffOptions: empty,
   getPackageOptions: empty,
+  getProductBarcodes: empty,
   createProductCategory,
   createProduct,
   updateProduct
