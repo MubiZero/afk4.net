@@ -760,7 +760,8 @@
 
 .jsum {
   text-align: right;
-  color: var(--text-tertiary);
+  /* Сумма движения — деньги: читаемый text-strong (инвариант контраста, не tertiary) */
+  color: var(--text-strong);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 12px;

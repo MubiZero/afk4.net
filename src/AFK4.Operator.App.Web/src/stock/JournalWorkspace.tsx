@@ -134,7 +134,7 @@ export function JournalWorkspace({
     <div className="stock-layout">
       <section className="stock-journal">
         <div className="ledger-head">
-          <h2 id="journal-head">{t('op.stock.journal.head')}</h2>
+          <h2>{t('op.stock.journal.head')}</h2>
           <div className="seg">
             {TYPE_FILTERS.map((filter) => (
               <button
@@ -170,7 +170,7 @@ export function JournalWorkspace({
         ) : rows.length === 0 ? (
           <p className="cash-shift-empty-note">{t('op.stock.journal.emptyFiltered')}</p>
         ) : (
-          <div className="jledger" aria-label={t('op.stock.journal.head')} aria-describedby="journal-head">
+          <div className="jledger" aria-label={t('op.stock.journal.head')}>
             {groups.map((group) => (
               <div key={group.dayKey}>
                 <div className="daygroup">{dayLabel(group.dayKey)}</div>
