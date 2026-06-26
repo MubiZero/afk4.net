@@ -190,10 +190,12 @@ export function StockLevelsWorkspace({
                     </em>
                   </div>
                   <div className="metrics">
-                    {/* Остаток */}
+                    {/* Остаток: число + «шт» в строке, статус — подсказкой снизу */}
                     <div className={`qty${status === 'low' ? ' low' : status === 'out' ? ' out' : ''}`}>
-                      {item.stockOnHand}
-                      <span className="u"> {t('op.stock.col.unit')}</span>
+                      <span className="qnum">
+                        {item.stockOnHand}
+                        <span className="u"> {t('op.stock.col.unit')}</span>
+                      </span>
                       {status !== 'ok' && (
                         <span className={`stock-status-tag ${status}`}>
                           {t(status === 'low' ? 'op.stock.status.low' : 'op.stock.status.out')}

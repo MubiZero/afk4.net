@@ -192,8 +192,10 @@
 /* ── Плотная группа числовых метрик ── */
 .metrics {
   display: grid;
-  grid-template-columns: 66px 48px 56px 56px 50px 64px 86px;
-  gap: 0 16px;
+  /* Остаток · Порог · Себест. · Цена · Маржа · Стоимость · Действия — с воздухом,
+     заголовки не обрезаются (uppercase «СЕБЕСТ.»/«СТОИМОСТЬ» помещаются). */
+  grid-template-columns: 88px 56px 66px 62px 58px 90px 78px;
+  gap: 0 24px;
   align-items: center;
 }
 
@@ -202,13 +204,21 @@
   text-align: right;
 }
 
-/* Остаток: белый моноширинный (инвариант — деньги и числа = text-primary) */
+/* Остаток: число + «шт» в строке (.qnum), статус — отдельной подсказкой снизу */
 .qty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-sm);
   font-weight: 600;
+}
+
+.qty .qnum {
+  white-space: nowrap;
 }
 
 .qty .u {
@@ -221,13 +231,14 @@
 .qty.low { color: var(--warning); }
 .qty.out { color: var(--danger); }
 
-/* Тег статуса в строке товара */
+/* Статус-подсказка под числом остатка (не в одну строку с «шт») */
 .stock-status-tag {
-  margin-left: 4px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-family: "Segoe UI", Arial, sans-serif;
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 .stock-status-tag.low { color: var(--warning); }
