@@ -149,6 +149,9 @@ export function ReceivingWorkspace({
             <span className="recv-add-hint">{t('op.stock.receiving.addHint')}</span>
           </div>
         </div>
+        {trackedCatalog.length === 0 && (
+          <p className="recv-noresults">{t('op.stock.receiving.noTracked')}</p>
+        )}
         {query && (
           <ul className="recv-results">
             {results.length === 0

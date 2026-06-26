@@ -96,4 +96,12 @@ describe('ReceivingWorkspace', () => {
     render(<I18nProvider initialLocale="ru"><ReceivingWorkspace backend={backend} currencyCode="TJS" session={{ permissions: ['inventory.view'], organizationId: 'o' } as never} preload={null} onConsumePreload={() => {}} /></I18nProvider>);
     expect(screen.getByText('Недостаточно прав для приёмки')).toBeInTheDocument();
   });
+
+  it('каталог без учётных товаров → пустое состояние «нет товаров с учётом остатка»', async () => {
+    getCatalog.mockImplementationOnce(async () => ([
+      { productId: 'x1', name: 'Время-услуга', sku: 'TIME', trackStock: false, stockOnHand: 0, reorderThreshold: 0, avgCostMinorUnits: 0, price: { currencyCode: 'TJS', minorUnits: 0 } },
+    ]));
+    view();
+    expect(await screen.findByText('Нет товаров с учётом остатка')).toBeInTheDocument();
+  });
 });
