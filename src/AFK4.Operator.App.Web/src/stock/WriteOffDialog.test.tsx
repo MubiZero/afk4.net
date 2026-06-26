@@ -2,7 +2,7 @@ import { describe, it, expect, mock, afterEach, afterAll } from 'bun:test';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 
-const createStockMovement = mock(async () => ({ stockMovementId: 'm1' }));
+const createStockMovement = mock(async (_branchId: string, _request: Record<string, unknown>) => ({ stockMovementId: 'm1' }));
 const actual = (globalThis as Record<string, unknown>).__afk4RealOperatorHelpers as Record<string, unknown>;
 mock.module('../operatorHelpers', () => ({ ...actual, createAuthenticatedOperatorClients: () => ({ inventory: { createStockMovement } }) }));
 

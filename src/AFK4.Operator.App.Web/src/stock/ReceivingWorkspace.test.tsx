@@ -7,7 +7,7 @@ const getCatalog = mock(async () => ([
   { productId: 'p2', name: 'Чипсы Lays', sku: 'CHIPS-LAYS', trackStock: true, stockOnHand: 3, reorderThreshold: 5, avgCostMinorUnits: 600, price: { currencyCode: 'TJS', minorUnits: 1200 } },
   { productId: 'p3', name: 'Время-услуга', sku: 'TIME', trackStock: false, stockOnHand: 0, reorderThreshold: 0, avgCostMinorUnits: 0, price: { currencyCode: 'TJS', minorUnits: 0 } },
 ]));
-const createStockMovement = mock(async () => ({ stockMovementId: 'm1' }));
+const createStockMovement = mock(async (_branchId: string, _request: Record<string, unknown>) => ({ stockMovementId: 'm1' }));
 const actual = (globalThis as Record<string, unknown>).__afk4RealOperatorHelpers as Record<string, unknown>;
 mock.module('../operatorHelpers', () => ({ ...actual, createAuthenticatedOperatorClients: () => ({ pos: { getCatalog }, inventory: { createStockMovement } }) }));
 
@@ -74,8 +74,8 @@ describe('ReceivingWorkspace', () => {
 
   it('частичный сбой оставляет непроведённые строки', async () => {
     // p1 успех, p2 — падение
-    createStockMovement.mockImplementation(async (_branch: unknown, req: { productId: string }) => {
-      if (req.productId === 'p2') throw new Error('boom');
+    createStockMovement.mockImplementation(async (_branchId: string, request: Record<string, unknown>) => {
+      if (request.productId === 'p2') throw new Error('boom');
       return { stockMovementId: 'ok' };
     });
     view();
