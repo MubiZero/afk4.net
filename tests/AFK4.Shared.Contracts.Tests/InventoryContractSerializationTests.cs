@@ -44,7 +44,8 @@ public sealed class InventoryContractSerializationTests
             UnitCost: new MoneyDto("TJS", 900),
             Reason: "damaged stock",
             CreatedByStaffUserId: Guid.Parse("3db1367b-88c6-4b1c-99c3-bcbb5f4d5134"),
-            CreatedAtUtc: DateTimeOffset.Parse("2026-05-13T10:00:00Z"));
+            CreatedAtUtc: DateTimeOffset.Parse("2026-05-13T10:00:00Z"),
+            CreatedByDisplayName: "Олег С.");
 
         var copy = JsonSerializer.Deserialize<StockMovementDto>(
             JsonSerializer.Serialize(movement, Options),
@@ -53,6 +54,7 @@ public sealed class InventoryContractSerializationTests
         Assert.NotNull(copy);
         Assert.Equal(StockMovementTypeNames.Adjustment, copy.MovementType);
         Assert.Equal(-2, copy.QuantityDelta);
+        Assert.Equal("Олег С.", copy!.CreatedByDisplayName);
     }
 
     [Fact]
