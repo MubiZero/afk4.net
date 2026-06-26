@@ -176,20 +176,20 @@ export function InventoryWorkspace({
               </div>
               <ul className="inv-lines">
                 {visibleLines.map((line) => {
-                  const counted = lineCounted(line);
                   const diff = lineDiff(line);
                   const sum = lineDiffSumMinorUnits(line);
+                  const pending = diff === null;
                   const hasDiff = diff !== null && diff !== 0;
-                  const diffClass = counted === null ? 'none' : diff === 0 ? 'zero' : diff < 0 ? 'minus' : 'plus';
+                  const diffClass = pending ? 'none' : diff === 0 ? 'zero' : diff < 0 ? 'minus' : 'plus';
                   return (
-                    <li key={line.productId} className={`inv-row${line.fresh ? ' fresh' : ''}${hasDiff ? ' diff' : ''}${counted === null ? ' pending' : ''}`}>
+                    <li key={line.productId} className={`inv-row${line.fresh ? ' fresh' : ''}${hasDiff ? ' diff' : ''}${pending ? ' pending' : ''}`}>
                       <Boxes size={15} aria-hidden="true" />
                       <div className="inv-name">
                         <strong>{line.name}</strong>
                         <em>{line.sku}</em>
                       </div>
                       <div className="inv-sys">{line.systemQty}</div>
-                      <div className={`inv-fact${counted === null ? ' empty' : ''}`}>
+                      <div className={`inv-fact${pending ? ' empty' : ''}`}>
                         <input
                           inputMode="numeric"
                           aria-label={`${t('op.stock.inventory.colFact')}: ${line.name}`}
@@ -200,10 +200,10 @@ export function InventoryWorkspace({
                         />
                       </div>
                       <div className={`inv-diff ${diffClass}`}>
-                        {counted === null ? t('op.stock.inventory.notCounted') : diff === 0 ? '0' : signedUnits(diff)}
+                        {pending ? t('op.stock.inventory.notCounted') : diff === 0 ? '0' : signedUnits(diff)}
                       </div>
                       <div className={`inv-sum ${diffClass}`}>
-                        {counted === null || diff === 0 ? '—' : signedSum(sum)}
+                        {pending || diff === 0 ? '—' : signedSum(sum)}
                       </div>
                     </li>
                   );
