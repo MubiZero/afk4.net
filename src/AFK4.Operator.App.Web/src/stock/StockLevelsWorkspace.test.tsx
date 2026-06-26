@@ -58,4 +58,16 @@ describe('StockLevelsWorkspace', () => {
     // Red Bull low → НЕ должен быть в списке при фильтре 'out'
     expect(within(list).queryAllByText('Энергетик Red Bull').length).toBe(0);
   });
+
+  it('кнопка ＋ на строке и «Оформить приёмку» зовут onReceive', async () => {
+    const onReceive = mock((_id?: string) => {});
+    render(<I18nProvider initialLocale="ru"><StockLevelsWorkspace backend={backend} currencyCode="TJS" session={session} onReceive={onReceive} /></I18nProvider>);
+    await screen.findByText('Cola 0.5');
+    // ＋ на первой строке (aria-label «Приёмка товара»)
+    fireEvent.click(screen.getAllByRole('button', { name: 'Приёмка товара' })[0]);
+    expect(onReceive).toHaveBeenCalledWith(expect.any(String));
+    // «Оформить приёмку» (есть товары «на исходе» → блок виден)
+    fireEvent.click(screen.getByRole('button', { name: 'Оформить приёмку' }));
+    expect(onReceive).toHaveBeenCalledWith();
+  });
 });

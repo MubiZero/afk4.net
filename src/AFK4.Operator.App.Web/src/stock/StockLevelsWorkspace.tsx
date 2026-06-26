@@ -215,10 +215,17 @@ export function StockLevelsWorkspace({
                     <div className={`valm${stockVal <= 0 ? ' dim' : ''}`}>
                       {stockVal > 0 ? formatMinorUnits(stockVal, currencyCode) : '—'}
                     </div>
-                    {/* Действия (S0 — заглушки) */}
+                    {/* Действия */}
                     <div className="rowact">
-                      <button type="button" className="iact" disabled title={t('op.stock.summary.orderBtnSoon')} aria-label={t('op.stock.action.receive')} aria-disabled="true">＋</button>
-                      <button type="button" className="iact minus" disabled title={t('op.stock.summary.orderBtnSoon')} aria-label={t('op.stock.action.writeOff')} aria-disabled="true">−</button>
+                      <button
+                        type="button"
+                        className="iact"
+                        disabled={!onReceive}
+                        title={t('op.stock.action.receive')}
+                        aria-label={t('op.stock.action.receive')}
+                        onClick={() => onReceive?.(item.productId)}
+                      >＋</button>
+                      <button type="button" className="iact minus" disabled title={t('op.stock.action.writeOff')} aria-label={t('op.stock.action.writeOff')} aria-disabled="true">−</button>
                     </div>
                   </div>
                 </li>
@@ -262,9 +269,8 @@ export function StockLevelsWorkspace({
                 </div>
               );
             })}
-            {/* S0: кнопка-заглушка, реальная приёмка в S1 */}
-            <button type="button" className="ctx-btn" disabled aria-disabled="true">
-              {t('op.stock.summary.orderBtnSoon')}
+            <button type="button" className="ctx-btn" disabled={!onReceive} onClick={() => onReceive?.()}>
+              {t('op.stock.summary.orderBtn')}
             </button>
           </div>
         )}
