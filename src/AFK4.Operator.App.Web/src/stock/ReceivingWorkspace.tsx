@@ -152,7 +152,7 @@ export function ReceivingWorkspace({
         {trackedCatalog.length === 0 && (
           <p className="recv-noresults">{t('op.stock.receiving.noTracked')}</p>
         )}
-        {query && (
+        {query && trackedCatalog.length > 0 && (
           <ul className="recv-results">
             {results.length === 0
               ? <li className="recv-noresults">{t('op.stock.receiving.noResults')}</li>
