@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 import { afterAll, afterEach, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
+import { ToastProvider } from './operatorToast';
 
 // Дымовой тест декомпозиции settings: каждый из 6 разделов должен отрендериться без падения
 // даже на пустых данных (после разреза монолита на settings/Settings*Section). Прощёлкиваем
@@ -45,7 +46,7 @@ const backend = {
 
 it('renders every settings section tab without crashing', async () => {
   const { container } = render(
-    <I18nProvider><BackendSettingsWorkspace currencyCode="TJS" backend={backend as never} /></I18nProvider>
+    <I18nProvider><ToastProvider><BackendSettingsWorkspace currencyCode="TJS" backend={backend as never} /></ToastProvider></I18nProvider>
   );
   await waitFor(() => expect(obj).toHaveBeenCalled());
 

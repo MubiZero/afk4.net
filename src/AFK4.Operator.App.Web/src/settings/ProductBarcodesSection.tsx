@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { createAuthenticatedOperatorClients } from '../operatorHelpers';
 import { useBarcodeScanner } from '../useBarcodeScanner';
+import { useToast } from '../operatorToast';
 import type { ProductBarcodeDto } from '../api/clients/settings';
 import type { OperatorBackendContext } from '../operatorTypes';
 
@@ -19,6 +20,7 @@ export function ProductBarcodesSection({
   canManage: boolean;
 }) {
   const { t } = useI18n();
+  const toast = useToast();
   const [barcodes, setBarcodes] = useState<ProductBarcodeDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [manualCode, setManualCode] = useState('');
@@ -55,6 +57,7 @@ export function ProductBarcodesSection({
     });
     setManualCode('');
     setScanning(false);
+    toast.success(t('op.barcode.added'));
     await fetchBarcodes();
   };
 

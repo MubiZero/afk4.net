@@ -1,6 +1,7 @@
 import { describe, it, expect, mock, beforeEach, afterEach, afterAll } from 'bun:test';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
+import { ToastProvider } from '../operatorToast';
 import type { ProductBarcodeDto } from '../api/clients/settings';
 
 const getProductBarcodes = mock(async (_branchId: string, _productId: string): Promise<ProductBarcodeDto[]> => []);
@@ -23,7 +24,9 @@ const backend = { config: { platformBaseUrl: 'http://x' }, session: { accessToke
 const view = (productId = 'p1', canManage = true) =>
   render(
     <I18nProvider initialLocale="ru">
-      <ProductBarcodesSection productId={productId} backend={backend} organizationId="org1" canManage={canManage} />
+      <ToastProvider>
+        <ProductBarcodesSection productId={productId} backend={backend} organizationId="org1" canManage={canManage} />
+      </ToastProvider>
     </I18nProvider>
   );
 

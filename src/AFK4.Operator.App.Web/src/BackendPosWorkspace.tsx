@@ -254,7 +254,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
     }
   }, [catalog, addProduct, toast, t]);
 
-  useBarcodeScanner(true, onScan);
+  useBarcodeScanner(!payOpen, onScan);
 
 
 

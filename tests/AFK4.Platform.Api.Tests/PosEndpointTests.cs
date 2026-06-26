@@ -355,6 +355,24 @@ public sealed class PosEndpointTests
     }
 
     [Fact]
+    public async Task AddProductBarcode_WithForeignOrganizationId_ReturnsBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+
+        var productId = Guid.NewGuid();
+
+        // OrganizationId в теле не совпадает с организацией аутентифицированного стаффа —
+        // IDOR-guard должен отклонить запрос с 400 BadRequest.
+        using var response = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes",
+            new AddProductBarcodeRequest(TestIds.OtherOrganizationId, "4600009999999"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task GetPosSale_ForCrossBranchSale_ReturnsNotFound()
     {
         await using var factory = new PlatformApiFactory();
