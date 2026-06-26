@@ -81,30 +81,15 @@
   outline-offset: 2px;
 }
 
-/* Поле поиска */
+/* Поле поиска = общий primitive .panel-search (рамка НА КОНТЕЙНЕРЕ, input прозрачный внутри —
+   16-workspace-primitives.css). Здесь только выравнивание вправо, ширина и акцент при фокусе.
+   НЕ рисуем рамку на input — иначе поле в поле (двойная рамка). */
 .panel-search {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
+  width: 220px;
+  margin: 0 0 0 auto;
 }
 
-.panel-search input {
-  height: 30px;
-  padding: 0 10px;
-  border: 1px solid var(--border-default);
-  border-radius: 5px;
-  background: var(--surface-sunken);
-  color: var(--text-primary);
-  font-size: 12px;
-  width: 200px;
-}
-
-.panel-search input::placeholder {
-  color: var(--text-tertiary);
-}
-
-.panel-search input:focus {
-  outline: none;
+.panel-search:focus-within {
   border-color: var(--accent);
 }
 
