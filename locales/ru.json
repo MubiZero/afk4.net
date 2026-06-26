@@ -2304,6 +2304,7 @@
   "op.shell.navGroup.warehouse": "Склад",
   "op.stock.title": "Склад",
   "op.stock.tab.levels": "Остатки",
+  "op.stock.tab.receiving": "Приёмка",
   "op.stock.levels.title": "Остатки на складе",
   "op.stock.levels.loading": "Загрузка остатков…",
   "op.stock.levels.empty": "Товаров на складе нет",

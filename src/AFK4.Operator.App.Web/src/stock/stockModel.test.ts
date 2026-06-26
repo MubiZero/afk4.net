@@ -13,4 +13,8 @@ describe('stockModel', () => {
   it('порядок стабилен', () => {
     expect(STOCK_TAB_ORDER[0]).toBe('levels');
   });
+  it('receiving виден только при праве управления складом', () => {
+    expect(visibleStockTabs({ permissions: ['inventory.stock.manage'] } as never)).toContain('receiving');
+    expect(visibleStockTabs({ permissions: ['inventory.view'] } as never)).not.toContain('receiving');
+  });
 });

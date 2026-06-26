@@ -2106,6 +2106,7 @@
   "op.shell.navGroup.warehouse": "Stock",
   "op.stock.title": "Stock",
   "op.stock.tab.levels": "Levels",
+  "op.stock.tab.receiving": "Receiving",
   "op.stock.levels.title": "Stock levels",
   "op.stock.levels.loading": "Loading stock…",
   "op.stock.levels.empty": "No products in stock",

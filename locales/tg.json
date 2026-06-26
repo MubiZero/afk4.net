@@ -2106,6 +2106,7 @@
   "op.shell.navGroup.warehouse": "Анбор",
   "op.stock.title": "Анбор",
   "op.stock.tab.levels": "Бақияҳо",
+  "op.stock.tab.receiving": "Қабули мол",
   "op.stock.levels.title": "Бақияҳои анбор",
   "op.stock.levels.loading": "Бор кардани бақияҳо…",
   "op.stock.levels.empty": "Молҳо дар анбор нест",

@@ -22,10 +22,12 @@ export function StockLevelsWorkspace({
   backend,
   currencyCode,
   session,
+  onReceive,
 }: {
   backend: OperatorBackendContext | null;
   currencyCode: string;
   session: OperatorAuthSession | null;
+  onReceive?: (productId?: string) => void;
 }) {
   const { t } = useI18n();
 
