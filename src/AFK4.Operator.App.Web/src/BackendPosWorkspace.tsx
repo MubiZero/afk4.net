@@ -38,9 +38,14 @@ type PosCatalogItem = {
   category: string;
   note: string;
   stockOnHand: number;
+  reorderThreshold: number;
   barcodes: string[];
   source: 'fixture' | 'backend';
 };
+
+export function isLowStock(item: Pick<PosCatalogItem, 'source' | 'stockOnHand' | 'reorderThreshold'>): boolean {
+  return item.source === 'backend' && item.reorderThreshold > 0 && item.stockOnHand <= item.reorderThreshold;
+}
 
 type PosCartItem = PosCatalogItem & {
   quantity: number;
@@ -52,10 +57,10 @@ const CATEGORY_ALL = '__all__';
 
 function makeFixtureProducts(t: ReturnType<typeof useI18n>['t']): PosCatalogItem[] {
   return [
-    { name: t('op.pos.fixture.cola'), priceMinorUnits: 1200, category: t('op.pos.fixture.drinks'), note: t('op.pos.fixture.note'), stockOnHand: 0, barcodes: [], source: 'fixture' },
-    { name: t('op.pos.fixture.water'), priceMinorUnits: 600, category: t('op.pos.fixture.drinks'), note: t('op.pos.fixture.note'), stockOnHand: 0, barcodes: [], source: 'fixture' },
-    { name: t('op.pos.fixture.hotdog'), priceMinorUnits: 2800, category: t('op.pos.fixture.food'), note: t('op.pos.fixture.note'), stockOnHand: 0, barcodes: [], source: 'fixture' },
-    { name: t('op.pos.fixture.guestHour'), priceMinorUnits: 2500, category: t('op.pos.fixture.services'), note: t('op.pos.fixture.note'), stockOnHand: 0, barcodes: [], source: 'fixture' }
+    { name: t('op.pos.fixture.cola'), priceMinorUnits: 1200, category: t('op.pos.fixture.drinks'), note: t('op.pos.fixture.note'), stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' },
+    { name: t('op.pos.fixture.water'), priceMinorUnits: 600, category: t('op.pos.fixture.drinks'), note: t('op.pos.fixture.note'), stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' },
+    { name: t('op.pos.fixture.hotdog'), priceMinorUnits: 2800, category: t('op.pos.fixture.food'), note: t('op.pos.fixture.note'), stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' },
+    { name: t('op.pos.fixture.guestHour'), priceMinorUnits: 2500, category: t('op.pos.fixture.services'), note: t('op.pos.fixture.note'), stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' }
   ];
 }
 
@@ -63,6 +68,7 @@ function projectPosProduct(product: PosProductDto, t: ReturnType<typeof useI18n>
   const price = readMoney(product, 'price');
   const sku = readString(product, 'sku', 'SKU');
   const stockOnHand = readNumber(product, 'stockOnHand', 0);
+  const reorderThreshold = readNumber(product, 'reorderThreshold', 0);
   return {
     productId: readString(product, 'productId') || undefined,
     name: readString(product, 'name', t('op.pos.catalog.productFallback')),
@@ -70,6 +76,7 @@ function projectPosProduct(product: PosProductDto, t: ReturnType<typeof useI18n>
     category: readString(product, 'categoryName', readString(product, 'categoryId', t('op.pos.catalog.categoryFallback'))),
     note: t('op.pos.catalog.note', { sku, count: stockOnHand }),
     stockOnHand,
+    reorderThreshold,
     barcodes: readArray<string>(product, 'barcodes'),
     // projectPosProduct обрабатывает только реальные бэкенд-продукты (фикстуры идут через
     // makeFixtureProducts с source:'fixture'), поэтому источник всегда 'backend'.
@@ -216,7 +223,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
   const selectedPosPlayerId = selectedPosPlayer?.playerAccountId ?? null;
   const playerSearchQuery = playerSearch.trim();
   const cartTotalMinorUnits = cartItems.reduce((sum, item) => sum + item.priceMinorUnits * item.quantity, 0);
-  const lowStockCount = catalog.filter((product) => product.source === 'backend' && product.stockOnHand <= 2).length;
+  const lowStockCount = catalog.filter(isLowStock).length;
   const shiftId = readString(currentShift, 'shiftId');
   const canAcceptPayment = backend !== null
     && shiftId.length > 0

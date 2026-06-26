@@ -7,12 +7,14 @@ import { StockTabBar } from './StockTabBar';
 import { StockLevelsWorkspace } from './StockLevelsWorkspace';
 import { ReceivingWorkspace } from './ReceivingWorkspace';
 import { JournalWorkspace } from './JournalWorkspace';
+import { InventoryWorkspace } from './InventoryWorkspace';
 import { visibleStockTabs, type StockTab } from './stockModel';
 
 const TAB_LABELS: Record<StockTab, MessageKey> = {
   levels: 'op.stock.tab.levels',
   receiving: 'op.stock.tab.receiving',
   journal: 'op.stock.tab.journal',
+  inventory: 'op.stock.tab.inventory',
 };
 
 // Раздел «Склад» — шапка-якорь + вкладки + активное содержимое. Поднимает activeTab и
@@ -67,6 +69,9 @@ export function StockWorkspace({
         )}
         {activeTab === 'journal' && (
           <JournalWorkspace backend={backend} currencyCode={currencyCode} session={session} />
+        )}
+        {activeTab === 'inventory' && (
+          <InventoryWorkspace backend={backend} currencyCode={currencyCode} session={session} />
         )}
       </div>
     </main>
