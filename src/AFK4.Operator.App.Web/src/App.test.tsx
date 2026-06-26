@@ -2304,7 +2304,8 @@ describe('App', () => {
     gotoWorkspace('Настройки');
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Товары и склад/ }));
-    expect(await screen.findByText(/Коррекция остатков после пересчёта/)).toBeInTheDocument();
+    // История движений переехала в раздел «Склад → Журнал»; в настройках осталась только форма записи.
+    expect(await screen.findByRole('button', { name: 'Записать движение' })).toBeInTheDocument();
     expect(screen.queryByText(/\bstock\b/i)).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Тип'), { target: { value: 'adjustment' } });
     fireEvent.change(screen.getByLabelText('Кол-во'), { target: { value: '-3' } });
@@ -2327,9 +2328,6 @@ describe('App', () => {
       reason: 'Коррекция остатков после пересчёта'
     });
     expect(body.idempotencyKey).toMatch(/^stock-movement-create-/);
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/inventory/stock-movements?limit=8') &&
-      init?.method !== 'POST')).toBe(true);
   });
 
   it('creates a package definition from Settings tariffs', async () => {

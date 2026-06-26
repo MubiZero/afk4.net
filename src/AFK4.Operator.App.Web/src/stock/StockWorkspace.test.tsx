@@ -6,8 +6,9 @@ const getCatalog = mock(async () => ([
   { productId: 'p1', name: 'Cola 0.5', sku: 'COLA-05', trackStock: true, stockOnHand: 12, reorderThreshold: 6, avgCostMinorUnits: 400, price: { currencyCode: 'TJS', minorUnits: 1000 } },
 ]));
 const createStockMovement = mock(async () => ({ stockMovementId: 'm1' }));
+const getStockMovements = mock(async () => ([]));
 const actual = (globalThis as Record<string, unknown>).__afk4RealOperatorHelpers as Record<string, unknown>;
-mock.module('../operatorHelpers', () => ({ ...actual, createAuthenticatedOperatorClients: () => ({ pos: { getCatalog }, inventory: { createStockMovement } }) }));
+mock.module('../operatorHelpers', () => ({ ...actual, createAuthenticatedOperatorClients: () => ({ pos: { getCatalog }, inventory: { createStockMovement, getStockMovements } }) }));
 
 const { StockWorkspace } = await import('./StockWorkspace');
 
@@ -33,5 +34,12 @@ describe('StockWorkspace — вкладки', () => {
   it('без права управления вкладка Приёмка скрыта (полоса вкладок не показывается)', () => {
     view(viewOnlySession);
     expect(screen.queryByRole('tab', { name: 'Приёмка' })).not.toBeInTheDocument();
+  });
+
+  it('вкладка «Журнал» видна и переключается', async () => {
+    view(manageSession);
+    const journalTab = screen.getByRole('tab', { name: 'Журнал' });
+    fireEvent.click(journalTab);
+    expect(journalTab).toHaveAttribute('aria-selected', 'true');
   });
 });

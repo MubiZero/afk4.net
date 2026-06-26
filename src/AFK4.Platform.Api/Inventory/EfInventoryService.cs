@@ -505,8 +505,14 @@ public sealed class EfInventoryService(
             .Take(Math.Min(limit, 200))
             .ToListAsync(cancellationToken);
 
+        var staffIds = movements.Select(movement => movement.CreatedByStaffUserId).Distinct().ToList();
+        var staffNames = await dbContext.StaffUsers
+            .AsNoTracking()
+            .Where(staff => staff.OrganizationId == organizationId && staffIds.Contains(staff.StaffUserId))
+            .ToDictionaryAsync(staff => staff.StaffUserId, staff => staff.DisplayName, cancellationToken);
+
         return BillingCommandServiceResult<IReadOnlyList<StockMovementDto>>.Ok(
-            movements.Select(ToDto).ToList());
+            movements.Select(movement => ToDto(movement, staffNames.GetValueOrDefault(movement.CreatedByStaffUserId))).ToList());
     }
 
     private static string? ValidateCreateProductRequest(CreateProductRequest request)
@@ -789,7 +795,7 @@ public sealed class EfInventoryService(
             product.AvgCostMinorUnits);
     }
 
-    private static StockMovementDto ToDto(StockMovementEntity movement)
+    private static StockMovementDto ToDto(StockMovementEntity movement, string? createdByDisplayName = null)
     {
         return new StockMovementDto(
             movement.StockMovementId,
@@ -801,6 +807,7 @@ public sealed class EfInventoryService(
             new MoneyDto(movement.CurrencyCode, movement.UnitCostMinorUnits),
             movement.Reason,
             movement.CreatedByStaffUserId,
-            movement.CreatedAtUtc);
+            movement.CreatedAtUtc,
+            createdByDisplayName);
     }
 }

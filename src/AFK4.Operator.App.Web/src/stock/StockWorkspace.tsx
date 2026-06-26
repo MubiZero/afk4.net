@@ -6,11 +6,13 @@ import type { OperatorAuthSession } from '../authClient';
 import { StockTabBar } from './StockTabBar';
 import { StockLevelsWorkspace } from './StockLevelsWorkspace';
 import { ReceivingWorkspace } from './ReceivingWorkspace';
+import { JournalWorkspace } from './JournalWorkspace';
 import { visibleStockTabs, type StockTab } from './stockModel';
 
 const TAB_LABELS: Record<StockTab, MessageKey> = {
   levels: 'op.stock.tab.levels',
   receiving: 'op.stock.tab.receiving',
+  journal: 'op.stock.tab.journal',
 };
 
 // Раздел «Склад» — шапка-якорь + вкладки + активное содержимое. Поднимает activeTab и
@@ -62,6 +64,9 @@ export function StockWorkspace({
             preload={receivePreload}
             onConsumePreload={() => setReceivePreload(null)}
           />
+        )}
+        {activeTab === 'journal' && (
+          <JournalWorkspace backend={backend} currencyCode={currencyCode} session={session} />
         )}
       </div>
     </main>

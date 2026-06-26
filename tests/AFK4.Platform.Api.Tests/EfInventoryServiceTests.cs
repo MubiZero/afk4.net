@@ -441,6 +441,42 @@ public sealed class EfInventoryServiceTests
     }
 
     [Fact]
+    public async Task GetStockMovementsAsync_ResolvesCreatedByDisplayName()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var product = await CreateTrackedProductAsync(service);
+        db.StaffUsers.Add(new StaffUserEntity
+        {
+            StaffUserId = ActorStaffUserId, OrganizationId = TestIds.OrganizationId, UserName = "oleg",
+            NormalizedUserName = "OLEG", DisplayName = "Олег С.", PasswordHash = "x", IsActive = true, CreatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+
+        var unknownActor = Guid.NewGuid();
+        await service.CreateStockMovementAsync(
+            TestIds.BranchId, ActorStaffUserId,
+            StockMovement(product.ProductId, StockMovementTypeNames.Purchase, 5, "stock-name-001"),
+            CancellationToken.None);
+        // движение от актора без записи в StaffUsers → имя не резолвится (null)
+        await service.CreateStockMovementAsync(
+            TestIds.BranchId, unknownActor,
+            StockMovement(product.ProductId, StockMovementTypeNames.Adjustment, -1, "stock-name-002"),
+            CancellationToken.None);
+
+        var result = await service.GetStockMovementsAsync(
+            TestIds.OrganizationId, TestIds.BranchId, product.ProductId, limit: 50, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        // Различаем движения по автору: StockMovement(...) хардкодит Reason, а idempotencyKey (4-й арг) ≠ Reason.
+        var known = Assert.Single(result.Response, m => m.CreatedByStaffUserId == ActorStaffUserId);
+        Assert.Equal("Олег С.", known.CreatedByDisplayName);
+        var unknown = Assert.Single(result.Response, m => m.CreatedByStaffUserId == unknownActor);
+        Assert.Null(unknown.CreatedByDisplayName);
+    }
+
+    [Fact]
     public async Task GetStockMovementsAsync_ReturnsRecentMovementsFilteredByProduct()
     {
         await using var db = CreateDbContext();

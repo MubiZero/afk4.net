@@ -145,6 +145,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.shell.appName',
     'op.shell.nav.dashboard',
     'op.shell.platform',
+    'op.stock.journal.csv.sku',
     'operators.field.email',
     'operators.field.userName',
     'overview.attention.offline',

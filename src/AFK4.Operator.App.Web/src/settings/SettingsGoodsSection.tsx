@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from '../apiErrors';
-import type { PosProductDto, StockMovementDto } from '../operatorApiClients';
+import type { PosProductDto } from '../operatorApiClients';
 import type { Feedback, OperatorBackendContext } from '../operatorTypes';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import {
@@ -9,7 +9,6 @@ import {
   createIdempotencyKey,
   formatMoney,
   formatMoneyInputMinorUnits,
-  isGuid,
   parseMoneyInputMinorUnits,
   parseNonNegativeMoneyInputMinorUnits,
   readBoolean,
@@ -17,15 +16,13 @@ import {
   readNumber,
   readString,
   requireBackend,
-  stockMovementTypeLabel,
   triggerFeedback
 } from '../operatorHelpers';
 
-// Раздел «Товары и склад»: форма создания/редактирования товаров, складские движения, история.
-// Родитель отдаёт серверные catalog/stockMovements + сеттер onCatalogChange + currencyCode + onFeedback + onReload.
+// Раздел «Товары и склад»: форма создания/редактирования товаров + форма записи движений склада.
+// Родитель отдаёт серверный catalog + сеттер onCatalogChange + currencyCode + onFeedback + onReload.
 export function SettingsGoodsSection({
   catalog,
-  stockMovements,
   currencyCode,
   backend,
   canManagePosCatalog,
@@ -35,7 +32,6 @@ export function SettingsGoodsSection({
   onFeedback
 }: {
   catalog: PosProductDto[];
-  stockMovements: StockMovementDto[];
   currencyCode: string;
   backend: OperatorBackendContext | null;
   canManagePosCatalog: boolean;
@@ -259,33 +255,6 @@ export function SettingsGoodsSection({
         <label>{t('op.settings.stock.quantity')}<input inputMode="numeric" value={stockQuantityDelta} disabled={!canManageInventoryStock} onChange={(event) => setStockQuantityDelta(event.currentTarget.value)} /></label>
         <label>{t('op.settings.stock.unitCost')}<input inputMode="decimal" value={stockUnitCost} disabled={!canManageInventoryStock} onChange={(event) => setStockUnitCost(event.currentTarget.value)} /></label>
         <label>{t('op.settings.stock.reason')}<input value={stockReason} disabled={!canManageInventoryStock} onChange={(event) => setStockReason(event.currentTarget.value)} /></label>
-      </div>
-      <div className="settings-section-title">
-        <span>{t('op.settings.stock.history.title')}</span>
-        <strong>{t('op.settings.stock.history.count', { count: stockMovements.length })}</strong>
-      </div>
-      <div className="settings-config-grid settings-stock-history">
-        {stockMovements.length === 0 && (
-          <button type="button" disabled>
-            <strong>{t('op.settings.stock.history.empty')}</strong>
-            <span>{t('op.settings.stock.history.emptyDetail')}</span>
-          </button>
-        )}
-        {stockMovements.map((movement) => {
-          const productId = readString(movement, 'productId');
-          const movementProductName = readString(
-            catalog.find((product) => readString(product, 'productId') === productId),
-            'name',
-            t('op.settings.pos.productFallback'));
-          const quantityDelta = readNumber(movement, 'quantityDelta', 0);
-          const reason = readString(movement, 'reason', t('op.settings.stock.reasonFallback'));
-          return (
-            <button key={readString(movement, 'stockMovementId')} type="button" onClick={() => triggerFeedback(onFeedback, movementProductName, 'confirmed')}>
-              <strong>{movementProductName} · {stockMovementTypeLabel(readString(movement, 'movementType'), t)}</strong>
-              <span>{quantityDelta > 0 ? '+' : ''}{quantityDelta} · {formatMoney(readMoney(movement, 'unitCost'), currencyCode)} · {reason}</span>
-            </button>
-          );
-        })}
       </div>
     </>
   );

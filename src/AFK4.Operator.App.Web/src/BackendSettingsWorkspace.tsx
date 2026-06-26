@@ -17,7 +17,6 @@ import type {
   PackageOptionDto,
   PosProductDto,
   StaffUserDto,
-  StockMovementDto,
   TariffOptionDto,
   UpdatePackageDto,
   UpdateRolloutStatusDto,
@@ -64,7 +63,6 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
   const [staffUsers, setStaffUsers] = useState<StaffUserDto[]>([]);
   const [zones, setZones] = useState<ZoneDto[]>([]);
   const [catalog, setCatalog] = useState<PosProductDto[]>([]);
-  const [stockMovements, setStockMovements] = useState<StockMovementDto[]>([]);
   const [diagnostics, setDiagnostics] = useState<BranchDiagnosticsDto | null>(null);
   const [rollouts, setRollouts] = useState<UpdateRolloutStatusDto[]>([]);
   const [registeredUpdatePackages, setRegisteredUpdatePackages] = useState<UpdatePackageDto[]>([]);
@@ -82,12 +80,11 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
     setLoadStatus('loading');
     try {
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const [branchProfile, staff, layoutZones, products, stockMovementRows, branchDiagnostics, rolloutStatuses, tariffOptions, packageOptionRows, deviceRows, branchDeviceCommands] = await Promise.all([
+      const [branchProfile, staff, layoutZones, products, branchDiagnostics, rolloutStatuses, tariffOptions, packageOptionRows, deviceRows, branchDeviceCommands] = await Promise.all([
         apiClients.settings.getBranchProfile(nextBackend.branchId),
         apiClients.settings.getStaffUsers(nextBackend.branchId),
         apiClients.settings.getLayoutZones(nextBackend.branchId),
         apiClients.pos.getCatalog(nextBackend.branchId),
-        apiClients.inventory.getStockMovements(nextBackend.branchId, { limit: 8 }).catch(() => []),
         apiClients.diagnostics.getDiagnostics(nextBackend.branchId),
         apiClients.updates.getRolloutStatuses(nextBackend.branchId),
         apiClients.settings.getTariffOptions(nextBackend.branchId),
@@ -104,7 +101,6 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
       const zoneRows = Array.isArray(layoutZones) ? layoutZones : [];
       setZones(zoneRows);
       setCatalog(productRows);
-      setStockMovements(Array.isArray(stockMovementRows) ? stockMovementRows : []);
       setDiagnostics(branchDiagnostics);
       const rolloutRows = Array.isArray(rolloutStatuses) ? rolloutStatuses : [];
       setRollouts(rolloutRows);
@@ -271,7 +267,6 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
       return (
         <SettingsGoodsSection
           catalog={catalog}
-          stockMovements={stockMovements}
           currencyCode={currencyCode}
           backend={backend}
           canManagePosCatalog={canManagePosCatalog}

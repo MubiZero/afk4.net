@@ -12,4 +12,5 @@ public sealed record StockMovementDto(
     MoneyDto UnitCost,
     string Reason,
     Guid CreatedByStaffUserId,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    string? CreatedByDisplayName = null);

@@ -391,6 +391,8 @@ export function stockMovementTypeLabel(type: string, t: TFunc): string {
       return t('op.helper.stock.adjustment');
     case 'sale':
       return t('op.helper.stock.sale');
+    case 'refund':
+      return t('op.helper.stock.refund');
     case 'write_off':
       return t('op.helper.stock.writeOff');
     default:
