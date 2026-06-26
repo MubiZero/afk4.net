@@ -346,6 +346,7 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/reservations') && method === 'GET') return { reservations: reservations(), limit: 40 };
   if (pathname.endsWith('/sessions') && method === 'GET') return { sessions: sessionsTimeline() };
   if (pathname.endsWith('/inventory/stock-movements') && method === 'GET') return [];
+  if (pathname.endsWith('/inventory/stock-movements') && method === 'POST') return { stockMovementId: 'mock-movement' };
   if (pathname.endsWith('/commands') && method === 'GET') return [];
   if (pathname.endsWith('/diagnostics') && method === 'GET') return diagnostics();
   if (pathname.includes('/devices/') && method === 'GET') return deviceDetail();

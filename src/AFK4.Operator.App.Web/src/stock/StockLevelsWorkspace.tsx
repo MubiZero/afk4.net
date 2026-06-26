@@ -15,6 +15,7 @@ import {
   summarize,
   type StockItem,
 } from './stockLevels';
+import { WriteOffDialog } from './WriteOffDialog';
 
 type FilterMode = 'all' | 'low' | 'out';
 
@@ -22,10 +23,12 @@ export function StockLevelsWorkspace({
   backend,
   currencyCode,
   session,
+  onReceive,
 }: {
   backend: OperatorBackendContext | null;
   currencyCode: string;
   session: OperatorAuthSession | null;
+  onReceive?: (productId?: string) => void;
 }) {
   const { t } = useI18n();
 
@@ -42,6 +45,8 @@ export function StockLevelsWorkspace({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterMode>('all');
   const [search, setSearch] = useState('');
+  const [writeOffItem, setWriteOffItem] = useState<StockItem | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
     if (!canView) { setLoading(false); return; }
@@ -62,7 +67,7 @@ export function StockLevelsWorkspace({
       });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clients, backend?.branchId, canView]);
+  }, [clients, backend?.branchId, canView, reloadNonce]);
 
   if (!canView) {
     return (
@@ -213,10 +218,24 @@ export function StockLevelsWorkspace({
                     <div className={`valm${stockVal <= 0 ? ' dim' : ''}`}>
                       {stockVal > 0 ? formatMinorUnits(stockVal, currencyCode) : '—'}
                     </div>
-                    {/* Действия (S0 — заглушки) */}
+                    {/* Действия */}
                     <div className="rowact">
-                      <button type="button" className="iact" disabled title={t('op.stock.summary.orderBtnSoon')} aria-label={t('op.stock.action.receive')} aria-disabled="true">＋</button>
-                      <button type="button" className="iact minus" disabled title={t('op.stock.summary.orderBtnSoon')} aria-label={t('op.stock.action.writeOff')} aria-disabled="true">−</button>
+                      <button
+                        type="button"
+                        className="iact"
+                        disabled={!onReceive}
+                        title={t('op.stock.action.receive')}
+                        aria-label={t('op.stock.action.receive')}
+                        onClick={() => onReceive?.(item.productId)}
+                      >＋</button>
+                      <button
+                        type="button"
+                        className="iact minus"
+                        disabled={item.stockOnHand <= 0}
+                        title={t('op.stock.action.writeOff')}
+                        aria-label={t('op.stock.action.writeOff')}
+                        onClick={() => setWriteOffItem(item)}
+                      >−</button>
                     </div>
                   </div>
                 </li>
@@ -225,6 +244,16 @@ export function StockLevelsWorkspace({
           </ul>
         )}
       </section>
+
+      {writeOffItem && (
+        <WriteOffDialog
+          item={writeOffItem}
+          backend={backend}
+          currencyCode={currencyCode}
+          onClose={() => setWriteOffItem(null)}
+          onDone={() => { setWriteOffItem(null); setReloadNonce((n) => n + 1); }}
+        />
+      )}
 
       {/* ── Сводка ── */}
       <aside className="stock-summary">
@@ -260,9 +289,8 @@ export function StockLevelsWorkspace({
                 </div>
               );
             })}
-            {/* S0: кнопка-заглушка, реальная приёмка в S1 */}
-            <button type="button" className="ctx-btn" disabled aria-disabled="true">
-              {t('op.stock.summary.orderBtnSoon')}
+            <button type="button" className="ctx-btn" disabled={!onReceive} onClick={() => onReceive?.()}>
+              {t('op.stock.summary.orderBtn')}
             </button>
           </div>
         )}
