@@ -19,6 +19,8 @@ public sealed class PosEndpointTests
     private static readonly Guid UnknownShiftId = Guid.Parse("11111111-aaaa-4111-8111-111111111111");
     private static readonly Guid UnknownSaleId = Guid.Parse("22222222-aaaa-4222-8222-222222222222");
     private static readonly Guid UnknownReceiptId = Guid.Parse("33333333-aaaa-4333-8333-333333333333");
+    private static readonly Guid UnknownProductId = Guid.Parse("77777777-aaaa-4777-8777-777777777777");
+    private static readonly Guid UnknownBarcodeId = Guid.Parse("88888888-aaaa-4888-8888-888888888888");
 
     [Fact]
     public async Task Phase6Endpoints_WithoutBearer_ReturnUnauthorized()
@@ -26,7 +28,7 @@ public sealed class PosEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        foreach (var endpoint in CreateEndpointCases(UnknownShiftId, UnknownSaleId, UnknownReceiptId))
+        foreach (var endpoint in CreateEndpointCases(UnknownShiftId, UnknownSaleId, UnknownReceiptId, UnknownProductId, UnknownBarcodeId))
         {
             using var response = await SendAsync(client, endpoint);
 
@@ -41,10 +43,14 @@ public sealed class PosEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
 
-        foreach (var endpoint in CreateEndpointCases(UnknownShiftId, UnknownSaleId, UnknownReceiptId)
+        // Technician has ViewInventory but not ManageInventoryStock.
+        // GET endpoints requiring only ViewInventory (catalog, stock-movements, barcodes) return 200 for Technician, so they are excluded.
+        foreach (var endpoint in CreateEndpointCases(UnknownShiftId, UnknownSaleId, UnknownReceiptId, UnknownProductId, UnknownBarcodeId)
                      .Where(endpoint =>
                          endpoint.Path != $"/api/branches/{TestIds.BranchId:D}/pos/catalog" &&
-                         endpoint.Path != $"/api/branches/{TestIds.BranchId:D}/inventory/stock-movements"))
+                         endpoint.Path != $"/api/branches/{TestIds.BranchId:D}/inventory/stock-movements" &&
+                         !(endpoint.Method == HttpMethod.Get &&
+                           endpoint.Path == $"/api/branches/{TestIds.BranchId:D}/pos/products/{UnknownProductId:D}/barcodes")))
         {
             using var response = await SendAsync(client, endpoint);
 
@@ -262,6 +268,93 @@ public sealed class PosEndpointTests
     }
 
     [Fact]
+    public async Task BarcodeEndpoints_WithBranchManager_HappyPath()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+
+        var category = await PostOkAsync<PosProductCategoryDto>(
+            client,
+            $"/api/branches/{TestIds.BranchId:D}/pos/categories",
+            new CreateProductCategoryRequest(TestIds.OrganizationId, "Drinks", "barcode-cat-001"));
+
+        var product = await PostOkAsync<PosProductDto>(
+            client,
+            $"/api/branches/{TestIds.BranchId:D}/pos/products",
+            new CreateProductRequest(
+                TestIds.OrganizationId,
+                category.CategoryId,
+                "Cola 0.5",
+                "BARCODE-SKU-01",
+                new MoneyDto("TJS", 1200),
+                trackStock: true,
+                allowNegativeStock: false,
+                "barcode-product-001"));
+
+        // GET → пустой список
+        var initialBarcodes = await client.GetFromJsonAsync<IReadOnlyList<ProductBarcodeDto>>(
+            $"/api/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}/barcodes");
+        Assert.NotNull(initialBarcodes);
+        Assert.Empty(initialBarcodes);
+
+        // POST → добавить штрихкод
+        var barcode = await PostOkAsync<ProductBarcodeDto>(
+            client,
+            $"/api/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}/barcodes",
+            new AddProductBarcodeRequest(TestIds.OrganizationId, "4600001234567"));
+        Assert.Equal("4600001234567", barcode.Code);
+        Assert.Equal(product.ProductId, barcode.ProductId);
+
+        // GET → список с одним штрихкодом
+        var barcodes = await client.GetFromJsonAsync<IReadOnlyList<ProductBarcodeDto>>(
+            $"/api/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}/barcodes");
+        Assert.NotNull(barcodes);
+        Assert.Single(barcodes);
+        Assert.Equal(barcode.BarcodeId, barcodes[0].BarcodeId);
+
+        // DELETE → удалить
+        using var deleteResponse = await client.DeleteAsync(
+            $"/api/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}/barcodes/{barcode.BarcodeId:D}");
+        Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
+
+        // GET → снова пустой список
+        var afterDelete = await client.GetFromJsonAsync<IReadOnlyList<ProductBarcodeDto>>(
+            $"/api/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}/barcodes");
+        Assert.NotNull(afterDelete);
+        Assert.Empty(afterDelete);
+
+        // Audit: оба action должны быть записаны
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var auditActions = await dbContext.AuditRecords
+            .Select(a => a.Action)
+            .ToListAsync();
+        Assert.Contains(AuditActionNames.AddProductBarcode, auditActions);
+        Assert.Contains(AuditActionNames.DeleteProductBarcode, auditActions);
+    }
+
+    [Fact]
+    public async Task BarcodeEndpoints_WithoutManageInventoryStock_ReturnForbidden()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+
+        var productId = Guid.NewGuid();
+        var barcodeId = Guid.NewGuid();
+
+        using var postResponse = await client.PostAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes",
+            new AddProductBarcodeRequest(TestIds.OrganizationId, "4600001234567"));
+        Assert.Equal(HttpStatusCode.Forbidden, postResponse.StatusCode);
+
+        using var deleteResponse = await client.DeleteAsync(
+            $"/api/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes/{barcodeId:D}");
+        Assert.Equal(HttpStatusCode.Forbidden, deleteResponse.StatusCode);
+    }
+
+    [Fact]
     public async Task GetPosSale_ForCrossBranchSale_ReturnsNotFound()
     {
         await using var factory = new PlatformApiFactory();
@@ -278,7 +371,7 @@ public sealed class PosEndpointTests
         Assert.Empty(await dbContext.AuditRecords.ToListAsync());
     }
 
-    private static IReadOnlyList<EndpointCase> CreateEndpointCases(Guid shiftId, Guid saleId, Guid receiptId)
+    private static IReadOnlyList<EndpointCase> CreateEndpointCases(Guid shiftId, Guid saleId, Guid receiptId, Guid productId, Guid barcodeId)
     {
         return
         [
@@ -323,6 +416,18 @@ public sealed class PosEndpointTests
                 $"/api/branches/{TestIds.BranchId:D}/inventory/stock-movements",
                 new CreateStockMovementRequest(TestIds.OrganizationId, Guid.NewGuid(), StockMovementTypeNames.Purchase, 24, new MoneyDto("TJS", 900), "initial stock", "stock-001")),
             new EndpointCase(
+                HttpMethod.Get,
+                $"/api/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes",
+                null),
+            new EndpointCase(
+                HttpMethod.Post,
+                $"/api/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes",
+                new AddProductBarcodeRequest(TestIds.OrganizationId, "4600001234567")),
+            new EndpointCase(
+                HttpMethod.Delete,
+                $"/api/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes/{barcodeId:D}",
+                null),
+            new EndpointCase(
                 HttpMethod.Post,
                 $"/api/branches/{TestIds.BranchId:D}/pos/sales",
                 new CreatePosSaleRequest(TestIds.OrganizationId, shiftId, [new PosSaleLineDto(Guid.NewGuid(), string.Empty, 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))], "sale-001")),
@@ -354,6 +459,11 @@ public sealed class PosEndpointTests
         if (endpoint.Method == HttpMethod.Get)
         {
             return await client.GetAsync(endpoint.Path);
+        }
+
+        if (endpoint.Method == HttpMethod.Delete)
+        {
+            return await client.DeleteAsync(endpoint.Path);
         }
 
         if (endpoint.Method == HttpMethod.Patch)

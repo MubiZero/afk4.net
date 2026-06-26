@@ -404,6 +404,168 @@ internal static class PosEndpoints
             return Results.Ok(result.Response);
         });
 
+        app.MapGet("/api/branches/{branchId:guid}/pos/products/{productId:guid}/barcodes", async (
+            Guid branchId,
+            Guid productId,
+            StaffAuthorizationService authorizationService,
+            IInventoryService inventoryService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                StaffPermissionNames.ViewInventory,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var result = await inventoryService.GetProductBarcodesAsync(
+                authorization.StaffContext!.OrganizationId,
+                branchId,
+                productId,
+                cancellationToken);
+
+            return ToHttpResult(result);
+        });
+
+        app.MapPost("/api/branches/{branchId:guid}/pos/products/{productId:guid}/barcodes", async (
+            Guid branchId,
+            Guid productId,
+            AddProductBarcodeRequest request,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IInventoryService inventoryService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                StaffPermissionNames.ManageInventoryStock,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    branchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.AddProductBarcode,
+                    "ProductBarcode",
+                    null,
+                    AuditOutcome.Denied,
+                    new { productId, authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+            {
+                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+            }
+
+            var result = await inventoryService.AddProductBarcodeAsync(
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                productId,
+                request,
+                cancellationToken);
+
+            if (!result.Succeeded)
+            {
+                return ToHttpResult(result);
+            }
+
+            await WriteAuditAsync(
+                auditRecordWriter,
+                authorization.StaffContext.OrganizationId,
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                AuditActionNames.AddProductBarcode,
+                "ProductBarcode",
+                result.Response!.BarcodeId.ToString("D"),
+                AuditOutcome.Succeeded,
+                new { productId, result.Response.Code },
+                cancellationToken);
+
+            return Results.Ok(result.Response);
+        });
+
+        app.MapDelete("/api/branches/{branchId:guid}/pos/products/{productId:guid}/barcodes/{barcodeId:guid}", async (
+            Guid branchId,
+            Guid productId,
+            Guid barcodeId,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IInventoryService inventoryService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                StaffPermissionNames.ManageInventoryStock,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    branchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.DeleteProductBarcode,
+                    "ProductBarcode",
+                    null,
+                    AuditOutcome.Denied,
+                    new { productId, barcodeId, authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var result = await inventoryService.DeleteProductBarcodeAsync(
+                authorization.StaffContext!.OrganizationId,
+                branchId,
+                productId,
+                barcodeId,
+                cancellationToken);
+
+            if (!result.Succeeded)
+            {
+                return ToHttpResult(result);
+            }
+
+            await WriteAuditAsync(
+                auditRecordWriter,
+                authorization.StaffContext.OrganizationId,
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                AuditActionNames.DeleteProductBarcode,
+                "ProductBarcode",
+                barcodeId.ToString("D"),
+                AuditOutcome.Succeeded,
+                new { productId, barcodeId },
+                cancellationToken);
+
+            return Results.Ok(result.Response);
+        });
+
         app.MapPost("/api/branches/{branchId:guid}/pos/sales", async (
             Guid branchId,
             CreatePosSaleRequest request,
