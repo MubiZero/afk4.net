@@ -2306,6 +2306,7 @@
   "op.stock.title": "Склад",
   "op.stock.tab.levels": "Остатки",
   "op.stock.tab.receiving": "Приёмка",
+  "op.stock.tab.journal": "Журнал",
   "op.stock.receiving.title": "Приёмка поставки",
   "op.stock.receiving.addLabel": "Добавить товар",
   "op.stock.receiving.addHint": "Найдите товар по названию или SKU — он добавится в накладную",

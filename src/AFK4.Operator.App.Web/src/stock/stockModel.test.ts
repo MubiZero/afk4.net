@@ -17,4 +17,7 @@ describe('stockModel', () => {
     expect(visibleStockTabs({ permissions: ['inventory.stock.manage'] } as never)).toContain('receiving');
     expect(visibleStockTabs({ permissions: ['inventory.view'] } as never)).not.toContain('receiving');
   });
+  it('journal виден при праве просмотра инвентаря', () => {
+    expect(visibleStockTabs({ permissions: ['inventory.view'] } as never)).toContain('journal');
+  });
 });

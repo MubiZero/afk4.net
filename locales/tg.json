@@ -2107,6 +2107,7 @@
   "op.stock.title": "Анбор",
   "op.stock.tab.levels": "Бақияҳо",
   "op.stock.tab.receiving": "Қабули мол",
+  "op.stock.tab.journal": "Журнали ҳаракат",
   "op.stock.receiving.title": "Қабули мол",
   "op.stock.receiving.addLabel": "Иловаи мол",
   "op.stock.receiving.addHint": "Молро аз рӯи ном ё SKU ёбед — он ба фактура илова мешавад",

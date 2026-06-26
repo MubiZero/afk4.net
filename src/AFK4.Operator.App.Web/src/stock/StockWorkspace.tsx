@@ -11,6 +11,7 @@ import { visibleStockTabs, type StockTab } from './stockModel';
 const TAB_LABELS: Record<StockTab, MessageKey> = {
   levels: 'op.stock.tab.levels',
   receiving: 'op.stock.tab.receiving',
+  journal: 'op.stock.tab.journal',
 };
 
 // Раздел «Склад» — шапка-якорь + вкладки + активное содержимое. Поднимает activeTab и
@@ -62,6 +63,10 @@ export function StockWorkspace({
             preload={receivePreload}
             onConsumePreload={() => setReceivePreload(null)}
           />
+        )}
+        {activeTab === 'journal' && (
+          // Task 4 заменит заглушку на <JournalWorkspace …/>.
+          <div className="stock-journal-pending" />
         )}
       </div>
     </main>
