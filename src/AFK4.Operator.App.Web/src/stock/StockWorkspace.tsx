@@ -6,6 +6,7 @@ import type { OperatorAuthSession } from '../authClient';
 import { StockTabBar } from './StockTabBar';
 import { StockLevelsWorkspace } from './StockLevelsWorkspace';
 import { ReceivingWorkspace } from './ReceivingWorkspace';
+import { JournalWorkspace } from './JournalWorkspace';
 import { visibleStockTabs, type StockTab } from './stockModel';
 
 const TAB_LABELS: Record<StockTab, MessageKey> = {
@@ -65,8 +66,7 @@ export function StockWorkspace({
           />
         )}
         {activeTab === 'journal' && (
-          // Task 4 заменит заглушку на <JournalWorkspace …/>.
-          <div className="stock-journal-pending" />
+          <JournalWorkspace backend={backend} currencyCode={currencyCode} session={session} />
         )}
       </div>
     </main>

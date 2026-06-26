@@ -193,6 +193,14 @@ function posCatalog() {
   ];
 }
 
+function stockMovementsFixture() {
+  return [
+    { stockMovementId: 'mv-1', productId: 'prod-cola', movementType: 'sale', quantityDelta: -1, unitCost: { currencyCode: 'TJS', minorUnits: 400 }, reason: 'чек #1042', createdByStaffUserId: 'staff-1', createdByDisplayName: 'Олег С.', createdAtUtc: todayAtUtc(13, 42) },
+    { stockMovementId: 'mv-2', productId: 'prod-chips', movementType: 'adjustment', quantityDelta: -2, unitCost: { currencyCode: 'TJS', minorUnits: 600 }, reason: 'брак упаковки', createdByStaffUserId: 'staff-1', createdByDisplayName: 'Олег С.', createdAtUtc: todayAtUtc(13, 30) },
+    { stockMovementId: 'mv-3', productId: 'prod-energy', movementType: 'purchase', quantityDelta: 24, unitCost: { currencyCode: 'TJS', minorUnits: 900 }, reason: 'Приёмка · Напитки Душанбе', createdByStaffUserId: 'staff-1', createdByDisplayName: 'Олег С.', createdAtUtc: todayAtUtc(10, 5) },
+  ];
+}
+
 // Брони привязываем к «сегодня» (локальный день оператора): таймлайн строится вокруг текущей
 // даты, поэтому фикстуры на статичную дату оставляли бы превью брони вечно пустым.
 function todayAtUtc(hour: number, minute = 0): string {
@@ -345,7 +353,7 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/pos/catalog')) return posCatalog();
   if (pathname.endsWith('/reservations') && method === 'GET') return { reservations: reservations(), limit: 40 };
   if (pathname.endsWith('/sessions') && method === 'GET') return { sessions: sessionsTimeline() };
-  if (pathname.endsWith('/inventory/stock-movements') && method === 'GET') return [];
+  if (pathname.endsWith('/inventory/stock-movements') && method === 'GET') return stockMovementsFixture();
   if (pathname.endsWith('/inventory/stock-movements') && method === 'POST') return { stockMovementId: 'mock-movement' };
   if (pathname.endsWith('/commands') && method === 'GET') return [];
   if (pathname.endsWith('/diagnostics') && method === 'GET') return diagnostics();
