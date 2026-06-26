@@ -5,6 +5,7 @@ import type { OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import { StockTabBar } from './StockTabBar';
 import { StockLevelsWorkspace } from './StockLevelsWorkspace';
+import { ReceivingWorkspace } from './ReceivingWorkspace';
 import { visibleStockTabs, type StockTab } from './stockModel';
 
 const TAB_LABELS: Record<StockTab, MessageKey> = {
@@ -54,8 +55,13 @@ export function StockWorkspace({
           />
         )}
         {activeTab === 'receiving' && (
-          // Task 3 заменит заглушку на <ReceivingWorkspace …/>.
-          <div className="stock-receiving-pending" />
+          <ReceivingWorkspace
+            backend={backend}
+            currencyCode={currencyCode}
+            session={session}
+            preload={receivePreload}
+            onConsumePreload={() => setReceivePreload(null)}
+          />
         )}
       </div>
     </main>
