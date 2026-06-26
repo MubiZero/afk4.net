@@ -1,5 +1,5 @@
 import { describe, it, expect, mock, afterEach, afterAll } from 'bun:test';
-import { act, render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/react';
+import { act, render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../operatorToast';
 
