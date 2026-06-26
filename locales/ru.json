@@ -2256,6 +2256,7 @@
   "op.helper.stock.purchase": "Приход",
   "op.helper.stock.adjustment": "Коррекция",
   "op.helper.stock.sale": "Продажа",
+  "op.helper.stock.refund": "Возврат",
   "op.helper.stock.writeOff": "Списание",
   "op.helper.stock.fallback": "Движение",
   "op.helper.error.sessionEnded": "Сеанс уже завершается или завершён. Дождитесь обновления карты.",

@@ -2483,6 +2483,7 @@
   "op.helper.stock.purchase": "Воридот",
   "op.helper.stock.adjustment": "Танзим",
   "op.helper.stock.sale": "Фурӯш",
+  "op.helper.stock.refund": "Баргардонидан",
   "op.helper.stock.writeOff": "Ҳисобкунӣ",
   "op.helper.stock.fallback": "Ҳаракат",
   "op.helper.error.sessionEnded": "Сессия аллакай хотима меёбад ё хотима ёфт. Харитаро навсозӣ кунед.",

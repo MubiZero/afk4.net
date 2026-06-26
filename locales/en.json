@@ -2483,6 +2483,7 @@
   "op.helper.stock.purchase": "Purchase",
   "op.helper.stock.adjustment": "Adjustment",
   "op.helper.stock.sale": "Sale",
+  "op.helper.stock.refund": "Refund",
   "op.helper.stock.writeOff": "Write-off",
   "op.helper.stock.fallback": "Movement",
   "op.helper.error.sessionEnded": "Session is already ending or ended. Wait for the map to refresh.",
