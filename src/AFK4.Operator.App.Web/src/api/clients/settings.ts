@@ -122,6 +122,19 @@ export interface UpdateProductRequest extends Record<string, unknown> {
   availableInShell?: boolean;
 }
 
+export interface ProductBarcodeDto {
+  barcodeId: Guid;
+  productId: Guid;
+  code: string;
+  isPrimary: boolean;
+}
+
+export interface AddProductBarcodeRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  code: string;
+  isPrimary?: boolean;
+}
+
 export interface AssignDeviceSeatRequest extends Record<string, unknown> {
   organizationId: Guid;
   seatId: Guid;
@@ -206,6 +219,15 @@ export function createSettingsClient(api: PlatformApiClient) {
     },
     updateProduct(branchId: Guid, productId: Guid, request: UpdateProductRequest): Promise<PosProductDto> {
       return api.patch<PosProductDto, UpdateProductRequest>(`/api/branches/${branchId}/pos/products/${productId}`, request);
+    },
+    getProductBarcodes(branchId: Guid, productId: Guid): Promise<ProductBarcodeDto[]> {
+      return api.get<ProductBarcodeDto[]>(`/api/branches/${branchId}/pos/products/${productId}/barcodes`);
+    },
+    addProductBarcode(branchId: Guid, productId: Guid, request: AddProductBarcodeRequest): Promise<ProductBarcodeDto> {
+      return api.post<ProductBarcodeDto, AddProductBarcodeRequest>(`/api/branches/${branchId}/pos/products/${productId}/barcodes`, request);
+    },
+    deleteProductBarcode(branchId: Guid, productId: Guid, barcodeId: Guid): Promise<void> {
+      return api.delete<void>(`/api/branches/${branchId}/pos/products/${productId}/barcodes/${barcodeId}`);
     },
     assignDeviceSeat(branchId: Guid, deviceId: Guid, request: AssignDeviceSeatRequest): Promise<DeviceSeatAssignmentDto> {
       return api.post<DeviceSeatAssignmentDto, AssignDeviceSeatRequest>(`/api/branches/${branchId}/devices/${deviceId}/seat-assignment`, request);
