@@ -74,6 +74,7 @@ export function InventoryWorkspace({
     if (!found) { toast.info(t('op.pos.scan.unknown')); return; }
     const productId = readString(found, 'productId');
     setLines((cur) => markFresh(cur, productId));
+    setSearch(''); // снять фильтр, чтобы отсканированная строка точно была видна и подсвечена
     const el = inputRefs.current.get(productId);
     if (el) { el.focus(); el.scrollIntoView?.({ block: 'nearest' }); el.select?.(); }
   }, [trackedCatalog, toast, t]);
@@ -128,6 +129,7 @@ export function InventoryWorkspace({
         posted += 1;
       }
       setPost({ kind: 'done', count: posted });
+      toast.info(t('op.stock.inventory.posted', { count: posted })); // переживёт сброс post-состояния при рефетче
       setReloadNonce((n) => n + 1); // свежие учётные остатки + сброс пересчёта
     } catch (error) {
       setPost(posted > 0
@@ -175,6 +177,9 @@ export function InventoryWorkspace({
                 <span className="r">{t('op.stock.inventory.colSum')}</span>
               </div>
               <ul className="inv-lines">
+                {visibleLines.length === 0 && (
+                  <li className="recv-noresults">{t('op.stock.levels.emptyFiltered')}</li>
+                )}
                 {visibleLines.map((line) => {
                   const diff = lineDiff(line);
                   const sum = lineDiffSumMinorUnits(line);
