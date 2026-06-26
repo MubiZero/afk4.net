@@ -17,4 +17,8 @@ public sealed record PosProductDto(
     DateTimeOffset CreatedAtUtc,
     int ReorderThreshold = 0,
     bool AvailableInShell = false,
-    long AvgCostMinorUnits = 0);
+    long AvgCostMinorUnits = 0,
+    IReadOnlyList<string>? Barcodes = null)
+{
+    public IReadOnlyList<string> Barcodes { get; init; } = Barcodes ?? Array.Empty<string>();
+}

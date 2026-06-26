@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { Boxes, Check, Plus, X } from 'lucide-react';
-import { createAuthenticatedOperatorClients, createIdempotencyKey, readBoolean, readString, requireBackend } from '../operatorHelpers';
+import { Boxes, Check, Plus, ScanLine, X } from 'lucide-react';
+import { createAuthenticatedOperatorClients, createIdempotencyKey, readArray, readBoolean, readString, requireBackend } from '../operatorHelpers';
 import { formatMinorUnits } from '../currencyFormat';
 import { projectOperatorError } from '../apiErrors';
 import { hasPermission, permissionNames } from '../operatorPermissions';
+import { matchByBarcode } from '../barcodeScanner';
+import { useBarcodeScanner } from '../useBarcodeScanner';
+import { useToast } from '../operatorToast';
 import type { PosProductDto } from '../operatorApiClients';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
@@ -13,6 +16,9 @@ import {
   lineSubtotalMinorUnits, lineUnitCostMinorUnits, receiptTotals, receiptReason,
   type ReceiptLine,
 } from './receivingModel';
+
+// Проекция каталога с полем barcodes для matchByBarcode.
+type TrackedProduct = PosProductDto & { barcodes: string[] };
 
 type PostState = { kind: 'idle' } | { kind: 'posting' } | { kind: 'done'; count: number } | { kind: 'error'; detail: string };
 
@@ -30,6 +36,7 @@ export function ReceivingWorkspace({
   onConsumePreload: () => void;
 }) {
   const { t } = useI18n();
+  const toast = useToast();
   const canManage = hasPermission(session, permissionNames.manageInventoryStock);
 
   const clients = useMemo(
@@ -38,7 +45,7 @@ export function ReceivingWorkspace({
     [backend?.config, backend?.session, canManage]
   );
 
-  const [catalog, setCatalog] = useState<PosProductDto[]>([]);
+  const [catalog, setCatalog] = useState<TrackedProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [lines, setLines] = useState<ReceiptLine[]>([]);
@@ -56,12 +63,25 @@ export function ReceivingWorkspace({
     setLoading(true);
     setLoadError(null);
     clients.pos.getCatalog(backend.branchId)
-      .then((loaded) => { if (alive) setCatalog(loaded as PosProductDto[]); })
+      .then((loaded) => {
+        if (alive) setCatalog((loaded as PosProductDto[]).map((p) => ({ ...p, barcodes: readArray<string>(p, 'barcodes') })));
+      })
       .catch((error) => { if (alive) setLoadError(projectOperatorError(error, t).detail); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clients, backend?.branchId, canManage]);
+
+  const onScan = useCallback((code: string) => {
+    const found = matchByBarcode(trackedCatalog, code);
+    if (found) {
+      setLines((cur) => addOrAccumulate(cur, found));
+    } else {
+      toast.info(t('op.pos.scan.unknown'));
+    }
+  }, [trackedCatalog, toast, t]);
+
+  useBarcodeScanner(canManage && !loading, onScan);
 
   // Преднабор товара (переход с Остатков по ＋). Срабатывает один раз, когда каталог загружен.
   useEffect(() => {
@@ -87,7 +107,7 @@ export function ReceivingWorkspace({
     ? trackedCatalog.filter((p) => readString(p, 'name').toLowerCase().includes(query) || readString(p, 'sku').toLowerCase().includes(query)).slice(0, 6)
     : [];
 
-  const addProduct = (product: PosProductDto) => {
+  const addProduct = (product: TrackedProduct) => {
     setLines((current) => addOrAccumulate(current, product));
     setSearch('');
     setPost({ kind: 'idle' });
@@ -135,7 +155,6 @@ export function ReceivingWorkspace({
     <div className="stock-layout">
       {/* ── Документ прихода ── */}
       <section className="stock-receiving">
-        {/* Полоса добавления товара (в S3 сюда подключится сканер) */}
         <div className="recv-add">
           <div className="recv-add-ico"><Boxes size={20} aria-hidden="true" /></div>
           <div className="recv-add-field">
@@ -148,6 +167,10 @@ export function ReceivingWorkspace({
             />
             <span className="recv-add-hint">{t('op.stock.receiving.addHint')}</span>
           </div>
+          <span className="recv-scanner-badge" aria-label={t('op.pos.scan.active')}>
+            <ScanLine size={14} aria-hidden="true" />
+            {t('op.pos.scan.active')}
+          </span>
         </div>
         {trackedCatalog.length === 0 && (
           <p className="recv-noresults">{t('op.stock.receiving.noTracked')}</p>

@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
+import { ToastProvider } from './operatorToast';
 
 // bun's mock.module is not hoisted above static imports, so register it before
 // importing the component under test. The POS product editor lives in
@@ -21,6 +22,7 @@ const settingsClient = {
   getLayoutZones: empty,
   getTariffOptions: empty,
   getPackageOptions: empty,
+  getProductBarcodes: empty,
   createProductCategory,
   createProduct,
   updateProduct
@@ -57,7 +59,7 @@ const backend = {
 };
 
 async function openGoods() {
-  render(<I18nProvider><BackendSettingsWorkspace currencyCode="TJS" backend={backend as never} /></I18nProvider>);
+  render(<I18nProvider><ToastProvider><BackendSettingsWorkspace currencyCode="TJS" backend={backend as never} /></ToastProvider></I18nProvider>);
   await waitFor(() => expect(getCatalog).toHaveBeenCalled());
   fireEvent.click(await screen.findByRole('button', { name: /товары и склад|products & stock/i }));
 }

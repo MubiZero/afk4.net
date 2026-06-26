@@ -102,4 +102,38 @@ public sealed class InventoryContractSerializationTests
         var back = JsonSerializer.Deserialize<PosProductDto>(json);
         Assert.Equal(500, back!.AvgCostMinorUnits);
     }
+
+    [Fact]
+    public void ProductBarcodeDto_RoundTrips()
+    {
+        var dto = new ProductBarcodeDto(Guid.NewGuid(), Guid.NewGuid(), "4601234567890", IsPrimary: true);
+        var back = JsonSerializer.Deserialize<ProductBarcodeDto>(JsonSerializer.Serialize(dto));
+        Assert.Equal("4601234567890", back!.Code);
+        Assert.True(back.IsPrimary);
+    }
+
+    [Fact]
+    public void PosProductDto_RoundTrips_Barcodes()
+    {
+        var dto = new PosProductDto(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            "Snickers", "SNICKERS", new MoneyDto("TJS", 1000),
+            true, false, true, 15, DateTimeOffset.UnixEpoch,
+            ReorderThreshold: 10, AvailableInShell: false, AvgCostMinorUnits: 500,
+            Barcodes: new[] { "4601234567890", "0000111122223" });
+        var back = JsonSerializer.Deserialize<PosProductDto>(JsonSerializer.Serialize(dto));
+        Assert.Equal(2, back!.Barcodes.Count);
+        Assert.Equal("4601234567890", back.Barcodes[0]);
+    }
+
+    [Fact]
+    public void PosProductDto_Barcodes_DefaultsToEmpty()
+    {
+        var dto = new PosProductDto(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            "Cola", "COLA", new MoneyDto("TJS", 500),
+            true, false, true, 3, DateTimeOffset.UnixEpoch);
+        Assert.NotNull(dto.Barcodes);
+        Assert.Empty(dto.Barcodes);
+    }
 }

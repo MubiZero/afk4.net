@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Search, UserRoundPlus, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
@@ -16,6 +16,7 @@ import {
   emptyFeedback,
   formatMinorUnits,
   projectPlayerClient,
+  readArray,
   readMoney,
   readNumber,
   readString,
@@ -26,6 +27,9 @@ import {
 import { FeedbackNotice } from './operatorPrimitives';
 import { PanelModal } from './PanelModal';
 import { PaymentDialog, type PaymentBillLine } from './PaymentDialog';
+import { useToast } from './operatorToast';
+import { matchByBarcode } from './barcodeScanner';
+import { useBarcodeScanner } from './useBarcodeScanner';
 
 type PosCatalogItem = {
   productId?: string;
@@ -34,6 +38,7 @@ type PosCatalogItem = {
   category: string;
   note: string;
   stockOnHand: number;
+  barcodes: string[];
   source: 'fixture' | 'backend';
 };
 
@@ -47,10 +52,10 @@ const CATEGORY_ALL = '__all__';
 
 function makeFixtureProducts(t: ReturnType<typeof useI18n>['t']): PosCatalogItem[] {
   return [
-    { name: t('op.pos.fixture.cola'), priceMinorUnits: 1200, category: t('op.pos.fixture.drinks'), note: t('op.pos.fixture.note'), stockOnHand: 0, source: 'fixture' },
-    { name: t('op.pos.fixture.water'), priceMinorUnits: 600, category: t('op.pos.fixture.drinks'), note: t('op.pos.fixture.note'), stockOnHand: 0, source: 'fixture' },
-    { name: t('op.pos.fixture.hotdog'), priceMinorUnits: 2800, category: t('op.pos.fixture.food'), note: t('op.pos.fixture.note'), stockOnHand: 0, source: 'fixture' },
-    { name: t('op.pos.fixture.guestHour'), priceMinorUnits: 2500, category: t('op.pos.fixture.services'), note: t('op.pos.fixture.note'), stockOnHand: 0, source: 'fixture' }
+    { name: t('op.pos.fixture.cola'), priceMinorUnits: 1200, category: t('op.pos.fixture.drinks'), note: t('op.pos.fixture.note'), stockOnHand: 0, barcodes: [], source: 'fixture' },
+    { name: t('op.pos.fixture.water'), priceMinorUnits: 600, category: t('op.pos.fixture.drinks'), note: t('op.pos.fixture.note'), stockOnHand: 0, barcodes: [], source: 'fixture' },
+    { name: t('op.pos.fixture.hotdog'), priceMinorUnits: 2800, category: t('op.pos.fixture.food'), note: t('op.pos.fixture.note'), stockOnHand: 0, barcodes: [], source: 'fixture' },
+    { name: t('op.pos.fixture.guestHour'), priceMinorUnits: 2500, category: t('op.pos.fixture.services'), note: t('op.pos.fixture.note'), stockOnHand: 0, barcodes: [], source: 'fixture' }
   ];
 }
 
@@ -65,6 +70,7 @@ function projectPosProduct(product: PosProductDto, t: ReturnType<typeof useI18n>
     category: readString(product, 'categoryName', readString(product, 'categoryId', t('op.pos.catalog.categoryFallback'))),
     note: t('op.pos.catalog.note', { sku, count: stockOnHand }),
     stockOnHand,
+    barcodes: readArray<string>(product, 'barcodes'),
     // projectPosProduct обрабатывает только реальные бэкенд-продукты (фикстуры идут через
     // makeFixtureProducts с source:'fixture'), поэтому источник всегда 'backend'.
     source: 'backend'
@@ -73,6 +79,7 @@ function projectPosProduct(product: PosProductDto, t: ReturnType<typeof useI18n>
 
 export function BackendPosWorkspace({ currencyCode, backend, embedded = false }: { currencyCode: string; backend: OperatorBackendContext | null; embedded?: boolean }) {
   const { t } = useI18n();
+  const toast = useToast();
 
   const [activeCategory, setActiveCategory] = useState(CATEGORY_ALL);
   const [productSearch, setProductSearch] = useState('');
@@ -218,16 +225,36 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
     && hasPermission(backend.session, permissionNames.createPosSale)
     && hasPermission(backend.session, permissionNames.payPosSale);
 
-  const addProduct = (product: PosCatalogItem) => {
+  const addProduct = useCallback((product: PosCatalogItem) => {
     setCartItems((items) => {
-      const existing = items.find((item) => item.name === product.name);
+      // Дедуп по productId — позволяет иметь в чеке два разных товара с одинаковым именем.
+      // (Фикстуры без productId дедупятся по имени как запасной вариант.)
+      const key = product.productId;
+      const existing = key
+        ? items.find((item) => item.productId === key)
+        : items.find((item) => item.name === product.name);
       if (existing) {
-        return items.map((item) => item.name === product.name ? { ...item, quantity: item.quantity + 1 } : item);
+        return items.map((item) => {
+          const match = key ? item.productId === key : item.name === product.name;
+          return match ? { ...item, quantity: item.quantity + 1 } : item;
+        });
       }
 
       return [...items, { ...product, quantity: 1 }];
     });
-  };
+  }, []);
+
+  const onScan = useCallback((code: string) => {
+    const found = matchByBarcode(catalog, code);
+    if (found) {
+      addProduct(found);
+      toast.success(t('op.pos.scan.added', { name: found.name }));
+    } else {
+      toast.info(t('op.pos.scan.unknown'));
+    }
+  }, [catalog, addProduct, toast, t]);
+
+  useBarcodeScanner(!payOpen, onScan);
 
 
 
@@ -329,6 +356,10 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
             <div className="pos-panel-metrics">
               <span>{t('op.pos.strip.products')} <b>{t('op.pos.strip.positions', { count: catalog.length })}</b></span>
               <span className={lowStockCount > 0 ? 'warn' : undefined}>{t('op.pos.strip.stock')} <b>{t('op.pos.strip.stockLow', { count: lowStockCount })}</b></span>
+              <span className="pos-scanner-badge" aria-label={t('op.pos.scan.active')}>
+                <span className="pos-scanner-pulse" aria-hidden="true" />
+                {t('op.pos.scan.active')}
+              </span>
             </div>
           </header>
           <label className="pos-search">

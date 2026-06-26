@@ -428,8 +428,17 @@ public sealed class EfInventoryService(
         var stockByProductId = stockMovements
             .GroupBy(movement => movement.ProductId)
             .ToDictionary(group => group.Key, group => group.Sum(movement => movement.QuantityDelta));
+        var productIdList = products.Select(p => p.ProductId).ToList();
+        var barcodeRows = await dbContext.ProductBarcodes.AsNoTracking()
+            .Where(b => b.OrganizationId == organizationId && b.BranchId == branchId && productIdList.Contains(b.ProductId))
+            .OrderByDescending(b => b.IsPrimary).ThenBy(b => b.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+        var barcodesByProduct = barcodeRows
+            .GroupBy(b => b.ProductId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<string>)g.Select(b => b.Code).ToList());
         IReadOnlyList<PosProductDto> response = products
-            .Select(product => ToDto(product, stockByProductId.GetValueOrDefault(product.ProductId)))
+            .Select(product => ToDto(product, stockByProductId.GetValueOrDefault(product.ProductId),
+                barcodesByProduct.GetValueOrDefault(product.ProductId)))
             .ToList();
 
         return BillingCommandServiceResult<IReadOnlyList<PosProductDto>>.Ok(response);
@@ -513,6 +522,136 @@ public sealed class EfInventoryService(
 
         return BillingCommandServiceResult<IReadOnlyList<StockMovementDto>>.Ok(
             movements.Select(movement => ToDto(movement, staffNames.GetValueOrDefault(movement.CreatedByStaffUserId))).ToList());
+    }
+
+    public async Task<BillingCommandServiceResult<IReadOnlyList<ProductBarcodeDto>>> GetProductBarcodesAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid productId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            return BillingCommandServiceResult<IReadOnlyList<ProductBarcodeDto>>.Invalid("Organization id is required.");
+        }
+
+        var rows = await dbContext.ProductBarcodes.AsNoTracking()
+            .Where(b => b.OrganizationId == organizationId && b.BranchId == branchId && b.ProductId == productId)
+            .OrderByDescending(b => b.IsPrimary).ThenBy(b => b.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        IReadOnlyList<ProductBarcodeDto> dtos = rows
+            .Select(b => new ProductBarcodeDto(b.BarcodeId, b.ProductId, b.Code, b.IsPrimary))
+            .ToList();
+
+        return BillingCommandServiceResult<IReadOnlyList<ProductBarcodeDto>>.Ok(dtos);
+    }
+
+    public async Task<BillingCommandServiceResult<ProductBarcodeDto>> AddProductBarcodeAsync(
+        Guid branchId,
+        Guid actorStaffUserId,
+        Guid productId,
+        AddProductBarcodeRequest request,
+        CancellationToken cancellationToken)
+    {
+        var code = (request.Code ?? "").Trim();
+        if (code.Length == 0)
+        {
+            return BillingCommandServiceResult<ProductBarcodeDto>.Invalid("Barcode code is required.");
+        }
+
+        if (code.Length > 64)
+        {
+            return BillingCommandServiceResult<ProductBarcodeDto>.Invalid("Barcode code is too long.");
+        }
+
+        var product = await dbContext.PosProducts.AsNoTracking().FirstOrDefaultAsync(
+            p => p.OrganizationId == request.OrganizationId && p.BranchId == branchId
+              && p.ProductId == productId && p.IsActive,
+            cancellationToken);
+
+        if (product is null)
+        {
+            return BillingCommandServiceResult<ProductBarcodeDto>.Missing("Product not found.");
+        }
+
+        var clash = await dbContext.ProductBarcodes.AsNoTracking().AnyAsync(
+            b => b.OrganizationId == request.OrganizationId && b.BranchId == branchId && b.Code == code,
+            cancellationToken);
+
+        if (clash)
+        {
+            return BillingCommandServiceResult<ProductBarcodeDto>.Invalid("Barcode is already bound to a product.");
+        }
+
+        var existing = await dbContext.ProductBarcodes
+            .Where(b => b.OrganizationId == request.OrganizationId && b.BranchId == branchId && b.ProductId == productId)
+            .ToListAsync(cancellationToken);
+
+        var makePrimary = request.IsPrimary || existing.Count == 0;
+        if (makePrimary)
+        {
+            foreach (var row in existing)
+            {
+                row.IsPrimary = false;
+            }
+        }
+
+        var entity = new ProductBarcodeEntity
+        {
+            BarcodeId = Guid.NewGuid(),
+            OrganizationId = request.OrganizationId,
+            BranchId = branchId,
+            ProductId = productId,
+            Code = code,
+            IsPrimary = makePrimary,
+            CreatedAtUtc = timeProvider.GetUtcNow()
+        };
+
+        dbContext.ProductBarcodes.Add(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return BillingCommandServiceResult<ProductBarcodeDto>.Ok(
+            new ProductBarcodeDto(entity.BarcodeId, entity.ProductId, entity.Code, entity.IsPrimary));
+    }
+
+    public async Task<BillingCommandServiceResult<ProductBarcodeDto>> DeleteProductBarcodeAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid productId,
+        Guid barcodeId,
+        CancellationToken cancellationToken)
+    {
+        var target = await dbContext.ProductBarcodes.FirstOrDefaultAsync(
+            b => b.OrganizationId == organizationId && b.BranchId == branchId
+              && b.ProductId == productId && b.BarcodeId == barcodeId,
+            cancellationToken);
+
+        if (target is null)
+        {
+            return BillingCommandServiceResult<ProductBarcodeDto>.Missing("Barcode not found.");
+        }
+
+        dbContext.ProductBarcodes.Remove(target);
+
+        if (target.IsPrimary)
+        {
+            var promote = await dbContext.ProductBarcodes
+                .Where(b => b.OrganizationId == organizationId && b.BranchId == branchId
+                         && b.ProductId == productId && b.BarcodeId != barcodeId)
+                .OrderBy(b => b.CreatedAtUtc)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (promote is not null)
+            {
+                promote.IsPrimary = true;
+            }
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return BillingCommandServiceResult<ProductBarcodeDto>.Ok(
+            new ProductBarcodeDto(target.BarcodeId, target.ProductId, target.Code, target.IsPrimary));
     }
 
     private static string? ValidateCreateProductRequest(CreateProductRequest request)
@@ -775,7 +914,7 @@ public sealed class EfInventoryService(
             category.CreatedAtUtc);
     }
 
-    private static PosProductDto ToDto(PosProductEntity product, int stockOnHand)
+    private static PosProductDto ToDto(PosProductEntity product, int stockOnHand, IReadOnlyList<string>? barcodes = null)
     {
         return new PosProductDto(
             product.ProductId,
@@ -792,7 +931,8 @@ public sealed class EfInventoryService(
             product.CreatedAtUtc,
             product.ReorderThreshold,
             product.AvailableInShell,
-            product.AvgCostMinorUnits);
+            product.AvgCostMinorUnits,
+            barcodes);
     }
 
     private static StockMovementDto ToDto(StockMovementEntity movement, string? createdByDisplayName = null)

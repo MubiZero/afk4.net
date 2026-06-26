@@ -80,6 +80,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<StockMovementEntity> StockMovements => Set<StockMovementEntity>();
 
+    public DbSet<ProductBarcodeEntity> ProductBarcodes => Set<ProductBarcodeEntity>();
+
     public DbSet<ShopOrderEntity> ShopOrders => Set<ShopOrderEntity>();
 
     public DbSet<ShopOrderLineEntity> ShopOrderLines => Set<ShopOrderLineEntity>();
@@ -631,6 +633,15 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 product.BranchId,
                 product.CategoryId
             });
+        });
+
+        modelBuilder.Entity<ProductBarcodeEntity>(entity =>
+        {
+            entity.ToTable("product_barcodes");
+            entity.HasKey(barcode => barcode.BarcodeId);
+            entity.Property(barcode => barcode.Code).HasMaxLength(64).IsRequired();
+            entity.HasIndex(barcode => new { barcode.OrganizationId, barcode.BranchId, barcode.Code }).IsUnique();
+            entity.HasIndex(barcode => new { barcode.OrganizationId, barcode.BranchId, barcode.ProductId });
         });
 
         modelBuilder.Entity<StockMovementEntity>(entity =>

@@ -129,6 +129,10 @@ public static class AuditActionNames
 
     public const string CreateStockMovement = "inventory.stock.create";
 
+    public const string AddProductBarcode = "inventory.barcode.add";
+
+    public const string DeleteProductBarcode = "inventory.barcode.delete";
+
     public const string CreatePosSale = "pos.sales.create";
 
     public const string PayPosSale = "pos.sales.pay";

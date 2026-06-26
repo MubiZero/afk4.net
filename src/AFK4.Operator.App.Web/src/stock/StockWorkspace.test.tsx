@@ -1,6 +1,7 @@
 import { describe, it, expect, mock, afterEach, afterAll } from 'bun:test';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
+import { ToastProvider } from '../operatorToast';
 
 const getCatalog = mock(async () => ([
   { productId: 'p1', name: 'Cola 0.5', sku: 'COLA-05', trackStock: true, stockOnHand: 12, reorderThreshold: 6, avgCostMinorUnits: 400, price: { currencyCode: 'TJS', minorUnits: 1000 } },
@@ -17,7 +18,7 @@ const manageSession = { permissions: ['inventory.view', 'inventory.stock.manage'
 const viewOnlySession = { permissions: ['inventory.view'], organizationId: 'o' } as never;
 
 const view = (session: unknown) =>
-  render(<I18nProvider initialLocale="ru"><StockWorkspace backend={backend} currencyCode="TJS" session={session as never} /></I18nProvider>);
+  render(<I18nProvider initialLocale="ru"><ToastProvider><StockWorkspace backend={backend} currencyCode="TJS" session={session as never} /></ToastProvider></I18nProvider>);
 
 afterEach(() => cleanup());
 afterAll(() => mock.restore());

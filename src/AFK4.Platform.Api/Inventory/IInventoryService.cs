@@ -6,6 +6,27 @@ namespace AFK4.Platform.Api.Inventory;
 
 public interface IInventoryService
 {
+    Task<BillingCommandServiceResult<IReadOnlyList<ProductBarcodeDto>>> GetProductBarcodesAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid productId,
+        CancellationToken cancellationToken);
+
+    Task<BillingCommandServiceResult<ProductBarcodeDto>> AddProductBarcodeAsync(
+        Guid branchId,
+        Guid actorStaffUserId,
+        Guid productId,
+        AddProductBarcodeRequest request,
+        CancellationToken cancellationToken);
+
+    Task<BillingCommandServiceResult<ProductBarcodeDto>> DeleteProductBarcodeAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid productId,
+        Guid barcodeId,
+        CancellationToken cancellationToken);
+
+
     Task<BillingCommandServiceResult<PosProductCategoryDto>> CreateCategoryAsync(
         Guid branchId,
         Guid actorStaffUserId,

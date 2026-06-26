@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using AFK4.Shared.Contracts.FloorMap;
 
 namespace AFK4.Operator.App.FloorMap;
@@ -90,11 +91,31 @@ public sealed class FileFloorMapCache : IFloorMapCache
                 JsonSerializer.Serialize(stream, entry, JsonOptions);
             }
 
-            File.Copy(tempPath, path, overwrite: true);
+            CopyWithRetry(tempPath, path);
         }
         finally
         {
             TryDelete(tempPath);
+        }
+    }
+
+    // The destination cache file can be briefly locked by a concurrent reader (Load), another app
+    // instance, or an external scanner (antivirus/indexer/backup). Treat such locks as transient and
+    // retry rather than surfacing them as a write failure — mirrors the IOException tolerance in Load.
+    private static void CopyWithRetry(string sourcePath, string destinationPath)
+    {
+        const int maxAttempts = 10;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                File.Copy(sourcePath, destinationPath, overwrite: true);
+                return;
+            }
+            catch (Exception exception) when ((exception is IOException or UnauthorizedAccessException) && attempt < maxAttempts)
+            {
+                Thread.Sleep(20);
+            }
         }
     }
 
