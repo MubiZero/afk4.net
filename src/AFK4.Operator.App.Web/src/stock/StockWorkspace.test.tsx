@@ -43,4 +43,16 @@ describe('StockWorkspace — вкладки', () => {
     fireEvent.click(journalTab);
     expect(journalTab).toHaveAttribute('aria-selected', 'true');
   });
+
+  it('вкладка «Инвентаризация» видна при праве управления и переключается', async () => {
+    view(manageSession);
+    const tab = screen.getByRole('tab', { name: 'Инвентаризация' });
+    fireEvent.click(tab);
+    expect(tab).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('без права управления вкладка «Инвентаризация» скрыта', () => {
+    view(viewOnlySession);
+    expect(screen.queryByRole('tab', { name: 'Инвентаризация' })).not.toBeInTheDocument();
+  });
 });
