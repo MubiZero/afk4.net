@@ -17,8 +17,9 @@
 - [Operator app = WebView2+React](afk4-operator-app-webview2.md) — Operator.App = тонкий WPF-хост + React (`AFK4.Operator.App.Web`), Linux-buildable.
 - [Customer shell pivot](afk4-customer-shell-pivot.md) — Player.Shell = WebView2+React, enforcement (lock/lease/kiosk) в Agent.Service; shell не-авторитетен; осталось G5 hardware-smoke + Phase 2 (vault/privacy-wipe).
 - [Platform.Web redesign](platform-web-redesign.md) — money 100×: DTO minor units, `formatCurrency` ждёт MAJOR → `minorToMajor` на UI-границе; org-эндпоинты IDOR-guard через `StaffContext.OrganizationId`; feature-shape (`*Model.ts`+`use*`).
-- [Operator theme & dev-mock](operator-theme-and-preview.md) — `bun run dev` = mock по умолчанию (`?live`=staging); тема в `operatorTheme.tsx` (default dark); акцент оператора **синий #1f6feb**, НЕ бренд-emerald.
+- [Operator theme & dev-mock](operator-theme-and-preview.md) — `bun run dev` = mock по умолчанию (`?live`=staging); тема в `operatorTheme.tsx` (default dark); акцент оператора **emerald #2cc592** (тёмная; #0b9e74 light), НЕ синий — источник `packages/tokens/tokens.css`.
 - [Operator rail sections](operator-rail-sections.md) — рейл = 6 секций+табы (`navSections`); `--shell-tabstrip` в calc-высотах; dev-mock отдаёт `[]` → object-клиенты гардить `?? []`.
+- [Operator surface-иерархия](operator-surface-elevation.md) — светлая тема: глубина = ПОДЪЁМ (белая панель + `--shadow-card`), НЕ затемнение/recessed; floating-panel раскатан на все разделы; не давать тень модалкам/инпутам/вложенному (card-in-card).
 - [Monolith refactor blueprint](monolith-refactor.md) — раскладка `Endpoints/`/`App.tsx` (если разбивать ещё); `dotnet format --include` только относительный путь.
 - [API client decomposition](afk4-api-client-decomposition.md) — монорепо сохранён; god-client → domain-sub-client фасад; WPF ViewModels off-limits.
 
@@ -33,6 +34,7 @@
 - [Multi-tenant payments](afk4-multitenant-payments-state.md) — dcgate per-branch; money-path FROZEN внешним bank-bot; `Secrets:EncryptionKeyBase64` критичен (потеря = недешифруемые creds); prod afk4 не задеплоен.
 - [Time handling audit](afk4-time-handling-audit.md) — деньги server-authoritative/безопасны; реальный риск = skew/implicit-tz; рискованный lease/grace rewrite отложен до drift-логов; tz-multiregion YAGNI.
 - [SP4 backlog](afk4-sp4-shipped.md) — SP4 в main; deferred: Player OTP, per-tenant PWA icons, SignalR Redis backplane, G5 hardware-smoke.
+- [Operator UI-полировка Склад/Клиенты](operator-ui-polish-stock-clients.md) — нравятся Карта/Брони/Касса, НЕ нравятся Клиенты+Склад; полировка+раскладка на эталонном UI-kit; **Склад Блок A+B сделаны (не смержены)** + фикс мигания вкладок (keep-alive); затем Клиенты; хотелка: вкладки Кассы «Смена»/«Журнал» сырые.
 
 ## Закрытые эпики (durable-уроки)
 - [Operator «Склад» эпик](afk4-operator-stock-epic.md) — **ЗАКРЫТ ПОЛНОСТЬЮ** (S0 #116 · S1 Приёмка #117 · S2 Журнал #118 · S3 Штрихи #120 · S4 Инвентаризация #121, merge `1c91bf4c`). Durable: lookup штриха КЛИЕНТСКИЙ (нет серверного by-barcode); себест средневзвешенная (пересчёт ТОЛЬКО на purchase, НЕ на adjustment); on-hand=SUM(delta); money price=nested DTO vs avgCost=плоское; useBarcodeScanner=чистый редьюсер+timeMs БЕЗ inline-opts; **инвентаризация: скан=найти+фокус строки (НЕ +1), проведение=идемпотентные adjustment на разницу, markPosted анти-двойное-проведение**; POS-порог per-product `isLowStock` (0=без алертинга); `tsc -b` тайпчекает И тесты И сужения (зелёный bun test ≠ зелёная сборка). Остался POS-долг: авто-кладёт первый товар в чек. Следующий зум-аут: Отчёты / Управление.

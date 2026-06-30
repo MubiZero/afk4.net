@@ -1,0 +1,30 @@
+---
+name: operator-ui-polish-stock-clients
+description: Active epic — UI/UX polish of Operator «Склад» and «Клиенты» to match the liked «Касса/Карта/Брони» level
+metadata: 
+  node_type: memory
+  type: project
+  originSessionId: ede7078a-6c48-40f9-8bc2-b61faf083c10
+---
+
+Активный эпик (старт 2026-06-26): пользователю по UI/UX нравятся экраны **Карта / Брони / Касса**, НЕ нравятся **Клиенты** и **Склад**. Задача — подтянуть слабые до уровня сильных.
+
+**Направление (согласовано):** заход комплексный (и вид, и удобство); глубина — **полировка + раскладку трогаем там, где реально мешает** (не только косметика). Метод-прецедент: «Касса» когда-то тоже не нравилась, её свели из разнобоя в цельный вид — повторяем тот же ход (единый набор приёмов) для Склада и Клиентов.
+
+**Эталонный UI-kit оператора (переиспользовать, НЕ изобретать):** `operatorPrimitives.tsx` = `EmptyState / Skeleton / StateFlag / FeedbackNotice / CriticalActionConfirmation`; `useDeferredFlag` (180ms анти-флэш скелетона); `PanelModal` (модалки); `PaymentDialog` (приём денег, Касса+Карта); шапка-якорь `.cash-head`+`.cash-head-metrics`+`StateFlag` (зеркало `.booking-header`); токены `packages/tokens/tokens.css` (`--space-*`, `--control-*`, `--focus-ring`, акцент **emerald #2cc592**); деньги = `font-mono`+`tabular-nums` через `formatMinorUnits`/`formatMoney`. Паттерн «workspace as segment» (`const Root = embedded ? 'section':'main'`).
+
+**СКЛАД — Блок A (полировка) СДЕЛАН (не смержен, ветка main, превью на 5175):**
+- Шапка-якорь с метриками: новый `stock/StockHeader.tsx` (грузит каталог→`summarize`, метрики Стоимость/На исходе/Нет в наличии через `StateFlag`); `StockWorkspace` держит `stockNonce`, бампается после приёмки/инвентаризации/списания (`onStockChanged` проп в Receiving/Inventory/Levels) → метрики живые.
+- Скелетоны: новый `stock/StockSkeleton.tsx` + CSS `.stock-skel-*`; заменил серый `workspace-loading` во всех 4 вкладках через `useDeferredFlag`.
+- Пустые состояния: `EmptyState` (иконка+title) вместо голого `cash-shift-empty-note`; пустой склад → CTA «Оформить приёмку».
+- Low-stock сигнал: CSS `.cash-stock-row.low/.out` левая полоса (`box-shadow inset 3px`) + иконка `AlertTriangle` на строке (не только цвет, WCAG 1.4.1); тег статуса 9.5px→`--text-xs`.
+- Действия+микросостояния: `.rowact` opacity 0.35→0.6 + reveal на `:focus-within` (видны без мыши); символы `＋/−`→lucide `Plus/Minus` (Остатки + степпер Приёмки); focus-ring на полях ввода (был `outline:none`); press-feedback `:active scale(0.96)` + reduced-motion guard.
+- Гейт: `bun test` зелёный (84+ pass), `bun run build` зелёный (tsc тайпчекнул тесты и сужения). НЕ закоммичено.
+
+**СКЛАД — Блок B (раскладка) СДЕЛАН (не смержен):** строка «Остатки» прорежена с 8 до 6 колонок — убраны **Маржа** и **Порог** со строки (решение пользователя: оставить Остаток/Себест/Цена/Стоимость/Действия); `.metrics` grid `88/66/62/90/78`. Card-in-card убран: «Остатки» и «Журнал» (списки на чтение) → плоский список (строки без рамок, `border-bottom`-разделитель + hover-фон). **Приёмка/Инвентаризация ОСТАВЛЕНЫ карточками** — там строки редактируемые (степпер/ввод факта), граница помогает. Также: keep-alive фикс мигания при переключении вкладок (lazy mount + `hidden`, refreshNonce только на операциях, stale-while-revalidate, scan-gate по active-вкладке). НЕ закоммичено. Spacing-хардкод (ширины 304/220/100px и пр.) — частично тронут, остальное НЕ тиражировать.
+
+**Дальше по эпику:** Клиенты (плоский заголовок 12px, типошкала `--text-*` игнорируется, card-in-card до 3 уровней на «Пакеты», нет dedicated error-state, монолитный `BackendPlayersWorkspace.tsx` 895 стр).
+
+**Вкладки «Смена»/«Журнал кассы» — ПОЛИРОВКА СДЕЛАНА (не смержена, превью 5175):** redesign под язык консоли. Смена = кокпит: «Выручка» ведёт герой-моно-тоталом, «Сверка» — герой-расхождением (`.cash-shift-hero-block` tone attention/ok/muted; «Расхождение» рендерится ОДИН раз — тест ловит ×1 без «0,00»), карточки floating (`--shadow-card`), История смен из буллитов → ряды-разделители (дата/заработано/расхождение). Журнал = лента в парящей панели `.cash-ledger` с `max-width:960px` (сумма рядом с описанием — сканируется, не улетает к правому краю 1900px), сводка → стат-строка с «Итого по кассе» лидером, ряды hairline+hover+минус красным; убран дубль-подзаголовок (ключ `op.cash.journal.heading` удалён, `App.test` «opens cash journal» теперь ловит таб «Кассовые операции»). Гейт: 613 тестов + build + i18n-паритет зелёные.
+
+См. [[operator-redesign-phase0-decisions]] (метод-прецедент Кассы), [[afk4-operator-stock-epic]] (функционал Склада закрыт ранее), [[afk4-operator-clients-epic]], [[operator-theme-and-preview]] (токены/акцент).
