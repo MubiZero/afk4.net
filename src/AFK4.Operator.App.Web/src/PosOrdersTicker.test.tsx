@@ -64,22 +64,29 @@ describe('PosOrdersTicker', () => {
     mock.restore();
   });
 
-  it('показывает входящий заказ чипом и принимает его (кнопка → «Выдать»)', async () => {
+  it('принимает заказ из поповера: на чипе быстрых действий нет', async () => {
     renderTicker();
     // Чип показывает место (откуда) и сводку «N поз · сумма», без имени заказчика.
     expect(await screen.findByText('PC-01')).toBeInTheDocument();
     const summary = screen.getByText(/3 поз/);
     expect(summary).toHaveTextContent('85'); // 3 позиции · 85 с. (total 8500 minor)
     expect(screen.queryByText('Alex')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /^принять$|^accept$/i }));
+    // На чипе нет быстрых действий — решение принимается в поповере, видя состав.
+    expect(screen.queryByRole('button', { name: /^принять$|^accept$/i })).toBeNull();
+    fireEvent.click(screen.getByText('PC-01')); // клик по телу чипа открывает поповер
+    const dialog = await screen.findByRole('dialog');
+    // Новый заказ → в поповере есть «Принять», но ещё нет «Выдать».
+    expect(within(dialog).getByRole('button', { name: /принять|accept/i })).toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /выдать|deliver/i })).toBeNull();
+    fireEvent.click(within(dialog).getByRole('button', { name: /принять|accept/i }));
     await waitFor(() => expect(accept).toHaveBeenCalledWith('b1', 'o1', 1));
-    await waitFor(() => expect(screen.queryByRole('button', { name: /принять|accept/i })).toBeNull());
-    expect(screen.getByRole('button', { name: /выдать|deliver/i })).toBeInTheDocument();
   });
 
   it('подтверждает приём заказа тостом', async () => {
     renderTicker();
-    fireEvent.click(await screen.findByRole('button', { name: /принять|accept/i }));
+    fireEvent.click(await screen.findByText('PC-01'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /принять|accept/i }));
     await waitFor(() => expect(accept).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText('Заказ принят')).toBeInTheDocument());
   });
@@ -87,7 +94,9 @@ describe('PosOrdersTicker', () => {
   it('показывает тост ошибки, когда действие падает', async () => {
     accept.mockImplementationOnce(() => Promise.reject(new Error('network')));
     renderTicker();
-    fireEvent.click(await screen.findByRole('button', { name: /принять|accept/i }));
+    fireEvent.click(await screen.findByText('PC-01'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /принять|accept/i }));
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
   });
 

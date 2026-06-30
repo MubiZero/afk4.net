@@ -361,8 +361,11 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               <strong>{t('op.pos.catalog.subtitle')}</strong>
             </div>
             <div className="pos-panel-metrics">
-              <span>{t('op.pos.strip.products')} <b>{t('op.pos.strip.positions', { count: catalog.length })}</b></span>
-              <span className={lowStockCount > 0 ? 'warn' : undefined}>{t('op.pos.strip.stock')} <b>{t('op.pos.strip.stockLow', { count: lowStockCount })}</b></span>
+              {lowStockCount > 0 ? (
+                <span className="warn">{t('op.pos.strip.stock')} <b>{t('op.pos.strip.stockLow', { count: lowStockCount })}</b></span>
+              ) : (
+                <span>{t('op.pos.strip.stock')} {t('op.pos.strip.stockOk')}</span>
+              )}
               <span className="pos-scanner-badge" aria-label={t('op.pos.scan.active')}>
                 <span className="pos-scanner-pulse" aria-hidden="true" />
                 {t('op.pos.scan.active')}

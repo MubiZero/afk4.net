@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { Boxes } from 'lucide-react';
+import { AlertTriangle, Boxes, Minus, Plus } from 'lucide-react';
+import { useDeferredFlag } from '../useDeferredFlag';
+import { EmptyState } from '../operatorPrimitives';
+import { StockSkeleton } from './StockSkeleton';
 import { createAuthenticatedOperatorClients } from '../operatorHelpers';
 import { formatMinorUnits } from '../currencyFormat';
 import { projectOperatorError } from '../apiErrors';
@@ -10,7 +13,6 @@ import type { OperatorAuthSession } from '../authClient';
 import {
   mapCatalogToStock,
   stockStatus,
-  marginPercent,
   stockValueMinorUnits,
   summarize,
   type StockItem,
@@ -24,11 +26,15 @@ export function StockLevelsWorkspace({
   currencyCode,
   session,
   onReceive,
+  onStockChanged,
+  refreshNonce = 0,
 }: {
   backend: OperatorBackendContext | null;
   currencyCode: string;
   session: OperatorAuthSession | null;
   onReceive?: (productId?: string) => void;
+  onStockChanged?: () => void;
+  refreshNonce?: number;
 }) {
   const { t } = useI18n();
 
@@ -67,7 +73,9 @@ export function StockLevelsWorkspace({
       });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clients, backend?.branchId, canView, reloadNonce]);
+  }, [clients, backend?.branchId, canView, reloadNonce, refreshNonce]);
+
+  const showSkeleton = useDeferredFlag(loading);
 
   if (!canView) {
     return (
@@ -77,14 +85,10 @@ export function StockLevelsWorkspace({
     );
   }
 
-  if (loading) {
-    return (
-      <div className="stock-layout">
-        <section className="cash-stock-levels">
-          <p className="workspace-loading">{t('op.stock.levels.loading')}</p>
-        </section>
-      </div>
-    );
+  if (loading && items.length === 0) {
+    return showSkeleton
+      ? <StockSkeleton sectionClass="cash-stock-levels" label={t('op.stock.levels.loading')} />
+      : <div className="stock-layout" />;
   }
 
   if (loadError) {
@@ -160,28 +164,31 @@ export function StockLevelsWorkspace({
           <span>{t('op.stock.col.item')}</span>
           <div className="metrics">
             <span>{t('op.stock.col.qty')}</span>
-            <span>{t('op.stock.col.threshold')}</span>
             <span>{t('op.stock.col.cost')}</span>
             <span>{t('op.stock.col.price')}</span>
-            <span>{t('op.stock.col.margin')}</span>
             <span>{t('op.stock.col.value')}</span>
             <span>{t('op.stock.col.actions')}</span>
           </div>
         </div>
 
         {items.length === 0 ? (
-          <p className="cash-shift-empty-note">{t('op.stock.levels.empty')}</p>
+          <EmptyState
+            icon={<Boxes size={28} aria-hidden="true" />}
+            title={t('op.stock.levels.empty')}
+            action={onReceive ? { label: t('op.stock.summary.orderBtn'), onClick: () => onReceive() } : undefined}
+          />
         ) : filtered.length === 0 ? (
-          <p className="cash-shift-empty-note">{t('op.stock.levels.emptyFiltered')}</p>
+          <EmptyState icon={<Boxes size={28} aria-hidden="true" />} title={t('op.stock.levels.emptyFiltered')} />
         ) : (
           <ul className="cash-stock-list">
             {filtered.map((item) => {
               const status = stockStatus(item);
-              const margin = marginPercent(item.priceMinorUnits, item.avgCostMinorUnits);
               const stockVal = stockValueMinorUnits(item);
               return (
                 <li key={item.productId} className={`cash-stock-row srow${status !== 'ok' ? ` ${status}` : ''}`}>
-                  <Boxes size={15} aria-hidden="true" />
+                  {status === 'ok'
+                    ? <Boxes size={15} aria-hidden="true" />
+                    : <AlertTriangle size={15} aria-hidden="true" className={`row-status-ico ${status}`} />}
                   <div className="cell-name">
                     <strong>{item.name}</strong>
                     <em>
@@ -202,8 +209,6 @@ export function StockLevelsWorkspace({
                         </span>
                       )}
                     </div>
-                    {/* Порог */}
-                    <div className="thr">{item.reorderThreshold || '—'}</div>
                     {/* Себест */}
                     <div className="money">
                       {item.avgCostMinorUnits > 0 ? formatMinorUnits(item.avgCostMinorUnits, currencyCode) : <span className="dim">—</span>}
@@ -211,10 +216,6 @@ export function StockLevelsWorkspace({
                     {/* Цена */}
                     <div className="money">
                       {item.priceMinorUnits > 0 ? formatMinorUnits(item.priceMinorUnits, currencyCode) : <span className="dim">—</span>}
-                    </div>
-                    {/* Маржа */}
-                    <div className="marg">
-                      {margin !== null ? `${margin}%` : <span className="dim">—</span>}
                     </div>
                     {/* Стоимость склада */}
                     <div className={`valm${stockVal <= 0 ? ' dim' : ''}`}>
@@ -229,7 +230,7 @@ export function StockLevelsWorkspace({
                         title={t('op.stock.action.receive')}
                         aria-label={t('op.stock.action.receive')}
                         onClick={() => onReceive?.(item.productId)}
-                      >＋</button>
+                      ><Plus size={15} aria-hidden="true" /></button>
                       <button
                         type="button"
                         className="iact minus"
@@ -237,7 +238,7 @@ export function StockLevelsWorkspace({
                         title={t('op.stock.action.writeOff')}
                         aria-label={t('op.stock.action.writeOff')}
                         onClick={() => setWriteOffItem(item)}
-                      >−</button>
+                      ><Minus size={15} aria-hidden="true" /></button>
                     </div>
                   </div>
                 </li>
@@ -253,7 +254,7 @@ export function StockLevelsWorkspace({
           backend={backend}
           currencyCode={currencyCode}
           onClose={() => setWriteOffItem(null)}
-          onDone={() => { setWriteOffItem(null); setReloadNonce((n) => n + 1); }}
+          onDone={() => { setWriteOffItem(null); setReloadNonce((n) => n + 1); onStockChanged?.(); }}
         />
       )}
 

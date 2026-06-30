@@ -517,6 +517,7 @@
   border: 1px solid var(--border-soft);
   border-radius: 7px;
   background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
 }
 
 .map-header h1 {
@@ -1709,6 +1710,7 @@
   border: 1px solid var(--border-soft);
   border-radius: 8px;
   background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
 }
 
 .context-panel > * {

@@ -42,6 +42,7 @@
   border: 1px solid var(--border-soft);
   border-radius: 7px;
   background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
 }
 
 .booking-header h1 {
@@ -145,6 +146,7 @@
   border-radius: 7px;
   padding: 6px 10px;
   background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
   animation: soft-enter 140ms ease-out;
 }
 

@@ -2643,7 +2643,7 @@ describe('App', () => {
     await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
 
     gotoWorkspace('Журнал кассы');
-    expect(await screen.findByRole('heading', { name: /Операции и проверка/ })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Кассовые операции' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Проверка' }));
     expect(await screen.findByText('Клиент отменил заказ')).toBeInTheDocument();
   });

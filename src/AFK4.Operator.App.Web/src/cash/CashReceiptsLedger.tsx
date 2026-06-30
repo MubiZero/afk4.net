@@ -167,9 +167,13 @@ export function CashReceiptsLedger({
 
   return (
     <section className="cash-receipts">
-      <div className="cash-ledger-summary">
-        <span><b>{t('op.pos.strip.sales')}</b> {rows.length} · {formatMoney(readMoney(report, 'grossSalesTotal'), currencyCode)}</span>
-        <span><b>{t('op.pos.strip.refunds')}</b> {formatMoney(readMoney(report, 'refundsTotal'), currencyCode)}</span>
+      <div className="cash-ledger-stats">
+        <span className="cash-ledger-stat cash-ledger-stat--lead">
+          <em>{t('op.pos.strip.sales')}</em><b>{rows.length} · {formatMoney(readMoney(report, 'grossSalesTotal'), currencyCode)}</b>
+        </span>
+        <span className="cash-ledger-stat cash-ledger-stat--out">
+          <em>{t('op.pos.strip.refunds')}</em><b>{formatMoney(readMoney(report, 'refundsTotal'), currencyCode)}</b>
+        </span>
       </div>
 
       <div className="pos-receipt-list">

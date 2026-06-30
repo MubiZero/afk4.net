@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { Boxes, Check, RotateCcw, ScanLine } from 'lucide-react';
+import { useDeferredFlag } from '../useDeferredFlag';
+import { EmptyState } from '../operatorPrimitives';
+import { StockSkeleton } from './StockSkeleton';
 import { createAuthenticatedOperatorClients, createIdempotencyKey, readArray, readBoolean, readString, requireBackend } from '../operatorHelpers';
 import { formatMinorUnits } from '../currencyFormat';
 import { projectOperatorError } from '../apiErrors';
@@ -24,10 +27,16 @@ export function InventoryWorkspace({
   backend,
   currencyCode,
   session,
+  onStockChanged,
+  refreshNonce = 0,
+  active = true,
 }: {
   backend: OperatorBackendContext | null;
   currencyCode: string;
   session: OperatorAuthSession | null;
+  onStockChanged?: () => void;
+  refreshNonce?: number;
+  active?: boolean;
 }) {
   const { t } = useI18n();
   const toast = useToast();
@@ -67,7 +76,7 @@ export function InventoryWorkspace({
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clients, backend?.branchId, canManage, reloadNonce]);
+  }, [clients, backend?.branchId, canManage, reloadNonce, refreshNonce]);
 
   const onScan = useCallback((code: string) => {
     const found = matchByBarcode(trackedCatalog, code);
@@ -79,13 +88,17 @@ export function InventoryWorkspace({
     if (el) { el.focus(); el.scrollIntoView?.({ block: 'nearest' }); el.select?.(); }
   }, [trackedCatalog, toast, t]);
 
-  useBarcodeScanner(canManage && !loading, onScan);
+  useBarcodeScanner(active && canManage && !loading, onScan);
+
+  const showSkeleton = useDeferredFlag(loading);
 
   if (!canManage) {
     return <section className="stock-inventory"><p className="workspace-error">{t('op.stock.inventory.noPermission')}</p></section>;
   }
-  if (loading) {
-    return <div className="stock-layout"><section className="stock-inventory"><p className="workspace-loading">{t('op.stock.inventory.loading')}</p></section></div>;
+  if (loading && lines.length === 0) {
+    return showSkeleton
+      ? <StockSkeleton sectionClass="stock-inventory" label={t('op.stock.inventory.loading')} />
+      : <div className="stock-layout" />;
   }
   if (loadError) {
     return <div className="stock-layout"><section className="stock-inventory"><p className="workspace-error" role="alert">{loadError}</p></section></div>;
@@ -131,6 +144,7 @@ export function InventoryWorkspace({
       setPost({ kind: 'done', count: posted });
       toast.info(t('op.stock.inventory.posted', { count: posted })); // переживёт сброс post-состояния при рефетче
       setReloadNonce((n) => n + 1); // свежие учётные остатки + сброс пересчёта
+      onStockChanged?.(); // обновить метрики в шапке раздела
     } catch (error) {
       setPost(posted > 0
         ? { kind: 'error', detail: t('op.stock.inventory.partial', { posted, total: adjustments.length }) }
@@ -165,7 +179,7 @@ export function InventoryWorkspace({
         <div className="recv-doc" aria-label={t('op.stock.inventory.title')}>
           <h2>{t('op.stock.inventory.title')}</h2>
           {lines.length === 0 ? (
-            <p className="cash-shift-empty-note">{t('op.stock.inventory.empty')}</p>
+            <EmptyState icon={<Boxes size={28} aria-hidden="true" />} title={t('op.stock.inventory.empty')} />
           ) : (
             <>
               <div className="inv-cols" aria-hidden="true">

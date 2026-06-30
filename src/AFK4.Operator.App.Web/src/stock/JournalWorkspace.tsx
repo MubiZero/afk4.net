@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
-import { ArrowDownToLine } from 'lucide-react';
+import { ArrowDownToLine, ClipboardList } from 'lucide-react';
+import { useDeferredFlag } from '../useDeferredFlag';
+import { EmptyState } from '../operatorPrimitives';
+import { StockSkeleton } from './StockSkeleton';
 import { createAuthenticatedOperatorClients, stockMovementTypeLabel } from '../operatorHelpers';
 import { formatMinorUnits } from '../currencyFormat';
 import { projectOperatorError } from '../apiErrors';
@@ -34,10 +37,12 @@ export function JournalWorkspace({
   backend,
   currencyCode,
   session,
+  refreshNonce = 0,
 }: {
   backend: OperatorBackendContext | null;
   currencyCode: string;
   session: OperatorAuthSession | null;
+  refreshNonce?: number;
 }) {
   const { t, locale } = useI18n();
   const canView = hasAnyPermission(session, [permissionNames.viewInventory, permissionNames.manageInventoryStock]);
@@ -76,16 +81,20 @@ export function JournalWorkspace({
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clients, backend?.branchId, canView]);
+  }, [clients, backend?.branchId, canView, refreshNonce]);
 
   const dateTimeFmt = useMemo(() => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }), [locale]);
   const dayFmt = useMemo(() => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }), [locale]);
 
+  const showSkeleton = useDeferredFlag(loading);
+
   if (!canView) {
     return <section className="stock-journal"><p className="workspace-error">{t('op.stock.journal.noPermission')}</p></section>;
   }
-  if (loading) {
-    return <div className="stock-layout"><section className="stock-journal"><p className="workspace-loading">{t('op.stock.journal.loading')}</p></section></div>;
+  if (loading && movements.length === 0) {
+    return showSkeleton
+      ? <StockSkeleton sectionClass="stock-journal" label={t('op.stock.journal.loading')} />
+      : <div className="stock-layout" />;
   }
   if (loadError) {
     return <div className="stock-layout"><section className="stock-journal"><p className="workspace-error" role="alert">{loadError}</p></section></div>;
@@ -166,9 +175,9 @@ export function JournalWorkspace({
         {capReached && <p className="journal-cap">{t('op.stock.journal.capNote', { count: MOVEMENT_LIMIT })}</p>}
 
         {allRows.length === 0 ? (
-          <p className="cash-shift-empty-note">{t('op.stock.journal.empty')}</p>
+          <EmptyState icon={<ClipboardList size={28} aria-hidden="true" />} title={t('op.stock.journal.empty')} />
         ) : rows.length === 0 ? (
-          <p className="cash-shift-empty-note">{t('op.stock.journal.emptyFiltered')}</p>
+          <EmptyState icon={<ClipboardList size={28} aria-hidden="true" />} title={t('op.stock.journal.emptyFiltered')} />
         ) : (
           <div className="jledger" aria-label={t('op.stock.journal.head')}>
             {groups.map((group) => (

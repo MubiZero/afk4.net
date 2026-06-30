@@ -187,7 +187,6 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
 
       <section className="state-strip review-state-strip" aria-label={t('op.review.summaryLabel')}>
         <StateFlag label={t('op.review.flagRequests')} value={String(requests.length)} critical={requests.length > 0} />
-        <StateFlag label={t('journal.col.source')} value={workspaceLoadStatusLabel(loadStatus, t('op.review.platformLabel'), t)} critical={loadStatus !== 'backend'} />
       </section>
 
       <div className="review-segments" role="tablist">

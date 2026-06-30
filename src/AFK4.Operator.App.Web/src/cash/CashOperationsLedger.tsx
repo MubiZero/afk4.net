@@ -84,10 +84,16 @@ export function CashOperationsLedger({
 
   return (
     <section className="cash-ledger">
-      <div className="cash-ledger-summary">
-        <span><b>{t('op.cash.journal.cashIn')}</b> {formatMoney(readMoney(report, 'cashInTotal'), currencyCode)}</span>
-        <span><b>{t('op.cash.journal.cashOut')}</b> {formatMoney(readMoney(report, 'cashOutTotal'), currencyCode)}</span>
-        <span><b>{t('op.cash.journal.net')}</b> {formatMoney(readMoney(report, 'netCashTotal'), currencyCode)}</span>
+      <div className="cash-ledger-stats">
+        <span className="cash-ledger-stat cash-ledger-stat--lead">
+          <em>{t('op.cash.journal.net')}</em><b>{formatMoney(readMoney(report, 'netCashTotal'), currencyCode)}</b>
+        </span>
+        <span className="cash-ledger-stat">
+          <em>{t('op.cash.journal.cashIn')}</em><b>{formatMoney(readMoney(report, 'cashInTotal'), currencyCode)}</b>
+        </span>
+        <span className="cash-ledger-stat cash-ledger-stat--out">
+          <em>{t('op.cash.journal.cashOut')}</em><b>{formatMoney(readMoney(report, 'cashOutTotal'), currencyCode)}</b>
+        </span>
       </div>
       <div className="cash-ledger-search">
         <Search size={14} aria-hidden="true" />
