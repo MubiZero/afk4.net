@@ -136,6 +136,7 @@
   font-weight: 700;
 }
 
+/* Reserved for later slices: .ui-chip--count (StateFlag→count, cross-section), .ui-field-error (inline field errors — screen currently uses toast), .ui-btn--lg. */
 /* счётчик с меткой+значением (шапка) */
 .ui-chip--count {
   gap: 7px;

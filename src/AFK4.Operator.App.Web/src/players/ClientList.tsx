@@ -1,7 +1,6 @@
 import { useI18n } from '@afk4/i18n';
 import { Search, UserRoundPlus, Users } from 'lucide-react';
 import type { PlayerClientItem } from '../operatorHelpers';
-import { formatMinorUnits } from '../operatorHelpers';
 import { Skeleton, EmptyState, Money } from '../operatorPrimitives';
 import { playerStatusLabel, type ClientSegment, type ClientSegmentId } from './playersModel';
 
@@ -100,7 +99,7 @@ export function ClientList({
                   )}
                   {client.debtMinorUnits > 0 && (
                     <span className="ui-chip ui-chip--status ui-chip--xs is-danger">
-                      {t('op.players.chip.debt')} {formatMinorUnits(client.debtMinorUnits, currencyCode)}
+                      {t('op.players.chip.debt')} <Money minorUnits={client.debtMinorUnits} currencyCode={currencyCode} />
                     </span>
                   )}
                 </strong>

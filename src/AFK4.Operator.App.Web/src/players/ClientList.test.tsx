@@ -94,12 +94,16 @@ describe('ClientList debtor row', () => {
 
     const row = screen.getByRole('button', { name: /Мадина Саидова/ });
     // баланс — одно число справа (mono), без второй строки
-    const moneyFigures = row.querySelectorAll('.ui-money');
+    const figures = row.querySelector('.client-row-figures');
+    const moneyFigures = figures?.querySelectorAll('.ui-money') ?? [];
     expect(moneyFigures).toHaveLength(1);
     expect(moneyFigures[0]).toHaveTextContent('0 с.');
 
-    // долг — бейдж «Долг 35 с.» рядом с именем, не в колонке цифр
-    expect(screen.getByText(/Долг\s+35\s+с\./)).toHaveClass('ui-chip--status');
+    // долг — бейдж «Долг 35 с.» рядом с именем, не в колонке цифр; сумма — Money (mono)
+    const debtBadge = row.querySelector('.ui-chip--status.is-danger');
+    expect(debtBadge).not.toBeNull();
+    expect(debtBadge).toHaveTextContent(/Долг\s+35\s+с\./);
+    expect(debtBadge?.querySelector('.ui-money')).not.toBeNull();
   });
 
   it('shows the neutral status badge (not a debt badge) for an inactive, non-debt client', () => {

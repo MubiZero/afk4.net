@@ -733,12 +733,6 @@
   border-radius: var(--radius-md);
 }
 
-/* ── История ─────────────────────────────────────────────────────────────────── */
-.clients-history-list {
-  display: grid;
-  gap: 4px;
-}
-
 /* ── Модалка нового клиента (поверх .panel-modal) ───────────────────────────── */
 .clients-new-form {
   display: grid;
