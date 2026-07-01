@@ -1,7 +1,7 @@
 import { useI18n } from '@afk4/i18n';
 import { ArrowRight, CircleDollarSign, History, ReceiptText, SlidersHorizontal } from 'lucide-react';
 import type { LedgerEntryDto } from '../operatorApiClients';
-import { formatMinorUnits } from '../operatorHelpers';
+import { LedgerRow } from './LedgerRow';
 import { projectLedgerEntry } from './playersModel';
 
 // Кошелёк = зона ДЕЙСТВИЙ слева (баланс/долг показывает сводка-чипы, здесь не дублируем) +
@@ -66,27 +66,29 @@ export function WalletSection({
         >
           <strong className="clients-section-title">{t('op.players.wallet.topUpTitle')}</strong>
           <div className="clients-wallet-fields">
-            <div className="clients-wallet-field">
+            <div className="ui-field">
               <label htmlFor="wallet-topup-amount">{t('op.players.actions.topUpAmountLabel')}</label>
               <input
                 id="wallet-topup-amount"
                 inputMode="decimal"
+                placeholder="0.00"
                 value={topUpAmount}
                 disabled={!canTopUp}
                 onChange={(event) => onChangeTopUpAmount(event.currentTarget.value)}
               />
             </div>
-            <div className="clients-wallet-field">
+            <div className="ui-field">
               <label htmlFor="wallet-topup-reason">{t('op.players.actions.topUpReasonLabel')}</label>
               <input
                 id="wallet-topup-reason"
+                placeholder={t('op.players.actions.topUpDefault')}
                 value={topUpReason}
                 disabled={!canTopUp}
                 onChange={(event) => onChangeTopUpReason(event.currentTarget.value)}
               />
             </div>
           </div>
-          <button type="submit" className="clients-primary-action" disabled={!canTopUp}>
+          <button type="submit" className="ui-btn ui-btn--primary ui-btn--block" disabled={!canTopUp}>
             <CircleDollarSign size={15} aria-hidden="true" />
             {t('op.players.actions.topUpBtn')}
           </button>
@@ -102,27 +104,29 @@ export function WalletSection({
           >
             <strong className="clients-section-title">{t('op.players.wallet.payDebtTitle')}</strong>
             <div className="clients-wallet-fields">
-              <div className="clients-wallet-field">
+              <div className="ui-field">
                 <label htmlFor="wallet-debt-amount">{t('op.players.actions.debtAmountLabel')}</label>
                 <input
                   id="wallet-debt-amount"
                   inputMode="decimal"
+                  placeholder="0.00"
                   value={debtAmount}
                   disabled={!canPayDebt}
                   onChange={(event) => onChangeDebtAmount(event.currentTarget.value)}
                 />
               </div>
-              <div className="clients-wallet-field">
+              <div className="ui-field">
                 <label htmlFor="wallet-debt-reason">{t('op.players.actions.debtReasonLabel')}</label>
                 <input
                   id="wallet-debt-reason"
+                  placeholder={t('op.players.actions.writeOffDebtDefault')}
                   value={debtReason}
                   disabled={!canPayDebt}
                   onChange={(event) => onChangeDebtReason(event.currentTarget.value)}
                 />
               </div>
             </div>
-            <button type="submit" className="clients-primary-action clients-debt-action" disabled={!canPayDebt}>
+            <button type="submit" className="ui-btn ui-btn--danger ui-btn--block" disabled={!canPayDebt}>
               <ReceiptText size={15} aria-hidden="true" />
               {t('op.players.actions.writeOffDebtBtn')}
             </button>
@@ -130,7 +134,7 @@ export function WalletSection({
         )}
 
         {canCorrect && (
-          <button type="button" className="clients-wallet-correction-link" onClick={onCorrect}>
+          <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" onClick={onCorrect}>
             <SlidersHorizontal size={14} aria-hidden="true" />
             {t('op.players.correction.openLink')}
           </button>
@@ -146,20 +150,12 @@ export function WalletSection({
         {recentEntries.length === 0 ? (
           <p className="clients-wallet-recent-empty">{t('op.players.wallet.recentEmpty')}</p>
         ) : (
-          <ul className="clients-wallet-recent-list">
+          <div className="clients-wallet-recent-list ui-ledger-list">
             {recentEntries.map((raw) => {
               const view = projectLedgerEntry(raw, t);
-              const sign = view.isCredit ? '+' : '−';
-              const amount = formatMinorUnits(Math.abs(view.amountMinorUnits), view.currencyCode || currencyCode);
-              return (
-                <li key={view.id} className={`clients-wallet-recent-row ${view.isCredit ? 'is-credit' : 'is-debit'}`}>
-                  <span className="clients-wallet-recent-time">{view.timeLabel}</span>
-                  <span className="clients-wallet-recent-type">{view.typeLabel}</span>
-                  <b className="clients-wallet-recent-amount">{sign}{amount}</b>
-                </li>
-              );
+              return <LedgerRow key={view.id} view={view} currencyCode={currencyCode} compact />;
             })}
-          </ul>
+          </div>
         )}
         <button type="button" className="clients-wallet-recent-link" onClick={onShowHistory}>
           {t('op.players.wallet.allHistory')}

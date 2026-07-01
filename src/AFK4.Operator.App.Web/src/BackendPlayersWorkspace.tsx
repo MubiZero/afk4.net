@@ -50,10 +50,10 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
   const [selectedPackageDefinitionId, setSelectedPackageDefinitionId] = useState('');
   const [selectedClientPackages, setSelectedClientPackages] = useState<PlayerPackageDto[]>([]);
-  const [walletTopUpAmount, setWalletTopUpAmount] = useState('100.00');
-  const [walletTopUpReason, setWalletTopUpReason] = useState(() => t('op.players.actions.topUpDefault'));
+  const [walletTopUpAmount, setWalletTopUpAmount] = useState('');
+  const [walletTopUpReason, setWalletTopUpReason] = useState('');
   const [debtPaymentAmount, setDebtPaymentAmount] = useState('');
-  const [debtPaymentReason, setDebtPaymentReason] = useState(() => t('op.players.actions.writeOffDebtDefault'));
+  const [debtPaymentReason, setDebtPaymentReason] = useState('');
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerPhone, setNewPlayerPhone] = useState('');
   const [ledgerEntries, setLedgerEntries] = useState<LedgerEntryDto[]>([]);

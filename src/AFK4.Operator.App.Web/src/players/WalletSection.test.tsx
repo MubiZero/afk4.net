@@ -97,4 +97,11 @@ describe('WalletSection', () => {
     renderSection({ recentEntries: [] });
     expect(screen.getByText('Пока нет операций')).toBeInTheDocument();
   });
+
+  it('shows a 0.00 placeholder for an empty top-up amount', () => {
+    renderSection({ topUpAmount: '' });
+    const input = screen.getByLabelText('Сумма пополнения') as HTMLInputElement;
+    expect(input).toHaveAttribute('placeholder', '0.00');
+    expect(input.value).toBe('');
+  });
 });

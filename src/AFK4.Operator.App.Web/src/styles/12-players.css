@@ -518,49 +518,6 @@
   list-style: none;
 }
 
-.clients-wallet-recent-row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 2px;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.clients-wallet-recent-row:last-child {
-  border-bottom: none;
-}
-
-.clients-wallet-recent-time {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.clients-wallet-recent-type {
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.clients-wallet-recent-amount {
-  font-size: 12px;
-  font-weight: 700;
-  text-align: right;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.clients-wallet-recent-row.is-credit .clients-wallet-recent-amount {
-  color: var(--success-text);
-}
-
-.clients-wallet-recent-row.is-debit .clients-wallet-recent-amount {
-  color: var(--danger-text);
-}
-
 .clients-wallet-recent-link {
   display: inline-flex;
   align-items: center;
@@ -612,12 +569,6 @@
   gap: var(--space-3);
 }
 
-.clients-wallet-field {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
 /* Совсем узко — поля в стопку, чтобы не зажимались. */
 @media (max-width: 560px) {
   .clients-wallet-fields {
@@ -639,7 +590,6 @@
   font-weight: 600;
 }
 
-.clients-wallet-form input,
 .clients-package-select select,
 .clients-new-form input,
 .clients-correction-form input,
@@ -659,7 +609,6 @@
   transition: border-color 100ms ease, box-shadow 100ms ease;
 }
 
-.clients-wallet-form input:focus,
 .clients-package-select select:focus,
 .clients-new-form input:focus,
 .clients-correction-form input:focus,
@@ -670,7 +619,6 @@
   box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.22);
 }
 
-.clients-wallet-form input:disabled,
 .clients-package-select select:disabled,
 .clients-correction-form input:disabled,
 .clients-edit-form input:disabled,
@@ -715,18 +663,6 @@
   border-color: var(--border-default);
   background: var(--surface-muted);
   color: var(--text-quaternary);
-}
-
-.clients-debt-action {
-  border-color: var(--danger-soft-border);
-  background: transparent;
-  color: var(--danger-text);
-}
-
-.clients-debt-action:hover:not(:disabled) {
-  border-color: var(--danger);
-  background: var(--danger-soft-bg);
-  color: var(--danger-text);
 }
 
 /* ── Пакеты ──────────────────────────────────────────────────────────────────── */
@@ -1012,41 +948,6 @@
 .clients-pin-hint {
   color: var(--text-tertiary);
   font-size: 11px;
-}
-
-/* Корректировка — вторичная кнопка-outline: заметна, но не конкурирует с primary «Пополнить». */
-.clients-wallet-correction-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  height: var(--control-md);
-  padding: 0 var(--space-4);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--surface-card);
-  color: var(--accent-bright);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
-}
-
-.clients-wallet-correction-link:hover {
-  border-color: var(--border-accent);
-  background: var(--surface-accent-soft);
-  transform: translateY(-1px);
-}
-
-.clients-wallet-correction-link:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .clients-wallet-correction-link {
-    transition: none;
-  }
 }
 
 .client-detail-pin {
