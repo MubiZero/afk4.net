@@ -67,6 +67,13 @@ describe('PackagesSection', () => {
     expect(screen.getByText('150 мин')).toBeInTheDocument();
   });
 
+  it('renders package price as mono money and a primary buy button', () => {
+    renderSection();
+    const priceRow = screen.getByText('Цена').closest('span');
+    expect(priceRow?.querySelector('.ui-money')).not.toBeNull();
+    expect(screen.getByRole('button', { name: /Купить пакет/ })).toHaveClass('ui-btn--primary');
+  });
+
   it('calls onBuy when the purchase button is clicked and affordable', () => {
     const { onBuy } = renderSection();
     fireEvent.click(screen.getByRole('button', { name: /Купить пакет/ }));

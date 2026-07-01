@@ -533,7 +533,6 @@
   font-weight: 600;
 }
 
-.clients-package-select select,
 .clients-new-form input,
 .clients-correction-form input,
 .clients-edit-form input,
@@ -552,7 +551,6 @@
   transition: border-color 100ms ease, box-shadow 100ms ease;
 }
 
-.clients-package-select select:focus,
 .clients-new-form input:focus,
 .clients-correction-form input:focus,
 .clients-edit-form input:focus,
@@ -562,7 +560,6 @@
   box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.22);
 }
 
-.clients-package-select select:disabled,
 .clients-correction-form input:disabled,
 .clients-edit-form input:disabled,
 .clients-pin-form input:disabled,
@@ -623,10 +620,6 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-1) var(--space-3);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface-elevated);
 }
 
 .client-package-row.is-expired {

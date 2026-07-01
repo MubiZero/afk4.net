@@ -2,7 +2,7 @@ import { useI18n } from '@afk4/i18n';
 import { Loader2, Package, ShoppingBag, TimerReset } from 'lucide-react';
 import type { PlayerPackageDto, PackageOptionDto } from '../operatorApiClients';
 import { formatMinorUnits, packageOptionLabel, readNumber, readString } from '../operatorHelpers';
-import { EmptyState, Skeleton } from '../operatorPrimitives';
+import { EmptyState, Money, Skeleton } from '../operatorPrimitives';
 import { projectPlayerPackage } from './playersModel';
 
 // Человекочитаемые активные пакеты + инлайн-покупка. Заменяет хардкод <b>active</b>.
@@ -67,7 +67,7 @@ export function PackagesSection({
                 ? t('op.players.packages.expiresOn', { date: view.expiryLabel })
                 : t('op.players.packages.perpetual');
             return (
-              <article key={view.id} className={`client-package-row${view.isExpired ? ' is-expired' : ''}`}>
+              <article key={view.id} className={`ui-card client-package-row${view.isExpired ? ' is-expired' : ''}`}>
                 <strong>{view.name}</strong>
                 <span>{t('op.players.packages.includedMinutes', { minutes: view.remainingIncludedMinutes })}</span>
                 {view.remainingBonusMinutes > 0 && (
@@ -92,7 +92,7 @@ export function PackagesSection({
           />
         ) : (
           <>
-            <label className="clients-package-select">
+            <label className="ui-field clients-package-select">
               {t('op.players.actions.packageSelectLabel')}
               <select
                 value={selectedOption === null ? '' : readString(selectedOption, 'packageDefinitionId')}
@@ -109,7 +109,7 @@ export function PackagesSection({
             <div className="clients-package-preview" aria-label={t('op.players.actions.packagePreviewLabel')}>
               <span>
                 <strong>{t('op.players.actions.packagePrice')}</strong>
-                <b>{formatMinorUnits(priceMinorUnits, optionCurrency)}</b>
+                <b><Money minorUnits={priceMinorUnits} currencyCode={optionCurrency} /></b>
               </span>
               <span>
                 <strong>{t('op.players.actions.packageIncluded')}</strong>
@@ -134,7 +134,7 @@ export function PackagesSection({
             </div>
             <button
               type="button"
-              className="clients-primary-action"
+              className="ui-btn ui-btn--primary ui-btn--block"
               disabled={!canPurchase || busy || !canAfford}
               onClick={onBuy}
             >
