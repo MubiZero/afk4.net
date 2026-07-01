@@ -279,7 +279,7 @@
   .ui-ledger-refund {
     transition-duration: 0.01ms;
   }
-  .ui-btn:active,
+  .ui-btn:active:not(:disabled),
   .ui-card--interactive:hover,
   .ui-card--interactive:focus-visible {
     transform: none;
