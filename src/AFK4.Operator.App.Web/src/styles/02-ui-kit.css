@@ -211,6 +211,12 @@
   border-color: var(--accent);
   box-shadow: var(--focus-ring);
 }
+.ui-field > input:disabled,
+.ui-field > select:disabled {
+  color: var(--text-quaternary);
+  background: var(--surface-muted);
+  cursor: not-allowed;
+}
 .ui-field-error { color: var(--danger-text); font-size: var(--text-xs); }
 
 /* ============ Money ============ */
@@ -261,3 +267,21 @@
 .ui-ledger-row:focus-within .ui-ledger-refund { opacity: 1; }
 @media (hover: none) { .ui-ledger-refund { opacity: 1; } }
 .ui-ledger-row--compact .ui-ledger-detail { display: none; }
+
+/* Уважать prefers-reduced-motion: гасим transform-«прыжки» и почти обнуляем переходы,
+   сохраняя мгновенную смену состояния (цвет/бордер применяются без анимации). */
+@media (prefers-reduced-motion: reduce) {
+  .ui-btn,
+  .ui-chip,
+  .ui-card--interactive,
+  .ui-field > input,
+  .ui-field > select,
+  .ui-ledger-refund {
+    transition-duration: 0.01ms;
+  }
+  .ui-btn:active,
+  .ui-card--interactive:hover,
+  .ui-card--interactive:focus-visible {
+    transform: none;
+  }
+}
