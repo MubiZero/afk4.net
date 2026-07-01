@@ -1,8 +1,8 @@
 import { useI18n } from '@afk4/i18n';
-import { History, RefreshCw, Undo2 } from 'lucide-react';
+import { History, RefreshCw } from 'lucide-react';
 import type { LedgerEntryDto } from '../operatorApiClients';
-import { formatMinorUnits } from '../operatorHelpers';
 import { EmptyState, Skeleton } from '../operatorPrimitives';
+import { LedgerRow } from './LedgerRow';
 import { ledgerTypeLabel, projectLedgerEntry } from './playersModel';
 
 // Курируемый набор ключевых типов для фильтр-чипов (метки — через ledgerTypeLabel → ledger.type.*).
@@ -39,7 +39,7 @@ export function HistorySection({
       <div className="clients-history-filters" role="group" aria-label={t('op.players.tabs.history')}>
         <button
           type="button"
-          className={`clients-history-filter${activeFilter === null ? ' active' : ''}`}
+          className={`ui-chip ui-chip--filter${activeFilter === null ? ' is-active' : ''}`}
           onClick={() => onFilterChange(null)}
         >
           {t('op.players.history.filterAll')}
@@ -48,7 +48,7 @@ export function HistorySection({
           <button
             key={type}
             type="button"
-            className={`clients-history-filter${activeFilter === type ? ' active' : ''}`}
+            className={`ui-chip ui-chip--filter${activeFilter === type ? ' is-active' : ''}`}
             onClick={() => onFilterChange(type)}
           >
             {ledgerTypeLabel(type, t)}
@@ -70,44 +70,22 @@ export function HistorySection({
         />
       ) : (
         <>
-          <div className="clients-history-list">
+          <div className="clients-history-list ui-ledger-list">
             {entries.map((raw) => {
               const view = projectLedgerEntry(raw, t);
-              const sign = view.isCredit ? '+' : '−';
-              const amount = formatMinorUnits(Math.abs(view.amountMinorUnits), view.currencyCode || currencyCode);
               return (
-                <article key={view.id} className={`client-history-row ${view.isCredit ? 'is-credit' : 'is-debit'}`}>
-                  <span className="client-history-time">{view.timeLabel}</span>
-                  <div className="client-history-body">
-                    <strong>
-                      {view.typeLabel}
-                      {view.isReversal && <em className="client-history-reversal">{t('op.players.history.reversalBadge')}</em>}
-                    </strong>
-                    {(view.description || view.reason) && (
-                      <span className="client-history-detail">
-                        {[view.description, view.reason].filter(Boolean).join(' · ')}
-                      </span>
-                    )}
-                  </div>
-                  <div className="client-history-aside">
-                    <b className="client-history-amount">{sign}{amount}</b>
-                    {canRefund && !view.isReversal && (
-                      <button
-                        type="button"
-                        className="client-history-refund"
-                        onClick={() => onRefund(raw)}
-                      >
-                        <Undo2 size={13} aria-hidden="true" />
-                        {t('op.players.refund.rowBtn')}
-                      </button>
-                    )}
-                  </div>
-                </article>
+                <LedgerRow
+                  key={view.id}
+                  view={view}
+                  currencyCode={currencyCode}
+                  canRefund={canRefund}
+                  onRefund={() => onRefund(raw)}
+                />
               );
             })}
           </div>
           {hasMore && (
-            <button type="button" className="clients-history-more" disabled={loading} onClick={onLoadMore}>
+            <button type="button" className="ui-btn ui-btn--block clients-history-more" disabled={loading} onClick={onLoadMore}>
               <RefreshCw size={14} aria-hidden="true" />{t('op.players.history.loadMore')}
             </button>
           )}

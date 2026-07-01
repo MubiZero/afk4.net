@@ -869,76 +869,6 @@
   gap: 4px;
 }
 
-.client-history-row {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  min-height: 36px;
-  border-bottom: 1px solid var(--border-soft);
-  padding: 6px 2px;
-}
-
-.client-history-time {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.client-history-body {
-  display: grid;
-  min-width: 0;
-  gap: 1px;
-}
-
-.client-history-body strong {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-history-reversal {
-  flex: none;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--surface-muted);
-  color: var(--text-secondary);
-  font-size: 9px;
-  font-style: normal;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.client-history-detail {
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-history-amount {
-  font-size: 13px;
-  font-weight: 700;
-  text-align: right;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.client-history-row.is-credit .client-history-amount {
-  color: var(--success-text);
-}
-
-.client-history-row.is-debit .client-history-amount {
-  color: var(--danger-text);
-}
-
 /* ── Модалка нового клиента (поверх .panel-modal) ───────────────────────────── */
 .clients-new-form {
   display: grid;
@@ -971,40 +901,6 @@
   gap: 6px;
 }
 
-.clients-history-filter {
-  display: inline-flex;
-  align-items: center;
-  height: var(--control-sm);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-pill);
-  padding: 0 var(--space-3);
-  background: var(--surface-card);
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease, transform 120ms ease;
-}
-
-.clients-history-filter:hover:not(.active) {
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-
-.clients-history-filter:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.clients-history-filter:active {
-  transform: scale(0.97);
-}
-
-.clients-history-filter.active {
-  border-color: var(--accent);
-  background: rgba(var(--accent-rgb), 0.16);
-  color: var(--text-primary);
-}
-
 .clients-history-skeleton {
   display: flex;
   flex-direction: column;
@@ -1017,46 +913,8 @@
 }
 
 .clients-history-more {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
   align-self: center;
-  height: var(--control-md);
   margin-top: var(--space-1);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-4);
-  background: var(--surface-card);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
-}
-
-.clients-history-more:hover:not(:disabled) {
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-
-.clients-history-more:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.clients-history-more:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.clients-history-more:disabled {
-  cursor: not-allowed;
-  color: var(--text-quaternary);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .clients-history-filter,
-  .clients-history-more {
-    transition: none;
-  }
 }
 
 /* ── S2 power-tools: сегменты, формы модалок, входные кнопки ─────────────── */
@@ -1215,33 +1073,6 @@
 }
 
 .client-detail-pin:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.client-history-aside {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-}
-
-.client-history-refund {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-secondary);
-}
-
-.client-history-refund:hover {
-  color: var(--danger-text);
-}
-
-.client-history-refund:focus-visible {
   outline: 2px solid rgba(var(--accent-rgb), 0.82);
   outline-offset: 2px;
 }

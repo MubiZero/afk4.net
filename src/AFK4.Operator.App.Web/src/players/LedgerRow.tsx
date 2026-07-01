@@ -20,7 +20,7 @@ export function LedgerRow({
   const detail = [view.description, view.reason].filter(Boolean).join(' · ');
   const showRefund = !compact && canRefund && !view.isReversal && Boolean(onRefund);
   return (
-    <div className={`ui-ledger-row${compact ? ' ui-ledger-row--compact' : ''} ${view.isCredit ? 'is-credit' : 'is-debit'}`}>
+    <div className={`ui-ledger-row${compact ? ' ui-ledger-row--compact' : ''}`}>
       <span className="ui-ledger-time">{view.timeLabel}</span>
       <div className="ui-ledger-body">
         <span className="ui-ledger-title">

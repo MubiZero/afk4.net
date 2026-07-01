@@ -47,8 +47,8 @@ describe('HistorySection', () => {
     });
     expect(screen.getByText(/Пополнение кошелька/)).toBeInTheDocument();
     expect(screen.getByText(/Касса/)).toBeInTheDocument();
-    expect(container.querySelector('.client-history-row.is-credit')).not.toBeNull();
-    expect(container.querySelector('.client-history-row.is-debit')).not.toBeNull();
+    expect(container.querySelector('.ui-money--pos')).not.toBeNull();
+    expect(container.querySelector('.ui-money--neg')).not.toBeNull();
   });
 
   it('renders the filter chips including «Все» and fires onFilterChange', () => {
