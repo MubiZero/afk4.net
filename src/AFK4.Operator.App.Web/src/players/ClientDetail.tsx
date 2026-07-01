@@ -1,9 +1,8 @@
 import { useI18n } from '@afk4/i18n';
 import { CalendarClock } from 'lucide-react';
 import type { PlayerClientItem } from '../operatorHelpers';
-import { formatMinorUnits } from '../operatorHelpers';
 import type { LedgerEntryDto, PackageOptionDto, PlayerPackageDto } from '../operatorApiClients';
-import { EmptyState } from '../operatorPrimitives';
+import { EmptyState, Money } from '../operatorPrimitives';
 import { playerStatusLabel, type ClientLiveContext } from './playersModel';
 import { ClientContextStrip } from './ClientContextStrip';
 import { WalletSection } from './WalletSection';
@@ -111,7 +110,7 @@ export function ClientDetail(props: {
         <div className="client-detail-actions">
           <button
             type="button"
-            className="client-detail-reservation"
+            className="ui-btn"
             disabled={!props.canCreateReservation}
             onClick={props.onCreateReservation}
           >
@@ -138,17 +137,13 @@ export function ClientDetail(props: {
       <ClientContextStrip context={props.liveContext} />
 
       <div className="client-detail-chips">
-        <div className="client-chip">
+        <div className="ui-card ui-card--stat">
           <span>{t('op.players.chip.balance')}</span>
-          <strong>{formatMinorUnits(props.balanceMinorUnits, props.currencyCode)}</strong>
+          <strong><Money minorUnits={props.balanceMinorUnits} currencyCode={props.currencyCode} /></strong>
         </div>
-        <div className={`client-chip${hasDebt ? ' is-debt' : ''}`}>
+        <div className={`ui-card ui-card--stat${hasDebt ? ' is-danger' : ''}`}>
           <span>{t('op.players.chip.debt')}</span>
-          <strong>{formatMinorUnits(props.debtMinorUnits, props.currencyCode)}</strong>
-        </div>
-        <div className="client-chip">
-          <span>{t('op.players.chip.packages')}</span>
-          <strong>{props.packageCount}</strong>
+          <strong><Money minorUnits={props.debtMinorUnits} currencyCode={props.currencyCode} /></strong>
         </div>
       </div>
 
@@ -163,6 +158,11 @@ export function ClientDetail(props: {
             onClick={() => props.onSelectTab(tab.id)}
           >
             {tab.label}
+            {tab.id === 'packages' && props.packageCount > 0 && (
+              <span className="ui-chip ui-chip--status ui-chip--xs is-neutral client-tab-count" aria-hidden="true">
+                {props.packageCount}
+              </span>
+            )}
           </button>
         ))}
       </div>

@@ -335,76 +335,13 @@
   gap: 8px;
 }
 
-.client-detail-reservation {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: var(--control-md);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-3);
-  background: var(--surface-card);
-  color: var(--text-strong);
-  font-size: 12px;
-  font-weight: 600;
-  transition: border-color 100ms ease, background 100ms ease, color 100ms ease, transform 100ms ease;
-}
-
-.client-detail-reservation:hover:not(:disabled) {
-  border-color: var(--border-accent);
-  background: var(--surface-accent-soft);
-  color: var(--accent-bright);
-  transform: translateY(-1px);
-}
-
-.client-detail-reservation:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.client-detail-reservation:disabled {
-  cursor: not-allowed;
-  border-color: var(--border-default);
-  background: var(--surface-muted);
-  color: var(--text-quaternary);
-}
-
-/* Сводка-чипы — на общую рабочую сетку (3 равные колонки, одна кромка с телом вкладок). */
+/* Сводка-чипы — на общую рабочую сетку (2 равные колонки, одна кромка с телом вкладок). */
 .client-detail-chips {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--space-2);
   max-width: 1040px;
   padding: 0 var(--space-3);
-}
-
-.client-chip {
-  display: grid;
-  gap: var(--space-1);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  background: var(--surface-elevated);
-}
-
-.client-chip span {
-  color: var(--text-secondary);
-  font-size: 11px;
-}
-
-.client-chip strong {
-  color: var(--text-primary);
-  font-size: 18px;
-  line-height: 1;
-}
-
-.client-chip.is-debt {
-  border-color: var(--danger-soft-border);
-  background: var(--danger-soft-bg);
-}
-
-.client-chip.is-debt strong {
-  color: var(--danger-text);
 }
 
 .client-detail-tabs {
@@ -416,6 +353,8 @@
 }
 
 .client-detail-tab {
+  display: inline-flex;
+  align-items: center;
   height: var(--control-md);
   border: none;
   border-bottom: 2px solid transparent;
@@ -439,6 +378,10 @@
 .client-detail-tab.active {
   color: var(--accent-bright);
   border-bottom-color: var(--accent);
+}
+
+.client-tab-count {
+  margin-left: var(--space-2);
 }
 
 .client-detail-content {
@@ -817,8 +760,7 @@
   .clients-segment button,
   .client-detail-tab,
   .clients-primary-action,
-  .clients-new-client-btn,
-  .client-detail-reservation {
+  .clients-new-client-btn {
     transition: none;
   }
 }
@@ -1093,31 +1035,6 @@
   gap: var(--space-2);
   max-width: 1040px;
   margin: 0 var(--space-3);
-}
-
-.client-context-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: var(--control-sm);
-  padding: 3px var(--space-3);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-pill);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.client-context-chip.is-live {
-  border-color: var(--success-soft-border);
-  background: var(--success-soft-bg);
-  color: var(--success-text);
-}
-
-.client-context-chip.is-booking {
-  border-color: var(--border-accent);
-  background: var(--surface-accent-soft);
-  color: var(--accent-bright);
 }
 
 .clients-edit-form,

@@ -16,7 +16,7 @@ export function ClientContextStrip({ context }: { context: ClientLiveContext }) 
   return (
     <div className="client-context-strip">
       {context.session !== null && (
-        <span className="client-context-chip is-live">
+        <span className="ui-chip ui-chip--status is-live">
           <MonitorPlay size={14} aria-hidden="true" />
           <span>
             {t('op.players.context.playingOn', { seat: context.session.seatName })}
@@ -28,7 +28,7 @@ export function ClientContextStrip({ context }: { context: ClientLiveContext }) 
         </span>
       )}
       {context.nextBooking !== null && (
-        <span className="client-context-chip is-booking">
+        <span className="ui-chip ui-chip--status is-booking">
           <CalendarClock size={14} aria-hidden="true" />
           <span>
             {t('op.players.context.nextBooking', { time: context.nextBooking.timeLabel })}

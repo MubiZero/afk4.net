@@ -168,4 +168,32 @@ describe('ClientDetail', () => {
     // вкладка «Кошелёк» по-прежнему рабочая
     expect(screen.getByLabelText('Сумма пополнения')).toBeInTheDocument();
   });
+
+  it('shows two money stat cards and package count on the packages tab (no packages stat card)', () => {
+    renderDetail({ balanceMinorUnits: 45000, debtMinorUnits: 3500, packageCount: 2 });
+    // деньги — mono
+    expect(screen.getByText('450 с.')).toHaveClass('ui-money');
+    // счётчик пакетов на вкладке, а не отдельной стат-карточкой
+    const packagesTab = screen.getByRole('tab', { name: /Пакеты/ });
+    expect(packagesTab).toHaveTextContent('2');
+    // только две стат-карточки (Баланс/Долг) — «Пакеты» больше не карточка
+    expect(document.querySelectorAll('.client-detail-chips .ui-card--stat')).toHaveLength(2);
+  });
+
+  it('hides the packages badge when the package count is zero', () => {
+    renderDetail({ packageCount: 0 });
+    const packagesTab = screen.getByRole('tab', { name: /Пакеты/ });
+    expect(packagesTab.querySelector('.client-tab-count')).toBeNull();
+  });
+
+  it('marks the debt stat card as danger only when the client has debt', () => {
+    const { rerender } = renderDetail({ debtMinorUnits: 0 });
+    expect(document.querySelector('.ui-card--stat.is-danger')).toBeNull();
+    rerender(
+      <I18nProvider initialLocale="ru">
+        <ClientDetail {...baseProps} debtMinorUnits={3500} />
+      </I18nProvider>
+    );
+    expect(document.querySelector('.ui-card--stat.is-danger')).not.toBeNull();
+  });
 });
