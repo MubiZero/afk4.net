@@ -175,50 +175,6 @@
   padding: 0 12px 8px;
 }
 
-.clients-segment-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: var(--control-sm);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-pill);
-  padding: 0 var(--space-3);
-  background: var(--surface-card);
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease, transform 120ms ease;
-}
-
-.clients-segment-chip b {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.clients-segment-chip:hover:not(.active),
-.clients-segment-chip:focus-visible {
-  border-color: var(--border-accent);
-  color: var(--accent-bright);
-  outline: none;
-  transform: translateY(-1px);
-}
-
-.clients-segment-chip:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.clients-segment-chip.active {
-  border-color: var(--accent);
-  background: var(--surface-accent-soft);
-  color: var(--accent-bright);
-}
-
-.clients-segment-chip.active b {
-  color: var(--accent-bright);
-}
-
 .clients-list {
   display: grid;
   align-content: start;
@@ -245,22 +201,9 @@
   align-items: center;
   gap: var(--space-1) var(--space-2);
   min-height: var(--control-lg);
-  border: 1px solid var(--border-default);
-  border-left: 3px solid var(--text-tertiary);
-  border-radius: 6px;
-  padding: 5px 9px;
-  background: var(--surface-card);
-  color: var(--text-strong);
+  padding: var(--space-1) var(--space-2);
   text-align: left;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
-}
-
-.client-row:hover,
-.client-row:focus-visible {
-  border-color: var(--border-accent);
-  background: var(--surface-hover);
-  outline: none;
-  transform: translateY(-1px);
+  --edge: var(--text-tertiary);
 }
 
 .client-row:focus-visible {
@@ -268,9 +211,9 @@
   outline-offset: 2px;
 }
 
-.client-row.active { border-left-color: var(--success); }
-.client-row.regular { border-left-color: var(--text-tertiary); }
-.client-row.debt { border-left-color: var(--danger); }
+.client-row.active { --edge: var(--success); }
+.client-row.regular { --edge: var(--text-tertiary); }
+.client-row.debt { --edge: var(--danger); }
 
 .client-row.selected {
   border-color: var(--border-accent);
@@ -293,33 +236,13 @@
   white-space: nowrap;
 }
 
-/* Бейдж-pill рядом с именем — только для отклонений (долг/деактивация). */
-.client-row-badge {
-  flex: none;
-  padding: 1px 7px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.client-row-badge.is-debt {
-  background: var(--danger-soft-bg);
-  color: var(--danger-text);
-}
-
-.client-row-badge.is-inactive {
-  background: var(--surface-muted);
-  color: var(--text-secondary);
-}
-
 .client-row-info {
   display: grid;
   min-width: 0;
   gap: 2px;
 }
 
-/* Баланс + (опционально) долг одной стопкой в колонке 3 — чтобы долг не уезжал во второй
-   grid-ряд и не делал строку выше: высоту строки всегда диктует левая колонка (имя+телефон). */
+/* Единственная цифра баланса в колонке 3 (§7.1) — долг ушёл в бейдж рядом с именем. */
 .client-row-figures {
   display: flex;
   flex-direction: column;
@@ -336,22 +259,6 @@
   font-style: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.client-row b {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 12px;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-row-debt {
-  color: var(--danger-text);
-  font-size: 11px;
-  font-weight: 600;
-  text-align: right;
 }
 
 /* ── Карточка (detail) ──────────────────────────────────────────────────────── */
@@ -1040,8 +947,6 @@
 
 /* ── Reduced motion ───────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .client-row,
-  .clients-segment-chip,
   .clients-segment button,
   .client-detail-tab,
   .clients-primary-action,

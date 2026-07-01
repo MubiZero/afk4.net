@@ -83,3 +83,22 @@ describe('ClientList', () => {
     expect(container.querySelector('.skeleton-block')).not.toBeNull();
   });
 });
+
+describe('ClientList debtor row', () => {
+  it('shows a single balance figure and a debt badge (no stacked second number)', () => {
+    const debtor = client({
+      playerAccountId: 'p1', name: 'Мадина Саидова', balanceMinorUnits: 0,
+      debtMinorUnits: 3500, tone: 'debt', status: 'debt', detail: '+992 98 700 11 22 · 0 пакетов'
+    });
+    renderList({ clients: [debtor], segments: [], selectedClientId: null });
+
+    const row = screen.getByRole('button', { name: /Мадина Саидова/ });
+    // баланс — одно число справа (mono), без второй строки
+    const moneyFigures = row.querySelectorAll('.ui-money');
+    expect(moneyFigures).toHaveLength(1);
+    expect(moneyFigures[0]).toHaveTextContent('0 с.');
+
+    // долг — бейдж «Долг 35 с.» рядом с именем, не в колонке цифр
+    expect(screen.getByText(/Долг\s+35\s+с\./)).toHaveClass('ui-chip--status');
+  });
+});

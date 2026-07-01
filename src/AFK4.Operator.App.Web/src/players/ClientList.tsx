@@ -2,7 +2,7 @@ import { useI18n } from '@afk4/i18n';
 import { Search, UserRoundPlus, Users } from 'lucide-react';
 import type { PlayerClientItem } from '../operatorHelpers';
 import { formatMinorUnits } from '../operatorHelpers';
-import { Skeleton, EmptyState } from '../operatorPrimitives';
+import { Skeleton, EmptyState, Money } from '../operatorPrimitives';
 import { playerStatusLabel, type ClientSegment, type ClientSegmentId } from './playersModel';
 
 // Master-список клиентов: поиск + сегмент-чипы (стабильные id) + строки + skeleton/empty.
@@ -62,7 +62,7 @@ export function ClientList({
           <button
             key={segment.id}
             type="button"
-            className={`clients-segment-chip${activeSegment === segment.id ? ' active' : ''}`}
+            className={`ui-chip ui-chip--filter${activeSegment === segment.id ? ' is-active' : ''}`}
             onClick={() => onSelectSegment(segment.id)}
           >
             {segment.label}
@@ -89,23 +89,25 @@ export function ClientList({
             <button
               key={client.playerAccountId ?? client.name}
               type="button"
-              className={`client-row ${client.tone}${client.status === 'inactive' ? ' is-inactive' : ''}${client.playerAccountId === selectedClientId ? ' selected' : ''}`}
+              className={`ui-card ui-card--interactive ui-card--edge client-row ${client.tone}${client.status === 'inactive' ? ' is-inactive' : ''}${client.playerAccountId === selectedClientId ? ' selected' : ''}`}
               onClick={() => onSelectClient(client.playerAccountId ?? null)}
             >
               <div className="client-row-info">
                 <strong className="client-row-name">
                   <span className="client-row-name-text">{client.name}</span>
-                  {client.status !== 'active' && (
-                    <span className={`client-row-badge is-${client.status}`}>{playerStatusLabel(client.status, t)}</span>
+                  {client.status === 'inactive' && (
+                    <span className="ui-chip ui-chip--status ui-chip--xs is-neutral">{playerStatusLabel(client.status, t)}</span>
+                  )}
+                  {client.debtMinorUnits > 0 && (
+                    <span className="ui-chip ui-chip--status ui-chip--xs is-danger">
+                      {t('op.players.chip.debt')} {formatMinorUnits(client.debtMinorUnits, currencyCode)}
+                    </span>
                   )}
                 </strong>
                 <em className="client-row-detail">{client.detail}</em>
               </div>
               <div className="client-row-figures">
-                <b className="client-row-balance">{formatMinorUnits(client.balanceMinorUnits, currencyCode)}</b>
-                {client.debtMinorUnits > 0 && (
-                  <small className="client-row-debt">{formatMinorUnits(client.debtMinorUnits, currencyCode)}</small>
-                )}
+                <Money minorUnits={client.balanceMinorUnits} currencyCode={currencyCode} />
               </div>
             </button>
           ))
