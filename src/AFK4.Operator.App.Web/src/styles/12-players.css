@@ -250,6 +250,7 @@
   justify-content: center;
   gap: 2px;
   min-width: 0;
+  color: var(--text-primary);
 }
 
 .client-row em {

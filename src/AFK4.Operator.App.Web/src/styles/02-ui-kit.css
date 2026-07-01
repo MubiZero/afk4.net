@@ -157,6 +157,9 @@
   border-radius: var(--radius-md);
   padding: var(--space-3);
   background: var(--surface-card);
+  /* .ui-card иногда рендерится как <button> (напр. client-row) — на форм-контролах
+     UA-стиль сбрасывает color на initial (не наследуется), текст «пропадает» на светлой теме. */
+  color: var(--text-strong);
 }
 .ui-card--interactive {
   cursor: pointer;

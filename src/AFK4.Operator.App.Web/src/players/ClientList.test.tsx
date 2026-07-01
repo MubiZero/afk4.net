@@ -101,4 +101,20 @@ describe('ClientList debtor row', () => {
     // долг — бейдж «Долг 35 с.» рядом с именем, не в колонке цифр
     expect(screen.getByText(/Долг\s+35\s+с\./)).toHaveClass('ui-chip--status');
   });
+
+  it('shows the neutral status badge (not a debt badge) for an inactive, non-debt client', () => {
+    const inactive = client({
+      playerAccountId: 'p1', name: 'Неактивный Клиент', status: 'inactive', tone: 'regular',
+      balanceMinorUnits: 0, debtMinorUnits: 0
+    });
+    renderList({ clients: [inactive], segments: [], selectedClientId: null });
+
+    const row = screen.getByRole('button', { name: /Неактивный Клиент/ });
+    const statusBadge = screen.getByText('Неактивен');
+    expect(statusBadge).toHaveClass('ui-chip--status');
+    expect(row.querySelector('.is-danger')).toBeNull();
+
+    const moneyFigures = row.querySelectorAll('.ui-money');
+    expect(moneyFigures).toHaveLength(1);
+  });
 });
