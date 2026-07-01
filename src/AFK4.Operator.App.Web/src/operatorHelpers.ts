@@ -913,6 +913,14 @@ export function formatMoneyInputMinorUnits(minorUnits: number): string {
   return minorToMajor(minorUnits).toFixed(2);
 }
 
+// Reason inputs render empty with a placeholder (§7.5) so a quick top-up/debt-payment
+// isn't blocked by a required free-text field — but the audit trail still needs a real
+// string. A blank submit resolves to the same localized default the placeholder shows.
+export function resolveReasonInput(rawReason: string, fallback: string): string {
+  const trimmed = rawReason.trim();
+  return trimmed === '' ? fallback : trimmed;
+}
+
 export function dashboardRangeQuery(from: string, to: string) {
   return {
     fromUtc: `${from}T00:00:00.000Z`,

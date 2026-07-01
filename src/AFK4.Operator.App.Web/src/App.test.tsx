@@ -1716,6 +1716,54 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^debt-payment-/);
   });
 
+  it('tops up the wallet with the localized default reason when the reason field is left blank (§7.5 regression)', async () => {
+    installSessionBridge();
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Клиенты'));
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText('Сумма пополнения'), { target: { value: '50.00' } });
+    // Причина остаётся пустой — только плейсхолдер (§7.5). Один клик не должен блокироваться.
+    const topUpWalletButton = screen.getByRole('button', { name: /Пополнить депозит/ });
+    await waitFor(() => expect(topUpWalletButton).toBeEnabled());
+    fireEvent.click(topUpWalletButton);
+
+    expect(await screen.findByText('Пополнить депозит: подтверждено')).toBeInTheDocument();
+    const topUpCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/wallet/top-ups') &&
+      init?.method === 'POST');
+    expect(topUpCall).toBeDefined();
+    const body = JSON.parse(String(topUpCall?.[1]?.body));
+    expect(body.reason).toBe('пополнение через кассу');
+  });
+
+  it('pays debt with the localized default reason when the reason field is left blank (§7.5 regression)', async () => {
+    installSessionBridge();
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Клиенты'));
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeEnabled());
+    fireEvent.click(await screen.findByRole('button', { name: /Olim K\./ }));
+    fireEvent.change(await screen.findByLabelText('Сумма долга'), { target: { value: '20.00' } });
+    // Причина остаётся пустой — только плейсхолдер (§7.5). Один клик не должен блокироваться.
+    const payDebtButton = screen.getByRole('button', { name: /Списать долг/ });
+    await waitFor(() => expect(payDebtButton).toBeEnabled());
+    fireEvent.click(payDebtButton);
+
+    expect(await screen.findByText('Списать долг: подтверждено')).toBeInTheDocument();
+    const debtCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/players/34343434-3434-3434-3434-343434343434/debts/payments') &&
+      init?.method === 'POST');
+    expect(debtCall).toBeDefined();
+    const body = JSON.parse(String(debtCall?.[1]?.body));
+    expect(body.reason).toBe('оплата долга через кассу');
+  });
+
   it('creates a backend player from the Clients new card form', async () => {
     installSessionBridge();
 

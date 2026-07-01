@@ -15,7 +15,8 @@ import {
   readMoney,
   readNumber,
   readString,
-  requireBackend
+  requireBackend,
+  resolveReasonInput
 } from './operatorHelpers';
 import { fixturePlayers, playerStatusLabel, projectPlayerClient, buildClientSegments, buildClientOverview, buildClientContext, matchesSegment, type PlayerClientItem, type ClientSegmentId, type ClientLiveContext } from './players/playersModel';
 import { FeedbackNotice, StateFlag } from './operatorPrimitives';
@@ -444,10 +445,12 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         const backendClient = requireSelectedBackendClient();
 
         const topUpMinorUnits = parseMoneyInputMinorUnits(walletTopUpAmount);
-        const reason = walletTopUpReason.trim();
-        if (topUpMinorUnits === null || !reason) {
+        if (topUpMinorUnits === null) {
           throw new Error(t('op.players.error.topUpInvalid'));
         }
+        // §7.5: поле причины пустое с плейсхолдером — пустой ввод сабмитится тем же
+        // дефолтом, что и раньше был значением поля (единая аудиторская строка).
+        const reason = resolveReasonInput(walletTopUpReason, t('op.players.actions.topUpDefault'));
 
         const wallet = await apiClients.players.topUpWallet(backendClient.playerAccountId, {
           organizationId: nextBackend.session.organizationId,
@@ -465,10 +468,11 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         const backendClient = requireSelectedBackendClient();
 
         const debtPaymentMinorUnits = parseMoneyInputMinorUnits(debtPaymentAmount);
-        const reason = debtPaymentReason.trim();
-        if (debtPaymentMinorUnits === null || !reason || debtPaymentMinorUnits > debt) {
+        if (debtPaymentMinorUnits === null || debtPaymentMinorUnits > debt) {
           throw new Error(t('op.players.error.debtInvalid'));
         }
+        // §7.5: та же сабмит-время подстановка дефолта для пустого поля причины.
+        const reason = resolveReasonInput(debtPaymentReason, t('op.players.actions.writeOffDebtDefault'));
 
         const wallet = await apiClients.players.payDebt(backendClient.playerAccountId, {
           organizationId: nextBackend.session.organizationId,
