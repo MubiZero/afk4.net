@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { CriticalConfirmationTone, Feedback } from './operatorTypes';
 import { feedbackText } from './operatorHelpers';
+import { formatMinorUnits } from './currencyFormat';
 
 export function FeedbackNotice({ feedback }: { feedback: Feedback }) {
   const { t } = useI18n();
@@ -110,5 +111,26 @@ export function EmptyState({
         <button type="button" className="empty-state-action" onClick={action.onClick}>{action.label}</button>
       ) : null}
     </div>
+  );
+}
+
+export function Money({
+  minorUnits,
+  currencyCode,
+  signed = false
+}: {
+  minorUnits: number;
+  currencyCode: string;
+  signed?: boolean;
+}) {
+  if (!signed) {
+    return <span className="ui-money">{formatMinorUnits(minorUnits, currencyCode)}</span>;
+  }
+  const positive = minorUnits >= 0;
+  const text = formatMinorUnits(Math.abs(minorUnits), currencyCode);
+  return (
+    <span className={`ui-money ${positive ? 'ui-money--pos' : 'ui-money--neg'}`}>
+      {positive ? '+' : '−'}{text}
+    </span>
   );
 }
