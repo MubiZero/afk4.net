@@ -2,10 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { Boxes, Check, Minus, Plus, ScanLine, X } from 'lucide-react';
 import { useDeferredFlag } from '../useDeferredFlag';
-import { EmptyState } from '../operatorPrimitives';
+import { EmptyState, Money } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
 import { createAuthenticatedOperatorClients, createIdempotencyKey, readArray, readBoolean, readString, requireBackend } from '../operatorHelpers';
-import { formatMinorUnits } from '../currencyFormat';
 import { projectOperatorError } from '../apiErrors';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import { matchByBarcode } from '../barcodeScanner';
@@ -171,7 +170,7 @@ export function ReceivingWorkspace({
       <section className="stock-receiving">
         <div className="recv-add">
           <div className="recv-add-ico"><Boxes size={20} aria-hidden="true" /></div>
-          <div className="recv-add-field">
+          <div className="ui-field recv-add-field">
             <input
               type="search"
               aria-label={t('op.stock.receiving.addLabel')}
@@ -181,7 +180,7 @@ export function ReceivingWorkspace({
             />
             <span className="recv-add-hint">{t('op.stock.receiving.addHint')}</span>
           </div>
-          <span className="recv-scanner-badge" aria-label={t('op.pos.scan.active')}>
+          <span className="ui-chip ui-chip--status is-live" aria-label={t('op.pos.scan.active')}>
             <ScanLine size={14} aria-hidden="true" />
             {t('op.pos.scan.active')}
           </span>
@@ -249,8 +248,8 @@ export function ReceivingWorkspace({
                       />
                       <span className="recv-cost-cur">{currencyCode}</span>
                     </div>
-                    <div className="recv-sum">{formatMinorUnits(lineSubtotalMinorUnits(line), currencyCode)}</div>
-                    <button type="button" className="recv-del" aria-label={t('op.stock.receiving.remove')} onClick={() => setLines((c) => removeLine(c, line.productId))}>
+                    <div className="recv-sum"><Money minorUnits={lineSubtotalMinorUnits(line)} currencyCode={currencyCode} /></div>
+                    <button type="button" className="ui-btn ui-btn--sm ui-btn--danger" aria-label={t('op.stock.receiving.remove')} onClick={() => setLines((c) => removeLine(c, line.productId))}>
                       <X size={14} aria-hidden="true" />
                     </button>
                   </li>
@@ -265,11 +264,11 @@ export function ReceivingWorkspace({
       <aside className="stock-summary">
         <div className="ctx-card">
           <h3 className="ctx-title">{t('op.stock.receiving.invoiceTitle')}</h3>
-          <label className="recv-field">
+          <label className="ui-field">
             <span>{t('op.stock.receiving.supplier')}</span>
             <input value={supplier} disabled={posting} onChange={(event) => setSupplier(event.currentTarget.value)} />
           </label>
-          <label className="recv-field">
+          <label className="ui-field">
             <span>{t('op.stock.receiving.invoiceNo')}</span>
             <input value={invoiceNo} disabled={posting} placeholder={t('op.stock.receiving.invoiceNoHint')} onChange={(event) => setInvoiceNo(event.currentTarget.value)} />
           </label>
@@ -277,10 +276,13 @@ export function ReceivingWorkspace({
 
         <div className="ctx-card">
           <h3 className="ctx-title">{t('op.stock.receiving.totalTitle')}</h3>
+          <div className="ui-card ui-card--stat">
+            <span>{t('op.stock.receiving.totalSum')}</span>
+            <strong><Money minorUnits={totals.sumMinorUnits} currencyCode={currencyCode} /></strong>
+          </div>
           <div className="mv"><span>{t('op.stock.receiving.totalPositions')}</span><b>{totals.positions}</b></div>
           <div className="mv"><span>{t('op.stock.receiving.totalUnits')}</span><b>{totals.units}</b></div>
-          <div className="mv recv-grand"><span>{t('op.stock.receiving.totalSum')}</span><b>{formatMinorUnits(totals.sumMinorUnits, currencyCode)}</b></div>
-          <button type="button" className="ctx-btn" disabled={lines.length === 0 || posting} onClick={postReceipt}>
+          <button type="button" className="ui-btn ui-btn--primary ui-btn--block" disabled={lines.length === 0 || posting} onClick={postReceipt}>
             <Check size={16} aria-hidden="true" />
             {posting ? t('op.stock.receiving.posting') : t('op.stock.receiving.post')}
           </button>
