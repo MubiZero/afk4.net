@@ -46,7 +46,7 @@ export function OpenShiftModal({
           disabled={busy}
           onChange={(event) => onChangeNote(event.currentTarget.value)}
         />
-        <button type="submit" className="cash-primary-action" disabled={busy}>
+        <button type="submit" className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block cash-primary-action" disabled={busy}>
           <Unlock size={15} aria-hidden="true" />
           {t('op.cash.open.submit')}
         </button>
