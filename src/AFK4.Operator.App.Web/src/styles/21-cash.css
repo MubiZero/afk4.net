@@ -85,6 +85,9 @@
 
 /* S1: командная панель смены в шапке-якоре + формы модалок смены. */
 .cash-head-commands { display: flex; align-items: center; flex: none; gap: var(--space-2); }
+/* НЕ дедуплено с .ui-btn: .cash-command-btn также несётся САМОСТОЯТЕЛЬНО, без атом-классов,
+   на кнопке экспорта Журнала склада (stock/JournalWorkspace.tsx .journal-export) — там она
+   единственный источник display/border/фон/паддинга. Дедуп сломал бы ту кнопку. */
 .cash-command-btn {
   appearance: none;
   display: inline-flex;
@@ -93,7 +96,7 @@
   min-height: var(--control-sm);
   padding: 0 var(--space-2);
   border: 1px solid var(--border-soft);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface-elevated);
   color: var(--text-primary);
   font-size: 12px;
@@ -118,18 +121,17 @@
 .cash-close-reconcile > div { display: flex; justify-content: space-between; font-size: 13px; }
 .cash-close-reconcile .attention strong { color: var(--danger, #d3403a); }
 .cash-close-impact { margin: 0; font-size: 12px; color: var(--text-secondary); }
+/* display/align-items/justify-content/background/cursor — идентичны .ui-btn(--primary), удалены.
+   gap/border/border-radius/color/font-weight отличаются от атома — отличительное, оставлено:
+   border:none + radius 7px (атом: 1px solid + 6px), color #fff держит контраст в тёмной теме
+   (--text-on-accent там тёмный, не белый — атом дал бы нечитаемый текст), font-weight 600 (атом 700). */
 .cash-primary-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   gap: var(--space-2);
   min-height: var(--control-lg);
   border: none;
   border-radius: 7px;
-  background: var(--accent);
   color: #fff;
   font-weight: 600;
-  cursor: pointer;
 }
 .cash-primary-action:disabled { opacity: 0.6; cursor: default; }
 .cash-primary-action.danger { background: var(--danger, #d3403a); }
@@ -137,15 +139,13 @@
 /* S1: вкладка «Смена» — кокпит кассира. Парящие панели (язык консоли) + герой-цифры для главного. */
 /* align-items: stretch (по умолчанию) — карточки ряда равной высоты, без рваного низа. */
 .cash-shift-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-3); }
+/* padding/border-radius/background/box-shadow — идентичны .ui-card + .ui-card--elevated.
+   border-soft остаётся (атом .ui-card даёт border-default — другой токен, отличительное). */
 .cash-shift-card {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-3);
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-md);
-  background: var(--surface-elevated);
-  box-shadow: var(--shadow-card);
 }
 .cash-shift-card h2 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); font-weight: 700; }
 
