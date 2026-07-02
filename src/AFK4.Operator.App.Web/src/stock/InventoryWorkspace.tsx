@@ -2,10 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { Boxes, Check, RotateCcw, ScanLine } from 'lucide-react';
 import { useDeferredFlag } from '../useDeferredFlag';
-import { EmptyState } from '../operatorPrimitives';
+import { EmptyState, Money } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
 import { createAuthenticatedOperatorClients, createIdempotencyKey, readArray, readBoolean, readString, requireBackend } from '../operatorHelpers';
-import { formatMinorUnits } from '../currencyFormat';
 import { projectOperatorError } from '../apiErrors';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import { matchByBarcode } from '../barcodeScanner';
@@ -117,7 +116,6 @@ export function InventoryWorkspace({
     : lines;
 
   const signedUnits = (value: number) => (value > 0 ? `+${value}` : String(value));
-  const signedSum = (sum: number) => `${sum < 0 ? '-' : '+'}${formatMinorUnits(Math.abs(sum), currencyCode)}`;
 
   const postInventory = async () => {
     if (adjustments.length === 0 || posting) return;
@@ -169,7 +167,7 @@ export function InventoryWorkspace({
             onChange={(event) => setSearch(event.currentTarget.value)}
           />
           {hasCounts && (
-            <button type="button" className="inv-reset" disabled={posting} onClick={() => setLines((c) => resetCounts(c))}>
+            <button type="button" className="ui-btn ui-btn--sm ui-btn--ghost" disabled={posting} onClick={() => setLines((c) => resetCounts(c))}>
               <RotateCcw size={13} aria-hidden="true" />
               {t('op.stock.inventory.reset')}
             </button>
@@ -222,7 +220,9 @@ export function InventoryWorkspace({
                         {pending ? t('op.stock.inventory.notCounted') : diff === 0 ? '0' : signedUnits(diff)}
                       </div>
                       <div className={`inv-sum ${diffClass}`}>
-                        {pending || diff === 0 ? '—' : signedSum(sum)}
+                        {pending || diff === 0
+                          ? '—'
+                          : <Money minorUnits={sum} currencyCode={currencyCode} signed />}
                       </div>
                     </li>
                   );
@@ -243,10 +243,10 @@ export function InventoryWorkspace({
         <div className="ctx-card">
           <h3 className="ctx-title">{t('op.stock.inventory.totalTitle')}</h3>
           <div className="mv"><span>{t('op.stock.inventory.discrepancies')}</span><b>{totals.discrepancies}</b></div>
-          <div className="mv"><span>{t('op.stock.inventory.shortage')}</span><b className="warning-text">-{totals.shortageUnits} {unit} · {formatMinorUnits(totals.shortageSumMinorUnits, currencyCode)}</b></div>
-          <div className="mv"><span>{t('op.stock.inventory.surplus')}</span><b className="inv-pos">+{totals.surplusUnits} {unit} · {formatMinorUnits(totals.surplusSumMinorUnits, currencyCode)}</b></div>
-          <div className="mv recv-grand"><span>{t('op.stock.inventory.netCost')}</span><b className={totals.netSumMinorUnits < 0 ? 'warning-text' : totals.netSumMinorUnits > 0 ? 'inv-pos' : undefined}>{formatMinorUnits(totals.netSumMinorUnits, currencyCode)}</b></div>
-          <button type="button" className="ctx-btn" disabled={adjustments.length === 0 || posting} onClick={postInventory}>
+          <div className="mv"><span>{t('op.stock.inventory.shortage')}</span><b className="warning-text">-{totals.shortageUnits} {unit} · <Money minorUnits={totals.shortageSumMinorUnits} currencyCode={currencyCode} /></b></div>
+          <div className="mv"><span>{t('op.stock.inventory.surplus')}</span><b className="inv-pos">+{totals.surplusUnits} {unit} · <Money minorUnits={totals.surplusSumMinorUnits} currencyCode={currencyCode} /></b></div>
+          <div className="mv recv-grand"><span>{t('op.stock.inventory.netCost')}</span><b className={totals.netSumMinorUnits < 0 ? 'warning-text' : totals.netSumMinorUnits > 0 ? 'inv-pos' : undefined}><Money minorUnits={totals.netSumMinorUnits} currencyCode={currencyCode} signed={totals.netSumMinorUnits !== 0} /></b></div>
+          <button type="button" className="ui-btn ui-btn--primary ui-btn--block" disabled={adjustments.length === 0 || posting} onClick={postInventory}>
             <Check size={16} aria-hidden="true" />
             {posting ? t('op.stock.inventory.posting') : t('op.stock.inventory.post')}
           </button>
