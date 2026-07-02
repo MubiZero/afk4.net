@@ -44,6 +44,22 @@ export function mapMovementsToRows(movements: StockMovementDto[], catalog: PosPr
   });
 }
 
+export function movementStatusTone(
+  type: MovementType,
+  quantityDelta: number,
+): 'is-live' | 'is-neutral' | 'is-booking' | 'is-warning' | 'is-danger' {
+  switch (type) {
+    case 'purchase':
+      return 'is-live';
+    case 'refund':
+      return 'is-booking';
+    case 'sale':
+      return 'is-neutral';
+    case 'adjustment':
+      return quantityDelta < 0 ? 'is-danger' : 'is-warning';
+  }
+}
+
 export function filterByType(rows: JournalRow[], filter: JournalTypeFilter): JournalRow[] {
   return filter === 'all' ? rows : rows.filter((row) => row.type === filter);
 }

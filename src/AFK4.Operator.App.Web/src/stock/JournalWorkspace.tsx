@@ -3,18 +3,17 @@ import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
 import { ArrowDownToLine, ClipboardList } from 'lucide-react';
 import { useDeferredFlag } from '../useDeferredFlag';
-import { EmptyState } from '../operatorPrimitives';
+import { EmptyState, Money } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
 import { createAuthenticatedOperatorClients, stockMovementTypeLabel } from '../operatorHelpers';
-import { formatMinorUnits } from '../currencyFormat';
 import { projectOperatorError } from '../apiErrors';
 import { hasAnyPermission, permissionNames } from '../operatorPermissions';
 import type { PosProductDto, StockMovementDto } from '../operatorApiClients';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import {
-  mapMovementsToRows, filterByType, filterByPeriod, groupByDay, summarize, buildCsv,
-  type JournalRow, type JournalTypeFilter, type JournalPeriod,
+  mapMovementsToRows, filterByType, filterByPeriod, groupByDay, summarize, buildCsv, movementStatusTone,
+  type JournalTypeFilter, type JournalPeriod, type MovementType,
 } from './journalModel';
 
 const TYPE_FILTERS: JournalTypeFilter[] = ['all', 'purchase', 'sale', 'refund', 'adjustment'];
@@ -25,13 +24,6 @@ const PERIOD_LABEL_KEYS: Record<JournalPeriod, MessageKey> = {
   all: 'op.stock.journal.period.all',
 };
 const MOVEMENT_LIMIT = 200;
-
-// Класс чипа типа для цвета: приход зелёный (+), списание/коррекция-минус янтарь, прочее нейтральное.
-function rowTone(row: JournalRow): string {
-  if (row.type === 'purchase' || (row.type === 'adjustment' && row.quantityDelta > 0)) return 'plus';
-  if (row.type === 'adjustment' && row.quantityDelta < 0) return 'warn';
-  return 'minus';
-}
 
 export function JournalWorkspace({
   backend,
@@ -149,7 +141,7 @@ export function JournalWorkspace({
               <button
                 key={filter}
                 type="button"
-                className={typeFilter === filter ? 'on' : ''}
+                className={`ui-chip ui-chip--filter${typeFilter === filter ? ' is-active' : ''}`}
                 aria-pressed={typeFilter === filter}
                 onClick={() => setTypeFilter(filter)}
               >
@@ -183,25 +175,29 @@ export function JournalWorkspace({
             {groups.map((group) => (
               <div key={group.dayKey}>
                 <div className="daygroup">{dayLabel(group.dayKey)}</div>
-                <ul className="jlist">
-                  {group.rows.map((row) => {
-                    const tone = rowTone(row);
-                    return (
-                      <li key={row.id} className="jrow">
-                        <span className="jtime">{dateTimeFmt.format(new Date(row.createdAtUtc))}</span>
-                        <span className={`jtype ${tone}`}>{stockMovementTypeLabel(row.type, t)}</span>
-                        <div className="jname">
-                          <strong>{row.name}</strong>
-                          <em>{row.sku}{row.reason ? ` · ${row.reason}` : ''}</em>
-                        </div>
-                        <span className={`jqty ${tone}`}>
-                          {row.quantityDelta > 0 ? '+' : ''}{row.quantityDelta} {t('op.stock.journal.unit')}
+                <ul className="jlist ui-ledger-list">
+                  {group.rows.map((row) => (
+                    <li key={row.id} className="ui-ledger-row">
+                      <span className="ui-ledger-time">{dateTimeFmt.format(new Date(row.createdAtUtc))}</span>
+                      <div className="ui-ledger-body">
+                        <span className="ui-ledger-title">
+                          <span className={`ui-chip ui-chip--status ${movementStatusTone(row.type as MovementType, row.quantityDelta)}`}>
+                            {stockMovementTypeLabel(row.type, t)}
+                          </span>
+                          {row.name}
                         </span>
-                        <span className="jsum">{row.sumMinorUnits > 0 ? formatMinorUnits(row.sumMinorUnits, currencyCode) : '—'}</span>
-                        <span className="jwho">{row.who || '—'}</span>
-                      </li>
-                    );
-                  })}
+                        <span className="ui-ledger-detail">
+                          {row.sku}{row.reason ? ` · ${row.reason}` : ''}{row.who ? ` · ${row.who}` : ''}
+                        </span>
+                      </div>
+                      <span className="ui-ledger-aside">
+                        <span className="ui-money">{row.quantityDelta > 0 ? '+' : ''}{row.quantityDelta} {t('op.stock.journal.unit')}</span>
+                        {row.sumMinorUnits > 0
+                          ? <Money minorUnits={row.quantityDelta < 0 ? -row.sumMinorUnits : row.sumMinorUnits} currencyCode={currencyCode} signed />
+                          : <span className="ui-money ui-money--muted">—</span>}
+                      </span>
+                    </li>
+                  ))}
                 </ul>
               </div>
             ))}
@@ -217,7 +213,7 @@ export function JournalWorkspace({
               <button
                 key={value}
                 type="button"
-                className={period === value ? 'on' : ''}
+                className={`ui-chip ui-chip--filter${period === value ? ' is-active' : ''}`}
                 aria-pressed={period === value}
                 onClick={() => setPeriod(value)}
               >
@@ -229,9 +225,9 @@ export function JournalWorkspace({
 
         <div className="ctx-card">
           <h3 className="ctx-title">{t('op.stock.journal.summary.title')}</h3>
-          <div className="totrow"><span>{t('op.stock.journal.summary.inbound')}</span><b className="in">+{summary.inboundQty} · {formatMinorUnits(summary.inboundSumMinor, currencyCode)}</b></div>
+          <div className="totrow"><span>{t('op.stock.journal.summary.inbound')}</span><b className="in">+{summary.inboundQty} · <Money minorUnits={summary.inboundSumMinor} currencyCode={currencyCode} /></b></div>
           <div className="totrow"><span>{t('op.stock.journal.summary.sold')}</span><b>−{summary.soldQty}</b></div>
-          <div className="totrow"><span>{t('op.stock.journal.summary.writtenOff')}</span><b className="wn">−{summary.writtenOffQty} · {formatMinorUnits(summary.writtenOffSumMinor, currencyCode)}</b></div>
+          <div className="totrow"><span>{t('op.stock.journal.summary.writtenOff')}</span><b className="wn">−{summary.writtenOffQty} · <Money minorUnits={summary.writtenOffSumMinor} currencyCode={currencyCode} /></b></div>
           <div className="totrow net"><span>{t('op.stock.journal.summary.net')}</span><b>{summary.netQty > 0 ? '+' : ''}{summary.netQty}</b></div>
         </div>
       </aside>
