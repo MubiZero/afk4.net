@@ -228,6 +228,7 @@
 }
 .ui-money--pos { color: var(--success-text); }
 .ui-money--neg { color: var(--danger-text); }
+.ui-money--muted { color: var(--text-quaternary); }
 
 /* ============ Ledger row ============ */
 .ui-ledger-list { display: flex; flex-direction: column; }

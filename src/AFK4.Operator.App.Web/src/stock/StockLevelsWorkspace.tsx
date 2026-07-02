@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { AlertTriangle, Boxes, Minus, Plus } from 'lucide-react';
 import { useDeferredFlag } from '../useDeferredFlag';
-import { EmptyState } from '../operatorPrimitives';
+import { EmptyState, Money } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
 import { createAuthenticatedOperatorClients } from '../operatorHelpers';
-import { formatMinorUnits } from '../currencyFormat';
 import { projectOperatorError } from '../apiErrors';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import type { OperatorBackendContext } from '../operatorTypes';
@@ -124,7 +123,7 @@ export function StockLevelsWorkspace({
           <div className="seg">
             <button
               type="button"
-              className={filter === 'all' ? 'on' : ''}
+              className={`ui-chip ui-chip--filter${filter === 'all' ? ' is-active' : ''}`}
               aria-pressed={filter === 'all'}
               onClick={() => setFilter('all')}
             >
@@ -132,7 +131,7 @@ export function StockLevelsWorkspace({
             </button>
             <button
               type="button"
-              className={filter === 'low' ? 'on' : ''}
+              className={`ui-chip ui-chip--filter${filter === 'low' ? ' is-active' : ''}`}
               aria-pressed={filter === 'low'}
               onClick={() => setFilter('low')}
             >
@@ -140,14 +139,14 @@ export function StockLevelsWorkspace({
             </button>
             <button
               type="button"
-              className={filter === 'out' ? 'on' : ''}
+              className={`ui-chip ui-chip--filter${filter === 'out' ? ' is-active' : ''}`}
               aria-pressed={filter === 'out'}
               onClick={() => setFilter('out')}
             >
               {t('op.stock.filter.out')} · {summary.outCount}
             </button>
           </div>
-          <div className="panel-search">
+          <div className="ui-field panel-search">
             <input
               type="search"
               placeholder={t('op.stock.levels.search')}
@@ -204,28 +203,34 @@ export function StockLevelsWorkspace({
                         <span className="u"> {t('op.stock.col.unit')}</span>
                       </span>
                       {status !== 'ok' && (
-                        <span className={`stock-status-tag ${status}`}>
+                        <span className={`ui-chip ui-chip--status ${status === 'low' ? 'is-warning' : 'is-danger'}`}>
                           {t(status === 'low' ? 'op.stock.status.low' : 'op.stock.status.out')}
                         </span>
                       )}
                     </div>
                     {/* Себест */}
                     <div className="money">
-                      {item.avgCostMinorUnits > 0 ? formatMinorUnits(item.avgCostMinorUnits, currencyCode) : <span className="dim">—</span>}
+                      {item.avgCostMinorUnits > 0
+                        ? <Money minorUnits={item.avgCostMinorUnits} currencyCode={currencyCode} />
+                        : <span className="ui-money ui-money--muted">—</span>}
                     </div>
                     {/* Цена */}
                     <div className="money">
-                      {item.priceMinorUnits > 0 ? formatMinorUnits(item.priceMinorUnits, currencyCode) : <span className="dim">—</span>}
+                      {item.priceMinorUnits > 0
+                        ? <Money minorUnits={item.priceMinorUnits} currencyCode={currencyCode} />
+                        : <span className="ui-money ui-money--muted">—</span>}
                     </div>
                     {/* Стоимость склада */}
-                    <div className={`valm${stockVal <= 0 ? ' dim' : ''}`}>
-                      {stockVal > 0 ? formatMinorUnits(stockVal, currencyCode) : '—'}
+                    <div className="valm">
+                      {stockVal > 0
+                        ? <Money minorUnits={stockVal} currencyCode={currencyCode} />
+                        : <span className="ui-money ui-money--muted">—</span>}
                     </div>
                     {/* Действия */}
                     <div className="rowact">
                       <button
                         type="button"
-                        className="iact"
+                        className="ui-btn ui-btn--sm ui-btn--ghost"
                         disabled={!onReceive}
                         title={t('op.stock.action.receive')}
                         aria-label={t('op.stock.action.receive')}
@@ -233,7 +238,7 @@ export function StockLevelsWorkspace({
                       ><Plus size={15} aria-hidden="true" /></button>
                       <button
                         type="button"
-                        className="iact minus"
+                        className="ui-btn ui-btn--sm ui-btn--danger"
                         disabled={item.stockOnHand <= 0}
                         title={t('op.stock.action.writeOff')}
                         aria-label={t('op.stock.action.writeOff')}
@@ -260,9 +265,9 @@ export function StockLevelsWorkspace({
 
       {/* ── Сводка ── */}
       <aside className="stock-summary">
-        <div className="ctx-card">
-          <h3 className="ctx-title">{t('op.stock.summary.totalValue')}</h3>
-          <div className="ctx-big">{formatMinorUnits(summary.totalValueMinorUnits, currencyCode)}</div>
+        <div className="ui-card ui-card--stat">
+          <span>{t('op.stock.summary.totalValue')}</span>
+          <strong><Money minorUnits={summary.totalValueMinorUnits} currencyCode={currencyCode} /></strong>
           <div className="ctx-sub">
             {t('op.stock.summary.totalSub', { count: items.reduce((acc, i) => acc + Math.max(i.stockOnHand, 0), 0) })}
           </div>
@@ -272,7 +277,7 @@ export function StockLevelsWorkspace({
           </div>
           <div className="mv">
             <span>{t('op.stock.summary.outCount')}</span>
-            <b className="danger-text">{summary.outCount}</b>
+            <b className={summary.outCount > 0 ? 'danger-text' : undefined}>{summary.outCount}</b>
           </div>
         </div>
 
@@ -292,7 +297,7 @@ export function StockLevelsWorkspace({
                 </div>
               );
             })}
-            <button type="button" className="ctx-btn" disabled={!onReceive} onClick={() => onReceive?.()}>
+            <button type="button" className="ui-btn ui-btn--primary ui-btn--block" disabled={!onReceive} onClick={() => onReceive?.()}>
               {t('op.stock.summary.orderBtn')}
             </button>
           </div>
