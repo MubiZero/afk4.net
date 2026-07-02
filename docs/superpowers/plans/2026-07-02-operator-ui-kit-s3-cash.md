@@ -144,10 +144,11 @@ git commit -m "feat(operator-cash): POS на .ui-* — категории/кар
 
 - [ ] **Step 2: Карточки смены → `.ui-card--elevated`**
 
-В `CashShiftWorkspace.tsx` три `<section className="cash-shift-card …">` (стр. ~116, 129, 142):
-`cash-shift-card` → `ui-card ui-card--elevated` (модификатор `cash-shift-card--lead` оставить, если несёт
-раскладку). `.cash-shift-hero*`/`.cash-shift-row`/`.cash-shift-movements`/`.cash-shift-hist-*` — ОСТАВИТЬ
-(тон/раскладка).
+В `CashShiftWorkspace.tsx` три `<section className="cash-shift-card …">` (стр. ~116, 129, 142): атом
+ДОБАВИТЬ рядом, старый класс ОСТАВИТЬ (несёт flex-col раскладку + border-soft): `cash-shift-card` →
+`ui-card ui-card--elevated cash-shift-card` (модификатор `cash-shift-card--lead` тоже оставить). Секц.
+правило выигрывает → вид 1:1; Task 5 дедупит редундантное (radius/padding/surface/shadow). `.cash-shift-hero*`/
+`.cash-shift-row`/`.cash-shift-movements`/`.cash-shift-hist-*` — ОСТАВИТЬ (тон/раскладка).
 
 - [ ] **Step 3: Деньги смены → `<Money>` (обычный, тон сохраняют классы-обёртки)**
 
@@ -165,9 +166,10 @@ git commit -m "feat(operator-cash): POS на .ui-* — категории/кар
 
 - [ ] **Step 5: Командные кнопки → `.ui-btn`**
 
-В `CashShiftCommandBar.tsx` (стр. ~148–168): `className="cash-command-btn"` →
-`className="ui-btn ui-btn--ghost ui-btn--sm"`; `className="cash-command-btn danger"` →
-`className="ui-btn ui-btn--ghost ui-btn--sm ui-btn--danger"`. Иконки/`aria-hidden` оставить.
+В `CashShiftCommandBar.tsx` (стр. ~148–168) атом ДОБАВИТЬ рядом, старый класс ОСТАВИТЬ:
+`className="cash-command-btn"` → `className="ui-btn ui-btn--ghost ui-btn--sm cash-command-btn"`;
+`className="cash-command-btn danger"` → `className="ui-btn ui-btn--ghost ui-btn--sm ui-btn--danger cash-command-btn danger"`.
+Секц. правило выигрывает → вид 1:1; Task 5 дедупит. Иконки/`aria-hidden` оставить.
 
 - [ ] **Step 6: Прогнать тесты смены**
 
