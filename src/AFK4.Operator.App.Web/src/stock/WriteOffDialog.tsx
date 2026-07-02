@@ -76,7 +76,7 @@ export function WriteOffDialog({
       {error && <p className="recv-status err" role="alert">{error}</p>}
       <div className="critical-confirmation-actions">
         <button type="button" onClick={onClose} disabled={submitting}>{t('common.cancel')}</button>
-        <button type="button" className="ui-btn ui-btn--danger" disabled={submitting} onClick={submit}>
+        <button type="button" className="danger" disabled={submitting} onClick={submit}>
           {submitting ? t('op.stock.writeoff.submitting') : t('op.stock.writeoff.submit')}
         </button>
       </div>
