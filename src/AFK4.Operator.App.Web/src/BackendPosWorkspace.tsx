@@ -372,7 +372,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               </span>
             </div>
           </header>
-          <label className="ui-field">
+          <label className="pos-search">
             <Search size={14} />
             <input
               placeholder={t('op.pos.catalog.searchPlaceholder')}
@@ -400,7 +400,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               </div>
             ) : (
               visibleProducts.map((product) => (
-                <button key={`${product.productId ?? product.name}-${product.name}`} type="button" className="ui-card ui-card--interactive" onClick={() => addProduct(product)}>
+                <button key={`${product.productId ?? product.name}-${product.name}`} type="button" className="ui-card ui-card--interactive pos-product-card" onClick={() => addProduct(product)}>
                   <strong>{product.name}</strong>
                   <span>{product.category}</span>
                   <b><Money minorUnits={product.priceMinorUnits} currencyCode={currencyCode} /></b>
@@ -531,8 +531,8 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               <span>{t('op.pos.cart.total')}</span>
               <strong><Money minorUnits={cartTotalMinorUnits} currencyCode={currencyCode} /></strong>
             </div>
-            <button type="button" className="ui-btn ui-btn--primary ui-btn--lg" disabled={!canAcceptPayment || feedback.state === 'pending'} onClick={() => setPayOpen(true)}>{t('op.pos.payment.acceptBtn')}</button>
-            <button type="button" className="ui-btn" onClick={() => setCartItems([])}>{t('op.pos.payment.clearCartBtn')}</button>
+            <button type="button" className="ui-btn ui-btn--primary ui-btn--lg pos-primary-action" disabled={!canAcceptPayment || feedback.state === 'pending'} onClick={() => setPayOpen(true)}>{t('op.pos.payment.acceptBtn')}</button>
+            <button type="button" className="ui-btn pos-secondary-action" onClick={() => setCartItems([])}>{t('op.pos.payment.clearCartBtn')}</button>
             <FeedbackNotice feedback={feedback} />
           </div>
         </section>
