@@ -189,6 +189,8 @@
 .ui-card--stat.is-danger { border-color: var(--danger-soft-border); background: var(--danger-soft-bg); }
 .ui-card--stat.is-danger > strong { color: var(--danger-text); }
 
+.ui-card--elevated { background: var(--surface-elevated); box-shadow: var(--shadow-card); }
+
 /* ============ Field ============ */
 .ui-field { display: grid; gap: var(--space-1); }
 .ui-field > label { color: var(--text-secondary); font-size: var(--text-xs); font-weight: 600; }

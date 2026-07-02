@@ -145,27 +145,27 @@ export function CashShiftCommandBar({
   return (
     <div className="cash-head-commands">
       {canOpen && (
-        <button type="button" className="cash-command-btn" onClick={() => setActiveModal('open')}>
+        <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm cash-command-btn" onClick={() => setActiveModal('open')}>
           <Unlock size={14} aria-hidden="true" />{t('op.cash.action.open')}
         </button>
       )}
       {canCash && (
         <>
-          <button type="button" className="cash-command-btn" onClick={() => setActiveModal('cash_in')}>
+          <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm cash-command-btn" onClick={() => setActiveModal('cash_in')}>
             <ArrowDownToLine size={14} aria-hidden="true" />{t('op.cash.action.cashIn')}
           </button>
-          <button type="button" className="cash-command-btn" onClick={() => setActiveModal('cash_out')}>
+          <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm cash-command-btn" onClick={() => setActiveModal('cash_out')}>
             <ArrowUpFromLine size={14} aria-hidden="true" />{t('op.cash.action.cashOut')}
           </button>
         </>
       )}
       {canClose && (
-        <button type="button" className="cash-command-btn danger" onClick={() => setActiveModal('close')}>
+        <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm ui-btn--danger cash-command-btn danger" onClick={() => setActiveModal('close')}>
           <Lock size={14} aria-hidden="true" />{t('op.cash.action.close')}
         </button>
       )}
       {canXReport && revenue && (
-        <button type="button" className="cash-command-btn" onClick={() => setReport({ variant: 'x', data: buildShiftReportData(revenue) })}>
+        <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm cash-command-btn" onClick={() => setReport({ variant: 'x', data: buildShiftReportData(revenue) })}>
           <FileText size={14} aria-hidden="true" />{t('op.cash.action.xReport')}
         </button>
       )}
