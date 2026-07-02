@@ -251,44 +251,38 @@ git commit -m "feat(operator-cash): лента операций на .ui-ledger-
 **Interfaces:**
 - Consumes: `<Money>`, `.ui-field`, `.ui-btn`, `currencyCode`.
 
-Примечание: форма `.cash-shift-form` (обёртка) ОСТАЁТСЯ (макет); поля внутри — на `.ui-field`. Кнопки —
-не внутри `.critical-confirmation-actions` (у Кассы submit прямо в форме) → мигрируем на `.ui-btn`.
+**РЕШЕНИЕ (коррекция):** миграцию ПОЛЕЙ на `.ui-field` ОТЛОЖИТЬ — `.ui-field` требует иной структуры
+(label-обёртка span+input), что рискует раскладкой `.cash-shift-form`; поля Кассы уже консистентны;
+польза маргинальна, а экран любимый (#21/#22). Форму `.cash-shift-form` и её поля ОСТАВЛЯЕМ как есть.
+Делаем только submit-кнопки (атом РЯДОМ) + деньги. Кнопки Кассы — submit прямо в форме (НЕ внутри
+`.critical-confirmation-actions`), поэтому мигрируются.
 
-- [ ] **Step 1: OpenShiftModal — поля + submit**
+- [ ] **Step 1: OpenShiftModal + CashMovementModal — submit-кнопка (атом рядом)**
 
-Каждую пару `<label htmlFor=…>…</label><input …/>` (стр. ~42–47) обернуть в `.ui-field`:
-```tsx
-<label className="ui-field">
-  <span>{t('op.cash.open.startingCashLabel')}</span>
-  <input id="open-shift-cash" inputMode="decimal" value={startingCash} disabled={busy} onChange={…} />
-</label>
-```
-(структура «метка-текст в `<span>` + input» = `.ui-field`; `htmlFor`/`id` можно убрать, метка теперь
-оборачивает input). Submit (стр. ~49): `className="cash-primary-action"` →
-`className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block"` (иконку оставить).
+Submit `className="cash-primary-action"` → `className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block cash-primary-action"`
+(старый класс оставить — секц. правило выигрывает, вид 1:1; Task 5 дедупит). Иконку оставить. Поля/форму
+НЕ трогать.
 
-- [ ] **Step 2: CashMovementModal — поля + submit**
+- [ ] **Step 2: CloseShiftModal — submit(danger, атом рядом) + деньги preview**
 
-Аналогично Step 1: поля amount/reason → `.ui-field`; кнопка `cash-primary-action` →
-`ui-btn ui-btn--primary ui-btn--lg ui-btn--block`.
+Блок `.cash-close-reconcile` и поля ОСТАВИТЬ. Деньги превью (`formatMoney(expectedCash, …)`,
+`formatMoney(difference, …)`) → `<Money minorUnits={…?.minorUnits ?? 0} currencyCode={currencyCode} />`
+(тон-класс `attention` на обёртке оставить; `difference` может быть null → тернар-гард как сейчас, внутри —
+`<Money>`). Submit `className="cash-primary-action danger"` →
+`className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block ui-btn--danger cash-primary-action danger"`.
 
-- [ ] **Step 3: CloseShiftModal — поля + submit(danger) + деньги preview**
+- [ ] **Step 3: ShiftReportModal — деньги helper + print-кнопка (атом рядом)**
 
-Поля counted/note → `.ui-field`. Блок `.cash-close-reconcile` ОСТАВИТЬ (раскладка); деньги внутри
-(`formatMoney(expectedCash, …)`, `formatMoney(difference, …)`) → `<Money minorUnits={…?.minorUnits ?? 0} currencyCode={currencyCode} />`
-(тон-класс `attention` на обёртке оставить). Submit `className="cash-primary-action danger"` →
-`className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block ui-btn--danger"`.
-
-- [ ] **Step 4: ShiftReportModal — деньги helper + print-кнопка**
-
-Helper `money()` (стр. 25–26) сейчас возвращает строку через `formatMoney`. Заменить его тело на возврат
-JSX `<Money>`:
+Helper `money()` (стр. 25–26) → возвращать JSX `<Money>`:
 ```tsx
 const money = (value: { currencyCode: string; minorUnits: number } | null) =>
   value === null ? t('op.cash.shift.notClosed') : <Money minorUnits={value.minorUnits} currencyCode={currencyCode} />;
 ```
 (вызовы `{money(...)}` в `<strong>` остаются). Print-кнопка `className="cash-primary-action"` →
-`className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block"`. `.cash-report*`/`.cash-shift-row` — оставить.
+`className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block cash-primary-action"`. `.cash-report*`/`.cash-shift-row`/
+поля — оставить.
+
+- [ ] **Step 4: (поля отложены — см. РЕШЕНИЕ выше; шага миграции полей нет)**
 
 - [ ] **Step 5: Прогнать тесты модалок**
 
@@ -320,18 +314,25 @@ git commit -m "feat(operator-cash): модалки — поля на .ui-field, 
 
 Три категории (для каждого класса — сначала `grep -rn "\bКЛАСС\b" src` по TSX, включая template-литералы):
 
-**(A) Удаляемые ПОЛНОСТЬЮ** (0 ссылок в TSX после переезда, атом заменил):
-- `21-cash.css`: `.cash-command-btn` (+`.danger`), `.cash-primary-action` (+`.danger`), `.cash-shift-card`.
+**(A) Удаляемые ПОЛНОСТЬЮ** (0 ссылок в TSX, атом ЗАМЕНИЛ):
 - `11-pos.css`: `.pos-category-row button` (+`.active`) — **каскад-ловушка**: категории теперь несут
   `.ui-chip--filter`, но `.pos-category-row button` (0,1,1) их перебивает; удаление активирует чип
   (форма пилюли — видимое изменение, проверяется на превью).
+- *(лента `.cash-ledger-row/-time/-body/…` уже удалена в Task 3 — проверить, что чисто.)*
 
 **(B) Удерживаемые «рядом» — вырезать РЕДУНДАНТНЫЙ контейнер, ОСТАВИТЬ отличительное** (класс всё ещё
-на элементе рядом с атомом): `.pos-product-card` (удалить border/radius/padding/базовый bg/hover-lift —
-их даёт `.ui-card--interactive`; ОСТАВИТЬ дочернюю типографику `.pos-product-card strong/span/b/em`);
-`.pos-primary-action` (удалить контейнер — даёт `.ui-btn--primary--lg`; ОСТАВИТЬ `text-transform`/капс,
-если есть); `.pos-secondary-action` (ОСТАВИТЬ особый hover `surface-accent-soft`, если решено сохранить #2;
-иначе удалить и принять hover атома — решается на превью).
+на элементе рядом с атомом; сейчас секц. правило выигрывает — после дедупа атом активируется):
+- `.pos-product-card` (удалить border/radius/padding/базовый bg/hover-lift — их даёт `.ui-card--interactive`;
+  ОСТАВИТЬ дочернюю типографику `.pos-product-card strong/span/b/em`).
+- `.pos-primary-action` (удалить контейнер — даёт `.ui-btn--primary--lg`; ОСТАВИТЬ `text-transform`/капс, если есть).
+- `.pos-secondary-action` (ОСТАВИТЬ особый hover `surface-accent-soft`, если решено сохранить #2; иначе
+  удалить и принять hover атома — превью).
+- `.cash-shift-card` (удалить surface/shadow/radius/padding — даёт `.ui-card--elevated`; ОСТАВИТЬ flex-col
+  раскладку + border-soft, если это отличительное).
+- `.cash-command-btn` (+`.danger`) (удалить контейнер — даёт `.ui-btn--ghost--sm`(+`--danger`); ОСТАВИТЬ
+  особую раскладку/иконочный gap, если есть).
+- `.cash-primary-action` (+`.danger`) (удалить контейнер — даёт `.ui-btn--primary--lg--block`(+`--danger`);
+  исправить хардкод `#fff`/radius 7px через атом).
 
 **(C) НЕ трогать (тонкий слой / кросс-секционное):** `.pos-search` (+`.pos-search input` — не мигрирован),
 `.pos-orders-ticker`/`.pos-order-*`, `.pos-embed`, `.pos-receipt-row`(+колонки), `.pos-category-row`
@@ -341,12 +342,11 @@ git commit -m "feat(operator-cash): модалки — поля на .ui-field, 
 
 - [ ] **Step 2: Снести каскад-ловушки (дочерние тег-селекторы, перебивающие атомы)**
 
-Удалить дочерние правила, которые тег-селектором (0,1,1) перебивают атомы на элементах, которые ПОЛНОСТЬЮ
-мигрированы (структура сменилась): `.cash-shift-form input` (поля модалок теперь `.ui-field > input`),
-селекторы внутри бывшей `.cash-ledger-row` (`.cash-ledger-row span/strong/em/b` — строки теперь
-`.ui-ledger-*`). Контейнеры (`.cash-shift-form`, `.cash-ledger*`-панель) оставить.
-**НЕ удалять** `.pos-product-card strong/span/b/em` (это удерживаемая типографика, элемент всё ещё несёт
-`.pos-product-card` — они нужны) и `.pos-search input` (поиск не мигрирован).
+Селекторы бывшей `.cash-ledger-row span/strong/em/b` уже удалены в Task 3 — только проверить `grep`, что
+чисто. Больше активных каскад-ловушек нет: поля модалок НЕ мигрированы (остаются `.cash-shift-form input`),
+поиск POS не мигрирован (`.pos-search input`), типографика карточки товара удерживается
+(`.pos-product-card strong/span/b/em`). **НЕ удалять:** `.cash-shift-form input`, `.pos-search input`,
+`.pos-product-card strong/span/b/em`.
 
 - [ ] **Step 3: Нормализация токенов + чистка редундантности**
 
