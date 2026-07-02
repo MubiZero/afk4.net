@@ -23,7 +23,7 @@ import {
 } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
 import { hasPermission, permissionNames } from '../operatorPermissions';
-import { CriticalActionConfirmation, FeedbackNotice } from '../operatorPrimitives';
+import { CriticalActionConfirmation, FeedbackNotice, Money } from '../operatorPrimitives';
 import type { Feedback, OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import type { PosSaleDto, ReceiptDto } from '../operatorApiClients';
@@ -169,10 +169,10 @@ export function CashReceiptsLedger({
     <section className="cash-receipts">
       <div className="cash-ledger-stats">
         <span className="cash-ledger-stat cash-ledger-stat--lead">
-          <em>{t('op.pos.strip.sales')}</em><b>{rows.length} · {formatMoney(readMoney(report, 'grossSalesTotal'), currencyCode)}</b>
+          <em>{t('op.pos.strip.sales')}</em><b>{rows.length} · <Money minorUnits={readMoney(report, 'grossSalesTotal')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
         </span>
         <span className="cash-ledger-stat cash-ledger-stat--out">
-          <em>{t('op.pos.strip.refunds')}</em><b>{formatMoney(readMoney(report, 'refundsTotal'), currencyCode)}</b>
+          <em>{t('op.pos.strip.refunds')}</em><b><Money minorUnits={readMoney(report, 'refundsTotal')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
         </span>
       </div>
 
@@ -193,7 +193,7 @@ export function CashReceiptsLedger({
                 <span>{formatTime(readString(row, 'createdAtUtc'))}</span>
                 <strong>{posSaleStateLabel(readString(row, 'state', 'sale'), t)}</strong>
                 <em>{posSaleLineSummary(row, t)}</em>
-                <b>{formatMoney(readMoney(row, 'total'), currencyCode)}</b>
+                <b><Money minorUnits={readMoney(row, 'total')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
               </button>
             );
           })
@@ -205,18 +205,18 @@ export function CashReceiptsLedger({
           <div>
             <span>{t('op.pos.receipts.detailsTitle')}</span>
             <strong>{posSaleStateLabel(readString(saleDetail, 'state', 'sale'), t)}</strong>
-            <b>{formatMoney(readMoney(saleDetail, 'total'), currencyCode)}</b>
+            <b><Money minorUnits={readMoney(saleDetail, 'total')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
           </div>
           {readArray(saleDetail, 'lines').slice(0, 6).map((line) => (
             <p key={`${readString(line, 'productId')}-${readNumber(line, 'quantity', 0)}`}>
-              {readString(line, 'productName', t('op.pos.receipts.productFallback'))} · {readNumber(line, 'quantity', 0)} × {formatMoney(readMoney(line, 'unitPrice'), currencyCode)}
+              {readString(line, 'productName', t('op.pos.receipts.productFallback'))} · {readNumber(line, 'quantity', 0)} × <Money minorUnits={readMoney(line, 'unitPrice')?.minorUnits ?? 0} currencyCode={currencyCode} />
             </p>
           ))}
           {receiptDetail !== null && (
             <div className="pos-receipt-detail">
               <span>{t('op.pos.receipts.platformReceipt')}</span>
               <strong>{readString(receiptDetail, 'receiptNumber', t('op.pos.receipts.receiptFallback'))}</strong>
-              <b>{formatMoney(readMoney(receiptDetail, 'total'), currencyCode)}</b>
+              <b><Money minorUnits={readMoney(receiptDetail, 'total')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
               <p>{posReceiptTypeLabel(readString(receiptDetail, 'receiptType', 'sale'), t)}</p>
             </div>
           )}

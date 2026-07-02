@@ -273,25 +273,8 @@
 .cash-ledger-export:hover { border-color: var(--accent); color: var(--accent-bright); }
 .cash-ledger-export:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
 
-/* Ряды-разделители вместо коробок: время · тип · причина … сумма (минус красным). */
+/* Список-обёртка: ряды теперь на общей .ui-ledger-* грамматике (02-ui-kit.css), тут только list-reset. */
 .cash-ledger-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-.cash-ledger-row {
-  display: grid;
-  grid-template-columns: auto auto 1fr auto;
-  align-items: baseline;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-1);
-  border-top: 1px solid var(--border-soft);
-  font-size: 13px;
-  transition: background var(--duration-fast) var(--ease-out);
-}
-.cash-ledger-row:first-child { border-top: 0; }
-.cash-ledger-row:hover { background: var(--surface-hover); }
-.cash-ledger-time { color: var(--text-tertiary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.cash-ledger-row strong { color: var(--text-primary); font-weight: 600; }
-.cash-ledger-row em { color: var(--text-secondary); font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cash-ledger-row b { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.cash-ledger-row.out b { color: var(--danger); }
 
 /* S2: форма X/Z-отчёта в модалке. */
 .cash-report { display: flex; flex-direction: column; gap: var(--space-3); }
