@@ -548,8 +548,8 @@
 
 .pos-product-card > strong {
   color: var(--text-primary);
-  font-size: var(--text-base);
-  font-weight: 600;
+  font-size: var(--text-lg);
+  font-weight: 700;
   line-height: 1.15;
 }
 
@@ -573,7 +573,7 @@
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
-  font-size: var(--text-xl);
+  font-size: var(--text-base);
   font-weight: 600;
   line-height: 1.05;
 }
