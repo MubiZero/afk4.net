@@ -58,7 +58,7 @@ export function CriticalActionConfirmation({
   );
 }
 
-export function StateFlag({ label, value, critical, tone }: { label: string; value: string; critical?: boolean; tone?: 'warning' }) {
+export function StateFlag({ label, value, critical, tone }: { label: string; value: ReactNode; critical?: boolean; tone?: 'warning' }) {
   return (
     <section className={`state-flag${critical ? ' critical' : ''}${tone ? ` ${tone}` : ''}`}>
       <span>{label}</span>

@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { createAuthenticatedOperatorClients } from '../operatorHelpers';
-import { formatMinorUnits } from '../currencyFormat';
-import { StateFlag } from '../operatorPrimitives';
+import { Money, StateFlag } from '../operatorPrimitives';
 import { hasAnyPermission, permissionNames } from '../operatorPermissions';
 import { mapCatalogToStock, summarize } from './stockLevels';
 import type { OperatorBackendContext } from '../operatorTypes';
@@ -49,7 +48,7 @@ export function StockHeader({
       </h1>
       {summary && (
         <div className="cash-head-metrics">
-          <StateFlag label={t('op.stock.summary.totalValue')} value={formatMinorUnits(summary.totalValueMinorUnits, currencyCode)} />
+          <StateFlag label={t('op.stock.summary.totalValue')} value={<Money minorUnits={summary.totalValueMinorUnits} currencyCode={currencyCode} />} />
           {summary.lowCount > 0 && (
             <StateFlag label={t('op.stock.status.low')} value={String(summary.lowCount)} tone="warning" />
           )}
