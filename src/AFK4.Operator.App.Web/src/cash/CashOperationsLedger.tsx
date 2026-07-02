@@ -5,7 +5,6 @@ import {
   cashOperationTypeLabel,
   createAuthenticatedOperatorClients,
   downloadTextFile,
-  formatMoney,
   formatTime,
   readArray,
   readMoney,
@@ -87,13 +86,13 @@ export function CashOperationsLedger({
     <section className="cash-ledger">
       <div className="cash-ledger-stats">
         <span className="cash-ledger-stat cash-ledger-stat--lead">
-          <em>{t('op.cash.journal.net')}</em><b>{formatMoney(readMoney(report, 'netCashTotal'), currencyCode)}</b>
+          <em>{t('op.cash.journal.net')}</em><b><Money minorUnits={readMoney(report, 'netCashTotal')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
         </span>
         <span className="cash-ledger-stat">
-          <em>{t('op.cash.journal.cashIn')}</em><b>{formatMoney(readMoney(report, 'cashInTotal'), currencyCode)}</b>
+          <em>{t('op.cash.journal.cashIn')}</em><b><Money minorUnits={readMoney(report, 'cashInTotal')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
         </span>
         <span className="cash-ledger-stat cash-ledger-stat--out">
-          <em>{t('op.cash.journal.cashOut')}</em><b>{formatMoney(readMoney(report, 'cashOutTotal'), currencyCode)}</b>
+          <em>{t('op.cash.journal.cashOut')}</em><b><Money minorUnits={readMoney(report, 'cashOutTotal')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
         </span>
       </div>
       <div className="cash-ledger-search">
