@@ -166,13 +166,13 @@
 
 .cash-shift-rows { display: flex; flex-direction: column; gap: var(--space-1); }
 .cash-shift-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); font-size: 13px; }
-.cash-shift-row span { color: var(--text-tertiary); }
+.cash-shift-row > span { color: var(--text-tertiary); }
 .cash-shift-row strong { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; }
 .cash-shift-row.attention strong { color: var(--danger); }
 
 .cash-shift-movements { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .cash-shift-movements li { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: var(--space-2); font-size: 12px; }
-.cash-shift-movements li span { color: var(--text-tertiary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cash-shift-movements li > span { color: var(--text-tertiary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .cash-shift-movements li strong { color: var(--text-secondary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cash-shift-movements li b { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .cash-shift-movements li.out b { color: var(--danger); }

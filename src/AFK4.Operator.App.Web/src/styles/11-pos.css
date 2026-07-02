@@ -537,23 +537,23 @@
   transform: translateY(0);
 }
 
-.pos-product-card strong,
-.pos-product-card span,
-.pos-product-card b,
-.pos-product-card em {
+.pos-product-card > strong,
+.pos-product-card > span,
+.pos-product-card > b,
+.pos-product-card > em {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.pos-product-card strong {
+.pos-product-card > strong {
   color: var(--text-primary);
   font-size: var(--text-base);
   font-weight: 600;
   line-height: 1.15;
 }
 
-.pos-product-card span {
+.pos-product-card > span {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-tertiary);
@@ -561,7 +561,7 @@
   font-style: normal;
 }
 
-.pos-product-card em {
+.pos-product-card > em {
   color: var(--text-quaternary);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -569,7 +569,7 @@
   font-style: normal;
 }
 
-.pos-product-card b {
+.pos-product-card > b {
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -613,9 +613,9 @@
   white-space: nowrap;
 }
 
-.pos-cart-row span,
-.pos-receipt-row span,
-.pos-receipt-row em {
+.pos-cart-row > span,
+.pos-receipt-row > span,
+.pos-receipt-row > em {
   overflow: hidden;
   color: var(--text-secondary);
   font-size: var(--text-xs);
@@ -794,7 +794,7 @@
   gap: var(--space-3);
 }
 
-.pos-tender-total span {
+.pos-tender-total > span {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-secondary);
@@ -869,7 +869,7 @@
   text-align: left;
 }
 
-.pos-receipt-row span {
+.pos-receipt-row > span {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
