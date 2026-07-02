@@ -230,9 +230,6 @@
   font-size: 12px;
 }
 
-.money .dim,
-.money.dim { color: var(--text-quaternary); }
-
 /* Стоимость позиции — text-primary жирный */
 .valm {
   color: var(--text-primary);
@@ -241,8 +238,6 @@
   font-size: var(--text-sm);
   font-weight: 600;
 }
-
-.valm.dim { color: var(--text-quaternary); }
 
 /* ── Кнопки действий (S0 — заглушки, S1 — реальные) ── */
 /* Действия строки видны и без мыши (тач/клавиатура): приглушены в покое, полностью —

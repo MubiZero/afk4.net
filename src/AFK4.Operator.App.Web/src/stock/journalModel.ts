@@ -57,6 +57,8 @@ export function movementStatusTone(
       return 'is-neutral';
     case 'adjustment':
       return quantityDelta < 0 ? 'is-danger' : 'is-warning';
+    default:
+      return 'is-neutral';
   }
 }
 

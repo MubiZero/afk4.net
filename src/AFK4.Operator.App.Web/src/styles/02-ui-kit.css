@@ -248,7 +248,15 @@
   font-size: var(--text-xs);
 }
 .ui-ledger-body { display: grid; gap: 2px; min-width: 0; }
-.ui-ledger-title { color: var(--text-primary); font-size: var(--text-sm); font-weight: 600; }
+.ui-ledger-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
 .ui-ledger-detail {
   color: var(--text-tertiary);
   font-size: var(--text-xs);
