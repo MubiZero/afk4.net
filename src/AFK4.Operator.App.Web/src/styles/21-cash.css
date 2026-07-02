@@ -14,14 +14,16 @@
   background: var(--surface-elevated);
 }
 /* Деньги шапки = язык тоталайзера: белый моноширинный ридаут (заголовочные деньги смены).
-   Янтарь зарезервирован за предупреждениями (низкий остаток), а не за суммами. */
-.cash-head-metrics .state-flag span {
+   Янтарь зарезервирован за предупреждениями (низкий остаток), а не за суммами.
+   Скоуп на ПРЯМЫХ детей — иначе вложенный <span class="ui-money"> внутри <strong> ловит
+   стиль метки (10px/tertiary) вместо белого моноширинного ридаута. */
+.cash-head-metrics .ui-chip--count > span {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: 10px;
   font-weight: 600;
 }
-.cash-head-metrics .state-flag strong {
+.cash-head-metrics .ui-chip--count > strong {
   color: var(--text-strong);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;

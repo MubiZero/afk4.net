@@ -60,7 +60,7 @@ export function CriticalActionConfirmation({
 
 export function StateFlag({ label, value, critical, tone }: { label: string; value: ReactNode; critical?: boolean; tone?: 'warning' }) {
   return (
-    <section className={`state-flag${critical ? ' critical' : ''}${tone ? ` ${tone}` : ''}`}>
+    <section className={`ui-chip ui-chip--count${critical ? ' is-critical' : ''}${tone ? ` is-${tone}` : ''}`}>
       <span>{label}</span>
       <strong>{value}</strong>
     </section>

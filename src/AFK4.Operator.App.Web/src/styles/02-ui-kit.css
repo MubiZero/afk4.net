@@ -136,14 +136,33 @@
   font-weight: 700;
 }
 
-/* Reserved for later slices: .ui-chip--count (StateFlag→count, cross-section), .ui-field-error (inline field errors — screen currently uses toast), .ui-btn--lg. */
-/* счётчик с меткой+значением (шапка) */
+/* Reserved for later slices: .ui-field-error (inline field errors — screen currently uses toast), .ui-btn--lg. */
+/* счётчик с меткой+значением (шапка); label/value скоуплены как ПРЯМЫЕ дети — вложенный
+   <span class="ui-money"> внутри <strong>{value}</strong> не должен ловить стиль метки. */
 .ui-chip--count {
   gap: 7px;
   height: 26px;
+  padding: 0 9px;
   background: var(--surface-elevated);
+  /* .ui-chip база задаёт font-weight:600 — .state-flag его не задавал нигде (метка/значение
+     наследовали normal); сбрасываем на контейнере, иначе label жирнеет и <strong> (UA "bolder")
+     резолвится от другой базы. */
+  font-weight: normal;
 }
-.ui-chip--count strong { color: var(--text-primary); font-size: var(--text-xs); }
+.ui-chip--count > span { color: var(--text-tertiary); font-size: 10px; }
+.ui-chip--count > strong { color: var(--text-primary); font-size: 11px; }
+
+.ui-chip--count.is-critical { border-color: var(--border-strong); }
+.ui-chip--count.is-critical::before {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--danger);
+  content: "";
+}
+.ui-chip--count.is-critical > span { color: var(--text-secondary); }
+
+.ui-chip--count.is-warning { border-color: var(--border-strong); }
 .ui-chip--count.is-warning::before {
   width: 6px;
   height: 6px;
@@ -151,6 +170,7 @@
   background: var(--warning);
   content: "";
 }
+.ui-chip--count.is-warning > span { color: var(--text-secondary); }
 
 /* ============ Card ============ */
 .ui-card {
