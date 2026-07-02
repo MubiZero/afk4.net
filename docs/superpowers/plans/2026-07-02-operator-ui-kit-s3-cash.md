@@ -28,8 +28,18 @@
   → `<Money … signed />`. Все прочие деньги (POS-тоталы/цены, герои смены, ряды, чеки, отчёт, шапка,
   мини-лента движений смены) → обычный `<Money>` (паритет — без принудительного «+»).
 - **i18n:** только существующие ключи `op.cash.*`/`op.pos.*`; хардкод-строк не добавляем.
-- **Каскад/приём:** в TSX старый визуальный класс ЗАМЕНЯЕМ на `.ui-*`; осиротевшие правила и
-  дочерние тег-селекторы (`.X button`/`.X input`, перебивающие атомы) — удаляет Task 5.
+- **Паритет-метод (ВАЖНО — иначе теряется вид):** атом-контейнер стилизует ТОЛЬКО контейнер (рамка/
+  радиус/паддинг/hover), НЕ содержимое. Поэтому:
+  - Элемент, чей старый класс несёт **только контейнерный** вид, полностью покрытый атомом (простые
+    кнопки/поля-совпадающей-структуры) → ЗАМЕНЯЕМ класс на `.ui-*`.
+  - Элемент с **отличительной внутренней типографикой/структурой** (карточка товара с именем/ценой/
+    заметкой; кнопка с `text-transform`; secondary с особым hover) → атом ДОБАВЛЯЕМ РЯДОМ, старый класс
+    ОСТАВЛЯЕМ (`class="ui-* old-class"`). Секционное правило (грузится после атома) выигрывает → вид
+    сохраняется 1:1. Task 5 затем **вырезает из старого класса редундантные (контейнерные) объявления**,
+    оставляя отличительные (типографику/капс/особый hover).
+  - Элемент, чья **структура НЕ совпадает** с атомом (POS-поиск = иконка+инпут в строку vs `.ui-field` =
+    метка-над-полем) → НЕ мигрируем на этот атом; оставляем как есть (тонкий слой).
+  - Осиротевшие правила и каскад-ловушки (`.X button`/`.X input`) — Task 5.
 - **НЕ мигрируем / КЛАССЫ СОХРАНИТЬ:** `.cash-tab*` (общий со Складом), `StateFlag` компонент и
   `.state-flag` CSS (общий с Картой), `.critical-confirmation-actions` (общая с модалками карты),
   `.pos-orders-ticker` + весь `.pos-order-*` субдерево, `.pos-embed`. Тесты/`App.test` ассертят на
@@ -68,24 +78,29 @@ className={`ui-chip ui-chip--filter${activeCategory === category ? ' is-active' 
 ```
 (было `className={activeCategory === category ? 'active' : undefined}`).
 
-- [ ] **Step 2: Карточка товара → `.ui-card--interactive` + деньги**
+- [ ] **Step 2: Карточка товара — атом РЯДОМ (типографика остаётся) + деньги**
 
-Строка ~403: `className="pos-product-card"` → `className="ui-card ui-card--interactive"`. Внутри цена
-(стр. ~406): `{formatMinorUnits(product.priceMinorUnits, currencyCode)}` →
+Карточка несёт внутреннюю типографику (`.pos-product-card strong/span/b/em`) — атом её не покрывает,
+поэтому старый класс ОСТАВЛЯЕМ. Строка ~403: `className="pos-product-card"` →
+`className="ui-card ui-card--interactive pos-product-card"` (атом-контейнер + сохранённая типографика;
+`.pos-product-card` выигрывает каскад → вид 1:1; Task 5 вырежет из него редундантный контейнер). Внутри
+цена (стр. ~406): `{formatMinorUnits(product.priceMinorUnits, currencyCode)}` →
 `<Money minorUnits={product.priceMinorUnits} currencyCode={currencyCode} />` (оставить обёртку `<b>`).
 
-- [ ] **Step 3: POS-поиск → `.ui-field`**
+- [ ] **Step 3: POS-поиск — НЕ мигрируем (структура другая)**
 
-`<label className="pos-search">` (стр. ~375) → `<label className="ui-field">`; `<Search/>` иконку
-оставить; `<input>` без своего класса (стилизуется `.ui-field > input`).
+`.pos-search` = иконка+инпут в строку; `.ui-field` = метка-над-полем — разная структура. ОСТАВИТЬ
+`<label className="pos-search">` как есть (тонкий слой). Только денежных сайтов тут нет — шаг без изменений
+(зафиксировать в отчёте, что поиск сознательно не тронут).
 
-- [ ] **Step 4: Кнопки чека + тотал**
+- [ ] **Step 4: Кнопки чека + тотал — атом РЯДОМ (капс/hover остаются)**
 
 Тотал (стр. ~532): `{formatMinorUnits(cartTotalMinorUnits, currencyCode)}` →
 `<Money minorUnits={cartTotalMinorUnits} currencyCode={currencyCode} />` (обёртка `<strong>` оставить).
-Кнопки (стр. 534–535):
-- `className="pos-primary-action"` → `className="ui-btn ui-btn--primary ui-btn--lg"`.
-- `className="pos-secondary-action"` → `className="ui-btn"`.
+Кнопки (стр. 534–535) — атом ДОБАВЛЯЕМ рядом, старый класс ОСТАВЛЯЕМ (несёт `text-transform`/особый hover;
+секц. правило выигрывает → вид 1:1; Task 5 дедупит):
+- `className="pos-primary-action"` → `className="ui-btn ui-btn--primary ui-btn--lg pos-primary-action"`.
+- `className="pos-secondary-action"` → `className="ui-btn pos-secondary-action"`.
 
 - [ ] **Step 5: Прочие денежные сайты POS**
 
@@ -301,23 +316,35 @@ git commit -m "feat(operator-cash): модалки — поля на .ui-field, 
 
 - [ ] **Step 1: Удалить осиротевшие правила (grep-verify 0 ссылок в TSX)**
 
-Метод (для каждого — сначала `grep -rn "\bКЛАСС\b" src` подтверждает 0 ссылок в TSX, включая
-template-литералы/условия):
-- `11-pos.css`: `.pos-primary-action`, `.pos-secondary-action`, `.pos-product-card` (+дочерние
-  `strong/span/b/em`), `.pos-search` (+`.pos-search input`), `.pos-category-row button` (+`.active`).
+Три категории (для каждого класса — сначала `grep -rn "\bКЛАСС\b" src` по TSX, включая template-литералы):
+
+**(A) Удаляемые ПОЛНОСТЬЮ** (0 ссылок в TSX после переезда, атом заменил):
 - `21-cash.css`: `.cash-command-btn` (+`.danger`), `.cash-primary-action` (+`.danger`), `.cash-shift-card`.
-- **НЕ удалять (сохранить):** `.pos-orders-ticker`/`.pos-order-*`, `.pos-embed`, `.pos-receipt-row`(+колонки),
-  `.pos-category-row` (контейнер), `.cash-tab*`, `.cash-shift-form` (форма), `.cash-shift-hero*`,
-  `.cash-shift-row`, `.cash-shift-movements`, `.cash-shift-hist-*`, `.cash-ledger*` (панель), `.cash-close-*`,
-  `.cash-report*`, `.cash-head*`.
+- `11-pos.css`: `.pos-category-row button` (+`.active`) — **каскад-ловушка**: категории теперь несут
+  `.ui-chip--filter`, но `.pos-category-row button` (0,1,1) их перебивает; удаление активирует чип
+  (форма пилюли — видимое изменение, проверяется на превью).
+
+**(B) Удерживаемые «рядом» — вырезать РЕДУНДАНТНЫЙ контейнер, ОСТАВИТЬ отличительное** (класс всё ещё
+на элементе рядом с атомом): `.pos-product-card` (удалить border/radius/padding/базовый bg/hover-lift —
+их даёт `.ui-card--interactive`; ОСТАВИТЬ дочернюю типографику `.pos-product-card strong/span/b/em`);
+`.pos-primary-action` (удалить контейнер — даёт `.ui-btn--primary--lg`; ОСТАВИТЬ `text-transform`/капс,
+если есть); `.pos-secondary-action` (ОСТАВИТЬ особый hover `surface-accent-soft`, если решено сохранить #2;
+иначе удалить и принять hover атома — решается на превью).
+
+**(C) НЕ трогать (тонкий слой / кросс-секционное):** `.pos-search` (+`.pos-search input` — не мигрирован),
+`.pos-orders-ticker`/`.pos-order-*`, `.pos-embed`, `.pos-receipt-row`(+колонки), `.pos-category-row`
+(контейнер), `.cash-tab*`, `.cash-shift-form` (форма), `.cash-shift-hero*`, `.cash-shift-row`,
+`.cash-shift-movements`, `.cash-shift-hist-*`, `.cash-ledger*` (панель), `.cash-close-*`, `.cash-report*`,
+`.cash-head*`.
 
 - [ ] **Step 2: Снести каскад-ловушки (дочерние тег-селекторы, перебивающие атомы)**
 
-Удалить дочерние правила, которые тег-селектором (0,1,1) перебивают атомы `.ui-*` (0,1,0) на
-мигрированных элементах: `.pos-category-row button` (все состояния — кнопки теперь `.ui-chip--filter`),
-`.pos-search input`, `.pos-product-card strong/span/b/em`, `.cash-shift-form input`, а также селекторы
-внутри бывшей `.cash-ledger-row` (`.cash-ledger-row span/strong/em/b`) — строки теперь `.ui-ledger-*`.
-Контейнеры (`.pos-category-row`, `.cash-shift-form`, `.cash-ledger*`-панель) оставить.
+Удалить дочерние правила, которые тег-селектором (0,1,1) перебивают атомы на элементах, которые ПОЛНОСТЬЮ
+мигрированы (структура сменилась): `.cash-shift-form input` (поля модалок теперь `.ui-field > input`),
+селекторы внутри бывшей `.cash-ledger-row` (`.cash-ledger-row span/strong/em/b` — строки теперь
+`.ui-ledger-*`). Контейнеры (`.cash-shift-form`, `.cash-ledger*`-панель) оставить.
+**НЕ удалять** `.pos-product-card strong/span/b/em` (это удерживаемая типографика, элемент всё ещё несёт
+`.pos-product-card` — они нужны) и `.pos-search input` (поиск не мигрирован).
 
 - [ ] **Step 3: Нормализация токенов + чистка редундантности**
 
