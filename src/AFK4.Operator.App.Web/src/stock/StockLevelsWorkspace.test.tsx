@@ -26,10 +26,18 @@ describe('StockLevelsWorkspace', () => {
     await screen.findByText('Cola 0.5');
     // Red Bull 8 при пороге 10 → low; Cola 12 при пороге 6 → ok; Вода 0 → out
     // Только status-tag-и: ровно 1 «На исходе» (low) и 1 «Нет в наличии» (out)
-    expect(container.querySelectorAll('.ui-chip--status.is-warning').length).toBeGreaterThan(0);
-    expect(container.querySelectorAll('.ui-chip--status.is-danger').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.ui-chip--status.is-warning')).toHaveLength(1);
+    expect(container.querySelectorAll('.ui-chip--status.is-danger')).toHaveLength(1);
     // фильтр-кнопка тоже видна как реальный текст в DOM
     expect(screen.getByRole('button', { name: /на исходе/i })).toBeInTheDocument();
+  });
+
+  it('стат-карточка «Стоимость склада» самодостаточна: счётчики low/out — соседи, не вложены', async () => {
+    const { container } = view();
+    await screen.findByText('Cola 0.5');
+    const statCards = container.querySelectorAll('.ui-card--stat');
+    expect(statCards).toHaveLength(1);
+    expect(statCards[0].querySelector('.mv')).toBeNull();
   });
 
   it('фильтр «На исходе» оставляет low И out, скрывает ok', async () => {

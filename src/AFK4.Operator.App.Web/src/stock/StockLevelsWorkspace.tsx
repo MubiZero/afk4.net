@@ -268,17 +268,17 @@ export function StockLevelsWorkspace({
         <div className="ui-card ui-card--stat">
           <span>{t('op.stock.summary.totalValue')}</span>
           <strong><Money minorUnits={summary.totalValueMinorUnits} currencyCode={currencyCode} /></strong>
-          <div className="ctx-sub">
-            {t('op.stock.summary.totalSub', { count: items.reduce((acc, i) => acc + Math.max(i.stockOnHand, 0), 0) })}
-          </div>
-          <div className="mv">
-            <span>{t('op.stock.summary.lowCount')}</span>
-            <b className="warning-text">{summary.lowCount}</b>
-          </div>
-          <div className="mv">
-            <span>{t('op.stock.summary.outCount')}</span>
-            <b className={summary.outCount > 0 ? 'danger-text' : undefined}>{summary.outCount}</b>
-          </div>
+        </div>
+        <div className="ctx-sub">
+          {t('op.stock.summary.totalSub', { count: items.reduce((acc, i) => acc + Math.max(i.stockOnHand, 0), 0) })}
+        </div>
+        <div className="mv">
+          <span>{t('op.stock.summary.lowCount')}</span>
+          <b className="warning-text">{summary.lowCount}</b>
+        </div>
+        <div className="mv">
+          <span>{t('op.stock.summary.outCount')}</span>
+          <b className={summary.outCount > 0 ? 'danger-text' : undefined}>{summary.outCount}</b>
         </div>
 
         {orderItems.length > 0 && (
