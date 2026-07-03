@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn, type Mock } from 'bun:test';
 import type { HostBridgeMessageEvent } from './hostBridge';
+import { playersSnapshotCache } from './players/playersSnapshot';
 
 // Рельс сжат в разделы: часть экранов теперь живёт во вкладках слитых разделов (Касса/Отчёты/
 // Управление), а не отдельными кнопками. Этот хелпер открывает нужный экран по его подписи:
@@ -66,6 +67,10 @@ describe('App', () => {
     realtimeMock.clients.length = 0;
     fetchMock = mock(mockPlatformFetch) as unknown as Mock<FetchLike>;
     globalThis.fetch = fetchMock as unknown as typeof fetch;
+    // Снимок клиентов — module-level кэш (переживает размонтирование раздела внутри сессии
+    // приложения), но между тестами branchId один и тот же — без сброса выбор клиента одного
+    // теста «протекает» в следующий (isolation-баг, не связан с текущей задачей).
+    playersSnapshotCache.clear();
   });
 
   afterEach(() => {
@@ -863,11 +868,9 @@ describe('App', () => {
     expect(clientsHead).toHaveTextContent('Клиентов');
     expect(clientsHead).toHaveTextContent('Долги');
     expect(screen.getByText('Список клиентов')).toBeInTheDocument();
-    // master-detail: табы карточки (появляются после загрузки клиентов)
-    expect(await screen.findByRole('tab', { name: 'Кошелёк' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Пакеты' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'История' })).toBeInTheDocument();
-    // кнопка действия на активном табе (Кошелёк)
+    // tabless: зона денег, пакеты и история видны одновременно
+    expect(await screen.findByLabelText('Сумма пополнения')).toBeInTheDocument();
+    expect(screen.getByText('История операций')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeInTheDocument();
 
     gotoWorkspace('Смена');
@@ -1623,7 +1626,6 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole('tab', { name: 'Пакеты' }));
     await waitFor(() => expect(screen.getByRole('button', { name: /Купить пакет/ })).toBeEnabled());
     fireEvent.change(await screen.findByLabelText('Пакет для покупки'), { target: { value: 'cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd' } });
     const purchasePackageButton = await screen.findByRole('button', { name: /Купить пакет/ });
@@ -1651,7 +1653,6 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole('tab', { name: 'Пакеты' }));
     expect(await screen.findByText(/180 мин в пакете/)).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
       String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/packages') &&
@@ -1667,7 +1668,6 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.change(await screen.findByLabelText('Сумма пополнения'), { target: { value: '123.45' } });
-    fireEvent.change(screen.getByLabelText('Причина пополнения'), { target: { value: 'cash desk deposit' } });
     const topUpWalletButton = screen.getByRole('button', { name: /Пополнить депозит/ });
     await waitFor(() => expect(topUpWalletButton).toBeEnabled());
     fireEvent.click(topUpWalletButton);
@@ -1680,8 +1680,7 @@ describe('App', () => {
     const body = JSON.parse(String(topUpCall?.[1]?.body));
     expect(body).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      amount: { currencyCode: 'TJS', minorUnits: 12345 },
-      reason: 'cash desk deposit'
+      amount: { currencyCode: 'TJS', minorUnits: 12345 }
     });
     expect(body.idempotencyKey).toMatch(/^wallet-top-up-/);
   });
@@ -1696,13 +1695,18 @@ describe('App', () => {
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeEnabled());
     fireEvent.click(await screen.findByRole('button', { name: /Olim K\./ }));
-    fireEvent.change(await screen.findByLabelText('Сумма долга'), { target: { value: '20.00' } });
-    fireEvent.change(screen.getByLabelText('Причина долга'), { target: { value: 'cash debt payment' } });
-    const payDebtButton = screen.getByRole('button', { name: /Списать долг/ });
-    await waitFor(() => expect(payDebtButton).toBeEnabled());
-    fireEvent.click(payDebtButton);
+    const openPayDebtButton = await screen.findByRole('button', { name: 'Списать долг' });
+    await waitFor(() => expect(openPayDebtButton).toBeEnabled());
+    fireEvent.click(openPayDebtButton);
+
+    const payDebtDialog = await screen.findByRole('dialog', { name: 'Погасить долг' });
+    fireEvent.change(within(payDebtDialog).getByLabelText('Сумма долга'), { target: { value: '20.00' } });
+    fireEvent.change(within(payDebtDialog).getByLabelText('Причина долга'), { target: { value: 'cash debt payment' } });
+    fireEvent.click(within(payDebtDialog).getByRole('button', { name: 'Списать долг' }));
 
     expect(await screen.findByText('Списать долг: подтверждено')).toBeInTheDocument();
+    // модалка закрывается сама на успехе
+    expect(screen.queryByRole('dialog', { name: 'Погасить долг' })).toBeNull();
     const debtCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/players/34343434-3434-3434-3434-343434343434/debts/payments') &&
       init?.method === 'POST');
@@ -1749,9 +1753,14 @@ describe('App', () => {
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeEnabled());
     fireEvent.click(await screen.findByRole('button', { name: /Olim K\./ }));
-    fireEvent.change(await screen.findByLabelText('Сумма долга'), { target: { value: '20.00' } });
+    const openPayDebtButton = await screen.findByRole('button', { name: 'Списать долг' });
+    await waitFor(() => expect(openPayDebtButton).toBeEnabled());
+    fireEvent.click(openPayDebtButton);
+
+    const payDebtDialog = await screen.findByRole('dialog', { name: 'Погасить долг' });
+    fireEvent.change(within(payDebtDialog).getByLabelText('Сумма долга'), { target: { value: '20.00' } });
     // Причина остаётся пустой — только плейсхолдер (§7.5). Один клик не должен блокироваться.
-    const payDebtButton = screen.getByRole('button', { name: /Списать долг/ });
+    const payDebtButton = within(payDebtDialog).getByRole('button', { name: 'Списать долг' });
     await waitFor(() => expect(payDebtButton).toBeEnabled());
     fireEvent.click(payDebtButton);
 
@@ -1801,8 +1810,7 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'История' }));
-
+    // tabless: журнал грузится сразу, без перехода на отдельную вкладку
     // первая запись журнала из /ledger (top_up) — описание видно
     expect(await screen.findByText(/Пополнение кошелька/)).toBeInTheDocument();
     // источник — именно /ledger, не recentEntries из wallet-summary
