@@ -1,4 +1,4 @@
-/* Раздел «Касса»: шапка-якорь (зеркало .booking-header) + под-вкладки (зеркало .client-detail-tabs). */
+/* Раздел «Касса»: шапка-якорь (зеркало .booking-header) + под-вкладки раздела. */
 .cash-head {
   box-sizing: border-box;
   flex: none;

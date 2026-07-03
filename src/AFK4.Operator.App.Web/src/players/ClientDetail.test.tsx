@@ -102,7 +102,7 @@ describe('ClientDetail', () => {
   it('fires onOpenPayDebt from the pay-debt button when the client has debt', () => {
     const onOpenPayDebt = mock(() => {});
     renderDetail({ debtMinorUnits: 3500, onOpenPayDebt });
-    fireEvent.click(screen.getByRole('button', { name: /Погасить долг|Списать долг/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Списать долг' }));
     expect(onOpenPayDebt).toHaveBeenCalled();
   });
 

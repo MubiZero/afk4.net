@@ -50,13 +50,13 @@ describe('WalletZone', () => {
 
   it('hides the pay-debt button when there is no debt', () => {
     renderZone({ debtMinorUnits: 0 });
-    expect(screen.queryByRole('button', { name: /Погасить долг|Списать долг/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Списать долг' })).toBeNull();
   });
 
   it('shows the pay-debt button and fires onOpenPayDebt when debt is present', () => {
     const onOpenPayDebt = mock(() => {});
     renderZone({ debtMinorUnits: 3500, onOpenPayDebt });
-    fireEvent.click(screen.getByRole('button', { name: /Погасить долг|Списать долг/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Списать долг' }));
     expect(onOpenPayDebt).toHaveBeenCalled();
   });
 

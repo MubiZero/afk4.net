@@ -29,12 +29,12 @@ describe('PayDebtModal', () => {
   it('fires onSubmit when the form is submitted', () => {
     const onSubmit = mock(() => {});
     renderModal({ onSubmit });
-    fireEvent.click(screen.getByRole('button', { name: /Погасить долг|Списать долг/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Списать долг' }));
     expect(onSubmit).toHaveBeenCalled();
   });
 
   it('disables the submit button while busy', () => {
     renderModal({ busy: true });
-    expect(screen.getByRole('button', { name: /Погасить долг|Списать долг/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Списать долг' })).toBeDisabled();
   });
 });
