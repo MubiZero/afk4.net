@@ -1,62 +1,13 @@
 import { describe, expect, it, afterEach, mock } from 'bun:test';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
-import { ClientDetail, type ClientDetailTab } from './ClientDetail';
-import type { ClientLiveContext } from './playersModel';
+import { ClientDetail } from './ClientDetail';
 import type { PlayerClientItem } from '../operatorHelpers';
 import type { LedgerEntryDto, PackageOptionDto, PlayerPackageDto } from '../operatorApiClients';
 
 afterEach(cleanup);
 
-type DetailProps = {
-  client: PlayerClientItem | null;
-  isLoading: boolean;
-  activeTab: ClientDetailTab;
-  showLedgerRail: boolean;
-  liveContext: ClientLiveContext;
-  balanceMinorUnits: number;
-  debtMinorUnits: number;
-  packageCount: number;
-  currencyCode: string;
-  packages: PlayerPackageDto[];
-  options: PackageOptionDto[];
-  ledgerEntries: LedgerEntryDto[];
-  recentEntries: LedgerEntryDto[];
-  ledgerFilter: string | null;
-  ledgerHasMore: boolean;
-  ledgerLoading: boolean;
-  onLedgerFilterChange: (entryType: string | null) => void;
-  onLedgerLoadMore: () => void;
-  selectedPackageDefinitionId: string;
-  packageBusy: boolean;
-  packagesLoading: boolean;
-  topUpAmount: string;
-  topUpReason: string;
-  debtAmount: string;
-  debtReason: string;
-  canTopUp: boolean;
-  canPayDebt: boolean;
-  canPurchase: boolean;
-  canCreateReservation: boolean;
-  canManageClient: boolean;
-  onSetPin: () => void;
-  onEditProfile: () => void;
-  onToggleActive: () => void;
-  canCorrect: boolean;
-  onCorrect: () => void;
-  canRefund: boolean;
-  onRefund: (entry: LedgerEntryDto) => void;
-  onSelectTab: (tab: ClientDetailTab) => void;
-  onChangeTopUpAmount: (v: string) => void;
-  onChangeTopUpReason: (v: string) => void;
-  onChangeDebtAmount: (v: string) => void;
-  onChangeDebtReason: (v: string) => void;
-  onTopUp: () => void;
-  onPayDebt: () => void;
-  onSelectOption: (id: string) => void;
-  onBuy: () => void;
-  onCreateReservation: () => void;
-};
+type DetailProps = Parameters<typeof ClientDetail>[0];
 
 const client: PlayerClientItem = {
   playerAccountId: 'p1', name: 'Madina S.', status: 'active', balanceMinorUnits: 46000,
@@ -66,17 +17,14 @@ const client: PlayerClientItem = {
 const baseProps: DetailProps = {
   client,
   isLoading: false,
-  activeTab: 'wallet',
-  showLedgerRail: false,
   liveContext: { session: null, nextBooking: null },
   balanceMinorUnits: 46000,
   debtMinorUnits: 0,
   packageCount: 1,
   currencyCode: 'TJS',
-  packages: [],
-  options: [],
-  ledgerEntries: [],
-  recentEntries: [],
+  packages: [] as PlayerPackageDto[],
+  options: [] as PackageOptionDto[],
+  ledgerEntries: [] as LedgerEntryDto[],
   ledgerFilter: null,
   ledgerHasMore: false,
   ledgerLoading: false,
@@ -85,15 +33,25 @@ const baseProps: DetailProps = {
   selectedPackageDefinitionId: '',
   packageBusy: false,
   packagesLoading: false,
-  topUpAmount: '100.00', topUpReason: 'пополнение через кассу',
-  debtAmount: '', debtReason: 'оплата долга через кассу',
-  canTopUp: true, canPayDebt: false, canPurchase: true, canCreateReservation: true,
-  canManageClient: false, onSetPin: () => {}, onEditProfile: () => {}, onToggleActive: () => {},
-  canCorrect: false, onCorrect: () => {},
-  canRefund: false, onRefund: () => {},
-  onSelectTab: () => {}, onChangeTopUpAmount: () => {}, onChangeTopUpReason: () => {},
-  onChangeDebtAmount: () => {}, onChangeDebtReason: () => {}, onTopUp: () => {}, onPayDebt: () => {},
-  onSelectOption: () => {}, onBuy: () => {}, onCreateReservation: () => {}
+  topUpAmount: '',
+  canTopUp: true,
+  canPayDebt: true,
+  canPurchase: true,
+  canCreateReservation: true,
+  canManageClient: false,
+  onSetPin: () => {},
+  onEditProfile: () => {},
+  onToggleActive: () => {},
+  canCorrect: false,
+  onCorrect: () => {},
+  canRefund: false,
+  onRefund: () => {},
+  onChangeTopUpAmount: () => {},
+  onTopUp: () => {},
+  onOpenPayDebt: () => {},
+  onSelectOption: () => {},
+  onBuy: () => {},
+  onCreateReservation: () => {},
 };
 
 const renderDetail = (over: Partial<DetailProps> = {}) =>
@@ -110,28 +68,42 @@ describe('ClientDetail', () => {
     expect(screen.queryByText('Нет выбранного клиента')).toBeNull();
   });
 
-  it('renders the header, chips and reservation button for a selected client', () => {
+  it('renders the header, phone and reservation button for a selected client', () => {
     renderDetail();
     expect(screen.getByText('Madina S.')).toBeInTheDocument();
     expect(screen.getByText('+992 90 555 22 11', { exact: false })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Бронь/ })).toBeInTheDocument();
   });
 
-  it('switches tab content when a tab is clicked', () => {
-    const onSelectTab = mock(() => {});
-    renderDetail({ onSelectTab });
-    fireEvent.click(screen.getByRole('tab', { name: 'История' }));
-    expect(onSelectTab).toHaveBeenCalledWith('history');
+  it('renders wallet zone, packages and history together — no tabs', () => {
+    renderDetail();
+    // нет табов вообще
+    expect(screen.queryByRole('tab')).toBeNull();
+    // все зоны видны одновременно
+    expect(screen.getByLabelText('Сумма пополнения')).toBeInTheDocument();     // WalletZone
+    expect(screen.getByText('История операций')).toBeInTheDocument();          // History panel heading
   });
 
-  it('renders the wallet section on the wallet tab', () => {
-    renderDetail({ activeTab: 'wallet' });
-    expect(screen.getByLabelText('Сумма пополнения')).toBeInTheDocument();
+  it('shows two money stat cards and the package count', () => {
+    renderDetail({ balanceMinorUnits: 45000, debtMinorUnits: 3500, packageCount: 2 });
+    expect(screen.getByText('450 с.')).toHaveClass('ui-money');
+    expect(document.querySelectorAll('.clients-wallet-zone .ui-card--stat')).toHaveLength(2);
+    // «Пакеты» — текстовый узел лейбла, счётчик «2» — соседний span; проверяем весь заголовок.
+    expect(screen.getByText('Пакеты', { exact: false }).closest('.clients-subpanel-head')).toHaveTextContent('2');
   });
 
-  it('renders the history section on the history tab', () => {
-    renderDetail({ activeTab: 'history', ledgerEntries: [], ledgerLoading: false });
-    expect(screen.getByText('Операций нет')).toBeInTheDocument();
+  it('marks the debt stat card as danger only when the client has debt', () => {
+    const { rerender } = renderDetail({ debtMinorUnits: 0 });
+    expect(document.querySelector('.ui-card--stat.is-danger')).toBeNull();
+    rerender(<I18nProvider initialLocale="ru"><ClientDetail {...baseProps} debtMinorUnits={3500} /></I18nProvider>);
+    expect(document.querySelector('.ui-card--stat.is-danger')).not.toBeNull();
+  });
+
+  it('fires onOpenPayDebt from the pay-debt button when the client has debt', () => {
+    const onOpenPayDebt = mock(() => {});
+    renderDetail({ debtMinorUnits: 3500, onOpenPayDebt });
+    fireEvent.click(screen.getByRole('button', { name: /Погасить долг|Списать долг/ }));
+    expect(onOpenPayDebt).toHaveBeenCalled();
   });
 
   it('fires onCreateReservation when the reservation button is clicked', () => {
@@ -141,14 +113,11 @@ describe('ClientDetail', () => {
     expect(onCreateReservation).toHaveBeenCalled();
   });
 
-  it('renders the actions menu when the staff can manage the client', () => {
-    renderDetail({ canManageClient: true });
+  it('renders the actions menu only with manage permission', () => {
+    const { rerender } = renderDetail({ canManageClient: false });
+    expect(screen.queryByRole('button', { name: 'Действия с клиентом' })).toBeNull();
+    rerender(<I18nProvider initialLocale="ru"><ClientDetail {...baseProps} canManageClient /></I18nProvider>);
     expect(screen.getByRole('button', { name: 'Действия с клиентом' })).toBeInTheDocument();
-  });
-
-  it('hides the actions menu without manage permission', () => {
-    renderDetail({ canManageClient: false });
-    expect(screen.queryByRole('button', { name: 'Действия с клиентом' })).not.toBeInTheDocument();
   });
 
   it('shows the deactivated banner for an inactive client', () => {
@@ -164,43 +133,6 @@ describe('ClientDetail', () => {
       }
     });
     expect(screen.getByText(/PC-03/)).toBeInTheDocument();
-    expect(screen.getByText(/14:30/)).toBeInTheDocument();
     expect(screen.getByText(/18:00/)).toBeInTheDocument();
-  });
-
-  it('drops the History tab and wallet mini-feed when the ledger rail is shown', () => {
-    renderDetail({ showLedgerRail: true, recentEntries: [] });
-    expect(screen.queryByRole('tab', { name: 'История' })).toBeNull();
-    expect(screen.queryByText('Последние операции')).toBeNull();
-    // вкладка «Кошелёк» по-прежнему рабочая
-    expect(screen.getByLabelText('Сумма пополнения')).toBeInTheDocument();
-  });
-
-  it('shows two money stat cards and package count on the packages tab (no packages stat card)', () => {
-    renderDetail({ balanceMinorUnits: 45000, debtMinorUnits: 3500, packageCount: 2 });
-    // деньги — mono
-    expect(screen.getByText('450 с.')).toHaveClass('ui-money');
-    // счётчик пакетов на вкладке, а не отдельной стат-карточкой
-    const packagesTab = screen.getByRole('tab', { name: /Пакеты/ });
-    expect(packagesTab).toHaveTextContent('2');
-    // только две стат-карточки (Баланс/Долг) — «Пакеты» больше не карточка
-    expect(document.querySelectorAll('.client-detail-chips .ui-card--stat')).toHaveLength(2);
-  });
-
-  it('hides the packages badge when the package count is zero', () => {
-    renderDetail({ packageCount: 0 });
-    const packagesTab = screen.getByRole('tab', { name: /Пакеты/ });
-    expect(packagesTab.querySelector('.client-tab-count')).toBeNull();
-  });
-
-  it('marks the debt stat card as danger only when the client has debt', () => {
-    const { rerender } = renderDetail({ debtMinorUnits: 0 });
-    expect(document.querySelector('.ui-card--stat.is-danger')).toBeNull();
-    rerender(
-      <I18nProvider initialLocale="ru">
-        <ClientDetail {...baseProps} debtMinorUnits={3500} />
-      </I18nProvider>
-    );
-    expect(document.querySelector('.ui-card--stat.is-danger')).not.toBeNull();
   });
 });

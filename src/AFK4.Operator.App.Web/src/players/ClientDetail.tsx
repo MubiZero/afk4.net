@@ -2,15 +2,13 @@ import { useI18n } from '@afk4/i18n';
 import { CalendarClock } from 'lucide-react';
 import type { PlayerClientItem } from '../operatorHelpers';
 import type { LedgerEntryDto, PackageOptionDto, PlayerPackageDto } from '../operatorApiClients';
-import { EmptyState, Money } from '../operatorPrimitives';
+import { EmptyState } from '../operatorPrimitives';
 import { playerStatusLabel, type ClientLiveContext } from './playersModel';
 import { ClientContextStrip } from './ClientContextStrip';
-import { WalletSection } from './WalletSection';
+import { WalletZone } from './WalletZone';
 import { PackagesSection } from './PackagesSection';
 import { HistorySection } from './HistorySection';
 import { ClientActionsMenu } from './ClientActionsMenu';
-
-export type ClientDetailTab = 'wallet' | 'packages' | 'history';
 
 // Первые две буквы имени как аватар-заглушка.
 function initials(name: string): string {
@@ -22,16 +20,14 @@ function initials(name: string): string {
     .toUpperCase() || '—';
 }
 
+// Центральная карточка-воркспейс (tabless): личность → зона денег → низ в две колонки
+// Пакеты | История. Отдельного правого рейла истории больше нет — журнал живёт правой колонкой
+// карточки. Данные/фильтр/пагинация держит оркестратор.
 export function ClientDetail(props: {
   client: PlayerClientItem | null;
   // Список клиентов ещё грузится: не показываем «нет выбранного клиента», иначе пустая карточка
   // мигает до прихода данных (см. isLoading в ClientList).
   isLoading: boolean;
-  activeTab: ClientDetailTab;
-  // На широком экране полный журнал живёт в постоянном правом рейле: вкладка «История»
-  // и мини-лента «Кошелька» здесь скрываются, чтобы не дублировать его.
-  showLedgerRail: boolean;
-  // Кросс-контекст: играет ли сейчас и ближайшая бронь (пустой объект = ничего не показываем).
   liveContext: ClientLiveContext;
   balanceMinorUnits: number;
   debtMinorUnits: number;
@@ -40,7 +36,6 @@ export function ClientDetail(props: {
   packages: PlayerPackageDto[];
   options: PackageOptionDto[];
   ledgerEntries: LedgerEntryDto[];
-  recentEntries: LedgerEntryDto[];
   ledgerFilter: string | null;
   ledgerHasMore: boolean;
   ledgerLoading: boolean;
@@ -50,9 +45,6 @@ export function ClientDetail(props: {
   packageBusy: boolean;
   packagesLoading: boolean;
   topUpAmount: string;
-  topUpReason: string;
-  debtAmount: string;
-  debtReason: string;
   canTopUp: boolean;
   canPayDebt: boolean;
   canPurchase: boolean;
@@ -65,13 +57,9 @@ export function ClientDetail(props: {
   onCorrect: () => void;
   canRefund: boolean;
   onRefund: (entry: LedgerEntryDto) => void;
-  onSelectTab: (tab: ClientDetailTab) => void;
   onChangeTopUpAmount: (value: string) => void;
-  onChangeTopUpReason: (value: string) => void;
-  onChangeDebtAmount: (value: string) => void;
-  onChangeDebtReason: (value: string) => void;
   onTopUp: () => void;
-  onPayDebt: () => void;
+  onOpenPayDebt: () => void;
   onSelectOption: (packageDefinitionId: string) => void;
   onBuy: () => void;
   onCreateReservation: () => void;
@@ -94,137 +82,102 @@ export function ClientDetail(props: {
     );
   }
 
-  const hasDebt = props.debtMinorUnits > 0;
-  const tabs: Array<{ id: ClientDetailTab; label: string }> = [
-    { id: 'wallet', label: t('op.players.tabs.wallet') },
-    { id: 'packages', label: t('op.players.tabs.packages') },
-    ...(props.showLedgerRail ? [] : [{ id: 'history' as const, label: t('op.players.tabs.history') }]),
-  ];
-  // Если рейл забрал «Историю», а активной была именно она — показываем «Кошелёк».
-  const activeTab: ClientDetailTab = props.showLedgerRail && props.activeTab === 'history' ? 'wallet' : props.activeTab;
-
   return (
     <section className="clients-panel clients-detail-panel">
-      <header className="client-detail-head">
-        <div className="client-avatar">{initials(client.name)}</div>
-        <div className="client-detail-ident">
-          {client.status !== 'active' && (
-            <span className={`client-detail-status is-${client.status}`}>{playerStatusLabel(client.status, t)}</span>
-          )}
-          <strong>{client.name}</strong>
-          <em>{client.phoneNumber || t('op.pos.cart.clientNoPhone')}</em>
-        </div>
-        <div className="client-detail-actions">
-          <button
-            type="button"
-            className="ui-btn"
-            disabled={!props.canCreateReservation}
-            onClick={props.onCreateReservation}
-          >
-            <CalendarClock size={15} aria-hidden="true" />
-            {t('op.players.detail.reservationBtn')}
-          </button>
-          {props.canManageClient && (
-            <ClientActionsMenu
-              isActive={client.status !== 'inactive'}
-              onEditProfile={props.onEditProfile}
-              onSetPin={props.onSetPin}
-              onToggleActive={props.onToggleActive}
-            />
-          )}
-        </div>
-      </header>
-
-      {client.status === 'inactive' && (
-        <div className="client-detail-banner" role="status">
-          {t('op.players.detail.deactivatedBanner')}
-        </div>
-      )}
-
-      <ClientContextStrip context={props.liveContext} />
-
-      <div className="client-detail-chips">
-        <div className="ui-card ui-card--stat">
-          <span>{t('op.players.chip.balance')}</span>
-          <strong><Money minorUnits={props.balanceMinorUnits} currencyCode={props.currencyCode} /></strong>
-        </div>
-        <div className={`ui-card ui-card--stat${hasDebt ? ' is-danger' : ''}`}>
-          <span>{t('op.players.chip.debt')}</span>
-          <strong><Money minorUnits={props.debtMinorUnits} currencyCode={props.currencyCode} /></strong>
-        </div>
-      </div>
-
-      <div className="client-detail-tabs" role="tablist">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            className={`client-detail-tab${activeTab === tab.id ? ' active' : ''}`}
-            onClick={() => props.onSelectTab(tab.id)}
-          >
-            {tab.label}
-            {tab.id === 'packages' && props.packageCount > 0 && (
-              <span className="ui-chip ui-chip--status ui-chip--xs is-neutral client-tab-count" aria-hidden="true">
-                {props.packageCount}
-              </span>
+      <div className="clients-detail-scroll">
+        <header className="client-detail-head">
+          <div className="client-avatar">{initials(client.name)}</div>
+          <div className="client-detail-ident">
+            {client.status !== 'active' && (
+              <span className={`client-detail-status is-${client.status}`}>{playerStatusLabel(client.status, t)}</span>
             )}
-          </button>
-        ))}
-      </div>
+            <strong>{client.name}</strong>
+            <em>{client.phoneNumber || t('op.pos.cart.clientNoPhone')}</em>
+          </div>
+          <div className="client-detail-actions">
+            <button
+              type="button"
+              className="ui-btn"
+              disabled={!props.canCreateReservation}
+              onClick={props.onCreateReservation}
+            >
+              <CalendarClock size={15} aria-hidden="true" />
+              {t('op.players.detail.reservationBtn')}
+            </button>
+            {props.canManageClient && (
+              <ClientActionsMenu
+                isActive={client.status !== 'inactive'}
+                onEditProfile={props.onEditProfile}
+                onSetPin={props.onSetPin}
+                onToggleActive={props.onToggleActive}
+              />
+            )}
+          </div>
+        </header>
 
-      <div className="client-detail-content">
-        {activeTab === 'wallet' && (
-          <WalletSection
-            debtMinorUnits={props.debtMinorUnits}
-            currencyCode={props.currencyCode}
-            recentEntries={props.recentEntries}
-            showRecent={!props.showLedgerRail}
-            onShowHistory={() => props.onSelectTab('history')}
-            topUpAmount={props.topUpAmount}
-            topUpReason={props.topUpReason}
-            debtAmount={props.debtAmount}
-            debtReason={props.debtReason}
-            canTopUp={props.canTopUp}
-            canPayDebt={props.canPayDebt}
-            onChangeTopUpAmount={props.onChangeTopUpAmount}
-            onChangeTopUpReason={props.onChangeTopUpReason}
-            onChangeDebtAmount={props.onChangeDebtAmount}
-            onChangeDebtReason={props.onChangeDebtReason}
-            onTopUp={props.onTopUp}
-            onPayDebt={props.onPayDebt}
-            canCorrect={props.canCorrect}
-            onCorrect={props.onCorrect}
-          />
+        {client.status === 'inactive' && (
+          <div className="client-detail-banner" role="status">
+            {t('op.players.detail.deactivatedBanner')}
+          </div>
         )}
-        {activeTab === 'packages' && (
-          <PackagesSection
-            packages={props.packages}
-            options={props.options}
-            selectedPackageDefinitionId={props.selectedPackageDefinitionId}
-            balanceMinorUnits={props.balanceMinorUnits}
-            currencyCode={props.currencyCode}
-            canPurchase={props.canPurchase}
-            busy={props.packageBusy}
-            loading={props.packagesLoading}
-            onSelectOption={props.onSelectOption}
-            onBuy={props.onBuy}
-          />
-        )}
-        {activeTab === 'history' && (
-          <HistorySection
-            entries={props.ledgerEntries}
-            currencyCode={props.currencyCode}
-            activeFilter={props.ledgerFilter}
-            onFilterChange={props.onLedgerFilterChange}
-            hasMore={props.ledgerHasMore}
-            onLoadMore={props.onLedgerLoadMore}
-            loading={props.ledgerLoading}
-            canRefund={props.canRefund}
-            onRefund={props.onRefund}
-          />
-        )}
+
+        <ClientContextStrip context={props.liveContext} />
+
+        <WalletZone
+          balanceMinorUnits={props.balanceMinorUnits}
+          debtMinorUnits={props.debtMinorUnits}
+          currencyCode={props.currencyCode}
+          topUpAmount={props.topUpAmount}
+          canTopUp={props.canTopUp}
+          onChangeTopUpAmount={props.onChangeTopUpAmount}
+          onTopUp={props.onTopUp}
+          canPayDebt={props.canPayDebt}
+          onOpenPayDebt={props.onOpenPayDebt}
+          canCorrect={props.canCorrect}
+          onCorrect={props.onCorrect}
+        />
+
+        <div className="clients-detail-split">
+          <section className="clients-subpanel">
+            <header className="clients-subpanel-head">
+              <span>{t('op.players.tabs.packages')}</span>
+              {props.packageCount > 0 && (
+                <span className="ui-chip ui-chip--status ui-chip--xs is-neutral" aria-hidden="true">
+                  {props.packageCount}
+                </span>
+              )}
+            </header>
+            <PackagesSection
+              packages={props.packages}
+              options={props.options}
+              selectedPackageDefinitionId={props.selectedPackageDefinitionId}
+              balanceMinorUnits={props.balanceMinorUnits}
+              currencyCode={props.currencyCode}
+              canPurchase={props.canPurchase}
+              busy={props.packageBusy}
+              loading={props.packagesLoading}
+              onSelectOption={props.onSelectOption}
+              onBuy={props.onBuy}
+            />
+          </section>
+
+          <section className="clients-subpanel">
+            <header className="clients-subpanel-head">
+              <span>{t('op.players.ledgerRail.title')}</span>
+            </header>
+            <HistorySection
+              entries={props.ledgerEntries}
+              currencyCode={props.currencyCode}
+              activeFilter={props.ledgerFilter}
+              onFilterChange={props.onLedgerFilterChange}
+              hasMore={props.ledgerHasMore}
+              onLoadMore={props.onLedgerLoadMore}
+              loading={props.ledgerLoading}
+              canRefund={props.canRefund}
+              onRefund={props.onRefund}
+            />
+          </section>
+        </div>
       </div>
     </section>
   );
