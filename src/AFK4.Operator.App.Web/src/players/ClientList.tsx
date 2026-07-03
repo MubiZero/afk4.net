@@ -99,7 +99,7 @@ export function ClientList({
                     </span>
                   )}
                 </strong>
-                <em className="client-row-detail">{client.detail}</em>
+                <em className="client-row-detail">{client.phoneNumber || t('op.pos.cart.clientNoPhone')}</em>
               </div>
               <div className="client-row-figures">
                 <Money minorUnits={client.balanceMinorUnits} currencyCode={currencyCode} />

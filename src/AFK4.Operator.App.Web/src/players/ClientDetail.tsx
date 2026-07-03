@@ -84,7 +84,7 @@ export function ClientDetail(props: {
 
   return (
     <section className="clients-panel clients-detail-panel">
-      <div className="clients-detail-scroll">
+      <div className="clients-detail-top">
         <header className="client-detail-head">
           <div className="client-avatar">{initials(client.name)}</div>
           <div className="client-detail-ident">
@@ -93,6 +93,7 @@ export function ClientDetail(props: {
             )}
             <strong>{client.name}</strong>
             <em>{client.phoneNumber || t('op.pos.cart.clientNoPhone')}</em>
+            <ClientContextStrip context={props.liveContext} />
           </div>
           <div className="client-detail-actions">
             <button
@@ -121,8 +122,6 @@ export function ClientDetail(props: {
           </div>
         )}
 
-        <ClientContextStrip context={props.liveContext} />
-
         <WalletZone
           balanceMinorUnits={props.balanceMinorUnits}
           debtMinorUnits={props.debtMinorUnits}
@@ -136,17 +135,19 @@ export function ClientDetail(props: {
           canCorrect={props.canCorrect}
           onCorrect={props.onCorrect}
         />
+      </div>
 
-        <div className="clients-detail-split">
-          <section className="clients-subpanel">
-            <header className="clients-subpanel-head">
-              <span>{t('op.players.tabs.packages')}</span>
-              {props.packageCount > 0 && (
-                <span className="ui-chip ui-chip--status ui-chip--xs is-neutral" aria-hidden="true">
-                  {props.packageCount}
-                </span>
-              )}
-            </header>
+      <div className="clients-detail-split">
+        <section className="clients-subpanel">
+          <header className="clients-subpanel-head">
+            <span>{t('op.players.tabs.packages')}</span>
+            {props.packageCount > 0 && (
+              <span className="ui-chip ui-chip--status ui-chip--xs is-neutral" aria-hidden="true">
+                {props.packageCount}
+              </span>
+            )}
+          </header>
+          <div className="clients-subpanel-body">
             <PackagesSection
               packages={props.packages}
               options={props.options}
@@ -159,12 +160,14 @@ export function ClientDetail(props: {
               onSelectOption={props.onSelectOption}
               onBuy={props.onBuy}
             />
-          </section>
+          </div>
+        </section>
 
-          <section className="clients-subpanel">
-            <header className="clients-subpanel-head">
-              <span>{t('op.players.ledgerRail.title')}</span>
-            </header>
+        <section className="clients-subpanel">
+          <header className="clients-subpanel-head">
+            <span>{t('op.players.ledgerRail.title')}</span>
+          </header>
+          <div className="clients-subpanel-body">
             <HistorySection
               entries={props.ledgerEntries}
               currencyCode={props.currencyCode}
@@ -176,8 +179,8 @@ export function ClientDetail(props: {
               canRefund={props.canRefund}
               onRefund={props.onRefund}
             />
-          </section>
-        </div>
+          </div>
+        </section>
       </div>
     </section>
   );

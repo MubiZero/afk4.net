@@ -254,21 +254,18 @@
 }
 
 /* ── Карточка (detail) ──────────────────────────────────────────────────────── */
+/* Карточка-воркспейс: шапка+деньги фиксированы сверху (.clients-detail-top), ниже
+   .clients-detail-split заполняет высоту, каждая колонка (Пакеты/История) скроллит своё
+   тело — история не тянет всю карточку вниз. Контент занимает всю ширину панели. */
 .clients-detail-panel {
   gap: var(--space-3);
+  padding: var(--space-3);
 }
 
-/* Карточка-воркспейс: единый скролл содержимого; общая макс-ширина контента, чтобы карточка
-   реально использовала освободившуюся ширину (история переехала внутрь), но строки не растягивались
-   бесконечно. Значение подобрать на превью. */
-.clients-detail-scroll {
-  --clients-card-max: 1320px;
+.clients-detail-top {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  overflow-y: auto;
-  min-height: 0;
-  padding: var(--space-3);
 }
 
 .client-detail-head {
@@ -276,7 +273,6 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-3);
-  max-width: var(--clients-card-max);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   padding: var(--space-3);
@@ -338,56 +334,55 @@
   gap: 8px;
 }
 
-/* Зона денег: широко — Баланс | Долг | быстрое-пополнение в ряд, вторичные кнопки под ними;
-   узко — всё в стопку. Тег-селектор `button` тут НЕ использовать (каскад-ловушка с .ui-btn). */
+/* Зона денег: ряд ИНФОРМАЦИИ (Баланс | Долг) отдельно от ряда ДЕЙСТВИЙ (пополнение +
+   Погасить долг + Коррекция) — информация и действие не в одной строке.
+   Тег-селектор `button` тут НЕ использовать (каскад-ловушка с .ui-btn). */
 .clients-wallet-zone {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(300px, 1.3fr);
-  grid-template-areas:
-    "balance debt quickpay"
-    "secondary secondary secondary";
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
-  max-width: var(--clients-card-max);
 }
-.clients-wallet-balance { grid-area: balance; }
-.clients-wallet-debt { grid-area: debt; }
+/* Инфо-плитки компактные (не растягиваются на всю ширину — иначе пусто);
+   рабочую ширину заполняет .clients-detail-split ниже. */
+.clients-wallet-info {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 380px));
+  gap: var(--space-3);
+}
+.clients-wallet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
 .clients-wallet-quickpay {
-  grid-area: quickpay;
   display: flex;
   align-items: flex-end;
   gap: var(--space-2);
 }
-.clients-wallet-quickpay .ui-field { flex: 1; }
-.clients-wallet-secondary {
-  grid-area: secondary;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+.clients-wallet-quickpay .ui-field { width: 240px; }
+
+@media (max-width: 720px) {
+  .clients-wallet-info { grid-template-columns: minmax(0, 1fr); }
+  .clients-wallet-quickpay { flex: 1; }
+  .clients-wallet-quickpay .ui-field { width: auto; flex: 1; }
 }
 
-@media (max-width: 1100px) {
-  .clients-wallet-zone {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "balance" "debt" "quickpay" "secondary";
-  }
-}
-
-/* Низ карточки: Пакеты | История рядом; узко — в стопку (Пакеты, затем История). */
+/* Низ карточки: Пакеты | История рядом, заполняют оставшуюся высоту; каждая колонка
+   скроллит своё тело (история не тянет карточку вниз). */
 .clients-detail-split {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-3);
-  align-items: start;
-  max-width: var(--clients-card-max);
-}
-@media (max-width: 1100px) {
-  .clients-detail-split { grid-template-columns: minmax(0, 1fr); }
 }
 
 .clients-subpanel {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   background: var(--surface-card);
@@ -401,9 +396,21 @@
   font-size: 13px;
   font-weight: 700;
 }
-.clients-subpanel > .clients-packages-section,
-.clients-subpanel > .clients-history-section {
+.clients-subpanel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: 0 var(--space-3) var(--space-3);
+}
+
+/* Узкое окно: колонки в стопку, скроллит вся карточка (два вложенных скролла неудобны). */
+@media (max-width: 1100px) {
+  .clients-detail-panel { overflow-y: auto; }
+  .clients-detail-split {
+    flex: none;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .clients-subpanel-body { overflow: visible; }
 }
 
 /* Форма диалога погашения долга (PayDebtModal). Без тег-селектора button (каскад-ловушка). */
@@ -904,7 +911,7 @@
 }
 
 .client-detail-banner {
-  margin: 0 0 12px;
+  margin: 0;
   padding: 10px 14px;
   border: 1px solid var(--danger);
   border-radius: 9px;
@@ -913,13 +920,23 @@
   font-size: 13px;
 }
 
-/* ── Кросс-контекст профиля: «играет сейчас» / «ближайшая бронь» ──────────────── */
-.client-context-strip {
+/* ── Кросс-контекст профиля: «играет сейчас» / «ближайшая бронь» — компактная мета-строка
+   внутри карточки-личности (под телефоном), в стиле проекта (не пилюли). ─────────────── */
+.client-context-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
-  max-width: 1040px;
-  margin: 0 var(--space-3);
+  gap: 2px var(--space-3);
+  margin-top: 3px;
+  font-size: 11px;
+}
+.client-context-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-tertiary);
+}
+.client-context-item.is-live {
+  color: var(--accent-text);
 }
 
 .clients-edit-form,
