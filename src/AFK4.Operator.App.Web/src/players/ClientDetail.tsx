@@ -24,6 +24,9 @@ function initials(name: string): string {
 
 export function ClientDetail(props: {
   client: PlayerClientItem | null;
+  // Список клиентов ещё грузится: не показываем «нет выбранного клиента», иначе пустая карточка
+  // мигает до прихода данных (см. isLoading в ClientList).
+  isLoading: boolean;
   activeTab: ClientDetailTab;
   // На широком экране полный журнал живёт в постоянном правом рейле: вкладка «История»
   // и мини-лента «Кошелька» здесь скрываются, чтобы не дублировать его.
@@ -77,12 +80,16 @@ export function ClientDetail(props: {
   const { client } = props;
 
   if (client === null) {
+    // Пока грузимся — держим панель пустой (без layout-jump), но без «нет выбранного клиента»,
+    // чтобы не мигала на входе. Empty-state показываем только когда загрузка устаканилась.
     return (
-      <section className="clients-panel clients-detail-panel">
-        <EmptyState
-          title={t('op.players.profile.empty')}
-          description={t('op.players.profile.emptyNote')}
-        />
+      <section className="clients-panel clients-detail-panel" aria-hidden={props.isLoading || undefined}>
+        {!props.isLoading && (
+          <EmptyState
+            title={t('op.players.profile.empty')}
+            description={t('op.players.profile.emptyNote')}
+          />
+        )}
       </section>
     );
   }

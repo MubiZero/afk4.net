@@ -33,6 +33,7 @@ const renderList = (over: Partial<Parameters<typeof ClientList>[0]> = {}) => {
         selectedClientId="p1"
         search=""
         showSkeleton={false}
+        isLoading={false}
         emptyDescription="По текущему поиску клиентов нет."
         currencyCode="TJS"
         canCreatePlayer
@@ -76,6 +77,13 @@ describe('ClientList', () => {
   it('shows the EmptyState when there are no clients', () => {
     renderList({ clients: [] });
     expect(screen.getByText('Клиенты не найдены')).toBeInTheDocument();
+  });
+
+  it('does NOT flash the EmptyState while the list is still loading', () => {
+    // На входе клиенты ещё пусты, а скелетон отложен на 180ms — раньше в этот зазор мигало
+    // «Клиенты не найдены». Пока loadStatus==='loading' пустое состояние не показываем.
+    renderList({ clients: [], isLoading: true });
+    expect(screen.queryByText('Клиенты не найдены')).toBeNull();
   });
 
   it('shows skeleton rows when loading', () => {

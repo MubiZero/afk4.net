@@ -19,8 +19,8 @@ import {
   resolveReasonInput
 } from './operatorHelpers';
 import { fixturePlayers, playerStatusLabel, projectPlayerClient, buildClientSegments, buildClientOverview, buildClientContext, matchesSegment, type PlayerClientItem, type ClientSegmentId, type ClientLiveContext } from './players/playersModel';
+import { fetchPlayersData, playersSnapshotCache } from './players/playersSnapshot';
 import { FeedbackNotice, StateFlag } from './operatorPrimitives';
-import { useDeferredFlag } from './useDeferredFlag';
 import { useMediaQuery } from './useMediaQuery';
 import { ClientList } from './players/ClientList';
 import { ClientDetail, type ClientDetailTab } from './players/ClientDetail';
@@ -39,16 +39,19 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   // ≥1280px: полный журнал уезжает в постоянный правый рейл (третья колонка),
   // карточка остаётся читаемой шириной. Уже это переключает и раскладку, и загрузку данных.
   const wideLayout = useMediaQuery('(min-width: 1280px)');
+  // Снимок из кэша (если раздел уже открывали в этой сессии на этом филиале) → мгновенный возврат.
+  const cacheKey = backend?.branchId ?? null;
+  const cachedSnapshot = cacheKey !== null ? playersSnapshotCache.get(cacheKey) : undefined;
   const [clientSearch, setClientSearch] = useState('');
   const [activeSegment, setActiveSegment] = useState<ClientSegmentId>('all');
   const [activeTab, setActiveTab] = useState<ClientDetailTab>('wallet');
   const [newClientOpen, setNewClientOpen] = useState(false);
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(cachedSnapshot?.selectedId ?? null);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
-  const [loadStatus, setLoadStatus] = useState<LoadStatus>(backend === null ? 'fixture' : 'loading');
-  const [clients, setClients] = useState<PlayerClientItem[]>(() => backend === null ? fixturePlayers(currencyCode, t) : []);
+  const [loadStatus, setLoadStatus] = useState<LoadStatus>(backend === null ? 'fixture' : cachedSnapshot ? 'backend' : 'loading');
+  const [clients, setClients] = useState<PlayerClientItem[]>(() => backend === null ? fixturePlayers(currencyCode, t) : cachedSnapshot?.clients ?? []);
   const [walletSummary, setWalletSummary] = useState<WalletSummaryDto | null>(null);
-  const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
+  const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>(cachedSnapshot?.options ?? []);
   const [selectedPackageDefinitionId, setSelectedPackageDefinitionId] = useState('');
   const [selectedClientPackages, setSelectedClientPackages] = useState<PlayerPackageDto[]>([]);
   const [walletTopUpAmount, setWalletTopUpAmount] = useState('');
@@ -90,27 +93,32 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
     let disposed = false;
     const loadPlayers = async () => {
-      setLoadStatus('loading');
+      if (!cachedSnapshot) {
+        // Холодный вход (данных ещё нет) → показываем скелетон. Тёплый возврат/поиск при уже
+        // показанных данных ревалидируем молча, не сбрасывая экран в загрузку.
+        setLoadStatus('loading');
+      }
       try {
-        const apiClients = createAuthenticatedOperatorClients(backend.config, backend.session);
-        const players = await apiClients.players.searchPlayers(backend.branchId, clientSearch, 25, true);
-        const nextPackageOptions = hasPermission(backend.session, permissionNames.viewPackages) || hasPermission(backend.session, permissionNames.purchasePackage)
-          ? await apiClients.settings.getPackageOptions(backend.branchId).catch(() => [])
-          : [];
+        const { clients: nextClients, options: nextOptions } = await fetchPlayersData(backend, t, clientSearch);
         if (disposed) {
           return;
         }
 
-        const nextClients = Array.isArray(players) ? players.map((p) => projectPlayerClient(p, t)) : [];
-        const nextOptions = Array.isArray(nextPackageOptions) ? nextPackageOptions : [];
-        setClients(nextClients.length > 0 ? nextClients : []);
+        setClients(nextClients);
         setPackageOptions(nextOptions);
         setSelectedPackageDefinitionId((current) => current && nextOptions.some((option) => readString(option, 'packageDefinitionId') === current)
           ? current
           : readString(nextOptions[0], 'packageDefinitionId'));
-        setSelectedClientId((current) => current && nextClients.some((client) => client.playerAccountId === current)
-          ? current
-          : nextClients[0]?.playerAccountId ?? null);
+        setSelectedClientId((current) => {
+          const resolved = current && nextClients.some((client) => client.playerAccountId === current)
+            ? current
+            : nextClients[0]?.playerAccountId ?? null;
+          // Кладём удачный снимок в кэш → следующий заход в раздел мгновенный (без ре-фетча с нуля).
+          if (cacheKey !== null) {
+            playersSnapshotCache.set(cacheKey, { clients: nextClients, options: nextOptions, selectedId: resolved });
+          }
+          return resolved;
+        });
         setLoadStatus('backend');
       } catch (error) {
         if (!disposed) {
@@ -676,7 +684,9 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     }
   };
 
-  const showSkeleton = useDeferredFlag(loadStatus === 'loading');
+  // Скелетон — только на холодном входе (данных ещё нет). Тёплый возврат/поиск держит текущий список,
+  // поэтому отложенный анти-флэш здесь не нужен: показываем скелетон сразу, без пустого экрана.
+  const showSkeleton = loadStatus === 'loading' && clients.length === 0;
   const emptyDescription = loadStatus === 'backend' ? t('op.players.list.emptyBackend') : t('op.players.list.emptyConnect');
 
   const submitNewClient = async () => {
@@ -752,6 +762,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           selectedClientId={selectedClient?.playerAccountId ?? null}
           search={clientSearch}
           showSkeleton={showSkeleton}
+          isLoading={loadStatus === 'loading'}
           emptyDescription={emptyDescription}
           currencyCode={currencyCode}
           canCreatePlayer={canCreatePlayer}
@@ -763,6 +774,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
         <ClientDetail
           client={selectedClient}
+          isLoading={loadStatus === 'loading'}
           activeTab={activeTab}
           showLedgerRail={showLedgerRail}
           liveContext={liveContext}

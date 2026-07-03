@@ -10,6 +10,7 @@ afterEach(cleanup);
 
 type DetailProps = {
   client: PlayerClientItem | null;
+  isLoading: boolean;
   activeTab: ClientDetailTab;
   showLedgerRail: boolean;
   liveContext: ClientLiveContext;
@@ -64,6 +65,7 @@ const client: PlayerClientItem = {
 
 const baseProps: DetailProps = {
   client,
+  isLoading: false,
   activeTab: 'wallet',
   showLedgerRail: false,
   liveContext: { session: null, nextBooking: null },
@@ -101,6 +103,11 @@ describe('ClientDetail', () => {
   it('shows the empty state when no client is selected', () => {
     renderDetail({ client: null });
     expect(screen.getByText('Нет выбранного клиента')).toBeInTheDocument();
+  });
+
+  it('does NOT flash the empty state while the list is still loading', () => {
+    renderDetail({ client: null, isLoading: true });
+    expect(screen.queryByText('Нет выбранного клиента')).toBeNull();
   });
 
   it('renders the header, chips and reservation button for a selected client', () => {

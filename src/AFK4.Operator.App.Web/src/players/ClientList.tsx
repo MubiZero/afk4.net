@@ -12,6 +12,7 @@ export function ClientList({
   selectedClientId,
   search,
   showSkeleton,
+  isLoading,
   emptyDescription,
   currencyCode,
   canCreatePlayer,
@@ -26,6 +27,7 @@ export function ClientList({
   selectedClientId: string | null;
   search: string;
   showSkeleton: boolean;
+  isLoading: boolean;
   emptyDescription: string;
   currencyCode: string;
   canCreatePlayer: boolean;
@@ -77,13 +79,7 @@ export function ClientList({
               <Skeleton key={index} className="client-row-skel" />
             ))}
           </div>
-        ) : clients.length === 0 ? (
-          <EmptyState
-            icon={<Users size={20} aria-hidden="true" />}
-            title={t('op.players.list.emptyTitle')}
-            description={emptyDescription}
-          />
-        ) : (
+        ) : clients.length > 0 ? (
           clients.map((client) => (
             <button
               key={client.playerAccountId ?? client.name}
@@ -110,6 +106,12 @@ export function ClientList({
               </div>
             </button>
           ))
+        ) : isLoading ? null : (
+          <EmptyState
+            icon={<Users size={20} aria-hidden="true" />}
+            title={t('op.players.list.emptyTitle')}
+            description={emptyDescription}
+          />
         )}
       </div>
     </section>
