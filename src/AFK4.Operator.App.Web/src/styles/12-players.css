@@ -93,20 +93,11 @@
 /* Layout: список фиксированной ширины + карточка на остаток; тянется на остаток высоты. */
 .clients-layout {
   display: grid;
-  grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
   gap: 10px;
   flex: 1;
   min-height: 0;
   overflow: hidden;
-}
-
-/* Широкий экран: третья колонка — рейл с полным журналом. Карточка держится
-   читаемой шириной (≤680), рейл забирает остаток, чтобы пространство справа
-   не пустовало (зеркало того, как «Карта»/«Брони» используют всю ширину). */
-@media (min-width: 1280px) {
-  .clients-layout.has-ledger-rail {
-    grid-template-columns: minmax(0, 320px) minmax(480px, 680px) minmax(0, 1fr);
-  }
 }
 
 .clients-panel {
@@ -267,13 +258,25 @@
   gap: var(--space-3);
 }
 
+/* Карточка-воркспейс: единый скролл содержимого; общая макс-ширина контента, чтобы карточка
+   реально использовала освободившуюся ширину (история переехала внутрь), но строки не растягивались
+   бесконечно. Значение подобрать на превью. */
+.clients-detail-scroll {
+  --clients-card-max: 1320px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-y: auto;
+  min-height: 0;
+  padding: var(--space-3);
+}
+
 .client-detail-head {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-3);
-  max-width: 1040px;
-  margin: var(--space-3) var(--space-3) 0;
+  max-width: var(--clients-card-max);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   padding: var(--space-3);
@@ -335,165 +338,79 @@
   gap: 8px;
 }
 
-/* Сводка-чипы — на общую рабочую сетку (2 равные колонки, одна кромка с телом вкладок). */
-.client-detail-chips {
+/* Зона денег: широко — Баланс | Долг | быстрое-пополнение в ряд, вторичные кнопки под ними;
+   узко — всё в стопку. Тег-селектор `button` тут НЕ использовать (каскад-ловушка с .ui-btn). */
+.clients-wallet-zone {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-2);
-  max-width: 1040px;
-  padding: 0 var(--space-3);
-}
-
-.client-detail-tabs {
-  display: flex;
-  gap: var(--space-1);
-  max-width: 1040px;
-  margin: 0 var(--space-3);
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.client-detail-tab {
-  display: inline-flex;
-  align-items: center;
-  height: var(--control-md);
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 0 10px;
-  transition: color 100ms ease, border-color 100ms ease;
-}
-
-.client-detail-tab:hover {
-  color: var(--text-primary);
-}
-
-.client-detail-tab:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: -2px;
-}
-
-.client-detail-tab.active {
-  color: var(--accent-bright);
-  border-bottom-color: var(--accent);
-}
-
-.client-tab-count {
-  margin-left: var(--space-2);
-}
-
-.client-detail-content {
-  overflow-y: auto;
-  min-height: 0;
-  max-width: 1040px;
-  /* padding-top — запас под hover-подъём верхнего ряда чипов (иначе translateY срезается кромкой прокрутки) */
-  padding: var(--space-1) var(--space-3) var(--space-3);
-}
-
-/* ── Кошелёк: слева действия, справа мини-лента последних операций ──────────────
-   Баланс/долг живут в чипах-сводке — здесь не дублируем. */
-.clients-wallet-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  gap: var(--space-4);
-  align-items: stretch;
-}
-
-.clients-wallet-actions {
-  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(300px, 1.3fr);
+  grid-template-areas:
+    "balance debt quickpay"
+    "secondary secondary secondary";
   gap: var(--space-3);
-  align-content: start;
+  max-width: var(--clients-card-max);
+}
+.clients-wallet-balance { grid-area: balance; }
+.clients-wallet-debt { grid-area: debt; }
+.clients-wallet-quickpay {
+  grid-area: quickpay;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+.clients-wallet-quickpay .ui-field { flex: 1; }
+.clients-wallet-secondary {
+  grid-area: secondary;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
-/* Узкое окно — колонки в стопку (история под действиями) */
-@media (max-width: 1024px) {
-  .clients-wallet-layout {
+@media (max-width: 1100px) {
+  .clients-wallet-zone {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "balance" "debt" "quickpay" "secondary";
   }
 }
 
-/* Широкий экран: мини-ленты нет (её заменил рейл), кошелёк — одна колонка действий. */
-.clients-wallet-layout.is-solo {
-  grid-template-columns: minmax(0, 1fr);
+/* Низ карточки: Пакеты | История рядом; узко — в стопку (Пакеты, затем История). */
+.clients-detail-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  max-width: var(--clients-card-max);
+}
+@media (max-width: 1100px) {
+  .clients-detail-split { grid-template-columns: minmax(0, 1fr); }
 }
 
-/* Блок погашения долга — мягкий красный акцент в рамке, чтобы отличался от пополнения */
-.clients-wallet-form-debt {
-  border-color: var(--danger-soft-border);
-}
-
-/* Мини-лента последних операций (read-only, со ссылкой на полную «Историю») */
-.clients-wallet-recent {
+.clients-subpanel {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  height: 100%;
-  border: 1px solid var(--border-default);
+  min-width: 0;
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
-  padding: var(--space-3);
   background: var(--surface-card);
 }
-
-.clients-wallet-recent-head {
+.clients-subpanel-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-2);
   color: var(--text-primary);
-}
-
-.clients-wallet-recent-head strong {
   font-size: 13px;
   font-weight: 700;
 }
-
-.clients-wallet-recent-empty {
-  margin: 0;
-  color: var(--text-tertiary);
-  font-size: 12px;
+.clients-subpanel > .clients-packages-section,
+.clients-subpanel > .clients-history-section {
+  padding: 0 var(--space-3) var(--space-3);
 }
 
-.clients-wallet-recent-list {
-  margin: 0;
-  padding: 0;
-}
-
-.clients-wallet-recent-link {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  align-self: flex-start;
-  margin-top: auto;
-  padding: 4px 2px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--accent-bright);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.clients-wallet-recent-link:hover {
-  color: var(--accent-hover);
-}
-
-.clients-wallet-recent-link:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.clients-wallet-form {
-  display: grid;
-  gap: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  background: var(--surface-card);
-}
-
-.clients-wallet-form.is-muted {
-  opacity: 0.62;
+/* Форма диалога погашения долга (PayDebtModal). Без тег-селектора button (каскад-ловушка). */
+.clients-paydebt-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
 .clients-section-title {
@@ -502,22 +419,6 @@
   font-weight: 700;
 }
 
-/* Сумма + причина в один ряд: форма перестаёт растягиваться на 4 строки полей.
-   Сумма — узкая колонка (число короткое), причина — широкая (текст). */
-.clients-wallet-fields {
-  display: grid;
-  grid-template-columns: minmax(110px, 0.8fr) minmax(0, 1.2fr);
-  gap: var(--space-3);
-}
-
-/* Совсем узко — поля в стопку, чтобы не зажимались. */
-@media (max-width: 560px) {
-  .clients-wallet-fields {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.clients-wallet-form label,
 .clients-package-select,
 .clients-new-form label,
 .clients-correction-form label,
@@ -743,7 +644,6 @@
 /* ── Reduced motion ───────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .clients-segment button,
-  .client-detail-tab,
   .clients-primary-action,
   .clients-new-client-btn {
     transition: none;
@@ -1046,28 +946,4 @@
 
 .panel-modal.danger .panel-modal-head {
   border-bottom-color: var(--danger);
-}
-
-/* ── Рейл журнала операций (третья колонка, ≥1280px) ───────────────────────── */
-.clients-ledger-rail-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex: none;
-  padding: var(--space-3) var(--space-3) var(--space-2);
-  border-bottom: 1px solid var(--border-soft);
-  color: var(--text-primary);
-}
-
-.clients-ledger-rail-head strong {
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.clients-ledger-rail-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  /* padding-top — запас под hover-подъём фильтр-чипов (translateY иначе срезается кромкой прокрутки) */
-  padding: var(--space-3);
 }

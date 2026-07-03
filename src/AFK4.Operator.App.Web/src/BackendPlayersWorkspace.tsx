@@ -51,7 +51,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [selectedPackageDefinitionId, setSelectedPackageDefinitionId] = useState('');
   const [selectedClientPackages, setSelectedClientPackages] = useState<PlayerPackageDto[]>([]);
   const [walletTopUpAmount, setWalletTopUpAmount] = useState('');
-  const [walletTopUpReason, setWalletTopUpReason] = useState('');
+  const [walletTopUpReason] = useState('');
   const [debtPaymentAmount, setDebtPaymentAmount] = useState('');
   const [debtPaymentReason, setDebtPaymentReason] = useState('');
   const [newPlayerName, setNewPlayerName] = useState('');
@@ -367,12 +367,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     && Boolean(selectedClient.playerAccountId)
     && !isSelectedInactive
     && hasPermission(backend.session, permissionNames.refundLedgerEntry);
-  const canSetClientPin = backend !== null
-    && selectedClient !== null
-    && selectedClient.source === 'backend'
-    && Boolean(selectedClient.playerAccountId)
-    && !isSelectedInactive
-    && hasPermission(backend.session, permissionNames.createPlayerAccount);
   const canManageClient = backend !== null
     && selectedClient !== null
     && selectedClient.source === 'backend'
