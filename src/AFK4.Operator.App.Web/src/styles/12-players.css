@@ -964,3 +964,260 @@
 .panel-modal.danger .panel-modal-head {
   border-bottom-color: var(--danger);
 }
+
+/* ── ClientsTable (mock-v7): широкая таблица клиентов, замена master-списка ClientList.
+   Разметка/классы 1:1 из scratchpad/clients-redesign-mock-v7.html; модификаторы строки
+   (debt/selected/inactive) скоуплены к .ctable-row — в проекте уже есть голые .debt/.selected
+   в другом контексте (client-row/06-map-grid/11-pos), голый селектор их перебил бы. ──────── */
+.table-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+
+.table-toolbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.tt-search {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  max-width: 360px;
+  height: 34px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 0 12px;
+  background: var(--surface-sunken);
+  color: var(--text-quaternary);
+  font-size: 13px;
+}
+
+.tt-search:focus-within {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.tt-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.tt-search input::placeholder {
+  color: var(--text-quaternary);
+}
+
+.tt-segs {
+  display: flex;
+  gap: 8px;
+}
+
+.tt-spacer {
+  flex: 1;
+}
+
+.ctable-grid {
+  grid-template-columns: minmax(200px, 2fr) 96px 84px minmax(140px, 1.25fr) 96px;
+}
+
+.ctable-head {
+  display: grid;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ctable-head .r {
+  justify-self: end;
+}
+
+.ctable-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.ctable-row {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 58px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-soft);
+  border-left: 3px solid transparent;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ctable-row:hover {
+  background: var(--surface-hover);
+}
+
+.ctable-row:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.ctable-row.debt {
+  border-left-color: var(--danger);
+}
+
+.ctable-row.selected {
+  border-left-color: var(--accent);
+  background: var(--surface-hover);
+}
+
+.ctable-row.inactive {
+  opacity: 0.5;
+}
+
+.ctable-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 16px;
+}
+
+.ctable-row-skel {
+  height: 58px;
+  border-radius: 6px;
+}
+
+.cc-client {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.cc-av {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cc-id {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cc-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cc-name .nm {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cc-phone {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.cc-tag {
+  flex: none;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  padding: 1px 6px;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cc-num {
+  justify-self: end;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cc-num.debt {
+  color: var(--danger-text);
+}
+
+.cc-num.zero {
+  color: var(--text-quaternary);
+}
+
+.cc-now {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.cc-now.live {
+  color: var(--accent-text);
+}
+
+.cc-now.none {
+  color: var(--text-quaternary);
+}
+
+.cc-now svg {
+  flex: none;
+}
+
+.cc-now .txt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cc-visit {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
