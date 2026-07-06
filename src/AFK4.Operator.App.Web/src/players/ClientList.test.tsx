@@ -10,7 +10,8 @@ afterEach(cleanup);
 const client = (over: Partial<PlayerClientItem>): PlayerClientItem => ({
   playerAccountId: 'p1', name: 'Madina S.', status: 'active', balanceMinorUnits: 46000,
   debtMinorUnits: 0, last: '', tone: 'active', detail: '+992 90 555 22 11', phoneNumber: '+992 90 555 22 11',
-  source: 'backend', ...over
+  source: 'backend', createdAtUtc: null, lastActivityAtUtc: null,
+  activePackageName: null, activePackageRemainingMinutes: 0, ...over
 });
 
 const segments: ClientSegment[] = [

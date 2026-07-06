@@ -11,7 +11,8 @@ type DetailProps = Parameters<typeof ClientDetail>[0];
 
 const client: PlayerClientItem = {
   playerAccountId: 'p1', name: 'Madina S.', status: 'active', balanceMinorUnits: 46000,
-  debtMinorUnits: 0, last: '', tone: 'active', detail: '', phoneNumber: '+992 90 555 22 11', source: 'backend'
+  debtMinorUnits: 0, last: '', tone: 'active', detail: '', phoneNumber: '+992 90 555 22 11', source: 'backend',
+  createdAtUtc: null, lastActivityAtUtc: null, activePackageName: null, activePackageRemainingMinutes: 0
 };
 
 const baseProps: DetailProps = {

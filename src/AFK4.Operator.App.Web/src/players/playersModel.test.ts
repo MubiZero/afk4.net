@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'bun:test';
-import { fixturePlayers, playerStatusLabel, projectPlayerClient, ledgerTypeLabel, projectLedgerEntry, projectPlayerPackage, buildClientSegments, buildClientOverview, buildClientContext, matchesSegment, type ClientSegmentId } from './playersModel';
+import { createTranslator } from '@afk4/i18n';
+import { fixturePlayers, playerStatusLabel, projectPlayerClient, ledgerTypeLabel, projectLedgerEntry, projectPlayerPackage, buildClientSegments, buildClientOverview, buildClientContext, buildClientContextMap, matchesSegment, isNewClient, relativeVisitLabel, activePackageLabel, type ClientSegmentId } from './playersModel';
 import type { TFunc, PlayerClientItem } from '../operatorHelpers';
 import type { LedgerEntryDto, PlayerPackageDto, SessionTimelineItemDto } from '../operatorApiClients';
 
 // Стаб переводчика: возвращает ключ, игнорируя параметры — тесты проверяют только
 // структурные поля проекции, не локализованный текст.
 const t = ((key: string) => key) as unknown as TFunc;
+// Реальный ru-переводчик — для функций, чьи проекции интерполируют значения (visit/package
+// label): проверяем фактический локализованный вывод, как operatorHelpers.test.ts.
+const rt = createTranslator('ru');
 
 describe('playerStatusLabel', () => {
   it('maps known status keys to localized keys and passes through unknown', () => {
@@ -52,6 +56,31 @@ describe('projectPlayerClient', () => {
     );
     expect(inactive.status).toBe('inactive');
   });
+
+  it('projects createdAtUtc/lastActivityAtUtc/active package fields, falling back to null when absent', () => {
+    const withPackage = projectPlayerClient(
+      {
+        playerAccountId: 'p4', displayName: 'Zara', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 0,
+        activePackageCount: 1, isActive: true,
+        createdAtUtc: '2026-07-01T00:00:00Z', lastActivityAtUtc: '2026-07-05T00:00:00Z',
+        activePackageName: 'Ночной 5ч', activePackageRemainingMinutes: 150
+      },
+      t
+    );
+    expect(withPackage.createdAtUtc).toBe('2026-07-01T00:00:00Z');
+    expect(withPackage.lastActivityAtUtc).toBe('2026-07-05T00:00:00Z');
+    expect(withPackage.activePackageName).toBe('Ночной 5ч');
+    expect(withPackage.activePackageRemainingMinutes).toBe(150);
+
+    const withoutExtras = projectPlayerClient(
+      { playerAccountId: 'p5', displayName: 'Bare', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true },
+      t
+    );
+    expect(withoutExtras.createdAtUtc).toBeNull();
+    expect(withoutExtras.lastActivityAtUtc).toBeNull();
+    expect(withoutExtras.activePackageName).toBeNull();
+    expect(withoutExtras.activePackageRemainingMinutes).toBe(0);
+  });
 });
 
 // ─── Новые тесты S1 ──────────────────────────────────────────────────────────
@@ -75,7 +104,8 @@ const pkg = (over: Partial<PlayerPackageDto>): PlayerPackageDto => ({
 const client = (over: Partial<PlayerClientItem>): PlayerClientItem => ({
   playerAccountId: 'p', name: 'X', status: 'active', balanceMinorUnits: 0,
   debtMinorUnits: 0, last: '', tone: 'active', detail: '', phoneNumber: '',
-  source: 'backend', ...over
+  source: 'backend', createdAtUtc: null, lastActivityAtUtc: null,
+  activePackageName: null, activePackageRemainingMinutes: 0, ...over
 });
 
 describe('ledgerTypeLabel', () => {
@@ -231,5 +261,81 @@ describe('buildClientContext (играет сейчас + ближайшая б�
       'p1'
     );
     expect(ctx.nextBooking).toBeNull();
+  });
+});
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const NOW = new Date('2026-07-06T12:00:00Z').getTime();
+const daysAgoIso = (days: number) => new Date(NOW - days * MS_PER_DAY).toISOString();
+
+describe('isNewClient (тег «Новый» — клиент зарегистрирован недавно)', () => {
+  it('true, когда createdAtUtc моложе порога (дефолт 7 дней)', () => {
+    expect(isNewClient(daysAgoIso(3), NOW)).toBe(true);
+  });
+
+  it('false, когда createdAtUtc старше порога', () => {
+    expect(isNewClient(daysAgoIso(30), NOW)).toBe(false);
+  });
+
+  it('false, когда createdAtUtc не известен (null)', () => {
+    expect(isNewClient(null, NOW)).toBe(false);
+  });
+
+  it('уважает переданный thresholdDays', () => {
+    expect(isNewClient(daysAgoIso(2), NOW, 1)).toBe(false);
+    expect(isNewClient(daysAgoIso(2), NOW, 3)).toBe(true);
+  });
+});
+
+describe('relativeVisitLabel (последний визит — компактная колонка таблицы)', () => {
+  it('«сейчас» для того же дня', () => {
+    expect(relativeVisitLabel(daysAgoIso(0), NOW, rt)).toBe('сейчас');
+  });
+
+  it('«вчера» для ровно одного дня назад', () => {
+    expect(relativeVisitLabel(daysAgoIso(1), NOW, rt)).toBe('вчера');
+  });
+
+  it('«N дн.» для 2-6 дней назад', () => {
+    expect(relativeVisitLabel(daysAgoIso(3), NOW, rt)).toBe('3 дн.');
+  });
+
+  it('«N нед.» от 7 дней и старше', () => {
+    expect(relativeVisitLabel(daysAgoIso(10), NOW, rt)).toBe('2 нед.');
+  });
+
+  it('«—» (литерал, не i18n-ключ), когда визитов не было', () => {
+    expect(relativeVisitLabel(null, NOW, rt)).toBe('—');
+  });
+});
+
+describe('activePackageLabel (банк времени под именем клиента)', () => {
+  it('собирает «имя» · минуты, когда у клиента есть активный пакет', () => {
+    expect(activePackageLabel('Ночной 5ч', 150, rt)).toBe('«Ночной 5ч» · 150 мин');
+  });
+
+  it('null, когда активного пакета нет', () => {
+    expect(activePackageLabel(null, 0, rt)).toBeNull();
+  });
+});
+
+describe('buildClientContextMap (один проход sessions/reservations на весь список клиентов)', () => {
+  it('строит ClientLiveContext на каждого backend-клиента по playerAccountId, пропуская фикстурных без id', () => {
+    const clients = [
+      client({ playerAccountId: 'p1' }),
+      client({ playerAccountId: undefined, source: 'fixture' }),
+      client({ playerAccountId: 'p2' })
+    ];
+    const sessions = [session({ playerAccountId: 'p1', seatName: 'PC-03' })];
+    const reservations = [
+      { reservationId: 'r1', playerAccountId: 'p2', state: 'confirmed', startsAtUtc: '2026-06-23T18:00:00Z', seatName: 'PC-02' }
+    ];
+
+    const map = buildClientContextMap(sessions, reservations, clients);
+
+    expect(map.size).toBe(2);
+    expect(map.get('p1')?.session?.seatName).toBe('PC-03');
+    expect(map.get('p1')?.nextBooking).toBeNull();
+    expect(map.get('p2')?.nextBooking?.seatName).toBe('PC-02');
   });
 });

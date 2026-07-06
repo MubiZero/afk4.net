@@ -215,6 +215,11 @@ function minutesAgoUtc(minutes: number): string {
   return new Date(Date.now() - minutes * 60_000).toISOString();
 }
 
+// «N дней назад» от текущего момента — для createdAtUtc/lastActivityAtUtc клиентов в превью.
+function daysAgoUtc(days: number): string {
+  return minutesAgoUtc(days * 24 * 60);
+}
+
 function booking(
   id: string,
   startHour: number,
@@ -362,17 +367,26 @@ function route(pathname: string, method: string): unknown | undefined {
 }
 
 // Клиенты клуба для поиска: мутируемые (write-действия S3 меняют имя/активность), один неактивный.
-type MockPlayer = { playerAccountId: string; displayName: string; phoneNumber: string; walletBalanceMinorUnits: number; debtBalanceMinorUnits: number; activePackageCount: number; isActive: boolean };
+type MockPlayer = {
+  playerAccountId: string; displayName: string; phoneNumber: string; walletBalanceMinorUnits: number;
+  debtBalanceMinorUnits: number; activePackageCount: number; isActive: boolean;
+  createdAtUtc: string; lastActivityAtUtc: string | null;
+  activePackageName: string | null; activePackageRemainingMinutes: number;
+};
 let mutablePlayers: MockPlayer[] | null = null;
 function players(): MockPlayer[] {
   if (mutablePlayers === null) {
     mutablePlayers = [
-      { playerAccountId: 'pl-1', displayName: 'Фариза Назарова', phoneNumber: '+992 93 100 20 30', walletBalanceMinorUnits: 45000, debtBalanceMinorUnits: 0, activePackageCount: 1, isActive: true },
-      { playerAccountId: 'pl-2', displayName: 'Азиз Пиров', phoneNumber: '+992 90 555 22 11', walletBalanceMinorUnits: 12000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true },
-      { playerAccountId: 'pl-3', displayName: 'Мадина Саидова', phoneNumber: '+992 98 700 11 22', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 3500, activePackageCount: 0, isActive: true },
-      { playerAccountId: 'pl-4', displayName: 'Камрон Рахимов', phoneNumber: '+992 92 333 44 55', walletBalanceMinorUnits: 8000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true },
-      { playerAccountId: 'pl-5', displayName: 'Дилноза Холова', phoneNumber: '+992 91 222 33 44', walletBalanceMinorUnits: 26000, debtBalanceMinorUnits: 0, activePackageCount: 2, isActive: true },
-      { playerAccountId: 'pl-6', displayName: 'Бахром Сафаров', phoneNumber: '+992 93 444 55 66', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: false }
+      // Давний клиент, играет прямо сейчас — тег «Новый» не горит, визит «сейчас», есть банк времени.
+      { playerAccountId: 'pl-1', displayName: 'Фариза Назарова', phoneNumber: '+992 93 100 20 30', walletBalanceMinorUnits: 45000, debtBalanceMinorUnits: 0, activePackageCount: 1, isActive: true, createdAtUtc: daysAgoUtc(400), lastActivityAtUtc: minutesAgoUtc(15), activePackageName: 'Ночной 5ч', activePackageRemainingMinutes: 150 },
+      // Зарегистрирован 3 дня назад (< 7 — тег «Новый») и заходил вчера.
+      { playerAccountId: 'pl-2', displayName: 'Азиз Пиров', phoneNumber: '+992 90 555 22 11', walletBalanceMinorUnits: 12000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true, createdAtUtc: daysAgoUtc(3), lastActivityAtUtc: daysAgoUtc(1), activePackageName: null, activePackageRemainingMinutes: 0 },
+      { playerAccountId: 'pl-3', displayName: 'Мадина Саидова', phoneNumber: '+992 98 700 11 22', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 3500, activePackageCount: 0, isActive: true, createdAtUtc: daysAgoUtc(200), lastActivityAtUtc: daysAgoUtc(3), activePackageName: null, activePackageRemainingMinutes: 0 },
+      // Визит 10 дней назад — колонка показывает «недели», а не «дни».
+      { playerAccountId: 'pl-4', displayName: 'Камрон Рахимов', phoneNumber: '+992 92 333 44 55', walletBalanceMinorUnits: 8000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true, createdAtUtc: daysAgoUtc(150), lastActivityAtUtc: daysAgoUtc(10), activePackageName: null, activePackageRemainingMinutes: 0 },
+      { playerAccountId: 'pl-5', displayName: 'Дилноза Холова', phoneNumber: '+992 91 222 33 44', walletBalanceMinorUnits: 26000, debtBalanceMinorUnits: 0, activePackageCount: 2, isActive: true, createdAtUtc: daysAgoUtc(60), lastActivityAtUtc: daysAgoUtc(2), activePackageName: 'Дневной абонемент', activePackageRemainingMinutes: 420 },
+      // Неактивный, визитов не было — проверяет пустое состояние «—».
+      { playerAccountId: 'pl-6', displayName: 'Бахром Сафаров', phoneNumber: '+992 93 444 55 66', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: false, createdAtUtc: daysAgoUtc(500), lastActivityAtUtc: null, activePackageName: null, activePackageRemainingMinutes: 0 }
     ];
   }
   return mutablePlayers;

@@ -1327,6 +1327,10 @@ export type PlayerClientItem = {
   detail: string;
   phoneNumber: string;
   source: 'fixture' | 'backend';
+  createdAtUtc: string | null;
+  lastActivityAtUtc: string | null;
+  activePackageName: string | null;
+  activePackageRemainingMinutes: number;
 };
 
 export function projectPlayerClient(player: unknown, t: TFunc): PlayerClientItem {
@@ -1350,7 +1354,11 @@ export function projectPlayerClient(player: unknown, t: TFunc): PlayerClientItem
     tone: debt > 0 ? 'debt' : isActive ? 'active' : 'regular',
     detail,
     phoneNumber: readString(player, 'phoneNumber', ''),
-    source: 'backend'
+    source: 'backend',
+    createdAtUtc: readString(player, 'createdAtUtc') || null,
+    lastActivityAtUtc: readString(player, 'lastActivityAtUtc') || null,
+    activePackageName: readString(player, 'activePackageName') || null,
+    activePackageRemainingMinutes: readNumber(player, 'activePackageRemainingMinutes', 0)
   };
 }
 

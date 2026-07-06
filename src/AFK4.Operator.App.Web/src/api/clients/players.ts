@@ -10,6 +10,10 @@ export interface PlayerSearchResultDto {
   debtBalanceMinorUnits: number;
   activePackageCount: number;
   isActive: boolean;
+  createdAtUtc: string;
+  lastActivityAtUtc: string | null;
+  activePackageName: string | null;
+  activePackageRemainingMinutes: number;
 }
 
 export interface PlayerAccountDto {
