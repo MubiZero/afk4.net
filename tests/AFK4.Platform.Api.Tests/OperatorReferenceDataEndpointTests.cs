@@ -15,6 +15,9 @@ public sealed class OperatorReferenceDataEndpointTests
 {
     private static readonly Guid AlexPlayerId = Guid.Parse("65b9b565-eb5c-4ff5-890c-85f3e12a0fc2");
     private static readonly Guid OtherPlayerId = Guid.Parse("75b9b565-eb5c-4ff5-890c-85f3e12a0fc3");
+    private static readonly Guid ActivePackagePlayerId = Guid.Parse("85b9b565-eb5c-4ff5-890c-85f3e12a0fc4");
+    private static readonly Guid ExpiredPackagePlayerId = Guid.Parse("95b9b565-eb5c-4ff5-890c-85f3e12a0fc5");
+    private static readonly Guid DepletedPackagePlayerId = Guid.Parse("a5b9b565-eb5c-4ff5-890c-85f3e12a0fc6");
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-05-14T10:00:00Z");
 
     [Fact]
@@ -62,6 +65,34 @@ public sealed class OperatorReferenceDataEndpointTests
 
         Assert.Equal(latestSessionActivity, withSessions.LastActivityAtUtc);
         Assert.Null(withoutSessions.LastActivityAtUtc);
+    }
+
+    [Fact]
+    public async Task SearchPlayers_ReturnsActivePackage()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await SeedActivePackagePlayersAsync(factory);
+
+        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/players?query=PackageHolder&limit=20");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadFromJsonAsync<IReadOnlyList<PlayerSearchResultDto>>();
+
+        Assert.NotNull(body);
+        var withRemaining = body.Single(result => result.PlayerAccountId == ActivePackagePlayerId);
+        var withExpired = body.Single(result => result.PlayerAccountId == ExpiredPackagePlayerId);
+        var withDepleted = body.Single(result => result.PlayerAccountId == DepletedPackagePlayerId);
+
+        Assert.Equal("Night 5h", withRemaining.ActivePackageName);
+        Assert.Equal(150, withRemaining.ActivePackageRemainingMinutes);
+
+        Assert.Null(withExpired.ActivePackageName);
+        Assert.Equal(0, withExpired.ActivePackageRemainingMinutes);
+
+        Assert.Null(withDepleted.ActivePackageName);
+        Assert.Equal(0, withDepleted.ActivePackageRemainingMinutes);
     }
 
     [Fact]
@@ -185,6 +216,107 @@ public sealed class OperatorReferenceDataEndpointTests
             PurchasedAtUtc = Now,
             ExpiresAtUtc = DateTimeOffset.UtcNow.AddDays(7)
         });
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task SeedActivePackagePlayersAsync(PlatformApiFactory factory)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+
+        var activePackageId = Guid.Parse("bbbbbbbb-cccc-4ccc-8ccc-cccccccccccc");
+        var expiredPackageId = Guid.Parse("bbbbbbbb-cccc-4ccc-8ccc-dddddddddddd");
+        var depletedPackageId = Guid.Parse("bbbbbbbb-cccc-4ccc-8ccc-eeeeeeeeeeee");
+
+        dbContext.PlayerAccounts.AddRange(
+            new PlayerAccountEntity
+            {
+                PlayerAccountId = ActivePackagePlayerId,
+                OrganizationId = TestIds.OrganizationId,
+                HomeBranchId = TestIds.BranchId,
+                DisplayName = "PackageHolder Active",
+                PhoneNumber = "+992000000010",
+                IsActive = true,
+                CreatedAtUtc = Now
+            },
+            new PlayerAccountEntity
+            {
+                PlayerAccountId = ExpiredPackagePlayerId,
+                OrganizationId = TestIds.OrganizationId,
+                HomeBranchId = TestIds.BranchId,
+                DisplayName = "PackageHolder Expired",
+                PhoneNumber = "+992000000011",
+                IsActive = true,
+                CreatedAtUtc = Now
+            },
+            new PlayerAccountEntity
+            {
+                PlayerAccountId = DepletedPackagePlayerId,
+                OrganizationId = TestIds.OrganizationId,
+                HomeBranchId = TestIds.BranchId,
+                DisplayName = "PackageHolder Depleted",
+                PhoneNumber = "+992000000012",
+                IsActive = true,
+                CreatedAtUtc = Now
+            });
+
+        dbContext.PlayerPackages.AddRange(
+            new PlayerPackageEntity
+            {
+                PlayerPackageId = activePackageId,
+                PackageDefinitionId = Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                PlayerAccountId = ActivePackagePlayerId,
+                Name = "Night 5h",
+                CurrencyCode = "TJS",
+                PurchasedPriceMinorUnits = 4000,
+                IncludedSeconds = 18000,
+                BonusSeconds = 1800,
+                PurchasedAtUtc = Now,
+                ExpiresAtUtc = DateTimeOffset.UtcNow.AddDays(7)
+            },
+            new PlayerPackageEntity
+            {
+                PlayerPackageId = expiredPackageId,
+                PackageDefinitionId = Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                PlayerAccountId = ExpiredPackagePlayerId,
+                Name = "Old Pack",
+                CurrencyCode = "TJS",
+                PurchasedPriceMinorUnits = 4000,
+                IncludedSeconds = 18000,
+                BonusSeconds = 0,
+                PurchasedAtUtc = Now.AddDays(-30),
+                ExpiresAtUtc = DateTimeOffset.UtcNow.AddDays(-1)
+            },
+            new PlayerPackageEntity
+            {
+                PlayerPackageId = depletedPackageId,
+                PackageDefinitionId = Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                PlayerAccountId = DepletedPackagePlayerId,
+                Name = "Used Up",
+                CurrencyCode = "TJS",
+                PurchasedPriceMinorUnits = 4000,
+                IncludedSeconds = 3600,
+                BonusSeconds = 0,
+                PurchasedAtUtc = Now,
+                ExpiresAtUtc = DateTimeOffset.UtcNow.AddDays(7)
+            });
+
+        dbContext.LedgerEntries.AddRange(
+            // Active package: 100 min included + 50 min bonus = 150 min remaining.
+            CreatePackageLedgerEntry(ActivePackagePlayerId, activePackageId, LedgerAccountTypeNames.PackageTime, 6000),
+            CreatePackageLedgerEntry(ActivePackagePlayerId, activePackageId, LedgerAccountTypeNames.BonusTime, 3000),
+            // Expired package still carries a positive balance — must be excluded by expiry, not balance.
+            CreatePackageLedgerEntry(ExpiredPackagePlayerId, expiredPackageId, LedgerAccountTypeNames.PackageTime, 10000),
+            // Depleted package: granted then fully consumed — net remaining is zero.
+            CreatePackageLedgerEntry(DepletedPackagePlayerId, depletedPackageId, LedgerAccountTypeNames.PackageTime, 3600),
+            CreatePackageLedgerEntry(DepletedPackagePlayerId, depletedPackageId, LedgerAccountTypeNames.PackageTime, -3600));
+
         await dbContext.SaveChangesAsync();
     }
 
@@ -367,6 +499,33 @@ public sealed class OperatorReferenceDataEndpointTests
             AccountType = accountType,
             AmountMinorUnits = amountMinorUnits,
             QuantitySeconds = 0,
+            CurrencyCode = "TJS",
+            Description = "reference seed",
+            Reason = "test",
+            CreatedByStaffUserId = TestIds.TechnicianStaffUserId,
+            CreatedAtUtc = Now
+        };
+    }
+
+    private static LedgerEntryEntity CreatePackageLedgerEntry(
+        Guid playerAccountId,
+        Guid playerPackageId,
+        string accountType,
+        int quantitySeconds)
+    {
+        return new LedgerEntryEntity
+        {
+            LedgerEntryId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            PlayerAccountId = playerAccountId,
+            PlayerPackageId = playerPackageId,
+            EntryType = quantitySeconds >= 0
+                ? LedgerEntryTypeNames.PackagePurchase
+                : LedgerEntryTypeNames.PackageConsumption,
+            AccountType = accountType,
+            AmountMinorUnits = 0,
+            QuantitySeconds = quantitySeconds,
             CurrencyCode = "TJS",
             Description = "reference seed",
             Reason = "test",
