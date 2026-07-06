@@ -37,6 +37,7 @@ public sealed class OperatorReferenceDataEndpointTests
         Assert.Equal(2500, result.DebtBalanceMinorUnits);
         Assert.Equal(1, result.ActivePackageCount);
         Assert.True(result.IsActive);
+        Assert.Equal(Now, result.CreatedAtUtc);
     }
 
     [Fact]

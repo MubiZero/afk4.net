@@ -15,7 +15,11 @@ public sealed class OperatorReferenceContractSerializationTests
             WalletBalanceMinorUnits: 12000,
             DebtBalanceMinorUnits: 0,
             ActivePackageCount: 1,
-            IsActive: true);
+            IsActive: true,
+            CreatedAtUtc: new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+            LastActivityAtUtc: new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero),
+            ActivePackageName: "Ночной 5ч",
+            ActivePackageRemainingMinutes: 150);
 
         var json = JsonSerializer.Serialize(result);
         var copy = JsonSerializer.Deserialize<PlayerSearchResultDto>(json);
@@ -24,6 +28,10 @@ public sealed class OperatorReferenceContractSerializationTests
         Assert.Equal("Alex Player", copy.DisplayName);
         Assert.Equal(12000, copy.WalletBalanceMinorUnits);
         Assert.Equal(1, copy.ActivePackageCount);
+        Assert.Equal(result.CreatedAtUtc, copy.CreatedAtUtc);
+        Assert.Equal(result.LastActivityAtUtc, copy.LastActivityAtUtc);
+        Assert.Equal(result.ActivePackageName, copy.ActivePackageName);
+        Assert.Equal(result.ActivePackageRemainingMinutes, copy.ActivePackageRemainingMinutes);
     }
 
     [Fact]

@@ -28,7 +28,11 @@ public sealed class OperatorPlayerApiClientTests
                     WalletBalanceMinorUnits: 12000,
                     DebtBalanceMinorUnits: 0,
                     ActivePackageCount: 1,
-                    IsActive: true)
+                    IsActive: true,
+                    CreatedAtUtc: default,
+                    LastActivityAtUtc: null,
+                    ActivePackageName: null,
+                    ActivePackageRemainingMinutes: 0)
             ]));
         var client = CreateClient(handler);
 

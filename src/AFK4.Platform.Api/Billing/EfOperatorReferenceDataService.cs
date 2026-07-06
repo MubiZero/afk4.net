@@ -102,7 +102,11 @@ public sealed class EfOperatorReferenceDataService(
                 GetBalance(balanceLookup, player.PlayerAccountId, LedgerAccountTypeNames.Wallet),
                 GetBalance(balanceLookup, player.PlayerAccountId, LedgerAccountTypeNames.Debt),
                 packageCountLookup.GetValueOrDefault(player.PlayerAccountId),
-                player.IsActive))
+                player.IsActive,
+                CreatedAtUtc: player.CreatedAtUtc,
+                LastActivityAtUtc: null, // Task 2
+                ActivePackageName: null, // Task 3
+                ActivePackageRemainingMinutes: 0)) // Task 3
             .ToList();
     }
 
