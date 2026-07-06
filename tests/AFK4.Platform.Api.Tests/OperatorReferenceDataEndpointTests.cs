@@ -5,6 +5,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Operator;
+using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -38,6 +39,29 @@ public sealed class OperatorReferenceDataEndpointTests
         Assert.Equal(1, result.ActivePackageCount);
         Assert.True(result.IsActive);
         Assert.Equal(Now, result.CreatedAtUtc);
+    }
+
+    [Fact]
+    public async Task SearchPlayers_ReturnsLastSessionActivity()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await SeedPlayersAsync(factory);
+        var latestSessionActivity = await SeedSessionsAsync(factory);
+
+        var response = await client.GetAsync(
+            $"/api/branches/{TestIds.BranchId:D}/players?query=Alex&limit=20&includeInactive=true");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var body = await response.Content.ReadFromJsonAsync<IReadOnlyList<PlayerSearchResultDto>>();
+
+        Assert.NotNull(body);
+        var withSessions = body.Single(result => result.PlayerAccountId == AlexPlayerId);
+        var withoutSessions = body.Single(result => result.PlayerAccountId == OtherPlayerId);
+
+        Assert.Equal(latestSessionActivity, withSessions.LastActivityAtUtc);
+        Assert.Null(withoutSessions.LastActivityAtUtc);
     }
 
     [Fact]
@@ -162,6 +186,55 @@ public sealed class OperatorReferenceDataEndpointTests
             ExpiresAtUtc = DateTimeOffset.UtcNow.AddDays(7)
         });
         await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task<DateTimeOffset> SeedSessionsAsync(PlatformApiFactory factory)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var earlierStartedAt = Now.AddDays(-3);
+        var earlierEndedAt = earlierStartedAt.AddHours(1);
+        var laterStartedAt = Now.AddDays(-1);
+        dbContext.Sessions.AddRange(
+            new SessionEntity
+            {
+                SessionId = Guid.Parse("11111111-1111-4111-8111-111111111111"),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                SeatId = TestIds.SeatId,
+                DeviceId = TestIds.DeviceId,
+                CreatedByStaffUserId = TestIds.TechnicianStaffUserId,
+                PlayerKind = "account",
+                PlayerAccountId = AlexPlayerId,
+                TariffRuleVersionId = "standard-v1",
+                State = SessionStateNames.Ended,
+                RequestedAtUtc = earlierStartedAt.AddMinutes(-1),
+                StartedAtUtc = earlierStartedAt,
+                EndedAtUtc = earlierEndedAt,
+                UpdatedAtUtc = earlierEndedAt
+            },
+            // Later session, still unfinished (no EndedAtUtc) — last activity falls back to StartedAtUtc
+            // and must still outrank the earlier, already-ended session above.
+            new SessionEntity
+            {
+                SessionId = Guid.Parse("22222222-2222-4222-8222-222222222222"),
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                SeatId = TestIds.SeatId,
+                DeviceId = TestIds.DeviceId,
+                CreatedByStaffUserId = TestIds.TechnicianStaffUserId,
+                PlayerKind = "account",
+                PlayerAccountId = AlexPlayerId,
+                TariffRuleVersionId = "standard-v1",
+                State = SessionStateNames.Active,
+                RequestedAtUtc = laterStartedAt.AddMinutes(-1),
+                StartedAtUtc = laterStartedAt,
+                EndedAtUtc = null,
+                UpdatedAtUtc = laterStartedAt
+            });
+        await dbContext.SaveChangesAsync();
+
+        return laterStartedAt;
     }
 
     private static async Task<TariffVersionEntity> SeedTariffsAsync(PlatformApiFactory factory)

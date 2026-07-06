@@ -94,6 +94,22 @@ public sealed class EfOperatorReferenceDataService(
             package => package.PlayerAccountId,
             package => package.Count);
 
+        var lastActivityLookup = await dbContext.Sessions
+            .AsNoTracking()
+            .Where(session => playerIds.Contains(session.PlayerAccountId!.Value))
+            .Select(session => new
+            {
+                session.PlayerAccountId,
+                EffectiveAt = session.EndedAtUtc ?? session.StartedAtUtc ?? session.RequestedAtUtc
+            })
+            .GroupBy(session => session.PlayerAccountId)
+            .Select(group => new
+            {
+                PlayerAccountId = group.Key,
+                Last = group.Max(session => session.EffectiveAt)
+            })
+            .ToDictionaryAsync(x => x.PlayerAccountId!.Value, x => x.Last, cancellationToken);
+
         return players
             .Select(player => new PlayerSearchResultDto(
                 player.PlayerAccountId,
@@ -104,7 +120,7 @@ public sealed class EfOperatorReferenceDataService(
                 packageCountLookup.GetValueOrDefault(player.PlayerAccountId),
                 player.IsActive,
                 CreatedAtUtc: player.CreatedAtUtc,
-                LastActivityAtUtc: null, // Task 2
+                LastActivityAtUtc: lastActivityLookup.TryGetValue(player.PlayerAccountId, out var last) ? last : (DateTimeOffset?)null,
                 ActivePackageName: null, // Task 3
                 ActivePackageRemainingMinutes: 0)) // Task 3
             .ToList();
