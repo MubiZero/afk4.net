@@ -1618,33 +1618,6 @@ describe('App', () => {
     expect(await screen.findByRole('button', { name: 'Бронь' })).toBeDisabled();
   });
 
-  it('purchases a backend package from the selected client card', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByTitle('Клиенты'));
-    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByRole('button', { name: /Купить пакет/ })).toBeEnabled());
-    fireEvent.change(await screen.findByLabelText('Пакет для покупки'), { target: { value: 'cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd' } });
-    const purchasePackageButton = await screen.findByRole('button', { name: /Купить пакет/ });
-    await waitFor(() => expect(purchasePackageButton).toBeEnabled());
-    fireEvent.click(purchasePackageButton);
-
-    expect(await screen.findByText('Купить пакет: подтверждено')).toBeInTheDocument();
-    const purchaseCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/packages/purchases') &&
-      init?.method === 'POST');
-    expect(purchaseCall).toBeDefined();
-    const body = JSON.parse(String(purchaseCall?.[1]?.body));
-    expect(body).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      packageDefinitionId: 'cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd'
-    });
-    expect(body.idempotencyKey).toMatch(/^package-purchase-/);
-  });
-
   it('shows active backend packages on the selected client profile', async () => {
     installSessionBridge();
 
@@ -3059,11 +3032,6 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/profile')) {
     return jsonResponse(createBranchProfile());
-  }
-
-  if (pathname.includes('/players/') && pathname.endsWith('/packages/purchases')) {
-    const body = JSON.parse(String(init?.body));
-    return jsonResponse(createPlayerPackage(body));
   }
 
   if (pathname.includes('/branches/') && !pathname.includes('/updates/') && pathname.includes('/packages/') && init?.method === 'PATCH') {

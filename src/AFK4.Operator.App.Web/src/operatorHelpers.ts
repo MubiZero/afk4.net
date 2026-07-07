@@ -1177,14 +1177,6 @@ export function playerPackageLabel(playerPackage: PlayerPackageDto, t: TFunc) {
   return t('op.helper.player.packageLabel', { name, minutes });
 }
 
-export function packageOptionLabel(packageOption: Record<string, unknown>, currencyCode: string, t: TFunc) {
-  const name = readString(packageOption, 'name', t('op.helper.player.packageFallback'));
-  const price = readNumber(packageOption, 'priceMinorUnits', 0);
-  const currency = readString(packageOption, 'currencyCode', currencyCode);
-  const totalMinutes = Math.floor((readNumber(packageOption, 'includedSeconds', 0) + readNumber(packageOption, 'bonusSeconds', 0)) / 60);
-  return t('op.helper.player.packageOptionLabel', { name, price: formatMinorUnits(price, currency), minutes: totalMinutes });
-}
-
 export function describeDeviceCommandStatus(status: Record<string, unknown>, t: TFunc) {
   const type = readString(status, 'type', 'command');
   const state = readString(status, 'status', 'pending');

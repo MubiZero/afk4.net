@@ -1,7 +1,7 @@
 import { useI18n } from '@afk4/i18n';
 import { CalendarClock } from 'lucide-react';
 import { initials, type PlayerClientItem } from '../operatorHelpers';
-import type { LedgerEntryDto, PackageOptionDto, PlayerPackageDto } from '../operatorApiClients';
+import type { LedgerEntryDto, PlayerPackageDto } from '../operatorApiClients';
 import { EmptyState, Money } from '../operatorPrimitives';
 import { playerStatusLabel, type ClientLiveContext } from './playersModel';
 import { ClientContextStrip } from './ClientContextStrip';
@@ -24,20 +24,16 @@ export function ClientDetail(props: {
   packageCount: number;
   currencyCode: string;
   packages: PlayerPackageDto[];
-  options: PackageOptionDto[];
   ledgerEntries: LedgerEntryDto[];
   ledgerFilter: string | null;
   ledgerHasMore: boolean;
   ledgerLoading: boolean;
   onLedgerFilterChange: (entryType: string | null) => void;
   onLedgerLoadMore: () => void;
-  selectedPackageDefinitionId: string;
-  packageBusy: boolean;
   packagesLoading: boolean;
   topUpAmount: string;
   canTopUp: boolean;
   canPayDebt: boolean;
-  canPurchase: boolean;
   canCreateReservation: boolean;
   canManageClient: boolean;
   onSetPin: () => void;
@@ -50,8 +46,6 @@ export function ClientDetail(props: {
   onChangeTopUpAmount: (value: string) => void;
   onTopUp: () => void;
   onOpenPayDebt: () => void;
-  onSelectOption: (packageDefinitionId: string) => void;
-  onBuy: () => void;
   onCreateReservation: () => void;
 }) {
   const { t } = useI18n();
@@ -150,15 +144,7 @@ export function ClientDetail(props: {
           <div className="clients-subpanel-body">
             <PackagesSection
               packages={props.packages}
-              options={props.options}
-              selectedPackageDefinitionId={props.selectedPackageDefinitionId}
-              balanceMinorUnits={props.balanceMinorUnits}
-              currencyCode={props.currencyCode}
-              canPurchase={props.canPurchase}
-              busy={props.packageBusy}
               loading={props.packagesLoading}
-              onSelectOption={props.onSelectOption}
-              onBuy={props.onBuy}
             />
           </div>
         </section>

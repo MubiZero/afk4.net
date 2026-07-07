@@ -3,7 +3,7 @@ import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { ClientDetail } from './ClientDetail';
 import type { PlayerClientItem } from '../operatorHelpers';
-import type { LedgerEntryDto, PackageOptionDto, PlayerPackageDto } from '../operatorApiClients';
+import type { LedgerEntryDto, PlayerPackageDto } from '../operatorApiClients';
 
 afterEach(cleanup);
 
@@ -24,20 +24,16 @@ const baseProps: DetailProps = {
   packageCount: 1,
   currencyCode: 'TJS',
   packages: [] as PlayerPackageDto[],
-  options: [] as PackageOptionDto[],
   ledgerEntries: [] as LedgerEntryDto[],
   ledgerFilter: null,
   ledgerHasMore: false,
   ledgerLoading: false,
   onLedgerFilterChange: () => {},
   onLedgerLoadMore: () => {},
-  selectedPackageDefinitionId: '',
-  packageBusy: false,
   packagesLoading: false,
   topUpAmount: '',
   canTopUp: true,
   canPayDebt: true,
-  canPurchase: true,
   canCreateReservation: true,
   canManageClient: false,
   onSetPin: () => {},
@@ -50,8 +46,6 @@ const baseProps: DetailProps = {
   onChangeTopUpAmount: () => {},
   onTopUp: () => {},
   onOpenPayDebt: () => {},
-  onSelectOption: () => {},
-  onBuy: () => {},
   onCreateReservation: () => {},
 };
 

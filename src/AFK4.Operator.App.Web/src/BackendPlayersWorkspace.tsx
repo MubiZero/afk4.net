@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
-import type { LedgerEntryDto, PackageOptionDto, PlayerPackageDto, SessionTimelineItemDto, WalletSummaryDto } from './operatorApiClients';
+import type { LedgerEntryDto, PlayerPackageDto, SessionTimelineItemDto, WalletSummaryDto } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
@@ -13,7 +13,6 @@ import {
   parseMoneyInputMinorUnits,
   readArray,
   readMoney,
-  readNumber,
   readString,
   requireBackend,
   resolveReasonInput
@@ -31,7 +30,7 @@ import { EditProfileModal } from './players/EditProfileModal';
 import { ActiveStateConfirmModal } from './players/ActiveStateConfirmModal';
 import { PayDebtModal } from './players/PayDebtModal';
 
-type PlayerActionId = 'topUp' | 'writeOffDebt' | 'buyPackage' | 'booking' | 'newCard' | 'correction' | 'refund' | 'setPin' | 'updateProfile' | 'toggleActive';
+type PlayerActionId = 'topUp' | 'writeOffDebt' | 'booking' | 'newCard' | 'correction' | 'refund' | 'setPin' | 'updateProfile' | 'toggleActive';
 
 export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
   const { t } = useI18n();
@@ -47,8 +46,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [loadStatus, setLoadStatus] = useState<LoadStatus>(backend === null ? 'fixture' : cachedSnapshot ? 'backend' : 'loading');
   const [clients, setClients] = useState<PlayerClientItem[]>(() => backend === null ? fixturePlayers(currencyCode, t) : cachedSnapshot?.clients ?? []);
   const [walletSummary, setWalletSummary] = useState<WalletSummaryDto | null>(null);
-  const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>(cachedSnapshot?.options ?? []);
-  const [selectedPackageDefinitionId, setSelectedPackageDefinitionId] = useState('');
   const [selectedClientPackages, setSelectedClientPackages] = useState<PlayerPackageDto[]>([]);
   const [walletTopUpAmount, setWalletTopUpAmount] = useState('');
   const [walletTopUpReason] = useState('');
@@ -81,8 +78,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     if (backend === null) {
       setLoadStatus('fixture');
       setClients(fixturePlayers(currencyCode, t));
-      setPackageOptions([]);
-      setSelectedPackageDefinitionId('');
       return undefined;
     }
 
@@ -100,10 +95,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         }
 
         setClients(nextClients);
-        setPackageOptions(nextOptions);
-        setSelectedPackageDefinitionId((current) => current && nextOptions.some((option) => readString(option, 'packageDefinitionId') === current)
-          ? current
-          : readString(nextOptions[0], 'packageDefinitionId'));
         setSelectedClientId((current) => {
           const resolved = current && nextClients.some((client) => client.playerAccountId === current)
             ? current
@@ -159,7 +150,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         const apiClients = createAuthenticatedOperatorClients(backend.config, backend.session);
         const [wallet, packages] = await Promise.all([
           apiClients.players.getWalletSummary(client.playerAccountId),
-          hasPermission(backend.session, permissionNames.viewPackages) || hasPermission(backend.session, permissionNames.purchasePackage)
+          hasPermission(backend.session, permissionNames.viewPackages)
             ? apiClients.players.getPlayerPackages(client.playerAccountId).catch(() => [])
             : Promise.resolve([])
         ]);
@@ -312,9 +303,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const balance = readMoney(walletSummary, 'walletBalance')?.minorUnits ?? selectedClient?.balanceMinorUnits ?? 0;
   const debt = readMoney(walletSummary, 'debtBalance')?.minorUnits ?? selectedClient?.debtMinorUnits ?? 0;
   const selectedClientPackageCount = selectedClientPackages.length || Number.parseInt(selectedClient?.last ?? '', 10) || 0;
-  const selectedPackageOption = packageOptions.find((option) => readString(option, 'packageDefinitionId') === selectedPackageDefinitionId)
-    ?? packageOptions[0]
-    ?? null;
 
   useEffect(() => {
     if (debt <= 0) {
@@ -329,12 +317,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   }, [debt, selectedClient?.playerAccountId]);
 
   const isSelectedInactive = selectedClient !== null && selectedClient.status === 'inactive';
-  const canPurchasePackage = backend !== null
-    && selectedClient !== null
-    && selectedClient.source === 'backend'
-    && Boolean(selectedClient.playerAccountId)
-    && !isSelectedInactive
-    && hasPermission(backend.session, permissionNames.purchasePackage);
   const canTopUpWallet = backend !== null
     && selectedClient !== null
     && selectedClient.source === 'backend'
@@ -462,44 +444,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         handleSelectClient(createdClient.playerAccountId ?? null);
         setNewPlayerName('');
         setNewPlayerPhone('');
-      } else if (id === 'buyPackage') {
-        if (!hasPermission(nextBackend.session, permissionNames.purchasePackage)) {
-          throw new Error(t('op.players.error.noPermPackage'));
-        }
-
-        const backendClient = requireSelectedBackendClient();
-
-        let packageOption: PackageOptionDto | null = selectedPackageOption;
-        if (packageOption === null) {
-          const options = await apiClients.settings.getPackageOptions(nextBackend.branchId);
-          const nextOptions = Array.isArray(options) ? options : [];
-          setPackageOptions(nextOptions);
-          setSelectedPackageDefinitionId(readString(nextOptions[0], 'packageDefinitionId'));
-          packageOption = Array.isArray(options) ? options[0] ?? null : null;
-        }
-
-        const packageDefinitionId = readString(packageOption, 'packageDefinitionId');
-        if (!packageDefinitionId) {
-          throw new Error(t('op.players.error.noPackageAvailable'));
-        }
-
-        const packagePriceMinorUnits = readNumber(packageOption, 'priceMinorUnits', 0);
-        if (packagePriceMinorUnits > balance) {
-          throw new Error(t('op.players.error.insufficientDeposit'));
-        }
-
-        const purchasedPackage = await apiClients.players.purchasePackage(backendClient.playerAccountId, {
-          organizationId: nextBackend.session.organizationId,
-          packageDefinitionId,
-          idempotencyKey: createIdempotencyKey('package-purchase')
-        });
-        const [wallet, packages] = await Promise.all([
-          apiClients.players.getWalletSummary(backendClient.playerAccountId),
-          apiClients.players.getPlayerPackages(backendClient.playerAccountId).catch(() => [purchasedPackage])
-        ]);
-        setWalletSummary(wallet);
-        setSelectedClientPackages(Array.isArray(packages) ? packages : [purchasedPackage]);
-        bumpLedger();
       } else if (id === 'booking') {
         if (!hasPermission(nextBackend.session, permissionNames.manageReservations)) {
           throw new Error(t('op.players.error.noPermBooking'));
@@ -724,26 +668,20 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           packageCount={selectedClientPackageCount}
           currencyCode={currencyCode}
           packages={selectedClientPackages}
-          options={packageOptions}
           ledgerEntries={ledgerEntries}
           ledgerFilter={ledgerFilter}
           ledgerHasMore={ledgerCursor !== null}
           ledgerLoading={ledgerLoading}
           onLedgerFilterChange={changeLedgerFilter}
           onLedgerLoadMore={() => void loadMoreLedger()}
-          selectedPackageDefinitionId={selectedPackageDefinitionId}
-          packageBusy={feedback.state === 'pending'}
           packagesLoading={packagesLoading}
           topUpAmount={walletTopUpAmount}
           canTopUp={canTopUpWallet}
           canPayDebt={canPayDebt}
-          canPurchase={canPurchasePackage}
           canCreateReservation={canCreateClientReservation}
           onChangeTopUpAmount={setWalletTopUpAmount}
           onTopUp={() => runClientAction('topUp', t('op.players.actions.topUpBtn'))}
           onOpenPayDebt={() => setPayDebtOpen(true)}
-          onSelectOption={setSelectedPackageDefinitionId}
-          onBuy={() => runClientAction('buyPackage', t('op.players.actions.buyPackageBtn'))}
           onCreateReservation={() => runClientAction('booking', t('op.players.actions.bookingBtn'))}
           canManageClient={canManageClient}
           onSetPin={() => setPinOpen(true)}

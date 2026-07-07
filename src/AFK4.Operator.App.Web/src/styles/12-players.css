@@ -420,13 +420,6 @@
   gap: var(--space-3);
 }
 
-.clients-section-title {
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.clients-package-select,
 .clients-new-form label,
 .clients-correction-form label,
 .clients-edit-form label,
@@ -559,81 +552,6 @@
   font-size: 11px;
   text-align: right;
   white-space: nowrap;
-}
-
-.clients-package-buy {
-  display: grid;
-  gap: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  background: var(--surface-card);
-}
-
-.clients-package-preview {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
-}
-
-.clients-package-preview span {
-  display: grid;
-  gap: var(--space-1);
-  min-width: 0;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2);
-  background: var(--surface-elevated);
-}
-
-.clients-package-preview strong,
-.clients-package-preview b {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.clients-package-preview strong {
-  color: var(--text-secondary);
-  font-size: 10px;
-}
-
-.clients-package-preview b {
-  color: var(--text-primary);
-  font-size: 12px;
-}
-
-/* Депозит-гейт во всю ширину: именно он решает, можно ли купить, — выделяем явно. */
-.clients-package-deposit {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface-elevated);
-}
-
-.clients-package-deposit.attention {
-  border-color: var(--danger-soft-border);
-  background: var(--danger-soft-bg);
-}
-
-.clients-package-deposit strong {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.clients-package-deposit b {
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.clients-package-deposit.attention b {
-  color: var(--danger-text);
 }
 
 .client-package-skeleton {
