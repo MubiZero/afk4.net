@@ -1,24 +1,14 @@
 import { useI18n } from '@afk4/i18n';
 import { CalendarClock } from 'lucide-react';
-import type { PlayerClientItem } from '../operatorHelpers';
+import { initials, type PlayerClientItem } from '../operatorHelpers';
 import type { LedgerEntryDto, PackageOptionDto, PlayerPackageDto } from '../operatorApiClients';
-import { EmptyState } from '../operatorPrimitives';
+import { EmptyState, Money } from '../operatorPrimitives';
 import { playerStatusLabel, type ClientLiveContext } from './playersModel';
 import { ClientContextStrip } from './ClientContextStrip';
 import { WalletZone } from './WalletZone';
 import { PackagesSection } from './PackagesSection';
 import { HistorySection } from './HistorySection';
 import { ClientActionsMenu } from './ClientActionsMenu';
-
-// Первые две буквы имени как аватар-заглушка.
-function initials(name: string): string {
-  return name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase() || '—';
-}
 
 // Центральная карточка-воркспейс (tabless): личность → зона денег → низ в две колонки
 // Пакеты | История. Отдельного правого рейла истории больше нет — журнал живёт правой колонкой
@@ -108,6 +98,7 @@ export function ClientDetail(props: {
             {props.canManageClient && (
               <ClientActionsMenu
                 isActive={client.status !== 'inactive'}
+                canManageClient={props.canManageClient}
                 onEditProfile={props.onEditProfile}
                 onSetPin={props.onSetPin}
                 onToggleActive={props.onToggleActive}
@@ -122,10 +113,19 @@ export function ClientDetail(props: {
           </div>
         )}
 
+        <div className="clients-wallet-info">
+          <div className="ui-card ui-card--stat clients-wallet-balance">
+            <span>{t('op.players.chip.balance')}</span>
+            <strong><Money minorUnits={props.balanceMinorUnits} currencyCode={props.currencyCode} /></strong>
+          </div>
+          <div className={`ui-card ui-card--stat clients-wallet-debt${props.debtMinorUnits > 0 ? ' is-danger' : ''}`}>
+            <span>{t('op.players.chip.debt')}</span>
+            <strong><Money minorUnits={props.debtMinorUnits} currencyCode={props.currencyCode} /></strong>
+          </div>
+        </div>
+
         <WalletZone
-          balanceMinorUnits={props.balanceMinorUnits}
           debtMinorUnits={props.debtMinorUnits}
-          currencyCode={props.currencyCode}
           topUpAmount={props.topUpAmount}
           canTopUp={props.canTopUp}
           onChangeTopUpAmount={props.onChangeTopUpAmount}

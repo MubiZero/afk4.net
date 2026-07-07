@@ -910,6 +910,13 @@
   background: var(--danger-soft-bg);
 }
 
+/* Разделитель перед опасным пунктом (Деактивировать) — только когда перед ним есть другие пункты. */
+.client-actions-sep {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--border-soft);
+}
+
 .client-detail-banner {
   margin: 0;
   padding: 10px 14px;
@@ -1220,4 +1227,236 @@
   color: var(--text-tertiary);
   font-family: var(--font-mono);
   font-size: 12px;
+}
+
+/* ── ClientDrawer (mock-v7): узкая правая панель выбранного клиента — деньги-герой +
+   быстрое пополнение + мини-история. Пилюли контекста реюзают .status-pill (06-map-grid.css),
+   здесь не дублируются. Заменяет .clients-detail-panel (Task 8 удалит ClientDetail). ────────── */
+.drawer-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+
+.drawer-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 14px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.drawer-av {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.drawer-id {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.drawer-name {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer-phone {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.drawer-ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.drawer-ic:hover {
+  border-color: var(--border-accent);
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+}
+
+.drawer-ic:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.drawer-context {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.drawer-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+
+.eyebrow {
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.wallet-balance {
+  display: grid;
+  gap: 5px;
+}
+
+.wallet-balance .val {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.wallet-debt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-left: 3px solid var(--danger);
+  border-radius: 7px;
+  padding: 9px 12px;
+  background: var(--danger-soft-bg);
+  color: var(--danger-text);
+}
+
+.wallet-debt .lbl {
+  font-size: 11px;
+}
+
+.wallet-debt .val {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.wallet-sep {
+  flex: none;
+  height: 1px;
+  background: var(--border-soft);
+}
+
+.topup-presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.preset-chip {
+  height: 34px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.preset-chip:hover:not(:disabled) {
+  border-color: var(--border-accent);
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+}
+
+.preset-chip:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.preset-chip:disabled {
+  cursor: not-allowed;
+  color: var(--text-quaternary);
+}
+
+.topup-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.recent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.recent-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.recent-link:hover {
+  text-decoration: underline;
+}
+
+.recent-link:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.recent-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.recent-empty {
+  margin: 0;
+  padding: 12px 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  text-align: center;
 }

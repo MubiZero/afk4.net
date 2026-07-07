@@ -1,6 +1,6 @@
 import { useI18n } from '@afk4/i18n';
 import { Package, Play, Search, UserRoundPlus, Users } from 'lucide-react';
-import type { PlayerClientItem } from '../operatorHelpers';
+import { initials, type PlayerClientItem } from '../operatorHelpers';
 import { Skeleton, EmptyState, Money } from '../operatorPrimitives';
 import {
   activePackageLabel,
@@ -11,16 +11,6 @@ import {
   type ClientSegment,
   type ClientSegmentId
 } from './playersModel';
-
-// Первые две буквы имени как аватар-заглушка (зеркало players/ClientDetail.initials).
-function initials(name: string): string {
-  return name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase() || '—';
-}
 
 // Широкая таблица клиентов (замена master-списка ClientList — см. mock-v7): те же
 // поиск/сегменты/skeleton/empty, что и в ClientList, плюс колонки Баланс/Долг/Сейчас-пакет/Визит.

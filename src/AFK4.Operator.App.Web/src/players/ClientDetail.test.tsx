@@ -88,7 +88,7 @@ describe('ClientDetail', () => {
   it('shows two money stat cards and the package count', () => {
     renderDetail({ balanceMinorUnits: 45000, debtMinorUnits: 3500, packageCount: 2 });
     expect(screen.getByText('450 с.')).toHaveClass('ui-money');
-    expect(document.querySelectorAll('.clients-wallet-zone .ui-card--stat')).toHaveLength(2);
+    expect(document.querySelectorAll('.clients-wallet-info .ui-card--stat')).toHaveLength(2);
     // «Пакеты» — текстовый узел лейбла, счётчик «2» — соседний span; проверяем весь заголовок.
     expect(screen.getByText('Пакеты', { exact: false }).closest('.clients-subpanel-head')).toHaveTextContent('2');
   });

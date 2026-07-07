@@ -100,4 +100,38 @@ describe('HistorySection', () => {
     renderSection({ entries: [entry({ entryType: 'refund', reversesLedgerEntryId: 'le-001' })], canRefund: true });
     expect(screen.queryByRole('button', { name: 'Вернуть' })).toBeNull();
   });
+
+  describe('mini mode (limit)', () => {
+    const manyEntries = Array.from({ length: 6 }, (_, index) =>
+      entry({ ledgerEntryId: `le-${index}`, entryType: 'top_up', description: `Операция ${index}` }));
+
+    it('renders only the first `limit` rows, not the full entries list', () => {
+      const { container } = renderSection({ entries: manyEntries, limit: 4 });
+      expect(container.querySelectorAll('.ui-ledger-row')).toHaveLength(4);
+    });
+
+    it('hides the filter chips and «Показать ещё» in mini mode', () => {
+      renderSection({ entries: manyEntries, limit: 4, hasMore: true });
+      expect(screen.queryByRole('button', { name: 'Все' })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Показать ещё/ })).toBeNull();
+    });
+
+    it('renders the compact rows without the refund button even when canRefund is true', () => {
+      renderSection({ entries: [entry({ entryType: 'top_up' })], limit: 4, canRefund: true });
+      expect(screen.queryByRole('button', { name: 'Вернуть' })).toBeNull();
+    });
+
+    it('shows the «вся история →» link and fires onOpenFull', () => {
+      const onOpenFull = mock(() => {});
+      renderSection({ entries: manyEntries, limit: 4, onOpenFull });
+      fireEvent.click(screen.getByRole('button', { name: /Вся история/ }));
+      expect(onOpenFull).toHaveBeenCalled();
+    });
+
+    it('shows the mini empty note (not the full EmptyState) when there are no entries', () => {
+      renderSection({ entries: [], loading: false, limit: 4 });
+      expect(screen.getByText('Пока нет операций')).toBeInTheDocument();
+      expect(screen.queryByText('Операций нет')).not.toBeInTheDocument();
+    });
+  });
 });

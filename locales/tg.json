@@ -1396,6 +1396,7 @@
   "op.players.history.loadMore": "Бештар нишон диҳед",
   "op.players.wallet.balanceLabel": "Бақия",
   "op.players.wallet.debtLabel": "Қарз",
+  "op.players.wallet.customAmountPlaceholder": "Маблағи дилхоҳ",
   "op.players.wallet.topUpTitle": "Пур кардани депозит",
   "op.players.wallet.payDebtTitle": "Пардохти қарз",
   "op.players.wallet.recentTitle": "Амалиёти охирин",

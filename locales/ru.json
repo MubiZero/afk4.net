@@ -1396,6 +1396,7 @@
   "op.players.history.loadMore": "Показать ещё",
   "op.players.wallet.balanceLabel": "Баланс",
   "op.players.wallet.debtLabel": "Долг",
+  "op.players.wallet.customAmountPlaceholder": "Своя сумма",
   "op.players.wallet.topUpTitle": "Пополнить депозит",
   "op.players.wallet.payDebtTitle": "Погасить долг",
   "op.players.wallet.recentTitle": "Последние операции",

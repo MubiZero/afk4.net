@@ -1362,6 +1362,16 @@ export function projectPlayerClient(player: unknown, t: TFunc): PlayerClientItem
   };
 }
 
+// Первые две буквы имени как аватар-заглушка — общий примитив для ClientsTable/ClientDrawer.
+export function initials(name: string): string {
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || '—';
+}
+
 export function isGuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.trim());
 }

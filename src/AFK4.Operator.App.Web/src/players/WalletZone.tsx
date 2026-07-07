@@ -1,32 +1,31 @@
 import { useI18n } from '@afk4/i18n';
 import { CircleDollarSign, ReceiptText, SlidersHorizontal } from 'lucide-react';
-import { Money } from '../operatorPrimitives';
 
-// Верхняя зона карточки клиента: ряд ИНФОРМАЦИИ (плитки Баланс/Долг) отдельно от ряда ДЕЙСТВИЙ
-// (быстрое пополнение: поле суммы + кнопка; причина необязательна — дефолт подставляется в
-// оркестраторе при сабмите; «Погасить долг» — только при долге, открывает диалог; «Ручная
-// корректировка» — только при праве). Информация и действие не смешиваются в одной строке.
-// Возврат живёт построчно в Истории, не здесь.
+// Форма денежных действий клиента: пресеты быстрого пополнения + поле «своя сумма» + кнопка,
+// затем «Погасить долг» (только при долге) / «Ручная корректировка» (только при праве).
+// Баланс/долг как ЦИФРЫ — забота вызывающего экрана (ClientDetail рисует свои плитки-стат,
+// ClientDrawer — баланс-герой/долг-callout выше формы): WalletZone больше не показывает деньги,
+// только действия с ними. Возврат живёт построчно в Истории, не здесь.
 export function WalletZone({
-  balanceMinorUnits,
   debtMinorUnits,
-  currencyCode,
   topUpAmount,
   canTopUp,
   onChangeTopUpAmount,
   onTopUp,
+  presets = [],
+  onPreset,
   canPayDebt,
   onOpenPayDebt,
   canCorrect,
   onCorrect,
 }: {
-  balanceMinorUnits: number;
   debtMinorUnits: number;
-  currencyCode: string;
   topUpAmount: string;
   canTopUp: boolean;
   onChangeTopUpAmount: (value: string) => void;
   onTopUp: () => void;
+  presets?: number[];
+  onPreset?: (amount: number) => void;
   canPayDebt: boolean;
   onOpenPayDebt: () => void;
   canCorrect: boolean;
@@ -37,20 +36,25 @@ export function WalletZone({
 
   return (
     <div className="clients-wallet-zone">
-      <div className="clients-wallet-info">
-        <div className="ui-card ui-card--stat clients-wallet-balance">
-          <span>{t('op.players.chip.balance')}</span>
-          <strong><Money minorUnits={balanceMinorUnits} currencyCode={currencyCode} /></strong>
+      {presets.length > 0 && onPreset && (
+        <div className="topup-presets">
+          {presets.map((amount) => (
+            <button
+              key={amount}
+              type="button"
+              className="preset-chip"
+              disabled={!canTopUp}
+              onClick={() => onPreset(amount)}
+            >
+              +{amount}
+            </button>
+          ))}
         </div>
-        <div className={`ui-card ui-card--stat clients-wallet-debt${hasDebt ? ' is-danger' : ''}`}>
-          <span>{t('op.players.chip.debt')}</span>
-          <strong><Money minorUnits={debtMinorUnits} currencyCode={currencyCode} /></strong>
-        </div>
-      </div>
+      )}
 
       <div className="clients-wallet-actions">
         <form
-          className="clients-wallet-quickpay"
+          className="clients-wallet-quickpay topup-row"
           onSubmit={(event) => {
             event.preventDefault();
             onTopUp();
@@ -61,7 +65,7 @@ export function WalletZone({
             <input
               id="wallet-topup-amount"
               inputMode="decimal"
-              placeholder="0.00"
+              placeholder={t('op.players.wallet.customAmountPlaceholder')}
               value={topUpAmount}
               disabled={!canTopUp}
               onChange={(event) => onChangeTopUpAmount(event.currentTarget.value)}

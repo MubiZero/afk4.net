@@ -1396,6 +1396,7 @@
   "op.players.history.loadMore": "Show more",
   "op.players.wallet.balanceLabel": "Balance",
   "op.players.wallet.debtLabel": "Debt",
+  "op.players.wallet.customAmountPlaceholder": "Custom amount",
   "op.players.wallet.topUpTitle": "Top up deposit",
   "op.players.wallet.payDebtTitle": "Pay off debt",
   "op.players.wallet.recentTitle": "Recent activity",

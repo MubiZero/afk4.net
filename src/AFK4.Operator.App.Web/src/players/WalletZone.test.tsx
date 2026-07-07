@@ -6,13 +6,13 @@ import { WalletZone } from './WalletZone';
 afterEach(cleanup);
 
 const base = {
-  balanceMinorUnits: 45000,
   debtMinorUnits: 0,
-  currencyCode: 'TJS',
   topUpAmount: '',
   canTopUp: true,
   onChangeTopUpAmount: () => {},
   onTopUp: () => {},
+  presets: [100, 200, 500],
+  onPreset: () => {},
   canPayDebt: true,
   onOpenPayDebt: () => {},
   canCorrect: false,
@@ -23,17 +23,23 @@ const renderZone = (over: Partial<typeof base> = {}) =>
   render(<I18nProvider initialLocale="ru"><WalletZone {...base} {...over} /></I18nProvider>);
 
 describe('WalletZone', () => {
-  it('renders two money stat cards (balance + debt)', () => {
-    renderZone({ balanceMinorUnits: 45000, debtMinorUnits: 3500 });
-    expect(document.querySelectorAll('.ui-card--stat')).toHaveLength(2);
-    expect(screen.getByText('450 с.')).toHaveClass('ui-money');
+  it('renders a preset chip per amount and fires onPreset with the chosen amount', () => {
+    const onPreset = mock(() => {});
+    renderZone({ onPreset });
+    const chips = screen.getAllByRole('button', { name: /^\+\d+$/ });
+    expect(chips.map((chip) => chip.textContent)).toEqual(['+100', '+200', '+500']);
+    fireEvent.click(screen.getByRole('button', { name: '+100' }));
+    expect(onPreset).toHaveBeenCalledWith(100);
   });
 
-  it('marks the debt card danger only when debt is present', () => {
-    const { rerender } = renderZone({ debtMinorUnits: 0 });
-    expect(document.querySelector('.ui-card--stat.is-danger')).toBeNull();
-    rerender(<I18nProvider initialLocale="ru"><WalletZone {...base} debtMinorUnits={3500} /></I18nProvider>);
-    expect(document.querySelector('.ui-card--stat.is-danger')).not.toBeNull();
+  it('renders no presets row when the presets list is empty', () => {
+    renderZone({ presets: [] });
+    expect(document.querySelector('.topup-presets')).toBeNull();
+  });
+
+  it('disables preset chips together with the rest of the form when topUp is not allowed', () => {
+    renderZone({ canTopUp: false });
+    expect(screen.getByRole('button', { name: '+100' })).toBeDisabled();
   });
 
   it('fires onTopUp when the inline top-up form is submitted', () => {
