@@ -252,7 +252,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           ? apiClients.sessions.timeline(nextBackend.branchId, { limit: null }).catch(() => null)
           : Promise.resolve(null),
         canReservations
-          ? apiClients.reservations.search(nextBackend.branchId, { fromUtc: nowIso, toUtc: horizonIso, limit: 40 }).catch(() => null)
+          // branch-wide fetch для контекста всех строк — потолок = серверный EfReservationService.MaxLimit (100).
+          ? apiClients.reservations.search(nextBackend.branchId, { fromUtc: nowIso, toUtc: horizonIso, limit: 100 }).catch(() => null)
           : Promise.resolve(null)
       ]);
       if (disposed) {
