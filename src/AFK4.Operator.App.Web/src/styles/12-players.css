@@ -1,4 +1,4 @@
-/* ── Вкладка «Клиенты»: master-detail (список + карточка с табами) ──────────── */
+/* ── Вкладка «Клиенты»: широкая таблица + узкий drawer выбранного клиента ──────── */
 
 .clients-screen {
   display: flex;
@@ -52,301 +52,27 @@
   gap: 6px;
 }
 
-.clients-new-client-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex: none;
-  height: var(--control-md);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-3);
-  background: var(--accent);
-  color: var(--text-on-accent);
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-  transition: background 100ms ease, transform 100ms ease;
-}
-
-.clients-new-client-btn:hover:not(:disabled) {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
-}
-
-.clients-new-client-btn:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.clients-new-client-btn:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.clients-new-client-btn:disabled {
-  cursor: not-allowed;
-  border-color: var(--border-default);
-  background: var(--surface-muted);
-  color: var(--text-quaternary);
-}
-
-/* Layout: список фиксированной ширины + карточка на остаток; тянется на остаток высоты. */
-.clients-layout {
+/* Layout: широкая таблица + узкий drawer (mock-v7); тянется на остаток высоты. Когда клиент не
+   выбран, drawer не в DOM — таблица занимает всю строку грида (единственная колонка). */
+.clients-grid {
   display: grid;
-  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 372px;
   gap: 10px;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
 }
 
-.clients-panel {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  border: 1px solid var(--border-soft);
-  border-radius: 7px;
-  background: var(--surface-elevated);
-  box-shadow: var(--shadow-card);
+/* Клиент не выбран → drawer не рендерится → таблица одна в гриде и растягивается на обе колонки. */
+.clients-grid > .table-panel:only-child {
+  grid-column: 1 / -1;
 }
 
-.clients-panel-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  min-width: 0;
-  /* Щедрый вертикальный воздух: строка заголовка не лепится к полю поиска. */
-  padding: var(--space-3) var(--space-3) var(--space-2);
-}
-
-/* Заголовок панели — одна строка; при нехватке места усекается сам, а кнопка остаётся целой. */
-.clients-panel-title-text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* ── Список (master) ────────────────────────────────────────────────────────── */
-.clients-search {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: var(--control-md);
-  margin: var(--space-2) var(--space-3) var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-3);
-  background: var(--surface-sunken);
-  color: var(--text-tertiary);
-}
-
-.clients-search input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 12px;
-}
-
-.clients-segment-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 0 12px 8px;
-}
-
-.clients-list {
-  display: grid;
-  align-content: start;
-  gap: 5px;
-  /* padding-top — запас под hover-подъём первой строки (translateY иначе срезается кромкой прокрутки) */
-  padding: 2px 12px 10px;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.clients-list-skeleton {
-  display: grid;
-  gap: 5px;
-}
-
-.client-row-skel {
-  height: 44px;
-  border-radius: 6px;
-}
-
-.client-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-1) var(--space-2);
-  min-height: var(--control-lg);
-  padding: var(--space-1) var(--space-2);
-  text-align: left;
-  --edge: var(--text-tertiary);
-}
-
-.client-row:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.client-row.active { --edge: var(--success); }
-.client-row.regular { --edge: var(--text-tertiary); }
-.client-row.debt { --edge: var(--danger); }
-
-.client-row.selected {
-  border-color: var(--border-accent);
-  background: var(--surface-hover);
-  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.22);
-}
-
-.client-row-name {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-}
-
-.client-row-name-text {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-row-info {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-}
-
-/* Единственная цифра баланса в колонке 3 (§7.1) — долг ушёл в бейдж рядом с именем. */
-.client-row-figures {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 2px;
-  min-width: 0;
-  color: var(--text-primary);
-}
-
-.client-row em {
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-style: normal;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* ── Карточка (detail) ──────────────────────────────────────────────────────── */
-/* Карточка-воркспейс: шапка+деньги фиксированы сверху (.clients-detail-top), ниже
-   .clients-detail-split заполняет высоту, каждая колонка (Пакеты/История) скроллит своё
-   тело — история не тянет всю карточку вниз. Контент занимает всю ширину панели. */
-.clients-detail-panel {
-  gap: var(--space-3);
-  padding: var(--space-3);
-}
-
-.clients-detail-top {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.client-detail-head {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-3);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  background: var(--surface-card);
-}
-
-.client-avatar {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--text-on-accent);
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.client-detail-ident {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-}
-
-.client-detail-status {
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.client-detail-status.is-debt {
-  color: var(--danger-text);
-}
-
-.client-detail-status.is-inactive {
-  color: var(--text-secondary);
-}
-
-.client-detail-ident strong {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 20px;
-  line-height: 1.05;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-detail-ident em {
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-style: normal;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-detail-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Зона денег: ряд ИНФОРМАЦИИ (Баланс | Долг) отдельно от ряда ДЕЙСТВИЙ (пополнение +
-   Погасить долг + Коррекция) — информация и действие не в одной строке.
-   Тег-селектор `button` тут НЕ использовать (каскад-ловушка с .ui-btn). */
+/* Зона денег: пресеты пополнения + поле «своя сумма» + кнопка, затем «Погасить долг»/«Коррекция».
+   Рисуется внутри drawer (WalletZone). Тег-селектор `button` тут НЕ использовать (каскад-ловушка
+   с .ui-btn). */
 .clients-wallet-zone {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-}
-/* Инфо-плитки компактные (не растягиваются на всю ширину — иначе пусто);
-   рабочую ширину заполняет .clients-detail-split ниже. */
-.clients-wallet-info {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 380px));
   gap: var(--space-3);
 }
 .clients-wallet-actions {
@@ -363,54 +89,8 @@
 .clients-wallet-quickpay .ui-field { width: 240px; }
 
 @media (max-width: 720px) {
-  .clients-wallet-info { grid-template-columns: minmax(0, 1fr); }
   .clients-wallet-quickpay { flex: 1; }
   .clients-wallet-quickpay .ui-field { width: auto; flex: 1; }
-}
-
-/* Низ карточки: Пакеты | История рядом, заполняют оставшуюся высоту; каждая колонка
-   скроллит своё тело (история не тянет карточку вниз). */
-.clients-detail-split {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--space-3);
-}
-
-.clients-subpanel {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-md);
-  background: var(--surface-card);
-}
-.clients-subpanel-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-3) var(--space-2);
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 700;
-}
-.clients-subpanel-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 0 var(--space-3) var(--space-3);
-}
-
-/* Узкое окно: колонки в стопку, скроллит вся карточка (два вложенных скролла неудобны). */
-@media (max-width: 1100px) {
-  .clients-detail-panel { overflow-y: auto; }
-  .clients-detail-split {
-    flex: none;
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .clients-subpanel-body { overflow: visible; }
 }
 
 /* Форма диалога погашения долга (PayDebtModal). Без тег-селектора button (каскад-ловушка). */
@@ -504,61 +184,6 @@
   color: var(--text-quaternary);
 }
 
-/* ── Пакеты ──────────────────────────────────────────────────────────────────── */
-.clients-packages-section {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.client-package-list {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.client-package-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-1) var(--space-3);
-}
-
-.client-package-row.is-expired {
-  opacity: 0.6;
-}
-
-.client-package-row strong {
-  grid-column: 1;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-package-row span {
-  grid-column: 1;
-  color: var(--text-secondary);
-  font-size: 11px;
-}
-
-.client-package-bonus {
-  color: var(--accent-on-soft) !important;
-}
-
-.client-package-row b {
-  grid-row: 1 / 3;
-  grid-column: 2;
-  align-self: center;
-  color: var(--text-tertiary);
-  font-size: 11px;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.client-package-skeleton {
-  height: 52px;
-  border-radius: var(--radius-md);
-}
-
 /* ── Модалка нового клиента (поверх .panel-modal) ───────────────────────────── */
 .clients-new-form {
   display: grid;
@@ -569,8 +194,7 @@
 /* ── Reduced motion ───────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .clients-segment button,
-  .clients-primary-action,
-  .clients-new-client-btn {
+  .clients-primary-action {
     transition: none;
   }
 }
@@ -702,34 +326,6 @@
   font-size: 11px;
 }
 
-.client-detail-pin {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 0 12px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: border-color 100ms ease, background 100ms ease, color 100ms ease, transform 100ms ease;
-}
-
-.client-detail-pin:hover:not(:disabled) {
-  border-color: var(--border-accent);
-  background: var(--surface-accent-soft);
-  color: var(--accent-bright);
-  transform: translateY(-1px);
-}
-
-.client-detail-pin:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
 /* Кнопка подтверждения возврата — опасный акцент по образцу .critical-confirmation-actions button.danger */
 .clients-danger-action {
   border-color: var(--danger-soft-border);
@@ -835,35 +431,6 @@
   background: var(--border-soft);
 }
 
-.client-detail-banner {
-  margin: 0;
-  padding: 10px 14px;
-  border: 1px solid var(--danger);
-  border-radius: 9px;
-  background: var(--danger-soft-bg);
-  color: var(--danger-text);
-  font-size: 13px;
-}
-
-/* ── Кросс-контекст профиля: «играет сейчас» / «ближайшая бронь» — компактная мета-строка
-   внутри карточки-личности (под телефоном), в стиле проекта (не пилюли). ─────────────── */
-.client-context-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px var(--space-3);
-  margin-top: 3px;
-  font-size: 11px;
-}
-.client-context-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--text-tertiary);
-}
-.client-context-item.is-live {
-  color: var(--accent-text);
-}
-
 .clients-edit-form,
 .clients-confirm {
   display: flex;
@@ -878,22 +445,14 @@
   line-height: 1.5;
 }
 
-.client-row.is-inactive {
-  opacity: 0.62;
-}
-
-.client-row.is-inactive .client-row-status {
-  color: var(--danger-text);
-}
-
 .panel-modal.danger .panel-modal-head {
   border-bottom-color: var(--danger);
 }
 
-/* ── ClientsTable (mock-v7): широкая таблица клиентов, замена master-списка ClientList.
+/* ── ClientsTable (mock-v7): широкая таблица клиентов — рабочий экран раздела «Клиенты».
    Разметка/классы 1:1 из scratchpad/clients-redesign-mock-v7.html; модификаторы строки
-   (debt/selected/inactive) скоуплены к .ctable-row — в проекте уже есть голые .debt/.selected
-   в другом контексте (client-row/06-map-grid/11-pos), голый селектор их перебил бы. ──────── */
+   (debt/selected/inactive) скоуплены к .ctable-row — в проекте есть голые .debt/.selected
+   в другом контексте (06-map-grid/11-pos), голый селектор их перебил бы. ──────── */
 .table-panel {
   display: flex;
   flex-direction: column;

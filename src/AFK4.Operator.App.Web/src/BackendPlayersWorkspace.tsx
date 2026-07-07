@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
-import type { LedgerEntryDto, PlayerPackageDto, SessionTimelineItemDto, WalletSummaryDto } from './operatorApiClients';
+import type { LedgerEntryDto, SessionTimelineItemDto, WalletSummaryDto } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
@@ -17,11 +17,13 @@ import {
   requireBackend,
   resolveReasonInput
 } from './operatorHelpers';
-import { fixturePlayers, playerStatusLabel, projectPlayerClient, buildClientSegments, buildClientOverview, buildClientContext, matchesSegment, type PlayerClientItem, type ClientSegmentId, type ClientLiveContext } from './players/playersModel';
+import { fixturePlayers, playerStatusLabel, projectPlayerClient, buildClientSegments, buildClientOverview, buildClientContextMap, matchesSegment, type PlayerClientItem, type ClientSegmentId, type ClientLiveContext } from './players/playersModel';
 import { fetchPlayersData, playersSnapshotCache } from './players/playersSnapshot';
 import { FeedbackNotice, StateFlag } from './operatorPrimitives';
-import { ClientList } from './players/ClientList';
-import { ClientDetail } from './players/ClientDetail';
+import { ClientsTable } from './players/ClientsTable';
+import { ClientDrawer } from './players/ClientDrawer';
+import { HistorySection } from './players/HistorySection';
+import { PanelModal } from './PanelModal';
 import { NewClientModal } from './players/NewClientModal';
 import { CorrectionModal, type CorrectionAccount, type CorrectionDirection } from './players/CorrectionModal';
 import { RefundModal } from './players/RefundModal';
@@ -46,7 +48,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [loadStatus, setLoadStatus] = useState<LoadStatus>(backend === null ? 'fixture' : cachedSnapshot ? 'backend' : 'loading');
   const [clients, setClients] = useState<PlayerClientItem[]>(() => backend === null ? fixturePlayers(currencyCode, t) : cachedSnapshot?.clients ?? []);
   const [walletSummary, setWalletSummary] = useState<WalletSummaryDto | null>(null);
-  const [selectedClientPackages, setSelectedClientPackages] = useState<PlayerPackageDto[]>([]);
   const [walletTopUpAmount, setWalletTopUpAmount] = useState('');
   const [walletTopUpReason] = useState('');
   const [debtPaymentAmount, setDebtPaymentAmount] = useState('');
@@ -57,7 +58,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [ledgerCursor, setLedgerCursor] = useState<string | null>(null);
   const [ledgerFilter, setLedgerFilter] = useState<string | null>(null);
   const [ledgerLoading, setLedgerLoading] = useState(false);
-  const [packagesLoading, setPackagesLoading] = useState(false);
   const [correctionOpen, setCorrectionOpen] = useState(false);
   const [correctionAccount, setCorrectionAccount] = useState<CorrectionAccount>('wallet');
   const [correctionDirection, setCorrectionDirection] = useState<CorrectionDirection>('credit');
@@ -71,8 +71,12 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [activeStateOpen, setActiveStateOpen] = useState(false);
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [ledgerReloadNonce, setLedgerReloadNonce] = useState(0);
-  const [liveContext, setLiveContext] = useState<ClientLiveContext>({ session: null, nextBooking: null });
+  // Кросс-контекст ВСЕХ загруженных клиентов (играет-сейчас/ближайшая-бронь), построенный за один
+  // проход по branch-wide sessions+reservations — таблица подсвечивает «сейчас» в каждой строке,
+  // drawer берёт контекст выбранного из этой же карты (без per-client рефетча).
+  const [liveContextByClient, setLiveContextByClient] = useState<Map<string, ClientLiveContext>>(() => new Map());
 
   useEffect(() => {
     if (backend === null) {
@@ -89,7 +93,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         setLoadStatus('loading');
       }
       try {
-        const { clients: nextClients, options: nextOptions } = await fetchPlayersData(backend, t, clientSearch);
+        const { clients: nextClients } = await fetchPlayersData(backend, t, clientSearch);
         if (disposed) {
           return;
         }
@@ -101,7 +105,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
             : nextClients[0]?.playerAccountId ?? null;
           // Кладём удачный снимок в кэш → следующий заход в раздел мгновенный (без ре-фетча с нуля).
           if (cacheKey !== null) {
-            playersSnapshotCache.set(cacheKey, { clients: nextClients, options: nextOptions, selectedId: resolved });
+            playersSnapshotCache.set(cacheKey, { clients: nextClients, selectedId: resolved });
           }
           return resolved;
         });
@@ -137,35 +141,21 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   useEffect(() => {
     if (backend === null || selectedClient === null || !selectedClient.playerAccountId || selectedClient.source !== 'backend') {
       setWalletSummary(null);
-      setSelectedClientPackages([]);
-      setPackagesLoading(false);
       return undefined;
     }
 
     const client = selectedClient as PlayerClientItem & { playerAccountId: string; source: 'backend' };
     let disposed = false;
     const loadWallet = async () => {
-      setPackagesLoading(true);
       try {
         const apiClients = createAuthenticatedOperatorClients(backend.config, backend.session);
-        const [wallet, packages] = await Promise.all([
-          apiClients.players.getWalletSummary(client.playerAccountId),
-          hasPermission(backend.session, permissionNames.viewPackages)
-            ? apiClients.players.getPlayerPackages(client.playerAccountId).catch(() => [])
-            : Promise.resolve([])
-        ]);
+        const wallet = await apiClients.players.getWalletSummary(client.playerAccountId);
         if (!disposed) {
           setWalletSummary(wallet);
-          setSelectedClientPackages(Array.isArray(packages) ? packages : []);
         }
       } catch (error) {
         if (!disposed) {
           setFeedback({ label: client.name, state: 'failed', detail: projectOperatorError(error, t).detail });
-          setSelectedClientPackages([]);
-        }
-      } finally {
-        if (!disposed) {
-          setPackagesLoading(false);
         }
       }
     };
@@ -230,21 +220,25 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     ledgerReloadNonce
   ]);
 
-  // Кросс-контекст профиля: активная сессия (играет сейчас) и ближайшая бронь клиента.
-  // Best-effort и не критичный — при отсутствии прав/ошибке просто ничего не показываем,
-  // экран клиентов от этого не страдает.
+  // Кросс-контекст ВСЕХ клиентов: активная сессия (играет сейчас) и ближайшая бронь. Один branch-wide
+  // fetch sessions+reservations раскладывается по playerAccountId (buildClientContextMap), а не рефетчится
+  // на выбранного клиента — так «сейчас» видно в каждой строке таблицы, а не только в drawer. Брони
+  // грузим branch-wide (без playerAccountId) — фильтрация по клиенту живёт внутри buildClientContext.
+  // Best-effort: нет прав/ошибка → пустая карта, экран не страдает.
+  const clientIdsKey = clients.map((client) => client.playerAccountId ?? '').join(',');
   useEffect(() => {
-    if (backend === null || selectedClient === null || !selectedClient.playerAccountId || selectedClient.source !== 'backend') {
-      setLiveContext({ session: null, nextBooking: null });
+    const backendClients = clients.filter((client): client is PlayerClientItem & { playerAccountId: string } =>
+      client.source === 'backend' && Boolean(client.playerAccountId));
+    if (backend === null || backendClients.length === 0) {
+      setLiveContextByClient(new Map());
       return undefined;
     }
 
     const nextBackend = backend;
-    const playerAccountId = selectedClient.playerAccountId;
     const canSessions = hasPermission(nextBackend.session, permissionNames.viewSessions);
     const canReservations = hasPermission(nextBackend.session, permissionNames.viewReservations);
     if (!canSessions && !canReservations) {
-      setLiveContext({ session: null, nextBooking: null });
+      setLiveContextByClient(new Map());
       return undefined;
     }
 
@@ -258,7 +252,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           ? apiClients.sessions.timeline(nextBackend.branchId, { limit: null }).catch(() => null)
           : Promise.resolve(null),
         canReservations
-          ? apiClients.reservations.search(nextBackend.branchId, { fromUtc: nowIso, toUtc: horizonIso, limit: 40, playerAccountId }).catch(() => null)
+          ? apiClients.reservations.search(nextBackend.branchId, { fromUtc: nowIso, toUtc: horizonIso, limit: 40 }).catch(() => null)
           : Promise.resolve(null)
       ]);
       if (disposed) {
@@ -267,7 +261,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
       const sessions = readArray<SessionTimelineItemDto>(sessionsResult, 'sessions');
       const reservations = readArray<Record<string, unknown>>(reservationsResult, 'reservations');
-      setLiveContext(buildClientContext(sessions, reservations, playerAccountId));
+      setLiveContextByClient(buildClientContextMap(sessions, reservations, backendClients));
     };
 
     void loadContext();
@@ -278,17 +272,12 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     backend?.branchId,
     backend?.config.platformBaseUrl,
     backend?.session.accessToken,
-    selectedClient?.playerAccountId,
-    selectedClient?.source,
+    clientIdsKey,
     ledgerReloadNonce
   ]);
 
-  // Смена клиента: синхронно гасим кросс-контекст прошлого клиента, чтобы при переключении
-  // не мелькнула чужая активная сессия («играет на РС-XX»), пока грузятся данные нового.
-  // Журнал/кошелёк сбрасывают себя сами в своих эффектах.
   const handleSelectClient = (id: string | null) => {
     setSelectedClientId(id);
-    setLiveContext({ session: null, nextBooking: null });
   };
 
   const segments = buildClientSegments(clients, t);
@@ -302,7 +291,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
   const balance = readMoney(walletSummary, 'walletBalance')?.minorUnits ?? selectedClient?.balanceMinorUnits ?? 0;
   const debt = readMoney(walletSummary, 'debtBalance')?.minorUnits ?? selectedClient?.debtMinorUnits ?? 0;
-  const selectedClientPackageCount = selectedClientPackages.length || Number.parseInt(selectedClient?.last ?? '', 10) || 0;
 
   useEffect(() => {
     if (debt <= 0) {
@@ -363,7 +351,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     return selectedClient as PlayerClientItem & { playerAccountId: string; source: 'backend' };
   };
 
-  const runClientAction = async (id: PlayerActionId, label: string) => {
+  const runClientAction = async (id: PlayerActionId, label: string, options?: { topUpMinorUnits?: number }) => {
     setFeedback({ label, state: 'pending' });
     try {
       const nextBackend = requireBackend(backend, t);
@@ -376,7 +364,10 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
         const backendClient = requireSelectedBackendClient();
 
-        const topUpMinorUnits = parseMoneyInputMinorUnits(walletTopUpAmount);
+        // Пресет-чипы (+100/+200/+500) передают сумму напрямую аргументом — стейт поля пополнения
+        // асинхронный, читать его сразу после setState нельзя. Кнопка «Пополнить» без аргумента
+        // берёт введённую в поле сумму как раньше.
+        const topUpMinorUnits = options?.topUpMinorUnits ?? parseMoneyInputMinorUnits(walletTopUpAmount);
         if (topUpMinorUnits === null) {
           throw new Error(t('op.players.error.topUpInvalid'));
         }
@@ -620,6 +611,10 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     setLedgerFilter(entryType);
   };
 
+  // Единая «текущая» отметка на рендер — метки «Новый»/относительный визит в таблице детерминируемы
+  // от одного значения (не по Date.now() в каждой ячейке).
+  const nowMs = Date.now();
+
   return (
     <main className="workspace-screen clients-screen">
       <section className="clients-head">
@@ -641,8 +636,8 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
       <FeedbackNotice feedback={feedback} />
 
-      <section className="clients-layout">
-        <ClientList
+      <div className="clients-grid">
+        <ClientsTable
           clients={visibleClients}
           segments={segments}
           activeSegment={activeSegment}
@@ -653,46 +648,63 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           emptyDescription={emptyDescription}
           currencyCode={currencyCode}
           canCreatePlayer={canCreatePlayer}
+          liveContextByClient={liveContextByClient}
+          nowMs={nowMs}
           onNewClient={() => setNewClientOpen(true)}
           onSearchChange={setClientSearch}
           onSelectSegment={setActiveSegment}
           onSelectClient={handleSelectClient}
         />
 
-        <ClientDetail
-          client={selectedClient}
-          isLoading={loadStatus === 'loading'}
-          liveContext={liveContext}
-          balanceMinorUnits={balance}
-          debtMinorUnits={debt}
-          packageCount={selectedClientPackageCount}
-          currencyCode={currencyCode}
-          packages={selectedClientPackages}
-          ledgerEntries={ledgerEntries}
-          ledgerFilter={ledgerFilter}
-          ledgerHasMore={ledgerCursor !== null}
-          ledgerLoading={ledgerLoading}
-          onLedgerFilterChange={changeLedgerFilter}
-          onLedgerLoadMore={() => void loadMoreLedger()}
-          packagesLoading={packagesLoading}
-          topUpAmount={walletTopUpAmount}
-          canTopUp={canTopUpWallet}
-          canPayDebt={canPayDebt}
-          canCreateReservation={canCreateClientReservation}
-          onChangeTopUpAmount={setWalletTopUpAmount}
-          onTopUp={() => runClientAction('topUp', t('op.players.actions.topUpBtn'))}
-          onOpenPayDebt={() => setPayDebtOpen(true)}
-          onCreateReservation={() => runClientAction('booking', t('op.players.actions.bookingBtn'))}
-          canManageClient={canManageClient}
-          onSetPin={() => setPinOpen(true)}
-          onEditProfile={openEditProfile}
-          onToggleActive={() => setActiveStateOpen(true)}
-          canCorrect={canManualCorrect}
-          onCorrect={() => setCorrectionOpen(true)}
-          canRefund={canRefundLedger}
-          onRefund={(entry) => setRefundTarget(entry)}
-        />
-      </section>
+        {selectedClient !== null && (
+          <ClientDrawer
+            client={selectedClient}
+            liveContext={liveContextByClient.get(selectedClient.playerAccountId ?? '') ?? { session: null, nextBooking: null }}
+            balanceMinorUnits={balance}
+            debtMinorUnits={debt}
+            currencyCode={currencyCode}
+            recentEntries={ledgerEntries}
+            topUpAmount={walletTopUpAmount}
+            canTopUp={canTopUpWallet}
+            onChangeTopUpAmount={setWalletTopUpAmount}
+            onTopUp={() => runClientAction('topUp', t('op.players.actions.topUpBtn'))}
+            onPresetTopUp={(amount) => {
+              const topUpMinorUnits = parseMoneyInputMinorUnits(String(amount));
+              if (topUpMinorUnits !== null) {
+                void runClientAction('topUp', t('op.players.actions.topUpBtn'), { topUpMinorUnits });
+              }
+            }}
+            canPayDebt={canPayDebt}
+            onOpenPayDebt={() => setPayDebtOpen(true)}
+            canManageClient={canManageClient}
+            canCorrect={canManualCorrect}
+            canCreateReservation={canCreateClientReservation}
+            onCorrect={() => setCorrectionOpen(true)}
+            onCreateReservation={() => runClientAction('booking', t('op.players.actions.bookingBtn'))}
+            onSetPin={() => setPinOpen(true)}
+            onEditProfile={openEditProfile}
+            onToggleActive={() => setActiveStateOpen(true)}
+            onOpenFullHistory={() => setHistoryModalOpen(true)}
+            onClose={() => handleSelectClient(null)}
+          />
+        )}
+      </div>
+
+      {historyModalOpen && selectedClient !== null && (
+        <PanelModal title={t('op.players.wallet.allHistory')} subtitle={selectedClient.name} onClose={() => setHistoryModalOpen(false)}>
+          <HistorySection
+            entries={ledgerEntries}
+            currencyCode={currencyCode}
+            activeFilter={ledgerFilter}
+            onFilterChange={changeLedgerFilter}
+            hasMore={ledgerCursor !== null}
+            onLoadMore={() => void loadMoreLedger()}
+            loading={ledgerLoading}
+            canRefund={canRefundLedger}
+            onRefund={(entry) => setRefundTarget(entry)}
+          />
+        </PanelModal>
+      )}
 
       {newClientOpen && (
         <NewClientModal

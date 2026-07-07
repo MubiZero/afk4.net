@@ -867,10 +867,10 @@ describe('App', () => {
     // глобальные метрики базы в шапке: Клиентов / Депозиты / Долги (сумма по базе, не per-client)
     expect(clientsHead).toHaveTextContent('Клиентов');
     expect(clientsHead).toHaveTextContent('Долги');
-    expect(screen.getByText('Список клиентов')).toBeInTheDocument();
-    // tabless: зона денег, пакеты и история видны одновременно
+    // Таблица + drawer выбранного клиента видны одновременно: тулбар таблицы, зона денег и мини-история.
+    expect(screen.getByRole('button', { name: /Новый клиент/ })).toBeInTheDocument();
     expect(await screen.findByLabelText('Сумма пополнения')).toBeInTheDocument();
-    expect(screen.getByText('История операций')).toBeInTheDocument();
+    expect(screen.getByText('Последние операции')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeInTheDocument();
 
     gotoWorkspace('Смена');
@@ -1348,8 +1348,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Клиенты не найдены')).toBeInTheDocument();
     expect(await screen.findByText('По текущему поиску клиентов нет.')).toBeInTheDocument();
-    expect(screen.getByText('Нет выбранного клиента')).toBeInTheDocument();
-    expect(screen.getByText('Пустой ответ сервера не подменяется локальной карточкой')).toBeInTheDocument();
+    // Клиент не выбран → drawer не рендерится, таблица занимает всю ширину. Демо-клиент не подставляется.
     expect(screen.queryByText('Madina S.')).not.toBeInTheDocument();
   });
 
@@ -1586,9 +1585,10 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     expect((await screen.findAllByText('Madina S.')).length).toBeGreaterThan(0);
-    const createReservationButton = screen.getByRole('button', { name: 'Бронь' });
-    await waitFor(() => expect(createReservationButton).toBeEnabled());
-    fireEvent.click(createReservationButton);
+    // Бронь живёт в меню «…» drawer'а выбранного клиента (по умолчанию — первый, Madina S.).
+    fireEvent.click(await screen.findByRole('button', { name: 'Действия с клиентом' }));
+    const bookingItem = await screen.findByRole('menuitem', { name: /Создать бронь/ });
+    fireEvent.click(bookingItem);
 
     expect(await screen.findByText('Создать бронь: подтверждено')).toBeInTheDocument();
     const reservationCall = fetchMock.mock.calls.find(([input, init]) =>
@@ -1615,21 +1615,9 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
 
-    expect(await screen.findByRole('button', { name: 'Бронь' })).toBeDisabled();
-  });
-
-  it('shows active backend packages on the selected client profile', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByTitle('Клиенты'));
-    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    expect(await screen.findByText(/180 мин в пакете/)).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/packages') &&
-      init?.method !== 'POST')).toBe(true);
+    // Без права reservations.manage пункт «Создать бронь» не появляется в меню drawer'а.
+    fireEvent.click(await screen.findByRole('button', { name: 'Действия с клиентом' }));
+    expect(screen.queryByRole('menuitem', { name: /Создать бронь/ })).toBeNull();
   });
 
   it('tops up the selected client wallet from the Clients money form', async () => {
@@ -1783,15 +1771,18 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
 
-    // tabless: журнал грузится сразу, без перехода на отдельную вкладку
-    // первая запись журнала из /ledger (top_up) — описание видно
-    expect(await screen.findByText(/Пополнение кошелька/)).toBeInTheDocument();
-    // источник — именно /ledger, не recentEntries из wallet-summary
-    expect(fetchMock.mock.calls.some(([input]) =>
-      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/ledger'))).toBe(true);
+    // Журнал грузится сразу для выбранного клиента (drawer показывает мини-историю); источник — /ledger,
+    // не recentEntries из wallet-summary.
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) =>
+      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/ledger'))).toBe(true));
+
+    // «Вся история →» открывает модалку с полным фильтруемым журналом (описание видно, non-compact).
+    fireEvent.click(await screen.findByRole('button', { name: /Вся история/ }));
+    const historyDialog = await screen.findByRole('dialog', { name: 'Вся история' });
+    expect(await within(historyDialog).findByText(/Пополнение кошелька/)).toBeInTheDocument();
 
     // фильтр по типу top_up → перезапрос /ledger?entryType=top_up
-    fireEvent.click(screen.getByRole('button', { name: 'Пополнение' }));
+    fireEvent.click(within(historyDialog).getByRole('button', { name: 'Пополнение' }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([input]) =>
       String(input).includes('/ledger') && String(input).includes('entryType=top_up'))).toBe(true));
   });
