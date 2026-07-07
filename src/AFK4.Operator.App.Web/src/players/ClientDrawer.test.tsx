@@ -67,18 +67,21 @@ describe('ClientDrawer', () => {
     const pill = document.querySelector('.status-pill.ok');
     expect(pill).not.toBeNull();
     expect(pill).toHaveTextContent('PC-01');
+    expect(screen.getByText('Нет брони')).toBeInTheDocument();
   });
 
   it('shows a .neutral context pill for an upcoming booking', () => {
     renderDrawer({ liveContext: { session: null, nextBooking: { timeLabel: '19:00', seatName: 'VIP-03' } } });
-    const pill = document.querySelector('.status-pill.neutral');
-    expect(pill).not.toBeNull();
-    expect(pill).toHaveTextContent('VIP-03');
+    expect(screen.getByText('Не играет')).toBeInTheDocument();
+    const pills = document.querySelectorAll('.status-pill.neutral');
+    expect([...pills].some((pill) => pill.textContent?.includes('VIP-03'))).toBe(true);
   });
 
-  it('renders no context strip when there is neither a session nor a booking', () => {
+  it('shows explicit placeholders when there is neither a session nor a booking', () => {
     renderDrawer();
-    expect(document.querySelector('.drawer-context')).toBeNull();
+    expect(document.querySelector('.drawer-context')).not.toBeNull();
+    expect(screen.getByText('Не играет')).toBeInTheDocument();
+    expect(screen.getByText('Нет брони')).toBeInTheDocument();
   });
 
   it('renders the wallet balance', () => {

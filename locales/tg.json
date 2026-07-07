@@ -1393,6 +1393,8 @@
   "op.players.context.until": "то {time}",
   "op.players.context.openTab": "ҳисоби кушод",
   "op.players.context.nextBooking": "Брон ба {time}",
+  "op.players.context.notPlaying": "Бозӣ намекунад",
+  "op.players.context.noBooking": "Брон нест",
   "op.players.newClient.title": "Муштарии нав",
   "op.players.newClient.subtitle": "корти клуб",
   "op.players.newClient.submit": "Эҷод кардан",

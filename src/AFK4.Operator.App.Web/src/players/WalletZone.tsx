@@ -33,6 +33,7 @@ export function WalletZone({
 }) {
   const { t } = useI18n();
   const hasDebt = debtMinorUnits > 0;
+  const hasSecondaryActions = hasDebt || canCorrect;
 
   return (
     <div className="clients-wallet-zone">
@@ -52,44 +53,46 @@ export function WalletZone({
         </div>
       )}
 
-      <div className="clients-wallet-actions">
-        <form
-          className="clients-wallet-quickpay topup-row"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onTopUp();
-          }}
-        >
-          <div className="ui-field">
-            <label htmlFor="wallet-topup-amount">{t('op.players.actions.topUpAmountLabel')}</label>
-            <input
-              id="wallet-topup-amount"
-              inputMode="decimal"
-              placeholder={t('op.players.wallet.customAmountPlaceholder')}
-              value={topUpAmount}
-              disabled={!canTopUp}
-              onChange={(event) => onChangeTopUpAmount(event.currentTarget.value)}
-            />
-          </div>
-          <button type="submit" className="ui-btn ui-btn--primary" disabled={!canTopUp}>
-            <CircleDollarSign size={15} aria-hidden="true" />
-            {t('op.players.actions.topUpBtn')}
-          </button>
-        </form>
+      <form
+        className="clients-wallet-quickpay topup-row"
+        onSubmit={(event) => {
+          event.preventDefault();
+          onTopUp();
+        }}
+      >
+        <div className="ui-field">
+          <label htmlFor="wallet-topup-amount">{t('op.players.actions.topUpAmountLabel')}</label>
+          <input
+            id="wallet-topup-amount"
+            inputMode="decimal"
+            placeholder={t('op.players.wallet.customAmountPlaceholder')}
+            value={topUpAmount}
+            disabled={!canTopUp}
+            onChange={(event) => onChangeTopUpAmount(event.currentTarget.value)}
+          />
+        </div>
+        <button type="submit" className="ui-btn ui-btn--primary" disabled={!canTopUp}>
+          <CircleDollarSign size={15} aria-hidden="true" />
+          {t('op.players.actions.topUpBtn')}
+        </button>
+      </form>
 
-        {hasDebt && (
-          <button type="button" className="ui-btn ui-btn--danger" disabled={!canPayDebt} onClick={onOpenPayDebt}>
-            <ReceiptText size={14} aria-hidden="true" />
-            {t('op.players.actions.writeOffDebtBtn')}
-          </button>
-        )}
-        {canCorrect && (
-          <button type="button" className="ui-btn ui-btn--ghost" onClick={onCorrect}>
-            <SlidersHorizontal size={14} aria-hidden="true" />
-            {t('op.players.correction.openLink')}
-          </button>
-        )}
-      </div>
+      {hasSecondaryActions && (
+        <div className="clients-wallet-secondary">
+          {hasDebt && (
+            <button type="button" className="ui-btn ui-btn--danger" disabled={!canPayDebt} onClick={onOpenPayDebt}>
+              <ReceiptText size={14} aria-hidden="true" />
+              {t('op.players.actions.writeOffDebtBtn')}
+            </button>
+          )}
+          {canCorrect && (
+            <button type="button" className="ui-btn" onClick={onCorrect}>
+              <SlidersHorizontal size={14} aria-hidden="true" />
+              {t('op.players.correction.openLink')}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

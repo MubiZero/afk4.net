@@ -10,7 +10,7 @@ import { ClientActionsMenu } from './ClientActionsMenu';
 
 // Сколько последних операций показываем в мини-истории — за остальным уводит «вся история →».
 const RECENT_ENTRIES_LIMIT = 4;
-const TOPUP_PRESET_AMOUNTS = [100, 200, 500];
+const TOPUP_PRESET_AMOUNTS = [50, 100, 200, 500];
 const noop = () => {};
 
 // Узкая правая панель выбранного клиента (mock-v7) — замена вертикального разреза ClientDetail
@@ -99,40 +99,50 @@ export function ClientDrawer({
         </button>
       </div>
 
-      {(liveContext.session !== null || liveContext.nextBooking !== null) && (
-        <div className="drawer-context">
-          {liveContext.session !== null && (
-            <span className="status-pill ok">
-              <Play size={12} aria-hidden="true" />
-              {t('op.players.context.playingOn', { seat: liveContext.session.seatName })}
-              {' · '}
-              {liveContext.session.untilLabel
-                ? t('op.players.context.until', { time: liveContext.session.untilLabel })
-                : t('op.players.context.openTab')}
-            </span>
-          )}
-          {liveContext.nextBooking !== null && (
-            <span className="status-pill neutral">
-              <CalendarClock size={12} aria-hidden="true" />
-              {t('op.players.context.nextBooking', { time: liveContext.nextBooking.timeLabel })}
-              {liveContext.nextBooking.seatName ? ` · ${liveContext.nextBooking.seatName}` : ''}
-            </span>
-          )}
-        </div>
-      )}
+      <div className="drawer-context">
+        {liveContext.session !== null ? (
+          <span className="status-pill ok">
+            <Play size={12} aria-hidden="true" />
+            {t('op.players.context.playingOn', { seat: liveContext.session.seatName })}
+            {' · '}
+            {liveContext.session.untilLabel
+              ? t('op.players.context.until', { time: liveContext.session.untilLabel })
+              : t('op.players.context.openTab')}
+          </span>
+        ) : (
+          <span className="status-pill neutral">
+            <Play size={12} aria-hidden="true" />
+            {t('op.players.context.notPlaying')}
+          </span>
+        )}
+        {liveContext.nextBooking !== null ? (
+          <span className="status-pill neutral">
+            <CalendarClock size={12} aria-hidden="true" />
+            {t('op.players.context.nextBooking', { time: liveContext.nextBooking.timeLabel })}
+            {liveContext.nextBooking.seatName ? ` · ${liveContext.nextBooking.seatName}` : ''}
+          </span>
+        ) : (
+          <span className="status-pill neutral">
+            <CalendarClock size={12} aria-hidden="true" />
+            {t('op.players.context.noBooking')}
+          </span>
+        )}
+      </div>
 
       <div className="drawer-body">
-        <div className="wallet-balance">
-          <span className="eyebrow">{t('op.players.wallet.balanceLabel')}</span>
-          <span className="val"><Money minorUnits={balanceMinorUnits} currencyCode={currencyCode} /></span>
-        </div>
-
-        {hasDebt && (
-          <div className="wallet-debt">
-            <span className="lbl">{t('op.players.wallet.debtLabel')}</span>
-            <span className="val"><Money minorUnits={debtMinorUnits} currencyCode={currencyCode} /></span>
+        <div className={`wallet-money${hasDebt ? ' has-debt' : ''}`}>
+          <div className="wallet-balance">
+            <span className="eyebrow">{t('op.players.wallet.balanceLabel')}</span>
+            <span className="val"><Money minorUnits={balanceMinorUnits} currencyCode={currencyCode} /></span>
           </div>
-        )}
+
+          {hasDebt && (
+            <div className="wallet-debt">
+              <span className="eyebrow">{t('op.players.wallet.debtLabel')}</span>
+              <span className="val"><Money minorUnits={debtMinorUnits} currencyCode={currencyCode} /></span>
+            </div>
+          )}
+        </div>
 
         <div className="wallet-sep" />
 

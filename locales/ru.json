@@ -1393,6 +1393,8 @@
   "op.players.context.until": "до {time}",
   "op.players.context.openTab": "открытый счёт",
   "op.players.context.nextBooking": "Бронь на {time}",
+  "op.players.context.notPlaying": "Не играет",
+  "op.players.context.noBooking": "Нет брони",
   "op.players.newClient.title": "Новый клиент",
   "op.players.newClient.subtitle": "карточка клуба",
   "op.players.newClient.submit": "Создать",

@@ -1393,6 +1393,8 @@
   "op.players.context.until": "until {time}",
   "op.players.context.openTab": "open tab",
   "op.players.context.nextBooking": "Booking at {time}",
+  "op.players.context.notPlaying": "Not playing",
+  "op.players.context.noBooking": "No booking",
   "op.players.newClient.title": "New client",
   "op.players.newClient.subtitle": "club card",
   "op.players.newClient.submit": "Create",
