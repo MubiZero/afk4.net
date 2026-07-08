@@ -98,12 +98,9 @@
 }
 
 /* ── Строка товара (srow = icon | имя | metrics) ── */
-/* Имя НЕ растягивается на 1fr — иначе на широкой панели метрики прилипают к правому краю,
-   а между именем и цифрами остаётся пустой разрыв. Колонка-имя капается, метрики стоят
-   сразу после неё (грид без fr-трека не растягивает треки — упаковка слева). */
 .srow {
   display: grid;
-  grid-template-columns: 24px minmax(160px, 260px) auto;
+  grid-template-columns: 24px minmax(160px, 1fr) auto;
   align-items: center;
   gap: 14px;
 }
@@ -263,6 +260,14 @@
    пара «+/−»-степпера. Только в строке Остатков — общий атом .ui-btn--ghost не трогаем. */
 .rowact .ui-btn--ghost { border-color: var(--border-default); }
 .rowact .ui-btn--ghost:hover:not(:disabled) { border-color: var(--border-accent); }
+
+/* Жёсткий разделитель перед списанием (не просто отступ) — это отдельная, не парная к «+» кнопка. */
+.rowact-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border-default);
+  flex-shrink: 0;
+}
 
 .cash-stock-row:hover .rowact,
 .cash-stock-row:focus-within .rowact { opacity: 1; }
