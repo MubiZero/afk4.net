@@ -237,7 +237,6 @@ export function StockLevelsWorkspace({
                         aria-label={t('op.stock.action.receive')}
                         onClick={() => onReceive?.(item.productId)}
                       ><Plus size={15} aria-hidden="true" /></button>
-                      <span className="rowact-sep" aria-hidden="true" />
                       <button
                         type="button"
                         className="ui-btn ui-btn--sm ui-btn--danger"
