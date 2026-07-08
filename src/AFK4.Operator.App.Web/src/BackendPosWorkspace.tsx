@@ -442,7 +442,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
             </div>
           ) : clientPickerOpen ? (
             <div className="pos-client-pick">
-              <label className="pos-search pos-client-search">
+              <label className="ui-search-field pos-client-search">
                 <Search size={14} />
                 <input
                   aria-label={t('op.pos.cart.clientSearchLabel')}
