@@ -300,6 +300,32 @@
 .stock-hero--muted { border-left-color: var(--border-default); }
 .stock-hero--muted .stock-hero-value { color: var(--text-tertiary); }
 
+/* ── Строка сканера/поиска (общий паттерн Приёмки/Инвентаризации — чром из .ui-search-field) ── */
+.stock-scanbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.stock-scanbar-search {
+  flex: 1;
+  min-width: 200px;
+}
+
+.stock-scanbar-search svg {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.stock-scanbar-hint {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
 /* ── Сводка (правая панель) ── */
 .stock-summary {
   display: flex;
