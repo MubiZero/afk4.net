@@ -25,7 +25,8 @@ import {
   requireBackend,
   toDateInputValue,
 } from './operatorHelpers';
-import { FeedbackNotice, Skeleton } from './operatorPrimitives';
+import { Skeleton } from './operatorPrimitives';
+import { useFeedbackToasts } from './useFeedbackToasts';
 import type { OperatorDashboardSummaryDto } from './operatorApiClients';
 
 function useAnimatedNumber(value: number, duration = 360) {
@@ -156,6 +157,7 @@ export function DashboardWorkspace({
   const [customRange, setCustomRange] = useState({ from: weekStartInput, to: todayInput });
   const [selectedFocusIndex, setSelectedFocusIndex] = useState(0);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  useFeedbackToasts(feedback);
   const [dashboardSummary, setDashboardSummary] = useState<OperatorDashboardSummaryDto | null>(null);
   const [dashboardLoadStatus, setDashboardLoadStatus] = useState<LoadStatus>('loading');
   const [dashboardLoadError, setDashboardLoadError] = useState<string | null>(null);
@@ -373,8 +375,9 @@ export function DashboardWorkspace({
             <button type="button" onClick={() => openSelectedFocusSeat(t('op.dashboard.resolve'))}><AlertTriangle size={15} /> {t('op.dashboard.resolve')}</button>
             <button type="button" onClick={() => openSelectedFocusSeat(t('op.map.pcControlLabel'))}><Wrench size={15} /> {t('op.map.pcControlLabel')}</button>
           </div>
-          {dashboardLoadStatus === 'failed' && <FeedbackNotice feedback={{ label: t('op.dashboard.overview'), state: 'failed', detail: dashboardLoadError ?? t('op.dashboard.unavailable') }} />}
-          <FeedbackNotice feedback={feedback} />
+          {dashboardLoadStatus === 'failed' && (
+            <p className="workspace-error" role="alert">{dashboardLoadError ?? t('op.dashboard.unavailable')}</p>
+          )}
         </article>
 
         <section className="dashboard-secondary-panel">

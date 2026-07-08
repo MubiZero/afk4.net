@@ -4,6 +4,7 @@ import { I18nProvider } from '@afk4/i18n';
 import { CashShiftCommandBar, type CashShiftActionsClient } from './CashShiftCommandBar';
 import type { OperatorAuthSession } from '../authClient';
 import type { ShiftRevenueDto } from '../operatorApiClients';
+import { ToastProvider } from '../operatorToast';
 
 afterEach(cleanup);
 
@@ -24,17 +25,19 @@ function fakeActions(): CashShiftActionsClient & { calls: Record<string, unknown
 function renderBar(opts: { isOpen: boolean; perms?: string[]; actions?: CashShiftActionsClient; onShiftChanged?: () => void; revenue?: ShiftRevenueDto | null }) {
   render(
     <I18nProvider initialLocale="ru">
-      <CashShiftCommandBar
-        backend={backend}
-        session={session(opts.perms ?? allPerms)}
-        shiftId={opts.isOpen ? 's1' : null}
-        isOpen={opts.isOpen}
-        expectedCash={{ currencyCode: 'TJS', minorUnits: 11500 }}
-        currencyCode="TJS"
-        revenue={opts.revenue ?? null}
-        onShiftChanged={opts.onShiftChanged ?? (() => {})}
-        actions={opts.actions}
-      />
+      <ToastProvider>
+        <CashShiftCommandBar
+          backend={backend}
+          session={session(opts.perms ?? allPerms)}
+          shiftId={opts.isOpen ? 's1' : null}
+          isOpen={opts.isOpen}
+          expectedCash={{ currencyCode: 'TJS', minorUnits: 11500 }}
+          currencyCode="TJS"
+          revenue={opts.revenue ?? null}
+          onShiftChanged={opts.onShiftChanged ?? (() => {})}
+          actions={opts.actions}
+        />
+      </ToastProvider>
     </I18nProvider>
   );
 }

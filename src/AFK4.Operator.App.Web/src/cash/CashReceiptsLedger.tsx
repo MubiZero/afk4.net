@@ -23,10 +23,11 @@ import {
 } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
 import { hasPermission, permissionNames } from '../operatorPermissions';
-import { CriticalActionConfirmation, FeedbackNotice, Money } from '../operatorPrimitives';
+import { CriticalActionConfirmation, Money } from '../operatorPrimitives';
 import type { Feedback, OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import type { PosSaleDto, ReceiptDto } from '../operatorApiClients';
+import { useFeedbackToasts } from '../useFeedbackToasts';
 
 // Сегмент «Чеки» в «Журнале кассы»: продажи смены + деталь чека + возврат (переехало из POS
 // «Последние чеки»/«Быстрые операции»). Возврат — money-path, та же логика, что была в кассе.
@@ -57,6 +58,7 @@ export function CashReceiptsLedger({
   const [criticalAction, setCriticalAction] = useState<'refund' | null>(null);
   const [refundReason, setRefundReason] = useState(() => t('op.pos.defaultRefundReason'));
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  useFeedbackToasts(feedback);
   const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
@@ -252,8 +254,6 @@ export function CashReceiptsLedger({
           </label>
         </CriticalActionConfirmation>
       )}
-
-      <FeedbackNotice feedback={feedback} />
     </section>
   );
 }

@@ -17,7 +17,8 @@ import {
   requireBackend,
   workspaceLoadStatusLabel
 } from './operatorHelpers';
-import { FeedbackNotice, StateFlag } from './operatorPrimitives';
+import { StateFlag } from './operatorPrimitives';
+import { useFeedbackToasts } from './useFeedbackToasts';
 
 type ReviewSegment = 'queue' | 'audit';
 
@@ -53,6 +54,7 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
   const { t } = useI18n();
   const [activeSegment, setActiveSegment] = useState<ReviewSegment>('queue');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  useFeedbackToasts(feedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -235,7 +237,6 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
               );
             })
           )}
-          <FeedbackNotice feedback={feedback} />
         </section>
       )}
 
@@ -269,7 +270,6 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
               ))
             )}
           </div>
-          <FeedbackNotice feedback={feedback} />
         </section>
       )}
     </>

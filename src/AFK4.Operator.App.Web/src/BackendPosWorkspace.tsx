@@ -24,12 +24,13 @@ import {
   type PlayerClientItem,
   workspaceLoadStatusLabel
 } from './operatorHelpers';
-import { FeedbackNotice, Money } from './operatorPrimitives';
+import { Money } from './operatorPrimitives';
 import { PanelModal } from './PanelModal';
 import { PaymentDialog, type PaymentBillLine } from './PaymentDialog';
 import { useToast } from './operatorToast';
 import { matchByBarcode } from './barcodeScanner';
 import { useBarcodeScanner } from './useBarcodeScanner';
+import { useFeedbackToasts } from './useFeedbackToasts';
 
 type PosCatalogItem = {
   productId?: string;
@@ -92,6 +93,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
   const [productSearch, setProductSearch] = useState('');
   const [payOpen, setPayOpen] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  useFeedbackToasts(feedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>(backend === null ? 'fixture' : 'loading');
   const [currentShift, setCurrentShift] = useState<ShiftDto | null>(null);
   const [catalog, setCatalog] = useState<PosCatalogItem[]>(() => backend === null ? makeFixtureProducts(t) : []);
@@ -533,7 +535,6 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
             </div>
             <button type="button" className="ui-btn ui-btn--primary ui-btn--lg pos-primary-action" disabled={!canAcceptPayment || feedback.state === 'pending'} onClick={() => setPayOpen(true)}>{t('op.pos.payment.acceptBtn')}</button>
             <button type="button" className="ui-btn pos-secondary-action" onClick={() => setCartItems([])}>{t('op.pos.payment.clearCartBtn')}</button>
-            <FeedbackNotice feedback={feedback} />
           </div>
         </section>
       </section>

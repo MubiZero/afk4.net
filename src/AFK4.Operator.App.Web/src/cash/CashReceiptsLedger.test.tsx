@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
+import { ToastProvider } from '../operatorToast';
 
 const m = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
 const getSalesReport = mock(async () => ({
@@ -34,7 +35,13 @@ const session = { permissions: ['receipts.view', 'pos.sales.refund'], organizati
 const backend = { config: { platformBaseUrl: 'http://test' }, session: { accessToken: 't', ...session }, branchId: 'b1' };
 
 function renderReceipts() {
-  render(<I18nProvider initialLocale="ru"><CashReceiptsLedger backend={backend as never} branchId="b1" currencyCode="TJS" session={session as never} /></I18nProvider>);
+  render(
+    <I18nProvider initialLocale="ru">
+      <ToastProvider>
+        <CashReceiptsLedger backend={backend as never} branchId="b1" currencyCode="TJS" session={session as never} />
+      </ToastProvider>
+    </I18nProvider>
+  );
 }
 
 describe('CashReceiptsLedger', () => {

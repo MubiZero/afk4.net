@@ -5,6 +5,7 @@ import { I18nProvider } from '@afk4/i18n';
 import { CashShiftHeader } from './CashShiftHeader';
 import type { ShiftRevenueDto } from '../operatorApiClients';
 import type { CashShiftActionsClient } from './CashShiftCommandBar';
+import { ToastProvider } from '../operatorToast';
 
 afterEach(cleanup);
 
@@ -28,7 +29,9 @@ const backend = { config: { platformBaseUrl: 'x' }, session: { accessToken: 't' 
 function renderHeader(current: ShiftRevenueDto | null) {
   return render(
     <I18nProvider initialLocale="ru">
-      <CashShiftHeader backend={backend} currencyCode="TJS" client={{ current: async () => current }} />
+      <ToastProvider>
+        <CashShiftHeader backend={backend} currencyCode="TJS" client={{ current: async () => current }} />
+      </ToastProvider>
     </I18nProvider>
   );
 }
@@ -56,13 +59,15 @@ describe('CashShiftHeader', () => {
     };
     render(
       <I18nProvider initialLocale="ru">
-        <CashShiftHeader
-          backend={backend}
-          currencyCode="TJS"
-          session={session}
-          client={{ current: async () => openShift() }}
-          actions={actions}
-        />
+        <ToastProvider>
+          <CashShiftHeader
+            backend={backend}
+            currencyCode="TJS"
+            session={session}
+            client={{ current: async () => openShift() }}
+            actions={actions}
+          />
+        </ToastProvider>
       </I18nProvider>
     );
     await waitFor(() => expect(screen.getByText('Смена открыта')).toBeInTheDocument());

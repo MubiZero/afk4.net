@@ -25,7 +25,8 @@ import {
   updateComponentLabel,
   workspaceLoadStatusLabel
 } from './operatorHelpers';
-import { FeedbackNotice, StateFlag } from './operatorPrimitives';
+import { StateFlag } from './operatorPrimitives';
+import { useFeedbackToasts } from './useFeedbackToasts';
 
 type LogEventKind = 'audit' | 'commandFailure' | 'updateFailure' | 'staleDevice' | 'placeholder';
 type LogEventTone = 'audit' | 'device' | 'money' | 'session' | 'warning';
@@ -514,6 +515,7 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
   const [selectedEventKey, setSelectedEventKey] = useState('');
   const [selectedSource, setSelectedSource] = useState(() => t('op.logs.source.all'));
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  useFeedbackToasts(feedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
   const [auditResult, setAuditResult] = useState<AuditSearchResultDto | null>(null);
   const [diagnostics, setDiagnostics] = useState<BranchDiagnosticsDto | null>(null);
@@ -788,7 +790,6 @@ export function BackendLogsWorkspace({ currencyCode, backend }: { currencyCode: 
               <div key={label}><span>{label}</span><strong>{value}</strong></div>
             ))}
           </div>
-          <FeedbackNotice feedback={feedback} />
         </section>
 
         <section className="logs-panel logs-filter-panel">

@@ -22,6 +22,7 @@ import { buildSeatMenu, type SeatMenuItem } from './seatMenu';
 import { EmptyState, FeedbackNotice, Skeleton } from './operatorPrimitives';
 import { SeatContextMenu } from './SeatContextMenu';
 import { SeatTile } from './SeatTile';
+import { useFeedbackToasts } from './useFeedbackToasts';
 
 export function MapWorkspace({
   floorMap,
@@ -50,6 +51,7 @@ export function MapWorkspace({
 }) {
   const { t } = useI18n();
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  useFeedbackToasts(feedback);
   const [seatMenu, setSeatMenu] = useState<{ seat: SeatSummary; x: number; y: number } | null>(null);
   const seatMenuCaps = useMemo(() => ({
     actionsEnabled,
@@ -178,7 +180,7 @@ export function MapWorkspace({
         </div>
       </section>
       {floorMap.loadStatus === 'failed' && (
-        <FeedbackNotice feedback={{ label: t('op.map.feedbackMap'), state: 'failed', detail: floorMap.error ?? t('op.map.loadError') }} />
+        <p className="workspace-error" role="alert">{floorMap.error ?? t('op.map.loadError')}</p>
       )}
       {/* Только настоящий обрыв связи: данные заморожены, «только просмотр». Устаревший снимок
           при живой связи не показываем — это тех-шум для админа. */}
@@ -191,7 +193,6 @@ export function MapWorkspace({
       {offlineActionAudit.map((note, index) => (
         <FeedbackNotice key={`offline-audit-${index}`} feedback={{ label: t('op.map.feedbackQueue'), state: 'failed', detail: note }} />
       ))}
-      <FeedbackNotice feedback={feedback} />
 
       <section className="map-board" aria-label={t('op.map.seatsLabel')}>
         {isLoadingSeats ? (

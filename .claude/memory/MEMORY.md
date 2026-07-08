@@ -20,7 +20,7 @@
 - [Operator theme & dev-mock](operator-theme-and-preview.md) — `bun run dev` = mock по умолчанию (`?live`=staging); тема в `operatorTheme.tsx` (default dark); акцент оператора **emerald #2cc592** (тёмная; #0b9e74 light), НЕ синий — источник `packages/tokens/tokens.css`.
 - [Operator rail sections](operator-rail-sections.md) — рейл = 6 секций+табы (`navSections`); `--shell-tabstrip` в calc-высотах; dev-mock отдаёт `[]` → object-клиенты гардить `?? []`.
 - [Operator surface-иерархия](operator-surface-elevation.md) — светлая тема: глубина = ПОДЪЁМ (белая панель + `--shadow-card`), НЕ затемнение/recessed; floating-panel раскатан на все разделы; не давать тень модалкам/инпутам/вложенному (card-in-card).
-- [Operator feedback = тост](operator-feedback-toast.md) — результаты действий ТОЛЬКО в `useToast`; пилюли (FeedbackNotice/ActionFeedback/recv-status) удалены; мост `useFeedbackToasts`; контекст-ошибки inline; грабля parent/child двойного тоста.
+- [Operator feedback = тост](operator-feedback-toast.md) — `useFeedbackToasts` пересоздан заново и раскатан на ВСЕ экраны; `FeedbackNotice` удалён везде, кроме offline-audit очереди на Карте (намеренно).
 - [Monolith refactor blueprint](monolith-refactor.md) — раскладка `Endpoints/`/`App.tsx` (если разбивать ещё); `dotnet format --include` только относительный путь.
 - [API client decomposition](afk4-api-client-decomposition.md) — монорепо сохранён; god-client → domain-sub-client фасад; WPF ViewModels off-limits.
 

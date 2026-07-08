@@ -35,7 +35,7 @@ import {
   triggerFeedback,
   workspaceLoadStatusLabel
 } from './operatorHelpers';
-import { FeedbackNotice } from './operatorPrimitives';
+import { useFeedbackToasts } from './useFeedbackToasts';
 
 export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
   const { t } = useI18n();
@@ -59,6 +59,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
   const [city, setCity] = useState('Dushanbe');
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  useFeedbackToasts(feedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
   const [staffUsers, setStaffUsers] = useState<StaffUserDto[]>([]);
   const [zones, setZones] = useState<ZoneDto[]>([]);
@@ -344,7 +345,6 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
             <strong>{selectedSectionDetail}</strong>
           </header>
           {renderSettingsContent()}
-          <FeedbackNotice feedback={feedback} />
         </section>
 
         <aside className="settings-side-panel">
