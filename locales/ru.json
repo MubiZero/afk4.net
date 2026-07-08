@@ -2313,7 +2313,6 @@
   "op.stock.inventory.reset": "Сбросить",
   "op.stock.inventory.progressTitle": "Прогресс пересчёта",
   "op.stock.inventory.counted": "Пересчитано",
-  "op.stock.inventory.totalTitle": "Итог инвентаризации",
   "op.stock.inventory.discrepancies": "Расхождений",
   "op.stock.inventory.shortage": "Недостача",
   "op.stock.inventory.surplus": "Излишек",

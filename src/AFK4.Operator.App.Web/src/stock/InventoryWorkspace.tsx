@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { Boxes, Check, RotateCcw, ScanLine } from 'lucide-react';
+import { Boxes, Check, RotateCcw, Search } from 'lucide-react';
 import { useDeferredFlag } from '../useDeferredFlag';
 import { EmptyState, Money } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
+import { StockHero } from './StockHero';
+import { ScanSearchBar } from './ScanSearchBar';
 import { createAuthenticatedOperatorClients, createIdempotencyKey, readArray, readBoolean, readString, requireBackend } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
 import { hasPermission, permissionNames } from '../operatorPermissions';
@@ -153,26 +155,20 @@ export function InventoryWorkspace({
   return (
     <div className="stock-layout">
       <section className="stock-inventory">
-        <div className="inv-scanbar">
-          <span className="inv-scanbar-ico"><ScanLine size={18} aria-hidden="true" /></span>
-          <span className="inv-scanbar-lbl" aria-label={t('op.pos.scan.active')}>
-            {t('op.stock.inventory.scanHint')}<i className="inv-caret" aria-hidden="true" />
-          </span>
-          <input
-            className="inv-search"
-            type="search"
-            aria-label={t('op.stock.inventory.search')}
-            placeholder={t('op.stock.inventory.search')}
-            value={search}
-            onChange={(event) => setSearch(event.currentTarget.value)}
-          />
-          {hasCounts && (
+        <ScanSearchBar
+          icon={<Search size={16} aria-hidden="true" />}
+          value={search}
+          onChange={setSearch}
+          placeholder={t('op.stock.inventory.search')}
+          ariaLabel={t('op.stock.inventory.search')}
+          hint={t('op.stock.inventory.scanHint')}
+          trailing={hasCounts ? (
             <button type="button" className="ui-btn ui-btn--sm ui-btn--ghost" disabled={posting} onClick={() => setLines((c) => resetCounts(c))}>
               <RotateCcw size={13} aria-hidden="true" />
               {t('op.stock.inventory.reset')}
             </button>
-          )}
-        </div>
+          ) : undefined}
+        />
 
         <div className="recv-doc" aria-label={t('op.stock.inventory.title')}>
           <h2>{t('op.stock.inventory.title')}</h2>
@@ -234,18 +230,22 @@ export function InventoryWorkspace({
       </section>
 
       <aside className="stock-summary">
-        <div className="ctx-card">
+        <section className="stock-section">
           <h3 className="ctx-title">{t('op.stock.inventory.progressTitle')}</h3>
           <div className="inv-prog"><i style={{ width: `${pct}%` }} /></div>
           <div className="inv-progtxt"><span>{t('op.stock.inventory.counted')}</span><b>{totals.countedCount} / {totals.trackedCount}</b></div>
-        </div>
+        </section>
 
-        <div className="ctx-card">
-          <h3 className="ctx-title">{t('op.stock.inventory.totalTitle')}</h3>
+        <StockHero
+          label={t('op.stock.inventory.netCost')}
+          value={<Money minorUnits={totals.netSumMinorUnits} currencyCode={currencyCode} signed={totals.netSumMinorUnits !== 0} />}
+          tone={totals.netSumMinorUnits < 0 ? 'attention' : totals.netSumMinorUnits > 0 ? 'ok' : 'muted'}
+        />
+
+        <section className="stock-section">
           <div className="mv"><span>{t('op.stock.inventory.discrepancies')}</span><b>{totals.discrepancies}</b></div>
           <div className="mv"><span>{t('op.stock.inventory.shortage')}</span><b className="warning-text">-{totals.shortageUnits} {unit} · <Money minorUnits={totals.shortageSumMinorUnits} currencyCode={currencyCode} /></b></div>
           <div className="mv"><span>{t('op.stock.inventory.surplus')}</span><b className="inv-pos">+{totals.surplusUnits} {unit} · <Money minorUnits={totals.surplusSumMinorUnits} currencyCode={currencyCode} /></b></div>
-          <div className="mv recv-grand"><span>{t('op.stock.inventory.netCost')}</span><b className={totals.netSumMinorUnits < 0 ? 'warning-text' : totals.netSumMinorUnits > 0 ? 'inv-pos' : undefined}><Money minorUnits={totals.netSumMinorUnits} currencyCode={currencyCode} signed={totals.netSumMinorUnits !== 0} /></b></div>
           <button type="button" className="ui-btn ui-btn--primary ui-btn--block" disabled={adjustments.length === 0 || posting} onClick={postInventory}>
             <Check size={16} aria-hidden="true" />
             {posting ? t('op.stock.inventory.posting') : t('op.stock.inventory.post')}
@@ -253,7 +253,7 @@ export function InventoryWorkspace({
           <p className="ctx-note">{t('op.stock.inventory.willCreate', { count: adjustments.length })}</p>
           {post.kind === 'done' && <p className="recv-status ok">{t('op.stock.inventory.posted', { count: post.count })}</p>}
           {post.kind === 'error' && <p className="recv-status err" role="alert">{post.detail}</p>}
-        </div>
+        </section>
       </aside>
     </div>
   );

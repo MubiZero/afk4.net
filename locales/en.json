@@ -2115,7 +2115,6 @@
   "op.stock.inventory.reset": "Reset",
   "op.stock.inventory.progressTitle": "Recount progress",
   "op.stock.inventory.counted": "Counted",
-  "op.stock.inventory.totalTitle": "Inventory summary",
   "op.stock.inventory.discrepancies": "Discrepancies",
   "op.stock.inventory.shortage": "Shortage",
   "op.stock.inventory.surplus": "Surplus",
