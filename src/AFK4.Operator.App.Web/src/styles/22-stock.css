@@ -261,14 +261,6 @@
 .rowact .ui-btn--ghost { border-color: var(--border-default); }
 .rowact .ui-btn--ghost:hover:not(:disabled) { border-color: var(--border-accent); }
 
-/* Жёсткий разделитель перед списанием (не просто отступ) — это отдельная, не парная к «+» кнопка. */
-.rowact-sep {
-  width: 1px;
-  height: 16px;
-  background: var(--border-default);
-  flex-shrink: 0;
-}
-
 .cash-stock-row:hover .rowact,
 .cash-stock-row:focus-within .rowact { opacity: 1; }
 
