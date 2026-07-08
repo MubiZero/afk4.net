@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  Boxes,
+  Box,
   CalendarClock,
   LayoutDashboard,
   Monitor,
@@ -92,7 +92,7 @@ export const navSections: NavSection[] = [
   {
     key: 'stock',
     labelKey: 'op.shell.navGroup.warehouse',
-    icon: Boxes,
+    icon: Box,
     items: [{ id: 'stock', labelKey: 'op.shell.navGroup.warehouse' }]
   },
   {
