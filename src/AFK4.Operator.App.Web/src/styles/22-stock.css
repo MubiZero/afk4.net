@@ -710,9 +710,11 @@
   font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 600; text-align: right; }
 .inv-fact input:focus { outline: none; }
 .inv-fact.empty input::placeholder { color: var(--text-quaternary); }
-.inv-diff, .inv-sum { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; }
+.inv-diff, .inv-sum { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; white-space: nowrap; }
 .inv-diff.zero, .inv-sum.zero { color: var(--text-secondary); }
-.inv-diff.none, .inv-sum.none { color: var(--text-tertiary); font-weight: 400; }
+/* «не пересчитано» — текст, не число: свой (не моно) шрифт и размер, чтобы не переносился
+   на 2 строки в узкой числовой колонке. */
+.inv-diff.none, .inv-sum.none { color: var(--text-tertiary); font-family: "Segoe UI", sans-serif; font-size: 11px; font-weight: 400; }
 .inv-diff.minus, .inv-sum.minus { color: var(--warning-text); }
 .inv-diff.plus, .inv-sum.plus { color: var(--accent-text); }
 
