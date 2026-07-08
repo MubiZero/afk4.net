@@ -256,6 +256,50 @@
 .cash-stock-row:hover .rowact,
 .cash-stock-row:focus-within .rowact { opacity: 1; }
 
+/* ── Герой сводки: крупная метрика с цветным левым кантом (мирроринг seat-hero/booking-status-card) ── */
+.stock-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default);
+  border-left-width: 3px;
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+
+.stock-hero-label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+}
+
+.stock-hero-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.stock-hero-sub {
+  font-size: 11px;
+  color: var(--text-quaternary);
+}
+
+.stock-hero--neutral { border-left-color: var(--accent); }
+.stock-hero--ok { border-left-color: var(--accent); }
+.stock-hero--ok .stock-hero-value { color: var(--accent-text); }
+.stock-hero--warning { border-left-color: var(--warning); }
+.stock-hero--warning .stock-hero-value { color: var(--warning-text); }
+.stock-hero--attention { border-left-color: var(--danger); }
+.stock-hero--attention .stock-hero-value { color: var(--danger-text); }
+.stock-hero--muted { border-left-color: var(--border-default); }
+.stock-hero--muted .stock-hero-value { color: var(--text-tertiary); }
+
 /* ── Сводка (правая панель) ── */
 .stock-summary {
   display: flex;
