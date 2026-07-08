@@ -5,6 +5,7 @@
 - [Auto-merge authorized](afk4-auto-merge-authorized.md) — мержить слайс-PR самому после зелёного CI (PR #109 и последующие); полный цикл слайса автономен.
 - [«Открой превью» = дай ссылку](afk4-preview-means-give-link.md) — `bun run dev` → отдать URL (http://127.0.0.1:5174/), НЕ headless-скриншоты.
 - [TodoWrite → Task tools](tooling-todowrite-is-task-tools.md) — TodoWrite нет; использовать TaskCreate/TaskUpdate/TaskList.
+- [Не использовать opus для агентов](feedback_no_opus_delegation.md) — явный запрет; делегировать на sonnet/haiku.
 
 ## Окружение / тулчейн
 - [Env quirks](afk4-env-quirks.md) — bun полный путь, bun test+build гейты, rtk→/tmp/x.sh, dotnet ef на Linux traps, Coolify runbook, WPF-мост через D:\ clone, agent-test WSL baseline.
