@@ -16,6 +16,7 @@ import {
   summarize,
   type StockItem,
 } from './stockLevels';
+import { StockHero } from './StockHero';
 import { WriteOffDialog } from './WriteOffDialog';
 
 type FilterMode = 'all' | 'low' | 'out';
@@ -263,31 +264,25 @@ export function StockLevelsWorkspace({
         />
       )}
 
-      {/* ── Сводка ── */}
+      {/* ── Сводка: два героя + список к заказу ── */}
       <aside className="stock-summary">
-        <div className="ui-card ui-card--stat">
-          <span>{t('op.stock.summary.totalValue')}</span>
-          <strong><Money minorUnits={summary.totalValueMinorUnits} currencyCode={currencyCode} /></strong>
-        </div>
-        <div className="ctx-sub">
-          {t('op.stock.summary.totalSub', { count: items.reduce((acc, i) => acc + Math.max(i.stockOnHand, 0), 0) })}
-        </div>
-        <div className="mv">
-          <span>{t('op.stock.summary.lowCount')}</span>
-          <b className="warning-text">{summary.lowCount}</b>
-        </div>
-        <div className="mv">
-          <span>{t('op.stock.summary.outCount')}</span>
-          <b className={summary.outCount > 0 ? 'danger-text' : undefined}>{summary.outCount}</b>
-        </div>
+        <StockHero
+          label={t('op.stock.summary.totalValue')}
+          value={<Money minorUnits={summary.totalValueMinorUnits} currencyCode={currencyCode} />}
+          sub={t('op.stock.summary.totalSub', { count: items.reduce((acc, i) => acc + Math.max(i.stockOnHand, 0), 0) })}
+          tone="neutral"
+        />
+
+        <StockHero
+          label={t('op.stock.summary.reorderTitle')}
+          value={orderItems.length}
+          sub={t('op.stock.summary.reorderSub', { low: summary.lowCount, out: summary.outCount })}
+          tone={summary.outCount > 0 ? 'attention' : summary.lowCount > 0 ? 'warning' : 'muted'}
+        />
 
         {orderItems.length > 0 && (
-          <div className="ctx-card">
-            <h3 className="ctx-title">
-              {t('op.stock.summary.orderTitle')}
-              {' '}
-              <span className="warning-text">{orderItems.length}</span>
-            </h3>
+          <section className="stock-section">
+            <h3 className="ctx-title">{t('op.stock.summary.orderTitle')}</h3>
             {orderItems.map((item) => {
               const s = stockStatus(item);
               return (
@@ -300,7 +295,7 @@ export function StockLevelsWorkspace({
             <button type="button" className="ui-btn ui-btn--primary ui-btn--block" disabled={!onReceive} onClick={() => onReceive?.()}>
               {t('op.stock.summary.orderBtn')}
             </button>
-          </div>
+          </section>
         )}
       </aside>
     </div>

@@ -33,12 +33,16 @@ describe('StockLevelsWorkspace', () => {
     expect(screen.getByRole('button', { name: /на исходе/i })).toBeInTheDocument();
   });
 
-  it('стат-карточка «Стоимость склада» самодостаточна: счётчики low/out — соседи, не вложены', async () => {
+  it('два героя сводки: «Стоимость склада» нейтральный, «Нужно дозаказать» тонирован по худшему статусу', async () => {
     const { container } = view();
     await screen.findByText('Cola 0.5');
-    const statCards = container.querySelectorAll('.ui-card--stat');
-    expect(statCards).toHaveLength(1);
-    expect(statCards[0].querySelector('.mv')).toBeNull();
+    const heroes = container.querySelectorAll('.stock-hero');
+    expect(heroes).toHaveLength(2);
+    expect(heroes[0]).toHaveClass('stock-hero--neutral');
+    expect(within(heroes[0] as HTMLElement).getByText('Стоимость склада')).toBeInTheDocument();
+    // Red Bull (low, 8/10) + Вода (out, 0) → худший статус out → tone attention, счётчик = 2
+    expect(heroes[1]).toHaveClass('stock-hero--attention');
+    expect(within(heroes[1] as HTMLElement).getByText('2')).toBeInTheDocument();
   });
 
   it('фильтр «На исходе» оставляет low И out, скрывает ok', async () => {
