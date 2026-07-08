@@ -237,7 +237,10 @@ export function ReceivingWorkspace({
                         inputMode="decimal"
                         aria-label={t('op.stock.receiving.colCost')}
                         value={line.unitCostText}
-                        onChange={(event) => setLines((c) => setUnitCostText(c, line.productId, event.currentTarget.value))}
+                        onChange={(event) => {
+                          const text = event.currentTarget.value;
+                          setLines((c) => setUnitCostText(c, line.productId, text));
+                        }}
                       />
                       <span className="recv-cost-cur">{currencyCode}</span>
                     </div>
