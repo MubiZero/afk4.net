@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { Boxes, Check, Minus, Plus, ScanLine, X } from 'lucide-react';
+import { Boxes, Check, Minus, Plus, Search, X } from 'lucide-react';
 import { useDeferredFlag } from '../useDeferredFlag';
 import { EmptyState, Money } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
+import { StockHero } from './StockHero';
+import { ScanSearchBar } from './ScanSearchBar';
 import { createAuthenticatedOperatorClients, createIdempotencyKey, readArray, readBoolean, readString, requireBackend } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
 import { hasPermission, permissionNames } from '../operatorPermissions';
@@ -168,23 +170,14 @@ export function ReceivingWorkspace({
     <div className="stock-layout">
       {/* ── Документ прихода ── */}
       <section className="stock-receiving">
-        <div className="recv-add">
-          <div className="recv-add-ico"><Boxes size={20} aria-hidden="true" /></div>
-          <div className="ui-field recv-add-field">
-            <input
-              type="search"
-              aria-label={t('op.stock.receiving.addLabel')}
-              placeholder={t('op.stock.receiving.search')}
-              value={search}
-              onChange={(event) => setSearch(event.currentTarget.value)}
-            />
-            <span className="recv-add-hint">{t('op.stock.receiving.addHint')}</span>
-          </div>
-          <span className="ui-chip ui-chip--status is-live" aria-label={t('op.pos.scan.active')}>
-            <ScanLine size={14} aria-hidden="true" />
-            {t('op.pos.scan.active')}
-          </span>
-        </div>
+        <ScanSearchBar
+          icon={<Search size={16} aria-hidden="true" />}
+          value={search}
+          onChange={setSearch}
+          placeholder={t('op.stock.receiving.search')}
+          ariaLabel={t('op.stock.receiving.addLabel')}
+          hint={t('op.stock.receiving.addHint')}
+        />
         {trackedCatalog.length === 0 && (
           <p className="recv-noresults">{t('op.stock.receiving.noTracked')}</p>
         )}
@@ -262,7 +255,7 @@ export function ReceivingWorkspace({
 
       {/* ── Накладная (правая колонка) ── */}
       <aside className="stock-summary">
-        <div className="ctx-card">
+        <section className="stock-section">
           <h3 className="ctx-title">{t('op.stock.receiving.invoiceTitle')}</h3>
           <label className="ui-field">
             <span>{t('op.stock.receiving.supplier')}</span>
@@ -272,14 +265,15 @@ export function ReceivingWorkspace({
             <span>{t('op.stock.receiving.invoiceNo')}</span>
             <input value={invoiceNo} disabled={posting} placeholder={t('op.stock.receiving.invoiceNoHint')} onChange={(event) => setInvoiceNo(event.currentTarget.value)} />
           </label>
-        </div>
+        </section>
 
-        <div className="ctx-card">
-          <h3 className="ctx-title">{t('op.stock.receiving.totalTitle')}</h3>
-          <div className="ui-card ui-card--stat">
-            <span>{t('op.stock.receiving.totalSum')}</span>
-            <strong><Money minorUnits={totals.sumMinorUnits} currencyCode={currencyCode} /></strong>
-          </div>
+        <StockHero
+          label={t('op.stock.receiving.totalSum')}
+          value={<Money minorUnits={totals.sumMinorUnits} currencyCode={currencyCode} />}
+          tone={lines.length > 0 ? 'neutral' : 'muted'}
+        />
+
+        <section className="stock-section">
           <div className="mv"><span>{t('op.stock.receiving.totalPositions')}</span><b>{totals.positions}</b></div>
           <div className="mv"><span>{t('op.stock.receiving.totalUnits')}</span><b>{totals.units}</b></div>
           <button type="button" className="ui-btn ui-btn--primary ui-btn--block" disabled={lines.length === 0 || posting} onClick={postReceipt}>
@@ -288,7 +282,7 @@ export function ReceivingWorkspace({
           </button>
           {post.kind === 'done' && <p className="recv-status ok">{t('op.stock.receiving.posted', { count: post.count })}</p>}
           {post.kind === 'error' && <p className="recv-status err" role="alert">{post.detail}</p>}
-        </div>
+        </section>
       </aside>
     </div>
   );

@@ -2142,7 +2142,6 @@
   "op.stock.receiving.supplier": "Supplier",
   "op.stock.receiving.invoiceNo": "Invoice no.",
   "op.stock.receiving.invoiceNoHint": "optional",
-  "op.stock.receiving.totalTitle": "Receipt total",
   "op.stock.receiving.totalPositions": "Positions",
   "op.stock.receiving.totalUnits": "Units",
   "op.stock.receiving.totalSum": "Sum",

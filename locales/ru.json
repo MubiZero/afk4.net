@@ -2340,7 +2340,6 @@
   "op.stock.receiving.supplier": "Поставщик",
   "op.stock.receiving.invoiceNo": "№ накладной",
   "op.stock.receiving.invoiceNoHint": "необязательно",
-  "op.stock.receiving.totalTitle": "Итог приёмки",
   "op.stock.receiving.totalPositions": "Позиций",
   "op.stock.receiving.totalUnits": "Единиц",
   "op.stock.receiving.totalSum": "Сумма",
