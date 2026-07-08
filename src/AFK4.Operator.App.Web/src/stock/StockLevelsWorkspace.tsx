@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { AlertTriangle, Boxes, Minus, Plus } from 'lucide-react';
+import { AlertTriangle, Boxes, Plus, Trash2 } from 'lucide-react';
 import { useDeferredFlag } from '../useDeferredFlag';
 import { EmptyState, Money } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
@@ -244,7 +244,7 @@ export function StockLevelsWorkspace({
                         title={t('op.stock.action.writeOff')}
                         aria-label={t('op.stock.action.writeOff')}
                         onClick={() => setWriteOffItem(item)}
-                      ><Minus size={15} aria-hidden="true" /></button>
+                      ><Trash2 size={15} aria-hidden="true" /></button>
                     </div>
                   </div>
                 </li>
