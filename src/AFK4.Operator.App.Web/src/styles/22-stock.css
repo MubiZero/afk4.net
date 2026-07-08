@@ -249,18 +249,25 @@
    на hover/фокусе строки. Раньше opacity:0.35 прятала их от не-мышиного оператора. */
 .rowact {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 5px;
   justify-content: flex-end;
   opacity: 0.6;
   transition: opacity 0.12s;
 }
 
-/* «Приёмка» (плюс) — та же рамка, что у «Списать» (минус), чтобы не выглядеть как связанная
-   пара «+/−»-степпера: это две независимые кнопки (открыть Приёмку vs списать остаток), не
-   инкремент/декремент одного значения. Только в строке Остатков — общий атом .ui-btn--ghost
-   не трогаем. */
+/* «Приёмка» (плюс) — та же рамка, что у «Списать», чтобы не выглядеть как связанная
+   пара «+/−»-степпера. Только в строке Остатков — общий атом .ui-btn--ghost не трогаем. */
 .rowact .ui-btn--ghost { border-color: var(--border-default); }
 .rowact .ui-btn--ghost:hover:not(:disabled) { border-color: var(--border-accent); }
+
+/* Жёсткий разделитель перед списанием (не просто отступ) — это отдельная, не парная к «+» кнопка. */
+.rowact-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border-default);
+  flex-shrink: 0;
+}
 
 .cash-stock-row:hover .rowact,
 .cash-stock-row:focus-within .rowact { opacity: 1; }
