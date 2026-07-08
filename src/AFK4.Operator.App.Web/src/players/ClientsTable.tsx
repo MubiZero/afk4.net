@@ -120,7 +120,7 @@ export function ClientsTable({
                   <span className="cc-id">
                     <span className="cc-name">
                       <span className="nm">{client.name}</span>
-                      {isNewClient(client.createdAtUtc, nowMs) && <span className="cc-tag">{t('op.players.tag.new')}</span>}
+                      {isNewClient(client.createdAtUtc, nowMs) && <span className="cc-tag cc-tag--new">{t('op.players.tag.new')}</span>}
                       {isInactive && <span className="cc-tag">{playerStatusLabel(client.status, t)}</span>}
                     </span>
                     <span className="cc-phone">{client.phoneNumber || t('op.pos.cart.clientNoPhone')}</span>
@@ -132,7 +132,7 @@ export function ClientsTable({
                 <span className={`cc-num${isDebt ? ' debt' : ' zero'}`}>
                   {isDebt ? <Money minorUnits={client.debtMinorUnits} currencyCode={currencyCode} /> : '—'}
                 </span>
-                <span className={`cc-now${live ? ' live' : packageLabel ? '' : ' none'}`}>
+                <span className={`cc-now${live ? ' live' : packageLabel ? ' package' : ' none'}`}>
                   {live ? (
                     <>
                       <Play size={13} aria-hidden="true" />

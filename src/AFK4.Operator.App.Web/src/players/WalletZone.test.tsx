@@ -11,8 +11,6 @@ const base = {
   canTopUp: true,
   onChangeTopUpAmount: () => {},
   onTopUp: () => {},
-  presets: [100, 200, 500],
-  onPreset: () => {},
   canPayDebt: true,
   onOpenPayDebt: () => {},
   canCorrect: false,
@@ -23,23 +21,9 @@ const renderZone = (over: Partial<typeof base> = {}) =>
   render(<I18nProvider initialLocale="ru"><WalletZone {...base} {...over} /></I18nProvider>);
 
 describe('WalletZone', () => {
-  it('renders a preset chip per amount and fires onPreset with the chosen amount', () => {
-    const onPreset = mock(() => {});
-    renderZone({ onPreset });
-    const chips = screen.getAllByRole('button', { name: /^\+\d+$/ });
-    expect(chips.map((chip) => chip.textContent)).toEqual(['+100', '+200', '+500']);
-    fireEvent.click(screen.getByRole('button', { name: '+100' }));
-    expect(onPreset).toHaveBeenCalledWith(100);
-  });
-
-  it('renders no presets row when the presets list is empty', () => {
-    renderZone({ presets: [] });
-    expect(document.querySelector('.topup-presets')).toBeNull();
-  });
-
-  it('disables preset chips together with the rest of the form when topUp is not allowed', () => {
+  it('disables the top-up amount field together with the rest of the form when topUp is not allowed', () => {
     renderZone({ canTopUp: false });
-    expect(screen.getByRole('button', { name: '+100' })).toBeDisabled();
+    expect(screen.getByLabelText('Сумма пополнения')).toBeDisabled();
   });
 
   it('fires onTopUp when the inline top-up form is submitted', () => {

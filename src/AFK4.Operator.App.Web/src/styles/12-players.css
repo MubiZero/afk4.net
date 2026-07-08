@@ -522,7 +522,7 @@
   align-items: center;
   gap: 10px;
   height: 34px;
-  padding: 0 16px;
+  padding: 0 24px;
   border-bottom: 1px solid var(--border-soft);
   color: var(--text-tertiary);
   font-size: 10px;
@@ -535,29 +535,46 @@
 }
 
 .ctable-body {
+  display: flex;
+  flex-direction: column;
   flex: 1;
+  gap: 8px;
   min-height: 0;
+  padding: 8px;
   overflow-y: auto;
 }
 
+/* Строка-карточка (не строка-с-разделителем): своя рамка/фон/радиус, отступ между
+   карточками вместо border-bottom. Полоса долга (border-left-color) и кольцо выбора
+   (box-shadow) — разные CSS-свойства нарочно, чтобы при одновременном debt+selected
+   оба сигнала оставались видны, а не гасили друг друга через каскад одного свойства. */
 .ctable-row {
   display: grid;
   align-items: center;
   gap: 10px;
   width: 100%;
-  min-height: 58px;
+  min-height: 56px;
   padding: 0 16px;
-  border-bottom: 1px solid var(--border-soft);
-  border-left: 3px solid transparent;
-  background: none;
+  border: 1px solid var(--border-soft);
+  border-left-width: 3px;
+  border-left-color: transparent;
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
   color: inherit;
   font: inherit;
   text-align: left;
   cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
 .ctable-row:hover {
+  border-color: var(--border-accent);
   background: var(--surface-hover);
+  transform: translateY(-1px);
+}
+
+.ctable-row:active {
+  transform: scale(0.99);
 }
 
 .ctable-row:focus-visible {
@@ -572,24 +589,33 @@
 }
 
 .ctable-row.selected {
-  border-left-color: var(--accent);
   background: var(--surface-hover);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.35);
 }
 
 .ctable-row.inactive {
   opacity: 0.5;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .ctable-row {
+    transition: none;
+  }
+  .ctable-row:hover {
+    transform: none;
+  }
+}
+
 .ctable-skeleton {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  padding: 8px 16px;
+  gap: 8px;
+  padding: 8px;
 }
 
 .ctable-row-skel {
-  height: 58px;
-  border-radius: 6px;
+  height: 56px;
+  border-radius: var(--radius-md);
 }
 
 .cc-client {
@@ -653,6 +679,14 @@
   text-transform: uppercase;
 }
 
+/* НОВЫЙ — повод обратить внимание, поэтому тёплый акцентный тег, а не тот же нейтральный
+   серый, что у статуса неактивности (два разных по смыслу состояния — два разных цвета). */
+.cc-tag--new {
+  border-color: var(--border-accent);
+  background: var(--surface-accent-soft);
+  color: var(--accent-text);
+}
+
 .cc-num {
   justify-self: end;
   color: var(--text-primary);
@@ -669,21 +703,39 @@
   color: var(--text-quaternary);
 }
 
+/* Кто сейчас на месте — самый ценный для оператора сигнал в этой таблице, поэтому не
+   просто текст с акцентным цветом, а полноценный бейдж (по образцу .status-pill из
+   drawer/карты) — форма считывается на скролле быстрее, чем оттенок текста. Цвета
+   намеренно свои (не голый .status-pill), чтобы не тянуть его отступы/высоту в грид-ячейку. */
 .cc-now {
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  justify-self: start;
   gap: 6px;
+  max-width: 100%;
   min-width: 0;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .cc-now.live {
-  color: var(--accent-text);
+  background: var(--success-soft-bg);
+  color: var(--success-text);
+}
+
+.cc-now.package {
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
 }
 
 .cc-now.none {
+  padding: 0;
   color: var(--text-quaternary);
+  font-weight: 400;
 }
 
 .cc-now svg {
@@ -878,43 +930,6 @@
   flex: none;
   height: 1px;
   background: var(--border-soft);
-}
-
-.topup-presets {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.preset-chip {
-  height: 34px;
-  min-width: 0;
-  padding: 0 4px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
-}
-
-.preset-chip:hover:not(:disabled) {
-  border-color: var(--border-accent);
-  background: var(--surface-accent-soft);
-  color: var(--accent-bright);
-}
-
-.preset-chip:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.preset-chip:disabled {
-  cursor: not-allowed;
-  color: var(--text-quaternary);
 }
 
 .topup-row {

@@ -1,19 +1,17 @@
 import { useI18n } from '@afk4/i18n';
 import { CircleDollarSign, ReceiptText, SlidersHorizontal } from 'lucide-react';
 
-// Форма денежных действий клиента: пресеты быстрого пополнения + поле «своя сумма» + кнопка,
-// затем «Погасить долг» (только при долге) / «Ручная корректировка» (только при праве).
-// Баланс/долг как ЦИФРЫ — забота вызывающего экрана (ClientDetail рисует свои плитки-стат,
-// ClientDrawer — баланс-герой/долг-callout выше формы): WalletZone больше не показывает деньги,
-// только действия с ними. Возврат живёт построчно в Истории, не здесь.
+// Форма денежных действий клиента: поле «своя сумма» + кнопка пополнения, затем «Погасить
+// долг» (только при долге) / «Ручная корректировка» (только при праве). Баланс/долг как
+// ЦИФРЫ — забота вызывающего экрана (ClientDetail рисует свои плитки-стат, ClientDrawer —
+// баланс-герой/долг-callout выше формы): WalletZone больше не показывает деньги, только
+// действия с ними. Возврат живёт построчно в Истории, не здесь.
 export function WalletZone({
   debtMinorUnits,
   topUpAmount,
   canTopUp,
   onChangeTopUpAmount,
   onTopUp,
-  presets = [],
-  onPreset,
   canPayDebt,
   onOpenPayDebt,
   canCorrect,
@@ -24,8 +22,6 @@ export function WalletZone({
   canTopUp: boolean;
   onChangeTopUpAmount: (value: string) => void;
   onTopUp: () => void;
-  presets?: number[];
-  onPreset?: (amount: number) => void;
   canPayDebt: boolean;
   onOpenPayDebt: () => void;
   canCorrect: boolean;
@@ -37,22 +33,6 @@ export function WalletZone({
 
   return (
     <div className="clients-wallet-zone">
-      {presets.length > 0 && onPreset && (
-        <div className="topup-presets">
-          {presets.map((amount) => (
-            <button
-              key={amount}
-              type="button"
-              className="preset-chip"
-              disabled={!canTopUp}
-              onClick={() => onPreset(amount)}
-            >
-              +{amount}
-            </button>
-          ))}
-        </div>
-      )}
-
       <form
         className="clients-wallet-quickpay topup-row"
         onSubmit={(event) => {

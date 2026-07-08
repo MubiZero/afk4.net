@@ -10,7 +10,6 @@ import { ClientActionsMenu } from './ClientActionsMenu';
 
 // Сколько последних операций показываем в мини-истории — за остальным уводит «вся история →».
 const RECENT_ENTRIES_LIMIT = 4;
-const TOPUP_PRESET_AMOUNTS = [50, 100, 200, 500];
 const noop = () => {};
 
 // Узкая правая панель выбранного клиента (mock-v7) — замена вертикального разреза ClientDetail
@@ -29,7 +28,6 @@ export function ClientDrawer({
   canTopUp,
   onChangeTopUpAmount,
   onTopUp,
-  onPresetTopUp,
   canPayDebt,
   onOpenPayDebt,
   canManageClient,
@@ -53,7 +51,6 @@ export function ClientDrawer({
   canTopUp: boolean;
   onChangeTopUpAmount: (value: string) => void;
   onTopUp: () => void;
-  onPresetTopUp: (amount: number) => void;
   canPayDebt: boolean;
   onOpenPayDebt: () => void;
   canManageClient: boolean;
@@ -152,8 +149,6 @@ export function ClientDrawer({
           canTopUp={canTopUp}
           onChangeTopUpAmount={onChangeTopUpAmount}
           onTopUp={onTopUp}
-          presets={TOPUP_PRESET_AMOUNTS}
-          onPreset={onPresetTopUp}
           canPayDebt={canPayDebt}
           onOpenPayDebt={onOpenPayDebt}
           canCorrect={canCorrect}

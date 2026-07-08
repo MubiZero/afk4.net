@@ -19,7 +19,8 @@ import {
 } from './operatorHelpers';
 import { fixturePlayers, playerStatusLabel, projectPlayerClient, buildClientSegments, buildClientOverview, buildClientContextMap, matchesSegment, type PlayerClientItem, type ClientSegmentId, type ClientLiveContext } from './players/playersModel';
 import { fetchPlayersData, playersSnapshotCache } from './players/playersSnapshot';
-import { FeedbackNotice, StateFlag } from './operatorPrimitives';
+import { StateFlag } from './operatorPrimitives';
+import { useFeedbackToasts } from './useFeedbackToasts';
 import { ClientsTable } from './players/ClientsTable';
 import { ClientDrawer } from './players/ClientDrawer';
 import { HistorySection } from './players/HistorySection';
@@ -45,6 +46,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [payDebtOpen, setPayDebtOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(cachedSnapshot?.selectedId ?? null);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  useFeedbackToasts(feedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>(backend === null ? 'fixture' : cachedSnapshot ? 'backend' : 'loading');
   const [clients, setClients] = useState<PlayerClientItem[]>(() => backend === null ? fixturePlayers(currencyCode, t) : cachedSnapshot?.clients ?? []);
   const [walletSummary, setWalletSummary] = useState<WalletSummaryDto | null>(null);
@@ -125,9 +127,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     };
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, clientSearch, currencyCode]);
 
-  const selectedClient = clients.find((client) => client.playerAccountId === selectedClientId)
-    ?? clients[0]
-    ?? null;
+  const selectedClient = clients.find((client) => client.playerAccountId === selectedClientId) ?? null;
 
   const canViewLedger = backend !== null
     && selectedClient !== null
@@ -635,8 +635,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         </div>
       </section>
 
-      <FeedbackNotice feedback={feedback} />
-
       <div className="clients-grid">
         <ClientsTable
           clients={visibleClients}
@@ -669,12 +667,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
             canTopUp={canTopUpWallet}
             onChangeTopUpAmount={setWalletTopUpAmount}
             onTopUp={() => runClientAction('topUp', t('op.players.actions.topUpBtn'))}
-            onPresetTopUp={(amount) => {
-              const topUpMinorUnits = parseMoneyInputMinorUnits(String(amount));
-              if (topUpMinorUnits !== null) {
-                void runClientAction('topUp', t('op.players.actions.topUpBtn'), { topUpMinorUnits });
-              }
-            }}
             canPayDebt={canPayDebt}
             onOpenPayDebt={() => setPayDebtOpen(true)}
             canManageClient={canManageClient}

@@ -37,7 +37,6 @@ const baseProps: DrawerProps = {
   canTopUp: true,
   onChangeTopUpAmount: () => {},
   onTopUp: () => {},
-  onPresetTopUp: () => {},
   canPayDebt: true,
   onOpenPayDebt: () => {},
   canManageClient: true,
@@ -94,13 +93,6 @@ describe('ClientDrawer', () => {
     expect(document.querySelector('.wallet-debt')).toBeNull();
     rerender(<I18nProvider initialLocale="ru"><ClientDrawer {...baseProps} debtMinorUnits={28000} /></I18nProvider>);
     expect(document.querySelector('.wallet-debt')).toHaveTextContent('280 с.');
-  });
-
-  it('fires onPresetTopUp with the chosen preset amount', () => {
-    const onPresetTopUp = mock(() => {});
-    renderDrawer({ onPresetTopUp });
-    fireEvent.click(screen.getByRole('button', { name: '+100' }));
-    expect(onPresetTopUp).toHaveBeenCalledWith(100);
   });
 
   it('fires onTopUp from the top-up form', () => {
