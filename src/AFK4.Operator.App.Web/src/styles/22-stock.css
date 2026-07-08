@@ -326,20 +326,27 @@
   font-size: 11px;
 }
 
-/* ── Сводка (правая панель) ── */
+/* ── Сводка (правая панель): единая приподнятая панель, hairline-секции внутри ── */
 .stock-summary {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
   overflow: auto;
 }
 
-/* Карточки сводки */
-.ctx-card {
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-md);
-  background: var(--surface-card);
-  padding: 12px;
+.stock-section {
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.stock-section:first-child {
+  padding-top: 0;
+  border-top: 0;
 }
 
 .ctx-title {
@@ -353,12 +360,6 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-.ctx-sub {
-  color: var(--text-quaternary);
-  font-size: 11px;
-  margin-top: 5px;
 }
 
 /* Строка метрики сводки */
@@ -428,33 +429,6 @@
   min-height: 0;
   overflow: auto;
 }
-
-/* Полоса добавления товара */
-.recv-add {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  background: var(--surface-card);
-}
-
-.recv-add-ico {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-  background: var(--surface-accent-soft);
-  color: var(--accent-text);
-}
-
-/* Инпут внутри — прямой child, стилизуется общим `.ui-field > input` (02-ui-kit.css,
-   класс на этом же div); здесь только growth в строке `.recv-add`. */
-.recv-add-field { flex: 1; }
-
-.recv-add-hint { color: var(--text-tertiary); font-size: 11px; }
 
 /* Выпадающие результаты поиска */
 .recv-results {
@@ -609,9 +583,6 @@
 .recv-field { display: grid; gap: 4px; margin-bottom: 10px; }
 .recv-field span { color: var(--text-tertiary); font-size: 11px; }
 
-.recv-grand { border-top: 1px solid var(--border-soft); margin-top: 4px; padding-top: 10px; }
-.recv-grand b { font-size: 18px; }
-
 .recv-status { margin: 10px 0 0; font-size: 12px; }
 .recv-status.ok { color: var(--accent-text); }
 .recv-status.err { color: var(--danger); }
@@ -677,23 +648,6 @@
    без визуальных правил на button (тег-селектор перебивал бы атом по каскаду, см. `.seg`). */
 .period { display: flex; gap: var(--space-1); }
 
-/* Итоги периода */
-.stock-summary .totrow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 7px 0;
-  font-size: 13px;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-soft);
-}
-.stock-summary .totrow:last-child { border-bottom: none; }
-.stock-summary .totrow b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-primary); }
-.stock-summary .totrow b.in { color: var(--accent-text); }
-.stock-summary .totrow b.wn { color: var(--warning); }
-.stock-summary .totrow.net b { font-weight: 700; }
-
-
 /* ── Штрих-коды в карточке товара (ProductBarcodesSection) ── */
 .settings-barcodes-section { margin-top: var(--space-4); }
 .settings-barcodes-empty { font-size: 13px; color: var(--text-secondary); margin: 0; }
@@ -726,16 +680,6 @@
 
 /* ── Инвентаризация (S4) ── */
 .stock-inventory { display: flex; flex-direction: column; min-width: 0; }
-.inv-scanbar { display: flex; align-items: center; gap: 12px; border: 1.5px solid var(--accent); border-radius: var(--radius-md);
-  padding: 10px 14px; background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.06), transparent); margin-bottom: 8px; }
-.inv-scanbar-ico { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center;
-  background: var(--surface-accent-soft); color: var(--accent-text); flex: 0 0 auto; }
-.inv-scanbar-lbl { flex: 1; min-width: 0; color: var(--text-secondary); font-size: 13px; }
-.inv-caret { display: inline-block; width: 2px; height: 14px; background: var(--accent); margin-left: 3px;
-  vertical-align: middle; animation: inv-blink 1s step-end infinite; }
-@keyframes inv-blink { 50% { opacity: 0; } }
-.inv-search { width: min(220px, 30vw); height: 30px; padding: 0 10px; border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm); background: var(--surface-sunken); color: var(--text-primary); font-size: 13px; }
 
 .inv-cols, .inv-row { display: grid; grid-template-columns: 24px minmax(160px, 1fr) 84px 108px 104px 96px; align-items: center; gap: 12px; }
 .inv-cols { padding: 2px 8px 8px; color: var(--text-tertiary); font-size: 11px; font-weight: 600;
@@ -787,8 +731,6 @@
 
 .recv-cost:focus-within,
 .inv-fact:focus-within { border-color: var(--accent); box-shadow: var(--focus-ring); }
-
-.inv-search:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
 
 @media (prefers-reduced-motion: reduce) {
   .recv-step button:active { transform: none; }
