@@ -105,15 +105,18 @@
   gap: 14px;
 }
 
-/* Заголовки колонок */
+/* Заголовки колонок — фон-плашка как у строк-карточек ниже (та же рамка/радиус/фон), чтобы
+   читаться как шапка таблицы, а не плавать отдельным текстом над списком карточек. */
 .cash-stock-cols {
-  padding: 4px var(--space-2) 6px;
+  padding: 6px var(--space-2);
   /* Заголовки колонок — минимум text-tertiary (инвариант контраста) */
   color: var(--text-tertiary);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--border-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
 }
 
 .cash-stock-list {
@@ -475,13 +478,16 @@
   gap: 12px;
 }
 
+/* Фон-плашка как у .recv-row ниже — та же рамка/радиус/фон, читается как шапка таблицы. */
 .recv-cols {
-  padding: 4px 8px 6px;
+  padding: 6px 8px;
   color: var(--text-tertiary);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--border-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
 }
 
 .recv-cols .r { text-align: right; }
@@ -675,8 +681,9 @@
 .stock-inventory { display: flex; flex-direction: column; min-width: 0; }
 
 .inv-cols, .inv-row { display: grid; grid-template-columns: 24px minmax(160px, 1fr) 84px 108px 104px 96px; align-items: center; gap: 12px; }
-.inv-cols { padding: 2px 8px 8px; color: var(--text-tertiary); font-size: 11px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-default); }
+/* Фон-плашка как у .inv-row ниже — та же рамка/радиус/фон, читается как шапка таблицы. */
+.inv-cols { padding: 8px; color: var(--text-tertiary); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: var(--surface-card); }
 .inv-cols .r { text-align: right; }
 .inv-lines { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .inv-row {
