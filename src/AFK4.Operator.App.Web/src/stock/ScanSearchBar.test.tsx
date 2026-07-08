@@ -5,7 +5,7 @@ import { Search } from 'lucide-react';
 import { ScanSearchBar } from './ScanSearchBar';
 
 describe('ScanSearchBar', () => {
-  it('рендерит поле поиска, бейдж «Сканер активен» и подсказку; зовёт onChange', () => {
+  it('рендерит поле поиска и бейдж «Сканер активен»; зовёт onChange', () => {
     const onChange = mock((_value: string) => {});
     render(
       <I18nProvider initialLocale="ru">
@@ -15,12 +15,10 @@ describe('ScanSearchBar', () => {
           onChange={onChange}
           placeholder="Название или SKU…"
           ariaLabel="Добавить товар"
-          hint="Найдите товар по названию или SKU"
         />
       </I18nProvider>
     );
     expect(screen.getByLabelText('Сканер активен')).toBeInTheDocument();
-    expect(screen.getByText('Найдите товар по названию или SKU')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Добавить товар'), { target: { value: 'cola' } });
     expect(onChange).toHaveBeenCalledWith('cola');
   });

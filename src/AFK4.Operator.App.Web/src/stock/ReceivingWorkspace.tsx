@@ -176,7 +176,6 @@ export function ReceivingWorkspace({
           onChange={setSearch}
           placeholder={t('op.stock.receiving.search')}
           ariaLabel={t('op.stock.receiving.addLabel')}
-          hint={t('op.stock.receiving.addHint')}
         />
         {trackedCatalog.length === 0 && (
           <p className="recv-noresults">{t('op.stock.receiving.noTracked')}</p>

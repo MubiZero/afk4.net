@@ -7,7 +7,6 @@ export function ScanSearchBar({
   onChange,
   placeholder,
   ariaLabel,
-  hint,
   trailing,
 }: {
   icon: ReactNode;
@@ -15,7 +14,6 @@ export function ScanSearchBar({
   onChange: (value: string) => void;
   placeholder: string;
   ariaLabel: string;
-  hint?: string;
   trailing?: ReactNode;
 }) {
   const { t } = useI18n();
@@ -36,7 +34,6 @@ export function ScanSearchBar({
         {t('op.pos.scan.active')}
       </span>
       {trailing}
-      {hint && <p className="stock-scanbar-hint">{hint}</p>}
     </div>
   );
 }

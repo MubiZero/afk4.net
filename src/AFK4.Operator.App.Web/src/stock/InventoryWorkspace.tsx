@@ -161,7 +161,6 @@ export function InventoryWorkspace({
           onChange={setSearch}
           placeholder={t('op.stock.inventory.search')}
           ariaLabel={t('op.stock.inventory.search')}
-          hint={t('op.stock.inventory.scanHint')}
           trailing={hasCounts ? (
             <button type="button" className="ui-btn ui-btn--sm ui-btn--ghost" disabled={posting} onClick={() => setLines((c) => resetCounts(c))}>
               <RotateCcw size={13} aria-hidden="true" />
@@ -233,7 +232,7 @@ export function InventoryWorkspace({
         <section className="stock-section">
           <h3 className="ctx-title">{t('op.stock.inventory.progressTitle')}</h3>
           <div className="inv-prog"><i style={{ width: `${pct}%` }} /></div>
-          <div className="inv-progtxt"><span>{t('op.stock.inventory.counted')}</span><b>{totals.countedCount} / {totals.trackedCount}</b></div>
+          <div className="inv-progtxt"><span>{t('op.stock.inventory.counted')}</span><b>{totals.countedCount} / {totals.trackedCount} · {pct}%</b></div>
         </section>
 
         <StockHero

@@ -285,10 +285,14 @@ export function StockLevelsWorkspace({
             <h3 className="ctx-title">{t('op.stock.summary.orderTitle')}</h3>
             {orderItems.map((item) => {
               const s = stockStatus(item);
+              // Порог не задан (0) → дробь "0/0" ничего не говорит, показываем статус словом.
+              const qtyLabel = item.reorderThreshold > 0
+                ? `${item.stockOnHand}/${item.reorderThreshold}`
+                : t(s === 'out' ? 'op.stock.status.out' : 'op.stock.status.low');
               return (
                 <div key={item.productId} className="order-item" title={item.name}>
                   <strong className="order-item-name">{item.name}</strong>
-                  <span className={`oq ${s}`}>{item.stockOnHand}/{item.reorderThreshold}</span>
+                  <span className={`oq ${s}`}>{qtyLabel}</span>
                 </div>
               );
             })}
