@@ -156,7 +156,7 @@ export function InventoryWorkspace({
     <div className="stock-layout">
       <section className="stock-inventory">
         <ScanSearchBar
-          icon={<Search size={16} aria-hidden="true" />}
+          icon={<Search size={14} aria-hidden="true" />}
           value={search}
           onChange={setSearch}
           placeholder={t('op.stock.inventory.search')}

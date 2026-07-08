@@ -171,7 +171,7 @@ export function ReceivingWorkspace({
       {/* ── Документ прихода ── */}
       <section className="stock-receiving">
         <ScanSearchBar
-          icon={<Search size={16} aria-hidden="true" />}
+          icon={<Search size={14} aria-hidden="true" />}
           value={search}
           onChange={setSearch}
           placeholder={t('op.stock.receiving.search')}
