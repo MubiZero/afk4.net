@@ -242,6 +242,67 @@
 }
 .ui-field-error { color: var(--danger-text); font-size: var(--text-xs); }
 
+/* ============ Search field (иконка + инпут в общей рамке) ============ */
+.ui-search-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--control-md);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-3);
+  background: var(--surface-sunken);
+  color: var(--text-tertiary);
+}
+
+.ui-search-field:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+}
+
+.ui-search-field input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+/* ============ Бейдж активного сканера (пульс) ============ */
+.ui-scanner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-accent-soft);
+  color: var(--accent-text);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ui-scanner-pulse {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  animation: ui-scanner-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ui-scanner-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.75); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-scanner-pulse { animation: none; }
+}
+
 /* ============ Money ============ */
 .ui-money {
   font-family: var(--font-mono);

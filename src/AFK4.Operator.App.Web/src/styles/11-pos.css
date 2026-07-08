@@ -438,33 +438,10 @@
   color: var(--warning);
 }
 
-/* ── Поиск / поле ввода ── */
-.pos-search {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: var(--control-md);
+/* ── Поиск каталога — чром взят из общего атома .ui-search-field (02-ui-kit.css),
+   здесь только отступ размещения внутри панели каталога. ── */
+.pos-catalog-search {
   margin: var(--space-3) var(--space-4) var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-3);
-  background: var(--surface-sunken);
-  color: var(--text-tertiary);
-}
-
-.pos-search:focus-within {
-  border-color: var(--accent);
-  box-shadow: var(--focus-ring);
-}
-
-.pos-search input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: var(--text-sm);
 }
 
 /* ── Категории-сегменты ── */
@@ -980,38 +957,3 @@
   }
 }
 
-/* ── Бейдж активного сканера в заголовке Каталога ── */
-/* Зеркало recv-scanner-badge из 22-stock.css: те же токены, единый вид на обоих экранах. */
-.pos-scanner-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-accent-soft);
-  color: var(--accent-text);
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.pos-scanner-pulse {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: var(--radius-pill);
-  background: var(--accent);
-  animation: scanner-pulse 1.4s ease-in-out infinite;
-}
-
-@keyframes scanner-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.4; transform: scale(0.75); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pos-scanner-pulse {
-    animation: none;
-  }
-}

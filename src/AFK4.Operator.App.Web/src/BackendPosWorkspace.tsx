@@ -368,13 +368,13 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               ) : (
                 <span>{t('op.pos.strip.stock')} {t('op.pos.strip.stockOk')}</span>
               )}
-              <span className="pos-scanner-badge" aria-label={t('op.pos.scan.active')}>
-                <span className="pos-scanner-pulse" aria-hidden="true" />
+              <span className="ui-scanner-badge" aria-label={t('op.pos.scan.active')}>
+                <span className="ui-scanner-pulse" aria-hidden="true" />
                 {t('op.pos.scan.active')}
               </span>
             </div>
           </header>
-          <label className="pos-search">
+          <label className="ui-search-field pos-catalog-search">
             <Search size={14} />
             <input
               placeholder={t('op.pos.catalog.searchPlaceholder')}
