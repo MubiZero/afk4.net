@@ -2366,7 +2366,6 @@
   "op.stock.journal.period.today": "Сегодня",
   "op.stock.journal.period.week": "7 дней",
   "op.stock.journal.period.all": "Все",
-  "op.stock.journal.summary.title": "Итог за период",
   "op.stock.journal.summary.inbound": "Приход",
   "op.stock.journal.summary.sold": "Продажи",
   "op.stock.journal.summary.writtenOff": "Списания",

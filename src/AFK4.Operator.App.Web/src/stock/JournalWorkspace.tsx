@@ -5,6 +5,7 @@ import { ArrowDownToLine, ClipboardList } from 'lucide-react';
 import { useDeferredFlag } from '../useDeferredFlag';
 import { EmptyState, Money } from '../operatorPrimitives';
 import { StockSkeleton } from './StockSkeleton';
+import { StockHero } from './StockHero';
 import { createAuthenticatedOperatorClients, stockMovementTypeLabel } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
 import { hasAnyPermission, permissionNames } from '../operatorPermissions';
@@ -206,7 +207,7 @@ export function JournalWorkspace({
       </section>
 
       <aside className="stock-summary">
-        <div className="ctx-card">
+        <section className="stock-section">
           <h3 className="ctx-title">{t('op.stock.journal.period.title')}</h3>
           <div className="period">
             {PERIODS.map((value) => (
@@ -221,15 +222,19 @@ export function JournalWorkspace({
               </button>
             ))}
           </div>
-        </div>
+        </section>
 
-        <div className="ctx-card">
-          <h3 className="ctx-title">{t('op.stock.journal.summary.title')}</h3>
-          <div className="totrow"><span>{t('op.stock.journal.summary.inbound')}</span><b className="in">+{summary.inboundQty} · <Money minorUnits={summary.inboundSumMinor} currencyCode={currencyCode} /></b></div>
-          <div className="totrow"><span>{t('op.stock.journal.summary.sold')}</span><b>−{summary.soldQty}</b></div>
-          <div className="totrow"><span>{t('op.stock.journal.summary.writtenOff')}</span><b className="wn">−{summary.writtenOffQty} · <Money minorUnits={summary.writtenOffSumMinor} currencyCode={currencyCode} /></b></div>
-          <div className="totrow net"><span>{t('op.stock.journal.summary.net')}</span><b>{summary.netQty > 0 ? '+' : ''}{summary.netQty}</b></div>
-        </div>
+        <StockHero
+          label={t('op.stock.journal.summary.net')}
+          value={summary.netQty > 0 ? `+${summary.netQty}` : String(summary.netQty)}
+          tone={summary.netQty > 0 ? 'ok' : summary.netQty < 0 ? 'warning' : 'muted'}
+        />
+
+        <section className="stock-section">
+          <div className="mv"><span>{t('op.stock.journal.summary.inbound')}</span><b className="in">+{summary.inboundQty} · <Money minorUnits={summary.inboundSumMinor} currencyCode={currencyCode} /></b></div>
+          <div className="mv"><span>{t('op.stock.journal.summary.sold')}</span><b>−{summary.soldQty}</b></div>
+          <div className="mv"><span>{t('op.stock.journal.summary.writtenOff')}</span><b className="wn">−{summary.writtenOffQty} · <Money minorUnits={summary.writtenOffSumMinor} currencyCode={currencyCode} /></b></div>
+        </section>
       </aside>
     </div>
   );

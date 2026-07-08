@@ -2168,7 +2168,6 @@
   "op.stock.journal.period.today": "Today",
   "op.stock.journal.period.week": "7 days",
   "op.stock.journal.period.all": "All",
-  "op.stock.journal.summary.title": "Period summary",
   "op.stock.journal.summary.inbound": "Inbound",
   "op.stock.journal.summary.sold": "Sales",
   "op.stock.journal.summary.writtenOff": "Written off",
