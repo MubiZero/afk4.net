@@ -42,7 +42,7 @@
 
 .stock-row-skel {
   height: 44px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
 }
 
 /* ── Список остатков (левая панель) ── */
@@ -119,27 +119,30 @@
 .cash-stock-list {
   list-style: none;
   margin: 6px 0 0;
-  padding: 0;
+  padding: 8px 0;
   display: flex;
   flex-direction: column;
+  gap: 8px;
 }
 
-/* Плоский список: строки без рамок-карточек, разделены тонкой линией; глубина — на hover.
-   Убирает «карточку в карточке» (панель-карточка + строка-карточка внутри). */
+/* Строка-карточка (как .ctable-row в «Клиентах»): своя рамка/радиус/фон, зазор между
+   карточками вместо border-bottom. */
 .cash-stock-row {
   padding: var(--space-2);
-  border-bottom: 1px solid var(--border-soft);
-  transition: background 0.12s;
+  border: 1px solid var(--border-soft);
+  border-left-width: 3px;
+  border-left-color: transparent;
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  transition: background 120ms ease, border-color 120ms ease;
 }
 
-.cash-stock-row:last-child { border-bottom: none; }
-
-.cash-stock-row:hover { background: var(--surface-hover); }
+.cash-stock-row:hover { border-color: var(--border-accent); background: var(--surface-hover); }
 
 /* Статус остатка — не только цветом: левая полоса на строке + иконка-предупреждение.
    Янтарь «на исходе», красный «нет в наличии» (WCAG 1.4.1 — сигнал дублируется формой). */
-.cash-stock-row.low { border-left: 3px solid var(--warning); }
-.cash-stock-row.out { border-left: 3px solid var(--danger); }
+.cash-stock-row.low { border-left-color: var(--warning); }
+.cash-stock-row.out { border-left-color: var(--danger); }
 .cash-stock-row > svg.row-status-ico.low { color: var(--warning); }
 .cash-stock-row > svg.row-status-ico.out { color: var(--danger); }
 
@@ -446,16 +449,19 @@
 
 .recv-cols .r { text-align: right; }
 
-.recv-lines { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.recv-lines { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 
 .recv-row {
   padding: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
   background: var(--surface-card);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 
-.recv-row.fresh { border-color: var(--accent); box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.25); }
+/* «Только что отсканирован/добавлен» — акцентное кольцо (box-shadow), не border-color:
+   то же свойство занято сигналом расхождения в .inv-row, оба должны уметь звучать вместе. */
+.recv-row.fresh { border-color: var(--border-accent); box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.35); }
 .recv-row > svg { width: 15px; height: 15px; color: var(--text-tertiary); }
 .recv-name { min-width: 0; }
 .recv-name strong { display: block; color: var(--text-primary); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -585,7 +591,17 @@
   margin: 8px 4px 2px;
 }
 
-.jlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.jlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+/* Строка журнала на Складе — карточка (.ui-ledger-row переиспользуется и Кассой, поэтому
+   переопределяем прицельно составным селектором, не трогая общий примитив в 02-ui-kit.css).
+   Строки только читаются (нет вложенных действий) — намеренно без hover/press: ничего не
+   происходит по клику, откликом-фантомом только бы обманули ожидание. */
+.ui-ledger-row.stock-ledger-row {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
 
 /* Период (правая колонка) — кнопки теперь `.ui-chip--filter`; здесь только контейнер-layout,
    без визуальных правил на button (тег-селектор перебивал бы атом по каскаду, см. `.seg`). */
@@ -655,12 +671,22 @@
 .inv-cols { padding: 2px 8px 8px; color: var(--text-tertiary); font-size: 11px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-default); }
 .inv-cols .r { text-align: right; }
-.inv-lines { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.inv-row { padding: 9px 8px; border: 1px solid var(--border-default); border-radius: var(--radius-sm); background: var(--surface-card); }
+.inv-lines { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.inv-row {
+  padding: 9px 8px;
+  border: 1px solid var(--border-soft);
+  border-left-width: 3px;
+  border-left-color: transparent;
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  transition: border-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
 .inv-row > svg { width: 15px; height: 15px; color: var(--text-tertiary); }
 .inv-row.pending { opacity: 0.72; }
-.inv-row.diff { border-color: rgba(var(--accent-rgb), 0.35); }
-.inv-row.fresh { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+/* Расхождение факт/учёт — левая полоса (то же свойство, что .cash-stock-row.low/out),
+   «только что отсканирован» — кольцо box-shadow: оба должны звучать одновременно. */
+.inv-row.diff { border-left-color: var(--accent); }
+.inv-row.fresh { box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.35); }
 .inv-name { min-width: 0; }
 .inv-name strong { display: block; color: var(--text-primary); font-size: 14px; font-weight: 600; }
 .inv-name em { color: var(--text-tertiary); font-family: var(--font-mono); font-size: 11px; font-style: normal; }

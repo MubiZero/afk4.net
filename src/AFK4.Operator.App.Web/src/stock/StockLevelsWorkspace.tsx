@@ -202,9 +202,9 @@ export function StockLevelsWorkspace({
                         {item.stockOnHand}
                         <span className="u"> {t('op.stock.col.unit')}</span>
                       </span>
-                      {status !== 'ok' && (
-                        <span className={`ui-chip ui-chip--status ${status === 'low' ? 'is-warning' : 'is-danger'}`}>
-                          {t(status === 'low' ? 'op.stock.status.low' : 'op.stock.status.out')}
+                      {status === 'low' && (
+                        <span className="ui-chip ui-chip--status is-warning">
+                          {t('op.stock.status.low')}
                         </span>
                       )}
                     </div>

@@ -177,7 +177,7 @@ export function JournalWorkspace({
                 <div className="daygroup">{dayLabel(group.dayKey)}</div>
                 <ul className="jlist ui-ledger-list">
                   {group.rows.map((row) => (
-                    <li key={row.id} className="ui-ledger-row">
+                    <li key={row.id} className="ui-ledger-row stock-ledger-row">
                       <span className="ui-ledger-time">{dateTimeFmt.format(new Date(row.createdAtUtc))}</span>
                       <div className="ui-ledger-body">
                         <span className="ui-ledger-title">
