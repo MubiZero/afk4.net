@@ -12,7 +12,7 @@
 - [Frontends on bun test](frontends-on-bun-test.md) — все фронты на `bun test` (не vitest, happy-dom+jest-dom), `mock.module` течёт process-wide; build=`tsc -b && vite` И тайпчекает тест-файлы (зелёный `bun test` ≠ зелёная сборка → типизировать bun-моки; финал слайса обязан включать `bun run build`).
 - [Coolify reference](coolify-reference.md) — staging cool.mubi.dev, API /api/v1 Bearer; токен в `~/.config/afk4/coolify.token`.
 - [Memory in git](memory-in-git-setup.md) — память версионируется в гите через симлинк/junction на `<repo>/.claude/memory`; новое устройство = clone + пересоздать линк ДО работы (WSL и Windows).
-- [Setup Wizard preview launch](setup-wizard-preview-launch.md) — `dotnet run --project AFK4.SetupWizard -- --preview` + Vite 5175 + env URL; devDeps → `bun install --force`.
+- [Setup Wizard preview launch](setup-wizard-preview-launch.md) — Vite 5175 + env URL + `--preview`; devDeps → `bun install --force`; WSL-WPF-запуск теперь скиллом `operator-wpf-preview` (Оператор+Мастер, не параллельно).
 
 ## Архитектура (инварианты)
 - [Operator app = WebView2+React](afk4-operator-app-webview2.md) — Operator.App = тонкий WPF-хост + React (`AFK4.Operator.App.Web`), Linux-buildable.
