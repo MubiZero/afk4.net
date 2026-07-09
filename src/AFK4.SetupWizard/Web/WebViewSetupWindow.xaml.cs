@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media.Imaging;
 using AFK4.SetupWizard.Core;
 using Microsoft.Web.WebView2.Core;
 
@@ -188,6 +189,11 @@ public partial class WebViewSetupWindow : Window
                 case "window:close":
                     Close();
                     return true;
+                case "window:theme":
+                    ApplyIconForTheme(document.RootElement.TryGetProperty("theme", out var themeProperty)
+                        ? themeProperty.GetString()
+                        : null);
+                    return true;
                 default:
                     return false;
             }
@@ -196,6 +202,16 @@ public partial class WebViewSetupWindow : Window
         {
             return true;
         }
+    }
+
+    // Тёмная тема (дефолт) — таскбар обычно тоже тёмный, поэтому светлая иконка (белый фон)
+    // заметнее; светлая тема — наоборот, тёмная иконка контрастнее.
+    private static readonly Uri LightIconUri = new("pack://application:,,,/Assets/afk4-icon-light.png");
+    private static readonly Uri DarkIconUri = new("pack://application:,,,/Assets/afk4-icon-dark.png");
+
+    private void ApplyIconForTheme(string? theme)
+    {
+        Icon = new BitmapImage(theme == "light" ? DarkIconUri : LightIconUri);
     }
 
     private void StartNativeWindowDrag()

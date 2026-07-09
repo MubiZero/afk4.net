@@ -14,6 +14,14 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Светлая/тёмная иконка окна для рантайм-переключения при смене темы (см.
+         WebViewSetupWindow.TryHandleWindowMessage "window:theme") — отдельно от
+         ApplicationIcon, который лишь статичная иконка exe/ярлыка. -->
+    <Resource Include="Assets\afk4-icon-light.png" />
+    <Resource Include="Assets\afk4-icon-dark.png" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>

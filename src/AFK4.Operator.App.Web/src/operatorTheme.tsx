@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { postHostWindowTheme } from './hostBridge';
 
 type Theme = 'light' | 'dark';
 
@@ -29,6 +30,7 @@ export function OperatorThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    postHostWindowTheme(theme);
   }, [theme]);
 
   const toggleTheme = useCallback(() => {
