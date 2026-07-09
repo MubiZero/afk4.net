@@ -22,6 +22,9 @@
     <UseWPF>true</UseWPF>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <AssemblyName>AFK4.SetupWizard</AssemblyName>
+    <!-- Embeds the AFK4.NET logo into the exe so both the desktop/Start Menu shortcuts (which
+         target the exe) and the window/taskbar show the brand icon instead of the generic default. -->
+    <ApplicationIcon>afk4-setupwizard.ico</ApplicationIcon>
   </PropertyGroup>
 
 </Project>
