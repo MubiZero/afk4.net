@@ -462,14 +462,14 @@ public partial class WebViewOperatorWindow : Window
         }
     }
 
-    // Тёмная тема оператора (дефолт) — таскбар обычно тоже тёмный, поэтому светлая иконка
-    // (белый фон) заметнее; светлая тема оператора — наоборот, тёмная иконка контрастнее.
+    // Иконка синхронна с темой оператора (не инвертирована): тёмная тема → тёмная иконка,
+    // светлая тема → светлая иконка.
     private static readonly Uri LightIconUri = new("pack://application:,,,/Assets/afk4-icon-light.png");
     private static readonly Uri DarkIconUri = new("pack://application:,,,/Assets/afk4-icon-dark.png");
 
     private void ApplyIconForTheme(string? theme)
     {
-        Icon = new BitmapImage(theme == "light" ? DarkIconUri : LightIconUri);
+        Icon = new BitmapImage(theme == "light" ? LightIconUri : DarkIconUri);
     }
 
     private void StartNativeWindowDrag()
