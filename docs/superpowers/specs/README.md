@@ -10,6 +10,8 @@ Open epic, approved for planning (not yet started):
   runtime (framework-dependent apps + WiX Burn bundle) to cut the ~160 MB agent
   MSI, channel-driven prod URL, and code signing (blocked on a cert). Includes a
   phased implementation outline; pick up in a new session.
+- `2026-07-13-operator-qa-hardening-design.md` — Operator App CTA and contrast
+  remediation plus reliable browser-preview data and realtime behaviour.
 
 All focused design specs for shipped work — the platform-web redesign, the
 2026-06-01 UX-audit feature specs (counter-loop, anti-fraud, offline,
