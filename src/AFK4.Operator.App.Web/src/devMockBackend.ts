@@ -567,7 +567,7 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     seat.state = 'Active';
     seat.activeSessionId = sessionId;
     seat.sessionStartedAtUtc = new Date().toISOString();
-    seat.playerDisplayName = null;
+    seat.playerDisplayName = undefined;
     seat.tariffName = 'Почасовой';
     seat.remainingSeconds = isOpenTab ? null : Number(request.durationMinutes ?? 60) * 60;
     seat.accruedCostMinorUnits = isOpenTab ? 0 : undefined;

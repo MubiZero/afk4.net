@@ -114,6 +114,20 @@ export function createOperatorRealtimeClient(options: OperatorRealtimeOptions): 
   };
 }
 
+// Vite preview uses fixture data rather than a platform hub. Keep its connection
+// indicator truthful without opening a failing WebSocket negotiation locally.
+export function createPreviewOperatorRealtimeClient(options: OperatorRealtimeOptions): OperatorRealtimeClient {
+  return {
+    async start() {
+      options.onConnectionStateChanged?.('connecting');
+      options.onConnectionStateChanged?.('connected');
+    },
+    async stop() {
+      options.onConnectionStateChanged?.('disconnected');
+    }
+  };
+}
+
 export function buildDeviceHubUrl(baseUrl: string): string {
   return new URL('/hubs/devices', baseUrl).toString();
 }

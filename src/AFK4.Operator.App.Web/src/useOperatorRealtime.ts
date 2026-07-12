@@ -5,7 +5,9 @@ import type { OperatorAuthSession } from './authClient';
 import { applyDeviceStatusToSeats, type OperatorFloorMapState } from './floorMapState';
 import {
   createOperatorRealtimeClient,
+  createPreviewOperatorRealtimeClient,
   type OperatorRealtimeConnectionState,
+  type OperatorRealtimeOptions,
   type SessionLifecycleChangedDto
 } from './operatorRealtime';
 import type { AuthStatus, OperatorConfig } from './operatorTypes';
@@ -128,7 +130,7 @@ export function useOperatorRealtime({
     };
 
     let wasReconnecting = false;
-    const realtimeClient = createOperatorRealtimeClient({
+    const realtimeOptions: OperatorRealtimeOptions = {
       baseUrl: config.platformBaseUrl,
       getAccessToken: () => authSession.accessToken,
       onConnectionStateChanged: (state) => {
@@ -186,7 +188,10 @@ export function useOperatorRealtime({
         scheduleAuthoritativeFloorMapReload();
         scheduleShellReconcile();
       }
-    });
+    };
+    const realtimeClient = config.shellMode === 'vite-dev-preview'
+      ? createPreviewOperatorRealtimeClient(realtimeOptions)
+      : createOperatorRealtimeClient(realtimeOptions);
 
     setRealtimeError(null);
     realtimeClient.start()

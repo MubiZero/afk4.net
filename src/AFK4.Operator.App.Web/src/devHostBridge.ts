@@ -50,7 +50,7 @@ export function installDevHostBridge(): void {
 
   window.__AFK4_OPERATOR_CONFIG__ = {
     runtime: 'browser-dev',
-    shellMode: 'vite-dev',
+    shellMode: PREVIEW_MOCK ? 'vite-dev-preview' : 'vite-dev',
     platformBaseUrl: location.origin + '/',
     currencyCode: 'TJS',
     organizationId: ORG,

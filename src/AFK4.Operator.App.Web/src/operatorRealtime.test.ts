@@ -16,13 +16,28 @@ import {
 // can resolve to App's stub when the whole suite runs in one process. The shared preload
 // (src/test/setup.ts) captures the genuine module before any mock is installed; read the
 // real implementation from there so these behavioural assertions exercise the real client.
-const { buildDeviceHubUrl, createOperatorRealtimeClient } = (
+const { buildDeviceHubUrl, createOperatorRealtimeClient, createPreviewOperatorRealtimeClient } = (
   globalThis as typeof globalThis & {
     __afk4RealOperatorRealtime: typeof import('./operatorRealtime');
   }
 ).__afk4RealOperatorRealtime;
 
 describe('operator realtime client', () => {
+  it('keeps browser preview connected without constructing a SignalR transport', async () => {
+    const states: string[] = [];
+    const client = createPreviewOperatorRealtimeClient({
+      baseUrl: 'http://127.0.0.1:5174/',
+      getAccessToken: () => 'preview-token',
+      onDeviceStatusChanged: () => {},
+      onConnectionStateChanged: (state) => states.push(state)
+    });
+
+    await client.start();
+    await client.stop();
+
+    expect(states).toEqual(['connecting', 'connected', 'disconnected']);
+  });
+
   it('targets the ASP.NET Core device hub path from any platform base URL', () => {
     expect(buildDeviceHubUrl('http://localhost:5074/platform/')).toBe('http://localhost:5074/hubs/devices');
   });
