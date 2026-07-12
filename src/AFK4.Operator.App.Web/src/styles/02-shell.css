@@ -196,7 +196,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -281,4 +281,3 @@
   display: flex;
   justify-content: space-between;
 }
-

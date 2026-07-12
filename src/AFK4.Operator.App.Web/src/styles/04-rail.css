@@ -114,7 +114,7 @@
   height: 30px;
   border-radius: 999px;
   background: var(--accent-soft);
-  color: var(--accent-text);
+  color: var(--text-strong);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -145,7 +145,7 @@
 }
 
 .rail-shift-cap {
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -251,4 +251,3 @@
 .rail-account-item.danger:focus-visible svg {
   color: var(--danger-text);
 }
-

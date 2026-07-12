@@ -307,7 +307,7 @@
 
 .client-row-badge.is-inactive {
   background: var(--surface-muted);
-  color: var(--text-secondary);
+  color: var(--text-strong);
 }
 
 .client-row-info {
@@ -329,7 +329,7 @@
 
 .client-row em {
   overflow: hidden;
-  color: var(--text-secondary);
+  color: var(--text-strong);
   font-size: 11px;
   font-style: normal;
   text-overflow: ellipsis;

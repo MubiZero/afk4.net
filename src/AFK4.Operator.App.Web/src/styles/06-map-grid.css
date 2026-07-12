@@ -857,10 +857,25 @@
   color: var(--text-on-accent);
 }
 
+/* Запуск сессии — та же primary CTA, что и в панели места. Базовый селектор footer
+   специфичнее `.cta-primary`, поэтому закрепляем акцент здесь, чтобы доступная команда
+   не выглядела отключённой рядом с «Отмена». */
+.critical-confirmation-actions .cta-primary:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
 .critical-confirmation-actions button:hover,
 .critical-confirmation-actions button:focus-visible {
   border-color: var(--border-accent);
   background: var(--surface-hover);
+}
+
+.critical-confirmation-actions .cta-primary:hover:not(:disabled),
+.critical-confirmation-actions .cta-primary:focus-visible:not(:disabled) {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
 }
 
 .checkout-action {
@@ -1597,7 +1612,7 @@
 
 .seat-clock-label {
   flex: none;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   font-size: 11px;
   font-weight: 600;
 }
@@ -1615,7 +1630,7 @@
 
 /* Открытый счёт: честный ярлык состояния оплаты под суммой из шапки. */
 .seat-open-tab {
-  color: var(--accent-text);
+  color: var(--accent-bright);
   font-size: 12px;
   font-weight: 600;
 }
@@ -1900,4 +1915,3 @@
   background: var(--surface-sunken);
   color: var(--text-secondary);
 }
-

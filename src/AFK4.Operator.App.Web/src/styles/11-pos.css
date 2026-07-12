@@ -608,7 +608,7 @@
 }
 
 .pos-product-card em {
-  color: var(--text-quaternary);
+  color: var(--text-tertiary);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 10px;
