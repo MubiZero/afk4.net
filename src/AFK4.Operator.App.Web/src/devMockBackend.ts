@@ -59,6 +59,44 @@ function floorMap() {
   };
 }
 
+// Browser preview is intentionally stateful for the small set of actions that
+// reviewers exercise locally. It is reset by a full page reload because the
+// module is re-evaluated; production data never reaches this store.
+let previewFloorMap: ReturnType<typeof floorMap> | null = null;
+let previewSessionSequence = 1;
+
+function currentPreviewFloorMap(): ReturnType<typeof floorMap> {
+  if (previewFloorMap === null) {
+    previewFloorMap = structuredClone(floorMap());
+  }
+  return previewFloorMap;
+}
+
+function previewLayoutZones() {
+  const zones = new Map<string, { zoneId: string; name: string; sortOrder: number; seats: Array<Record<string, unknown>> }>();
+  for (const seat of currentPreviewFloorMap().seats) {
+    const zone = zones.get(seat.zoneId) ?? {
+      zoneId: seat.zoneId,
+      name: seat.zoneName,
+      sortOrder: zones.size + 1,
+      seats: []
+    };
+    zone.seats.push({ seatId: seat.seatId, name: seat.seatName, sortOrder: seat.sortOrder });
+    zones.set(seat.zoneId, zone);
+  }
+  return [...zones.values()];
+}
+
+function previewStaff() {
+  return [{
+    staffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
+    displayName: 'Оператор смены',
+    login: 'operator-preview',
+    isActive: true,
+    roles: ['branch_manager']
+  }];
+}
+
 function dashboardSummary() {
   return {
     organizationId: ORG, branchId: BRANCH,
@@ -342,7 +380,9 @@ function tariffOptions() {
 function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/checkout/quote') && method === 'GET') return checkoutQuote();
   if (pathname.endsWith('/tariffs/options')) return tariffOptions();
-  if (pathname.endsWith('/floor-map')) return floorMap();
+  if (pathname.endsWith('/floor-map')) return currentPreviewFloorMap();
+  if (pathname.endsWith('/layout/zones')) return previewLayoutZones();
+  if (pathname.endsWith('/staff')) return previewStaff();
   if (pathname.endsWith('/dashboard/summary')) return dashboardSummary();
   if (pathname.endsWith('/shifts/revenue/current')) return currentShiftRevenue();
   if (pathname.endsWith('/shifts/revenue')) return shiftHistory();
@@ -512,6 +552,32 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.endsWith('/reservations/group') && method === 'POST') {
     return json(groupReservationResult(init));
+  }
+  if (url.pathname.endsWith('/sessions/start') && method === 'POST') {
+    let request: Record<string, unknown> = {};
+    try { request = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { request = {}; }
+    const seatId = typeof request.seatId === 'string' ? request.seatId : '';
+    const seat = currentPreviewFloorMap().seats.find((item) => item.seatId === seatId);
+    if (seat === undefined || seat.state !== 'Free') {
+      return new Response(JSON.stringify({ message: 'Preview seat is not ready.' }), { status: 409, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    const isOpenTab = request.durationMode === 'open';
+    const sessionId = `preview-session-${previewSessionSequence++}`;
+    seat.state = 'Active';
+    seat.activeSessionId = sessionId;
+    seat.sessionStartedAtUtc = new Date().toISOString();
+    seat.playerDisplayName = null;
+    seat.tariffName = 'Почасовой';
+    seat.remainingSeconds = isOpenTab ? null : Number(request.durationMinutes ?? 60) * 60;
+    seat.accruedCostMinorUnits = isOpenTab ? 0 : undefined;
+    seat.isDeviceLocked = false;
+
+    return json({
+      idempotencyKey: typeof request.idempotencyKey === 'string' ? request.idempotencyKey : 'preview-session-start',
+      session: { sessionId, state: 'Active' },
+      deviceCommands: []
+    });
   }
   if (url.pathname.endsWith('/checkout') && method === 'POST') {
     return json(checkoutResult(init));

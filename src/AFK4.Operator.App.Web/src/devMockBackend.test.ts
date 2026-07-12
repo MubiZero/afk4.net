@@ -86,3 +86,39 @@ describe('devMockFetch /ledger keyset pagination', () => {
     expect(Array.isArray(body)).toBe(true);
   });
 });
+
+describe('devMockFetch session preview', () => {
+  it('reflects a confirmed open-tab start in the next floor-map read', async () => {
+    const start = await devMockFetch('https://x/api/branches/branch/sessions/start', {
+      method: 'POST',
+      body: JSON.stringify({
+        seatId: 'a2',
+        durationMode: 'open',
+        idempotencyKey: 'preview-start-a2'
+      })
+    });
+
+    expect(start.status).toBe(200);
+    const after = await (await devMockFetch('https://x/api/branches/branch/floor-map')).json();
+    const seat = after.seats.find((item: { seatId: string }) => item.seatId === 'a2');
+
+    expect(seat).toMatchObject({
+      state: 'Active',
+      activeSessionId: expect.any(String),
+      remainingSeconds: null,
+      accruedCostMinorUnits: 0
+    });
+  });
+
+  it('uses the same preview fixtures for layout and staff readiness', async () => {
+    const [map, zones, staff] = await Promise.all([
+      devMockFetch('https://x/api/branches/branch/floor-map').then((response) => response.json()),
+      devMockFetch('https://x/api/branches/branch/layout/zones').then((response) => response.json()),
+      devMockFetch('https://x/api/branches/branch/staff').then((response) => response.json())
+    ]);
+
+    const layoutSeatCount = zones.reduce((total: number, zone: { seats: unknown[] }) => total + zone.seats.length, 0);
+    expect(layoutSeatCount).toBe(map.seats.length);
+    expect(staff.length).toBeGreaterThan(0);
+  });
+});
