@@ -47,9 +47,10 @@ public sealed class ReportCsvExporterTests
         var csv = ReportCsvExporter.ExportSalesReport(report);
 
         Assert.StartsWith(
-            "pos_sale_id,organization_id,branch_id,shift_id,created_by_staff_user_id,state,currency,total_minor_units,paid_minor_units,refund_minor_units,gross_cogs_minor_units,refunded_cogs_minor_units,net_cogs_minor_units,line_count,item_quantity,created_at_utc,paid_at_utc,refunded_at_utc,voided_at_utc\r\n",
+            "pos_sale_id,organization_id,branch_id,shift_id,created_by_staff_user_id,state,currency,total_minor_units,paid_minor_units,refund_minor_units,line_count,item_quantity,created_at_utc,paid_at_utc,refunded_at_utc,voided_at_utc,gross_cogs_minor_units,refunded_cogs_minor_units,net_cogs_minor_units\r\n",
             csv);
-        Assert.Contains(",2400,2400,-2400,800,-800,0,1,2,", csv);
+        Assert.Contains(",2400,2400,-2400,1,2,", csv);
+        Assert.Contains(",800,-800,0\r\n", csv);
     }
 
     [Fact]

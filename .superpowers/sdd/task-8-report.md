@@ -123,3 +123,76 @@ all affected Task 8 suites and all projects compile successfully.
 Player Shell Web emitted the pre-existing React `act(...)` notices in two
 ExtendScreen tests and the existing Vite chunk-size warning; there were no test
 or build failures.
+
+## Review Fixes
+
+### Report invariants and CSV compatibility
+
+RED evidence added three focused failures: the CSV header inserted COGS before
+existing columns, a sale-line currency mismatch was accepted, and a range with
+two sale currencies was aggregated into one result. A follow-up `limit: 1` test
+also failed until currency validation covered the entire requested range before
+pagination.
+
+GREEN:
+
+```text
+dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter "EfReportServiceTests|ReportCsvExporterTests" -v minimal
+Passed 14, failed 0, skipped 0.
+```
+
+Reports now fail closed when the requested range contains multiple sale
+currencies, or when a line/payment currency differs from its sale. The original
+16 CSV column ordinals remain unchanged; the three COGS columns are appended.
+
+### Platform Web report contracts
+
+RED: `bun run build` failed with TS2353 because the six COGS row/total fields
+were absent from `src/api/types.ts`.
+
+GREEN: the focused report model suite passed 7/7 and the production build
+succeeded. The full Platform Web test/build result is recorded in the final
+verification below.
+
+### Deterministic PostgreSQL overlap and artifact semantics
+
+RED: the expanded PostgreSQL test failed to compile because the fixture did not
+yet expose the initial-success and serialization-retry counters required by the
+test.
+
+The test-only settlement wrapper now holds the first two successful settlement
+attempts after both have read stock `1` and staged their artifacts, but before
+either transaction saves/commits. The real coordinator remains unchanged. The
+test also requires two initially successful settlements, at least one actual
+serialization retry, one final success, one `out_of_stock`, and complete linked
+order/sale/line/payment/receipt/wallet-ledger/stock-movement semantics.
+
+Real PostgreSQL GREEN:
+
+```text
+AFK4_COMMERCE_TEST_POSTGRES='Host=127.0.0.1;Port=<temporary>;Database=afk4_commerce_test;Username=postgres;Password=<temporary>' \
+  dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter ShopCommercePostgresTests -v normal
+Passed 2, failed 0, skipped 0; 0 warnings, 0 errors; test duration 3 s.
+```
+
+The temporary PostgreSQL container was stopped and removed after verification.
+
+### Final review verification
+
+```text
+dotnet test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+Passed 125, failed 0, skipped 0.
+
+dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter "Shop|Pos|Inventory|BillingShiftIntegrationTests" -v minimal
+Passed 262, failed 0, skipped 1 (the explicit PostgreSQL env gate).
+
+dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter "EfReportServiceTests|ReportCsvExporterTests" -v minimal
+Passed 14, failed 0, skipped 0.
+
+cd src/AFK4.Platform.Web && bun test && bun run build
+381 tests passed, 0 failed; production build succeeded with the existing
+large-chunk warning.
+
+dotnet build AFK4.sln --no-restore -p:EnableWindowsTargeting=true -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+Build succeeded, 0 warnings, 0 errors.
+```

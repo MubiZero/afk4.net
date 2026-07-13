@@ -55,10 +55,15 @@ SaaS billing, and the entire SP4 wave are implemented and merged to `main`:
 - **dcgate payments** — multi-tenant per-branch payment cards, AES-GCM secret
   storage, HMAC-verified webhook, owner card-onboarding cabinet (Subsystem A +
   B). Note: dcgate is player top-up/payments, separate from SaaS billing.
+
+The current commerce-integrity topic branch (not yet merged) adds:
+
 - **Player Shop financial integrity** — new orders settle atomically as linked,
   idempotent paid POS sales with wallet, open-shift, receipt, immutable inventory
   cost, cancellation/refund, and sales-report COGS projections. A real PostgreSQL
-  serializable-concurrency test proves exactly one winner for the last stock unit.
+  serializable-concurrency test deterministically holds both initial settlements
+  after each reads the final stock unit and before commit; one transaction commits,
+  while the other retries and returns `out_of_stock`.
 
 Plus the earlier base: identity/tenancy/RBAC/audit, devices/floor-map, owner-code
 enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
@@ -68,10 +73,13 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 - `dotnet restore AFK4.sln -p:EnableWindowsTargeting=true -p:NuGetAudit=false`
   and the matching full solution build passed with 0 warnings and 0 errors.
-- Shared contracts passed 125/125; affected Platform commerce/report suites
-  passed 273 tests with one expected environment-gated PostgreSQL skip. The
-  same concurrency test passed 1/1 against an isolated temporary
+- Shared contracts passed 125/125; the affected Platform commerce suite passed
+  262 tests with one expected environment-gated PostgreSQL skip, and the focused
+  report/CSV suite passed 14/14. The PostgreSQL fixture passed 2/2 against an
+  isolated temporary
   `afk4_commerce_test` PostgreSQL 17 database before that container was removed.
+- Platform Web passed 381/381 Bun tests and its production build; its existing
+  large-chunk warning remains.
 - Player Shell Web passed 51/51 Bun tests and its production build.
 - The Linux full-solution test attempt passed Platform API 1288 tests (one
   explicit PostgreSQL-env skip) and all other portable suites, but cannot run
