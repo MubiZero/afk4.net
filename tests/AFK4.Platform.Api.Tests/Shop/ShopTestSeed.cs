@@ -6,6 +6,7 @@ using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Inventory;
+using AFK4.Shared.Contracts.Shifts;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -83,6 +84,17 @@ internal static class ShopTestSeed
             PlayerKind = "registered",
             TariffRuleVersionId = "v1",
             Version = 1
+        });
+
+        db.Shifts.Add(new ShiftEntity
+        {
+            ShiftId = Guid.NewGuid(),
+            OrganizationId = org,
+            BranchId = branch,
+            OpenedByStaffUserId = Guid.Empty,
+            State = ShiftStateNames.Open,
+            CurrencyCode = "TJS",
+            OpenedAtUtc = DateTimeOffset.UtcNow.AddHours(-1)
         });
 
         db.PosProducts.Add(new PosProductEntity

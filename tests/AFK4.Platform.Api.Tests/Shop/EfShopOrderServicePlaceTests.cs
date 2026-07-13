@@ -1,11 +1,16 @@
 using AFK4.Platform.Api.Billing;
+using AFK4.Platform.Api.Commerce;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Loyalty;
+using AFK4.Platform.Api.Pos;
+using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Shop;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Shop;
@@ -24,6 +29,11 @@ public sealed class EfShopOrderServicePlaceTests
 
     private static async Task SeedAsync(PlatformDbContext db, Guid productId, long walletMinor, int stock, bool availableInShell = true)
     {
+        db.Branches.Add(new BranchEntity
+        {
+            BranchId = Branch, OrganizationId = Org, Name = "Central", PreferredLocale = "ru",
+            CreatedAtUtc = DateTimeOffset.UnixEpoch
+        });
         db.PlayerAccounts.Add(new PlayerAccountEntity
         {
             PlayerAccountId = Player, OrganizationId = Org, HomeBranchId = Branch,
@@ -41,6 +51,12 @@ public sealed class EfShopOrderServicePlaceTests
             Name = "Cola", Sku = "COLA", CurrencyCode = "TJS", PriceMinorUnits = 500,
             TrackStock = true, AllowNegativeStock = false, IsActive = true, AvailableInShell = availableInShell,
             CreatedAtUtc = DateTimeOffset.UnixEpoch
+        });
+        db.Shifts.Add(new ShiftEntity
+        {
+            ShiftId = Guid.NewGuid(), OrganizationId = Org, BranchId = Branch,
+            OpenedByStaffUserId = Guid.Empty, State = AFK4.Shared.Contracts.Shifts.ShiftStateNames.Open,
+            CurrencyCode = "TJS", OpenedAtUtc = DateTimeOffset.UnixEpoch
         });
         if (stock != 0)
         {
@@ -61,8 +77,16 @@ public sealed class EfShopOrderServicePlaceTests
         await db.SaveChangesAsync();
     }
 
-    private static EfShopOrderService NewService(PlatformDbContext db) =>
-        new(db, TimeProvider.System, new NoopShopOrderNotifier(), new LoyaltyAccrualService(db));
+    private static EfShopOrderService NewService(PlatformDbContext db)
+    {
+        var notifier = new NoopShopOrderNotifier();
+        var workflow = new EfShopOrderWorkflow(db, TimeProvider.System, notifier, new LoyaltyAccrualService(db));
+        var settlement = new EfShopPosSettlementService(
+            db, new EfWalletSettlementService(db), new EfInventoryCostService(db), new ReceiptNumberGenerator(db));
+        var coordinator = new EfShopCommerceCoordinator(
+            db, workflow, settlement, TimeProvider.System, notifier, NullLogger<EfShopCommerceCoordinator>.Instance);
+        return new EfShopOrderService(coordinator, workflow);
+    }
 
     [Fact]
     public async Task Place_DebitsWalletDecrementsStockAndCreatesOrder()
@@ -72,7 +96,7 @@ public sealed class EfShopOrderServicePlaceTests
         await SeedAsync(db, productId, walletMinor: 5000, stock: 10);
 
         var result = await NewService(db).PlaceAsync(
-            Player, new[] { new ShopOrderLineInput(productId, 3) }, CancellationToken.None);
+            Player, new PlaceShopOrderRequest([new ShopOrderLineInput(productId, 3)], "place-debit"), CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.Equal(ShopOrderStatusNames.Placed, result.Order!.Status);
@@ -95,7 +119,7 @@ public sealed class EfShopOrderServicePlaceTests
         await SeedAsync(db, productId, walletMinor: 1000, stock: 10);
 
         var result = await NewService(db).PlaceAsync(
-            Player, new[] { new ShopOrderLineInput(productId, 3) }, CancellationToken.None);
+            Player, new PlaceShopOrderRequest([new ShopOrderLineInput(productId, 3)], "place-funds"), CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Equal("insufficient_funds", result.ErrorCode);
@@ -110,7 +134,7 @@ public sealed class EfShopOrderServicePlaceTests
         await SeedAsync(db, productId, walletMinor: 5000, stock: 2);
 
         var result = await NewService(db).PlaceAsync(
-            Player, new[] { new ShopOrderLineInput(productId, 3) }, CancellationToken.None);
+            Player, new PlaceShopOrderRequest([new ShopOrderLineInput(productId, 3)], "place-stock"), CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Equal("out_of_stock", result.ErrorCode);
@@ -124,7 +148,7 @@ public sealed class EfShopOrderServicePlaceTests
         await SeedAsync(db, productId, walletMinor: 5000, stock: 10, availableInShell: false);
 
         var result = await NewService(db).PlaceAsync(
-            Player, new[] { new ShopOrderLineInput(productId, 1) }, CancellationToken.None);
+            Player, new PlaceShopOrderRequest([new ShopOrderLineInput(productId, 1)], "place-unavailable"), CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Equal("product_unavailable", result.ErrorCode);
@@ -141,7 +165,7 @@ public sealed class EfShopOrderServicePlaceTests
         await db.SaveChangesAsync();
 
         var result = await NewService(db).PlaceAsync(
-            Player, new[] { new ShopOrderLineInput(productId, 1) }, CancellationToken.None);
+            Player, new PlaceShopOrderRequest([new ShopOrderLineInput(productId, 1)], "place-paused"), CancellationToken.None);
 
         Assert.True(result.Succeeded);
     }
@@ -157,7 +181,7 @@ public sealed class EfShopOrderServicePlaceTests
         await db.SaveChangesAsync();
 
         var result = await NewService(db).PlaceAsync(
-            Player, new[] { new ShopOrderLineInput(productId, 1) }, CancellationToken.None);
+            Player, new PlaceShopOrderRequest([new ShopOrderLineInput(productId, 1)], "place-no-session"), CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Equal("no_active_session", result.ErrorCode);
