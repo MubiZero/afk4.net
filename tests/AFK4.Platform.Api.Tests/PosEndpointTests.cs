@@ -161,6 +161,22 @@ public sealed class PosEndpointTests
         Assert.Equal("COLA-ZERO-05", updatedProduct.Sku);
         Assert.Equal(24, updatedProduct.StockOnHand);
 
+        using var currencyChangeResponse = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}",
+            new UpdateProductRequest(
+                TestIds.OrganizationId,
+                category.CategoryId,
+                updatedProduct.Name,
+                updatedProduct.Sku,
+                new MoneyDto("USD", updatedProduct.Price.MinorUnits),
+                TrackStock: true,
+                AllowNegativeStock: true,
+                IsActive: true));
+        Assert.Equal(HttpStatusCode.BadRequest, currencyChangeResponse.StatusCode);
+        Assert.Equal(
+            "product_currency_immutable",
+            (await currencyChangeResponse.Content.ReadFromJsonAsync<PosErrorBody>())!.Error);
+
         var player = await PostOkAsync<PlayerAccountDto>(
             client,
             $"/api/branches/{TestIds.BranchId:D}/players",
@@ -510,6 +526,8 @@ public sealed class PosEndpointTests
                 null)
         ];
     }
+
+    private sealed record PosErrorBody(string Error);
 
     private static async Task<HttpResponseMessage> SendAsync(HttpClient client, EndpointCase endpoint)
     {

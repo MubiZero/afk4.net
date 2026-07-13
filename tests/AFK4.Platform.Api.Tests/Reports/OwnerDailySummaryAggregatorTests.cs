@@ -71,6 +71,22 @@ public sealed class OwnerDailySummaryAggregatorTests
         Assert.Equal(0, result.TotalCompCount);
     }
 
+    [Fact]
+    public void Build_PlayerShopSystemActor_UsesDeterministicDisplayNameWithoutStaffRow()
+    {
+        var result = OwnerDailySummaryAggregator.Build(
+            Day,
+            "TJS",
+            [Entry(SystemActorIds.PlayerShop, LedgerEntryTypeNames.Reversal, LedgerAccountTypeNames.Wallet, 1200)],
+            [],
+            [],
+            new Dictionary<Guid, string>());
+
+        var row = Assert.Single(result.Rows);
+        Assert.Equal(SystemActorIds.PlayerShop, row.ActorStaffUserId);
+        Assert.Equal(SystemActorIds.PlayerShopDisplayName, row.ActorDisplayName);
+    }
+
     private static LedgerEntryEntity Entry(Guid actor, string entryType, string accountType, long amount) =>
         new()
         {

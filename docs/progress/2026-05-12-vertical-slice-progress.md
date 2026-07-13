@@ -63,7 +63,10 @@ The current commerce-integrity topic branch (not yet merged) adds:
   cost, cancellation/refund, and sales-report COGS projections. A real PostgreSQL
   serializable-concurrency test deterministically holds both initial settlements
   after each reads the final stock unit and before commit; one transaction commits,
-  while the other retries and returns `out_of_stock`.
+  while the other retries and returns `out_of_stock`. Whole-branch hardening now
+  also preserves immutable stock/cost/currency snapshots through session checkout
+  and refunds, uses the reserved `Player Shop` actor, and translates Shop
+  transition/cancellation save conflicts without partial finance.
 
 Plus the earlier base: identity/tenancy/RBAC/audit, devices/floor-map, owner-code
 enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
@@ -74,8 +77,10 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 - `dotnet restore AFK4.sln -p:EnableWindowsTargeting=true -p:NuGetAudit=false`
   and the matching full solution build passed with 0 warnings and 0 errors.
 - Shared contracts passed 125/125; the affected Platform commerce suite passed
-  262 tests with one expected environment-gated PostgreSQL skip, and the focused
-  report/CSV suite passed 14/14. The PostgreSQL fixture passed 2/2 against an
+  341 tests with one expected environment-gated PostgreSQL skip. The complete
+  Platform API suite passed 1299 tests with the same one explicit skip, and the
+  full solution build passed with 0 warnings and 0 errors. The PostgreSQL fixture
+  previously passed 2/2 against an
   isolated temporary
   `afk4_commerce_test` PostgreSQL 17 database before that container was removed.
 - Platform Web passed 381/381 Bun tests and its production build; its existing

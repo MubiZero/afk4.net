@@ -330,7 +330,7 @@ public sealed class ReportEndpointTests
             CurrencyCode = "TJS",
             UnitPriceMinorUnits = 1200,
             LineTotalMinorUnits = 2400,
-            TrackStock = true,
+            TracksStock = true,
             AllowNegativeStock = false
         });
         dbContext.Payments.Add(new PaymentEntity

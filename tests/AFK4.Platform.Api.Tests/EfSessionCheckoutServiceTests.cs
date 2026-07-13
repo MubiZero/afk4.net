@@ -2,6 +2,9 @@ using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Outbox;
+using AFK4.Platform.Api.Inventory;
+using AFK4.Platform.Api.Payments;
+using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Shifts;
@@ -204,7 +207,7 @@ public sealed class EfSessionCheckoutServiceTests
         await using var db = CreateDbContext();
         await SeedCoreAsync(db);
         await SeedOpenPostpaidSessionAsync(db);
-        await SeedAttachedPosSaleAsync(db, totalMinorUnits: 1000, quantity: 2);
+        await SeedAttachedPosSaleAsync(db, totalMinorUnits: 1000, quantity: 2, unitCostMinorUnits: 175);
         var dispatcher = new RecordingDispatch();
         var service = CreateService(db, dispatcher);
 
@@ -230,9 +233,28 @@ public sealed class EfSessionCheckoutServiceTests
             .Where(movement => movement.ProductId == ProductId)
             .Sum(movement => movement.QuantityDelta);
         Assert.Equal(8, stockOnHand); // seeded 10, sold 2.
+        var saleMovement = await db.StockMovements.SingleAsync(movement =>
+            movement.ProductId == ProductId && movement.MovementType == StockMovementTypeNames.Sale);
+        Assert.Equal(175, saleMovement.UnitCostMinorUnits);
 
         var receipt = Assert.Single(db.Receipts);
         Assert.Equal(ExpectedTimeCharge + 1000, receipt.TotalMinorUnits);
+
+        var refund = await new EfPosService(
+                db,
+                new ManualPaymentProvider(),
+                new ReceiptNumberGenerator(db),
+                new FixedTimeProvider(Now.AddMinutes(1)),
+                new EfInventoryCostService(db))
+            .RefundSaleAsync(
+                sale.PosSaleId,
+                ActorStaffUserId,
+                new RefundPosSaleRequest(TestIds.OrganizationId, "checkout return", "checkout-pos-refund-001"),
+                CancellationToken.None);
+        Assert.True(refund.Succeeded, refund.Error);
+        var refundMovement = await db.StockMovements.SingleAsync(movement =>
+            movement.ProductId == ProductId && movement.MovementType == StockMovementTypeNames.Refund);
+        Assert.Equal(saleMovement.UnitCostMinorUnits, refundMovement.UnitCostMinorUnits);
     }
 
     [Fact]
@@ -547,9 +569,28 @@ public sealed class EfSessionCheckoutServiceTests
         await db.SaveChangesAsync();
     }
 
-    private static async Task SeedAttachedPosSaleAsync(PlatformDbContext db, long totalMinorUnits, int quantity)
+    private static async Task SeedAttachedPosSaleAsync(
+        PlatformDbContext db,
+        long totalMinorUnits,
+        int quantity,
+        long unitCostMinorUnits = 0)
     {
         var saleId = Guid.NewGuid();
+        db.PosProducts.Add(new PosProductEntity
+        {
+            ProductId = ProductId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            CategoryId = Guid.NewGuid(),
+            Name = "Cola",
+            Sku = "CHECKOUT-COLA",
+            CurrencyCode = "TJS",
+            PriceMinorUnits = totalMinorUnits / quantity,
+            AvgCostMinorUnits = unitCostMinorUnits,
+            TrackStock = true,
+            IsActive = true,
+            CreatedAtUtc = Now.AddMinutes(-60)
+        });
         db.PosSales.Add(new PosSaleEntity
         {
             PosSaleId = saleId,
@@ -573,8 +614,9 @@ public sealed class EfSessionCheckoutServiceTests
             Quantity = quantity,
             CurrencyCode = "TJS",
             UnitPriceMinorUnits = totalMinorUnits / quantity,
+            UnitCostMinorUnits = unitCostMinorUnits,
             LineTotalMinorUnits = totalMinorUnits,
-            TrackStock = true,
+            TracksStock = true,
             AllowNegativeStock = false
         });
         db.StockMovements.Add(new StockMovementEntity

@@ -145,6 +145,11 @@ public static class OwnerDailySummaryAggregator
                 return "System";
             }
 
+            if (SystemActorIds.TryGetDisplayName(actorStaffUserId.Value, out var systemDisplayName))
+            {
+                return systemDisplayName;
+            }
+
             return actorNames.TryGetValue(actorStaffUserId.Value, out var displayName)
                 && !string.IsNullOrWhiteSpace(displayName)
                 ? displayName

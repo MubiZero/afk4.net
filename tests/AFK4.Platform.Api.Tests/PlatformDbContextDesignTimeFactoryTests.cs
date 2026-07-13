@@ -39,11 +39,14 @@ public sealed class PlatformDbContextDesignTimeFactoryTests : IDisposable
         var foreignKey = shopOrderType.GetForeignKeys().Single(candidate => candidate.Properties.SequenceEqual([posSaleId!]));
         var unitCost = context.Model.FindEntityType(typeof(PosSaleLineEntity))!
             .FindProperty(nameof(PosSaleLineEntity.UnitCostMinorUnits));
+        var tracksStock = context.Model.FindEntityType(typeof(PosSaleLineEntity))!
+            .FindProperty(nameof(PosSaleLineEntity.TracksStock));
 
         Assert.True(index.IsUnique);
         Assert.Equal("\"PosSaleId\" IS NOT NULL", index.GetFilter());
         Assert.Equal(typeof(PosSaleEntity), foreignKey.PrincipalEntityType.ClrType);
         Assert.Equal(DeleteBehavior.Restrict, foreignKey.DeleteBehavior);
         Assert.False(unitCost!.IsNullable);
+        Assert.False(tracksStock!.IsNullable);
     }
 }

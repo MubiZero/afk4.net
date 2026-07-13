@@ -600,7 +600,7 @@ public sealed class EfReportServiceTests
             UnitPriceMinorUnits = lineTotal / quantity,
             UnitCostMinorUnits = unitCostMinorUnits,
             LineTotalMinorUnits = lineTotal,
-            TrackStock = true,
+            TracksStock = true,
             AllowNegativeStock = false
         });
     }

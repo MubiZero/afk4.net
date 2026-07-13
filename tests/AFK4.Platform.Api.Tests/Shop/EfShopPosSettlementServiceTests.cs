@@ -329,6 +329,45 @@ public sealed class EfShopPosSettlementServiceTests
     }
 
     [Fact]
+    public async Task RefundPaidWalletSaleAsync_TrackedAtSale_RemainsRefundableAfterCurrentTrackingDisabled()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedPaidSaleAsync(db);
+        var product = await db.PosProducts.SingleAsync(candidate => candidate.ProductId == scenario.Line.ProductId);
+        product.TrackStock = false;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var result = await CreateService(db).RefundPaidWalletSaleAsync(
+            RefundRequest(scenario.Sale.PosSaleId, scenario.Debit.LedgerEntryId),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var movement = AssertAddedSingle<StockMovementEntity>(db);
+        Assert.Equal(StockMovementTypeNames.Refund, movement.MovementType);
+        Assert.Equal(scenario.Line.UnitCostMinorUnits, movement.UnitCostMinorUnits);
+    }
+
+    [Fact]
+    public async Task RefundPaidWalletSaleAsync_ProductCurrencyChangedFromSnapshot_FailsClosedWithoutStagedFinance()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedPaidSaleAsync(db);
+        var product = await db.PosProducts.SingleAsync(candidate => candidate.ProductId == scenario.Line.ProductId);
+        product.CurrencyCode = "USD";
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var result = await CreateService(db).RefundPaidWalletSaleAsync(
+            RefundRequest(scenario.Sale.PosSaleId, scenario.Debit.LedgerEntryId),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("inventory_currency_mismatch", result.ErrorCode);
+        AssertNoStagedCommerce(db);
+    }
+
+    [Fact]
     public async Task RefundPaidWalletSaleAsync_AlreadyRefunded_ReturnsSuccessWithoutDuplicates()
     {
         await using var db = CreateDbContext();
@@ -585,13 +624,13 @@ public sealed class EfShopPosSettlementServiceTests
             {
                 PosSaleLineId = Guid.NewGuid(), PosSaleId = sale.PosSaleId, ProductId = secondProduct.ProductId,
                 ProductName = secondProduct.Name, Quantity = 1, CurrencyCode = "TJS", UnitPriceMinorUnits = 1_200,
-                UnitCostMinorUnits = 300, LineTotalMinorUnits = 1_200, TrackStock = true
+                UnitCostMinorUnits = 300, LineTotalMinorUnits = 1_200, TracksStock = true
             },
             new PosSaleLineEntity
             {
                 PosSaleLineId = Guid.NewGuid(), PosSaleId = sale.PosSaleId, ProductId = secondProduct.ProductId,
                 ProductName = secondProduct.Name, Quantity = 1, CurrencyCode = "TJS", UnitPriceMinorUnits = 1_200,
-                UnitCostMinorUnits = 400, LineTotalMinorUnits = 1_200, TrackStock = true
+                UnitCostMinorUnits = 400, LineTotalMinorUnits = 1_200, TracksStock = true
             });
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
@@ -816,7 +855,7 @@ public sealed class EfShopPosSettlementServiceTests
             UnitPriceMinorUnits = 1_200,
             UnitCostMinorUnits = 275,
             LineTotalMinorUnits = 2_400,
-            TrackStock = true
+            TracksStock = true
         };
         var debit = new LedgerEntryEntity
         {

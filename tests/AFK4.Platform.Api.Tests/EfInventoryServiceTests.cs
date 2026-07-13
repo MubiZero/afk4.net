@@ -39,6 +39,7 @@ public sealed class EfInventoryServiceTests
                 TestIds.BranchId,
                 product.ProductId,
                 quantity,
+                "TJS",
                 500,
                 CancellationToken.None));
 
@@ -220,6 +221,38 @@ public sealed class EfInventoryServiceTests
         Assert.Equal(12, result.Response.StockOnHand);
         Assert.True(catalog.Succeeded);
         Assert.Empty(catalog.Response!);
+    }
+
+    [Fact]
+    public async Task UpdateProductAsync_CurrencyChangeAfterInventoryHistory_ReturnsStableErrorAndPreservesProduct()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var product = await CreateTrackedProductAsync(service);
+        await service.CreateStockMovementAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            StockMovement(product.ProductId, StockMovementTypeNames.Purchase, 5, "stock-currency-lock"),
+            CancellationToken.None);
+
+        var result = await service.UpdateProductAsync(
+            TestIds.BranchId,
+            product.ProductId,
+            ActorStaffUserId,
+            new UpdateProductRequest(
+                TestIds.OrganizationId,
+                product.CategoryId,
+                product.Name,
+                product.Sku,
+                new MoneyDto("USD", product.Price.MinorUnits),
+                TrackStock: true,
+                AllowNegativeStock: false,
+                IsActive: true),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("product_currency_immutable", result.Error);
+        Assert.Equal("TJS", (await db.PosProducts.SingleAsync()).CurrencyCode);
     }
 
     [Fact]

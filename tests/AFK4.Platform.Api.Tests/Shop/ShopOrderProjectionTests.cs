@@ -114,7 +114,7 @@ public sealed class ShopOrderProjectionTests
             UnitPriceMinorUnits = 500,
             UnitCostMinorUnits = 275,
             LineTotalMinorUnits = 1500,
-            TrackStock = true
+            TracksStock = true
         };
         var receipt = new ReceiptEntity
         {
