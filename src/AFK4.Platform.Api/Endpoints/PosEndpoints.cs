@@ -9,6 +9,7 @@ using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Payments.DcGate;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
+using AFK4.Platform.Api.Commerce;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Dashboard;
 using AFK4.Platform.Api.Diagnostics;
@@ -710,7 +711,7 @@ internal static class PosEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IPosService posService,
+            IShopCommerceCoordinator commerceCoordinator,
             CancellationToken cancellationToken) =>
         {
             var sale = await LoadPosSaleScopedEndpointAsync(
@@ -748,7 +749,7 @@ internal static class PosEndpoints
                 return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
             }
 
-            var result = await posService.RefundSaleAsync(
+            var result = await commerceCoordinator.RefundLinkedSaleAsync(
                 saleId,
                 authorization.StaffContext.StaffUserId,
                 request,
@@ -903,7 +904,17 @@ internal static class PosEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            return Results.Ok(ToDto(receipt.Entity!));
+            var shopOrderId = receipt.Entity!.PosSaleId is Guid posSaleId
+                ? await dbContext.ShopOrders.AsNoTracking()
+                    .Where(order =>
+                        order.OrganizationId == receipt.Entity.OrganizationId &&
+                        order.BranchId == receipt.Entity.BranchId &&
+                        order.PosSaleId == posSaleId)
+                    .Select(order => (Guid?)order.ShopOrderId)
+                    .SingleOrDefaultAsync(cancellationToken)
+                : null;
+
+            return Results.Ok(ToDto(receipt.Entity, shopOrderId));
         });
 
     }

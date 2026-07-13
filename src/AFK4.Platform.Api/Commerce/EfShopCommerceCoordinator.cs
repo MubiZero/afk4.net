@@ -17,7 +17,8 @@ public sealed class EfShopCommerceCoordinator(
     IShopPosSettlementService settlementService,
     TimeProvider timeProvider,
     IShopOrderNotifier notifier,
-    ILogger<EfShopCommerceCoordinator> logger) : IShopCommerceCoordinator
+    ILogger<EfShopCommerceCoordinator> logger,
+    IPosService? posService = null) : IShopCommerceCoordinator
 {
     private const string PlaceOperation = "shop-order-place";
     private const string RefundOperation = "pos-sale-refund";
@@ -121,6 +122,14 @@ public sealed class EfShopCommerceCoordinator(
         if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
         {
             return BillingCommandServiceResult<PosSaleDto>.Invalid("idempotency_key_required");
+        }
+
+        var linkedOrder = await workflow.ResolveLinkedSaleAsync(saleId, cancellationToken);
+        if (!linkedOrder.Succeeded || linkedOrder.Order is null)
+        {
+            return posService is null
+                ? BillingCommandServiceResult<PosSaleDto>.Missing("sale_not_found")
+                : await posService.RefundSaleAsync(saleId, staffUserId, request, cancellationToken);
         }
 
         ShopOrderDto? notification = null;

@@ -25,11 +25,11 @@ public static class PosSaleProjection
             sale.PaidAtUtc,
             sale.RefundedAtUtc,
             sale.VoidedAtUtc,
-            latestReceipt is null ? null : ToDto(latestReceipt),
+            latestReceipt is null ? null : ToDto(latestReceipt, shopOrderId),
             sale.PlayerAccountId,
             shopOrderId);
 
-    private static ReceiptDto ToDto(ReceiptEntity receipt) =>
+    private static ReceiptDto ToDto(ReceiptEntity receipt, Guid? shopOrderId) =>
         new(
             receipt.ReceiptId,
             receipt.OrganizationId,
@@ -38,7 +38,9 @@ public static class PosSaleProjection
             receipt.ReceiptNumber,
             receipt.ReceiptType,
             new MoneyDto(receipt.CurrencyCode, receipt.TotalMinorUnits),
-            receipt.CreatedAtUtc);
+            receipt.CreatedAtUtc,
+            receipt.SessionId,
+            shopOrderId);
 
     private static PosSaleLineDto ToDto(PosSaleLineEntity line) =>
         new(
