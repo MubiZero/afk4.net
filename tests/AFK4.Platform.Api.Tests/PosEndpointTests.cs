@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
@@ -12,6 +13,7 @@ using AFK4.Shared.Contracts.Receipts;
 using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests;
@@ -444,6 +446,56 @@ public sealed class PosEndpointTests
         Assert.Equal(order.Id, receipt!.ShopOrderId);
     }
 
+    [Fact]
+    public async Task RefundLinkedReceipt_SaveConcurrencyFailure_ReturnsConflictWithoutPartialFinance()
+    {
+        var interceptor = new ArmedConcurrencyInterceptor();
+        await using var factory = new PlatformApiFactory(extraServices: services =>
+            services.ConfigureDbContext<PlatformDbContext>(options => options.AddInterceptors(interceptor)));
+        using var playerClient = factory.CreateClient();
+        using var staffClient = factory.CreateClient();
+        var seeded = await ShopTestSeed.SeedActivePlayerWithProductsAsync(factory);
+        await ShopTestSeed.AuthenticatePlayerAsync(playerClient, seeded);
+        var order = await (await playerClient.PostAsJsonAsync("/api/me/shop/orders",
+            new PlaceShopOrderRequest([new ShopOrderLineInput(seeded.ColaProductId, 2)], "pos-refund-concurrency-place")))
+            .Content.ReadFromJsonAsync<ShopOrderDto>();
+        await ShopTestSeed.AuthorizeStaffForBranchAsync(
+            factory, staffClient, seeded.OrganizationId, seeded.BranchId, withShopPermission: true);
+
+        int paymentCount;
+        int receiptCount;
+        int ledgerCount;
+        int movementCount;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            paymentCount = await db.Payments.CountAsync();
+            receiptCount = await db.Receipts.CountAsync();
+            ledgerCount = await db.LedgerEntries.CountAsync();
+            movementCount = await db.StockMovements.CountAsync();
+        }
+
+        interceptor.Armed = true;
+        using var response = await staffClient.PostAsJsonAsync(
+            $"/api/pos/sales/{order!.PosSaleId:D}/refunds",
+            new RefundPosSaleRequest(seeded.OrganizationId, "concurrent acceptance won", "pos-refund-concurrency"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("version_conflict", body.RootElement.GetProperty("error").GetString());
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(paymentCount, await verificationDb.Payments.CountAsync());
+        Assert.Equal(receiptCount, await verificationDb.Receipts.CountAsync());
+        Assert.Equal(ledgerCount, await verificationDb.LedgerEntries.CountAsync());
+        Assert.Equal(movementCount, await verificationDb.StockMovements.CountAsync());
+        var persistedOrder = await verificationDb.ShopOrders.AsNoTracking()
+            .SingleAsync(candidate => candidate.ShopOrderId == order.Id);
+        Assert.Equal(ShopOrderStatusNames.Placed, persistedOrder.Status);
+        Assert.DoesNotContain(verificationDb.ChangeTracker.Entries(), entry =>
+            entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted);
+    }
+
     private static IReadOnlyList<EndpointCase> CreateEndpointCases(Guid shiftId, Guid saleId, Guid receiptId, Guid productId, Guid barcodeId)
     {
         return
@@ -638,4 +690,18 @@ public sealed class PosEndpointTests
         HttpMethod Method,
         string Path,
         object? Body);
+
+    private sealed class ArmedConcurrencyInterceptor : SaveChangesInterceptor
+    {
+        public bool Armed { get; set; }
+
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default) =>
+            Armed
+                ? ValueTask.FromException<InterceptionResult<int>>(
+                    new DbUpdateConcurrencyException("deterministic linked refund conflict"))
+                : ValueTask.FromResult(result);
+    }
 }

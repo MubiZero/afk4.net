@@ -56,6 +56,33 @@ boundaries remain explicit; no Player Shop path creates a fake `StaffUser`.
    - GREEN: deterministic regressions prove no added/modified tracker entries and
      unchanged payment, receipt, ledger, and stock-movement counts.
 
+## Follow-up Important Findings
+
+6. **Linked refund/accept interleaving**
+   - RED: the linked-receipt POS endpoint returned HTTP 500 when the order version
+     changed after refund finance was staged but before the cancellation save.
+   - Fix: linked refunds and explicit cancellation now share one transition
+     conflict translator. It clears the tracker after relational rollback,
+     suppresses notifications, and returns stable `version_conflict`; cancellation
+     still includes the current version where its contract permits.
+   - GREEN: the HTTP regression returns 409 and proves unchanged payment, receipt,
+     ledger, and stock-movement counts, a still-placed order, and no staged tracker
+     mutations.
+
+7. **First-history/product-currency race**
+   - RED: a live PostgreSQL interleaving allowed a regular POS sale to snapshot
+     `TJS` while a concurrent first-history currency update committed `USD`.
+   - Fix: product currency predicate/write, regular POS product snapshot/sale-line
+     write, and first stock-movement creation now execute inside compatible
+     serializable transactions. Shop already reads and writes inside its outer
+     serializable transaction; session checkout retains its serializable boundary.
+     PostgreSQL `40001` failures, including commit-phase failures, are cleared and
+     translated to stable `version_conflict` rather than HTTP 500.
+   - GREEN: a SaveChanges barrier in independent PostgreSQL scopes forces both
+     operations to read before either writes. Exactly one commits, the loser is a
+     stable conflict, and every persisted sale-line currency equals product
+     currency.
+
 ## Fresh Verification
 
 - Focused RED/GREEN tests: each finding failed for the expected pre-fix reason,
@@ -70,6 +97,13 @@ boundaries remain explicit; no Player Shop path creates a fake `StaffUser`.
 - Complete Platform API:
   `dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal`
   — 1299 passed, 1 skipped, 0 failed.
+- Follow-up affected suites (Inventory, POS, Shop coordinator, linked-refund
+  endpoint, and PostgreSQL commerce): 62 passed, 0 skipped, 0 failed.
+- Live PostgreSQL first-sale/currency-update proof passed five consecutive focused
+  runs after the commit-phase rollback hardening.
+- Complete Platform API with `AFK4_COMMERCE_TEST_POSTGRES` configured:
+  `dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -v minimal`
+  — 1302 passed, 0 skipped, 0 failed.
 - Full solution build:
   `dotnet build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -p:EnableWindowsTargeting=true -v minimal`
   — succeeded with 0 warnings and 0 errors.
@@ -83,5 +117,7 @@ boundaries remain explicit; no Player Shop path creates a fake `StaffUser`.
 - Player Shop still delegates wallet, payment, receipt, and stock writes through
   Billing/POS/Inventory boundaries.
 - Concurrency translation does not publish notifications or retain staged finance.
+- Product currency immutability and all first history writers now participate in
+  the same relational serializable protocol; no transaction spans a remote call.
 - Progress truth was updated; production-readiness roadmap did not require a
   change because no release gate changed.

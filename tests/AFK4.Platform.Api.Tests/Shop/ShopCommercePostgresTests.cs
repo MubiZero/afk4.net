@@ -106,4 +106,43 @@ public sealed class ShopCommercePostgresTests
         Assert.Equal(2, await verificationDb.StockMovements.AsNoTracking().CountAsync());
         Assert.Single(await verificationDb.BillingCommandIdempotency.AsNoTracking().ToListAsync());
     }
+
+    [PostgresCommerceFact]
+    public async Task ConcurrentFirstSaleAndCurrencyUpdate_CannotCommitIncompatibleCurrencies()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(
+            PostgresCommerceFactAttribute.EnvironmentVariable)!;
+        await using var database = await ShopCommercePostgresFixture.CreateAsync(connectionString);
+        var scenario = await database.SeedFirstHistoryCurrencyScenarioAsync();
+        database.ArmSaveOverlap();
+
+        var saleTask = database.CreateSaleInIndependentScopeAsync(scenario.ShiftId, "currency-race-sale");
+        var updateTask = database.UpdateProductCurrencyInIndependentScopeAsync(scenario.CategoryId, "USD");
+        await Task.WhenAll(saleTask, updateTask);
+        var saleResult = await saleTask;
+        var updateResult = await updateTask;
+
+        Assert.Single(new[] { saleResult.Succeeded, updateResult.Succeeded }, succeeded => succeeded);
+        if (!saleResult.Succeeded)
+        {
+            Assert.True(saleResult.Conflict);
+            Assert.Equal("version_conflict", saleResult.Error);
+        }
+        if (!updateResult.Succeeded)
+        {
+            Assert.True(updateResult.Conflict);
+            Assert.Equal("version_conflict", updateResult.Error);
+        }
+
+        await using var verificationDb = database.CreateDbContext();
+        var productCurrency = await verificationDb.PosProducts.AsNoTracking()
+            .Where(product => product.ProductId == database.ProductId)
+            .Select(product => product.CurrencyCode)
+            .SingleAsync();
+        var persistedSaleCurrencies = await verificationDb.PosSaleLines.AsNoTracking()
+            .Where(line => line.ProductId == database.ProductId)
+            .Select(line => line.CurrencyCode)
+            .ToListAsync();
+        Assert.All(persistedSaleCurrencies, currency => Assert.Equal(productCurrency, currency));
+    }
 }

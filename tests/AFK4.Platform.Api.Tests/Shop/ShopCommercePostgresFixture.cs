@@ -3,15 +3,18 @@ using AFK4.Platform.Api.Commerce;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Loyalty;
+using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Shop;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
+using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -26,19 +29,22 @@ public sealed class ShopCommercePostgresFixture : IAsyncDisposable
     private readonly ServiceProvider services;
     private readonly SettlementOverlapGate overlapGate;
     private readonly SerializationRetryLogger retryLogger;
+    private readonly SaveOverlapGate saveOverlapGate;
 
     private ShopCommercePostgresFixture(
         string connectionString,
         string schemaName,
         ServiceProvider services,
         SettlementOverlapGate overlapGate,
-        SerializationRetryLogger retryLogger)
+        SerializationRetryLogger retryLogger,
+        SaveOverlapGate saveOverlapGate)
     {
         this.connectionString = connectionString;
         this.schemaName = schemaName;
         this.services = services;
         this.overlapGate = overlapGate;
         this.retryLogger = retryLogger;
+        this.saveOverlapGate = saveOverlapGate;
     }
 
     public Guid OrganizationId { get; } = Guid.Parse("11111111-1111-4111-8111-111111111111");
@@ -72,13 +78,18 @@ public sealed class ShopCommercePostgresFixture : IAsyncDisposable
         var scopedConnectionString = builder.ConnectionString;
         var overlapGate = new SettlementOverlapGate();
         var retryLogger = new SerializationRetryLogger();
+        var saveOverlapGate = new SaveOverlapGate();
         var collection = new ServiceCollection();
         collection.AddLogging();
-        collection.AddDbContext<PlatformDbContext>(options => options.UseNpgsql(scopedConnectionString));
+        collection.AddDbContext<PlatformDbContext>(options =>
+            options.UseNpgsql(scopedConnectionString).AddInterceptors(saveOverlapGate));
         collection.AddSingleton(TimeProvider.System);
         collection.AddSingleton<IShopOrderNotifier, NoOpShopOrderNotifier>();
         collection.AddScoped<IWalletSettlementService, EfWalletSettlementService>();
         collection.AddScoped<IInventoryCostService, EfInventoryCostService>();
+        collection.AddScoped<IInventoryService, EfInventoryService>();
+        collection.AddScoped<IPaymentProvider, ManualPaymentProvider>();
+        collection.AddScoped<IPosService, EfPosService>();
         collection.AddScoped<IReceiptNumberGenerator, ReceiptNumberGenerator>();
         collection.AddScoped<EfShopPosSettlementService>();
         collection.AddScoped<IShopPosSettlementService>(provider =>
@@ -96,7 +107,8 @@ public sealed class ShopCommercePostgresFixture : IAsyncDisposable
             schemaName,
             services,
             overlapGate,
-            retryLogger);
+            retryLogger,
+            saveOverlapGate);
         try
         {
             await using var scope = services.CreateAsyncScope();
@@ -228,6 +240,107 @@ public sealed class ShopCommercePostgresFixture : IAsyncDisposable
             CancellationToken.None);
     }
 
+    public async Task<(Guid CategoryId, Guid ShiftId)> SeedFirstHistoryCurrencyScenarioAsync()
+    {
+        var categoryId = Guid.NewGuid();
+        var shiftId = Guid.NewGuid();
+        await using var db = CreateDbContext();
+        db.Organizations.Add(new OrganizationEntity
+        {
+            OrganizationId = OrganizationId,
+            Name = "PostgreSQL Currency Race Test",
+            CreatedAtUtc = Now
+        });
+        db.Branches.Add(new BranchEntity
+        {
+            BranchId = BranchId,
+            OrganizationId = OrganizationId,
+            Slug = "postgres-currency-race",
+            Name = "Central",
+            PreferredLocale = "ru",
+            CreatedAtUtc = Now
+        });
+        db.PosProductCategories.Add(new PosProductCategoryEntity
+        {
+            CategoryId = categoryId,
+            OrganizationId = OrganizationId,
+            BranchId = BranchId,
+            Name = "Drinks",
+            IsActive = true,
+            CreatedAtUtc = Now
+        });
+        db.Shifts.Add(new ShiftEntity
+        {
+            ShiftId = shiftId,
+            OrganizationId = OrganizationId,
+            BranchId = BranchId,
+            OpenedByStaffUserId = StaffUserId,
+            State = ShiftStateNames.Open,
+            CurrencyCode = "TJS",
+            OpeningNote = "currency race",
+            ClosingNote = string.Empty,
+            OpenedAtUtc = Now.AddHours(-1)
+        });
+        db.PosProducts.Add(new PosProductEntity
+        {
+            ProductId = ProductId,
+            OrganizationId = OrganizationId,
+            BranchId = BranchId,
+            CategoryId = categoryId,
+            Name = "First Sale Cola",
+            Sku = "FIRST-SALE-COLA",
+            CurrencyCode = "TJS",
+            PriceMinorUnits = 500,
+            TrackStock = false,
+            AllowNegativeStock = false,
+            IsActive = true,
+            CreatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+        return (categoryId, shiftId);
+    }
+
+    public void ArmSaveOverlap() => saveOverlapGate.Arm();
+
+    public async Task<BillingCommandServiceResult<PosSaleDto>> CreateSaleInIndependentScopeAsync(
+        Guid shiftId,
+        string idempotencyKey)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var service = scope.ServiceProvider.GetRequiredService<IPosService>();
+        return await service.CreateSaleAsync(
+            BranchId,
+            StaffUserId,
+            new CreatePosSaleRequest(
+                OrganizationId,
+                shiftId,
+                [new PosSaleLineDto(ProductId, string.Empty, 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))],
+                idempotencyKey),
+            CancellationToken.None);
+    }
+
+    public async Task<BillingCommandServiceResult<PosProductDto>> UpdateProductCurrencyInIndependentScopeAsync(
+        Guid categoryId,
+        string currencyCode)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var service = scope.ServiceProvider.GetRequiredService<IInventoryService>();
+        return await service.UpdateProductAsync(
+            BranchId,
+            ProductId,
+            StaffUserId,
+            new UpdateProductRequest(
+                OrganizationId,
+                categoryId,
+                "First Sale Cola",
+                "FIRST-SALE-COLA",
+                new MoneyDto(currencyCode, 600),
+                TrackStock: false,
+                AllowNegativeStock: false,
+                IsActive: true),
+            CancellationToken.None);
+    }
+
     public async ValueTask DisposeAsync()
     {
         await services.DisposeAsync();
@@ -246,6 +359,41 @@ public sealed class ShopCommercePostgresFixture : IAsyncDisposable
 
         public Task NotifyUpdatedAsync(ShopOrderDto order, CancellationToken cancellationToken) =>
             Task.CompletedTask;
+    }
+
+    private sealed class SaveOverlapGate : SaveChangesInterceptor
+    {
+        private TaskCompletionSource? bothSavesReached;
+        private int saveCount;
+        private int armed;
+
+        public void Arm()
+        {
+            bothSavesReached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Volatile.Write(ref saveCount, 0);
+            Volatile.Write(ref armed, 1);
+        }
+
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            if (Volatile.Read(ref armed) == 0)
+            {
+                return result;
+            }
+
+            var reached = Interlocked.Increment(ref saveCount);
+            if (reached == 2)
+            {
+                Volatile.Write(ref armed, 0);
+                bothSavesReached!.TrySetResult();
+            }
+
+            await bothSavesReached!.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+            return result;
+        }
     }
 
     private sealed class OverlappingShopPosSettlementService(
