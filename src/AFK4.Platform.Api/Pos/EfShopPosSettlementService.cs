@@ -31,19 +31,26 @@ public sealed class EfShopPosSettlementService(
             return ShopPosSettlementResult.Reject("invalid_lines");
         }
 
-        var shift = await dbContext.Shifts
+        var openShifts = await dbContext.Shifts
             .AsNoTracking()
-            .SingleOrDefaultAsync(
-                candidate =>
+            .Where(candidate =>
                     candidate.OrganizationId == request.OrganizationId &&
                     candidate.BranchId == request.BranchId &&
-                    candidate.State == ShiftStateNames.Open,
-                cancellationToken);
-        if (shift is null)
+                    candidate.State == ShiftStateNames.Open)
+            .OrderBy(candidate => candidate.ShiftId)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+        if (openShifts.Count == 0)
         {
             return ShopPosSettlementResult.Reject("open_shift_required");
         }
 
+        if (openShifts.Count > 1)
+        {
+            return ShopPosSettlementResult.Reject("open_shift_ambiguous");
+        }
+
+        var shift = openShifts[0];
         var productIds = aggregatedLines.Keys.ToList();
         var products = await dbContext.PosProducts
             .AsNoTracking()
@@ -68,26 +75,48 @@ public sealed class EfShopPosSettlementService(
         }
 
         var currencyCode = currencies[0];
-        var stockByProduct = await dbContext.StockMovements
-            .AsNoTracking()
-            .Where(movement =>
-                movement.OrganizationId == request.OrganizationId &&
-                movement.BranchId == request.BranchId &&
-                productIds.Contains(movement.ProductId))
-            .GroupBy(movement => movement.ProductId)
-            .Select(group => new { ProductId = group.Key, Quantity = group.Sum(movement => movement.QuantityDelta) })
-            .ToDictionaryAsync(item => item.ProductId, item => item.Quantity, cancellationToken);
-
-        foreach (var stagedMovement in dbContext.ChangeTracker.Entries<StockMovementEntity>()
-                     .Where(entry =>
-                         entry.State == EntityState.Added &&
-                         entry.Entity.OrganizationId == request.OrganizationId &&
-                         entry.Entity.BranchId == request.BranchId &&
-                         productIds.Contains(entry.Entity.ProductId))
-                     .Select(entry => entry.Entity))
+        if (!string.Equals(shift.CurrencyCode, currencyCode, StringComparison.OrdinalIgnoreCase))
         {
-            stockByProduct[stagedMovement.ProductId] =
-                stockByProduct.GetValueOrDefault(stagedMovement.ProductId) + stagedMovement.QuantityDelta;
+            return ShopPosSettlementResult.Reject("mixed_currency");
+        }
+
+        Dictionary<Guid, long> stockByProduct;
+        try
+        {
+            stockByProduct = await dbContext.StockMovements
+                .AsNoTracking()
+                .Where(movement =>
+                    movement.OrganizationId == request.OrganizationId &&
+                    movement.BranchId == request.BranchId &&
+                    productIds.Contains(movement.ProductId))
+                .GroupBy(movement => movement.ProductId)
+                .Select(group => new
+                {
+                    ProductId = group.Key,
+                    Quantity = group.Sum(movement => (long)movement.QuantityDelta)
+                })
+                .ToDictionaryAsync(item => item.ProductId, item => item.Quantity, cancellationToken);
+
+            foreach (var stagedMovement in dbContext.ChangeTracker.Entries<StockMovementEntity>()
+                         .Where(entry =>
+                             entry.State == EntityState.Added &&
+                             entry.Entity.OrganizationId == request.OrganizationId &&
+                             entry.Entity.BranchId == request.BranchId &&
+                             productIds.Contains(entry.Entity.ProductId))
+                         .Select(entry => entry.Entity))
+            {
+                stockByProduct[stagedMovement.ProductId] = checked(
+                    stockByProduct.GetValueOrDefault(stagedMovement.ProductId) + stagedMovement.QuantityDelta);
+            }
+        }
+        catch (OverflowException)
+        {
+            return ShopPosSettlementResult.Reject("stock_quantity_invalid");
+        }
+
+        if (stockByProduct.Values.Any(quantity => quantity is > int.MaxValue or < int.MinValue))
+        {
+            return ShopPosSettlementResult.Reject("stock_quantity_invalid");
         }
 
         foreach (var (productId, quantity) in aggregatedLines)
@@ -250,39 +279,40 @@ public sealed class EfShopPosSettlementService(
             .OrderBy(line => line.PosSaleLineId)
             .ToListAsync(cancellationToken);
 
-        if (sale.State == PosSaleStateNames.Refunded)
-        {
-            var existingReversal = dbContext.ChangeTracker.Entries<LedgerEntryEntity>()
-                .Where(entry => entry.State == EntityState.Added)
-                .Select(entry => entry.Entity)
-                .SingleOrDefault(entry => entry.ReversesLedgerEntryId == request.WalletLedgerEntryId)
-                ?? await dbContext.LedgerEntries
-                    .AsNoTracking()
-                    .SingleOrDefaultAsync(
-                        entry => entry.ReversesLedgerEntryId == request.WalletLedgerEntryId,
-                        cancellationToken);
-            var existingReceipt = dbContext.ChangeTracker.Entries<ReceiptEntity>()
-                .Where(entry => entry.State == EntityState.Added)
-                .Select(entry => entry.Entity)
-                .SingleOrDefault(receipt =>
-                    receipt.PosSaleId == sale.PosSaleId &&
-                    receipt.ReceiptType == RefundReceiptType)
-                ?? await dbContext.Receipts
-                    .AsNoTracking()
-                    .SingleOrDefaultAsync(
-                        receipt =>
-                            receipt.PosSaleId == sale.PosSaleId &&
-                            receipt.ReceiptType == RefundReceiptType,
-                        cancellationToken);
-
-            return existingReversal is null || existingReceipt is null
-                ? ShopPosSettlementResult.Reject("refund_incomplete")
-                : ShopPosSettlementResult.Ok(sale, lines, existingReversal, existingReceipt);
-        }
-
-        if (sale.State != PosSaleStateNames.Paid)
+        if (sale.State is not PosSaleStateNames.Paid and not PosSaleStateNames.Refunded)
         {
             return ShopPosSettlementResult.Reject("sale_not_refundable");
+        }
+
+        var canonicalDebit = await dbContext.LedgerEntries
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entry => entry.LedgerEntryId == request.WalletLedgerEntryId,
+                cancellationToken);
+        if (canonicalDebit is null)
+        {
+            return ShopPosSettlementResult.Reject("original_debit_not_found");
+        }
+
+        if (!IsCanonicalDebitForSale(sale, canonicalDebit))
+        {
+            return ShopPosSettlementResult.Reject("wallet_debit_mismatch");
+        }
+
+        if (sale.State == PosSaleStateNames.Refunded)
+        {
+            var existingReversal = await LoadSingleReversalAsync(canonicalDebit.LedgerEntryId, cancellationToken);
+            var existingPayment = await LoadSingleRefundPaymentAsync(sale.PosSaleId, cancellationToken);
+            var existingReceipt = await LoadSingleRefundReceiptAsync(sale.PosSaleId, cancellationToken);
+
+            return existingReversal is null ||
+                   existingPayment is null ||
+                   existingReceipt is null ||
+                   !IsReversalForSale(sale, canonicalDebit, existingReversal) ||
+                   !IsRefundPaymentForSale(sale, existingPayment) ||
+                   !IsRefundReceiptForSale(sale, existingReceipt)
+                ? ShopPosSettlementResult.Reject("refund_incomplete")
+                : ShopPosSettlementResult.Ok(sale, lines, existingReversal, existingReceipt);
         }
 
         if (lines.Count == 0 ||
@@ -311,30 +341,6 @@ public sealed class EfShopPosSettlementService(
         if (lineTotal != sale.TotalMinorUnits || sale.TotalMinorUnits <= 0)
         {
             return ShopPosSettlementResult.Reject("sale_snapshot_invalid");
-        }
-
-        var canonicalDebit = await dbContext.LedgerEntries
-            .AsNoTracking()
-            .SingleOrDefaultAsync(
-                entry => entry.LedgerEntryId == request.WalletLedgerEntryId,
-                cancellationToken);
-        if (canonicalDebit is null)
-        {
-            return ShopPosSettlementResult.Reject("original_debit_not_found");
-        }
-
-        if (sale.PlayerAccountId is not Guid playerAccountId ||
-            canonicalDebit.OrganizationId != sale.OrganizationId ||
-            canonicalDebit.BranchId != sale.BranchId ||
-            canonicalDebit.PlayerAccountId != playerAccountId ||
-            canonicalDebit.SessionId != sale.SessionId ||
-            canonicalDebit.ShiftId != sale.ShiftId ||
-            canonicalDebit.EntryType != LedgerEntryTypeNames.WalletPayment ||
-            canonicalDebit.AccountType != LedgerAccountTypeNames.Wallet ||
-            canonicalDebit.AmountMinorUnits != -sale.TotalMinorUnits ||
-            !string.Equals(canonicalDebit.CurrencyCode, sale.CurrencyCode, StringComparison.OrdinalIgnoreCase))
-        {
-            return ShopPosSettlementResult.Reject("wallet_debit_mismatch");
         }
 
         var trackedGroups = lines
@@ -508,6 +514,118 @@ public sealed class EfShopPosSettlementService(
             AllowNegativeStock = product.AllowNegativeStock
         };
     }
+
+    private async Task<LedgerEntryEntity?> LoadSingleReversalAsync(
+        Guid canonicalDebitId,
+        CancellationToken cancellationToken)
+    {
+        var candidates = dbContext.ChangeTracker.Entries<LedgerEntryEntity>()
+            .Where(entry =>
+                entry.State == EntityState.Added &&
+                entry.Entity.ReversesLedgerEntryId == canonicalDebitId)
+            .Select(entry => entry.Entity)
+            .ToList();
+        var persisted = await dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(entry => entry.ReversesLedgerEntryId == canonicalDebitId)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+        candidates.AddRange(persisted.Where(entity => candidates.All(candidate => candidate.LedgerEntryId != entity.LedgerEntryId)));
+        return candidates.Count == 1 ? candidates[0] : null;
+    }
+
+    private async Task<PaymentEntity?> LoadSingleRefundPaymentAsync(
+        Guid posSaleId,
+        CancellationToken cancellationToken)
+    {
+        var candidates = dbContext.ChangeTracker.Entries<PaymentEntity>()
+            .Where(entry =>
+                entry.State == EntityState.Added &&
+                entry.Entity.PosSaleId == posSaleId &&
+                entry.Entity.PaymentKind == "refund")
+            .Select(entry => entry.Entity)
+            .ToList();
+        var persisted = await dbContext.Payments
+            .AsNoTracking()
+            .Where(payment => payment.PosSaleId == posSaleId && payment.PaymentKind == "refund")
+            .Take(2)
+            .ToListAsync(cancellationToken);
+        candidates.AddRange(persisted.Where(entity => candidates.All(candidate => candidate.PaymentId != entity.PaymentId)));
+        return candidates.Count == 1 ? candidates[0] : null;
+    }
+
+    private async Task<ReceiptEntity?> LoadSingleRefundReceiptAsync(
+        Guid posSaleId,
+        CancellationToken cancellationToken)
+    {
+        var candidates = dbContext.ChangeTracker.Entries<ReceiptEntity>()
+            .Where(entry =>
+                entry.State == EntityState.Added &&
+                entry.Entity.PosSaleId == posSaleId &&
+                entry.Entity.ReceiptType == RefundReceiptType)
+            .Select(entry => entry.Entity)
+            .ToList();
+        var persisted = await dbContext.Receipts
+            .AsNoTracking()
+            .Where(receipt => receipt.PosSaleId == posSaleId && receipt.ReceiptType == RefundReceiptType)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+        candidates.AddRange(persisted.Where(entity => candidates.All(candidate => candidate.ReceiptId != entity.ReceiptId)));
+        return candidates.Count == 1 ? candidates[0] : null;
+    }
+
+    private static bool IsCanonicalDebitForSale(PosSaleEntity sale, LedgerEntryEntity debit) =>
+        sale.PlayerAccountId is Guid playerAccountId &&
+        debit.OrganizationId == sale.OrganizationId &&
+        debit.BranchId == sale.BranchId &&
+        debit.PlayerAccountId == playerAccountId &&
+        debit.SessionId == sale.SessionId &&
+        debit.PlayerPackageId is null &&
+        debit.ShiftId == sale.ShiftId &&
+        debit.EntryType == LedgerEntryTypeNames.WalletPayment &&
+        debit.AccountType == LedgerAccountTypeNames.Wallet &&
+        debit.AmountMinorUnits == -sale.TotalMinorUnits &&
+        debit.QuantitySeconds == 0 &&
+        string.Equals(debit.CurrencyCode, sale.CurrencyCode, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsReversalForSale(
+        PosSaleEntity sale,
+        LedgerEntryEntity canonicalDebit,
+        LedgerEntryEntity reversal) =>
+        reversal.ReversesLedgerEntryId == canonicalDebit.LedgerEntryId &&
+        reversal.OrganizationId == sale.OrganizationId &&
+        reversal.BranchId == sale.BranchId &&
+        reversal.PlayerAccountId == canonicalDebit.PlayerAccountId &&
+        reversal.SessionId == sale.SessionId &&
+        reversal.PlayerPackageId == canonicalDebit.PlayerPackageId &&
+        reversal.ShiftId == sale.ShiftId &&
+        reversal.EntryType == LedgerEntryTypeNames.Reversal &&
+        reversal.AccountType == LedgerAccountTypeNames.Wallet &&
+        reversal.AmountMinorUnits == -canonicalDebit.AmountMinorUnits &&
+        reversal.QuantitySeconds == 0 &&
+        string.Equals(reversal.CurrencyCode, sale.CurrencyCode, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsRefundPaymentForSale(PosSaleEntity sale, PaymentEntity payment) =>
+        payment.OrganizationId == sale.OrganizationId &&
+        payment.BranchId == sale.BranchId &&
+        payment.PosSaleId == sale.PosSaleId &&
+        payment.SessionId is null &&
+        payment.ShiftId == sale.ShiftId &&
+        payment.PaymentKind == "refund" &&
+        payment.Provider == "wallet" &&
+        payment.PaymentMethod == PaymentMethodNames.Wallet &&
+        payment.AmountMinorUnits == -sale.TotalMinorUnits &&
+        string.Equals(payment.CurrencyCode, sale.CurrencyCode, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsRefundReceiptForSale(PosSaleEntity sale, ReceiptEntity receipt) =>
+        receipt.OrganizationId == sale.OrganizationId &&
+        receipt.BranchId == sale.BranchId &&
+        receipt.PosSaleId == sale.PosSaleId &&
+        receipt.SessionId is null &&
+        receipt.ReceiptType == RefundReceiptType &&
+        receipt.TotalMinorUnits == sale.TotalMinorUnits &&
+        !string.IsNullOrWhiteSpace(receipt.ReceiptNumber) &&
+        string.Equals(receipt.CurrencyCode, sale.CurrencyCode, StringComparison.OrdinalIgnoreCase);
 
     private sealed record RefundInventoryPlan(Guid ProductId, int Quantity, long UnitCostMinorUnits);
 }
