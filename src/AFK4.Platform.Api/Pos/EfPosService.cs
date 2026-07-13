@@ -622,8 +622,15 @@ public sealed class EfPosService(
             .OrderByDescending(receipt => receipt.CreatedAtUtc)
             .ThenByDescending(receipt => receipt.ReceiptId)
             .FirstOrDefaultAsync(cancellationToken);
+        var shopOrderId = await dbContext.ShopOrders
+            .AsNoTracking()
+            .Where(order =>
+                order.OrganizationId == organizationId &&
+                order.PosSaleId == posSaleId)
+            .Select(order => (Guid?)order.ShopOrderId)
+            .SingleOrDefaultAsync(cancellationToken);
 
-        return BillingCommandServiceResult<PosSaleDto>.Ok(ToDto(sale, lines, latestReceipt));
+        return BillingCommandServiceResult<PosSaleDto>.Ok(ToDto(sale, lines, latestReceipt, shopOrderId));
     }
 
     private static string? ValidateCreateSaleRequest(CreatePosSaleRequest request)
@@ -833,7 +840,8 @@ public sealed class EfPosService(
     private static PosSaleDto ToDto(
         PosSaleEntity sale,
         IReadOnlyList<PosSaleLineEntity> lines,
-        ReceiptEntity? latestReceipt = null)
+        ReceiptEntity? latestReceipt = null,
+        Guid? shopOrderId = null)
     {
         return new PosSaleDto(
             sale.PosSaleId,
@@ -848,11 +856,12 @@ public sealed class EfPosService(
             sale.PaidAtUtc,
             sale.RefundedAtUtc,
             sale.VoidedAtUtc,
-            latestReceipt is null ? null : ToDto(latestReceipt),
-            sale.PlayerAccountId);
+            latestReceipt is null ? null : ToDto(latestReceipt, shopOrderId),
+            sale.PlayerAccountId,
+            shopOrderId);
     }
 
-    private static ReceiptDto ToDto(ReceiptEntity receipt)
+    private static ReceiptDto ToDto(ReceiptEntity receipt, Guid? shopOrderId = null)
     {
         return new ReceiptDto(
             receipt.ReceiptId,
@@ -862,7 +871,9 @@ public sealed class EfPosService(
             receipt.ReceiptNumber,
             receipt.ReceiptType,
             new MoneyDto(receipt.CurrencyCode, receipt.TotalMinorUnits),
-            receipt.CreatedAtUtc);
+            receipt.CreatedAtUtc,
+            receipt.SessionId,
+            shopOrderId);
     }
 
     private static PosSaleLineDto ToDto(PosSaleLineEntity line)

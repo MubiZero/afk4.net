@@ -3,12 +3,14 @@ using System.Net.Http.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Tests.Shop;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Receipts;
 using AFK4.Shared.Contracts.Shifts;
+using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -387,6 +389,43 @@ public sealed class PosEndpointTests
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         Assert.Empty(await dbContext.AuditRecords.ToListAsync());
+    }
+
+    [Fact]
+    public async Task RefundLinkedReceipt_CancelsOrderAndRefundsSaleOnce()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var playerClient = factory.CreateClient();
+        using var staffClient = factory.CreateClient();
+        var seeded = await ShopTestSeed.SeedActivePlayerWithProductsAsync(factory);
+        await ShopTestSeed.AuthenticatePlayerAsync(playerClient, seeded);
+        var order = await (await playerClient.PostAsJsonAsync("/api/me/shop/orders",
+            new PlaceShopOrderRequest([new ShopOrderLineInput(seeded.ColaProductId, 2)], "pos-refund-linked-001")))
+            .Content.ReadFromJsonAsync<ShopOrderDto>();
+        await ShopTestSeed.AuthorizeStaffForBranchAsync(
+            factory, staffClient, seeded.OrganizationId, seeded.BranchId, withShopPermission: true);
+        var request = new RefundPosSaleRequest(
+            seeded.OrganizationId,
+            "customer changed mind",
+            "pos-refund-linked-001");
+
+        var first = await staffClient.PostAsJsonAsync($"/api/pos/sales/{order!.PosSaleId:D}/refunds", request);
+        var second = await staffClient.PostAsJsonAsync($"/api/pos/sales/{order.PosSaleId:D}/refunds", request);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        var refunded = await first.Content.ReadFromJsonAsync<PosSaleDto>();
+        Assert.Equal(order.Id, refunded!.ShopOrderId);
+        Assert.Equal(order.Id, refunded.LatestReceipt!.ShopOrderId);
+        await PlayerShopEndpointTests.AssertLinkedRefundStateAsync(
+            factory, order.Id, order.PosSaleId!.Value);
+
+        var readSale = await staffClient.GetFromJsonAsync<PosSaleDto>($"/api/pos/sales/{order.PosSaleId:D}");
+        Assert.Equal(order.Id, readSale!.ShopOrderId);
+        Assert.Equal(order.Id, readSale.LatestReceipt!.ShopOrderId);
+        var receipt = await staffClient.GetFromJsonAsync<ReceiptDto>(
+            $"/api/receipts/{readSale.LatestReceipt.ReceiptId:D}");
+        Assert.Equal(order.Id, receipt!.ShopOrderId);
     }
 
     private static IReadOnlyList<EndpointCase> CreateEndpointCases(Guid shiftId, Guid saleId, Guid receiptId, Guid productId, Guid barcodeId)
