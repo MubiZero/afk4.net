@@ -123,8 +123,10 @@ public sealed class EfShopCommerceCoordinator(
             return BillingCommandServiceResult<PosSaleDto>.Invalid("idempotency_key_required");
         }
 
-        return await ExecuteWithSerializationRetriesAsync(() => ExecuteSerializableAsync(async () =>
+        ShopOrderDto? notification = null;
+        var result = await ExecuteWithSerializationRetriesAsync(() => ExecuteSerializableAsync(async () =>
         {
+            notification = null;
             var linked = await workflow.ResolveLinkedSaleAsync(saleId, cancellationToken);
             if (!linked.Succeeded || linked.Order is null)
             {
@@ -169,6 +171,11 @@ public sealed class EfShopCommerceCoordinator(
                     BillingCommandServiceResult<PosSaleDto>.Invalid(settlement.ErrorCode ?? "refund_failed"));
             }
 
+            notification = await workflow.MarkCancelledAsync(
+                order,
+                staffUserId,
+                now,
+                cancellationToken);
             var response = PosSaleProjection.ToDto(
                 settlement.Sale,
                 settlement.Lines,
@@ -187,6 +194,7 @@ public sealed class EfShopCommerceCoordinator(
                 BillingCommandServiceResult<PosSaleDto>.Ok(response));
         }, cancellationToken, async () =>
         {
+            notification = null;
             var linked = await workflow.ResolveLinkedSaleAsync(saleId, cancellationToken);
             if (!linked.Succeeded || linked.Order is null) return null;
             return await GetIdempotentAsync<PosSaleDto>(
@@ -197,6 +205,13 @@ public sealed class EfShopCommerceCoordinator(
                 HashRequest(new { PosSaleId = saleId, Request = request }),
                 cancellationToken);
         }), cancellationToken);
+
+        if (notification is not null)
+        {
+            await NotifyUpdatedAsync(notification, cancellationToken);
+        }
+
+        return result;
     }
 
     private async Task<PlacementOutcome> ExecutePlacementAttemptAsync(
