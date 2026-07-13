@@ -1,13 +1,16 @@
 # Plan Navigation
 
 Implementation plans for completed work are archived once their work lands on
-`main`. The active plan is:
+`main`. The active plans are:
 
 - `2026-07-13-operator-qa-hardening.md` — Operator App CTA/a11y remediation
   and reliable browser-preview state/realtime QA.
 - `2026-07-13-operator-ui-history-consolidation.md` — verify a normal merge of
   the final Operator UI tree, then reproduce that exact tree on current main
   as one clean consolidation commit.
+- `2026-07-13-shop-orders-pos-financial-integrity.md` — settle new Player Shop
+  orders as linked paid POS sales with wallet, receipt, shift, refund, and
+  weighted-average inventory-cost integrity.
 
 The SP3 admin/billing redesign, the whole SP4 wave (counter-loop, anti-fraud,
 offline-resilience, customer portal/shell, notifications, localization,
