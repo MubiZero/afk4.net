@@ -147,7 +147,10 @@ public sealed class OperatorShiftApiClientTests
             Limit: 50,
             GrossSalesTotal: new MoneyDto("USD", 0),
             RefundsTotal: new MoneyDto("USD", 0),
-            NetSalesTotal: new MoneyDto("USD", 0))));
+            NetSalesTotal: new MoneyDto("USD", 0),
+            GrossCostOfGoodsTotal: new MoneyDto("USD", 0),
+            RefundedCostOfGoodsTotal: new MoneyDto("USD", 0),
+            NetCostOfGoodsTotal: new MoneyDto("USD", 0))));
         var client = CreateClient(handler);
 
         var report = await client.GetSalesReportAsync(BranchId, null, null, null, CancellationToken.None);

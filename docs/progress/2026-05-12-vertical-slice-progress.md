@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-06-04
+Last updated: 2026-07-13
 
 ## Purpose
 
@@ -55,10 +55,30 @@ SaaS billing, and the entire SP4 wave are implemented and merged to `main`:
 - **dcgate payments** — multi-tenant per-branch payment cards, AES-GCM secret
   storage, HMAC-verified webhook, owner card-onboarding cabinet (Subsystem A +
   B). Note: dcgate is player top-up/payments, separate from SaaS billing.
+- **Player Shop financial integrity** — new orders settle atomically as linked,
+  idempotent paid POS sales with wallet, open-shift, receipt, immutable inventory
+  cost, cancellation/refund, and sales-report COGS projections. A real PostgreSQL
+  serializable-concurrency test proves exactly one winner for the last stock unit.
 
 Plus the earlier base: identity/tenancy/RBAC/audit, devices/floor-map, owner-code
 enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 + rollout, and the Agent/Setup-Wizard/Player-Shell/packaging stack.
+
+## Latest Verification
+
+- `dotnet restore AFK4.sln -p:EnableWindowsTargeting=true -p:NuGetAudit=false`
+  and the matching full solution build passed with 0 warnings and 0 errors.
+- Shared contracts passed 125/125; affected Platform commerce/report suites
+  passed 273 tests with one expected environment-gated PostgreSQL skip. The
+  same concurrency test passed 1/1 against an isolated temporary
+  `afk4_commerce_test` PostgreSQL 17 database before that container was removed.
+- Player Shell Web passed 51/51 Bun tests and its production build.
+- The Linux full-solution test attempt passed Platform API 1288 tests (one
+  explicit PostgreSQL-env skip) and all other portable suites, but cannot run
+  Operator/Player Shell .NET Windows testhosts because `Microsoft.WindowsDesktop.App`
+  has no Linux runtime. Twenty-six Agent packaging tests also remain Windows-only
+  in this environment because they invoke PowerShell/Windows release tooling;
+  their projects compile successfully and require a Windows verification run.
 
 ## Known Gaps
 

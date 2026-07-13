@@ -17,4 +17,7 @@ public sealed record SalesReportRowDto(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset? PaidAtUtc,
     DateTimeOffset? RefundedAtUtc,
-    DateTimeOffset? VoidedAtUtc);
+    DateTimeOffset? VoidedAtUtc,
+    MoneyDto GrossCostOfGoods,
+    MoneyDto RefundedCostOfGoods,
+    MoneyDto NetCostOfGoods);

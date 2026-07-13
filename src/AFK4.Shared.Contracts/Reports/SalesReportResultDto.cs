@@ -7,4 +7,7 @@ public sealed record SalesReportResultDto(
     int Limit,
     MoneyDto GrossSalesTotal,
     MoneyDto RefundsTotal,
-    MoneyDto NetSalesTotal);
+    MoneyDto NetSalesTotal,
+    MoneyDto GrossCostOfGoodsTotal,
+    MoneyDto RefundedCostOfGoodsTotal,
+    MoneyDto NetCostOfGoodsTotal);

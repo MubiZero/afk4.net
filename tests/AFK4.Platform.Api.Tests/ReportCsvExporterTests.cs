@@ -12,6 +12,47 @@ public sealed class ReportCsvExporterTests
     private static readonly Guid StaffUserId = Guid.Parse("3db1367b-88c6-4b1c-99c3-bcbb5f4d5134");
 
     [Fact]
+    public void ExportSalesReport_WritesCostOfGoodsColumns()
+    {
+        var report = new SalesReportResultDto(
+            [
+                new SalesReportRowDto(
+                    Guid.Parse("77777777-7777-4777-8777-777777777777"),
+                    OrganizationId,
+                    BranchId,
+                    ShiftId,
+                    StaffUserId,
+                    "refunded",
+                    new MoneyDto("TJS", 2400),
+                    new MoneyDto("TJS", 2400),
+                    new MoneyDto("TJS", -2400),
+                    1,
+                    2,
+                    DateTimeOffset.Parse("2026-05-14T12:00:00Z"),
+                    DateTimeOffset.Parse("2026-05-14T12:01:00Z"),
+                    DateTimeOffset.Parse("2026-05-14T12:02:00Z"),
+                    null,
+                    new MoneyDto("TJS", 800),
+                    new MoneyDto("TJS", -800),
+                    new MoneyDto("TJS", 0))
+            ],
+            50,
+            new MoneyDto("TJS", 2400),
+            new MoneyDto("TJS", -2400),
+            new MoneyDto("TJS", 0),
+            new MoneyDto("TJS", 800),
+            new MoneyDto("TJS", -800),
+            new MoneyDto("TJS", 0));
+
+        var csv = ReportCsvExporter.ExportSalesReport(report);
+
+        Assert.StartsWith(
+            "pos_sale_id,organization_id,branch_id,shift_id,created_by_staff_user_id,state,currency,total_minor_units,paid_minor_units,refund_minor_units,gross_cogs_minor_units,refunded_cogs_minor_units,net_cogs_minor_units,line_count,item_quantity,created_at_utc,paid_at_utc,refunded_at_utc,voided_at_utc\r\n",
+            csv);
+        Assert.Contains(",2400,2400,-2400,800,-800,0,1,2,", csv);
+    }
+
+    [Fact]
     public void ExportShiftReport_WritesHeaderAndRows()
     {
         var report = new ShiftReportResultDto(
