@@ -677,6 +677,9 @@ export interface SalesReportRow {
   total: MoneyMinor;
   paidAmount: MoneyMinor;
   refundAmount: MoneyMinor;
+  grossCostOfGoods: MoneyMinor;
+  refundedCostOfGoods: MoneyMinor;
+  netCostOfGoods: MoneyMinor;
   lineCount: number;
   itemQuantity: number;
   createdAtUtc: string;
@@ -690,6 +693,9 @@ export interface SalesReport {
   grossSalesTotal: MoneyMinor;
   refundsTotal: MoneyMinor;
   netSalesTotal: MoneyMinor;
+  grossCostOfGoodsTotal: MoneyMinor;
+  refundedCostOfGoodsTotal: MoneyMinor;
+  netCostOfGoodsTotal: MoneyMinor;
 }
 
 export interface GameplayTimeReportRow {

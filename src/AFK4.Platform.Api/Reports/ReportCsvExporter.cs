@@ -72,15 +72,15 @@ public static class ReportCsvExporter
             "total_minor_units",
             "paid_minor_units",
             "refund_minor_units",
-            "gross_cogs_minor_units",
-            "refunded_cogs_minor_units",
-            "net_cogs_minor_units",
             "line_count",
             "item_quantity",
             "created_at_utc",
             "paid_at_utc",
             "refunded_at_utc",
-            "voided_at_utc");
+            "voided_at_utc",
+            "gross_cogs_minor_units",
+            "refunded_cogs_minor_units",
+            "net_cogs_minor_units");
 
         foreach (var row in report.Rows)
         {
@@ -96,15 +96,15 @@ public static class ReportCsvExporter
                 row.Total.MinorUnits,
                 row.PaidAmount.MinorUnits,
                 row.RefundAmount.MinorUnits,
-                row.GrossCostOfGoods.MinorUnits,
-                row.RefundedCostOfGoods.MinorUnits,
-                row.NetCostOfGoods.MinorUnits,
                 row.LineCount,
                 row.ItemQuantity,
                 row.CreatedAtUtc,
                 row.PaidAtUtc,
                 row.RefundedAtUtc,
-                row.VoidedAtUtc);
+                row.VoidedAtUtc,
+                row.GrossCostOfGoods.MinorUnits,
+                row.RefundedCostOfGoods.MinorUnits,
+                row.NetCostOfGoods.MinorUnits);
         }
 
         return builder.ToString();

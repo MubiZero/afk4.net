@@ -13,6 +13,7 @@ using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 
 namespace AFK4.Platform.Api.Tests.Shop;
@@ -23,15 +24,21 @@ public sealed class ShopCommercePostgresFixture : IAsyncDisposable
     private readonly string connectionString;
     private readonly string schemaName;
     private readonly ServiceProvider services;
+    private readonly SettlementOverlapGate overlapGate;
+    private readonly SerializationRetryLogger retryLogger;
 
     private ShopCommercePostgresFixture(
         string connectionString,
         string schemaName,
-        ServiceProvider services)
+        ServiceProvider services,
+        SettlementOverlapGate overlapGate,
+        SerializationRetryLogger retryLogger)
     {
         this.connectionString = connectionString;
         this.schemaName = schemaName;
         this.services = services;
+        this.overlapGate = overlapGate;
+        this.retryLogger = retryLogger;
     }
 
     public Guid OrganizationId { get; } = Guid.Parse("11111111-1111-4111-8111-111111111111");
@@ -41,6 +48,8 @@ public sealed class ShopCommercePostgresFixture : IAsyncDisposable
     public Guid SeatId { get; } = Guid.Parse("55555555-5555-4555-8555-555555555555");
     public Guid StaffUserId { get; } = Guid.Parse("66666666-6666-4666-8666-666666666666");
     public Guid ProductId { get; } = Guid.Parse("77777777-7777-4777-8777-777777777777");
+    public int InitialSuccessfulSettlementCount => overlapGate.InitialSuccessfulSettlementCount;
+    public int SerializationRetryCount => retryLogger.SerializationRetryCount;
 
     public static async Task<ShopCommercePostgresFixture> CreateAsync(string connectionString)
     {
@@ -61,6 +70,8 @@ public sealed class ShopCommercePostgresFixture : IAsyncDisposable
 
         builder.SearchPath = schemaName;
         var scopedConnectionString = builder.ConnectionString;
+        var overlapGate = new SettlementOverlapGate();
+        var retryLogger = new SerializationRetryLogger();
         var collection = new ServiceCollection();
         collection.AddLogging();
         collection.AddDbContext<PlatformDbContext>(options => options.UseNpgsql(scopedConnectionString));
@@ -69,13 +80,23 @@ public sealed class ShopCommercePostgresFixture : IAsyncDisposable
         collection.AddScoped<IWalletSettlementService, EfWalletSettlementService>();
         collection.AddScoped<IInventoryCostService, EfInventoryCostService>();
         collection.AddScoped<IReceiptNumberGenerator, ReceiptNumberGenerator>();
-        collection.AddScoped<IShopPosSettlementService, EfShopPosSettlementService>();
+        collection.AddScoped<EfShopPosSettlementService>();
+        collection.AddScoped<IShopPosSettlementService>(provider =>
+            new OverlappingShopPosSettlementService(
+                provider.GetRequiredService<EfShopPosSettlementService>(),
+                overlapGate));
         collection.AddScoped<ILoyaltyAccrualService, LoyaltyAccrualService>();
         collection.AddScoped<IShopOrderWorkflow, EfShopOrderWorkflow>();
         collection.AddScoped<IShopCommerceCoordinator, EfShopCommerceCoordinator>();
+        collection.AddSingleton<ILogger<EfShopCommerceCoordinator>>(retryLogger);
         var services = collection.BuildServiceProvider(validateScopes: true);
 
-        var fixture = new ShopCommercePostgresFixture(scopedConnectionString, schemaName, services);
+        var fixture = new ShopCommercePostgresFixture(
+            scopedConnectionString,
+            schemaName,
+            services,
+            overlapGate,
+            retryLogger);
         try
         {
             await using var scope = services.CreateAsyncScope();
@@ -225,5 +246,81 @@ public sealed class ShopCommercePostgresFixture : IAsyncDisposable
 
         public Task NotifyUpdatedAsync(ShopOrderDto order, CancellationToken cancellationToken) =>
             Task.CompletedTask;
+    }
+
+    private sealed class OverlappingShopPosSettlementService(
+        EfShopPosSettlementService inner,
+        SettlementOverlapGate overlapGate) : IShopPosSettlementService
+    {
+        public async Task<ShopPosSettlementResult> CreatePaidWalletSaleAsync(
+            ShopPosSaleRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await inner.CreatePaidWalletSaleAsync(request, cancellationToken);
+            if (result.Succeeded)
+            {
+                await overlapGate.WaitForBothInitialSuccessfulSettlementsAsync(cancellationToken);
+            }
+
+            return result;
+        }
+
+        public Task<ShopPosSettlementResult> RefundPaidWalletSaleAsync(
+            ShopPosRefundRequest request,
+            CancellationToken cancellationToken) =>
+            inner.RefundPaidWalletSaleAsync(request, cancellationToken);
+    }
+
+    private sealed class SettlementOverlapGate
+    {
+        private readonly TaskCompletionSource bothInitialSettlementsReached = new(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        private int successfulSettlementCount;
+
+        public int InitialSuccessfulSettlementCount =>
+            Math.Min(Volatile.Read(ref successfulSettlementCount), 2);
+
+        public async Task WaitForBothInitialSuccessfulSettlementsAsync(CancellationToken cancellationToken)
+        {
+            var arrival = Interlocked.Increment(ref successfulSettlementCount);
+            if (arrival > 2)
+            {
+                return;
+            }
+
+            if (arrival == 2)
+            {
+                bothInitialSettlementsReached.TrySetResult();
+            }
+
+            await bothInitialSettlementsReached.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+        }
+    }
+
+    private sealed class SerializationRetryLogger : ILogger<EfShopCommerceCoordinator>
+    {
+        private int serializationRetryCount;
+
+        public int SerializationRetryCount => Volatile.Read(ref serializationRetryCount);
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel == LogLevel.Warning &&
+                formatter(state, exception).StartsWith(
+                    "Retrying serialized shop placement attempt",
+                    StringComparison.Ordinal))
+            {
+                Interlocked.Increment(ref serializationRetryCount);
+            }
+        }
     }
 }

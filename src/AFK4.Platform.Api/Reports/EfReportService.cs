@@ -151,6 +151,25 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             salesQuery = salesQuery.Where(sale => sale.CreatedAtUtc <= toUtc);
         }
 
+        var reportCurrencies = (await salesQuery
+                .Select(sale => sale.CurrencyCode)
+                .Distinct()
+                .ToListAsync(cancellationToken))
+            .Select(NormalizeCurrency)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(currency => currency, StringComparer.Ordinal)
+            .ToList();
+        if (reportCurrencies.Any(string.IsNullOrWhiteSpace))
+        {
+            throw new InvalidOperationException("Sales report contains a sale with an empty currency code.");
+        }
+
+        if (reportCurrencies.Count > 1)
+        {
+            throw new InvalidOperationException(
+                $"Sales report range contains multiple currencies: {string.Join(", ", reportCurrencies)}.");
+        }
+
         var sales = await salesQuery
             .OrderByDescending(sale => sale.CreatedAtUtc)
             .Take(limit)
@@ -168,6 +187,25 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                 payment.PosSaleId != null &&
                 saleIds.Contains(payment.PosSaleId.Value))
             .ToListAsync(cancellationToken);
+
+        foreach (var sale in sales)
+        {
+            if (lines.Any(line =>
+                    line.PosSaleId == sale.PosSaleId &&
+                    !IsCurrency(line.CurrencyCode, sale.CurrencyCode)))
+            {
+                throw new InvalidOperationException(
+                    $"Sales report line currency does not match sale {sale.PosSaleId:D} currency.");
+            }
+
+            if (payments.Any(payment =>
+                    payment.PosSaleId == sale.PosSaleId &&
+                    !IsCurrency(payment.CurrencyCode, sale.CurrencyCode)))
+            {
+                throw new InvalidOperationException(
+                    $"Sales report payment currency does not match sale {sale.PosSaleId:D} currency.");
+            }
+        }
 
         var rows = sales.Select(sale =>
         {
@@ -717,8 +755,14 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
 
     private static bool IsCurrency(string actual, string expected)
     {
-        return string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(
+            NormalizeCurrency(actual),
+            NormalizeCurrency(expected),
+            StringComparison.Ordinal);
     }
+
+    private static string NormalizeCurrency(string currencyCode) =>
+        currencyCode.Trim().ToUpperInvariant();
 
     private static long CheckedSum(IEnumerable<long> values)
     {
