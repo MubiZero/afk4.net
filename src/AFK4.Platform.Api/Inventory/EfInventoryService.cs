@@ -723,6 +723,11 @@ public sealed class EfInventoryService(
             return "Stock movement quantity delta cannot be zero.";
         }
 
+        if (request.MovementType == StockMovementTypeNames.Purchase && request.QuantityDelta < 0)
+        {
+            return "Purchase quantity must be positive.";
+        }
+
         if (request.MovementType is not
             StockMovementTypeNames.Purchase and not
             StockMovementTypeNames.Sale and not
