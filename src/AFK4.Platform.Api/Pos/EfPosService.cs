@@ -396,25 +396,26 @@ public sealed class EfPosService(
                 return BillingCommandServiceResult<PosSaleDto>.Invalid("Only paid POS sales can be refunded.");
             }
 
-            var now = timeProvider.GetUtcNow();
-            foreach (var productLines in lines.Where(line => line.TrackStock).GroupBy(line => line.ProductId))
+            var trackedProductLines = lines
+                .Where(line => line.TrackStock)
+                .GroupBy(line => line.ProductId)
+                .ToList();
+            if (trackedProductLines.Any(productLines =>
+                    productLines.Select(line => line.UnitCostMinorUnits).Distinct().Skip(1).Any()))
             {
-                var unitCosts = productLines
-                    .Select(line => line.UnitCostMinorUnits)
-                    .Distinct()
-                    .ToList();
-                if (unitCosts.Count != 1)
-                {
-                    return BillingCommandServiceResult<PosSaleDto>.Invalid(
-                        "Refunded lines for the same product must have the same cost snapshot.");
-                }
+                return BillingCommandServiceResult<PosSaleDto>.Invalid(
+                    "Refunded lines for the same product must have the same cost snapshot.");
+            }
 
+            var now = timeProvider.GetUtcNow();
+            foreach (var productLines in trackedProductLines)
+            {
                 await inventoryCostService.ReconcileInboundAsync(
                     sale.OrganizationId,
                     sale.BranchId,
                     productLines.Key,
                     productLines.Sum(line => line.Quantity),
-                    unitCosts[0],
+                    productLines.First().UnitCostMinorUnits,
                     cancellationToken);
 
                 foreach (var line in productLines)

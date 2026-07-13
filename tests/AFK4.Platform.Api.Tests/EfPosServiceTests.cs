@@ -479,8 +479,10 @@ public sealed class EfPosServiceTests
     {
         await using var db = CreateDbContext();
         var shift = await SeedOpenShiftAsync(db);
-        var product = await SeedProductAsync(db, avgCostMinorUnits: 100);
-        await SeedStockAsync(db, product.ProductId, quantityDelta: 3);
+        var validProduct = await SeedProductAsync(db, name: "A Valid", avgCostMinorUnits: 100);
+        var mixedProduct = await SeedProductAsync(db, name: "Z Mixed", avgCostMinorUnits: 200);
+        await SeedStockAsync(db, validProduct.ProductId, quantityDelta: 2);
+        await SeedStockAsync(db, mixedProduct.ProductId, quantityDelta: 3);
         var service = CreateService(db);
         var created = await service.CreateSaleAsync(
             TestIds.BranchId,
@@ -489,8 +491,9 @@ public sealed class EfPosServiceTests
                 TestIds.OrganizationId,
                 shift.ShiftId,
                 [
-                    new PosSaleLineDto(product.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0)),
-                    new PosSaleLineDto(product.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))
+                    new PosSaleLineDto(validProduct.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0)),
+                    new PosSaleLineDto(mixedProduct.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0)),
+                    new PosSaleLineDto(mixedProduct.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))
                 ],
                 "sale-mixed-cost-001"),
             CancellationToken.None);
@@ -500,14 +503,30 @@ public sealed class EfPosServiceTests
         var lines = await db.PosSaleLines
             .Where(line => line.PosSaleId == created.Response.PosSaleId)
             .ToListAsync();
-        lines[1].UnitCostMinorUnits = 200;
+        lines.First(line => line.ProductId == mixedProduct.ProductId).UnitCostMinorUnits = 300;
         await db.SaveChangesAsync();
         var paid = await service.PaySaleAsync(
             created.Response.PosSaleId,
             ActorStaffUserId,
-            ManualPaymentRequest("pay-mixed-cost-001", 2400),
+            ManualPaymentRequest("pay-mixed-cost-001", 3600),
             CancellationToken.None);
         Assert.True(paid.Succeeded);
+
+        var inventoryService = new EfInventoryService(db, new FixedTimeProvider(Now));
+        var purchase = await inventoryService.CreateStockMovementAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new CreateStockMovementRequest(
+                TestIds.OrganizationId,
+                validProduct.ProductId,
+                StockMovementTypeNames.Purchase,
+                1,
+                new MoneyDto("TJS", 300),
+                "restock",
+                "purchase-mixed-cost-001"),
+            CancellationToken.None);
+        Assert.True(purchase.Succeeded);
+        db.ChangeTracker.Clear();
 
         var result = await service.RefundSaleAsync(
             created.Response.PosSaleId,
@@ -517,6 +536,12 @@ public sealed class EfPosServiceTests
 
         Assert.False(result.Succeeded);
         Assert.Equal("Refunded lines for the same product must have the same cost snapshot.", result.Error);
+        Assert.DoesNotContain(
+            db.ChangeTracker.Entries<PosProductEntity>(),
+            entry => entry.State == EntityState.Modified);
+        Assert.DoesNotContain(
+            db.ChangeTracker.Entries<StockMovementEntity>(),
+            entry => entry.State == EntityState.Added);
         Assert.Empty(await db.StockMovements
             .Where(movement => movement.MovementType == StockMovementTypeNames.Refund)
             .ToListAsync());
