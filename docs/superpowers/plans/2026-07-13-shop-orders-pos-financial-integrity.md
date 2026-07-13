@@ -893,8 +893,8 @@ Expected: all selected tests pass; PostgreSQL concurrency test either passes or 
 Because schema, money boundaries, and shared contracts changed, run:
 
 ```powershell
-& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.slnx --no-restore
-& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.slnx --no-build
+& 'C:\Program Files\dotnet\dotnet.exe' build AFK4.sln --no-restore
+& 'C:\Program Files\dotnet\dotnet.exe' test AFK4.sln --no-build
 Set-Location src/AFK4.Player.Shell.Web
 bun test
 bun run build
