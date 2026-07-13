@@ -33,6 +33,7 @@ public static class ShopOrderProjection
             order.AcceptedAtUtc,
             order.DeliveredAtUtc,
             order.CancelledAtUtc,
-            order.Version);
+            order.Version,
+            order.PosSaleId);
     }
 }

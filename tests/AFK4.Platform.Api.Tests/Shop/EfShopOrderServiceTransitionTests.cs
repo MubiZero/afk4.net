@@ -1,11 +1,16 @@
 using AFK4.Platform.Api.Billing;
+using AFK4.Platform.Api.Commerce;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Loyalty;
+using AFK4.Platform.Api.Pos;
+using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Shop;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Shop;
@@ -24,11 +29,24 @@ public sealed class EfShopOrderServiceTransitionTests
     private static readonly Guid Seat = Guid.NewGuid();
     private static readonly Guid Session = Guid.NewGuid();
 
-    private static EfShopOrderService NewService(PlatformDbContext db) =>
-        new(db, TimeProvider.System, new NoopShopOrderNotifier(), new LoyaltyAccrualService(db));
+    private static EfShopOrderService NewService(PlatformDbContext db, IShopOrderNotifier? notifierOverride = null)
+    {
+        var notifier = notifierOverride ?? new NoopShopOrderNotifier();
+        var workflow = new EfShopOrderWorkflow(db, TimeProvider.System, notifier, new LoyaltyAccrualService(db));
+        var settlement = new EfShopPosSettlementService(
+            db, new EfWalletSettlementService(db), new EfInventoryCostService(db), new ReceiptNumberGenerator(db));
+        var coordinator = new EfShopCommerceCoordinator(
+            db, workflow, settlement, TimeProvider.System, notifier, NullLogger<EfShopCommerceCoordinator>.Instance);
+        return new EfShopOrderService(coordinator, workflow);
+    }
 
     private static async Task<ShopOrderDto> SeedPlacedOrderAsync(PlatformDbContext db)
     {
+        db.Branches.Add(new BranchEntity
+        {
+            BranchId = Branch, OrganizationId = Org, Name = "Central", PreferredLocale = "ru",
+            CreatedAtUtc = DateTimeOffset.UnixEpoch
+        });
         db.PlayerAccounts.Add(new PlayerAccountEntity
         {
             PlayerAccountId = Player, OrganizationId = Org, HomeBranchId = Branch,
@@ -47,6 +65,12 @@ public sealed class EfShopOrderServiceTransitionTests
             TrackStock = true, AllowNegativeStock = false, IsActive = true, AvailableInShell = true,
             CreatedAtUtc = DateTimeOffset.UnixEpoch
         });
+        db.Shifts.Add(new ShiftEntity
+        {
+            ShiftId = Guid.NewGuid(), OrganizationId = Org, BranchId = Branch,
+            OpenedByStaffUserId = Staff, State = AFK4.Shared.Contracts.Shifts.ShiftStateNames.Open,
+            CurrencyCode = "TJS", OpenedAtUtc = DateTimeOffset.UnixEpoch
+        });
         db.StockMovements.Add(new StockMovementEntity
         {
             StockMovementId = Guid.NewGuid(), OrganizationId = Org, BranchId = Branch, ProductId = Product,
@@ -60,7 +84,7 @@ public sealed class EfShopOrderServiceTransitionTests
         await db.SaveChangesAsync();
 
         var placed = await NewService(db).PlaceAsync(
-            Player, new[] { new ShopOrderLineInput(Product, 3) }, CancellationToken.None);
+            Player, new PlaceShopOrderRequest([new ShopOrderLineInput(Product, 3)], $"place-{Guid.NewGuid():N}"), CancellationToken.None);
         return placed.Order!;
     }
 
@@ -70,6 +94,10 @@ public sealed class EfShopOrderServiceTransitionTests
         await using var db = NewDb();
         var order = await SeedPlacedOrderAsync(db);
         var service = NewService(db);
+        var paymentCount = await db.Payments.CountAsync();
+        var receiptCount = await db.Receipts.CountAsync();
+        var stockCount = await db.StockMovements.CountAsync();
+        var walletPaymentCount = await db.LedgerEntries.CountAsync(entry => entry.EntryType == LedgerEntryTypeNames.WalletPayment);
 
         var accepted = await service.AcceptAsync(Branch, order.Id, Staff, order.Version, CancellationToken.None);
         Assert.True(accepted.Succeeded);
@@ -79,6 +107,10 @@ public sealed class EfShopOrderServiceTransitionTests
         Assert.True(delivered.Succeeded);
         Assert.Equal(ShopOrderStatusNames.Delivered, delivered.Order!.Status);
         Assert.NotNull(delivered.Order.DeliveredAtUtc);
+        Assert.Equal(paymentCount, await db.Payments.CountAsync());
+        Assert.Equal(receiptCount, await db.Receipts.CountAsync());
+        Assert.Equal(stockCount, await db.StockMovements.CountAsync());
+        Assert.Equal(walletPaymentCount, await db.LedgerEntries.CountAsync(entry => entry.EntryType == LedgerEntryTypeNames.WalletPayment));
     }
 
     [Fact]
@@ -134,6 +166,19 @@ public sealed class EfShopOrderServiceTransitionTests
     }
 
     [Fact]
+    public async Task AcceptAsync_NotifierFailure_DoesNotChangeCommittedSuccess()
+    {
+        await using var db = NewDb();
+        var order = await SeedPlacedOrderAsync(db);
+
+        var result = await NewService(db, new ThrowingUpdateNotifier()).AcceptAsync(
+            Branch, order.Id, Staff, order.Version, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(ShopOrderStatusNames.Accepted, (await db.ShopOrders.SingleAsync()).Status);
+    }
+
+    [Fact]
     public async Task Deliver_WhenNotAccepted_ReturnsBusinessError()
     {
         await using var db = NewDb();
@@ -162,6 +207,46 @@ public sealed class EfShopOrderServiceTransitionTests
 
         var onHand = await db.StockMovements.Where(m => m.ProductId == Product).SumAsync(m => m.QuantityDelta);
         Assert.Equal(10, onHand);
+
+        var payments = await db.Payments.CountAsync();
+        var receipts = await db.Receipts.CountAsync();
+        var ledger = await db.LedgerEntries.CountAsync();
+        var movements = await db.StockMovements.CountAsync();
+        var repeated = await NewService(db).CancelByOperatorAsync(
+            Branch, order.Id, Staff, expectedVersion: order.Version, CancellationToken.None);
+
+        Assert.True(repeated.Succeeded);
+        Assert.Equal(ShopOrderStatusNames.Cancelled, repeated.Order!.Status);
+        Assert.Equal(payments, await db.Payments.CountAsync());
+        Assert.Equal(receipts, await db.Receipts.CountAsync());
+        Assert.Equal(ledger, await db.LedgerEntries.CountAsync());
+        Assert.Equal(movements, await db.StockMovements.CountAsync());
+    }
+
+    [Fact]
+    public async Task CancelByOperator_LegacyOrderWithoutLinkedSale_UsesLegacyReversal()
+    {
+        await using var db = NewDb();
+        var order = await SeedPlacedOrderAsync(db);
+        var entity = await db.ShopOrders.SingleAsync();
+        entity.PosSaleId = null;
+        db.PosSaleLines.RemoveRange(db.PosSaleLines);
+        db.Payments.RemoveRange(db.Payments);
+        db.Receipts.RemoveRange(db.Receipts);
+        db.PosSales.RemoveRange(db.PosSales);
+        await db.SaveChangesAsync();
+
+        var result = await NewService(db).CancelByOperatorAsync(
+            Branch, order.Id, Staff, order.Version, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(ShopOrderStatusNames.Cancelled, result.Order!.Status);
+        Assert.Equal(5000, await db.LedgerEntries
+            .Where(entry => entry.PlayerAccountId == Player && entry.AccountType == LedgerAccountTypeNames.Wallet)
+            .SumAsync(entry => entry.AmountMinorUnits));
+        Assert.Equal(10, await db.StockMovements
+            .Where(movement => movement.ProductId == Product)
+            .SumAsync(movement => movement.QuantityDelta));
     }
 
     [Fact]
@@ -191,4 +276,12 @@ public sealed class EfShopOrderServiceTransitionTests
         var queue = await service.ListQueueAsync(Branch, CancellationToken.None);
         Assert.Contains(queue, o => o.Id == order.Id);
     }
+}
+
+internal sealed class ThrowingUpdateNotifier : IShopOrderNotifier
+{
+    public Task NotifyCreatedAsync(ShopOrderDto order, CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public Task NotifyUpdatedAsync(ShopOrderDto order, CancellationToken cancellationToken) =>
+        throw new InvalidOperationException("realtime unavailable");
 }

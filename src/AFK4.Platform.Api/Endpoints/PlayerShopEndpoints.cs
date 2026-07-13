@@ -56,7 +56,7 @@ internal static class PlayerShopEndpoints
         {
             var player = playerContextAccessor.Current;
             if (player is null) return Results.Unauthorized();
-            var result = await shopOrderService.PlaceAsync(player.PlayerAccountId, request.Lines, ct);
+            var result = await shopOrderService.PlaceAsync(player.PlayerAccountId, request, ct);
             return ToHttpResult(result);
         }).RequireRateLimiting("player-me");
 
