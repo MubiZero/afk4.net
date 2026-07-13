@@ -7,4 +7,8 @@ public sealed record PlayerSearchResultDto(
     long WalletBalanceMinorUnits,
     long DebtBalanceMinorUnits,
     int ActivePackageCount,
-    bool IsActive);
+    bool IsActive,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset? LastActivityAtUtc,
+    string? ActivePackageName,
+    long ActivePackageRemainingMinutes);

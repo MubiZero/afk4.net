@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
-import { ArrowDownToLine } from 'lucide-react';
+import { ArrowDownToLine, ClipboardList } from 'lucide-react';
+import { useDeferredFlag } from '../useDeferredFlag';
+import { EmptyState, Money } from '../operatorPrimitives';
+import { StockSkeleton } from './StockSkeleton';
+import { StockHero } from './StockHero';
 import { createAuthenticatedOperatorClients, stockMovementTypeLabel } from '../operatorHelpers';
-import { formatMinorUnits } from '../currencyFormat';
 import { projectOperatorError } from '../apiErrors';
 import { hasAnyPermission, permissionNames } from '../operatorPermissions';
 import type { PosProductDto, StockMovementDto } from '../operatorApiClients';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import {
-  mapMovementsToRows, filterByType, filterByPeriod, groupByDay, summarize, buildCsv,
-  type JournalRow, type JournalTypeFilter, type JournalPeriod,
+  mapMovementsToRows, filterByType, filterByPeriod, groupByDay, summarize, buildCsv, movementStatusTone,
+  type JournalTypeFilter, type JournalPeriod, type MovementType,
 } from './journalModel';
 
 const TYPE_FILTERS: JournalTypeFilter[] = ['all', 'purchase', 'sale', 'refund', 'adjustment'];
@@ -23,21 +26,16 @@ const PERIOD_LABEL_KEYS: Record<JournalPeriod, MessageKey> = {
 };
 const MOVEMENT_LIMIT = 200;
 
-// Класс чипа типа для цвета: приход зелёный (+), списание/коррекция-минус янтарь, прочее нейтральное.
-function rowTone(row: JournalRow): string {
-  if (row.type === 'purchase' || (row.type === 'adjustment' && row.quantityDelta > 0)) return 'plus';
-  if (row.type === 'adjustment' && row.quantityDelta < 0) return 'warn';
-  return 'minus';
-}
-
 export function JournalWorkspace({
   backend,
   currencyCode,
   session,
+  refreshNonce = 0,
 }: {
   backend: OperatorBackendContext | null;
   currencyCode: string;
   session: OperatorAuthSession | null;
+  refreshNonce?: number;
 }) {
   const { t, locale } = useI18n();
   const canView = hasAnyPermission(session, [permissionNames.viewInventory, permissionNames.manageInventoryStock]);
@@ -76,16 +74,20 @@ export function JournalWorkspace({
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clients, backend?.branchId, canView]);
+  }, [clients, backend?.branchId, canView, refreshNonce]);
 
   const dateTimeFmt = useMemo(() => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }), [locale]);
   const dayFmt = useMemo(() => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }), [locale]);
 
+  const showSkeleton = useDeferredFlag(loading);
+
   if (!canView) {
     return <section className="stock-journal"><p className="workspace-error">{t('op.stock.journal.noPermission')}</p></section>;
   }
-  if (loading) {
-    return <div className="stock-layout"><section className="stock-journal"><p className="workspace-loading">{t('op.stock.journal.loading')}</p></section></div>;
+  if (loading && movements.length === 0) {
+    return showSkeleton
+      ? <StockSkeleton sectionClass="stock-journal" label={t('op.stock.journal.loading')} />
+      : <div className="stock-layout" />;
   }
   if (loadError) {
     return <div className="stock-layout"><section className="stock-journal"><p className="workspace-error" role="alert">{loadError}</p></section></div>;
@@ -140,7 +142,7 @@ export function JournalWorkspace({
               <button
                 key={filter}
                 type="button"
-                className={typeFilter === filter ? 'on' : ''}
+                className={`ui-chip ui-chip--filter${typeFilter === filter ? ' is-active' : ''}`}
                 aria-pressed={typeFilter === filter}
                 onClick={() => setTypeFilter(filter)}
               >
@@ -166,33 +168,37 @@ export function JournalWorkspace({
         {capReached && <p className="journal-cap">{t('op.stock.journal.capNote', { count: MOVEMENT_LIMIT })}</p>}
 
         {allRows.length === 0 ? (
-          <p className="cash-shift-empty-note">{t('op.stock.journal.empty')}</p>
+          <EmptyState icon={<ClipboardList size={28} aria-hidden="true" />} title={t('op.stock.journal.empty')} />
         ) : rows.length === 0 ? (
-          <p className="cash-shift-empty-note">{t('op.stock.journal.emptyFiltered')}</p>
+          <EmptyState icon={<ClipboardList size={28} aria-hidden="true" />} title={t('op.stock.journal.emptyFiltered')} />
         ) : (
           <div className="jledger" aria-label={t('op.stock.journal.head')}>
             {groups.map((group) => (
               <div key={group.dayKey}>
                 <div className="daygroup">{dayLabel(group.dayKey)}</div>
-                <ul className="jlist">
-                  {group.rows.map((row) => {
-                    const tone = rowTone(row);
-                    return (
-                      <li key={row.id} className="jrow">
-                        <span className="jtime">{dateTimeFmt.format(new Date(row.createdAtUtc))}</span>
-                        <span className={`jtype ${tone}`}>{stockMovementTypeLabel(row.type, t)}</span>
-                        <div className="jname">
-                          <strong>{row.name}</strong>
-                          <em>{row.sku}{row.reason ? ` · ${row.reason}` : ''}</em>
-                        </div>
-                        <span className={`jqty ${tone}`}>
-                          {row.quantityDelta > 0 ? '+' : ''}{row.quantityDelta} {t('op.stock.journal.unit')}
+                <ul className="jlist ui-ledger-list">
+                  {group.rows.map((row) => (
+                    <li key={row.id} className="ui-ledger-row stock-ledger-row">
+                      <span className="ui-ledger-time">{dateTimeFmt.format(new Date(row.createdAtUtc))}</span>
+                      <div className="ui-ledger-body">
+                        <span className="ui-ledger-title">
+                          <span className={`ui-chip ui-chip--status ${movementStatusTone(row.type as MovementType, row.quantityDelta)}`}>
+                            {stockMovementTypeLabel(row.type, t)}
+                          </span>
+                          {row.name}
                         </span>
-                        <span className="jsum">{row.sumMinorUnits > 0 ? formatMinorUnits(row.sumMinorUnits, currencyCode) : '—'}</span>
-                        <span className="jwho">{row.who || '—'}</span>
-                      </li>
-                    );
-                  })}
+                        <span className="ui-ledger-detail">
+                          {row.sku}{row.reason ? ` · ${row.reason}` : ''}{row.who ? ` · ${row.who}` : ''}
+                        </span>
+                      </div>
+                      <span className="ui-ledger-aside">
+                        <span className="ui-money">{row.quantityDelta > 0 ? '+' : ''}{row.quantityDelta} {t('op.stock.journal.unit')}</span>
+                        {row.sumMinorUnits > 0
+                          ? <Money minorUnits={row.quantityDelta < 0 ? -row.sumMinorUnits : row.sumMinorUnits} currencyCode={currencyCode} signed />
+                          : <span className="ui-money ui-money--muted">—</span>}
+                      </span>
+                    </li>
+                  ))}
                 </ul>
               </div>
             ))}
@@ -201,14 +207,14 @@ export function JournalWorkspace({
       </section>
 
       <aside className="stock-summary">
-        <div className="ctx-card">
+        <section className="stock-section">
           <h3 className="ctx-title">{t('op.stock.journal.period.title')}</h3>
           <div className="period">
             {PERIODS.map((value) => (
               <button
                 key={value}
                 type="button"
-                className={period === value ? 'on' : ''}
+                className={`ui-chip ui-chip--filter${period === value ? ' is-active' : ''}`}
                 aria-pressed={period === value}
                 onClick={() => setPeriod(value)}
               >
@@ -216,15 +222,19 @@ export function JournalWorkspace({
               </button>
             ))}
           </div>
-        </div>
+        </section>
 
-        <div className="ctx-card">
-          <h3 className="ctx-title">{t('op.stock.journal.summary.title')}</h3>
-          <div className="totrow"><span>{t('op.stock.journal.summary.inbound')}</span><b className="in">+{summary.inboundQty} · {formatMinorUnits(summary.inboundSumMinor, currencyCode)}</b></div>
-          <div className="totrow"><span>{t('op.stock.journal.summary.sold')}</span><b>−{summary.soldQty}</b></div>
-          <div className="totrow"><span>{t('op.stock.journal.summary.writtenOff')}</span><b className="wn">−{summary.writtenOffQty} · {formatMinorUnits(summary.writtenOffSumMinor, currencyCode)}</b></div>
-          <div className="totrow net"><span>{t('op.stock.journal.summary.net')}</span><b>{summary.netQty > 0 ? '+' : ''}{summary.netQty}</b></div>
-        </div>
+        <StockHero
+          label={t('op.stock.journal.summary.net')}
+          value={summary.netQty > 0 ? `+${summary.netQty}` : String(summary.netQty)}
+          tone={summary.netQty > 0 ? 'ok' : summary.netQty < 0 ? 'warning' : 'muted'}
+        />
+
+        <section className="stock-section">
+          <div className="mv"><span>{t('op.stock.journal.summary.inbound')}</span><b className="in">+{summary.inboundQty} · <Money minorUnits={summary.inboundSumMinor} currencyCode={currencyCode} /></b></div>
+          <div className="mv"><span>{t('op.stock.journal.summary.sold')}</span><b>−{summary.soldQty}</b></div>
+          <div className="mv"><span>{t('op.stock.journal.summary.writtenOff')}</span><b className="wn">−{summary.writtenOffQty} · <Money minorUnits={summary.writtenOffSumMinor} currencyCode={currencyCode} /></b></div>
+        </section>
       </aside>
     </div>
   );

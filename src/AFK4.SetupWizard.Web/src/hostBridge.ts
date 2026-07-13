@@ -18,6 +18,12 @@ export function postHostWindowCommand(command: HostWindowCommand): void {
   window.chrome?.webview?.postMessage({ type: `window:${command}` });
 }
 
+// Синхронизирует иконку окна/таскбара с темой мастера — нативный хост меняет Window.Icon
+// (см. WebViewSetupWindow.TryHandleWindowMessage "window:theme").
+export function postHostWindowTheme(theme: 'light' | 'dark'): void {
+  window.chrome?.webview?.postMessage({ type: 'window:theme', theme });
+}
+
 export const hostBridgeUnavailableMessage = 'Native host bridge is unavailable.';
 
 export class HostBridgeUnavailableError extends Error {

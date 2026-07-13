@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { Boxes } from 'lucide-react';
+import { AlertTriangle, Boxes, Plus, Trash2 } from 'lucide-react';
+import { useDeferredFlag } from '../useDeferredFlag';
+import { EmptyState, Money } from '../operatorPrimitives';
+import { StockSkeleton } from './StockSkeleton';
 import { createAuthenticatedOperatorClients } from '../operatorHelpers';
-import { formatMinorUnits } from '../currencyFormat';
 import { projectOperatorError } from '../apiErrors';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import type { OperatorBackendContext } from '../operatorTypes';
@@ -10,11 +12,11 @@ import type { OperatorAuthSession } from '../authClient';
 import {
   mapCatalogToStock,
   stockStatus,
-  marginPercent,
   stockValueMinorUnits,
   summarize,
   type StockItem,
 } from './stockLevels';
+import { StockHero } from './StockHero';
 import { WriteOffDialog } from './WriteOffDialog';
 
 type FilterMode = 'all' | 'low' | 'out';
@@ -24,11 +26,15 @@ export function StockLevelsWorkspace({
   currencyCode,
   session,
   onReceive,
+  onStockChanged,
+  refreshNonce = 0,
 }: {
   backend: OperatorBackendContext | null;
   currencyCode: string;
   session: OperatorAuthSession | null;
   onReceive?: (productId?: string) => void;
+  onStockChanged?: () => void;
+  refreshNonce?: number;
 }) {
   const { t } = useI18n();
 
@@ -67,7 +73,9 @@ export function StockLevelsWorkspace({
       });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clients, backend?.branchId, canView, reloadNonce]);
+  }, [clients, backend?.branchId, canView, reloadNonce, refreshNonce]);
+
+  const showSkeleton = useDeferredFlag(loading);
 
   if (!canView) {
     return (
@@ -77,14 +85,10 @@ export function StockLevelsWorkspace({
     );
   }
 
-  if (loading) {
-    return (
-      <div className="stock-layout">
-        <section className="cash-stock-levels">
-          <p className="workspace-loading">{t('op.stock.levels.loading')}</p>
-        </section>
-      </div>
-    );
+  if (loading && items.length === 0) {
+    return showSkeleton
+      ? <StockSkeleton sectionClass="cash-stock-levels" label={t('op.stock.levels.loading')} />
+      : <div className="stock-layout" />;
   }
 
   if (loadError) {
@@ -120,7 +124,7 @@ export function StockLevelsWorkspace({
           <div className="seg">
             <button
               type="button"
-              className={filter === 'all' ? 'on' : ''}
+              className={`ui-chip ui-chip--filter${filter === 'all' ? ' is-active' : ''}`}
               aria-pressed={filter === 'all'}
               onClick={() => setFilter('all')}
             >
@@ -128,7 +132,7 @@ export function StockLevelsWorkspace({
             </button>
             <button
               type="button"
-              className={filter === 'low' ? 'on' : ''}
+              className={`ui-chip ui-chip--filter${filter === 'low' ? ' is-active' : ''}`}
               aria-pressed={filter === 'low'}
               onClick={() => setFilter('low')}
             >
@@ -136,14 +140,14 @@ export function StockLevelsWorkspace({
             </button>
             <button
               type="button"
-              className={filter === 'out' ? 'on' : ''}
+              className={`ui-chip ui-chip--filter${filter === 'out' ? ' is-active' : ''}`}
               aria-pressed={filter === 'out'}
               onClick={() => setFilter('out')}
             >
               {t('op.stock.filter.out')} · {summary.outCount}
             </button>
           </div>
-          <div className="panel-search">
+          <div className="ui-field panel-search">
             <input
               type="search"
               placeholder={t('op.stock.levels.search')}
@@ -160,28 +164,31 @@ export function StockLevelsWorkspace({
           <span>{t('op.stock.col.item')}</span>
           <div className="metrics">
             <span>{t('op.stock.col.qty')}</span>
-            <span>{t('op.stock.col.threshold')}</span>
             <span>{t('op.stock.col.cost')}</span>
             <span>{t('op.stock.col.price')}</span>
-            <span>{t('op.stock.col.margin')}</span>
             <span>{t('op.stock.col.value')}</span>
             <span>{t('op.stock.col.actions')}</span>
           </div>
         </div>
 
         {items.length === 0 ? (
-          <p className="cash-shift-empty-note">{t('op.stock.levels.empty')}</p>
+          <EmptyState
+            icon={<Boxes size={28} aria-hidden="true" />}
+            title={t('op.stock.levels.empty')}
+            action={onReceive ? { label: t('op.stock.summary.orderBtn'), onClick: () => onReceive() } : undefined}
+          />
         ) : filtered.length === 0 ? (
-          <p className="cash-shift-empty-note">{t('op.stock.levels.emptyFiltered')}</p>
+          <EmptyState icon={<Boxes size={28} aria-hidden="true" />} title={t('op.stock.levels.emptyFiltered')} />
         ) : (
           <ul className="cash-stock-list">
             {filtered.map((item) => {
               const status = stockStatus(item);
-              const margin = marginPercent(item.priceMinorUnits, item.avgCostMinorUnits);
               const stockVal = stockValueMinorUnits(item);
               return (
                 <li key={item.productId} className={`cash-stock-row srow${status !== 'ok' ? ` ${status}` : ''}`}>
-                  <Boxes size={15} aria-hidden="true" />
+                  {status === 'ok'
+                    ? <Boxes size={15} aria-hidden="true" />
+                    : <AlertTriangle size={15} aria-hidden="true" className={`row-status-ico ${status}`} />}
                   <div className="cell-name">
                     <strong>{item.name}</strong>
                     <em>
@@ -196,48 +203,48 @@ export function StockLevelsWorkspace({
                         {item.stockOnHand}
                         <span className="u"> {t('op.stock.col.unit')}</span>
                       </span>
-                      {status !== 'ok' && (
-                        <span className={`stock-status-tag ${status}`}>
-                          {t(status === 'low' ? 'op.stock.status.low' : 'op.stock.status.out')}
+                      {status === 'low' && (
+                        <span className="ui-chip ui-chip--status is-warning">
+                          {t('op.stock.status.low')}
                         </span>
                       )}
                     </div>
-                    {/* Порог */}
-                    <div className="thr">{item.reorderThreshold || '—'}</div>
                     {/* Себест */}
                     <div className="money">
-                      {item.avgCostMinorUnits > 0 ? formatMinorUnits(item.avgCostMinorUnits, currencyCode) : <span className="dim">—</span>}
+                      {item.avgCostMinorUnits > 0
+                        ? <Money minorUnits={item.avgCostMinorUnits} currencyCode={currencyCode} />
+                        : <span className="ui-money ui-money--muted">—</span>}
                     </div>
                     {/* Цена */}
                     <div className="money">
-                      {item.priceMinorUnits > 0 ? formatMinorUnits(item.priceMinorUnits, currencyCode) : <span className="dim">—</span>}
-                    </div>
-                    {/* Маржа */}
-                    <div className="marg">
-                      {margin !== null ? `${margin}%` : <span className="dim">—</span>}
+                      {item.priceMinorUnits > 0
+                        ? <Money minorUnits={item.priceMinorUnits} currencyCode={currencyCode} />
+                        : <span className="ui-money ui-money--muted">—</span>}
                     </div>
                     {/* Стоимость склада */}
-                    <div className={`valm${stockVal <= 0 ? ' dim' : ''}`}>
-                      {stockVal > 0 ? formatMinorUnits(stockVal, currencyCode) : '—'}
+                    <div className="valm">
+                      {stockVal > 0
+                        ? <Money minorUnits={stockVal} currencyCode={currencyCode} />
+                        : <span className="ui-money ui-money--muted">—</span>}
                     </div>
                     {/* Действия */}
                     <div className="rowact">
                       <button
                         type="button"
-                        className="iact"
+                        className="ui-btn ui-btn--sm ui-btn--ghost"
                         disabled={!onReceive}
                         title={t('op.stock.action.receive')}
                         aria-label={t('op.stock.action.receive')}
                         onClick={() => onReceive?.(item.productId)}
-                      >＋</button>
+                      ><Plus size={15} aria-hidden="true" /></button>
                       <button
                         type="button"
-                        className="iact minus"
+                        className="ui-btn ui-btn--sm ui-btn--danger"
                         disabled={item.stockOnHand <= 0}
                         title={t('op.stock.action.writeOff')}
                         aria-label={t('op.stock.action.writeOff')}
                         onClick={() => setWriteOffItem(item)}
-                      >−</button>
+                      ><Trash2 size={15} aria-hidden="true" /></button>
                     </div>
                   </div>
                 </li>
@@ -253,48 +260,46 @@ export function StockLevelsWorkspace({
           backend={backend}
           currencyCode={currencyCode}
           onClose={() => setWriteOffItem(null)}
-          onDone={() => { setWriteOffItem(null); setReloadNonce((n) => n + 1); }}
+          onDone={() => { setWriteOffItem(null); setReloadNonce((n) => n + 1); onStockChanged?.(); }}
         />
       )}
 
-      {/* ── Сводка ── */}
+      {/* ── Сводка: два героя + список к заказу ── */}
       <aside className="stock-summary">
-        <div className="ctx-card">
-          <h3 className="ctx-title">{t('op.stock.summary.totalValue')}</h3>
-          <div className="ctx-big">{formatMinorUnits(summary.totalValueMinorUnits, currencyCode)}</div>
-          <div className="ctx-sub">
-            {t('op.stock.summary.totalSub', { count: items.reduce((acc, i) => acc + Math.max(i.stockOnHand, 0), 0) })}
-          </div>
-          <div className="mv">
-            <span>{t('op.stock.summary.lowCount')}</span>
-            <b className="warning-text">{summary.lowCount}</b>
-          </div>
-          <div className="mv">
-            <span>{t('op.stock.summary.outCount')}</span>
-            <b className="danger-text">{summary.outCount}</b>
-          </div>
-        </div>
+        <StockHero
+          label={t('op.stock.summary.totalValue')}
+          value={<Money minorUnits={summary.totalValueMinorUnits} currencyCode={currencyCode} />}
+          sub={t('op.stock.summary.totalSub', { count: items.reduce((acc, i) => acc + Math.max(i.stockOnHand, 0), 0) })}
+          tone="neutral"
+        />
+
+        <StockHero
+          label={t('op.stock.summary.reorderTitle')}
+          value={orderItems.length}
+          sub={t('op.stock.summary.reorderSub', { low: summary.lowCount, out: summary.outCount })}
+          tone={summary.outCount > 0 ? 'attention' : summary.lowCount > 0 ? 'warning' : 'muted'}
+        />
 
         {orderItems.length > 0 && (
-          <div className="ctx-card">
-            <h3 className="ctx-title">
-              {t('op.stock.summary.orderTitle')}
-              {' '}
-              <span className="warning-text">{orderItems.length}</span>
-            </h3>
+          <section className="stock-section">
+            <h3 className="ctx-title">{t('op.stock.summary.orderTitle')}</h3>
             {orderItems.map((item) => {
               const s = stockStatus(item);
+              // Порог не задан (0) → дробь "0/0" ничего не говорит, показываем статус словом.
+              const qtyLabel = item.reorderThreshold > 0
+                ? `${item.stockOnHand}/${item.reorderThreshold}`
+                : t(s === 'out' ? 'op.stock.status.out' : 'op.stock.status.low');
               return (
                 <div key={item.productId} className="order-item" title={item.name}>
                   <strong className="order-item-name">{item.name}</strong>
-                  <span className={`oq ${s}`}>{item.stockOnHand}/{item.reorderThreshold}</span>
+                  <span className={`oq ${s}`}>{qtyLabel}</span>
                 </div>
               );
             })}
-            <button type="button" className="ctx-btn" disabled={!onReceive} onClick={() => onReceive?.()}>
+            <button type="button" className="ui-btn ui-btn--primary ui-btn--block" disabled={!onReceive} onClick={() => onReceive?.()}>
               {t('op.stock.summary.orderBtn')}
             </button>
-          </div>
+          </section>
         )}
       </aside>
     </div>

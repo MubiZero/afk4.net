@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import { I18nProvider, createTranslator } from '@afk4/i18n';
 import { MapWorkspace } from './MapWorkspace';
 import { createFixtureFloorMapState } from './floorMapState';
+import { ToastProvider } from './operatorToast';
 
 const t = createTranslator('ru');
 
@@ -24,7 +25,9 @@ function renderWorkspace(overrides: Partial<WorkspaceProps> = {}) {
   };
   return render(
     <I18nProvider>
-      <MapWorkspace {...props} />
+      <ToastProvider>
+        <MapWorkspace {...props} />
+      </ToastProvider>
     </I18nProvider>
   );
 }

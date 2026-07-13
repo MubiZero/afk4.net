@@ -116,7 +116,6 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.pos.quick.writeOffLabel',
     'op.pos.receipts.emptyPlatform',
     'op.pos.receipts.receiptFallback',
-    'op.review.platformLabel',
     'op.settings.devices.detail.agent',
     'op.settings.devices.detail.shell',
     'op.settings.devices.newCredentialEmpty',

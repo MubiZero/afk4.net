@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import {
-  mapMovementsToRows, filterByType, filterByPeriod, groupByDay, summarize, buildCsv,
+  mapMovementsToRows, filterByType, filterByPeriod, groupByDay, summarize, buildCsv, movementStatusTone,
   type JournalRow,
 } from './journalModel';
 
@@ -88,5 +88,18 @@ describe('journalModel', () => {
     // запятая в причине → поле в кавычках
     expect(lines[1]).toContain('"брак, упаковки"');
     expect(lines[1]).toContain('-2');
+  });
+});
+
+describe('movementStatusTone', () => {
+  it('приход/возврат/продажа — по типу', () => {
+    expect(movementStatusTone('purchase', 5)).toBe('is-live');
+    expect(movementStatusTone('sale', -3)).toBe('is-neutral');
+    expect(movementStatusTone('refund', 2)).toBe('is-booking');
+  });
+  it('коррекция: излишек — warning, недостача/списание — danger', () => {
+    expect(movementStatusTone('adjustment', 4)).toBe('is-warning');
+    expect(movementStatusTone('adjustment', 0)).toBe('is-warning');
+    expect(movementStatusTone('adjustment', -4)).toBe('is-danger');
   });
 });

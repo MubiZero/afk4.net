@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { Boxes, Check, RotateCcw, ScanLine } from 'lucide-react';
+import { Boxes, Check, RotateCcw, Search } from 'lucide-react';
+import { useDeferredFlag } from '../useDeferredFlag';
+import { EmptyState, Money } from '../operatorPrimitives';
+import { StockSkeleton } from './StockSkeleton';
+import { StockHero } from './StockHero';
+import { ScanSearchBar } from './ScanSearchBar';
 import { createAuthenticatedOperatorClients, createIdempotencyKey, readArray, readBoolean, readString, requireBackend } from '../operatorHelpers';
-import { formatMinorUnits } from '../currencyFormat';
 import { projectOperatorError } from '../apiErrors';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import { matchByBarcode } from '../barcodeScanner';
@@ -24,10 +28,16 @@ export function InventoryWorkspace({
   backend,
   currencyCode,
   session,
+  onStockChanged,
+  refreshNonce = 0,
+  active = true,
 }: {
   backend: OperatorBackendContext | null;
   currencyCode: string;
   session: OperatorAuthSession | null;
+  onStockChanged?: () => void;
+  refreshNonce?: number;
+  active?: boolean;
 }) {
   const { t } = useI18n();
   const toast = useToast();
@@ -67,7 +77,7 @@ export function InventoryWorkspace({
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clients, backend?.branchId, canManage, reloadNonce]);
+  }, [clients, backend?.branchId, canManage, reloadNonce, refreshNonce]);
 
   const onScan = useCallback((code: string) => {
     const found = matchByBarcode(trackedCatalog, code);
@@ -79,13 +89,17 @@ export function InventoryWorkspace({
     if (el) { el.focus(); el.scrollIntoView?.({ block: 'nearest' }); el.select?.(); }
   }, [trackedCatalog, toast, t]);
 
-  useBarcodeScanner(canManage && !loading, onScan);
+  useBarcodeScanner(active && canManage && !loading, onScan);
+
+  const showSkeleton = useDeferredFlag(loading);
 
   if (!canManage) {
     return <section className="stock-inventory"><p className="workspace-error">{t('op.stock.inventory.noPermission')}</p></section>;
   }
-  if (loading) {
-    return <div className="stock-layout"><section className="stock-inventory"><p className="workspace-loading">{t('op.stock.inventory.loading')}</p></section></div>;
+  if (loading && lines.length === 0) {
+    return showSkeleton
+      ? <StockSkeleton sectionClass="stock-inventory" label={t('op.stock.inventory.loading')} />
+      : <div className="stock-layout" />;
   }
   if (loadError) {
     return <div className="stock-layout"><section className="stock-inventory"><p className="workspace-error" role="alert">{loadError}</p></section></div>;
@@ -104,7 +118,6 @@ export function InventoryWorkspace({
     : lines;
 
   const signedUnits = (value: number) => (value > 0 ? `+${value}` : String(value));
-  const signedSum = (sum: number) => `${sum < 0 ? '-' : '+'}${formatMinorUnits(Math.abs(sum), currencyCode)}`;
 
   const postInventory = async () => {
     if (adjustments.length === 0 || posting) return;
@@ -131,6 +144,7 @@ export function InventoryWorkspace({
       setPost({ kind: 'done', count: posted });
       toast.info(t('op.stock.inventory.posted', { count: posted })); // переживёт сброс post-состояния при рефетче
       setReloadNonce((n) => n + 1); // свежие учётные остатки + сброс пересчёта
+      onStockChanged?.(); // обновить метрики в шапке раздела
     } catch (error) {
       setPost(posted > 0
         ? { kind: 'error', detail: t('op.stock.inventory.partial', { posted, total: adjustments.length }) }
@@ -141,31 +155,24 @@ export function InventoryWorkspace({
   return (
     <div className="stock-layout">
       <section className="stock-inventory">
-        <div className="inv-scanbar">
-          <span className="inv-scanbar-ico"><ScanLine size={18} aria-hidden="true" /></span>
-          <span className="inv-scanbar-lbl" aria-label={t('op.pos.scan.active')}>
-            {t('op.stock.inventory.scanHint')}<i className="inv-caret" aria-hidden="true" />
-          </span>
-          <input
-            className="inv-search"
-            type="search"
-            aria-label={t('op.stock.inventory.search')}
-            placeholder={t('op.stock.inventory.search')}
-            value={search}
-            onChange={(event) => setSearch(event.currentTarget.value)}
-          />
-          {hasCounts && (
-            <button type="button" className="inv-reset" disabled={posting} onClick={() => setLines((c) => resetCounts(c))}>
+        <ScanSearchBar
+          icon={<Search size={14} aria-hidden="true" />}
+          value={search}
+          onChange={setSearch}
+          placeholder={t('op.stock.inventory.search')}
+          ariaLabel={t('op.stock.inventory.search')}
+          trailing={hasCounts ? (
+            <button type="button" className="ui-btn ui-btn--sm ui-btn--ghost" disabled={posting} onClick={() => setLines((c) => resetCounts(c))}>
               <RotateCcw size={13} aria-hidden="true" />
               {t('op.stock.inventory.reset')}
             </button>
-          )}
-        </div>
+          ) : undefined}
+        />
 
         <div className="recv-doc" aria-label={t('op.stock.inventory.title')}>
           <h2>{t('op.stock.inventory.title')}</h2>
           {lines.length === 0 ? (
-            <p className="cash-shift-empty-note">{t('op.stock.inventory.empty')}</p>
+            <EmptyState icon={<Boxes size={28} aria-hidden="true" />} title={t('op.stock.inventory.empty')} />
           ) : (
             <>
               <div className="inv-cols" aria-hidden="true">
@@ -208,7 +215,9 @@ export function InventoryWorkspace({
                         {pending ? t('op.stock.inventory.notCounted') : diff === 0 ? '0' : signedUnits(diff)}
                       </div>
                       <div className={`inv-sum ${diffClass}`}>
-                        {pending || diff === 0 ? '—' : signedSum(sum)}
+                        {pending || diff === 0
+                          ? '—'
+                          : <Money minorUnits={sum} currencyCode={currencyCode} signed />}
                       </div>
                     </li>
                   );
@@ -220,26 +229,30 @@ export function InventoryWorkspace({
       </section>
 
       <aside className="stock-summary">
-        <div className="ctx-card">
+        <section className="stock-section">
           <h3 className="ctx-title">{t('op.stock.inventory.progressTitle')}</h3>
           <div className="inv-prog"><i style={{ width: `${pct}%` }} /></div>
-          <div className="inv-progtxt"><span>{t('op.stock.inventory.counted')}</span><b>{totals.countedCount} / {totals.trackedCount}</b></div>
-        </div>
+          <div className="inv-progtxt"><span>{t('op.stock.inventory.counted')}</span><b>{totals.countedCount} / {totals.trackedCount} · {pct}%</b></div>
+        </section>
 
-        <div className="ctx-card">
-          <h3 className="ctx-title">{t('op.stock.inventory.totalTitle')}</h3>
+        <StockHero
+          label={t('op.stock.inventory.netCost')}
+          value={<Money minorUnits={totals.netSumMinorUnits} currencyCode={currencyCode} signed={totals.netSumMinorUnits !== 0} />}
+          tone={totals.netSumMinorUnits < 0 ? 'attention' : totals.netSumMinorUnits > 0 ? 'ok' : 'muted'}
+        />
+
+        <section className="stock-section">
           <div className="mv"><span>{t('op.stock.inventory.discrepancies')}</span><b>{totals.discrepancies}</b></div>
-          <div className="mv"><span>{t('op.stock.inventory.shortage')}</span><b className="warning-text">-{totals.shortageUnits} {unit} · {formatMinorUnits(totals.shortageSumMinorUnits, currencyCode)}</b></div>
-          <div className="mv"><span>{t('op.stock.inventory.surplus')}</span><b className="inv-pos">+{totals.surplusUnits} {unit} · {formatMinorUnits(totals.surplusSumMinorUnits, currencyCode)}</b></div>
-          <div className="mv recv-grand"><span>{t('op.stock.inventory.netCost')}</span><b className={totals.netSumMinorUnits < 0 ? 'warning-text' : totals.netSumMinorUnits > 0 ? 'inv-pos' : undefined}>{formatMinorUnits(totals.netSumMinorUnits, currencyCode)}</b></div>
-          <button type="button" className="ctx-btn" disabled={adjustments.length === 0 || posting} onClick={postInventory}>
+          <div className="mv"><span>{t('op.stock.inventory.shortage')}</span><b className="warning-text">-{totals.shortageUnits} {unit} · <Money minorUnits={totals.shortageSumMinorUnits} currencyCode={currencyCode} /></b></div>
+          <div className="mv"><span>{t('op.stock.inventory.surplus')}</span><b className="inv-pos">+{totals.surplusUnits} {unit} · <Money minorUnits={totals.surplusSumMinorUnits} currencyCode={currencyCode} /></b></div>
+          <button type="button" className="ui-btn ui-btn--primary ui-btn--block" disabled={adjustments.length === 0 || posting} onClick={postInventory}>
             <Check size={16} aria-hidden="true" />
             {posting ? t('op.stock.inventory.posting') : t('op.stock.inventory.post')}
           </button>
           <p className="ctx-note">{t('op.stock.inventory.willCreate', { count: adjustments.length })}</p>
           {post.kind === 'done' && <p className="recv-status ok">{t('op.stock.inventory.posted', { count: post.count })}</p>}
           {post.kind === 'error' && <p className="recv-status err" role="alert">{post.detail}</p>}
-        </div>
+        </section>
       </aside>
     </div>
   );

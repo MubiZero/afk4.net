@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'bun:test';
 import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { CashJournalWorkspace } from './CashJournalWorkspace';
+import { ToastProvider } from '../operatorToast';
 
 afterEach(cleanup);
 
@@ -10,7 +11,9 @@ function renderJournal(permissions: string[]) {
   const session = { permissions, organizationId: 'o' } as never;
   render(
     <I18nProvider initialLocale="ru">
-      <CashJournalWorkspace backend={null} currencyCode="TJS" session={session} />
+      <ToastProvider>
+        <CashJournalWorkspace backend={null} currencyCode="TJS" session={session} />
+      </ToastProvider>
     </I18nProvider>
   );
 }

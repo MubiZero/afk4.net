@@ -25,13 +25,24 @@ describe('StockLevelsWorkspace', () => {
     // дождёмся загрузки
     await screen.findByText('Cola 0.5');
     // Red Bull 8 при пороге 10 → low; Cola 12 при пороге 6 → ok; Вода 0 → out
-    // Только status-tag-и: ровно 1 «На исходе» (low) и 1 «Нет в наличии» (out)
-    const lowTags = container.querySelectorAll('.stock-status-tag.low');
-    expect(lowTags.length).toBe(1);
-    const outTags = container.querySelectorAll('.stock-status-tag.out');
-    expect(outTags.length).toBe(1);
+    // Тег-бейдж только у «На исходе» (low) — «Нет в наличии» (out) читается по левой
+    // полосе/иконке/цвету остатка в строке, отдельного бейджа у него больше нет.
+    expect(container.querySelectorAll('.ui-chip--status.is-warning')).toHaveLength(1);
+    expect(container.querySelectorAll('.ui-chip--status.is-danger')).toHaveLength(0);
     // фильтр-кнопка тоже видна как реальный текст в DOM
     expect(screen.getByRole('button', { name: /на исходе/i })).toBeInTheDocument();
+  });
+
+  it('два героя сводки: «Стоимость склада» нейтральный, «Нужно дозаказать» тонирован по худшему статусу', async () => {
+    const { container } = view();
+    await screen.findByText('Cola 0.5');
+    const heroes = container.querySelectorAll('.stock-hero');
+    expect(heroes).toHaveLength(2);
+    expect(heroes[0]).toHaveClass('stock-hero--neutral');
+    expect(within(heroes[0] as HTMLElement).getByText('Стоимость склада')).toBeInTheDocument();
+    // Red Bull (low, 8/10) + Вода (out, 0) → худший статус out → tone attention, счётчик = 2
+    expect(heroes[1]).toHaveClass('stock-hero--attention');
+    expect(within(heroes[1] as HTMLElement).getByText('2')).toBeInTheDocument();
   });
 
   it('фильтр «На исходе» оставляет low И out, скрывает ok', async () => {

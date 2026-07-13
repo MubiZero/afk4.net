@@ -2,10 +2,9 @@ import { useState } from 'react';
 import { Check, Clock, Copy, Layers, MonitorCheck, Plus, Square, TriangleAlert, UserRoundPlus, Wallet, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary } from '../operatorData';
-import type { Feedback } from '../operatorTypes';
 import { formatMinorUnits, formatTime, zoneLabel, type PlayerClientItem } from '../operatorHelpers';
 import { formatLocal, localPhoneDigits } from '../phoneFormat';
-import { FeedbackNotice, Skeleton } from '../operatorPrimitives';
+import { Skeleton } from '../operatorPrimitives';
 import { PanelSelect } from '../PanelSelect';
 import { ClientPicker } from './ClientPicker';
 import { DateTimePicker } from './DateTimePicker';
@@ -29,7 +28,6 @@ export interface BookingDrawerProps {
   freeSeats: SeatSummary[];
   allSeats: SeatSummary[];
   draft: BookingDraft;
-  feedback: Feedback;
   busy: boolean;
   canManage: boolean;
   currencyCode: string;
@@ -93,7 +91,7 @@ function CopyablePhone({ phone }: { phone: string }) {
 
 export function BookingDrawer(props: BookingDrawerProps) {
   const { t } = useI18n();
-  const { mode, selected, freeSeats, allSeats, draft, feedback, busy, canManage, currencyCode, conflict, seatConflict, groupConflicts, groupSize } = props;
+  const { mode, selected, freeSeats, allSeats, draft, busy, canManage, currencyCode, conflict, seatConflict, groupConflicts, groupSize } = props;
   const title = mode === 'create' ? t('op.booking.drawer.createTitle') : t('op.booking.drawer.detailTitle');
   const freeIds = new Set(freeSeats.map((seat) => seat.id));
 
@@ -264,7 +262,6 @@ export function BookingDrawer(props: BookingDrawerProps) {
               </div>
             </div>
           )}
-          <FeedbackNotice feedback={feedback} />
           {isGroup ? (
             <button type="button" className="booking-primary-action" disabled={!canManage || busy || groupSeats.length === 0 || hasGroupConflict} onClick={props.onCreateGroup}><Plus size={15} />{t('op.booking.create.submitGroup', { count: groupSeats.length })}</button>
           ) : (
@@ -312,8 +309,6 @@ export function BookingDrawer(props: BookingDrawerProps) {
               onChange={(seatId) => { if (seatId) props.onMove(seatId); }}
             />
           </div>
-
-          <FeedbackNotice feedback={feedback} />
 
           <div className="booking-detail-list">
             <div><span>{t('op.booking.client')}</span><strong>{selected.customerName}</strong></div>

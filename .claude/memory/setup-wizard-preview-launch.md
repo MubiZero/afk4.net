@@ -19,6 +19,14 @@ Asset resolution (SetupWizardWebAssetResolver): dev-server env var → `src/AFK4
 **Gotchas:**
 - Frontend devDeps (vite, @vitejs/plugin-react) can be physically missing while `bun install` reports "no changes" (lock satisfied, files absent — looks like a prior `--production` install). Fix: `bun install --force`.
 - `bun --cwd <dir> run dev` and `bun run --filter afk4-setup-wizard-web dev` both failed here; `cd` into the web dir then `bun run dev` works.
-- Worth capturing as a project skill via `/run-skill-generator` (needed dep install + env var + two processes).
 
-Related: [[platform-web-redesign]], [[frontends-on-bun-test]].
+**Из WSL с WPF-окном (не просто dev server) — уже покрыто скиллом:** `.claude/skills/operator-wpf-preview`
+теперь обобщён на Оператора И Мастер установки (таблица портов/env-var/аргументов внутри).
+Ключевые граблина: 1) НИКОГДА не запускать сборку обоих хостов параллельно — делят
+`AFK4.BuildingBlocks`/`AFK4.Shared.Contracts`/`AFK4.Localization`, гонка валит оба и может
+оставить `bin/obj` наполовину собранным (только `.exe`, без `.dll` → `dotnet run --no-build`
+падает «application does not exist» даже после «успешной» сборки — лечится чисткой bin/obj);
+2) залипший vite с прошлой сессии может занять чужой порт (5175 внезапно отдавал контент
+Оператора) — не верить curl 200, проверять `<title>` и `readlink /proc/<PID>/cwd`.
+
+Related: [[platform-web-redesign]], [[frontends-on-bun-test]], [[afk4-env-quirks]].

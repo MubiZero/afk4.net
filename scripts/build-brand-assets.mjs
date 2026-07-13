@@ -34,4 +34,17 @@ const ico = await pngToIco([
 ]);
 writeFileSync(join(DIST, "afk4.ico"), ico);
 
+// Светлый вариант (белый фон) — для тёмного таскбара нативных WPF-хостов
+// (Operator/SetupWizard); .ico из afk4-icon.svg там сливался в чёрное пятно.
+const LIGHT_ICON_SIZES = [16, 32, 48, 64, 128, 256];
+for (const size of LIGHT_ICON_SIZES) {
+  writeFileSync(join(DIST, `icon-light-${size}.png`), renderPng("afk4-icon-light.svg", size));
+}
+const icoLight = await pngToIco([
+  join(DIST, "icon-light-16.png"),
+  join(DIST, "icon-light-32.png"),
+  join(DIST, "icon-light-48.png"),
+]);
+writeFileSync(join(DIST, "afk4-light.ico"), icoLight);
+
 console.log("brand assets written to brand/dist/");

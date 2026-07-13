@@ -4,6 +4,7 @@ import {
   isHostBridgeUnavailableError,
   postHostRequest,
   postHostWindowCommand,
+  postHostWindowTheme,
   type HostBridgeMessageEvent
 } from './hostBridge';
 
@@ -27,6 +28,29 @@ describe('postHostWindowCommand', () => {
 
   it('does nothing outside WebView2', () => {
     expect(() => postHostWindowCommand('close')).not.toThrow();
+  });
+});
+
+describe('postHostWindowTheme', () => {
+  afterEach(() => {
+    delete window.chrome;
+  });
+
+  it('posts the current theme to the native host so it can swap the taskbar icon', () => {
+    const postMessage = mock();
+    window.chrome = {
+      webview: {
+        postMessage
+      }
+    };
+
+    postHostWindowTheme('light');
+
+    expect(postMessage).toHaveBeenCalledWith({ type: 'window:theme', theme: 'light' });
+  });
+
+  it('does nothing outside WebView2', () => {
+    expect(() => postHostWindowTheme('dark')).not.toThrow();
   });
 });
 

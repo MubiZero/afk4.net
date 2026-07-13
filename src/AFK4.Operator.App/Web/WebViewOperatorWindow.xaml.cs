@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Media.Imaging;
 using AFK4.Localization;
 using AFK4.Operator.App.Auth;
 using AFK4.Operator.App.Configuration;
@@ -443,6 +444,11 @@ public partial class WebViewOperatorWindow : Window
                 case "window:close":
                     Close();
                     break;
+                case "window:theme":
+                    ApplyIconForTheme(document.RootElement.TryGetProperty("theme", out var themeProperty)
+                        ? themeProperty.GetString()
+                        : null);
+                    break;
                 default:
                     return false;
             }
@@ -454,6 +460,16 @@ public partial class WebViewOperatorWindow : Window
             // Ignore malformed web messages. The bridge is intentionally narrow.
             return true;
         }
+    }
+
+    // Иконка синхронна с темой оператора (не инвертирована): тёмная тема → тёмная иконка,
+    // светлая тема → светлая иконка.
+    private static readonly Uri LightIconUri = new("pack://application:,,,/Assets/afk4-icon-light.png");
+    private static readonly Uri DarkIconUri = new("pack://application:,,,/Assets/afk4-icon-dark.png");
+
+    private void ApplyIconForTheme(string? theme)
+    {
+        Icon = new BitmapImage(theme == "light" ? LightIconUri : DarkIconUri);
     }
 
     private void StartNativeWindowDrag()

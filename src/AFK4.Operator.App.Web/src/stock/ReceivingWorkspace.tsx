@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { Boxes, Check, Plus, ScanLine, X } from 'lucide-react';
+import { Boxes, Check, Minus, Plus, Search, X } from 'lucide-react';
+import { useDeferredFlag } from '../useDeferredFlag';
+import { EmptyState, Money } from '../operatorPrimitives';
+import { StockSkeleton } from './StockSkeleton';
+import { StockHero } from './StockHero';
+import { ScanSearchBar } from './ScanSearchBar';
 import { createAuthenticatedOperatorClients, createIdempotencyKey, readArray, readBoolean, readString, requireBackend } from '../operatorHelpers';
-import { formatMinorUnits } from '../currencyFormat';
 import { projectOperatorError } from '../apiErrors';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import { matchByBarcode } from '../barcodeScanner';
@@ -28,12 +32,18 @@ export function ReceivingWorkspace({
   session,
   preload,
   onConsumePreload,
+  onStockChanged,
+  refreshNonce = 0,
+  active = true,
 }: {
   backend: OperatorBackendContext | null;
   currencyCode: string;
   session: OperatorAuthSession | null;
   preload: { productId: string } | null;
   onConsumePreload: () => void;
+  onStockChanged?: () => void;
+  refreshNonce?: number;
+  active?: boolean;
 }) {
   const { t } = useI18n();
   const toast = useToast();
@@ -70,7 +80,7 @@ export function ReceivingWorkspace({
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clients, backend?.branchId, canManage]);
+  }, [clients, backend?.branchId, canManage, refreshNonce]);
 
   const onScan = useCallback((code: string) => {
     const found = matchByBarcode(trackedCatalog, code);
@@ -81,7 +91,7 @@ export function ReceivingWorkspace({
     }
   }, [trackedCatalog, toast, t]);
 
-  useBarcodeScanner(canManage && !loading, onScan);
+  useBarcodeScanner(active && canManage && !loading, onScan);
 
   // Преднабор товара (переход с Остатков по ＋). Срабатывает один раз, когда каталог загружен.
   useEffect(() => {
@@ -92,11 +102,15 @@ export function ReceivingWorkspace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preload, loading, trackedCatalog]);
 
+  const showSkeleton = useDeferredFlag(loading);
+
   if (!canManage) {
     return <section className="stock-receiving"><p className="workspace-error">{t('op.stock.receiving.noPermission')}</p></section>;
   }
-  if (loading) {
-    return <div className="stock-layout"><section className="stock-receiving"><p className="workspace-loading">{t('op.stock.receiving.loading')}</p></section></div>;
+  if (loading && catalog.length === 0) {
+    return showSkeleton
+      ? <StockSkeleton sectionClass="stock-receiving" label={t('op.stock.receiving.loading')} />
+      : <div className="stock-layout" />;
   }
   if (loadError) {
     return <div className="stock-layout"><section className="stock-receiving"><p className="workspace-error" role="alert">{loadError}</p></section></div>;
@@ -141,6 +155,7 @@ export function ReceivingWorkspace({
       setSupplier('');
       setInvoiceNo('');
       setPost({ kind: 'done', count: posted });
+      onStockChanged?.();
     } catch (error) {
       setLines(remaining);
       setPost(posted > 0
@@ -155,23 +170,13 @@ export function ReceivingWorkspace({
     <div className="stock-layout">
       {/* ── Документ прихода ── */}
       <section className="stock-receiving">
-        <div className="recv-add">
-          <div className="recv-add-ico"><Boxes size={20} aria-hidden="true" /></div>
-          <div className="recv-add-field">
-            <input
-              type="search"
-              aria-label={t('op.stock.receiving.addLabel')}
-              placeholder={t('op.stock.receiving.search')}
-              value={search}
-              onChange={(event) => setSearch(event.currentTarget.value)}
-            />
-            <span className="recv-add-hint">{t('op.stock.receiving.addHint')}</span>
-          </div>
-          <span className="recv-scanner-badge" aria-label={t('op.pos.scan.active')}>
-            <ScanLine size={14} aria-hidden="true" />
-            {t('op.pos.scan.active')}
-          </span>
-        </div>
+        <ScanSearchBar
+          icon={<Search size={14} aria-hidden="true" />}
+          value={search}
+          onChange={setSearch}
+          placeholder={t('op.stock.receiving.search')}
+          ariaLabel={t('op.stock.receiving.addLabel')}
+        />
         {trackedCatalog.length === 0 && (
           <p className="recv-noresults">{t('op.stock.receiving.noTracked')}</p>
         )}
@@ -194,7 +199,7 @@ export function ReceivingWorkspace({
         <div className="recv-doc" aria-label={t('op.stock.receiving.linesTitle')}>
           <h2>{t('op.stock.receiving.linesTitle')}</h2>
           {lines.length === 0 ? (
-            <p className="cash-shift-empty-note">{t('op.stock.receiving.empty')}</p>
+            <EmptyState icon={<Boxes size={28} aria-hidden="true" />} title={t('op.stock.receiving.empty')} />
           ) : (
             <>
               <div className="recv-cols" aria-hidden="true">
@@ -214,7 +219,7 @@ export function ReceivingWorkspace({
                       <em>{line.sku}</em>
                     </div>
                     <div className="recv-step">
-                      <button type="button" aria-label="−" onClick={() => setLines((c) => setQuantity(c, line.productId, line.quantity - 1))}>−</button>
+                      <button type="button" aria-label="−" onClick={() => setLines((c) => setQuantity(c, line.productId, line.quantity - 1))}><Minus size={14} aria-hidden="true" /></button>
                       <input
                         inputMode="numeric"
                         aria-label={t('op.stock.receiving.colQty')}
@@ -224,19 +229,22 @@ export function ReceivingWorkspace({
                           if (Number.isFinite(next)) setLines((c) => setQuantity(c, line.productId, next));
                         }}
                       />
-                      <button type="button" aria-label="+" onClick={() => setLines((c) => setQuantity(c, line.productId, line.quantity + 1))}>+</button>
+                      <button type="button" aria-label="+" onClick={() => setLines((c) => setQuantity(c, line.productId, line.quantity + 1))}><Plus size={14} aria-hidden="true" /></button>
                     </div>
                     <div className="recv-cost">
                       <input
                         inputMode="decimal"
                         aria-label={t('op.stock.receiving.colCost')}
                         value={line.unitCostText}
-                        onChange={(event) => setLines((c) => setUnitCostText(c, line.productId, event.currentTarget.value))}
+                        onChange={(event) => {
+                          const text = event.currentTarget.value;
+                          setLines((c) => setUnitCostText(c, line.productId, text));
+                        }}
                       />
                       <span className="recv-cost-cur">{currencyCode}</span>
                     </div>
-                    <div className="recv-sum">{formatMinorUnits(lineSubtotalMinorUnits(line), currencyCode)}</div>
-                    <button type="button" className="recv-del" aria-label={t('op.stock.receiving.remove')} onClick={() => setLines((c) => removeLine(c, line.productId))}>
+                    <div className="recv-sum"><Money minorUnits={lineSubtotalMinorUnits(line)} currencyCode={currencyCode} /></div>
+                    <button type="button" className="ui-btn ui-btn--sm ui-btn--danger" aria-label={t('op.stock.receiving.remove')} onClick={() => setLines((c) => removeLine(c, line.productId))}>
                       <X size={14} aria-hidden="true" />
                     </button>
                   </li>
@@ -249,30 +257,34 @@ export function ReceivingWorkspace({
 
       {/* ── Накладная (правая колонка) ── */}
       <aside className="stock-summary">
-        <div className="ctx-card">
+        <section className="stock-section">
           <h3 className="ctx-title">{t('op.stock.receiving.invoiceTitle')}</h3>
-          <label className="recv-field">
+          <label className="ui-field">
             <span>{t('op.stock.receiving.supplier')}</span>
             <input value={supplier} disabled={posting} onChange={(event) => setSupplier(event.currentTarget.value)} />
           </label>
-          <label className="recv-field">
+          <label className="ui-field">
             <span>{t('op.stock.receiving.invoiceNo')}</span>
             <input value={invoiceNo} disabled={posting} placeholder={t('op.stock.receiving.invoiceNoHint')} onChange={(event) => setInvoiceNo(event.currentTarget.value)} />
           </label>
-        </div>
+        </section>
 
-        <div className="ctx-card">
-          <h3 className="ctx-title">{t('op.stock.receiving.totalTitle')}</h3>
+        <StockHero
+          label={t('op.stock.receiving.totalSum')}
+          value={<Money minorUnits={totals.sumMinorUnits} currencyCode={currencyCode} />}
+          tone={lines.length > 0 ? 'neutral' : 'muted'}
+        />
+
+        <section className="stock-section">
           <div className="mv"><span>{t('op.stock.receiving.totalPositions')}</span><b>{totals.positions}</b></div>
           <div className="mv"><span>{t('op.stock.receiving.totalUnits')}</span><b>{totals.units}</b></div>
-          <div className="mv recv-grand"><span>{t('op.stock.receiving.totalSum')}</span><b>{formatMinorUnits(totals.sumMinorUnits, currencyCode)}</b></div>
-          <button type="button" className="ctx-btn" disabled={lines.length === 0 || posting} onClick={postReceipt}>
+          <button type="button" className="ui-btn ui-btn--primary ui-btn--block" disabled={lines.length === 0 || posting} onClick={postReceipt}>
             <Check size={16} aria-hidden="true" />
             {posting ? t('op.stock.receiving.posting') : t('op.stock.receiving.post')}
           </button>
           {post.kind === 'done' && <p className="recv-status ok">{t('op.stock.receiving.posted', { count: post.count })}</p>}
           {post.kind === 'error' && <p className="recv-status err" role="alert">{post.detail}</p>}
-        </div>
+        </section>
       </aside>
     </div>
   );

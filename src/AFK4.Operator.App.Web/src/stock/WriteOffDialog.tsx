@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { PanelModal } from '../PanelModal';
 import { createAuthenticatedOperatorClients, createIdempotencyKey, requireBackend } from '../operatorHelpers';
-import { formatMinorUnits } from '../currencyFormat';
+import { Money } from '../operatorPrimitives';
 import { projectOperatorError } from '../apiErrors';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { StockItem } from './stockLevels';
@@ -62,16 +62,16 @@ export function WriteOffDialog({
       <div className="recv-field">
         <span>{t('op.stock.writeoff.available', { count: item.stockOnHand })}</span>
       </div>
-      <label className="recv-field">
+      <label className="ui-field">
         <span>{t('op.stock.writeoff.qty')}</span>
         <input inputMode="numeric" aria-label={t('op.stock.writeoff.qty')} value={qtyText} disabled={submitting} onChange={(event) => setQtyText(event.currentTarget.value)} />
       </label>
-      <label className="recv-field">
+      <label className="ui-field">
         <span>{t('op.stock.writeoff.reason')}</span>
         <input aria-label={t('op.stock.writeoff.reason')} value={reason} disabled={submitting} placeholder={t('op.stock.writeoff.reasonPlaceholder')} onChange={(event) => setReason(event.currentTarget.value)} />
       </label>
       <div className="recv-field">
-        <span>{t('op.stock.writeoff.cost')}: {formatMinorUnits(Math.max(item.avgCostMinorUnits, 0), currencyCode)}</span>
+        <span>{t('op.stock.writeoff.cost')}: <Money minorUnits={Math.max(item.avgCostMinorUnits, 0)} currencyCode={currencyCode} /></span>
       </div>
       {error && <p className="recv-status err" role="alert">{error}</p>}
       <div className="critical-confirmation-actions">

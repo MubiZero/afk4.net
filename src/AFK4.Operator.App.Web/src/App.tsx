@@ -20,6 +20,7 @@ import { ShellStatusBar } from './ShellStatusBar';
 import { useOperatorAuth } from './useOperatorAuth';
 import { useShellData } from './useShellData';
 import { useOperatorRealtime } from './useOperatorRealtime';
+import { usePlayersPreload } from './usePlayersPreload';
 import { useOperatorConnection } from './useOperatorConnection';
 import { useFloorMap } from './useFloorMap';
 import { ToastProvider } from './operatorToast';
@@ -141,6 +142,8 @@ function AppInner() {
     t,
     shellReconcileSignal
   );
+  // Прогрев кэша клиентов при входе → первый заход в «Клиенты» мгновенный (как заранее загруженный зал).
+  usePlayersPreload(authStatus, authSession, config, t);
   const canUsePcControl = (hasPermission(authSession, permissionNames.viewDiagnostics)
     && hasPermission(authSession, permissionNames.viewDeviceDetail))
     || hasPermission(authSession, permissionNames.dispatchDeviceCommand);

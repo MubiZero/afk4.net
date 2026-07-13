@@ -24,12 +24,13 @@ import {
   type PlayerClientItem,
   workspaceLoadStatusLabel
 } from './operatorHelpers';
-import { FeedbackNotice } from './operatorPrimitives';
+import { Money } from './operatorPrimitives';
 import { PanelModal } from './PanelModal';
 import { PaymentDialog, type PaymentBillLine } from './PaymentDialog';
 import { useToast } from './operatorToast';
 import { matchByBarcode } from './barcodeScanner';
 import { useBarcodeScanner } from './useBarcodeScanner';
+import { useFeedbackToasts } from './useFeedbackToasts';
 
 type PosCatalogItem = {
   productId?: string;
@@ -92,6 +93,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
   const [productSearch, setProductSearch] = useState('');
   const [payOpen, setPayOpen] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  useFeedbackToasts(feedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>(backend === null ? 'fixture' : 'loading');
   const [currentShift, setCurrentShift] = useState<ShiftDto | null>(null);
   const [catalog, setCatalog] = useState<PosCatalogItem[]>(() => backend === null ? makeFixtureProducts(t) : []);
@@ -361,15 +363,18 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               <strong>{t('op.pos.catalog.subtitle')}</strong>
             </div>
             <div className="pos-panel-metrics">
-              <span>{t('op.pos.strip.products')} <b>{t('op.pos.strip.positions', { count: catalog.length })}</b></span>
-              <span className={lowStockCount > 0 ? 'warn' : undefined}>{t('op.pos.strip.stock')} <b>{t('op.pos.strip.stockLow', { count: lowStockCount })}</b></span>
-              <span className="pos-scanner-badge" aria-label={t('op.pos.scan.active')}>
-                <span className="pos-scanner-pulse" aria-hidden="true" />
+              {lowStockCount > 0 ? (
+                <span className="warn">{t('op.pos.strip.stock')} <b>{t('op.pos.strip.stockLow', { count: lowStockCount })}</b></span>
+              ) : (
+                <span>{t('op.pos.strip.stock')} {t('op.pos.strip.stockOk')}</span>
+              )}
+              <span className="ui-scanner-badge" aria-label={t('op.pos.scan.active')}>
+                <span className="ui-scanner-pulse" aria-hidden="true" />
                 {t('op.pos.scan.active')}
               </span>
             </div>
           </header>
-          <label className="pos-search">
+          <label className="ui-search-field pos-catalog-search">
             <Search size={14} />
             <input
               placeholder={t('op.pos.catalog.searchPlaceholder')}
@@ -382,7 +387,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               <button
                 key={category}
                 type="button"
-                className={activeCategory === category ? 'active' : undefined}
+                className={`ui-chip ui-chip--filter${activeCategory === category ? ' is-active' : ''}`}
                 onClick={() => setActiveCategory(category)}
               >
                 {category === CATEGORY_ALL ? categoryAll : category}
@@ -397,10 +402,10 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               </div>
             ) : (
               visibleProducts.map((product) => (
-                <button key={`${product.productId ?? product.name}-${product.name}`} type="button" className="pos-product-card" onClick={() => addProduct(product)}>
+                <button key={`${product.productId ?? product.name}-${product.name}`} type="button" className="ui-card ui-card--interactive pos-product-card" onClick={() => addProduct(product)}>
                   <strong>{product.name}</strong>
                   <span>{product.category}</span>
-                  <b>{formatMinorUnits(product.priceMinorUnits, currencyCode)}</b>
+                  <b><Money minorUnits={product.priceMinorUnits} currencyCode={currencyCode} /></b>
                   <em>{product.note}</em>
                 </button>
               ))
@@ -419,7 +424,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               <UserRoundPlus size={17} />
               <div>
                 <strong>{selectedPosPlayer.name}</strong>
-                <em>{`${selectedPosPlayer.phoneNumber || t('op.pos.cart.clientNoPhone')} · ${formatMinorUnits(selectedPosPlayer.balanceMinorUnits, currencyCode)}`}</em>
+                <em>{selectedPosPlayer.phoneNumber || t('op.pos.cart.clientNoPhone')} · <Money minorUnits={selectedPosPlayer.balanceMinorUnits} currencyCode={currencyCode} /></em>
               </div>
               <button
                 type="button"
@@ -437,7 +442,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
             </div>
           ) : clientPickerOpen ? (
             <div className="pos-client-pick">
-              <label className="pos-search pos-client-search">
+              <label className="ui-search-field pos-client-search">
                 <Search size={14} />
                 <input
                   aria-label={t('op.pos.cart.clientSearchLabel')}
@@ -474,7 +479,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
                       }}
                     >
                       <strong>{player.name}</strong>
-                      <span>{formatMinorUnits(player.balanceMinorUnits, currencyCode)} · {t('op.pos.cart.clientDebt', { amount: formatMinorUnits(player.debtMinorUnits, currencyCode) })}</span>
+                      <span><Money minorUnits={player.balanceMinorUnits} currencyCode={currencyCode} /> · {t('op.pos.cart.clientDebt', { amount: formatMinorUnits(player.debtMinorUnits, currencyCode) })}</span>
                     </button>
                   ))}
                   {playerLoadStatus === 'loading' && <p>{t('op.pos.cart.clientSearching')}</p>}
@@ -516,7 +521,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
                     <strong>{item.name}</strong>
                     <span>{t('op.pos.cart.itemQty', { count: item.quantity })}</span>
                   </div>
-                  <b>{formatMinorUnits(item.priceMinorUnits * item.quantity, currencyCode)}</b>
+                  <b><Money minorUnits={item.priceMinorUnits * item.quantity} currencyCode={currencyCode} /></b>
                 </article>
               ))
             )}
@@ -526,11 +531,10 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
           <div className="pos-tender">
             <div className="pos-tender-total">
               <span>{t('op.pos.cart.total')}</span>
-              <strong>{formatMinorUnits(cartTotalMinorUnits, currencyCode)}</strong>
+              <strong><Money minorUnits={cartTotalMinorUnits} currencyCode={currencyCode} /></strong>
             </div>
-            <button type="button" className="pos-primary-action" disabled={!canAcceptPayment || feedback.state === 'pending'} onClick={() => setPayOpen(true)}>{t('op.pos.payment.acceptBtn')}</button>
-            <button type="button" className="pos-secondary-action" onClick={() => setCartItems([])}>{t('op.pos.payment.clearCartBtn')}</button>
-            <FeedbackNotice feedback={feedback} />
+            <button type="button" className="ui-btn ui-btn--primary ui-btn--lg pos-primary-action" disabled={!canAcceptPayment || feedback.state === 'pending'} onClick={() => setPayOpen(true)}>{t('op.pos.payment.acceptBtn')}</button>
+            <button type="button" className="ui-btn pos-secondary-action" onClick={() => setCartItems([])}>{t('op.pos.payment.clearCartBtn')}</button>
           </div>
         </section>
       </section>

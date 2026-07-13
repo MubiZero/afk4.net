@@ -12,6 +12,9 @@ Open epic, approved for planning (not yet started):
   phased implementation outline; pick up in a new session.
 - `2026-07-13-operator-qa-hardening-design.md` — Operator App CTA and contrast
   remediation plus reliable browser-preview data and realtime behaviour.
+- `2026-07-13-operator-ui-history-consolidation-design.md` — preserve the
+  verified final Operator UI tree while consolidating its iterative history
+  onto the latest `origin/main` without touching legacy dirty worktrees.
 
 All focused design specs for shipped work — the platform-web redesign, the
 2026-06-01 UX-audit feature specs (counter-loop, anti-fraud, offline,

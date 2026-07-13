@@ -2,6 +2,7 @@
  * Порядок @import сохраняет исходный каскад — менять очерёдность нельзя. main.tsx по-прежнему
  * импортирует только этот файл. */
 @import './styles/01-base.css';
+@import './styles/02-ui-kit.css';
 @import './styles/02-shell.css';
 @import './styles/03-auth.css';
 @import './styles/04-rail.css';

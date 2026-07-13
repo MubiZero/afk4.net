@@ -1,4 +1,5 @@
 import { describe, it, expect, mock, afterEach, afterAll } from 'bun:test';
+import { StrictMode } from 'react';
 import { act, render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../operatorToast';
@@ -49,6 +50,24 @@ describe('ReceivingWorkspace', () => {
     expect(within(lines).getByText('Cola 0.5')).toBeInTheDocument();
     const costInput = within(lines).getByLabelText('Себестоимость ед.') as HTMLInputElement;
     expect(costInput.value).toBe('4.00');
+  });
+
+  it('ввод себестоимости под React.StrictMode не падает (event читается синхронно, не в updater)', async () => {
+    render(
+      <StrictMode>
+        <I18nProvider initialLocale="ru">
+          <ToastProvider>
+            <ReceivingWorkspace backend={backend} currencyCode="TJS" session={session} preload={null} onConsumePreload={() => {}} />
+          </ToastProvider>
+        </I18nProvider>
+      </StrictMode>
+    );
+    fireEvent.change(await screen.findByLabelText('Добавить товар'), { target: { value: 'cola' } });
+    fireEvent.click(await screen.findByRole('button', { name: /Cola 0\.5/ }));
+    const lines = await screen.findByLabelText('Позиции прихода');
+    const costInput = within(lines).getByLabelText('Себестоимость ед.') as HTMLInputElement;
+    fireEvent.change(costInput, { target: { value: '5' } });
+    expect(costInput.value).toBe('5');
   });
 
   it('товары без учёта остатка (trackStock=false) в поиск не попадают', async () => {

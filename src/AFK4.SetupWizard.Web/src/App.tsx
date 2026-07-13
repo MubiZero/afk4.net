@@ -10,7 +10,7 @@ import { ForgotPasswordScreen, type SignInPrefill } from './ForgotPasswordScreen
 import { PhoneLoginScreen } from './PhoneLoginScreen';
 import { RoleScreen } from './RoleScreen';
 import { Stepper, type WizardStep } from './Stepper';
-import { postHostWindowCommand } from './hostBridge';
+import { postHostWindowCommand, postHostWindowTheme } from './hostBridge';
 import {
   authenticatedInstallClient,
   getBootstrapConfig,
@@ -102,6 +102,7 @@ export function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    postHostWindowTheme(theme);
   }, [theme]);
 
   // Хост сообщает текущее состояние окна (развёрнуто/нет) — слушаем, чтобы иконка и подсказка

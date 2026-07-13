@@ -54,7 +54,7 @@ export function CashMovementModal({
           disabled={busy}
           onChange={(event) => onChangeReason(event.currentTarget.value)}
         />
-        <button type="submit" className="cash-primary-action" disabled={busy}>
+        <button type="submit" className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block cash-primary-action" disabled={busy}>
           <Icon size={15} aria-hidden="true" />
           {t('op.cash.movement.submit')}
         </button>

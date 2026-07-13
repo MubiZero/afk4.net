@@ -13,6 +13,7 @@ const renderMenu = (over: Partial<Parameters<typeof ClientActionsMenu>[0]> = {})
     <I18nProvider initialLocale="ru">
       <ClientActionsMenu
         isActive={true}
+        canManageClient={true}
         onEditProfile={onEditProfile}
         onSetPin={onSetPin}
         onToggleActive={onToggleActive}
@@ -72,5 +73,40 @@ describe('ClientActionsMenu', () => {
     // Фокус уже на первом пункте (автофокус при открытии).
     fireEvent.keyDown(items[0], { key: 'ArrowDown' });
     expect(document.activeElement).toBe(items[1]);
+  });
+
+  it('renders nothing when no permission grants any item', () => {
+    renderMenu({ canManageClient: false });
+    expect(document.querySelector('.client-actions-menu')).toBeNull();
+  });
+
+  it('adds the reservation item first and the correction item before deactivate when permitted', () => {
+    const onCreateReservation = mock(() => {});
+    const onCorrect = mock(() => {});
+    renderMenu({ canCreateReservation: true, onCreateReservation, canCorrect: true, onCorrect });
+    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
+    const items = screen.getAllByRole('menuitem');
+    expect(items.map((item) => item.textContent)).toEqual([
+      'Создать бронь',
+      'Править профиль',
+      'PIN клиента',
+      'Ручная корректировка',
+      'Деактивировать',
+    ]);
+    fireEvent.click(screen.getByRole('menuitem', { name: /Создать бронь/ }));
+    expect(onCreateReservation).toHaveBeenCalled();
+  });
+
+  it('shows a separator before the deactivate item once another item is present', () => {
+    renderMenu({ canCorrect: true, onCorrect: () => {} });
+    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
+    expect(screen.getByRole('separator')).toBeInTheDocument();
+  });
+
+  it('omits the reservation/correction items when their permission is missing', () => {
+    renderMenu({ canCreateReservation: false, canCorrect: false });
+    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
+    expect(screen.queryByRole('menuitem', { name: /Создать бронь/ })).toBeNull();
+    expect(screen.queryByRole('menuitem', { name: /Ручная корректировка/ })).toBeNull();
   });
 });

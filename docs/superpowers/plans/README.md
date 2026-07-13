@@ -5,9 +5,11 @@ Implementation plans for completed work are archived once their work lands on
 
 - `2026-07-13-operator-qa-hardening.md` — Operator App CTA/a11y remediation
   and reliable browser-preview state/realtime QA.
+- `2026-07-13-operator-ui-history-consolidation.md` — verify a normal merge of
+  the final Operator UI tree, then reproduce that exact tree on current main
+  as one clean consolidation commit.
 
-All earlier implementation plans are archived — the SP3 admin/billing redesign,
-the whole SP4 wave (counter-loop, anti-fraud,
+The SP3 admin/billing redesign, the whole SP4 wave (counter-loop, anti-fraud,
 offline-resilience, customer portal/shell, notifications, localization,
 realtime, dcgate payments), the phone/email staff-identity wave, the
 customer-shell WebView2 pivot + Unit F (shop/loyalty/news), shared-AFK4

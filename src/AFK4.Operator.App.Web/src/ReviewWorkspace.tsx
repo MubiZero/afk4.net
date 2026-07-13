@@ -17,7 +17,8 @@ import {
   requireBackend,
   workspaceLoadStatusLabel
 } from './operatorHelpers';
-import { FeedbackNotice, StateFlag } from './operatorPrimitives';
+import { StateFlag } from './operatorPrimitives';
+import { useFeedbackToasts } from './useFeedbackToasts';
 
 type ReviewSegment = 'queue' | 'audit';
 
@@ -53,6 +54,7 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
   const { t } = useI18n();
   const [activeSegment, setActiveSegment] = useState<ReviewSegment>('queue');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  useFeedbackToasts(feedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -187,7 +189,6 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
 
       <section className="state-strip review-state-strip" aria-label={t('op.review.summaryLabel')}>
         <StateFlag label={t('op.review.flagRequests')} value={String(requests.length)} critical={requests.length > 0} />
-        <StateFlag label={t('journal.col.source')} value={workspaceLoadStatusLabel(loadStatus, t('op.review.platformLabel'), t)} critical={loadStatus !== 'backend'} />
       </section>
 
       <div className="review-segments" role="tablist">
@@ -236,7 +237,6 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
               );
             })
           )}
-          <FeedbackNotice feedback={feedback} />
         </section>
       )}
 
@@ -270,7 +270,6 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
               ))
             )}
           </div>
-          <FeedbackNotice feedback={feedback} />
         </section>
       )}
     </>

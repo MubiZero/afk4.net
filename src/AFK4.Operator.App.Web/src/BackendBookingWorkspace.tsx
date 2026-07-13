@@ -26,8 +26,9 @@ function roundToQuarter(date: Date): Date {
   next.setMinutes(Math.round(next.getMinutes() / 15) * 15, 0, 0);
   return next;
 }
-import { FeedbackNotice, StateFlag } from './operatorPrimitives';
+import { StateFlag } from './operatorPrimitives';
 import { useDeferredFlag } from './useDeferredFlag';
+import { useFeedbackToasts } from './useFeedbackToasts';
 import {
   mapReservationsToItems,
   mapSessionDtosToItems,
@@ -58,6 +59,7 @@ export function BackendBookingWorkspace({
 
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  useFeedbackToasts(feedback);
   const [reservationResult, setReservationResult] = useState<ReservationSearchResultDto | null>(null);
   const [sessionResult, setSessionResult] = useState<SessionTimelineResult | null>(null);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('loading');
@@ -454,10 +456,8 @@ export function BackendBookingWorkspace({
       </section>
 
       {loadStatus === 'failed' && (
-        <FeedbackNotice feedback={{ label: t('op.booking.eyebrow'), state: 'failed', detail: loadError ?? t('op.booking.load.failed') }} />
+        <p className="workspace-error" role="alert">{loadError ?? t('op.booking.load.failed')}</p>
       )}
-
-      {!drawerMode && <FeedbackNotice feedback={feedback} />}
 
       <BookingRequestsLane
         requests={requests}
@@ -497,7 +497,6 @@ export function BackendBookingWorkspace({
             freeSeats={readySeats}
             allSeats={floorMap.seats}
             draft={draft}
-            feedback={feedback}
             busy={reservationBusy}
             canManage={canManageReservations}
             currencyCode={currencyCode}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { createAuthenticatedOperatorClients, formatMoney } from '../operatorHelpers';
-import { StateFlag } from '../operatorPrimitives';
+import { createAuthenticatedOperatorClients } from '../operatorHelpers';
+import { Money, StateFlag } from '../operatorPrimitives';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import type { ShiftRevenueDto } from '../operatorApiClients';
@@ -66,8 +66,8 @@ export function CashShiftHeader({
       </h1>
       {header.isOpen && (
         <div className="cash-head-metrics">
-          <StateFlag label={t('op.cash.metric.inHand')} value={formatMoney(header.cashInHand, currencyCode)} />
-          <StateFlag label={t('op.cash.metric.revenue')} value={formatMoney(header.revenueTotal, currencyCode)} />
+          <StateFlag label={t('op.cash.metric.inHand')} value={<Money minorUnits={header.cashInHand?.minorUnits ?? 0} currencyCode={currencyCode} />} />
+          <StateFlag label={t('op.cash.metric.revenue')} value={<Money minorUnits={header.revenueTotal?.minorUnits ?? 0} currencyCode={currencyCode} />} />
         </div>
       )}
       <CashShiftCommandBar

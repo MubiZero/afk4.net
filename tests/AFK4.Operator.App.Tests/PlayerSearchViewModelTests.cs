@@ -26,7 +26,11 @@ public sealed class PlayerSearchViewModelTests
                     WalletBalanceMinorUnits: 12000,
                     DebtBalanceMinorUnits: 0,
                     ActivePackageCount: 1,
-                    IsActive: true)
+                    IsActive: true,
+                    CreatedAtUtc: default,
+                    LastActivityAtUtc: null,
+                    ActivePackageName: null,
+                    ActivePackageRemainingMinutes: 0)
             ]
         };
         var viewModel = new PlayerSearchViewModel(apiClient);
@@ -121,7 +125,11 @@ public sealed class PlayerSearchViewModelTests
             WalletBalanceMinorUnits: 12000,
             DebtBalanceMinorUnits: 0,
             ActivePackageCount: 1,
-            IsActive: true)));
+            IsActive: true,
+            CreatedAtUtc: default,
+            LastActivityAtUtc: null,
+            ActivePackageName: null,
+            ActivePackageRemainingMinutes: 0)));
         viewModel.TopUpAmountMinorUnits = 3000;
         viewModel.MoneyReason = "cash top-up";
 
@@ -159,7 +167,11 @@ public sealed class PlayerSearchViewModelTests
             WalletBalanceMinorUnits: 12000,
             DebtBalanceMinorUnits: 5000,
             ActivePackageCount: 0,
-            IsActive: true)));
+            IsActive: true,
+            CreatedAtUtc: default,
+            LastActivityAtUtc: null,
+            ActivePackageName: null,
+            ActivePackageRemainingMinutes: 0)));
         viewModel.DebtPaymentAmountMinorUnits = 5000;
         viewModel.MoneyReason = "debt cash";
 
