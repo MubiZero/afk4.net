@@ -28,6 +28,8 @@ public sealed class EfInventoryCostService(PlatformDbContext dbContext) : IInven
         long unitCostMinorUnits,
         CancellationToken cancellationToken)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(quantity);
+
         var product = await dbContext.PosProducts.SingleOrDefaultAsync(
             candidate =>
                 candidate.OrganizationId == organizationId &&

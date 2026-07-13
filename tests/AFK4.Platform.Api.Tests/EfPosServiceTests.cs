@@ -406,6 +406,126 @@ public sealed class EfPosServiceTests
     }
 
     [Fact]
+    public async Task RefundSaleAsync_DuplicateProductLines_ReconcilesCombinedQuantityOnce()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db, avgCostMinorUnits: 1);
+        await SeedStockAsync(db, product.ProductId, quantityDelta: 3);
+        var service = CreateService(db);
+        var created = await service.CreateSaleAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new CreatePosSaleRequest(
+                TestIds.OrganizationId,
+                shift.ShiftId,
+                [
+                    new PosSaleLineDto(product.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0)),
+                    new PosSaleLineDto(product.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))
+                ],
+                "sale-duplicate-cost-001"),
+            CancellationToken.None);
+        Assert.True(created.Succeeded);
+        Assert.NotNull(created.Response);
+        await service.PaySaleAsync(
+            created.Response.PosSaleId,
+            ActorStaffUserId,
+            ManualPaymentRequest("pay-duplicate-cost-001", 2400),
+            CancellationToken.None);
+
+        var inventoryService = new EfInventoryService(db, new FixedTimeProvider(Now));
+        await inventoryService.CreateStockMovementAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new CreateStockMovementRequest(
+                TestIds.OrganizationId,
+                product.ProductId,
+                StockMovementTypeNames.Purchase,
+                1,
+                new MoneyDto("TJS", 23),
+                "restock",
+                "purchase-duplicate-cost-001"),
+            CancellationToken.None);
+
+        await service.RefundSaleAsync(
+            created.Response.PosSaleId,
+            ActorStaffUserId,
+            new RefundPosSaleRequest(TestIds.OrganizationId, "return", "refund-duplicate-cost-001"),
+            CancellationToken.None);
+
+        var persistedLines = await db.PosSaleLines
+            .Where(line => line.PosSaleId == created.Response.PosSaleId)
+            .ToListAsync();
+        var refundMovements = await db.StockMovements
+            .Where(movement =>
+                movement.ProductId == product.ProductId &&
+                movement.MovementType == StockMovementTypeNames.Refund)
+            .ToListAsync();
+        product = await db.PosProducts.SingleAsync(candidate => candidate.ProductId == product.ProductId);
+
+        Assert.Equal(2, persistedLines.Count);
+        Assert.All(persistedLines, line => Assert.Equal(1, line.UnitCostMinorUnits));
+        Assert.Equal(2, refundMovements.Count);
+        Assert.All(refundMovements, movement =>
+        {
+            Assert.Equal(1, movement.QuantityDelta);
+            Assert.Equal(1, movement.UnitCostMinorUnits);
+        });
+        Assert.Equal(7, product.AvgCostMinorUnits);
+    }
+
+    [Fact]
+    public async Task RefundSaleAsync_DuplicateProductLinesWithDifferentCostSnapshots_IsRejected()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db, avgCostMinorUnits: 100);
+        await SeedStockAsync(db, product.ProductId, quantityDelta: 3);
+        var service = CreateService(db);
+        var created = await service.CreateSaleAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new CreatePosSaleRequest(
+                TestIds.OrganizationId,
+                shift.ShiftId,
+                [
+                    new PosSaleLineDto(product.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0)),
+                    new PosSaleLineDto(product.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))
+                ],
+                "sale-mixed-cost-001"),
+            CancellationToken.None);
+        Assert.True(created.Succeeded);
+        Assert.NotNull(created.Response);
+
+        var lines = await db.PosSaleLines
+            .Where(line => line.PosSaleId == created.Response.PosSaleId)
+            .ToListAsync();
+        lines[1].UnitCostMinorUnits = 200;
+        await db.SaveChangesAsync();
+        var paid = await service.PaySaleAsync(
+            created.Response.PosSaleId,
+            ActorStaffUserId,
+            ManualPaymentRequest("pay-mixed-cost-001", 2400),
+            CancellationToken.None);
+        Assert.True(paid.Succeeded);
+
+        var result = await service.RefundSaleAsync(
+            created.Response.PosSaleId,
+            ActorStaffUserId,
+            new RefundPosSaleRequest(TestIds.OrganizationId, "return", "refund-mixed-cost-001"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Refunded lines for the same product must have the same cost snapshot.", result.Error);
+        Assert.Empty(await db.StockMovements
+            .Where(movement => movement.MovementType == StockMovementTypeNames.Refund)
+            .ToListAsync());
+        Assert.Equal(
+            PosSaleStateNames.Paid,
+            (await db.PosSales.SingleAsync(sale => sale.PosSaleId == created.Response.PosSaleId)).State);
+    }
+
+    [Fact]
     public async Task VoidSaleAsync_MovesDraftToVoidedAndWritesNoStockMovement()
     {
         await using var db = CreateDbContext();

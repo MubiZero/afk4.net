@@ -397,30 +397,43 @@ public sealed class EfPosService(
             }
 
             var now = timeProvider.GetUtcNow();
-            foreach (var line in lines.Where(line => line.TrackStock))
+            foreach (var productLines in lines.Where(line => line.TrackStock).GroupBy(line => line.ProductId))
             {
+                var unitCosts = productLines
+                    .Select(line => line.UnitCostMinorUnits)
+                    .Distinct()
+                    .ToList();
+                if (unitCosts.Count != 1)
+                {
+                    return BillingCommandServiceResult<PosSaleDto>.Invalid(
+                        "Refunded lines for the same product must have the same cost snapshot.");
+                }
+
                 await inventoryCostService.ReconcileInboundAsync(
                     sale.OrganizationId,
                     sale.BranchId,
-                    line.ProductId,
-                    line.Quantity,
-                    line.UnitCostMinorUnits,
+                    productLines.Key,
+                    productLines.Sum(line => line.Quantity),
+                    unitCosts[0],
                     cancellationToken);
 
-                dbContext.StockMovements.Add(new StockMovementEntity
+                foreach (var line in productLines)
                 {
-                    StockMovementId = Guid.NewGuid(),
-                    OrganizationId = sale.OrganizationId,
-                    BranchId = sale.BranchId,
-                    ProductId = line.ProductId,
-                    MovementType = StockMovementTypeNames.Refund,
-                    QuantityDelta = line.Quantity,
-                    CurrencyCode = line.CurrencyCode,
-                    UnitCostMinorUnits = line.UnitCostMinorUnits,
-                    Reason = request.Reason.Trim(),
-                    CreatedByStaffUserId = actorStaffUserId,
-                    CreatedAtUtc = now
-                });
+                    dbContext.StockMovements.Add(new StockMovementEntity
+                    {
+                        StockMovementId = Guid.NewGuid(),
+                        OrganizationId = sale.OrganizationId,
+                        BranchId = sale.BranchId,
+                        ProductId = line.ProductId,
+                        MovementType = StockMovementTypeNames.Refund,
+                        QuantityDelta = line.Quantity,
+                        CurrencyCode = line.CurrencyCode,
+                        UnitCostMinorUnits = line.UnitCostMinorUnits,
+                        Reason = request.Reason.Trim(),
+                        CreatedByStaffUserId = actorStaffUserId,
+                        CreatedAtUtc = now
+                    });
+                }
             }
 
             var originalPaymentMethod = await dbContext.Payments

@@ -23,6 +23,28 @@ public sealed class EfInventoryServiceTests
         Assert.Equal(550, EfInventoryCostService.MovingWeightedAverage(10, 400, 30, 600));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task ReconcileInboundAsync_RejectsNonPositiveQuantity(int quantity)
+    {
+        await using var db = CreateDbContext();
+        var inventoryService = CreateService(db);
+        var product = await CreateTrackedProductAsync(inventoryService);
+        var costService = new EfInventoryCostService(db);
+
+        var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            costService.ReconcileInboundAsync(
+                TestIds.OrganizationId,
+                TestIds.BranchId,
+                product.ProductId,
+                quantity,
+                500,
+                CancellationToken.None));
+
+        Assert.Equal("quantity", exception.ParamName);
+    }
+
     [Fact]
     public async Task CreateCategoryAsync_CreatesUniqueBranchCategoryAndIsIdempotent()
     {
@@ -263,6 +285,25 @@ public sealed class EfInventoryServiceTests
         Assert.NotNull(stock.Response);
         Assert.Equal(24, stock.Response.StockOnHand);
         Assert.Single(await db.StockMovements.ToListAsync());
+    }
+
+    [Fact]
+    public async Task CreateStockMovementAsync_RejectsNegativePurchaseQuantity()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var product = await CreateTrackedProductAsync(service);
+
+        var result = await service.CreateStockMovementAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            StockMovement(product.ProductId, StockMovementTypeNames.Purchase, -1, "purchase-negative-001"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.Conflict);
+        Assert.Empty(await db.StockMovements.ToListAsync());
+        Assert.Equal(0, (await db.PosProducts.SingleAsync(candidate => candidate.ProductId == product.ProductId)).AvgCostMinorUnits);
     }
 
     [Fact]
