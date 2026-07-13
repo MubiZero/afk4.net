@@ -9,6 +9,12 @@ public sealed record WalletSettlementResult(bool Succeeded, string? ErrorCode, L
     public static WalletSettlementResult Reject(string code) => new(false, code, null);
 }
 
+/// <summary>
+/// Stages wallet ledger entries within a caller-owned transaction. The caller must use
+/// serializable transaction semantics for the affected player wallet and call SaveChangesAsync
+/// after all coordinated commerce changes are staged. This service deliberately does neither:
+/// cross-context balance and reversal races rely on the caller's transaction isolation.
+/// </summary>
 public interface IWalletSettlementService
 {
     Task<WalletSettlementResult> DebitAsync(

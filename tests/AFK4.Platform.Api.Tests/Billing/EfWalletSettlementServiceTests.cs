@@ -193,6 +193,106 @@ public sealed class EfWalletSettlementServiceTests
     }
 
     [Fact]
+    public async Task DebitAsync_IgnoresNonWalletCurrenciesWhenValidatingWalletLedger()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAndBalanceAsync(db, balanceMinorUnits: 1_500);
+        db.LedgerEntries.Add(CreateLedgerEntry(
+            OrganizationId,
+            BranchId,
+            PlayerAccountId,
+            5_000,
+            "USD",
+            LedgerAccountTypeNames.Debt));
+        await db.SaveChangesAsync();
+        var service = new EfWalletSettlementService(db);
+
+        var result = await service.DebitAsync(
+            OrganizationId,
+            BranchId,
+            PlayerAccountId,
+            null,
+            ShiftId,
+            1_500,
+            "TJS",
+            "shop_order",
+            OrderId.ToString("D"),
+            StaffUserId,
+            Now,
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+    }
+
+    [Fact]
+    public async Task DebitAsync_RepeatedBeforeSave_IncludesStagedDebitInBalance()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAndBalanceAsync(db, balanceMinorUnits: 1_000);
+        var service = new EfWalletSettlementService(db);
+
+        var first = await service.DebitAsync(
+            OrganizationId,
+            BranchId,
+            PlayerAccountId,
+            null,
+            ShiftId,
+            800,
+            "TJS",
+            "shop_order",
+            OrderId.ToString("D"),
+            StaffUserId,
+            Now,
+            CancellationToken.None);
+        var second = await service.DebitAsync(
+            OrganizationId,
+            BranchId,
+            PlayerAccountId,
+            null,
+            ShiftId,
+            800,
+            "TJS",
+            "shop_order",
+            Guid.NewGuid().ToString("D"),
+            StaffUserId,
+            Now,
+            CancellationToken.None);
+
+        Assert.True(first.Succeeded);
+        Assert.Equal("insufficient_funds", second.ErrorCode);
+        Assert.Single(
+            db.ChangeTracker.Entries<LedgerEntryEntity>(),
+            entry => entry.State == EntityState.Added && entry.Entity.EntryType == LedgerEntryTypeNames.WalletPayment);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task DebitAsync_NonPositiveAmount_IsRejected(long amountMinorUnits)
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAndBalanceAsync(db, balanceMinorUnits: 1_500);
+        var service = new EfWalletSettlementService(db);
+
+        var result = await service.DebitAsync(
+            OrganizationId,
+            BranchId,
+            PlayerAccountId,
+            null,
+            ShiftId,
+            amountMinorUnits,
+            "TJS",
+            "shop_order",
+            OrderId.ToString("D"),
+            StaffUserId,
+            Now,
+            CancellationToken.None);
+
+        Assert.Equal("invalid_amount", result.ErrorCode);
+        Assert.DoesNotContain(db.ChangeTracker.Entries<LedgerEntryEntity>(), entry => entry.State == EntityState.Added);
+    }
+
+    [Fact]
     public async Task ReverseAsync_StagesOneReversalOfOriginalDebit()
     {
         await using var db = CreateDbContext();
@@ -222,6 +322,125 @@ public sealed class EfWalletSettlementServiceTests
         Assert.Equal(originalDebit.CurrencyCode, reversal.CurrencyCode);
         Assert.Equal(EntityState.Added, db.Entry(reversal).State);
         Assert.Equal(1, await db.LedgerEntries.AsNoTracking().CountAsync());
+    }
+
+    [Fact]
+    public async Task ReverseAsync_FabricatedLedgerEntryId_IsRejected()
+    {
+        await using var db = CreateDbContext();
+        var fabricatedDebit = CreateWalletDebit();
+        var service = new EfWalletSettlementService(db);
+
+        var result = await service.ReverseAsync(
+            fabricatedDebit,
+            StaffUserId,
+            "shop_order_cancel",
+            OrderId.ToString("D"),
+            Now,
+            CancellationToken.None);
+
+        Assert.Equal("original_debit_not_found", result.ErrorCode);
+        Assert.DoesNotContain(db.ChangeTracker.Entries<LedgerEntryEntity>(), entry => entry.State == EntityState.Added);
+    }
+
+    [Fact]
+    public async Task ReverseAsync_AddedOnlyOriginal_IsRejected()
+    {
+        await using var db = CreateDbContext();
+        var addedOnlyDebit = CreateWalletDebit();
+        db.LedgerEntries.Add(addedOnlyDebit);
+        var service = new EfWalletSettlementService(db);
+
+        var result = await service.ReverseAsync(
+            addedOnlyDebit,
+            StaffUserId,
+            "shop_order_cancel",
+            OrderId.ToString("D"),
+            Now,
+            CancellationToken.None);
+
+        Assert.Equal("original_debit_not_found", result.ErrorCode);
+        Assert.DoesNotContain(
+            db.ChangeTracker.Entries<LedgerEntryEntity>(),
+            entry => entry.State == EntityState.Added && entry.Entity.EntryType == LedgerEntryTypeNames.Reversal);
+    }
+
+    [Fact]
+    public async Task ReverseAsync_DetachedMutatedInput_UsesCanonicalPersistedDebit()
+    {
+        await using var db = CreateDbContext();
+        var originalDebit = CreateWalletDebit();
+        db.LedgerEntries.Add(originalDebit);
+        await db.SaveChangesAsync();
+        db.Entry(originalDebit).State = EntityState.Detached;
+        originalDebit.OrganizationId = Guid.NewGuid();
+        originalDebit.BranchId = Guid.NewGuid();
+        originalDebit.PlayerAccountId = Guid.NewGuid();
+        originalDebit.SessionId = Guid.NewGuid();
+        originalDebit.ShiftId = Guid.NewGuid();
+        originalDebit.AmountMinorUnits = -999_999;
+        originalDebit.CurrencyCode = "USD";
+        var service = new EfWalletSettlementService(db);
+
+        var result = await service.ReverseAsync(
+            originalDebit,
+            StaffUserId,
+            "shop_order_cancel",
+            OrderId.ToString("D"),
+            Now,
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var reversal = Assert.IsType<LedgerEntryEntity>(result.Entry);
+        Assert.Equal(1_500, reversal.AmountMinorUnits);
+        Assert.Equal(OrganizationId, reversal.OrganizationId);
+        Assert.Equal(BranchId, reversal.BranchId);
+        Assert.Equal(PlayerAccountId, reversal.PlayerAccountId);
+        Assert.Equal(SessionId, reversal.SessionId);
+        Assert.Equal(ShiftId, reversal.ShiftId);
+        Assert.Equal("TJS", reversal.CurrencyCode);
+    }
+
+    [Fact]
+    public async Task ReverseAsync_PersistedLongMinValueDebit_IsRejected()
+    {
+        await using var db = CreateDbContext();
+        var originalDebit = CreateWalletDebit(amountMinorUnits: long.MinValue);
+        db.LedgerEntries.Add(originalDebit);
+        await db.SaveChangesAsync();
+        var service = new EfWalletSettlementService(db);
+
+        var result = await service.ReverseAsync(
+            originalDebit,
+            StaffUserId,
+            "shop_order_cancel",
+            OrderId.ToString("D"),
+            Now,
+            CancellationToken.None);
+
+        Assert.Equal("invalid_original_debit", result.ErrorCode);
+        Assert.DoesNotContain(db.ChangeTracker.Entries<LedgerEntryEntity>(), entry => entry.State == EntityState.Added);
+    }
+
+    [Fact]
+    public async Task ReverseAsync_PersistedDebitWithQuantity_IsRejected()
+    {
+        await using var db = CreateDbContext();
+        var originalDebit = CreateWalletDebit(quantitySeconds: 60);
+        db.LedgerEntries.Add(originalDebit);
+        await db.SaveChangesAsync();
+        var service = new EfWalletSettlementService(db);
+
+        var result = await service.ReverseAsync(
+            originalDebit,
+            StaffUserId,
+            "shop_order_cancel",
+            OrderId.ToString("D"),
+            Now,
+            CancellationToken.None);
+
+        Assert.Equal("invalid_original_debit", result.ErrorCode);
+        Assert.DoesNotContain(db.ChangeTracker.Entries<LedgerEntryEntity>(), entry => entry.State == EntityState.Added);
     }
 
     [Fact]
@@ -299,7 +518,7 @@ public sealed class EfWalletSettlementServiceTests
         await db.SaveChangesAsync();
     }
 
-    private static LedgerEntryEntity CreateWalletDebit() =>
+    private static LedgerEntryEntity CreateWalletDebit(long amountMinorUnits = -1_500, int quantitySeconds = 0) =>
         BillingEntryFactory.Create(
             OrganizationId,
             BranchId,
@@ -308,8 +527,8 @@ public sealed class EfWalletSettlementServiceTests
             playerPackageId: null,
             LedgerEntryTypeNames.WalletPayment,
             LedgerAccountTypeNames.Wallet,
-            -1_500,
-            quantitySeconds: 0,
+            amountMinorUnits,
+            quantitySeconds,
             "TJS",
             "shop_order",
             OrderId.ToString("D"),
