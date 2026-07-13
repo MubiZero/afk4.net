@@ -1,8 +1,13 @@
 # Plan Navigation
 
 Implementation plans for completed work are archived once their work lands on
-`main`. As of 2026-06-10 there are **no active implementation plans** — the
-SP3 admin/billing redesign, the whole SP4 wave (counter-loop, anti-fraud,
+`main`. The active plan is:
+
+- `2026-07-13-operator-ui-history-consolidation.md` — verify a normal merge of
+  the final Operator UI tree, then reproduce that exact tree on current main
+  as one clean consolidation commit.
+
+The SP3 admin/billing redesign, the whole SP4 wave (counter-loop, anti-fraud,
 offline-resilience, customer portal/shell, notifications, localization,
 realtime, dcgate payments), the phone/email staff-identity wave, the
 customer-shell WebView2 pivot + Unit F (shop/loyalty/news), shared-AFK4

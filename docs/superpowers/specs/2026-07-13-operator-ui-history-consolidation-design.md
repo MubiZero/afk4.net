@@ -1,6 +1,6 @@
 # Operator UI History Consolidation Design
 
-**Status:** approved in conversation; pending written-spec review
+**Status:** approved for implementation
 **Date:** 2026-07-13
 
 ## Goal
