@@ -224,7 +224,32 @@ Keep the current branch's removal of `.state-flag*` and `.critical-confirmation*
 
 Expected: `rg -n "critical-confirmation-actions" src/AFK4.Operator.App.Web/src/styles/06-map-grid.css` prints nothing; map elevation and the two QA color changes remain.
 
-- [ ] **Step 4: Put the QA CTA rule in its current authoritative owner**
+- [ ] **Step 4: Retarget the QA guard to the shared CSS owner and verify RED**
+
+Change `qaContrast.test.ts` to read the shared file:
+
+```ts
+const workspacePrimitivesCss = readFileSync(join(import.meta.dir, '16-workspace-primitives.css'), 'utf8');
+
+describe('operator QA visual guards', () => {
+  it('keeps the enabled session-start confirmation CTA visually primary', () => {
+    expect(workspacePrimitivesCss).toContain('.critical-confirmation-actions .cta-primary:not(:disabled)');
+  });
+});
+```
+
+Expected: the test protects the selector's new canonical location and does not force shared CSS back into `06-map-grid.css`.
+
+Run:
+
+```bash
+cd src/AFK4.Operator.App.Web
+/home/fedya/.bun/bin/bun test src/styles/qaContrast.test.ts
+```
+
+Expected: FAIL because `16-workspace-primitives.css` does not yet contain the explicit primary CTA selector.
+
+- [ ] **Step 5: Put the QA CTA rule in its current authoritative owner and verify GREEN**
 
 After the generic hover/focus rule in `16-workspace-primitives.css`, add:
 
@@ -242,23 +267,13 @@ After the generic hover/focus rule in `16-workspace-primitives.css`, add:
 }
 ```
 
-Expected: the current shared-layer ownership remains intact and the enabled session-start CTA overrides the more-specific generic footer button.
+Run:
 
-- [ ] **Step 5: Retarget the QA guard to the shared CSS owner**
-
-Change `qaContrast.test.ts` to read the shared file:
-
-```ts
-const workspacePrimitivesCss = readFileSync(join(import.meta.dir, '16-workspace-primitives.css'), 'utf8');
-
-describe('operator QA visual guards', () => {
-  it('keeps the enabled session-start confirmation CTA visually primary', () => {
-    expect(workspacePrimitivesCss).toContain('.critical-confirmation-actions .cta-primary:not(:disabled)');
-  });
-});
+```bash
+/home/fedya/.bun/bin/bun test src/styles/qaContrast.test.ts
 ```
 
-Expected: the test protects the selector's new canonical location and does not force shared CSS back into `06-map-grid.css`.
+Expected: PASS. The current shared-layer ownership remains intact and the enabled session-start CTA overrides the more-specific generic footer button.
 
 - [ ] **Step 6: Resolve POS and Clients CSS in favour of current structures plus applicable QA tokens**
 
