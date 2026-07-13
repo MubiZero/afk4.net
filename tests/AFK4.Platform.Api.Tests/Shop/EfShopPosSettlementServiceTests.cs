@@ -110,6 +110,62 @@ public sealed class EfShopPosSettlementServiceTests
     }
 
     [Fact]
+    public async Task CreatePaidWalletSaleAsync_MultipleOpenShifts_ReturnsOpenShiftAmbiguous()
+    {
+        await using var db = CreateDbContext();
+        await SeedBranchAndPlayerAsync(db, balanceMinorUnits: 10_000);
+        await SeedOpenShiftAsync(db);
+        await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db, "Cola", 1_200, trackStock: false, avgCostMinorUnits: 0);
+
+        var result = await CreateService(db).CreatePaidWalletSaleAsync(
+            SaleRequest(new ShopOrderLineInput(product.ProductId, 1)),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("open_shift_ambiguous", result.ErrorCode);
+        AssertNoStagedCommerce(db);
+    }
+
+    [Fact]
+    public async Task CreatePaidWalletSaleAsync_ShiftCurrencyMismatch_ReturnsMixedCurrency()
+    {
+        await using var db = CreateDbContext();
+        await SeedBranchAndPlayerAsync(db, balanceMinorUnits: 10_000);
+        var shift = await SeedOpenShiftAsync(db);
+        shift.CurrencyCode = "USD";
+        await db.SaveChangesAsync();
+        var product = await SeedProductAsync(db, "Cola", 1_200, trackStock: false, avgCostMinorUnits: 0);
+
+        var result = await CreateService(db).CreatePaidWalletSaleAsync(
+            SaleRequest(new ShopOrderLineInput(product.ProductId, 1)),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("mixed_currency", result.ErrorCode);
+        AssertNoStagedCommerce(db);
+    }
+
+    [Fact]
+    public async Task CreatePaidWalletSaleAsync_StockQuantityOverflow_ReturnsStockQuantityInvalid()
+    {
+        await using var db = CreateDbContext();
+        await SeedBranchAndPlayerAsync(db, balanceMinorUnits: 10_000);
+        await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db, "Cola", 1_200, trackStock: true, avgCostMinorUnits: 275);
+        await SeedStockAsync(db, product.ProductId, quantity: int.MaxValue, unitCostMinorUnits: 275);
+        await SeedStockAsync(db, product.ProductId, quantity: int.MaxValue, unitCostMinorUnits: 275);
+
+        var result = await CreateService(db).CreatePaidWalletSaleAsync(
+            SaleRequest(new ShopOrderLineInput(product.ProductId, 1)),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("stock_quantity_invalid", result.ErrorCode);
+        AssertNoStagedCommerce(db);
+    }
+
+    [Fact]
     public async Task CreatePaidWalletSaleAsync_OutOfStock_ReturnsOutOfStock()
     {
         await using var db = CreateDbContext();
@@ -364,6 +420,130 @@ public sealed class EfShopPosSettlementServiceTests
         Assert.Equal(2, await db.Payments.AsNoTracking().CountAsync());
         Assert.Equal(1, await db.Receipts.AsNoTracking().CountAsync());
         Assert.Equal(3, await db.StockMovements.AsNoTracking().CountAsync());
+    }
+
+    [Fact]
+    public async Task RefundPaidWalletSaleAsync_ImmediateReplay_ReturnsSameStagedArtifactsWithoutDuplicates()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedPaidSaleAsync(db);
+        var service = CreateService(db);
+        var request = RefundRequest(scenario.Sale.PosSaleId, scenario.Debit.LedgerEntryId);
+
+        var first = await service.RefundPaidWalletSaleAsync(request, CancellationToken.None);
+        var replay = await service.RefundPaidWalletSaleAsync(request, CancellationToken.None);
+
+        Assert.True(first.Succeeded);
+        Assert.True(replay.Succeeded);
+        Assert.Equal(first.WalletEntry!.LedgerEntryId, replay.WalletEntry!.LedgerEntryId);
+        Assert.Equal(first.Receipt!.ReceiptId, replay.Receipt!.ReceiptId);
+        Assert.Single(Added<LedgerEntryEntity>(db));
+        Assert.Single(Added<PaymentEntity>(db));
+        Assert.Single(Added<ReceiptEntity>(db));
+        Assert.Single(Added<StockMovementEntity>(db));
+        Assert.Single(
+            db.ChangeTracker.Entries<PosProductEntity>(),
+            entry => entry.State == EntityState.Modified);
+    }
+
+    [Fact]
+    public async Task RefundPaidWalletSaleAsync_AlreadyRefundedWithUnrelatedDebit_ReturnsWalletDebitMismatch()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedPaidSaleAsync(db);
+        var service = CreateService(db);
+        var settled = await service.RefundPaidWalletSaleAsync(
+            RefundRequest(scenario.Sale.PosSaleId, scenario.Debit.LedgerEntryId),
+            CancellationToken.None);
+        Assert.True(settled.Succeeded);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var unrelatedDebit = await db.LedgerEntries
+            .AsNoTracking()
+            .SingleAsync(entry => entry.EntryType == LedgerEntryTypeNames.TopUp);
+        db.LedgerEntries.Add(new LedgerEntryEntity
+        {
+            LedgerEntryId = Guid.NewGuid(),
+            OrganizationId = unrelatedDebit.OrganizationId,
+            BranchId = unrelatedDebit.BranchId,
+            PlayerAccountId = unrelatedDebit.PlayerAccountId,
+            EntryType = LedgerEntryTypeNames.Reversal,
+            AccountType = unrelatedDebit.AccountType,
+            AmountMinorUnits = -unrelatedDebit.AmountMinorUnits,
+            CurrencyCode = unrelatedDebit.CurrencyCode,
+            Description = "unrelated",
+            Reason = "unrelated",
+            ReversesLedgerEntryId = unrelatedDebit.LedgerEntryId,
+            CreatedByStaffUserId = ActorStaffUserId,
+            CreatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var replay = await service.RefundPaidWalletSaleAsync(
+            RefundRequest(scenario.Sale.PosSaleId, unrelatedDebit.LedgerEntryId),
+            CancellationToken.None);
+
+        Assert.False(replay.Succeeded);
+        Assert.Equal("wallet_debit_mismatch", replay.ErrorCode);
+        AssertNoStagedCommerce(db);
+        Assert.DoesNotContain(db.ChangeTracker.Entries(), entry => entry.State == EntityState.Modified);
+    }
+
+    [Fact]
+    public async Task RefundPaidWalletSaleAsync_AlreadyRefundedWithInvalidRefundPayment_ReturnsRefundIncomplete()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedPaidSaleAsync(db);
+        var service = CreateService(db);
+        var settled = await service.RefundPaidWalletSaleAsync(
+            RefundRequest(scenario.Sale.PosSaleId, scenario.Debit.LedgerEntryId),
+            CancellationToken.None);
+        Assert.True(settled.Succeeded);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        var refundPayment = await db.Payments.SingleAsync(payment => payment.PaymentKind == "refund");
+        refundPayment.AmountMinorUnits = -1;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var replay = await service.RefundPaidWalletSaleAsync(
+            RefundRequest(scenario.Sale.PosSaleId, scenario.Debit.LedgerEntryId),
+            CancellationToken.None);
+
+        Assert.False(replay.Succeeded);
+        Assert.Equal("refund_incomplete", replay.ErrorCode);
+        AssertNoStagedCommerce(db);
+        Assert.DoesNotContain(db.ChangeTracker.Entries(), entry => entry.State == EntityState.Modified);
+    }
+
+    [Fact]
+    public async Task RefundPaidWalletSaleAsync_AlreadyRefundedWithInvalidReversal_ReturnsRefundIncomplete()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedPaidSaleAsync(db);
+        var service = CreateService(db);
+        var settled = await service.RefundPaidWalletSaleAsync(
+            RefundRequest(scenario.Sale.PosSaleId, scenario.Debit.LedgerEntryId),
+            CancellationToken.None);
+        Assert.True(settled.Succeeded);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+        var reversal = await db.LedgerEntries.SingleAsync(
+            entry => entry.ReversesLedgerEntryId == scenario.Debit.LedgerEntryId);
+        reversal.AmountMinorUnits = 1;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var replay = await service.RefundPaidWalletSaleAsync(
+            RefundRequest(scenario.Sale.PosSaleId, scenario.Debit.LedgerEntryId),
+            CancellationToken.None);
+
+        Assert.False(replay.Succeeded);
+        Assert.Equal("refund_incomplete", replay.ErrorCode);
+        AssertNoStagedCommerce(db);
+        Assert.DoesNotContain(db.ChangeTracker.Entries(), entry => entry.State == EntityState.Modified);
     }
 
     [Fact]
