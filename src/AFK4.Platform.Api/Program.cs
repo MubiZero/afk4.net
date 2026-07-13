@@ -292,6 +292,7 @@ builder.Services.AddSingleton(new AutoProtectionOptions());
 builder.Services.AddScoped<AutoProtectionRunner>();
 builder.Services.AddScoped<ISessionCommandResultProcessor, EfSessionCommandResultProcessor>();
 builder.Services.AddScoped<IBillingCommandService, EfBillingCommandService>();
+builder.Services.AddScoped<IWalletSettlementService, EfWalletSettlementService>();
 builder.Services.AddScoped<ILoyaltyAccrualService, LoyaltyAccrualService>();
 builder.Services.AddScoped<INewsService, EfNewsService>();
 builder.Services.AddScoped<IMoneyActionPolicyResolver, EfMoneyActionPolicyResolver>();
