@@ -94,32 +94,33 @@ public sealed class EfPosService(
             }
         }
 
-        var requestedProductIds = request.Lines
-            .Select(line => line.ProductId)
-            .Distinct()
-            .ToList();
-        var products = await dbContext.PosProducts
-            .AsNoTracking()
-            .Where(product =>
-                product.OrganizationId == request.OrganizationId &&
-                product.BranchId == branchId &&
-                product.IsActive &&
-                requestedProductIds.Contains(product.ProductId))
-            .ToDictionaryAsync(product => product.ProductId, cancellationToken);
-
-        if (products.Count != requestedProductIds.Count)
-        {
-            return BillingCommandServiceResult<PosSaleDto>.Missing("Product was not found.");
-        }
-
-        var currencyCode = products.Values.First().CurrencyCode;
-        if (products.Values.Any(product => !string.Equals(product.CurrencyCode, currencyCode, StringComparison.OrdinalIgnoreCase)))
-        {
-            return BillingCommandServiceResult<PosSaleDto>.Invalid("POS sale lines must use one currency.");
-        }
-
         return await ExecuteInTransactionAsync(async () =>
         {
+            var requestedProductIds = request.Lines
+                .Select(line => line.ProductId)
+                .Distinct()
+                .ToList();
+            var products = await dbContext.PosProducts
+                .AsNoTracking()
+                .Where(product =>
+                    product.OrganizationId == request.OrganizationId &&
+                    product.BranchId == branchId &&
+                    product.IsActive &&
+                    requestedProductIds.Contains(product.ProductId))
+                .ToDictionaryAsync(product => product.ProductId, cancellationToken);
+
+            if (products.Count != requestedProductIds.Count)
+            {
+                return BillingCommandServiceResult<PosSaleDto>.Missing("Product was not found.");
+            }
+
+            var currencyCode = products.Values.First().CurrencyCode;
+            if (products.Values.Any(product =>
+                    !string.Equals(product.CurrencyCode, currencyCode, StringComparison.OrdinalIgnoreCase)))
+            {
+                return BillingCommandServiceResult<PosSaleDto>.Invalid("POS sale lines must use one currency.");
+            }
+
             var now = timeProvider.GetUtcNow();
             var sale = new PosSaleEntity
             {
@@ -840,9 +841,15 @@ public sealed class EfPosService(
 
             return result;
         }
+        catch (Exception exception) when (RelationalFailureClassifier.IsSerializationFailure(exception))
+        {
+            await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
+            dbContext.ChangeTracker.Clear();
+            return BillingCommandServiceResult<TResponse>.RequestConflict("version_conflict");
+        }
         catch (DbUpdateException) when (recoverIdempotencyRaceAsync is not null)
         {
-            await transaction.RollbackAsync(cancellationToken);
+            await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
             dbContext.ChangeTracker.Clear();
             var recovered = await recoverIdempotencyRaceAsync();
 
@@ -851,6 +858,12 @@ public sealed class EfPosService(
                 return recovered;
             }
 
+            throw;
+        }
+        catch
+        {
+            await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
+            dbContext.ChangeTracker.Clear();
             throw;
         }
     }

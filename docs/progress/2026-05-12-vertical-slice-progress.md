@@ -66,7 +66,10 @@ The current commerce-integrity topic branch (not yet merged) adds:
   while the other retries and returns `out_of_stock`. Whole-branch hardening now
   also preserves immutable stock/cost/currency snapshots through session checkout
   and refunds, uses the reserved `Player Shop` actor, and translates Shop
-  transition/cancellation save conflicts without partial finance.
+  transition/cancellation/refund save conflicts without partial finance. Product
+  currency updates and every first inventory/sale-history writer now share a
+  PostgreSQL serializable protocol; a deterministic first-sale/currency-update
+  race proves that incompatible currencies cannot both commit.
 
 Plus the earlier base: identity/tenancy/RBAC/audit, devices/floor-map, owner-code
 enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
@@ -76,13 +79,10 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 - `dotnet restore AFK4.sln -p:EnableWindowsTargeting=true -p:NuGetAudit=false`
   and the matching full solution build passed with 0 warnings and 0 errors.
-- Shared contracts passed 125/125; the affected Platform commerce suite passed
-  341 tests with one expected environment-gated PostgreSQL skip. The complete
-  Platform API suite passed 1299 tests with the same one explicit skip, and the
-  full solution build passed with 0 warnings and 0 errors. The PostgreSQL fixture
-  previously passed 2/2 against an
-  isolated temporary
-  `afk4_commerce_test` PostgreSQL 17 database before that container was removed.
+- Shared contracts passed 125/125. The complete Platform API suite passed
+  1302/1302, including both deterministic PostgreSQL commerce concurrency tests,
+  against an isolated temporary `afk4_commerce_test` PostgreSQL 16 database. The
+  full solution build passed with 0 warnings and 0 errors.
 - Platform Web passed 381/381 Bun tests and its production build; its existing
   large-chunk warning remains.
 - Player Shell Web passed 51/51 Bun tests and its production build.

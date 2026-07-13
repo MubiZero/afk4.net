@@ -134,7 +134,8 @@ public sealed class EfShopCommerceCoordinator(
         dbContext.Entry(linkedOrder.Order).State = EntityState.Detached;
 
         ShopOrderDto? notification = null;
-        var result = await ExecuteWithSerializationRetriesAsync(() => ExecuteSerializableAsync(async () =>
+        var result = await ExecuteTransitionWithConflictTranslationAsync(
+            () => ExecuteWithSerializationRetriesAsync(() => ExecuteSerializableAsync(async () =>
         {
             notification = null;
             var linked = await workflow.ResolveLinkedSaleAsync(saleId, cancellationToken);
@@ -214,7 +215,13 @@ public sealed class EfShopCommerceCoordinator(
                 request.IdempotencyKey,
                 HashRequest(new { PosSaleId = saleId, Request = request }),
                 cancellationToken);
-        }), cancellationToken);
+        }), cancellationToken),
+            async () =>
+            {
+                notification = null;
+                return (await workflow.ResolveLinkedSaleAsync(saleId, cancellationToken)).Order?.Version;
+            },
+            _ => BillingCommandServiceResult<PosSaleDto>.RequestConflict("version_conflict"));
 
         if (notification is not null)
         {
@@ -304,10 +311,8 @@ public sealed class EfShopCommerceCoordinator(
         CancellationToken cancellationToken)
     {
         ShopOrderDto? notification = null;
-        ShopOrderActionResult result;
-        try
-        {
-            result = await ExecuteWithSerializationRetriesAsync(() => ExecuteSerializableAsync(async () =>
+        var result = await ExecuteTransitionWithConflictTranslationAsync(
+            () => ExecuteWithSerializationRetriesAsync(() => ExecuteSerializableAsync(async () =>
         {
             notification = null;
             var cancellation = await resolve();
@@ -359,16 +364,14 @@ public sealed class EfShopCommerceCoordinator(
             await dbContext.SaveChangesAsync(cancellationToken);
             notification = cancelled.Order;
             return UnitResult<ShopOrderActionResult>.Committed(cancelled);
-        }, cancellationToken), cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            dbContext.ChangeTracker.Clear();
-            notification = null;
-            var current = await resolve();
-            return ShopOrderActionResult.VersionConflict(
-                current.CurrentVersion ?? current.Order?.Version);
-        }
+        }, cancellationToken), cancellationToken),
+            async () =>
+            {
+                notification = null;
+                var current = await resolve();
+                return current.CurrentVersion ?? current.Order?.Version;
+            },
+            ShopOrderActionResult.VersionConflict);
 
         if (notification is not null)
         {
@@ -376,6 +379,23 @@ public sealed class EfShopCommerceCoordinator(
         }
 
         return result;
+    }
+
+    private async Task<TResult> ExecuteTransitionWithConflictTranslationAsync<TResult>(
+        Func<Task<TResult>> operation,
+        Func<Task<int?>> resolveCurrentVersion,
+        Func<int?, TResult> createConflict)
+    {
+        try
+        {
+            return await operation();
+        }
+        catch (Exception exception) when (
+            exception is DbUpdateConcurrencyException || IsSerializationFailure(exception))
+        {
+            dbContext.ChangeTracker.Clear();
+            return createConflict(await resolveCurrentVersion());
+        }
     }
 
     private async Task<TResult> ExecuteSerializableAsync<TResult>(
@@ -419,7 +439,7 @@ public sealed class EfShopCommerceCoordinator(
         }
         catch (DbUpdateException) when (recoverUniqueRace is not null)
         {
-            await transaction.RollbackAsync(cancellationToken);
+            await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
             dbContext.ChangeTracker.Clear();
             var recovered = await recoverUniqueRace();
             if (recovered is not null) return recovered;
@@ -427,7 +447,7 @@ public sealed class EfShopCommerceCoordinator(
         }
         catch
         {
-            await transaction.RollbackAsync(cancellationToken);
+            await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
             dbContext.ChangeTracker.Clear();
             throw;
         }
