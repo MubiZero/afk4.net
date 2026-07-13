@@ -6,6 +6,7 @@ using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Shop;
+using AFK4.Platform.Api.Tests.Billing;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Pos;
@@ -13,6 +14,7 @@ using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AFK4.Platform.Api.Tests.Shop;
@@ -251,13 +253,70 @@ public sealed class EfShopCommerceCoordinatorTests
         Assert.Equal(movementCount, await db.StockMovements.CountAsync());
     }
 
-    private static EfShopCommerceCoordinator CreateService(PlatformDbContext db, IShopOrderNotifier notifier)
+    [Fact]
+    public async Task RefundLinkedSaleAsync_ExternalCancellationAfterPreflight_ReturnsConvergentReplay()
     {
-        var workflow = new EfShopOrderWorkflow(
-            db,
-            TimeProvider.System,
-            notifier,
-            new LoyaltyAccrualService(db));
+        var databaseRoot = new InMemoryDatabaseRoot();
+        var databaseName = Guid.NewGuid().ToString("N");
+        await using var db = NewDb(databaseName, databaseRoot);
+        await using var externalDb = NewDb(databaseName, databaseRoot);
+        var product = await SeedAsync(db);
+        var notifier = new RecordingNotifier(db);
+        var initialService = CreateService(db, notifier);
+        var placed = await initialService.PlaceAsync(
+            PlayerAccountId,
+            new PlaceShopOrderRequest([new ShopOrderLineInput(product.ProductId, 1)], "place-preflight-race"),
+            CancellationToken.None);
+        var saleId = placed.Order!.PosSaleId!.Value;
+        db.ChangeTracker.Clear();
+
+        var externalTime = new FixedTimeProvider(Now.AddMinutes(1));
+        var primaryTime = new FixedTimeProvider(Now.AddMinutes(2));
+        var externalService = CreateService(externalDb, new RecordingNotifier(externalDb), timeProvider: externalTime);
+        var workflow = CreateWorkflow(db, timeProvider: primaryTime);
+        DateTimeOffset? externalCancelledAt = null;
+        var interleavingWorkflow = new InterleavingShopOrderWorkflow(
+            workflow,
+            async () =>
+            {
+                var externalCancellation = await externalService.CancelByOperatorAsync(
+                    BranchId,
+                    placed.Order.Id,
+                    StaffUserId,
+                    placed.Order.Version,
+                    CancellationToken.None);
+                Assert.True(externalCancellation.Succeeded);
+                externalCancelledAt = externalCancellation.Order!.CancelledAtUtc;
+            },
+            preflightOrder => Assert.Equal(EntityState.Detached, db.Entry(preflightOrder).State));
+        var service = CreateService(db, notifier, interleavingWorkflow, primaryTime);
+
+        var result = await service.RefundLinkedSaleAsync(
+            saleId,
+            StaffUserId,
+            new RefundPosSaleRequest(OrganizationId, "external cancellation won", "refund-preflight-race"),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(PosSaleStateNames.Refunded, result.Response!.State);
+        var order = await db.ShopOrders.AsNoTracking().SingleAsync();
+        Assert.Equal(ShopOrderStatusNames.Cancelled, order.Status);
+        Assert.Equal(placed.Order.Version + 1, order.Version);
+        Assert.Equal(externalCancelledAt, order.CancelledAtUtc);
+        Assert.Single(await db.Payments.Where(payment => payment.PaymentKind == "refund").ToListAsync());
+        Assert.Single(await db.Receipts.Where(receipt => receipt.ReceiptType == "refund").ToListAsync());
+        Assert.Single(await db.LedgerEntries.Where(entry => entry.ReversesLedgerEntryId != null).ToListAsync());
+        Assert.Single(await db.StockMovements.Where(movement => movement.MovementType == StockMovementTypeNames.Refund).ToListAsync());
+    }
+
+    private static EfShopCommerceCoordinator CreateService(
+        PlatformDbContext db,
+        IShopOrderNotifier notifier,
+        IShopOrderWorkflow? workflow = null,
+        TimeProvider? timeProvider = null)
+    {
+        timeProvider ??= TimeProvider.System;
+        workflow ??= CreateWorkflow(db, notifier, timeProvider);
         var settlement = new EfShopPosSettlementService(
             db,
             new EfWalletSettlementService(db),
@@ -267,14 +326,29 @@ public sealed class EfShopCommerceCoordinatorTests
             db,
             workflow,
             settlement,
-            TimeProvider.System,
+            timeProvider,
             notifier,
             NullLogger<EfShopCommerceCoordinator>.Instance);
     }
 
+    private static EfShopOrderWorkflow CreateWorkflow(
+        PlatformDbContext db,
+        IShopOrderNotifier? notifier = null,
+        TimeProvider? timeProvider = null) =>
+        new(
+            db,
+            timeProvider ?? TimeProvider.System,
+            notifier ?? new RecordingNotifier(db),
+            new LoyaltyAccrualService(db));
+
     private static PlatformDbContext NewDb() =>
         new(new DbContextOptionsBuilder<PlatformDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options);
+
+    private static PlatformDbContext NewDb(string databaseName, InMemoryDatabaseRoot databaseRoot) =>
+        new(new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(databaseName, databaseRoot)
             .Options);
 
     private static async Task<PosProductEntity> SeedAsync(
@@ -424,5 +498,79 @@ public sealed class EfShopCommerceCoordinatorTests
             throw new InvalidOperationException("realtime unavailable");
 
         public Task NotifyUpdatedAsync(ShopOrderDto order, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class InterleavingShopOrderWorkflow(
+        IShopOrderWorkflow inner,
+        Func<Task> afterFirstLinkedResolve,
+        Action<ShopOrderEntity> beforeSecondLinkedResolve) : IShopOrderWorkflow
+    {
+        private bool linkedResolved;
+        private ShopOrderEntity? firstLinkedOrder;
+
+        public Task<ShopPlacementContextResult> ResolvePlacementContextAsync(
+            Guid playerAccountId, CancellationToken cancellationToken) =>
+            inner.ResolvePlacementContextAsync(playerAccountId, cancellationToken);
+
+        public Task<ShopOrderDto> CreatePlacedAsync(
+            ShopPlacementContext context,
+            ShopPosSettlementResult settlement,
+            DateTimeOffset now,
+            CancellationToken cancellationToken) =>
+            inner.CreatePlacedAsync(context, settlement, now, cancellationToken);
+
+        public Task<ShopCancellationContextResult> ResolveOperatorCancellationAsync(
+            Guid branchId, Guid orderId, int? expectedVersion, CancellationToken cancellationToken) =>
+            inner.ResolveOperatorCancellationAsync(branchId, orderId, expectedVersion, cancellationToken);
+
+        public Task<ShopCancellationContextResult> ResolvePlayerCancellationAsync(
+            Guid playerAccountId, Guid orderId, CancellationToken cancellationToken) =>
+            inner.ResolvePlayerCancellationAsync(playerAccountId, orderId, cancellationToken);
+
+        public async Task<ShopCancellationContextResult> ResolveLinkedSaleAsync(
+            Guid saleId, CancellationToken cancellationToken)
+        {
+            if (linkedResolved && firstLinkedOrder is not null)
+            {
+                beforeSecondLinkedResolve(firstLinkedOrder);
+            }
+
+            var result = await inner.ResolveLinkedSaleAsync(saleId, cancellationToken);
+            if (!linkedResolved)
+            {
+                linkedResolved = true;
+                firstLinkedOrder = result.Order;
+                await afterFirstLinkedResolve();
+            }
+
+            return result;
+        }
+
+        public Task<ShopOrderDto> MarkCancelledAsync(
+            ShopOrderEntity order, Guid actorStaffUserId, DateTimeOffset now, CancellationToken cancellationToken) =>
+            inner.MarkCancelledAsync(order, actorStaffUserId, now, cancellationToken);
+
+        public Task<ShopOrderActionResult> CancelLegacyAsync(
+            ShopOrderEntity order, Guid actorStaffUserId, CancellationToken cancellationToken) =>
+            inner.CancelLegacyAsync(order, actorStaffUserId, cancellationToken);
+
+        public Task<ShopOrderDto> ProjectAsync(ShopOrderEntity order, CancellationToken cancellationToken) =>
+            inner.ProjectAsync(order, cancellationToken);
+
+        public Task<IReadOnlyList<ShopOrderDto>> ListForPlayerAsync(
+            Guid playerAccountId, CancellationToken cancellationToken) =>
+            inner.ListForPlayerAsync(playerAccountId, cancellationToken);
+
+        public Task<IReadOnlyList<ShopOrderDto>> ListQueueAsync(
+            Guid branchId, CancellationToken cancellationToken) =>
+            inner.ListQueueAsync(branchId, cancellationToken);
+
+        public Task<ShopOrderActionResult> AcceptAsync(
+            Guid branchId, Guid orderId, Guid staffUserId, int? expectedVersion, CancellationToken cancellationToken) =>
+            inner.AcceptAsync(branchId, orderId, staffUserId, expectedVersion, cancellationToken);
+
+        public Task<ShopOrderActionResult> DeliverAsync(
+            Guid branchId, Guid orderId, Guid staffUserId, int? expectedVersion, CancellationToken cancellationToken) =>
+            inner.DeliverAsync(branchId, orderId, staffUserId, expectedVersion, cancellationToken);
     }
 }
