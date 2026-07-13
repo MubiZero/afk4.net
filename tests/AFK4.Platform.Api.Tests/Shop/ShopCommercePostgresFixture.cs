@@ -1,0 +1,229 @@
+using AFK4.Platform.Api.Billing;
+using AFK4.Platform.Api.Commerce;
+using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Inventory;
+using AFK4.Platform.Api.Loyalty;
+using AFK4.Platform.Api.Pos;
+using AFK4.Platform.Api.Receipts;
+using AFK4.Platform.Api.Shop;
+using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Inventory;
+using AFK4.Shared.Contracts.Sessions;
+using AFK4.Shared.Contracts.Shifts;
+using AFK4.Shared.Contracts.Shop;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
+
+namespace AFK4.Platform.Api.Tests.Shop;
+
+public sealed class ShopCommercePostgresFixture : IAsyncDisposable
+{
+    private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-07-13T12:00:00Z");
+    private readonly string connectionString;
+    private readonly string schemaName;
+    private readonly ServiceProvider services;
+
+    private ShopCommercePostgresFixture(
+        string connectionString,
+        string schemaName,
+        ServiceProvider services)
+    {
+        this.connectionString = connectionString;
+        this.schemaName = schemaName;
+        this.services = services;
+    }
+
+    public Guid OrganizationId { get; } = Guid.Parse("11111111-1111-4111-8111-111111111111");
+    public Guid BranchId { get; } = Guid.Parse("22222222-2222-4222-8222-222222222222");
+    public Guid PlayerAccountId { get; } = Guid.Parse("33333333-3333-4333-8333-333333333333");
+    public Guid SessionId { get; } = Guid.Parse("44444444-4444-4444-8444-444444444444");
+    public Guid SeatId { get; } = Guid.Parse("55555555-5555-4555-8555-555555555555");
+    public Guid StaffUserId { get; } = Guid.Parse("66666666-6666-4666-8666-666666666666");
+    public Guid ProductId { get; } = Guid.Parse("77777777-7777-4777-8777-777777777777");
+
+    public static async Task<ShopCommercePostgresFixture> CreateAsync(string connectionString)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+        if (builder.Database?.EndsWith("_test", StringComparison.OrdinalIgnoreCase) != true)
+        {
+            throw new InvalidOperationException("Commerce PostgreSQL tests require a database name ending in _test.");
+        }
+
+        var schemaName = $"commerce_{Guid.NewGuid():N}";
+        await using (var connection = new NpgsqlConnection(builder.ConnectionString))
+        {
+            await connection.OpenAsync();
+            await using var command = connection.CreateCommand();
+            command.CommandText = $"CREATE SCHEMA \"{schemaName}\"";
+            await command.ExecuteNonQueryAsync();
+        }
+
+        builder.SearchPath = schemaName;
+        var scopedConnectionString = builder.ConnectionString;
+        var collection = new ServiceCollection();
+        collection.AddLogging();
+        collection.AddDbContext<PlatformDbContext>(options => options.UseNpgsql(scopedConnectionString));
+        collection.AddSingleton(TimeProvider.System);
+        collection.AddSingleton<IShopOrderNotifier, NoOpShopOrderNotifier>();
+        collection.AddScoped<IWalletSettlementService, EfWalletSettlementService>();
+        collection.AddScoped<IInventoryCostService, EfInventoryCostService>();
+        collection.AddScoped<IReceiptNumberGenerator, ReceiptNumberGenerator>();
+        collection.AddScoped<IShopPosSettlementService, EfShopPosSettlementService>();
+        collection.AddScoped<ILoyaltyAccrualService, LoyaltyAccrualService>();
+        collection.AddScoped<IShopOrderWorkflow, EfShopOrderWorkflow>();
+        collection.AddScoped<IShopCommerceCoordinator, EfShopCommerceCoordinator>();
+        var services = collection.BuildServiceProvider(validateScopes: true);
+
+        var fixture = new ShopCommercePostgresFixture(scopedConnectionString, schemaName, services);
+        try
+        {
+            await using var scope = services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            await db.Database.MigrateAsync();
+            return fixture;
+        }
+        catch
+        {
+            await fixture.DisposeAsync();
+            throw;
+        }
+    }
+
+    public PlatformDbContext CreateDbContext()
+    {
+        var options = new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseNpgsql(connectionString)
+            .Options;
+        return new PlatformDbContext(options);
+    }
+
+    public async Task SeedLastUnitScenarioAsync(int stock, long walletMinorUnits)
+    {
+        await using var db = CreateDbContext();
+        db.Organizations.Add(new OrganizationEntity
+        {
+            OrganizationId = OrganizationId,
+            Name = "PostgreSQL Commerce Test",
+            CreatedAtUtc = Now
+        });
+        db.Branches.Add(new BranchEntity
+        {
+            BranchId = BranchId,
+            OrganizationId = OrganizationId,
+            Slug = "postgres-commerce-test",
+            Name = "Central",
+            PreferredLocale = "ru",
+            CreatedAtUtc = Now
+        });
+        db.PlayerAccounts.Add(new PlayerAccountEntity
+        {
+            PlayerAccountId = PlayerAccountId,
+            OrganizationId = OrganizationId,
+            HomeBranchId = BranchId,
+            DisplayName = "Alex",
+            IsActive = true,
+            CreatedAtUtc = Now
+        });
+        db.Sessions.Add(new SessionEntity
+        {
+            SessionId = SessionId,
+            OrganizationId = OrganizationId,
+            BranchId = BranchId,
+            SeatId = SeatId,
+            PlayerAccountId = PlayerAccountId,
+            State = SessionStateNames.Active,
+            PlayerKind = "registered",
+            TariffRuleVersionId = "v1",
+            Version = 1
+        });
+        db.Shifts.Add(new ShiftEntity
+        {
+            ShiftId = Guid.NewGuid(),
+            OrganizationId = OrganizationId,
+            BranchId = BranchId,
+            OpenedByStaffUserId = StaffUserId,
+            State = ShiftStateNames.Open,
+            CurrencyCode = "TJS",
+            OpenedAtUtc = Now.AddHours(-1)
+        });
+        db.PosProducts.Add(new PosProductEntity
+        {
+            ProductId = ProductId,
+            OrganizationId = OrganizationId,
+            BranchId = BranchId,
+            CategoryId = Guid.NewGuid(),
+            Name = "Last Cola",
+            Sku = "LAST-COLA",
+            CurrencyCode = "TJS",
+            PriceMinorUnits = 500,
+            AvgCostMinorUnits = 100,
+            TrackStock = true,
+            AllowNegativeStock = false,
+            IsActive = true,
+            AvailableInShell = true,
+            CreatedAtUtc = Now
+        });
+        db.StockMovements.Add(new StockMovementEntity
+        {
+            StockMovementId = Guid.NewGuid(),
+            OrganizationId = OrganizationId,
+            BranchId = BranchId,
+            ProductId = ProductId,
+            MovementType = StockMovementTypeNames.Purchase,
+            QuantityDelta = stock,
+            CurrencyCode = "TJS",
+            UnitCostMinorUnits = 100,
+            Reason = "test seed",
+            CreatedByStaffUserId = StaffUserId,
+            CreatedAtUtc = Now.AddMinutes(-5)
+        });
+        db.LedgerEntries.Add(BillingEntryFactory.Create(
+            OrganizationId,
+            BranchId,
+            PlayerAccountId,
+            null,
+            null,
+            LedgerEntryTypeNames.TopUp,
+            LedgerAccountTypeNames.Wallet,
+            walletMinorUnits,
+            0,
+            "TJS",
+            "seed",
+            "test seed",
+            null,
+            StaffUserId,
+            Now.AddMinutes(-10)));
+        await db.SaveChangesAsync();
+    }
+
+    public async Task<ShopOrderActionResult> PlaceInIndependentScopeAsync(string idempotencyKey)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var coordinator = scope.ServiceProvider.GetRequiredService<IShopCommerceCoordinator>();
+        return await coordinator.PlaceAsync(
+            PlayerAccountId,
+            new PlaceShopOrderRequest([new ShopOrderLineInput(ProductId, 1)], idempotencyKey),
+            CancellationToken.None);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await services.DisposeAsync();
+        var builder = new NpgsqlConnectionStringBuilder(connectionString) { SearchPath = null };
+        await using var connection = new NpgsqlConnection(builder.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = $"DROP SCHEMA IF EXISTS \"{schemaName}\" CASCADE";
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private sealed class NoOpShopOrderNotifier : IShopOrderNotifier
+    {
+        public Task NotifyCreatedAsync(ShopOrderDto order, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+
+        public Task NotifyUpdatedAsync(ShopOrderDto order, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
+    }
+}

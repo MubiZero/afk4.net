@@ -82,8 +82,8 @@ public sealed class EfReportServiceTests
         SeedSale(db, refundedSaleId, shiftId, PosSaleStateNames.Refunded, 2400, ReportDay.AddHours(11), refundedAtUtc: ReportDay.AddHours(12));
         SeedSale(db, paidSaleId, shiftId, PosSaleStateNames.Paid, 5000, ReportDay.AddHours(13));
         SeedSale(db, Guid.Parse("cccccccc-cccc-4ccc-cccc-cccccccccccc"), shiftId, PosSaleStateNames.Paid, 9999, ReportDay.AddHours(14), OtherBranchId);
-        SeedSaleLine(db, refundedSaleId, quantity: 2, lineTotal: 2400);
-        SeedSaleLine(db, paidSaleId, quantity: 1, lineTotal: 5000);
+        SeedSaleLine(db, refundedSaleId, quantity: 2, lineTotal: 2400, unitCostMinorUnits: 400);
+        SeedSaleLine(db, paidSaleId, quantity: 1, lineTotal: 5000, unitCostMinorUnits: 1500);
         SeedPayment(db, refundedSaleId, refundedSaleId, PaymentMethodNames.Cash, "payment", 2400);
         SeedPayment(db, refundedSaleId, refundedSaleId, PaymentMethodNames.Cash, "refund", -2400);
         SeedPayment(db, paidSaleId, paidSaleId, PaymentMethodNames.CardManual, "payment", 5000);
@@ -99,6 +99,9 @@ public sealed class EfReportServiceTests
         Assert.Equal(7400, result.GrossSalesTotal.MinorUnits);
         Assert.Equal(-2400, result.RefundsTotal.MinorUnits);
         Assert.Equal(5000, result.NetSalesTotal.MinorUnits);
+        Assert.Equal(2300, result.GrossCostOfGoodsTotal.MinorUnits);
+        Assert.Equal(-800, result.RefundedCostOfGoodsTotal.MinorUnits);
+        Assert.Equal(1500, result.NetCostOfGoodsTotal.MinorUnits);
         Assert.Collection(
             result.Rows,
             first =>
@@ -106,6 +109,9 @@ public sealed class EfReportServiceTests
                 Assert.Equal(paidSaleId, first.PosSaleId);
                 Assert.Equal(5000, first.PaidAmount.MinorUnits);
                 Assert.Equal(1, first.ItemQuantity);
+                Assert.Equal(1500, first.GrossCostOfGoods.MinorUnits);
+                Assert.Equal(0, first.RefundedCostOfGoods.MinorUnits);
+                Assert.Equal(1500, first.NetCostOfGoods.MinorUnits);
             },
             second =>
             {
@@ -113,6 +119,9 @@ public sealed class EfReportServiceTests
                 Assert.Equal(2400, second.PaidAmount.MinorUnits);
                 Assert.Equal(-2400, second.RefundAmount.MinorUnits);
                 Assert.Equal(2, second.ItemQuantity);
+                Assert.Equal(800, second.GrossCostOfGoods.MinorUnits);
+                Assert.Equal(-800, second.RefundedCostOfGoods.MinorUnits);
+                Assert.Equal(0, second.NetCostOfGoods.MinorUnits);
             });
     }
 
@@ -492,7 +501,8 @@ public sealed class EfReportServiceTests
         PlatformDbContext db,
         Guid saleId,
         int quantity,
-        long lineTotal)
+        long lineTotal,
+        long unitCostMinorUnits)
     {
         db.PosSaleLines.Add(new PosSaleLineEntity
         {
@@ -503,6 +513,7 @@ public sealed class EfReportServiceTests
             Quantity = quantity,
             CurrencyCode = "TJS",
             UnitPriceMinorUnits = lineTotal / quantity,
+            UnitCostMinorUnits = unitCostMinorUnits,
             LineTotalMinorUnits = lineTotal,
             TrackStock = true,
             AllowNegativeStock = false

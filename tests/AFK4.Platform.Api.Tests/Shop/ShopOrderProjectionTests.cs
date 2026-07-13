@@ -1,5 +1,7 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Shop;
+using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Shop;
 using Xunit;
 
@@ -58,5 +60,85 @@ public sealed class ShopOrderProjectionTests
         Assert.Null(dto.CancelledAtUtc);
         Assert.Equal("TJS", line.UnitPrice.CurrencyCode);
         Assert.Equal("TJS", line.LineTotal.CurrencyCode);
+    }
+
+    [Fact]
+    public void LinkedOrderSaleAndReceipt_KeepRetailTotalsAndCostSnapshotAligned()
+    {
+        var saleId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+        var productId = Guid.NewGuid();
+        var order = new ShopOrderEntity
+        {
+            ShopOrderId = orderId,
+            BranchId = Guid.NewGuid(),
+            SeatId = Guid.NewGuid(),
+            PlayerAccountId = Guid.NewGuid(),
+            PosSaleId = saleId,
+            Status = ShopOrderStatusNames.Placed,
+            TotalMinorUnits = 1500,
+            CurrencyCode = "TJS",
+            PlacedAtUtc = DateTimeOffset.UnixEpoch,
+            Version = 1
+        };
+        var orderLine = new ShopOrderLineEntity
+        {
+            ShopOrderLineId = Guid.NewGuid(),
+            ShopOrderId = orderId,
+            ProductId = productId,
+            NameSnapshot = "Cola",
+            UnitPriceMinorUnits = 500,
+            Quantity = 3,
+            LineTotalMinorUnits = 1500
+        };
+        var sale = new PosSaleEntity
+        {
+            PosSaleId = saleId,
+            OrganizationId = Guid.NewGuid(),
+            BranchId = order.BranchId,
+            ShiftId = Guid.NewGuid(),
+            State = PosSaleStateNames.Paid,
+            CurrencyCode = "TJS",
+            TotalMinorUnits = 1500,
+            CreatedAtUtc = DateTimeOffset.UnixEpoch,
+            PaidAtUtc = DateTimeOffset.UnixEpoch
+        };
+        var saleLine = new PosSaleLineEntity
+        {
+            PosSaleLineId = Guid.NewGuid(),
+            PosSaleId = saleId,
+            ProductId = productId,
+            ProductName = "Cola",
+            Quantity = 3,
+            CurrencyCode = "TJS",
+            UnitPriceMinorUnits = 500,
+            UnitCostMinorUnits = 275,
+            LineTotalMinorUnits = 1500,
+            TrackStock = true
+        };
+        var receipt = new ReceiptEntity
+        {
+            ReceiptId = Guid.NewGuid(),
+            OrganizationId = sale.OrganizationId,
+            BranchId = sale.BranchId,
+            PosSaleId = saleId,
+            ReceiptNumber = "R-1",
+            ReceiptType = "sale",
+            CurrencyCode = "TJS",
+            TotalMinorUnits = 1500,
+            CreatedAtUtc = DateTimeOffset.UnixEpoch
+        };
+
+        var orderDto = ShopOrderProjection.ToDto(order, [orderLine], "Alex");
+        var saleDto = PosSaleProjection.ToDto(sale, [saleLine], receipt, orderId);
+
+        Assert.Equal(saleId, orderDto.PosSaleId);
+        Assert.Equal(orderId, saleDto.ShopOrderId);
+        Assert.Equal(orderId, saleDto.LatestReceipt!.ShopOrderId);
+        Assert.Equal(orderDto.Total, saleDto.Total);
+        Assert.Equal(orderDto.Total, saleDto.LatestReceipt.Total);
+        Assert.Equal(Assert.Single(orderDto.Lines).LineTotal, Assert.Single(saleDto.Lines).LineTotal);
+        Assert.Equal(275, saleLine.UnitCostMinorUnits);
+        Assert.NotEqual(saleLine.UnitPriceMinorUnits, saleLine.UnitCostMinorUnits);
     }
 }

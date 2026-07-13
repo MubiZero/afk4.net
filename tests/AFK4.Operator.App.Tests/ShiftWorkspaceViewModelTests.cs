@@ -179,12 +179,18 @@ public sealed class ShiftWorkspaceViewModelTests
                         CreatedAtUtc: DateTimeOffset.Parse("2026-05-14T12:00:00Z"),
                         PaidAtUtc: DateTimeOffset.Parse("2026-05-14T12:01:00Z"),
                         RefundedAtUtc: null,
-                        VoidedAtUtc: null)
+                        VoidedAtUtc: null,
+                        GrossCostOfGoods: new MoneyDto("USD", 800),
+                        RefundedCostOfGoods: new MoneyDto("USD", 0),
+                        NetCostOfGoods: new MoneyDto("USD", 800))
                 ],
                 Limit: 25,
                 GrossSalesTotal: new MoneyDto("USD", 2400),
                 RefundsTotal: new MoneyDto("USD", 0),
-                NetSalesTotal: new MoneyDto("USD", 2400)),
+                NetSalesTotal: new MoneyDto("USD", 2400),
+                GrossCostOfGoodsTotal: new MoneyDto("USD", 800),
+                RefundedCostOfGoodsTotal: new MoneyDto("USD", 0),
+                NetCostOfGoodsTotal: new MoneyDto("USD", 800)),
             GameplayTimeReport = new GameplayTimeReportResultDto(
                 [
                     new GameplayTimeReportRowDto(
@@ -356,6 +362,9 @@ public sealed class ShiftWorkspaceViewModelTests
         public SalesReportResultDto SalesReport { get; init; } = new(
             [],
             50,
+            new MoneyDto("USD", 0),
+            new MoneyDto("USD", 0),
+            new MoneyDto("USD", 0),
             new MoneyDto("USD", 0),
             new MoneyDto("USD", 0),
             new MoneyDto("USD", 0));

@@ -182,6 +182,15 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                 .Where(payment => payment.PaymentKind == PaymentKindRefund)
                 .Sum(payment => payment.AmountMinorUnits);
             var saleLines = lines.Where(line => line.PosSaleId == sale.PosSaleId).ToList();
+            var grossCostMinorUnits = sale.State is PosSaleStateNames.Paid or PosSaleStateNames.Refunded
+                ? saleLines.Aggregate(
+                    0L,
+                    (total, line) => checked(total + checked((long)line.Quantity * line.UnitCostMinorUnits)))
+                : 0;
+            var refundedCostMinorUnits = sale.State == PosSaleStateNames.Refunded
+                ? checked(-grossCostMinorUnits)
+                : 0;
+            var netCostMinorUnits = checked(grossCostMinorUnits + refundedCostMinorUnits);
 
             return new SalesReportRowDto(
                 sale.PosSaleId,
@@ -198,19 +207,28 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                 sale.CreatedAtUtc,
                 sale.PaidAtUtc,
                 sale.RefundedAtUtc,
-                sale.VoidedAtUtc);
+                sale.VoidedAtUtc,
+                Money(currencyCode, grossCostMinorUnits),
+                Money(currencyCode, refundedCostMinorUnits),
+                Money(currencyCode, netCostMinorUnits));
         }).ToList();
 
         var resultCurrencyCode = rows.FirstOrDefault()?.Total.CurrencyCode ?? DefaultCurrencyCode;
-        var grossSalesTotal = rows.Sum(row => row.PaidAmount.MinorUnits);
-        var refundsTotal = rows.Sum(row => row.RefundAmount.MinorUnits);
+        var grossSalesTotal = CheckedSum(rows.Select(row => row.PaidAmount.MinorUnits));
+        var refundsTotal = CheckedSum(rows.Select(row => row.RefundAmount.MinorUnits));
+        var grossCostOfGoodsTotal = CheckedSum(rows.Select(row => row.GrossCostOfGoods.MinorUnits));
+        var refundedCostOfGoodsTotal = CheckedSum(rows.Select(row => row.RefundedCostOfGoods.MinorUnits));
+        var netCostOfGoodsTotal = CheckedSum(rows.Select(row => row.NetCostOfGoods.MinorUnits));
 
         return new SalesReportResultDto(
             rows,
             limit,
             Money(resultCurrencyCode, grossSalesTotal),
             Money(resultCurrencyCode, refundsTotal),
-            Money(resultCurrencyCode, grossSalesTotal + refundsTotal));
+            Money(resultCurrencyCode, checked(grossSalesTotal + refundsTotal)),
+            Money(resultCurrencyCode, grossCostOfGoodsTotal),
+            Money(resultCurrencyCode, refundedCostOfGoodsTotal),
+            Money(resultCurrencyCode, netCostOfGoodsTotal));
     }
 
     public async Task<GameplayTimeReportResultDto> GetGameplayTimeReportAsync(
@@ -700,6 +718,11 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
     private static bool IsCurrency(string actual, string expected)
     {
         return string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static long CheckedSum(IEnumerable<long> values)
+    {
+        return values.Aggregate(0L, (total, value) => checked(total + value));
     }
 
     private static int CalculateDurationSeconds(
