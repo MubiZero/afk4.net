@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ShopCatalogItemDto, ShopOrderDto } from '../apiTypes';
 import { createCachedLoader, indexedDbStore } from '../idbCache';
 import { ApiError, OfflineError, type ShellApi } from '../shellApi';
@@ -21,6 +21,7 @@ export function ShopScreen({ api, onNeedTopUp, onDone, pollIntervalMs = 4000 }: 
   const [offline, setOffline] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const placingOrder = useRef(false);
 
   useEffect(() => {
     const load = createCachedLoader(indexedDbStore(), 'shop-catalog', () => api.listShopCatalog());
@@ -44,14 +45,17 @@ export function ShopScreen({ api, onNeedTopUp, onDone, pollIntervalMs = 4000 }: 
   }
 
   async function placeOrder() {
+    if (placingOrder.current) return;
     const lines = Object.entries(cart)
       .filter(([, qty]) => qty > 0)
       .map(([productId, quantity]) => ({ productId, quantity }));
     if (lines.length === 0) return;
-    setError(null);
-    setBusy(true);
+    placingOrder.current = true;
     try {
-      setOrder(await api.placeShopOrder(lines));
+      const idempotencyKey = `shop-${crypto.randomUUID()}`;
+      setError(null);
+      setBusy(true);
+      setOrder(await api.placeShopOrder(lines, idempotencyKey));
       setCart({});
     } catch (e) {
       if (e instanceof ApiError && e.code === 'insufficient_funds') onNeedTopUp();
@@ -64,6 +68,7 @@ export function ShopScreen({ api, onNeedTopUp, onDone, pollIntervalMs = 4000 }: 
         );
       }
     } finally {
+      placingOrder.current = false;
       setBusy(false);
     }
   }

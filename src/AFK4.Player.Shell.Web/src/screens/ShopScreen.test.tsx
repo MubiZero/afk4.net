@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, mock } from 'bun:test';
 import { ShopScreen } from './ShopScreen';
 import { ApiError, type ShellApi } from '../shellApi';
+import type { ShopOrderDto } from '../apiTypes';
 
 const cola = { productId: 'p1', name: 'Cola', sku: 'COLA', price: { currencyCode: 'TJS', minorUnits: 500 }, stockOnHand: 10 };
 
@@ -25,6 +26,54 @@ describe('ShopScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /добавить/i }));
     fireEvent.click(screen.getByRole('button', { name: /заказать/i }));
     await waitFor(() => expect(placedLines).toEqual([{ productId: 'p1', quantity: 1 }]));
+  });
+
+  it('keeps one request and key while the same submit gesture is in flight', async () => {
+    let resolveOrder!: (value: ShopOrderDto) => void;
+    const pending = new Promise<ShopOrderDto>((resolve) => { resolveOrder = resolve; });
+    const placeShopOrder = mock(async () => pending);
+    render(<ShopScreen api={api({ placeShopOrder })}
+      onNeedTopUp={() => {}} onDone={() => {}} pollIntervalMs={5000} />);
+
+    await waitFor(() => screen.getByText('Cola'));
+    fireEvent.click(screen.getByRole('button', { name: /добавить/i }));
+    const submit = screen.getByRole('button', { name: /заказать/i });
+    fireEvent.click(submit);
+    fireEvent.click(submit);
+
+    expect(placeShopOrder).toHaveBeenCalledTimes(1);
+    expect(placeShopOrder.mock.calls[0][1]).toMatch(/^shop-/);
+
+    resolveOrder({
+      id: 'o1', posSaleId: 's1', status: 'placed', lines: [],
+      total: { currencyCode: 'TJS', minorUnits: 500 }, version: 1
+    } as ShopOrderDto);
+    await waitFor(() => screen.getByText(/заказ принят/i));
+  });
+
+  it('unlocks after failure and uses a new key for a later submit', async () => {
+    const placedOrder = {
+      id: 'o1', posSaleId: 's1', status: 'placed', lines: [],
+      total: { currencyCode: 'TJS', minorUnits: 500 }, version: 1
+    } as ShopOrderDto;
+    const placeShopOrder = mock()
+      .mockRejectedValueOnce(new ApiError(500, 'failed'))
+      .mockResolvedValueOnce(placedOrder);
+    render(<ShopScreen api={api({ placeShopOrder })}
+      onNeedTopUp={() => {}} onDone={() => {}} pollIntervalMs={5000} />);
+
+    await waitFor(() => screen.getByText('Cola'));
+    fireEvent.click(screen.getByRole('button', { name: /добавить/i }));
+    fireEvent.click(screen.getByRole('button', { name: /заказать/i }));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Не удалось оформить заказ'));
+
+    fireEvent.click(screen.getByRole('button', { name: /заказать/i }));
+    await waitFor(() => screen.getByText(/заказ принят/i));
+
+    expect(placeShopOrder).toHaveBeenCalledTimes(2);
+    expect(placeShopOrder.mock.calls[0][1]).toMatch(/^shop-/);
+    expect(placeShopOrder.mock.calls[1][1]).toMatch(/^shop-/);
+    expect(placeShopOrder.mock.calls[1][1]).not.toBe(placeShopOrder.mock.calls[0][1]);
   });
 
   it('calls onNeedTopUp when the server says insufficient_funds', async () => {
