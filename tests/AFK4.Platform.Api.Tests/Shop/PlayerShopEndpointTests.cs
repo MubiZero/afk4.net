@@ -32,7 +32,9 @@ public sealed class PlayerShopEndpointTests
         await ShopTestSeed.AuthenticatePlayerAsync(client, seeded);
 
         var response = await client.PostAsJsonAsync("/api/me/shop/orders",
-            new PlaceShopOrderRequest(new[] { new ShopOrderLineInput(seeded.ColaProductId, 3) }));
+            new PlaceShopOrderRequest(
+                new[] { new ShopOrderLineInput(seeded.ColaProductId, 3) },
+                "player-shop-place-001"));
         var order = await response.Content.ReadFromJsonAsync<ShopOrderDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -49,7 +51,9 @@ public sealed class PlayerShopEndpointTests
         await ShopTestSeed.AuthenticatePlayerAsync(client, seeded);
 
         var response = await client.PostAsJsonAsync("/api/me/shop/orders",
-            new PlaceShopOrderRequest(new[] { new ShopOrderLineInput(seeded.ColaProductId, 3) }));
+            new PlaceShopOrderRequest(
+                new[] { new ShopOrderLineInput(seeded.ColaProductId, 3) },
+                "player-shop-insufficient-001"));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<ShopErrorBody>();

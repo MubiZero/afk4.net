@@ -17,7 +17,9 @@ public sealed class ShopOrderEndpointTests
         var seeded = await ShopTestSeed.SeedActivePlayerWithProductsAsync(factory);
         await ShopTestSeed.AuthenticatePlayerAsync(playerClient, seeded);
         var placed = await (await playerClient.PostAsJsonAsync("/api/me/shop/orders",
-            new PlaceShopOrderRequest(new[] { new ShopOrderLineInput(seeded.ColaProductId, 3) })))
+            new PlaceShopOrderRequest(
+                new[] { new ShopOrderLineInput(seeded.ColaProductId, 3) },
+                "shop-order-flow-001")))
             .Content.ReadFromJsonAsync<ShopOrderDto>();
 
         await ShopTestSeed.AuthorizeStaffForBranchAsync(factory, staffClient, seeded.OrganizationId, seeded.BranchId, withShopPermission: true);

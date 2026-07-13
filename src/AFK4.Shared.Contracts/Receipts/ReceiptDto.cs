@@ -11,4 +11,5 @@ public sealed record ReceiptDto(
     string ReceiptType,
     MoneyDto Total,
     DateTimeOffset CreatedAtUtc,
-    Guid? SessionId = null);
+    Guid? SessionId = null,
+    Guid? ShopOrderId = null);

@@ -16,6 +16,8 @@ public sealed class PosSaleLineEntity
 
     public long UnitPriceMinorUnits { get; set; }
 
+    public long UnitCostMinorUnits { get; set; }
+
     public long LineTotalMinorUnits { get; set; }
 
     public bool TrackStock { get; set; }
