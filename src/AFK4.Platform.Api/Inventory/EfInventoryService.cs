@@ -12,7 +12,8 @@ namespace AFK4.Platform.Api.Inventory;
 public sealed class EfInventoryService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    ILowStockNotifier? lowStockNotifier = null) : IInventoryService
+    ILowStockNotifier? lowStockNotifier = null,
+    IInventoryCostService? inventoryCostService = null) : IInventoryService
 {
     private const string CategoryCreateOperation = "pos-category-create";
     private const string ProductCreateOperation = "pos-product-create";
@@ -338,6 +339,17 @@ public sealed class EfInventoryService(
         return await ExecuteInTransactionAsync(async () =>
         {
             var now = timeProvider.GetUtcNow();
+            if (request.MovementType.Trim() == StockMovementTypeNames.Purchase)
+            {
+                await (inventoryCostService ?? new EfInventoryCostService(dbContext)).ReconcileInboundAsync(
+                    product.OrganizationId,
+                    product.BranchId,
+                    product.ProductId,
+                    request.QuantityDelta,
+                    request.UnitCost.MinorUnits,
+                    cancellationToken);
+            }
+
             var movement = new StockMovementEntity
             {
                 StockMovementId = Guid.NewGuid(),
@@ -354,26 +366,6 @@ public sealed class EfInventoryService(
             };
 
             dbContext.StockMovements.Add(movement);
-
-            if (movement.MovementType == StockMovementTypeNames.Purchase)
-            {
-                // Stock-on-hand ДО этого прихода = сумма прежних дельт (movement ещё не учтён в БД-сумме на этот момент).
-                var priorQuantity = await dbContext.StockMovements
-                    .Where(existing =>
-                        existing.OrganizationId == product.OrganizationId &&
-                        existing.BranchId == product.BranchId &&
-                        existing.ProductId == product.ProductId &&
-                        existing.StockMovementId != movement.StockMovementId)
-                    .SumAsync(existing => (int?)existing.QuantityDelta, cancellationToken) ?? 0;
-                var basePrior = Math.Max(priorQuantity, 0);
-                var inboundQty = movement.QuantityDelta; // purchase > 0 (validation отвергает 0)
-                var denominator = basePrior + inboundQty;
-                product.AvgCostMinorUnits = denominator <= 0
-                    ? movement.UnitCostMinorUnits
-                    : (long)Math.Round(
-                        (basePrior * (double)product.AvgCostMinorUnits + inboundQty * (double)movement.UnitCostMinorUnits) / denominator,
-                        MidpointRounding.AwayFromZero);
-            }
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
