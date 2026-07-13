@@ -49,7 +49,8 @@ public sealed class EfWalletSettlementService(PlatformDbContext dbContext) : IWa
             .Where(entry =>
                 entry.OrganizationId == organizationId &&
                 entry.BranchId == branchId &&
-                entry.PlayerAccountId == playerAccountId)
+                entry.PlayerAccountId == playerAccountId &&
+                entry.AccountType == LedgerAccountTypeNames.Wallet)
             .Select(entry => entry.CurrencyCode)
             .ToListAsync(cancellationToken);
         var ledgerCurrencies = rawCurrencies
@@ -77,6 +78,16 @@ public sealed class EfWalletSettlementService(PlatformDbContext dbContext) : IWa
                 entry.AccountType == LedgerAccountTypeNames.Wallet &&
                 entry.CurrencyCode.ToUpper() == normalizedCurrency)
             .SumAsync(entry => (long?)entry.AmountMinorUnits, cancellationToken) ?? 0;
+        balance += dbContext.ChangeTracker
+            .Entries<LedgerEntryEntity>()
+            .Where(entry =>
+                entry.State == EntityState.Added &&
+                entry.Entity.OrganizationId == organizationId &&
+                entry.Entity.BranchId == branchId &&
+                entry.Entity.PlayerAccountId == playerAccountId &&
+                entry.Entity.AccountType == LedgerAccountTypeNames.Wallet &&
+                string.Equals(entry.Entity.CurrencyCode, normalizedCurrency, StringComparison.OrdinalIgnoreCase))
+            .Sum(entry => entry.Entity.AmountMinorUnits);
         if (balance < amountMinorUnits)
         {
             return WalletSettlementResult.Reject("insufficient_funds");
@@ -112,10 +123,21 @@ public sealed class EfWalletSettlementService(PlatformDbContext dbContext) : IWa
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        if (originalDebit.EntryType != LedgerEntryTypeNames.WalletPayment ||
-            originalDebit.AccountType != LedgerAccountTypeNames.Wallet ||
-            originalDebit.AmountMinorUnits >= 0 ||
-            originalDebit.AmountMinorUnits == long.MinValue)
+        var canonicalDebit = await dbContext.LedgerEntries
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                entry => entry.LedgerEntryId == originalDebit.LedgerEntryId,
+                cancellationToken);
+        if (canonicalDebit is null)
+        {
+            return WalletSettlementResult.Reject("original_debit_not_found");
+        }
+
+        if (canonicalDebit.EntryType != LedgerEntryTypeNames.WalletPayment ||
+            canonicalDebit.AccountType != LedgerAccountTypeNames.Wallet ||
+            canonicalDebit.AmountMinorUnits >= 0 ||
+            canonicalDebit.AmountMinorUnits == long.MinValue ||
+            canonicalDebit.QuantitySeconds != 0)
         {
             return WalletSettlementResult.Reject("invalid_original_debit");
         }
@@ -124,7 +146,7 @@ public sealed class EfWalletSettlementService(PlatformDbContext dbContext) : IWa
             .Entries<LedgerEntryEntity>()
             .Any(entry =>
                 entry.State == EntityState.Added &&
-                entry.Entity.ReversesLedgerEntryId == originalDebit.LedgerEntryId);
+                entry.Entity.ReversesLedgerEntryId == canonicalDebit.LedgerEntryId);
         if (stagedReversalExists)
         {
             return WalletSettlementResult.Reject("already_reversed");
@@ -133,7 +155,7 @@ public sealed class EfWalletSettlementService(PlatformDbContext dbContext) : IWa
         var persistedReversalExists = await dbContext.LedgerEntries
             .AsNoTracking()
             .AnyAsync(
-                entry => entry.ReversesLedgerEntryId == originalDebit.LedgerEntryId,
+                entry => entry.ReversesLedgerEntryId == canonicalDebit.LedgerEntryId,
                 cancellationToken);
         if (persistedReversalExists)
         {
@@ -141,22 +163,22 @@ public sealed class EfWalletSettlementService(PlatformDbContext dbContext) : IWa
         }
 
         var reversal = BillingEntryFactory.Create(
-            originalDebit.OrganizationId,
-            originalDebit.BranchId,
-            originalDebit.PlayerAccountId,
-            originalDebit.SessionId,
-            originalDebit.PlayerPackageId,
+            canonicalDebit.OrganizationId,
+            canonicalDebit.BranchId,
+            canonicalDebit.PlayerAccountId,
+            canonicalDebit.SessionId,
+            canonicalDebit.PlayerPackageId,
             LedgerEntryTypeNames.Reversal,
             LedgerAccountTypeNames.Wallet,
-            -originalDebit.AmountMinorUnits,
-            -originalDebit.QuantitySeconds,
-            originalDebit.CurrencyCode,
+            -canonicalDebit.AmountMinorUnits,
+            quantitySeconds: 0,
+            canonicalDebit.CurrencyCode,
             description,
             reason,
-            originalDebit.LedgerEntryId,
+            canonicalDebit.LedgerEntryId,
             actorStaffUserId,
             now,
-            originalDebit.ShiftId);
+            canonicalDebit.ShiftId);
 
         dbContext.LedgerEntries.Add(reversal);
         return WalletSettlementResult.Ok(reversal);
