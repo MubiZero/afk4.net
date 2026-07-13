@@ -6,6 +6,10 @@ The active architecture source of truth is:
 
 Open epic, approved for planning (not yet started):
 
+- `2026-07-13-shop-orders-pos-financial-integrity-design.md` — route every new
+  Player Shop order through a linked paid POS sale, wallet payment, receipt,
+  shift, and weighted-average inventory-cost path while retaining legacy-order
+  cancellation compatibility.
 - `2026-06-11-productionize-client-installer-design.md` — shared bundled .NET
   runtime (framework-dependent apps + WiX Burn bundle) to cut the ~160 MB agent
   MSI, channel-driven prod URL, and code signing (blocked on a cert). Includes a
