@@ -273,6 +273,7 @@ builder.Services.AddScoped<ILowStockNotifier, EfLowStockNotifier>();
 builder.Services.AddScoped<IInventoryService, EfInventoryService>();
 builder.Services.AddScoped<IInventoryCostService, EfInventoryCostService>();
 builder.Services.AddScoped<IPosService, EfPosService>();
+builder.Services.AddScoped<IShopPosSettlementService, EfShopPosSettlementService>();
 builder.Services.AddScoped<IPaymentProvider, ManualPaymentProvider>();
 builder.Services.AddScoped<IReceiptNumberGenerator, ReceiptNumberGenerator>();
 builder.Services.AddScoped<IReportService, EfReportService>();
