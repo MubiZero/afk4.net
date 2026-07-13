@@ -36,10 +36,15 @@ export interface ShopOrderDto {
   id: string; branchId: string; seatId: string; playerAccountId: string; playerDisplayName: string;
   status: string; total: MoneyDto; lines: ShopOrderLineDto[];
   placedAtUtc: string; acceptedAtUtc: string | null; deliveredAtUtc: string | null;
-  cancelledAtUtc: string | null; version: number;
+  cancelledAtUtc: string | null; version: number; posSaleId: string | null;
 }
 
 export interface ShopOrderLineInput { productId: string; quantity: number; }
+
+export interface PlaceShopOrderRequest {
+  lines: ShopOrderLineInput[];
+  idempotencyKey: string;
+}
 
 export interface CashbackEntryDto {
   amountMinorUnits: number;

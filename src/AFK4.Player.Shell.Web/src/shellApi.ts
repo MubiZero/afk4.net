@@ -1,4 +1,4 @@
-import type { ExtendSessionRequest, PackageOptionDto, PlayerLoyaltyDto, PlayerNewsItemDto, PlayerTopUpIntentDto, ShopCatalogItemDto, ShopOrderDto, ShopOrderLineInput, TariffOptionDto } from './apiTypes';
+import type { ExtendSessionRequest, PackageOptionDto, PlaceShopOrderRequest, PlayerLoyaltyDto, PlayerNewsItemDto, PlayerTopUpIntentDto, ShopCatalogItemDto, ShopOrderDto, ShopOrderLineInput, TariffOptionDto } from './apiTypes';
 
 export class OfflineError extends Error {
   constructor() { super('offline'); this.name = 'OfflineError'; }
@@ -50,8 +50,11 @@ export function createShellApi(baseUrl: string, fetchImpl: FetchLike = fetch) {
         body: JSON.stringify({ ...req, idempotencyKey: req.idempotencyKey ?? newKey() })
       }),
     listShopCatalog: () => call<ShopCatalogItemDto[]>('/api/me/shop/catalog'),
-    placeShopOrder: (lines: ShopOrderLineInput[]) =>
-      call<ShopOrderDto>('/api/me/shop/orders', { method: 'POST', body: JSON.stringify({ lines }) }),
+    placeShopOrder: (lines: ShopOrderLineInput[], idempotencyKey = newKey()) =>
+      call<ShopOrderDto>('/api/me/shop/orders', {
+        method: 'POST',
+        body: JSON.stringify({ lines, idempotencyKey } satisfies PlaceShopOrderRequest)
+      }),
     listShopOrders: () => call<ShopOrderDto[]>('/api/me/shop/orders'),
     cancelShopOrder: (orderId: string) =>
       call<ShopOrderDto>(`/api/me/shop/orders/${orderId}/cancel`, { method: 'POST' }),
