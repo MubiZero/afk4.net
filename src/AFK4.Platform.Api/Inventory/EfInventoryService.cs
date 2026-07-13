@@ -232,6 +232,25 @@ public sealed class EfInventoryService(
             return BillingCommandServiceResult<PosProductDto>.Missing("Product was not found.");
         }
 
+        var requestedCurrency = request.Price.CurrencyCode.Trim().ToUpperInvariant();
+        if (!string.Equals(product.CurrencyCode, requestedCurrency, StringComparison.OrdinalIgnoreCase))
+        {
+            var hasInventoryOrFinancialHistory = await dbContext.StockMovements
+                .AsNoTracking()
+                .AnyAsync(movement =>
+                    movement.OrganizationId == request.OrganizationId &&
+                    movement.BranchId == branchId &&
+                    movement.ProductId == productId,
+                    cancellationToken) ||
+                await dbContext.PosSaleLines
+                    .AsNoTracking()
+                    .AnyAsync(line => line.ProductId == productId, cancellationToken);
+            if (hasInventoryOrFinancialHistory)
+            {
+                return BillingCommandServiceResult<PosProductDto>.Invalid("product_currency_immutable");
+            }
+        }
+
         var categoryExists = await dbContext.PosProductCategories
             .AsNoTracking()
             .AnyAsync(
@@ -266,7 +285,7 @@ public sealed class EfInventoryService(
         product.CategoryId = request.CategoryId;
         product.Name = request.Name.Trim();
         product.Sku = normalizedSku;
-        product.CurrencyCode = request.Price.CurrencyCode.Trim().ToUpperInvariant();
+        product.CurrencyCode = requestedCurrency;
         product.PriceMinorUnits = request.Price.MinorUnits;
         product.TrackStock = request.TrackStock;
         product.AllowNegativeStock = request.AllowNegativeStock;
@@ -346,6 +365,7 @@ public sealed class EfInventoryService(
                     product.BranchId,
                     product.ProductId,
                     request.QuantityDelta,
+                    request.UnitCost.CurrencyCode,
                     request.UnitCost.MinorUnits,
                     cancellationToken);
             }

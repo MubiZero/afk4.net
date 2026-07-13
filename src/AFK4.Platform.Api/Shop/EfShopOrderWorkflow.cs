@@ -298,7 +298,13 @@ public sealed class EfShopOrderWorkflow(
         }
         catch (DbUpdateConcurrencyException)
         {
-            return ShopOrderActionResult.VersionConflict(null);
+            dbContext.ChangeTracker.Clear();
+            var currentVersion = await dbContext.ShopOrders
+                .AsNoTracking()
+                .Where(candidate => candidate.ShopOrderId == orderId && candidate.BranchId == branchId)
+                .Select(candidate => (int?)candidate.Version)
+                .SingleOrDefaultAsync(cancellationToken);
+            return ShopOrderActionResult.VersionConflict(currentVersion);
         }
 
         var dto = await ProjectAsync(order, cancellationToken);

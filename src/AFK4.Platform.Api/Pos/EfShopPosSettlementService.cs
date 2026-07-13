@@ -231,7 +231,7 @@ public sealed class EfShopPosSettlementService(
             CreatedAtUtc = request.Now
         };
         var movements = saleLines
-            .Where(line => line.TrackStock)
+            .Where(line => line.TracksStock)
             .Select(line => new StockMovementEntity
             {
                 StockMovementId = Guid.NewGuid(),
@@ -344,7 +344,7 @@ public sealed class EfShopPosSettlementService(
         }
 
         var trackedGroups = lines
-            .Where(line => line.TrackStock)
+            .Where(line => line.TracksStock)
             .GroupBy(line => line.ProductId)
             .ToList();
         if (trackedGroups.Any(group =>
@@ -374,13 +374,20 @@ public sealed class EfShopPosSettlementService(
             .Where(product =>
                 product.OrganizationId == sale.OrganizationId &&
                 product.BranchId == sale.BranchId &&
-                trackedProductIds.Contains(product.ProductId) &&
-                product.TrackStock)
-            .Select(product => product.ProductId)
-            .ToListAsync(cancellationToken);
+                trackedProductIds.Contains(product.ProductId))
+            .ToDictionaryAsync(product => product.ProductId, cancellationToken);
         if (trackedProducts.Count != trackedProductIds.Count)
         {
             return ShopPosSettlementResult.Reject("product_unavailable");
+        }
+
+        if (inventoryPlans.Any(plan =>
+                !string.Equals(
+                    trackedProducts[plan.ProductId].CurrencyCode.Trim(),
+                    lines.First(line => line.ProductId == plan.ProductId).CurrencyCode.Trim(),
+                    StringComparison.OrdinalIgnoreCase)))
+        {
+            return ShopPosSettlementResult.Reject("inventory_currency_mismatch");
         }
 
         var receiptNumber = await receiptNumberGenerator.GenerateAsync(
@@ -416,6 +423,7 @@ public sealed class EfShopPosSettlementService(
                 sale.BranchId,
                 plan.ProductId,
                 plan.Quantity,
+                lines.First(line => line.ProductId == plan.ProductId).CurrencyCode,
                 plan.UnitCostMinorUnits,
                 cancellationToken);
         }
@@ -451,7 +459,7 @@ public sealed class EfShopPosSettlementService(
             CreatedAtUtc = request.Now
         };
         var returnMovements = lines
-            .Where(line => line.TrackStock)
+            .Where(line => line.TracksStock)
             .Select(line => new StockMovementEntity
             {
                 StockMovementId = Guid.NewGuid(),
@@ -510,7 +518,7 @@ public sealed class EfShopPosSettlementService(
             UnitPriceMinorUnits = product.PriceMinorUnits,
             UnitCostMinorUnits = product.TrackStock ? product.AvgCostMinorUnits : 0,
             LineTotalMinorUnits = lineTotal,
-            TrackStock = product.TrackStock,
+            TracksStock = product.TrackStock,
             AllowNegativeStock = product.AllowNegativeStock
         };
     }

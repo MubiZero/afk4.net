@@ -14,6 +14,7 @@ using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -48,6 +49,15 @@ public sealed class EfShopCommerceCoordinatorTests
         Assert.Equal(sale.PosSaleId, order.PosSaleId);
         Assert.Equal(sale.PosSaleId, result.Order!.PosSaleId);
         Assert.Equal(PosSaleStateNames.Paid, sale.State);
+        Assert.Equal(SystemActorIds.PlayerShop, sale.CreatedByStaffUserId);
+        Assert.Equal(PlayerAccountId, sale.PlayerAccountId);
+        Assert.All(db.Payments, payment => Assert.Equal(SystemActorIds.PlayerShop, payment.CreatedByStaffUserId));
+        Assert.Contains(db.LedgerEntries, entry =>
+            entry.EntryType == LedgerEntryTypeNames.WalletPayment &&
+            entry.CreatedByStaffUserId == SystemActorIds.PlayerShop);
+        Assert.Contains(db.StockMovements, movement =>
+            movement.MovementType == StockMovementTypeNames.Sale &&
+            movement.CreatedByStaffUserId == SystemActorIds.PlayerShop);
         Assert.Single(db.Payments);
         Assert.Single(db.Receipts);
         Assert.Single(db.PosSaleLines);
@@ -309,6 +319,41 @@ public sealed class EfShopCommerceCoordinatorTests
         Assert.Single(await db.StockMovements.Where(movement => movement.MovementType == StockMovementTypeNames.Refund).ToListAsync());
     }
 
+    [Fact]
+    public async Task CancelByOperator_SaveConcurrencyFailure_ReturnsVersionConflictAndStagesNoPartialFinance()
+    {
+        var interceptor = new ThrowConcurrencyOnSaveInterceptor();
+        await using var db = NewDb(interceptor);
+        var product = await SeedAsync(db);
+        var service = CreateService(db, new RecordingNotifier(db));
+        var placed = await service.PlaceAsync(
+            PlayerAccountId,
+            new PlaceShopOrderRequest([new ShopOrderLineInput(product.ProductId, 1)], "place-cancel-concurrency"),
+            CancellationToken.None);
+        var baselinePayments = await db.Payments.CountAsync();
+        var baselineReceipts = await db.Receipts.CountAsync();
+        var baselineLedger = await db.LedgerEntries.CountAsync();
+        var baselineMovements = await db.StockMovements.CountAsync();
+        interceptor.Armed = true;
+
+        var result = await service.CancelByOperatorAsync(
+            BranchId,
+            placed.Order!.Id,
+            StaffUserId,
+            placed.Order.Version,
+            CancellationToken.None);
+
+        Assert.True(result.Conflict);
+        Assert.Equal("version_conflict", result.ErrorCode);
+        Assert.Equal(placed.Order.Version, result.CurrentVersion);
+        Assert.Equal(baselinePayments, await db.Payments.CountAsync());
+        Assert.Equal(baselineReceipts, await db.Receipts.CountAsync());
+        Assert.Equal(baselineLedger, await db.LedgerEntries.CountAsync());
+        Assert.Equal(baselineMovements, await db.StockMovements.CountAsync());
+        Assert.DoesNotContain(db.ChangeTracker.Entries(), entry =>
+            entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted);
+    }
+
     private static EfShopCommerceCoordinator CreateService(
         PlatformDbContext db,
         IShopOrderNotifier notifier,
@@ -344,6 +389,12 @@ public sealed class EfShopCommerceCoordinatorTests
     private static PlatformDbContext NewDb() =>
         new(new DbContextOptionsBuilder<PlatformDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options);
+
+    private static PlatformDbContext NewDb(SaveChangesInterceptor interceptor) =>
+        new(new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .AddInterceptors(interceptor)
             .Options);
 
     private static PlatformDbContext NewDb(string databaseName, InMemoryDatabaseRoot databaseRoot) =>
@@ -498,6 +549,20 @@ public sealed class EfShopCommerceCoordinatorTests
             throw new InvalidOperationException("realtime unavailable");
 
         public Task NotifyUpdatedAsync(ShopOrderDto order, CancellationToken cancellationToken) => Task.CompletedTask;
+    }
+
+    private sealed class ThrowConcurrencyOnSaveInterceptor : SaveChangesInterceptor
+    {
+        public bool Armed { get; set; }
+
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default) =>
+            Armed
+                ? ValueTask.FromException<InterceptionResult<int>>(
+                    new DbUpdateConcurrencyException("deterministic shop cancellation conflict"))
+                : ValueTask.FromResult(result);
     }
 
     private sealed class InterleavingShopOrderWorkflow(

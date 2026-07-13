@@ -25,6 +25,7 @@ public sealed class EfInventoryCostService(PlatformDbContext dbContext) : IInven
         Guid branchId,
         Guid productId,
         int quantity,
+        string currencyCode,
         long unitCostMinorUnits,
         CancellationToken cancellationToken)
     {
@@ -42,9 +43,12 @@ public sealed class EfInventoryCostService(PlatformDbContext dbContext) : IInven
             throw new InvalidOperationException("Product was not found.");
         }
 
-        if (!product.TrackStock)
+        if (!string.Equals(
+                product.CurrencyCode.Trim(),
+                currencyCode.Trim(),
+                StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Inbound reconciliation requires a tracked product.");
+            throw new InvalidOperationException("inventory_currency_mismatch");
         }
 
         var currentQuantity = await dbContext.StockMovements

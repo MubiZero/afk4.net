@@ -150,6 +150,14 @@ POS is part of the MVP. The system supports product categories, products, stock,
 
 Gameplay charges, wallet ledger entries, and POS sales are connected but not merged into one model. A drink sale is a POS sale. A gameplay charge is a ledger entry. A session extension may create a ledger entry and a session event.
 
+Player Shop commerce uses a reserved synthetic actor with stable id
+`00000000-0000-4000-8000-000000000004` and display name `Player Shop` when a
+non-null actor is required by POS, payment, ledger, receipt, or inventory data.
+This identifier is never materialized as a `StaffUser` and must not be treated
+as a staff foreign key. The linked `PlayerAccountId` remains the human
+initiator and audit link; report projections resolve the reserved id to the
+stable display name rather than a GUID fragment.
+
 ### Shifts And Cash Register
 
 Operator shifts track who opened the shift, cash operations, sales, refunds, manual corrections, and closing reconciliation.

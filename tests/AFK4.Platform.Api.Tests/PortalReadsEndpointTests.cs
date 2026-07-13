@@ -317,7 +317,7 @@ public class PortalReadsEndpointTests
             PosSaleLineId = Guid.NewGuid(), PosSaleId = posSaleId,
             ProductId = Guid.NewGuid(), ProductName = productName, Quantity = quantity,
             CurrencyCode = "TJS", UnitPriceMinorUnits = total / quantity,
-            LineTotalMinorUnits = total, TrackStock = false, AllowNegativeStock = true
+            LineTotalMinorUnits = total, TracksStock = false, AllowNegativeStock = true
         });
         await db.SaveChangesAsync();
     }

@@ -10,6 +10,7 @@ using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -20,6 +21,12 @@ public sealed class EfShopOrderServiceTransitionTests
     private static PlatformDbContext NewDb() =>
         new(new DbContextOptionsBuilder<PlatformDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N")).Options);
+
+    private static PlatformDbContext NewDb(SaveChangesInterceptor interceptor) =>
+        new(new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .AddInterceptors(interceptor)
+            .Options);
 
     private static readonly Guid Org = Guid.NewGuid();
     private static readonly Guid Branch = Guid.NewGuid();
@@ -166,6 +173,24 @@ public sealed class EfShopOrderServiceTransitionTests
     }
 
     [Fact]
+    public async Task Accept_SaveConcurrencyFailure_ReturnsCurrentVersionAndClearsMutation()
+    {
+        var interceptor = new ThrowConcurrencyOnSaveInterceptor();
+        await using var db = NewDb(interceptor);
+        var order = await SeedPlacedOrderAsync(db);
+        interceptor.Armed = true;
+
+        var result = await NewService(db).AcceptAsync(
+            Branch, order.Id, Staff, order.Version, CancellationToken.None);
+
+        Assert.True(result.Conflict);
+        Assert.Equal("version_conflict", result.ErrorCode);
+        Assert.Equal(order.Version, result.CurrentVersion);
+        Assert.Equal(ShopOrderStatusNames.Placed, (await db.ShopOrders.AsNoTracking().SingleAsync()).Status);
+        Assert.DoesNotContain(db.ChangeTracker.Entries(), entry => entry.State == EntityState.Modified);
+    }
+
+    [Fact]
     public async Task AcceptAsync_NotifierFailure_DoesNotChangeCommittedSuccess()
     {
         await using var db = NewDb();
@@ -276,6 +301,20 @@ public sealed class EfShopOrderServiceTransitionTests
         var queue = await service.ListQueueAsync(Branch, CancellationToken.None);
         Assert.Contains(queue, o => o.Id == order.Id);
     }
+}
+
+internal sealed class ThrowConcurrencyOnSaveInterceptor : SaveChangesInterceptor
+{
+    public bool Armed { get; set; }
+
+    public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+        DbContextEventData eventData,
+        InterceptionResult<int> result,
+        CancellationToken cancellationToken = default) =>
+        Armed
+            ? ValueTask.FromException<InterceptionResult<int>>(
+                new DbUpdateConcurrencyException("deterministic shop transition conflict"))
+            : ValueTask.FromResult(result);
 }
 
 internal sealed class ThrowingUpdateNotifier : IShopOrderNotifier

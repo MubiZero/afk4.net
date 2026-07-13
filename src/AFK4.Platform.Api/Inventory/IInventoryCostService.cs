@@ -7,6 +7,7 @@ public interface IInventoryCostService
         Guid branchId,
         Guid productId,
         int quantity,
+        string currencyCode,
         long unitCostMinorUnits,
         CancellationToken cancellationToken);
 }

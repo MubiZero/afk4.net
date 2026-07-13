@@ -406,6 +406,40 @@ public sealed class EfPosServiceTests
     }
 
     [Fact]
+    public async Task RefundSaleAsync_LegacyProductCurrencyMismatch_FailsClosedWithoutRefundMutations()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db, avgCostMinorUnits: 400);
+        await SeedStockAsync(db, product.ProductId, quantityDelta: 10);
+        var service = CreateService(db);
+        var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
+        await service.PaySaleAsync(
+            sale.PosSaleId,
+            ActorStaffUserId,
+            ManualPaymentRequest("pay-refund-currency-legacy", 2400),
+            CancellationToken.None);
+        product = await db.PosProducts.SingleAsync(candidate => candidate.ProductId == product.ProductId);
+        product.CurrencyCode = "USD";
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var result = await service.RefundSaleAsync(
+            sale.PosSaleId,
+            ActorStaffUserId,
+            new RefundPosSaleRequest(TestIds.OrganizationId, "return", "refund-currency-legacy"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("inventory_currency_mismatch", result.Error);
+        Assert.Equal(PosSaleStateNames.Paid, (await db.PosSales.AsNoTracking().SingleAsync()).State);
+        Assert.Empty(await db.Payments.AsNoTracking().Where(payment => payment.PaymentKind == "refund").ToListAsync());
+        Assert.Empty(await db.Receipts.AsNoTracking().Where(receipt => receipt.ReceiptType == "refund").ToListAsync());
+        Assert.Empty(await db.StockMovements.AsNoTracking()
+            .Where(movement => movement.MovementType == StockMovementTypeNames.Refund).ToListAsync());
+    }
+
+    [Fact]
     public async Task RefundSaleAsync_DuplicateProductLines_ReconcilesCombinedQuantityOnce()
     {
         await using var db = CreateDbContext();

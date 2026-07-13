@@ -110,7 +110,7 @@ public sealed class EfShopCommerceCoordinator(
         CancellationToken cancellationToken) =>
         CancelAsync(
             () => workflow.ResolvePlayerCancellationAsync(playerAccountId, orderId, cancellationToken),
-            Guid.Empty,
+            SystemActorIds.PlayerShop,
             cancellationToken);
 
     public async Task<BillingCommandServiceResult<PosSaleDto>> RefundLinkedSaleAsync(
@@ -259,7 +259,7 @@ public sealed class EfShopCommerceCoordinator(
                     context.BranchId,
                     context.PlayerAccountId,
                     context.SessionId,
-                    Guid.Empty,
+                    SystemActorIds.PlayerShop,
                     canonicalLines,
                     $"shop-order-place:{BillingCommandIdempotencyKeyHasher.Hash(idempotencyKey)}",
                     now),
@@ -304,7 +304,10 @@ public sealed class EfShopCommerceCoordinator(
         CancellationToken cancellationToken)
     {
         ShopOrderDto? notification = null;
-        var result = await ExecuteWithSerializationRetriesAsync(() => ExecuteSerializableAsync(async () =>
+        ShopOrderActionResult result;
+        try
+        {
+            result = await ExecuteWithSerializationRetriesAsync(() => ExecuteSerializableAsync(async () =>
         {
             notification = null;
             var cancellation = await resolve();
@@ -357,6 +360,15 @@ public sealed class EfShopCommerceCoordinator(
             notification = cancelled.Order;
             return UnitResult<ShopOrderActionResult>.Committed(cancelled);
         }, cancellationToken), cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            dbContext.ChangeTracker.Clear();
+            notification = null;
+            var current = await resolve();
+            return ShopOrderActionResult.VersionConflict(
+                current.CurrentVersion ?? current.Order?.Version);
+        }
 
         if (notification is not null)
         {
@@ -472,7 +484,7 @@ public sealed class EfShopCommerceCoordinator(
                 context.BranchId,
                 context.PlayerAccountId,
                 context.SessionId,
-                Guid.Empty,
+                SystemActorIds.PlayerShop,
                 canonicalLines,
                 $"shop-order-place:{BillingCommandIdempotencyKeyHasher.Hash(idempotencyKey)}",
                 timeProvider.GetUtcNow()),

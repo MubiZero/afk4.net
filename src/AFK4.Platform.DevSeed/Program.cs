@@ -661,7 +661,7 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
         CurrencyCode = CurrencyCode,
         UnitPriceMinorUnits = unitPrice,
         LineTotalMinorUnits = quantity * unitPrice,
-        TrackStock = true,
+        TracksStock = true,
         AllowNegativeStock = false
     };
 

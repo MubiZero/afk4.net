@@ -153,7 +153,7 @@ public sealed class EfPosService(
                         UnitPriceMinorUnits = product.PriceMinorUnits,
                         UnitCostMinorUnits = product.TrackStock ? product.AvgCostMinorUnits : 0,
                         LineTotalMinorUnits = lineTotal,
-                        TrackStock = product.TrackStock,
+                        TracksStock = product.TrackStock,
                         AllowNegativeStock = product.AllowNegativeStock
                     };
                 })
@@ -248,7 +248,7 @@ public sealed class EfPosService(
             }
 
             var now = timeProvider.GetUtcNow();
-            foreach (var line in lines.Where(line => line.TrackStock))
+            foreach (var line in lines.Where(line => line.TracksStock))
             {
                 dbContext.StockMovements.Add(new StockMovementEntity
                 {
@@ -314,7 +314,7 @@ public sealed class EfPosService(
 
             if (lowStockNotifier is not null)
             {
-                var soldProductIds = lines.Where(line => line.TrackStock).Select(line => line.ProductId).Distinct().ToList();
+                var soldProductIds = lines.Where(line => line.TracksStock).Select(line => line.ProductId).Distinct().ToList();
                 if (soldProductIds.Count > 0)
                 {
                     await lowStockNotifier.EvaluateProductsAsync(sale.OrganizationId, sale.BranchId, soldProductIds, cancellationToken);
@@ -397,7 +397,7 @@ public sealed class EfPosService(
             }
 
             var trackedProductLines = lines
-                .Where(line => line.TrackStock)
+                .Where(line => line.TracksStock)
                 .GroupBy(line => line.ProductId)
                 .ToList();
             if (trackedProductLines.Any(productLines =>
@@ -405,6 +405,28 @@ public sealed class EfPosService(
             {
                 return BillingCommandServiceResult<PosSaleDto>.Invalid(
                     "Refunded lines for the same product must have the same cost snapshot.");
+            }
+
+            var trackedProductIds = trackedProductLines.Select(group => group.Key).ToList();
+            var trackedProducts = await dbContext.PosProducts
+                .AsNoTracking()
+                .Where(product =>
+                    product.OrganizationId == sale.OrganizationId &&
+                    product.BranchId == sale.BranchId &&
+                    trackedProductIds.Contains(product.ProductId))
+                .ToDictionaryAsync(product => product.ProductId, cancellationToken);
+            if (trackedProducts.Count != trackedProductIds.Count)
+            {
+                return BillingCommandServiceResult<PosSaleDto>.Invalid("product_unavailable");
+            }
+
+            if (trackedProductLines.Any(group =>
+                    !string.Equals(
+                        trackedProducts[group.Key].CurrencyCode.Trim(),
+                        group.First().CurrencyCode.Trim(),
+                        StringComparison.OrdinalIgnoreCase)))
+            {
+                return BillingCommandServiceResult<PosSaleDto>.Invalid("inventory_currency_mismatch");
             }
 
             var now = timeProvider.GetUtcNow();
@@ -415,6 +437,7 @@ public sealed class EfPosService(
                     sale.BranchId,
                     productLines.Key,
                     productLines.Sum(line => line.Quantity),
+                    productLines.First().CurrencyCode,
                     productLines.First().UnitCostMinorUnits,
                     cancellationToken);
 
@@ -673,7 +696,7 @@ public sealed class EfPosService(
         IReadOnlyList<PosSaleLineEntity> lines,
         CancellationToken cancellationToken)
     {
-        foreach (var line in lines.Where(line => line.TrackStock && !line.AllowNegativeStock))
+        foreach (var line in lines.Where(line => line.TracksStock && !line.AllowNegativeStock))
         {
             var stockOnHand = await dbContext.StockMovements
                 .Where(movement =>
