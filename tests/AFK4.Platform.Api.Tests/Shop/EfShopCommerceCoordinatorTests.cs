@@ -193,7 +193,8 @@ public sealed class EfShopCommerceCoordinatorTests
     {
         await using var db = NewDb();
         var product = await SeedAsync(db);
-        var service = CreateService(db, new RecordingNotifier(db));
+        var notifier = new RecordingNotifier(db);
+        var service = CreateService(db, notifier);
         var placed = await service.PlaceAsync(
             PlayerAccountId,
             new PlaceShopOrderRequest([new ShopOrderLineInput(product.ProductId, 1)], "place-refund"),
@@ -205,25 +206,49 @@ public sealed class EfShopCommerceCoordinatorTests
             StaffUserId,
             new RefundPosSaleRequest(OrganizationId, "changed mind", "refund-001"),
             CancellationToken.None);
+
+        var cancelled = await db.ShopOrders.AsNoTracking().SingleAsync();
+        Assert.True(first.Succeeded);
+        Assert.Equal(ShopOrderStatusNames.Cancelled, cancelled.Status);
+        Assert.Equal(placed.Order.Version + 1, cancelled.Version);
+        Assert.NotNull(cancelled.CancelledAtUtc);
+        Assert.Equal(1, notifier.UpdatedCount);
+        Assert.True(notifier.UpdatedObservedPersistedCancellation);
+
+        var paymentCount = await db.Payments.CountAsync();
+        var receiptCount = await db.Receipts.CountAsync();
+        var ledgerCount = await db.LedgerEntries.CountAsync();
+        var movementCount = await db.StockMovements.CountAsync();
         var replay = await service.RefundLinkedSaleAsync(
             saleId,
             StaffUserId,
             new RefundPosSaleRequest(OrganizationId, "changed mind", "refund-001"),
             CancellationToken.None);
+        var replayedOrder = await db.ShopOrders.AsNoTracking().SingleAsync();
+
+        Assert.True(replay.Succeeded);
+        Assert.Equivalent(first.Response, replay.Response, strict: true);
+        Assert.Equal(cancelled.Version, replayedOrder.Version);
+        Assert.Equal(cancelled.CancelledAtUtc, replayedOrder.CancelledAtUtc);
+        Assert.Equal(1, notifier.UpdatedCount);
+        Assert.Equal(paymentCount, await db.Payments.CountAsync());
+        Assert.Equal(receiptCount, await db.Receipts.CountAsync());
+        Assert.Equal(ledgerCount, await db.LedgerEntries.CountAsync());
+        Assert.Equal(movementCount, await db.StockMovements.CountAsync());
+
         var conflict = await service.RefundLinkedSaleAsync(
             saleId,
             StaffUserId,
             new RefundPosSaleRequest(OrganizationId, "different", "refund-001"),
             CancellationToken.None);
 
-        Assert.True(first.Succeeded);
-        Assert.True(replay.Succeeded);
-        Assert.Equivalent(first.Response, replay.Response, strict: true);
         Assert.True(conflict.Conflict);
         Assert.Equal("idempotency_conflict", conflict.Error);
-        Assert.Equal(2, await db.Payments.CountAsync());
-        Assert.Equal(2, await db.Receipts.CountAsync());
-        Assert.Equal(3, await db.LedgerEntries.CountAsync());
+        Assert.Equal(1, notifier.UpdatedCount);
+        Assert.Equal(paymentCount, await db.Payments.CountAsync());
+        Assert.Equal(receiptCount, await db.Receipts.CountAsync());
+        Assert.Equal(ledgerCount, await db.LedgerEntries.CountAsync());
+        Assert.Equal(movementCount, await db.StockMovements.CountAsync());
     }
 
     private static EfShopCommerceCoordinator CreateService(PlatformDbContext db, IShopOrderNotifier notifier)
@@ -372,6 +397,8 @@ public sealed class EfShopCommerceCoordinatorTests
     {
         public int CreatedCount { get; private set; }
         public bool CreatedObservedPersistedOrder { get; private set; }
+        public int UpdatedCount { get; private set; }
+        public bool UpdatedObservedPersistedCancellation { get; private set; }
 
         public async Task NotifyCreatedAsync(ShopOrderDto order, CancellationToken cancellationToken)
         {
@@ -380,7 +407,15 @@ public sealed class EfShopCommerceCoordinatorTests
                 .AnyAsync(candidate => candidate.ShopOrderId == order.Id, cancellationToken);
         }
 
-        public Task NotifyUpdatedAsync(ShopOrderDto order, CancellationToken cancellationToken) => Task.CompletedTask;
+        public async Task NotifyUpdatedAsync(ShopOrderDto order, CancellationToken cancellationToken)
+        {
+            UpdatedCount++;
+            UpdatedObservedPersistedCancellation = await db.ShopOrders.AsNoTracking()
+                .AnyAsync(candidate =>
+                    candidate.ShopOrderId == order.Id &&
+                    candidate.Status == ShopOrderStatusNames.Cancelled,
+                    cancellationToken);
+        }
     }
 
     private sealed class ThrowingNotifier : IShopOrderNotifier
