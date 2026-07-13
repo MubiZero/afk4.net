@@ -131,6 +131,7 @@ public sealed class EfShopCommerceCoordinator(
                 ? BillingCommandServiceResult<PosSaleDto>.Missing("sale_not_found")
                 : await posService.RefundSaleAsync(saleId, staffUserId, request, cancellationToken);
         }
+        dbContext.Entry(linkedOrder.Order).State = EntityState.Detached;
 
         ShopOrderDto? notification = null;
         var result = await ExecuteWithSerializationRetriesAsync(() => ExecuteSerializableAsync(async () =>
