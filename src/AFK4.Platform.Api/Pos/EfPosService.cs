@@ -20,6 +20,7 @@ public sealed class EfPosService(
     IPaymentProvider paymentProvider,
     IReceiptNumberGenerator receiptNumberGenerator,
     TimeProvider timeProvider,
+    IInventoryCostService inventoryCostService,
     ILowStockNotifier? lowStockNotifier = null) : IPosService
 {
     private const string CreateSaleOperation = "pos-sale-create";
@@ -150,6 +151,7 @@ public sealed class EfPosService(
                         Quantity = line.Quantity,
                         CurrencyCode = product.CurrencyCode.ToUpperInvariant(),
                         UnitPriceMinorUnits = product.PriceMinorUnits,
+                        UnitCostMinorUnits = product.TrackStock ? product.AvgCostMinorUnits : 0,
                         LineTotalMinorUnits = lineTotal,
                         TrackStock = product.TrackStock,
                         AllowNegativeStock = product.AllowNegativeStock
@@ -257,7 +259,7 @@ public sealed class EfPosService(
                     MovementType = StockMovementTypeNames.Sale,
                     QuantityDelta = -line.Quantity,
                     CurrencyCode = line.CurrencyCode,
-                    UnitCostMinorUnits = line.UnitPriceMinorUnits,
+                    UnitCostMinorUnits = line.UnitCostMinorUnits,
                     Reason = $"POS sale {sale.PosSaleId}",
                     CreatedByStaffUserId = actorStaffUserId,
                     CreatedAtUtc = now
@@ -397,6 +399,14 @@ public sealed class EfPosService(
             var now = timeProvider.GetUtcNow();
             foreach (var line in lines.Where(line => line.TrackStock))
             {
+                await inventoryCostService.ReconcileInboundAsync(
+                    sale.OrganizationId,
+                    sale.BranchId,
+                    line.ProductId,
+                    line.Quantity,
+                    line.UnitCostMinorUnits,
+                    cancellationToken);
+
                 dbContext.StockMovements.Add(new StockMovementEntity
                 {
                     StockMovementId = Guid.NewGuid(),
@@ -406,7 +416,7 @@ public sealed class EfPosService(
                     MovementType = StockMovementTypeNames.Refund,
                     QuantityDelta = line.Quantity,
                     CurrencyCode = line.CurrencyCode,
-                    UnitCostMinorUnits = line.UnitPriceMinorUnits,
+                    UnitCostMinorUnits = line.UnitCostMinorUnits,
                     Reason = request.Reason.Trim(),
                     CreatedByStaffUserId = actorStaffUserId,
                     CreatedAtUtc = now

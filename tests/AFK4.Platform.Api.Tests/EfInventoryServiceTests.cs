@@ -18,6 +18,12 @@ public sealed class EfInventoryServiceTests
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-05-13T14:00:00Z");
 
     [Fact]
+    public void MovingWeightedAverage_UsesCurrentCarryingValueAndInboundValue()
+    {
+        Assert.Equal(550, EfInventoryCostService.MovingWeightedAverage(10, 400, 30, 600));
+    }
+
+    [Fact]
     public async Task CreateCategoryAsync_CreatesUniqueBranchCategoryAndIsIdempotent()
     {
         await using var db = CreateDbContext();
