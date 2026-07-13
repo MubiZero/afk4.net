@@ -670,6 +670,13 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(order => order.Version).IsConcurrencyToken();
             entity.HasIndex(order => new { order.BranchId, order.Status });
             entity.HasIndex(order => new { order.PlayerAccountId, order.PlacedAtUtc });
+            entity.HasOne<PosSaleEntity>()
+                .WithOne()
+                .HasForeignKey<ShopOrderEntity>(order => order.PosSaleId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(order => order.PosSaleId)
+                .IsUnique()
+                .HasFilter("\"PosSaleId\" IS NOT NULL");
         });
 
         modelBuilder.Entity<ShopOrderLineEntity>(entity =>

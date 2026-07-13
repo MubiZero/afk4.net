@@ -17,4 +17,5 @@ public sealed record PosSaleDto(
     DateTimeOffset? RefundedAtUtc,
     DateTimeOffset? VoidedAtUtc,
     ReceiptDto? LatestReceipt = null,
-    Guid? PlayerAccountId = null);
+    Guid? PlayerAccountId = null,
+    Guid? ShopOrderId = null);

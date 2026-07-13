@@ -23,6 +23,8 @@ public sealed class ShopOrderEntity
     // The wallet debit entry; a cancellation writes a reversal that points back at it.
     public Guid WalletLedgerEntryId { get; set; }
 
+    public Guid? PosSaleId { get; set; }
+
     public DateTimeOffset PlacedAtUtc { get; set; }
 
     public DateTimeOffset? AcceptedAtUtc { get; set; }

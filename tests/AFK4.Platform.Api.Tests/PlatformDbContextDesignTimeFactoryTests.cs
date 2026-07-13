@@ -27,4 +27,23 @@ public sealed class PlatformDbContextDesignTimeFactoryTests : IDisposable
 
         Assert.Equal(connectionString, context.Database.GetConnectionString());
     }
+
+    [Fact]
+    public void CreateDbContext_ConfiguresShopOrderPosSaleRelationshipAndLineCost()
+    {
+        using var context = new PlatformDbContextDesignTimeFactory().CreateDbContext([]);
+
+        var shopOrderType = context.Model.FindEntityType(typeof(ShopOrderEntity));
+        var posSaleId = shopOrderType!.FindProperty(nameof(ShopOrderEntity.PosSaleId));
+        var index = shopOrderType.GetIndexes().Single(candidate => candidate.Properties.SequenceEqual([posSaleId!]));
+        var foreignKey = shopOrderType.GetForeignKeys().Single(candidate => candidate.Properties.SequenceEqual([posSaleId!]));
+        var unitCost = context.Model.FindEntityType(typeof(PosSaleLineEntity))!
+            .FindProperty(nameof(PosSaleLineEntity.UnitCostMinorUnits));
+
+        Assert.True(index.IsUnique);
+        Assert.Equal("\"PosSaleId\" IS NOT NULL", index.GetFilter());
+        Assert.Equal(typeof(PosSaleEntity), foreignKey.PrincipalEntityType.ClrType);
+        Assert.Equal(DeleteBehavior.Restrict, foreignKey.DeleteBehavior);
+        Assert.False(unitCost!.IsNullable);
+    }
 }
