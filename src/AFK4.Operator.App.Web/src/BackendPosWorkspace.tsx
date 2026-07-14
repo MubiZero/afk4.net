@@ -133,6 +133,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
   const [activeCategory, setActiveCategory] = useState(CATEGORY_ALL);
   const [productSearch, setProductSearch] = useState('');
   const [payOpen, setPayOpen] = useState(false);
+  const [paymentCloseLocked, setPaymentCloseLocked] = useState(false);
   const paymentAttemptRef = useRef<{
     createSaleKey: string;
     settlementKey: string;
@@ -160,7 +161,10 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
     return [];
   });
 
-  const loadBackendPos = async (nextBackend = backend) => {
+  const loadBackendPos = async (
+    nextBackend = backend,
+    { preserveCartSnapshot = false }: { preserveCartSnapshot?: boolean } = {}
+  ) => {
     if (nextBackend === null) {
       const fixtures = makeFixtureProducts(t);
       setLoadStatus('fixture');
@@ -187,20 +191,22 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
       const backendProducts = products.filter((product) => product.source === 'backend' && product.productId);
       setCatalog(products);
       setCurrentShift(nextShift);
-      setCartItems((items) => {
-        const productById = new Map(backendProducts.map((product) => [product.productId, product]));
-        const validBackendItems = items
-          .filter((item) => item.source === 'backend' && item.productId && productById.has(item.productId))
-          .map((item) => ({
-            ...productById.get(item.productId!)!,
-            quantity: item.quantity
-          }));
-        if (validBackendItems.length > 0) {
-          return validBackendItems;
-        }
+      if (!preserveCartSnapshot) {
+        setCartItems((items) => {
+          const productById = new Map(backendProducts.map((product) => [product.productId, product]));
+          const validBackendItems = items
+            .filter((item) => item.source === 'backend' && item.productId && productById.has(item.productId))
+            .map((item) => ({
+              ...productById.get(item.productId!)!,
+              quantity: item.quantity
+            }));
+          if (validBackendItems.length > 0) {
+            return validBackendItems;
+          }
 
-        return backendProducts[0] ? [{ ...backendProducts[0], quantity: 1 }] : [];
-      });
+          return backendProducts[0] ? [{ ...backendProducts[0], quantity: 1 }] : [];
+        });
+      }
       setLoadStatus('backend');
     } catch (error) {
       setLoadStatus('failed');
@@ -315,6 +321,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
 
 
   const acceptPayment = async (payments: PaymentPartDto[]) => {
+    setPaymentCloseLocked(true);
     setFeedback({ label: t('op.pos.feedback.payment'), state: 'pending' });
     try {
       const nextBackend = requireBackend(backend, t);
@@ -377,18 +384,42 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
       }
 
       paymentAttemptRef.current = null;
+      setPaymentCloseLocked(false);
       setPayOpen(false);
       setFeedback({ label: t('op.pos.feedback.payment'), state: 'confirmed' });
       await loadBackendPos(nextBackend);
       setCartItems([]);
     } catch (error) {
-      if (paymentAttemptRef.current?.saleId) {
-        // The next click is an explicit retry gesture. Keep the sale so inventory
-        // is not duplicated, but give a corrected payment payload a fresh key.
-        paymentAttemptRef.current.settlementKey = createIdempotencyKey('pos-payment');
+      const attempt = paymentAttemptRef.current;
+      let settlementOutcomeResolved = error instanceof PlatformApiError && error.status !== 409;
+      if (error instanceof PlatformApiError && error.status === 409 && attempt?.saleId && backend !== null) {
+        try {
+          const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+          const authoritativeSale = await clients.pos.getSale(attempt.saleId);
+          if (readString(authoritativeSale, 'state') === 'paid') {
+            paymentAttemptRef.current = null;
+            setPaymentCloseLocked(false);
+            setPayOpen(false);
+            setFeedback({ label: t('op.pos.feedback.payment'), state: 'confirmed' });
+            await loadBackendPos(backend);
+            setCartItems([]);
+            return;
+          }
+
+          await loadBackendPos(backend, { preserveCartSnapshot: true });
+          settlementOutcomeResolved = true;
+        } catch {
+          // Reconciliation is best-effort, but the original settlement failure
+          // remains actionable and the unresolved attempt must stay intact.
+        }
       }
-      if (error instanceof PlatformApiError && error.status === 409) {
-        await loadBackendPos(backend);
+      if (attempt?.saleId && settlementOutcomeResolved) {
+        // The next explicit click may carry corrected payment parts. Reuse the
+        // authoritative sale, but use a new key for that new payload gesture.
+        attempt.settlementKey = createIdempotencyKey('pos-payment');
+      }
+      if (settlementOutcomeResolved) {
+        setPaymentCloseLocked(false);
       }
       setFeedback({
         label: t('op.pos.feedback.payment'),
@@ -620,7 +651,11 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
         <PanelModal
           title={t('op.pos.checkout.title')}
           subtitle={selectedPosPlayer ? selectedPosPlayer.name : t('op.pos.cart.clientGuest')}
+          closeDisabled={feedback.state === 'pending' || paymentCloseLocked}
           onClose={() => {
+            if (feedback.state === 'pending' || paymentCloseLocked) {
+              return;
+            }
             paymentAttemptRef.current = null;
             setPayOpen(false);
           }}
@@ -633,8 +668,12 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
             walletBalanceMinorUnits={selectedPosPlayer?.balanceMinorUnits ?? null}
             allowSplit={selectedPosPlayer !== null}
             disabled={feedback.state === 'pending'}
+            cancelDisabled={paymentCloseLocked}
             confirmVariant="accent"
             onCancel={() => {
+              if (feedback.state === 'pending' || paymentCloseLocked) {
+                return;
+              }
               paymentAttemptRef.current = null;
               setPayOpen(false);
             }}

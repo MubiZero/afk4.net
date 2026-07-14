@@ -161,6 +161,84 @@ public sealed class PosEndpointTests
     }
 
     [Fact]
+    public async Task SettleSale_WithoutIdempotencyKey_ReturnsStableBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/pos/sales/{saleId:D}/settlements",
+            new SettlePosSaleRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 1_200))],
+                "missing key",
+                " "));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "idempotency_key_required",
+            (await response.Content.ReadFromJsonAsync<PosErrorBody>())!.Error);
+    }
+
+    [Fact]
+    public async Task SettleSale_ReusedKeyWithDifferentPayment_ReturnsStableIdempotencyConflict()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
+        const string key = "settlement-idempotency-conflict-001";
+
+        using var first = await client.PostAsJsonAsync(
+            $"/api/pos/sales/{saleId:D}/settlements",
+            new SettlePosSaleRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 1_200))],
+                "first payload",
+                key));
+        using var conflict = await client.PostAsJsonAsync(
+            $"/api/pos/sales/{saleId:D}/settlements",
+            new SettlePosSaleRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.CardManual, new MoneyDto("TJS", 1_200))],
+                "different payload",
+                key));
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+        Assert.Equal(
+            "idempotency_conflict",
+            (await conflict.Content.ReadFromJsonAsync<PosErrorBody>())!.Error);
+    }
+
+    [Fact]
+    public async Task SettleSale_WithMixedCurrency_ReturnsStableBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/pos/sales/{saleId:D}/settlements",
+            new SettlePosSaleRequest(
+                TestIds.OrganizationId,
+                [
+                    new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 600)),
+                    new PaymentPartDto(PaymentMethodNames.CardManual, new MoneyDto("USD", 600))
+                ],
+                "mixed currency",
+                "settlement-mixed-currency-001"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "mixed_currency",
+            (await response.Content.ReadFromJsonAsync<PosErrorBody>())!.Error);
+    }
+
+    [Fact]
     public async Task Phase6Endpoints_WithBranchManager_RunPosWorkflowAndWriteAudit()
     {
         await using var factory = new PlatformApiFactory();

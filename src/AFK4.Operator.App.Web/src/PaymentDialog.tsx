@@ -50,6 +50,7 @@ export function PaymentDialog({
   walletBalanceMinorUnits,
   allowSplit,
   disabled,
+  cancelDisabled = false,
   confirmVariant = 'danger',
   endWithoutPayment,
   onCancel,
@@ -64,6 +65,7 @@ export function PaymentDialog({
   walletBalanceMinorUnits: number | null;
   allowSplit: boolean;
   disabled: boolean;
+  cancelDisabled?: boolean;
   confirmVariant?: 'danger' | 'accent';
   endWithoutPayment?: { label: string; onEnd: () => void };
   onCancel: () => void;
@@ -250,7 +252,7 @@ export function PaymentDialog({
       )}
 
       <div className="critical-confirmation-actions">
-        <button type="button" onClick={onCancel} disabled={disabled}>{t('common.cancel')}</button>
+        <button type="button" onClick={onCancel} disabled={disabled || cancelDisabled}>{t('common.cancel')}</button>
         <button
           type="button"
           className={confirmVariant}

@@ -33,6 +33,9 @@ const requestedUrls: string[] = [];
 const requestedBodies: unknown[] = [];
 let settlementFailuresRemaining = 0;
 let settlementNetworkFailuresRemaining = 0;
+let settlementResponseGate: Promise<Response> | null = null;
+let saleReadState = 'draft';
+let removeProductAfterSettlement = false;
 const fetchBackend = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
   const url = String(input);
   requestedUrls.push(url);
@@ -40,7 +43,9 @@ const fetchBackend = mock(async (input: RequestInfo | URL, init?: RequestInit) =
     requestedBodies.push(JSON.parse(String(init.body)));
   }
   if (url.endsWith('/api/branches/branch-1/pos/catalog')) {
-    return jsonResponse([backendProduct]);
+    return jsonResponse(removeProductAfterSettlement && requestedUrls.some((item) => item.endsWith('/settlements'))
+      ? []
+      : [backendProduct]);
   }
   if (url.endsWith('/api/branches/branch-1/shifts/current')) {
     return jsonResponse({ shiftId: 'shift-1' });
@@ -52,6 +57,9 @@ const fetchBackend = mock(async (input: RequestInfo | URL, init?: RequestInit) =
     return jsonResponse({ posSaleId: 'sale-1', state: 'draft' });
   }
   if (url.endsWith('/api/pos/sales/sale-1/settlements') && init?.method === 'POST') {
+    if (settlementResponseGate !== null) {
+      return settlementResponseGate;
+    }
     if (settlementNetworkFailuresRemaining > 0) {
       settlementNetworkFailuresRemaining -= 1;
       throw new TypeError('network connection dropped');
@@ -65,6 +73,9 @@ const fetchBackend = mock(async (input: RequestInfo | URL, init?: RequestInit) =
       });
     }
     return jsonResponse({ posSaleId: 'sale-1', state: 'paid' });
+  }
+  if (url.endsWith('/api/pos/sales/sale-1') && (!init?.method || init.method === 'GET')) {
+    return jsonResponse({ posSaleId: 'sale-1', state: saleReadState });
   }
 
   return new Response('Not Found', { status: 404, statusText: 'Not Found' });
@@ -85,6 +96,9 @@ afterEach(() => {
   requestedBodies.length = 0;
   settlementFailuresRemaining = 0;
   settlementNetworkFailuresRemaining = 0;
+  settlementResponseGate = null;
+  saleReadState = 'draft';
+  removeProductAfterSettlement = false;
 });
 
 // backend=null → fixture-режим: каталог/корзина из заглушек, без сетевых запросов.
@@ -213,5 +227,88 @@ describe('BackendPosWorkspace', () => {
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Оплата' })).toBeNull());
     expect(screen.getByText('Корзина пуста')).toBeInTheDocument();
+  });
+
+  it('blocks every close path while settlement is pending and reconciles an already-paid sale without a second charge', async () => {
+    let releaseSettlement!: (response: Response) => void;
+    settlementResponseGate = new Promise<Response>((resolve) => {
+      releaseSettlement = resolve;
+    });
+    saleReadState = 'paid';
+    renderBackendPos();
+    await screen.findAllByText('Cola');
+
+    fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));
+    await waitFor(() => expect(requestedUrls.filter((url) => url.endsWith('/settlements'))).toHaveLength(1));
+
+    const dialog = screen.getByRole('dialog', { name: 'Оплата' });
+    const closeButton = dialog.querySelector<HTMLButtonElement>('.panel-modal-close');
+    expect(closeButton).not.toBeNull();
+    expect(closeButton).toBeDisabled();
+    fireEvent.click(closeButton!);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.pointerDown(dialog.parentElement!);
+    expect(screen.getByRole('dialog', { name: 'Оплата' })).toBeInTheDocument();
+
+    releaseSettlement(new Response(JSON.stringify({ error: 'version_conflict' }), {
+      status: 409,
+      statusText: 'Conflict',
+      headers: { 'Content-Type': 'application/json' }
+    }));
+
+    await waitFor(() => expect(requestedUrls).toContain('http://test/api/pos/sales/sale-1'));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Оплата' })).toBeNull());
+    expect(requestedUrls.filter((url) => url.endsWith('/pos/sales'))).toHaveLength(1);
+    expect(requestedUrls.filter((url) => url.endsWith('/settlements'))).toHaveLength(1);
+    expect(screen.getByText('Корзина пуста')).toBeInTheDocument();
+  });
+
+  it('keeps the cart snapshot when conflict refresh no longer contains its product', async () => {
+    settlementFailuresRemaining = 1;
+    removeProductAfterSettlement = true;
+    renderBackendPos();
+    await screen.findAllByText('Cola');
+
+    fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));
+
+    await waitFor(() => expect(requestedUrls).toContain('http://test/api/pos/sales/sale-1'));
+    expect(screen.getByRole('dialog', { name: 'Оплата' })).toBeInTheDocument();
+    expect(screen.getAllByText('Cola')).toHaveLength(2);
+    expect(screen.getByRole('textbox', { name: 'Получено' })).toHaveValue('100.00');
+    expect(await screen.findByText('Данные продажи изменились. Проверьте корзину и повторите оплату.')).toBeInTheDocument();
+  });
+
+  it('keeps an ambiguous attempt locked and retries the same sale and key after close attempts', async () => {
+    settlementNetworkFailuresRemaining = 2;
+    renderBackendPos();
+    await screen.findAllByText('Cola');
+
+    fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));
+    await waitFor(() => expect(requestedUrls.filter((url) => url.endsWith('/settlements'))).toHaveLength(2));
+
+    const dialog = screen.getByRole('dialog', { name: 'Оплата' });
+    const closeButton = dialog.querySelector<HTMLButtonElement>('.panel-modal-close')!;
+    expect(closeButton).toBeDisabled();
+    const cancelButtons = screen.getAllByRole('button', { name: 'Отмена' });
+    expect(cancelButtons).toHaveLength(2);
+    expect(cancelButtons[1]).toBeDisabled();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.pointerDown(dialog.parentElement!);
+    expect(screen.getByRole('dialog', { name: 'Оплата' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));
+    await waitFor(() => expect(requestedUrls.filter((url) => url.endsWith('/settlements'))).toHaveLength(3));
+    const saleBodies = requestedBodies.filter((body) =>
+      typeof body === 'object' && body !== null && 'lines' in body) as Array<Record<string, unknown>>;
+    const settlementBodies = requestedBodies.filter((body) =>
+      typeof body === 'object' && body !== null && 'payments' in body) as Array<Record<string, unknown>>;
+    expect(saleBodies).toHaveLength(1);
+    expect(settlementBodies).toHaveLength(3);
+    expect(settlementBodies[1]).toEqual(settlementBodies[0]);
+    expect(settlementBodies[2]).toEqual(settlementBodies[0]);
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Оплата' })).toBeNull());
   });
 });

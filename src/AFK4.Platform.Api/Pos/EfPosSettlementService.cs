@@ -54,9 +54,18 @@ public sealed class EfPosSettlementService(
         }
 
         var normalizedRequest = NormalizeRequest(request);
-        if (normalizedRequest is null ||
-            normalizedRequest.OrganizationId != saleScope.OrganizationId ||
-            !TryValidateSplit(normalizedRequest.Payments, saleScope.CurrencyCode, saleScope.TotalMinorUnits))
+        if (normalizedRequest is null || normalizedRequest.OrganizationId != saleScope.OrganizationId)
+        {
+            return BillingCommandServiceResult<PosSaleDto>.Invalid("invalid_payment_split");
+        }
+
+        if (normalizedRequest.Payments.Any(part =>
+                !CurrencyEquals(part.Amount.CurrencyCode, saleScope.CurrencyCode)))
+        {
+            return BillingCommandServiceResult<PosSaleDto>.Invalid("mixed_currency");
+        }
+
+        if (!TryValidateSplit(normalizedRequest.Payments, saleScope.CurrencyCode, saleScope.TotalMinorUnits))
         {
             return BillingCommandServiceResult<PosSaleDto>.Invalid("invalid_payment_split");
         }
@@ -646,7 +655,7 @@ public sealed class EfPosSettlementService(
 
         if (!string.Equals(existing.RequestHash, HashRequest(request), StringComparison.Ordinal))
         {
-            return BillingCommandServiceResult<PosSaleDto>.RequestConflict("version_conflict");
+            return BillingCommandServiceResult<PosSaleDto>.RequestConflict("idempotency_conflict");
         }
 
         var response = JsonSerializer.Deserialize<PosSaleDto>(existing.ResponseJson, JsonOptions);

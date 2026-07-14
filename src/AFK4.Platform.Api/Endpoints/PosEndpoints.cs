@@ -1006,6 +1006,8 @@ internal static class PosEndpoints
             "wallet_player_required" or "wallet_player_invalid" => "player_required_for_wallet",
             "insufficient_stock" => "out_of_stock",
             "version_conflict" => "version_conflict",
+            "idempotency_conflict" => "idempotency_conflict",
+            "mixed_currency" => "mixed_currency",
             "invalid_payment_split" => "invalid_payment_split",
             "open_shift_required" => "open_shift_required",
             "sale_not_payable" => "sale_not_payable",
@@ -1014,7 +1016,7 @@ internal static class PosEndpoints
             _ => "settlement_failed"
         };
 
-        return error is "version_conflict" or "open_shift_required" or "sale_not_payable" or
+        return error is "version_conflict" or "idempotency_conflict" or "open_shift_required" or "sale_not_payable" or
             "insufficient_funds" or "out_of_stock" or "product_unavailable"
             ? Results.Conflict(new { Error = error })
             : Results.BadRequest(new { Error = error });

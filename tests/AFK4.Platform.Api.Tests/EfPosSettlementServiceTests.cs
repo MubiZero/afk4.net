@@ -28,7 +28,6 @@ public sealed class EfPosSettlementServiceTests
         new PaymentPartDto[] { Part("crypto", 10_000) },
         new PaymentPartDto[] { Part("cash", 0) },
         new PaymentPartDto[] { Part("cash", -1) },
-        new PaymentPartDto[] { Part("cash", 4_000), Part("card_manual", 6_000, "USD") },
         new PaymentPartDto[] { Part("cash", 9_999) }
     };
 
@@ -48,6 +47,24 @@ public sealed class EfPosSettlementServiceTests
 
         Assert.False(result.Succeeded);
         Assert.Equal("invalid_payment_split", result.Error);
+        await AssertNoSettlementSideEffectsAsync(db, scenario.Sale.PosSaleId);
+    }
+
+    [Fact]
+    public async Task SettleAsync_MixedCurrency_ReturnsStableErrorWithoutSideEffects()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedSaleAsync(db);
+        var service = CreateService(db);
+
+        var result = await service.SettleAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            Request([Part("cash", 4_000), Part("card_manual", 6_000, "USD")], "mixed-currency"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("mixed_currency", result.Error);
         await AssertNoSettlementSideEffectsAsync(db, scenario.Sale.PosSaleId);
     }
 
@@ -289,7 +306,7 @@ public sealed class EfPosSettlementServiceTests
     }
 
     [Fact]
-    public async Task SettleAsync_ReusedKeyForDifferentNormalizedRequest_ReturnsVersionConflict()
+    public async Task SettleAsync_ReusedKeyForDifferentNormalizedRequest_ReturnsIdempotencyConflict()
     {
         await using var db = CreateDbContext();
         var scenario = await SeedSaleAsync(db);
@@ -309,7 +326,7 @@ public sealed class EfPosSettlementServiceTests
         Assert.True(first.Succeeded, first.Error);
         Assert.False(conflict.Succeeded);
         Assert.True(conflict.Conflict);
-        Assert.Equal("version_conflict", conflict.Error);
+        Assert.Equal("idempotency_conflict", conflict.Error);
         Assert.Single(await db.Payments.ToListAsync());
     }
 
