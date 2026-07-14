@@ -56,7 +56,8 @@ SaaS billing, and the entire SP4 wave are implemented and merged to `main`:
   storage, HMAC-verified webhook, owner card-onboarding cabinet (Subsystem A +
   B). Note: dcgate is player top-up/payments, separate from SaaS billing.
 
-The current Operator commerce/booking topic branch (not yet merged) adds:
+The Operator commerce/booking completion wave is merged to `main` and deployed
+to Coolify staging:
 
 - **Player Shop financial integrity** — new orders settle atomically as linked,
   idempotent paid POS sales with wallet, open-shift, receipt, immutable inventory
@@ -102,6 +103,11 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 - Platform Web passed 381/381 Bun tests and its production build; its existing
   large-chunk warning remains.
 - Player Shell Web passed 51/51 Bun tests and its production build.
+- GitHub `Package Smoke` run `29326881732` and the migration-gated `Coolify
+  Staging Deploy` run `29327547027` passed for merge commit `498b7b83`. The
+  staging database contains all 69 migrations through
+  `20260714130000_VersionReservationsAndLinkSessions`, and the deployed API
+  container plus public `/api/health` check are healthy.
 - The Linux full-solution test attempt passed Platform API 1288 tests (one
   explicit PostgreSQL-env skip) and all other portable suites, but cannot run
   Operator/Player Shell .NET Windows testhosts because `Microsoft.WindowsDesktop.App`
@@ -111,11 +117,11 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Known Gaps
 
-- **FE forgot/reset-password screen** is still a placeholder
-  (`ReservedAuthPage`) even though the backend reset path is wired — build the
-  form against the existing backend.
 - **Per-environment SMTP config** still needs the user's real connection
   details wired into `NotificationOptions`.
+- **Operator entity search** is still deferred: the command palette navigates
+  between workspaces but does not yet search clients, seats, reservations,
+  orders, or receipts.
 - **Smoke tests** on staging are deferred until the owner says go (incl. the
   `manager_workstation` clean-VM smoke repeat and physical Windows 10/11 smoke:
   lock/unlock enforcement, reboot recovery, role-aware updates/rollback).
@@ -126,8 +132,10 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Recommended Next Work
 
-1. Build the FE forgot/reset-password screen on the existing backend and wire
-   per-env SMTP config.
-2. Run the staging smoke suite when the owner gives the go.
-3. Work through the pre-production release decisions in the production-readiness
-   roadmap.
+1. Run a backend-backed Operator App day-flow smoke on a Windows manager
+   workstation: shift, client/session, reservation start, POS mixed payment,
+   refund, stock, close-shift, reconnect, and Windows scaling/focus behavior.
+2. Fix the concrete pilot findings, then add permission-aware entity search to
+   the command palette if the smoke does not expose a higher-priority gap.
+3. Wire real per-environment SMTP settings and work through the remaining
+   pre-production decisions in the production-readiness roadmap.
