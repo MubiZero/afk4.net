@@ -242,7 +242,12 @@ public sealed class EfSessionCheckoutServiceTests
 
         var refund = await new EfPosService(
                 db,
-                new ManualPaymentProvider(),
+                new EfPosSettlementService(
+                    db,
+                    new EfWalletSettlementService(db),
+                    new EfInventoryCostService(db),
+                    new ReceiptNumberGenerator(db),
+                    new FixedTimeProvider(Now.AddMinutes(1))),
                 new ReceiptNumberGenerator(db),
                 new FixedTimeProvider(Now.AddMinutes(1)),
                 new EfInventoryCostService(db))

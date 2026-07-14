@@ -272,6 +272,7 @@ builder.Services.AddScoped<IOpenShiftResolver>(provider => provider.GetRequiredS
 builder.Services.AddScoped<ILowStockNotifier, EfLowStockNotifier>();
 builder.Services.AddScoped<IInventoryService, EfInventoryService>();
 builder.Services.AddScoped<IInventoryCostService, EfInventoryCostService>();
+builder.Services.AddScoped<IPosSettlementService, EfPosSettlementService>();
 builder.Services.AddScoped<IPosService, EfPosService>();
 builder.Services.AddScoped<IShopPosSettlementService, EfShopPosSettlementService>();
 builder.Services.AddScoped<AFK4.Platform.Api.Commerce.IShopCommerceCoordinator, AFK4.Platform.Api.Commerce.EfShopCommerceCoordinator>();

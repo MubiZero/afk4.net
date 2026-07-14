@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Inventory;
@@ -644,11 +645,16 @@ public sealed class EfPosServiceTests
     {
         return new EfPosService(
             db,
-            new ManualPaymentProvider(),
+            new EfPosSettlementService(
+                db,
+                new EfWalletSettlementService(db),
+                new EfInventoryCostService(db),
+                new ReceiptNumberGenerator(db),
+                new FixedTimeProvider(Now),
+                lowStockNotifier),
             new ReceiptNumberGenerator(db),
             new FixedTimeProvider(Now),
-            new EfInventoryCostService(db),
-            lowStockNotifier);
+            new EfInventoryCostService(db));
     }
 
     private static async Task SeedOwnerAsync(PlatformDbContext db)
