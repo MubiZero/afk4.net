@@ -1,10 +1,8 @@
 using System.Data;
 using System.Text.Json;
-using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
-using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Sessions;
@@ -18,10 +16,10 @@ public sealed class EfSessionCommandService(
     ISessionLeaseSigner leaseSigner,
     TimeProvider timeProvider,
     ISessionBillingService sessionBillingService,
-    ISessionLifecycleNotifier lifecycleNotifier) : ISessionCommandService
+    ISessionLifecycleNotifier lifecycleNotifier,
+    ISessionStartWorkflow sessionStartWorkflow) : ISessionCommandService
 {
     private const int LeaseMinutes = 15;
-    private const int CompReasonMinLength = 8;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly string[] BlockingStates =
     [
@@ -29,17 +27,6 @@ public sealed class EfSessionCommandService(
         SessionStateNames.Paused,
         SessionStateNames.Ending
     ];
-
-    private static string? NormalizeDurationMode(string? durationMode)
-    {
-        var normalized = (durationMode ?? string.Empty).Trim().ToLowerInvariant();
-        if (normalized.Length == 0)
-        {
-            return SessionDurationModes.Open;
-        }
-
-        return SessionDurationModes.IsValid(normalized) ? normalized : null;
-    }
 
     public async Task<SessionCommandServiceResult> StartGuestSessionAsync(
         Guid branchId,
@@ -61,227 +48,21 @@ public sealed class EfSessionCommandService(
             return idempotency;
         }
 
-        var durationMode = NormalizeDurationMode(request.DurationMode);
-        if (durationMode is null)
-        {
-            return SessionCommandServiceResult.Invalid("Unsupported session duration mode.");
-        }
-
-        var isFixed = durationMode == SessionDurationModes.Fixed;
-        var billingMode = (request.BillingMode ?? string.Empty).Trim();
-
-        // §5.4: an explicit comp is a free session — it must carry no billing mode and a real reason.
-        // The control fires only on the IsComp flag; the existing manual/guest path is untouched.
-        long? compValue = null;
-        if (request.IsComp)
-        {
-            if (!string.IsNullOrEmpty(billingMode))
-            {
-                return SessionCommandServiceResult.Invalid("A comp (free) session cannot specify a billing mode.");
-            }
-
-            if ((request.CompReason?.Trim().Length ?? 0) < CompReasonMinLength)
-            {
-                return SessionCommandServiceResult.Invalid(
-                    $"A comp session requires a reason of at least {CompReasonMinLength} characters.");
-            }
-
-            // A comp grants a fixed amount of free time at a real tariff, so its value
-            // (duration × tariff) is known up front and the gate is always preventive.
-            if (!isFixed || request.DurationMinutes is not > 0)
-            {
-                return SessionCommandServiceResult.Invalid(
-                    "A comp session must have a fixed duration so its value can be assessed.");
-            }
-
-            if (request.TariffVersionId is null)
-            {
-                return SessionCommandServiceResult.Invalid(
-                    "A comp session requires a tariff version to value the free time.");
-            }
-
-            var valuation = await sessionBillingService.ComputeCompValueAsync(
-                request.OrganizationId,
-                branchId,
-                request.TariffVersionId.Value,
-                request.DurationMinutes.Value,
-                cancellationToken);
-            if (!valuation.Succeeded)
-            {
-                return SessionCommandServiceResult.Invalid(valuation.Error ?? "Comp value could not be computed.");
-            }
-
-            compValue = valuation.AmountMinorUnits;
-
-            var branch = await dbContext.Branches
-                .AsNoTracking()
-                .SingleOrDefaultAsync(
-                    candidate => candidate.OrganizationId == request.OrganizationId && candidate.BranchId == branchId,
-                    cancellationToken);
-            var compThreshold = MoneyControlPolicy.ResolveCompThreshold(
-                branch?.CompApprovalThresholdMinorUnits,
-                MoneyControlPolicy.ResolveApprovalThreshold(
-                    branch?.HighRiskApprovalThresholdMinorUnits,
-                    MoneyControlPolicy.DefaultApprovalThresholdMinorUnits));
-
-            // Over the comp threshold, only an actor who can approve money actions may proceed
-            // (a manager comping directly). Otherwise the free session is blocked.
-            if (compValue > compThreshold && !actorCanApproveComp)
-            {
-                return SessionCommandServiceResult.Invalid(
-                    $"Comp value {compValue} exceeds the {compThreshold} approval threshold; manager approval is required.");
-            }
-        }
-
-        if (isFixed)
-        {
-            if (request.DurationMinutes is not > 0)
-            {
-                return SessionCommandServiceResult.Invalid("Fixed-duration sessions require a positive duration.");
-            }
-        }
-        else if (billingMode is not ("" or BillingModeNames.PostpaidDebt))
-        {
-            // Open tab has no known amount up front, so prepaid/package cannot use it.
-            return SessionCommandServiceResult.Invalid(
-                "Open-tab sessions support guest or postpaid billing only; choose a fixed duration for prepaid or package billing.");
-        }
-
-        // For validation we need a positive duration to resolve tariff/player/shift.
-        // Open tabs defer the real charge to checkout, so a nominal minute is enough here.
-        var validationMinutes = isFixed ? request.DurationMinutes!.Value : 1;
-
-        var assignment = await LoadActiveAssignmentAsync(
-            request.OrganizationId,
-            branchId,
-            request.SeatId,
-            cancellationToken);
-
-        if (assignment is null)
-        {
-            return SessionCommandServiceResult.Invalid("Seat has no active approved device assignment.");
-        }
-
-        if (await HasBlockingSessionAsync(
-            request.OrganizationId,
-            branchId,
-            request.SeatId,
-            assignment.DeviceId,
-            excludedSessionId: null,
-            cancellationToken))
-        {
-            return SessionCommandServiceResult.Invalid("Seat or device already has an active session.");
-        }
-
-        Guid? deviceIdToNotify = null;
-        DeviceCommandDto? commandToNotify = null;
+        SessionStartStage? stage = null;
         SessionCommandServiceResult result;
         try
         {
             result = await ExecuteInTransactionAsync(async () =>
-        {
-            var billingValidation = await sessionBillingService.ValidateStartAsync(
-                request.OrganizationId,
+            {
+                stage = await sessionStartWorkflow.StageAsync(
                 branchId,
-                request.PlayerAccountId,
-                billingMode,
-                request.TariffVersionId,
-                request.PlayerPackageId,
-                validationMinutes,
-                cancellationToken);
-
-            if (!billingValidation.Succeeded)
-            {
-                return SessionCommandServiceResult.Invalid(billingValidation.Error ?? "Session billing validation failed.");
-            }
-
-            var now = timeProvider.GetUtcNow();
-            var sessionId = Guid.NewGuid();
-            DateTimeOffset? endsAtUtc = isFixed ? now.AddMinutes(request.DurationMinutes!.Value) : null;
-            var lease = leaseSigner.Sign(
-                sessionId,
-                request.OrganizationId,
-                branchId,
-                request.SeatId,
-                assignment.DeviceId,
-                SessionStateNames.Active,
-                Sequence: 1,
-                IssuedAtUtc: now,
-                ExpiresAtUtc: now.AddMinutes(LeaseMinutes));
-            var leaseEntity = CreateLeaseEntity(lease);
-            var session = new SessionEntity
-            {
-                SessionId = sessionId,
-                OrganizationId = request.OrganizationId,
-                BranchId = branchId,
-                SeatId = request.SeatId,
-                DeviceId = assignment.DeviceId,
-                CreatedByStaffUserId = actorStaffUserId,
-                PlayerKind = "guest",
-                PlayerAccountId = request.PlayerAccountId,
-                TariffRuleVersionId = string.IsNullOrWhiteSpace(billingValidation.TariffRuleVersionId)
-                    ? request.TariffRuleVersionId
-                    : billingValidation.TariffRuleVersionId,
-                BillingMode = billingMode,
-                State = SessionStateNames.Active,
-                RequestedAtUtc = now,
-                StartedAtUtc = now,
-                EndsAtUtc = endsAtUtc,
-                CurrentLeaseId = leaseEntity.SessionLeaseId,
-                IsComp = request.IsComp,
-                CompValueMinorUnits = compValue,
-                UpdatedAtUtc = now,
-                Version = 1
-            };
-
-            dbContext.Sessions.Add(session);
-            dbContext.SessionLeases.Add(leaseEntity);
-            AddEvent(session, "session-started", actorStaffUserId, deviceId: assignment.DeviceId, now);
-            await dbContext.SaveChangesAsync(cancellationToken);
-
-            // Open-tab postpaid defers its charge to checkout; only fixed-duration
-            // (and prepaid/package) sessions write the charge at start.
-            if (isFixed && request.PlayerAccountId is not null)
-            {
-                await sessionBillingService.AppendStartLedgerEntriesAsync(
-                    sessionId,
                     actorStaffUserId,
-                    billingValidation,
-                    request.PlayerAccountId.Value,
-                    request.PlayerPackageId,
-                    billingMode,
-                    now,
+                    request,
+                    actorCanApproveComp,
                     cancellationToken);
                 await dbContext.SaveChangesAsync(cancellationToken);
-            }
-
-            var command = await deviceCommandDispatchService.EnqueueAsync(
-                assignment.DeviceId,
-                new CreateDeviceCommandRequest(
-                    Type: DeviceCommandTypeNames.Unlock,
-                    Payload: new Dictionary<string, string>
-                    {
-                        ["sessionId"] = sessionId.ToString("D"),
-                        ["sessionLease"] = JsonSerializer.Serialize(lease, JsonOptions),
-                        ["reason"] = "session-start"
-                    }),
-                cancellationToken);
-            deviceIdToNotify = assignment.DeviceId;
-            commandToNotify = command;
-            var response = CreateResponse(request.IdempotencyKey, session, lease, [command], now);
-
-            AddIdempotencyRecord(
-                request.OrganizationId,
-                branchId,
-                "start",
-                request.IdempotencyKey,
-                request,
-                response,
-                now);
-            await dbContext.SaveChangesAsync(cancellationToken);
-
-            return SessionCommandServiceResult.Ok(response);
-        }, IsolationLevel.Serializable, cancellationToken);
+                return stage.Result;
+            }, IsolationLevel.Serializable, cancellationToken);
         }
         catch (DbUpdateException)
         {
@@ -291,14 +72,9 @@ public sealed class EfSessionCommandService(
                 "Seat already has an active session.", "seat_occupied");
         }
 
-        if (result.Succeeded && deviceIdToNotify is not null && commandToNotify is not null)
+        if (stage is not null && result.Succeeded)
         {
-            await deviceCommandDispatchService.NotifyAsync(deviceIdToNotify.Value, commandToNotify, cancellationToken);
-        }
-
-        if (result.Succeeded && result.Response is not null)
-        {
-            await NotifyLifecycleAsync(result.Response.Session, SessionLifecycleKinds.Started, cancellationToken);
+            await sessionStartWorkflow.NotifyCommittedAsync(stage, cancellationToken);
         }
 
         return result;

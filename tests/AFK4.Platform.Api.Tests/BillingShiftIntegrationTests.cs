@@ -240,13 +240,17 @@ public sealed class BillingShiftIntegrationTests
         IOpenShiftResolver openShiftResolver)
     {
         var timeProvider = new FixedTimeProvider(Now);
+        var leaseSigner = new FakeSessionLeaseSigner();
+        var billing = new SessionBillingService(db, new EfTariffService(db, timeProvider), openShiftResolver, timeProvider);
+        var lifecycleNotifier = new RecordingSessionLifecycleNotifier();
         return new EfSessionCommandService(
             db,
             dispatcher,
-            new FakeSessionLeaseSigner(),
+            leaseSigner,
             timeProvider,
-            new SessionBillingService(db, new EfTariffService(db, timeProvider), openShiftResolver, timeProvider),
-            new RecordingSessionLifecycleNotifier());
+            billing,
+            lifecycleNotifier,
+            new EfSessionStartWorkflow(db, dispatcher, leaseSigner, timeProvider, billing, lifecycleNotifier));
     }
 
     private static EfShopCommerceCoordinator CreateCommerceCoordinator(PlatformDbContext db)

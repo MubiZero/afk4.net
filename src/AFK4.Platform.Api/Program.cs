@@ -290,6 +290,7 @@ builder.Services.AddScoped<ISessionLifecycleNotifier, SignalRSessionLifecycleNot
 builder.Services.AddScoped<IShopOrderService, EfShopOrderService>();
 builder.Services.AddScoped<IShopOrderWorkflow, EfShopOrderWorkflow>();
 builder.Services.AddScoped<IShopOrderNotifier, SignalRShopOrderNotifier>();
+builder.Services.AddScoped<ISessionStartWorkflow, EfSessionStartWorkflow>();
 builder.Services.AddScoped<ISessionCommandService, EfSessionCommandService>();
 builder.Services.AddScoped<ISessionCheckoutService, EfSessionCheckoutService>();
 builder.Services.AddSingleton(new AutoProtectionOptions());
