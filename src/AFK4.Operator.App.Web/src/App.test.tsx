@@ -1153,7 +1153,7 @@ describe('App', () => {
     expect(screen.queryByText('Нет backend событий')).not.toBeInTheDocument();
   });
 
-  it('confirms POS payment only after backend sale and manual payment calls resolve', async () => {
+  it('confirms POS payment only after backend sale and settlement calls resolve', async () => {
     installSessionBridge();
 
     render(<App />);
@@ -1182,13 +1182,13 @@ describe('App', () => {
       playerAccountId: null
     });
     const paymentCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/payments/manual') &&
+      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/settlements') &&
       init?.method === 'POST');
     expect(paymentCall).toBeDefined();
     const paymentBody = JSON.parse(String(paymentCall?.[1]?.body));
     expect(paymentBody).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      paymentMethod: 'cash'
+      payments: [{ paymentMethod: 'cash', amount: { currencyCode: 'TJS', minorUnits: 1200 } }]
     });
   });
 
@@ -1227,13 +1227,13 @@ describe('App', () => {
     });
 
     const paymentCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/payments/manual') &&
+      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/settlements') &&
       init?.method === 'POST');
     expect(paymentCall).toBeDefined();
     const paymentBody = JSON.parse(String(paymentCall?.[1]?.body));
     expect(paymentBody).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      paymentMethod: 'card_manual'
+      payments: [{ paymentMethod: 'card_manual', amount: { currencyCode: 'TJS', minorUnits: 1200 } }]
     });
   });
 
@@ -2953,7 +2953,7 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createPosSale('draft'));
   }
 
-  if (pathname.includes('/payments/manual')) {
+  if (pathname.includes('/payments/manual') || pathname.endsWith('/settlements')) {
     return jsonResponse(createPosSale('paid'));
   }
 

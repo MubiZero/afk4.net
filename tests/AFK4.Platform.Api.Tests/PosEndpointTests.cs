@@ -10,6 +10,7 @@ using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Receipts;
+using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
@@ -74,6 +75,89 @@ public sealed class PosEndpointTests
 
         Assert.Equal(HttpStatusCode.Forbidden, catalogResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, stockHistoryResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task SettleSale_WithMultipartPayment_ReturnsPaidSaleAndAuditsPartCount()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 10_000);
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/pos/sales/{saleId:D}/settlements",
+            new SettlePosSaleRequest(
+                TestIds.OrganizationId,
+                [
+                    new PaymentPartDto(PaymentMethodNames.CardManual, new MoneyDto("TJS", 2_000)),
+                    new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 8_000))
+                ],
+                "operator POS checkout",
+                "settlement-multipart-001"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var paid = await response.Content.ReadFromJsonAsync<PosSaleDto>();
+        Assert.NotNull(paid);
+        Assert.Equal(PosSaleStateNames.Paid, paid.State);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var payments = await dbContext.Payments
+            .Where(payment => payment.PosSaleId == saleId && payment.PaymentKind == "payment")
+            .OrderBy(payment => payment.PaymentMethod)
+            .ToListAsync();
+        Assert.Equal(2, payments.Count);
+        Assert.Equal(10_000, payments.Sum(payment => payment.AmountMinorUnits));
+
+        var audit = await dbContext.AuditRecords
+            .SingleAsync(record => record.Action == AuditActionNames.PayPosSale && record.TargetId == saleId.ToString("D"));
+        using var details = JsonDocument.Parse(audit.DetailsJson);
+        Assert.Equal(2, details.RootElement.GetProperty("paymentPartCount").GetInt32());
+    }
+
+    [Fact]
+    public async Task SettleSale_WithWrongOrganization_ReturnsStableBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/pos/sales/{saleId:D}/settlements",
+            new SettlePosSaleRequest(
+                Guid.NewGuid(),
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 1_200))],
+                "wrong organization",
+                "settlement-wrong-org-001"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "organization_scope_mismatch",
+            (await response.Content.ReadFromJsonAsync<PosErrorBody>())!.Error);
+    }
+
+    [Fact]
+    public async Task SettleSale_WithInvalidSplit_ReturnsStableCodeWithoutInternalDetail()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/pos/sales/{saleId:D}/settlements",
+            new SettlePosSaleRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 1_100))],
+                "invalid split",
+                "settlement-invalid-001"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "invalid_payment_split",
+            (await response.Content.ReadFromJsonAsync<PosErrorBody>())!.Error);
     }
 
     [Fact]
@@ -562,6 +646,14 @@ public sealed class PosEndpointTests
                 new ManualPaymentRequest(TestIds.OrganizationId, PaymentMethodNames.Cash, new MoneyDto("TJS", 1200), "cash drawer", "pay-001")),
             new EndpointCase(
                 HttpMethod.Post,
+                $"/api/pos/sales/{saleId:D}/settlements",
+                new SettlePosSaleRequest(
+                    TestIds.OrganizationId,
+                    [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 1200))],
+                    "cash drawer",
+                    "settle-001")),
+            new EndpointCase(
+                HttpMethod.Post,
                 $"/api/pos/sales/{saleId:D}/refunds",
                 new RefundPosSaleRequest(TestIds.OrganizationId, "customer return", "refund-001")),
             new EndpointCase(
@@ -683,6 +775,55 @@ public sealed class PosEndpointTests
         });
         await dbContext.SaveChangesAsync();
 
+        return saleId;
+    }
+
+    private static async Task<Guid> SeedDraftSaleAsync(PlatformApiFactory factory, long totalMinorUnits)
+    {
+        var shiftId = Guid.NewGuid();
+        var saleId = Guid.NewGuid();
+        var productId = Guid.NewGuid();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        dbContext.Shifts.Add(new ShiftEntity
+        {
+            ShiftId = shiftId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            OpenedByStaffUserId = TestIds.TechnicianStaffUserId,
+            State = ShiftStateNames.Open,
+            CurrencyCode = "TJS",
+            StartingCashMinorUnits = 50_000,
+            OpeningNote = "settlement endpoint test",
+            OpenedAtUtc = DateTimeOffset.Parse("2026-07-14T08:00:00Z")
+        });
+        dbContext.PosSales.Add(new PosSaleEntity
+        {
+            PosSaleId = saleId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            ShiftId = shiftId,
+            CreatedByStaffUserId = TestIds.TechnicianStaffUserId,
+            State = PosSaleStateNames.Draft,
+            CurrencyCode = "TJS",
+            TotalMinorUnits = totalMinorUnits,
+            CreatedAtUtc = DateTimeOffset.Parse("2026-07-14T08:01:00Z")
+        });
+        dbContext.PosSaleLines.Add(new PosSaleLineEntity
+        {
+            PosSaleLineId = Guid.NewGuid(),
+            PosSaleId = saleId,
+            ProductId = productId,
+            ProductName = "Endpoint test product",
+            Quantity = 1,
+            CurrencyCode = "TJS",
+            UnitPriceMinorUnits = totalMinorUnits,
+            UnitCostMinorUnits = 0,
+            LineTotalMinorUnits = totalMinorUnits,
+            TracksStock = false,
+            AllowNegativeStock = false
+        });
+        await dbContext.SaveChangesAsync();
         return saleId;
     }
 

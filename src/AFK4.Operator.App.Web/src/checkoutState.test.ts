@@ -3,6 +3,7 @@ import { createTranslator } from '@afk4/i18n';
 import {
   buildCheckoutPayments,
   formatBilledDuration,
+  getAvailableCheckoutMethods,
   initialCheckoutDrafts,
   parseCheckoutAmount,
   validateCheckoutPayments,
@@ -134,5 +135,18 @@ describe('initialCheckoutDrafts', () => {
 
   it('leaves the row blank for a zero bill', () => {
     expect(initialCheckoutDrafts(0)).toEqual([{ method: 'cash', amountText: '' }]);
+  });
+});
+
+describe('getAvailableCheckoutMethods', () => {
+  it('keeps the current method while excluding methods used by other rows', () => {
+    const drafts: CheckoutPaymentDraft[] = [
+      { method: 'wallet', amountText: '20.00' },
+      { method: 'cash', amountText: '80.00' }
+    ];
+
+    expect(getAvailableCheckoutMethods(drafts, 0)).toEqual(['card_manual', 'wallet']);
+    expect(getAvailableCheckoutMethods(drafts, 1)).toEqual(['cash', 'card_manual']);
+    expect(getAvailableCheckoutMethods(drafts)).toEqual(['card_manual']);
   });
 });

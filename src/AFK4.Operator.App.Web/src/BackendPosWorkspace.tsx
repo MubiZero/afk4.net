@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Search, UserRoundPlus, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
@@ -28,6 +28,7 @@ import {
 import { Money } from './operatorPrimitives';
 import { PanelModal } from './PanelModal';
 import { PaymentDialog, type PaymentBillLine } from './PaymentDialog';
+import { PlatformApiError } from './platformApi';
 import { useToast } from './operatorToast';
 import { matchByBarcode } from './barcodeScanner';
 import { useBarcodeScanner } from './useBarcodeScanner';
@@ -55,6 +56,41 @@ export function isLowStock(item: Pick<PosCatalogItem, 'source' | 'trackStock' | 
 type PosCartItem = PosCatalogItem & {
   quantity: number;
 };
+
+function projectSettlementError(error: unknown, t: ReturnType<typeof useI18n>['t']): string {
+  if (!(error instanceof PlatformApiError)) {
+    return projectOperatorError(error, t).detail;
+  }
+
+  let code = '';
+  try {
+    const body = JSON.parse(error.body) as { error?: unknown; Error?: unknown };
+    const value = body.error ?? body.Error;
+    code = typeof value === 'string' ? value : '';
+  } catch {
+    // A non-JSON error body is deliberately not shown to the operator.
+  }
+
+  switch (code) {
+    case 'version_conflict':
+    case 'idempotency_conflict':
+    case 'sale_not_payable':
+      return t('op.pos.error.settlementConflict');
+    case 'open_shift_required':
+      return t('op.pos.error.openShiftFirst');
+    case 'invalid_payment_split':
+      return t('op.pos.error.invalidPaymentSplit');
+    case 'insufficient_funds':
+      return t('op.pos.error.insufficientFunds');
+    case 'player_required_for_wallet':
+      return t('op.pos.error.playerRequiredForWallet');
+    case 'out_of_stock':
+    case 'product_unavailable':
+      return t('op.pos.error.outOfStock');
+    default:
+      return t('op.pos.error.settlementFailed');
+  }
+}
 
 // Sentinel for the "All" category — never shown as a backend category name
 const CATEGORY_ALL = '__all__';
@@ -97,6 +133,11 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
   const [activeCategory, setActiveCategory] = useState(CATEGORY_ALL);
   const [productSearch, setProductSearch] = useState('');
   const [payOpen, setPayOpen] = useState(false);
+  const paymentAttemptRef = useRef<{
+    createSaleKey: string;
+    settlementKey: string;
+    saleId: string | null;
+  } | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   useFeedbackToasts(feedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>(backend === null ? 'fixture' : 'loading');
@@ -274,7 +315,6 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
 
 
   const acceptPayment = async (payments: PaymentPartDto[]) => {
-    setPayOpen(false);
     setFeedback({ label: t('op.pos.feedback.payment'), state: 'pending' });
     try {
       const nextBackend = requireBackend(backend, t);
@@ -291,44 +331,69 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
       }
 
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const sale = await clients.pos.createSale(nextBackend.branchId, {
-        organizationId: nextBackend.session.organizationId,
-        shiftId,
-        lines: cartItems.map((item) => ({
-          productId: item.productId!,
-          quantity: item.quantity,
-          unitPrice: {
-            currencyCode,
-            minorUnits: item.priceMinorUnits
-          }
-        })),
-        idempotencyKey: createIdempotencyKey('pos-sale'),
-        playerAccountId: selectedPosPlayerId
-      });
-      const saleId = readString(sale, 'posSaleId');
-      if (!saleId) {
-        throw new Error(t('op.pos.error.receiptNotConfirmed'));
+      const attempt = paymentAttemptRef.current ?? {
+        createSaleKey: createIdempotencyKey('pos-sale'),
+        settlementKey: createIdempotencyKey('pos-payment'),
+        saleId: null
+      };
+      paymentAttemptRef.current = attempt;
+      if (attempt.saleId === null) {
+        const sale = await clients.pos.createSale(nextBackend.branchId, {
+          organizationId: nextBackend.session.organizationId,
+          shiftId,
+          lines: cartItems.map((item) => ({
+            productId: item.productId!,
+            quantity: item.quantity,
+            unitPrice: {
+              currencyCode,
+              minorUnits: item.priceMinorUnits
+            }
+          })),
+          idempotencyKey: attempt.createSaleKey,
+          playerAccountId: selectedPosPlayerId
+        });
+        attempt.saleId = readString(sale, 'posSaleId');
+        if (!attempt.saleId) {
+          throw new Error(t('op.pos.error.receiptNotConfirmed'));
+        }
       }
 
-      await clients.pos.paySaleManual(saleId, {
+      const settlementRequest = {
         organizationId: nextBackend.session.organizationId,
-        paymentMethod: payments[0]?.paymentMethod ?? 'cash',
-        amount: {
-          currencyCode,
-          minorUnits: cartTotalMinorUnits
-        },
+        payments,
         note: 'operator POS checkout',
-        idempotencyKey: createIdempotencyKey('pos-payment')
-      });
+        idempotencyKey: attempt.settlementKey
+      };
+      try {
+        await clients.pos.settleSale(attempt.saleId, settlementRequest);
+      } catch (error) {
+        if (error instanceof PlatformApiError) {
+          throw error;
+        }
 
-      setCartItems([]);
+        // A transport failure is ambiguous: the first request may have committed.
+        // Replay exactly once with the same sale, payload and idempotency key.
+        await clients.pos.settleSale(attempt.saleId, settlementRequest);
+      }
+
+      paymentAttemptRef.current = null;
+      setPayOpen(false);
       setFeedback({ label: t('op.pos.feedback.payment'), state: 'confirmed' });
       await loadBackendPos(nextBackend);
+      setCartItems([]);
     } catch (error) {
+      if (paymentAttemptRef.current?.saleId) {
+        // The next click is an explicit retry gesture. Keep the sale so inventory
+        // is not duplicated, but give a corrected payment payload a fresh key.
+        paymentAttemptRef.current.settlementKey = createIdempotencyKey('pos-payment');
+      }
+      if (error instanceof PlatformApiError && error.status === 409) {
+        await loadBackendPos(backend);
+      }
       setFeedback({
         label: t('op.pos.feedback.payment'),
         state: 'failed',
-        detail: projectOperatorError(error, t).detail
+        detail: projectSettlementError(error, t)
       });
     }
   };
@@ -538,7 +603,14 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               <span>{t('op.pos.cart.total')}</span>
               <strong><Money minorUnits={cartTotalMinorUnits} currencyCode={currencyCode} /></strong>
             </div>
-            <button type="button" className="ui-btn ui-btn--primary ui-btn--lg pos-primary-action" disabled={!canAcceptPayment || feedback.state === 'pending'} onClick={() => setPayOpen(true)}>{t('op.pos.payment.acceptBtn')}</button>
+            <button type="button" className="ui-btn ui-btn--primary ui-btn--lg pos-primary-action" disabled={!canAcceptPayment || feedback.state === 'pending'} onClick={() => {
+              paymentAttemptRef.current = {
+                createSaleKey: createIdempotencyKey('pos-sale'),
+                settlementKey: createIdempotencyKey('pos-payment'),
+                saleId: null
+              };
+              setPayOpen(true);
+            }}>{t('op.pos.payment.acceptBtn')}</button>
             <button type="button" className="ui-btn pos-secondary-action" onClick={() => setCartItems([])}>{t('op.pos.payment.clearCartBtn')}</button>
           </div>
         </section>
@@ -548,18 +620,24 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
         <PanelModal
           title={t('op.pos.checkout.title')}
           subtitle={selectedPosPlayer ? selectedPosPlayer.name : t('op.pos.cart.clientGuest')}
-          onClose={() => setPayOpen(false)}
+          onClose={() => {
+            paymentAttemptRef.current = null;
+            setPayOpen(false);
+          }}
         >
           <PaymentDialog
             lines={billLines}
             dueLabel={t('op.pos.cart.total')}
             grandTotalMinorUnits={cartTotalMinorUnits}
             currencyCode={currencyCode}
-            walletBalanceMinorUnits={null}
-            allowSplit={false}
+            walletBalanceMinorUnits={selectedPosPlayer?.balanceMinorUnits ?? null}
+            allowSplit={selectedPosPlayer !== null}
             disabled={feedback.state === 'pending'}
             confirmVariant="accent"
-            onCancel={() => setPayOpen(false)}
+            onCancel={() => {
+              paymentAttemptRef.current = null;
+              setPayOpen(false);
+            }}
             onConfirm={acceptPayment}
           />
         </PanelModal>

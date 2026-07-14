@@ -10,7 +10,7 @@ const backendProduct = {
   name: 'Cola',
   sku: 'COLA',
   categoryName: 'Напитки',
-  price: { currencyCode: 'TJS', minorUnits: 1200 },
+  price: { currencyCode: 'TJS', minorUnits: 10_000 },
   trackStock: true,
   stockOnHand: 4,
   reorderThreshold: 2,
@@ -20,7 +20,7 @@ const linkedPlayer = {
   playerAccountId: 'player-1',
   displayName: 'Амир Алиев',
   phoneNumber: '+992900000001',
-  walletBalanceMinorUnits: 25_000,
+  walletBalanceMinorUnits: 4_500,
   debtBalanceMinorUnits: 0,
   activePackageCount: 0,
   isActive: true,
@@ -30,9 +30,15 @@ const linkedPlayer = {
   activePackageRemainingMinutes: 0
 };
 const requestedUrls: string[] = [];
-const fetchBackend = mock(async (input: RequestInfo | URL) => {
+const requestedBodies: unknown[] = [];
+let settlementFailuresRemaining = 0;
+let settlementNetworkFailuresRemaining = 0;
+const fetchBackend = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
   const url = String(input);
   requestedUrls.push(url);
+  if (init?.body) {
+    requestedBodies.push(JSON.parse(String(init.body)));
+  }
   if (url.endsWith('/api/branches/branch-1/pos/catalog')) {
     return jsonResponse([backendProduct]);
   }
@@ -41,6 +47,24 @@ const fetchBackend = mock(async (input: RequestInfo | URL) => {
   }
   if (url.includes('/api/branches/branch-1/players?')) {
     return jsonResponse([linkedPlayer]);
+  }
+  if (url.endsWith('/api/branches/branch-1/pos/sales') && init?.method === 'POST') {
+    return jsonResponse({ posSaleId: 'sale-1', state: 'draft' });
+  }
+  if (url.endsWith('/api/pos/sales/sale-1/settlements') && init?.method === 'POST') {
+    if (settlementNetworkFailuresRemaining > 0) {
+      settlementNetworkFailuresRemaining -= 1;
+      throw new TypeError('network connection dropped');
+    }
+    if (settlementFailuresRemaining > 0) {
+      settlementFailuresRemaining -= 1;
+      return new Response(JSON.stringify({ error: 'version_conflict' }), {
+        status: 409,
+        statusText: 'Conflict',
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    return jsonResponse({ posSaleId: 'sale-1', state: 'paid' });
   }
 
   return new Response('Not Found', { status: 404, statusText: 'Not Found' });
@@ -58,6 +82,9 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
   fetchBackend.mockClear();
   requestedUrls.length = 0;
+  requestedBodies.length = 0;
+  settlementFailuresRemaining = 0;
+  settlementNetworkFailuresRemaining = 0;
 });
 
 // backend=null → fixture-режим: каталог/корзина из заглушек, без сетевых запросов.
@@ -76,7 +103,7 @@ const backend = {
   session: {
     accessToken: 'token',
     organizationId: 'organization-1',
-    permissions: ['players.view']
+    permissions: ['players.view', 'pos.sales.create', 'pos.sales.pay']
   },
   branchId: 'branch-1'
 };
@@ -128,5 +155,63 @@ describe('BackendPosWorkspace', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Амир Алиев/ }));
 
     expect(screen.getByText('Баланс:')).toBeInTheDocument();
+  });
+
+  it('keeps wallet, cash, cart, and client after a stable settlement failure', async () => {
+    settlementFailuresRemaining = 1;
+    renderBackendPos();
+    await screen.findAllByText('Cola');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Выбрать' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Клиент' }), { target: { value: 'Амир' } });
+    fireEvent.click(await screen.findByRole('button', { name: /Амир Алиев/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Смешанно' }));
+    const methodSelects = screen.getAllByRole('combobox', { name: 'Способ оплаты' });
+    fireEvent.change(methodSelects[0], { target: { value: 'wallet' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Сумма' }), { target: { value: '20.00' } });
+    fireEvent.click(screen.getByRole('button', { name: /Ещё способ/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Получено' }), { target: { value: '80.00' } });
+
+    const confirm = screen.getByRole('button', { name: /Принять 100/ });
+    fireEvent.click(confirm);
+    await waitFor(() => expect(requestedUrls.filter((url) => url.endsWith('/settlements'))).toHaveLength(1));
+
+    expect(screen.getByRole('dialog', { name: 'Оплата' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Сумма' })).toHaveValue('20.00');
+    expect(screen.getByRole('textbox', { name: 'Получено' })).toHaveValue('80.00');
+    expect(screen.getAllByText('Амир Алиев').length).toBeGreaterThanOrEqual(1);
+    expect(await screen.findByText('Данные продажи изменились. Проверьте корзину и повторите оплату.')).toBeInTheDocument();
+  });
+
+  it('replays an ambiguous multipart settlement once with the same idempotency key', async () => {
+    settlementNetworkFailuresRemaining = 1;
+    renderBackendPos();
+    await screen.findAllByText('Cola');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Выбрать' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Клиент' }), { target: { value: 'Амир' } });
+    fireEvent.click(await screen.findByRole('button', { name: /Амир Алиев/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Смешанно' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Способ оплаты' }), { target: { value: 'wallet' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Сумма' }), { target: { value: '20.00' } });
+    fireEvent.click(screen.getByRole('button', { name: /Ещё способ/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Получено' }), { target: { value: '80.00' } });
+    fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));
+
+    await waitFor(() => expect(requestedUrls.filter((url) => url.endsWith('/settlements'))).toHaveLength(2));
+    const settlementBodies = requestedBodies.filter((body) =>
+      typeof body === 'object' && body !== null && 'payments' in body) as Array<Record<string, unknown>>;
+    expect(settlementBodies).toHaveLength(2);
+    expect(settlementBodies[0].payments).toEqual([
+      { paymentMethod: 'wallet', amount: { currencyCode: 'TJS', minorUnits: 2_000 } },
+      { paymentMethod: 'cash', amount: { currencyCode: 'TJS', minorUnits: 8_000 } }
+    ]);
+    expect(settlementBodies[1]).toEqual(settlementBodies[0]);
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Оплата' })).toBeNull());
+    expect(screen.getByText('Корзина пуста')).toBeInTheDocument();
   });
 });

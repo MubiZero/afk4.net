@@ -3,9 +3,9 @@ import { Banknote, CircleDollarSign, Plus, ReceiptText, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import {
   buildCheckoutPayments,
-  checkoutMethods,
   checkoutMethodLabel,
   formatCheckoutAmount,
+  getAvailableCheckoutMethods,
   initialCheckoutDrafts,
   validateCheckoutPayments,
   type CheckoutMethod,
@@ -105,7 +105,10 @@ export function PaymentDialog({
   const updateSplitDraft = (index: number, patch: Partial<CheckoutPaymentDraft>) => {
     setSplitDrafts((current) => current.map((draft, position) => (position === index ? { ...draft, ...patch } : draft)));
   };
-  const addSplitDraft = () => setSplitDrafts((current) => [...current, { method: 'cash', amountText: '' }]);
+  const addSplitDraft = () => setSplitDrafts((current) => {
+    const nextMethod = getAvailableCheckoutMethods(current)[0];
+    return nextMethod ? [...current, { method: nextMethod, amountText: '' }] : current;
+  });
   const removeSplitDraft = (index: number) => {
     setSplitDrafts((current) => (current.length <= 1 ? current : current.filter((_, position) => position !== index)));
   };
@@ -116,6 +119,7 @@ export function PaymentDialog({
     ...(hasWallet ? [{ id: 'deposit' as PayMode, label: t('op.checkout.method.wallet') }] : []),
     ...(allowSplit ? [{ id: 'split' as PayMode, label: t('op.checkout.tab.split') }] : [])
   ];
+  const canAddSplitMethod = getAvailableCheckoutMethods(splitDrafts).length > 0;
 
   return (
     <>
@@ -200,7 +204,7 @@ export function PaymentDialog({
                     disabled={disabled}
                     onChange={(event) => updateSplitDraft(index, { method: event.currentTarget.value as CheckoutMethod })}
                   >
-                    {checkoutMethods.map((method) => (
+                    {getAvailableCheckoutMethods(splitDrafts, index).map((method) => (
                       <option key={method} value={method}>{checkoutMethodLabel(method, t)}</option>
                     ))}
                   </select>
@@ -226,7 +230,7 @@ export function PaymentDialog({
                 </div>
               ))}
               <div className="checkout-payment-controls">
-                <button type="button" disabled={disabled} onClick={addSplitDraft}><Plus size={14} />{t('op.checkout.addPaymentMethod')}</button>
+                <button type="button" disabled={disabled || !canAddSplitMethod} onClick={addSplitDraft}><Plus size={14} />{t('op.checkout.addPaymentMethod')}</button>
               </div>
             </div>
           )}

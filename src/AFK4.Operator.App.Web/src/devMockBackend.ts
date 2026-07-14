@@ -659,6 +659,9 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   if (url.pathname.includes('/pos/sales/') && url.pathname.endsWith('/payments/manual') && method === 'POST') {
     return json({ paymentId: `pp-${nextPosSaleSeq}`, posSaleId: url.pathname.split('/').slice(-3)[0], state: 'paid' });
   }
+  if (url.pathname.includes('/pos/sales/') && url.pathname.endsWith('/settlements') && method === 'POST') {
+    return json({ posSaleId: url.pathname.split('/').slice(-2)[0], state: 'paid' });
+  }
   if (url.pathname.endsWith('/pin') && method === 'POST') {
     return noContent();
   }
