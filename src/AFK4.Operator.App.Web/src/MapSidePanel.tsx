@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowRightLeft, Check, Loader2, Lock, MonitorCheck, Plus, ReceiptText, TriangleAlert, Unlock, Wifi, WifiOff, Wrench } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
@@ -50,6 +50,7 @@ import { PaymentDialog, type PaymentBillLine } from './PaymentDialog';
 import { PanelSelect } from './PanelSelect';
 import { seatTileLead } from './seatTilePresentation';
 import { formatDurationCompact } from './floorMapState';
+import { ClientPicker } from './booking/ClientPicker';
 
 // Чипы длительности старта сессии (минуты). «Открытый счёт» добавляется отдельной кнопкой.
 const START_DURATIONS = [30, 60, 120, 180] as const;
@@ -393,6 +394,34 @@ export function MapSidePanel({
   const startPlanPrice = estimatedCostMinor != null ? formatMinorUnits(estimatedCostMinor, currencyCode) : '';
   const startPlan = [startPlanWho, startPlanRate, startPlanDuration, startPlanPrice].filter(Boolean).join(' · ');
 
+  const clearPlayerSelection = useCallback(() => {
+    setPlayerSearch('');
+    setBillingPlayers([]);
+    setSelectedPlayerId('');
+    setSelectedPlayerPackageId('');
+  }, []);
+
+  // ClientPicker владеет debounce/open/loading; Map остаётся владельцем
+  // backend-поиска и сохраняет проекции для баланса/пакетов в старт-форме.
+  const searchBillingPlayers = useCallback(async (query: string): Promise<PlayerClientItem[]> => {
+    if (backend === null || !hasPermission(backend.session, permissionNames.viewPlayers)) {
+      setBillingPlayers([]);
+      return [];
+    }
+
+    try {
+      const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+      const players: PlayerSearchResultDto[] = await clients.players.searchPlayers(backend.branchId, query, 8);
+      const projected = players.map((player) => projectPlayerClient(player, t));
+      setBillingPlayers(projected);
+      return projected;
+    } catch (error) {
+      setBillingPlayers([]);
+      setBillingError(projectOperatorError(error, t).detail);
+      throw error;
+    }
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, backend?.session.permissions, t]);
+
   useEffect(() => {
     if (targetSeatId.length > 0 && transferCandidates.some((candidate) => candidate.id === targetSeatId)) {
       return;
@@ -471,42 +500,6 @@ export function MapSidePanel({
     const timer = window.setTimeout(() => setFeedback(emptyFeedback), 1600);
     return () => window.clearTimeout(timer);
   }, [feedback]);
-
-  useEffect(() => {
-    let disposed = false;
-    const query = playerSearch.trim();
-
-    if (backend === null || query.length < 2 || !hasPermission(session, permissionNames.viewPlayers)) {
-      setBillingPlayers([]);
-      setSelectedPlayerId('');
-      return undefined;
-    }
-
-    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
-    clients.players.searchPlayers(backend.branchId, query, 8)
-      .then((players: PlayerSearchResultDto[]) => {
-        if (disposed) {
-          return;
-        }
-
-        const projected = players.map((p) => projectPlayerClient(p, t));
-        setBillingPlayers(projected);
-        setSelectedPlayerId((current) => current || (projected[0]?.playerAccountId ?? ''));
-      })
-      .catch((error) => {
-        if (disposed) {
-          return;
-        }
-
-        setBillingPlayers([]);
-        setSelectedPlayerId('');
-        setBillingError(projectOperatorError(error, t).detail);
-      });
-
-    return () => {
-      disposed = true;
-    };
-  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, playerSearch]);
 
   useEffect(() => {
     let disposed = false;
@@ -817,7 +810,10 @@ export function MapSidePanel({
             aria-selected={isGuest}
             className={isGuest ? 'active' : undefined}
             disabled={!actionsEnabled || isBusy}
-            onClick={() => setBillingMode('guest')}
+            onClick={() => {
+              setBillingMode('guest');
+              clearPlayerSelection();
+            }}
           >
             {t('op.helper.billing.guest')}
           </button>
@@ -836,31 +832,23 @@ export function MapSidePanel({
         {!isGuest && (
           <>
             <div className="start-section-head">{t('op.map.panel.startPlayerHead')}</div>
-            <input
-              className="start-field"
-              aria-label={t('op.map.panel.playerInput')}
+            <ClientPicker
               value={playerSearch}
+              linked={selectedPlayerId !== ''}
               disabled={!actionsEnabled || isBusy || !hasPermission(session, permissionNames.viewPlayers)}
-              placeholder={t('op.map.panel.playerSearch')}
-              onChange={(event) => setPlayerSearch(event.currentTarget.value)}
+              ariaLabel={t('op.map.panel.playerInput')}
+              search={searchBillingPlayers}
+              onQueryChange={(value) => {
+                setPlayerSearch(value);
+                setSelectedPlayerId('');
+                setSelectedPlayerPackageId('');
+              }}
+              onPick={(pick) => {
+                setPlayerSearch(pick.name);
+                setSelectedPlayerId(pick.playerAccountId);
+              }}
+              onClear={clearPlayerSelection}
             />
-            <div className="billing-candidate-list" aria-label={t('op.map.panel.playersFoundLabel')}>
-              {billingPlayers.map((player) => (
-                <button
-                  key={player.playerAccountId ?? player.name}
-                  type="button"
-                  className={player.playerAccountId === selectedPlayerId ? 'active' : undefined}
-                  disabled={!player.playerAccountId || isBusy}
-                  onClick={() => setSelectedPlayerId(player.playerAccountId ?? '')}
-                >
-                  <strong>{player.name}</strong>
-                  <span>{formatMinorUnits(player.balanceMinorUnits, currencyCode)} · {t('op.map.panel.playerDebt', { amount: formatMinorUnits(player.debtMinorUnits, currencyCode) })}</span>
-                </button>
-              ))}
-              {playerSearch.trim().length > 1 && billingPlayers.length === 0 && (
-                <p>{t('op.map.panel.playerNotFound')}</p>
-              )}
-            </div>
             <div className="start-section-head">{t('op.map.panel.startChargeHead')}</div>
             <div className="start-segment three" role="tablist" aria-label={t('op.map.panel.startChargeHead')}>
               {billingModeOptions(t).filter((option) => option.id !== 'guest').map((option) => (

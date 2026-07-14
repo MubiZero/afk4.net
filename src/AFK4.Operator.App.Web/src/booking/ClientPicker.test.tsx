@@ -60,4 +60,50 @@ describe('ClientPicker', () => {
     await new Promise((resolve) => setTimeout(resolve, 350));
     expect(search).not.toHaveBeenCalled();
   });
+
+  it('выбирает одинакового клиента кликом и стрелкой с Enter', async () => {
+    const clients = [
+      client({ playerAccountId: 'p1', name: 'Азиз П.' }),
+      client({ playerAccountId: 'p2', name: 'Мадина С.', phoneNumber: '+992 90 777 88 99', balanceMinorUnits: 45_000 })
+    ];
+    const clickPick = mock((_pick: ClientPick) => {});
+    const keyboardPick = mock((_pick: ClientPick) => {});
+
+    render(<Harness search={async () => clients} onPick={clickPick} />);
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Ма' } });
+    fireEvent.click(await screen.findByText('Мадина С.'));
+    const clicked = clickPick.mock.calls[0][0];
+
+    cleanup();
+    render(<Harness search={async () => clients} onPick={keyboardPick} />);
+    const input = screen.getByRole('combobox');
+    fireEvent.change(input, { target: { value: 'Ма' } });
+    await screen.findByText('Мадина С.');
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(keyboardPick).toHaveBeenCalledTimes(1);
+    expect(keyboardPick.mock.calls[0][0]).toEqual(clicked);
+    expect(clicked).toMatchObject({ playerAccountId: 'p2', name: 'Мадина С.', balanceMinorUnits: 45_000 });
+  });
+
+  it('отвязывает прежний аккаунт при изменении поисковой строки', () => {
+    const onQueryChange = mock((_value: string) => {});
+    render(
+      <I18nProvider>
+        <ClientPicker
+          value="Азиз П."
+          linked
+          search={async () => []}
+          onQueryChange={onQueryChange}
+          onPick={() => {}}
+          onClear={() => {}}
+        />
+      </I18nProvider>
+    );
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'New name' } });
+
+    expect(onQueryChange).toHaveBeenCalledWith('New name');
+  });
 });

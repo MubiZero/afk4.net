@@ -22,6 +22,7 @@ export function ClientPicker({
   value,
   linked,
   disabled = false,
+  ariaLabel,
   search,
   onQueryChange,
   onPick,
@@ -30,6 +31,7 @@ export function ClientPicker({
   value: string;
   linked: boolean;
   disabled?: boolean;
+  ariaLabel?: string;
   search: (query: string) => Promise<PlayerClientItem[]>;
   onQueryChange: (name: string) => void;
   onPick: (pick: ClientPick) => void;
@@ -136,7 +138,7 @@ export function ClientPicker({
           aria-expanded={showResults}
           aria-controls={showResults ? listboxId : undefined}
           aria-autocomplete="list"
-          aria-label={t('clients.search.label')}
+          aria-label={ariaLabel ?? t('clients.search.label')}
           value={value}
           disabled={disabled}
           placeholder={t('clients.search.placeholder')}

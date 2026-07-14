@@ -728,7 +728,7 @@ describe('App', () => {
     // Клиент клуба → списание по умолчанию «Депозит» (prepaid_wallet).
     fireEvent.click(within(startDialog).getByRole('tab', { name: 'Клиент клуба' }));
     fireEvent.change(screen.getByLabelText('Игрок для биллинга'), { target: { value: 'Madina' } });
-    fireEvent.click(await screen.findByRole('button', { name: /Madina S\./ }));
+    fireEvent.click(await within(startDialog).findByRole('option', { name: /Madina S\./ }));
     // Биллинг готов → окно показывает превью «Запустим …».
     expect(await screen.findByText('Запустим')).toBeInTheDocument();
 

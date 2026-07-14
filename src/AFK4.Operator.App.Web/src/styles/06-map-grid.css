@@ -1728,3 +1728,15 @@
   background: var(--surface-sunken);
   color: var(--text-secondary);
 }
+
+/* Shared booking ClientPicker in the denser New Session modal keeps the modal's
+   42px control rhythm while retaining the picker's linked/search states. */
+.start-dialog-body .booking-client-field {
+  height: 42px;
+  border-radius: 9px;
+  padding-inline: 13px;
+}
+
+.start-dialog-body .booking-client-field input {
+  font-size: 15px;
+}

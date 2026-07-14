@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it } from 'bun:test';
-import { cleanup, render } from '@testing-library/react';
+import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import type { SeatSummary } from './operatorData';
+import type { OperatorBackendContext } from './operatorTypes';
 import { MapSidePanel } from './MapSidePanel';
 
 afterEach(cleanup);
@@ -21,6 +22,33 @@ function renderPanel(s: SeatSummary) {
       <MapSidePanel seat={s} seats={[s]} currencyCode="TJS" backend={null} actionsEnabled={false} canUsePcControl={true} onSeatAction={async () => ({})} onPcControlAction={async () => ({ detail: '' })} />
     </I18nProvider>
   );
+}
+
+function backend(): OperatorBackendContext {
+  return {
+    config: {
+      runtime: 'browser-test',
+      shellMode: 'test',
+      platformBaseUrl: 'http://localhost:5074/',
+      currencyCode: 'TJS'
+    },
+    branchId: 'branch-1',
+    session: {
+      staffUserId: 'staff-1',
+      organizationId: 'org-1',
+      displayName: 'Operator',
+      accessToken: 'test-token',
+      accessTokenExpiresAtUtc: '2026-07-15T00:00:00Z',
+      refreshTokenExpiresAtUtc: '2026-07-16T00:00:00Z',
+      branchIds: ['branch-1'],
+      activeBranchId: 'branch-1',
+      permissions: ['sessions.start', 'players.view', 'billing.view', 'tariffs.view']
+    }
+  };
+}
+
+function json(value: unknown): Response {
+  return new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
 
 describe('MapSidePanel diagnostics (A3)', () => {
@@ -90,5 +118,77 @@ describe('MapSidePanel diagnostics (A3)', () => {
     const { queryByText } = renderPanel(seat({ deviceId: null, deviceName: null }));
     expect(queryByText('Управление ПК')).toBeNull();
     expect(queryByText('Статус ПК')).toBeNull();
+  });
+});
+
+describe('MapSidePanel new session client picker', () => {
+  it('привязывает клиента кликом, показывает баланс и пакеты, а гость сбрасывает связь', async () => {
+    const originalFetch = globalThis.fetch;
+    const fetchMock = mock(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/tariffs/options')) {
+        return json([{
+          tariffId: 'tariff-1', tariffVersionId: 'tariff-version-1', tariffRuleVersionId: 'standard-v1',
+          name: 'Standard', currencyCode: 'TJS', pricePerMinuteMinorUnits: 50,
+          minimumBillableMinutes: 15, roundingIncrementMinutes: 5
+        }]);
+      }
+      if (url.pathname.endsWith('/players/player-1/packages')) {
+        return json([{
+          playerPackageId: 'package-1', packageDefinitionId: 'definition-1', playerAccountId: 'player-1',
+          name: 'Night 5h', purchasedPrice: { currencyCode: 'TJS', minorUnits: 10_000 },
+          includedSeconds: 18_000, bonusSeconds: 0, remainingIncludedSeconds: 10_800,
+          remainingBonusSeconds: 0, purchasedAtUtc: '2026-07-01T00:00:00Z', expiresAtUtc: null
+        }]);
+      }
+      if (url.pathname.endsWith('/players')) {
+        return json([{
+          playerAccountId: 'player-1', displayName: 'Мадина С.', phoneNumber: '+992 90 777 88 99',
+          walletBalanceMinorUnits: 45_000, debtBalanceMinorUnits: 0, activePackageCount: 1,
+          isActive: true, createdAtUtc: '2026-07-01T00:00:00Z', lastActivityAtUtc: null,
+          activePackageName: 'Night 5h', activePackageRemainingMinutes: 180
+        }]);
+      }
+      throw new Error(`Unexpected request: ${url.pathname}`);
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    try {
+      const readySeat = seat({ tone: 'ready', stateLabel: 'Свободен', activeSessionId: null, hasActiveSession: false });
+      render(
+        <I18nProvider>
+          <MapSidePanel
+            seat={readySeat}
+            seats={[readySeat]}
+            currencyCode="TJS"
+            backend={backend()}
+            actionsEnabled
+            canUsePcControl={false}
+            onSeatAction={async () => ({})}
+            onPcControlAction={async () => ({ detail: '' })}
+          />
+        </I18nProvider>
+      );
+
+      fireEvent.click(screen.getByRole('button', { name: 'Посадить гостя' }));
+      const dialog = screen.getByRole('dialog', { name: 'Новая сессия' });
+      fireEvent.click(within(dialog).getByRole('tab', { name: 'Клиент клуба' }));
+      fireEvent.change(within(dialog).getByRole('combobox', { name: 'Игрок для биллинга' }), { target: { value: 'Ма' } });
+      fireEvent.click(await within(dialog).findByRole('option', { name: /\u041c\u0430\u0434\u0438\u043d\u0430 \u0421\./ }));
+
+      expect(within(dialog).getByRole('combobox', { name: 'Игрок для биллинга' })).toHaveValue('Мадина С.');
+      expect(within(dialog).getByText('Клиент клуба', { selector: '.booking-client-badge' })).toBeInTheDocument();
+      expect(await within(dialog).findByText(/450.*хватит/)).toBeInTheDocument();
+
+      fireEvent.click(within(dialog).getByRole('tab', { name: 'Пакет' }));
+      await waitFor(() => expect(within(dialog).getByRole('combobox', { name: 'Пакет для сессии' })).toHaveTextContent('Night 5h'));
+
+      fireEvent.click(within(dialog).getByRole('tab', { name: 'Гость' }));
+      fireEvent.click(within(dialog).getByRole('tab', { name: 'Клиент клуба' }));
+      expect(within(dialog).getByRole('combobox', { name: 'Игрок для биллинга' })).toHaveValue('');
+      expect(within(dialog).queryByText('Клиент клуба', { selector: '.booking-client-badge' })).toBeNull();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });
