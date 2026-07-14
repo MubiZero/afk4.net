@@ -25,7 +25,7 @@ interface DragState {
 }
 
 export function BookingTimeline({
-  groups, axis, nowMs, loading, showSkeleton, selectedReservationId, branchName, previewBlock, dateLabel, dateValue, isToday, onPrevDay, onNextDay, onToday, onPickDate, onSelectBlock, onCellCreate, onSeatsCreate
+  groups, axis, nowMs, loading, showSkeleton, selectedReservationId, branchName, previewBlock, dateLabel, dateValue, isToday, onPrevDay, onNextDay, onToday, onPickDate, onSelectBlock, onCellCreate, onSeatsCreate, onSeatToggle
 }: {
   groups: ZoneRowGroup[];
   axis: TimelineAxis;
@@ -45,6 +45,7 @@ export function BookingTimeline({
   onSelectBlock: (item: BookingItem) => void;
   onCellCreate: (seat: SeatSummary, startMs: number, durationMinutes?: number) => void;
   onSeatsCreate: (seats: SeatSummary[], startMs: number, durationMinutes: number) => void;
+  onSeatToggle: (seat: SeatSummary, startMs: number) => void;
 }) {
   const { t } = useI18n();
   const hasRows = groups.some((g) => g.rows.length > 0);
@@ -172,7 +173,13 @@ export function BookingTimeline({
   // браузер шлёт хвостовой click — его глушит capture-перехватчик выше, поэтому сюда он не доходит.
   const handleTrackClick = (event: ReactMouseEvent<HTMLDivElement>, seat: SeatSummary): void => {
     if ((event.target as HTMLElement).closest('.booking-block')) return;
-    onCellCreate(seat, snap(msFromClientX(event.currentTarget, event.clientX)));
+    const startMs = snap(msFromClientX(event.currentTarget, event.clientX));
+    if (event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+      onSeatToggle(seat, startMs);
+      return;
+    }
+    onCellCreate(seat, startMs);
   };
 
   useEffect(() => {

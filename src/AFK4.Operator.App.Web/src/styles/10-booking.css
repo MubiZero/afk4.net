@@ -674,9 +674,26 @@
   white-space: nowrap;
 }
 
+/* Текущий статус ПК — предупреждение для оператора, а не запрет будущей брони.
+   Блокирующим остаётся только фактическое пересечение выбранного интервала. */
+.booking-seat-chip.is-unavailable {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.booking-seat-chip small {
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 500;
+}
+
 /* Конфликтное место (вернулось 409) — красный кант, не пропадает, оператор сам его убирает. */
 .booking-seat-chip.is-conflict {
   border-color: var(--danger);
+  color: var(--danger);
+}
+
+.booking-seat-chip.is-conflict small {
   color: var(--danger);
 }
 

@@ -382,6 +382,23 @@ export function BackendBookingWorkspace({
     setDrawerMode('create');
   };
 
+  // Ctrl/Command-клик дополняет текущий черновик произвольным местом, не меняя общий
+  // интервал после первого выбора. Текущее состояние ПК не фильтруем: для будущего времени
+  // авторитетны фактические пересечения, рассчитанные ниже и повторно проверяемые сервером.
+  const toggleDraftSeat = (seat: SeatSummary, startMs: number) => {
+    setDrawerMode('create');
+    setDraft((current) => {
+      const basis = current.seatIds.length > 0 ? current.seatIds : current.seatId ? [current.seatId] : [];
+      const seatIds = basis.includes(seat.id) ? basis.filter((id) => id !== seat.id) : [...basis, seat.id];
+      return {
+        ...current,
+        seatId: '',
+        seatIds,
+        startsAt: basis.length === 0 ? toDateTimeInputValue(new Date(startMs)) : current.startsAt
+      };
+    });
+  };
+
   const removeGroupSeat = (seatId: string) => {
     setDraft((d) => ({ ...d, seatIds: d.seatIds.filter((id) => id !== seatId) }));
     setGroupConflicts((prev) => {
@@ -488,6 +505,7 @@ export function BackendBookingWorkspace({
           onSelectBlock={(item) => openDetailDrawer(item.reservationId)}
           onCellCreate={openCreateDrawerForCell}
           onSeatsCreate={openGroupDrawer}
+          onSeatToggle={toggleDraftSeat}
         />
 
         {drawerMode && (

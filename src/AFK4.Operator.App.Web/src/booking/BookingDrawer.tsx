@@ -138,10 +138,12 @@ export function BookingDrawer(props: BookingDrawerProps) {
               <div className="booking-seat-chips" role="list">
                 {groupSeats.map((seat) => {
                   const conflicted = groupConflicts.has(seat.id);
+                  const unavailable = !freeIds.has(seat.id);
                   return (
-                    <span key={seat.id} role="listitem" className={`booking-seat-chip${conflicted ? ' is-conflict' : ''}`}>
-                      {conflicted && <TriangleAlert size={11} aria-hidden="true" />}
-                      {zoneLabel(seat.zone, t)} · {seat.name}
+                    <span key={seat.id} role="listitem" className={`booking-seat-chip${unavailable ? ' is-unavailable' : ''}${conflicted ? ' is-conflict' : ''}`}>
+                      {(unavailable || conflicted) && <TriangleAlert size={11} aria-hidden="true" />}
+                      <span>{zoneLabel(seat.zone, t)} · {seat.name}</span>
+                      {unavailable && <small>{seat.stateLabel}</small>}
                       <button type="button" aria-label={t('op.booking.group.remove', { seat: seat.name })} disabled={busy} onClick={() => props.onRemoveSeat(seat.id)}><X size={11} /></button>
                     </span>
                   );
