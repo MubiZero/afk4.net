@@ -503,6 +503,21 @@ public sealed class SessionBillingService(
             return Invalid("Tariff version for the session was not found.");
         }
 
+        // Fixed-duration wallet sessions settle their tariff charge atomically at start (and each
+        // extension). Checkout may still collect an attached POS tab, but must never charge the
+        // already-paid session time again.
+        if (session.BillingMode == BillingModeNames.PrepaidWallet)
+        {
+            return new SessionBillingValidationResult(
+                Succeeded: true,
+                Error: null,
+                version.TariffVersionId.ToString("D"),
+                version.TariffVersionId,
+                BillableSeconds: 0,
+                AmountMinorUnits: 0,
+                version.CurrencyCode);
+        }
+
         var startedAtUtc = session.StartedAtUtc ?? session.RequestedAtUtc;
         var pricing = new TariffPricing(
             version.PricePerMinuteMinorUnits,

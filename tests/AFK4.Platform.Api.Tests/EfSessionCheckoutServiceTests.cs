@@ -123,6 +123,48 @@ public sealed class EfSessionCheckoutServiceTests
     }
 
     [Fact]
+    public async Task CheckoutAsync_PrepaidWalletSession_DoesNotChargePaidTimeAgain()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedOpenPostpaidSessionAsync(db);
+        var session = await db.Sessions.SingleAsync();
+        session.BillingMode = BillingModeNames.PrepaidWallet;
+        db.LedgerEntries.Add(BillingEntryFactory.Create(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            PlayerAccountId,
+            SessionId,
+            playerPackageId: null,
+            LedgerEntryTypeNames.GameplayCharge,
+            LedgerAccountTypeNames.Wallet,
+            -ExpectedTimeCharge,
+            quantitySeconds: 0,
+            "TJS",
+            LedgerEntryTypeNames.GameplayCharge,
+            "prepaid wallet gameplay charge",
+            reversesLedgerEntryId: null,
+            ActorStaffUserId,
+            Now.AddMinutes(-40)));
+        await db.SaveChangesAsync();
+        var service = CreateService(db, new RecordingDispatch());
+
+        var result = await service.CheckoutAsync(
+            SessionId,
+            ActorStaffUserId,
+            new SessionCheckoutRequest(TestIds.OrganizationId, [], "checkout-prepaid"),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(0, result.Response!.TimeCharge.MinorUnits);
+        Assert.Equal(0, result.Response.GrandTotal.MinorUnits);
+        Assert.Single(db.LedgerEntries);
+        Assert.DoesNotContain(db.LedgerEntries, entry => entry.EntryType == LedgerEntryTypeNames.PostpaidDebt);
+        Assert.DoesNotContain(db.LedgerEntries, entry => entry.EntryType == LedgerEntryTypeNames.DebtPayment);
+        Assert.DoesNotContain(db.LedgerEntries, entry => entry.EntryType == LedgerEntryTypeNames.WalletPayment);
+    }
+
+    [Fact]
     public async Task CheckoutAsync_WithStaleExpectedVersion_ReturnsStaleVersionConflictAndDoesNotSettle()
     {
         await using var db = CreateDbContext();
@@ -578,6 +620,7 @@ public sealed class EfSessionCheckoutServiceTests
             PlayerKind = "guest",
             PlayerAccountId = PlayerAccountId,
             TariffRuleVersionId = TariffVersionId.ToString("D"),
+            BillingMode = BillingModeNames.PostpaidDebt,
             State = SessionStateNames.Active,
             RequestedAtUtc = Now.AddMinutes(-40),
             StartedAtUtc = Now.AddMinutes(-40),
