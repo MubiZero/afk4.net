@@ -128,7 +128,8 @@ export function BookingDrawer(props: BookingDrawerProps) {
     <aside className="booking-drawer" role="dialog" aria-label={title}>
       <header className="booking-drawer-head">
         <strong>{title}</strong>
-        <button type="button" className="booking-drawer-close" aria-label={t('common.cancel')} onClick={props.onClose}><X size={16} /></button>
+        <button type="button" className="booking-drawer-close" aria-label={t('common.cancel')} disabled={busy}
+          onClick={() => { if (!busy) props.onClose(); }}><X size={16} /></button>
       </header>
 
       {mode === 'create' ? (

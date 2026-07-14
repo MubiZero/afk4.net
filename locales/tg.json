@@ -2609,7 +2609,6 @@
   "op.error.code.idempotencyConflict": "Ин дархост бо параметрҳои дигар истифода шудааст. Маълумотро нав кунед.",
   "op.error.code.sessionStartInvalid": "Параметрҳои оғози сессияро санҷед.",
   "op.error.code.sessionStartConflict": "Сессия аз сабаби ихтилоф оғоз намешавад. Маълумотро нав кунед.",
-  "op.booking.start.earlyWarning": "Вақти брон ҳанӯз нарасидааст. Сессия ва ҳисобкунӣ дарҳол пас аз оғоз сар мешаванд.",
   "op.players.status.active": "Фаъол",
   "op.players.status.debt": "Қарз",
   "op.players.status.inactive": "Ғайрифаъол",

@@ -15,6 +15,7 @@ import { formatDurationCompact } from '../floorMapState';
 import { ClientPicker } from '../booking/ClientPicker';
 import { PanelSelect } from '../PanelSelect';
 import { projectOperatorError } from '../apiErrors';
+import { PlatformApiError } from '../platformApi';
 
 const START_DURATIONS = [30, 60, 120, 180] as const;
 
@@ -112,7 +113,7 @@ export function SessionStartForm({
           tariffRuleVersionId: readString(current, 'tariffRuleVersionId', defaultTariffRuleVersionId)
         });
       }
-    }).catch((error) => { if (!disposed) setLoadError(error instanceof Error ? error.message : String(error)); });
+    }).catch((error) => { if (!disposed) setLoadError(safeReferenceLoadError(error, t)); });
     return () => { disposed = true; };
     // Loaders identify the authenticated branch; parents memoize them.
   }, [loadTariffs]);
@@ -129,7 +130,7 @@ export function SessionStartForm({
         const current = items.find((item) => readString(item, 'playerPackageId') === latest.playerPackageId) ?? items[0];
         onChange({ ...latest, playerPackageId: current ? readString(current, 'playerPackageId') || null : null });
       }
-    }).catch((error) => { if (request === requestRef.current) setLoadError(error instanceof Error ? error.message : String(error)); });
+    }).catch((error) => { if (request === requestRef.current) setLoadError(safeReferenceLoadError(error, t)); });
   }, [clientId, loadPackages, value.billingMode]);
 
   const mode = value.billingMode as SessionBillingModeId;
@@ -296,4 +297,11 @@ export function SessionStartForm({
     {loadError && <p className="checkout-error" role="alert">{loadError}</p>}
     <div className={`start-plan${missing ? ' is-missing' : ''}`}><span>{missing ? t('op.map.panel.startNeed') : t('op.map.panel.startPlanLabel')}</span><strong>{missing ?? plan}</strong></div>
   </div>;
+}
+
+function safeReferenceLoadError(error: unknown, t: Parameters<typeof projectOperatorError>[1]): string {
+  const projected = projectOperatorError(error, t);
+  return error instanceof PlatformApiError && projected.detail !== error.message
+    ? projected.detail
+    : t('op.error.actionFailed.noDetail');
 }

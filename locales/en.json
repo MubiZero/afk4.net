@@ -2609,7 +2609,6 @@
   "op.error.code.idempotencyConflict": "This request was already used with different parameters. Refresh the data.",
   "op.error.code.sessionStartInvalid": "Check the session start settings.",
   "op.error.code.sessionStartConflict": "The session cannot start because of a conflict. Refresh the data.",
-  "op.booking.start.earlyWarning": "The reservation has not started yet. The session and billing will begin immediately after launch.",
   "op.players.status.active": "Active",
   "op.players.status.debt": "Debt",
   "op.players.status.inactive": "Inactive",

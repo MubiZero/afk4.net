@@ -6,6 +6,15 @@ import { messages } from './messages';
 const localesDir = join(import.meta.dir, '..', '..', '..', 'locales');
 const readLocale = (loc: string) => JSON.parse(readFileSync(join(localesDir, `${loc}.json`), 'utf8')) as Record<string, string>;
 
+it('source locale catalogs contain no duplicate keys and early-start copy keeps its time interpolation', () => {
+  for (const locale of ['ru', 'en', 'tg']) {
+    const source = readFileSync(join(localesDir, `${locale}.json`), 'utf8');
+    const keys = [...source.matchAll(/^\s*"([^"]+)"\s*:/gm)].map((match) => match[1]);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(readLocale(locale)['op.booking.start.earlyWarning']).toContain('{time}');
+  }
+});
+
 it('ru, en and tg have identical key sets (catalog parity)', () => {
   const ruKeys = Object.keys(messages.ru).sort();
   expect(Object.keys(messages.en).sort()).toEqual(ruKeys);

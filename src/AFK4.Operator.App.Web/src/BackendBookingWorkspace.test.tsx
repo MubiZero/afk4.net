@@ -5,7 +5,8 @@ import type { OperatorFloorMapState } from './floorMapState';
 import type { SeatSummary } from './operatorData';
 import type { OperatorBackendContext } from './operatorTypes';
 import { ToastProvider } from './operatorToast';
-import { BackendBookingWorkspace } from './BackendBookingWorkspace';
+import { BackendBookingWorkspace, buildReservationStartRequest } from './BackendBookingWorkspace';
+import { createSessionStartSelection } from './session/SessionStartForm';
 
 const originalFetch = globalThis.fetch;
 
@@ -27,7 +28,49 @@ const floorMap: OperatorFloorMapState = {
   isOffline: false, cachedAtMs: null
 };
 
+function startBackend(): OperatorBackendContext {
+  return {
+    config: { runtime: 'browser-test', shellMode: 'test', platformBaseUrl: 'http://localhost:5074/', currencyCode: 'TJS' },
+    branchId: 'branch-1',
+    session: {
+      staffUserId: 'staff-1', organizationId: 'org-1', displayName: 'Operator', accessToken: 'token',
+      accessTokenExpiresAtUtc: '2026-07-15T00:00:00Z', refreshTokenExpiresAtUtc: '2026-07-16T00:00:00Z',
+      branchIds: ['branch-1'], activeBranchId: 'branch-1',
+      permissions: ['reservations.view', 'reservations.manage', 'sessions.start', 'sessions.view', 'tariffs.view', 'billing.view']
+    }
+  };
+}
+
+function confirmedReservation(overrides: Record<string, unknown> = {}) {
+  return {
+    reservationId: 'reservation-start', version: 3, state: 'confirmed', source: 'operator',
+    startsAtUtc: new Date(Date.now() + 3_600_000).toISOString(), durationMinutes: 60, customerName: 'Reserved guest',
+    phoneNumber: '+992900000000', playerAccountId: null, seatId: 'a', seatName: 'PC-01',
+    zoneName: 'Зал A', note: '', startedSessionId: null, ...overrides
+  };
+}
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
 describe('BackendBookingWorkspace modifier draft transitions', () => {
+  it('builds distinct wallet, package, postpaid and comp payloads without changing reservation identity', () => {
+    const base = createSessionStartSelection('prepaid_wallet');
+    expect(buildReservationStartRequest('org-1', 7, 'key-wallet', { ...base, tariffVersionId: 'tariff-1' })).toMatchObject({
+      organizationId: 'org-1', expectedVersion: 7, idempotencyKey: 'key-wallet', billingMode: 'prepaid_wallet', tariffVersionId: 'tariff-1'
+    });
+    expect(buildReservationStartRequest('org-1', 7, 'key-package', { ...base, billingMode: 'package', tariffVersionId: null, playerPackageId: 'pkg-1' })).toMatchObject({
+      billingMode: 'package', playerPackageId: 'pkg-1'
+    });
+    expect(buildReservationStartRequest('org-1', 7, 'key-postpaid', { ...base, billingMode: 'postpaid_debt', tariffVersionId: 'tariff-1' })).toMatchObject({
+      billingMode: 'postpaid_debt', tariffVersionId: 'tariff-1'
+    });
+    expect(buildReservationStartRequest('org-1', 7, 'key-comp', {
+      ...base, billingMode: 'guest', tariffVersionId: 'tariff-1', durationMode: 'fixed', durationMinutes: 60,
+      isComp: true, compReason: 'manager courtesy'
+    })).toMatchObject({ billingMode: '', isComp: true, compReason: 'manager courtesy', tariffVersionId: 'tariff-1' });
+  });
   it('после закрытия старой формы Ctrl-click начинает чистый draft, а повторный click снимает место', async () => {
     const result = render(
       <I18nProvider>
@@ -228,5 +271,109 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     expect(startCalls).toHaveLength(1);
     expect(startCalls[0]).toMatchObject({ expectedVersion: 3, durationMode: 'open' });
     await waitFor(() => expect(reservationReads).toBeGreaterThan(1));
+  });
+
+  it('keeps an ambiguous start attempt immutable, blocks close routes, and creates a new key only after New attempt', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const reservation = confirmedReservation();
+    let startCall = 0;
+    globalThis.fetch = (async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/reservations') && init?.method === 'GET') return json({ reservations: [reservation], limit: 40 });
+      if (url.pathname.endsWith('/sessions/timeline')) return json({ sessions: [], limit: 40 });
+      if (url.pathname.endsWith('/tariffs/options')) return json([]);
+      if (url.pathname.endsWith('/start-session')) {
+        bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        startCall += 1;
+        if (startCall <= 2) throw new TypeError('network lost after send');
+        return json({ reservation: { ...reservation, version: 4, state: 'seated', startedSessionId: 'session-1' }, session: { session: { sessionId: 'session-1', seatId: 'a' } } });
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url.pathname}`);
+    }) as typeof fetch;
+    const onOpenSeat = mock(() => {});
+    render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Reserved guest' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Начать сессию' }));
+    let modal = screen.getByRole('dialog', { name: 'Запуск забронированной сессии' });
+    fireEvent.click(within(modal).getByRole('button', { name: 'Начать сессию' }));
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    await waitFor(() => expect(screen.getByRole('dialog', { name: 'Запуск забронированной сессии' })).toBeInTheDocument());
+
+    modal = screen.getByRole('dialog', { name: 'Запуск забронированной сессии' });
+    expect(within(modal).getByRole('button', { name: /2 ч/ })).toBeDisabled();
+    expect(within(modal).getAllByRole('button', { name: 'Отмена' }).every((button) => button.hasAttribute('disabled'))).toBe(true);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.pointerDown(modal.parentElement!);
+    expect(screen.getByRole('dialog', { name: 'Запуск забронированной сессии' })).toBeInTheDocument();
+
+    fireEvent.click(within(modal).getByRole('button', { name: 'Начать сессию' }));
+    await waitFor(() => expect(bodies).toHaveLength(2));
+    expect(bodies[1]).toEqual(bodies[0]);
+
+    fireEvent.click(within(modal).getByRole('button', { name: 'Новая попытка' }));
+    fireEvent.click(within(modal).getByRole('button', { name: /2 ч/ }));
+    fireEvent.click(within(modal).getByRole('button', { name: 'Начать сессию' }));
+    await waitFor(() => expect(onOpenSeat).toHaveBeenCalledWith('a'));
+    expect(bodies).toHaveLength(3);
+    expect(bodies[2].idempotencyKey).not.toBe(bodies[0].idempotencyKey);
+    expect(bodies[2]).toMatchObject({ durationMode: 'fixed', durationMinutes: 120 });
+  });
+
+  it('recovers an ambiguously committed start from refreshed startedSessionId without a second start', async () => {
+    const reservation = confirmedReservation();
+    let reads = 0;
+    let starts = 0;
+    globalThis.fetch = (async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/reservations') && init?.method === 'GET') {
+        reads += 1;
+        return json({ reservations: [{ ...reservation, ...(reads > 1 ? { version: 4, state: 'seated', startedSessionId: 'session-recovered' } : {}) }], limit: 40 });
+      }
+      if (url.pathname.endsWith('/sessions/timeline')) return json({ sessions: [], limit: 40 });
+      if (url.pathname.endsWith('/tariffs/options')) return json([]);
+      if (url.pathname.endsWith('/start-session')) { starts += 1; throw new TypeError('response lost'); }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url.pathname}`);
+    }) as typeof fetch;
+    const onOpenSeat = mock(() => {});
+    render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Reserved guest' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Начать сессию' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Запуск забронированной сессии' })).getByRole('button', { name: 'Начать сессию' }));
+    await waitFor(() => expect(onOpenSeat).toHaveBeenCalledWith('a'));
+    expect(starts).toBe(1);
+  });
+
+  it('refreshes a 409 conflict and submits the current reservation version with a fresh key', async () => {
+    const initial = confirmedReservation();
+    const bodies: Record<string, unknown>[] = [];
+    let reads = 0;
+    globalThis.fetch = (async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/reservations') && init?.method === 'GET') {
+        reads += 1;
+        return json({ reservations: [{ ...initial, version: reads > 1 ? 4 : 3 }], limit: 40 });
+      }
+      if (url.pathname.endsWith('/sessions/timeline')) return json({ sessions: [], limit: 40 });
+      if (url.pathname.endsWith('/tariffs/options')) return json([]);
+      if (url.pathname.endsWith('/start-session')) {
+        bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        if (bodies.length === 1) return json({ code: 'version_conflict', currentVersion: 4 }, 409);
+        return json({ reservation: { ...initial, version: 5, state: 'seated', startedSessionId: 'session-2' }, session: { session: { sessionId: 'session-2', seatId: 'a' } } });
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url.pathname}`);
+    }) as typeof fetch;
+    const onOpenSeat = mock(() => {});
+    render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Reserved guest' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Начать сессию' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Запуск забронированной сессии' })).getByRole('button', { name: 'Начать сессию' }));
+    await waitFor(() => expect(reads).toBeGreaterThan(1));
+    const modal = screen.getByRole('dialog', { name: 'Запуск забронированной сессии' });
+    fireEvent.click(within(modal).getByRole('button', { name: 'Начать сессию' }));
+    await waitFor(() => expect(onOpenSeat).toHaveBeenCalledWith('a'));
+    expect(bodies[0]).toMatchObject({ expectedVersion: 3 });
+    expect(bodies[1]).toMatchObject({ expectedVersion: 4 });
+    expect(bodies[1].idempotencyKey).not.toBe(bodies[0].idempotencyKey);
   });
 });

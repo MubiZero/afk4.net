@@ -2609,7 +2609,6 @@
   "op.error.code.idempotencyConflict": "Этот запрос уже использован с другими параметрами. Обновите данные.",
   "op.error.code.sessionStartInvalid": "Проверьте параметры запуска сессии.",
   "op.error.code.sessionStartConflict": "Сессию нельзя запустить из-за конфликта. Обновите данные.",
-  "op.booking.start.earlyWarning": "Бронь ещё не началась. Сессия и списание начнутся сразу после запуска.",
   "op.players.status.active": "Активен",
   "op.players.status.debt": "Долг",
   "op.players.status.inactive": "Неактивен",

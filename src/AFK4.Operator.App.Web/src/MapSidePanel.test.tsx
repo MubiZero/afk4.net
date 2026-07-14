@@ -190,6 +190,28 @@ describe('MapSidePanel diagnostics (A3)', () => {
 });
 
 describe('MapSidePanel new session client picker', () => {
+  it('keeps the extracted guest fixed-duration start payload', async () => {
+    const originalFetch = globalThis.fetch;
+    const onSeatAction = mock(async (_request: SeatActionRequest) => ({}));
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/tariffs/options')) return json(tariffOptions());
+      throw new Error(`Unexpected request: ${url.pathname}`);
+    }) as unknown as typeof fetch;
+    try {
+      const dialog = openClientStartDialog(onSeatAction);
+      fireEvent.click(within(dialog).getByRole('tab', { name: 'Гость' }));
+      fireEvent.click(within(dialog).getByRole('button', { name: /2 ч/ }));
+      fireEvent.click(within(dialog).getByRole('button', { name: /Старт/ }));
+      await waitFor(() => expect(onSeatAction).toHaveBeenCalledTimes(1));
+      expect(onSeatAction.mock.calls[0][0]).toMatchObject({
+        type: 'start', durationMode: 'fixed', durationMinutes: 120,
+        billing: { mode: 'guest', playerAccountId: null, tariffVersionId: null, playerPackageId: null }
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
   it('привязывает клиента кликом, показывает баланс и пакеты, а гость сбрасывает связь', async () => {
     const originalFetch = globalThis.fetch;
     const fetchMock = mock(async (input: RequestInfo | URL) => {

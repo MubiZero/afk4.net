@@ -53,8 +53,8 @@ describe('projectOperatorError', () => {
   });
 
   it('provides localized copy for an early reservation start warning', () => {
-    expect(t('op.booking.start.earlyWarning')).toBe(
-      'Бронь ещё не началась. Сессия и списание начнутся сразу после запуска.'
+    expect(t('op.booking.start.earlyWarning', { time: '18:30' })).toBe(
+      'Бронь начинается в 18:30. При раннем запуске оплата начнётся сейчас.'
     );
   });
 });

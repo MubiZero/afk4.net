@@ -55,6 +55,23 @@ function detail(state: string, onConfirm = () => {}, onStart = () => {}) {
   return render(<I18nProvider><BookingDrawer {...props} /></I18nProvider>);
 }
 
+it('blocks drawer close while a reservation command is pending', () => {
+  const onClose = mock(() => {});
+  const props: BookingDrawerProps = {
+    mode: 'detail', selected: null, freeSeats: [], allSeats: [], draft: draft(), busy: true,
+    canManage: true, canStartSessions: true, currencyCode: 'TJS', conflict: null, seatConflict: false,
+    groupConflicts: new Set(), groupSize: 0, searchClients: async () => [], onClose,
+    onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {}, onRemoveSeat: () => {},
+    onCancelGroup: () => {}, onStart: () => {}, onMove: () => {}, onCancel: () => {},
+    onConfirm: () => {}, onOpenMap: () => {}
+  };
+  const result = render(<I18nProvider><BookingDrawer {...props} /></I18nProvider>);
+  const close = result.getByRole('button', { name: 'Отмена' });
+  expect(close).toBeDisabled();
+  fireEvent.click(close);
+  expect(onClose).not.toHaveBeenCalled();
+});
+
 describe('BookingDrawer arbitrary group selection', () => {
   it('показывает текущий несвободный статус как предупреждение, но не блокирует будущую бронь без пересечения', () => {
     const result = renderDrawer();

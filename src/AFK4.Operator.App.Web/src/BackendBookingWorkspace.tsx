@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import { createOperatorApiClients, type ReservationSearchResultDto, type SessionTimelineResult } from './operatorApiClients';
+import type { StartReservationSessionRequest } from './api/clients/reservations';
 import { PlatformApiError } from './platformApi';
 import type { OperatorFloorMapState } from './floorMapState';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
@@ -49,6 +50,27 @@ import type { SeatSummary } from './operatorData';
 import { PanelModal } from './PanelModal';
 import { createSessionStartSelection, SessionStartForm, type SessionStartSelection } from './session/SessionStartForm';
 
+export function buildReservationStartRequest(
+  organizationId: string,
+  expectedVersion: number,
+  idempotencyKey: string,
+  selection: SessionStartSelection
+): StartReservationSessionRequest {
+  return {
+    organizationId,
+    expectedVersion,
+    tariffRuleVersionId: selection.tariffRuleVersionId,
+    idempotencyKey,
+    durationMode: selection.durationMode,
+    durationMinutes: selection.durationMinutes,
+    billingMode: selection.billingMode === 'guest' ? '' : selection.billingMode,
+    tariffVersionId: selection.tariffVersionId,
+    playerPackageId: selection.playerPackageId,
+    isComp: selection.isComp,
+    compReason: selection.compReason
+  };
+}
+
 export function BackendBookingWorkspace({
   floorMap,
   backend,
@@ -90,6 +112,8 @@ export function BackendBookingWorkspace({
   const [startFormValid, setStartFormValid] = useState(true);
   const [startIdempotencyKey, setStartIdempotencyKey] = useState('');
   const [startVersion, setStartVersion] = useState(0);
+  const [startAttempt, setStartAttempt] = useState<StartReservationSessionRequest | null>(null);
+  const [startAttemptUnresolved, setStartAttemptUnresolved] = useState(false);
 
   // Поиск клиента клуба для привязки брони к аккаунту (если есть право просмотра клиентов).
   const searchClients = useCallback(async (query: string): Promise<PlayerClientItem[]> => {
@@ -472,6 +496,8 @@ export function BackendBookingWorkspace({
     setStartFormValid(selectedItem.playerAccountId.length === 0);
     setStartIdempotencyKey(createIdempotencyKey('reservation-session-start'));
     setStartVersion(selectedItem.version);
+    setStartAttempt(null);
+    setStartAttemptUnresolved(false);
     setStartDialogOpen(true);
   };
 
@@ -485,28 +511,32 @@ export function BackendBookingWorkspace({
       if (!hasPermission(nextBackend.session, permissionNames.manageReservations) || !hasPermission(nextBackend.session, permissionNames.startSession)) {
         throw new Error(t('op.booking.error.noPermission'));
       }
-      const response = await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).reservations.startSession(item.reservationId, {
-        organizationId: nextBackend.session.organizationId,
-        expectedVersion: item.version,
-        tariffRuleVersionId: startSelection.tariffRuleVersionId,
-        idempotencyKey: startIdempotencyKey,
-        durationMode: startSelection.durationMode,
-        durationMinutes: startSelection.durationMinutes,
-        billingMode: startSelection.billingMode === 'guest' ? '' : startSelection.billingMode,
-        tariffVersionId: startSelection.tariffVersionId,
-        playerPackageId: startSelection.playerPackageId,
-        isComp: startSelection.isComp,
-        compReason: startSelection.compReason
-      });
+      const request = startAttempt ?? buildReservationStartRequest(
+        nextBackend.session.organizationId,
+        item.version,
+        startIdempotencyKey,
+        startSelection
+      );
+      if (startAttempt === null) setStartAttempt(request);
+      const response = await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).reservations.startSession(item.reservationId, request);
       const linkedSeatId = readString(response.reservation, 'seatId', item.seatId);
       setFeedback({ label, state: 'confirmed' });
       setReloadVersion((value) => value + 1);
       setStartDialogOpen(false);
       setDrawerMode(null);
+      setStartAttempt(null);
+      setStartAttemptUnresolved(false);
       if (linkedSeatId) onOpenSeat(linkedSeatId);
     } catch (error) {
       // Any uncertain failure triggers an authoritative refresh. If the server committed, the
       // durable StartedSessionId link below wins and opens the linked seat; resubmit retains key.
+      if (error instanceof PlatformApiError) {
+        setStartAttempt(null);
+        setStartAttemptUnresolved(false);
+        setStartIdempotencyKey(createIdempotencyKey('reservation-session-start'));
+      } else {
+        setStartAttemptUnresolved(true);
+      }
       setReloadVersion((value) => value + 1);
       setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
     }
@@ -515,6 +545,8 @@ export function BackendBookingWorkspace({
   useEffect(() => {
     if (!startDialogOpen || !selectedItem) return;
     if (selectedItem.startedSessionId && selectedItem.seatId) {
+      setStartAttempt(null);
+      setStartAttemptUnresolved(false);
       setStartDialogOpen(false);
       setDrawerMode(null);
       onOpenSeat(selectedItem.seatId);
@@ -525,6 +557,8 @@ export function BackendBookingWorkspace({
       // therefore it must not reuse an idempotency key tied to the previous expectedVersion.
       setStartVersion(selectedItem.version);
       setStartIdempotencyKey(createIdempotencyKey('reservation-session-start'));
+      setStartAttempt(null);
+      setStartAttemptUnresolved(false);
     }
   }, [startDialogOpen, selectedItem?.startedSessionId, selectedItem?.seatId, selectedItem?.version, startVersion]);
 
@@ -651,6 +685,7 @@ export function BackendBookingWorkspace({
             title={t('op.booking.start.title')}
             subtitle={`${selectedItem.seatName} · ${selectedItem.customerName}`}
             onClose={() => setStartDialogOpen(false)}
+            closeDisabled={reservationBusy || startAttemptUnresolved}
           >
             {Date.now() < selectedItem.startMs && (
               <div className="booking-start-warning" role="note">
@@ -660,7 +695,7 @@ export function BackendBookingWorkspace({
             <SessionStartForm
               seatName={selectedItem.seatName}
               currencyCode={currencyCode}
-              disabled={reservationBusy}
+              disabled={reservationBusy || startAttemptUnresolved}
               value={startSelection}
               onChange={setStartSelection}
               fixedClient={selectedItem.playerAccountId ? {
@@ -676,10 +711,12 @@ export function BackendBookingWorkspace({
             />
             {feedback.state === 'failed' && feedback.detail && <p className="checkout-error" role="alert">{feedback.detail}</p>}
             <div className="critical-confirmation-actions">
-              <button type="button" disabled={reservationBusy} onClick={() => setStartDialogOpen(false)}>{t('common.cancel')}</button>
+              <button type="button" disabled={reservationBusy || startAttemptUnresolved} onClick={() => setStartDialogOpen(false)}>{t('common.cancel')}</button>
               {feedback.state === 'failed' && <button type="button" disabled={reservationBusy} onClick={() => {
                 setStartIdempotencyKey(createIdempotencyKey('reservation-session-start'));
                 setStartVersion(selectedItem.version);
+                setStartAttempt(null);
+                setStartAttemptUnresolved(false);
                 setFeedback(emptyFeedback);
               }}>{t('op.booking.start.newAttempt')}</button>}
               <button type="button" className="cta-primary" disabled={reservationBusy || !startFormValid || selectedItem.state !== 'confirmed'}
