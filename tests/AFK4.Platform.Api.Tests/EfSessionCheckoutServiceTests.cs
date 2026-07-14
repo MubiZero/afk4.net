@@ -248,9 +248,7 @@ public sealed class EfSessionCheckoutServiceTests
                     new EfInventoryCostService(db),
                     new ReceiptNumberGenerator(db),
                     new FixedTimeProvider(Now.AddMinutes(1))),
-                new ReceiptNumberGenerator(db),
-                new FixedTimeProvider(Now.AddMinutes(1)),
-                new EfInventoryCostService(db))
+                new FixedTimeProvider(Now.AddMinutes(1)))
             .RefundSaleAsync(
                 sale.PosSaleId,
                 ActorStaffUserId,

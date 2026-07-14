@@ -313,6 +313,198 @@ public sealed class EfPosSettlementServiceTests
         Assert.Single(await db.Payments.ToListAsync());
     }
 
+    [Fact]
+    public async Task RefundAsync_WalletAndCash_ReversesOriginalMixAndReplaysWithoutDuplicateEffects()
+    {
+        await using var db = CreateDbContext();
+        var playerId = Guid.NewGuid();
+        var scenario = await SeedSaleAsync(db, playerId: playerId, walletBalanceMinorUnits: 15_000);
+        var service = CreateService(db);
+
+        var settled = await service.SettleAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            Request([Part("wallet", 4_000), Part("cash", 6_000)], "mixed-refund-payment"),
+            CancellationToken.None);
+        Assert.True(settled.Succeeded, settled.Error);
+
+        var walletDebitId = await db.Payments
+            .Where(payment =>
+                payment.PosSaleId == scenario.Sale.PosSaleId &&
+                payment.PaymentKind == "payment" &&
+                payment.PaymentMethod == PaymentMethodNames.Wallet)
+            .Select(payment => payment.LedgerEntryId!.Value)
+            .SingleAsync();
+        var request = new RefundPosSaleRequest(
+            OrganizationId,
+            "customer returned items",
+            "mixed-refund");
+
+        var result = await service.RefundAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            request,
+            CancellationToken.None);
+        var replay = await service.RefundAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            request,
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded, result.Error);
+        Assert.True(replay.Succeeded, replay.Error);
+        Assert.Equal(result.Response!.LatestReceipt!.ReceiptId, replay.Response!.LatestReceipt!.ReceiptId);
+        var refundPayments = await db.Payments
+            .Where(payment =>
+                payment.PosSaleId == scenario.Sale.PosSaleId &&
+                payment.PaymentKind == "refund")
+            .ToListAsync();
+        Assert.Equal(
+            [-6_000L, -4_000L],
+            refundPayments.OrderBy(payment => payment.AmountMinorUnits).Select(payment => payment.AmountMinorUnits));
+        Assert.Single(await db.LedgerEntries
+            .Where(entry => entry.ReversesLedgerEntryId == walletDebitId)
+            .ToListAsync());
+        Assert.Single(await db.Receipts
+            .Where(receipt =>
+                receipt.PosSaleId == scenario.Sale.PosSaleId &&
+                receipt.ReceiptType == "refund")
+            .ToListAsync());
+        Assert.Single(await db.StockMovements
+            .Where(movement => movement.MovementType == StockMovementTypeNames.Refund)
+            .ToListAsync());
+        Assert.Equal(2, await db.BillingCommandIdempotency.CountAsync());
+    }
+
+    [Fact]
+    public async Task RefundAsync_PaidSaleWithPriorRefundEffect_FailsClosedWithoutDuplicatingIt()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedSaleAsync(db);
+        var service = CreateService(db);
+        var settled = await service.SettleAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            Request([Part("cash", 10_000)], "prior-refund-payment"),
+            CancellationToken.None);
+        Assert.True(settled.Succeeded, settled.Error);
+        db.Payments.Add(new PaymentEntity
+        {
+            PaymentId = Guid.NewGuid(), OrganizationId = OrganizationId, BranchId = BranchId,
+            PosSaleId = scenario.Sale.PosSaleId, ShiftId = scenario.Shift.ShiftId,
+            CreatedByStaffUserId = ActorId, PaymentKind = "refund", Provider = "manual",
+            PaymentMethod = PaymentMethodNames.Cash, CurrencyCode = "TJS", AmountMinorUnits = -1_000,
+            Note = "legacy partial effect", CreatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+
+        var result = await service.RefundAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            new RefundPosSaleRequest(OrganizationId, "return", "prior-refund"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("refund_incomplete", result.Error);
+        Assert.Single(await db.Payments.Where(payment => payment.PaymentKind == "refund").ToListAsync());
+        Assert.Empty(await db.Receipts.Where(receipt => receipt.ReceiptType == "refund").ToListAsync());
+        Assert.Empty(await db.StockMovements
+            .Where(movement => movement.MovementType == StockMovementTypeNames.Refund)
+            .ToListAsync());
+    }
+
+    [Fact]
+    public async Task RefundAsync_WalletPaymentWithoutLedgerLink_FailsClosed()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedSaleAsync(db, Guid.NewGuid(), 15_000);
+        var service = CreateService(db);
+        var settled = await service.SettleAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            Request([Part("wallet", 4_000), Part("cash", 6_000)], "missing-link-payment"),
+            CancellationToken.None);
+        Assert.True(settled.Succeeded, settled.Error);
+        var walletPayment = await db.Payments.SingleAsync(payment =>
+            payment.PosSaleId == scenario.Sale.PosSaleId &&
+            payment.PaymentMethod == PaymentMethodNames.Wallet);
+        walletPayment.LedgerEntryId = null;
+        await db.SaveChangesAsync();
+
+        var result = await service.RefundAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            new RefundPosSaleRequest(OrganizationId, "return", "missing-link-refund"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("payment_snapshot_invalid", result.Error);
+        Assert.Empty(await db.Payments.Where(payment => payment.PaymentKind == "refund").ToListAsync());
+        Assert.Empty(await db.LedgerEntries.Where(entry => entry.ReversesLedgerEntryId != null).ToListAsync());
+        Assert.Equal(PosSaleStateNames.Paid, (await db.PosSales.SingleAsync()).State);
+    }
+
+    [Fact]
+    public async Task RefundAsync_ReusedKeyForDifferentReason_ReturnsVersionConflictWithoutNewEffects()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedSaleAsync(db);
+        var service = CreateService(db);
+        var settled = await service.SettleAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            Request([Part("cash", 10_000)], "refund-conflict-payment"),
+            CancellationToken.None);
+        Assert.True(settled.Succeeded, settled.Error);
+
+        var first = await service.RefundAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            new RefundPosSaleRequest(OrganizationId, "first reason", "refund-conflict"),
+            CancellationToken.None);
+        var conflict = await service.RefundAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            new RefundPosSaleRequest(OrganizationId, "different reason", "refund-conflict"),
+            CancellationToken.None);
+
+        Assert.True(first.Succeeded, first.Error);
+        Assert.False(conflict.Succeeded);
+        Assert.True(conflict.Conflict);
+        Assert.Equal("version_conflict", conflict.Error);
+        Assert.Single(await db.Payments.Where(payment => payment.PaymentKind == "refund").ToListAsync());
+        Assert.Single(await db.Receipts.Where(receipt => receipt.ReceiptType == "refund").ToListAsync());
+    }
+
+    [Fact]
+    public async Task RefundAsync_ReceiptFailure_RollsBackReversalPaymentsStockAndSaleState()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedSaleAsync(db, Guid.NewGuid(), 15_000);
+        var settlementService = CreateService(db);
+        var settled = await settlementService.SettleAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            Request([Part("wallet", 4_000), Part("cash", 6_000)], "refund-rollback-payment"),
+            CancellationToken.None);
+        Assert.True(settled.Succeeded, settled.Error);
+        var refundService = CreateService(db, new ThrowingReceiptNumberGenerator());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => refundService.RefundAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            new RefundPosSaleRequest(OrganizationId, "return", "refund-rollback"),
+            CancellationToken.None));
+
+        Assert.Empty(await db.Payments.AsNoTracking().Where(payment => payment.PaymentKind == "refund").ToListAsync());
+        Assert.Empty(await db.LedgerEntries.AsNoTracking().Where(entry => entry.ReversesLedgerEntryId != null).ToListAsync());
+        Assert.Empty(await db.Receipts.AsNoTracking().Where(receipt => receipt.ReceiptType == "refund").ToListAsync());
+        Assert.Empty(await db.StockMovements.AsNoTracking()
+            .Where(movement => movement.MovementType == StockMovementTypeNames.Refund)
+            .ToListAsync());
+        Assert.Equal(PosSaleStateNames.Paid, (await db.PosSales.AsNoTracking().SingleAsync()).State);
+    }
+
     private static EfPosSettlementService CreateService(
         PlatformDbContext db,
         IReceiptNumberGenerator? receiptNumberGenerator = null,
@@ -392,6 +584,19 @@ public sealed class EfPosSettlementServiceTests
             StockMovementId = Guid.NewGuid(), OrganizationId = OrganizationId, BranchId = BranchId,
             ProductId = trackedProductId, MovementType = StockMovementTypeNames.Purchase, QuantityDelta = 5,
             CurrencyCode = "TJS", UnitCostMinorUnits = 450, Reason = "seed", CreatedByStaffUserId = ActorId,
+            CreatedAtUtc = Now
+        });
+        db.PosProducts.Add(new PosProductEntity
+        {
+            ProductId = trackedProductId,
+            OrganizationId = OrganizationId,
+            BranchId = BranchId,
+            Name = "Tracked",
+            CurrencyCode = "TJS",
+            PriceMinorUnits = 3_000,
+            AvgCostMinorUnits = 450,
+            TrackStock = true,
+            IsActive = true,
             CreatedAtUtc = Now
         });
 

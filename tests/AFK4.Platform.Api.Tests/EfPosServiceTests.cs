@@ -712,9 +712,7 @@ public sealed class EfPosServiceTests
                 new ReceiptNumberGenerator(db),
                 new FixedTimeProvider(Now),
                 lowStockNotifier),
-            new ReceiptNumberGenerator(db),
-            new FixedTimeProvider(Now),
-            new EfInventoryCostService(db));
+            new FixedTimeProvider(Now));
     }
 
     private static void AddLegacyPaymentIdempotency(

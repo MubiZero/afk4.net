@@ -10,4 +10,10 @@ public interface IPosSettlementService
         Guid actorStaffUserId,
         SettlePosSaleRequest request,
         CancellationToken cancellationToken);
+
+    Task<BillingCommandServiceResult<PosSaleDto>> RefundAsync(
+        Guid posSaleId,
+        Guid actorStaffUserId,
+        RefundPosSaleRequest request,
+        CancellationToken cancellationToken);
 }
