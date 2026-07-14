@@ -11,7 +11,9 @@ offline-resilience, customer portal/shell, notifications, localization,
 realtime, dcgate payments), the phone/email staff-identity wave, the
 customer-shell WebView2 pivot + Unit F (shop/loyalty/news), shared-AFK4
 Telegram payments, shift-revenue reporting, Operator UI consolidation/QA, and
-the commerce/booking financial-integrity wave are implemented and merged.
+the commerce/booking financial-integrity wave are implemented and merged. The
+2026-07-14 native Operator staging day-flow smoke and its P0 financial fixes are
+also complete and archived.
 
 When you start new work, add its plan file here, then move it to the archive
 once it ships.
