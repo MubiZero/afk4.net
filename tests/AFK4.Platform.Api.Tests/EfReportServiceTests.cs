@@ -71,6 +71,58 @@ public sealed class EfReportServiceTests
     }
 
     [Fact]
+    public async Task MixedPaymentRefund_ReportsCashAndSaleEconomicsWithoutDoubleCounting()
+    {
+        await using var db = CreateDbContext();
+        var shiftId = Guid.NewGuid();
+        var saleId = Guid.NewGuid();
+        SeedShift(db, shiftId, ShiftStateNames.Closed, ReportDay.AddHours(9), countedCash: 50_000);
+        SeedSale(
+            db,
+            saleId,
+            shiftId,
+            PosSaleStateNames.Refunded,
+            10_000,
+            ReportDay.AddHours(11),
+            refundedAtUtc: ReportDay.AddHours(12));
+        SeedSaleLine(db, saleId, quantity: 2, lineTotal: 10_000, unitCostMinorUnits: 1_500);
+        SeedPayment(db, shiftId, saleId, PaymentMethodNames.Wallet, "payment", 4_000);
+        SeedPayment(db, shiftId, saleId, PaymentMethodNames.Cash, "payment", 6_000);
+        SeedPayment(db, shiftId, saleId, PaymentMethodNames.Wallet, "refund", -4_000);
+        SeedPayment(db, shiftId, saleId, PaymentMethodNames.Cash, "refund", -6_000);
+        await db.SaveChangesAsync();
+
+        var service = new EfReportService(db);
+        var query = new ReportSearchQuery(ReportDay, ReportDay.AddDays(1), 10);
+        var shiftReport = await service.GetShiftReportAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            query,
+            CancellationToken.None);
+        var salesReport = await service.GetSalesReportAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            query,
+            CancellationToken.None);
+
+        var shift = Assert.Single(shiftReport.Rows);
+        Assert.Equal(6_000, shift.PosCashPaymentsTotal.MinorUnits);
+        Assert.Equal(-6_000, shift.PosRefundsTotal.MinorUnits);
+        Assert.Equal(50_000, shift.ExpectedCash.MinorUnits);
+
+        var sale = Assert.Single(salesReport.Rows);
+        Assert.Equal(10_000, sale.PaidAmount.MinorUnits);
+        Assert.Equal(-10_000, sale.RefundAmount.MinorUnits);
+        Assert.Equal(3_000, sale.GrossCostOfGoods.MinorUnits);
+        Assert.Equal(-3_000, sale.RefundedCostOfGoods.MinorUnits);
+        Assert.Equal(0, sale.NetCostOfGoods.MinorUnits);
+        Assert.Equal(10_000, salesReport.GrossSalesTotal.MinorUnits);
+        Assert.Equal(-10_000, salesReport.RefundsTotal.MinorUnits);
+        Assert.Equal(3_000, salesReport.GrossCostOfGoodsTotal.MinorUnits);
+        Assert.Equal(-3_000, salesReport.RefundedCostOfGoodsTotal.MinorUnits);
+    }
+
+    [Fact]
     public async Task GetSalesReportAsync_ReturnsRowsAndTotalsForBranch()
     {
         await using var db = CreateDbContext();

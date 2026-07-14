@@ -54,6 +54,47 @@ public sealed class ReportCsvExporterTests
     }
 
     [Fact]
+    public void ExportSalesReport_MixedPaymentRefund_WritesOneReconciledSaleRow()
+    {
+        var saleId = Guid.Parse("88888888-8888-4888-8888-888888888888");
+        var report = new SalesReportResultDto(
+            [
+                new SalesReportRowDto(
+                    saleId,
+                    OrganizationId,
+                    BranchId,
+                    ShiftId,
+                    StaffUserId,
+                    "refunded",
+                    new MoneyDto("TJS", 10_000),
+                    new MoneyDto("TJS", 10_000),
+                    new MoneyDto("TJS", -10_000),
+                    1,
+                    2,
+                    DateTimeOffset.Parse("2026-05-14T12:00:00Z"),
+                    DateTimeOffset.Parse("2026-05-14T12:01:00Z"),
+                    DateTimeOffset.Parse("2026-05-14T12:02:00Z"),
+                    null,
+                    new MoneyDto("TJS", 3_000),
+                    new MoneyDto("TJS", -3_000),
+                    new MoneyDto("TJS", 0))
+            ],
+            50,
+            new MoneyDto("TJS", 10_000),
+            new MoneyDto("TJS", -10_000),
+            new MoneyDto("TJS", 0),
+            new MoneyDto("TJS", 3_000),
+            new MoneyDto("TJS", -3_000),
+            new MoneyDto("TJS", 0));
+
+        var csv = ReportCsvExporter.ExportSalesReport(report);
+
+        Assert.Equal(2, csv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries).Length);
+        Assert.Contains($"{saleId:D},{OrganizationId:D},{BranchId:D},{ShiftId:D},{StaffUserId:D},refunded,TJS,10000,10000,-10000,1,2,", csv);
+        Assert.EndsWith(",3000,-3000,0\r\n", csv);
+    }
+
+    [Fact]
     public void ExportShiftReport_WritesHeaderAndRows()
     {
         var report = new ShiftReportResultDto(

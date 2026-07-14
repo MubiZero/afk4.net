@@ -89,6 +89,7 @@ public sealed class ShopCommercePostgresFixture : IAsyncDisposable
         collection.AddScoped<IInventoryCostService, EfInventoryCostService>();
         collection.AddScoped<IInventoryService, EfInventoryService>();
         collection.AddScoped<IPaymentProvider, ManualPaymentProvider>();
+        collection.AddScoped<IPosSettlementService, EfPosSettlementService>();
         collection.AddScoped<IPosService, EfPosService>();
         collection.AddScoped<IReceiptNumberGenerator, ReceiptNumberGenerator>();
         collection.AddScoped<EfShopPosSettlementService>();
