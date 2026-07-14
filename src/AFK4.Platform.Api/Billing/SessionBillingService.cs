@@ -309,7 +309,9 @@ public sealed class SessionBillingService(
         // A start workflow may stage the authoritative session in this DbContext before its
         // transaction owner performs the final save. Extensions still resolve through the
         // persisted query path, while staged starts can append their ledger rows atomically.
-        var session = dbContext.Sessions.Local.SingleOrDefault(candidate => candidate.SessionId == sessionId)
+        var session = dbContext.ChangeTracker.Entries<SessionEntity>()
+            .SingleOrDefault(entry => entry.State == EntityState.Added && entry.Entity.SessionId == sessionId)
+            ?.Entity
             ?? await dbContext.Sessions.SingleAsync(
                 candidate => candidate.SessionId == sessionId,
                 cancellationToken);

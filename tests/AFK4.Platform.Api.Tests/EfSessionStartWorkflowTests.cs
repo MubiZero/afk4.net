@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Sessions;
+using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
@@ -69,6 +70,59 @@ public sealed class EfSessionStartWorkflowTests
         Assert.Empty(await db.LedgerEntries.ToListAsync());
         Assert.Empty(await db.DeviceCommands.ToListAsync());
         Assert.Empty(await db.SessionCommandIdempotency.ToListAsync());
+    }
+
+    [Theory]
+    [InlineData(EntityState.Unchanged)]
+    [InlineData(EntityState.Modified)]
+    public async Task SessionBilling_TrackedPersistedState_DoesNotBypassDatabaseLookup(EntityState state)
+    {
+        await using var db = CreateDbContext();
+        var sessionId = Guid.NewGuid();
+        var session = new SessionEntity
+        {
+            SessionId = sessionId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            SeatId = SeatId,
+            DeviceId = TestIds.DeviceId,
+            CreatedByStaffUserId = ActorStaffUserId,
+            State = SessionStateNames.Active,
+            RequestedAtUtc = Now,
+            StartedAtUtc = Now,
+            UpdatedAtUtc = Now,
+            Version = 1
+        };
+        db.Attach(session);
+        db.Entry(session).State = state;
+        var timeProvider = new FixedTimeProvider(Now);
+        var billing = new SessionBillingService(
+            db,
+            new EfTariffService(db, timeProvider),
+            new AlwaysOpenShiftResolver(),
+            timeProvider);
+        var validation = new SessionBillingValidationResult(
+            true,
+            null,
+            "manual-v1",
+            null,
+            3600,
+            100,
+            "TJS");
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            billing.AppendStartLedgerEntriesAsync(
+                sessionId,
+                ActorStaffUserId,
+                validation,
+                PlayerAccountId,
+                playerPackageId: null,
+                BillingModeNames.PrepaidWallet,
+                Now,
+                CancellationToken.None));
+
+        Assert.Contains("Sequence contains no elements", exception.Message, StringComparison.Ordinal);
+        Assert.Empty(db.ChangeTracker.Entries<LedgerEntryEntity>());
     }
 
     private static PlatformDbContext CreateDbContext()
@@ -235,6 +289,15 @@ public sealed class EfSessionStartWorkflowTests
             minutes * 60,
             100,
             "TJS");
+    }
+
+    private sealed class AlwaysOpenShiftResolver : IOpenShiftResolver
+    {
+        public Task<BillingCommandServiceResult<Guid>> GetOpenShiftIdAsync(
+            Guid organizationId,
+            Guid branchId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(BillingCommandServiceResult<Guid>.Ok(Guid.NewGuid()));
     }
 
     private sealed class FakeSessionLeaseSigner : ISessionLeaseSigner
