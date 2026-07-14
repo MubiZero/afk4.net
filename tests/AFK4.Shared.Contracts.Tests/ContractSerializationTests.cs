@@ -1,11 +1,32 @@
 using System.Text.Json;
+using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.FloorMap;
+using AFK4.Shared.Contracts.Pos;
+using AFK4.Shared.Contracts.Sessions;
 
 namespace AFK4.Shared.Contracts.Tests;
 
 public sealed class ContractSerializationTests
 {
+    [Fact]
+    public void SettlePosSaleRequest_RoundTripsPaymentParts()
+    {
+        var request = new SettlePosSaleRequest(
+            Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            [
+                new PaymentPartDto("wallet", new MoneyDto("TJS", 4_000)),
+                new PaymentPartDto("cash", new MoneyDto("TJS", 6_000))
+            ],
+            "operator POS checkout",
+            "pos-settle-1");
+
+        var copy = JsonSerializer.Deserialize<SettlePosSaleRequest>(JsonSerializer.Serialize(request))!;
+
+        Assert.Equal(2, copy.Payments.Count);
+        Assert.Equal(10_000, copy.Payments.Sum(part => part.Amount.MinorUnits));
+    }
+
     [Fact]
     public void DeviceHeartbeatRequest_RoundTripsThroughJson()
     {

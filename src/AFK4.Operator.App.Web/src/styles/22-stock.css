@@ -7,6 +7,17 @@
   flex-direction: column;
 }
 
+/* Обёртка живой вкладки (lazy keep-alive): активная тянется на всю высоту, скрытая — display:none,
+   чтобы не занимала место и не перехватывала события. */
+.stock-tabpanel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.stock-tabpanel[hidden] { display: none; }
+
 /* ── 2-колонный грид: список слева, Сводка справа ── */
 .stock-layout {
   display: grid;
@@ -14,6 +25,24 @@
   gap: 10px;
   flex: 1;
   min-height: 0;
+}
+
+/* ── Скелетон загрузки (зеркалит шапку фильтров + строки списка) ── */
+.stock-skel-head {
+  height: var(--control-md);
+  width: 42%;
+  margin-bottom: var(--space-2);
+}
+
+.stock-skel-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.stock-row-skel {
+  height: 44px;
+  border-radius: var(--radius-md);
 }
 
 /* ── Список остатков (левая панель) ── */
@@ -25,6 +54,7 @@
   border-radius: var(--radius-md);
   padding: var(--space-3);
   background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
   min-height: 0;
   overflow: auto;
 }
@@ -47,38 +77,12 @@
   flex-wrap: wrap;
 }
 
-/* Сегменты фильтра */
+/* Сегменты фильтра — сами кнопки теперь `.ui-chip--filter` (см. 02-ui-kit.css); здесь
+   только контейнер-layout, без визуальных правил на button (иначе тег-селектор
+   перебивает атом по каскаду). */
 .seg {
   display: flex;
-  gap: 4px;
-}
-
-.seg button {
-  appearance: none;
-  border: 1px solid var(--border-soft);
-  background: transparent;
-  color: var(--text-tertiary);
-  border-radius: 999px;
-  padding: 3px 11px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.1s, color 0.1s;
-}
-
-.seg button:hover {
-  color: var(--text-secondary);
-  border-color: var(--border-default);
-}
-
-.seg button.on {
-  color: var(--text-primary);
-  border-color: var(--border-default);
-  background: var(--surface-card);
-}
-
-.seg button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  gap: var(--space-1);
 }
 
 /* Поле поиска = общий primitive .panel-search (рамка НА КОНТЕЙНЕРЕ, input прозрачный внутри —
@@ -101,40 +105,48 @@
   gap: 14px;
 }
 
-/* Заголовки колонок */
+/* Заголовки колонок — фон-плашка как у строк-карточек ниже (та же рамка/радиус/фон), чтобы
+   читаться как шапка таблицы, а не плавать отдельным текстом над списком карточек. */
 .cash-stock-cols {
-  padding: 4px var(--space-2) 6px;
-  /* Заголовки колонок — минимум text-tertiary (инвариант контраста) */
-  color: var(--text-tertiary);
+  padding: 6px var(--space-2);
+  color: var(--text-primary);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--border-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
 }
 
 .cash-stock-list {
   list-style: none;
   margin: 6px 0 0;
-  padding: 0;
+  padding: 8px 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 8px;
 }
 
-/* Базовая строка товара */
+/* Строка-карточка (как .ctable-row в «Клиентах»): своя рамка/радиус/фон, зазор между
+   карточками вместо border-bottom. */
 .cash-stock-row {
   padding: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-soft);
+  border-left-width: 3px;
+  border-left-color: transparent;
+  border-radius: var(--radius-md);
   background: var(--surface-card);
-  transition: border-color 0.12s, background 0.12s;
+  transition: background 120ms ease, border-color 120ms ease;
 }
 
-/* Граница строк — border-default (инвариант контраста) */
-.cash-stock-row:hover {
-  border-color: var(--border-accent);
-  background: var(--surface-hover);
-}
+.cash-stock-row:hover { border-color: var(--border-accent); background: var(--surface-hover); }
+
+/* Статус остатка — не только цветом: левая полоса на строке + иконка-предупреждение.
+   Янтарь «на исходе», красный «нет в наличии» (WCAG 1.4.1 — сигнал дублируется формой). */
+.cash-stock-row.low { border-left-color: var(--warning); }
+.cash-stock-row.out { border-left-color: var(--danger); }
+.cash-stock-row > svg.row-status-ico.low { color: var(--warning); }
+.cash-stock-row > svg.row-status-ico.out { color: var(--danger); }
 
 .cash-stock-row > svg {
   width: 15px;
@@ -177,10 +189,9 @@
 /* ── Плотная группа числовых метрик ── */
 .metrics {
   display: grid;
-  /* Остаток · Порог · Себест. · Цена · Маржа · Стоимость · Действия — с воздухом,
-     заголовки не обрезаются (uppercase «СЕБЕСТ.»/«СТОИМОСТЬ» помещаются). */
-  grid-template-columns: 88px 56px 66px 62px 58px 90px 78px;
-  gap: 0 24px;
+  /* Остаток · Себест. · Цена · Стоимость · Действия — с воздухом (заголовки не обрезаются). */
+  grid-template-columns: 88px 66px 62px 90px 86px;
+  gap: 0 var(--space-5);
   align-items: center;
 }
 
@@ -216,42 +227,9 @@
 .qty.low { color: var(--warning); }
 .qty.out { color: var(--danger); }
 
-/* Статус-подсказка под числом остатка (не в одну строку с «шт») */
-.stock-status-tag {
-  font-family: "Segoe UI", Arial, sans-serif;
-  font-size: 9.5px;
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-}
-
-.stock-status-tag.low { color: var(--warning); }
-.stock-status-tag.out { color: var(--danger); }
-
-/* Порог */
-.thr {
-  /* Порог — text-tertiary (менее важная цифра, но выше quaternary) */
-  color: var(--text-tertiary);
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-}
-
 /* Деньги (Себест./Цена/Стоимость) — белый моноширинный */
 .money {
   color: var(--text-strong);
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-}
-
-.money .dim,
-.money.dim { color: var(--text-quaternary); }
-
-/* Маржа — emerald акцент */
-.marg {
-  color: var(--accent-text);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 12px;
@@ -266,56 +244,110 @@
   font-weight: 600;
 }
 
-.valm.dim { color: var(--text-quaternary); }
-
 /* ── Кнопки действий (S0 — заглушки, S1 — реальные) ── */
+/* Действия строки видны и без мыши (тач/клавиатура): приглушены в покое, полностью —
+   на hover/фокусе строки. Раньше opacity:0.35 прятала их от не-мышиного оператора. */
 .rowact {
   display: flex;
+  align-items: center;
   gap: 5px;
   justify-content: flex-end;
-  opacity: 0.35;
+  opacity: 0.6;
   transition: opacity 0.12s;
 }
 
-.cash-stock-row:hover .rowact { opacity: 1; }
+/* «Приёмка» (плюс) — та же рамка, что у «Списать», чтобы не выглядеть как связанная
+   пара «+/−»-степпера. Только в строке Остатков — общий атом .ui-btn--ghost не трогаем. */
+.rowact .ui-btn--ghost { border-color: var(--border-default); }
+.rowact .ui-btn--ghost:hover:not(:disabled) { border-color: var(--border-accent); }
 
-.iact {
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--border-soft);
-  border-radius: 6px;
-  background: var(--surface-elevated);
-  display: grid;
-  place-items: center;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 14px;
+.cash-stock-row:hover .rowact,
+.cash-stock-row:focus-within .rowact { opacity: 1; }
+
+/* ── Герой сводки: крупная метрика с цветным левым кантом (мирроринг seat-hero/booking-status-card) ── */
+.stock-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default);
+  border-left-width: 3px;
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+
+.stock-hero-label {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+}
+
+.stock-hero-value {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.1;
 }
 
-.iact:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.stock-hero-sub {
+  font-size: 11px;
+  color: var(--text-quaternary);
 }
 
-.iact:not(:disabled):hover { border-color: var(--accent); color: var(--accent-bright); }
-.iact.minus:not(:disabled):hover { border-color: var(--warning); color: var(--warning); }
-.iact:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stock-hero--neutral { border-left-color: var(--accent); }
+.stock-hero--ok { border-left-color: var(--accent); }
+.stock-hero--ok .stock-hero-value { color: var(--accent-text); }
+.stock-hero--warning { border-left-color: var(--warning); }
+.stock-hero--warning .stock-hero-value { color: var(--warning-text); }
+.stock-hero--attention { border-left-color: var(--danger); }
+.stock-hero--attention .stock-hero-value { color: var(--danger-text); }
+.stock-hero--muted { border-left-color: var(--border-default); }
+.stock-hero--muted .stock-hero-value { color: var(--text-tertiary); }
 
-/* ── Сводка (правая панель) ── */
+/* ── Строка сканера/поиска (общий паттерн Приёмки/Инвентаризации — чром из .ui-search-field) ── */
+.stock-scanbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.stock-scanbar-search {
+  flex: 1;
+  min-width: 200px;
+}
+
+.stock-scanbar-search svg {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+/* ── Сводка (правая панель): единая приподнятая панель, hairline-секции внутри ── */
 .stock-summary {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
   overflow: auto;
 }
 
-/* Карточки сводки */
-.ctx-card {
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-md);
-  background: var(--surface-card);
-  padding: 12px;
+.stock-section {
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.stock-section:first-child {
+  padding-top: 0;
+  border-top: 0;
 }
 
 .ctx-title {
@@ -329,29 +361,6 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-}
-
-/* Большое число (стоимость склада) */
-.ctx-big {
-  color: var(--text-primary);
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.ctx-big .cur {
-  color: var(--text-tertiary);
-  font-size: 14px;
-  font-weight: 500;
-  margin-left: 3px;
-}
-
-.ctx-sub {
-  color: var(--text-quaternary);
-  font-size: 11px;
-  margin-top: 5px;
 }
 
 /* Строка метрики сводки */
@@ -408,42 +417,6 @@
 .oq.low { color: var(--warning); }
 .oq.out { color: var(--danger); }
 
-/* Кнопка «Оформить приёмку» (S0 — disabled; S1 — реальная) */
-.ctx-btn {
-  width: 100%;
-  margin-top: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: var(--control-md);
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  background: var(--accent);
-  color: var(--text-on-accent);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.ctx-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  border-color: var(--border-default);
-  background: var(--surface-muted);
-  color: var(--text-quaternary);
-}
-
-.ctx-btn:not(:disabled):hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
-}
-
-.ctx-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
 /* ── Экран «Приёмка» ── */
 .stock-receiving {
   display: flex;
@@ -453,58 +426,9 @@
   border-radius: var(--radius-md);
   padding: var(--space-3);
   background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
   min-height: 0;
   overflow: auto;
-}
-
-/* Полоса добавления товара */
-.recv-add {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
-  background: var(--surface-card);
-}
-
-.recv-add-ico {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
-  background: var(--surface-accent-soft);
-  color: var(--accent-text);
-}
-
-.recv-add-field { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-
-.recv-add-field input {
-  height: var(--control-md);
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--surface-sunken);
-  color: var(--text-primary);
-  padding: 0 10px;
-  font-size: 13px;
-}
-
-.recv-add-field input:focus { outline: none; border-color: var(--accent); }
-.recv-add-hint { color: var(--text-tertiary); font-size: 11px; }
-
-.recv-scanner-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-accent-soft);
-  color: var(--accent-text);
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
 /* Выпадающие результаты поиска */
@@ -559,27 +483,33 @@
   gap: 12px;
 }
 
+/* Фон-плашка как у .recv-row ниже — та же рамка/радиус/фон, читается как шапка таблицы. */
 .recv-cols {
-  padding: 4px 8px 6px;
-  color: var(--text-tertiary);
+  padding: 6px 8px;
+  color: var(--text-primary);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--border-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
 }
 
 .recv-cols .r { text-align: right; }
 
-.recv-lines { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.recv-lines { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 
 .recv-row {
   padding: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
   background: var(--surface-card);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 
-.recv-row.fresh { border-color: var(--accent); box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.25); }
+/* «Только что отсканирован/добавлен» — акцентное кольцо (box-shadow), не border-color:
+   то же свойство занято сигналом расхождения в .inv-row, оба должны уметь звучать вместе. */
+.recv-row.fresh { border-color: var(--border-accent); box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.35); }
 .recv-row > svg { width: 15px; height: 15px; color: var(--text-tertiary); }
 .recv-name { min-width: 0; }
 .recv-name strong { display: block; color: var(--text-primary); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -590,6 +520,8 @@
 .recv-step button {
   width: 30px;
   height: 30px;
+  display: grid;
+  place-items: center;
   border: 1px solid var(--border-default);
   background: var(--surface-elevated);
   color: var(--text-secondary);
@@ -597,9 +529,10 @@
   font-family: var(--font-mono);
   font-size: 15px;
 }
-.recv-step button:first-of-type { border-radius: 6px 0 0 6px; }
-.recv-step button:last-of-type { border-radius: 0 6px 6px 0; }
+.recv-step button:first-of-type { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.recv-step button:last-of-type { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 .recv-step button:hover { border-color: var(--accent); color: var(--accent-bright); }
+.recv-step button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .recv-step input {
   width: 48px;
   height: 30px;
@@ -620,7 +553,7 @@
   align-items: center;
   height: 30px;
   border: 1px solid var(--border-default);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface-sunken);
   padding: 0 8px;
   gap: 4px;
@@ -648,35 +581,11 @@
   font-weight: 600;
 }
 
-.recv-del {
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--border-soft);
-  border-radius: 6px;
-  background: var(--surface-elevated);
-  color: var(--text-quaternary);
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-}
-.recv-del:hover { border-color: var(--danger); color: var(--danger); }
-
 /* Поля накладной */
+/* Только текст (span) — WriteOffDialog использует как read-only cost-display, реальные
+   поля ввода там на `.ui-field`; для input-варианта здесь правил больше нет. */
 .recv-field { display: grid; gap: 4px; margin-bottom: 10px; }
 .recv-field span { color: var(--text-tertiary); font-size: 11px; }
-.recv-field input {
-  height: var(--control-md);
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--surface-sunken);
-  color: var(--text-primary);
-  padding: 0 10px;
-  font-size: 13px;
-}
-.recv-field input:focus { outline: none; border-color: var(--accent); }
-
-.recv-grand { border-top: 1px solid var(--border-soft); margin-top: 4px; padding-top: 10px; }
-.recv-grand b { font-size: 18px; }
 
 .recv-status { margin: 10px 0 0; font-size: 12px; }
 .recv-status.ok { color: var(--accent-text); }
@@ -691,6 +600,7 @@
   border-radius: var(--radius-md);
   padding: var(--space-3);
   background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
   min-height: 0;
   overflow: auto;
 }
@@ -726,96 +636,21 @@
   margin: 8px 4px 2px;
 }
 
-.jlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.jlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 
-.jrow {
-  display: grid;
-  grid-template-columns: 52px 116px minmax(160px, 1fr) 92px 96px 140px;
-  align-items: center;
-  gap: 12px;
-  padding: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+/* Строка журнала на Складе — карточка (.ui-ledger-row переиспользуется и Кассой, поэтому
+   переопределяем прицельно составным селектором, не трогая общий примитив в 02-ui-kit.css).
+   Строки только читаются (нет вложенных действий) — намеренно без hover/press: ничего не
+   происходит по клику, откликом-фантомом только бы обманули ожидание. */
+.ui-ledger-row.stock-ledger-row {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
   background: var(--surface-card);
 }
 
-.jrow:hover { border-color: var(--border-accent); }
-
-.jtime {
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-}
-
-.jtype { font-size: 12px; font-weight: 600; }
-.jtype.plus { color: var(--accent-text); }
-.jtype.warn { color: var(--warning); }
-.jtype.minus { color: var(--text-secondary); }
-
-.jname { min-width: 0; }
-.jname strong { display: block; color: var(--text-primary); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jname em { color: var(--text-tertiary); font-family: var(--font-mono); font-size: 10px; font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
-
-.jqty {
-  text-align: right;
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
-.jqty.plus { color: var(--accent-text); }
-.jqty.warn { color: var(--warning); }
-.jqty.minus { color: var(--text-strong); }
-
-.jsum {
-  text-align: right;
-  /* Сумма движения — деньги: читаемый text-strong (инвариант контраста, не tertiary) */
-  color: var(--text-strong);
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-}
-
-.jwho {
-  color: var(--text-secondary);
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Период (правая колонка) */
-.period { display: flex; gap: 4px; }
-.period button {
-  flex: 1;
-  border: 1px solid var(--border-soft);
-  background: transparent;
-  color: var(--text-tertiary);
-  border-radius: 6px;
-  padding: 6px 0;
-  font-size: 12px;
-  cursor: pointer;
-}
-.period button.on { color: var(--text-primary); border-color: var(--border-default); background: var(--surface-sunken); }
-.period button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-/* Итоги периода */
-.stock-summary .totrow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 7px 0;
-  font-size: 13px;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-soft);
-}
-.stock-summary .totrow:last-child { border-bottom: none; }
-.stock-summary .totrow b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-primary); }
-.stock-summary .totrow b.in { color: var(--accent-text); }
-.stock-summary .totrow b.wn { color: var(--warning); }
-.stock-summary .totrow.net b { font-weight: 700; }
-
+/* Период (правая колонка) — кнопки теперь `.ui-chip--filter`; здесь только контейнер-layout,
+   без визуальных правил на button (тег-селектор перебивал бы атом по каскаду, см. `.seg`). */
+.period { display: flex; gap: var(--space-1); }
 
 /* ── Штрих-коды в карточке товара (ProductBarcodesSection) ── */
 .settings-barcodes-section { margin-top: var(--space-4); }
@@ -849,50 +684,61 @@
 
 /* ── Инвентаризация (S4) ── */
 .stock-inventory { display: flex; flex-direction: column; min-width: 0; }
-.inv-scanbar { display: flex; align-items: center; gap: 12px; border: 1.5px solid var(--accent); border-radius: var(--radius-md);
-  padding: 10px 14px; background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.06), transparent); margin-bottom: 8px; }
-.inv-scanbar-ico { width: 34px; height: 34px; border-radius: 8px; display: grid; place-items: center;
-  background: var(--surface-accent-soft); color: var(--accent-text); flex: 0 0 auto; }
-.inv-scanbar-lbl { flex: 1; min-width: 0; color: var(--text-secondary); font-size: 13px; }
-.inv-caret { display: inline-block; width: 2px; height: 14px; background: var(--accent); margin-left: 3px;
-  vertical-align: middle; animation: inv-blink 1s step-end infinite; }
-@keyframes inv-blink { 50% { opacity: 0; } }
-.inv-search { width: min(220px, 30vw); height: 30px; padding: 0 10px; border: 1px solid var(--border-default);
-  border-radius: 6px; background: var(--surface-sunken); color: var(--text-primary); font-size: 13px; }
-.inv-reset { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px;
-  border: 1px solid var(--border-default); border-radius: 6px; background: var(--surface-elevated);
-  color: var(--text-secondary); font-size: 12px; cursor: pointer; }
-.inv-reset:hover:not(:disabled) { color: var(--text-primary); border-color: var(--border-strong); }
 
 .inv-cols, .inv-row { display: grid; grid-template-columns: 24px minmax(160px, 1fr) 84px 108px 104px 96px; align-items: center; gap: 12px; }
-.inv-cols { padding: 2px 8px 8px; color: var(--text-tertiary); font-size: 11px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-default); }
+/* Фон-плашка как у .inv-row ниже — та же рамка/радиус/фон, читается как шапка таблицы. */
+.inv-cols { padding: 8px; color: var(--text-primary); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: var(--surface-card); }
 .inv-cols .r { text-align: right; }
-.inv-lines { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.inv-row { padding: 9px 8px; border: 1px solid var(--border-default); border-radius: var(--radius-sm); background: var(--surface-card); }
+.inv-lines { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.inv-row {
+  padding: 9px 8px;
+  border: 1px solid var(--border-soft);
+  border-left-width: 3px;
+  border-left-color: transparent;
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  transition: border-color 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
 .inv-row > svg { width: 15px; height: 15px; color: var(--text-tertiary); }
 .inv-row.pending { opacity: 0.72; }
-.inv-row.diff { border-color: rgba(var(--accent-rgb), 0.35); }
-.inv-row.fresh { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+/* Расхождение факт/учёт — левая полоса (то же свойство, что .cash-stock-row.low/out),
+   «только что отсканирован» — кольцо box-shadow: оба должны звучать одновременно. */
+.inv-row.diff { border-left-color: var(--accent); }
+.inv-row.fresh { box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.35); }
 .inv-name { min-width: 0; }
 .inv-name strong { display: block; color: var(--text-primary); font-size: 14px; font-weight: 600; }
 .inv-name em { color: var(--text-tertiary); font-family: var(--font-mono); font-size: 11px; font-style: normal; }
 .inv-sys { text-align: right; color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 600; }
-.inv-fact { justify-self: end; display: flex; align-items: center; height: 32px; width: 100px;
-  border: 1px solid var(--border-default); border-radius: 6px; background: var(--surface-sunken); padding: 0 10px; }
-.inv-fact.empty { border-style: dashed; }
+.inv-fact { justify-self: end; display: flex; align-items: center; height: var(--control-md); width: 100px;
+  border: 1px solid var(--border-default); border-radius: var(--radius-sm); background: var(--surface-sunken); padding: 0 10px; }
 .inv-fact input { width: 100%; border: 0; background: transparent; color: var(--text-primary);
   font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 600; text-align: right; }
+.inv-fact input:focus { outline: none; }
 .inv-fact.empty input::placeholder { color: var(--text-quaternary); }
-.inv-diff, .inv-sum { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; }
+.inv-diff, .inv-sum { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; white-space: nowrap; }
 .inv-diff.zero, .inv-sum.zero { color: var(--text-secondary); }
-.inv-diff.none, .inv-sum.none { color: var(--text-tertiary); font-weight: 400; }
+/* «не пересчитано» — текст, не число: свой (не моно) шрифт и размер, чтобы не переносился
+   на 2 строки в узкой числовой колонке. */
+.inv-diff.none, .inv-sum.none { color: var(--text-tertiary); font-family: "Segoe UI", sans-serif; font-size: 11px; font-weight: 400; }
 .inv-diff.minus, .inv-sum.minus { color: var(--warning-text); }
 .inv-diff.plus, .inv-sum.plus { color: var(--accent-text); }
 
-.inv-prog { height: 8px; border-radius: 5px; background: var(--surface-sunken); overflow: hidden; box-shadow: inset 0 0 0 1px var(--border-soft); }
-.inv-prog i { display: block; height: 100%; background: var(--accent); border-radius: 5px; transition: width 0.2s ease; }
+.inv-prog { height: 10px; border-radius: var(--radius-pill); background: var(--surface-sunken); overflow: hidden; box-shadow: inset 0 0 0 1px var(--border-default); }
+.inv-prog i { display: block; height: 100%; min-width: 4px; background: var(--accent); border-radius: var(--radius-pill); transition: width 0.2s ease; }
 .inv-progtxt { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--text-secondary); }
 .inv-progtxt b { color: var(--text-primary); font-family: var(--font-mono); }
 .inv-pos { color: var(--accent-text); }
 .ctx-note { margin-top: 8px; text-align: center; font-size: 11px; color: var(--text-quaternary); }
+
+/* ── Микро-отклик нажатия + видимый фокус полей ввода ── */
+.recv-step button { transition: transform 0.08s var(--ease-out), border-color 0.12s, color 0.12s; }
+
+.recv-step button:active { transform: scale(0.96); }
+
+.recv-cost:focus-within,
+.inv-fact:focus-within { border-color: var(--accent); box-shadow: var(--focus-ring); }
+
+@media (prefers-reduced-motion: reduce) {
+  .recv-step button:active { transform: none; }
+}

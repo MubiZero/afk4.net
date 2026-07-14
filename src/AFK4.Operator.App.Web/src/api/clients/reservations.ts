@@ -1,6 +1,7 @@
 import { PlatformApiClient } from '../../platformApi';
 import type { Guid, ReportQuery } from '../types';
 import { normalizeReportQuery } from '../queryHelpers';
+import type { SessionCommandResponse } from './sessions';
 
 export type ReservationDto = Record<string, unknown>;
 export type ReservationSearchResultDto = Record<string, unknown>;
@@ -41,19 +42,42 @@ export interface ReservationGroupResultDto {
 
 export interface UpdateReservationRequest extends Record<string, unknown> {
   organizationId: Guid;
+  expectedVersion: number;
 }
 
 export interface ConfirmReservationRequest {
   organizationId: Guid;
+  expectedVersion: number;
 }
 
 export interface SeatReservationRequest {
   organizationId: Guid;
+  expectedVersion: number;
 }
 
 export interface CancelReservationRequest {
   organizationId: Guid;
   reason: string;
+  expectedVersion: number;
+}
+
+export interface StartReservationSessionRequest {
+  organizationId: Guid;
+  expectedVersion: number;
+  tariffRuleVersionId: string;
+  idempotencyKey: string;
+  durationMode?: string;
+  durationMinutes?: number | null;
+  billingMode?: string;
+  tariffVersionId?: Guid | null;
+  playerPackageId?: Guid | null;
+  isComp?: boolean;
+  compReason?: string | null;
+}
+
+export interface StartReservationSessionResponse {
+  reservation: ReservationDto;
+  session: SessionCommandResponse;
 }
 
 export function createReservationClient(api: PlatformApiClient) {
@@ -78,6 +102,15 @@ export function createReservationClient(api: PlatformApiClient) {
     },
     cancel(reservationId: Guid, request: CancelReservationRequest): Promise<ReservationDto> {
       return api.post<ReservationDto, CancelReservationRequest>(`/api/reservations/${reservationId}/cancel`, request);
+    },
+    startSession(
+      reservationId: Guid,
+      request: StartReservationSessionRequest
+    ): Promise<StartReservationSessionResponse> {
+      return api.post<StartReservationSessionResponse, StartReservationSessionRequest>(
+        `/api/reservations/${reservationId}/start-session`,
+        request
+      );
     }
   };
 }

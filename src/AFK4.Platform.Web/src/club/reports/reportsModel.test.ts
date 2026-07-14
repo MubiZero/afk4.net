@@ -37,10 +37,16 @@ it('buildSalesReport produces summary cards and formatted rows', () => {
     grossSalesTotal: { currencyCode: 'RUB', minorUnits: 150000 },
     refundsTotal: { currencyCode: 'RUB', minorUnits: 0 },
     netSalesTotal: { currencyCode: 'RUB', minorUnits: 150000 },
+    grossCostOfGoodsTotal: { currencyCode: 'RUB', minorUnits: 60000 },
+    refundedCostOfGoodsTotal: { currencyCode: 'RUB', minorUnits: 0 },
+    netCostOfGoodsTotal: { currencyCode: 'RUB', minorUnits: 60000 },
     rows: [{
       posSaleId: 's1', organizationId: 'o', branchId: 'b', shiftId: 'sh', createdByStaffUserId: 'u',
       state: 'Paid', total: { currencyCode: 'RUB', minorUnits: 150000 },
       paidAmount: { currencyCode: 'RUB', minorUnits: 150000 }, refundAmount: { currencyCode: 'RUB', minorUnits: 0 },
+      grossCostOfGoods: { currencyCode: 'RUB', minorUnits: 60000 },
+      refundedCostOfGoods: { currencyCode: 'RUB', minorUnits: 0 },
+      netCostOfGoods: { currencyCode: 'RUB', minorUnits: 60000 },
       lineCount: 2, itemQuantity: 3, createdAtUtc: '2026-05-30T10:00:00.000Z',
       paidAtUtc: '2026-05-30T10:01:00.000Z', refundedAtUtc: null, voidedAtUtc: null
     }]

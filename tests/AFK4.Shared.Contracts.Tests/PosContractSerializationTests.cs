@@ -137,7 +137,8 @@ public sealed class PosContractSerializationTests
                 "POS-20260513-0001",
                 "sale",
                 new MoneyDto("TJS", 2400),
-                DateTimeOffset.Parse("2026-05-13T10:01:00Z")));
+                DateTimeOffset.Parse("2026-05-13T10:01:00Z"),
+                ShopOrderId: Guid.Parse("99999999-0000-0000-0000-000000000001")));
 
         var copy = JsonSerializer.Deserialize<PosSaleDto>(
             JsonSerializer.Serialize(sale, Options),
@@ -148,6 +149,7 @@ public sealed class PosContractSerializationTests
         Assert.Single(copy.Lines);
         Assert.Equal(2400, copy.Total.MinorUnits);
         Assert.Equal("POS-20260513-0001", copy.LatestReceipt?.ReceiptNumber);
+        Assert.Equal(Guid.Parse("99999999-0000-0000-0000-000000000001"), copy.LatestReceipt?.ShopOrderId);
     }
 
     [Fact]

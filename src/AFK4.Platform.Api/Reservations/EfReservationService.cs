@@ -247,6 +247,12 @@ public sealed class EfReservationService(
             return ReservationServiceResult<ReservationDto>.Missing("Reservation was not found.");
         }
 
+        var versionConflict = GuardVersion(reservation, request.ExpectedVersion);
+        if (versionConflict is not null)
+        {
+            return versionConflict;
+        }
+
         if (!CanChange(reservation))
         {
             return ReservationServiceResult<ReservationDto>.Invalid("Only pending or confirmed reservations can be changed.");
@@ -258,14 +264,35 @@ public sealed class EfReservationService(
         var nextStartsAtUtc = request.StartsAtUtc ?? reservation.StartsAtUtc;
         var nextDurationMinutes = request.DurationMinutes ?? DurationMinutes(reservation);
         var nextSeatId = request.SeatId ?? reservation.SeatId;
+        var nextPlayerAccountId = request.PlayerAccountId ?? reservation.PlayerAccountId;
         var nextSource = string.IsNullOrWhiteSpace(request.Source)
             ? reservation.Source
             : NormalizeSource(request.Source);
+        var nextPhoneNumber = request.PhoneNumber is null
+            ? reservation.PhoneNumber
+            : NormalizeNullable(request.PhoneNumber);
+        var nextNote = request.Note is null
+            ? reservation.Note
+            : NormalizeText(request.Note);
+        var nextEndsAtUtc = nextStartsAtUtc.AddMinutes(nextDurationMinutes);
+
+        if (nextPlayerAccountId == reservation.PlayerAccountId &&
+            nextSeatId == reservation.SeatId &&
+            string.Equals(nextCustomerName, reservation.CustomerName, StringComparison.Ordinal) &&
+            string.Equals(nextPhoneNumber, reservation.PhoneNumber, StringComparison.Ordinal) &&
+            nextStartsAtUtc == reservation.StartsAtUtc &&
+            nextEndsAtUtc == reservation.EndsAtUtc &&
+            string.Equals(nextSource, reservation.Source, StringComparison.Ordinal) &&
+            string.Equals(nextNote, reservation.Note, StringComparison.Ordinal))
+        {
+            return ReservationServiceResult<ReservationDto>.Ok(
+                (await ProjectAsync([reservation], cancellationToken))[0]);
+        }
 
         var validation = await ValidateReservationShapeAsync(
             request.OrganizationId,
             reservation.BranchId,
-            request.PlayerAccountId ?? reservation.PlayerAccountId,
+            nextPlayerAccountId,
             nextSeatId,
             nextCustomerName,
             nextStartsAtUtc,
@@ -277,7 +304,6 @@ public sealed class EfReservationService(
             return ReservationServiceResult<ReservationDto>.Invalid(validation);
         }
 
-        var nextEndsAtUtc = nextStartsAtUtc.AddMinutes(nextDurationMinutes);
         var conflict = await FindConflictAsync(
             request.OrganizationId,
             reservation.BranchId,
@@ -291,22 +317,23 @@ public sealed class EfReservationService(
             return ReservationServiceResult<ReservationDto>.RequestConflict(conflict);
         }
 
-        reservation.PlayerAccountId = request.PlayerAccountId ?? reservation.PlayerAccountId;
+        reservation.PlayerAccountId = nextPlayerAccountId;
         reservation.SeatId = nextSeatId;
         reservation.CustomerName = nextCustomerName;
-        reservation.PhoneNumber = request.PhoneNumber is null
-            ? reservation.PhoneNumber
-            : NormalizeNullable(request.PhoneNumber);
+        reservation.PhoneNumber = nextPhoneNumber;
         reservation.StartsAtUtc = nextStartsAtUtc;
         reservation.EndsAtUtc = nextEndsAtUtc;
         reservation.Source = nextSource;
-        reservation.Note = request.Note is null
-            ? reservation.Note
-            : NormalizeText(request.Note);
+        reservation.Note = nextNote;
         reservation.UpdatedByStaffUserId = actorStaffUserId;
         reservation.UpdatedAtUtc = timeProvider.GetUtcNow();
+        reservation.Version++;
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
+        if (saveConflict is not null)
+        {
+            return saveConflict;
+        }
 
         return ReservationServiceResult<ReservationDto>.Ok(
             (await ProjectAsync([reservation], cancellationToken))[0]);
@@ -324,9 +351,21 @@ public sealed class EfReservationService(
             return ReservationServiceResult<ReservationDto>.Missing("Reservation was not found.");
         }
 
-        if (!CanChange(reservation))
+        var versionConflict = GuardVersion(reservation, request.ExpectedVersion);
+        if (versionConflict is not null)
         {
-            return ReservationServiceResult<ReservationDto>.Invalid("Only pending or confirmed reservations can be confirmed.");
+            return versionConflict;
+        }
+
+        if (reservation.State == ReservationStateNames.Confirmed)
+        {
+            return ReservationServiceResult<ReservationDto>.Ok(
+                (await ProjectAsync([reservation], cancellationToken))[0]);
+        }
+
+        if (reservation.State != ReservationStateNames.Pending)
+        {
+            return ReservationServiceResult<ReservationDto>.Invalid("Only pending reservations can be confirmed.");
         }
 
         var conflict = await FindConflictAsync(
@@ -345,7 +384,12 @@ public sealed class EfReservationService(
         reservation.State = ReservationStateNames.Confirmed;
         reservation.UpdatedByStaffUserId = actorStaffUserId;
         reservation.UpdatedAtUtc = timeProvider.GetUtcNow();
-        await dbContext.SaveChangesAsync(cancellationToken);
+        reservation.Version++;
+        var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
+        if (saveConflict is not null)
+        {
+            return saveConflict;
+        }
 
         return ReservationServiceResult<ReservationDto>.Ok(
             (await ProjectAsync([reservation], cancellationToken))[0]);
@@ -361,6 +405,18 @@ public sealed class EfReservationService(
         if (reservation is null)
         {
             return ReservationServiceResult<ReservationDto>.Missing("Reservation was not found.");
+        }
+
+        var versionConflict = GuardVersion(reservation, request.ExpectedVersion);
+        if (versionConflict is not null)
+        {
+            return versionConflict;
+        }
+
+        if (reservation.State == ReservationStateNames.Seated)
+        {
+            return ReservationServiceResult<ReservationDto>.Ok(
+                (await ProjectAsync([reservation], cancellationToken))[0]);
         }
 
         if (!CanChange(reservation))
@@ -389,7 +445,12 @@ public sealed class EfReservationService(
         reservation.SeatedAtUtc = now;
         reservation.UpdatedByStaffUserId = actorStaffUserId;
         reservation.UpdatedAtUtc = now;
-        await dbContext.SaveChangesAsync(cancellationToken);
+        reservation.Version++;
+        var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
+        if (saveConflict is not null)
+        {
+            return saveConflict;
+        }
 
         return ReservationServiceResult<ReservationDto>.Ok(
             (await ProjectAsync([reservation], cancellationToken))[0]);
@@ -405,6 +466,12 @@ public sealed class EfReservationService(
         if (reservation is null)
         {
             return ReservationServiceResult<ReservationDto>.Missing("Reservation was not found.");
+        }
+
+        var versionConflict = GuardVersion(reservation, request.ExpectedVersion);
+        if (versionConflict is not null)
+        {
+            return versionConflict;
         }
 
         if (string.IsNullOrWhiteSpace(request.Reason))
@@ -425,12 +492,53 @@ public sealed class EfReservationService(
             reservation.CancelledAtUtc = now;
             reservation.UpdatedByStaffUserId = actorStaffUserId;
             reservation.UpdatedAtUtc = now;
-            await dbContext.SaveChangesAsync(cancellationToken);
+            reservation.Version++;
+            var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
+            if (saveConflict is not null)
+            {
+                return saveConflict;
+            }
         }
 
         return ReservationServiceResult<ReservationDto>.Ok(
             (await ProjectAsync([reservation], cancellationToken))[0]);
     }
+
+    private static ReservationServiceResult<ReservationDto>? GuardVersion(
+        ReservationEntity reservation,
+        int expectedVersion) =>
+        reservation.Version == expectedVersion
+            ? null
+            : VersionConflict(reservation.Version);
+
+    private async Task<ReservationServiceResult<ReservationDto>?> SaveMutationAsync(
+        ReservationEntity reservation,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return null;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            dbContext.ChangeTracker.Clear();
+            var currentVersion = await dbContext.Reservations
+                .AsNoTracking()
+                .Where(candidate => candidate.ReservationId == reservation.ReservationId)
+                .Select(candidate => (int?)candidate.Version)
+                .SingleOrDefaultAsync(cancellationToken);
+            return currentVersion is int version
+                ? VersionConflict(version)
+                : ReservationServiceResult<ReservationDto>.Missing("Reservation was not found.");
+        }
+    }
+
+    private static ReservationServiceResult<ReservationDto> VersionConflict(int currentVersion) =>
+        ReservationServiceResult<ReservationDto>.RequestConflict(
+            "Reservation changed since it was loaded.",
+            "version_conflict",
+            currentVersion);
 
     private async Task<string?> ValidateReservationShapeAsync(
         Guid organizationId,
@@ -637,7 +745,9 @@ public sealed class EfReservationService(
                 reservation.UpdatedAtUtc,
                 reservation.CancelledAtUtc,
                 reservation.CancelReason,
-                reservation.ReservationGroupId);
+                reservation.ReservationGroupId,
+                reservation.Version,
+                reservation.StartedSessionId);
         }).ToList();
     }
 

@@ -14,6 +14,8 @@ export interface StartGuestSessionRequest {
   billingMode?: string;
   tariffVersionId?: Guid | null;
   playerPackageId?: Guid | null;
+  isComp?: boolean;
+  compReason?: string | null;
 }
 
 export interface ExtendSessionRequest {

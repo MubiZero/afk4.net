@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import { createOperatorApiClients, type ReservationSearchResultDto, type SessionTimelineResult } from './operatorApiClients';
+import type { StartReservationSessionRequest } from './api/clients/reservations';
 import { PlatformApiError } from './platformApi';
 import type { OperatorFloorMapState } from './floorMapState';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
@@ -11,8 +12,11 @@ import {
   addMinutes,
   createAuthenticatedOperatorClients,
   emptyFeedback,
+  createIdempotencyKey,
   projectPlayerClient,
+  formatTime,
   readArray,
+  readString,
   requireBackend,
   toDateInputValue,
   toDateTimeInputValue,
@@ -26,8 +30,9 @@ function roundToQuarter(date: Date): Date {
   next.setMinutes(Math.round(next.getMinutes() / 15) * 15, 0, 0);
   return next;
 }
-import { FeedbackNotice, StateFlag } from './operatorPrimitives';
+import { StateFlag } from './operatorPrimitives';
 import { useDeferredFlag } from './useDeferredFlag';
+import { useFeedbackToasts } from './useFeedbackToasts';
 import {
   mapReservationsToItems,
   mapSessionDtosToItems,
@@ -42,6 +47,34 @@ import { BookingDrawer } from './booking/BookingDrawer';
 import { BookingTimeline } from './booking/BookingTimeline';
 import { BookingRequestsLane } from './booking/BookingRequestsLane';
 import type { SeatSummary } from './operatorData';
+import { PanelModal } from './PanelModal';
+import { createSessionStartSelection, SessionStartForm, type SessionStartSelection } from './session/SessionStartForm';
+
+export function buildReservationStartRequest(
+  organizationId: string,
+  expectedVersion: number,
+  idempotencyKey: string,
+  selection: SessionStartSelection
+): StartReservationSessionRequest {
+  return {
+    organizationId,
+    expectedVersion,
+    tariffRuleVersionId: selection.tariffRuleVersionId,
+    idempotencyKey,
+    durationMode: selection.durationMode,
+    durationMinutes: selection.durationMinutes,
+    billingMode: selection.billingMode === 'guest' ? '' : selection.billingMode,
+    tariffVersionId: selection.tariffVersionId,
+    playerPackageId: selection.playerPackageId,
+    isComp: selection.isComp,
+    compReason: selection.compReason
+  };
+}
+
+export function isReservationStartOutcomeAmbiguous(error: unknown): boolean {
+  if (!(error instanceof PlatformApiError)) return true;
+  return error.status >= 500 || error.status === 408 || error.status === 425 || error.status === 429;
+}
 
 export function BackendBookingWorkspace({
   floorMap,
@@ -58,6 +91,7 @@ export function BackendBookingWorkspace({
 
   const [selectedDate, setSelectedDate] = useState(() => new Date());
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  useFeedbackToasts(feedback);
   const [reservationResult, setReservationResult] = useState<ReservationSearchResultDto | null>(null);
   const [sessionResult, setSessionResult] = useState<SessionTimelineResult | null>(null);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('loading');
@@ -78,6 +112,13 @@ export function BackendBookingWorkspace({
     seatIds: []
   });
   const [groupConflicts, setGroupConflicts] = useState<Set<string>>(new Set());
+  const [startDialogOpen, setStartDialogOpen] = useState(false);
+  const [startSelection, setStartSelection] = useState<SessionStartSelection>(() => createSessionStartSelection());
+  const [startFormValid, setStartFormValid] = useState(true);
+  const [startIdempotencyKey, setStartIdempotencyKey] = useState('');
+  const [startVersion, setStartVersion] = useState(0);
+  const [startAttempt, setStartAttempt] = useState<StartReservationSessionRequest | null>(null);
+  const [startAttemptUnresolved, setStartAttemptUnresolved] = useState(false);
 
   // Поиск клиента клуба для привязки брони к аккаунту (если есть право просмотра клиентов).
   const searchClients = useCallback(async (query: string): Promise<PlayerClientItem[]> => {
@@ -88,6 +129,16 @@ export function BackendBookingWorkspace({
     const raw = await clients.players.searchPlayers(backend.branchId, query, 8);
     return (Array.isArray(raw) ? raw : []).map((player) => projectPlayerClient(player, t));
   }, [backend, t]);
+
+  const loadStartTariffs = useCallback(async () => {
+    if (backend === null || !hasPermission(backend.session, permissionNames.viewTariffs)) return [];
+    return createAuthenticatedOperatorClients(backend.config, backend.session).settings.getTariffOptions(backend.branchId);
+  }, [backend]);
+
+  const loadStartPackages = useCallback(async (playerAccountId: string) => {
+    if (backend === null || !hasPermission(backend.session, permissionNames.viewBilling)) return [];
+    return createAuthenticatedOperatorClients(backend.config, backend.session).players.getPlayerPackages(playerAccountId);
+  }, [backend]);
 
   const readySeats = floorMap.seats.filter((seat) => seat.tone === 'ready' && !seat.activeSessionId);
   const activeSeats = floorMap.seats.filter((seat) => seat.tone === 'active' || seat.activeSessionId);
@@ -193,6 +244,16 @@ export function BackendBookingWorkspace({
       setReloadVersion((v) => v + 1);
       afterSuccess?.();
     } catch (error) {
+      if (error instanceof PlatformApiError && error.status === 409) {
+        try {
+          const body = JSON.parse(error.body) as { code?: string };
+          if (body.code === 'version_conflict') {
+            setReloadVersion((v) => v + 1);
+          }
+        } catch {
+          // Preserve the normal projected error when a non-standard 409 body cannot be parsed.
+        }
+      }
       setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
@@ -280,26 +341,22 @@ export function BackendBookingWorkspace({
     }
   };
 
-  const confirmReservation = (reservationId: string, label: string) => runReservationAction(label, async (clients) => {
+  const confirmReservation = (item: typeof items[number], label: string) => runReservationAction(label, async (clients) => {
     const nextBackend = requireBackend(backend, t);
-    return await clients.reservations.confirm(reservationId, { organizationId: nextBackend.session.organizationId });
-  });
-
-  const seatReservation = () => runReservationAction(t('op.booking.action.seat'), async (clients) => {
-    const nextBackend = requireBackend(backend, t);
-    if (!selectedReservationId) throw new Error(t('op.booking.error.selectReservation'));
-    return await clients.reservations.seat(selectedReservationId, { organizationId: nextBackend.session.organizationId });
-  }, () => {
-    const item = items.find((i) => i.reservationId === selectedReservationId);
-    if (item?.seatId) onOpenSeat(item.seatId);
+    return await clients.reservations.confirm(item.reservationId, {
+      organizationId: nextBackend.session.organizationId,
+      expectedVersion: item.version
+    });
   });
 
   const moveReservation = (targetSeatId: string) => runReservationAction(t('op.booking.action.move'), async (clients) => {
     const nextBackend = requireBackend(backend, t);
     if (!selectedReservationId) throw new Error(t('op.booking.error.selectReservation'));
+    if (!selectedItem) throw new Error(t('op.booking.error.selectReservation'));
     const seat = floorMap.seats.find((s) => s.id === targetSeatId);
     return await clients.reservations.update(selectedReservationId, {
       organizationId: nextBackend.session.organizationId,
+      expectedVersion: selectedItem.version,
       seatId: targetSeatId,
       note: t('op.booking.note.moved', { seat: seat?.name ?? targetSeatId })
     });
@@ -308,9 +365,11 @@ export function BackendBookingWorkspace({
   const cancelReservation = () => runReservationAction(t('op.booking.action.cancel'), async (clients) => {
     const nextBackend = requireBackend(backend, t);
     if (!selectedReservationId) throw new Error(t('op.booking.error.selectReservation'));
+    if (!selectedItem) throw new Error(t('op.booking.error.selectReservation'));
     return await clients.reservations.cancel(selectedReservationId, {
       organizationId: nextBackend.session.organizationId,
-      reason: t('op.booking.note.cancelReason')
+      reason: t('op.booking.note.cancelReason'),
+      expectedVersion: selectedItem.version
     });
   });
 
@@ -323,7 +382,8 @@ export function BackendBookingWorkspace({
     for (const member of members) {
       await clients.reservations.cancel(member.reservationId, {
         organizationId: nextBackend.session.organizationId,
-        reason: t('op.booking.note.cancelReason')
+        reason: t('op.booking.note.cancelReason'),
+        expectedVersion: member.version
       });
     }
   }, () => setDrawerMode(null));
@@ -380,6 +440,39 @@ export function BackendBookingWorkspace({
     setDrawerMode('create');
   };
 
+  // Ctrl/Command-клик дополняет текущий черновик произвольным местом, не меняя общий
+  // интервал после первого выбора. Текущее состояние ПК не фильтруем: для будущего времени
+  // авторитетны фактические пересечения, рассчитанные ниже и повторно проверяемые сервером.
+  const toggleDraftSeat = (seat: SeatSummary, startMs: number) => {
+    const continueCurrentDraft = drawerMode === 'create';
+    setFeedback(emptyFeedback);
+    setGroupConflicts(new Set());
+    setDrawerMode('create');
+    setDraft((current) => {
+      if (!continueCurrentDraft) {
+        return {
+          customerName: '',
+          phoneNumber: '',
+          playerAccountId: '',
+          clientBalanceMinorUnits: null,
+          clientDebtMinorUnits: null,
+          startsAt: toDateTimeInputValue(new Date(startMs)),
+          durationMinutes: 60,
+          seatId: '',
+          seatIds: [seat.id]
+        };
+      }
+      const basis = current.seatIds.length > 0 ? current.seatIds : current.seatId ? [current.seatId] : [];
+      const seatIds = basis.includes(seat.id) ? basis.filter((id) => id !== seat.id) : [...basis, seat.id];
+      return {
+        ...current,
+        seatId: '',
+        seatIds,
+        startsAt: basis.length === 0 ? toDateTimeInputValue(new Date(startMs)) : current.startsAt
+      };
+    });
+  };
+
   const removeGroupSeat = (seatId: string) => {
     setDraft((d) => ({ ...d, seatIds: d.seatIds.filter((id) => id !== seatId) }));
     setGroupConflicts((prev) => {
@@ -400,6 +493,79 @@ export function BackendBookingWorkspace({
   const selectedGroupSize = selectedItem?.reservationGroupId
     ? items.filter((i) => i.reservationGroupId === selectedItem.reservationGroupId && i.state !== 'cancelled').length
     : 0;
+
+  const openReservationStart = () => {
+    if (!selectedItem || selectedItem.state !== 'confirmed' || !selectedItem.seatId) return;
+    setFeedback(emptyFeedback);
+    setStartSelection(createSessionStartSelection(selectedItem.playerAccountId ? 'prepaid_wallet' : 'guest'));
+    setStartFormValid(selectedItem.playerAccountId.length === 0);
+    setStartIdempotencyKey(createIdempotencyKey('reservation-session-start'));
+    setStartVersion(selectedItem.version);
+    setStartAttempt(null);
+    setStartAttemptUnresolved(false);
+    setStartDialogOpen(true);
+  };
+
+  const submitReservationStart = async () => {
+    const item = selectedItem;
+    const label = t('op.booking.start.submit');
+    setFeedback({ label, state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend, t);
+      if (!item || item.state !== 'confirmed' || !item.seatId) throw new Error(t('op.booking.error.selectReservation'));
+      if (!hasPermission(nextBackend.session, permissionNames.manageReservations) || !hasPermission(nextBackend.session, permissionNames.startSession)) {
+        throw new Error(t('op.booking.error.noPermission'));
+      }
+      const request = startAttempt ?? buildReservationStartRequest(
+        nextBackend.session.organizationId,
+        item.version,
+        startIdempotencyKey,
+        startSelection
+      );
+      if (startAttempt === null) setStartAttempt(request);
+      const response = await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).reservations.startSession(item.reservationId, request);
+      const linkedSeatId = readString(response.reservation, 'seatId', item.seatId);
+      setFeedback({ label, state: 'confirmed' });
+      setReloadVersion((value) => value + 1);
+      setStartDialogOpen(false);
+      setDrawerMode(null);
+      setStartAttempt(null);
+      setStartAttemptUnresolved(false);
+      if (linkedSeatId) onOpenSeat(linkedSeatId);
+    } catch (error) {
+      // Any uncertain failure triggers an authoritative refresh. If the server committed, the
+      // durable StartedSessionId link below wins and opens the linked seat; resubmit retains key.
+      if (!isReservationStartOutcomeAmbiguous(error)) {
+        setStartAttempt(null);
+        setStartAttemptUnresolved(false);
+        setStartIdempotencyKey(createIdempotencyKey('reservation-session-start'));
+      } else {
+        setStartAttemptUnresolved(true);
+      }
+      setReloadVersion((value) => value + 1);
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
+    }
+  };
+
+  useEffect(() => {
+    if (!startDialogOpen || !selectedItem) return;
+    if (selectedItem.startedSessionId && selectedItem.seatId) {
+      setStartAttempt(null);
+      setStartAttemptUnresolved(false);
+      setStartDialogOpen(false);
+      setDrawerMode(null);
+      onOpenSeat(selectedItem.seatId);
+      return;
+    }
+    if (selectedItem.version !== startVersion) {
+      // A known authoritative version change is an explicit new attempt; the payload changed,
+      // therefore it must not reuse an idempotency key tied to the previous expectedVersion.
+      setStartVersion(selectedItem.version);
+      setStartIdempotencyKey(createIdempotencyKey('reservation-session-start'));
+      setStartAttempt(null);
+      setStartAttemptUnresolved(false);
+    }
+  }, [startDialogOpen, selectedItem?.startedSessionId, selectedItem?.seatId, selectedItem?.version, startVersion]);
 
   // Подсветка выбранного интервала на таймлайне, пока открыто окно создания — следует за формой.
   const previewStartMs = drawerMode === 'create' ? new Date(draft.startsAt).getTime() : Number.NaN;
@@ -454,17 +620,15 @@ export function BackendBookingWorkspace({
       </section>
 
       {loadStatus === 'failed' && (
-        <FeedbackNotice feedback={{ label: t('op.booking.eyebrow'), state: 'failed', detail: loadError ?? t('op.booking.load.failed') }} />
+        <p className="workspace-error" role="alert">{loadError ?? t('op.booking.load.failed')}</p>
       )}
-
-      {!drawerMode && <FeedbackNotice feedback={feedback} />}
 
       <BookingRequestsLane
         requests={requests}
         busy={reservationBusy}
         canManage={canManageReservations}
         onCreate={openCreateDrawer}
-        onAccept={(item) => confirmReservation(item.reservationId, t('op.booking.requests.acceptLabel', { client: item.customerName }))}
+        onAccept={(item) => confirmReservation(item, t('op.booking.requests.acceptLabel', { client: item.customerName }))}
         onClarify={(item) => openDetailDrawer(item.reservationId)}
       />
 
@@ -488,6 +652,7 @@ export function BackendBookingWorkspace({
           onSelectBlock={(item) => openDetailDrawer(item.reservationId)}
           onCellCreate={openCreateDrawerForCell}
           onSeatsCreate={openGroupDrawer}
+          onSeatToggle={toggleDraftSeat}
         />
 
         {drawerMode && (
@@ -497,9 +662,9 @@ export function BackendBookingWorkspace({
             freeSeats={readySeats}
             allSeats={floorMap.seats}
             draft={draft}
-            feedback={feedback}
             busy={reservationBusy}
             canManage={canManageReservations}
+            canStartSessions={backend !== null && hasPermission(backend.session, permissionNames.startSession)}
             currencyCode={currencyCode}
             conflict={conflict}
             seatConflict={singleSeatConflict}
@@ -512,12 +677,57 @@ export function BackendBookingWorkspace({
             onCreateGroup={createGroupReservation}
             onRemoveSeat={removeGroupSeat}
             onCancelGroup={cancelReservationGroup}
-            onSeat={seatReservation}
+            onStart={openReservationStart}
             onMove={moveReservation}
             onCancel={cancelReservation}
-            onConfirm={(item) => confirmReservation(item.reservationId, t('op.booking.requests.acceptLabel', { client: item.customerName }))}
+            onConfirm={(item) => confirmReservation(item, t('op.booking.requests.acceptLabel', { client: item.customerName }))}
             onOpenMap={onOpenSeat}
           />
+        )}
+
+        {startDialogOpen && selectedItem && (
+          <PanelModal
+            title={t('op.booking.start.title')}
+            subtitle={`${selectedItem.seatName} · ${selectedItem.customerName}`}
+            onClose={() => setStartDialogOpen(false)}
+            closeDisabled={reservationBusy || startAttemptUnresolved}
+          >
+            {Date.now() < selectedItem.startMs && (
+              <div className="booking-start-warning" role="note">
+                {t('op.booking.start.earlyWarning', { time: formatTime(new Date(selectedItem.startMs).toISOString()) })}
+              </div>
+            )}
+            <SessionStartForm
+              seatName={selectedItem.seatName}
+              currencyCode={currencyCode}
+              disabled={reservationBusy || startAttemptUnresolved}
+              value={startSelection}
+              onChange={setStartSelection}
+              fixedClient={selectedItem.playerAccountId ? {
+                playerAccountId: selectedItem.playerAccountId,
+                name: selectedItem.customerName,
+                phoneNumber: selectedItem.phoneNumber,
+                balanceMinorUnits: null,
+                debtMinorUnits: 0
+              } : null}
+              loadTariffs={loadStartTariffs}
+              loadPackages={loadStartPackages}
+              onValidityChange={(valid) => setStartFormValid(valid)}
+            />
+            {feedback.state === 'failed' && feedback.detail && <p className="checkout-error" role="alert">{feedback.detail}</p>}
+            <div className="critical-confirmation-actions">
+              <button type="button" disabled={reservationBusy || startAttemptUnresolved} onClick={() => setStartDialogOpen(false)}>{t('common.cancel')}</button>
+              {feedback.state === 'failed' && <button type="button" disabled={reservationBusy} onClick={() => {
+                setStartIdempotencyKey(createIdempotencyKey('reservation-session-start'));
+                setStartVersion(selectedItem.version);
+                setStartAttempt(null);
+                setStartAttemptUnresolved(false);
+                setFeedback(emptyFeedback);
+              }}>{t('op.booking.start.newAttempt')}</button>}
+              <button type="button" className="cta-primary" disabled={reservationBusy || !startFormValid || selectedItem.state !== 'confirmed'}
+                onClick={() => void submitReservationStart()}>{t('op.booking.start.submit')}</button>
+            </div>
+          </PanelModal>
         )}
       </section>
     </main>

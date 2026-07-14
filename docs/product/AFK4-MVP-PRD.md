@@ -471,6 +471,10 @@ Success criteria:
 - Sales must link to shift, operator, payment method, and receipt record.
 - Receipt and payment providers must be abstracted.
 - MVP must include mock/manual providers before country-specific integrations.
+- Player-initiated Shop sales and refunds must retain `PlayerAccountId` as the
+  human initiator and use the platform's reserved Player Shop system actor for
+  required non-null financial/inventory actor fields. The reserved actor is not
+  a staff user and must display deterministically as `Player Shop` in reports.
 
 ### Audit
 

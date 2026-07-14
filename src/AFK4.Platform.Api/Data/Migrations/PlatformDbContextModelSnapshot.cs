@@ -1417,6 +1417,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(3)
                         .HasColumnType("character varying(3)");
 
+                    b.Property<Guid?>("LedgerEntryId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Note")
                         .IsRequired()
                         .HasMaxLength(512)
@@ -1450,6 +1453,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("PaymentId");
+
+                    b.HasIndex("LedgerEntryId")
+                        .IsUnique();
 
                     b.HasIndex("PosSaleId", "CreatedAtUtc");
 
@@ -2103,8 +2109,11 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<int>("Quantity")
                         .HasColumnType("integer");
 
-                    b.Property<bool>("TrackStock")
+                    b.Property<bool>("TracksStock")
                         .HasColumnType("boolean");
+
+                    b.Property<long>("UnitCostMinorUnits")
+                        .HasColumnType("bigint");
 
                     b.Property<long>("UnitPriceMinorUnits")
                         .HasColumnType("bigint");
@@ -2319,6 +2328,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
+                    b.Property<Guid?>("StartedSessionId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset>("StartsAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -2333,7 +2345,15 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<Guid?>("UpdatedByStaffUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
                     b.HasKey("ReservationId");
+
+                    b.HasIndex("StartedSessionId")
+                        .IsUnique()
+                        .HasFilter("\"StartedSessionId\" IS NOT NULL");
 
                     b.HasIndex("OrganizationId", "BranchId", "StartsAtUtc");
 
@@ -2742,6 +2762,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<Guid>("PlayerAccountId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("PosSaleId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("SeatId")
                         .HasColumnType("uuid");
 
@@ -2764,6 +2787,10 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("ShopOrderId");
+
+                    b.HasIndex("PosSaleId")
+                        .IsUnique()
+                        .HasFilter("\"PosSaleId\" IS NOT NULL");
 
                     b.HasIndex("BranchId", "Status");
 
@@ -3656,6 +3683,30 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasForeignKey("NotificationOutboxId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.PaymentEntity", b =>
+                {
+                    b.HasOne("AFK4.Platform.Api.Data.LedgerEntryEntity", null)
+                        .WithMany()
+                        .HasForeignKey("LedgerEntryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.ReservationEntity", b =>
+                {
+                    b.HasOne("AFK4.Platform.Api.Data.SessionEntity", null)
+                        .WithOne()
+                        .HasForeignKey("AFK4.Platform.Api.Data.ReservationEntity", "StartedSessionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.ShopOrderEntity", b =>
+                {
+                    b.HasOne("AFK4.Platform.Api.Data.PosSaleEntity", null)
+                        .WithOne()
+                        .HasForeignKey("AFK4.Platform.Api.Data.ShopOrderEntity", "PosSaleId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.NotificationOutboxEntity", b =>

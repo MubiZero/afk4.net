@@ -9,6 +9,7 @@ using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Payments.DcGate;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
+using AFK4.Platform.Api.Commerce;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Dashboard;
 using AFK4.Platform.Api.Diagnostics;
@@ -703,6 +704,81 @@ internal static class PosEndpoints
             return Results.Ok(result.Response);
         });
 
+        app.MapPost("/api/pos/sales/{saleId:guid}/settlements", async (
+            Guid saleId,
+            SettlePosSaleRequest request,
+            PlatformDbContext dbContext,
+            IStaffContextAccessor staffContextAccessor,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IPosSettlementService settlementService,
+            CancellationToken cancellationToken) =>
+        {
+            var sale = await LoadPosSaleScopedEndpointAsync(
+                dbContext,
+                staffContextAccessor,
+                authorizationService,
+                saleId,
+                StaffPermissionNames.PayPosSale,
+                cancellationToken);
+            if (sale.Result is not null)
+            {
+                return sale.Result;
+            }
+
+            var authorization = sale.Authorization!;
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    sale.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.PayPosSale,
+                    "PosSale",
+                    saleId.ToString("D"),
+                    AuditOutcome.Denied,
+                    new { paymentPartCount = request.Payments?.Count ?? 0, authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+            {
+                return Results.BadRequest(new { Error = "organization_scope_mismatch" });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
+            {
+                return Results.BadRequest(new { Error = "idempotency_key_required" });
+            }
+
+            var result = await settlementService.SettleAsync(
+                saleId,
+                authorization.StaffContext.StaffUserId,
+                request,
+                cancellationToken);
+            if (!result.Succeeded)
+            {
+                return ToPosSettlementHttpResult(result);
+            }
+
+            await WriteAuditAsync(
+                auditRecordWriter,
+                authorization.StaffContext.OrganizationId,
+                sale.BranchId,
+                authorization.StaffContext.StaffUserId,
+                AuditActionNames.PayPosSale,
+                "PosSale",
+                saleId.ToString("D"),
+                AuditOutcome.Succeeded,
+                new { paymentPartCount = request.Payments.Count },
+                cancellationToken);
+
+            return Results.Ok(result.Response);
+        });
+
         app.MapPost("/api/pos/sales/{saleId:guid}/refunds", async (
             Guid saleId,
             RefundPosSaleRequest request,
@@ -710,7 +786,7 @@ internal static class PosEndpoints
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
-            IPosService posService,
+            IShopCommerceCoordinator commerceCoordinator,
             CancellationToken cancellationToken) =>
         {
             var sale = await LoadPosSaleScopedEndpointAsync(
@@ -748,7 +824,7 @@ internal static class PosEndpoints
                 return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
             }
 
-            var result = await posService.RefundSaleAsync(
+            var result = await commerceCoordinator.RefundLinkedSaleAsync(
                 saleId,
                 authorization.StaffContext.StaffUserId,
                 request,
@@ -903,8 +979,46 @@ internal static class PosEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            return Results.Ok(ToDto(receipt.Entity!));
+            var shopOrderId = receipt.Entity!.PosSaleId is Guid posSaleId
+                ? await dbContext.ShopOrders.AsNoTracking()
+                    .Where(order =>
+                        order.OrganizationId == receipt.Entity.OrganizationId &&
+                        order.BranchId == receipt.Entity.BranchId &&
+                        order.PosSaleId == posSaleId)
+                    .Select(order => (Guid?)order.ShopOrderId)
+                    .SingleOrDefaultAsync(cancellationToken)
+                : null;
+
+            return Results.Ok(ToDto(receipt.Entity, shopOrderId));
         });
 
+    }
+
+    private static IResult ToPosSettlementHttpResult(BillingCommandServiceResult<PosSaleDto> result)
+    {
+        if (result.NotFound)
+        {
+            return Results.NotFound(new { Error = "pos_sale_not_found" });
+        }
+
+        var error = result.Error switch
+        {
+            "wallet_player_required" or "wallet_player_invalid" => "player_required_for_wallet",
+            "insufficient_stock" => "out_of_stock",
+            "version_conflict" => "version_conflict",
+            "idempotency_conflict" => "idempotency_conflict",
+            "mixed_currency" => "mixed_currency",
+            "invalid_payment_split" => "invalid_payment_split",
+            "open_shift_required" => "open_shift_required",
+            "sale_not_payable" => "sale_not_payable",
+            "insufficient_funds" => "insufficient_funds",
+            "product_unavailable" => "product_unavailable",
+            _ => "settlement_failed"
+        };
+
+        return error is "version_conflict" or "idempotency_conflict" or "open_shift_required" or "sale_not_payable" or
+            "insufficient_funds" or "out_of_stock" or "product_unavailable"
+            ? Results.Conflict(new { Error = error })
+            : Results.BadRequest(new { Error = error });
     }
 }

@@ -29,6 +29,13 @@ function json(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
 
+function jsonError(status: number, code: string, error: string, currentVersion: number | null = null): Response {
+  return new Response(JSON.stringify({ error, code, currentVersion }), {
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
 function noContent(): Response {
   return new Response(null, { status: 204 });
 }
@@ -64,12 +71,21 @@ function floorMap() {
 // module is re-evaluated; production data never reaches this store.
 let previewFloorMap: ReturnType<typeof floorMap> | null = null;
 let previewSessionSequence = 1;
+let previewReservations: ReturnType<typeof reservations> | null = null;
+const previewReservationStarts = new Map<string, { identity: string; response: unknown }>();
 
 function currentPreviewFloorMap(): ReturnType<typeof floorMap> {
   if (previewFloorMap === null) {
     previewFloorMap = structuredClone(floorMap());
   }
   return previewFloorMap;
+}
+
+function currentPreviewReservations(): ReturnType<typeof reservations> {
+  if (previewReservations === null) {
+    previewReservations = structuredClone(reservations());
+  }
+  return previewReservations;
 }
 
 function previewLayoutZones() {
@@ -253,6 +269,11 @@ function minutesAgoUtc(minutes: number): string {
   return new Date(Date.now() - minutes * 60_000).toISOString();
 }
 
+// «N дней назад» от текущего момента — для createdAtUtc/lastActivityAtUtc клиентов в превью.
+function daysAgoUtc(days: number): string {
+  return minutesAgoUtc(days * 24 * 60);
+}
+
 function booking(
   id: string,
   startHour: number,
@@ -273,7 +294,8 @@ function booking(
     customerName, phoneNumber,
     startsAtUtc: todayAtUtc(startHour), endsAtUtc: todayAtUtc(startHour, durationMinutes),
     durationMinutes, state, source, note,
-    createdAtUtc: todayAtUtc(8), updatedAtUtc: todayAtUtc(8), cancelledAtUtc: null, cancelReason: ''
+    createdAtUtc: todayAtUtc(8), updatedAtUtc: todayAtUtc(8), cancelledAtUtc: null, cancelReason: '',
+    version: 1, startedSessionId: null as string | null
   };
 }
 
@@ -402,17 +424,26 @@ function route(pathname: string, method: string): unknown | undefined {
 }
 
 // Клиенты клуба для поиска: мутируемые (write-действия S3 меняют имя/активность), один неактивный.
-type MockPlayer = { playerAccountId: string; displayName: string; phoneNumber: string; walletBalanceMinorUnits: number; debtBalanceMinorUnits: number; activePackageCount: number; isActive: boolean };
+type MockPlayer = {
+  playerAccountId: string; displayName: string; phoneNumber: string; walletBalanceMinorUnits: number;
+  debtBalanceMinorUnits: number; activePackageCount: number; isActive: boolean;
+  createdAtUtc: string; lastActivityAtUtc: string | null;
+  activePackageName: string | null; activePackageRemainingMinutes: number;
+};
 let mutablePlayers: MockPlayer[] | null = null;
 function players(): MockPlayer[] {
   if (mutablePlayers === null) {
     mutablePlayers = [
-      { playerAccountId: 'pl-1', displayName: 'Фариза Назарова', phoneNumber: '+992 93 100 20 30', walletBalanceMinorUnits: 45000, debtBalanceMinorUnits: 0, activePackageCount: 1, isActive: true },
-      { playerAccountId: 'pl-2', displayName: 'Азиз Пиров', phoneNumber: '+992 90 555 22 11', walletBalanceMinorUnits: 12000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true },
-      { playerAccountId: 'pl-3', displayName: 'Мадина Саидова', phoneNumber: '+992 98 700 11 22', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 3500, activePackageCount: 0, isActive: true },
-      { playerAccountId: 'pl-4', displayName: 'Камрон Рахимов', phoneNumber: '+992 92 333 44 55', walletBalanceMinorUnits: 8000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true },
-      { playerAccountId: 'pl-5', displayName: 'Дилноза Холова', phoneNumber: '+992 91 222 33 44', walletBalanceMinorUnits: 26000, debtBalanceMinorUnits: 0, activePackageCount: 2, isActive: true },
-      { playerAccountId: 'pl-6', displayName: 'Бахром Сафаров', phoneNumber: '+992 93 444 55 66', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: false }
+      // Давний клиент, играет прямо сейчас — тег «Новый» не горит, визит «сейчас», есть банк времени.
+      { playerAccountId: 'pl-1', displayName: 'Фариза Назарова', phoneNumber: '+992 93 100 20 30', walletBalanceMinorUnits: 45000, debtBalanceMinorUnits: 0, activePackageCount: 1, isActive: true, createdAtUtc: daysAgoUtc(400), lastActivityAtUtc: minutesAgoUtc(15), activePackageName: 'Ночной 5ч', activePackageRemainingMinutes: 150 },
+      // Зарегистрирован 3 дня назад (< 7 — тег «Новый») и заходил вчера.
+      { playerAccountId: 'pl-2', displayName: 'Азиз Пиров', phoneNumber: '+992 90 555 22 11', walletBalanceMinorUnits: 12000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true, createdAtUtc: daysAgoUtc(3), lastActivityAtUtc: daysAgoUtc(1), activePackageName: null, activePackageRemainingMinutes: 0 },
+      { playerAccountId: 'pl-3', displayName: 'Мадина Саидова', phoneNumber: '+992 98 700 11 22', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 3500, activePackageCount: 0, isActive: true, createdAtUtc: daysAgoUtc(200), lastActivityAtUtc: daysAgoUtc(3), activePackageName: null, activePackageRemainingMinutes: 0 },
+      // Визит 10 дней назад — колонка показывает «недели», а не «дни».
+      { playerAccountId: 'pl-4', displayName: 'Камрон Рахимов', phoneNumber: '+992 92 333 44 55', walletBalanceMinorUnits: 8000, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: true, createdAtUtc: daysAgoUtc(150), lastActivityAtUtc: daysAgoUtc(10), activePackageName: null, activePackageRemainingMinutes: 0 },
+      { playerAccountId: 'pl-5', displayName: 'Дилноза Холова', phoneNumber: '+992 91 222 33 44', walletBalanceMinorUnits: 26000, debtBalanceMinorUnits: 0, activePackageCount: 2, isActive: true, createdAtUtc: daysAgoUtc(60), lastActivityAtUtc: daysAgoUtc(2), activePackageName: 'Дневной абонемент', activePackageRemainingMinutes: 420 },
+      // Неактивный, визитов не было — проверяет пустое состояние «—».
+      { playerAccountId: 'pl-6', displayName: 'Бахром Сафаров', phoneNumber: '+992 93 444 55 66', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 0, activePackageCount: 0, isActive: false, createdAtUtc: daysAgoUtc(500), lastActivityAtUtc: null, activePackageName: null, activePackageRemainingMinutes: 0 }
     ];
   }
   return mutablePlayers;
@@ -539,7 +570,8 @@ function groupReservationResult(init?: RequestInit): unknown {
     customerName: (req.customerName as string) ?? 'Группа', phoneNumber: (req.phoneNumber as string | null) ?? null,
     startsAtUtc, endsAtUtc: startsAtUtc, durationMinutes: (req.durationMinutes as number) ?? 60,
     state: 'confirmed', source: (req.source as string) ?? 'operator', note: (req.note as string) ?? '',
-    createdAtUtc: startsAtUtc, updatedAtUtc: startsAtUtc, cancelledAtUtc: null, cancelReason: ''
+    createdAtUtc: startsAtUtc, updatedAtUtc: startsAtUtc, cancelledAtUtc: null, cancelReason: '',
+    version: 1, startedSessionId: null
   }));
   return { reservationGroupId: groupId, reservations, conflicts: [] };
 }
@@ -552,6 +584,88 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.endsWith('/reservations/group') && method === 'POST') {
     return json(groupReservationResult(init));
+  }
+  const reservationStartMatch = url.pathname.match(/\/api\/reservations\/([^/]+)\/start-session$/);
+  if (reservationStartMatch !== null && method === 'POST') {
+    let request: Record<string, unknown> = {};
+    try { request = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { request = {}; }
+    const reservationId = decodeURIComponent(reservationStartMatch[1]);
+    const reservation = currentPreviewReservations().find((item) => item.reservationId === reservationId);
+    if (reservation === undefined) {
+      return jsonError(404, 'reservation_not_found', 'Reservation was not found.');
+    }
+
+    const currentVersion = reservation.version;
+    if (request.organizationId !== ORG) {
+      return jsonError(400, 'organization_mismatch', 'Organization does not match the preview tenant.', currentVersion);
+    }
+
+    const idempotencyKey = typeof request.idempotencyKey === 'string' ? request.idempotencyKey.trim() : '';
+    if (idempotencyKey.length === 0) {
+      return jsonError(400, 'idempotency_key_required', 'Idempotency key is required.', currentVersion);
+    }
+
+    const identity = JSON.stringify({
+      reservationId,
+      organizationId: request.organizationId,
+      expectedVersion: request.expectedVersion,
+      tariffRuleVersionId: request.tariffRuleVersionId,
+      durationMode: request.durationMode ?? 'open',
+      durationMinutes: request.durationMinutes ?? null,
+      billingMode: request.billingMode ?? '',
+      tariffVersionId: request.tariffVersionId ?? null,
+      playerPackageId: request.playerPackageId ?? null,
+      isComp: request.isComp ?? false,
+      compReason: request.compReason ?? null
+    });
+    const scopedIdempotencyKey = `${reservationId}:${idempotencyKey}`;
+    const replay = previewReservationStarts.get(scopedIdempotencyKey);
+    if (replay !== undefined) {
+      return replay.identity === identity
+        ? json(structuredClone(replay.response))
+        : jsonError(409, 'idempotency_conflict', 'Idempotency key was used for another request.', currentVersion);
+    }
+
+    if (request.expectedVersion !== currentVersion) {
+      return jsonError(409, 'version_conflict', 'Reservation changed since it was loaded.', currentVersion);
+    }
+    if (reservation.startedSessionId !== null || reservation.state === 'seated') {
+      return jsonError(409, 'reservation_already_started', 'Reservation already started a session.', currentVersion);
+    }
+    if (reservation.state !== 'confirmed') {
+      return jsonError(409, 'reservation_confirmation_required', 'Reservation must be confirmed.', currentVersion);
+    }
+
+    const seat = currentPreviewFloorMap().seats.find((item) => item.seatId === reservation.seatId);
+    if (seat === undefined || seat.state !== 'Free') {
+      return jsonError(409, 'seat_unavailable', 'Reserved seat is not ready.', currentVersion);
+    }
+
+    const sessionId = `preview-reservation-session-${previewSessionSequence++}`;
+    const isOpenTab = request.durationMode === 'open';
+    seat.state = 'Active';
+    seat.activeSessionId = sessionId;
+    seat.sessionStartedAtUtc = new Date().toISOString();
+    seat.playerDisplayName = reservation.customerName;
+    seat.tariffName = 'Почасовой';
+    seat.remainingSeconds = isOpenTab ? null : Number(request.durationMinutes ?? 60) * 60;
+    seat.accruedCostMinorUnits = isOpenTab ? 0 : undefined;
+    seat.isDeviceLocked = false;
+
+    reservation.state = 'seated';
+    reservation.startedSessionId = sessionId;
+    reservation.version += 1;
+    reservation.updatedAtUtc = new Date().toISOString();
+    const response = {
+      reservation: structuredClone(reservation),
+      session: {
+        idempotencyKey,
+        session: { sessionId, state: 'Active' },
+        deviceCommands: []
+      }
+    };
+    previewReservationStarts.set(scopedIdempotencyKey, { identity, response: structuredClone(response) });
+    return json(response);
   }
   if (url.pathname.endsWith('/sessions/start') && method === 'POST') {
     let request: Record<string, unknown> = {};
@@ -601,7 +715,7 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   // Без фильтра (экран «Брони») возвращаем весь набор. Имитирует серверный playerAccountId-фильтр.
   if (url.pathname.endsWith('/reservations') && method === 'GET') {
     const playerAccountId = url.searchParams.get('playerAccountId');
-    const all = reservations();
+    const all = currentPreviewReservations();
     const filtered = playerAccountId ? all.filter((r) => r.playerAccountId === playerAccountId) : all;
     return json({ reservations: filtered, limit: 40 });
   }
@@ -644,6 +758,9 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.includes('/pos/sales/') && url.pathname.endsWith('/payments/manual') && method === 'POST') {
     return json({ paymentId: `pp-${nextPosSaleSeq}`, posSaleId: url.pathname.split('/').slice(-3)[0], state: 'paid' });
+  }
+  if (url.pathname.includes('/pos/sales/') && url.pathname.endsWith('/settlements') && method === 'POST') {
+    return json({ posSaleId: url.pathname.split('/').slice(-2)[0], state: 'paid' });
   }
   if (url.pathname.endsWith('/pin') && method === 'POST') {
     return noContent();

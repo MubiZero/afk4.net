@@ -2,14 +2,13 @@ import { useState } from 'react';
 import { Check, Clock, Copy, Layers, MonitorCheck, Plus, Square, TriangleAlert, UserRoundPlus, Wallet, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { SeatSummary } from '../operatorData';
-import type { Feedback } from '../operatorTypes';
 import { formatMinorUnits, formatTime, zoneLabel, type PlayerClientItem } from '../operatorHelpers';
 import { formatLocal, localPhoneDigits } from '../phoneFormat';
-import { FeedbackNotice, Skeleton } from '../operatorPrimitives';
+import { Skeleton } from '../operatorPrimitives';
 import { PanelSelect } from '../PanelSelect';
 import { ClientPicker } from './ClientPicker';
 import { DateTimePicker } from './DateTimePicker';
-import { bookingStateLabelKey, type BookingItem } from './bookingModel';
+import { bookingDetailActions, bookingStateLabelKey, type BookingItem } from './bookingModel';
 
 export interface BookingDraft {
   customerName: string;
@@ -29,9 +28,9 @@ export interface BookingDrawerProps {
   freeSeats: SeatSummary[];
   allSeats: SeatSummary[];
   draft: BookingDraft;
-  feedback: Feedback;
   busy: boolean;
   canManage: boolean;
+  canStartSessions: boolean;
   currencyCode: string;
   conflict: BookingItem | null;      // пересечение с бронью (для детальной подписи)
   seatConflict: boolean;             // место занято бронью ИЛИ сессией — блокирует одиночное создание
@@ -44,7 +43,7 @@ export interface BookingDrawerProps {
   onCreateGroup: () => void;
   onRemoveSeat: (seatId: string) => void;
   onCancelGroup: () => void;
-  onSeat: () => void;
+  onStart: () => void;
   onMove: (targetSeatId: string) => void;
   onCancel: () => void;
   onConfirm: (item: BookingItem) => void;
@@ -93,7 +92,7 @@ function CopyablePhone({ phone }: { phone: string }) {
 
 export function BookingDrawer(props: BookingDrawerProps) {
   const { t } = useI18n();
-  const { mode, selected, freeSeats, allSeats, draft, feedback, busy, canManage, currencyCode, conflict, seatConflict, groupConflicts, groupSize } = props;
+  const { mode, selected, freeSeats, allSeats, draft, busy, canManage, canStartSessions, currencyCode, conflict, seatConflict, groupConflicts, groupSize } = props;
   const title = mode === 'create' ? t('op.booking.drawer.createTitle') : t('op.booking.drawer.detailTitle');
   const freeIds = new Set(freeSeats.map((seat) => seat.id));
 
@@ -129,7 +128,8 @@ export function BookingDrawer(props: BookingDrawerProps) {
     <aside className="booking-drawer" role="dialog" aria-label={title}>
       <header className="booking-drawer-head">
         <strong>{title}</strong>
-        <button type="button" className="booking-drawer-close" aria-label={t('common.cancel')} onClick={props.onClose}><X size={16} /></button>
+        <button type="button" className="booking-drawer-close" aria-label={t('common.cancel')} disabled={busy}
+          onClick={() => { if (!busy) props.onClose(); }}><X size={16} /></button>
       </header>
 
       {mode === 'create' ? (
@@ -140,10 +140,12 @@ export function BookingDrawer(props: BookingDrawerProps) {
               <div className="booking-seat-chips" role="list">
                 {groupSeats.map((seat) => {
                   const conflicted = groupConflicts.has(seat.id);
+                  const unavailable = !freeIds.has(seat.id);
                   return (
-                    <span key={seat.id} role="listitem" className={`booking-seat-chip${conflicted ? ' is-conflict' : ''}`}>
-                      {conflicted && <TriangleAlert size={11} aria-hidden="true" />}
-                      {zoneLabel(seat.zone, t)} · {seat.name}
+                    <span key={seat.id} role="listitem" className={`booking-seat-chip${unavailable ? ' is-unavailable' : ''}${conflicted ? ' is-conflict' : ''}`}>
+                      {(unavailable || conflicted) && <TriangleAlert size={11} aria-hidden="true" />}
+                      <span>{zoneLabel(seat.zone, t)} · {seat.name}</span>
+                      {unavailable && <small>{seat.stateLabel}</small>}
                       <button type="button" aria-label={t('op.booking.group.remove', { seat: seat.name })} disabled={busy} onClick={() => props.onRemoveSeat(seat.id)}><X size={11} /></button>
                     </span>
                   );
@@ -264,7 +266,6 @@ export function BookingDrawer(props: BookingDrawerProps) {
               </div>
             </div>
           )}
-          <FeedbackNotice feedback={feedback} />
           {isGroup ? (
             <button type="button" className="booking-primary-action" disabled={!canManage || busy || groupSeats.length === 0 || hasGroupConflict} onClick={props.onCreateGroup}><Plus size={15} />{t('op.booking.create.submitGroup', { count: groupSeats.length })}</button>
           ) : (
@@ -288,9 +289,11 @@ export function BookingDrawer(props: BookingDrawerProps) {
 
           <div className="booking-action-grid">
             <button type="button" disabled={!selected.seatId || busy} onClick={() => props.onOpenMap(selected.seatId)}><MonitorCheck size={15} />{t('op.booking.actions.openMap')}</button>
-            <button type="button" disabled={!canManage || busy || !selected.seatId} onClick={props.onSeat}><UserRoundPlus size={15} />{t('op.booking.actions.seat')}</button>
-            {selected.source === 'online' && selected.state === 'pending' && (
-              <button type="button" disabled={!canManage || busy} onClick={() => props.onConfirm(selected)}><Plus size={15} />{t('op.booking.requests.accept')}</button>
+            {bookingDetailActions(selected.state).canStart && (
+              <button type="button" disabled={!canManage || !canStartSessions || busy || !selected.seatId} onClick={props.onStart}><UserRoundPlus size={15} />{t('op.booking.actions.startSession')}</button>
+            )}
+            {bookingDetailActions(selected.state).canConfirm && (
+              <button type="button" disabled={!canManage || busy} onClick={() => props.onConfirm(selected)}><Plus size={15} />{t(selected.source === 'online' ? 'op.booking.requests.accept' : 'op.booking.actions.confirm')}</button>
             )}
             <button type="button" className="danger" disabled={!canManage || busy} onClick={props.onCancel}><Square size={15} />{t('op.booking.actions.cancel')}</button>
             {selected.reservationGroupId && groupSize > 1 && (
@@ -312,8 +315,6 @@ export function BookingDrawer(props: BookingDrawerProps) {
               onChange={(seatId) => { if (seatId) props.onMove(seatId); }}
             />
           </div>
-
-          <FeedbackNotice feedback={feedback} />
 
           <div className="booking-detail-list">
             <div><span>{t('op.booking.client')}</span><strong>{selected.customerName}</strong></div>

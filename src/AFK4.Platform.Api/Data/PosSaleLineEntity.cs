@@ -16,9 +16,12 @@ public sealed class PosSaleLineEntity
 
     public long UnitPriceMinorUnits { get; set; }
 
+    public long UnitCostMinorUnits { get; set; }
+
     public long LineTotalMinorUnits { get; set; }
 
-    public bool TrackStock { get; set; }
+    /// <summary>Immutable stock-tracking decision captured when the sale line is created.</summary>
+    public bool TracksStock { get; set; }
 
     public bool AllowNegativeStock { get; set; }
 }

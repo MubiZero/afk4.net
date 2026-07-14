@@ -56,6 +56,12 @@ export function postHostWindowResize(edge: HostWindowResizeEdge): void {
   window.chrome?.webview?.postMessage({ type: 'window:resize', edge });
 }
 
+// Синхронизирует иконку окна/таскбара с темой оператора — нативный хост меняет Window.Icon
+// (см. WebViewOperatorWindow.TryHandleWindowMessage "window:theme").
+export function postHostWindowTheme(theme: 'light' | 'dark'): void {
+  window.chrome?.webview?.postMessage({ type: 'window:theme', theme });
+}
+
 export function postHostRequest<TPayload>(
   type: string,
   payload?: unknown,

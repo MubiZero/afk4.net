@@ -21,7 +21,8 @@ const groups: ZoneRowGroup[] = [{ zone: 'Зал A', rows: [{ seat: seat(), block
 
 function renderTimeline(
   onCellCreate: (seat: SeatSummary, startMs: number, durationMinutes?: number) => void,
-  previewBlock: { seatIds: string[]; startMs: number; endMs: number } | null = null
+  previewBlock: { seatIds: string[]; startMs: number; endMs: number } | null = null,
+  onSeatToggle: (seat: SeatSummary, startMs: number) => void = () => {}
 ) {
   const result = render(
     <I18nProvider>
@@ -44,6 +45,7 @@ function renderTimeline(
         onSelectBlock={() => {}}
         onCellCreate={onCellCreate}
         onSeatsCreate={() => {}}
+        onSeatToggle={onSeatToggle}
       />
     </I18nProvider>
   );
@@ -54,6 +56,42 @@ function renderTimeline(
 }
 
 describe('BookingTimeline drag-to-create', () => {
+  it('Ctrl и Command клики выбирают произвольные несвободные места в разных залах с общей точкой старта', () => {
+    const onCellCreate = mock((_seat: SeatSummary, _startMs: number, _durationMinutes?: number) => {});
+    const onSeatsCreate = mock((_seats: SeatSummary[], _startMs: number, _durationMinutes: number) => {});
+    const onSeatToggle = mock((_seat: SeatSummary, _startMs: number) => {});
+    const seatA: SeatSummary = { ...seat(), id: 'a1', zone: 'Зал A', name: 'PC-01', tone: 'active', stateLabel: 'В сессии' };
+    const seatB: SeatSummary = { ...seat(), id: 'b4', zone: 'Зал B', name: 'PC-04', tone: 'service', stateLabel: 'Обслуживание' };
+    const crossZoneGroups: ZoneRowGroup[] = [
+      { zone: 'Зал A', rows: [{ seat: seatA, blocks: [], sessions: [] }] },
+      { zone: 'Зал B', rows: [{ seat: seatB, blocks: [], sessions: [] }] }
+    ];
+    const result = render(
+      <I18nProvider>
+        <BookingTimeline
+          groups={crossZoneGroups} axis={axis} nowMs={-1} loading={false} showSkeleton={false}
+          selectedReservationId="" branchName="AFK4" previewBlock={null} dateLabel="Сегодня"
+          dateValue="2026-06-19" isToday={true}
+          onPrevDay={() => {}} onNextDay={() => {}} onToday={() => {}} onPickDate={() => {}} onSelectBlock={() => {}}
+          onCellCreate={onCellCreate} onSeatsCreate={onSeatsCreate} onSeatToggle={onSeatToggle}
+        />
+      </I18nProvider>
+    );
+    const tracks = result.container.querySelectorAll<HTMLElement>('.booking-row-track');
+    const rect = (top: number, bottom: number) => () => ({ left: 0, top, width: 1000, height: bottom - top, right: 1000, bottom, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
+    tracks[0].getBoundingClientRect = rect(0, 38);
+    tracks[1].getBoundingClientRect = rect(38, 76);
+    const expectedStart = 6 * 3_600_000;
+
+    fireEvent.click(tracks[0], { clientX: 500, ctrlKey: true });
+    fireEvent.click(tracks[1], { clientX: 500, metaKey: true });
+
+    expect(onSeatToggle).toHaveBeenNthCalledWith(1, expect.objectContaining({ id: 'a1' }), expectedStart);
+    expect(onSeatToggle).toHaveBeenNthCalledWith(2, expect.objectContaining({ id: 'b4' }), expectedStart);
+    expect(onCellCreate).not.toHaveBeenCalled();
+    expect(onSeatsCreate).not.toHaveBeenCalled();
+  });
+
   it('протягивание создаёт бронь с длительностью из диапазона и гасит хвостовой click', () => {
     const onCellCreate = mock((_seat: SeatSummary, _startMs: number, _durationMinutes?: number) => {});
     const track = renderTimeline(onCellCreate);
@@ -104,7 +142,7 @@ describe('BookingTimeline drag-to-create', () => {
           selectedReservationId="" branchName="AFK4" previewBlock={null} dateLabel="Сегодня"
           dateValue="2026-06-19" isToday={true}
           onPrevDay={() => {}} onNextDay={() => {}} onToday={() => {}} onPickDate={() => {}} onSelectBlock={() => {}}
-          onCellCreate={() => {}} onSeatsCreate={onSeatsCreate}
+          onCellCreate={() => {}} onSeatsCreate={onSeatsCreate} onSeatToggle={() => {}}
         />
       </I18nProvider>
     );
@@ -129,7 +167,7 @@ describe('BookingTimeline drag-to-create', () => {
       selectedReservationId: '', branchName: 'AFK4', previewBlock: null,
       dateLabel: '20 июня', dateValue: '2026-06-20',
       onPrevDay: () => {}, onNextDay: () => {}, onPickDate: () => {},
-      onSelectBlock: () => {}, onCellCreate: () => {}, onSeatsCreate: () => {}
+      onSelectBlock: () => {}, onCellCreate: () => {}, onSeatsCreate: () => {}, onSeatToggle: () => {}
     };
     const today = render(<I18nProvider><BookingTimeline {...props} isToday={true} dateLabel="Сегодня" onToday={onToday} /></I18nProvider>);
     expect(today.container.querySelector('.booking-gutter-today')).toBeNull();
@@ -151,7 +189,7 @@ describe('BookingTimeline drag-to-create', () => {
           selectedReservationId="" branchName="AFK4" previewBlock={null}
           dateLabel="Сегодня" dateValue="2026-06-19" isToday={true}
           onPrevDay={() => {}} onNextDay={() => {}} onToday={() => {}} onPickDate={onPickDate}
-          onSelectBlock={() => {}} onCellCreate={() => {}} onSeatsCreate={() => {}}
+          onSelectBlock={() => {}} onCellCreate={() => {}} onSeatsCreate={() => {}} onSeatToggle={() => {}}
         />
       </I18nProvider>
     );
@@ -175,7 +213,7 @@ describe('BookingTimeline drag-to-create', () => {
           previewBlock={{ seatIds: ['a1', 'a2'], startMs: 2 * 3_600_000, endMs: 3 * 3_600_000 }}
           dateLabel="Сегодня" dateValue="2026-06-19" isToday={true}
           onPrevDay={() => {}} onNextDay={() => {}} onToday={() => {}} onPickDate={() => {}} onSelectBlock={() => {}}
-          onCellCreate={() => {}} onSeatsCreate={() => {}}
+          onCellCreate={() => {}} onSeatsCreate={() => {}} onSeatToggle={() => {}}
         />
       </I18nProvider>
     );

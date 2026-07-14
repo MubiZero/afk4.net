@@ -151,6 +151,25 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             salesQuery = salesQuery.Where(sale => sale.CreatedAtUtc <= toUtc);
         }
 
+        var reportCurrencies = (await salesQuery
+                .Select(sale => sale.CurrencyCode)
+                .Distinct()
+                .ToListAsync(cancellationToken))
+            .Select(NormalizeCurrency)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(currency => currency, StringComparer.Ordinal)
+            .ToList();
+        if (reportCurrencies.Any(string.IsNullOrWhiteSpace))
+        {
+            throw new InvalidOperationException("Sales report contains a sale with an empty currency code.");
+        }
+
+        if (reportCurrencies.Count > 1)
+        {
+            throw new InvalidOperationException(
+                $"Sales report range contains multiple currencies: {string.Join(", ", reportCurrencies)}.");
+        }
+
         var sales = await salesQuery
             .OrderByDescending(sale => sale.CreatedAtUtc)
             .Take(limit)
@@ -169,6 +188,25 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                 saleIds.Contains(payment.PosSaleId.Value))
             .ToListAsync(cancellationToken);
 
+        foreach (var sale in sales)
+        {
+            if (lines.Any(line =>
+                    line.PosSaleId == sale.PosSaleId &&
+                    !IsCurrency(line.CurrencyCode, sale.CurrencyCode)))
+            {
+                throw new InvalidOperationException(
+                    $"Sales report line currency does not match sale {sale.PosSaleId:D} currency.");
+            }
+
+            if (payments.Any(payment =>
+                    payment.PosSaleId == sale.PosSaleId &&
+                    !IsCurrency(payment.CurrencyCode, sale.CurrencyCode)))
+            {
+                throw new InvalidOperationException(
+                    $"Sales report payment currency does not match sale {sale.PosSaleId:D} currency.");
+            }
+        }
+
         var rows = sales.Select(sale =>
         {
             var currencyCode = sale.CurrencyCode;
@@ -182,6 +220,15 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                 .Where(payment => payment.PaymentKind == PaymentKindRefund)
                 .Sum(payment => payment.AmountMinorUnits);
             var saleLines = lines.Where(line => line.PosSaleId == sale.PosSaleId).ToList();
+            var grossCostMinorUnits = sale.State is PosSaleStateNames.Paid or PosSaleStateNames.Refunded
+                ? saleLines.Aggregate(
+                    0L,
+                    (total, line) => checked(total + checked((long)line.Quantity * line.UnitCostMinorUnits)))
+                : 0;
+            var refundedCostMinorUnits = sale.State == PosSaleStateNames.Refunded
+                ? checked(-grossCostMinorUnits)
+                : 0;
+            var netCostMinorUnits = checked(grossCostMinorUnits + refundedCostMinorUnits);
 
             return new SalesReportRowDto(
                 sale.PosSaleId,
@@ -198,19 +245,28 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                 sale.CreatedAtUtc,
                 sale.PaidAtUtc,
                 sale.RefundedAtUtc,
-                sale.VoidedAtUtc);
+                sale.VoidedAtUtc,
+                Money(currencyCode, grossCostMinorUnits),
+                Money(currencyCode, refundedCostMinorUnits),
+                Money(currencyCode, netCostMinorUnits));
         }).ToList();
 
         var resultCurrencyCode = rows.FirstOrDefault()?.Total.CurrencyCode ?? DefaultCurrencyCode;
-        var grossSalesTotal = rows.Sum(row => row.PaidAmount.MinorUnits);
-        var refundsTotal = rows.Sum(row => row.RefundAmount.MinorUnits);
+        var grossSalesTotal = CheckedSum(rows.Select(row => row.PaidAmount.MinorUnits));
+        var refundsTotal = CheckedSum(rows.Select(row => row.RefundAmount.MinorUnits));
+        var grossCostOfGoodsTotal = CheckedSum(rows.Select(row => row.GrossCostOfGoods.MinorUnits));
+        var refundedCostOfGoodsTotal = CheckedSum(rows.Select(row => row.RefundedCostOfGoods.MinorUnits));
+        var netCostOfGoodsTotal = CheckedSum(rows.Select(row => row.NetCostOfGoods.MinorUnits));
 
         return new SalesReportResultDto(
             rows,
             limit,
             Money(resultCurrencyCode, grossSalesTotal),
             Money(resultCurrencyCode, refundsTotal),
-            Money(resultCurrencyCode, grossSalesTotal + refundsTotal));
+            Money(resultCurrencyCode, checked(grossSalesTotal + refundsTotal)),
+            Money(resultCurrencyCode, grossCostOfGoodsTotal),
+            Money(resultCurrencyCode, refundedCostOfGoodsTotal),
+            Money(resultCurrencyCode, netCostOfGoodsTotal));
     }
 
     public async Task<GameplayTimeReportResultDto> GetGameplayTimeReportAsync(
@@ -699,7 +755,18 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
 
     private static bool IsCurrency(string actual, string expected)
     {
-        return string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(
+            NormalizeCurrency(actual),
+            NormalizeCurrency(expected),
+            StringComparison.Ordinal);
+    }
+
+    private static string NormalizeCurrency(string currencyCode) =>
+        currencyCode.Trim().ToUpperInvariant();
+
+    private static long CheckedSum(IEnumerable<long> values)
+    {
+        return values.Aggregate(0L, (total, value) => checked(total + value));
     }
 
     private static int CalculateDurationSeconds(
@@ -728,6 +795,11 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
         if (actorStaffUserId is null)
         {
             return "System";
+        }
+
+        if (SystemActorIds.TryGetDisplayName(actorStaffUserId.Value, out var systemDisplayName))
+        {
+            return systemDisplayName;
         }
 
         return actorNames.TryGetValue(actorStaffUserId.Value, out var displayName) &&

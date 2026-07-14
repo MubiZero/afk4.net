@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Search, UserRoundPlus, X } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
@@ -6,6 +6,7 @@ import type {
   PaymentPartDto,
   PlayerSearchResultDto,
   PosProductDto,
+  SettlePosSaleRequest,
   ShiftDto
 } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
@@ -17,6 +18,7 @@ import {
   formatMinorUnits,
   projectPlayerClient,
   readArray,
+  readBoolean,
   readMoney,
   readNumber,
   readString,
@@ -24,12 +26,14 @@ import {
   type PlayerClientItem,
   workspaceLoadStatusLabel
 } from './operatorHelpers';
-import { FeedbackNotice } from './operatorPrimitives';
+import { Money } from './operatorPrimitives';
 import { PanelModal } from './PanelModal';
 import { PaymentDialog, type PaymentBillLine } from './PaymentDialog';
+import { PlatformApiError } from './platformApi';
 import { useToast } from './operatorToast';
 import { matchByBarcode } from './barcodeScanner';
 import { useBarcodeScanner } from './useBarcodeScanner';
+import { useFeedbackToasts } from './useFeedbackToasts';
 
 type PosCatalogItem = {
   productId?: string;
@@ -37,19 +41,57 @@ type PosCatalogItem = {
   priceMinorUnits: number;
   category: string;
   note: string;
+  trackStock: boolean;
   stockOnHand: number;
   reorderThreshold: number;
   barcodes: string[];
   source: 'fixture' | 'backend';
 };
 
-export function isLowStock(item: Pick<PosCatalogItem, 'source' | 'stockOnHand' | 'reorderThreshold'>): boolean {
-  return item.source === 'backend' && item.reorderThreshold > 0 && item.stockOnHand <= item.reorderThreshold;
+export function isLowStock(item: Pick<PosCatalogItem, 'source' | 'trackStock' | 'stockOnHand' | 'reorderThreshold'>): boolean {
+  return item.source === 'backend'
+    && item.trackStock
+    && (item.stockOnHand === 0 || (item.reorderThreshold > 0 && item.stockOnHand <= item.reorderThreshold));
 }
 
 type PosCartItem = PosCatalogItem & {
   quantity: number;
 };
+
+function projectSettlementError(error: unknown, t: ReturnType<typeof useI18n>['t']): string {
+  if (!(error instanceof PlatformApiError)) {
+    return projectOperatorError(error, t).detail;
+  }
+
+  let code = '';
+  try {
+    const body = JSON.parse(error.body) as { error?: unknown; Error?: unknown };
+    const value = body.error ?? body.Error;
+    code = typeof value === 'string' ? value : '';
+  } catch {
+    // A non-JSON error body is deliberately not shown to the operator.
+  }
+
+  switch (code) {
+    case 'version_conflict':
+    case 'idempotency_conflict':
+    case 'sale_not_payable':
+      return t('op.pos.error.settlementConflict');
+    case 'open_shift_required':
+      return t('op.pos.error.openShiftFirst');
+    case 'invalid_payment_split':
+      return t('op.pos.error.invalidPaymentSplit');
+    case 'insufficient_funds':
+      return t('op.pos.error.insufficientFunds');
+    case 'player_required_for_wallet':
+      return t('op.pos.error.playerRequiredForWallet');
+    case 'out_of_stock':
+    case 'product_unavailable':
+      return t('op.pos.error.outOfStock');
+    default:
+      return t('op.pos.error.settlementFailed');
+  }
+}
 
 // Sentinel for the "All" category — never shown as a backend category name
 const CATEGORY_ALL = '__all__';
@@ -57,10 +99,10 @@ const CATEGORY_ALL = '__all__';
 
 function makeFixtureProducts(t: ReturnType<typeof useI18n>['t']): PosCatalogItem[] {
   return [
-    { name: t('op.pos.fixture.cola'), priceMinorUnits: 1200, category: t('op.pos.fixture.drinks'), note: t('op.pos.fixture.note'), stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' },
-    { name: t('op.pos.fixture.water'), priceMinorUnits: 600, category: t('op.pos.fixture.drinks'), note: t('op.pos.fixture.note'), stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' },
-    { name: t('op.pos.fixture.hotdog'), priceMinorUnits: 2800, category: t('op.pos.fixture.food'), note: t('op.pos.fixture.note'), stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' },
-    { name: t('op.pos.fixture.guestHour'), priceMinorUnits: 2500, category: t('op.pos.fixture.services'), note: t('op.pos.fixture.note'), stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' }
+    { name: t('op.pos.fixture.cola'), priceMinorUnits: 1200, category: t('op.pos.fixture.drinks'), note: t('op.pos.fixture.note'), trackStock: false, stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' },
+    { name: t('op.pos.fixture.water'), priceMinorUnits: 600, category: t('op.pos.fixture.drinks'), note: t('op.pos.fixture.note'), trackStock: false, stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' },
+    { name: t('op.pos.fixture.hotdog'), priceMinorUnits: 2800, category: t('op.pos.fixture.food'), note: t('op.pos.fixture.note'), trackStock: false, stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' },
+    { name: t('op.pos.fixture.guestHour'), priceMinorUnits: 2500, category: t('op.pos.fixture.services'), note: t('op.pos.fixture.note'), trackStock: false, stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' }
   ];
 }
 
@@ -75,6 +117,7 @@ function projectPosProduct(product: PosProductDto, t: ReturnType<typeof useI18n>
     priceMinorUnits: price?.minorUnits ?? 0,
     category: readString(product, 'categoryName', readString(product, 'categoryId', t('op.pos.catalog.categoryFallback'))),
     note: t('op.pos.catalog.note', { sku, count: stockOnHand }),
+    trackStock: readBoolean(product, 'trackStock'),
     stockOnHand,
     reorderThreshold,
     barcodes: readArray<string>(product, 'barcodes'),
@@ -91,7 +134,15 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
   const [activeCategory, setActiveCategory] = useState(CATEGORY_ALL);
   const [productSearch, setProductSearch] = useState('');
   const [payOpen, setPayOpen] = useState(false);
+  const [paymentCloseLocked, setPaymentCloseLocked] = useState(false);
+  const paymentAttemptRef = useRef<{
+    createSaleKey: string;
+    settlementKey: string;
+    saleId: string | null;
+    settlementRequest: SettlePosSaleRequest | null;
+  } | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
+  useFeedbackToasts(feedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>(backend === null ? 'fixture' : 'loading');
   const [currentShift, setCurrentShift] = useState<ShiftDto | null>(null);
   const [catalog, setCatalog] = useState<PosCatalogItem[]>(() => backend === null ? makeFixtureProducts(t) : []);
@@ -112,7 +163,10 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
     return [];
   });
 
-  const loadBackendPos = async (nextBackend = backend) => {
+  const loadBackendPos = async (
+    nextBackend = backend,
+    { preserveCartSnapshot = false }: { preserveCartSnapshot?: boolean } = {}
+  ) => {
     if (nextBackend === null) {
       const fixtures = makeFixtureProducts(t);
       setLoadStatus('fixture');
@@ -139,20 +193,22 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
       const backendProducts = products.filter((product) => product.source === 'backend' && product.productId);
       setCatalog(products);
       setCurrentShift(nextShift);
-      setCartItems((items) => {
-        const productById = new Map(backendProducts.map((product) => [product.productId, product]));
-        const validBackendItems = items
-          .filter((item) => item.source === 'backend' && item.productId && productById.has(item.productId))
-          .map((item) => ({
-            ...productById.get(item.productId!)!,
-            quantity: item.quantity
-          }));
-        if (validBackendItems.length > 0) {
-          return validBackendItems;
-        }
+      if (!preserveCartSnapshot) {
+        setCartItems((items) => {
+          const productById = new Map(backendProducts.map((product) => [product.productId, product]));
+          const validBackendItems = items
+            .filter((item) => item.source === 'backend' && item.productId && productById.has(item.productId))
+            .map((item) => ({
+              ...productById.get(item.productId!)!,
+              quantity: item.quantity
+            }));
+          if (validBackendItems.length > 0) {
+            return validBackendItems;
+          }
 
-        return backendProducts[0] ? [{ ...backendProducts[0], quantity: 1 }] : [];
-      });
+          return backendProducts[0] ? [{ ...backendProducts[0], quantity: 1 }] : [];
+        });
+      }
       setLoadStatus('backend');
     } catch (error) {
       setLoadStatus('failed');
@@ -267,7 +323,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
 
 
   const acceptPayment = async (payments: PaymentPartDto[]) => {
-    setPayOpen(false);
+    setPaymentCloseLocked(true);
     setFeedback({ label: t('op.pos.feedback.payment'), state: 'pending' });
     try {
       const nextBackend = requireBackend(backend, t);
@@ -284,44 +340,117 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
       }
 
       const clients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const sale = await clients.pos.createSale(nextBackend.branchId, {
-        organizationId: nextBackend.session.organizationId,
-        shiftId,
-        lines: cartItems.map((item) => ({
-          productId: item.productId!,
-          quantity: item.quantity,
-          unitPrice: {
-            currencyCode,
-            minorUnits: item.priceMinorUnits
-          }
-        })),
-        idempotencyKey: createIdempotencyKey('pos-sale'),
-        playerAccountId: selectedPosPlayerId
-      });
-      const saleId = readString(sale, 'posSaleId');
-      if (!saleId) {
-        throw new Error(t('op.pos.error.receiptNotConfirmed'));
+      const attempt = paymentAttemptRef.current ?? {
+        createSaleKey: createIdempotencyKey('pos-sale'),
+        settlementKey: createIdempotencyKey('pos-payment'),
+        saleId: null,
+        settlementRequest: null
+      };
+      paymentAttemptRef.current = attempt;
+      if (attempt.saleId === null) {
+        const sale = await clients.pos.createSale(nextBackend.branchId, {
+          organizationId: nextBackend.session.organizationId,
+          shiftId,
+          lines: cartItems.map((item) => ({
+            productId: item.productId!,
+            quantity: item.quantity,
+            unitPrice: {
+              currencyCode,
+              minorUnits: item.priceMinorUnits
+            }
+          })),
+          idempotencyKey: attempt.createSaleKey,
+          playerAccountId: selectedPosPlayerId
+        });
+        attempt.saleId = readString(sale, 'posSaleId');
+        if (!attempt.saleId) {
+          throw new Error(t('op.pos.error.receiptNotConfirmed'));
+        }
       }
 
-      await clients.pos.paySaleManual(saleId, {
+      const settlementRequest = attempt.settlementRequest ?? {
         organizationId: nextBackend.session.organizationId,
-        paymentMethod: payments[0]?.paymentMethod ?? 'cash',
-        amount: {
-          currencyCode,
-          minorUnits: cartTotalMinorUnits
-        },
+        payments: payments.map((part) => ({
+          paymentMethod: part.paymentMethod,
+          amount: {
+            currencyCode: part.amount.currencyCode,
+            minorUnits: part.amount.minorUnits
+          }
+        })),
         note: 'operator POS checkout',
-        idempotencyKey: createIdempotencyKey('pos-payment')
-      });
+        idempotencyKey: attempt.settlementKey
+      };
+      attempt.settlementRequest = settlementRequest;
+      try {
+        await clients.pos.settleSale(attempt.saleId, settlementRequest);
+      } catch (error) {
+        if (error instanceof PlatformApiError) {
+          throw error;
+        }
 
-      setCartItems([]);
+        // A transport failure is ambiguous: the first request may have committed.
+        // Replay exactly once with the same sale, payload and idempotency key.
+        await clients.pos.settleSale(attempt.saleId, settlementRequest);
+      }
+
+      paymentAttemptRef.current = null;
+      setPaymentCloseLocked(false);
+      setPayOpen(false);
       setFeedback({ label: t('op.pos.feedback.payment'), state: 'confirmed' });
       await loadBackendPos(nextBackend);
+      setCartItems([]);
     } catch (error) {
+      const attempt = paymentAttemptRef.current;
+      let settlementOutcomeResolved = error instanceof PlatformApiError && error.status !== 409;
+      if (error instanceof PlatformApiError && error.status === 409 && attempt?.saleId && backend !== null) {
+        try {
+          const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+          const authoritativeSale = await clients.pos.getSale(attempt.saleId);
+          const authoritativeState = readString(authoritativeSale, 'state');
+          if (authoritativeState === 'paid') {
+            paymentAttemptRef.current = null;
+            setPaymentCloseLocked(false);
+            setPayOpen(false);
+            setFeedback({ label: t('op.pos.feedback.payment'), state: 'confirmed' });
+            await loadBackendPos(backend);
+            setCartItems([]);
+            return;
+          }
+
+          if (authoritativeState === 'voided' || authoritativeState === 'refunded') {
+            paymentAttemptRef.current = null;
+            setPaymentCloseLocked(false);
+            setPayOpen(false);
+            setFeedback({
+              label: t('op.pos.feedback.payment'),
+              state: 'failed',
+              detail: t('op.pos.error.saleTerminal')
+            });
+            return;
+          }
+
+          if (authoritativeState === 'draft' || authoritativeState === 'pending_payment') {
+            await loadBackendPos(backend, { preserveCartSnapshot: true });
+            settlementOutcomeResolved = true;
+          }
+        } catch {
+          // Reconciliation is best-effort, but the original settlement failure
+          // remains actionable and the unresolved attempt must stay intact.
+        }
+      }
+      if (attempt?.saleId && settlementOutcomeResolved) {
+        // The next explicit click may carry corrected payment parts. Reuse the
+        // authoritative sale, but use a new key for that new payload gesture.
+        attempt.settlementKey = createIdempotencyKey('pos-payment');
+        attempt.settlementRequest = null;
+      }
+      if (settlementOutcomeResolved) {
+        setPaymentCloseLocked(false);
+      }
       setFeedback({
         label: t('op.pos.feedback.payment'),
         state: 'failed',
-        detail: projectOperatorError(error, t).detail
+        detail: projectSettlementError(error, t)
       });
     }
   };
@@ -361,15 +490,18 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               <strong>{t('op.pos.catalog.subtitle')}</strong>
             </div>
             <div className="pos-panel-metrics">
-              <span>{t('op.pos.strip.products')} <b>{t('op.pos.strip.positions', { count: catalog.length })}</b></span>
-              <span className={lowStockCount > 0 ? 'warn' : undefined}>{t('op.pos.strip.stock')} <b>{t('op.pos.strip.stockLow', { count: lowStockCount })}</b></span>
-              <span className="pos-scanner-badge" aria-label={t('op.pos.scan.active')}>
-                <span className="pos-scanner-pulse" aria-hidden="true" />
+              {lowStockCount > 0 ? (
+                <span className="warn">{t('op.pos.strip.stock')} <b>{t('op.pos.strip.stockLow', { count: lowStockCount })}</b></span>
+              ) : (
+                <span>{t('op.pos.strip.stock')} {t('op.pos.strip.stockOk')}</span>
+              )}
+              <span className="ui-scanner-badge" aria-label={t('op.pos.scan.active')}>
+                <span className="ui-scanner-pulse" aria-hidden="true" />
                 {t('op.pos.scan.active')}
               </span>
             </div>
           </header>
-          <label className="pos-search">
+          <label className="ui-search-field pos-catalog-search">
             <Search size={14} />
             <input
               placeholder={t('op.pos.catalog.searchPlaceholder')}
@@ -382,7 +514,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               <button
                 key={category}
                 type="button"
-                className={activeCategory === category ? 'active' : undefined}
+                className={`ui-chip ui-chip--filter${activeCategory === category ? ' is-active' : ''}`}
                 onClick={() => setActiveCategory(category)}
               >
                 {category === CATEGORY_ALL ? categoryAll : category}
@@ -397,10 +529,10 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               </div>
             ) : (
               visibleProducts.map((product) => (
-                <button key={`${product.productId ?? product.name}-${product.name}`} type="button" className="pos-product-card" onClick={() => addProduct(product)}>
+                <button key={`${product.productId ?? product.name}-${product.name}`} type="button" className="ui-card ui-card--interactive pos-product-card" onClick={() => addProduct(product)}>
                   <strong>{product.name}</strong>
                   <span>{product.category}</span>
-                  <b>{formatMinorUnits(product.priceMinorUnits, currencyCode)}</b>
+                  <b><span>{t('op.pos.catalog.priceLabel')}</span> <Money minorUnits={product.priceMinorUnits} currencyCode={currencyCode} /></b>
                   <em>{product.note}</em>
                 </button>
               ))
@@ -419,7 +551,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               <UserRoundPlus size={17} />
               <div>
                 <strong>{selectedPosPlayer.name}</strong>
-                <em>{`${selectedPosPlayer.phoneNumber || t('op.pos.cart.clientNoPhone')} · ${formatMinorUnits(selectedPosPlayer.balanceMinorUnits, currencyCode)}`}</em>
+                <em>{selectedPosPlayer.phoneNumber || t('op.pos.cart.clientNoPhone')} · <span>{t('op.pos.cart.balanceLabel')}</span> <Money minorUnits={selectedPosPlayer.balanceMinorUnits} currencyCode={currencyCode} /></em>
               </div>
               <button
                 type="button"
@@ -437,7 +569,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
             </div>
           ) : clientPickerOpen ? (
             <div className="pos-client-pick">
-              <label className="pos-search pos-client-search">
+              <label className="ui-search-field pos-client-search">
                 <Search size={14} />
                 <input
                   aria-label={t('op.pos.cart.clientSearchLabel')}
@@ -474,7 +606,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
                       }}
                     >
                       <strong>{player.name}</strong>
-                      <span>{formatMinorUnits(player.balanceMinorUnits, currencyCode)} · {t('op.pos.cart.clientDebt', { amount: formatMinorUnits(player.debtMinorUnits, currencyCode) })}</span>
+                      <span><Money minorUnits={player.balanceMinorUnits} currencyCode={currencyCode} /> · {t('op.pos.cart.clientDebt', { amount: formatMinorUnits(player.debtMinorUnits, currencyCode) })}</span>
                     </button>
                   ))}
                   {playerLoadStatus === 'loading' && <p>{t('op.pos.cart.clientSearching')}</p>}
@@ -516,7 +648,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
                     <strong>{item.name}</strong>
                     <span>{t('op.pos.cart.itemQty', { count: item.quantity })}</span>
                   </div>
-                  <b>{formatMinorUnits(item.priceMinorUnits * item.quantity, currencyCode)}</b>
+                  <b><Money minorUnits={item.priceMinorUnits * item.quantity} currencyCode={currencyCode} /></b>
                 </article>
               ))
             )}
@@ -526,11 +658,18 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
           <div className="pos-tender">
             <div className="pos-tender-total">
               <span>{t('op.pos.cart.total')}</span>
-              <strong>{formatMinorUnits(cartTotalMinorUnits, currencyCode)}</strong>
+              <strong><Money minorUnits={cartTotalMinorUnits} currencyCode={currencyCode} /></strong>
             </div>
-            <button type="button" className="pos-primary-action" disabled={!canAcceptPayment || feedback.state === 'pending'} onClick={() => setPayOpen(true)}>{t('op.pos.payment.acceptBtn')}</button>
-            <button type="button" className="pos-secondary-action" onClick={() => setCartItems([])}>{t('op.pos.payment.clearCartBtn')}</button>
-            <FeedbackNotice feedback={feedback} />
+            <button type="button" className="ui-btn ui-btn--primary ui-btn--lg pos-primary-action" disabled={!canAcceptPayment || feedback.state === 'pending'} onClick={() => {
+              paymentAttemptRef.current = {
+                createSaleKey: createIdempotencyKey('pos-sale'),
+                settlementKey: createIdempotencyKey('pos-payment'),
+                saleId: null,
+                settlementRequest: null
+              };
+              setPayOpen(true);
+            }}>{t('op.pos.payment.acceptBtn')}</button>
+            <button type="button" className="ui-btn pos-secondary-action" onClick={() => setCartItems([])}>{t('op.pos.payment.clearCartBtn')}</button>
           </div>
         </section>
       </section>
@@ -539,18 +678,33 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
         <PanelModal
           title={t('op.pos.checkout.title')}
           subtitle={selectedPosPlayer ? selectedPosPlayer.name : t('op.pos.cart.clientGuest')}
-          onClose={() => setPayOpen(false)}
+          closeDisabled={feedback.state === 'pending' || paymentCloseLocked}
+          onClose={() => {
+            if (feedback.state === 'pending' || paymentCloseLocked) {
+              return;
+            }
+            paymentAttemptRef.current = null;
+            setPayOpen(false);
+          }}
         >
           <PaymentDialog
             lines={billLines}
             dueLabel={t('op.pos.cart.total')}
             grandTotalMinorUnits={cartTotalMinorUnits}
             currencyCode={currencyCode}
-            walletBalanceMinorUnits={null}
-            allowSplit={false}
+            walletBalanceMinorUnits={selectedPosPlayer?.balanceMinorUnits ?? null}
+            allowSplit={selectedPosPlayer !== null}
             disabled={feedback.state === 'pending'}
+            draftDisabled={paymentCloseLocked}
+            cancelDisabled={paymentCloseLocked}
             confirmVariant="accent"
-            onCancel={() => setPayOpen(false)}
+            onCancel={() => {
+              if (feedback.state === 'pending' || paymentCloseLocked) {
+                return;
+              }
+              paymentAttemptRef.current = null;
+              setPayOpen(false);
+            }}
             onConfirm={acceptPayment}
           />
         </PanelModal>

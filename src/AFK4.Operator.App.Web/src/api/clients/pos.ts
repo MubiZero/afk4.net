@@ -1,5 +1,6 @@
 import { PlatformApiClient } from '../../platformApi';
 import type { Guid, MoneyDto } from '../types';
+import type { PaymentPartDto } from './sessions';
 
 export interface PosSaleLineDto {
   productId: Guid;
@@ -21,6 +22,13 @@ export interface ManualPaymentRequest {
   organizationId: Guid;
   paymentMethod: string;
   amount: MoneyDto;
+  note: string;
+  idempotencyKey: string;
+}
+
+export interface SettlePosSaleRequest {
+  organizationId: Guid;
+  payments: PaymentPartDto[];
   note: string;
   idempotencyKey: string;
 }
@@ -58,6 +66,9 @@ export function createPosClient(api: PlatformApiClient) {
     },
     paySaleManual(saleId: Guid, request: ManualPaymentRequest): Promise<PosSaleDto> {
       return api.post<PosSaleDto, ManualPaymentRequest>(`/api/pos/sales/${saleId}/payments/manual`, request);
+    },
+    settleSale(saleId: Guid, request: SettlePosSaleRequest): Promise<PosSaleDto> {
+      return api.post<PosSaleDto, SettlePosSaleRequest>(`/api/pos/sales/${saleId}/settlements`, request);
     },
     refundSale(saleId: Guid, request: RefundPosSaleRequest): Promise<PosSaleDto> {
       return api.post<PosSaleDto, RefundPosSaleRequest>(`/api/pos/sales/${saleId}/refunds`, request);

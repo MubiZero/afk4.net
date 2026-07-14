@@ -30,9 +30,12 @@ mock.module('./operatorHelpers', () => ({
 }));
 
 const actualRealtime = await import('./operatorRealtime');
+const createLiveRealtime = mock(() => ({ async start() {}, async stop() {} }));
+const createPreviewRealtime = mock(() => ({ async start() {}, async stop() {} }));
 mock.module('./operatorRealtime', () => ({
   ...actualRealtime,
-  createOperatorRealtimeClient: () => ({ async start() {}, async stop() {} })
+  createOperatorRealtimeClient: createLiveRealtime,
+  createPreviewOperatorRealtimeClient: createPreviewRealtime
 }));
 
 const { PosOrdersTicker } = await import('./PosOrdersTicker');
@@ -64,22 +67,41 @@ describe('PosOrdersTicker', () => {
     mock.restore();
   });
 
-  it('показывает входящий заказ чипом и принимает его (кнопка → «Выдать»)', async () => {
+  it('принимает заказ из поповера: на чипе быстрых действий нет', async () => {
     renderTicker();
     // Чип показывает место (откуда) и сводку «N поз · сумма», без имени заказчика.
     expect(await screen.findByText('PC-01')).toBeInTheDocument();
     const summary = screen.getByText(/3 поз/);
     expect(summary).toHaveTextContent('85'); // 3 позиции · 85 с. (total 8500 minor)
     expect(screen.queryByText('Alex')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /^принять$|^accept$/i }));
+    // На чипе нет быстрых действий — решение принимается в поповере, видя состав.
+    expect(screen.queryByRole('button', { name: /^принять$|^accept$/i })).toBeNull();
+    fireEvent.click(screen.getByText('PC-01')); // клик по телу чипа открывает поповер
+    const dialog = await screen.findByRole('dialog');
+    // Новый заказ → в поповере есть «Принять», но ещё нет «Выдать».
+    expect(within(dialog).getByRole('button', { name: /принять|accept/i })).toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /выдать|deliver/i })).toBeNull();
+    fireEvent.click(within(dialog).getByRole('button', { name: /принять|accept/i }));
     await waitFor(() => expect(accept).toHaveBeenCalledWith('b1', 'o1', 1));
-    await waitFor(() => expect(screen.queryByRole('button', { name: /принять|accept/i })).toBeNull());
-    expect(screen.getByRole('button', { name: /выдать|deliver/i })).toBeInTheDocument();
+  });
+
+  it('uses an icon-only chevron whose direction follows disclosure state', async () => {
+    renderTicker();
+
+    const disclosure = await screen.findByRole('button', { expanded: false });
+    expect(disclosure).not.toHaveTextContent(/Подробнее|Details|Тафсилот/);
+
+    fireEvent.click(disclosure);
+
+    expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+    expect(disclosure.querySelector('.pos-order-chevron')).toHaveClass('is-expanded');
   });
 
   it('подтверждает приём заказа тостом', async () => {
     renderTicker();
-    fireEvent.click(await screen.findByRole('button', { name: /принять|accept/i }));
+    fireEvent.click(await screen.findByText('PC-01'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /принять|accept/i }));
     await waitFor(() => expect(accept).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText('Заказ принят')).toBeInTheDocument());
   });
@@ -87,7 +109,9 @@ describe('PosOrdersTicker', () => {
   it('показывает тост ошибки, когда действие падает', async () => {
     accept.mockImplementationOnce(() => Promise.reject(new Error('network')));
     renderTicker();
-    fireEvent.click(await screen.findByRole('button', { name: /принять|accept/i }));
+    fireEvent.click(await screen.findByText('PC-01'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /принять|accept/i }));
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
   });
 
@@ -101,6 +125,19 @@ describe('PosOrdersTicker', () => {
   it('без бэкенда — пустая лента («Активных заказов нет»)', async () => {
     renderTicker(null);
     expect(await screen.findByText(/активных заказов нет/i)).toBeInTheDocument();
+  });
+
+  it('в browser preview не открывает настоящий SignalR transport', async () => {
+    const liveCallsBefore = createLiveRealtime.mock.calls.length;
+    const previewCallsBefore = createPreviewRealtime.mock.calls.length;
+    renderTicker({
+      ...backend,
+      config: { ...backend.config, shellMode: 'vite-dev-preview' }
+    });
+
+    await screen.findByText('PC-01');
+    expect(createPreviewRealtime).toHaveBeenCalledTimes(previewCallsBefore + 1);
+    expect(createLiveRealtime).toHaveBeenCalledTimes(liveCallsBefore);
   });
 
   it('клик по чипу раскрывает весь состав в поповере (в чипе — только кол-во + сумма)', async () => {

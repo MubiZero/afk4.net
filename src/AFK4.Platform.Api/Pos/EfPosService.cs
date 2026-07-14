@@ -2,14 +2,12 @@ using System.Data;
 using System.Text.Json;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
-using AFK4.Platform.Api.Inventory;
-using AFK4.Platform.Api.Payments;
-using AFK4.Platform.Api.Receipts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Receipts;
+using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,17 +15,12 @@ namespace AFK4.Platform.Api.Pos;
 
 public sealed class EfPosService(
     PlatformDbContext dbContext,
-    IPaymentProvider paymentProvider,
-    IReceiptNumberGenerator receiptNumberGenerator,
-    TimeProvider timeProvider,
-    ILowStockNotifier? lowStockNotifier = null) : IPosService
+    IPosSettlementService posSettlementService,
+    TimeProvider timeProvider) : IPosService
 {
     private const string CreateSaleOperation = "pos-sale-create";
     private const string PaySaleOperation = "pos-sale-pay";
-    private const string RefundSaleOperation = "pos-sale-refund";
     private const string VoidSaleOperation = "pos-sale-void";
-    private const string SaleReceiptType = "sale";
-    private const string RefundReceiptType = "refund";
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task<BillingCommandServiceResult<PosSaleDto>> CreateSaleAsync(
@@ -93,32 +86,33 @@ public sealed class EfPosService(
             }
         }
 
-        var requestedProductIds = request.Lines
-            .Select(line => line.ProductId)
-            .Distinct()
-            .ToList();
-        var products = await dbContext.PosProducts
-            .AsNoTracking()
-            .Where(product =>
-                product.OrganizationId == request.OrganizationId &&
-                product.BranchId == branchId &&
-                product.IsActive &&
-                requestedProductIds.Contains(product.ProductId))
-            .ToDictionaryAsync(product => product.ProductId, cancellationToken);
-
-        if (products.Count != requestedProductIds.Count)
-        {
-            return BillingCommandServiceResult<PosSaleDto>.Missing("Product was not found.");
-        }
-
-        var currencyCode = products.Values.First().CurrencyCode;
-        if (products.Values.Any(product => !string.Equals(product.CurrencyCode, currencyCode, StringComparison.OrdinalIgnoreCase)))
-        {
-            return BillingCommandServiceResult<PosSaleDto>.Invalid("POS sale lines must use one currency.");
-        }
-
         return await ExecuteInTransactionAsync(async () =>
         {
+            var requestedProductIds = request.Lines
+                .Select(line => line.ProductId)
+                .Distinct()
+                .ToList();
+            var products = await dbContext.PosProducts
+                .AsNoTracking()
+                .Where(product =>
+                    product.OrganizationId == request.OrganizationId &&
+                    product.BranchId == branchId &&
+                    product.IsActive &&
+                    requestedProductIds.Contains(product.ProductId))
+                .ToDictionaryAsync(product => product.ProductId, cancellationToken);
+
+            if (products.Count != requestedProductIds.Count)
+            {
+                return BillingCommandServiceResult<PosSaleDto>.Missing("Product was not found.");
+            }
+
+            var currencyCode = products.Values.First().CurrencyCode;
+            if (products.Values.Any(product =>
+                    !string.Equals(product.CurrencyCode, currencyCode, StringComparison.OrdinalIgnoreCase)))
+            {
+                return BillingCommandServiceResult<PosSaleDto>.Invalid("POS sale lines must use one currency.");
+            }
+
             var now = timeProvider.GetUtcNow();
             var sale = new PosSaleEntity
             {
@@ -150,8 +144,9 @@ public sealed class EfPosService(
                         Quantity = line.Quantity,
                         CurrencyCode = product.CurrencyCode.ToUpperInvariant(),
                         UnitPriceMinorUnits = product.PriceMinorUnits,
+                        UnitCostMinorUnits = product.TrackStock ? product.AvgCostMinorUnits : 0,
                         LineTotalMinorUnits = lineTotal,
-                        TrackStock = product.TrackStock,
+                        TracksStock = product.TrackStock,
                         AllowNegativeStock = product.AllowNegativeStock
                     };
                 })
@@ -192,303 +187,45 @@ public sealed class EfPosService(
         var saleScope = await dbContext.PosSales
             .AsNoTracking()
             .SingleOrDefaultAsync(candidate => candidate.PosSaleId == posSaleId, cancellationToken);
-
         if (saleScope is null)
         {
             return BillingCommandServiceResult<PosSaleDto>.Missing("POS sale was not found.");
         }
 
-        var requestHashInput = new
+        var legacyRequestHashInput = new
         {
             PosSaleId = posSaleId,
             Request = request
         };
-        var idempotency = await GetExistingIdempotencyAsync<PosSaleDto, object>(
+        var legacyReplay = await GetExistingIdempotencyAsync<PosSaleDto, object>(
             saleScope.OrganizationId,
             saleScope.BranchId,
             PaySaleOperation,
             request.IdempotencyKey,
-            requestHashInput,
+            legacyRequestHashInput,
             cancellationToken);
-
-        if (idempotency is not null)
+        if (legacyReplay is not null)
         {
-            return idempotency;
+            return legacyReplay;
         }
 
-        if (request.OrganizationId != saleScope.OrganizationId)
-        {
-            return BillingCommandServiceResult<PosSaleDto>.Invalid("Organization id does not match the POS sale.");
-        }
-
-        var expectedAmount = new MoneyDto(saleScope.CurrencyCode, saleScope.TotalMinorUnits);
-        var paymentAuthorization = await paymentProvider.AcceptManualPaymentAsync(request, expectedAmount, cancellationToken);
-        if (!paymentAuthorization.Succeeded || paymentAuthorization.Response is null)
-        {
-            return BillingCommandServiceResult<PosSaleDto>.Invalid(paymentAuthorization.Error ?? "Payment was rejected.");
-        }
-
-        return await ExecuteInTransactionAsync(async () =>
-        {
-            var sale = await dbContext.PosSales
-                .SingleAsync(candidate => candidate.PosSaleId == posSaleId, cancellationToken);
-            var lines = await LoadSaleLinesAsync(posSaleId, cancellationToken);
-
-            if (sale.State is not PosSaleStateNames.Draft and not PosSaleStateNames.PendingPayment)
-            {
-                return BillingCommandServiceResult<PosSaleDto>.Invalid("Only draft POS sales can be paid.");
-            }
-
-            var stockValidation = await ValidateStockForPaymentAsync(sale, lines, cancellationToken);
-            if (stockValidation is not null)
-            {
-                return BillingCommandServiceResult<PosSaleDto>.Invalid(stockValidation);
-            }
-
-            var now = timeProvider.GetUtcNow();
-            foreach (var line in lines.Where(line => line.TrackStock))
-            {
-                dbContext.StockMovements.Add(new StockMovementEntity
-                {
-                    StockMovementId = Guid.NewGuid(),
-                    OrganizationId = sale.OrganizationId,
-                    BranchId = sale.BranchId,
-                    ProductId = line.ProductId,
-                    MovementType = StockMovementTypeNames.Sale,
-                    QuantityDelta = -line.Quantity,
-                    CurrencyCode = line.CurrencyCode,
-                    UnitCostMinorUnits = line.UnitPriceMinorUnits,
-                    Reason = $"POS sale {sale.PosSaleId}",
-                    CreatedByStaffUserId = actorStaffUserId,
-                    CreatedAtUtc = now
-                });
-            }
-
-            dbContext.Payments.Add(new PaymentEntity
-            {
-                PaymentId = Guid.NewGuid(),
-                OrganizationId = sale.OrganizationId,
-                BranchId = sale.BranchId,
-                PosSaleId = sale.PosSaleId,
-                ShiftId = sale.ShiftId,
-                CreatedByStaffUserId = actorStaffUserId,
-                PaymentKind = "payment",
-                Provider = paymentAuthorization.Response.Provider,
-                PaymentMethod = paymentAuthorization.Response.PaymentMethod,
-                CurrencyCode = paymentAuthorization.Response.Amount.CurrencyCode,
-                AmountMinorUnits = paymentAuthorization.Response.Amount.MinorUnits,
-                Note = paymentAuthorization.Response.Note,
-                CreatedAtUtc = now
-            });
-
-            var receiptNumber = await receiptNumberGenerator.GenerateAsync(
-                sale.OrganizationId,
-                sale.BranchId,
-                SaleReceiptType,
-                now,
-                cancellationToken);
-            var branchLocale = await dbContext.Branches
-                .Where(branch => branch.BranchId == sale.BranchId)
-                .Select(branch => branch.PreferredLocale)
-                .FirstOrDefaultAsync(cancellationToken) ?? "ru";
-            var receipt = new ReceiptEntity
-            {
-                ReceiptId = Guid.NewGuid(),
-                OrganizationId = sale.OrganizationId,
-                BranchId = sale.BranchId,
-                PosSaleId = sale.PosSaleId,
-                ReceiptNumber = receiptNumber,
-                ReceiptType = SaleReceiptType,
-                CurrencyCode = sale.CurrencyCode,
-                TotalMinorUnits = sale.TotalMinorUnits,
-                Locale = branchLocale,
-                CreatedAtUtc = now
-            };
-            dbContext.Receipts.Add(receipt);
-
-            sale.State = PosSaleStateNames.Paid;
-            sale.PaidAtUtc = now;
-            await dbContext.SaveChangesAsync(cancellationToken);
-
-            if (lowStockNotifier is not null)
-            {
-                var soldProductIds = lines.Where(line => line.TrackStock).Select(line => line.ProductId).Distinct().ToList();
-                if (soldProductIds.Count > 0)
-                {
-                    await lowStockNotifier.EvaluateProductsAsync(sale.OrganizationId, sale.BranchId, soldProductIds, cancellationToken);
-                }
-            }
-
-            var response = ToDto(sale, lines, receipt);
-            AddIdempotencyRecord(
-                sale.OrganizationId,
-                sale.BranchId,
-                PaySaleOperation,
-                request.IdempotencyKey,
-                requestHashInput,
-                response,
-                now);
-            await dbContext.SaveChangesAsync(cancellationToken);
-
-            return BillingCommandServiceResult<PosSaleDto>.Ok(response);
-        }, () => ReplayIdempotencyAsync<PosSaleDto, object>(
-            saleScope.OrganizationId,
-            saleScope.BranchId,
-            PaySaleOperation,
-            request.IdempotencyKey,
-            requestHashInput,
-            cancellationToken), cancellationToken);
+        return await posSettlementService.SettleAsync(
+            posSaleId,
+            actorStaffUserId,
+            new SettlePosSaleRequest(
+                request.OrganizationId,
+                [new PaymentPartDto(request.PaymentMethod, request.Amount)],
+                request.Note,
+                request.IdempotencyKey),
+            cancellationToken);
     }
 
-    public async Task<BillingCommandServiceResult<PosSaleDto>> RefundSaleAsync(
+    public Task<BillingCommandServiceResult<PosSaleDto>> RefundSaleAsync(
         Guid posSaleId,
         Guid actorStaffUserId,
         RefundPosSaleRequest request,
-        CancellationToken cancellationToken)
-    {
-        var saleScope = await dbContext.PosSales
-            .AsNoTracking()
-            .SingleOrDefaultAsync(candidate => candidate.PosSaleId == posSaleId, cancellationToken);
-
-        if (saleScope is null)
-        {
-            return BillingCommandServiceResult<PosSaleDto>.Missing("POS sale was not found.");
-        }
-
-        var requestHashInput = new
-        {
-            PosSaleId = posSaleId,
-            Request = request
-        };
-        var idempotency = await GetExistingIdempotencyAsync<PosSaleDto, object>(
-            saleScope.OrganizationId,
-            saleScope.BranchId,
-            RefundSaleOperation,
-            request.IdempotencyKey,
-            requestHashInput,
-            cancellationToken);
-
-        if (idempotency is not null)
-        {
-            return idempotency;
-        }
-
-        if (request.OrganizationId != saleScope.OrganizationId)
-        {
-            return BillingCommandServiceResult<PosSaleDto>.Invalid("Organization id does not match the POS sale.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Reason))
-        {
-            return BillingCommandServiceResult<PosSaleDto>.Invalid("Refund reason is required.");
-        }
-
-        return await ExecuteInTransactionAsync(async () =>
-        {
-            var sale = await dbContext.PosSales
-                .SingleAsync(candidate => candidate.PosSaleId == posSaleId, cancellationToken);
-            var lines = await LoadSaleLinesAsync(posSaleId, cancellationToken);
-
-            if (sale.State != PosSaleStateNames.Paid)
-            {
-                return BillingCommandServiceResult<PosSaleDto>.Invalid("Only paid POS sales can be refunded.");
-            }
-
-            var now = timeProvider.GetUtcNow();
-            foreach (var line in lines.Where(line => line.TrackStock))
-            {
-                dbContext.StockMovements.Add(new StockMovementEntity
-                {
-                    StockMovementId = Guid.NewGuid(),
-                    OrganizationId = sale.OrganizationId,
-                    BranchId = sale.BranchId,
-                    ProductId = line.ProductId,
-                    MovementType = StockMovementTypeNames.Refund,
-                    QuantityDelta = line.Quantity,
-                    CurrencyCode = line.CurrencyCode,
-                    UnitCostMinorUnits = line.UnitPriceMinorUnits,
-                    Reason = request.Reason.Trim(),
-                    CreatedByStaffUserId = actorStaffUserId,
-                    CreatedAtUtc = now
-                });
-            }
-
-            var originalPaymentMethod = await dbContext.Payments
-                .AsNoTracking()
-                .Where(payment =>
-                    payment.PosSaleId == sale.PosSaleId &&
-                    payment.PaymentKind == "payment")
-                .OrderBy(payment => payment.CreatedAtUtc)
-                .Select(payment => payment.PaymentMethod)
-                .FirstOrDefaultAsync(cancellationToken) ?? PaymentMethodNames.Cash;
-
-            dbContext.Payments.Add(new PaymentEntity
-            {
-                PaymentId = Guid.NewGuid(),
-                OrganizationId = sale.OrganizationId,
-                BranchId = sale.BranchId,
-                PosSaleId = sale.PosSaleId,
-                ShiftId = sale.ShiftId,
-                CreatedByStaffUserId = actorStaffUserId,
-                PaymentKind = "refund",
-                Provider = "manual",
-                PaymentMethod = originalPaymentMethod,
-                CurrencyCode = sale.CurrencyCode,
-                AmountMinorUnits = -sale.TotalMinorUnits,
-                Note = request.Reason.Trim(),
-                CreatedAtUtc = now
-            });
-
-            var receiptNumber = await receiptNumberGenerator.GenerateAsync(
-                sale.OrganizationId,
-                sale.BranchId,
-                RefundReceiptType,
-                now,
-                cancellationToken);
-            var branchLocale = await dbContext.Branches
-                .Where(branch => branch.BranchId == sale.BranchId)
-                .Select(branch => branch.PreferredLocale)
-                .FirstOrDefaultAsync(cancellationToken) ?? "ru";
-            var receipt = new ReceiptEntity
-            {
-                ReceiptId = Guid.NewGuid(),
-                OrganizationId = sale.OrganizationId,
-                BranchId = sale.BranchId,
-                PosSaleId = sale.PosSaleId,
-                ReceiptNumber = receiptNumber,
-                ReceiptType = RefundReceiptType,
-                CurrencyCode = sale.CurrencyCode,
-                TotalMinorUnits = sale.TotalMinorUnits,
-                Locale = branchLocale,
-                CreatedAtUtc = now
-            };
-            dbContext.Receipts.Add(receipt);
-
-            sale.State = PosSaleStateNames.Refunded;
-            sale.RefundReason = request.Reason.Trim();
-            sale.RefundedAtUtc = now;
-            await dbContext.SaveChangesAsync(cancellationToken);
-
-            var response = ToDto(sale, lines, receipt);
-            AddIdempotencyRecord(
-                sale.OrganizationId,
-                sale.BranchId,
-                RefundSaleOperation,
-                request.IdempotencyKey,
-                requestHashInput,
-                response,
-                now);
-            await dbContext.SaveChangesAsync(cancellationToken);
-
-            return BillingCommandServiceResult<PosSaleDto>.Ok(response);
-        }, () => ReplayIdempotencyAsync<PosSaleDto, object>(
-            saleScope.OrganizationId,
-            saleScope.BranchId,
-            RefundSaleOperation,
-            request.IdempotencyKey,
-            requestHashInput,
-            cancellationToken), cancellationToken);
-    }
+        CancellationToken cancellationToken) =>
+        posSettlementService.RefundAsync(posSaleId, actorStaffUserId, request, cancellationToken);
 
     public async Task<BillingCommandServiceResult<PosSaleDto>> VoidSaleAsync(
         Guid posSaleId,
@@ -598,8 +335,15 @@ public sealed class EfPosService(
             .OrderByDescending(receipt => receipt.CreatedAtUtc)
             .ThenByDescending(receipt => receipt.ReceiptId)
             .FirstOrDefaultAsync(cancellationToken);
+        var shopOrderId = await dbContext.ShopOrders
+            .AsNoTracking()
+            .Where(order =>
+                order.OrganizationId == organizationId &&
+                order.PosSaleId == posSaleId)
+            .Select(order => (Guid?)order.ShopOrderId)
+            .SingleOrDefaultAsync(cancellationToken);
 
-        return BillingCommandServiceResult<PosSaleDto>.Ok(ToDto(sale, lines, latestReceipt));
+        return BillingCommandServiceResult<PosSaleDto>.Ok(ToDto(sale, lines, latestReceipt, shopOrderId));
     }
 
     private static string? ValidateCreateSaleRequest(CreatePosSaleRequest request)
@@ -632,29 +376,6 @@ public sealed class EfPosService(
         if (request.Lines.Any(line => line.Quantity <= 0))
         {
             return "POS sale line quantity must be greater than zero.";
-        }
-
-        return null;
-    }
-
-    private async Task<string?> ValidateStockForPaymentAsync(
-        PosSaleEntity sale,
-        IReadOnlyList<PosSaleLineEntity> lines,
-        CancellationToken cancellationToken)
-    {
-        foreach (var line in lines.Where(line => line.TrackStock && !line.AllowNegativeStock))
-        {
-            var stockOnHand = await dbContext.StockMovements
-                .Where(movement =>
-                    movement.OrganizationId == sale.OrganizationId &&
-                    movement.BranchId == sale.BranchId &&
-                    movement.ProductId == line.ProductId)
-                .SumAsync(movement => (int?)movement.QuantityDelta, cancellationToken) ?? 0;
-
-            if (stockOnHand - line.Quantity < 0)
-            {
-                return "Insufficient stock for tracked product.";
-            }
         }
 
         return null;
@@ -786,9 +507,15 @@ public sealed class EfPosService(
 
             return result;
         }
+        catch (Exception exception) when (RelationalFailureClassifier.IsSerializationFailure(exception))
+        {
+            await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
+            dbContext.ChangeTracker.Clear();
+            return BillingCommandServiceResult<TResponse>.RequestConflict("version_conflict");
+        }
         catch (DbUpdateException) when (recoverIdempotencyRaceAsync is not null)
         {
-            await transaction.RollbackAsync(cancellationToken);
+            await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
             dbContext.ChangeTracker.Clear();
             var recovered = await recoverIdempotencyRaceAsync();
 
@@ -797,6 +524,12 @@ public sealed class EfPosService(
                 return recovered;
             }
 
+            throw;
+        }
+        catch
+        {
+            await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
+            dbContext.ChangeTracker.Clear();
             throw;
         }
     }
@@ -809,7 +542,8 @@ public sealed class EfPosService(
     private static PosSaleDto ToDto(
         PosSaleEntity sale,
         IReadOnlyList<PosSaleLineEntity> lines,
-        ReceiptEntity? latestReceipt = null)
+        ReceiptEntity? latestReceipt = null,
+        Guid? shopOrderId = null)
     {
         return new PosSaleDto(
             sale.PosSaleId,
@@ -824,11 +558,12 @@ public sealed class EfPosService(
             sale.PaidAtUtc,
             sale.RefundedAtUtc,
             sale.VoidedAtUtc,
-            latestReceipt is null ? null : ToDto(latestReceipt),
-            sale.PlayerAccountId);
+            latestReceipt is null ? null : ToDto(latestReceipt, shopOrderId),
+            sale.PlayerAccountId,
+            shopOrderId);
     }
 
-    private static ReceiptDto ToDto(ReceiptEntity receipt)
+    private static ReceiptDto ToDto(ReceiptEntity receipt, Guid? shopOrderId = null)
     {
         return new ReceiptDto(
             receipt.ReceiptId,
@@ -838,7 +573,9 @@ public sealed class EfPosService(
             receipt.ReceiptNumber,
             receipt.ReceiptType,
             new MoneyDto(receipt.CurrencyCode, receipt.TotalMinorUnits),
-            receipt.CreatedAtUtc);
+            receipt.CreatedAtUtc,
+            receipt.SessionId,
+            shopOrderId);
     }
 
     private static PosSaleLineDto ToDto(PosSaleLineEntity line)

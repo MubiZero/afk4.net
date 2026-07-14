@@ -12,7 +12,8 @@ namespace AFK4.Platform.Api.Inventory;
 public sealed class EfInventoryService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    ILowStockNotifier? lowStockNotifier = null) : IInventoryService
+    ILowStockNotifier? lowStockNotifier = null,
+    IInventoryCostService? inventoryCostService = null) : IInventoryService
 {
     private const string CategoryCreateOperation = "pos-category-create";
     private const string ProductCreateOperation = "pos-product-create";
@@ -218,7 +219,9 @@ public sealed class EfInventoryService(
             return BillingCommandServiceResult<PosProductDto>.Invalid(validation);
         }
 
-        var product = await dbContext.PosProducts
+        return await ExecuteInTransactionAsync(async () =>
+        {
+            var product = await dbContext.PosProducts
             .SingleOrDefaultAsync(
                 candidate =>
                     candidate.OrganizationId == request.OrganizationId &&
@@ -226,64 +229,84 @@ public sealed class EfInventoryService(
                     candidate.ProductId == productId,
                 cancellationToken);
 
-        if (product is null)
-        {
-            return BillingCommandServiceResult<PosProductDto>.Missing("Product was not found.");
-        }
+            if (product is null)
+            {
+                return BillingCommandServiceResult<PosProductDto>.Missing("Product was not found.");
+            }
 
-        var categoryExists = await dbContext.PosProductCategories
-            .AsNoTracking()
-            .AnyAsync(
-                category =>
-                    category.OrganizationId == request.OrganizationId &&
-                    category.BranchId == branchId &&
-                    category.CategoryId == request.CategoryId &&
-                    category.IsActive,
-                cancellationToken);
+            var requestedCurrency = request.Price.CurrencyCode.Trim().ToUpperInvariant();
+            if (!string.Equals(product.CurrencyCode, requestedCurrency, StringComparison.OrdinalIgnoreCase))
+            {
+                var hasInventoryOrFinancialHistory = await dbContext.StockMovements
+                    .AsNoTracking()
+                    .AnyAsync(movement =>
+                        movement.OrganizationId == request.OrganizationId &&
+                        movement.BranchId == branchId &&
+                        movement.ProductId == productId,
+                        cancellationToken) ||
+                    await dbContext.PosSaleLines
+                        .AsNoTracking()
+                        .AnyAsync(line => line.ProductId == productId, cancellationToken);
+                if (hasInventoryOrFinancialHistory)
+                {
+                    return BillingCommandServiceResult<PosProductDto>.Invalid("product_currency_immutable");
+                }
+            }
 
-        if (!categoryExists)
-        {
-            return BillingCommandServiceResult<PosProductDto>.Missing("Product category was not found.");
-        }
+            var categoryExists = await dbContext.PosProductCategories
+                .AsNoTracking()
+                .AnyAsync(
+                    category =>
+                        category.OrganizationId == request.OrganizationId &&
+                        category.BranchId == branchId &&
+                        category.CategoryId == request.CategoryId &&
+                        category.IsActive,
+                    cancellationToken);
 
-        var normalizedSku = NormalizeSku(request.Sku);
-        var skuExists = await dbContext.PosProducts
-            .AsNoTracking()
-            .AnyAsync(
-                candidate =>
-                    candidate.OrganizationId == request.OrganizationId &&
-                    candidate.BranchId == branchId &&
-                    candidate.ProductId != productId &&
-                    candidate.Sku == normalizedSku,
-                cancellationToken);
+            if (!categoryExists)
+            {
+                return BillingCommandServiceResult<PosProductDto>.Missing("Product category was not found.");
+            }
 
-        if (skuExists)
-        {
-            return BillingCommandServiceResult<PosProductDto>.Invalid("Product SKU already exists.");
-        }
+            var normalizedSku = NormalizeSku(request.Sku);
+            var skuExists = await dbContext.PosProducts
+                .AsNoTracking()
+                .AnyAsync(
+                    candidate =>
+                        candidate.OrganizationId == request.OrganizationId &&
+                        candidate.BranchId == branchId &&
+                        candidate.ProductId != productId &&
+                        candidate.Sku == normalizedSku,
+                    cancellationToken);
 
-        product.CategoryId = request.CategoryId;
-        product.Name = request.Name.Trim();
-        product.Sku = normalizedSku;
-        product.CurrencyCode = request.Price.CurrencyCode.Trim().ToUpperInvariant();
-        product.PriceMinorUnits = request.Price.MinorUnits;
-        product.TrackStock = request.TrackStock;
-        product.AllowNegativeStock = request.AllowNegativeStock;
-        product.ReorderThreshold = request.ReorderThreshold;
-        product.AvailableInShell = request.AvailableInShell;
-        product.IsActive = request.IsActive;
+            if (skuExists)
+            {
+                return BillingCommandServiceResult<PosProductDto>.Invalid("Product SKU already exists.");
+            }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+            product.CategoryId = request.CategoryId;
+            product.Name = request.Name.Trim();
+            product.Sku = normalizedSku;
+            product.CurrencyCode = requestedCurrency;
+            product.PriceMinorUnits = request.Price.MinorUnits;
+            product.TrackStock = request.TrackStock;
+            product.AllowNegativeStock = request.AllowNegativeStock;
+            product.ReorderThreshold = request.ReorderThreshold;
+            product.AvailableInShell = request.AvailableInShell;
+            product.IsActive = request.IsActive;
 
-        var stockOnHand = await dbContext.StockMovements
-            .AsNoTracking()
-            .Where(movement =>
-                movement.OrganizationId == request.OrganizationId &&
-                movement.BranchId == branchId &&
-                movement.ProductId == productId)
-            .SumAsync(movement => (int?)movement.QuantityDelta, cancellationToken) ?? 0;
+            await dbContext.SaveChangesAsync(cancellationToken);
 
-        return BillingCommandServiceResult<PosProductDto>.Ok(ToDto(product, stockOnHand));
+            var stockOnHand = await dbContext.StockMovements
+                .AsNoTracking()
+                .Where(movement =>
+                    movement.OrganizationId == request.OrganizationId &&
+                    movement.BranchId == branchId &&
+                    movement.ProductId == productId)
+                .SumAsync(movement => (int?)movement.QuantityDelta, cancellationToken) ?? 0;
+
+            return BillingCommandServiceResult<PosProductDto>.Ok(ToDto(product, stockOnHand));
+        }, recoverIdempotencyRaceAsync: null, cancellationToken);
     }
 
     public async Task<BillingCommandServiceResult<StockMovementDto>> CreateStockMovementAsync(
@@ -316,28 +339,40 @@ public sealed class EfInventoryService(
             return BillingCommandServiceResult<StockMovementDto>.Invalid(validation);
         }
 
-        var product = await dbContext.PosProducts
-            .SingleOrDefaultAsync(
-                candidate =>
-                    candidate.OrganizationId == request.OrganizationId &&
-                    candidate.BranchId == branchId &&
-                    candidate.ProductId == request.ProductId &&
-                    candidate.IsActive,
-                cancellationToken);
-
-        if (product is null)
-        {
-            return BillingCommandServiceResult<StockMovementDto>.Missing("Product was not found.");
-        }
-
-        if (!product.TrackStock)
-        {
-            return BillingCommandServiceResult<StockMovementDto>.Invalid("Stock movements require a tracked product.");
-        }
-
         return await ExecuteInTransactionAsync(async () =>
         {
+            var product = await dbContext.PosProducts
+                .SingleOrDefaultAsync(
+                    candidate =>
+                        candidate.OrganizationId == request.OrganizationId &&
+                        candidate.BranchId == branchId &&
+                        candidate.ProductId == request.ProductId &&
+                        candidate.IsActive,
+                    cancellationToken);
+
+            if (product is null)
+            {
+                return BillingCommandServiceResult<StockMovementDto>.Missing("Product was not found.");
+            }
+
+            if (!product.TrackStock)
+            {
+                return BillingCommandServiceResult<StockMovementDto>.Invalid("Stock movements require a tracked product.");
+            }
+
             var now = timeProvider.GetUtcNow();
+            if (request.MovementType.Trim() == StockMovementTypeNames.Purchase)
+            {
+                await (inventoryCostService ?? new EfInventoryCostService(dbContext)).ReconcileInboundAsync(
+                    product.OrganizationId,
+                    product.BranchId,
+                    product.ProductId,
+                    request.QuantityDelta,
+                    request.UnitCost.CurrencyCode,
+                    request.UnitCost.MinorUnits,
+                    cancellationToken);
+            }
+
             var movement = new StockMovementEntity
             {
                 StockMovementId = Guid.NewGuid(),
@@ -354,26 +389,6 @@ public sealed class EfInventoryService(
             };
 
             dbContext.StockMovements.Add(movement);
-
-            if (movement.MovementType == StockMovementTypeNames.Purchase)
-            {
-                // Stock-on-hand ДО этого прихода = сумма прежних дельт (movement ещё не учтён в БД-сумме на этот момент).
-                var priorQuantity = await dbContext.StockMovements
-                    .Where(existing =>
-                        existing.OrganizationId == product.OrganizationId &&
-                        existing.BranchId == product.BranchId &&
-                        existing.ProductId == product.ProductId &&
-                        existing.StockMovementId != movement.StockMovementId)
-                    .SumAsync(existing => (int?)existing.QuantityDelta, cancellationToken) ?? 0;
-                var basePrior = Math.Max(priorQuantity, 0);
-                var inboundQty = movement.QuantityDelta; // purchase > 0 (validation отвергает 0)
-                var denominator = basePrior + inboundQty;
-                product.AvgCostMinorUnits = denominator <= 0
-                    ? movement.UnitCostMinorUnits
-                    : (long)Math.Round(
-                        (basePrior * (double)product.AvgCostMinorUnits + inboundQty * (double)movement.UnitCostMinorUnits) / denominator,
-                        MidpointRounding.AwayFromZero);
-            }
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -731,6 +746,11 @@ public sealed class EfInventoryService(
             return "Stock movement quantity delta cannot be zero.";
         }
 
+        if (request.MovementType == StockMovementTypeNames.Purchase && request.QuantityDelta < 0)
+        {
+            return "Purchase quantity must be positive.";
+        }
+
         if (request.MovementType is not
             StockMovementTypeNames.Purchase and not
             StockMovementTypeNames.Sale and not
@@ -873,9 +893,15 @@ public sealed class EfInventoryService(
 
             return result;
         }
+        catch (Exception exception) when (RelationalFailureClassifier.IsSerializationFailure(exception))
+        {
+            await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
+            dbContext.ChangeTracker.Clear();
+            return BillingCommandServiceResult<TResponse>.RequestConflict("version_conflict");
+        }
         catch (DbUpdateException) when (recoverIdempotencyRaceAsync is not null)
         {
-            await transaction.RollbackAsync(cancellationToken);
+            await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
             dbContext.ChangeTracker.Clear();
             var recovered = await recoverIdempotencyRaceAsync();
 
@@ -884,6 +910,12 @@ public sealed class EfInventoryService(
                 return recovered;
             }
 
+            throw;
+        }
+        catch
+        {
+            await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
+            dbContext.ChangeTracker.Clear();
             throw;
         }
     }

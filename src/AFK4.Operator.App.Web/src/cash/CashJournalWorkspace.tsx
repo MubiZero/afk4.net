@@ -34,13 +34,6 @@ export function CashJournalWorkspace({
 
   return (
     <main className="workspace-screen cash-journal-screen">
-      <section className="screen-head">
-        <div>
-          <span>{t('op.cash.journal.title')}</span>
-          <h1>{t('op.cash.journal.heading')}</h1>
-        </div>
-      </section>
-
       {segments.length > 1 && (
         <div className="cash-journal-segments" role="tablist" aria-label={t('op.cash.journal.title')}>
           {segments.map((segment) => (

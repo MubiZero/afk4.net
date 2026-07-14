@@ -5,7 +5,7 @@ namespace AFK4.Platform.Api.Shop;
 public interface IShopOrderService
 {
     Task<ShopOrderActionResult> PlaceAsync(
-        Guid playerAccountId, IReadOnlyList<ShopOrderLineInput> lines, CancellationToken cancellationToken);
+        Guid playerAccountId, PlaceShopOrderRequest request, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<ShopOrderDto>> ListForPlayerAsync(Guid playerAccountId, CancellationToken cancellationToken);
 

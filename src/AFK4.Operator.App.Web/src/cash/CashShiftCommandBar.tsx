@@ -8,7 +8,6 @@ import {
   parseNonNegativeMoneyInputMinorUnits
 } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
-import { FeedbackNotice } from '../operatorPrimitives';
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import type { OperatorBackendContext, Feedback } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
@@ -18,6 +17,7 @@ import { ShiftReportModal } from './ShiftReportModal';
 import { buildShiftReportData, buildShiftReportText, printShiftReport, type ShiftReportData } from './shiftReport';
 import { OpenShiftModal } from './OpenShiftModal';
 import { CashMovementModal } from './CashMovementModal';
+import { useFeedbackToasts } from '../useFeedbackToasts';
 import { CloseShiftModal } from './CloseShiftModal';
 
 export interface CashShiftActionsClient {
@@ -64,6 +64,7 @@ export function CashShiftCommandBar({
   const [report, setReport] = useState<{ variant: 'x' | 'z'; data: ShiftReportData } | null>(null);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>({ label: '', state: 'idle' });
+  useFeedbackToasts(feedback);
   const [startingCash, setStartingCash] = useState('0.00');
   const [openingNote, setOpeningNote] = useState(t('op.cash.open.defaultNote'));
   const [movementAmount, setMovementAmount] = useState('10.00');
@@ -145,32 +146,30 @@ export function CashShiftCommandBar({
   return (
     <div className="cash-head-commands">
       {canOpen && (
-        <button type="button" className="cash-command-btn" onClick={() => setActiveModal('open')}>
+        <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm cash-command-btn" onClick={() => setActiveModal('open')}>
           <Unlock size={14} aria-hidden="true" />{t('op.cash.action.open')}
         </button>
       )}
       {canCash && (
         <>
-          <button type="button" className="cash-command-btn" onClick={() => setActiveModal('cash_in')}>
+          <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm cash-command-btn" onClick={() => setActiveModal('cash_in')}>
             <ArrowDownToLine size={14} aria-hidden="true" />{t('op.cash.action.cashIn')}
           </button>
-          <button type="button" className="cash-command-btn" onClick={() => setActiveModal('cash_out')}>
+          <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm cash-command-btn" onClick={() => setActiveModal('cash_out')}>
             <ArrowUpFromLine size={14} aria-hidden="true" />{t('op.cash.action.cashOut')}
           </button>
         </>
       )}
       {canClose && (
-        <button type="button" className="cash-command-btn danger" onClick={() => setActiveModal('close')}>
+        <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm ui-btn--danger cash-command-btn danger" onClick={() => setActiveModal('close')}>
           <Lock size={14} aria-hidden="true" />{t('op.cash.action.close')}
         </button>
       )}
       {canXReport && revenue && (
-        <button type="button" className="cash-command-btn" onClick={() => setReport({ variant: 'x', data: buildShiftReportData(revenue) })}>
+        <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm cash-command-btn" onClick={() => setReport({ variant: 'x', data: buildShiftReportData(revenue) })}>
           <FileText size={14} aria-hidden="true" />{t('op.cash.action.xReport')}
         </button>
       )}
-      {feedback.state !== 'idle' && <FeedbackNotice feedback={feedback} />}
-
       {activeModal === 'open' && (
         <OpenShiftModal
           startingCash={startingCash}

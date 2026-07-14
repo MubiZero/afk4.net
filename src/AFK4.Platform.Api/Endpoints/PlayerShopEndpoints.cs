@@ -1,4 +1,5 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Commerce;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Shop;
 using AFK4.Shared.Contracts.Billing;
@@ -51,12 +52,12 @@ internal static class PlayerShopEndpoints
         app.MapPost("/api/me/shop/orders", async (
             PlaceShopOrderRequest request,
             IPlayerContextAccessor playerContextAccessor,
-            IShopOrderService shopOrderService,
+            IShopCommerceCoordinator commerceCoordinator,
             CancellationToken ct) =>
         {
             var player = playerContextAccessor.Current;
             if (player is null) return Results.Unauthorized();
-            var result = await shopOrderService.PlaceAsync(player.PlayerAccountId, request.Lines, ct);
+            var result = await commerceCoordinator.PlaceAsync(player.PlayerAccountId, request, ct);
             return ToHttpResult(result);
         }).RequireRateLimiting("player-me");
 
@@ -73,12 +74,12 @@ internal static class PlayerShopEndpoints
         app.MapPost("/api/me/shop/orders/{orderId:guid}/cancel", async (
             Guid orderId,
             IPlayerContextAccessor playerContextAccessor,
-            IShopOrderService shopOrderService,
+            IShopCommerceCoordinator commerceCoordinator,
             CancellationToken ct) =>
         {
             var player = playerContextAccessor.Current;
             if (player is null) return Results.Unauthorized();
-            var result = await shopOrderService.CancelByPlayerAsync(player.PlayerAccountId, orderId, ct);
+            var result = await commerceCoordinator.CancelByPlayerAsync(player.PlayerAccountId, orderId, ct);
             return ToHttpResult(result);
         }).RequireRateLimiting("player-me");
     }

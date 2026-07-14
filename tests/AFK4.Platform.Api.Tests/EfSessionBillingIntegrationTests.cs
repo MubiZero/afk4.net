@@ -723,13 +723,17 @@ public sealed class EfSessionBillingIntegrationTests
     {
         var timeProvider = new FixedTimeProvider(Now);
         var shiftService = new EfShiftService(db, timeProvider);
+        var leaseSigner = new FakeSessionLeaseSigner();
+        var billing = new SessionBillingService(db, new EfTariffService(db, timeProvider), shiftService, timeProvider);
+        var lifecycleNotifier = new RecordingSessionLifecycleNotifier();
         return new EfSessionCommandService(
             db,
             dispatcher,
-            new FakeSessionLeaseSigner(),
+            leaseSigner,
             timeProvider,
-            new SessionBillingService(db, new EfTariffService(db, timeProvider), shiftService, timeProvider),
-            new RecordingSessionLifecycleNotifier());
+            billing,
+            lifecycleNotifier,
+            new EfSessionStartWorkflow(db, dispatcher, leaseSigner, timeProvider, billing, lifecycleNotifier));
     }
 
     private static async Task SeedLayoutAsync(PlatformDbContext db)
@@ -975,7 +979,7 @@ public sealed class EfSessionBillingIntegrationTests
         {
             if (requireGameplayChargeBeforeDispatch)
             {
-                Assert.Contains(dbContext.LedgerEntries, entry =>
+                Assert.Contains(dbContext.ChangeTracker.Entries<LedgerEntryEntity>().Select(entry => entry.Entity), entry =>
                     entry.EntryType == LedgerEntryTypeNames.GameplayCharge &&
                     entry.AccountType == LedgerAccountTypeNames.Wallet &&
                     entry.AmountMinorUnits < 0);

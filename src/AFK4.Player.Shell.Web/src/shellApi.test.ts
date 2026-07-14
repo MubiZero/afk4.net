@@ -49,14 +49,17 @@ describe('shellApi shop methods', () => {
     expect(catalog[0].name).toBe('Cola');
   });
 
-  it('placeShopOrder POSTs the lines', async () => {
+  it('posts a caller supplied shop order idempotency key', async () => {
     let seenBody = '';
     const api = createShellApi('https://api.test', async (_url, init) => {
       seenBody = String(init?.body ?? '');
       return new Response(JSON.stringify({ id: 'o1', status: 'placed' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     });
-    await api.placeShopOrder([{ productId: 'p1', quantity: 2 }]);
-    expect(JSON.parse(seenBody)).toEqual({ lines: [{ productId: 'p1', quantity: 2 }] });
+    await api.placeShopOrder([{ productId: 'p1', quantity: 2 }], 'shop-gesture-1');
+    expect(JSON.parse(seenBody)).toEqual({
+      lines: [{ productId: 'p1', quantity: 2 }],
+      idempotencyKey: 'shop-gesture-1'
+    });
   });
 
   it('surfaces the server error code on 409', async () => {

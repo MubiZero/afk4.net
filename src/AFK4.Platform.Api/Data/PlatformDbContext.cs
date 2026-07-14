@@ -670,6 +670,13 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(order => order.Version).IsConcurrencyToken();
             entity.HasIndex(order => new { order.BranchId, order.Status });
             entity.HasIndex(order => new { order.PlayerAccountId, order.PlacedAtUtc });
+            entity.HasOne<PosSaleEntity>()
+                .WithOne()
+                .HasForeignKey<ShopOrderEntity>(order => order.PosSaleId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(order => order.PosSaleId)
+                .IsUnique()
+                .HasFilter("\"PosSaleId\" IS NOT NULL");
         });
 
         modelBuilder.Entity<ShopOrderLineEntity>(entity =>
@@ -720,6 +727,11 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(payment => payment.Note).HasMaxLength(512).IsRequired();
             entity.HasIndex(payment => new { payment.PosSaleId, payment.CreatedAtUtc });
             entity.HasIndex(payment => new { payment.SessionId, payment.CreatedAtUtc });
+            entity.HasIndex(payment => payment.LedgerEntryId).IsUnique();
+            entity.HasOne<LedgerEntryEntity>()
+                .WithMany()
+                .HasForeignKey(payment => payment.LedgerEntryId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ReceiptEntity>(entity =>
@@ -829,6 +841,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(reservation => reservation.Source).HasMaxLength(32).IsRequired();
             entity.Property(reservation => reservation.Note).HasMaxLength(512).IsRequired();
             entity.Property(reservation => reservation.CancelReason).HasMaxLength(512).IsRequired();
+            entity.Property(reservation => reservation.Version).IsConcurrencyToken();
             entity.HasIndex(reservation => new
             {
                 reservation.OrganizationId,
@@ -850,6 +863,13 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 reservation.State,
                 reservation.StartsAtUtc
             });
+            entity.HasIndex(reservation => reservation.StartedSessionId)
+                .IsUnique()
+                .HasFilter("\"StartedSessionId\" IS NOT NULL");
+            entity.HasOne<SessionEntity>()
+                .WithOne()
+                .HasForeignKey<ReservationEntity>(reservation => reservation.StartedSessionId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<PaymentIntentEntity>(entity =>

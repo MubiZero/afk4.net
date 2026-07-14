@@ -18,6 +18,35 @@ public sealed class EfInventoryServiceTests
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-05-13T14:00:00Z");
 
     [Fact]
+    public void MovingWeightedAverage_UsesCurrentCarryingValueAndInboundValue()
+    {
+        Assert.Equal(550, EfInventoryCostService.MovingWeightedAverage(10, 400, 30, 600));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public async Task ReconcileInboundAsync_RejectsNonPositiveQuantity(int quantity)
+    {
+        await using var db = CreateDbContext();
+        var inventoryService = CreateService(db);
+        var product = await CreateTrackedProductAsync(inventoryService);
+        var costService = new EfInventoryCostService(db);
+
+        var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            costService.ReconcileInboundAsync(
+                TestIds.OrganizationId,
+                TestIds.BranchId,
+                product.ProductId,
+                quantity,
+                "TJS",
+                500,
+                CancellationToken.None));
+
+        Assert.Equal("quantity", exception.ParamName);
+    }
+
+    [Fact]
     public async Task CreateCategoryAsync_CreatesUniqueBranchCategoryAndIsIdempotent()
     {
         await using var db = CreateDbContext();
@@ -195,6 +224,38 @@ public sealed class EfInventoryServiceTests
     }
 
     [Fact]
+    public async Task UpdateProductAsync_CurrencyChangeAfterInventoryHistory_ReturnsStableErrorAndPreservesProduct()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var product = await CreateTrackedProductAsync(service);
+        await service.CreateStockMovementAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            StockMovement(product.ProductId, StockMovementTypeNames.Purchase, 5, "stock-currency-lock"),
+            CancellationToken.None);
+
+        var result = await service.UpdateProductAsync(
+            TestIds.BranchId,
+            product.ProductId,
+            ActorStaffUserId,
+            new UpdateProductRequest(
+                TestIds.OrganizationId,
+                product.CategoryId,
+                product.Name,
+                product.Sku,
+                new MoneyDto("USD", product.Price.MinorUnits),
+                TrackStock: true,
+                AllowNegativeStock: false,
+                IsActive: true),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("product_currency_immutable", result.Error);
+        Assert.Equal("TJS", (await db.PosProducts.SingleAsync()).CurrencyCode);
+    }
+
+    [Fact]
     public async Task UpdateProductAsync_RejectsDuplicateSku()
     {
         await using var db = CreateDbContext();
@@ -257,6 +318,25 @@ public sealed class EfInventoryServiceTests
         Assert.NotNull(stock.Response);
         Assert.Equal(24, stock.Response.StockOnHand);
         Assert.Single(await db.StockMovements.ToListAsync());
+    }
+
+    [Fact]
+    public async Task CreateStockMovementAsync_RejectsNegativePurchaseQuantity()
+    {
+        await using var db = CreateDbContext();
+        var service = CreateService(db);
+        var product = await CreateTrackedProductAsync(service);
+
+        var result = await service.CreateStockMovementAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            StockMovement(product.ProductId, StockMovementTypeNames.Purchase, -1, "purchase-negative-001"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.Conflict);
+        Assert.Empty(await db.StockMovements.ToListAsync());
+        Assert.Equal(0, (await db.PosProducts.SingleAsync(candidate => candidate.ProductId == product.ProductId)).AvgCostMinorUnits);
     }
 
     [Fact]

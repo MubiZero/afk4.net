@@ -28,8 +28,8 @@ describe('JournalWorkspace', () => {
     view();
     await screen.findAllByText('Cola 0.5');
     expect(screen.getByText('Чипсы Lays')).toBeInTheDocument();
-    // автор движения
-    expect(screen.getAllByText('Олег С.').length).toBeGreaterThan(0);
+    // автор движения — часть строки-детали ui-ledger-detail, ищем подстрокой
+    expect(screen.getAllByText((content) => content.includes('Олег С.')).length).toBeGreaterThan(0);
   });
 
   it('фильтр по типу «Продажа» оставляет только sale', async () => {

@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn, type Mock } from 'bun:test';
 import type { HostBridgeMessageEvent } from './hostBridge';
+import { playersSnapshotCache } from './players/playersSnapshot';
 
 // Рельс сжат в разделы: часть экранов теперь живёт во вкладках слитых разделов (Касса/Отчёты/
 // Управление), а не отдельными кнопками. Этот хелпер открывает нужный экран по его подписи:
@@ -66,6 +67,10 @@ describe('App', () => {
     realtimeMock.clients.length = 0;
     fetchMock = mock(mockPlatformFetch) as unknown as Mock<FetchLike>;
     globalThis.fetch = fetchMock as unknown as typeof fetch;
+    // Снимок клиентов — module-level кэш (переживает размонтирование раздела внутри сессии
+    // приложения), но между тестами branchId один и тот же — без сброса выбор клиента одного
+    // теста «протекает» в следующий (isolation-баг, не связан с текущей задачей).
+    playersSnapshotCache.clear();
   });
 
   afterEach(() => {
@@ -723,7 +728,7 @@ describe('App', () => {
     // Клиент клуба → списание по умолчанию «Депозит» (prepaid_wallet).
     fireEvent.click(within(startDialog).getByRole('tab', { name: 'Клиент клуба' }));
     fireEvent.change(screen.getByLabelText('Игрок для биллинга'), { target: { value: 'Madina' } });
-    fireEvent.click(await screen.findByRole('button', { name: /Madina S\./ }));
+    fireEvent.click(await within(startDialog).findByRole('option', { name: /Madina S\./ }));
     // Биллинг готов → окно показывает превью «Запустим …».
     expect(await screen.findByText('Запустим')).toBeInTheDocument();
 
@@ -862,12 +867,10 @@ describe('App', () => {
     // глобальные метрики базы в шапке: Клиентов / Депозиты / Долги (сумма по базе, не per-client)
     expect(clientsHead).toHaveTextContent('Клиентов');
     expect(clientsHead).toHaveTextContent('Долги');
-    expect(screen.getByText('Список клиентов')).toBeInTheDocument();
-    // master-detail: табы карточки (появляются после загрузки клиентов)
-    expect(await screen.findByRole('tab', { name: 'Кошелёк' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Пакеты' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'История' })).toBeInTheDocument();
-    // кнопка действия на активном табе (Кошелёк)
+    // Таблица + drawer выбранного клиента видны одновременно: тулбар таблицы, зона денег и мини-история.
+    expect(screen.getByRole('button', { name: /Новый клиент/ })).toBeInTheDocument();
+    expect(await screen.findByLabelText('Сумма пополнения')).toBeInTheDocument();
+    expect(screen.getByText('Последние операции')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeInTheDocument();
 
     gotoWorkspace('Смена');
@@ -1150,7 +1153,7 @@ describe('App', () => {
     expect(screen.queryByText('Нет backend событий')).not.toBeInTheDocument();
   });
 
-  it('confirms POS payment only after backend sale and manual payment calls resolve', async () => {
+  it('confirms POS payment only after backend sale and settlement calls resolve', async () => {
     installSessionBridge();
 
     render(<App />);
@@ -1179,13 +1182,13 @@ describe('App', () => {
       playerAccountId: null
     });
     const paymentCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/payments/manual') &&
+      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/settlements') &&
       init?.method === 'POST');
     expect(paymentCall).toBeDefined();
     const paymentBody = JSON.parse(String(paymentCall?.[1]?.body));
     expect(paymentBody).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      paymentMethod: 'cash'
+      payments: [{ paymentMethod: 'cash', amount: { currencyCode: 'TJS', minorUnits: 1200 } }]
     });
   });
 
@@ -1224,13 +1227,13 @@ describe('App', () => {
     });
 
     const paymentCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/payments/manual') &&
+      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/settlements') &&
       init?.method === 'POST');
     expect(paymentCall).toBeDefined();
     const paymentBody = JSON.parse(String(paymentCall?.[1]?.body));
     expect(paymentBody).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      paymentMethod: 'card_manual'
+      payments: [{ paymentMethod: 'card_manual', amount: { currencyCode: 'TJS', minorUnits: 1200 } }]
     });
   });
 
@@ -1345,8 +1348,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Клиенты не найдены')).toBeInTheDocument();
     expect(await screen.findByText('По текущему поиску клиентов нет.')).toBeInTheDocument();
-    expect(screen.getByText('Нет выбранного клиента')).toBeInTheDocument();
-    expect(screen.getByText('Пустой ответ сервера не подменяется локальной карточкой')).toBeInTheDocument();
+    // Клиент не выбран → drawer не рендерится, таблица занимает всю ширину. Демо-клиент не подставляется.
     expect(screen.queryByText('Madina S.')).not.toBeInTheDocument();
   });
 
@@ -1563,10 +1565,11 @@ describe('App', () => {
     // Закрываем create-drawer перед открытием detail-drawer.
     fireEvent.click(within(createDrawer).getByRole('button', { name: 'Отмена' }));
 
-    // Клик по блоку брони открывает detail-drawer — все мутационные контролы заблокированы.
+    // Pending сначала нужно подтвердить: старый state-only «Посадить» и Start не показываем.
     fireEvent.click(screen.getByText('Aziz P.'));
     const detailDrawer = await screen.findByRole('dialog', { name: 'Бронь' });
-    expect(within(detailDrawer).getByRole('button', { name: 'Посадить' })).toBeDisabled();
+    expect(within(detailDrawer).queryByRole('button', { name: 'Посадить' })).toBeNull();
+    expect(within(detailDrawer).queryByRole('button', { name: 'Начать сессию' })).toBeNull();
     // «Перенести на место» — select, а не button; проверяем его disabled.
     expect(within(detailDrawer).getByRole('combobox')).toBeDisabled();
     expect(within(detailDrawer).getByRole('button', { name: 'Отменить' })).toBeDisabled();
@@ -1583,9 +1586,10 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     expect((await screen.findAllByText('Madina S.')).length).toBeGreaterThan(0);
-    const createReservationButton = screen.getByRole('button', { name: 'Бронь' });
-    await waitFor(() => expect(createReservationButton).toBeEnabled());
-    fireEvent.click(createReservationButton);
+    // Бронь живёт в меню «…» drawer'а выбранного клиента (по умолчанию — первый, Madina S.).
+    fireEvent.click(await screen.findByRole('button', { name: 'Действия с клиентом' }));
+    const bookingItem = await screen.findByRole('menuitem', { name: /Создать бронь/ });
+    fireEvent.click(bookingItem);
 
     expect(await screen.findByText('Создать бронь: подтверждено')).toBeInTheDocument();
     const reservationCall = fetchMock.mock.calls.find(([input, init]) =>
@@ -1612,50 +1616,9 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
 
-    expect(await screen.findByRole('button', { name: 'Бронь' })).toBeDisabled();
-  });
-
-  it('purchases a backend package from the selected client card', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByTitle('Клиенты'));
-    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole('tab', { name: 'Пакеты' }));
-    await waitFor(() => expect(screen.getByRole('button', { name: /Купить пакет/ })).toBeEnabled());
-    fireEvent.change(await screen.findByLabelText('Пакет для покупки'), { target: { value: 'cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd' } });
-    const purchasePackageButton = await screen.findByRole('button', { name: /Купить пакет/ });
-    await waitFor(() => expect(purchasePackageButton).toBeEnabled());
-    fireEvent.click(purchasePackageButton);
-
-    expect(await screen.findByText('Купить пакет: подтверждено')).toBeInTheDocument();
-    const purchaseCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/packages/purchases') &&
-      init?.method === 'POST');
-    expect(purchaseCall).toBeDefined();
-    const body = JSON.parse(String(purchaseCall?.[1]?.body));
-    expect(body).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      packageDefinitionId: 'cdcdcdcd-cdcd-cdcd-cdcd-cdcdcdcdcdcd'
-    });
-    expect(body.idempotencyKey).toMatch(/^package-purchase-/);
-  });
-
-  it('shows active backend packages on the selected client profile', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByTitle('Клиенты'));
-    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole('tab', { name: 'Пакеты' }));
-    expect(await screen.findByText(/180 мин в пакете/)).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/packages') &&
-      init?.method !== 'POST')).toBe(true);
+    // Без права reservations.manage пункт «Создать бронь» не появляется в меню drawer'а.
+    fireEvent.click(await screen.findByRole('button', { name: 'Действия с клиентом' }));
+    expect(screen.queryByRole('menuitem', { name: /Создать бронь/ })).toBeNull();
   });
 
   it('tops up the selected client wallet from the Clients money form', async () => {
@@ -1667,7 +1630,6 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     fireEvent.change(await screen.findByLabelText('Сумма пополнения'), { target: { value: '123.45' } });
-    fireEvent.change(screen.getByLabelText('Причина пополнения'), { target: { value: 'cash desk deposit' } });
     const topUpWalletButton = screen.getByRole('button', { name: /Пополнить депозит/ });
     await waitFor(() => expect(topUpWalletButton).toBeEnabled());
     fireEvent.click(topUpWalletButton);
@@ -1680,8 +1642,7 @@ describe('App', () => {
     const body = JSON.parse(String(topUpCall?.[1]?.body));
     expect(body).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      amount: { currencyCode: 'TJS', minorUnits: 12345 },
-      reason: 'cash desk deposit'
+      amount: { currencyCode: 'TJS', minorUnits: 12345 }
     });
     expect(body.idempotencyKey).toMatch(/^wallet-top-up-/);
   });
@@ -1696,13 +1657,18 @@ describe('App', () => {
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeEnabled());
     fireEvent.click(await screen.findByRole('button', { name: /Olim K\./ }));
-    fireEvent.change(await screen.findByLabelText('Сумма долга'), { target: { value: '20.00' } });
-    fireEvent.change(screen.getByLabelText('Причина долга'), { target: { value: 'cash debt payment' } });
-    const payDebtButton = screen.getByRole('button', { name: /Списать долг/ });
-    await waitFor(() => expect(payDebtButton).toBeEnabled());
-    fireEvent.click(payDebtButton);
+    const openPayDebtButton = await screen.findByRole('button', { name: 'Списать долг' });
+    await waitFor(() => expect(openPayDebtButton).toBeEnabled());
+    fireEvent.click(openPayDebtButton);
+
+    const payDebtDialog = await screen.findByRole('dialog', { name: 'Погасить долг' });
+    fireEvent.change(within(payDebtDialog).getByLabelText('Сумма долга'), { target: { value: '20.00' } });
+    fireEvent.change(within(payDebtDialog).getByLabelText('Причина долга'), { target: { value: 'cash debt payment' } });
+    fireEvent.click(within(payDebtDialog).getByRole('button', { name: 'Списать долг' }));
 
     expect(await screen.findByText('Списать долг: подтверждено')).toBeInTheDocument();
+    // модалка закрывается сама на успехе
+    expect(screen.queryByRole('dialog', { name: 'Погасить долг' })).toBeNull();
     const debtCall = fetchMock.mock.calls.find(([input, init]) =>
       String(input).includes('/api/players/34343434-3434-3434-3434-343434343434/debts/payments') &&
       init?.method === 'POST');
@@ -1714,6 +1680,59 @@ describe('App', () => {
       reason: 'cash debt payment'
     });
     expect(body.idempotencyKey).toMatch(/^debt-payment-/);
+  });
+
+  it('tops up the wallet with the localized default reason when the reason field is left blank (§7.5 regression)', async () => {
+    installSessionBridge();
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Клиенты'));
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText('Сумма пополнения'), { target: { value: '50.00' } });
+    // Причина остаётся пустой — только плейсхолдер (§7.5). Один клик не должен блокироваться.
+    const topUpWalletButton = screen.getByRole('button', { name: /Пополнить депозит/ });
+    await waitFor(() => expect(topUpWalletButton).toBeEnabled());
+    fireEvent.click(topUpWalletButton);
+
+    expect(await screen.findByText('Пополнить депозит: подтверждено')).toBeInTheDocument();
+    const topUpCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/wallet/top-ups') &&
+      init?.method === 'POST');
+    expect(topUpCall).toBeDefined();
+    const body = JSON.parse(String(topUpCall?.[1]?.body));
+    expect(body.reason).toBe('пополнение через кассу');
+  });
+
+  it('pays debt with the localized default reason when the reason field is left blank (§7.5 regression)', async () => {
+    installSessionBridge();
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Клиенты'));
+    expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('button', { name: /Пополнить депозит/ })).toBeEnabled());
+    fireEvent.click(await screen.findByRole('button', { name: /Olim K\./ }));
+    const openPayDebtButton = await screen.findByRole('button', { name: 'Списать долг' });
+    await waitFor(() => expect(openPayDebtButton).toBeEnabled());
+    fireEvent.click(openPayDebtButton);
+
+    const payDebtDialog = await screen.findByRole('dialog', { name: 'Погасить долг' });
+    fireEvent.change(within(payDebtDialog).getByLabelText('Сумма долга'), { target: { value: '20.00' } });
+    // Причина остаётся пустой — только плейсхолдер (§7.5). Один клик не должен блокироваться.
+    const payDebtButton = within(payDebtDialog).getByRole('button', { name: 'Списать долг' });
+    await waitFor(() => expect(payDebtButton).toBeEnabled());
+    fireEvent.click(payDebtButton);
+
+    expect(await screen.findByText('Списать долг: подтверждено')).toBeInTheDocument();
+    const debtCall = fetchMock.mock.calls.find(([input, init]) =>
+      String(input).includes('/api/players/34343434-3434-3434-3434-343434343434/debts/payments') &&
+      init?.method === 'POST');
+    expect(debtCall).toBeDefined();
+    const body = JSON.parse(String(debtCall?.[1]?.body));
+    expect(body.reason).toBe('оплата долга через кассу');
   });
 
   it('creates a backend player from the Clients new card form', async () => {
@@ -1753,16 +1772,18 @@ describe('App', () => {
     fireEvent.click(screen.getByTitle('Клиенты'));
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
 
-    fireEvent.click(await screen.findByRole('tab', { name: 'История' }));
+    // Журнал грузится сразу для выбранного клиента (drawer показывает мини-историю); источник — /ledger,
+    // не recentEntries из wallet-summary.
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) =>
+      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/ledger'))).toBe(true));
 
-    // первая запись журнала из /ledger (top_up) — описание видно
-    expect(await screen.findByText(/Пополнение кошелька/)).toBeInTheDocument();
-    // источник — именно /ledger, не recentEntries из wallet-summary
-    expect(fetchMock.mock.calls.some(([input]) =>
-      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/ledger'))).toBe(true);
+    // «Вся история →» открывает модалку с полным фильтруемым журналом (описание видно, non-compact).
+    fireEvent.click(await screen.findByRole('button', { name: /Вся история/ }));
+    const historyDialog = await screen.findByRole('dialog', { name: 'Вся история' });
+    expect(await within(historyDialog).findByText(/Пополнение кошелька/)).toBeInTheDocument();
 
     // фильтр по типу top_up → перезапрос /ledger?entryType=top_up
-    fireEvent.click(screen.getByRole('button', { name: 'Пополнение' }));
+    fireEvent.click(within(historyDialog).getByRole('button', { name: 'Пополнение' }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([input]) =>
       String(input).includes('/ledger') && String(input).includes('entryType=top_up'))).toBe(true));
   });
@@ -2643,7 +2664,7 @@ describe('App', () => {
     await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
 
     gotoWorkspace('Журнал кассы');
-    expect(await screen.findByRole('heading', { name: /Операции и проверка/ })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Кассовые операции' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'Проверка' }));
     expect(await screen.findByText('Клиент отменил заказ')).toBeInTheDocument();
   });
@@ -2933,7 +2954,7 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createPosSale('draft'));
   }
 
-  if (pathname.includes('/payments/manual')) {
+  if (pathname.includes('/payments/manual') || pathname.endsWith('/settlements')) {
     return jsonResponse(createPosSale('paid'));
   }
 
@@ -3003,11 +3024,6 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/profile')) {
     return jsonResponse(createBranchProfile());
-  }
-
-  if (pathname.includes('/players/') && pathname.endsWith('/packages/purchases')) {
-    const body = JSON.parse(String(init?.body));
-    return jsonResponse(createPlayerPackage(body));
   }
 
   if (pathname.includes('/branches/') && !pathname.includes('/updates/') && pathname.includes('/packages/') && init?.method === 'PATCH') {

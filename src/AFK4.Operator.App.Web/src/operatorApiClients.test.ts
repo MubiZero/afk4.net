@@ -7,7 +7,9 @@ import {
   type ExtendSessionRequest,
   type ManualPaymentRequest,
   type OpenShiftRequest,
+  type SettlePosSaleRequest,
   type StartGuestSessionRequest,
+  type StartReservationSessionRequest,
   type TransferSessionRequest
 } from './operatorApiClients';
 import { PlatformApiClient } from './platformApi';
@@ -172,6 +174,26 @@ describe('operator API clients', () => {
     });
   });
 
+  it('posts multipart POS settlements to the settlement route', async () => {
+    const { clients, calls } = createRecordedClients();
+    const request: SettlePosSaleRequest = {
+      organizationId,
+      payments: [
+        { paymentMethod: 'wallet', amount: { currencyCode: 'TJS', minorUnits: 4000 } },
+        { paymentMethod: 'cash', amount: { currencyCode: 'TJS', minorUnits: 6000 } }
+      ],
+      note: 'operator POS checkout',
+      idempotencyKey: 'pos-settle-1'
+    };
+
+    await clients.pos.settleSale(saleId, request);
+
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      `POST /api/pos/sales/${saleId}/settlements`
+    ]);
+    expect(calls[0].body).toEqual(request);
+  });
+
   it('returns null for no current shift', async () => {
     const { clients } = createRecordedClients((url) => {
       if (url.pathname.endsWith('/shifts/current')) {
@@ -198,12 +220,22 @@ describe('operator API clients', () => {
     };
     const updateRequest = {
       organizationId,
+      expectedVersion: 4,
       seatId,
       customerName: 'Aziz Prime',
       startsAtUtc: '2026-05-21T17:00:00.000Z',
       durationMinutes: 90,
       source: 'operator',
       note: 'moved'
+    };
+    const startSessionRequest: StartReservationSessionRequest = {
+      organizationId,
+      expectedVersion: 8,
+      tariffRuleVersionId: 'standard-v1',
+      idempotencyKey: 'reservation-start-1',
+      durationMode: 'fixed',
+      durationMinutes: 60,
+      billingMode: ''
     };
 
     await clients.reservations.search(branchId, {
@@ -214,9 +246,10 @@ describe('operator API clients', () => {
     });
     await clients.reservations.create(branchId, createRequest);
     await clients.reservations.update(reservationId, updateRequest);
-    await clients.reservations.confirm(reservationId, { organizationId });
-    await clients.reservations.seat(reservationId, { organizationId });
-    await clients.reservations.cancel(reservationId, { organizationId, reason: 'client called' });
+    await clients.reservations.confirm(reservationId, { organizationId, expectedVersion: 5 });
+    await clients.reservations.seat(reservationId, { organizationId, expectedVersion: 6 });
+    await clients.reservations.cancel(reservationId, { organizationId, reason: 'client called', expectedVersion: 7 });
+    await clients.reservations.startSession(reservationId, startSessionRequest);
 
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
       `GET /api/branches/${branchId}/reservations?fromUtc=2026-05-21T00%3A00%3A00.000Z&toUtc=2026-05-21T23%3A59%3A59.999Z&limit=40&state=confirmed`,
@@ -224,11 +257,15 @@ describe('operator API clients', () => {
       `PATCH /api/reservations/${reservationId}`,
       `POST /api/reservations/${reservationId}/confirm`,
       `POST /api/reservations/${reservationId}/seat`,
-      `POST /api/reservations/${reservationId}/cancel`
+      `POST /api/reservations/${reservationId}/cancel`,
+      `POST /api/reservations/${reservationId}/start-session`
     ]);
     expect(calls[1].body).toEqual(createRequest);
     expect(calls[2].body).toEqual(updateRequest);
-    expect(calls[5].body).toEqual({ organizationId, reason: 'client called' });
+    expect(calls[3].body).toEqual({ organizationId, expectedVersion: 5 });
+    expect(calls[4].body).toEqual({ organizationId, expectedVersion: 6 });
+    expect(calls[5].body).toEqual({ organizationId, reason: 'client called', expectedVersion: 7 });
+    expect(calls[6].body).toEqual(startSessionRequest);
   });
 
   it('maps settings, device, diagnostics, updates, and audit clients', async () => {

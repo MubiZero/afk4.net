@@ -71,6 +71,58 @@ public sealed class EfReportServiceTests
     }
 
     [Fact]
+    public async Task MixedPaymentRefund_ReportsCashAndSaleEconomicsWithoutDoubleCounting()
+    {
+        await using var db = CreateDbContext();
+        var shiftId = Guid.NewGuid();
+        var saleId = Guid.NewGuid();
+        SeedShift(db, shiftId, ShiftStateNames.Closed, ReportDay.AddHours(9), countedCash: 50_000);
+        SeedSale(
+            db,
+            saleId,
+            shiftId,
+            PosSaleStateNames.Refunded,
+            10_000,
+            ReportDay.AddHours(11),
+            refundedAtUtc: ReportDay.AddHours(12));
+        SeedSaleLine(db, saleId, quantity: 2, lineTotal: 10_000, unitCostMinorUnits: 1_500);
+        SeedPayment(db, shiftId, saleId, PaymentMethodNames.Wallet, "payment", 4_000);
+        SeedPayment(db, shiftId, saleId, PaymentMethodNames.Cash, "payment", 6_000);
+        SeedPayment(db, shiftId, saleId, PaymentMethodNames.Wallet, "refund", -4_000);
+        SeedPayment(db, shiftId, saleId, PaymentMethodNames.Cash, "refund", -6_000);
+        await db.SaveChangesAsync();
+
+        var service = new EfReportService(db);
+        var query = new ReportSearchQuery(ReportDay, ReportDay.AddDays(1), 10);
+        var shiftReport = await service.GetShiftReportAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            query,
+            CancellationToken.None);
+        var salesReport = await service.GetSalesReportAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            query,
+            CancellationToken.None);
+
+        var shift = Assert.Single(shiftReport.Rows);
+        Assert.Equal(6_000, shift.PosCashPaymentsTotal.MinorUnits);
+        Assert.Equal(-6_000, shift.PosRefundsTotal.MinorUnits);
+        Assert.Equal(50_000, shift.ExpectedCash.MinorUnits);
+
+        var sale = Assert.Single(salesReport.Rows);
+        Assert.Equal(10_000, sale.PaidAmount.MinorUnits);
+        Assert.Equal(-10_000, sale.RefundAmount.MinorUnits);
+        Assert.Equal(3_000, sale.GrossCostOfGoods.MinorUnits);
+        Assert.Equal(-3_000, sale.RefundedCostOfGoods.MinorUnits);
+        Assert.Equal(0, sale.NetCostOfGoods.MinorUnits);
+        Assert.Equal(10_000, salesReport.GrossSalesTotal.MinorUnits);
+        Assert.Equal(-10_000, salesReport.RefundsTotal.MinorUnits);
+        Assert.Equal(3_000, salesReport.GrossCostOfGoodsTotal.MinorUnits);
+        Assert.Equal(-3_000, salesReport.RefundedCostOfGoodsTotal.MinorUnits);
+    }
+
+    [Fact]
     public async Task GetSalesReportAsync_ReturnsRowsAndTotalsForBranch()
     {
         await using var db = CreateDbContext();
@@ -82,8 +134,8 @@ public sealed class EfReportServiceTests
         SeedSale(db, refundedSaleId, shiftId, PosSaleStateNames.Refunded, 2400, ReportDay.AddHours(11), refundedAtUtc: ReportDay.AddHours(12));
         SeedSale(db, paidSaleId, shiftId, PosSaleStateNames.Paid, 5000, ReportDay.AddHours(13));
         SeedSale(db, Guid.Parse("cccccccc-cccc-4ccc-cccc-cccccccccccc"), shiftId, PosSaleStateNames.Paid, 9999, ReportDay.AddHours(14), OtherBranchId);
-        SeedSaleLine(db, refundedSaleId, quantity: 2, lineTotal: 2400);
-        SeedSaleLine(db, paidSaleId, quantity: 1, lineTotal: 5000);
+        SeedSaleLine(db, refundedSaleId, quantity: 2, lineTotal: 2400, unitCostMinorUnits: 400);
+        SeedSaleLine(db, paidSaleId, quantity: 1, lineTotal: 5000, unitCostMinorUnits: 1500);
         SeedPayment(db, refundedSaleId, refundedSaleId, PaymentMethodNames.Cash, "payment", 2400);
         SeedPayment(db, refundedSaleId, refundedSaleId, PaymentMethodNames.Cash, "refund", -2400);
         SeedPayment(db, paidSaleId, paidSaleId, PaymentMethodNames.CardManual, "payment", 5000);
@@ -99,6 +151,9 @@ public sealed class EfReportServiceTests
         Assert.Equal(7400, result.GrossSalesTotal.MinorUnits);
         Assert.Equal(-2400, result.RefundsTotal.MinorUnits);
         Assert.Equal(5000, result.NetSalesTotal.MinorUnits);
+        Assert.Equal(2300, result.GrossCostOfGoodsTotal.MinorUnits);
+        Assert.Equal(-800, result.RefundedCostOfGoodsTotal.MinorUnits);
+        Assert.Equal(1500, result.NetCostOfGoodsTotal.MinorUnits);
         Assert.Collection(
             result.Rows,
             first =>
@@ -106,6 +161,9 @@ public sealed class EfReportServiceTests
                 Assert.Equal(paidSaleId, first.PosSaleId);
                 Assert.Equal(5000, first.PaidAmount.MinorUnits);
                 Assert.Equal(1, first.ItemQuantity);
+                Assert.Equal(1500, first.GrossCostOfGoods.MinorUnits);
+                Assert.Equal(0, first.RefundedCostOfGoods.MinorUnits);
+                Assert.Equal(1500, first.NetCostOfGoods.MinorUnits);
             },
             second =>
             {
@@ -113,7 +171,93 @@ public sealed class EfReportServiceTests
                 Assert.Equal(2400, second.PaidAmount.MinorUnits);
                 Assert.Equal(-2400, second.RefundAmount.MinorUnits);
                 Assert.Equal(2, second.ItemQuantity);
+                Assert.Equal(800, second.GrossCostOfGoods.MinorUnits);
+                Assert.Equal(-800, second.RefundedCostOfGoods.MinorUnits);
+                Assert.Equal(0, second.NetCostOfGoods.MinorUnits);
             });
+    }
+
+    [Fact]
+    public async Task GetSalesReportAsync_LineCurrencyDiffersFromSale_FailsClosed()
+    {
+        await using var db = CreateDbContext();
+        var saleId = Guid.NewGuid();
+        var shiftId = Guid.NewGuid();
+        SeedSale(db, saleId, shiftId, PosSaleStateNames.Paid, 5000, ReportDay.AddHours(13));
+        SeedSaleLine(
+            db,
+            saleId,
+            quantity: 1,
+            lineTotal: 5000,
+            unitCostMinorUnits: 1500,
+            currencyCode: "USD");
+        await db.SaveChangesAsync();
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new EfReportService(db).GetSalesReportAsync(
+                TestIds.OrganizationId,
+                TestIds.BranchId,
+                new ReportSearchQuery(ReportDay, ReportDay.AddDays(1), 1),
+                CancellationToken.None));
+
+        Assert.Contains("line currency", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(saleId.ToString("D"), exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GetSalesReportAsync_RangeContainsMultipleSaleCurrencies_FailsClosed()
+    {
+        await using var db = CreateDbContext();
+        var shiftId = Guid.NewGuid();
+        SeedSale(db, Guid.NewGuid(), shiftId, PosSaleStateNames.Paid, 5000, ReportDay.AddHours(13));
+        SeedSale(
+            db,
+            Guid.NewGuid(),
+            shiftId,
+            PosSaleStateNames.Paid,
+            6000,
+            ReportDay.AddHours(14),
+            currencyCode: "USD");
+        await db.SaveChangesAsync();
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new EfReportService(db).GetSalesReportAsync(
+                TestIds.OrganizationId,
+                TestIds.BranchId,
+                new ReportSearchQuery(ReportDay, ReportDay.AddDays(1), 1),
+                CancellationToken.None));
+
+        Assert.Contains("multiple currencies", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("TJS", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("USD", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GetSalesReportAsync_PaymentCurrencyDiffersFromSale_FailsClosed()
+    {
+        await using var db = CreateDbContext();
+        var saleId = Guid.NewGuid();
+        var shiftId = Guid.NewGuid();
+        SeedSale(db, saleId, shiftId, PosSaleStateNames.Paid, 5000, ReportDay.AddHours(13));
+        SeedPayment(
+            db,
+            shiftId,
+            saleId,
+            PaymentMethodNames.CardManual,
+            "payment",
+            5000,
+            currencyCode: "USD");
+        await db.SaveChangesAsync();
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            new EfReportService(db).GetSalesReportAsync(
+                TestIds.OrganizationId,
+                TestIds.BranchId,
+                new ReportSearchQuery(ReportDay, ReportDay.AddDays(1), 10),
+                CancellationToken.None));
+
+        Assert.Contains("payment currency", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(saleId.ToString("D"), exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -467,7 +611,8 @@ public sealed class EfReportServiceTests
         long totalMinorUnits,
         DateTimeOffset createdAtUtc,
         Guid? branchId = null,
-        DateTimeOffset? refundedAtUtc = null)
+        DateTimeOffset? refundedAtUtc = null,
+        string currencyCode = "TJS")
     {
         db.PosSales.Add(new PosSaleEntity
         {
@@ -477,7 +622,7 @@ public sealed class EfReportServiceTests
             ShiftId = shiftId,
             CreatedByStaffUserId = ActorStaffUserId,
             State = state,
-            CurrencyCode = "TJS",
+            CurrencyCode = currencyCode,
             TotalMinorUnits = totalMinorUnits,
             RefundReason = state == PosSaleStateNames.Refunded ? "returned" : string.Empty,
             VoidReason = string.Empty,
@@ -492,7 +637,9 @@ public sealed class EfReportServiceTests
         PlatformDbContext db,
         Guid saleId,
         int quantity,
-        long lineTotal)
+        long lineTotal,
+        long unitCostMinorUnits,
+        string currencyCode = "TJS")
     {
         db.PosSaleLines.Add(new PosSaleLineEntity
         {
@@ -501,10 +648,11 @@ public sealed class EfReportServiceTests
             ProductId = Guid.NewGuid(),
             ProductName = "Energy drink",
             Quantity = quantity,
-            CurrencyCode = "TJS",
+            CurrencyCode = currencyCode,
             UnitPriceMinorUnits = lineTotal / quantity,
+            UnitCostMinorUnits = unitCostMinorUnits,
             LineTotalMinorUnits = lineTotal,
-            TrackStock = true,
+            TracksStock = true,
             AllowNegativeStock = false
         });
     }
@@ -516,7 +664,8 @@ public sealed class EfReportServiceTests
         string paymentMethod,
         string paymentKind,
         long amountMinorUnits,
-        DateTimeOffset? createdAtUtc = null)
+        DateTimeOffset? createdAtUtc = null,
+        string currencyCode = "TJS")
     {
         db.Payments.Add(new PaymentEntity
         {
@@ -529,7 +678,7 @@ public sealed class EfReportServiceTests
             PaymentKind = paymentKind,
             Provider = "manual",
             PaymentMethod = paymentMethod,
-            CurrencyCode = "TJS",
+            CurrencyCode = currencyCode,
             AmountMinorUnits = amountMinorUnits,
             Note = "report seed",
             CreatedAtUtc = createdAtUtc ?? ReportDay.AddHours(12)

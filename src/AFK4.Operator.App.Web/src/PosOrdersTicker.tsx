@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { Check, HandPlatter, X } from 'lucide-react';
+import { Check, ChevronRight, HandPlatter } from 'lucide-react';
 import { createAuthenticatedOperatorClients, formatMinorUnits } from './operatorHelpers';
-import { createOperatorRealtimeClient } from './operatorRealtime';
+import { createOperatorRealtimeClient, createPreviewOperatorRealtimeClient } from './operatorRealtime';
 import { projectOperatorError } from './apiErrors';
 import type { OperatorBackendContext } from './operatorTypes';
 import type { ShopOrderDto } from './operatorApiClients';
@@ -57,7 +57,10 @@ export function PosOrdersTicker({ backend }: { backend: OperatorBackendContext |
       .then((queue) => { if (!disposed) setOrders(sortByPlacedAt(queue.filter((order) => isOpenStatus(order.status)))); })
       .catch((error) => { if (!disposed) { setOrders([]); setLoadError(projectOperatorError(error, t).detail); } });
 
-    const realtime = createOperatorRealtimeClient({
+    const createRealtimeClient = backend.config.shellMode === 'vite-dev-preview'
+      ? createPreviewOperatorRealtimeClient
+      : createOperatorRealtimeClient;
+    const realtime = createRealtimeClient({
       baseUrl: backend.config.platformBaseUrl,
       getAccessToken: () => backend.session.accessToken,
       onDeviceStatusChanged: () => {},
@@ -183,19 +186,11 @@ export function PosOrdersTicker({ backend }: { backend: OperatorBackendContext |
                 <span className="pos-order-dot" aria-hidden="true" />
                 <span className="pos-order-seat">{order.seatId}</span>
                 <span className="pos-order-items">{chipSummary(order)}</span>
-              </button>
-              {order.status === 'placed' && (
-                <button type="button" className="pos-order-act" onClick={runAction(order, 'accept')}>
-                  <Check size={13} aria-hidden="true" />{t('op.shopOrders.accept')}
-                </button>
-              )}
-              {order.status === 'accepted' && (
-                <button type="button" className="pos-order-act" onClick={runAction(order, 'deliver')}>
-                  <HandPlatter size={13} aria-hidden="true" />{t('op.shopOrders.deliver')}
-                </button>
-              )}
-              <button type="button" className="pos-order-cancel" aria-label={t('op.shopOrders.cancel')} onClick={runAction(order, 'cancel')}>
-                <X size={13} aria-hidden="true" />
+                <ChevronRight
+                  className={`pos-order-chevron${popover?.id === order.id ? ' is-expanded' : ''}`}
+                  size={14}
+                  aria-hidden="true"
+                />
               </button>
             </li>
           ))}

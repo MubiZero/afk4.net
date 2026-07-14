@@ -242,7 +242,9 @@ export function useFloorMap({
         playerAccountId: billing.playerAccountId ?? null,
         billingMode: billing.mode === 'guest' ? '' : billing.mode,
         tariffVersionId: billing.tariffVersionId ?? null,
-        playerPackageId: billing.playerPackageId ?? null
+        playerPackageId: billing.playerPackageId ?? null,
+        isComp: request.isComp ?? false,
+        compReason: request.compReason ?? null
       });
     } else if (request.type === 'extend') {
       if (!hasPermission(session, permissionNames.extendSession)) {

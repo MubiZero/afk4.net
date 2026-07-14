@@ -5,20 +5,23 @@
 - [Auto-merge authorized](afk4-auto-merge-authorized.md) — мержить слайс-PR самому после зелёного CI (PR #109 и последующие); полный цикл слайса автономен.
 - [«Открой превью» = дай ссылку](afk4-preview-means-give-link.md) — `bun run dev` → отдать URL (http://127.0.0.1:5174/), НЕ headless-скриншоты.
 - [TodoWrite → Task tools](tooling-todowrite-is-task-tools.md) — TodoWrite нет; использовать TaskCreate/TaskUpdate/TaskList.
+- [Не использовать opus для агентов](feedback_no_opus_delegation.md) — явный запрет; делегировать на sonnet/haiku.
 
 ## Окружение / тулчейн
 - [Env quirks](afk4-env-quirks.md) — bun полный путь, bun test+build гейты, rtk→/tmp/x.sh, dotnet ef на Linux traps, Coolify runbook, WPF-мост через D:\ clone, agent-test WSL baseline.
 - [Frontends on bun test](frontends-on-bun-test.md) — все фронты на `bun test` (не vitest, happy-dom+jest-dom), `mock.module` течёт process-wide; build=`tsc -b && vite` И тайпчекает тест-файлы (зелёный `bun test` ≠ зелёная сборка → типизировать bun-моки; финал слайса обязан включать `bun run build`).
 - [Coolify reference](coolify-reference.md) — staging cool.mubi.dev, API /api/v1 Bearer; токен в `~/.config/afk4/coolify.token`.
 - [Memory in git](memory-in-git-setup.md) — память версионируется в гите через симлинк/junction на `<repo>/.claude/memory`; новое устройство = clone + пересоздать линк ДО работы (WSL и Windows).
-- [Setup Wizard preview launch](setup-wizard-preview-launch.md) — `dotnet run --project AFK4.SetupWizard -- --preview` + Vite 5175 + env URL; devDeps → `bun install --force`.
+- [Setup Wizard preview launch](setup-wizard-preview-launch.md) — Vite 5175 + env URL + `--preview`; devDeps → `bun install --force`; WSL-WPF-запуск теперь скиллом `operator-wpf-preview` (Оператор+Мастер, не параллельно).
 
 ## Архитектура (инварианты)
 - [Operator app = WebView2+React](afk4-operator-app-webview2.md) — Operator.App = тонкий WPF-хост + React (`AFK4.Operator.App.Web`), Linux-buildable.
 - [Customer shell pivot](afk4-customer-shell-pivot.md) — Player.Shell = WebView2+React, enforcement (lock/lease/kiosk) в Agent.Service; shell не-авторитетен; осталось G5 hardware-smoke + Phase 2 (vault/privacy-wipe).
 - [Platform.Web redesign](platform-web-redesign.md) — money 100×: DTO minor units, `formatCurrency` ждёт MAJOR → `minorToMajor` на UI-границе; org-эндпоинты IDOR-guard через `StaffContext.OrganizationId`; feature-shape (`*Model.ts`+`use*`).
-- [Operator theme & dev-mock](operator-theme-and-preview.md) — `bun run dev` = mock по умолчанию (`?live`=staging); тема в `operatorTheme.tsx` (default dark); акцент оператора **синий #1f6feb**, НЕ бренд-emerald.
+- [Operator theme & dev-mock](operator-theme-and-preview.md) — `bun run dev` = mock по умолчанию (`?live`=staging); тема в `operatorTheme.tsx` (default dark); акцент оператора **emerald #2cc592** (тёмная; #0b9e74 light), НЕ синий — источник `packages/tokens/tokens.css`.
 - [Operator rail sections](operator-rail-sections.md) — рейл = 6 секций+табы (`navSections`); `--shell-tabstrip` в calc-высотах; dev-mock отдаёт `[]` → object-клиенты гардить `?? []`.
+- [Operator surface-иерархия](operator-surface-elevation.md) — светлая тема: глубина = ПОДЪЁМ (белая панель + `--shadow-card`), НЕ затемнение/recessed; floating-panel раскатан на все разделы; не давать тень модалкам/инпутам/вложенному (card-in-card).
+- [Operator feedback = тост](operator-feedback-toast.md) — `useFeedbackToasts` пересоздан заново и раскатан на ВСЕ экраны; `FeedbackNotice` удалён везде, кроме offline-audit очереди на Карте (намеренно).
 - [Monolith refactor blueprint](monolith-refactor.md) — раскладка `Endpoints/`/`App.tsx` (если разбивать ещё); `dotnet format --include` только относительный путь.
 - [API client decomposition](afk4-api-client-decomposition.md) — монорепо сохранён; god-client → domain-sub-client фасад; WPF ViewModels off-limits.
 
@@ -33,6 +36,11 @@
 - [Multi-tenant payments](afk4-multitenant-payments-state.md) — dcgate per-branch; money-path FROZEN внешним bank-bot; `Secrets:EncryptionKeyBase64` критичен (потеря = недешифруемые creds); prod afk4 не задеплоен.
 - [Time handling audit](afk4-time-handling-audit.md) — деньги server-authoritative/безопасны; реальный риск = skew/implicit-tz; рискованный lease/grace rewrite отложен до drift-логов; tz-multiregion YAGNI.
 - [SP4 backlog](afk4-sp4-shipped.md) — SP4 в main; deferred: Player OTP, per-tenant PWA icons, SignalR Redis backplane, G5 hardware-smoke.
+- [Operator UI-полировка Склад/Клиенты](operator-ui-polish-stock-clients.md) — нравятся Карта/Брони/Касса, НЕ нравятся Клиенты+Склад; полировка+раскладка на эталонном UI-kit; **Склад Блок A+B сделаны (не смержены)** + фикс мигания вкладок (keep-alive); затем Клиенты; хотелка: вкладки Кассы «Смена»/«Журнал» сырые.
+- [POS «Последние чеки» + упрощение Кассы](operator-pos-receipts-panel.md) — панель чеков в POS (`useShiftReceipts`); затем **Журнал кассы → единый экран** (Чеки/Проверка убраны), **АНТИ-ФРОД money-action УСЫПЛЁН** (`EfMoneyActionPolicyResolver`→ExecuteNow, обратимо); durable: button-as-row XP-фикс, жир→цвет, IsActive-guard сохранён. Ветка `feat/operator-pos-receipts-panel` (bc42e2dd…499c9809) НЕ смержена.
+- [Operator UI-kit эпик](operator-ui-kit-epic.md) — единый слой атомов `.ui-*`; **S1 Клиенты + S2 Склад в main**; **S3 Касса паритетом (реконсиляция атома) в работе**; далее S4 Карта / S5 Брони.
+- [Клиенты редизайн → таблица+drawer](operator-clients-redesign-tabledrawer.md) — **РЕАЛИЗОВАН**, все 8 задач плана в `feat/operator-clients-center-redesign`; build+тесты зелёные. Открытый пункт: стиль строк таблицы (постфактум).
+- [Статусы клиентов (эпик, бэклог)](operator-client-statuses-epic.md) — хотелка: система кастомных статусов с преференциями (скидки/бонусы/минуты), ручное+авто присвоение, применяется в Кассе/сессиях. Делается ПОСЛЕ редизайна Клиентов; база почти нулевая (только org-wide кэшбэк). НЕ начат.
 
 ## Закрытые эпики (durable-уроки)
 - [Operator «Склад» эпик](afk4-operator-stock-epic.md) — **ЗАКРЫТ ПОЛНОСТЬЮ** (S0 #116 · S1 Приёмка #117 · S2 Журнал #118 · S3 Штрихи #120 · S4 Инвентаризация #121, merge `1c91bf4c`). Durable: lookup штриха КЛИЕНТСКИЙ (нет серверного by-barcode); себест средневзвешенная (пересчёт ТОЛЬКО на purchase, НЕ на adjustment); on-hand=SUM(delta); money price=nested DTO vs avgCost=плоское; useBarcodeScanner=чистый редьюсер+timeMs БЕЗ inline-opts; **инвентаризация: скан=найти+фокус строки (НЕ +1), проведение=идемпотентные adjustment на разницу, markPosted анти-двойное-проведение**; POS-порог per-product `isLowStock` (0=без алертинга); `tsc -b` тайпчекает И тесты И сужения (зелёный bun test ≠ зелёная сборка). Остался POS-долг: авто-кладёт первый товар в чек. Следующий зум-аут: Отчёты / Управление.

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Inventory;
@@ -185,6 +187,50 @@ public sealed class EfPosServiceTests
     }
 
     [Fact]
+    public async Task PaySaleAsync_UsesAverageCostForTrackedLineAndZeroForService()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var tracked = await SeedProductAsync(db, avgCostMinorUnits: 275);
+        var serviceProduct = await SeedProductAsync(db, trackStock: false, avgCostMinorUnits: 999);
+        await SeedStockAsync(db, tracked.ProductId, quantityDelta: 5);
+        var service = CreateService(db);
+        var created = await service.CreateSaleAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new CreatePosSaleRequest(
+                TestIds.OrganizationId,
+                shift.ShiftId,
+                [
+                    new PosSaleLineDto(tracked.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0)),
+                    new PosSaleLineDto(serviceProduct.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))
+                ],
+                "sale-cost-001"),
+            CancellationToken.None);
+        Assert.True(created.Succeeded);
+        Assert.NotNull(created.Response);
+
+        var paid = await service.PaySaleAsync(
+            created.Response.PosSaleId,
+            ActorStaffUserId,
+            ManualPaymentRequest("pay-cost-001", amountMinorUnits: 2400),
+            CancellationToken.None);
+        Assert.True(paid.Succeeded);
+
+        var persistedLines = await db.PosSaleLines.ToListAsync();
+        var trackedLine = persistedLines.Single(line => line.ProductId == tracked.ProductId);
+        var serviceLine = persistedLines.Single(line => line.ProductId == serviceProduct.ProductId);
+        var movements = await db.StockMovements.ToListAsync();
+        var saleMovement = movements.Single(movement =>
+            movement.ProductId == tracked.ProductId && movement.MovementType == StockMovementTypeNames.Sale);
+
+        Assert.Equal(275, trackedLine.UnitCostMinorUnits);
+        Assert.Equal(275, saleMovement.UnitCostMinorUnits);
+        Assert.Equal(0, serviceLine.UnitCostMinorUnits);
+        Assert.DoesNotContain(movements, movement => movement.ProductId == serviceProduct.ProductId);
+    }
+
+    [Fact]
     public async Task PaySaleAsync_StampsBranchPreferredLocaleOnReceipt()
     {
         await using var db = CreateDbContext();
@@ -285,6 +331,65 @@ public sealed class EfPosServiceTests
     }
 
     [Fact]
+    public async Task PaySaleAsync_ReplaysPreExistingLegacyIdempotencyForCommittedSale()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db);
+        var service = CreateService(db);
+        var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
+        var request = ManualPaymentRequest("legacy-pay-001", amountMinorUnits: 2400);
+        var legacyResponse = sale with
+        {
+            State = PosSaleStateNames.Paid,
+            PaidAtUtc = Now
+        };
+        var trackedSale = await db.PosSales.SingleAsync(candidate => candidate.PosSaleId == sale.PosSaleId);
+        trackedSale.State = PosSaleStateNames.Paid;
+        trackedSale.PaidAtUtc = Now;
+        AddLegacyPaymentIdempotency(db, sale, request, legacyResponse);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var replay = await service.PaySaleAsync(
+            sale.PosSaleId,
+            ActorStaffUserId,
+            request,
+            CancellationToken.None);
+
+        Assert.True(replay.Succeeded, replay.Error);
+        Assert.Equal(legacyResponse.PosSaleId, replay.Response!.PosSaleId);
+        Assert.Equal(PosSaleStateNames.Paid, replay.Response.State);
+        Assert.Empty(await db.Payments.AsNoTracking().ToListAsync());
+        Assert.Empty(await db.Receipts.AsNoTracking().ToListAsync());
+    }
+
+    [Fact]
+    public async Task PaySaleAsync_ReusedLegacyKeyForDifferentRequest_PreservesConflict()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db);
+        var service = CreateService(db);
+        var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
+        var original = ManualPaymentRequest("legacy-pay-conflict", amountMinorUnits: 2400);
+        AddLegacyPaymentIdempotency(db, sale, original, sale);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var conflict = await service.PaySaleAsync(
+            sale.PosSaleId,
+            ActorStaffUserId,
+            original with { PaymentMethod = PaymentMethodNames.CardManual },
+            CancellationToken.None);
+
+        Assert.False(conflict.Succeeded);
+        Assert.True(conflict.Conflict);
+        Assert.Equal("Idempotency key was already used for a different request.", conflict.Error);
+        Assert.Empty(await db.Payments.AsNoTracking().ToListAsync());
+    }
+
+    [Fact]
     public async Task RefundSaleAsync_MovesPaidToRefundedAndWritesPositiveStockMovementAndRefundReceipt()
     {
         await using var db = CreateDbContext();
@@ -316,6 +421,228 @@ public sealed class EfPosServiceTests
         var refundMovement = await db.StockMovements.SingleAsync(movement => movement.MovementType == StockMovementTypeNames.Refund);
         Assert.Equal(2, refundMovement.QuantityDelta);
         Assert.Equal(product.ProductId, refundMovement.ProductId);
+    }
+
+    [Fact]
+    public async Task RefundSaleAsync_ReusesOriginalCostAndReconcilesCurrentAverage()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db, avgCostMinorUnits: 400);
+        await SeedStockAsync(db, product.ProductId, quantityDelta: 10);
+        var service = CreateService(db);
+        var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
+        await service.PaySaleAsync(
+            sale.PosSaleId,
+            ActorStaffUserId,
+            ManualPaymentRequest("pay-refund-cost-001", 2400),
+            CancellationToken.None);
+
+        var inventoryService = new EfInventoryService(db, new FixedTimeProvider(Now));
+        await inventoryService.CreateStockMovementAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new CreateStockMovementRequest(
+                TestIds.OrganizationId,
+                product.ProductId,
+                StockMovementTypeNames.Purchase,
+                30,
+                new MoneyDto("TJS", 600),
+                "restock",
+                "purchase-refund-cost-001"),
+            CancellationToken.None);
+
+        await service.RefundSaleAsync(
+            sale.PosSaleId,
+            ActorStaffUserId,
+            new RefundPosSaleRequest(TestIds.OrganizationId, "return", "refund-cost-001"),
+            CancellationToken.None);
+
+        var refundMovement = await db.StockMovements.SingleAsync(movement =>
+            movement.ProductId == product.ProductId && movement.MovementType == StockMovementTypeNames.Refund);
+        product = await db.PosProducts.SingleAsync(candidate => candidate.ProductId == product.ProductId);
+
+        Assert.Equal(400, refundMovement.UnitCostMinorUnits);
+        Assert.Equal(550, product.AvgCostMinorUnits);
+    }
+
+    [Fact]
+    public async Task RefundSaleAsync_LegacyProductCurrencyMismatch_FailsClosedWithoutRefundMutations()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db, avgCostMinorUnits: 400);
+        await SeedStockAsync(db, product.ProductId, quantityDelta: 10);
+        var service = CreateService(db);
+        var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
+        await service.PaySaleAsync(
+            sale.PosSaleId,
+            ActorStaffUserId,
+            ManualPaymentRequest("pay-refund-currency-legacy", 2400),
+            CancellationToken.None);
+        product = await db.PosProducts.SingleAsync(candidate => candidate.ProductId == product.ProductId);
+        product.CurrencyCode = "USD";
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var result = await service.RefundSaleAsync(
+            sale.PosSaleId,
+            ActorStaffUserId,
+            new RefundPosSaleRequest(TestIds.OrganizationId, "return", "refund-currency-legacy"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("inventory_currency_mismatch", result.Error);
+        Assert.Equal(PosSaleStateNames.Paid, (await db.PosSales.AsNoTracking().SingleAsync()).State);
+        Assert.Empty(await db.Payments.AsNoTracking().Where(payment => payment.PaymentKind == "refund").ToListAsync());
+        Assert.Empty(await db.Receipts.AsNoTracking().Where(receipt => receipt.ReceiptType == "refund").ToListAsync());
+        Assert.Empty(await db.StockMovements.AsNoTracking()
+            .Where(movement => movement.MovementType == StockMovementTypeNames.Refund).ToListAsync());
+    }
+
+    [Fact]
+    public async Task RefundSaleAsync_DuplicateProductLines_ReconcilesCombinedQuantityOnce()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db, avgCostMinorUnits: 1);
+        await SeedStockAsync(db, product.ProductId, quantityDelta: 3);
+        var service = CreateService(db);
+        var created = await service.CreateSaleAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new CreatePosSaleRequest(
+                TestIds.OrganizationId,
+                shift.ShiftId,
+                [
+                    new PosSaleLineDto(product.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0)),
+                    new PosSaleLineDto(product.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))
+                ],
+                "sale-duplicate-cost-001"),
+            CancellationToken.None);
+        Assert.True(created.Succeeded);
+        Assert.NotNull(created.Response);
+        await service.PaySaleAsync(
+            created.Response.PosSaleId,
+            ActorStaffUserId,
+            ManualPaymentRequest("pay-duplicate-cost-001", 2400),
+            CancellationToken.None);
+
+        var inventoryService = new EfInventoryService(db, new FixedTimeProvider(Now));
+        await inventoryService.CreateStockMovementAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new CreateStockMovementRequest(
+                TestIds.OrganizationId,
+                product.ProductId,
+                StockMovementTypeNames.Purchase,
+                1,
+                new MoneyDto("TJS", 23),
+                "restock",
+                "purchase-duplicate-cost-001"),
+            CancellationToken.None);
+
+        await service.RefundSaleAsync(
+            created.Response.PosSaleId,
+            ActorStaffUserId,
+            new RefundPosSaleRequest(TestIds.OrganizationId, "return", "refund-duplicate-cost-001"),
+            CancellationToken.None);
+
+        var persistedLines = await db.PosSaleLines
+            .Where(line => line.PosSaleId == created.Response.PosSaleId)
+            .ToListAsync();
+        var refundMovements = await db.StockMovements
+            .Where(movement =>
+                movement.ProductId == product.ProductId &&
+                movement.MovementType == StockMovementTypeNames.Refund)
+            .ToListAsync();
+        product = await db.PosProducts.SingleAsync(candidate => candidate.ProductId == product.ProductId);
+
+        Assert.Equal(2, persistedLines.Count);
+        Assert.All(persistedLines, line => Assert.Equal(1, line.UnitCostMinorUnits));
+        Assert.Equal(2, refundMovements.Count);
+        Assert.All(refundMovements, movement =>
+        {
+            Assert.Equal(1, movement.QuantityDelta);
+            Assert.Equal(1, movement.UnitCostMinorUnits);
+        });
+        Assert.Equal(7, product.AvgCostMinorUnits);
+    }
+
+    [Fact]
+    public async Task RefundSaleAsync_DuplicateProductLinesWithDifferentCostSnapshots_IsRejected()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var validProduct = await SeedProductAsync(db, name: "A Valid", avgCostMinorUnits: 100);
+        var mixedProduct = await SeedProductAsync(db, name: "Z Mixed", avgCostMinorUnits: 200);
+        await SeedStockAsync(db, validProduct.ProductId, quantityDelta: 2);
+        await SeedStockAsync(db, mixedProduct.ProductId, quantityDelta: 3);
+        var service = CreateService(db);
+        var created = await service.CreateSaleAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new CreatePosSaleRequest(
+                TestIds.OrganizationId,
+                shift.ShiftId,
+                [
+                    new PosSaleLineDto(validProduct.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0)),
+                    new PosSaleLineDto(mixedProduct.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0)),
+                    new PosSaleLineDto(mixedProduct.ProductId, "", 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))
+                ],
+                "sale-mixed-cost-001"),
+            CancellationToken.None);
+        Assert.True(created.Succeeded);
+        Assert.NotNull(created.Response);
+
+        var lines = await db.PosSaleLines
+            .Where(line => line.PosSaleId == created.Response.PosSaleId)
+            .ToListAsync();
+        lines.First(line => line.ProductId == mixedProduct.ProductId).UnitCostMinorUnits = 300;
+        await db.SaveChangesAsync();
+        var paid = await service.PaySaleAsync(
+            created.Response.PosSaleId,
+            ActorStaffUserId,
+            ManualPaymentRequest("pay-mixed-cost-001", 3600),
+            CancellationToken.None);
+        Assert.True(paid.Succeeded);
+
+        var inventoryService = new EfInventoryService(db, new FixedTimeProvider(Now));
+        var purchase = await inventoryService.CreateStockMovementAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            new CreateStockMovementRequest(
+                TestIds.OrganizationId,
+                validProduct.ProductId,
+                StockMovementTypeNames.Purchase,
+                1,
+                new MoneyDto("TJS", 300),
+                "restock",
+                "purchase-mixed-cost-001"),
+            CancellationToken.None);
+        Assert.True(purchase.Succeeded);
+        db.ChangeTracker.Clear();
+
+        var result = await service.RefundSaleAsync(
+            created.Response.PosSaleId,
+            ActorStaffUserId,
+            new RefundPosSaleRequest(TestIds.OrganizationId, "return", "refund-mixed-cost-001"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Refunded lines for the same product must have the same cost snapshot.", result.Error);
+        Assert.DoesNotContain(
+            db.ChangeTracker.Entries<PosProductEntity>(),
+            entry => entry.State == EntityState.Modified);
+        Assert.DoesNotContain(
+            db.ChangeTracker.Entries<StockMovementEntity>(),
+            entry => entry.State == EntityState.Added);
+        Assert.Empty(await db.StockMovements
+            .Where(movement => movement.MovementType == StockMovementTypeNames.Refund)
+            .ToListAsync());
+        Assert.Equal(
+            PosSaleStateNames.Paid,
+            (await db.PosSales.SingleAsync(sale => sale.PosSaleId == created.Response.PosSaleId)).State);
     }
 
     [Fact]
@@ -378,10 +705,36 @@ public sealed class EfPosServiceTests
     {
         return new EfPosService(
             db,
-            new ManualPaymentProvider(),
-            new ReceiptNumberGenerator(db),
-            new FixedTimeProvider(Now),
-            lowStockNotifier);
+            new EfPosSettlementService(
+                db,
+                new EfWalletSettlementService(db),
+                new EfInventoryCostService(db),
+                new ReceiptNumberGenerator(db),
+                new FixedTimeProvider(Now),
+                lowStockNotifier),
+            new FixedTimeProvider(Now));
+    }
+
+    private static void AddLegacyPaymentIdempotency(
+        PlatformDbContext db,
+        PosSaleDto sale,
+        ManualPaymentRequest request,
+        PosSaleDto response)
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var requestHashInput = new { PosSaleId = sale.PosSaleId, Request = request };
+        db.BillingCommandIdempotency.Add(new BillingCommandIdempotencyEntity
+        {
+            BillingCommandIdempotencyId = Guid.NewGuid(),
+            OrganizationId = sale.OrganizationId,
+            BranchId = sale.BranchId,
+            Operation = "pos-sale-pay",
+            IdempotencyKeyHash = BillingCommandIdempotencyKeyHasher.Hash(request.IdempotencyKey),
+            RequestHash = BillingCommandIdempotencyKeyHasher.Hash(JsonSerializer.Serialize(requestHashInput, options)),
+            ResponseJson = JsonSerializer.Serialize(response, options),
+            CreatedAtUtc = Now,
+            ExpiresAtUtc = Now.AddDays(1)
+        });
     }
 
     private static async Task SeedOwnerAsync(PlatformDbContext db)
@@ -436,7 +789,8 @@ public sealed class EfPosServiceTests
         string name = "Cola 0.5",
         long priceMinorUnits = 1200,
         bool trackStock = true,
-        bool allowNegativeStock = false)
+        bool allowNegativeStock = false,
+        long avgCostMinorUnits = 0)
     {
         var category = new PosProductCategoryEntity
         {
@@ -457,6 +811,7 @@ public sealed class EfPosServiceTests
             Sku = $"SKU-{Guid.NewGuid():N}",
             CurrencyCode = "TJS",
             PriceMinorUnits = priceMinorUnits,
+            AvgCostMinorUnits = avgCostMinorUnits,
             TrackStock = trackStock,
             AllowNegativeStock = allowNegativeStock,
             IsActive = true,

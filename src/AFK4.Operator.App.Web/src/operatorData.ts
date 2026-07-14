@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
-  Boxes,
+  Box,
   CalendarClock,
   LayoutDashboard,
   Monitor,
@@ -79,8 +79,6 @@ export interface NavSection {
 // Это сжимает рельс с 14 кнопок до 6. Права по-прежнему скрывают/глушат отдельные вкладки.
 export const navSections: NavSection[] = [
   { key: 'map', labelKey: 'op.shell.nav.map', icon: Monitor, items: [{ id: 'map', labelKey: 'op.shell.nav.map' }] },
-  { key: 'booking', labelKey: 'op.shell.nav.booking', icon: CalendarClock, items: [{ id: 'booking', labelKey: 'op.shell.nav.booking' }] },
-  { key: 'players', labelKey: 'op.shell.nav.players', icon: Users, items: [{ id: 'players', labelKey: 'op.shell.nav.players' }] },
   {
     key: 'cashier',
     labelKey: 'op.shell.navGroup.cashier',
@@ -89,10 +87,12 @@ export const navSections: NavSection[] = [
       { id: 'cash', labelKey: 'op.shell.navGroup.cashier' }
     ]
   },
+  { key: 'booking', labelKey: 'op.shell.nav.booking', icon: CalendarClock, items: [{ id: 'booking', labelKey: 'op.shell.nav.booking' }] },
+  { key: 'players', labelKey: 'op.shell.nav.players', icon: Users, items: [{ id: 'players', labelKey: 'op.shell.nav.players' }] },
   {
     key: 'stock',
     labelKey: 'op.shell.navGroup.warehouse',
-    icon: Boxes,
+    icon: Box,
     items: [{ id: 'stock', labelKey: 'op.shell.navGroup.warehouse' }]
   },
   {

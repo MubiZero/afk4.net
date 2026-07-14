@@ -1,15 +1,24 @@
 using AFK4.Platform.Api.Billing;
+using AFK4.Platform.Api.Commerce;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
+using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Loyalty;
+using AFK4.Platform.Api.Pos;
+using AFK4.Platform.Api.Receipts;
+using AFK4.Platform.Api.Reports;
 using AFK4.Platform.Api.Sessions;
+using AFK4.Platform.Api.Shop;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
+using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace AFK4.Platform.Api.Tests;
 
@@ -131,6 +140,86 @@ public sealed class BillingShiftIntegrationTests
         Assert.Equal(shift.ShiftId, charge.ShiftId);
     }
 
+    [Fact]
+    public async Task LinkedShopPaymentAndRefund_ProjectIntoCurrentShiftExactlyOnce()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        await SeedWalletTopUpAsync(db, 10_000);
+        var shift = await OpenShiftAsync(CreateShiftService(db));
+        var productId = Guid.NewGuid();
+        db.Sessions.Add(new SessionEntity
+        {
+            SessionId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            SeatId = SeatId,
+            PlayerAccountId = PlayerAccountId,
+            PlayerKind = "registered",
+            State = SessionStateNames.Active,
+            TariffRuleVersionId = "v1",
+            Version = 1
+        });
+        db.PosProducts.Add(new PosProductEntity
+        {
+            ProductId = productId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            CategoryId = Guid.NewGuid(),
+            Name = "Cola",
+            Sku = "COLA-SHIFT",
+            CurrencyCode = "TJS",
+            PriceMinorUnits = 500,
+            AvgCostMinorUnits = 100,
+            TrackStock = true,
+            IsActive = true,
+            AvailableInShell = true,
+            CreatedAtUtc = Now
+        });
+        db.StockMovements.Add(new StockMovementEntity
+        {
+            StockMovementId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            ProductId = productId,
+            MovementType = StockMovementTypeNames.Purchase,
+            QuantityDelta = 1,
+            CurrencyCode = "TJS",
+            UnitCostMinorUnits = 100,
+            Reason = "seed",
+            CreatedByStaffUserId = ActorStaffUserId,
+            CreatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+        var commerce = CreateCommerceCoordinator(db);
+        var reportService = new EfReportService(db);
+
+        var placed = await commerce.PlaceAsync(
+            PlayerAccountId,
+            new PlaceShopOrderRequest([new ShopOrderLineInput(productId, 1)], "shift-shop-place"),
+            CancellationToken.None);
+
+        Assert.True(placed.Succeeded);
+        var payment = Assert.Single(await db.Payments.Where(candidate => candidate.PaymentKind == "payment").ToListAsync());
+        Assert.Equal(shift.ShiftId, payment.ShiftId);
+        Assert.Equal(500, payment.AmountMinorUnits);
+        var afterPlacement = await reportService.GetCurrentShiftRevenueAsync(
+            TestIds.OrganizationId, TestIds.BranchId, CancellationToken.None);
+        Assert.Equal(500, afterPlacement!.Earned.Goods.MinorUnits);
+
+        var cancelled = await commerce.CancelByPlayerAsync(
+            PlayerAccountId, placed.Order!.Id, CancellationToken.None);
+
+        Assert.True(cancelled.Succeeded);
+        var refund = Assert.Single(await db.Payments.Where(candidate => candidate.PaymentKind == "refund").ToListAsync());
+        Assert.Equal(shift.ShiftId, refund.ShiftId);
+        Assert.Equal(-500, refund.AmountMinorUnits);
+        Assert.Single(await db.Payments.Where(candidate => candidate.PaymentKind == "payment").ToListAsync());
+        var afterRefund = await reportService.GetCurrentShiftRevenueAsync(
+            TestIds.OrganizationId, TestIds.BranchId, CancellationToken.None);
+        Assert.Equal(0, afterRefund!.Earned.Goods.MinorUnits);
+    }
+
     private static PlatformDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()
@@ -151,13 +240,39 @@ public sealed class BillingShiftIntegrationTests
         IOpenShiftResolver openShiftResolver)
     {
         var timeProvider = new FixedTimeProvider(Now);
+        var leaseSigner = new FakeSessionLeaseSigner();
+        var billing = new SessionBillingService(db, new EfTariffService(db, timeProvider), openShiftResolver, timeProvider);
+        var lifecycleNotifier = new RecordingSessionLifecycleNotifier();
         return new EfSessionCommandService(
             db,
             dispatcher,
-            new FakeSessionLeaseSigner(),
+            leaseSigner,
             timeProvider,
-            new SessionBillingService(db, new EfTariffService(db, timeProvider), openShiftResolver, timeProvider),
-            new RecordingSessionLifecycleNotifier());
+            billing,
+            lifecycleNotifier,
+            new EfSessionStartWorkflow(db, dispatcher, leaseSigner, timeProvider, billing, lifecycleNotifier));
+    }
+
+    private static EfShopCommerceCoordinator CreateCommerceCoordinator(PlatformDbContext db)
+    {
+        var notifier = new NoOpShopOrderNotifier();
+        var settlement = new EfShopPosSettlementService(
+            db,
+            new EfWalletSettlementService(db),
+            new EfInventoryCostService(db),
+            new ReceiptNumberGenerator(db));
+        var workflow = new EfShopOrderWorkflow(
+            db,
+            new FixedTimeProvider(Now),
+            notifier,
+            new LoyaltyAccrualService(db));
+        return new EfShopCommerceCoordinator(
+            db,
+            workflow,
+            settlement,
+            new FixedTimeProvider(Now),
+            notifier,
+            NullLogger<EfShopCommerceCoordinator>.Instance);
     }
 
     private static async Task<ShiftDto> OpenShiftAsync(EfShiftService service)
@@ -191,6 +306,13 @@ public sealed class BillingShiftIntegrationTests
             CreatedAtUtc = Now
         });
         await db.SaveChangesAsync();
+    }
+
+    private sealed class NoOpShopOrderNotifier : IShopOrderNotifier
+    {
+        public Task NotifyCreatedAsync(ShopOrderDto order, CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task NotifyUpdatedAsync(ShopOrderDto order, CancellationToken cancellationToken) => Task.CompletedTask;
     }
 
     private static async Task SeedWalletTopUpAsync(PlatformDbContext db, long amountMinorUnits)

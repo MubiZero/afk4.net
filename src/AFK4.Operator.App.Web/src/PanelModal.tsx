@@ -10,31 +10,35 @@ export function PanelModal({
   subtitle,
   onClose,
   children,
-  tone
+  tone,
+  closeDisabled = false
 }: {
   title: string;
   subtitle?: string;
   onClose: () => void;
   children: ReactNode;
   tone?: 'warning' | 'danger';
+  closeDisabled?: boolean;
 }) {
   const { t } = useI18n();
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose();
+        if (!closeDisabled) {
+          onClose();
+        }
       }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [closeDisabled, onClose]);
 
   return createPortal(
     <div
       className="panel-modal-backdrop"
       onPointerDown={(event) => {
-        if (event.target === event.currentTarget) {
+        if (!closeDisabled && event.target === event.currentTarget) {
           onClose();
         }
       }}
@@ -45,7 +49,14 @@ export function PanelModal({
             <strong>{title}</strong>
             {subtitle && <span>{subtitle}</span>}
           </div>
-          <button type="button" className="panel-modal-close" aria-label={t('common.cancel')} onClick={onClose}>
+          <button
+            type="button"
+            className="panel-modal-close"
+            aria-label={t('common.cancel')}
+            aria-disabled={closeDisabled}
+            disabled={closeDisabled}
+            onClick={onClose}
+          >
             <X size={16} aria-hidden="true" />
           </button>
         </header>

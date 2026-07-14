@@ -4,26 +4,11 @@ namespace AFK4.Platform.Api.Audit;
 
 public sealed class AuditRecordWriter(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IAuditRecordWriter
+    IAuditRecordStager auditRecordStager) : IAuditRecordWriter
 {
     public async Task WriteAsync(AuditRecordWriteRequest request, CancellationToken cancellationToken)
     {
-        dbContext.AuditRecords.Add(new AuditRecordEntity
-        {
-            AuditRecordId = Guid.NewGuid(),
-            OrganizationId = request.OrganizationId,
-            BranchId = request.BranchId,
-            ActorStaffUserId = request.ActorStaffUserId,
-            ActorPlatformAdminUserId = request.ActorPlatformAdminUserId,
-            Action = request.Action,
-            TargetType = request.TargetType,
-            TargetId = request.TargetId,
-            Outcome = request.Outcome,
-            SourceApp = request.SourceApp,
-            DetailsJson = request.DetailsJson,
-            AmountMinorUnits = request.AmountMinorUnits,
-            CreatedAtUtc = timeProvider.GetUtcNow()
-        });
+        auditRecordStager.Stage(request);
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }

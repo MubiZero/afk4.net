@@ -76,7 +76,7 @@ internal static partial class EndpointHelpers
     public static PlayerReservationDto ToPlayerReservationDto(ReservationDto r) =>
         new(r.ReservationId, r.SeatId, r.SeatName, r.StartsAtUtc, r.EndsAtUtc, r.State, r.Note);
 
-    public static ReceiptDto ToDto(ReceiptEntity receipt)
+    public static ReceiptDto ToDto(ReceiptEntity receipt, Guid? shopOrderId = null)
     {
         return new ReceiptDto(
             receipt.ReceiptId,
@@ -86,7 +86,9 @@ internal static partial class EndpointHelpers
             receipt.ReceiptNumber,
             receipt.ReceiptType,
             new MoneyDto(receipt.CurrencyCode, receipt.TotalMinorUnits),
-            receipt.CreatedAtUtc);
+            receipt.CreatedAtUtc,
+            receipt.SessionId,
+            shopOrderId);
     }
 
     public static DeviceSeatAssignmentDto ToDeviceSeatAssignmentDto(DeviceSeatAssignmentEntity assignment)

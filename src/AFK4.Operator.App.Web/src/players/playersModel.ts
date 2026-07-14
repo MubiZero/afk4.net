@@ -11,9 +11,9 @@ export { projectPlayerClient, playerPackageLabel, type PlayerClientItem } from '
 export function fixturePlayers(currencyCode: string, t: TFunc): PlayerClientItem[] {
   const example = t('op.helper.player.fixture.example');
   return [
-    { name: 'Madina S.', status: 'active', balanceMinorUnits: 46000, debtMinorUnits: 0, last: example, tone: 'active', detail: t('op.helper.player.fixture.localCard'), phoneNumber: '+992 90 555 22 11', source: 'fixture' },
-    { name: 'Amir K.', status: 'active', balanceMinorUnits: 12000, debtMinorUnits: 0, last: example, tone: 'active', detail: formatMinorUnits(12000, currencyCode), phoneNumber: '', source: 'fixture' },
-    { name: 'Olim K.', status: 'debt', balanceMinorUnits: 0, debtMinorUnits: 3500, last: example, tone: 'debt', detail: t('op.helper.player.fixture.debtDetail'), phoneNumber: '', source: 'fixture' }
+    { name: 'Madina S.', status: 'active', balanceMinorUnits: 46000, debtMinorUnits: 0, last: example, tone: 'active', detail: t('op.helper.player.fixture.localCard'), phoneNumber: '+992 90 555 22 11', source: 'fixture', createdAtUtc: null, lastActivityAtUtc: null, activePackageName: null, activePackageRemainingMinutes: 0 },
+    { name: 'Amir K.', status: 'active', balanceMinorUnits: 12000, debtMinorUnits: 0, last: example, tone: 'active', detail: formatMinorUnits(12000, currencyCode), phoneNumber: '', source: 'fixture', createdAtUtc: null, lastActivityAtUtc: null, activePackageName: null, activePackageRemainingMinutes: 0 },
+    { name: 'Olim K.', status: 'debt', balanceMinorUnits: 0, debtMinorUnits: 3500, last: example, tone: 'debt', detail: t('op.helper.player.fixture.debtDetail'), phoneNumber: '', source: 'fixture', createdAtUtc: null, lastActivityAtUtc: null, activePackageName: null, activePackageRemainingMinutes: 0 }
   ];
 }
 
@@ -201,4 +201,55 @@ export function buildClientContext(
       seatName: readString(nextBooking, 'seatName') || null
     }
   };
+}
+
+// «Один проход» вариант buildClientContext для таблицы: sessions/reservations грузятся ОДИН
+// раз для всего списка (а не рефетчатся на клиента), затем раскладываются по playerAccountId.
+// Фикстурные клиенты (без playerAccountId) не имеют серверного контекста — пропускаем их.
+export function buildClientContextMap(
+  sessions: SessionTimelineItemDto[],
+  reservations: Array<Record<string, unknown>>,
+  clients: PlayerClientItem[]
+): Map<string, ClientLiveContext> {
+  const contextByPlayerId = new Map<string, ClientLiveContext>();
+  for (const client of clients) {
+    if (!client.playerAccountId) continue;
+    contextByPlayerId.set(client.playerAccountId, buildClientContext(sessions, reservations, client.playerAccountId));
+  }
+  return contextByPlayerId;
+}
+
+// ── Таблица клиентов: тег «Новый», относительный визит, банк времени пакета ──────
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// Клиент — «Новый», если зарегистрирован младше порога (по умолчанию неделя). nowMs передаётся
+// аргументом (а не Date.now() внутри), чтобы функция была детерминируемой в тестах.
+export function isNewClient(createdAtUtc: string | null, nowMs: number, thresholdDays = 7): boolean {
+  if (!createdAtUtc) return false;
+  const createdMs = new Date(createdAtUtc).getTime();
+  if (Number.isNaN(createdMs)) return false;
+  return nowMs - createdMs < thresholdDays * MS_PER_DAY;
+}
+
+// Компактная метка последнего визита для узкой колонки таблицы: сейчас/вчера/N дн./N нед./—.
+// «N дн.»/«N нед.» — намеренно плюрал-инвариантная форма (не ICU-plural): в русском «1 дн.»/
+// «5 дн.» звучат нормально сокращённо, а полная фраза «5 дней» не влезает в колонку.
+export function relativeVisitLabel(lastActivityAtUtc: string | null, nowMs: number, t: TFunc): string {
+  if (!lastActivityAtUtc) return '—';
+  const lastMs = new Date(lastActivityAtUtc).getTime();
+  if (Number.isNaN(lastMs)) return '—';
+
+  const days = Math.floor(Math.max(0, nowMs - lastMs) / MS_PER_DAY);
+  if (days === 0) return t('op.players.visit.now');
+  if (days === 1) return t('op.players.visit.yesterday');
+  if (days < 7) return t('op.players.visit.daysAgo', { n: days });
+  return t('op.players.visit.weeksAgo', { n: Math.ceil(days / 7) });
+}
+
+// «Банк времени» под именем клиента в таблице — название активного пакета + остаток минут.
+// null, если у клиента нет активного пакета (не рендерить пустую строку).
+export function activePackageLabel(name: string | null, minutes: number, t: TFunc): string | null {
+  if (!name) return null;
+  return t('op.players.package.timeBank', { name, minutes });
 }

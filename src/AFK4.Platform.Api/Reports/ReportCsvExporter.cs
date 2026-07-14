@@ -77,7 +77,10 @@ public static class ReportCsvExporter
             "created_at_utc",
             "paid_at_utc",
             "refunded_at_utc",
-            "voided_at_utc");
+            "voided_at_utc",
+            "gross_cogs_minor_units",
+            "refunded_cogs_minor_units",
+            "net_cogs_minor_units");
 
         foreach (var row in report.Rows)
         {
@@ -98,7 +101,10 @@ public static class ReportCsvExporter
                 row.CreatedAtUtc,
                 row.PaidAtUtc,
                 row.RefundedAtUtc,
-                row.VoidedAtUtc);
+                row.VoidedAtUtc,
+                row.GrossCostOfGoods.MinorUnits,
+                row.RefundedCostOfGoods.MinorUnits,
+                row.NetCostOfGoods.MinorUnits);
         }
 
         return builder.ToString();

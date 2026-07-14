@@ -6,6 +6,7 @@ export type BookingTone = 'confirmed' | 'online' | 'pending' | 'seated' | 'cance
 export interface BookingItem {
   reservationId: string;
   reservationGroupId: string; // '' = одиночная бронь; общий id связывает блоки одной группы
+  version: number;
   state: string;
   source: string;
   startMs: number;
@@ -14,10 +15,12 @@ export interface BookingItem {
   customerName: string;
   phoneNumber: string;
   note: string;
+  playerAccountId: string;
   seatId: string;
   seatName: string;
   zoneName: string;
   tone: BookingTone;
+  startedSessionId: string;
 }
 
 export interface TimelineAxis {
@@ -91,6 +94,10 @@ export function bookingStateLabelKey(state: string): BookingStateKey {
   }
 }
 
+export function bookingDetailActions(state: string): { canConfirm: boolean; canStart: boolean } {
+  return { canConfirm: state === 'pending', canStart: state === 'confirmed' };
+}
+
 export function mapReservationsToItems(
   reservations: Record<string, unknown>[],
   guestName: string
@@ -105,6 +112,7 @@ export function mapReservationsToItems(
     return {
       reservationId: readString(reservation, 'reservationId'),
       reservationGroupId: readString(reservation, 'reservationGroupId'),
+      version: readNumber(reservation, 'version', 1),
       state,
       source,
       startMs: safeStart,
@@ -113,10 +121,12 @@ export function mapReservationsToItems(
       customerName: readString(reservation, 'customerName', guestName),
       phoneNumber: readString(reservation, 'phoneNumber'),
       note: readString(reservation, 'note', readString(reservation, 'phoneNumber')),
+      playerAccountId: readString(reservation, 'playerAccountId'),
       seatId: readString(reservation, 'seatId'),
       seatName: readString(reservation, 'seatName'),
       zoneName: readString(reservation, 'zoneName'),
-      tone: bookingTone(state, source)
+      tone: bookingTone(state, source),
+      startedSessionId: readString(reservation, 'startedSessionId')
     };
   });
 }

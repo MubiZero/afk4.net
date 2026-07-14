@@ -565,5 +565,97 @@ internal static class ReservationEndpoints
             return Results.Ok(result.Response);
         });
 
+        app.MapPost("/api/reservations/{reservationId:guid}/start-session", async (
+            Guid reservationId,
+            StartReservationSessionRequest request,
+            PlatformDbContext dbContext,
+            IStaffContextAccessor staffContextAccessor,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IReservationSessionCoordinator reservationSessionCoordinator,
+            CancellationToken cancellationToken) =>
+        {
+            var scoped = await LoadReservationForStaffAsync(
+                dbContext,
+                staffContextAccessor,
+                reservationId,
+                cancellationToken);
+            if (scoped.Result is not null)
+            {
+                return scoped.Result;
+            }
+
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                scoped.Reservation!.BranchId,
+                StaffPermissionNames.ManageReservations,
+                cancellationToken);
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            var denialReason = authorization.DenialReason;
+            if (authorization.IsAllowed)
+            {
+                var sessionAuthorization = await authorizationService.RequireBranchPermissionAsync(
+                    scoped.Reservation.BranchId,
+                    StaffPermissionNames.StartSession,
+                    cancellationToken);
+                authorization = sessionAuthorization;
+                denialReason = sessionAuthorization.DenialReason;
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    scoped.Reservation.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.StartReservationSession,
+                    "Reservation",
+                    reservationId.ToString("D"),
+                    AuditOutcome.Denied,
+                    new { request.ExpectedVersion, denialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+            {
+                return Results.BadRequest(new
+                {
+                    Error = "OrganizationId must match the authenticated staff organization.",
+                    Code = "organization_mismatch",
+                    CurrentVersion = (int?)null
+                });
+            }
+
+            var result = await reservationSessionCoordinator.StartAsync(
+                reservationId,
+                authorization.StaffContext.StaffUserId,
+                authorization.StaffContext.Permissions.Contains(StaffPermissionNames.ApproveMoneyAction),
+                request,
+                cancellationToken);
+
+            if (result.Conflict)
+            {
+                return Results.Conflict(new { result.Error, result.Code, result.CurrentVersion });
+            }
+
+            if (result.NotFound)
+            {
+                return Results.NotFound(new { result.Error, result.Code, result.CurrentVersion });
+            }
+
+            if (!result.Succeeded)
+            {
+                return Results.BadRequest(new { result.Error, result.Code, result.CurrentVersion });
+            }
+
+            return Results.Ok(result.Response);
+        });
+
     }
 }

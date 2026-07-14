@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-06-04
+Last updated: 2026-07-14
 
 ## Purpose
 
@@ -56,9 +56,58 @@ SaaS billing, and the entire SP4 wave are implemented and merged to `main`:
   storage, HMAC-verified webhook, owner card-onboarding cabinet (Subsystem A +
   B). Note: dcgate is player top-up/payments, separate from SaaS billing.
 
+The current Operator commerce/booking topic branch (not yet merged) adds:
+
+- **Player Shop financial integrity** — new orders settle atomically as linked,
+  idempotent paid POS sales with wallet, open-shift, receipt, immutable inventory
+  cost, cancellation/refund, and sales-report COGS projections. A real PostgreSQL
+  serializable-concurrency test deterministically holds both initial settlements
+  after each reads the final stock unit and before commit; one transaction commits,
+  while the other retries and returns `out_of_stock`. Whole-branch hardening now
+  also preserves immutable stock/cost/currency snapshots through session checkout
+  and refunds, uses the reserved `Player Shop` actor, and translates Shop
+  transition/cancellation/refund save conflicts without partial finance. Product
+  currency updates and every first inventory/sale-history writer now share a
+  PostgreSQL serializable protocol; a deterministic first-sale/currency-update
+  race proves that incompatible currencies cannot both commit.
+- **Operator POS and inventory completion** — clearer price/balance/stock state,
+  stable order disclosure motion, one shared Map/POS payment form, atomic mixed
+  cash/wallet settlement, immutable original-mix refunds, linked ledger entries,
+  and preserved cash-journal/receipt/anti-fraud access.
+- **Operator booking and session start** — shared linked-client selection,
+  Ctrl/Command multi-seat booking independent of current seat health, explicit
+  pending confirmation, optimistic reservation versions, and one atomic,
+  idempotent session start linked back to the confirmed reservation. PostgreSQL
+  overlap tests prove one effect set for concurrent reservation commands and for
+  reservation start racing an ordinary start on the same seat; rollback and audit
+  failures leave no partial session, billing, lease, command, or reservation state.
+
 Plus the earlier base: identity/tenancy/RBAC/audit, devices/floor-map, owner-code
 enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 + rollout, and the Agent/Setup-Wizard/Player-Shell/packaging stack.
+
+## Latest Verification
+
+- `dotnet restore AFK4.sln -p:EnableWindowsTargeting=true -p:NuGetAudit=false`
+  and the matching full solution build passed with 0 warnings and 0 errors.
+- Shared contracts passed 129/129. The complete Platform API suite passed
+  1401/1401 with no skips against isolated commerce, POS, and reservation schemas
+  on PostgreSQL 17.10, including deterministic settlement/refund, inventory/
+  currency, reservation-start, rollback, and cross-command concurrency tests.
+  The full solution build passed with 0 warnings and 0 errors.
+- Operator Web passed 650 component/model tests plus 84 App integration tests;
+  the generated ru/en/tg catalog check passed 23/23 and the production build
+  completed. Existing React test diagnostics, SignalR annotation warnings, and
+  the large-chunk warning remain non-failing.
+- Platform Web passed 381/381 Bun tests and its production build; its existing
+  large-chunk warning remains.
+- Player Shell Web passed 51/51 Bun tests and its production build.
+- The Linux full-solution test attempt passed Platform API 1288 tests (one
+  explicit PostgreSQL-env skip) and all other portable suites, but cannot run
+  Operator/Player Shell .NET Windows testhosts because `Microsoft.WindowsDesktop.App`
+  has no Linux runtime. Twenty-six Agent packaging tests also remain Windows-only
+  in this environment because they invoke PowerShell/Windows release tooling;
+  their projects compile successfully and require a Windows verification run.
 
 ## Known Gaps
 

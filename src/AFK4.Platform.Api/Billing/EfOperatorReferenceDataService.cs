@@ -76,33 +76,88 @@ public sealed class EfOperatorReferenceDataService(
             balance => balance.Balance);
 
         var now = timeProvider.GetUtcNow();
-        var packageCounts = await dbContext.PlayerPackages
+        var activePackages = await dbContext.PlayerPackages
             .AsNoTracking()
             .Where(package =>
                 package.OrganizationId == organizationId &&
                 package.BranchId == branchId &&
                 playerIds.Contains(package.PlayerAccountId) &&
                 (package.ExpiresAtUtc == null || package.ExpiresAtUtc > now))
+            .Select(package => new
+            {
+                package.PlayerAccountId,
+                package.PlayerPackageId,
+                package.Name
+            })
+            .ToListAsync(cancellationToken);
+        var packageCountLookup = activePackages
             .GroupBy(package => package.PlayerAccountId)
+            .ToDictionary(group => group.Key, group => group.Count());
+
+        var packageIds = activePackages
+            .Select(package => package.PlayerPackageId)
+            .ToList();
+        var remainingSecondsLookup = await dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(entry =>
+                entry.PlayerPackageId != null &&
+                packageIds.Contains(entry.PlayerPackageId.Value) &&
+                (entry.AccountType == LedgerAccountTypeNames.PackageTime ||
+                    entry.AccountType == LedgerAccountTypeNames.BonusTime))
+            .GroupBy(entry => entry.PlayerPackageId!.Value)
+            .Select(group => new
+            {
+                PlayerPackageId = group.Key,
+                Seconds = group.Sum(entry => entry.QuantitySeconds)
+            })
+            .ToDictionaryAsync(x => x.PlayerPackageId, x => x.Seconds, cancellationToken);
+
+        var bestPackageLookup = activePackages
+            .Select(package => new
+            {
+                package.PlayerAccountId,
+                package.Name,
+                RemainingSeconds = remainingSecondsLookup.GetValueOrDefault(package.PlayerPackageId)
+            })
+            .Where(package => package.RemainingSeconds > 0)
+            .GroupBy(package => package.PlayerAccountId)
+            .ToDictionary(
+                group => group.Key,
+                group => group.OrderByDescending(package => package.RemainingSeconds).First());
+
+        var lastActivityLookup = await dbContext.Sessions
+            .AsNoTracking()
+            .Where(session => playerIds.Contains(session.PlayerAccountId!.Value))
+            .Select(session => new
+            {
+                session.PlayerAccountId,
+                EffectiveAt = session.EndedAtUtc ?? session.StartedAtUtc ?? session.RequestedAtUtc
+            })
+            .GroupBy(session => session.PlayerAccountId)
             .Select(group => new
             {
                 PlayerAccountId = group.Key,
-                Count = group.Count()
+                Last = group.Max(session => session.EffectiveAt)
             })
-            .ToListAsync(cancellationToken);
-        var packageCountLookup = packageCounts.ToDictionary(
-            package => package.PlayerAccountId,
-            package => package.Count);
+            .ToDictionaryAsync(x => x.PlayerAccountId!.Value, x => x.Last, cancellationToken);
 
         return players
-            .Select(player => new PlayerSearchResultDto(
-                player.PlayerAccountId,
-                player.DisplayName,
-                player.PhoneNumber,
-                GetBalance(balanceLookup, player.PlayerAccountId, LedgerAccountTypeNames.Wallet),
-                GetBalance(balanceLookup, player.PlayerAccountId, LedgerAccountTypeNames.Debt),
-                packageCountLookup.GetValueOrDefault(player.PlayerAccountId),
-                player.IsActive))
+            .Select(player =>
+            {
+                var bestPackage = bestPackageLookup.GetValueOrDefault(player.PlayerAccountId);
+                return new PlayerSearchResultDto(
+                    player.PlayerAccountId,
+                    player.DisplayName,
+                    player.PhoneNumber,
+                    GetBalance(balanceLookup, player.PlayerAccountId, LedgerAccountTypeNames.Wallet),
+                    GetBalance(balanceLookup, player.PlayerAccountId, LedgerAccountTypeNames.Debt),
+                    packageCountLookup.GetValueOrDefault(player.PlayerAccountId),
+                    player.IsActive,
+                    CreatedAtUtc: player.CreatedAtUtc,
+                    LastActivityAtUtc: lastActivityLookup.TryGetValue(player.PlayerAccountId, out var last) ? last : (DateTimeOffset?)null,
+                    ActivePackageName: bestPackage?.Name,
+                    ActivePackageRemainingMinutes: bestPackage?.RemainingSeconds / 60 ?? 0);
+            })
             .ToList();
     }
 

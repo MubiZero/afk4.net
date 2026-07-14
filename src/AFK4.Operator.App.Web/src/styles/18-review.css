@@ -1,95 +1,104 @@
+/* Проверка (очередь одобрений + журнал операций), в т.ч. встроенная в «Журнал кассы».
+   Язык консоли: подчёркнутые под-вкладки (не пилюли), парящие карточки, актуальные токены. */
 .review-segments {
   display: flex;
-  gap: 8px;
-  padding: 0 24px;
-  margin-bottom: 12px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-soft);
 }
-
 .review-segments button {
-  padding: 8px 16px;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: inherit;
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: var(--space-1) var(--space-2);
+  min-height: var(--control-sm);
+  color: var(--text-secondary);
+  font-size: 12px;
   cursor: pointer;
 }
-
-.review-segments button.active {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-}
+.review-segments button:hover { color: var(--text-primary); }
+.review-segments button.active { color: var(--accent-bright); border-bottom-color: var(--accent); }
+.review-segments button:focus-visible { outline: none; border-radius: 5px; box-shadow: var(--focus-ring); }
 
 .review-panel {
-  margin: 0 24px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-2);
+  max-width: 960px;
 }
 
-.review-request-row,
-.review-audit-row {
+/* Заявка на одобрение — карточка действия: решают, видя сумму и причину. */
+.review-request-row {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: var(--panel);
+  padding: var(--space-3);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
 }
-
-.review-request-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-
-.review-request-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  font-size: 12px;
-  opacity: 0.75;
-}
-
-.review-request-actions {
-  display: flex;
-  gap: 8px;
-}
-
+.review-request-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); }
+.review-request-head strong { color: var(--text-primary); font-weight: 600; }
+.review-request-head b { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--text-base); }
+.review-request-row em { color: var(--text-secondary); font-style: normal; }
+.review-request-meta { display: flex; flex-wrap: wrap; gap: var(--space-3); font-size: 12px; color: var(--text-tertiary); }
+.review-request-actions { display: flex; gap: var(--space-2); }
 .review-request-actions button {
-  padding: 6px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
+  min-height: var(--control-sm); padding: 0 var(--space-3);
+  border: 1px solid var(--border-soft); border-radius: 6px;
+  background: var(--surface-elevated); color: var(--text-primary); cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
+.review-request-actions button:hover { border-color: var(--accent); color: var(--accent-bright); }
+.review-request-actions button:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
 
+.review-reject-form { display: flex; flex-direction: column; gap: var(--space-2); }
 .review-reject-form label,
-.review-audit-filters label {
+.review-audit-filters label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary); }
+.review-reject-form input,
+.review-audit-filters input,
+.review-audit-filters select {
+  min-height: var(--control-md); padding: 0 var(--space-2);
+  border: 1px solid var(--border-soft); border-radius: 6px;
+  background: var(--surface-sunken); color: var(--text-primary);
+}
+.review-audit-filters { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-end; }
+.review-audit-filters button {
+  min-height: var(--control-md); padding: 0 var(--space-3);
+  border: 1px solid var(--border-soft); border-radius: 6px;
+  background: var(--surface-elevated); color: var(--text-primary); cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+.review-audit-filters button:hover { border-color: var(--accent); color: var(--accent-bright); }
+
+/* Журнал операций — read-only ряды-разделители в парящей панели (как лента кассы). */
+.review-audit-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
 }
-
-.review-audit-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: flex-end;
-}
-
 .review-audit-row {
   display: grid;
-  grid-template-columns: 120px 1fr 1fr 120px;
-  align-items: center;
+  grid-template-columns: 96px 1fr 1fr auto;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border-soft);
+  font-size: 13px;
 }
+.review-audit-row:first-child { border-top: 0; }
+.review-audit-row span { color: var(--text-tertiary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.review-audit-row strong { color: var(--text-primary); font-weight: 600; }
+.review-audit-row em { color: var(--text-secondary); font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.review-audit-row b { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
-.review-empty {
-  opacity: 0.7;
-  padding: 16px;
-}
+.review-empty { color: var(--text-secondary); font-size: 13px; padding: var(--space-2) 0; }
 
 .review-expiry-badge {
   padding: 2px 8px;

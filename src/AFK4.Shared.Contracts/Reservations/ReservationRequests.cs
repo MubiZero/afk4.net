@@ -20,14 +20,18 @@ public sealed record UpdateReservationRequest(
     DateTimeOffset? StartsAtUtc,
     int? DurationMinutes,
     string? Source,
-    string? Note);
+    string? Note,
+    int ExpectedVersion);
 
 public sealed record ConfirmReservationRequest(
-    Guid OrganizationId);
+    Guid OrganizationId,
+    int ExpectedVersion);
 
 public sealed record SeatReservationRequest(
-    Guid OrganizationId);
+    Guid OrganizationId,
+    int ExpectedVersion);
 
 public sealed record CancelReservationRequest(
     Guid OrganizationId,
-    string Reason);
+    string Reason,
+    int ExpectedVersion);

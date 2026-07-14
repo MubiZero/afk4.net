@@ -28,6 +28,21 @@ export interface CheckoutPaymentDraft {
   amountText: string;
 }
 
+/** Payment methods not already claimed by another split row. When rowIndex is
+ * supplied its current method remains selectable, so editing a row never
+ * invalidates its controlled value. */
+export function getAvailableCheckoutMethods(
+  drafts: readonly CheckoutPaymentDraft[],
+  rowIndex?: number
+): CheckoutMethod[] {
+  const used = new Set(
+    drafts
+      .filter((_, index) => index !== rowIndex)
+      .map((draft) => draft.method)
+  );
+  return checkoutMethods.filter((method) => !used.has(method));
+}
+
 export interface CheckoutValidation {
   /** Что реально идёт в счёт: карта+депозит целиком + наличные в пределах остатка. */
   paidMinorUnits: number;

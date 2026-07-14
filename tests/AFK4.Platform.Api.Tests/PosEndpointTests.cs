@@ -1,15 +1,20 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Tests.Shop;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Receipts;
+using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
+using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests;
@@ -70,6 +75,167 @@ public sealed class PosEndpointTests
 
         Assert.Equal(HttpStatusCode.Forbidden, catalogResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, stockHistoryResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task SettleSale_WithMultipartPayment_ReturnsPaidSaleAndAuditsPartCount()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 10_000);
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/pos/sales/{saleId:D}/settlements",
+            new SettlePosSaleRequest(
+                TestIds.OrganizationId,
+                [
+                    new PaymentPartDto(PaymentMethodNames.CardManual, new MoneyDto("TJS", 2_000)),
+                    new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 8_000))
+                ],
+                "operator POS checkout",
+                "settlement-multipart-001"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var paid = await response.Content.ReadFromJsonAsync<PosSaleDto>();
+        Assert.NotNull(paid);
+        Assert.Equal(PosSaleStateNames.Paid, paid.State);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var payments = await dbContext.Payments
+            .Where(payment => payment.PosSaleId == saleId && payment.PaymentKind == "payment")
+            .OrderBy(payment => payment.PaymentMethod)
+            .ToListAsync();
+        Assert.Equal(2, payments.Count);
+        Assert.Equal(10_000, payments.Sum(payment => payment.AmountMinorUnits));
+
+        var audit = await dbContext.AuditRecords
+            .SingleAsync(record => record.Action == AuditActionNames.PayPosSale && record.TargetId == saleId.ToString("D"));
+        using var details = JsonDocument.Parse(audit.DetailsJson);
+        Assert.Equal(2, details.RootElement.GetProperty("paymentPartCount").GetInt32());
+    }
+
+    [Fact]
+    public async Task SettleSale_WithWrongOrganization_ReturnsStableBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/pos/sales/{saleId:D}/settlements",
+            new SettlePosSaleRequest(
+                Guid.NewGuid(),
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 1_200))],
+                "wrong organization",
+                "settlement-wrong-org-001"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "organization_scope_mismatch",
+            (await response.Content.ReadFromJsonAsync<PosErrorBody>())!.Error);
+    }
+
+    [Fact]
+    public async Task SettleSale_WithInvalidSplit_ReturnsStableCodeWithoutInternalDetail()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/pos/sales/{saleId:D}/settlements",
+            new SettlePosSaleRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 1_100))],
+                "invalid split",
+                "settlement-invalid-001"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "invalid_payment_split",
+            (await response.Content.ReadFromJsonAsync<PosErrorBody>())!.Error);
+    }
+
+    [Fact]
+    public async Task SettleSale_WithoutIdempotencyKey_ReturnsStableBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/pos/sales/{saleId:D}/settlements",
+            new SettlePosSaleRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 1_200))],
+                "missing key",
+                " "));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "idempotency_key_required",
+            (await response.Content.ReadFromJsonAsync<PosErrorBody>())!.Error);
+    }
+
+    [Fact]
+    public async Task SettleSale_ReusedKeyWithDifferentPayment_ReturnsStableIdempotencyConflict()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
+        const string key = "settlement-idempotency-conflict-001";
+
+        using var first = await client.PostAsJsonAsync(
+            $"/api/pos/sales/{saleId:D}/settlements",
+            new SettlePosSaleRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 1_200))],
+                "first payload",
+                key));
+        using var conflict = await client.PostAsJsonAsync(
+            $"/api/pos/sales/{saleId:D}/settlements",
+            new SettlePosSaleRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.CardManual, new MoneyDto("TJS", 1_200))],
+                "different payload",
+                key));
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+        Assert.Equal(
+            "idempotency_conflict",
+            (await conflict.Content.ReadFromJsonAsync<PosErrorBody>())!.Error);
+    }
+
+    [Fact]
+    public async Task SettleSale_WithMixedCurrency_ReturnsStableBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
+
+        using var response = await client.PostAsJsonAsync(
+            $"/api/pos/sales/{saleId:D}/settlements",
+            new SettlePosSaleRequest(
+                TestIds.OrganizationId,
+                [
+                    new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 600)),
+                    new PaymentPartDto(PaymentMethodNames.CardManual, new MoneyDto("USD", 600))
+                ],
+                "mixed currency",
+                "settlement-mixed-currency-001"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            "mixed_currency",
+            (await response.Content.ReadFromJsonAsync<PosErrorBody>())!.Error);
     }
 
     [Fact]
@@ -158,6 +324,22 @@ public sealed class PosEndpointTests
                 IsActive: true));
         Assert.Equal("COLA-ZERO-05", updatedProduct.Sku);
         Assert.Equal(24, updatedProduct.StockOnHand);
+
+        using var currencyChangeResponse = await client.PatchAsJsonAsync(
+            $"/api/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}",
+            new UpdateProductRequest(
+                TestIds.OrganizationId,
+                category.CategoryId,
+                updatedProduct.Name,
+                updatedProduct.Sku,
+                new MoneyDto("USD", updatedProduct.Price.MinorUnits),
+                TrackStock: true,
+                AllowNegativeStock: true,
+                IsActive: true));
+        Assert.Equal(HttpStatusCode.BadRequest, currencyChangeResponse.StatusCode);
+        Assert.Equal(
+            "product_currency_immutable",
+            (await currencyChangeResponse.Content.ReadFromJsonAsync<PosErrorBody>())!.Error);
 
         var player = await PostOkAsync<PlayerAccountDto>(
             client,
@@ -389,6 +571,93 @@ public sealed class PosEndpointTests
         Assert.Empty(await dbContext.AuditRecords.ToListAsync());
     }
 
+    [Fact]
+    public async Task RefundLinkedReceipt_CancelsOrderAndRefundsSaleOnce()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var playerClient = factory.CreateClient();
+        using var staffClient = factory.CreateClient();
+        var seeded = await ShopTestSeed.SeedActivePlayerWithProductsAsync(factory);
+        await ShopTestSeed.AuthenticatePlayerAsync(playerClient, seeded);
+        var order = await (await playerClient.PostAsJsonAsync("/api/me/shop/orders",
+            new PlaceShopOrderRequest([new ShopOrderLineInput(seeded.ColaProductId, 2)], "pos-refund-linked-001")))
+            .Content.ReadFromJsonAsync<ShopOrderDto>();
+        await ShopTestSeed.AuthorizeStaffForBranchAsync(
+            factory, staffClient, seeded.OrganizationId, seeded.BranchId, withShopPermission: true);
+        var request = new RefundPosSaleRequest(
+            seeded.OrganizationId,
+            "customer changed mind",
+            "pos-refund-linked-001");
+
+        var first = await staffClient.PostAsJsonAsync($"/api/pos/sales/{order!.PosSaleId:D}/refunds", request);
+        var second = await staffClient.PostAsJsonAsync($"/api/pos/sales/{order.PosSaleId:D}/refunds", request);
+
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        var refunded = await first.Content.ReadFromJsonAsync<PosSaleDto>();
+        Assert.Equal(order.Id, refunded!.ShopOrderId);
+        Assert.Equal(order.Id, refunded.LatestReceipt!.ShopOrderId);
+        await PlayerShopEndpointTests.AssertLinkedRefundStateAsync(
+            factory, order.Id, order.PosSaleId!.Value);
+
+        var readSale = await staffClient.GetFromJsonAsync<PosSaleDto>($"/api/pos/sales/{order.PosSaleId:D}");
+        Assert.Equal(order.Id, readSale!.ShopOrderId);
+        Assert.Equal(order.Id, readSale.LatestReceipt!.ShopOrderId);
+        var receipt = await staffClient.GetFromJsonAsync<ReceiptDto>(
+            $"/api/receipts/{readSale.LatestReceipt.ReceiptId:D}");
+        Assert.Equal(order.Id, receipt!.ShopOrderId);
+    }
+
+    [Fact]
+    public async Task RefundLinkedReceipt_SaveConcurrencyFailure_ReturnsConflictWithoutPartialFinance()
+    {
+        var interceptor = new ArmedConcurrencyInterceptor();
+        await using var factory = new PlatformApiFactory(extraServices: services =>
+            services.ConfigureDbContext<PlatformDbContext>(options => options.AddInterceptors(interceptor)));
+        using var playerClient = factory.CreateClient();
+        using var staffClient = factory.CreateClient();
+        var seeded = await ShopTestSeed.SeedActivePlayerWithProductsAsync(factory);
+        await ShopTestSeed.AuthenticatePlayerAsync(playerClient, seeded);
+        var order = await (await playerClient.PostAsJsonAsync("/api/me/shop/orders",
+            new PlaceShopOrderRequest([new ShopOrderLineInput(seeded.ColaProductId, 2)], "pos-refund-concurrency-place")))
+            .Content.ReadFromJsonAsync<ShopOrderDto>();
+        await ShopTestSeed.AuthorizeStaffForBranchAsync(
+            factory, staffClient, seeded.OrganizationId, seeded.BranchId, withShopPermission: true);
+
+        int paymentCount;
+        int receiptCount;
+        int ledgerCount;
+        int movementCount;
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            paymentCount = await db.Payments.CountAsync();
+            receiptCount = await db.Receipts.CountAsync();
+            ledgerCount = await db.LedgerEntries.CountAsync();
+            movementCount = await db.StockMovements.CountAsync();
+        }
+
+        interceptor.Armed = true;
+        using var response = await staffClient.PostAsJsonAsync(
+            $"/api/pos/sales/{order!.PosSaleId:D}/refunds",
+            new RefundPosSaleRequest(seeded.OrganizationId, "concurrent acceptance won", "pos-refund-concurrency"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("version_conflict", body.RootElement.GetProperty("error").GetString());
+        await using var verificationScope = factory.Services.CreateAsyncScope();
+        var verificationDb = verificationScope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(paymentCount, await verificationDb.Payments.CountAsync());
+        Assert.Equal(receiptCount, await verificationDb.Receipts.CountAsync());
+        Assert.Equal(ledgerCount, await verificationDb.LedgerEntries.CountAsync());
+        Assert.Equal(movementCount, await verificationDb.StockMovements.CountAsync());
+        var persistedOrder = await verificationDb.ShopOrders.AsNoTracking()
+            .SingleAsync(candidate => candidate.ShopOrderId == order.Id);
+        Assert.Equal(ShopOrderStatusNames.Placed, persistedOrder.Status);
+        Assert.DoesNotContain(verificationDb.ChangeTracker.Entries(), entry =>
+            entry.State is EntityState.Added or EntityState.Modified or EntityState.Deleted);
+    }
+
     private static IReadOnlyList<EndpointCase> CreateEndpointCases(Guid shiftId, Guid saleId, Guid receiptId, Guid productId, Guid barcodeId)
     {
         return
@@ -455,6 +724,14 @@ public sealed class PosEndpointTests
                 new ManualPaymentRequest(TestIds.OrganizationId, PaymentMethodNames.Cash, new MoneyDto("TJS", 1200), "cash drawer", "pay-001")),
             new EndpointCase(
                 HttpMethod.Post,
+                $"/api/pos/sales/{saleId:D}/settlements",
+                new SettlePosSaleRequest(
+                    TestIds.OrganizationId,
+                    [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 1200))],
+                    "cash drawer",
+                    "settle-001")),
+            new EndpointCase(
+                HttpMethod.Post,
                 $"/api/pos/sales/{saleId:D}/refunds",
                 new RefundPosSaleRequest(TestIds.OrganizationId, "customer return", "refund-001")),
             new EndpointCase(
@@ -471,6 +748,8 @@ public sealed class PosEndpointTests
                 null)
         ];
     }
+
+    private sealed record PosErrorBody(string Error);
 
     private static async Task<HttpResponseMessage> SendAsync(HttpClient client, EndpointCase endpoint)
     {
@@ -577,8 +856,71 @@ public sealed class PosEndpointTests
         return saleId;
     }
 
+    private static async Task<Guid> SeedDraftSaleAsync(PlatformApiFactory factory, long totalMinorUnits)
+    {
+        var shiftId = Guid.NewGuid();
+        var saleId = Guid.NewGuid();
+        var productId = Guid.NewGuid();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        dbContext.Shifts.Add(new ShiftEntity
+        {
+            ShiftId = shiftId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            OpenedByStaffUserId = TestIds.TechnicianStaffUserId,
+            State = ShiftStateNames.Open,
+            CurrencyCode = "TJS",
+            StartingCashMinorUnits = 50_000,
+            OpeningNote = "settlement endpoint test",
+            OpenedAtUtc = DateTimeOffset.Parse("2026-07-14T08:00:00Z")
+        });
+        dbContext.PosSales.Add(new PosSaleEntity
+        {
+            PosSaleId = saleId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            ShiftId = shiftId,
+            CreatedByStaffUserId = TestIds.TechnicianStaffUserId,
+            State = PosSaleStateNames.Draft,
+            CurrencyCode = "TJS",
+            TotalMinorUnits = totalMinorUnits,
+            CreatedAtUtc = DateTimeOffset.Parse("2026-07-14T08:01:00Z")
+        });
+        dbContext.PosSaleLines.Add(new PosSaleLineEntity
+        {
+            PosSaleLineId = Guid.NewGuid(),
+            PosSaleId = saleId,
+            ProductId = productId,
+            ProductName = "Endpoint test product",
+            Quantity = 1,
+            CurrencyCode = "TJS",
+            UnitPriceMinorUnits = totalMinorUnits,
+            UnitCostMinorUnits = 0,
+            LineTotalMinorUnits = totalMinorUnits,
+            TracksStock = false,
+            AllowNegativeStock = false
+        });
+        await dbContext.SaveChangesAsync();
+        return saleId;
+    }
+
     private sealed record EndpointCase(
         HttpMethod Method,
         string Path,
         object? Body);
+
+    private sealed class ArmedConcurrencyInterceptor : SaveChangesInterceptor
+    {
+        public bool Armed { get; set; }
+
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default) =>
+            Armed
+                ? ValueTask.FromException<InterceptionResult<int>>(
+                    new DbUpdateConcurrencyException("deterministic linked refund conflict"))
+                : ValueTask.FromResult(result);
+    }
 }

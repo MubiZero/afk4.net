@@ -299,7 +299,11 @@ public sealed class PlayerSearchViewModel : INotifyPropertyChanged
                     WalletBalanceMinorUnits: 0,
                     DebtBalanceMinorUnits: 0,
                     ActivePackageCount: 0,
-                    player.IsActive),
+                    player.IsActive,
+                    CreatedAtUtc: player.CreatedAtUtc,
+                    LastActivityAtUtc: null,
+                    ActivePackageName: null,
+                    ActivePackageRemainingMinutes: 0),
                     CurrencyCode);
 
                 Results.Insert(0, searchResult);

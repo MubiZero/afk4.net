@@ -1,4 +1,4 @@
-/* Раздел «Касса»: шапка-якорь (зеркало .booking-header) + под-вкладки (зеркало .client-detail-tabs). */
+/* Раздел «Касса»: шапка-якорь (зеркало .booking-header) + под-вкладки раздела. */
 .cash-head {
   box-sizing: border-box;
   flex: none;
@@ -14,14 +14,16 @@
   background: var(--surface-elevated);
 }
 /* Деньги шапки = язык тоталайзера: белый моноширинный ридаут (заголовочные деньги смены).
-   Янтарь зарезервирован за предупреждениями (низкий остаток), а не за суммами. */
-.cash-head-metrics .state-flag span {
+   Янтарь зарезервирован за предупреждениями (низкий остаток), а не за суммами.
+   Скоуп на ПРЯМЫХ детей — иначе вложенный <span class="ui-money"> внутри <strong> ловит
+   стиль метки (10px/tertiary) вместо белого моноширинного ридаута. */
+.cash-head-metrics .ui-chip--count > span {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: 10px;
   font-weight: 600;
 }
-.cash-head-metrics .state-flag strong {
+.cash-head-metrics .ui-chip--count > strong {
   color: var(--text-strong);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -85,6 +87,9 @@
 
 /* S1: командная панель смены в шапке-якоре + формы модалок смены. */
 .cash-head-commands { display: flex; align-items: center; flex: none; gap: var(--space-2); }
+/* НЕ дедуплено с .ui-btn: .cash-command-btn также несётся САМОСТОЯТЕЛЬНО, без атом-классов,
+   на кнопке экспорта Журнала склада (stock/JournalWorkspace.tsx .journal-export) — там она
+   единственный источник display/border/фон/паддинга. Дедуп сломал бы ту кнопку. */
 .cash-command-btn {
   appearance: none;
   display: inline-flex;
@@ -93,7 +98,7 @@
   min-height: var(--control-sm);
   padding: 0 var(--space-2);
   border: 1px solid var(--border-soft);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--surface-elevated);
   color: var(--text-primary);
   font-size: 12px;
@@ -118,49 +123,91 @@
 .cash-close-reconcile > div { display: flex; justify-content: space-between; font-size: 13px; }
 .cash-close-reconcile .attention strong { color: var(--danger, #d3403a); }
 .cash-close-impact { margin: 0; font-size: 12px; color: var(--text-secondary); }
+/* display/align-items/justify-content/background/cursor — идентичны .ui-btn(--primary), удалены.
+   gap/border/border-radius/color/font-weight отличаются от атома — отличительное, оставлено:
+   border:none + radius 7px (атом: 1px solid + 6px), color #fff держит контраст в тёмной теме
+   (--text-on-accent там тёмный, не белый — атом дал бы нечитаемый текст), font-weight 600 (атом 700). */
 .cash-primary-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   gap: var(--space-2);
   min-height: var(--control-lg);
   border: none;
   border-radius: 7px;
-  background: var(--accent);
   color: #fff;
   font-weight: 600;
-  cursor: pointer;
 }
 .cash-primary-action:disabled { opacity: 0.6; cursor: default; }
 .cash-primary-action.danger { background: var(--danger, #d3403a); }
 
-/* S1: вкладка «Смена» — кокпит кассира. */
-.cash-shift-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-3); }
+/* S1: вкладка «Смена» — кокпит кассира. Парящие панели (язык консоли) + герой-цифры для главного. */
+/* align-items: stretch (по умолчанию) — карточки ряда равной высоты, без рваного низа. */
+.cash-shift-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-3); }
+/* padding/border-radius/background/box-shadow — идентичны .ui-card + .ui-card--elevated.
+   border-soft остаётся (атом .ui-card даёт border-default — другой токен, отличительное). */
 .cash-shift-card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3);
+  gap: var(--space-2);
   border: 1px solid var(--border-soft);
-  border-radius: 8px;
-  background: var(--surface-elevated);
 }
-.cash-shift-card h2 { margin: 0 0 var(--space-1); font-size: 13px; color: var(--text-secondary); font-weight: 600; }
-.cash-shift-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-primary); }
-.cash-shift-row.attention strong { color: var(--danger, #d3403a); }
-.cash-shift-movements { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
-.cash-shift-movements li { display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-2); font-size: 12px; }
+.cash-shift-card h2 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); font-weight: 700; }
+
+/* Герой-цифра = моно-тоталайзер (язык денег консоли): выручка смены / расхождение. */
+.cash-shift-hero {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xl);
+  font-weight: 600;
+  line-height: 1.05;
+}
+.cash-shift-hero-block { display: flex; flex-direction: column; gap: 2px; }
+.cash-shift-hero-label { text-transform: uppercase; letter-spacing: 0.05em; font-size: 11px; color: var(--text-tertiary); font-weight: 600; }
+.cash-shift-hero-block.attention .cash-shift-hero { color: var(--danger); }
+.cash-shift-hero-block.ok .cash-shift-hero { color: var(--accent-text); }
+.cash-shift-hero-block.muted .cash-shift-hero { font-family: inherit; font-size: var(--text-base); color: var(--text-tertiary); }
+
+.cash-shift-rows { display: flex; flex-direction: column; gap: var(--space-1); }
+.cash-shift-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); font-size: 13px; }
+.cash-shift-row > span { color: var(--text-tertiary); }
+.cash-shift-row strong { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; }
+.cash-shift-row.attention strong { color: var(--danger); }
+
+.cash-shift-movements { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cash-shift-movements li { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: var(--space-2); font-size: 12px; }
+.cash-shift-movements li > span { color: var(--text-tertiary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cash-shift-movements li strong { color: var(--text-secondary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cash-shift-movements li b { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cash-shift-movements li.out b { color: var(--danger); }
+
 .cash-shift-exports { display: flex; flex-direction: column; gap: var(--space-1); }
 .cash-shift-exports button {
   display: inline-flex; align-items: center; gap: var(--space-2);
   min-height: var(--control-md); padding: 0 var(--space-2);
   border: 1px solid var(--border-soft); border-radius: 6px;
   background: var(--surface-elevated); color: var(--text-primary); cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
-.cash-shift-exports button:hover { border-color: var(--accent); }
+.cash-shift-exports button:hover { border-color: var(--accent); color: var(--accent-bright); }
+.cash-shift-exports button:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
+
+/* История смен — ряды с hairline-разделителями (дата / заработано / расхождение), не буллиты. */
 .cash-shift-history { margin-top: var(--space-3); }
-.cash-shift-history h2 { font-size: 13px; color: var(--text-secondary); }
-.cash-shift-history ul { margin: 0; padding-left: var(--space-3); }
+.cash-shift-hist-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.cash-shift-hist-row {
+  display: grid;
+  grid-template-columns: 120px 1fr 1fr;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border-soft);
+}
+.cash-shift-hist-row:first-child { border-top: 0; }
+.cash-shift-hist-date { color: var(--text-secondary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; }
+.cash-shift-hist-cell { display: inline-flex; align-items: baseline; gap: var(--space-2); font-size: 13px; }
+.cash-shift-hist-cell em { color: var(--text-tertiary); font-style: normal; text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px; }
+.cash-shift-hist-cell b { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cash-shift-hist-cell.attention b { color: var(--danger); }
+
 .cash-shift-empty, .cash-shift-empty-note { color: var(--text-secondary); font-size: 13px; }
 
 /* S2: вкладка «Журнал кассы» — сегменты, лента операций, встроенная проверка. */
@@ -186,9 +233,26 @@
 .cash-journal-segments button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .review-embed { display: block; }
 
-.cash-ledger { display: flex; flex-direction: column; gap: var(--space-2); }
-.cash-ledger-summary { display: flex; flex-wrap: wrap; gap: var(--space-3); font-size: 12px; color: var(--text-secondary); }
-.cash-ledger-summary b { color: var(--text-primary); font-weight: 600; }
+/* Лента операций — парящая панель ограниченной ширины: сумма рядом с описанием, сканируется. */
+.cash-ledger {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 960px;
+  padding: var(--space-3);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+/* Стат-строка: «Итого по кассе» — лид (крупная моно-цифра), внесено/изъято рядом. */
+.cash-ledger-stats { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-4); }
+.cash-ledger-stat { display: flex; flex-direction: column; gap: 2px; }
+.cash-ledger-stat em { font-style: normal; text-transform: uppercase; letter-spacing: 0.05em; font-size: 10px; color: var(--text-tertiary); font-weight: 600; }
+.cash-ledger-stat b { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--text-base); font-weight: 600; }
+.cash-ledger-stat--lead b { font-size: var(--text-xl); }
+.cash-ledger-stat--out b { color: var(--danger); }
+
 .cash-ledger-search { display: flex; align-items: center; gap: var(--space-2); }
 .cash-ledger-search input {
   flex: 1;
@@ -197,31 +261,22 @@
   padding: 0 var(--space-2);
   border: 1px solid var(--border-soft);
   border-radius: 6px;
-  background: var(--surface-base, var(--surface-elevated));
+  background: var(--surface-sunken);
   color: var(--text-primary);
 }
+.cash-ledger-search input:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
 .cash-ledger-export {
   display: inline-flex; align-items: center; gap: var(--space-1);
   min-height: var(--control-md); padding: 0 var(--space-2);
   border: 1px solid var(--border-soft); border-radius: 6px;
   background: var(--surface-elevated); color: var(--text-primary); cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
 }
-.cash-ledger-export:hover { border-color: var(--accent); }
-.cash-ledger-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
-.cash-ledger-row {
-  display: grid;
-  grid-template-columns: auto auto 1fr auto;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--border-soft);
-  border-radius: 6px;
-  background: var(--surface-elevated);
-  font-size: 12px;
-}
-.cash-ledger-row.out b { color: var(--danger, #d3403a); }
-.cash-ledger-time { color: var(--text-secondary); }
-.cash-ledger-row em { color: var(--text-secondary); font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cash-ledger-export:hover { border-color: var(--accent); color: var(--accent-bright); }
+.cash-ledger-export:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
+
+/* Список-обёртка: ряды теперь на общей .ui-ledger-* грамматике (02-ui-kit.css), тут только list-reset. */
+.cash-ledger-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 
 /* S2: форма X/Z-отчёта в модалке. */
 .cash-report { display: flex; flex-direction: column; gap: var(--space-3); }
@@ -259,6 +314,17 @@
   font-size: var(--text-sm);
 }
 
-/* Сегмент «Чеки» в журнале: список переиспользует .pos-receipt-* (язык кассы). */
-.cash-receipts { display: flex; flex-direction: column; gap: var(--space-2); }
+/* Сегмент «Чеки» в журнале: парящая панель ограниченной ширины (как лента операций),
+   список переиспользует .pos-receipt-* (язык кассы). */
+.cash-receipts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 960px;
+  padding: var(--space-3);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+}
 .cash-receipts .pos-receipt-list { padding: 0; }

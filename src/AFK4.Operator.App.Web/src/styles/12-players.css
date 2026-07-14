@@ -1,4 +1,4 @@
-/* ── Вкладка «Клиенты»: master-detail (список + карточка с табами) ──────────── */
+/* ── Вкладка «Клиенты»: широкая таблица + узкий drawer выбранного клиента ──────── */
 
 .clients-screen {
   display: flex;
@@ -19,6 +19,7 @@
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
 }
 
 .clients-head h1 {
@@ -51,672 +52,50 @@
   gap: 6px;
 }
 
-.clients-new-client-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex: none;
-  height: var(--control-md);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-3);
-  background: var(--accent);
-  color: var(--text-on-accent);
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-  transition: background 100ms ease, transform 100ms ease;
-}
-
-.clients-new-client-btn:hover:not(:disabled) {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
-}
-
-.clients-new-client-btn:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.clients-new-client-btn:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.clients-new-client-btn:disabled {
-  cursor: not-allowed;
-  border-color: var(--border-default);
-  background: var(--surface-muted);
-  color: var(--text-quaternary);
-}
-
-/* Layout: список фиксированной ширины + карточка на остаток; тянется на остаток высоты. */
-.clients-layout {
+/* Layout: широкая таблица + узкий drawer (mock-v7); тянется на остаток высоты. Когда клиент не
+   выбран, drawer не в DOM — таблица занимает всю строку грида (единственная колонка). */
+.clients-grid {
   display: grid;
-  grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 372px;
   gap: 10px;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
 }
 
-/* Широкий экран: третья колонка — рейл с полным журналом. Карточка держится
-   читаемой шириной (≤680), рейл забирает остаток, чтобы пространство справа
-   не пустовало (зеркало того, как «Карта»/«Брони» используют всю ширину). */
-@media (min-width: 1280px) {
-  .clients-layout.has-ledger-rail {
-    grid-template-columns: minmax(0, 320px) minmax(480px, 680px) minmax(0, 1fr);
-  }
+/* Клиент не выбран → drawer не рендерится → таблица одна в гриде и растягивается на обе колонки. */
+.clients-grid > .table-panel:only-child {
+  grid-column: 1 / -1;
 }
 
-.clients-panel {
+/* Зона денег: пресеты пополнения + поле «своя сумма» + кнопка, затем «Погасить долг»/«Коррекция».
+   Рисуется внутри drawer (WalletZone), всегда в узкой (372px) колонке — без брейкпоинтов на
+   viewport. Тег-селектор `button` тут НЕ использовать (каскад-ловушка с .ui-btn). */
+.clients-wallet-zone {
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  border: 1px solid var(--border-soft);
-  border-radius: 7px;
-  background: var(--surface-elevated);
-}
-
-.clients-panel-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: var(--space-3);
-  min-width: 0;
-  /* Щедрый вертикальный воздух: строка заголовка не лепится к полю поиска. */
-  padding: var(--space-3) var(--space-3) var(--space-2);
 }
-
-/* Заголовок панели — одна строка; при нехватке места усекается сам, а кнопка остаётся целой. */
-.clients-panel-title-text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* ── Список (master) ────────────────────────────────────────────────────────── */
-.clients-search {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: var(--control-md);
-  margin: var(--space-2) var(--space-3) var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-3);
-  background: var(--surface-sunken);
-  color: var(--text-tertiary);
-}
-
-.clients-search input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 12px;
-}
-
-.clients-segment-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 0 12px 8px;
-}
-
-.clients-segment-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: var(--control-sm);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-pill);
-  padding: 0 var(--space-3);
-  background: var(--surface-card);
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease, transform 120ms ease;
-}
-
-.clients-segment-chip b {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.clients-segment-chip:hover:not(.active),
-.clients-segment-chip:focus-visible {
-  border-color: var(--border-accent);
-  color: var(--accent-bright);
-  outline: none;
-  transform: translateY(-1px);
-}
-
-.clients-segment-chip:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.clients-segment-chip.active {
-  border-color: var(--accent);
-  background: var(--surface-accent-soft);
-  color: var(--accent-bright);
-}
-
-.clients-segment-chip.active b {
-  color: var(--accent-bright);
-}
-
-.clients-list {
-  display: grid;
-  align-content: start;
-  gap: 5px;
-  /* padding-top — запас под hover-подъём первой строки (translateY иначе срезается кромкой прокрутки) */
-  padding: 2px 12px 10px;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.clients-list-skeleton {
-  display: grid;
-  gap: 5px;
-}
-
-.client-row-skel {
-  height: 44px;
-  border-radius: 6px;
-}
-
-.client-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-1) var(--space-2);
-  min-height: var(--control-lg);
-  border: 1px solid var(--border-default);
-  border-left: 3px solid var(--text-tertiary);
-  border-radius: 6px;
-  padding: 5px 9px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  text-align: left;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
-}
-
-.client-row:hover,
-.client-row:focus-visible {
-  border-color: var(--border-accent);
-  background: var(--surface-hover);
-  outline: none;
-  transform: translateY(-1px);
-}
-
-.client-row:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.client-row.active { border-left-color: var(--success); }
-.client-row.regular { border-left-color: var(--text-tertiary); }
-.client-row.debt { border-left-color: var(--danger); }
-
-.client-row.selected {
-  border-color: var(--border-accent);
-  background: var(--surface-hover);
-  box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), 0.22);
-}
-
-.client-row-name {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-}
-
-.client-row-name-text {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Бейдж-pill рядом с именем — только для отклонений (долг/деактивация). */
-.client-row-badge {
-  flex: none;
-  padding: 1px 7px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.client-row-badge.is-debt {
-  background: var(--danger-soft-bg);
-  color: var(--danger-text);
-}
-
-.client-row-badge.is-inactive {
-  background: var(--surface-muted);
-  color: var(--text-strong);
-}
-
-.client-row-info {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-}
-
-/* Баланс + (опционально) долг одной стопкой в колонке 3 — чтобы долг не уезжал во второй
-   grid-ряд и не делал строку выше: высоту строки всегда диктует левая колонка (имя+телефон). */
-.client-row-figures {
-  display: flex;
-  flex-direction: column;
+.clients-wallet-quickpay {
   align-items: flex-end;
-  justify-content: center;
-  gap: 2px;
-  min-width: 0;
 }
+/* Поле «своя сумма» и кнопка «Пополнить депозит» делят строку поровну (.topup-row: 1fr 1fr) —
+   симметрично со строкой «Списать долг» / «Ручная корректировка» под ней. */
 
-.client-row em {
-  overflow: hidden;
-  color: var(--text-strong);
-  font-size: 11px;
-  font-style: normal;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-row b {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 12px;
-  text-align: right;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-row-debt {
-  color: var(--danger-text);
-  font-size: 11px;
-  font-weight: 600;
-  text-align: right;
-}
-
-/* ── Карточка (detail) ──────────────────────────────────────────────────────── */
-.clients-detail-panel {
-  gap: var(--space-3);
-}
-
-.client-detail-head {
+/* «Списать долг» + «Ручная корректировка» — ровный ряд, поровну делят ширину между собой (при
+   одной кнопке — занимает всю строку). */
+.clients-wallet-secondary {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-3);
-  max-width: 1040px;
-  margin: var(--space-3) var(--space-3) 0;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  background: var(--surface-card);
-}
-
-.client-avatar {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: var(--text-on-accent);
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.client-detail-ident {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-}
-
-.client-detail-status {
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.client-detail-status.is-debt {
-  color: var(--danger-text);
-}
-
-.client-detail-status.is-inactive {
-  color: var(--text-secondary);
-}
-
-.client-detail-ident strong {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 20px;
-  line-height: 1.05;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-detail-ident em {
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-style: normal;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-detail-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.client-detail-reservation {
-  display: inline-flex;
-  align-items: center;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: var(--space-2);
-  height: var(--control-md);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-3);
-  background: var(--surface-card);
-  color: var(--text-strong);
-  font-size: 12px;
-  font-weight: 600;
-  transition: border-color 100ms ease, background 100ms ease, color 100ms ease, transform 100ms ease;
 }
 
-.client-detail-reservation:hover:not(:disabled) {
-  border-color: var(--border-accent);
-  background: var(--surface-accent-soft);
-  color: var(--accent-bright);
-  transform: translateY(-1px);
-}
-
-.client-detail-reservation:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.client-detail-reservation:disabled {
-  cursor: not-allowed;
-  border-color: var(--border-default);
-  background: var(--surface-muted);
-  color: var(--text-quaternary);
-}
-
-/* Сводка-чипы — на общую рабочую сетку (3 равные колонки, одна кромка с телом вкладок). */
-.client-detail-chips {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-2);
-  max-width: 1040px;
-  padding: 0 var(--space-3);
-}
-
-.client-chip {
-  display: grid;
-  gap: var(--space-1);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  background: var(--surface-elevated);
-}
-
-.client-chip span {
-  color: var(--text-secondary);
-  font-size: 11px;
-}
-
-.client-chip strong {
-  color: var(--text-primary);
-  font-size: 18px;
-  line-height: 1;
-}
-
-.client-chip.is-debt {
-  border-color: var(--danger-soft-border);
-  background: var(--danger-soft-bg);
-}
-
-.client-chip.is-debt strong {
-  color: var(--danger-text);
-}
-
-.client-detail-tabs {
-  display: flex;
-  gap: var(--space-1);
-  max-width: 1040px;
-  margin: 0 var(--space-3);
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.client-detail-tab {
-  height: var(--control-md);
-  border: none;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  padding: 0 10px;
-  transition: color 100ms ease, border-color 100ms ease;
-}
-
-.client-detail-tab:hover {
-  color: var(--text-primary);
-}
-
-.client-detail-tab:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: -2px;
-}
-
-.client-detail-tab.active {
-  color: var(--accent-bright);
-  border-bottom-color: var(--accent);
-}
-
-.client-detail-content {
-  overflow-y: auto;
-  min-height: 0;
-  max-width: 1040px;
-  /* padding-top — запас под hover-подъём верхнего ряда чипов (иначе translateY срезается кромкой прокрутки) */
-  padding: var(--space-1) var(--space-3) var(--space-3);
-}
-
-/* ── Кошелёк: слева действия, справа мини-лента последних операций ──────────────
-   Баланс/долг живут в чипах-сводке — здесь не дублируем. */
-.clients-wallet-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  gap: var(--space-4);
-  align-items: stretch;
-}
-
-.clients-wallet-actions {
-  display: grid;
-  gap: var(--space-3);
-  align-content: start;
-}
-
-/* Узкое окно — колонки в стопку (история под действиями) */
-@media (max-width: 1024px) {
-  .clients-wallet-layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* Широкий экран: мини-ленты нет (её заменил рейл), кошелёк — одна колонка действий. */
-.clients-wallet-layout.is-solo {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-/* Блок погашения долга — мягкий красный акцент в рамке, чтобы отличался от пополнения */
-.clients-wallet-form-debt {
-  border-color: var(--danger-soft-border);
-}
-
-/* Мини-лента последних операций (read-only, со ссылкой на полную «Историю») */
-.clients-wallet-recent {
+/* Форма диалога погашения долга (PayDebtModal). Без тег-селектора button (каскад-ловушка). */
+.clients-paydebt-form {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  height: 100%;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  background: var(--surface-card);
-}
-
-.clients-wallet-recent-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-primary);
-}
-
-.clients-wallet-recent-head strong {
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.clients-wallet-recent-empty {
-  margin: 0;
-  color: var(--text-tertiary);
-  font-size: 12px;
-}
-
-.clients-wallet-recent-list {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.clients-wallet-recent-row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 2px;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.clients-wallet-recent-row:last-child {
-  border-bottom: none;
-}
-
-.clients-wallet-recent-time {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.clients-wallet-recent-type {
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.clients-wallet-recent-amount {
-  font-size: 12px;
-  font-weight: 700;
-  text-align: right;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.clients-wallet-recent-row.is-credit .clients-wallet-recent-amount {
-  color: var(--success-text);
-}
-
-.clients-wallet-recent-row.is-debit .clients-wallet-recent-amount {
-  color: var(--danger-text);
-}
-
-.clients-wallet-recent-link {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  align-self: flex-start;
-  margin-top: auto;
-  padding: 4px 2px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--accent-bright);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.clients-wallet-recent-link:hover {
-  color: var(--accent-hover);
-}
-
-.clients-wallet-recent-link:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.clients-wallet-form {
-  display: grid;
-  gap: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  background: var(--surface-card);
-}
-
-.clients-wallet-form.is-muted {
-  opacity: 0.62;
-}
-
-.clients-section-title {
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-/* Сумма + причина в один ряд: форма перестаёт растягиваться на 4 строки полей.
-   Сумма — узкая колонка (число короткое), причина — широкая (текст). */
-.clients-wallet-fields {
-  display: grid;
-  grid-template-columns: minmax(110px, 0.8fr) minmax(0, 1.2fr);
   gap: var(--space-3);
 }
 
-.clients-wallet-field {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-/* Совсем узко — поля в стопку, чтобы не зажимались. */
-@media (max-width: 560px) {
-  .clients-wallet-fields {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.clients-wallet-form label,
-.clients-package-select,
 .clients-new-form label,
 .clients-correction-form label,
 .clients-edit-form label,
@@ -729,8 +108,6 @@
   font-weight: 600;
 }
 
-.clients-wallet-form input,
-.clients-package-select select,
 .clients-new-form input,
 .clients-correction-form input,
 .clients-edit-form input,
@@ -749,8 +126,6 @@
   transition: border-color 100ms ease, box-shadow 100ms ease;
 }
 
-.clients-wallet-form input:focus,
-.clients-package-select select:focus,
 .clients-new-form input:focus,
 .clients-correction-form input:focus,
 .clients-edit-form input:focus,
@@ -760,8 +135,6 @@
   box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.22);
 }
 
-.clients-wallet-form input:disabled,
-.clients-package-select select:disabled,
 .clients-correction-form input:disabled,
 .clients-edit-form input:disabled,
 .clients-pin-form input:disabled,
@@ -807,228 +180,6 @@
   color: var(--text-quaternary);
 }
 
-.clients-debt-action {
-  border-color: var(--danger-soft-border);
-  background: transparent;
-  color: var(--danger-text);
-}
-
-.clients-debt-action:hover:not(:disabled) {
-  border-color: var(--danger);
-  background: var(--danger-soft-bg);
-  color: var(--danger-text);
-}
-
-/* ── Пакеты ──────────────────────────────────────────────────────────────────── */
-.clients-packages-section {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.client-package-list {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.client-package-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-1) var(--space-3);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface-elevated);
-}
-
-.client-package-row.is-expired {
-  opacity: 0.6;
-}
-
-.client-package-row strong {
-  grid-column: 1;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-package-row span {
-  grid-column: 1;
-  color: var(--text-secondary);
-  font-size: 11px;
-}
-
-.client-package-bonus {
-  color: var(--accent-on-soft) !important;
-}
-
-.client-package-row b {
-  grid-row: 1 / 3;
-  grid-column: 2;
-  align-self: center;
-  color: var(--text-tertiary);
-  font-size: 11px;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.clients-package-buy {
-  display: grid;
-  gap: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  background: var(--surface-card);
-}
-
-.clients-package-preview {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-2);
-}
-
-.clients-package-preview span {
-  display: grid;
-  gap: var(--space-1);
-  min-width: 0;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2);
-  background: var(--surface-elevated);
-}
-
-.clients-package-preview strong,
-.clients-package-preview b {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.clients-package-preview strong {
-  color: var(--text-secondary);
-  font-size: 10px;
-}
-
-.clients-package-preview b {
-  color: var(--text-primary);
-  font-size: 12px;
-}
-
-/* Депозит-гейт во всю ширину: именно он решает, можно ли купить, — выделяем явно. */
-.clients-package-deposit {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-3);
-  background: var(--surface-elevated);
-}
-
-.clients-package-deposit.attention {
-  border-color: var(--danger-soft-border);
-  background: var(--danger-soft-bg);
-}
-
-.clients-package-deposit strong {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.clients-package-deposit b {
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.clients-package-deposit.attention b {
-  color: var(--danger-text);
-}
-
-.client-package-skeleton {
-  height: 52px;
-  border-radius: var(--radius-md);
-}
-
-/* ── История ─────────────────────────────────────────────────────────────────── */
-.clients-history-list {
-  display: grid;
-  gap: 4px;
-}
-
-.client-history-row {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  min-height: 36px;
-  border-bottom: 1px solid var(--border-soft);
-  padding: 6px 2px;
-}
-
-.client-history-time {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-
-.client-history-body {
-  display: grid;
-  min-width: 0;
-  gap: 1px;
-}
-
-.client-history-body strong {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 12px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-history-reversal {
-  flex: none;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: var(--surface-muted);
-  color: var(--text-secondary);
-  font-size: 9px;
-  font-style: normal;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.client-history-detail {
-  overflow: hidden;
-  color: var(--text-secondary);
-  font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.client-history-amount {
-  font-size: 13px;
-  font-weight: 700;
-  text-align: right;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.client-history-row.is-credit .client-history-amount {
-  color: var(--success-text);
-}
-
-.client-history-row.is-debit .client-history-amount {
-  color: var(--danger-text);
-}
-
 /* ── Модалка нового клиента (поверх .panel-modal) ───────────────────────────── */
 .clients-new-form {
   display: grid;
@@ -1038,13 +189,8 @@
 
 /* ── Reduced motion ───────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .client-row,
-  .clients-segment-chip,
   .clients-segment button,
-  .client-detail-tab,
-  .clients-primary-action,
-  .clients-new-client-btn,
-  .client-detail-reservation {
+  .clients-primary-action {
     transition: none;
   }
 }
@@ -1063,40 +209,6 @@
   gap: 6px;
 }
 
-.clients-history-filter {
-  display: inline-flex;
-  align-items: center;
-  height: var(--control-sm);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-pill);
-  padding: 0 var(--space-3);
-  background: var(--surface-card);
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease, transform 120ms ease;
-}
-
-.clients-history-filter:hover:not(.active) {
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-
-.clients-history-filter:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.clients-history-filter:active {
-  transform: scale(0.97);
-}
-
-.clients-history-filter.active {
-  border-color: var(--accent);
-  background: rgba(var(--accent-rgb), 0.16);
-  color: var(--text-primary);
-}
-
 .clients-history-skeleton {
   display: flex;
   flex-direction: column;
@@ -1109,46 +221,8 @@
 }
 
 .clients-history-more {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
   align-self: center;
-  height: var(--control-md);
   margin-top: var(--space-1);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-4);
-  background: var(--surface-card);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
-}
-
-.clients-history-more:hover:not(:disabled) {
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-
-.clients-history-more:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.clients-history-more:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.clients-history-more:disabled {
-  cursor: not-allowed;
-  color: var(--text-quaternary);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .clients-history-filter,
-  .clients-history-more {
-    transition: none;
-  }
 }
 
 /* ── S2 power-tools: сегменты, формы модалок, входные кнопки ─────────────── */
@@ -1246,96 +320,6 @@
 .clients-pin-hint {
   color: var(--text-tertiary);
   font-size: 11px;
-}
-
-/* Корректировка — вторичная кнопка-outline: заметна, но не конкурирует с primary «Пополнить». */
-.clients-wallet-correction-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  height: var(--control-md);
-  padding: 0 var(--space-4);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  background: var(--surface-card);
-  color: var(--accent-bright);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
-}
-
-.clients-wallet-correction-link:hover {
-  border-color: var(--border-accent);
-  background: var(--surface-accent-soft);
-  transform: translateY(-1px);
-}
-
-.clients-wallet-correction-link:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .clients-wallet-correction-link {
-    transition: none;
-  }
-}
-
-.client-detail-pin {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 0 12px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: border-color 100ms ease, background 100ms ease, color 100ms ease, transform 100ms ease;
-}
-
-.client-detail-pin:hover:not(:disabled) {
-  border-color: var(--border-accent);
-  background: var(--surface-accent-soft);
-  color: var(--accent-bright);
-  transform: translateY(-1px);
-}
-
-.client-detail-pin:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.client-history-aside {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-}
-
-.client-history-refund {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-secondary);
-}
-
-.client-history-refund:hover {
-  color: var(--danger-text);
-}
-
-.client-history-refund:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
 }
 
 /* Кнопка подтверждения возврата — опасный акцент по образцу .critical-confirmation-actions button.danger */
@@ -1436,48 +420,11 @@
   background: var(--danger-soft-bg);
 }
 
-.client-detail-banner {
-  margin: 0 0 12px;
-  padding: 10px 14px;
-  border: 1px solid var(--danger);
-  border-radius: 9px;
-  background: var(--danger-soft-bg);
-  color: var(--danger-text);
-  font-size: 13px;
-}
-
-/* ── Кросс-контекст профиля: «играет сейчас» / «ближайшая бронь» ──────────────── */
-.client-context-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  max-width: 1040px;
-  margin: 0 var(--space-3);
-}
-
-.client-context-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: var(--control-sm);
-  padding: 3px var(--space-3);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-pill);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.client-context-chip.is-live {
-  border-color: var(--success-soft-border);
-  background: var(--success-soft-bg);
-  color: var(--success-text);
-}
-
-.client-context-chip.is-booking {
-  border-color: var(--border-accent);
-  background: var(--surface-accent-soft);
-  color: var(--accent-bright);
+/* Разделитель перед опасным пунктом (Деактивировать) — только когда перед ним есть другие пункты. */
+.client-actions-sep {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--border-soft);
 }
 
 .clients-edit-form,
@@ -1494,38 +441,544 @@
   line-height: 1.5;
 }
 
-.client-row.is-inactive {
-  opacity: 0.62;
-}
-
-.client-row.is-inactive .client-row-status {
-  color: var(--danger-text);
-}
-
 .panel-modal.danger .panel-modal-head {
   border-bottom-color: var(--danger);
 }
 
-/* ── Рейл журнала операций (третья колонка, ≥1280px) ───────────────────────── */
-.clients-ledger-rail-head {
+/* ── ClientsTable (mock-v7): широкая таблица клиентов — рабочий экран раздела «Клиенты».
+   Разметка/классы 1:1 из scratchpad/clients-redesign-mock-v7.html; модификаторы строки
+   (debt/selected/inactive) скоуплены к .ctable-row — в проекте есть голые .debt/.selected
+   в другом контексте (06-map-grid/11-pos), голый селектор их перебил бы. ──────── */
+.table-panel {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex: none;
-  padding: var(--space-3) var(--space-3) var(--space-2);
-  border-bottom: 1px solid var(--border-soft);
-  color: var(--text-primary);
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
 }
 
-.clients-ledger-rail-head strong {
+.table-toolbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.tt-search {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  max-width: 360px;
+  height: 34px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 0 12px;
+  background: var(--surface-sunken);
+  color: var(--text-quaternary);
+  font-size: 13px;
+}
+
+.tt-search:focus-within {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.tt-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.tt-search input::placeholder {
+  color: var(--text-quaternary);
+}
+
+.tt-segs {
+  display: flex;
+  gap: 8px;
+}
+
+.tt-spacer {
+  flex: 1;
+}
+
+.ctable-grid {
+  grid-template-columns: minmax(200px, 2fr) 96px 84px minmax(140px, 1.25fr) 96px;
+}
+
+.ctable-head {
+  display: grid;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ctable-head .r {
+  justify-self: end;
+}
+
+.ctable-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 8px;
+  min-height: 0;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+/* Строка-карточка (не строка-с-разделителем): своя рамка/фон/радиус, отступ между
+   карточками вместо border-bottom. Полоса долга (border-left-color) и кольцо выбора
+   (box-shadow) — разные CSS-свойства нарочно, чтобы при одновременном debt+selected
+   оба сигнала оставались видны, а не гасили друг друга через каскад одного свойства. */
+.ctable-row {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 0 16px;
+  border: 1px solid var(--border-soft);
+  border-left-width: 3px;
+  border-left-color: transparent;
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+.ctable-row:hover {
+  border-color: var(--border-accent);
+  background: var(--surface-hover);
+  transform: translateY(-1px);
+}
+
+.ctable-row:active {
+  transform: scale(0.99);
+}
+
+.ctable-row:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.ctable-row.debt {
+  border-left-color: var(--danger);
+}
+
+.ctable-row.selected {
+  background: var(--surface-hover);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.35);
+}
+
+.ctable-row.inactive {
+  background: var(--surface-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ctable-row {
+    transition: none;
+  }
+  .ctable-row:hover {
+    transform: none;
+  }
+}
+
+.ctable-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+.ctable-row-skel {
+  height: 56px;
+  border-radius: var(--radius-md);
+}
+
+.cc-client {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.cc-av {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cc-id {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.cc-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cc-name .nm {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cc-phone {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.cc-tag {
+  flex: none;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  padding: 1px 6px;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* НОВЫЙ — повод обратить внимание, поэтому тёплый акцентный тег, а не тот же нейтральный
+   серый, что у статуса неактивности (два разных по смыслу состояния — два разных цвета). */
+.cc-tag--new {
+  border-color: var(--border-accent);
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+}
+
+.cc-num {
+  justify-self: end;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cc-num.debt {
+  color: var(--danger-text);
+}
+
+.cc-num.zero {
+  color: var(--text-secondary);
+}
+
+/* Кто сейчас на месте — самый ценный для оператора сигнал в этой таблице, поэтому не
+   просто текст с акцентным цветом, а полноценный бейдж (по образцу .status-pill из
+   drawer/карты) — форма считывается на скролле быстрее, чем оттенок текста. Цвета
+   намеренно свои (не голый .status-pill), чтобы не тянуть его отступы/высоту в грид-ячейку. */
+.cc-now {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cc-now.live {
+  background: var(--success-soft-bg);
+  color: var(--success-text);
+}
+
+.cc-now.package {
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+
+.cc-now.none {
+  padding: 0;
+  color: var(--text-quaternary);
+  font-weight: 400;
+}
+
+.cc-now svg {
+  flex: none;
+}
+
+.cc-now .txt {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cc-visit {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* ── ClientDrawer (mock-v7): узкая правая панель выбранного клиента — деньги-герой +
+   быстрое пополнение + мини-история. Пилюли контекста реюзают .status-pill (06-map-grid.css),
+   здесь не дублируются. Заменяет .clients-detail-panel (Task 8 удалит ClientDetail). ────────── */
+.drawer-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+
+.drawer-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 14px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.drawer-av {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
   font-size: 14px;
   font-weight: 700;
 }
 
-.clients-ledger-rail-body {
+.drawer-id {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.drawer-name {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer-phone {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.drawer-ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.drawer-ic:hover {
+  border-color: var(--border-accent);
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+}
+
+.drawer-ic:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.drawer-context {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.drawer-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  /* padding-top — запас под hover-подъём фильтр-чипов (translateY иначе срезается кромкой прокрутки) */
-  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+
+.eyebrow {
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Баланс + долг — один ряд: баланс 70%, долг рядом справа компактным квадратным блоком 30%
+   (mock-фидбек). Без долга «долг» не рендерится вовсе — баланс занимает всю ширину сам. */
+.wallet-money {
+  display: grid;
+  gap: 8px;
+}
+
+.wallet-money.has-debt {
+  grid-template-columns: 7fr 3fr;
+  align-items: stretch;
+}
+
+.wallet-balance {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-card);
+}
+
+.wallet-balance .val {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wallet-debt {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid var(--danger-soft-border);
+  border-left: 3px solid var(--danger);
+  border-radius: 8px;
+  padding: 12px 10px;
+  background: var(--danger-soft-bg);
+  color: var(--danger-text);
+}
+
+.wallet-debt .eyebrow {
+  color: var(--danger-text);
+  opacity: 0.75;
+}
+
+.wallet-debt .val {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wallet-sep {
+  flex: none;
+  height: 1px;
+  background: var(--border-soft);
+}
+
+.topup-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.topup-row .ui-btn {
+  min-width: 0;
+}
+
+.recent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.recent-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  color: var(--accent-bright);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.recent-link:hover {
+  text-decoration: underline;
+}
+
+.recent-link:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.recent-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.recent-empty {
+  margin: 0;
+  padding: 12px 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  text-align: center;
 }

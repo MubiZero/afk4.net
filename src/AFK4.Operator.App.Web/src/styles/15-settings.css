@@ -27,6 +27,7 @@
   border: 1px solid var(--border-soft);
   border-radius: 7px;
   background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
 }
 
 .settings-nav-panel {

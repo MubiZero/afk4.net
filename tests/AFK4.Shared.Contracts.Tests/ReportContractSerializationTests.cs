@@ -54,6 +54,9 @@ public sealed class ReportContractSerializationTests
             Total: new MoneyDto("TJS", 2400),
             PaidAmount: new MoneyDto("TJS", 2400),
             RefundAmount: new MoneyDto("TJS", 0),
+            GrossCostOfGoods: new MoneyDto("TJS", 800),
+            RefundedCostOfGoods: new MoneyDto("TJS", 0),
+            NetCostOfGoods: new MoneyDto("TJS", 800),
             LineCount: 1,
             ItemQuantity: 2,
             CreatedAtUtc: DateTimeOffset.Parse("2026-05-14T12:00:00Z"),
@@ -65,7 +68,10 @@ public sealed class ReportContractSerializationTests
             Limit: 50,
             GrossSalesTotal: new MoneyDto("TJS", 2400),
             RefundsTotal: new MoneyDto("TJS", 0),
-            NetSalesTotal: new MoneyDto("TJS", 2400));
+            NetSalesTotal: new MoneyDto("TJS", 2400),
+            GrossCostOfGoodsTotal: new MoneyDto("TJS", 800),
+            RefundedCostOfGoodsTotal: new MoneyDto("TJS", 0),
+            NetCostOfGoodsTotal: new MoneyDto("TJS", 800));
 
         var copy = JsonSerializer.Deserialize<SalesReportResultDto>(
             JsonSerializer.Serialize(result, Options),
@@ -73,7 +79,10 @@ public sealed class ReportContractSerializationTests
 
         Assert.NotNull(copy);
         Assert.Equal(2400, copy.NetSalesTotal.MinorUnits);
-        Assert.Equal(2, Assert.Single(copy.Rows).ItemQuantity);
+        Assert.Equal(800, copy.NetCostOfGoodsTotal.MinorUnits);
+        var readBack = Assert.Single(copy.Rows);
+        Assert.Equal(2, readBack.ItemQuantity);
+        Assert.Equal(800, readBack.GrossCostOfGoods.MinorUnits);
     }
 
     [Fact]

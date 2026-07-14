@@ -1,7 +1,8 @@
 import { useI18n } from '@afk4/i18n';
 import { Printer } from 'lucide-react';
 import { PanelModal } from '../PanelModal';
-import { formatMoney, formatTime } from '../operatorHelpers';
+import { formatTime } from '../operatorHelpers';
+import { Money } from '../operatorPrimitives';
 import type { ShiftReportData } from './shiftReport';
 
 // Презентационная форма отчёта по смене: X (промежуточный, смена открыта) или Z (итог закрытия).
@@ -23,7 +24,7 @@ export function ShiftReportModal({
   const title = variant === 'x' ? t('op.cash.report.xTitle') : t('op.cash.report.zTitle');
   const subtitle = variant === 'x' ? t('op.cash.report.xSubtitle') : t('op.cash.report.zSubtitle');
   const money = (value: { currencyCode: string; minorUnits: number } | null) =>
-    value === null ? t('op.cash.shift.notClosed') : formatMoney(value, currencyCode);
+    value === null ? t('op.cash.shift.notClosed') : <Money minorUnits={value.minorUnits} currencyCode={currencyCode} />;
 
   return (
     <PanelModal title={title} subtitle={subtitle} onClose={onClose}>
@@ -53,7 +54,7 @@ export function ShiftReportModal({
           </div>
         </section>
 
-        <button type="button" className="cash-primary-action" onClick={onPrint}>
+        <button type="button" className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block cash-primary-action" onClick={onPrint}>
           <Printer size={15} aria-hidden="true" />
           {t('op.cash.report.print')}
         </button>

@@ -35,7 +35,7 @@
   gap: 2px;
   height: 40px;
   padding: 0 10px;
-  border-bottom: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-default);
   background: var(--surface-elevated);
 }
 

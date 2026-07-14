@@ -670,13 +670,18 @@ public sealed class EfSessionCommandServiceTests
         FakeSessionBillingService? billing = null,
         RecordingSessionLifecycleNotifier? lifecycleNotifier = null)
     {
+        var leaseSigner = new FakeSessionLeaseSigner();
+        var timeProvider = new FixedTimeProvider(Now);
+        var billingService = billing ?? new FakeSessionBillingService();
+        var notifier = lifecycleNotifier ?? new RecordingSessionLifecycleNotifier();
         return new EfSessionCommandService(
             db,
             dispatcher,
-            new FakeSessionLeaseSigner(),
-            new FixedTimeProvider(Now),
-            billing ?? new FakeSessionBillingService(),
-            lifecycleNotifier ?? new RecordingSessionLifecycleNotifier());
+            leaseSigner,
+            timeProvider,
+            billingService,
+            notifier,
+            new EfSessionStartWorkflow(db, dispatcher, leaseSigner, timeProvider, billingService, notifier));
     }
 
     private static async Task SeedLayoutAsync(PlatformDbContext db, bool includeTargetSeat)

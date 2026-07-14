@@ -15,4 +15,5 @@ public sealed record ShopOrderDto(
     DateTimeOffset? AcceptedAtUtc,
     DateTimeOffset? DeliveredAtUtc,
     DateTimeOffset? CancelledAtUtc,
-    int Version);
+    int Version,
+    Guid? PosSaleId = null);

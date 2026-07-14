@@ -1,11 +1,25 @@
 import { describe, expect, it } from 'bun:test';
 import { createTranslator } from '@afk4/i18n';
-import { billingLabel, matchesLifecycleScope, matchesMapFilter } from './operatorHelpers';
+import { billingLabel, matchesLifecycleScope, matchesMapFilter, resolveReasonInput } from './operatorHelpers';
 import type { OperatorAuthSession } from './authClient';
 import type { SeatSummary } from './operatorData';
 import type { SessionLifecycleChangedDto } from './operatorRealtime';
 
 const t = createTranslator('ru');
+
+describe('resolveReasonInput', () => {
+  // §7.5: wallet reason inputs are empty by default with a placeholder — this is the
+  // submit-time fallback that keeps a one-click top-up/debt-payment working without
+  // weakening the money-path "reason required" contract.
+  it('falls back to the default when the reason is blank or only whitespace', () => {
+    expect(resolveReasonInput('', 'пополнение через кассу')).toBe('пополнение через кассу');
+    expect(resolveReasonInput('   ', 'пополнение через кассу')).toBe('пополнение через кассу');
+  });
+
+  it('keeps and trims an operator-entered reason', () => {
+    expect(resolveReasonInput('  наличными в кассу  ', 'пополнение через кассу')).toBe('наличными в кассу');
+  });
+});
 
 describe('billingLabel', () => {
   // Every billing token the floor-map data layer can emit must localize to a real

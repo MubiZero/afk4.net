@@ -913,6 +913,14 @@ export function formatMoneyInputMinorUnits(minorUnits: number): string {
   return minorToMajor(minorUnits).toFixed(2);
 }
 
+// Reason inputs render empty with a placeholder (§7.5) so a quick top-up/debt-payment
+// isn't blocked by a required free-text field — but the audit trail still needs a real
+// string. A blank submit resolves to the same localized default the placeholder shows.
+export function resolveReasonInput(rawReason: string, fallback: string): string {
+  const trimmed = rawReason.trim();
+  return trimmed === '' ? fallback : trimmed;
+}
+
 export function dashboardRangeQuery(from: string, to: string) {
   return {
     fromUtc: `${from}T00:00:00.000Z`,
@@ -1169,14 +1177,6 @@ export function playerPackageLabel(playerPackage: PlayerPackageDto, t: TFunc) {
   return t('op.helper.player.packageLabel', { name, minutes });
 }
 
-export function packageOptionLabel(packageOption: Record<string, unknown>, currencyCode: string, t: TFunc) {
-  const name = readString(packageOption, 'name', t('op.helper.player.packageFallback'));
-  const price = readNumber(packageOption, 'priceMinorUnits', 0);
-  const currency = readString(packageOption, 'currencyCode', currencyCode);
-  const totalMinutes = Math.floor((readNumber(packageOption, 'includedSeconds', 0) + readNumber(packageOption, 'bonusSeconds', 0)) / 60);
-  return t('op.helper.player.packageOptionLabel', { name, price: formatMinorUnits(price, currency), minutes: totalMinutes });
-}
-
 export function describeDeviceCommandStatus(status: Record<string, unknown>, t: TFunc) {
   const type = readString(status, 'type', 'command');
   const state = readString(status, 'status', 'pending');
@@ -1319,6 +1319,10 @@ export type PlayerClientItem = {
   detail: string;
   phoneNumber: string;
   source: 'fixture' | 'backend';
+  createdAtUtc: string | null;
+  lastActivityAtUtc: string | null;
+  activePackageName: string | null;
+  activePackageRemainingMinutes: number;
 };
 
 export function projectPlayerClient(player: unknown, t: TFunc): PlayerClientItem {
@@ -1342,8 +1346,22 @@ export function projectPlayerClient(player: unknown, t: TFunc): PlayerClientItem
     tone: debt > 0 ? 'debt' : isActive ? 'active' : 'regular',
     detail,
     phoneNumber: readString(player, 'phoneNumber', ''),
-    source: 'backend'
+    source: 'backend',
+    createdAtUtc: readString(player, 'createdAtUtc') || null,
+    lastActivityAtUtc: readString(player, 'lastActivityAtUtc') || null,
+    activePackageName: readString(player, 'activePackageName') || null,
+    activePackageRemainingMinutes: readNumber(player, 'activePackageRemainingMinutes', 0)
   };
+}
+
+// Первые две буквы имени как аватар-заглушка — общий примитив для ClientsTable/ClientDrawer.
+export function initials(name: string): string {
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || '—';
 }
 
 export function isGuid(value: string): boolean {

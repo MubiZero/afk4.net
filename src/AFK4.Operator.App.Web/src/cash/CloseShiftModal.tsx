@@ -1,7 +1,8 @@
 import { useI18n } from '@afk4/i18n';
 import { Lock } from 'lucide-react';
 import { PanelModal } from '../PanelModal';
-import { formatMoney, parseNonNegativeMoneyInputMinorUnits } from '../operatorHelpers';
+import { parseNonNegativeMoneyInputMinorUnits } from '../operatorHelpers';
+import { Money } from '../operatorPrimitives';
 
 // Презентационная модалка закрытия смены со сверкой. Превью расхождения = факт − ожидается,
 // считается живо при валидном вводе (включая 0 — реально пустая касса валидна).
@@ -44,10 +45,10 @@ export function CloseShiftModal({
         }}
       >
         <div className="cash-close-reconcile">
-          <div><span>{t('op.cash.close.expected')}</span><strong>{formatMoney(expectedCash, currencyCode)}</strong></div>
+          <div><span>{t('op.cash.close.expected')}</span><strong><Money minorUnits={expectedCash?.minorUnits ?? 0} currencyCode={currencyCode} /></strong></div>
           <div className={difference && difference.minorUnits !== 0 ? 'attention' : undefined}>
             <span>{t('op.cash.close.difference')}</span>
-            <strong>{difference === null ? '—' : formatMoney(difference, currencyCode)}</strong>
+            <strong>{difference === null ? '—' : <Money minorUnits={difference.minorUnits} currencyCode={currencyCode} />}</strong>
           </div>
         </div>
         <label htmlFor="close-shift-counted">{t('op.cash.close.countedLabel')}</label>
@@ -66,7 +67,11 @@ export function CloseShiftModal({
           onChange={(event) => onChangeNote(event.currentTarget.value)}
         />
         <p className="cash-close-impact">{t('op.cash.close.impact')}</p>
-        <button type="submit" className="cash-primary-action danger" disabled={busy}>
+        <button
+          type="submit"
+          className="ui-btn ui-btn--primary ui-btn--lg ui-btn--block ui-btn--danger cash-primary-action danger"
+          disabled={busy}
+        >
           <Lock size={15} aria-hidden="true" />
           {t('op.cash.close.submit')}
         </button>

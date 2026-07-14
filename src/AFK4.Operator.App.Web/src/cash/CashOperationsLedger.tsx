@@ -5,13 +5,13 @@ import {
   cashOperationTypeLabel,
   createAuthenticatedOperatorClients,
   downloadTextFile,
-  formatMoney,
   formatTime,
   readArray,
   readMoney,
   readString
 } from '../operatorHelpers';
 import { projectOperatorError } from '../apiErrors';
+import { Money } from '../operatorPrimitives';
 import type { OperatorBackendContext } from '../operatorTypes';
 
 interface LedgerReports {
@@ -84,10 +84,16 @@ export function CashOperationsLedger({
 
   return (
     <section className="cash-ledger">
-      <div className="cash-ledger-summary">
-        <span><b>{t('op.cash.journal.cashIn')}</b> {formatMoney(readMoney(report, 'cashInTotal'), currencyCode)}</span>
-        <span><b>{t('op.cash.journal.cashOut')}</b> {formatMoney(readMoney(report, 'cashOutTotal'), currencyCode)}</span>
-        <span><b>{t('op.cash.journal.net')}</b> {formatMoney(readMoney(report, 'netCashTotal'), currencyCode)}</span>
+      <div className="cash-ledger-stats">
+        <span className="cash-ledger-stat cash-ledger-stat--lead">
+          <em>{t('op.cash.journal.net')}</em><b><Money minorUnits={readMoney(report, 'netCashTotal')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
+        </span>
+        <span className="cash-ledger-stat">
+          <em>{t('op.cash.journal.cashIn')}</em><b><Money minorUnits={readMoney(report, 'cashInTotal')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
+        </span>
+        <span className="cash-ledger-stat cash-ledger-stat--out">
+          <em>{t('op.cash.journal.cashOut')}</em><b><Money minorUnits={readMoney(report, 'cashOutTotal')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
+        </span>
       </div>
       <div className="cash-ledger-search">
         <Search size={14} aria-hidden="true" />
@@ -105,16 +111,19 @@ export function CashOperationsLedger({
       {filtered.length === 0 ? (
         <p className="cash-shift-empty-note">{rows.length === 0 ? t('op.cash.journal.empty') : t('op.cash.journal.noMatch')}</p>
       ) : (
-        <ul className="cash-ledger-list">
+        <ul className="cash-ledger-list ui-ledger-list">
           {filtered.map((row) => {
             const impact = readMoney(row, 'cashImpact');
-            const negative = impact !== null && impact.minorUnits < 0;
             return (
-              <li key={readString(row, 'operationId')} className={`cash-ledger-row${negative ? ' out' : ' in'}`}>
-                <span className="cash-ledger-time">{formatTime(readString(row, 'createdAtUtc'))}</span>
-                <strong>{cashOperationTypeLabel(readString(row, 'operationType', 'cash'), t)}</strong>
-                <em>{readString(row, 'reason')}</em>
-                <b>{formatMoney(impact, currencyCode)}</b>
+              <li key={readString(row, 'operationId')} className="ui-ledger-row">
+                <span className="ui-ledger-time">{formatTime(readString(row, 'createdAtUtc'))}</span>
+                <div className="ui-ledger-body">
+                  <span className="ui-ledger-title">{cashOperationTypeLabel(readString(row, 'operationType', 'cash'), t)}</span>
+                  <span className="ui-ledger-detail">{readString(row, 'reason')}</span>
+                </div>
+                <span className="ui-ledger-aside">
+                  <Money minorUnits={impact?.minorUnits ?? 0} currencyCode={currencyCode} signed />
+                </span>
               </li>
             );
           })}

@@ -178,7 +178,7 @@ public sealed class EfSessionCheckoutService(
                 saleLines[sale.PosSaleId] = lines;
 
                 // Validate stock before mutating anything (an Invalid return commits an empty tx).
-                foreach (var line in lines.Where(line => line.TrackStock && !line.AllowNegativeStock))
+                foreach (var line in lines.Where(line => line.TracksStock && !line.AllowNegativeStock))
                 {
                     var stockOnHand = await dbContext.StockMovements
                         .Where(movement =>
@@ -247,7 +247,7 @@ public sealed class EfSessionCheckoutService(
             // Settle attached POS sales: decrement stock and mark paid.
             foreach (var sale in salesToSettle)
             {
-                foreach (var line in saleLines[sale.PosSaleId].Where(line => line.TrackStock))
+                foreach (var line in saleLines[sale.PosSaleId].Where(line => line.TracksStock))
                 {
                     dbContext.StockMovements.Add(new StockMovementEntity
                     {
@@ -258,7 +258,7 @@ public sealed class EfSessionCheckoutService(
                         MovementType = StockMovementTypeNames.Sale,
                         QuantityDelta = -line.Quantity,
                         CurrencyCode = line.CurrencyCode,
-                        UnitCostMinorUnits = line.UnitPriceMinorUnits,
+                        UnitCostMinorUnits = line.UnitCostMinorUnits,
                         Reason = $"Session checkout {sessionId}",
                         CreatedByStaffUserId = actorStaffUserId,
                         CreatedAtUtc = now
@@ -672,9 +672,15 @@ public sealed class EfSessionCheckoutService(
             await transaction.CommitAsync(cancellationToken);
             return result;
         }
+        catch (Exception exception) when (RelationalFailureClassifier.IsSerializationFailure(exception))
+        {
+            await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
+            dbContext.ChangeTracker.Clear();
+            return SessionCheckoutResult.RequestConflict("version_conflict");
+        }
         catch (DbUpdateException)
         {
-            await transaction.RollbackAsync(cancellationToken);
+            await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
             dbContext.ChangeTracker.Clear();
             var recovered = await recoverIdempotencyRaceAsync();
             if (recovered is not null)
@@ -682,6 +688,12 @@ public sealed class EfSessionCheckoutService(
                 return recovered;
             }
 
+            throw;
+        }
+        catch
+        {
+            await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
+            dbContext.ChangeTracker.Clear();
             throw;
         }
     }
