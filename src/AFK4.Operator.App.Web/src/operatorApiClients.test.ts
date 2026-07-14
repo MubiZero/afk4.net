@@ -9,6 +9,7 @@ import {
   type OpenShiftRequest,
   type SettlePosSaleRequest,
   type StartGuestSessionRequest,
+  type StartReservationSessionRequest,
   type TransferSessionRequest
 } from './operatorApiClients';
 import { PlatformApiClient } from './platformApi';
@@ -227,6 +228,15 @@ describe('operator API clients', () => {
       source: 'operator',
       note: 'moved'
     };
+    const startSessionRequest: StartReservationSessionRequest = {
+      organizationId,
+      expectedVersion: 8,
+      tariffRuleVersionId: 'standard-v1',
+      idempotencyKey: 'reservation-start-1',
+      durationMode: 'fixed',
+      durationMinutes: 60,
+      billingMode: ''
+    };
 
     await clients.reservations.search(branchId, {
       fromUtc: '2026-05-21T00:00:00.000Z',
@@ -239,6 +249,7 @@ describe('operator API clients', () => {
     await clients.reservations.confirm(reservationId, { organizationId, expectedVersion: 5 });
     await clients.reservations.seat(reservationId, { organizationId, expectedVersion: 6 });
     await clients.reservations.cancel(reservationId, { organizationId, reason: 'client called', expectedVersion: 7 });
+    await clients.reservations.startSession(reservationId, startSessionRequest);
 
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
       `GET /api/branches/${branchId}/reservations?fromUtc=2026-05-21T00%3A00%3A00.000Z&toUtc=2026-05-21T23%3A59%3A59.999Z&limit=40&state=confirmed`,
@@ -246,13 +257,15 @@ describe('operator API clients', () => {
       `PATCH /api/reservations/${reservationId}`,
       `POST /api/reservations/${reservationId}/confirm`,
       `POST /api/reservations/${reservationId}/seat`,
-      `POST /api/reservations/${reservationId}/cancel`
+      `POST /api/reservations/${reservationId}/cancel`,
+      `POST /api/reservations/${reservationId}/start-session`
     ]);
     expect(calls[1].body).toEqual(createRequest);
     expect(calls[2].body).toEqual(updateRequest);
     expect(calls[3].body).toEqual({ organizationId, expectedVersion: 5 });
     expect(calls[4].body).toEqual({ organizationId, expectedVersion: 6 });
     expect(calls[5].body).toEqual({ organizationId, reason: 'client called', expectedVersion: 7 });
+    expect(calls[6].body).toEqual(startSessionRequest);
   });
 
   it('maps settings, device, diagnostics, updates, and audit clients', async () => {

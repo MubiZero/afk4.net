@@ -1,11 +1,16 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Reservations;
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Reservations;
+using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AFK4.Platform.Api.Tests;
 
@@ -15,6 +20,164 @@ public sealed class ReservationEndpointTests
     private static readonly Guid ZoneId = Guid.Parse("aaaaaaaa-0000-4000-8000-000000000001");
     private static readonly Guid SeatOneId = Guid.Parse("aaaaaaaa-1111-4111-8111-111111111111");
     private static readonly Guid SeatTwoId = Guid.Parse("aaaaaaaa-2222-4222-8222-222222222222");
+
+    [Fact]
+    public async Task StartReservationSession_WithoutStaffToken_ReturnsUnauthorized()
+    {
+        var coordinator = new StubReservationSessionCoordinator(StartSuccess());
+        await using var factory = CreateStartFactory(coordinator, StaffContextWithPermissions(
+            StaffPermissionNames.ManageReservations,
+            StaffPermissionNames.StartSession));
+        using var client = factory.CreateClient();
+        var reservation = await SeedReservationAsync(factory);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/reservations/{reservation.ReservationId}/start-session",
+            StartRequest(reservation.Version));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Null(coordinator.LastRequest);
+    }
+
+    [Theory]
+    [InlineData(StaffPermissionNames.ManageReservations)]
+    [InlineData(StaffPermissionNames.StartSession)]
+    public async Task StartReservationSession_RequiresReservationManagementAndSessionStartPermissions(
+        string grantedPermission)
+    {
+        var coordinator = new StubReservationSessionCoordinator(StartSuccess());
+        await using var factory = CreateStartFactory(coordinator, StaffContextWithPermissions(grantedPermission));
+        using var client = AuthorizedClient(factory);
+        var reservation = await SeedReservationAsync(factory);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/reservations/{reservation.ReservationId}/start-session",
+            StartRequest(reservation.Version));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Null(coordinator.LastRequest);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync();
+        Assert.Equal("reservations.session.start", audit.Action);
+        Assert.Equal(AuditOutcome.Denied, audit.Outcome);
+        Assert.Equal(TestIds.TechnicianStaffUserId, audit.ActorStaffUserId);
+    }
+
+    [Fact]
+    public async Task StartReservationSession_HidesReservationsOutsideAuthenticatedTenant()
+    {
+        var coordinator = new StubReservationSessionCoordinator(StartSuccess());
+        var foreignContext = StaffContextWithPermissions(
+            StaffPermissionNames.ManageReservations,
+            StaffPermissionNames.StartSession) with { OrganizationId = Guid.NewGuid() };
+        await using var factory = CreateStartFactory(coordinator, foreignContext);
+        using var client = AuthorizedClient(factory);
+        var reservation = await SeedReservationAsync(factory);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/reservations/{reservation.ReservationId}/start-session",
+            StartRequest(reservation.Version) with { OrganizationId = foreignContext.OrganizationId });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Null(coordinator.LastRequest);
+    }
+
+    [Fact]
+    public async Task StartReservationSession_RejectsStaffOutsideReservationBranch()
+    {
+        var coordinator = new StubReservationSessionCoordinator(StartSuccess());
+        var staff = StaffContextWithPermissions(
+            StaffPermissionNames.ManageReservations,
+            StaffPermissionNames.StartSession) with { BranchIds = new HashSet<Guid>() };
+        await using var factory = CreateStartFactory(coordinator, staff);
+        using var client = AuthorizedClient(factory);
+        var reservation = await SeedReservationAsync(factory);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/reservations/{reservation.ReservationId}/start-session",
+            StartRequest(reservation.Version));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Null(coordinator.LastRequest);
+    }
+
+    [Theory]
+    [InlineData("reservation_not_found", "missing", HttpStatusCode.NotFound, null)]
+    [InlineData("player_required_for_wallet", "player required", HttpStatusCode.BadRequest, null)]
+    [InlineData("reservation_expired", "expired", HttpStatusCode.Conflict, 7)]
+    [InlineData("version_conflict", "stale", HttpStatusCode.Conflict, 8)]
+    public async Task StartReservationSession_MapsCoordinatorFailuresToStableStatusAndBody(
+        string code,
+        string error,
+        HttpStatusCode expectedStatus,
+        int? currentVersion)
+    {
+        var result = expectedStatus switch
+        {
+            HttpStatusCode.NotFound => ReservationSessionStartResult.Missing(code, error),
+            HttpStatusCode.Conflict => ReservationSessionStartResult.RequestConflict(code, error, currentVersion),
+            _ => ReservationSessionStartResult.Invalid(code, error)
+        };
+        var coordinator = new StubReservationSessionCoordinator(result);
+        await using var factory = CreateStartFactory(coordinator, StaffContextWithPermissions(
+            StaffPermissionNames.ManageReservations,
+            StaffPermissionNames.StartSession));
+        using var client = AuthorizedClient(factory);
+        var reservation = await SeedReservationAsync(factory);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/reservations/{reservation.ReservationId}/start-session",
+            StartRequest(reservation.Version));
+
+        Assert.Equal(expectedStatus, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ReservationConflictBody>();
+        Assert.NotNull(body);
+        Assert.Equal(code, body.Code);
+        Assert.Equal(error, body.Error);
+        Assert.Equal(currentVersion, body.CurrentVersion);
+    }
+
+    [Fact]
+    public async Task StartReservationSession_PassesActorAndCompApprovalAndAuditsResultingSession()
+    {
+        var coordinator = new StubReservationSessionCoordinator(StartSuccess());
+        var staff = StaffContextWithPermissions(
+            StaffPermissionNames.ManageReservations,
+            StaffPermissionNames.StartSession,
+            StaffPermissionNames.ApproveMoneyAction);
+        await using var factory = CreateStartFactory(coordinator, staff);
+        using var client = AuthorizedClient(factory);
+        var reservation = await SeedReservationAsync(factory);
+        var request = StartRequest(reservation.Version);
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/reservations/{reservation.ReservationId}/start-session",
+            request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<StartReservationSessionResponse>();
+        Assert.NotNull(body);
+        Assert.Equal(coordinator.Result.Response!.Reservation, body.Reservation);
+        Assert.Equal(coordinator.Result.Response.Session.Session, body.Session.Session);
+        Assert.Equal(coordinator.Result.Response.Session.IdempotencyKey, body.Session.IdempotencyKey);
+        Assert.Empty(body.Session.DeviceCommands);
+        Assert.Equal(reservation.ReservationId, coordinator.LastReservationId);
+        Assert.Equal(staff.StaffUserId, coordinator.LastActorStaffUserId);
+        Assert.True(coordinator.LastActorCanApproveComp);
+        Assert.Equal(request, coordinator.LastRequest);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync();
+        Assert.Equal("reservations.session.start", audit.Action);
+        Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
+        Assert.Equal("Reservation", audit.TargetType);
+        Assert.Equal(reservation.ReservationId.ToString("D"), audit.TargetId);
+        Assert.Equal(staff.StaffUserId, audit.ActorStaffUserId);
+        Assert.Contains(body.Session.Session.SessionId.ToString("D"), audit.DetailsJson);
+    }
 
     [Fact]
     public async Task GetReservations_WithoutStaffToken_ReturnsUnauthorized()
@@ -296,6 +459,27 @@ public sealed class ReservationEndpointTests
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        if (!await dbContext.Organizations.AnyAsync(candidate => candidate.OrganizationId == TestIds.OrganizationId))
+        {
+            dbContext.Organizations.Add(new OrganizationEntity
+            {
+                OrganizationId = TestIds.OrganizationId,
+                Name = "Demo Org",
+                CreatedAtUtc = BookingDay
+            });
+        }
+
+        if (!await dbContext.Branches.AnyAsync(candidate => candidate.BranchId == TestIds.BranchId))
+        {
+            dbContext.Branches.Add(new BranchEntity
+            {
+                BranchId = TestIds.BranchId,
+                OrganizationId = TestIds.OrganizationId,
+                Name = "Demo Branch",
+                CreatedAtUtc = BookingDay
+            });
+        }
+
         var reservation = new ReservationEntity
         {
             ReservationId = Guid.NewGuid(),
@@ -319,6 +503,130 @@ public sealed class ReservationEndpointTests
         dbContext.Reservations.Add(reservation);
         await dbContext.SaveChangesAsync();
         return reservation;
+    }
+
+    private static StartReservationSessionRequest StartRequest(int expectedVersion) =>
+        new(
+            TestIds.OrganizationId,
+            expectedVersion,
+            "standard-v1",
+            "reservation-start-1",
+            DurationMode: SessionDurationModes.Fixed,
+            DurationMinutes: 60,
+            BillingMode: "");
+
+    private static ReservationSessionStartResult StartSuccess()
+    {
+        var sessionId = Guid.Parse("bbbbbbbb-3333-4333-8333-333333333333");
+        return ReservationSessionStartResult.Ok(new StartReservationSessionResponse(
+            new ReservationDto(
+                Guid.Empty,
+                TestIds.OrganizationId,
+                TestIds.BranchId,
+                PlayerAccountId: null,
+                SeatOneId,
+                "PC-01",
+                "Main",
+                "Original guest",
+                "+992900000001",
+                BookingDay.AddHours(16),
+                BookingDay.AddHours(17),
+                60,
+                ReservationStateNames.Seated,
+                ReservationSourceNames.Online,
+                "original note",
+                BookingDay,
+                BookingDay,
+                CancelledAtUtc: null,
+                CancelReason: string.Empty,
+                ReservationGroupId: null,
+                Version: 2,
+                StartedSessionId: sessionId),
+            new SessionCommandResponse(
+                "reservation-start-1",
+                new SessionDto(
+                    sessionId,
+                    TestIds.OrganizationId,
+                    TestIds.BranchId,
+                    SeatOneId,
+                    Guid.Parse("bbbbbbbb-4444-4444-8444-444444444444"),
+                    SessionStateNames.Active,
+                    "standard-v1",
+                    BookingDay,
+                    BookingDay.AddHours(1),
+                    EndedAtUtc: null,
+                    RemainingSeconds: 3600,
+                    CurrentLease: null,
+                    Version: 1),
+                [])));
+    }
+
+    private static StaffContext StaffContextWithPermissions(params string[] permissions) =>
+        new(
+            TestIds.TechnicianStaffUserId,
+            TestIds.OrganizationId,
+            "Start Operator",
+            new HashSet<Guid> { TestIds.BranchId },
+            new HashSet<string>(permissions, StringComparer.OrdinalIgnoreCase));
+
+    private static PlatformApiFactory CreateStartFactory(
+        StubReservationSessionCoordinator coordinator,
+        StaffContext staffContext) =>
+        new(extraServices: services =>
+        {
+            services.RemoveAll<IReservationSessionCoordinator>();
+            services.AddSingleton<IReservationSessionCoordinator>(coordinator);
+            services.RemoveAll<IStaffTokenService>();
+            services.AddSingleton<IStaffTokenService>(new StubStaffTokenService(staffContext));
+        });
+
+    private static HttpClient AuthorizedClient(PlatformApiFactory factory)
+    {
+        var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", "start-token");
+        return client;
+    }
+
+    private sealed class StubReservationSessionCoordinator(ReservationSessionStartResult result)
+        : IReservationSessionCoordinator
+    {
+        public ReservationSessionStartResult Result { get; } = result;
+        public Guid? LastReservationId { get; private set; }
+        public Guid? LastActorStaffUserId { get; private set; }
+        public bool LastActorCanApproveComp { get; private set; }
+        public StartReservationSessionRequest? LastRequest { get; private set; }
+
+        public Task<ReservationSessionStartResult> StartAsync(
+            Guid reservationId,
+            Guid actorStaffUserId,
+            bool actorCanApproveComp,
+            StartReservationSessionRequest request,
+            CancellationToken cancellationToken)
+        {
+            LastReservationId = reservationId;
+            LastActorStaffUserId = actorStaffUserId;
+            LastActorCanApproveComp = actorCanApproveComp;
+            LastRequest = request;
+            return Task.FromResult(Result);
+        }
+    }
+
+    private sealed class StubStaffTokenService(StaffContext context) : IStaffTokenService
+    {
+        public Task<StaffSignInResponse> IssueAsync(
+            StaffUserEntity user,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<StaffSignInResponse?> RefreshAsync(
+            StaffRefreshTokenRequest request,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<StaffContext?> ValidateAsync(
+            string? bearerToken,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<StaffContext?>(bearerToken == "start-token" ? context : null);
     }
 
     private sealed record ReservationConflictBody(string? Error, string? Code, int? CurrentVersion);

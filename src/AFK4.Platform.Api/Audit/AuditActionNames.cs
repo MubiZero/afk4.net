@@ -119,6 +119,8 @@ public static class AuditActionNames
 
     public const string SeatReservation = "reservations.seat";
 
+    public const string StartReservationSession = "reservations.session.start";
+
     public const string CancelReservation = "reservations.cancel";
 
     public const string CreateProductCategory = "pos.categories.create";
