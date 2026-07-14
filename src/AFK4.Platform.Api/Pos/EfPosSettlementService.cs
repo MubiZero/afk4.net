@@ -407,6 +407,21 @@ public sealed class EfPosSettlementService(
                 return BillingCommandServiceResult<PosSaleDto>.Invalid("inventory_currency_mismatch");
             }
 
+            var inventoryQuantities = new Dictionary<Guid, int>();
+            try
+            {
+                foreach (var productLines in trackedProductLines)
+                {
+                    inventoryQuantities.Add(
+                        productLines.Key,
+                        productLines.Aggregate(0, (total, line) => checked(total + line.Quantity)));
+                }
+            }
+            catch (OverflowException)
+            {
+                return BillingCommandServiceResult<PosSaleDto>.Invalid("sale_snapshot_invalid");
+            }
+
             var now = timeProvider.GetUtcNow();
             var refundPayments = new List<PaymentEntity>(originalPayments.Count);
             foreach (var payment in originalPayments)
@@ -451,21 +466,11 @@ public sealed class EfPosSettlementService(
 
             foreach (var productLines in trackedProductLines)
             {
-                int quantity;
-                try
-                {
-                    quantity = productLines.Aggregate(0, (total, line) => checked(total + line.Quantity));
-                }
-                catch (OverflowException)
-                {
-                    return BillingCommandServiceResult<PosSaleDto>.Invalid("sale_snapshot_invalid");
-                }
-
                 await inventoryCostService.ReconcileInboundAsync(
                     sale.OrganizationId,
                     sale.BranchId,
                     productLines.Key,
-                    quantity,
+                    inventoryQuantities[productLines.Key],
                     productLines.First().CurrencyCode,
                     productLines.First().UnitCostMinorUnits,
                     cancellationToken);
@@ -865,7 +870,13 @@ public sealed class EfPosSettlementService(
         {
             try
             {
-                return await action();
+                var result = await action();
+                if (!result.Succeeded)
+                {
+                    dbContext.ChangeTracker.Clear();
+                }
+
+                return result;
             }
             catch (DbUpdateException)
             {
@@ -891,6 +902,13 @@ public sealed class EfPosSettlementService(
         try
         {
             var result = await action();
+            if (!result.Succeeded)
+            {
+                await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
+                dbContext.ChangeTracker.Clear();
+                return result;
+            }
+
             await transaction.CommitAsync(cancellationToken);
             return result;
         }

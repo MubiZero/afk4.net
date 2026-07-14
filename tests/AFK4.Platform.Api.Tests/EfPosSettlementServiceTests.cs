@@ -365,6 +365,25 @@ public sealed class EfPosSettlementServiceTests
         Assert.Single(await db.LedgerEntries
             .Where(entry => entry.ReversesLedgerEntryId == walletDebitId)
             .ToListAsync());
+        var reversal = await db.LedgerEntries
+            .SingleAsync(entry => entry.ReversesLedgerEntryId == walletDebitId);
+        var originalPayments = await db.Payments
+            .Where(payment =>
+                payment.PosSaleId == scenario.Sale.PosSaleId &&
+                payment.PaymentKind == "payment")
+            .ToListAsync();
+        Assert.All(originalPayments, original =>
+        {
+            var refund = Assert.Single(refundPayments, candidate =>
+                candidate.PaymentMethod == original.PaymentMethod);
+            Assert.Equal(original.Provider, refund.Provider);
+            Assert.Equal(original.PaymentMethod, refund.PaymentMethod);
+            Assert.Equal(-original.AmountMinorUnits, refund.AmountMinorUnits);
+        });
+        Assert.Equal(
+            reversal.LedgerEntryId,
+            Assert.Single(refundPayments, payment =>
+                payment.PaymentMethod == PaymentMethodNames.Wallet).LedgerEntryId);
         Assert.Single(await db.Receipts
             .Where(receipt =>
                 receipt.PosSaleId == scenario.Sale.PosSaleId &&
@@ -505,13 +524,92 @@ public sealed class EfPosSettlementServiceTests
         Assert.Equal(PosSaleStateNames.Paid, (await db.PosSales.AsNoTracking().SingleAsync()).State);
     }
 
+    [Fact]
+    public async Task RefundAsync_InventoryQuantityOverflow_DiscardsStagedWalletEffectsBeforeCallerSave()
+    {
+        await using var db = CreateDbContext();
+        var playerId = Guid.NewGuid();
+        var scenario = await SeedSaleAsync(db, playerId, 15_000);
+        var trackedLine = await db.PosSaleLines.SingleAsync(line => line.ProductId == scenario.TrackedProductId);
+        trackedLine.Quantity = int.MaxValue;
+        trackedLine.UnitPriceMinorUnits = 0;
+        trackedLine.LineTotalMinorUnits = 0;
+        trackedLine.AllowNegativeStock = true;
+        db.PosSaleLines.Add(new PosSaleLineEntity
+        {
+            PosSaleLineId = Guid.NewGuid(), PosSaleId = scenario.Sale.PosSaleId,
+            ProductId = scenario.TrackedProductId, ProductName = trackedLine.ProductName,
+            Quantity = 1, CurrencyCode = "TJS", UnitPriceMinorUnits = 0,
+            UnitCostMinorUnits = trackedLine.UnitCostMinorUnits, LineTotalMinorUnits = 0,
+            TracksStock = true, AllowNegativeStock = true
+        });
+        scenario.Sale.TotalMinorUnits = 4_000;
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+        var settled = await service.SettleAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            Request([Part("wallet", 1_000), Part("cash", 3_000)], "overflow-payment"),
+            CancellationToken.None);
+        Assert.True(settled.Succeeded, settled.Error);
+        var effectsBeforeRefund = await db.BillingCommandIdempotency.CountAsync();
+
+        var result = await service.RefundAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            new RefundPosSaleRequest(OrganizationId, "return", "overflow-refund"),
+            CancellationToken.None);
+        Assert.False(result.Succeeded);
+        Assert.Equal("sale_snapshot_invalid", result.Error);
+
+        await db.SaveChangesAsync();
+        Assert.Empty(await db.LedgerEntries.AsNoTracking()
+            .Where(entry => entry.ReversesLedgerEntryId != null)
+            .ToListAsync());
+        Assert.Empty(await db.Payments.AsNoTracking()
+            .Where(payment => payment.PaymentKind == "refund")
+            .ToListAsync());
+        Assert.Empty(await db.Receipts.AsNoTracking()
+            .Where(receipt => receipt.ReceiptType == "refund")
+            .ToListAsync());
+        Assert.Empty(await db.StockMovements.AsNoTracking()
+            .Where(movement => movement.MovementType == StockMovementTypeNames.Refund)
+            .ToListAsync());
+        Assert.Equal(effectsBeforeRefund, await db.BillingCommandIdempotency.CountAsync());
+        Assert.Equal(PosSaleStateNames.Paid, (await db.PosSales.AsNoTracking().SingleAsync()).State);
+    }
+
+    [Fact]
+    public async Task SettleAsync_FailedWalletService_DiscardsItsStagedEffectBeforeCallerSave()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedSaleAsync(db, Guid.NewGuid(), 15_000);
+        var service = CreateService(
+            db,
+            walletSettlementService: new StagingRejectedWalletSettlementService(db));
+        var ledgerCountBefore = await db.LedgerEntries.CountAsync();
+
+        var result = await service.SettleAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            Request([Part("wallet", 10_000)], "staged-wallet-failure"),
+            CancellationToken.None);
+        Assert.False(result.Succeeded);
+        Assert.Equal("forced_wallet_failure", result.Error);
+
+        await db.SaveChangesAsync();
+        Assert.Equal(ledgerCountBefore, await db.LedgerEntries.AsNoTracking().CountAsync());
+        await AssertNoSettlementSideEffectsAsync(db, scenario.Sale.PosSaleId);
+    }
+
     private static EfPosSettlementService CreateService(
         PlatformDbContext db,
         IReceiptNumberGenerator? receiptNumberGenerator = null,
-        ILowStockNotifier? lowStockNotifier = null) =>
+        ILowStockNotifier? lowStockNotifier = null,
+        IWalletSettlementService? walletSettlementService = null) =>
         new(
             db,
-            new EfWalletSettlementService(db),
+            walletSettlementService ?? new EfWalletSettlementService(db),
             new EfInventoryCostService(db),
             receiptNumberGenerator ?? new ReceiptNumberGenerator(db),
             new FixedTimeProvider(Now),
@@ -699,5 +797,43 @@ public sealed class EfPosSettlementServiceTests
             requestCancellation.Cancel();
             throw new OperationCanceledException(requestCancellation.Token);
         }
+    }
+
+    private sealed class StagingRejectedWalletSettlementService(PlatformDbContext db) : IWalletSettlementService
+    {
+        public Task<WalletSettlementResult> DebitAsync(
+            Guid organizationId,
+            Guid branchId,
+            Guid playerAccountId,
+            Guid? sessionId,
+            Guid shiftId,
+            long amountMinorUnits,
+            string currencyCode,
+            string description,
+            string reason,
+            Guid actorStaffUserId,
+            DateTimeOffset now,
+            CancellationToken cancellationToken)
+        {
+            db.LedgerEntries.Add(new LedgerEntryEntity
+            {
+                LedgerEntryId = Guid.NewGuid(), OrganizationId = organizationId, BranchId = branchId,
+                PlayerAccountId = playerAccountId, ShiftId = shiftId,
+                EntryType = LedgerEntryTypeNames.WalletPayment, AccountType = LedgerAccountTypeNames.Wallet,
+                AmountMinorUnits = -amountMinorUnits, CurrencyCode = currencyCode,
+                Description = description, Reason = reason, CreatedByStaffUserId = actorStaffUserId,
+                CreatedAtUtc = now
+            });
+            return Task.FromResult(WalletSettlementResult.Reject("forced_wallet_failure"));
+        }
+
+        public Task<WalletSettlementResult> ReverseAsync(
+            LedgerEntryEntity originalDebit,
+            Guid actorStaffUserId,
+            string description,
+            string reason,
+            DateTimeOffset now,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 }
