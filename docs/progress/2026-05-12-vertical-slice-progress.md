@@ -82,6 +82,16 @@ to Coolify staging:
   overlap tests prove one effect set for concurrent reservation commands and for
   reservation start racing an ordinary start on the same seat; rollback and audit
   failures leave no partial session, billing, lease, command, or reservation state.
+- **Native Operator P0 day-flow gate** — a real Windows WPF/WebView2 host completed
+  sign-in, shift open/close, club-client selection, prepaid session start, confirmed
+  reservation start, mixed cash/wallet POS payment, receipt refund, restored stock,
+  zero-bill prepaid checkout, forced reload, and authoritative reconnect against
+  Coolify staging. The smoke found and fixed missing SignalR handlers on secondary
+  Operator connections, a cross-type `POS-*` receipt-number collision, and prepaid
+  session time being charged again at checkout. Live PostgreSQL reconciliation proved
+  sequential `POS-...-0001/0002/0003` receipts for the mixed sale and session checkouts;
+  the final fresh prepaid session produced exactly one `gameplay_charge=-300`, no
+  checkout payment/debt entries, and a zero checkout quote.
 
 Plus the earlier base: identity/tenancy/RBAC/audit, devices/floor-map, owner-code
 enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
@@ -96,7 +106,7 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   on PostgreSQL 17.10, including deterministic settlement/refund, inventory/
   currency, reservation-start, rollback, and cross-command concurrency tests.
   The full solution build passed with 0 warnings and 0 errors.
-- Operator Web passed 650 component/model tests plus 84 App integration tests;
+- Operator Web passed 735 tests across the component/model and App integration runs;
   the generated ru/en/tg catalog check passed 23/23 and the production build
   completed. Existing React test diagnostics, SignalR annotation warnings, and
   the large-chunk warning remain non-failing.
@@ -108,6 +118,12 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   staging database contains all 69 migrations through
   `20260714130000_VersionReservationsAndLinkSessions`, and the deployed API
   container plus public `/api/health` check are healthy.
+- P0 fixes passed latest-head Windows PR Verification in runs `29334853943` and
+  `29336317700`, merged through PRs `#124` and `#125`, and deployed from merge
+  commits `2922dbd2` and `99f43338`. Coolify staging deploy runs `29335387633`
+  and `29337673756` completed with public health verification; the second push
+  deploy used one builder and completed without the transient duplicate-worker
+  collision seen on the first push attempt.
 - The Linux full-solution test attempt passed Platform API 1288 tests (one
   explicit PostgreSQL-env skip) and all other portable suites, but cannot run
   Operator/Player Shell .NET Windows testhosts because `Microsoft.WindowsDesktop.App`
@@ -122,9 +138,10 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 - **Operator entity search** is still deferred: the command palette navigates
   between workspaces but does not yet search clients, seats, reservations,
   orders, or receipts.
-- **Smoke tests** on staging are deferred until the owner says go (incl. the
-  `manager_workstation` clean-VM smoke repeat and physical Windows 10/11 smoke:
-  lock/unlock enforcement, reboot recovery, role-aware updates/rollback).
+- **Remaining Windows evidence** is narrower: repeat the Operator pass on a clean
+  `manager_workstation` install at 100%/125% scaling and run the physical Windows
+  10/11 gaming-PC smoke for lock/unlock enforcement, reboot recovery, and
+  role-aware update/rollback.
 - **Pre-production release decisions** remain: Authenticode custody, production
   object store/CDN, presigned upload automation, package-registration
   credentials, staging secret rotation, backup/restore ownership — tracked in
@@ -132,10 +149,9 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Recommended Next Work
 
-1. Run a backend-backed Operator App day-flow smoke on a Windows manager
-   workstation: shift, client/session, reservation start, POS mixed payment,
-   refund, stock, close-shift, reconnect, and Windows scaling/focus behavior.
-2. Fix the concrete pilot findings, then add permission-aware entity search to
-   the command palette if the smoke does not expose a higher-priority gap.
+1. Repeat the now-passing Operator day flow from a clean `manager_workstation`
+   install and record 100%/125% scaling plus keyboard-focus evidence.
+2. Run the physical gaming-PC Agent/Shell smoke, then add permission-aware entity
+   search to the command palette if it does not expose a higher-priority gap.
 3. Wire real per-environment SMTP settings and work through the remaining
    pre-production decisions in the production-readiness roadmap.

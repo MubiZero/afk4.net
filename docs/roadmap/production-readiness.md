@@ -9,7 +9,7 @@ It is intentionally operational: infrastructure, release gates, security,
 backups, device validation, and pilot readiness. Keep it gate-level; detailed
 run history belongs in the progress snapshot or archive notes.
 
-> **Status note (2026-06-10):** the product/feature side has moved far beyond
+> **Status note (2026-07-14):** the product/feature side has moved far beyond
 > the pilot bar — the full Platform.Web redesign, SP3 admin control plane +
 > SaaS billing, the entire SP4 wave (counter-loop, anti-fraud, offline,
 > customer portal/shell, notifications, localization, realtime), the dcgate
@@ -439,8 +439,13 @@ Minimum bar:
   at `docs/archive/superpowers/plans/2026-05-23-operator-app-pilot-hardening.md`. Its
   first slice removes signed-in POS/Clients fixture leakage for authoritative
   empty backend responses and restricts WebView2 dev-server URLs to loopback.
-  Staging smoke of these extra workspaces still remains before
-  the WebView2/React app covers the full pilot day flow. Fixture-only/
+  A 2026-07-14 native Windows staging smoke completed the full pilot day flow:
+  shift open/close, linked client and prepaid session, confirmed reservation
+  start, mixed POS payment, refund and stock restoration, zero-bill prepaid
+  checkout, and forced WebView reload/reconnect. It fixed secondary-connection
+  SignalR warnings, a cross-type receipt-number collision, and prepaid-time
+  double charging; latest-head Windows CI, two merged PRs, Coolify deployment,
+  and live PostgreSQL ledger reconciliation passed. Fixture-only/
   missing-contract commands should report backend failures rather than showing
   backend success, and signed-in workspace status copy now reserves fixture data
   for explicit `Dev demo` browser-dev/no-backend fallback states instead of
@@ -484,11 +489,11 @@ The Operator App WebView2/React migration, the SaaS Control Plane, and the
 full SP3/SP4 feature wave are done and merged (see the status note at the top
 and the progress snapshot). The remaining path to production is operational:
 
-1. **Staging smoke** — run the deferred staging smoke suite when the owner
-   gives the go: the `manager_workstation` clean-VM repeat (after running
+1. **Clean manager-workstation repeat** — repeat the now-passing backend-backed
+   Operator day flow from a clean install (after running
    `scripts/cleanup-manager-workstation-smoke-data.ps1 -Apply
-   -DeleteEmptySmokeSeats` with the smoke staff credential) and a full
-   backend-backed operator day-flow pass. The Coolify staging app deploys
+   -DeleteEmptySmokeSeats` with the smoke staff credential), including explicit
+   100%/125% scaling and keyboard-focus evidence. The Coolify staging app deploys
    `main`, so anything smoke-tested must already be on `main`.
 
 2. **Physical Windows hardening** — repeat
