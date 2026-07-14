@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-06-10
+Last updated: 2026-07-14
 
 ## Purpose
 
@@ -508,9 +508,9 @@ and the progress snapshot). The remaining path to production is operational:
    `COOLIFY_BASE_URL` / `COOLIFY_STAGING_APP_UUID` and secret
    `COOLIFY_API_TOKEN` are configured for automated staging deploy.
 
-5. **Finish password reset** — the backend reset path + MailKit SMTP transport
-   exist; build the FE forgot/reset-password screen (currently a placeholder)
-   and wire per-environment SMTP config.
+5. **Finish notification delivery configuration** — the backend reset path,
+   Operator forgot/reset-password screen, and MailKit SMTP transport exist;
+   wire and verify real per-environment SMTP settings.
 
 ## Decision Rules
 
