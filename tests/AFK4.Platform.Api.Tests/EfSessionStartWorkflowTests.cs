@@ -73,6 +73,56 @@ public sealed class EfSessionStartWorkflowTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StageAsync_GuestAndLinkedPlayerComp_SkipOrdinaryBillingLedgerButStageSessionEffects(
+        bool linkedPlayer)
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        var dispatcher = new TrackingCommandDispatchService(db);
+        var billing = new TrackingSessionBillingService(db);
+        var lifecycle = new RecordingSessionLifecycleNotifier();
+        var workflow = new EfSessionStartWorkflow(
+            db,
+            dispatcher,
+            new FakeSessionLeaseSigner(),
+            new FixedTimeProvider(Now),
+            billing,
+            lifecycle);
+        var request = new StartGuestSessionRequest(
+            TestIds.OrganizationId,
+            SeatId,
+            TariffRuleVersionId: "comp-v1",
+            IdempotencyKey: "linked-player-comp",
+            DurationMode: SessionDurationModes.Fixed,
+            DurationMinutes: 60,
+            PlayerAccountId: linkedPlayer ? PlayerAccountId : null,
+            BillingMode: string.Empty,
+            TariffVersionId: Guid.NewGuid(),
+            IsComp: true,
+            CompReason: "approved loyalty compensation");
+
+        var stage = await workflow.StageAsync(
+            TestIds.BranchId,
+            ActorStaffUserId,
+            request,
+            actorCanApproveComp: true,
+            CancellationToken.None);
+
+        Assert.True(stage.Result.Succeeded, stage.Result.Error);
+        Assert.Equal(0, billing.AppendStartCalls);
+        Assert.Empty(db.ChangeTracker.Entries<LedgerEntryEntity>());
+        var session = Assert.Single(db.ChangeTracker.Entries<SessionEntity>()).Entity;
+        Assert.True(session.IsComp);
+        Assert.Equal(linkedPlayer ? PlayerAccountId : null, session.PlayerAccountId);
+        Assert.Single(db.ChangeTracker.Entries<SessionLeaseEntity>());
+        Assert.Single(db.ChangeTracker.Entries<SessionEventEntity>());
+        Assert.Single(db.ChangeTracker.Entries<DeviceCommandEntity>());
+        Assert.Single(db.ChangeTracker.Entries<SessionCommandIdempotencyEntity>());
+    }
+
+    [Theory]
     [InlineData(EntityState.Unchanged)]
     [InlineData(EntityState.Modified)]
     public async Task SessionBilling_TrackedPersistedState_DoesNotBypassDatabaseLookup(EntityState state)
@@ -235,6 +285,8 @@ public sealed class EfSessionStartWorkflowTests
 
     private sealed class TrackingSessionBillingService(PlatformDbContext db) : ISessionBillingService
     {
+        public int AppendStartCalls { get; private set; }
+
         public Task<SessionBillingValidationResult> ValidateStartAsync(
             Guid organizationId,
             Guid branchId,
@@ -255,6 +307,7 @@ public sealed class EfSessionStartWorkflowTests
             DateTimeOffset now,
             CancellationToken cancellationToken)
         {
+            AppendStartCalls++;
             db.LedgerEntries.Add(new LedgerEntryEntity
             {
                 LedgerEntryId = Guid.NewGuid(),

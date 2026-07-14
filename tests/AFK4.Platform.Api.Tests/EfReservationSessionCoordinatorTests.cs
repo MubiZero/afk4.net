@@ -296,6 +296,50 @@ public sealed class EfReservationSessionCoordinatorTests
     }
 
     [Fact]
+    public async Task StartAsync_LinkedPlayerComp_StartsFreeSessionWithoutOrdinaryBillingLedger()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAndReservationAsync(db);
+        var dispatcher = new TrackingCommandDispatchService(db);
+        var billing = new TrackingBillingService(db);
+        var lifecycle = new RecordingSessionLifecycleNotifier();
+        var workflow = new EfSessionStartWorkflow(
+            db,
+            dispatcher,
+            new FakeLeaseSigner(),
+            new FixedTimeProvider(Now),
+            billing,
+            lifecycle);
+        var coordinator = CreateCoordinator(db, workflow);
+        var request = Request(expectedVersion: 1) with
+        {
+            BillingMode = string.Empty,
+            TariffVersionId = Guid.NewGuid(),
+            IsComp = true,
+            CompReason = "approved loyalty compensation"
+        };
+
+        var result = await coordinator.StartAsync(
+            ReservationId,
+            ActorStaffUserId,
+            actorCanApproveComp: true,
+            request,
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded, result.Error);
+        Assert.Equal(0, billing.AppendStartCalls);
+        Assert.Empty(await db.LedgerEntries.ToListAsync());
+        var session = await db.Sessions.SingleAsync();
+        Assert.True(session.IsComp);
+        Assert.Equal(PlayerAccountId, session.PlayerAccountId);
+        Assert.Single(await db.SessionLeases.ToListAsync());
+        Assert.Single(await db.SessionEvents.ToListAsync());
+        Assert.Single(await db.DeviceCommands.ToListAsync());
+        Assert.Single(await db.SessionCommandIdempotency.ToListAsync());
+        Assert.Equal(session.SessionId, (await db.Reservations.SingleAsync()).StartedSessionId);
+    }
+
+    [Fact]
     public async Task StartAsync_WorkflowValidationFailureLeavesConfirmedReservationAndNoEffects()
     {
         await using var db = CreateDbContext();
@@ -377,6 +421,93 @@ public sealed class EfReservationSessionCoordinatorTests
         Assert.Single(await db.SessionCommandIdempotency.ToListAsync());
         Assert.Single(dispatcher.Notifications);
         Assert.Single(lifecycle.Events);
+    }
+
+    [Fact]
+    public async Task StartAsync_SameKeyDifferentExpectedVersionAfterSuccess_ReturnsIdempotencyConflict()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAndReservationAsync(db);
+        var dispatcher = new TrackingCommandDispatchService(db);
+        var workflow = CreateRealWorkflow(db, dispatcher);
+        var coordinator = CreateCoordinator(db, workflow);
+        var request = Request(expectedVersion: 1);
+
+        var first = await coordinator.StartAsync(
+            ReservationId,
+            ActorStaffUserId,
+            actorCanApproveComp: false,
+            request,
+            CancellationToken.None);
+        var conflict = await coordinator.StartAsync(
+            ReservationId,
+            ActorStaffUserId,
+            actorCanApproveComp: false,
+            request with { ExpectedVersion = 2 },
+            CancellationToken.None);
+
+        Assert.True(first.Succeeded);
+        Assert.True(conflict.Conflict);
+        Assert.Equal("idempotency_conflict", conflict.Code);
+        Assert.Single(await db.Sessions.ToListAsync());
+    }
+
+    [Fact]
+    public async Task StartAsync_SameKeyDifferentBillingAfterSuccess_ReturnsIdempotencyConflict()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAndReservationAsync(db);
+        var dispatcher = new TrackingCommandDispatchService(db);
+        var workflow = CreateRealWorkflow(db, dispatcher);
+        var coordinator = CreateCoordinator(db, workflow);
+        var request = Request(expectedVersion: 1);
+
+        var first = await coordinator.StartAsync(
+            ReservationId,
+            ActorStaffUserId,
+            actorCanApproveComp: false,
+            request,
+            CancellationToken.None);
+        var conflict = await coordinator.StartAsync(
+            ReservationId,
+            ActorStaffUserId,
+            actorCanApproveComp: false,
+            request with { BillingMode = BillingModeNames.PostpaidDebt },
+            CancellationToken.None);
+
+        Assert.True(first.Succeeded);
+        Assert.True(conflict.Conflict);
+        Assert.Equal("idempotency_conflict", conflict.Code);
+        Assert.Single(await db.Sessions.ToListAsync());
+    }
+
+    [Fact]
+    public async Task StartAsync_DifferentKeyAfterActualSuccess_ReturnsAlreadyStarted()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAndReservationAsync(db);
+        var dispatcher = new TrackingCommandDispatchService(db);
+        var workflow = CreateRealWorkflow(db, dispatcher);
+        var coordinator = CreateCoordinator(db, workflow);
+        var request = Request(expectedVersion: 1);
+
+        var first = await coordinator.StartAsync(
+            ReservationId,
+            ActorStaffUserId,
+            actorCanApproveComp: false,
+            request,
+            CancellationToken.None);
+        var conflict = await coordinator.StartAsync(
+            ReservationId,
+            ActorStaffUserId,
+            actorCanApproveComp: false,
+            request with { IdempotencyKey = "new-command-key", ExpectedVersion = 2 },
+            CancellationToken.None);
+
+        Assert.True(first.Succeeded);
+        Assert.True(conflict.Conflict);
+        Assert.Equal("reservation_already_started", conflict.Code);
+        Assert.Single(await db.Sessions.ToListAsync());
     }
 
     [PostgresSessionFact]
@@ -506,6 +637,17 @@ public sealed class EfReservationSessionCoordinatorTests
         PlatformDbContext db,
         ISessionStartWorkflow workflow) =>
         new(db, workflow, new FixedTimeProvider(Now));
+
+    private static ISessionStartWorkflow CreateRealWorkflow(
+        PlatformDbContext db,
+        TrackingCommandDispatchService dispatcher) =>
+        new EfSessionStartWorkflow(
+            db,
+            dispatcher,
+            new FakeLeaseSigner(),
+            new FixedTimeProvider(Now),
+            new TrackingBillingService(db),
+            new RecordingSessionLifecycleNotifier());
 
     private static StartReservationSessionRequest Request(
         int expectedVersion,
@@ -742,6 +884,8 @@ public sealed class EfReservationSessionCoordinatorTests
     {
         public string? ValidationError { get; init; }
 
+        public int AppendStartCalls { get; private set; }
+
         public Task<SessionBillingValidationResult> ValidateStartAsync(
             Guid organizationId,
             Guid branchId,
@@ -765,6 +909,7 @@ public sealed class EfReservationSessionCoordinatorTests
             DateTimeOffset now,
             CancellationToken cancellationToken)
         {
+            AppendStartCalls++;
             db.LedgerEntries.Add(new LedgerEntryEntity
             {
                 LedgerEntryId = Guid.NewGuid(),

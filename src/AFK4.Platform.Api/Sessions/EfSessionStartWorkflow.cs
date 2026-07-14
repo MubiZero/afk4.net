@@ -186,7 +186,7 @@ public sealed class EfSessionStartWorkflow(
         dbContext.SessionLeases.Add(leaseEntity);
         AddEvent(session, actorStaffUserId, assignment.DeviceId, now);
 
-        if (isFixed && request.PlayerAccountId is not null)
+        if (isFixed && request.PlayerAccountId is not null && !request.IsComp)
         {
             await sessionBillingService.AppendStartLedgerEntriesAsync(
                 sessionId,

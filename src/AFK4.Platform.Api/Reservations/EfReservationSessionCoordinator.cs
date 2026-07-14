@@ -138,7 +138,7 @@ public sealed class EfReservationSessionCoordinator(
         }
 
         var sessionRequest = CreateSessionRequest(reservation, request);
-        var replay = await TryReplayAsync(reservation, sessionRequest, cancellationToken);
+        var replay = await TryReplayAsync(reservation, request, cancellationToken);
         if (replay is not null)
         {
             return replay;
@@ -210,6 +210,8 @@ public sealed class EfReservationSessionCoordinator(
             return MapWorkflowFailure(stage.Result, reservation.Version);
         }
 
+        StampCoordinatorRequestHash(reservation, sessionRequest, request);
+
         reservation.State = ReservationStateNames.Seated;
         reservation.SeatedAtUtc = now;
         reservation.StartedSessionId = stage.Result.Response.Session.SessionId;
@@ -227,9 +229,10 @@ public sealed class EfReservationSessionCoordinator(
 
     private async Task<ReservationSessionStartResult?> TryReplayAsync(
         ReservationEntity reservation,
-        StartGuestSessionRequest sessionRequest,
+        StartReservationSessionRequest request,
         CancellationToken cancellationToken)
     {
+        var sessionRequest = CreateSessionRequest(reservation, request);
         var keyHash = SessionCommandIdempotencyKeyHasher.Hash(sessionRequest.IdempotencyKey);
         var existing = await dbContext.SessionCommandIdempotency
             .AsNoTracking()
@@ -244,8 +247,7 @@ public sealed class EfReservationSessionCoordinator(
             return null;
         }
 
-        var requestHash = SessionCommandIdempotencyKeyHasher.Hash(
-            JsonSerializer.Serialize(sessionRequest, JsonOptions));
+        var requestHash = HashCoordinatorRequest(reservation.ReservationId, request);
         if (!string.Equals(existing.RequestHash, requestHash, StringComparison.Ordinal))
         {
             return ReservationSessionStartResult.RequestConflict(
@@ -270,6 +272,33 @@ public sealed class EfReservationSessionCoordinator(
             await ProjectAsync(reservation, cancellationToken),
             sessionResponse));
     }
+
+    private void StampCoordinatorRequestHash(
+        ReservationEntity reservation,
+        StartGuestSessionRequest sessionRequest,
+        StartReservationSessionRequest request)
+    {
+        var keyHash = SessionCommandIdempotencyKeyHasher.Hash(sessionRequest.IdempotencyKey);
+        var record = dbContext.SessionCommandIdempotency.Local.SingleOrDefault(
+            candidate => candidate.OrganizationId == reservation.OrganizationId &&
+                candidate.BranchId == reservation.BranchId &&
+                candidate.Operation == "start" &&
+                candidate.IdempotencyKeyHash == keyHash);
+        if (record is null)
+        {
+            throw new InvalidOperationException(
+                "Session start workflow did not stage its idempotency record.");
+        }
+
+        record.RequestHash = HashCoordinatorRequest(reservation.ReservationId, request);
+    }
+
+    private static string HashCoordinatorRequest(
+        Guid reservationId,
+        StartReservationSessionRequest request) =>
+        SessionCommandIdempotencyKeyHasher.Hash(JsonSerializer.Serialize(
+            new ReservationSessionCommandIdentity(reservationId, request),
+            JsonOptions));
 
     private static StartGuestSessionRequest CreateSessionRequest(
         ReservationEntity reservation,
@@ -433,10 +462,7 @@ public sealed class EfReservationSessionCoordinator(
                 "Reservation was not found.");
         }
 
-        var replay = await TryReplayAsync(
-            reservation,
-            CreateSessionRequest(reservation, request),
-            cancellationToken);
+        var replay = await TryReplayAsync(reservation, request, cancellationToken);
         return replay ?? (reservation.StartedSessionId is not null
             ? ReservationSessionStartResult.RequestConflict(
                 "reservation_already_started",
@@ -468,4 +494,8 @@ public sealed class EfReservationSessionCoordinator(
 
         return null;
     }
+
+    private sealed record ReservationSessionCommandIdentity(
+        Guid ReservationId,
+        StartReservationSessionRequest Request);
 }
