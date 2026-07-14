@@ -36,6 +36,24 @@ public sealed class ReceiptNumberGeneratorTests
         Assert.Equal("REF-20260513-0002", number);
     }
 
+    [Fact]
+    public async Task GenerateAsync_SharesPosSequenceAcrossSaleAndSessionCheckoutReceipts()
+    {
+        await using var db = CreateDbContext();
+        db.Receipts.Add(CreateReceipt("POS-20260513-0001", "sale"));
+        await db.SaveChangesAsync();
+        var generator = new ReceiptNumberGenerator(db);
+
+        var number = await generator.GenerateAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            "session_checkout",
+            Now,
+            CancellationToken.None);
+
+        Assert.Equal("POS-20260513-0002", number);
+    }
+
     private static PlatformDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<PlatformDbContext>()

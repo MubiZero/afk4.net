@@ -87,6 +87,42 @@ public sealed class EfSessionCheckoutServiceTests
     }
 
     [Fact]
+    public async Task CheckoutAsync_AfterPosSaleReceipt_UsesNextSharedPosReceiptNumber()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedOpenPostpaidSessionAsync(db);
+        db.Receipts.Add(new ReceiptEntity
+        {
+            ReceiptId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            PosSaleId = Guid.NewGuid(),
+            ReceiptNumber = "POS-20260513-0001",
+            ReceiptType = "sale",
+            CurrencyCode = "TJS",
+            TotalMinorUnits = 1200,
+            CreatedAtUtc = Now.AddMinutes(-1)
+        });
+        await db.SaveChangesAsync();
+        var service = CreateService(db, new RecordingDispatch());
+
+        var result = await service.CheckoutAsync(
+            SessionId,
+            ActorStaffUserId,
+            new SessionCheckoutRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", ExpectedTimeCharge))],
+                "checkout-after-pos-receipt"),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(
+            "POS-20260513-0002",
+            Assert.Single(db.Receipts, receipt => receipt.SessionId == SessionId).ReceiptNumber);
+    }
+
+    [Fact]
     public async Task CheckoutAsync_WithStaleExpectedVersion_ReturnsStaleVersionConflictAndDoesNotSettle()
     {
         await using var db = CreateDbContext();

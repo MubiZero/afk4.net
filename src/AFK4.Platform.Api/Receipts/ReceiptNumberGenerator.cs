@@ -21,7 +21,6 @@ public sealed class ReceiptNumberGenerator(PlatformDbContext dbContext) : IRecei
             .Where(receipt =>
                 receipt.OrganizationId == organizationId &&
                 receipt.BranchId == branchId &&
-                receipt.ReceiptType == normalizedReceiptType &&
                 receipt.ReceiptNumber.StartsWith(dailyPrefix))
             .Select(receipt => receipt.ReceiptNumber)
             .ToListAsync(cancellationToken);

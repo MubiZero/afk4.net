@@ -75,23 +75,22 @@ export const sessionLifecycleChangedEventName = 'sessionLifecycleChanged';
 export const shopOrderCreatedEventName = 'shopOrderCreated';
 export const shopOrderUpdatedEventName = 'shopOrderUpdated';
 
+const ignoreRealtimeEvent = (): void => {};
+
 export function createOperatorRealtimeClient(options: OperatorRealtimeOptions): OperatorRealtimeClient {
   const connection = options.connectionFactory?.() ?? createSignalRConnection(options);
   const setState = (state: OperatorRealtimeConnectionState) => options.onConnectionStateChanged?.(state);
 
   connection.on<DeviceStatusChangedDto>(deviceStatusChangedEventName, options.onDeviceStatusChanged);
-  if (options.onDeviceCommandResult) {
-    connection.on<DeviceCommandResultDto>(deviceCommandResultEventName, options.onDeviceCommandResult);
-  }
-  if (options.onSessionLifecycleChanged) {
-    connection.on<SessionLifecycleChangedDto>(sessionLifecycleChangedEventName, options.onSessionLifecycleChanged);
-  }
-  if (options.onShopOrderCreated) {
-    connection.on<ShopOrderDto>(shopOrderCreatedEventName, options.onShopOrderCreated);
-  }
-  if (options.onShopOrderUpdated) {
-    connection.on<ShopOrderDto>(shopOrderUpdatedEventName, options.onShopOrderUpdated);
-  }
+  // The device hub broadcasts its complete event surface to every authenticated connection.
+  // Some Operator surfaces consume only a subset (for example the shop-order ticker), but
+  // SignalR logs a warning for every server invocation without a registered client method.
+  // Keep no-op handlers for unconsumed events so parallel surface connections stay quiet while
+  // the owning surface still receives the callbacks it requested.
+  connection.on<DeviceCommandResultDto>(deviceCommandResultEventName, options.onDeviceCommandResult ?? ignoreRealtimeEvent);
+  connection.on<SessionLifecycleChangedDto>(sessionLifecycleChangedEventName, options.onSessionLifecycleChanged ?? ignoreRealtimeEvent);
+  connection.on<ShopOrderDto>(shopOrderCreatedEventName, options.onShopOrderCreated ?? ignoreRealtimeEvent);
+  connection.on<ShopOrderDto>(shopOrderUpdatedEventName, options.onShopOrderUpdated ?? ignoreRealtimeEvent);
   connection.onreconnecting(() => setState('reconnecting'));
   connection.onreconnected(() => setState('connected'));
   connection.onclose(() => setState('disconnected'));
