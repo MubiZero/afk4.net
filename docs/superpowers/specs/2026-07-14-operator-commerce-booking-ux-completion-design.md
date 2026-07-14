@@ -1,6 +1,6 @@
 # Operator Commerce And Booking UX Completion Design
 
-**Status:** approved in product discussion; pending written-spec review
+**Status:** approved for planning
 **Date:** 2026-07-14
 **Scope:** Operator App, POS settlement/refunds, and reservation-to-session start
 

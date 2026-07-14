@@ -4,16 +4,13 @@ The active architecture source of truth is:
 
 - `2026-05-12-afk4-platform-architecture-design.md`
 
-Open epic pending written-spec review:
+Open epic, approved for planning (not yet started):
 
 - `2026-07-14-operator-commerce-booking-ux-completion-design.md` — integrate
   the consolidated Operator UI with the verified commerce core, finish POS
   split settlement/refunds, client selection, order/stock polish, arbitrary
   booking seat selection, and atomic reservation-to-session start. Online
   booking money holds/no-show remain a separate epic.
-
-Open epic, approved for planning (not yet started):
-
 - `2026-07-13-shop-orders-pos-financial-integrity-design.md` — route every new
   Player Shop order through a linked paid POS sale, wallet payment, receipt,
   shift, and weighted-average inventory-cost path while retaining legacy-order
