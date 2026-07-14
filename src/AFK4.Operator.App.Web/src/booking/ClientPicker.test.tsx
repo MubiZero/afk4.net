@@ -106,4 +106,42 @@ describe('ClientPicker', () => {
 
     expect(onQueryChange).toHaveBeenCalledWith('New name');
   });
+
+  it('связывает combobox с активной option и возвращает фокус в input после сброса', async () => {
+    const clients = [
+      client({ playerAccountId: 'p1', name: 'Азиз П.' }),
+      client({ playerAccountId: 'p2', name: 'Мадина С.' })
+    ];
+    render(<Harness search={async (query) => query === 'Об' ? [...clients].reverse() : clients} onPick={() => {}} />);
+
+    const input = screen.getByRole('combobox');
+    fireEvent.change(input, { target: { value: 'Кл' } });
+    const options = await screen.findAllByRole('option');
+    const firstId = options[0].id;
+    const secondId = options[1].id;
+
+    expect(firstId).not.toBe('');
+    expect(secondId).not.toBe('');
+    expect(secondId).not.toBe(firstId);
+    expect(input).toHaveAttribute('aria-activedescendant', firstId);
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(input).toHaveAttribute('aria-activedescendant', secondId);
+    expect(screen.getAllByRole('option')[0].id).toBe(firstId);
+
+    fireEvent.change(input, { target: { value: 'Об' } });
+    await waitFor(() => expect(screen.getAllByRole('option')[0]).toHaveTextContent('Мадина С.'));
+    expect(screen.getAllByRole('option')[0].id).toBe(secondId);
+    expect(screen.getAllByRole('option')[1].id).toBe(firstId);
+    expect(input).toHaveAttribute('aria-activedescendant', secondId);
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    const linkedInput = screen.getByRole('combobox');
+    fireEvent.click(screen.getByRole('button', { name: 'Сбросить' }));
+
+    expect(linkedInput).toHaveValue('');
+    expect(linkedInput).not.toHaveAttribute('aria-activedescendant');
+    expect(document.activeElement).toBe(linkedInput);
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
 });

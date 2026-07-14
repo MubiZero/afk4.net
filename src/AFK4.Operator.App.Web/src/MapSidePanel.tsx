@@ -280,6 +280,8 @@ export function MapSidePanel({
   const [playerSearch, setPlayerSearch] = useState('');
   const [billingPlayers, setBillingPlayers] = useState<PlayerClientItem[]>([]);
   const [selectedPlayerId, setSelectedPlayerId] = useState('');
+  const [playerSearchError, setPlayerSearchError] = useState<string | null>(null);
+  const playerSearchRequestRef = useRef(0);
   const [tariffOptions, setTariffOptions] = useState<TariffOptionDto[]>([]);
   const [selectedTariffVersionId, setSelectedTariffVersionId] = useState('');
   const [playerPackages, setPlayerPackages] = useState<PlayerPackageDto[]>([]);
@@ -395,17 +397,23 @@ export function MapSidePanel({
   const startPlan = [startPlanWho, startPlanRate, startPlanDuration, startPlanPrice].filter(Boolean).join(' · ');
 
   const clearPlayerSelection = useCallback(() => {
+    playerSearchRequestRef.current += 1;
     setPlayerSearch('');
     setBillingPlayers([]);
     setSelectedPlayerId('');
+    setPlayerPackages([]);
     setSelectedPlayerPackageId('');
+    setPlayerSearchError(null);
   }, []);
 
   // ClientPicker владеет debounce/open/loading; Map остаётся владельцем
   // backend-поиска и сохраняет проекции для баланса/пакетов в старт-форме.
   const searchBillingPlayers = useCallback(async (query: string): Promise<PlayerClientItem[]> => {
+    const requestId = ++playerSearchRequestRef.current;
     if (backend === null || !hasPermission(backend.session, permissionNames.viewPlayers)) {
-      setBillingPlayers([]);
+      if (requestId === playerSearchRequestRef.current) {
+        setBillingPlayers([]);
+      }
       return [];
     }
 
@@ -413,14 +421,27 @@ export function MapSidePanel({
       const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
       const players: PlayerSearchResultDto[] = await clients.players.searchPlayers(backend.branchId, query, 8);
       const projected = players.map((player) => projectPlayerClient(player, t));
-      setBillingPlayers(projected);
+      if (requestId === playerSearchRequestRef.current) {
+        setBillingPlayers(projected);
+        setPlayerSearchError(null);
+      }
       return projected;
     } catch (error) {
-      setBillingPlayers([]);
-      setBillingError(projectOperatorError(error, t).detail);
+      if (requestId === playerSearchRequestRef.current) {
+        setBillingPlayers([]);
+        setPlayerSearchError(projectOperatorError(error, t).detail);
+      }
       throw error;
     }
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, backend?.session.permissions, t]);
+
+  // Cancel external search side-effects when the authenticated branch changes or the panel unmounts.
+  useEffect(() => {
+    playerSearchRequestRef.current += 1;
+    return () => {
+      playerSearchRequestRef.current += 1;
+    };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, backend?.session.permissions]);
 
   useEffect(() => {
     if (targetSeatId.length > 0 && transferCandidates.some((candidate) => candidate.id === targetSeatId)) {
@@ -504,9 +525,10 @@ export function MapSidePanel({
   useEffect(() => {
     let disposed = false;
 
+    setPlayerPackages([]);
+    setSelectedPlayerPackageId('');
+
     if (backend === null || !selectedPlayerId || !hasPermission(session, permissionNames.viewBilling)) {
-      setPlayerPackages([]);
-      setSelectedPlayerPackageId('');
       return undefined;
     }
 
@@ -839,16 +861,23 @@ export function MapSidePanel({
               ariaLabel={t('op.map.panel.playerInput')}
               search={searchBillingPlayers}
               onQueryChange={(value) => {
+                playerSearchRequestRef.current += 1;
                 setPlayerSearch(value);
                 setSelectedPlayerId('');
+                setPlayerPackages([]);
                 setSelectedPlayerPackageId('');
+                setPlayerSearchError(null);
               }}
               onPick={(pick) => {
                 setPlayerSearch(pick.name);
                 setSelectedPlayerId(pick.playerAccountId);
+                setPlayerPackages([]);
+                setSelectedPlayerPackageId('');
+                setPlayerSearchError(null);
               }}
               onClear={clearPlayerSelection}
             />
+            {playerSearchError && <p className="checkout-error" role="alert">{playerSearchError}</p>}
             <div className="start-section-head">{t('op.map.panel.startChargeHead')}</div>
             <div className="start-segment three" role="tablist" aria-label={t('op.map.panel.startChargeHead')}>
               {billingModeOptions(t).filter((option) => option.id !== 'guest').map((option) => (

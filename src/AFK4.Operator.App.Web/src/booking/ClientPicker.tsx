@@ -13,6 +13,11 @@ export interface ClientPick {
   debtMinorUnits: number;
 }
 
+function optionId(baseId: string, client: PlayerClientItem, index: number) {
+  const stableKey = (client.playerAccountId ?? `index-${index}`).replace(/[^a-zA-Z0-9_-]/g, '-');
+  return `${baseId}-option-${stableKey}`;
+}
+
 /**
  * Поиск клиента клуба с привязкой аккаунта (playerAccountId) и режимом «гость».
  * Свободный ввод = гость; выбор из найденных = привязанный клиент (подтягивает телефон и аккаунт).
@@ -44,6 +49,7 @@ export function ClientPicker({
   const [settled, setSettled] = useState(false); // поиск для текущего запроса завершился
   const [activeIndex, setActiveIndex] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const baseId = useId();
   const query = value.trim();
   // «Поиск…» показываем с задержкой — быстрый ответ не успевает мигнуть индикатором.
@@ -106,6 +112,16 @@ export function ClientPicker({
     setOpen(false);
   }
 
+  function clear() {
+    onClear();
+    setOpen(false);
+    setResults([]);
+    setSettled(false);
+    setLoading(false);
+    setActiveIndex(0);
+    inputRef.current?.focus();
+  }
+
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Escape') {
       setOpen(false);
@@ -128,26 +144,31 @@ export function ClientPicker({
   const listboxId = `${baseId}-results`;
   // Список рендерим только когда есть что показать: результаты, идёт поиск или поиск завершён пусто.
   const showResults = open && query.length >= 2 && (results.length > 0 || searching || settled);
+  const activeOptionId = showResults && results[activeIndex]
+    ? optionId(baseId, results[activeIndex], activeIndex)
+    : undefined;
 
   return (
     <div className="booking-client-picker" ref={rootRef}>
       <div className={`booking-client-field${linked ? ' is-linked' : ''}`}>
         {linked ? <UserCheck size={14} className="booking-client-lead" aria-hidden="true" /> : <Search size={14} className="booking-client-lead" aria-hidden="true" />}
         <input
+          ref={inputRef}
           role="combobox"
           aria-expanded={showResults}
           aria-controls={showResults ? listboxId : undefined}
           aria-autocomplete="list"
+          aria-activedescendant={activeOptionId}
           aria-label={ariaLabel ?? t('clients.search.label')}
           value={value}
           disabled={disabled}
           placeholder={t('clients.search.placeholder')}
-          onChange={(event) => { onQueryChange(event.currentTarget.value); setOpen(true); }}
+          onChange={(event) => { onQueryChange(event.currentTarget.value); setActiveIndex(0); setOpen(true); }}
           onFocus={() => { if (query.length >= 2) setOpen(true); }}
           onKeyDown={handleKeyDown}
         />
         {linked && (
-          <button type="button" className="booking-client-clear" aria-label={t('op.booking.client.clear')} disabled={disabled} onClick={onClear}>
+          <button type="button" className="booking-client-clear" aria-label={t('op.booking.client.clear')} disabled={disabled} onClick={clear}>
             <X size={13} aria-hidden="true" />
           </button>
         )}
@@ -159,6 +180,7 @@ export function ClientPicker({
             results.map((client, index) => (
               <li
                 key={client.playerAccountId ?? client.name}
+                id={optionId(baseId, client, index)}
                 role="option"
                 aria-selected={index === activeIndex}
                 className={`booking-client-option${index === activeIndex ? ' is-active' : ''}`}

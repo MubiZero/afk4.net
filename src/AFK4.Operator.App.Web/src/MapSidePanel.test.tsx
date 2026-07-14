@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import type { SeatSummary } from './operatorData';
-import type { OperatorBackendContext } from './operatorTypes';
+import type { OperatorBackendContext, SeatActionRequest } from './operatorTypes';
 import { MapSidePanel } from './MapSidePanel';
 
 afterEach(cleanup);
@@ -49,6 +49,74 @@ function backend(): OperatorBackendContext {
 
 function json(value: unknown): Response {
   return new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } });
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((next) => { resolve = next; });
+  return { promise, resolve };
+}
+
+function player(playerAccountId: string, displayName: string, walletBalanceMinorUnits: number) {
+  return {
+    playerAccountId,
+    displayName,
+    phoneNumber: '+992 90 777 88 99',
+    walletBalanceMinorUnits,
+    debtBalanceMinorUnits: 0,
+    activePackageCount: 1,
+    isActive: true,
+    createdAtUtc: '2026-07-01T00:00:00Z',
+    lastActivityAtUtc: null,
+    activePackageName: null,
+    activePackageRemainingMinutes: 0
+  };
+}
+
+function playerPackage(playerAccountId: string, playerPackageId: string, name: string) {
+  return {
+    playerPackageId,
+    packageDefinitionId: `definition-${playerAccountId}`,
+    playerAccountId,
+    name,
+    purchasedPrice: { currencyCode: 'TJS', minorUnits: 10_000 },
+    includedSeconds: 18_000,
+    bonusSeconds: 0,
+    remainingIncludedSeconds: 10_800,
+    remainingBonusSeconds: 0,
+    purchasedAtUtc: '2026-07-01T00:00:00Z',
+    expiresAtUtc: null
+  };
+}
+
+function tariffOptions() {
+  return [{
+    tariffId: 'tariff-1', tariffVersionId: 'tariff-version-1', tariffRuleVersionId: 'standard-v1',
+    name: 'Standard', currencyCode: 'TJS', pricePerMinuteMinorUnits: 50,
+    minimumBillableMinutes: 15, roundingIncrementMinutes: 5
+  }];
+}
+
+function openClientStartDialog(onSeatAction: (request: SeatActionRequest) => Promise<Record<string, never>> = async () => ({})) {
+  const readySeat = seat({ tone: 'ready', stateLabel: 'Свободен', activeSessionId: null, hasActiveSession: false });
+  render(
+    <I18nProvider>
+      <MapSidePanel
+        seat={readySeat}
+        seats={[readySeat]}
+        currencyCode="TJS"
+        backend={backend()}
+        actionsEnabled
+        canUsePcControl={false}
+        onSeatAction={onSeatAction}
+        onPcControlAction={async () => ({ detail: '' })}
+      />
+    </I18nProvider>
+  );
+  fireEvent.click(screen.getByRole('button', { name: 'Посадить гостя' }));
+  const dialog = screen.getByRole('dialog', { name: 'Новая сессия' });
+  fireEvent.click(within(dialog).getByRole('tab', { name: 'Клиент клуба' }));
+  return dialog;
 }
 
 describe('MapSidePanel diagnostics (A3)', () => {
@@ -187,6 +255,108 @@ describe('MapSidePanel new session client picker', () => {
       fireEvent.click(within(dialog).getByRole('tab', { name: 'Клиент клуба' }));
       expect(within(dialog).getByRole('combobox', { name: 'Игрок для биллинга' })).toHaveValue('');
       expect(within(dialog).queryByText('Клиент клуба', { selector: '.booking-client-badge' })).toBeNull();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('не даёт позднему ответу старого поиска подменить баланс нового клиента', async () => {
+    const originalFetch = globalThis.fetch;
+    const oldSearch = deferred<Response>();
+    const newSearch = deferred<Response>();
+    const fetchMock = mock(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/tariffs/options')) return json(tariffOptions());
+      if (url.pathname.endsWith('/players')) {
+        return url.searchParams.get('query') === 'Al' ? oldSearch.promise : newSearch.promise;
+      }
+      if (url.pathname.includes('/packages')) return json([]);
+      throw new Error(`Unexpected request: ${url.pathname}`);
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    try {
+      const dialog = openClientStartDialog();
+      const input = within(dialog).getByRole('combobox', { name: 'Игрок для биллинга' });
+      fireEvent.change(input, { target: { value: 'Al' } });
+      await waitFor(() => expect(fetchMock.mock.calls.some(([request]) => new URL(String(request)).searchParams.get('query') === 'Al')).toBe(true));
+      fireEvent.change(input, { target: { value: 'Bo' } });
+      await waitFor(() => expect(fetchMock.mock.calls.some(([request]) => new URL(String(request)).searchParams.get('query') === 'Bo')).toBe(true));
+
+      await act(async () => { newSearch.resolve(json([player('player-b', 'Bob B.', 90_000)])); });
+      const bobOption = await within(dialog).findByRole('option', { name: /Bob B\./ });
+      await act(async () => { oldSearch.resolve(json([player('player-a', 'Alice A.', 10_000)])); });
+      fireEvent.click(bobOption);
+
+      expect(await within(dialog).findByText(/900.*хватит/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/Bob B\./, { selector: '.start-plan strong' })).toBeInTheDocument();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('очищает пакет A до загрузки пакетов B и не разрешает submit со старым packageId', async () => {
+    const originalFetch = globalThis.fetch;
+    const playerBPackages = deferred<Response>();
+    const onSeatAction = mock(async (_request: SeatActionRequest) => ({}));
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/tariffs/options')) return json(tariffOptions());
+      if (url.pathname.endsWith('/players')) {
+        const query = url.searchParams.get('query');
+        return json(query === 'Al' ? [player('player-a', 'Alice A.', 10_000)] : [player('player-b', 'Bob B.', 90_000)]);
+      }
+      if (url.pathname.endsWith('/players/player-a/packages')) return json([playerPackage('player-a', 'package-a', 'Alice Night')]);
+      if (url.pathname.endsWith('/players/player-b/packages')) return playerBPackages.promise;
+      throw new Error(`Unexpected request: ${url.pathname}`);
+    }) as unknown as typeof fetch;
+
+    try {
+      const dialog = openClientStartDialog(onSeatAction);
+      const input = within(dialog).getByRole('combobox', { name: 'Игрок для биллинга' });
+      fireEvent.change(input, { target: { value: 'Al' } });
+      fireEvent.click(await within(dialog).findByRole('option', { name: /Alice A\./ }));
+      fireEvent.click(within(dialog).getByRole('tab', { name: 'Пакет' }));
+      await waitFor(() => expect(within(dialog).getByRole('combobox', { name: 'Пакет для сессии' })).toHaveTextContent('Alice Night'));
+
+      fireEvent.change(input, { target: { value: 'Bo' } });
+      fireEvent.click(await within(dialog).findByRole('option', { name: /Bob B\./ }));
+
+      const packageSelect = within(dialog).getByRole('combobox', { name: 'Пакет для сессии' });
+      expect(packageSelect).toBeDisabled();
+      expect(packageSelect).not.toHaveTextContent('Alice Night');
+      expect(within(dialog).getByRole('button', { name: /Старт/ })).toBeDisabled();
+
+      await act(async () => { playerBPackages.resolve(json([playerPackage('player-b', 'package-b', 'Bob Night')])); });
+      await waitFor(() => expect(packageSelect).toHaveTextContent('Bob Night'));
+      expect(packageSelect).toBeEnabled();
+      fireEvent.click(within(dialog).getByRole('button', { name: /Старт/ }));
+      await waitFor(() => expect(onSeatAction).toHaveBeenCalledTimes(1));
+      expect(onSeatAction.mock.calls[0][0]).toMatchObject({
+        type: 'start',
+        billing: { mode: 'package', playerAccountId: 'player-b', playerPackageId: 'package-b' }
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('показывает backend-ошибку поиска и оставляет запрос для повтора', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/tariffs/options')) return json(tariffOptions());
+      if (url.pathname.endsWith('/players')) return new Response('players unavailable', { status: 503, statusText: 'Unavailable' });
+      throw new Error(`Unexpected request: ${url.pathname}`);
+    }) as unknown as typeof fetch;
+
+    try {
+      const dialog = openClientStartDialog();
+      const input = within(dialog).getByRole('combobox', { name: 'Игрок для биллинга' });
+      fireEvent.change(input, { target: { value: 'Ma' } });
+
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('503 Unavailable');
+      expect(input).toHaveValue('Ma');
     } finally {
       globalThis.fetch = originalFetch;
     }
