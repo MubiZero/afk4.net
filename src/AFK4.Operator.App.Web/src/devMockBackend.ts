@@ -29,6 +29,13 @@ function json(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
 
+function jsonError(status: number, code: string, error: string, currentVersion: number | null = null): Response {
+  return new Response(JSON.stringify({ error, code, currentVersion }), {
+    status,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
 function noContent(): Response {
   return new Response(null, { status: 204 });
 }
@@ -64,12 +71,21 @@ function floorMap() {
 // module is re-evaluated; production data never reaches this store.
 let previewFloorMap: ReturnType<typeof floorMap> | null = null;
 let previewSessionSequence = 1;
+let previewReservations: ReturnType<typeof reservations> | null = null;
+const previewReservationStarts = new Map<string, { identity: string; response: unknown }>();
 
 function currentPreviewFloorMap(): ReturnType<typeof floorMap> {
   if (previewFloorMap === null) {
     previewFloorMap = structuredClone(floorMap());
   }
   return previewFloorMap;
+}
+
+function currentPreviewReservations(): ReturnType<typeof reservations> {
+  if (previewReservations === null) {
+    previewReservations = structuredClone(reservations());
+  }
+  return previewReservations;
 }
 
 function previewLayoutZones() {
@@ -278,7 +294,8 @@ function booking(
     customerName, phoneNumber,
     startsAtUtc: todayAtUtc(startHour), endsAtUtc: todayAtUtc(startHour, durationMinutes),
     durationMinutes, state, source, note,
-    createdAtUtc: todayAtUtc(8), updatedAtUtc: todayAtUtc(8), cancelledAtUtc: null, cancelReason: ''
+    createdAtUtc: todayAtUtc(8), updatedAtUtc: todayAtUtc(8), cancelledAtUtc: null, cancelReason: '',
+    version: 1, startedSessionId: null as string | null
   };
 }
 
@@ -553,7 +570,8 @@ function groupReservationResult(init?: RequestInit): unknown {
     customerName: (req.customerName as string) ?? 'Группа', phoneNumber: (req.phoneNumber as string | null) ?? null,
     startsAtUtc, endsAtUtc: startsAtUtc, durationMinutes: (req.durationMinutes as number) ?? 60,
     state: 'confirmed', source: (req.source as string) ?? 'operator', note: (req.note as string) ?? '',
-    createdAtUtc: startsAtUtc, updatedAtUtc: startsAtUtc, cancelledAtUtc: null, cancelReason: ''
+    createdAtUtc: startsAtUtc, updatedAtUtc: startsAtUtc, cancelledAtUtc: null, cancelReason: '',
+    version: 1, startedSessionId: null
   }));
   return { reservationGroupId: groupId, reservations, conflicts: [] };
 }
@@ -566,6 +584,87 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.endsWith('/reservations/group') && method === 'POST') {
     return json(groupReservationResult(init));
+  }
+  const reservationStartMatch = url.pathname.match(/\/api\/reservations\/([^/]+)\/start-session$/);
+  if (reservationStartMatch !== null && method === 'POST') {
+    let request: Record<string, unknown> = {};
+    try { request = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { request = {}; }
+    const reservationId = decodeURIComponent(reservationStartMatch[1]);
+    const reservation = currentPreviewReservations().find((item) => item.reservationId === reservationId);
+    if (reservation === undefined) {
+      return jsonError(404, 'reservation_not_found', 'Reservation was not found.');
+    }
+
+    const currentVersion = reservation.version;
+    if (request.organizationId !== ORG) {
+      return jsonError(400, 'organization_mismatch', 'Organization does not match the preview tenant.', currentVersion);
+    }
+
+    const idempotencyKey = typeof request.idempotencyKey === 'string' ? request.idempotencyKey.trim() : '';
+    if (idempotencyKey.length === 0) {
+      return jsonError(400, 'idempotency_key_required', 'Idempotency key is required.', currentVersion);
+    }
+
+    const identity = JSON.stringify({
+      reservationId,
+      organizationId: request.organizationId,
+      expectedVersion: request.expectedVersion,
+      tariffRuleVersionId: request.tariffRuleVersionId,
+      durationMode: request.durationMode ?? 'open',
+      durationMinutes: request.durationMinutes ?? null,
+      billingMode: request.billingMode ?? '',
+      tariffVersionId: request.tariffVersionId ?? null,
+      playerPackageId: request.playerPackageId ?? null,
+      isComp: request.isComp ?? false,
+      compReason: request.compReason ?? null
+    });
+    const replay = previewReservationStarts.get(idempotencyKey);
+    if (replay !== undefined) {
+      return replay.identity === identity
+        ? json(structuredClone(replay.response))
+        : jsonError(409, 'idempotency_conflict', 'Idempotency key was used for another request.', currentVersion);
+    }
+
+    if (request.expectedVersion !== currentVersion) {
+      return jsonError(409, 'version_conflict', 'Reservation changed since it was loaded.', currentVersion);
+    }
+    if (reservation.startedSessionId !== null || reservation.state === 'seated') {
+      return jsonError(409, 'reservation_already_started', 'Reservation already started a session.', currentVersion);
+    }
+    if (reservation.state !== 'confirmed') {
+      return jsonError(409, 'reservation_confirmation_required', 'Reservation must be confirmed.', currentVersion);
+    }
+
+    const seat = currentPreviewFloorMap().seats.find((item) => item.seatId === reservation.seatId);
+    if (seat === undefined || seat.state !== 'Free') {
+      return jsonError(409, 'seat_unavailable', 'Reserved seat is not ready.', currentVersion);
+    }
+
+    const sessionId = `preview-reservation-session-${previewSessionSequence++}`;
+    const isOpenTab = request.durationMode === 'open';
+    seat.state = 'Active';
+    seat.activeSessionId = sessionId;
+    seat.sessionStartedAtUtc = new Date().toISOString();
+    seat.playerDisplayName = reservation.customerName;
+    seat.tariffName = 'Почасовой';
+    seat.remainingSeconds = isOpenTab ? null : Number(request.durationMinutes ?? 60) * 60;
+    seat.accruedCostMinorUnits = isOpenTab ? 0 : undefined;
+    seat.isDeviceLocked = false;
+
+    reservation.state = 'seated';
+    reservation.startedSessionId = sessionId;
+    reservation.version += 1;
+    reservation.updatedAtUtc = new Date().toISOString();
+    const response = {
+      reservation: structuredClone(reservation),
+      session: {
+        idempotencyKey,
+        session: { sessionId, state: 'Active' },
+        deviceCommands: []
+      }
+    };
+    previewReservationStarts.set(idempotencyKey, { identity, response: structuredClone(response) });
+    return json(response);
   }
   if (url.pathname.endsWith('/sessions/start') && method === 'POST') {
     let request: Record<string, unknown> = {};
@@ -615,7 +714,7 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   // Без фильтра (экран «Брони») возвращаем весь набор. Имитирует серверный playerAccountId-фильтр.
   if (url.pathname.endsWith('/reservations') && method === 'GET') {
     const playerAccountId = url.searchParams.get('playerAccountId');
-    const all = reservations();
+    const all = currentPreviewReservations();
     const filtered = playerAccountId ? all.filter((r) => r.playerAccountId === playerAccountId) : all;
     return json({ reservations: filtered, limit: 40 });
   }

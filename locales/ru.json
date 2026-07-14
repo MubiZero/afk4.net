@@ -2589,6 +2589,7 @@
   "op.error.code.insufficientFunds": "На балансе клиента недостаточно средств.",
   "op.error.code.playerRequiredForWallet": "Для выбранного способа оплаты нужен клиент клуба.",
   "op.error.code.outOfStock": "Товара недостаточно на складе. Обновите остатки.",
+  "op.error.code.organizationMismatch": "Запрос относится к другой организации. Обновите подключение к клубу.",
   "op.error.code.reservationNotFound": "Бронь не найдена. Обновите список броней.",
   "op.error.code.reservationConfirmationRequired": "Сначала подтвердите бронь, затем запускайте сессию.",
   "op.error.code.reservationAlreadyStarted": "Для этой брони сессия уже запущена.",

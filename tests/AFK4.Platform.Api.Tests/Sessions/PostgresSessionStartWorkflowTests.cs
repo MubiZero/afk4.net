@@ -7,6 +7,7 @@ using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
 
 namespace AFK4.Platform.Api.Tests.Sessions;
@@ -286,12 +287,16 @@ internal sealed class SessionStartPostgresFixture : IAsyncDisposable
         }
     }
 
-    public PlatformDbContext CreateDbContext()
+    public PlatformDbContext CreateDbContext(params IInterceptor[] interceptors)
     {
-        var options = new DbContextOptionsBuilder<PlatformDbContext>()
-            .UseNpgsql(connectionString)
-            .Options;
-        return new PlatformDbContext(options);
+        var builder = new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseNpgsql(connectionString);
+        if (interceptors.Length > 0)
+        {
+            builder.AddInterceptors(interceptors);
+        }
+
+        return new PlatformDbContext(builder.Options);
     }
 
     public async Task SeedAsync()

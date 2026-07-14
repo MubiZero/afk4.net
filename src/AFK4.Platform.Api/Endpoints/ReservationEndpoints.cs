@@ -654,23 +654,6 @@ internal static class ReservationEndpoints
                 return Results.BadRequest(new { result.Error, result.Code, result.CurrentVersion });
             }
 
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                scoped.Reservation.BranchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.StartReservationSession,
-                "Reservation",
-                reservationId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new
-                {
-                    request.ExpectedVersion,
-                    SessionId = result.Response!.Session.Session.SessionId,
-                    ReservationVersion = result.Response.Reservation.Version
-                },
-                cancellationToken);
-
             return Results.Ok(result.Response);
         });
 

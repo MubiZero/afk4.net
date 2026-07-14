@@ -1,5 +1,6 @@
 using System.Data;
 using System.Text.Json;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.Billing;
@@ -218,6 +219,36 @@ public sealed class EfReservationSessionCoordinator(
         reservation.UpdatedByStaffUserId = actorStaffUserId;
         reservation.UpdatedAtUtc = now;
         reservation.Version += 1;
+
+        dbContext.AuditRecords.Add(AuditRecordFactory.Create(
+            new AuditRecordWriteRequest(
+                reservation.OrganizationId,
+                reservation.BranchId,
+                actorStaffUserId,
+                AuditActionNames.StartReservationSession,
+                "Reservation",
+                reservation.ReservationId.ToString("D"),
+                AuditOutcome.Succeeded,
+                "PlatformApi",
+                JsonSerializer.Serialize(new
+                {
+                    ReservationId = reservation.ReservationId,
+                    SessionId = stage.Result.Response.Session.SessionId,
+                    reservation.SeatId,
+                    reservation.PlayerAccountId,
+                    request.ExpectedVersion,
+                    ReservationVersion = reservation.Version,
+                    request.IdempotencyKey,
+                    request.TariffRuleVersionId,
+                    request.DurationMode,
+                    request.DurationMinutes,
+                    request.BillingMode,
+                    request.TariffVersionId,
+                    request.PlayerPackageId,
+                    request.IsComp,
+                    request.CompReason
+                })),
+            now));
 
         await dbContext.SaveChangesAsync(cancellationToken);
         var response = new StartReservationSessionResponse(

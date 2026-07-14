@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
@@ -291,6 +292,12 @@ public sealed class EfReservationSessionCoordinatorTests
         Assert.Single(await db.LedgerEntries.ToListAsync());
         Assert.Single(await db.DeviceCommands.ToListAsync());
         Assert.Single(await db.SessionCommandIdempotency.ToListAsync());
+        var audit = await db.AuditRecords.SingleAsync();
+        Assert.Equal(AuditActionNames.StartReservationSession, audit.Action);
+        Assert.Equal("Reservation", audit.TargetType);
+        Assert.Equal(ReservationId.ToString("D"), audit.TargetId);
+        Assert.Equal(ActorStaffUserId, audit.ActorStaffUserId);
+        Assert.Contains(result.Response.Session.Session.SessionId.ToString("D"), audit.DetailsJson);
         Assert.Single(dispatcher.Notifications);
         Assert.Single(lifecycle.Events);
     }
@@ -419,8 +426,52 @@ public sealed class EfReservationSessionCoordinatorTests
         Assert.Single(await db.LedgerEntries.ToListAsync());
         Assert.Single(await db.DeviceCommands.ToListAsync());
         Assert.Single(await db.SessionCommandIdempotency.ToListAsync());
+        Assert.Single(await db.AuditRecords.ToListAsync());
         Assert.Single(dispatcher.Notifications);
         Assert.Single(lifecycle.Events);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StartAsync_AuditSaveFailureOrCancellationLeavesNoStartEffects(bool cancel)
+    {
+        await using var db = CreateDbContext(new RejectReservationStartAuditInterceptor(cancel));
+        await SeedLayoutAndReservationAsync(db);
+        var dispatcher = new TrackingCommandDispatchService(db);
+        var lifecycle = new RecordingSessionLifecycleNotifier();
+        var workflow = new EfSessionStartWorkflow(
+            db,
+            dispatcher,
+            new FakeLeaseSigner(),
+            new FixedTimeProvider(Now),
+            new TrackingBillingService(db),
+            lifecycle);
+        var coordinator = CreateCoordinator(db, workflow);
+
+        var exception = await Record.ExceptionAsync(() => coordinator.StartAsync(
+            ReservationId,
+            ActorStaffUserId,
+            actorCanApproveComp: false,
+            Request(expectedVersion: 1),
+            CancellationToken.None));
+
+        Assert.IsType(cancel ? typeof(OperationCanceledException) : typeof(ForcedAuditFailureException), exception);
+        Assert.Empty(dispatcher.Notifications);
+        Assert.Empty(lifecycle.Events);
+
+        db.ChangeTracker.Clear();
+        var reservation = await db.Reservations.AsNoTracking().SingleAsync();
+        Assert.Equal(ReservationStateNames.Confirmed, reservation.State);
+        Assert.Equal(1, reservation.Version);
+        Assert.Null(reservation.StartedSessionId);
+        Assert.Empty(await db.Sessions.AsNoTracking().ToListAsync());
+        Assert.Empty(await db.SessionLeases.AsNoTracking().ToListAsync());
+        Assert.Empty(await db.SessionEvents.AsNoTracking().ToListAsync());
+        Assert.Empty(await db.LedgerEntries.AsNoTracking().ToListAsync());
+        Assert.Empty(await db.DeviceCommands.AsNoTracking().ToListAsync());
+        Assert.Empty(await db.SessionCommandIdempotency.AsNoTracking().ToListAsync());
+        Assert.Empty(await db.AuditRecords.AsNoTracking().ToListAsync());
     }
 
     [Fact]
@@ -560,6 +611,58 @@ public sealed class EfReservationSessionCoordinatorTests
         Assert.Empty(await verification.LedgerEntries.AsNoTracking().ToListAsync());
         Assert.Empty(await verification.DeviceCommands.AsNoTracking().ToListAsync());
         Assert.Empty(await verification.SessionCommandIdempotency.AsNoTracking().ToListAsync());
+        Assert.Empty(await verification.AuditRecords.AsNoTracking().ToListAsync());
+    }
+
+    [PostgresSessionFact]
+    public async Task StartAsync_PostgresAuditFailureAfterSave_RollsBackEveryEffectAndAudit()
+    {
+        await using var database = await SessionStartPostgresFixture.CreateAsync(
+            Environment.GetEnvironmentVariable(PostgresSessionFactAttribute.EnvironmentVariable)!);
+        await database.SeedAsync();
+        await SeedPostgresReservationAsync(database);
+
+        foreach (var cancel in new[] { false, true })
+        {
+            await using var db = database.CreateDbContext(new RejectSavedReservationStartAuditInterceptor(cancel));
+            var dispatcher = new TrackingCommandDispatchService(db);
+            var lifecycle = new RecordingSessionLifecycleNotifier();
+            var workflow = new EfSessionStartWorkflow(
+                db,
+                dispatcher,
+                new FakeLeaseSigner(),
+                new FixedTimeProvider(database.Now),
+                new TrackingBillingService(db, database.OrganizationId, database.BranchId),
+                lifecycle);
+            var coordinator = new EfReservationSessionCoordinator(
+                db,
+                workflow,
+                new FixedTimeProvider(database.Now));
+
+            var exception = await Record.ExceptionAsync(() => coordinator.StartAsync(
+                ReservationId,
+                database.StaffUserId,
+                actorCanApproveComp: false,
+                PostgresRequest(database.OrganizationId),
+                CancellationToken.None));
+
+            Assert.IsType(cancel ? typeof(OperationCanceledException) : typeof(ForcedAuditFailureException), exception);
+            Assert.Empty(dispatcher.Notifications);
+            Assert.Empty(lifecycle.Events);
+
+            await using var verification = database.CreateDbContext();
+            var reservation = await verification.Reservations.AsNoTracking().SingleAsync();
+            Assert.Equal(ReservationStateNames.Confirmed, reservation.State);
+            Assert.Equal(1, reservation.Version);
+            Assert.Null(reservation.StartedSessionId);
+            Assert.Empty(await verification.Sessions.AsNoTracking().ToListAsync());
+            Assert.Empty(await verification.SessionLeases.AsNoTracking().ToListAsync());
+            Assert.Empty(await verification.SessionEvents.AsNoTracking().ToListAsync());
+            Assert.Empty(await verification.LedgerEntries.AsNoTracking().ToListAsync());
+            Assert.Empty(await verification.DeviceCommands.AsNoTracking().ToListAsync());
+            Assert.Empty(await verification.SessionCommandIdempotency.AsNoTracking().ToListAsync());
+            Assert.Empty(await verification.AuditRecords.AsNoTracking().ToListAsync());
+        }
     }
 
     [PostgresSessionFact]
@@ -629,6 +732,7 @@ public sealed class EfReservationSessionCoordinatorTests
         Assert.Single(await verification.LedgerEntries.AsNoTracking().ToListAsync());
         Assert.Single(await verification.DeviceCommands.AsNoTracking().ToListAsync());
         Assert.Single(await verification.SessionCommandIdempotency.AsNoTracking().ToListAsync());
+        Assert.Single(await verification.AuditRecords.AsNoTracking().ToListAsync());
         Assert.Equal(1, firstDispatcher.Notifications.Count + secondDispatcher.Notifications.Count);
         Assert.Equal(1, firstLifecycle.Events.Count + secondLifecycle.Events.Count);
     }
@@ -664,14 +768,17 @@ public sealed class EfReservationSessionCoordinatorTests
     private static StartReservationSessionRequest PostgresRequest(Guid organizationId) =>
         Request(expectedVersion: 1) with { OrganizationId = organizationId };
 
-    private static PlatformDbContext CreateDbContext()
+    private static PlatformDbContext CreateDbContext(IInterceptor? interceptor = null)
     {
-        var options = new DbContextOptionsBuilder<PlatformDbContext>()
+        var builder = new DbContextOptionsBuilder<PlatformDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
-            .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
-            .Options;
+            .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning));
+        if (interceptor is not null)
+        {
+            builder.AddInterceptors(interceptor);
+        }
 
-        return new PlatformDbContext(options);
+        return new PlatformDbContext(builder.Options);
     }
 
     private static async Task SeedReservationAsync(
@@ -819,6 +926,50 @@ public sealed class EfReservationSessionCoordinatorTests
         public Task NotifyCommittedAsync(SessionStartStage stage, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Notification must not be called for an invalid reservation.");
     }
+
+    private sealed class RejectReservationStartAuditInterceptor(bool cancel) : SaveChangesInterceptor
+    {
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            var hasStartAudit = eventData.Context?.ChangeTracker.Entries<AuditRecordEntity>()
+                .Any(entry => entry.State == EntityState.Added &&
+                    entry.Entity.Action == AuditActionNames.StartReservationSession) == true;
+            if (!hasStartAudit)
+            {
+                return base.SavingChangesAsync(eventData, result, cancellationToken);
+            }
+
+            return cancel
+                ? throw new OperationCanceledException("forced audit cancellation")
+                : throw new ForcedAuditFailureException();
+        }
+    }
+
+    private sealed class RejectSavedReservationStartAuditInterceptor(bool cancel) : SaveChangesInterceptor
+    {
+        public override ValueTask<int> SavedChangesAsync(
+            SaveChangesCompletedEventData eventData,
+            int result,
+            CancellationToken cancellationToken = default)
+        {
+            var savedStartAudit = eventData.Context?.ChangeTracker.Entries<AuditRecordEntity>()
+                .Any(entry => entry.Entity.Action == AuditActionNames.StartReservationSession) == true;
+            if (!savedStartAudit)
+            {
+                return base.SavedChangesAsync(eventData, result, cancellationToken);
+            }
+
+            return cancel
+                ? throw new OperationCanceledException("forced audit cancellation after save")
+                : throw new ForcedAuditFailureException();
+        }
+    }
+
+    private sealed class ForcedAuditFailureException()
+        : Exception("forced reservation start audit failure");
 
     private sealed class InvalidWorkflow(string error) : ISessionStartWorkflow
     {

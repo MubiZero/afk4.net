@@ -15,6 +15,7 @@ const codeMessageKeys = {
   insufficient_funds: 'op.error.code.insufficientFunds',
   player_required_for_wallet: 'op.error.code.playerRequiredForWallet',
   out_of_stock: 'op.error.code.outOfStock',
+  organization_mismatch: 'op.error.code.organizationMismatch',
   reservation_not_found: 'op.error.code.reservationNotFound',
   reservation_confirmation_required: 'op.error.code.reservationConfirmationRequired',
   reservation_already_started: 'op.error.code.reservationAlreadyStarted',

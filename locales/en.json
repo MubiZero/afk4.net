@@ -2589,6 +2589,7 @@
   "op.error.code.insufficientFunds": "The client does not have enough wallet funds.",
   "op.error.code.playerRequiredForWallet": "The selected payment method requires a club client.",
   "op.error.code.outOfStock": "There is not enough stock. Refresh inventory levels.",
+  "op.error.code.organizationMismatch": "This request belongs to another organization. Refresh the club connection.",
   "op.error.code.reservationNotFound": "The reservation was not found. Refresh the reservation list.",
   "op.error.code.reservationConfirmationRequired": "Confirm the reservation before starting its session.",
   "op.error.code.reservationAlreadyStarted": "A session has already been started for this reservation.",

@@ -140,7 +140,7 @@ public sealed class ReservationEndpointTests
     }
 
     [Fact]
-    public async Task StartReservationSession_PassesActorAndCompApprovalAndAuditsResultingSession()
+    public async Task StartReservationSession_PassesActorAndCompApprovalWithoutPostCommitEndpointAudit()
     {
         var coordinator = new StubReservationSessionCoordinator(StartSuccess());
         var staff = StaffContextWithPermissions(
@@ -170,13 +170,7 @@ public sealed class ReservationEndpointTests
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var audit = await dbContext.AuditRecords.SingleAsync();
-        Assert.Equal("reservations.session.start", audit.Action);
-        Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
-        Assert.Equal("Reservation", audit.TargetType);
-        Assert.Equal(reservation.ReservationId.ToString("D"), audit.TargetId);
-        Assert.Equal(staff.StaffUserId, audit.ActorStaffUserId);
-        Assert.Contains(body.Session.Session.SessionId.ToString("D"), audit.DetailsJson);
+        Assert.Empty(await dbContext.AuditRecords.ToListAsync());
     }
 
     [Fact]

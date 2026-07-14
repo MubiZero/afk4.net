@@ -8,22 +8,7 @@ public sealed class AuditRecordWriter(
 {
     public async Task WriteAsync(AuditRecordWriteRequest request, CancellationToken cancellationToken)
     {
-        dbContext.AuditRecords.Add(new AuditRecordEntity
-        {
-            AuditRecordId = Guid.NewGuid(),
-            OrganizationId = request.OrganizationId,
-            BranchId = request.BranchId,
-            ActorStaffUserId = request.ActorStaffUserId,
-            ActorPlatformAdminUserId = request.ActorPlatformAdminUserId,
-            Action = request.Action,
-            TargetType = request.TargetType,
-            TargetId = request.TargetId,
-            Outcome = request.Outcome,
-            SourceApp = request.SourceApp,
-            DetailsJson = request.DetailsJson,
-            AmountMinorUnits = request.AmountMinorUnits,
-            CreatedAtUtc = timeProvider.GetUtcNow()
-        });
+        dbContext.AuditRecords.Add(AuditRecordFactory.Create(request, timeProvider.GetUtcNow()));
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }

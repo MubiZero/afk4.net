@@ -122,3 +122,63 @@ describe('devMockFetch session preview', () => {
     expect(staff.length).toBeGreaterThan(0);
   });
 });
+
+describe('devMockFetch reservation session start', () => {
+  it('links one session, replays the same request, and rejects changed re-use', async () => {
+    const before = await (await devMockFetch('https://x/api/branches/branch/reservations')).json();
+    const reservation = before.reservations.find((item: { reservationId: string }) => item.reservationId === 'r5');
+    expect(reservation).toMatchObject({ state: 'confirmed', version: 1, startedSessionId: null });
+
+    const request = {
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      expectedVersion: 1,
+      tariffRuleVersionId: 'preview-v1',
+      idempotencyKey: 'reservation-r5-start',
+      durationMode: 'fixed',
+      durationMinutes: 60,
+      billingMode: ''
+    };
+    const start = await devMockFetch('https://x/api/reservations/r5/start-session', {
+      method: 'POST',
+      body: JSON.stringify(request)
+    });
+    const started = await start.json();
+
+    expect(start.status).toBe(200);
+    expect(started.reservation).toMatchObject({
+      reservationId: 'r5',
+      state: 'seated',
+      version: 2,
+      startedSessionId: expect.any(String)
+    });
+    expect(started.session).toMatchObject({
+      idempotencyKey: 'reservation-r5-start',
+      session: { sessionId: started.reservation.startedSessionId, state: 'Active' }
+    });
+
+    const replay = await devMockFetch('https://x/api/reservations/r5/start-session', {
+      method: 'POST',
+      body: JSON.stringify(request)
+    });
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toEqual(started);
+
+    const changedReuse = await devMockFetch('https://x/api/reservations/r5/start-session', {
+      method: 'POST',
+      body: JSON.stringify({ ...request, durationMinutes: 90 })
+    });
+    expect(changedReuse.status).toBe(409);
+    expect(await changedReuse.json()).toMatchObject({ code: 'idempotency_conflict', currentVersion: 2 });
+
+    const differentKey = await devMockFetch('https://x/api/reservations/r5/start-session', {
+      method: 'POST',
+      body: JSON.stringify({ ...request, expectedVersion: 2, idempotencyKey: 'reservation-r5-start-again' })
+    });
+    expect(differentKey.status).toBe(409);
+    expect(await differentKey.json()).toMatchObject({ code: 'reservation_already_started', currentVersion: 2 });
+
+    const after = await (await devMockFetch('https://x/api/branches/branch/reservations')).json();
+    expect(after.reservations.find((item: { reservationId: string }) => item.reservationId === 'r5'))
+      .toEqual(started.reservation);
+  });
+});

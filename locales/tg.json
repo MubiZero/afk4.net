@@ -2589,6 +2589,7 @@
   "op.error.code.insufficientFunds": "Дар тавозуни муштарӣ маблағ кофӣ нест.",
   "op.error.code.playerRequiredForWallet": "Барои усули интихобшудаи пардохт муштарии клуб лозим аст.",
   "op.error.code.outOfStock": "Мол дар анбор кофӣ нест. Бақияҳоро нав кунед.",
+  "op.error.code.organizationMismatch": "Ин дархост ба ташкилоти дигар тааллуқ дорад. Пайвасти клубро нав кунед.",
   "op.error.code.reservationNotFound": "Брон ёфт нашуд. Рӯйхати бронҳоро нав кунед.",
   "op.error.code.reservationConfirmationRequired": "Аввал бронро тасдиқ кунед, баъд сессияро оғоз намоед.",
   "op.error.code.reservationAlreadyStarted": "Барои ин брон сессия аллакай оғоз шудааст.",
