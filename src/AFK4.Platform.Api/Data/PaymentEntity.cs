@@ -24,6 +24,8 @@ public sealed class PaymentEntity
 
     public string PaymentMethod { get; set; } = string.Empty;
 
+    public Guid? LedgerEntryId { get; set; }
+
     public string CurrencyCode { get; set; } = string.Empty;
 
     public long AmountMinorUnits { get; set; }

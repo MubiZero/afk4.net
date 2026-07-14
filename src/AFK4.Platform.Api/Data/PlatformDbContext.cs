@@ -727,6 +727,11 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(payment => payment.Note).HasMaxLength(512).IsRequired();
             entity.HasIndex(payment => new { payment.PosSaleId, payment.CreatedAtUtc });
             entity.HasIndex(payment => new { payment.SessionId, payment.CreatedAtUtc });
+            entity.HasIndex(payment => payment.LedgerEntryId).IsUnique();
+            entity.HasOne<LedgerEntryEntity>()
+                .WithMany()
+                .HasForeignKey(payment => payment.LedgerEntryId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ReceiptEntity>(entity =>

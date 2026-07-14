@@ -66,6 +66,7 @@ public sealed class EfShopPosSettlementServiceTests
         Assert.Equal(sale.PosSaleId, payment.PosSaleId);
         Assert.Equal(shift.ShiftId, payment.ShiftId);
         Assert.Equal(2_750, payment.AmountMinorUnits);
+        Assert.Equal(debit.LedgerEntryId, payment.LedgerEntryId);
         Assert.Equal("sale", receipt.ReceiptType);
         Assert.Equal(sale.PosSaleId, receipt.PosSaleId);
         Assert.Equal(2_750, receipt.TotalMinorUnits);
@@ -306,6 +307,7 @@ public sealed class EfShopPosSettlementServiceTests
         Assert.Equal(scenario.Sale.PosSaleId, refundPayment.PosSaleId);
         Assert.Equal(scenario.Sale.ShiftId, refundPayment.ShiftId);
         Assert.Equal(-2_400, refundPayment.AmountMinorUnits);
+        Assert.Equal(reversal.LedgerEntryId, refundPayment.LedgerEntryId);
         Assert.Equal("refund", refundReceipt.ReceiptType);
         Assert.Equal(scenario.Sale.PosSaleId, refundReceipt.PosSaleId);
         Assert.Equal(2_400, refundReceipt.TotalMinorUnits);
