@@ -15,10 +15,12 @@ export interface BookingItem {
   customerName: string;
   phoneNumber: string;
   note: string;
+  playerAccountId: string;
   seatId: string;
   seatName: string;
   zoneName: string;
   tone: BookingTone;
+  startedSessionId: string;
 }
 
 export interface TimelineAxis {
@@ -92,6 +94,10 @@ export function bookingStateLabelKey(state: string): BookingStateKey {
   }
 }
 
+export function bookingDetailActions(state: string): { canConfirm: boolean; canStart: boolean } {
+  return { canConfirm: state === 'pending', canStart: state === 'confirmed' };
+}
+
 export function mapReservationsToItems(
   reservations: Record<string, unknown>[],
   guestName: string
@@ -115,10 +121,12 @@ export function mapReservationsToItems(
       customerName: readString(reservation, 'customerName', guestName),
       phoneNumber: readString(reservation, 'phoneNumber'),
       note: readString(reservation, 'note', readString(reservation, 'phoneNumber')),
+      playerAccountId: readString(reservation, 'playerAccountId'),
       seatId: readString(reservation, 'seatId'),
       seatName: readString(reservation, 'seatName'),
       zoneName: readString(reservation, 'zoneName'),
-      tone: bookingTone(state, source)
+      tone: bookingTone(state, source),
+      startedSessionId: readString(reservation, 'startedSessionId')
     };
   });
 }

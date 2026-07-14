@@ -8,7 +8,7 @@ import { Skeleton } from '../operatorPrimitives';
 import { PanelSelect } from '../PanelSelect';
 import { ClientPicker } from './ClientPicker';
 import { DateTimePicker } from './DateTimePicker';
-import { bookingStateLabelKey, type BookingItem } from './bookingModel';
+import { bookingDetailActions, bookingStateLabelKey, type BookingItem } from './bookingModel';
 
 export interface BookingDraft {
   customerName: string;
@@ -30,6 +30,7 @@ export interface BookingDrawerProps {
   draft: BookingDraft;
   busy: boolean;
   canManage: boolean;
+  canStartSessions: boolean;
   currencyCode: string;
   conflict: BookingItem | null;      // пересечение с бронью (для детальной подписи)
   seatConflict: boolean;             // место занято бронью ИЛИ сессией — блокирует одиночное создание
@@ -42,7 +43,7 @@ export interface BookingDrawerProps {
   onCreateGroup: () => void;
   onRemoveSeat: (seatId: string) => void;
   onCancelGroup: () => void;
-  onSeat: () => void;
+  onStart: () => void;
   onMove: (targetSeatId: string) => void;
   onCancel: () => void;
   onConfirm: (item: BookingItem) => void;
@@ -91,7 +92,7 @@ function CopyablePhone({ phone }: { phone: string }) {
 
 export function BookingDrawer(props: BookingDrawerProps) {
   const { t } = useI18n();
-  const { mode, selected, freeSeats, allSeats, draft, busy, canManage, currencyCode, conflict, seatConflict, groupConflicts, groupSize } = props;
+  const { mode, selected, freeSeats, allSeats, draft, busy, canManage, canStartSessions, currencyCode, conflict, seatConflict, groupConflicts, groupSize } = props;
   const title = mode === 'create' ? t('op.booking.drawer.createTitle') : t('op.booking.drawer.detailTitle');
   const freeIds = new Set(freeSeats.map((seat) => seat.id));
 
@@ -287,9 +288,11 @@ export function BookingDrawer(props: BookingDrawerProps) {
 
           <div className="booking-action-grid">
             <button type="button" disabled={!selected.seatId || busy} onClick={() => props.onOpenMap(selected.seatId)}><MonitorCheck size={15} />{t('op.booking.actions.openMap')}</button>
-            <button type="button" disabled={!canManage || busy || !selected.seatId} onClick={props.onSeat}><UserRoundPlus size={15} />{t('op.booking.actions.seat')}</button>
-            {selected.source === 'online' && selected.state === 'pending' && (
-              <button type="button" disabled={!canManage || busy} onClick={() => props.onConfirm(selected)}><Plus size={15} />{t('op.booking.requests.accept')}</button>
+            {bookingDetailActions(selected.state).canStart && (
+              <button type="button" disabled={!canManage || !canStartSessions || busy || !selected.seatId} onClick={props.onStart}><UserRoundPlus size={15} />{t('op.booking.actions.startSession')}</button>
+            )}
+            {bookingDetailActions(selected.state).canConfirm && (
+              <button type="button" disabled={!canManage || busy} onClick={() => props.onConfirm(selected)}><Plus size={15} />{t(selected.source === 'online' ? 'op.booking.requests.accept' : 'op.booking.actions.confirm')}</button>
             )}
             <button type="button" className="danger" disabled={!canManage || busy} onClick={props.onCancel}><Square size={15} />{t('op.booking.actions.cancel')}</button>
             {selected.reservationGroupId && groupSize > 1 && (

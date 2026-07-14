@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'bun:test';
-import { cleanup, render } from '@testing-library/react';
+import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { cleanup, fireEvent, render } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import type { SeatSummary } from '../operatorData';
 import { BookingDrawer, type BookingDraft, type BookingDrawerProps } from './BookingDrawer';
@@ -28,11 +28,29 @@ function draft(): BookingDraft {
 function renderDrawer(groupConflicts = new Set<string>()) {
   const props: BookingDrawerProps = {
     mode: 'create', selected: null, freeSeats: [], allSeats: [activeSeat, serviceSeat], draft: draft(),
-    busy: false, canManage: true, currencyCode: 'TJS', conflict: null, seatConflict: false,
+    busy: false, canManage: true, canStartSessions: true, currencyCode: 'TJS', conflict: null, seatConflict: false,
     groupConflicts, groupSize: 0, searchClients: async () => [], onClose: () => {},
     onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {}, onRemoveSeat: () => {},
-    onCancelGroup: () => {}, onSeat: () => {}, onMove: () => {}, onCancel: () => {},
+    onCancelGroup: () => {}, onStart: () => {}, onMove: () => {}, onCancel: () => {},
     onConfirm: () => {}, onOpenMap: () => {}
+  };
+  return render(<I18nProvider><BookingDrawer {...props} /></I18nProvider>);
+}
+
+function detail(state: string, onConfirm = () => {}, onStart = () => {}) {
+  const item = {
+    reservationId: 'r1', reservationGroupId: '', version: 2, state, source: 'operator',
+    startMs: Date.now() + 60_000, endMs: Date.now() + 3_660_000, durationMinutes: 60,
+    customerName: 'Мадина', phoneNumber: '+992900000000', note: '', playerAccountId: 'p1',
+    seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A', tone: state as 'pending', startedSessionId: ''
+  };
+  const props: BookingDrawerProps = {
+    mode: 'detail', selected: item, freeSeats: [], allSeats: [activeSeat], draft: draft(),
+    busy: false, canManage: true, canStartSessions: true, currencyCode: 'TJS', conflict: null,
+    seatConflict: false, groupConflicts: new Set(), groupSize: 0, searchClients: async () => [],
+    onClose: () => {}, onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {},
+    onRemoveSeat: () => {}, onCancelGroup: () => {}, onStart, onMove: () => {}, onCancel: () => {},
+    onConfirm, onOpenMap: () => {}
   };
   return render(<I18nProvider><BookingDrawer {...props} /></I18nProvider>);
 }
@@ -53,5 +71,31 @@ describe('BookingDrawer arbitrary group selection', () => {
     expect(result.container.querySelector('.booking-seat-chip.is-conflict')).not.toBeNull();
     expect(result.container.querySelector<HTMLButtonElement>('.booking-primary-action')?.disabled).toBe(true);
     expect(result.getByRole('alert')).toBeTruthy();
+  });
+});
+
+describe('BookingDrawer reservation lifecycle actions', () => {
+  it('pending offers Confirm but not Start', () => {
+    const result = detail('pending');
+    expect(result.getByRole('button', { name: 'Подтвердить' })).toBeTruthy();
+    expect(result.queryByRole('button', { name: 'Начать сессию' })).toBeNull();
+  });
+
+  it('confirmed offers Start but not Confirm', () => {
+    const onStart = mock(() => {});
+    const result = detail('confirmed', () => {}, onStart);
+    const button = result.getByRole('button', { name: 'Начать сессию' });
+    expect(result.queryByRole('button', { name: 'Подтвердить' })).toBeNull();
+    fireEvent.click(button);
+    expect(onStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('seated and cancelled offer neither lifecycle action', () => {
+    for (const state of ['seated', 'cancelled']) {
+      const result = detail(state);
+      expect(result.queryByRole('button', { name: 'Подтвердить' })).toBeNull();
+      expect(result.queryByRole('button', { name: 'Начать сессию' })).toBeNull();
+      cleanup();
+    }
   });
 });

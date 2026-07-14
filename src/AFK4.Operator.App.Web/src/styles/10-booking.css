@@ -1410,6 +1410,49 @@
   color: var(--danger-text);
 }
 
+.booking-start-warning {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--warning, #f4b740) 42%, transparent);
+  border-radius: 10px;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--warning, #f4b740) 10%, transparent);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.start-fixed-client {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  background: var(--surface-raised);
+}
+
+.start-fixed-client span {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.start-comp-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  margin-top: 10px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.start-comp-toggle input {
+  accent-color: var(--accent);
+}
+
 /* ── Предупреждение о конфликте брони ──────────────────────────────────────── */
 .booking-conflict {
   display: flex;

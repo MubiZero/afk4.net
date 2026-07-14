@@ -7,8 +7,16 @@ import {
   buildSeatRows,
   unseatedOnlineRequests,
   bookingStateLabelKey,
+  bookingDetailActions,
   type SessionDtoLike
 } from './bookingModel';
+
+it('bookingDetailActions: pending confirms, confirmed starts, terminal states expose neither', () => {
+  expect(bookingDetailActions('pending')).toEqual({ canConfirm: true, canStart: false });
+  expect(bookingDetailActions('confirmed')).toEqual({ canConfirm: false, canStart: true });
+  expect(bookingDetailActions('seated')).toEqual({ canConfirm: false, canStart: false });
+  expect(bookingDetailActions('cancelled')).toEqual({ canConfirm: false, canStart: false });
+});
 
 const seat = (id: string, zone: string, name: string): SeatSummary => ({
   id, zone, name, tone: 'ready', command: '', remaining: '', status: '', deviceName: name,
@@ -30,13 +38,16 @@ it('bookingStateLabelKey: каждое известное состояние →
 it('mapReservationsToItems: парсит поля и считает endMs из длительности', () => {
   const items = mapReservationsToItems([
     { reservationId: 'r1', version: 9, state: 'pending', source: 'online', startsAtUtc: '2026-06-17T14:00:00Z',
-      durationMinutes: 60, customerName: 'Марат', phoneNumber: '+992', seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A' }
+      durationMinutes: 60, customerName: 'Марат', phoneNumber: '+992', playerAccountId: 'player-1',
+      seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A', startedSessionId: 'session-1' }
   ], 'Гость');
   expect(items).toHaveLength(1);
   expect(items[0].customerName).toBe('Марат');
   expect(items[0].endMs - items[0].startMs).toBe(60 * 60_000);
   expect(items[0].tone).toBe('online');
   expect(items[0].version).toBe(9);
+  expect(items[0].playerAccountId).toBe('player-1');
+  expect(items[0].startedSessionId).toBe('session-1');
 });
 
 it('mapReservationsToItems: читает reservationGroupId (пусто если нет)', () => {

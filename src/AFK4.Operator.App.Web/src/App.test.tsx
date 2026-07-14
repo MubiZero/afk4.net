@@ -1565,10 +1565,11 @@ describe('App', () => {
     // Закрываем create-drawer перед открытием detail-drawer.
     fireEvent.click(within(createDrawer).getByRole('button', { name: 'Отмена' }));
 
-    // Клик по блоку брони открывает detail-drawer — все мутационные контролы заблокированы.
+    // Pending сначала нужно подтвердить: старый state-only «Посадить» и Start не показываем.
     fireEvent.click(screen.getByText('Aziz P.'));
     const detailDrawer = await screen.findByRole('dialog', { name: 'Бронь' });
-    expect(within(detailDrawer).getByRole('button', { name: 'Посадить' })).toBeDisabled();
+    expect(within(detailDrawer).queryByRole('button', { name: 'Посадить' })).toBeNull();
+    expect(within(detailDrawer).queryByRole('button', { name: 'Начать сессию' })).toBeNull();
     // «Перенести на место» — select, а не button; проверяем его disabled.
     expect(within(detailDrawer).getByRole('combobox')).toBeDisabled();
     expect(within(detailDrawer).getByRole('button', { name: 'Отменить' })).toBeDisabled();

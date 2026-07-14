@@ -3,42 +3,26 @@ import { ArrowRightLeft, Check, Loader2, Lock, MonitorCheck, Plus, ReceiptText, 
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import { formatBilledDuration } from './checkoutState';
-import {
-  type PaymentPartDto,
-  type PlayerPackageDto,
-  type PlayerSearchResultDto,
-  type SessionCheckoutQuoteResponse,
-  type TariffOptionDto
-} from './operatorApiClients';
+import { type PaymentPartDto, type PlayerSearchResultDto, type SessionCheckoutQuoteResponse } from './operatorApiClients';
 import type {
   Feedback,
-  LoadStatus,
   OperatorBackendContext,
   PcControlActionId,
   PcControlActionResult,
   SeatActionRequest,
   SeatActionResult,
-  SessionBillingModeId,
   SessionBillingSelection,
-  SessionStartDurationMode
 } from './operatorTypes';
 import type { SeatSummary } from './operatorData';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
   appVersionsLabel,
-  billingModeOptions,
   commandLabel,
   createAuthenticatedOperatorClients,
-  defaultTariffRuleVersionId,
-  guestBillingSelection,
   emptyFeedback,
   formatMinorUnits,
   isPendingSeatCommand,
-  playerPackageLabel,
   projectOperatorFacingError,
-  readNumber,
-  readString,
-  tariffOptionLabel,
   toneLabel,
   type PlayerClientItem,
   projectPlayerClient,
@@ -50,10 +34,7 @@ import { PaymentDialog, type PaymentBillLine } from './PaymentDialog';
 import { PanelSelect } from './PanelSelect';
 import { seatTileLead } from './seatTilePresentation';
 import { formatDurationCompact } from './floorMapState';
-import { ClientPicker } from './booking/ClientPicker';
-
-// Чипы длительности старта сессии (минуты). «Открытый счёт» добавляется отдельной кнопкой.
-const START_DURATIONS = [30, 60, 120, 180] as const;
+import { createSessionStartSelection, SessionStartForm, type SessionStartClient, type SessionStartSelection } from './session/SessionStartForm';
 
 // Местное настенное время HH:MM начала сессии — оператор читает зал в локальном времени.
 function formatSessionClock(iso: string | null | undefined): string | null {
@@ -273,21 +254,9 @@ export function MapSidePanel({
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   // Отклик команд блокировки/разблокировки ПК: спиннер→галочка на самой кнопке.
   const [pcFeedback, setPcFeedback] = useState<Feedback>(emptyFeedback);
-  const [billingMode, setBillingMode] = useState<SessionBillingModeId>('guest');
-  // Выбор длительности: число минут (фикс) или 'open' (открытый счёт). Чипы старт-диалога.
-  // По умолчанию — открытый счёт (гость чаще играет «пока не уйдёт», оплата по факту на кассе).
-  const [durationChoice, setDurationChoice] = useState<number | 'open'>('open');
-  const [playerSearch, setPlayerSearch] = useState('');
-  const [billingPlayers, setBillingPlayers] = useState<PlayerClientItem[]>([]);
-  const [selectedPlayerId, setSelectedPlayerId] = useState('');
-  const [playerSearchError, setPlayerSearchError] = useState<string | null>(null);
-  const playerSearchRequestRef = useRef(0);
-  const [tariffOptions, setTariffOptions] = useState<TariffOptionDto[]>([]);
-  const [selectedTariffVersionId, setSelectedTariffVersionId] = useState('');
-  const [playerPackages, setPlayerPackages] = useState<PlayerPackageDto[]>([]);
-  const [selectedPlayerPackageId, setSelectedPlayerPackageId] = useState('');
-  const [billingStatus, setBillingStatus] = useState<LoadStatus>('fixture');
-  const [billingError, setBillingError] = useState<string | null>(null);
+  const [startSelection, setStartSelection] = useState<SessionStartSelection>(() => createSessionStartSelection());
+  const [startClient, setStartClient] = useState<SessionStartClient | null>(null);
+  const [startFormValid, setStartFormValid] = useState(true);
   const [criticalAction, setCriticalAction] = useState<'end-session' | 'checkout' | null>(null);
   const [startDialogOpen, setStartDialogOpen] = useState(false);
   const transferCandidates = floorSeats.filter((candidate) =>
@@ -295,13 +264,6 @@ export function MapSidePanel({
     candidate.tone === 'ready' &&
     !candidate.activeSessionId);
   const [targetSeatId, setTargetSeatId] = useState(transferCandidates[0]?.id ?? '');
-  const selectedPlayer = billingPlayers.find((player) => player.playerAccountId === selectedPlayerId) ?? null;
-  const selectedTariff = tariffOptions.find((tariff) => readString(tariff, 'tariffVersionId') === selectedTariffVersionId) ??
-    tariffOptions[0] ??
-    null;
-  const selectedPlayerPackage = playerPackages.find((playerPackage) => playerPackage.playerPackageId === selectedPlayerPackageId) ??
-    playerPackages[0] ??
-    null;
   const hasStoredSession = Boolean(seat.activeSessionId);
   const hasPendingSessionCommand = hasStoredSession && isPendingSeatCommand(seat);
   const hasActionableSession = hasStoredSession && !hasPendingSessionCommand;
@@ -317,54 +279,15 @@ export function MapSidePanel({
     canExtendPermission ||
     canTransferPermission ||
     canEndPermission;
-  // Гость — manual-тариф (оплата по факту на кассе), как и было; пакет несёт своё время; депозит/
-  // постоплата — по явно выбранному тарифу (ставке), чтобы показать цену заранее.
-  const billingSelection: SessionBillingSelection = billingMode === 'guest'
-    ? guestBillingSelection
-    : billingMode === 'package'
-      ? {
-          mode: 'package',
-          tariffRuleVersionId: defaultTariffRuleVersionId,
-          playerAccountId: selectedPlayerId || null,
-          playerPackageId: selectedPlayerPackage === null ? null : readString(selectedPlayerPackage, 'playerPackageId')
-        }
-      : {
-          mode: billingMode,
-          tariffRuleVersionId: selectedTariff === null
-            ? defaultTariffRuleVersionId
-            : readString(selectedTariff, 'tariffRuleVersionId', defaultTariffRuleVersionId),
-          playerAccountId: selectedPlayerId || null,
-          tariffVersionId: selectedTariff === null ? null : readString(selectedTariff, 'tariffVersionId')
-        };
-  const billingMissing = billingMode !== 'guest' && !selectedPlayerId
-    ? t('op.map.panel.billingMissingPlayer')
-    : (billingMode === 'prepaid_wallet' || billingMode === 'postpaid_debt') && !billingSelection.tariffVersionId
-      ? t('op.map.panel.billingMissingTariff')
-      : billingMode === 'package' && !billingSelection.playerPackageId
-        ? t('op.map.panel.billingMissingPackage')
-        : null;
-  const billingReady = billingMissing === null;
-  const isGuest = billingMode === 'guest';
-  // Открытый счёт (оплата при завершении) валиден только для гостя и постоплаты; остальное — фикс.
-  const openTabAllowed = billingMode === 'guest' || billingMode === 'postpaid_debt';
-  const effectiveDurationMode: SessionStartDurationMode = durationChoice === 'open' && openTabAllowed ? 'open' : 'fixed';
-  const effectiveDurationMinutes = effectiveDurationMode === 'open'
-    ? null
-    : (typeof durationChoice === 'number' ? durationChoice : 60);
-  const durationLabel = formatDurationCompact((effectiveDurationMinutes ?? 60) * 60, t);
-  // Цена-превью и покрытие баланса — концретика, что уже на руках (#34): ставка тарифа × минуты,
-  // и на сколько хватит депозита игрока.
-  // Цена-превью только для платных режимов с выбранным тарифом (гость платит по факту на кассе,
-  // его ставка не предопределена — показывать цену было бы враньём, #37).
-  const tariffPricePerMin = !isGuest && selectedTariff ? readNumber(selectedTariff, 'pricePerMinuteMinorUnits', 0) : 0;
-  const estimatedCostMinor = effectiveDurationMode === 'fixed' && billingMode !== 'package' && tariffPricePerMin > 0 && effectiveDurationMinutes != null
-    ? tariffPricePerMin * effectiveDurationMinutes
-    : null;
-  const coverageMinutes = billingMode === 'prepaid_wallet' && selectedPlayer && tariffPricePerMin > 0
-    ? Math.floor((selectedPlayer.balanceMinorUnits ?? 0) / tariffPricePerMin)
-    : null;
-  const canStartSession = actionsEnabled && canStartPermission && billingReady && !hasActionableSession && seat.tone === 'ready';
-  const canExtendSession = actionsEnabled && canExtendPermission && billingReady && hasActionableSession;
+  const billingSelection: SessionBillingSelection = {
+    mode: startSelection.billingMode as SessionBillingSelection['mode'],
+    tariffRuleVersionId: startSelection.tariffRuleVersionId,
+    playerAccountId: startClient?.playerAccountId ?? null,
+    tariffVersionId: startSelection.tariffVersionId,
+    playerPackageId: startSelection.playerPackageId
+  };
+  const canStartSession = actionsEnabled && canStartPermission && startFormValid && !hasActionableSession && seat.tone === 'ready';
+  const canExtendSession = actionsEnabled && canExtendPermission && hasActionableSession;
   const canEndSession = actionsEnabled && canEndPermission && hasActionableSession;
   const canTransferSession = actionsEnabled && canTransferPermission && hasActionableSession && targetSeatId.length > 0;
   // Строка отражает только готовность (можно ли действовать и почему нет), а не результат
@@ -373,74 +296,31 @@ export function MapSidePanel({
     ? t('op.map.panel.confirmStatusUnavailable')
     : !hasAnySessionActionPermission
       ? t('op.map.panel.confirmStatusNoPermission')
-      : !billingReady
-        ? t('op.map.panel.confirmStatusBilling', { missing: billingMissing ?? '' })
       : hasPendingSessionCommand
         ? t('op.map.panel.confirmStatusPending')
         : t('op.map.panel.confirmStatusWaiting');
   // Строку готовности показываем только когда есть реальное препятствие: нет бэка / прав /
   // биллинга или команда в полёте. Здоровое «готов к работе» — это шум, прячем.
-  const isHealthyIdle = actionsEnabled && hasAnySessionActionPermission && billingReady
+  const isHealthyIdle = actionsEnabled && hasAnySessionActionPermission
     && !hasPendingSessionCommand;
-  // Превью «что сейчас запустим» — кто · тариф/пакет · сколько · цена. Решение одной строкой
-  // перед стартом.
-  const startPlanWho = isGuest ? t('op.helper.billing.guest') : (selectedPlayer?.name ?? '');
-  const startPlanRate = billingMode === 'package'
-    ? (selectedPlayerPackage ? readString(selectedPlayerPackage, 'name') : '')
-    : (selectedTariff ? readString(selectedTariff, 'name') : '');
-  const startPlanDuration = billingMode === 'package'
-    ? ''
-    : effectiveDurationMode === 'open'
-      ? t('op.map.panel.openTab')
-      : durationLabel;
-  const startPlanPrice = estimatedCostMinor != null ? formatMinorUnits(estimatedCostMinor, currencyCode) : '';
-  const startPlan = [startPlanWho, startPlanRate, startPlanDuration, startPlanPrice].filter(Boolean).join(' · ');
 
-  const clearPlayerSelection = useCallback(() => {
-    playerSearchRequestRef.current += 1;
-    setPlayerSearch('');
-    setBillingPlayers([]);
-    setSelectedPlayerId('');
-    setPlayerPackages([]);
-    setSelectedPlayerPackageId('');
-    setPlayerSearchError(null);
-  }, []);
-
-  // ClientPicker владеет debounce/open/loading; Map остаётся владельцем
-  // backend-поиска и сохраняет проекции для баланса/пакетов в старт-форме.
   const searchBillingPlayers = useCallback(async (query: string): Promise<PlayerClientItem[]> => {
-    const requestId = ++playerSearchRequestRef.current;
     if (backend === null || !hasPermission(backend.session, permissionNames.viewPlayers)) {
-      if (requestId === playerSearchRequestRef.current) {
-        setBillingPlayers([]);
-      }
       return [];
     }
-
-    try {
-      const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
-      const players: PlayerSearchResultDto[] = await clients.players.searchPlayers(backend.branchId, query, 8);
-      const projected = players.map((player) => projectPlayerClient(player, t));
-      if (requestId === playerSearchRequestRef.current) {
-        setBillingPlayers(projected);
-        setPlayerSearchError(null);
-      }
-      return projected;
-    } catch (error) {
-      if (requestId === playerSearchRequestRef.current) {
-        setBillingPlayers([]);
-        setPlayerSearchError(projectOperatorError(error, t).detail);
-      }
-      throw error;
-    }
+    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+    const players: PlayerSearchResultDto[] = await clients.players.searchPlayers(backend.branchId, query, 8);
+    return players.map((player) => projectPlayerClient(player, t));
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, backend?.session.permissions, t]);
 
-  // Cancel external search side-effects when the authenticated branch changes or the panel unmounts.
-  useEffect(() => {
-    playerSearchRequestRef.current += 1;
-    return () => {
-      playerSearchRequestRef.current += 1;
-    };
+  const loadStartTariffs = useCallback(async () => {
+    if (backend === null || !hasPermission(backend.session, permissionNames.viewTariffs)) return [];
+    return createAuthenticatedOperatorClients(backend.config, backend.session).settings.getTariffOptions(backend.branchId);
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, backend?.session.permissions]);
+
+  const loadStartPackages = useCallback(async (playerAccountId: string) => {
+    if (backend === null || !hasPermission(backend.session, permissionNames.viewBilling)) return [];
+    return createAuthenticatedOperatorClients(backend.config, backend.session).players.getPlayerPackages(playerAccountId);
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, backend?.session.permissions]);
 
   useEffect(() => {
@@ -450,46 +330,6 @@ export function MapSidePanel({
 
     setTargetSeatId(transferCandidates[0]?.id ?? '');
   }, [seat.id, floorSeats]);
-
-  useEffect(() => {
-    let disposed = false;
-
-    if (backend === null || !hasPermission(session, permissionNames.viewTariffs)) {
-      setTariffOptions([]);
-      setSelectedTariffVersionId('');
-      setBillingStatus(backend === null ? 'failed' : 'fixture');
-      setBillingError(backend === null ? t('op.map.panel.sessionUnavailable') : null);
-      return undefined;
-    }
-
-    setBillingStatus('loading');
-    setBillingError(null);
-    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
-    clients.settings.getTariffOptions(backend.branchId)
-      .then((options) => {
-        if (disposed) {
-          return;
-        }
-
-        setTariffOptions(options);
-        setSelectedTariffVersionId((current) => current || readString(options[0], 'tariffVersionId'));
-        setBillingStatus('backend');
-      })
-      .catch((error) => {
-        if (disposed) {
-          return;
-        }
-
-        setTariffOptions([]);
-        setSelectedTariffVersionId('');
-        setBillingStatus('failed');
-        setBillingError(projectOperatorError(error, t).detail);
-      });
-
-    return () => {
-      disposed = true;
-    };
-  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken]);
 
   useEffect(() => {
     setCriticalAction(null);
@@ -521,41 +361,6 @@ export function MapSidePanel({
     const timer = window.setTimeout(() => setFeedback(emptyFeedback), 1600);
     return () => window.clearTimeout(timer);
   }, [feedback]);
-
-  useEffect(() => {
-    let disposed = false;
-
-    setPlayerPackages([]);
-    setSelectedPlayerPackageId('');
-
-    if (backend === null || !selectedPlayerId || !hasPermission(session, permissionNames.viewBilling)) {
-      return undefined;
-    }
-
-    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
-    clients.players.getPlayerPackages(selectedPlayerId)
-      .then((packages: PlayerPackageDto[]) => {
-        if (disposed) {
-          return;
-        }
-
-        setPlayerPackages(packages);
-        setSelectedPlayerPackageId((current) => current || readString(packages[0], 'playerPackageId'));
-      })
-      .catch((error) => {
-        if (disposed) {
-          return;
-        }
-
-        setPlayerPackages([]);
-        setSelectedPlayerPackageId('');
-        setBillingError(projectOperatorError(error, t).detail);
-      });
-
-    return () => {
-      disposed = true;
-    };
-  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, selectedPlayerId]);
 
   const runSeatAction = async (label: string, request: SeatActionRequest) => {
     setCriticalAction(null);
@@ -822,178 +627,35 @@ export function MapSidePanel({
         subtitle={seat.name}
         onClose={() => setStartDialogOpen(false)}
       >
-        <div className="billing-selection-panel start-dialog-body">
-        {/* КТО ИГРАЕТ: гость (walk-in) vs клиент клуба (по аккаунту). */}
-        <div className="start-section-head">{t('op.map.panel.startWhoHead')}</div>
-        <div className="start-segment" role="tablist" aria-label={t('op.map.panel.startWhoHead')}>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={isGuest}
-            className={isGuest ? 'active' : undefined}
-            disabled={!actionsEnabled || isBusy}
-            onClick={() => {
-              setBillingMode('guest');
-              clearPlayerSelection();
-            }}
-          >
-            {t('op.helper.billing.guest')}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={!isGuest}
-            className={!isGuest ? 'active' : undefined}
-            disabled={!actionsEnabled || isBusy || !hasPermission(session, permissionNames.viewBilling)}
-            onClick={() => { if (isGuest) { setBillingMode('prepaid_wallet'); } }}
-          >
-            {t('op.map.panel.startMember')}
-          </button>
-        </div>
-
-        {!isGuest && (
-          <>
-            <div className="start-section-head">{t('op.map.panel.startPlayerHead')}</div>
-            <ClientPicker
-              value={playerSearch}
-              linked={selectedPlayerId !== ''}
-              disabled={!actionsEnabled || isBusy || !hasPermission(session, permissionNames.viewPlayers)}
-              ariaLabel={t('op.map.panel.playerInput')}
-              search={searchBillingPlayers}
-              onQueryChange={(value) => {
-                playerSearchRequestRef.current += 1;
-                setPlayerSearch(value);
-                setSelectedPlayerId('');
-                setPlayerPackages([]);
-                setSelectedPlayerPackageId('');
-                setPlayerSearchError(null);
-              }}
-              onPick={(pick) => {
-                setPlayerSearch(pick.name);
-                setSelectedPlayerId(pick.playerAccountId);
-                setPlayerPackages([]);
-                setSelectedPlayerPackageId('');
-                setPlayerSearchError(null);
-              }}
-              onClear={clearPlayerSelection}
-            />
-            {playerSearchError && <p className="checkout-error" role="alert">{playerSearchError}</p>}
-            <div className="start-section-head">{t('op.map.panel.startChargeHead')}</div>
-            <div className="start-segment three" role="tablist" aria-label={t('op.map.panel.startChargeHead')}>
-              {billingModeOptions(t).filter((option) => option.id !== 'guest').map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={billingMode === option.id}
-                  className={billingMode === option.id ? 'active' : undefined}
-                  disabled={!actionsEnabled || isBusy}
-                  title={option.detail}
-                  onClick={() => setBillingMode(option.id)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            {coverageMinutes != null && selectedPlayer && (
-              <p className="start-coverage">
-                {t('op.map.panel.startBalanceCoverage', {
-                  balance: formatMinorUnits(selectedPlayer.balanceMinorUnits, currencyCode),
-                  duration: formatDurationCompact(coverageMinutes * 60, t)
-                })}
-              </p>
-            )}
-          </>
-        )}
-
-        {/* ТАРИФ (ставка) — для депозита/постоплаты; гость платит по факту, пакет несёт своё время. */}
-        {!isGuest && billingMode !== 'package' && (
-          <>
-            <div className="start-section-head">{t('op.map.panel.tariffLabel')}</div>
-            <PanelSelect
-              className="start-select"
-              ariaLabel={t('op.map.panel.tariffSession')}
-              value={selectedTariffVersionId}
-              disabled={!actionsEnabled || isBusy || tariffOptions.length === 0}
-              placeholder={t('op.map.panel.noTariffs')}
-              options={tariffOptions.map((tariff) => ({
-                value: readString(tariff, 'tariffVersionId'),
-                label: tariffOptionLabel(tariff, currencyCode, t)
-              }))}
-              onChange={setSelectedTariffVersionId}
-            />
-          </>
-        )}
-        {billingMode === 'package' && (
-          <>
-            <div className="start-section-head">{t('op.map.panel.packageLabel')}</div>
-            <PanelSelect
-              className="start-select"
-              ariaLabel={t('op.map.panel.packageSession')}
-              value={selectedPlayerPackageId}
-              disabled={!actionsEnabled || isBusy || !selectedPlayer || playerPackages.length === 0}
-              placeholder={t('op.map.panel.noPackages')}
-              options={playerPackages.map((playerPackage) => ({
-                value: playerPackage.playerPackageId,
-                label: playerPackageLabel(playerPackage, t)
-              }))}
-              onChange={setSelectedPlayerPackageId}
-            />
-          </>
-        )}
-
-        {/* СКОЛЬКО ВРЕМЕНИ: чипы длительности + открытый счёт; цена-превью под ними. */}
-        {billingMode !== 'package' && (
-          <>
-            <div className="start-section-head">{t('op.map.panel.startTimeHead')}</div>
-            <div className="start-duration-chips" role="group" aria-label={t('op.map.panel.sessionDuration')}>
-              {START_DURATIONS.map((minutes) => (
-                <button
-                  key={minutes}
-                  type="button"
-                  className={effectiveDurationMode === 'fixed' && durationChoice === minutes ? 'active' : undefined}
-                  disabled={!actionsEnabled || isBusy}
-                  onClick={() => setDurationChoice(minutes)}
-                >
-                  {formatDurationCompact(minutes * 60, t)}
-                </button>
-              ))}
-              <button
-                type="button"
-                className={effectiveDurationMode === 'open' ? 'active' : undefined}
-                disabled={!actionsEnabled || isBusy || !openTabAllowed}
-                title={openTabAllowed ? t('op.map.panel.openTabAllowedTitle') : t('op.map.panel.openTabDisabledTitle')}
-                onClick={() => setDurationChoice('open')}
-              >
-                {t('op.map.panel.openTab')}
-              </button>
-            </div>
-            {estimatedCostMinor != null && (
-              <p className="start-price">
-                {t('op.map.panel.startPriceEstimate', { duration: durationLabel, amount: formatMinorUnits(estimatedCostMinor, currencyCode) })}
-              </p>
-            )}
-          </>
-        )}
-
-        {/* Реальную ошибку загрузки тарифов показываем как ошибку, а не прячем за dev-статусом (#34). */}
-        {billingStatus === 'failed' && billingError && <p className="checkout-error">{billingError}</p>}
-        {/* Превью решения целиком: либо что запустим, либо чего не хватает. */}
-        <div className={`start-plan${billingMissing ? ' is-missing' : ''}`}>
-          <span>{billingMissing ? t('op.map.panel.startNeed') : t('op.map.panel.startPlanLabel')}</span>
-          <strong>{billingMissing ?? startPlan}</strong>
-        </div>
+        <SessionStartForm
+          seatName={seat.name}
+          currencyCode={currencyCode}
+          disabled={!actionsEnabled || isBusy}
+          value={startSelection}
+          onChange={setStartSelection}
+          selectedClient={startClient}
+          onSelectedClientChange={setStartClient}
+          searchClients={searchBillingPlayers}
+          loadTariffs={loadStartTariffs}
+          loadPackages={loadStartPackages}
+          onValidityChange={(valid) => setStartFormValid(valid)}
+        />
         <div className="critical-confirmation-actions">
           <button type="button" onClick={() => setStartDialogOpen(false)} disabled={isBusy}>{t('common.cancel')}</button>
           <button
             type="button"
             className="cta-primary"
             disabled={!canStartSession || isBusy}
-            onClick={() => void runSeatAction(effectiveDurationMode === 'open' ? t('op.map.panel.startOpen') : t('op.map.panel.startCta', { duration: durationLabel }), { type: 'start', seat, billing: billingSelection, durationMode: effectiveDurationMode, durationMinutes: effectiveDurationMinutes })}
+            onClick={() => void runSeatAction(startSelection.durationMode === 'open' ? t('op.map.panel.startOpen') : t('op.map.panel.startCta', { duration: formatDurationCompact((startSelection.durationMinutes ?? 60) * 60, t) }), {
+              type: 'start', seat, billing: billingSelection,
+              durationMode: startSelection.durationMode === 'open' ? 'open' : 'fixed',
+              durationMinutes: startSelection.durationMinutes,
+              isComp: startSelection.isComp,
+              compReason: startSelection.compReason
+            })}
           >
-            <Plus size={16} />{effectiveDurationMode === 'open' ? t('op.map.panel.startOpen') : t('op.map.panel.startCta', { duration: durationLabel })}
+            <Plus size={16} />{startSelection.durationMode === 'open' ? t('op.map.panel.startOpen') : t('op.map.panel.startCta', { duration: formatDurationCompact((startSelection.durationMinutes ?? 60) * 60, t) })}
           </button>
-        </div>
         </div>
       </PanelModal>
       )}

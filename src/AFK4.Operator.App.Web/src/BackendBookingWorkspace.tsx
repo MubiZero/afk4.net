@@ -11,8 +11,11 @@ import {
   addMinutes,
   createAuthenticatedOperatorClients,
   emptyFeedback,
+  createIdempotencyKey,
   projectPlayerClient,
+  formatTime,
   readArray,
+  readString,
   requireBackend,
   toDateInputValue,
   toDateTimeInputValue,
@@ -43,6 +46,8 @@ import { BookingDrawer } from './booking/BookingDrawer';
 import { BookingTimeline } from './booking/BookingTimeline';
 import { BookingRequestsLane } from './booking/BookingRequestsLane';
 import type { SeatSummary } from './operatorData';
+import { PanelModal } from './PanelModal';
+import { createSessionStartSelection, SessionStartForm, type SessionStartSelection } from './session/SessionStartForm';
 
 export function BackendBookingWorkspace({
   floorMap,
@@ -80,6 +85,11 @@ export function BackendBookingWorkspace({
     seatIds: []
   });
   const [groupConflicts, setGroupConflicts] = useState<Set<string>>(new Set());
+  const [startDialogOpen, setStartDialogOpen] = useState(false);
+  const [startSelection, setStartSelection] = useState<SessionStartSelection>(() => createSessionStartSelection());
+  const [startFormValid, setStartFormValid] = useState(true);
+  const [startIdempotencyKey, setStartIdempotencyKey] = useState('');
+  const [startVersion, setStartVersion] = useState(0);
 
   // Поиск клиента клуба для привязки брони к аккаунту (если есть право просмотра клиентов).
   const searchClients = useCallback(async (query: string): Promise<PlayerClientItem[]> => {
@@ -90,6 +100,16 @@ export function BackendBookingWorkspace({
     const raw = await clients.players.searchPlayers(backend.branchId, query, 8);
     return (Array.isArray(raw) ? raw : []).map((player) => projectPlayerClient(player, t));
   }, [backend, t]);
+
+  const loadStartTariffs = useCallback(async () => {
+    if (backend === null || !hasPermission(backend.session, permissionNames.viewTariffs)) return [];
+    return createAuthenticatedOperatorClients(backend.config, backend.session).settings.getTariffOptions(backend.branchId);
+  }, [backend]);
+
+  const loadStartPackages = useCallback(async (playerAccountId: string) => {
+    if (backend === null || !hasPermission(backend.session, permissionNames.viewBilling)) return [];
+    return createAuthenticatedOperatorClients(backend.config, backend.session).players.getPlayerPackages(playerAccountId);
+  }, [backend]);
 
   const readySeats = floorMap.seats.filter((seat) => seat.tone === 'ready' && !seat.activeSessionId);
   const activeSeats = floorMap.seats.filter((seat) => seat.tone === 'active' || seat.activeSessionId);
@@ -300,19 +320,6 @@ export function BackendBookingWorkspace({
     });
   });
 
-  const seatReservation = () => runReservationAction(t('op.booking.action.seat'), async (clients) => {
-    const nextBackend = requireBackend(backend, t);
-    if (!selectedReservationId) throw new Error(t('op.booking.error.selectReservation'));
-    if (!selectedItem) throw new Error(t('op.booking.error.selectReservation'));
-    return await clients.reservations.seat(selectedReservationId, {
-      organizationId: nextBackend.session.organizationId,
-      expectedVersion: selectedItem.version
-    });
-  }, () => {
-    const item = items.find((i) => i.reservationId === selectedReservationId);
-    if (item?.seatId) onOpenSeat(item.seatId);
-  });
-
   const moveReservation = (targetSeatId: string) => runReservationAction(t('op.booking.action.move'), async (clients) => {
     const nextBackend = requireBackend(backend, t);
     if (!selectedReservationId) throw new Error(t('op.booking.error.selectReservation'));
@@ -458,6 +465,69 @@ export function BackendBookingWorkspace({
     ? items.filter((i) => i.reservationGroupId === selectedItem.reservationGroupId && i.state !== 'cancelled').length
     : 0;
 
+  const openReservationStart = () => {
+    if (!selectedItem || selectedItem.state !== 'confirmed' || !selectedItem.seatId) return;
+    setFeedback(emptyFeedback);
+    setStartSelection(createSessionStartSelection(selectedItem.playerAccountId ? 'prepaid_wallet' : 'guest'));
+    setStartFormValid(selectedItem.playerAccountId.length === 0);
+    setStartIdempotencyKey(createIdempotencyKey('reservation-session-start'));
+    setStartVersion(selectedItem.version);
+    setStartDialogOpen(true);
+  };
+
+  const submitReservationStart = async () => {
+    const item = selectedItem;
+    const label = t('op.booking.start.submit');
+    setFeedback({ label, state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend, t);
+      if (!item || item.state !== 'confirmed' || !item.seatId) throw new Error(t('op.booking.error.selectReservation'));
+      if (!hasPermission(nextBackend.session, permissionNames.manageReservations) || !hasPermission(nextBackend.session, permissionNames.startSession)) {
+        throw new Error(t('op.booking.error.noPermission'));
+      }
+      const response = await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).reservations.startSession(item.reservationId, {
+        organizationId: nextBackend.session.organizationId,
+        expectedVersion: item.version,
+        tariffRuleVersionId: startSelection.tariffRuleVersionId,
+        idempotencyKey: startIdempotencyKey,
+        durationMode: startSelection.durationMode,
+        durationMinutes: startSelection.durationMinutes,
+        billingMode: startSelection.billingMode === 'guest' ? '' : startSelection.billingMode,
+        tariffVersionId: startSelection.tariffVersionId,
+        playerPackageId: startSelection.playerPackageId,
+        isComp: startSelection.isComp,
+        compReason: startSelection.compReason
+      });
+      const linkedSeatId = readString(response.reservation, 'seatId', item.seatId);
+      setFeedback({ label, state: 'confirmed' });
+      setReloadVersion((value) => value + 1);
+      setStartDialogOpen(false);
+      setDrawerMode(null);
+      if (linkedSeatId) onOpenSeat(linkedSeatId);
+    } catch (error) {
+      // Any uncertain failure triggers an authoritative refresh. If the server committed, the
+      // durable StartedSessionId link below wins and opens the linked seat; resubmit retains key.
+      setReloadVersion((value) => value + 1);
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
+    }
+  };
+
+  useEffect(() => {
+    if (!startDialogOpen || !selectedItem) return;
+    if (selectedItem.startedSessionId && selectedItem.seatId) {
+      setStartDialogOpen(false);
+      setDrawerMode(null);
+      onOpenSeat(selectedItem.seatId);
+      return;
+    }
+    if (selectedItem.version !== startVersion) {
+      // A known authoritative version change is an explicit new attempt; the payload changed,
+      // therefore it must not reuse an idempotency key tied to the previous expectedVersion.
+      setStartVersion(selectedItem.version);
+      setStartIdempotencyKey(createIdempotencyKey('reservation-session-start'));
+    }
+  }, [startDialogOpen, selectedItem?.startedSessionId, selectedItem?.seatId, selectedItem?.version, startVersion]);
+
   // Подсветка выбранного интервала на таймлайне, пока открыто окно создания — следует за формой.
   const previewStartMs = drawerMode === 'create' ? new Date(draft.startsAt).getTime() : Number.NaN;
   const draftEndMs = previewStartMs + Math.max(15, draft.durationMinutes) * 60_000;
@@ -555,6 +625,7 @@ export function BackendBookingWorkspace({
             draft={draft}
             busy={reservationBusy}
             canManage={canManageReservations}
+            canStartSessions={backend !== null && hasPermission(backend.session, permissionNames.startSession)}
             currencyCode={currencyCode}
             conflict={conflict}
             seatConflict={singleSeatConflict}
@@ -567,12 +638,54 @@ export function BackendBookingWorkspace({
             onCreateGroup={createGroupReservation}
             onRemoveSeat={removeGroupSeat}
             onCancelGroup={cancelReservationGroup}
-            onSeat={seatReservation}
+            onStart={openReservationStart}
             onMove={moveReservation}
             onCancel={cancelReservation}
             onConfirm={(item) => confirmReservation(item, t('op.booking.requests.acceptLabel', { client: item.customerName }))}
             onOpenMap={onOpenSeat}
           />
+        )}
+
+        {startDialogOpen && selectedItem && (
+          <PanelModal
+            title={t('op.booking.start.title')}
+            subtitle={`${selectedItem.seatName} · ${selectedItem.customerName}`}
+            onClose={() => setStartDialogOpen(false)}
+          >
+            {Date.now() < selectedItem.startMs && (
+              <div className="booking-start-warning" role="note">
+                {t('op.booking.start.earlyWarning', { time: formatTime(new Date(selectedItem.startMs).toISOString()) })}
+              </div>
+            )}
+            <SessionStartForm
+              seatName={selectedItem.seatName}
+              currencyCode={currencyCode}
+              disabled={reservationBusy}
+              value={startSelection}
+              onChange={setStartSelection}
+              fixedClient={selectedItem.playerAccountId ? {
+                playerAccountId: selectedItem.playerAccountId,
+                name: selectedItem.customerName,
+                phoneNumber: selectedItem.phoneNumber,
+                balanceMinorUnits: null,
+                debtMinorUnits: 0
+              } : null}
+              loadTariffs={loadStartTariffs}
+              loadPackages={loadStartPackages}
+              onValidityChange={(valid) => setStartFormValid(valid)}
+            />
+            {feedback.state === 'failed' && feedback.detail && <p className="checkout-error" role="alert">{feedback.detail}</p>}
+            <div className="critical-confirmation-actions">
+              <button type="button" disabled={reservationBusy} onClick={() => setStartDialogOpen(false)}>{t('common.cancel')}</button>
+              {feedback.state === 'failed' && <button type="button" disabled={reservationBusy} onClick={() => {
+                setStartIdempotencyKey(createIdempotencyKey('reservation-session-start'));
+                setStartVersion(selectedItem.version);
+                setFeedback(emptyFeedback);
+              }}>{t('op.booking.start.newAttempt')}</button>}
+              <button type="button" className="cta-primary" disabled={reservationBusy || !startFormValid || selectedItem.state !== 'confirmed'}
+                onClick={() => void submitReservationStart()}>{t('op.booking.start.submit')}</button>
+            </div>
+          </PanelModal>
         )}
       </section>
     </main>

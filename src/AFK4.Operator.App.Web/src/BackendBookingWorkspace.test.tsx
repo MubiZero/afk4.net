@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
 import type { OperatorFloorMapState } from './floorMapState';
@@ -172,5 +172,61 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(reservationReads).toBe(3);
     expect(screen.getByRole('dialog', { name: 'Бронь' })).toBeInTheDocument();
+  });
+
+  it('starts a confirmed reservation once, opens its authoritative seat, and refreshes reservations', async () => {
+    const startCalls: Record<string, unknown>[] = [];
+    let reservationReads = 0;
+    const startsAtUtc = new Date();
+    startsAtUtc.setHours(12, 0, 0, 0);
+    const reservation = {
+      reservationId: 'reservation-start', version: 3, state: 'confirmed', source: 'operator',
+      startsAtUtc: startsAtUtc.toISOString(), durationMinutes: 60, customerName: 'Reserved guest',
+      phoneNumber: '+992900000000', playerAccountId: null, seatId: 'a', seatName: 'PC-01',
+      zoneName: 'Зал A', note: '', startedSessionId: null
+    };
+    globalThis.fetch = (async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/reservations') && init?.method === 'GET') {
+        reservationReads += 1;
+        return new Response(JSON.stringify({ reservations: [reservation], limit: 40 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.pathname.endsWith('/sessions/timeline')) {
+        return new Response(JSON.stringify({ sessions: [], limit: 40 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.pathname.endsWith('/tariffs/options')) {
+        return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.pathname.endsWith('/reservations/reservation-start/start-session')) {
+        startCalls.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        return new Response(JSON.stringify({
+          reservation: { ...reservation, version: 4, state: 'seated', startedSessionId: 'session-1' },
+          session: { idempotencyKey: 'same', session: { sessionId: 'session-1', seatId: 'a' }, deviceCommands: [] }
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url.pathname}`);
+    }) as typeof fetch;
+    const backend: OperatorBackendContext = {
+      config: { runtime: 'browser-test', shellMode: 'test', platformBaseUrl: 'http://localhost:5074/', currencyCode: 'TJS' },
+      branchId: 'branch-1',
+      session: {
+        staffUserId: 'staff-1', organizationId: 'org-1', displayName: 'Operator', accessToken: 'token',
+        accessTokenExpiresAtUtc: '2026-07-15T00:00:00Z', refreshTokenExpiresAtUtc: '2026-07-16T00:00:00Z',
+        branchIds: ['branch-1'], activeBranchId: 'branch-1',
+        permissions: ['reservations.view', 'reservations.manage', 'sessions.start', 'sessions.view', 'tariffs.view', 'billing.view']
+      }
+    };
+    const onOpenSeat = mock(() => {});
+    render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={backend} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Reserved guest' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Начать сессию' }));
+    const startDialog = screen.getByRole('dialog', { name: 'Запуск забронированной сессии' });
+    fireEvent.click(within(startDialog).getByRole('button', { name: 'Начать сессию' }));
+
+    await waitFor(() => expect(onOpenSeat).toHaveBeenCalledWith('a'));
+    expect(startCalls).toHaveLength(1);
+    expect(startCalls[0]).toMatchObject({ expectedVersion: 3, durationMode: 'open' });
+    await waitFor(() => expect(reservationReads).toBeGreaterThan(1));
   });
 });
