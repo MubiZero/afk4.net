@@ -50,6 +50,7 @@ export function PaymentDialog({
   walletBalanceMinorUnits,
   allowSplit,
   disabled,
+  draftDisabled = false,
   cancelDisabled = false,
   confirmVariant = 'danger',
   endWithoutPayment,
@@ -65,6 +66,7 @@ export function PaymentDialog({
   walletBalanceMinorUnits: number | null;
   allowSplit: boolean;
   disabled: boolean;
+  draftDisabled?: boolean;
   cancelDisabled?: boolean;
   confirmVariant?: 'danger' | 'accent';
   endWithoutPayment?: { label: string; onEnd: () => void };
@@ -102,6 +104,7 @@ export function PaymentDialog({
 
   const validation = validateCheckoutPayments(drafts, grandTotalMinorUnits, walletBalance, t);
   const canConfirm = !disabled && validation.canSubmit;
+  const editingDisabled = disabled || draftDisabled;
 
   const setReceivedMinor = (minorUnits: number) => setCashReceivedText(formatCheckoutAmount(minorUnits));
   const updateSplitDraft = (index: number, patch: Partial<CheckoutPaymentDraft>) => {
@@ -154,7 +157,7 @@ export function PaymentDialog({
                 role="tab"
                 aria-selected={payMode === tab.id}
                 className={payMode === tab.id ? 'active' : undefined}
-                disabled={disabled}
+                disabled={editingDisabled}
                 onClick={() => setPayMode(tab.id)}
               >
                 {tab.label}
@@ -170,15 +173,15 @@ export function PaymentDialog({
                   type="text"
                   inputMode="decimal"
                   value={cashReceivedText}
-                  disabled={disabled}
+                  disabled={editingDisabled}
                   placeholder={formatCheckoutAmount(grandTotalMinorUnits)}
                   onChange={(event) => setCashReceivedText(event.currentTarget.value)}
                 />
               </label>
               <div className="checkout-cash-chips">
-                <button type="button" disabled={disabled} onClick={() => setReceivedMinor(grandTotalMinorUnits)}>{t('op.checkout.exact')}</button>
+                <button type="button" disabled={editingDisabled} onClick={() => setReceivedMinor(grandTotalMinorUnits)}>{t('op.checkout.exact')}</button>
                 {CASH_DENOMINATIONS.map((denomination) => (
-                  <button key={denomination} type="button" disabled={disabled} onClick={() => setReceivedMinor(denomination * 100)}>
+                  <button key={denomination} type="button" disabled={editingDisabled} onClick={() => setReceivedMinor(denomination * 100)}>
                     {denomination}
                   </button>
                 ))}
@@ -203,7 +206,7 @@ export function PaymentDialog({
                   <select
                     aria-label={t('op.checkout.paymentMethod')}
                     value={draft.method}
-                    disabled={disabled}
+                    disabled={editingDisabled}
                     onChange={(event) => updateSplitDraft(index, { method: event.currentTarget.value as CheckoutMethod })}
                   >
                     {getAvailableCheckoutMethods(splitDrafts, index).map((method) => (
@@ -217,14 +220,14 @@ export function PaymentDialog({
                     aria-label={draft.method === 'cash' ? t('op.checkout.cashTendered') : t('op.checkout.paymentAmount')}
                     placeholder="0.00"
                     value={draft.amountText}
-                    disabled={disabled}
+                    disabled={editingDisabled}
                     onChange={(event) => updateSplitDraft(index, { amountText: event.currentTarget.value })}
                   />
                   <button
                     type="button"
                     className="checkout-payment-remove"
                     aria-label={t('op.checkout.removePaymentRow')}
-                    disabled={disabled || splitDrafts.length <= 1}
+                    disabled={editingDisabled || splitDrafts.length <= 1}
                     onClick={() => removeSplitDraft(index)}
                   >
                     <X size={14} />
@@ -232,7 +235,7 @@ export function PaymentDialog({
                 </div>
               ))}
               <div className="checkout-payment-controls">
-                <button type="button" disabled={disabled || !canAddSplitMethod} onClick={addSplitDraft}><Plus size={14} />{t('op.checkout.addPaymentMethod')}</button>
+                <button type="button" disabled={editingDisabled || !canAddSplitMethod} onClick={addSplitDraft}><Plus size={14} />{t('op.checkout.addPaymentMethod')}</button>
               </div>
             </div>
           )}
@@ -246,7 +249,7 @@ export function PaymentDialog({
       )}
 
       {!isZeroBill && endWithoutPayment && (
-        <button type="button" className="checkout-end-plain" onClick={endWithoutPayment.onEnd} disabled={disabled}>
+        <button type="button" className="checkout-end-plain" onClick={endWithoutPayment.onEnd} disabled={editingDisabled}>
           {endWithoutPayment.label}
         </button>
       )}

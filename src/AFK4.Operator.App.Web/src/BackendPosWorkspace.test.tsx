@@ -197,6 +197,17 @@ describe('BackendPosWorkspace', () => {
     expect(screen.getByRole('textbox', { name: 'Получено' })).toHaveValue('80.00');
     expect(screen.getAllByText('Амир Алиев').length).toBeGreaterThanOrEqual(1);
     expect(await screen.findByText('Данные продажи изменились. Проверьте корзину и повторите оплату.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Карта' }));
+    fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));
+    await waitFor(() => expect(requestedUrls.filter((url) => url.endsWith('/settlements'))).toHaveLength(2));
+    const settlementBodies = requestedBodies.filter((body) =>
+      typeof body === 'object' && body !== null && 'payments' in body) as Array<Record<string, unknown>>;
+    expect(settlementBodies[1].idempotencyKey).not.toBe(settlementBodies[0].idempotencyKey);
+    expect(settlementBodies[1].payments).toEqual([
+      { paymentMethod: 'card_manual', amount: { currencyCode: 'TJS', minorUnits: 10_000 } }
+    ]);
+    expect(requestedUrls.filter((url) => url.endsWith('/pos/sales'))).toHaveLength(1);
   });
 
   it('replays an ambiguous multipart settlement once with the same idempotency key', async () => {
@@ -299,6 +310,12 @@ describe('BackendPosWorkspace', () => {
     fireEvent.pointerDown(dialog.parentElement!);
     expect(screen.getByRole('dialog', { name: 'Оплата' })).toBeInTheDocument();
 
+    // The unresolved attempt owns an immutable cash snapshot. Even if the
+    // operator tries to switch the visible draft to card, retry must not pair
+    // a changed payload with the original idempotency key.
+    const cardTab = screen.getByRole('tab', { name: 'Карта' });
+    expect(cardTab).toBeDisabled();
+    fireEvent.click(cardTab);
     fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));
     await waitFor(() => expect(requestedUrls.filter((url) => url.endsWith('/settlements'))).toHaveLength(3));
     const saleBodies = requestedBodies.filter((body) =>
@@ -311,4 +328,29 @@ describe('BackendPosWorkspace', () => {
     expect(settlementBodies[2]).toEqual(settlementBodies[0]);
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Оплата' })).toBeNull());
   });
+
+  for (const terminalState of ['voided', 'refunded']) {
+    it(`closes the ${terminalState} sale attempt after 409 reconciliation without a retry loop`, async () => {
+      settlementFailuresRemaining = 1;
+      saleReadState = terminalState;
+      renderBackendPos();
+      await screen.findAllByText('Cola');
+
+      fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
+      fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));
+
+      await waitFor(() => expect(requestedUrls).toContain('http://test/api/pos/sales/sale-1'));
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Оплата' })).toBeNull());
+      expect(requestedUrls.filter((url) => url.endsWith('/settlements'))).toHaveLength(1);
+      expect(screen.getByText('Продажа уже завершена или отменена. Проверьте чек и создайте новую продажу.')).toBeInTheDocument();
+      expect(screen.getAllByText('Cola').length).toBeGreaterThanOrEqual(1);
+
+      fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
+      fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));
+      await waitFor(() => expect(requestedUrls.filter((url) => url.endsWith('/pos/sales'))).toHaveLength(2));
+      const createBodies = requestedBodies.filter((body) =>
+        typeof body === 'object' && body !== null && 'lines' in body) as Array<Record<string, unknown>>;
+      expect(createBodies[1].idempotencyKey).not.toBe(createBodies[0].idempotencyKey);
+    });
+  }
 });

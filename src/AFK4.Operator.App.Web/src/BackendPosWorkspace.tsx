@@ -6,6 +6,7 @@ import type {
   PaymentPartDto,
   PlayerSearchResultDto,
   PosProductDto,
+  SettlePosSaleRequest,
   ShiftDto
 } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
@@ -138,6 +139,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
     createSaleKey: string;
     settlementKey: string;
     saleId: string | null;
+    settlementRequest: SettlePosSaleRequest | null;
   } | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   useFeedbackToasts(feedback);
@@ -341,7 +343,8 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
       const attempt = paymentAttemptRef.current ?? {
         createSaleKey: createIdempotencyKey('pos-sale'),
         settlementKey: createIdempotencyKey('pos-payment'),
-        saleId: null
+        saleId: null,
+        settlementRequest: null
       };
       paymentAttemptRef.current = attempt;
       if (attempt.saleId === null) {
@@ -365,12 +368,19 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
         }
       }
 
-      const settlementRequest = {
+      const settlementRequest = attempt.settlementRequest ?? {
         organizationId: nextBackend.session.organizationId,
-        payments,
+        payments: payments.map((part) => ({
+          paymentMethod: part.paymentMethod,
+          amount: {
+            currencyCode: part.amount.currencyCode,
+            minorUnits: part.amount.minorUnits
+          }
+        })),
         note: 'operator POS checkout',
         idempotencyKey: attempt.settlementKey
       };
+      attempt.settlementRequest = settlementRequest;
       try {
         await clients.pos.settleSale(attempt.saleId, settlementRequest);
       } catch (error) {
@@ -396,7 +406,8 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
         try {
           const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
           const authoritativeSale = await clients.pos.getSale(attempt.saleId);
-          if (readString(authoritativeSale, 'state') === 'paid') {
+          const authoritativeState = readString(authoritativeSale, 'state');
+          if (authoritativeState === 'paid') {
             paymentAttemptRef.current = null;
             setPaymentCloseLocked(false);
             setPayOpen(false);
@@ -406,8 +417,22 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
             return;
           }
 
-          await loadBackendPos(backend, { preserveCartSnapshot: true });
-          settlementOutcomeResolved = true;
+          if (authoritativeState === 'voided' || authoritativeState === 'refunded') {
+            paymentAttemptRef.current = null;
+            setPaymentCloseLocked(false);
+            setPayOpen(false);
+            setFeedback({
+              label: t('op.pos.feedback.payment'),
+              state: 'failed',
+              detail: t('op.pos.error.saleTerminal')
+            });
+            return;
+          }
+
+          if (authoritativeState === 'draft' || authoritativeState === 'pending_payment') {
+            await loadBackendPos(backend, { preserveCartSnapshot: true });
+            settlementOutcomeResolved = true;
+          }
         } catch {
           // Reconciliation is best-effort, but the original settlement failure
           // remains actionable and the unresolved attempt must stay intact.
@@ -417,6 +442,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
         // The next explicit click may carry corrected payment parts. Reuse the
         // authoritative sale, but use a new key for that new payload gesture.
         attempt.settlementKey = createIdempotencyKey('pos-payment');
+        attempt.settlementRequest = null;
       }
       if (settlementOutcomeResolved) {
         setPaymentCloseLocked(false);
@@ -638,7 +664,8 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               paymentAttemptRef.current = {
                 createSaleKey: createIdempotencyKey('pos-sale'),
                 settlementKey: createIdempotencyKey('pos-payment'),
-                saleId: null
+                saleId: null,
+                settlementRequest: null
               };
               setPayOpen(true);
             }}>{t('op.pos.payment.acceptBtn')}</button>
@@ -668,6 +695,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
             walletBalanceMinorUnits={selectedPosPlayer?.balanceMinorUnits ?? null}
             allowSplit={selectedPosPlayer !== null}
             disabled={feedback.state === 'pending'}
+            draftDisabled={paymentCloseLocked}
             cancelDisabled={paymentCloseLocked}
             confirmVariant="accent"
             onCancel={() => {
