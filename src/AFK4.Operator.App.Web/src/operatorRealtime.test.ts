@@ -42,6 +42,24 @@ describe('operator realtime client', () => {
     expect(buildDeviceHubUrl('http://localhost:5074/platform/')).toBe('http://localhost:5074/hubs/devices');
   });
 
+  it('registers every hub event even when a surface does not consume its payload', () => {
+    const connection = new FakeSignalRConnection();
+    createOperatorRealtimeClient({
+      baseUrl: 'http://localhost:5074/',
+      getAccessToken: () => 'access-token',
+      connectionFactory: () => connection,
+      onDeviceStatusChanged: () => {}
+    });
+
+    expect(connection.registeredEvents()).toEqual([
+      deviceCommandResultEventName,
+      deviceStatusChangedEventName,
+      sessionLifecycleChangedEventName,
+      shopOrderCreatedEventName,
+      shopOrderUpdatedEventName
+    ]);
+  });
+
   it('wires device status events and connection state transitions', async () => {
     const connection = new FakeSignalRConnection();
     const states: string[] = [];
@@ -176,6 +194,10 @@ class FakeSignalRConnection implements SignalRConnectionLike {
 
   emit(methodName: string, payload: unknown): void {
     this.handlers.get(methodName)?.(payload);
+  }
+
+  registeredEvents(): string[] {
+    return [...this.handlers.keys()].sort();
   }
 
   reconnect(): void {
