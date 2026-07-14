@@ -618,7 +618,8 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
       isComp: request.isComp ?? false,
       compReason: request.compReason ?? null
     });
-    const replay = previewReservationStarts.get(idempotencyKey);
+    const scopedIdempotencyKey = `${reservationId}:${idempotencyKey}`;
+    const replay = previewReservationStarts.get(scopedIdempotencyKey);
     if (replay !== undefined) {
       return replay.identity === identity
         ? json(structuredClone(replay.response))
@@ -663,7 +664,7 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
         deviceCommands: []
       }
     };
-    previewReservationStarts.set(idempotencyKey, { identity, response: structuredClone(response) });
+    previewReservationStarts.set(scopedIdempotencyKey, { identity, response: structuredClone(response) });
     return json(response);
   }
   if (url.pathname.endsWith('/sessions/start') && method === 'POST') {

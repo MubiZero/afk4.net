@@ -145,6 +145,7 @@ public sealed class PlatformAdminBootstrapHostedServiceTests
         var databaseName = Guid.NewGuid().ToString("N");
         services.AddDbContext<PlatformDbContext>(options => options.UseInMemoryDatabase(databaseName));
         services.AddSingleton<TimeProvider>(TimeProvider.System);
+        services.AddScoped<IAuditRecordStager, AuditRecordStager>();
         services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
         return services.BuildServiceProvider();
     }

@@ -586,6 +586,7 @@ public sealed class EfReservationSessionCoordinatorTests
         var coordinator = new EfReservationSessionCoordinator(
             db,
             failing,
+            new AuditRecordStager(db, new FixedTimeProvider(database.Now)),
             new FixedTimeProvider(database.Now));
 
         var exception = await Assert.ThrowsAsync<ForcedCoordinatorFailureException>(() =>
@@ -637,6 +638,7 @@ public sealed class EfReservationSessionCoordinatorTests
             var coordinator = new EfReservationSessionCoordinator(
                 db,
                 workflow,
+                new AuditRecordStager(db, new FixedTimeProvider(database.Now)),
                 new FixedTimeProvider(database.Now));
 
             var exception = await Record.ExceptionAsync(() => coordinator.StartAsync(
@@ -696,10 +698,12 @@ public sealed class EfReservationSessionCoordinatorTests
         var firstCoordinator = new EfReservationSessionCoordinator(
             firstDb,
             firstWorkflow,
+            new AuditRecordStager(firstDb, new FixedTimeProvider(database.Now)),
             new FixedTimeProvider(database.Now));
         var secondCoordinator = new EfReservationSessionCoordinator(
             secondDb,
             secondWorkflow,
+            new AuditRecordStager(secondDb, new FixedTimeProvider(database.Now)),
             new FixedTimeProvider(database.Now));
         var request = PostgresRequest(database.OrganizationId);
 
@@ -740,7 +744,7 @@ public sealed class EfReservationSessionCoordinatorTests
     private static EfReservationSessionCoordinator CreateCoordinator(
         PlatformDbContext db,
         ISessionStartWorkflow workflow) =>
-        new(db, workflow, new FixedTimeProvider(Now));
+        new(db, workflow, new AuditRecordStager(db, new FixedTimeProvider(Now)), new FixedTimeProvider(Now));
 
     private static ISessionStartWorkflow CreateRealWorkflow(
         PlatformDbContext db,

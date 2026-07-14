@@ -261,6 +261,7 @@ builder.Services.AddHostedService<ScheduledReportHostedService>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
 builder.Services.AddScoped<ITenantStatusGuard, EfTenantStatusGuard>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
+builder.Services.AddScoped<IAuditRecordStager, AuditRecordStager>();
 builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
 builder.Services.AddScoped<IAuditSearchService, EfAuditSearchService>();
 builder.Services.AddSingleton(new BranchDiagnosticsOptions());

@@ -14,6 +14,7 @@ namespace AFK4.Platform.Api.Reservations;
 public sealed class EfReservationSessionCoordinator(
     PlatformDbContext dbContext,
     ISessionStartWorkflow sessionStartWorkflow,
+    IAuditRecordStager auditRecordStager,
     TimeProvider timeProvider) : IReservationSessionCoordinator
 {
     private const int MaxAttempts = 3;
@@ -220,35 +221,33 @@ public sealed class EfReservationSessionCoordinator(
         reservation.UpdatedAtUtc = now;
         reservation.Version += 1;
 
-        dbContext.AuditRecords.Add(AuditRecordFactory.Create(
-            new AuditRecordWriteRequest(
-                reservation.OrganizationId,
-                reservation.BranchId,
-                actorStaffUserId,
-                AuditActionNames.StartReservationSession,
-                "Reservation",
-                reservation.ReservationId.ToString("D"),
-                AuditOutcome.Succeeded,
-                "PlatformApi",
-                JsonSerializer.Serialize(new
-                {
-                    ReservationId = reservation.ReservationId,
-                    SessionId = stage.Result.Response.Session.SessionId,
-                    reservation.SeatId,
-                    reservation.PlayerAccountId,
-                    request.ExpectedVersion,
-                    ReservationVersion = reservation.Version,
-                    request.IdempotencyKey,
-                    request.TariffRuleVersionId,
-                    request.DurationMode,
-                    request.DurationMinutes,
-                    request.BillingMode,
-                    request.TariffVersionId,
-                    request.PlayerPackageId,
-                    request.IsComp,
-                    request.CompReason
-                })),
-            now));
+        auditRecordStager.Stage(new AuditRecordWriteRequest(
+            reservation.OrganizationId,
+            reservation.BranchId,
+            actorStaffUserId,
+            AuditActionNames.StartReservationSession,
+            "Reservation",
+            reservation.ReservationId.ToString("D"),
+            AuditOutcome.Succeeded,
+            "PlatformApi",
+            JsonSerializer.Serialize(new
+            {
+                ReservationId = reservation.ReservationId,
+                SessionId = stage.Result.Response.Session.SessionId,
+                reservation.SeatId,
+                reservation.PlayerAccountId,
+                request.ExpectedVersion,
+                ReservationVersion = reservation.Version,
+                request.IdempotencyKey,
+                request.TariffRuleVersionId,
+                request.DurationMode,
+                request.DurationMinutes,
+                request.BillingMode,
+                request.TariffVersionId,
+                request.PlayerPackageId,
+                request.IsComp,
+                request.CompReason
+            })));
 
         await dbContext.SaveChangesAsync(cancellationToken);
         var response = new StartReservationSessionResponse(

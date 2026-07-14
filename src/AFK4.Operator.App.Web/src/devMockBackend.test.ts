@@ -163,6 +163,20 @@ describe('devMockFetch reservation session start', () => {
     expect(replay.status).toBe(200);
     expect(await replay.json()).toEqual(started);
 
+    const independent = await devMockFetch('https://x/api/reservations/g2/start-session', {
+      method: 'POST',
+      body: JSON.stringify(request)
+    });
+    const independentlyStarted = await independent.json();
+    expect(independent.status).toBe(200);
+    expect(independentlyStarted.reservation).toMatchObject({
+      reservationId: 'g2',
+      state: 'seated',
+      version: 2,
+      startedSessionId: expect.any(String)
+    });
+    expect(independentlyStarted.reservation.startedSessionId).not.toBe(started.reservation.startedSessionId);
+
     const changedReuse = await devMockFetch('https://x/api/reservations/r5/start-session', {
       method: 'POST',
       body: JSON.stringify({ ...request, durationMinutes: 90 })

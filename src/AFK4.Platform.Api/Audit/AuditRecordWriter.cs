@@ -4,11 +4,11 @@ namespace AFK4.Platform.Api.Audit;
 
 public sealed class AuditRecordWriter(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IAuditRecordWriter
+    IAuditRecordStager auditRecordStager) : IAuditRecordWriter
 {
     public async Task WriteAsync(AuditRecordWriteRequest request, CancellationToken cancellationToken)
     {
-        dbContext.AuditRecords.Add(AuditRecordFactory.Create(request, timeProvider.GetUtcNow()));
+        auditRecordStager.Stage(request);
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
