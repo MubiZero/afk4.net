@@ -447,7 +447,7 @@ cd ../../..
 
 ```bash
 dotnet test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
-AFK4_COMMERCE_POSTGRES_TEST_CONNECTION_STRING='Host=127.0.0.1;Port=5432;Database=afk4_commerce_test;Username=postgres;Password=postgres' \
+AFK4_COMMERCE_TEST_POSTGRES='Host=127.0.0.1;Port=5432;Database=afk4_commerce_test;Username=postgres;Password=postgres' \
 AFK4_POS_POSTGRES_TEST_CONNECTION_STRING='Host=127.0.0.1;Port=5432;Database=afk4_pos_test;Username=postgres;Password=postgres' \
 AFK4_RESERVATION_POSTGRES_TEST_CONNECTION_STRING='Host=127.0.0.1;Port=5432;Database=afk4_reservation_test;Username=postgres;Password=postgres' \
 dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
