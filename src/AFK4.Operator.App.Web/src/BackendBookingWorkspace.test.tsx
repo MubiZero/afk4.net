@@ -5,7 +5,8 @@ import type { OperatorFloorMapState } from './floorMapState';
 import type { SeatSummary } from './operatorData';
 import type { OperatorBackendContext } from './operatorTypes';
 import { ToastProvider } from './operatorToast';
-import { BackendBookingWorkspace, buildReservationStartRequest } from './BackendBookingWorkspace';
+import { BackendBookingWorkspace, buildReservationStartRequest, isReservationStartOutcomeAmbiguous } from './BackendBookingWorkspace';
+import { PlatformApiError } from './platformApi';
 import { createSessionStartSelection } from './session/SessionStartForm';
 
 const originalFetch = globalThis.fetch;
@@ -55,6 +56,15 @@ function json(body: unknown, status = 200) {
 }
 
 describe('BackendBookingWorkspace modifier draft transitions', () => {
+  it('classifies transport and retryable HTTP failures as ambiguous, but domain 4xx as determined', () => {
+    expect(isReservationStartOutcomeAmbiguous(new TypeError('network lost'))).toBe(true);
+    for (const status of [408, 425, 429, 500, 502, 503, 504]) {
+      expect(isReservationStartOutcomeAmbiguous(new PlatformApiError('retryable', status, 'Failure', '{}'))).toBe(true);
+    }
+    for (const status of [400, 401, 403, 404, 409, 422]) {
+      expect(isReservationStartOutcomeAmbiguous(new PlatformApiError('domain', status, 'Failure', '{}'))).toBe(false);
+    }
+  });
   it('builds distinct wallet, package, postpaid and comp payloads without changing reservation identity', () => {
     const base = createSessionStartSelection('prepaid_wallet');
     expect(buildReservationStartRequest('org-1', 7, 'key-wallet', { ...base, tariffVersionId: 'tariff-1' })).toMatchObject({
@@ -318,6 +328,36 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     expect(bodies).toHaveLength(3);
     expect(bodies[2].idempotencyKey).not.toBe(bodies[0].idempotencyKey);
     expect(bodies[2]).toMatchObject({ durationMode: 'fixed', durationMinutes: 120 });
+  });
+
+  it('keeps an HTTP 500 start unresolved and retries the exact immutable request', async () => {
+    const bodies: Record<string, unknown>[] = [];
+    const reservation = confirmedReservation();
+    globalThis.fetch = (async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/reservations') && init?.method === 'GET') return json({ reservations: [reservation], limit: 40 });
+      if (url.pathname.endsWith('/sessions/timeline')) return json({ sessions: [], limit: 40 });
+      if (url.pathname.endsWith('/tariffs/options')) return json([]);
+      if (url.pathname.endsWith('/start-session')) {
+        bodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        if (bodies.length === 1) return json({ code: 'internal_error' }, 500);
+        return json({ reservation: { ...reservation, version: 4, state: 'seated', startedSessionId: 'session-500' }, session: { session: { sessionId: 'session-500', seatId: 'a' } } });
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url.pathname}`);
+    }) as typeof fetch;
+    const onOpenSeat = mock(() => {});
+    render(<I18nProvider><ToastProvider><BackendBookingWorkspace floorMap={floorMap} backend={startBackend()} currencyCode="TJS" onOpenSeat={onOpenSeat} /></ToastProvider></I18nProvider>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Reserved guest' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Бронь' })).getByRole('button', { name: 'Начать сессию' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Запуск забронированной сессии' })).getByRole('button', { name: 'Начать сессию' }));
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    const modal = screen.getByRole('dialog', { name: 'Запуск забронированной сессии' });
+    expect(within(modal).getByRole('button', { name: /2 ч/ })).toBeDisabled();
+    expect(within(modal).getAllByRole('button', { name: 'Отмена' }).every((button) => button.hasAttribute('disabled'))).toBe(true);
+    fireEvent.click(within(modal).getByRole('button', { name: 'Начать сессию' }));
+    await waitFor(() => expect(onOpenSeat).toHaveBeenCalledWith('a'));
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1]).toEqual(bodies[0]);
   });
 
   it('recovers an ambiguously committed start from refreshed startedSessionId without a second start', async () => {

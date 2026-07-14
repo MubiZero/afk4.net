@@ -71,6 +71,11 @@ export function buildReservationStartRequest(
   };
 }
 
+export function isReservationStartOutcomeAmbiguous(error: unknown): boolean {
+  if (!(error instanceof PlatformApiError)) return true;
+  return error.status >= 500 || error.status === 408 || error.status === 425 || error.status === 429;
+}
+
 export function BackendBookingWorkspace({
   floorMap,
   backend,
@@ -530,7 +535,7 @@ export function BackendBookingWorkspace({
     } catch (error) {
       // Any uncertain failure triggers an authoritative refresh. If the server committed, the
       // durable StartedSessionId link below wins and opens the linked seat; resubmit retains key.
-      if (error instanceof PlatformApiError) {
+      if (!isReservationStartOutcomeAmbiguous(error)) {
         setStartAttempt(null);
         setStartAttemptUnresolved(false);
         setStartIdempotencyKey(createIdempotencyKey('reservation-session-start'));
