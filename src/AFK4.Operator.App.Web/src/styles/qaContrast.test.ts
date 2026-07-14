@@ -18,10 +18,16 @@ describe('operator QA visual guards', () => {
     expect(authCss).toMatch(/\.auth-link-inline\s*\{[^}]*color:\s*var\(--accent-bright\)/s);
     expect(mapCss).toMatch(/\.seat-invite-label\s*\{[^}]*color:\s*var\(--text-secondary\)/s);
     expect(uiKitCss).toMatch(/\.ui-scanner-badge\s*\{[^}]*color:\s*var\(--accent-bright\)/s);
-    expect(posCss).toMatch(/\.pos-order-more\s*\{[^}]*color:\s*var\(--text-secondary\)/s);
+    expect(posCss).toMatch(/\.pos-order-chevron\s*\{[^}]*color:\s*var\(--text-secondary\)/s);
     expect(posCss).toMatch(/\.pos-product-card > em\s*\{[^}]*color:\s*var\(--text-secondary\)/s);
     expect(playersCss).toMatch(/\.cc-phone\s*\{[^}]*color:\s*var\(--text-secondary\)/s);
     expect(playersCss).toMatch(/\.cc-visit\s*\{[^}]*color:\s*var\(--text-secondary\)/s);
     expect(playersCss).not.toMatch(/\.ctable-row\.inactive\s*\{[^}]*opacity:/s);
+  });
+
+  it('disables order disclosure motion when reduced motion is requested', () => {
+    expect(posCss).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.pos-order-chevron\s*\{[^}]*transition:\s*none/s
+    );
   });
 });

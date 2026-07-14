@@ -2256,7 +2256,6 @@
   "op.shopOrders.empty": "Фармоиши фаъол нест",
   "op.shopOrders.seat": "Ҷой",
   "op.shopOrders.accept": "Қабул кардан",
-  "op.shopOrders.details": "Тафсилот",
   "op.pos.order.positions": "{count, plural, one {# ҷузъ} other {# ҷузъ}}",
   "op.shopOrders.deliver": "Додан",
   "op.shopOrders.cancel": "Бекор кардан",

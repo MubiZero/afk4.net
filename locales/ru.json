@@ -2454,7 +2454,6 @@
   "op.shopOrders.empty": "Активных заказов нет",
   "op.shopOrders.seat": "Место",
   "op.shopOrders.accept": "Принять",
-  "op.shopOrders.details": "Подробнее",
   "op.pos.order.positions": "{count, plural, one {# поз.} few {# поз.} many {# поз.} other {# поз.}}",
   "op.shopOrders.deliver": "Выдать",
   "op.shopOrders.cancel": "Отменить",

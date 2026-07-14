@@ -85,6 +85,18 @@ describe('PosOrdersTicker', () => {
     await waitFor(() => expect(accept).toHaveBeenCalledWith('b1', 'o1', 1));
   });
 
+  it('uses an icon-only chevron whose direction follows disclosure state', async () => {
+    renderTicker();
+
+    const disclosure = await screen.findByRole('button', { expanded: false });
+    expect(disclosure).not.toHaveTextContent(/Подробнее|Details|Тафсилот/);
+
+    fireEvent.click(disclosure);
+
+    expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+    expect(disclosure.querySelector('.pos-order-chevron')).toHaveClass('is-expanded');
+  });
+
   it('подтверждает приём заказа тостом', async () => {
     renderTicker();
     fireEvent.click(await screen.findByText('PC-01'));

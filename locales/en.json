@@ -2256,7 +2256,6 @@
   "op.shopOrders.empty": "No active orders",
   "op.shopOrders.seat": "Seat",
   "op.shopOrders.accept": "Accept",
-  "op.shopOrders.details": "Details",
   "op.pos.order.positions": "{count, plural, one {# item} other {# items}}",
   "op.shopOrders.deliver": "Deliver",
   "op.shopOrders.cancel": "Cancel",

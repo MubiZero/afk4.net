@@ -186,10 +186,11 @@ export function PosOrdersTicker({ backend }: { backend: OperatorBackendContext |
                 <span className="pos-order-dot" aria-hidden="true" />
                 <span className="pos-order-seat">{order.seatId}</span>
                 <span className="pos-order-items">{chipSummary(order)}</span>
-                <span className="pos-order-more">
-                  {t('op.shopOrders.details')}
-                  <ChevronRight size={14} aria-hidden="true" />
-                </span>
+                <ChevronRight
+                  className={`pos-order-chevron${popover?.id === order.id ? ' is-expanded' : ''}`}
+                  size={14}
+                  aria-hidden="true"
+                />
               </button>
             </li>
           ))}

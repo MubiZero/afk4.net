@@ -108,25 +108,18 @@
   white-space: nowrap;
 }
 
-/* «Подробнее» — affordance у правого края чипа: подсказывает, что заказ кликабелен
-   и решение (Принять/Выдать/Отмена) принимается в поповере, видя состав. */
-.pos-order-more {
+/* Стрелка справа показывает состояние disclosure: вправо закрыт, вниз открыт. */
+.pos-order-chevron {
   flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
   margin-left: auto;
-  padding-left: var(--space-2);
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: 10px;
-  font-weight: 600;
+  transition: transform var(--duration-fast) var(--ease-out);
 }
-.pos-order-open:hover .pos-order-more,
-.pos-order-open:focus-visible .pos-order-more {
+.pos-order-open:hover .pos-order-chevron,
+.pos-order-open:focus-visible .pos-order-chevron {
   color: var(--accent-bright);
 }
+.pos-order-chevron.is-expanded { transform: rotate(90deg); }
 
 /* Кликабельное тело чипа — открывает поповер со всем составом. */
 .pos-order-open {
@@ -271,11 +264,12 @@
 /* ── Анимации ленты: вход чипа, ховер, клик-отклик, открытие/закрытие поповера ── */
 .pos-order-chip {
   animation: soft-enter 160ms var(--ease-out);
-  transition: background var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+  transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
 .pos-order-chip:hover {
   background: var(--surface-hover);
-  transform: translateY(-1px);
+  transform: none;
+  box-shadow: var(--shadow-card);
 }
 
 .pos-order-open,
@@ -304,6 +298,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .pos-order-chevron {
+    transition: none;
+  }
   .pos-order-chip,
   .pos-order-detail,
   .pos-order-detail--closing {
