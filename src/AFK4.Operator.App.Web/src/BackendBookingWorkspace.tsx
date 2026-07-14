@@ -386,8 +386,24 @@ export function BackendBookingWorkspace({
   // интервал после первого выбора. Текущее состояние ПК не фильтруем: для будущего времени
   // авторитетны фактические пересечения, рассчитанные ниже и повторно проверяемые сервером.
   const toggleDraftSeat = (seat: SeatSummary, startMs: number) => {
+    const continueCurrentDraft = drawerMode === 'create';
+    setFeedback(emptyFeedback);
+    setGroupConflicts(new Set());
     setDrawerMode('create');
     setDraft((current) => {
+      if (!continueCurrentDraft) {
+        return {
+          customerName: '',
+          phoneNumber: '',
+          playerAccountId: '',
+          clientBalanceMinorUnits: null,
+          clientDebtMinorUnits: null,
+          startsAt: toDateTimeInputValue(new Date(startMs)),
+          durationMinutes: 60,
+          seatId: '',
+          seatIds: [seat.id]
+        };
+      }
       const basis = current.seatIds.length > 0 ? current.seatIds : current.seatId ? [current.seatId] : [];
       const seatIds = basis.includes(seat.id) ? basis.filter((id) => id !== seat.id) : [...basis, seat.id];
       return {
