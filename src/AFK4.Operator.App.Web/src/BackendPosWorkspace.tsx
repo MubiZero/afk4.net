@@ -17,6 +17,7 @@ import {
   formatMinorUnits,
   projectPlayerClient,
   readArray,
+  readBoolean,
   readMoney,
   readNumber,
   readString,
@@ -38,14 +39,17 @@ type PosCatalogItem = {
   priceMinorUnits: number;
   category: string;
   note: string;
+  trackStock: boolean;
   stockOnHand: number;
   reorderThreshold: number;
   barcodes: string[];
   source: 'fixture' | 'backend';
 };
 
-export function isLowStock(item: Pick<PosCatalogItem, 'source' | 'stockOnHand' | 'reorderThreshold'>): boolean {
-  return item.source === 'backend' && item.reorderThreshold > 0 && item.stockOnHand <= item.reorderThreshold;
+export function isLowStock(item: Pick<PosCatalogItem, 'source' | 'trackStock' | 'stockOnHand' | 'reorderThreshold'>): boolean {
+  return item.source === 'backend'
+    && item.trackStock
+    && (item.stockOnHand === 0 || (item.reorderThreshold > 0 && item.stockOnHand <= item.reorderThreshold));
 }
 
 type PosCartItem = PosCatalogItem & {
@@ -58,10 +62,10 @@ const CATEGORY_ALL = '__all__';
 
 function makeFixtureProducts(t: ReturnType<typeof useI18n>['t']): PosCatalogItem[] {
   return [
-    { name: t('op.pos.fixture.cola'), priceMinorUnits: 1200, category: t('op.pos.fixture.drinks'), note: t('op.pos.fixture.note'), stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' },
-    { name: t('op.pos.fixture.water'), priceMinorUnits: 600, category: t('op.pos.fixture.drinks'), note: t('op.pos.fixture.note'), stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' },
-    { name: t('op.pos.fixture.hotdog'), priceMinorUnits: 2800, category: t('op.pos.fixture.food'), note: t('op.pos.fixture.note'), stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' },
-    { name: t('op.pos.fixture.guestHour'), priceMinorUnits: 2500, category: t('op.pos.fixture.services'), note: t('op.pos.fixture.note'), stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' }
+    { name: t('op.pos.fixture.cola'), priceMinorUnits: 1200, category: t('op.pos.fixture.drinks'), note: t('op.pos.fixture.note'), trackStock: false, stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' },
+    { name: t('op.pos.fixture.water'), priceMinorUnits: 600, category: t('op.pos.fixture.drinks'), note: t('op.pos.fixture.note'), trackStock: false, stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' },
+    { name: t('op.pos.fixture.hotdog'), priceMinorUnits: 2800, category: t('op.pos.fixture.food'), note: t('op.pos.fixture.note'), trackStock: false, stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' },
+    { name: t('op.pos.fixture.guestHour'), priceMinorUnits: 2500, category: t('op.pos.fixture.services'), note: t('op.pos.fixture.note'), trackStock: false, stockOnHand: 0, reorderThreshold: 0, barcodes: [], source: 'fixture' }
   ];
 }
 
@@ -76,6 +80,7 @@ function projectPosProduct(product: PosProductDto, t: ReturnType<typeof useI18n>
     priceMinorUnits: price?.minorUnits ?? 0,
     category: readString(product, 'categoryName', readString(product, 'categoryId', t('op.pos.catalog.categoryFallback'))),
     note: t('op.pos.catalog.note', { sku, count: stockOnHand }),
+    trackStock: readBoolean(product, 'trackStock'),
     stockOnHand,
     reorderThreshold,
     barcodes: readArray<string>(product, 'barcodes'),
@@ -405,7 +410,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
                 <button key={`${product.productId ?? product.name}-${product.name}`} type="button" className="ui-card ui-card--interactive pos-product-card" onClick={() => addProduct(product)}>
                   <strong>{product.name}</strong>
                   <span>{product.category}</span>
-                  <b><Money minorUnits={product.priceMinorUnits} currencyCode={currencyCode} /></b>
+                  <b><span>{t('op.pos.catalog.priceLabel')}</span> <Money minorUnits={product.priceMinorUnits} currencyCode={currencyCode} /></b>
                   <em>{product.note}</em>
                 </button>
               ))
@@ -424,7 +429,7 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
               <UserRoundPlus size={17} />
               <div>
                 <strong>{selectedPosPlayer.name}</strong>
-                <em>{selectedPosPlayer.phoneNumber || t('op.pos.cart.clientNoPhone')} · <Money minorUnits={selectedPosPlayer.balanceMinorUnits} currencyCode={currencyCode} /></em>
+                <em>{selectedPosPlayer.phoneNumber || t('op.pos.cart.clientNoPhone')} · <span>{t('op.pos.cart.balanceLabel')}</span> <Money minorUnits={selectedPosPlayer.balanceMinorUnits} currencyCode={currencyCode} /></em>
               </div>
               <button
                 type="button"
