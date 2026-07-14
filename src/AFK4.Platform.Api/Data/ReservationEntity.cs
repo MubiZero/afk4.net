@@ -43,4 +43,8 @@ public sealed class ReservationEntity
     public string CancelReason { get; set; } = string.Empty;
 
     public DateTimeOffset? SeatedAtUtc { get; set; }
+
+    public int Version { get; set; } = 1;
+
+    public Guid? StartedSessionId { get; set; }
 }

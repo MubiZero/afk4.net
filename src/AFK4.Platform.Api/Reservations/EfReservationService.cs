@@ -637,7 +637,9 @@ public sealed class EfReservationService(
                 reservation.UpdatedAtUtc,
                 reservation.CancelledAtUtc,
                 reservation.CancelReason,
-                reservation.ReservationGroupId);
+                reservation.ReservationGroupId,
+                reservation.Version,
+                reservation.StartedSessionId);
         }).ToList();
     }
 

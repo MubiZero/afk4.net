@@ -49,4 +49,26 @@ public sealed class PlatformDbContextDesignTimeFactoryTests : IDisposable
         Assert.False(unitCost!.IsNullable);
         Assert.False(tracksStock!.IsNullable);
     }
+
+    [Fact]
+    public void CreateDbContext_ConfiguresReservationVersionAndUniqueSessionLink()
+    {
+        using var context = new PlatformDbContextDesignTimeFactory().CreateDbContext([]);
+
+        var reservationType = context.Model.FindEntityType(typeof(ReservationEntity));
+        var version = reservationType!.FindProperty(nameof(ReservationEntity.Version));
+        var startedSessionId = reservationType.FindProperty(nameof(ReservationEntity.StartedSessionId));
+        var index = reservationType.GetIndexes()
+            .Single(candidate => candidate.Properties.SequenceEqual([startedSessionId!]));
+        var foreignKey = reservationType.GetForeignKeys()
+            .Single(candidate => candidate.Properties.SequenceEqual([startedSessionId!]));
+
+        Assert.True(version!.IsConcurrencyToken);
+        Assert.False(version.IsNullable);
+        Assert.True(index.IsUnique);
+        Assert.Equal("\"StartedSessionId\" IS NOT NULL", index.GetFilter());
+        Assert.True(foreignKey.IsUnique);
+        Assert.Equal(typeof(SessionEntity), foreignKey.PrincipalEntityType.ClrType);
+        Assert.Equal(DeleteBehavior.Restrict, foreignKey.DeleteBehavior);
+    }
 }

@@ -75,7 +75,7 @@ public sealed class ReservationEndpointTests
 
         var confirmResponse = await client.PostAsJsonAsync(
             $"/api/reservations/{created.ReservationId}/confirm",
-            new ConfirmReservationRequest(TestIds.OrganizationId));
+            new ConfirmReservationRequest(TestIds.OrganizationId, created.Version));
         var confirmed = await confirmResponse.Content.ReadFromJsonAsync<ReservationDto>();
         Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
         Assert.NotNull(confirmed);
@@ -92,7 +92,8 @@ public sealed class ReservationEndpointTests
                 StartsAtUtc: BookingDay.AddHours(17),
                 DurationMinutes: 90,
                 Source: ReservationSourceNames.Operator,
-                Note: "front desk move"));
+                Note: "front desk move",
+                ExpectedVersion: confirmed.Version));
         var updated = await updateResponse.Content.ReadFromJsonAsync<ReservationDto>();
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         Assert.NotNull(updated);
@@ -109,7 +110,7 @@ public sealed class ReservationEndpointTests
 
         var cancelResponse = await client.PostAsJsonAsync(
             $"/api/reservations/{created.ReservationId}/cancel",
-            new CancelReservationRequest(TestIds.OrganizationId, "client left"));
+            new CancelReservationRequest(TestIds.OrganizationId, "client left", updated.Version));
         var cancelled = await cancelResponse.Content.ReadFromJsonAsync<ReservationDto>();
         Assert.Equal(HttpStatusCode.OK, cancelResponse.StatusCode);
         Assert.NotNull(cancelled);
@@ -134,7 +135,7 @@ public sealed class ReservationEndpointTests
 
         var seatResponse = await client.PostAsJsonAsync(
             $"/api/reservations/{seatCandidate.ReservationId}/seat",
-            new SeatReservationRequest(TestIds.OrganizationId));
+            new SeatReservationRequest(TestIds.OrganizationId, seatCandidate.Version));
         var seated = await seatResponse.Content.ReadFromJsonAsync<ReservationDto>();
         Assert.Equal(HttpStatusCode.OK, seatResponse.StatusCode);
         Assert.NotNull(seated);

@@ -20,7 +20,9 @@ public sealed record ReservationDto(
     DateTimeOffset UpdatedAtUtc,
     DateTimeOffset? CancelledAtUtc,
     string CancelReason,
-    Guid? ReservationGroupId);
+    Guid? ReservationGroupId,
+    int Version = 1,
+    Guid? StartedSessionId = null);
 
 public sealed record ReservationSearchResultDto(
     IReadOnlyList<ReservationDto> Reservations,
