@@ -23,6 +23,7 @@ public sealed class EfPosService(
     IInventoryCostService inventoryCostService) : IPosService
 {
     private const string CreateSaleOperation = "pos-sale-create";
+    private const string PaySaleOperation = "pos-sale-pay";
     private const string RefundSaleOperation = "pos-sale-refund";
     private const string VoidSaleOperation = "pos-sale-void";
     private const string RefundReceiptType = "refund";
@@ -189,6 +190,31 @@ public sealed class EfPosService(
         ManualPaymentRequest request,
         CancellationToken cancellationToken)
     {
+        var saleScope = await dbContext.PosSales
+            .AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.PosSaleId == posSaleId, cancellationToken);
+        if (saleScope is null)
+        {
+            return BillingCommandServiceResult<PosSaleDto>.Missing("POS sale was not found.");
+        }
+
+        var legacyRequestHashInput = new
+        {
+            PosSaleId = posSaleId,
+            Request = request
+        };
+        var legacyReplay = await GetExistingIdempotencyAsync<PosSaleDto, object>(
+            saleScope.OrganizationId,
+            saleScope.BranchId,
+            PaySaleOperation,
+            request.IdempotencyKey,
+            legacyRequestHashInput,
+            cancellationToken);
+        if (legacyReplay is not null)
+        {
+            return legacyReplay;
+        }
+
         return await posSettlementService.SettleAsync(
             posSaleId,
             actorStaffUserId,

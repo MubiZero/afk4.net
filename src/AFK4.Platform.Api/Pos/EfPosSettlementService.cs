@@ -21,7 +21,8 @@ public sealed class EfPosSettlementService(
     IInventoryCostService inventoryCostService,
     IReceiptNumberGenerator receiptNumberGenerator,
     TimeProvider timeProvider,
-    ILowStockNotifier? lowStockNotifier = null) : IPosSettlementService
+    ILowStockNotifier? lowStockNotifier = null,
+    ILogger<EfPosSettlementService>? logger = null) : IPosSettlementService
 {
     private const string SettlementOperation = "pos-sale-settle";
     private const string SaleReceiptType = "sale";
@@ -245,11 +246,24 @@ public sealed class EfPosSettlementService(
 
         if (result.Succeeded && lowStockNotifier is not null && productIdsToNotify.Count > 0)
         {
-            await lowStockNotifier.EvaluateProductsAsync(
-                saleScope.OrganizationId,
-                saleScope.BranchId,
-                productIdsToNotify,
-                cancellationToken);
+            try
+            {
+                // Settlement is already durable. Notification latency must not turn a committed
+                // financial command into an ambiguous client failure, and request cancellation is
+                // no longer authoritative after commit.
+                await lowStockNotifier.EvaluateProductsAsync(
+                    saleScope.OrganizationId,
+                    saleScope.BranchId,
+                    productIdsToNotify,
+                    CancellationToken.None);
+            }
+            catch (Exception exception)
+            {
+                logger?.LogWarning(
+                    exception,
+                    "Low-stock evaluation failed after POS sale {PosSaleId} committed.",
+                    posSaleId);
+            }
         }
 
         return result;
@@ -257,7 +271,8 @@ public sealed class EfPosSettlementService(
 
     private static SettlePosSaleRequest? NormalizeRequest(SettlePosSaleRequest request)
     {
-        if (request.Payments is null)
+        if (request.Payments is null ||
+            request.Payments.Any(part => part is null || part.Amount is null))
         {
             return null;
         }

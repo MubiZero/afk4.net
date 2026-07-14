@@ -91,7 +91,7 @@ public sealed class EfPosSettlementServiceTests
 
     [Theory]
     [InlineData(true, false)]
-    [InlineData(true, true)]
+    [InlineData(false, true)]
     public async Task SettleAsync_ClosedOrMismatchedShift_RejectsWithoutSideEffects(
         bool closeShift,
         bool mismatchCurrency)
@@ -182,6 +182,82 @@ public sealed class EfPosSettlementServiceTests
         var ledger = await db.LedgerEntries.AsNoTracking().ToListAsync();
         Assert.Single(ledger);
         Assert.Equal(15_000, ledger[0].AmountMinorUnits);
+    }
+
+    [Fact]
+    public async Task SettleAsync_NullPaymentElement_RejectsWithoutSideEffects()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedSaleAsync(db);
+        var service = CreateService(db);
+
+        var result = await service.SettleAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            Request([null!], "null-payment"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("invalid_payment_split", result.Error);
+        await AssertNoSettlementSideEffectsAsync(db, scenario.Sale.PosSaleId);
+    }
+
+    [Fact]
+    public async Task SettleAsync_NullPaymentAmount_RejectsWithoutSideEffects()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedSaleAsync(db);
+        var service = CreateService(db);
+
+        var result = await service.SettleAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            Request([new PaymentPartDto("cash", null!)], "null-amount"),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("invalid_payment_split", result.Error);
+        await AssertNoSettlementSideEffectsAsync(db, scenario.Sale.PosSaleId);
+    }
+
+    [Fact]
+    public async Task SettleAsync_ThrowingPostCommitNotifier_ReturnsDurableSuccess()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedSaleAsync(db);
+        var service = CreateService(db, lowStockNotifier: new ThrowingLowStockNotifier());
+
+        var result = await service.SettleAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            Request([Part("cash", 10_000)], "notify-throws"),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded, result.Error);
+        Assert.Equal(PosSaleStateNames.Paid, (await db.PosSales.AsNoTracking().SingleAsync()).State);
+        Assert.Single(await db.Payments.AsNoTracking().ToListAsync());
+        Assert.Single(await db.Receipts.AsNoTracking().ToListAsync());
+    }
+
+    [Fact]
+    public async Task SettleAsync_CancelledRequestAfterCommit_ReturnsDurableSuccess()
+    {
+        await using var db = CreateDbContext();
+        var scenario = await SeedSaleAsync(db);
+        using var requestCancellation = new CancellationTokenSource();
+        var notifier = new CancellingLowStockNotifier(requestCancellation);
+        var service = CreateService(db, lowStockNotifier: notifier);
+
+        var result = await service.SettleAsync(
+            scenario.Sale.PosSaleId,
+            ActorId,
+            Request([Part("cash", 10_000)], "notify-cancelled"),
+            requestCancellation.Token);
+
+        Assert.True(result.Succeeded, result.Error);
+        Assert.Equal(CancellationToken.None, notifier.ReceivedToken);
+        Assert.Equal(PosSaleStateNames.Paid, (await db.PosSales.AsNoTracking().SingleAsync()).State);
+        Assert.Single(await db.Payments.AsNoTracking().ToListAsync());
     }
 
     [Fact]
@@ -392,5 +468,31 @@ public sealed class EfPosSettlementServiceTests
         }
 
         public sealed record Call(Guid OrganizationId, Guid BranchId, IReadOnlyList<Guid> ProductIds);
+    }
+
+    private sealed class ThrowingLowStockNotifier : ILowStockNotifier
+    {
+        public Task EvaluateProductsAsync(
+            Guid organizationId,
+            Guid branchId,
+            IReadOnlyCollection<Guid> productIds,
+            CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("notification failure");
+    }
+
+    private sealed class CancellingLowStockNotifier(CancellationTokenSource requestCancellation) : ILowStockNotifier
+    {
+        public CancellationToken ReceivedToken { get; private set; }
+
+        public Task EvaluateProductsAsync(
+            Guid organizationId,
+            Guid branchId,
+            IReadOnlyCollection<Guid> productIds,
+            CancellationToken cancellationToken)
+        {
+            ReceivedToken = cancellationToken;
+            requestCancellation.Cancel();
+            throw new OperationCanceledException(requestCancellation.Token);
+        }
     }
 }

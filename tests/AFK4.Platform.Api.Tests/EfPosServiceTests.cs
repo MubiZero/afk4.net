@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
@@ -330,6 +331,65 @@ public sealed class EfPosServiceTests
     }
 
     [Fact]
+    public async Task PaySaleAsync_ReplaysPreExistingLegacyIdempotencyForCommittedSale()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db);
+        var service = CreateService(db);
+        var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
+        var request = ManualPaymentRequest("legacy-pay-001", amountMinorUnits: 2400);
+        var legacyResponse = sale with
+        {
+            State = PosSaleStateNames.Paid,
+            PaidAtUtc = Now
+        };
+        var trackedSale = await db.PosSales.SingleAsync(candidate => candidate.PosSaleId == sale.PosSaleId);
+        trackedSale.State = PosSaleStateNames.Paid;
+        trackedSale.PaidAtUtc = Now;
+        AddLegacyPaymentIdempotency(db, sale, request, legacyResponse);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var replay = await service.PaySaleAsync(
+            sale.PosSaleId,
+            ActorStaffUserId,
+            request,
+            CancellationToken.None);
+
+        Assert.True(replay.Succeeded, replay.Error);
+        Assert.Equal(legacyResponse.PosSaleId, replay.Response!.PosSaleId);
+        Assert.Equal(PosSaleStateNames.Paid, replay.Response.State);
+        Assert.Empty(await db.Payments.AsNoTracking().ToListAsync());
+        Assert.Empty(await db.Receipts.AsNoTracking().ToListAsync());
+    }
+
+    [Fact]
+    public async Task PaySaleAsync_ReusedLegacyKeyForDifferentRequest_PreservesConflict()
+    {
+        await using var db = CreateDbContext();
+        var shift = await SeedOpenShiftAsync(db);
+        var product = await SeedProductAsync(db);
+        var service = CreateService(db);
+        var sale = await CreateSaleAsync(service, shift.ShiftId, product.ProductId);
+        var original = ManualPaymentRequest("legacy-pay-conflict", amountMinorUnits: 2400);
+        AddLegacyPaymentIdempotency(db, sale, original, sale);
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var conflict = await service.PaySaleAsync(
+            sale.PosSaleId,
+            ActorStaffUserId,
+            original with { PaymentMethod = PaymentMethodNames.CardManual },
+            CancellationToken.None);
+
+        Assert.False(conflict.Succeeded);
+        Assert.True(conflict.Conflict);
+        Assert.Equal("Idempotency key was already used for a different request.", conflict.Error);
+        Assert.Empty(await db.Payments.AsNoTracking().ToListAsync());
+    }
+
+    [Fact]
     public async Task RefundSaleAsync_MovesPaidToRefundedAndWritesPositiveStockMovementAndRefundReceipt()
     {
         await using var db = CreateDbContext();
@@ -655,6 +715,28 @@ public sealed class EfPosServiceTests
             new ReceiptNumberGenerator(db),
             new FixedTimeProvider(Now),
             new EfInventoryCostService(db));
+    }
+
+    private static void AddLegacyPaymentIdempotency(
+        PlatformDbContext db,
+        PosSaleDto sale,
+        ManualPaymentRequest request,
+        PosSaleDto response)
+    {
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var requestHashInput = new { PosSaleId = sale.PosSaleId, Request = request };
+        db.BillingCommandIdempotency.Add(new BillingCommandIdempotencyEntity
+        {
+            BillingCommandIdempotencyId = Guid.NewGuid(),
+            OrganizationId = sale.OrganizationId,
+            BranchId = sale.BranchId,
+            Operation = "pos-sale-pay",
+            IdempotencyKeyHash = BillingCommandIdempotencyKeyHasher.Hash(request.IdempotencyKey),
+            RequestHash = BillingCommandIdempotencyKeyHasher.Hash(JsonSerializer.Serialize(requestHashInput, options)),
+            ResponseJson = JsonSerializer.Serialize(response, options),
+            CreatedAtUtc = Now,
+            ExpiresAtUtc = Now.AddDays(1)
+        });
     }
 
     private static async Task SeedOwnerAsync(PlatformDbContext db)
