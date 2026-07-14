@@ -264,14 +264,35 @@ public sealed class EfReservationService(
         var nextStartsAtUtc = request.StartsAtUtc ?? reservation.StartsAtUtc;
         var nextDurationMinutes = request.DurationMinutes ?? DurationMinutes(reservation);
         var nextSeatId = request.SeatId ?? reservation.SeatId;
+        var nextPlayerAccountId = request.PlayerAccountId ?? reservation.PlayerAccountId;
         var nextSource = string.IsNullOrWhiteSpace(request.Source)
             ? reservation.Source
             : NormalizeSource(request.Source);
+        var nextPhoneNumber = request.PhoneNumber is null
+            ? reservation.PhoneNumber
+            : NormalizeNullable(request.PhoneNumber);
+        var nextNote = request.Note is null
+            ? reservation.Note
+            : NormalizeText(request.Note);
+        var nextEndsAtUtc = nextStartsAtUtc.AddMinutes(nextDurationMinutes);
+
+        if (nextPlayerAccountId == reservation.PlayerAccountId &&
+            nextSeatId == reservation.SeatId &&
+            string.Equals(nextCustomerName, reservation.CustomerName, StringComparison.Ordinal) &&
+            string.Equals(nextPhoneNumber, reservation.PhoneNumber, StringComparison.Ordinal) &&
+            nextStartsAtUtc == reservation.StartsAtUtc &&
+            nextEndsAtUtc == reservation.EndsAtUtc &&
+            string.Equals(nextSource, reservation.Source, StringComparison.Ordinal) &&
+            string.Equals(nextNote, reservation.Note, StringComparison.Ordinal))
+        {
+            return ReservationServiceResult<ReservationDto>.Ok(
+                (await ProjectAsync([reservation], cancellationToken))[0]);
+        }
 
         var validation = await ValidateReservationShapeAsync(
             request.OrganizationId,
             reservation.BranchId,
-            request.PlayerAccountId ?? reservation.PlayerAccountId,
+            nextPlayerAccountId,
             nextSeatId,
             nextCustomerName,
             nextStartsAtUtc,
@@ -283,7 +304,6 @@ public sealed class EfReservationService(
             return ReservationServiceResult<ReservationDto>.Invalid(validation);
         }
 
-        var nextEndsAtUtc = nextStartsAtUtc.AddMinutes(nextDurationMinutes);
         var conflict = await FindConflictAsync(
             request.OrganizationId,
             reservation.BranchId,
@@ -297,18 +317,14 @@ public sealed class EfReservationService(
             return ReservationServiceResult<ReservationDto>.RequestConflict(conflict);
         }
 
-        reservation.PlayerAccountId = request.PlayerAccountId ?? reservation.PlayerAccountId;
+        reservation.PlayerAccountId = nextPlayerAccountId;
         reservation.SeatId = nextSeatId;
         reservation.CustomerName = nextCustomerName;
-        reservation.PhoneNumber = request.PhoneNumber is null
-            ? reservation.PhoneNumber
-            : NormalizeNullable(request.PhoneNumber);
+        reservation.PhoneNumber = nextPhoneNumber;
         reservation.StartsAtUtc = nextStartsAtUtc;
         reservation.EndsAtUtc = nextEndsAtUtc;
         reservation.Source = nextSource;
-        reservation.Note = request.Note is null
-            ? reservation.Note
-            : NormalizeText(request.Note);
+        reservation.Note = nextNote;
         reservation.UpdatedByStaffUserId = actorStaffUserId;
         reservation.UpdatedAtUtc = timeProvider.GetUtcNow();
         reservation.Version++;
@@ -395,6 +411,12 @@ public sealed class EfReservationService(
         if (versionConflict is not null)
         {
             return versionConflict;
+        }
+
+        if (reservation.State == ReservationStateNames.Seated)
+        {
+            return ReservationServiceResult<ReservationDto>.Ok(
+                (await ProjectAsync([reservation], cancellationToken))[0]);
         }
 
         if (!CanChange(reservation))

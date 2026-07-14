@@ -158,6 +158,92 @@ public sealed class EfReservationGroupServiceTests
         Assert.Equal(2, stale.CurrentVersion);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UpdateAsync_WhenPatchIsEmptyOrExplicitlyIdentical_IsNoOpWithoutSavingOrChangingMetadata(
+        bool explicitlyIdentical)
+    {
+        var options = NewOptions();
+        await SeedAsync(options, sessionOnSeatC: false);
+        var reservationId = await SeedPendingReservationAsync(options);
+        await using var db = new PlatformDbContext(options);
+        var saveCalls = 0;
+        db.SavingChanges += (_, _) => saveCalls++;
+        var service = new EfReservationService(db, TimeProvider.System);
+        var otherActor = Guid.Parse("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee");
+
+        var result = await service.UpdateAsync(
+            reservationId,
+            otherActor,
+            new UpdateReservationRequest(
+                OrgId,
+                PlayerAccountId: null,
+                SeatId: explicitlyIdentical ? SeatA : null,
+                CustomerName: explicitlyIdentical ? "Concurrent guest" : null,
+                PhoneNumber: explicitlyIdentical ? string.Empty : null,
+                StartsAtUtc: explicitlyIdentical ? Start : null,
+                DurationMinutes: explicitlyIdentical ? 60 : null,
+                Source: explicitlyIdentical ? ReservationSourceNames.Online : null,
+                Note: explicitlyIdentical ? string.Empty : null,
+                ExpectedVersion: 1),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(1, result.Response!.Version);
+        Assert.Equal(Start.AddHours(-1), result.Response.UpdatedAtUtc);
+        var tracked = await db.Reservations.SingleAsync(reservation => reservation.ReservationId == reservationId);
+        Assert.Equal(Actor, tracked.UpdatedByStaffUserId);
+        Assert.Equal(Start.AddHours(-1), tracked.UpdatedAtUtc);
+        Assert.Equal(EntityState.Unchanged, db.Entry(tracked).State);
+        Assert.Equal(0, saveCalls);
+    }
+
+    [Fact]
+    public async Task SeatAsync_WhenAlreadySeated_IsNoOpAtCurrentVersionButOldVersionConflicts()
+    {
+        var options = NewOptions();
+        await SeedAsync(options, sessionOnSeatC: false);
+        var reservationId = await SeedPendingReservationAsync(options);
+        var seatedAt = Start.AddMinutes(-15);
+        await using (var seedDb = new PlatformDbContext(options))
+        {
+            var seeded = await seedDb.Reservations.SingleAsync(reservation => reservation.ReservationId == reservationId);
+            seeded.State = ReservationStateNames.Seated;
+            seeded.SeatedAtUtc = seatedAt;
+            await seedDb.SaveChangesAsync();
+        }
+
+        await using var db = new PlatformDbContext(options);
+        var saveCalls = 0;
+        db.SavingChanges += (_, _) => saveCalls++;
+        var service = new EfReservationService(db, TimeProvider.System);
+        var otherActor = Guid.Parse("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee");
+
+        var replay = await service.SeatAsync(
+            reservationId,
+            otherActor,
+            new SeatReservationRequest(OrgId, ExpectedVersion: 1),
+            CancellationToken.None);
+        var stale = await service.SeatAsync(
+            reservationId,
+            otherActor,
+            new SeatReservationRequest(OrgId, ExpectedVersion: 0),
+            CancellationToken.None);
+
+        Assert.True(replay.Succeeded);
+        Assert.Equal(1, replay.Response!.Version);
+        Assert.True(stale.Conflict);
+        Assert.Equal("version_conflict", stale.Code);
+        Assert.Equal(1, stale.CurrentVersion);
+        var tracked = await db.Reservations.SingleAsync(reservation => reservation.ReservationId == reservationId);
+        Assert.Equal(Actor, tracked.UpdatedByStaffUserId);
+        Assert.Equal(Start.AddHours(-1), tracked.UpdatedAtUtc);
+        Assert.Equal(seatedAt, tracked.SeatedAtUtc);
+        Assert.Equal(EntityState.Unchanged, db.Entry(tracked).State);
+        Assert.Equal(0, saveCalls);
+    }
+
     private static async Task<Guid> SeedPendingReservationAsync(DbContextOptions<PlatformDbContext> options)
     {
         await using var db = new PlatformDbContext(options);

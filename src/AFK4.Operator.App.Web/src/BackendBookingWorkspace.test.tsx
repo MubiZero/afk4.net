@@ -69,7 +69,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
 
   it('sends the selected version and refreshes authoritative reservations without closing details on conflict', async () => {
     let reservationReads = 0;
-    let confirmBody: Record<string, unknown> | null = null;
+    const confirmBodies: Record<string, unknown>[] = [];
     const startsAtUtc = new Date();
     startsAtUtc.setHours(16, 0, 0, 0);
     const reservation = {
@@ -93,7 +93,12 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
       const url = new URL(String(input));
       if (url.pathname.endsWith('/reservations') && init?.method === 'GET') {
         reservationReads += 1;
-        return new Response(JSON.stringify({ reservations: [reservation], limit: 40 }), {
+        const authoritative = {
+          ...reservation,
+          version: reservationReads === 1 ? 7 : reservationReads === 2 ? 8 : 9,
+          state: reservationReads >= 3 ? 'confirmed' : 'pending'
+        };
+        return new Response(JSON.stringify({ reservations: [authoritative], limit: 40 }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' }
         });
@@ -105,14 +110,20 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
         });
       }
       if (url.pathname.endsWith('/reservations/reservation-1/confirm')) {
-        confirmBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
-        return new Response(JSON.stringify({
-          error: 'Reservation changed since it was loaded.',
-          code: 'version_conflict',
-          currentVersion: 8
-        }), {
-          status: 409,
-          statusText: 'Conflict',
+        confirmBodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+        if (confirmBodies.length === 1) {
+          return new Response(JSON.stringify({
+            error: 'Reservation changed since it was loaded.',
+            code: 'version_conflict',
+            currentVersion: 8
+          }), {
+            status: 409,
+            statusText: 'Conflict',
+            headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        return new Response(JSON.stringify({ ...reservation, state: 'confirmed', version: 9 }), {
+          status: 200,
           headers: { 'Content-Type': 'application/json' }
         });
       }
@@ -151,8 +162,15 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     const details = await screen.findByRole('dialog', { name: 'Бронь' });
     fireEvent.click(within(details).getByRole('button', { name: 'Принять' }));
 
-    await waitFor(() => expect(confirmBody).toEqual({ organizationId: 'org-1', expectedVersion: 7 }));
-    await waitFor(() => expect(reservationReads).toBeGreaterThanOrEqual(2));
+    await waitFor(() => expect(confirmBodies[0]).toEqual({ organizationId: 'org-1', expectedVersion: 7 }));
+    await waitFor(() => expect(reservationReads).toBe(2));
+    const refreshedDetails = screen.getByRole('dialog', { name: 'Бронь' });
+    fireEvent.click(within(refreshedDetails).getByRole('button', { name: 'Принять' }));
+
+    await waitFor(() => expect(confirmBodies[1]).toEqual({ organizationId: 'org-1', expectedVersion: 8 }));
+    await waitFor(() => expect(reservationReads).toBe(3));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(reservationReads).toBe(3);
     expect(screen.getByRole('dialog', { name: 'Бронь' })).toBeInTheDocument();
   });
 });
