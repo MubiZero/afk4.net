@@ -7,6 +7,7 @@ import {
   type ExtendSessionRequest,
   type ManualPaymentRequest,
   type OpenShiftRequest,
+  type SettlePosSaleRequest,
   type StartGuestSessionRequest,
   type TransferSessionRequest
 } from './operatorApiClients';
@@ -170,6 +171,26 @@ describe('operator API clients', () => {
       packageDefinitionId: 'abababab-abab-abab-abab-abababababab',
       idempotencyKey: 'idem-package'
     });
+  });
+
+  it('posts multipart POS settlements to the settlement route', async () => {
+    const { clients, calls } = createRecordedClients();
+    const request: SettlePosSaleRequest = {
+      organizationId,
+      payments: [
+        { paymentMethod: 'wallet', amount: { currencyCode: 'TJS', minorUnits: 4000 } },
+        { paymentMethod: 'cash', amount: { currencyCode: 'TJS', minorUnits: 6000 } }
+      ],
+      note: 'operator POS checkout',
+      idempotencyKey: 'pos-settle-1'
+    };
+
+    await clients.pos.settleSale(saleId, request);
+
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      `POST /api/pos/sales/${saleId}/settlements`
+    ]);
+    expect(calls[0].body).toEqual(request);
   });
 
   it('returns null for no current shift', async () => {
