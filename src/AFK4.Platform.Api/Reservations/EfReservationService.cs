@@ -247,6 +247,12 @@ public sealed class EfReservationService(
             return ReservationServiceResult<ReservationDto>.Missing("Reservation was not found.");
         }
 
+        var versionConflict = GuardVersion(reservation, request.ExpectedVersion);
+        if (versionConflict is not null)
+        {
+            return versionConflict;
+        }
+
         if (!CanChange(reservation))
         {
             return ReservationServiceResult<ReservationDto>.Invalid("Only pending or confirmed reservations can be changed.");
@@ -305,8 +311,13 @@ public sealed class EfReservationService(
             : NormalizeText(request.Note);
         reservation.UpdatedByStaffUserId = actorStaffUserId;
         reservation.UpdatedAtUtc = timeProvider.GetUtcNow();
+        reservation.Version++;
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
+        if (saveConflict is not null)
+        {
+            return saveConflict;
+        }
 
         return ReservationServiceResult<ReservationDto>.Ok(
             (await ProjectAsync([reservation], cancellationToken))[0]);
@@ -324,9 +335,21 @@ public sealed class EfReservationService(
             return ReservationServiceResult<ReservationDto>.Missing("Reservation was not found.");
         }
 
-        if (!CanChange(reservation))
+        var versionConflict = GuardVersion(reservation, request.ExpectedVersion);
+        if (versionConflict is not null)
         {
-            return ReservationServiceResult<ReservationDto>.Invalid("Only pending or confirmed reservations can be confirmed.");
+            return versionConflict;
+        }
+
+        if (reservation.State == ReservationStateNames.Confirmed)
+        {
+            return ReservationServiceResult<ReservationDto>.Ok(
+                (await ProjectAsync([reservation], cancellationToken))[0]);
+        }
+
+        if (reservation.State != ReservationStateNames.Pending)
+        {
+            return ReservationServiceResult<ReservationDto>.Invalid("Only pending reservations can be confirmed.");
         }
 
         var conflict = await FindConflictAsync(
@@ -345,7 +368,12 @@ public sealed class EfReservationService(
         reservation.State = ReservationStateNames.Confirmed;
         reservation.UpdatedByStaffUserId = actorStaffUserId;
         reservation.UpdatedAtUtc = timeProvider.GetUtcNow();
-        await dbContext.SaveChangesAsync(cancellationToken);
+        reservation.Version++;
+        var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
+        if (saveConflict is not null)
+        {
+            return saveConflict;
+        }
 
         return ReservationServiceResult<ReservationDto>.Ok(
             (await ProjectAsync([reservation], cancellationToken))[0]);
@@ -361,6 +389,12 @@ public sealed class EfReservationService(
         if (reservation is null)
         {
             return ReservationServiceResult<ReservationDto>.Missing("Reservation was not found.");
+        }
+
+        var versionConflict = GuardVersion(reservation, request.ExpectedVersion);
+        if (versionConflict is not null)
+        {
+            return versionConflict;
         }
 
         if (!CanChange(reservation))
@@ -389,7 +423,12 @@ public sealed class EfReservationService(
         reservation.SeatedAtUtc = now;
         reservation.UpdatedByStaffUserId = actorStaffUserId;
         reservation.UpdatedAtUtc = now;
-        await dbContext.SaveChangesAsync(cancellationToken);
+        reservation.Version++;
+        var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
+        if (saveConflict is not null)
+        {
+            return saveConflict;
+        }
 
         return ReservationServiceResult<ReservationDto>.Ok(
             (await ProjectAsync([reservation], cancellationToken))[0]);
@@ -405,6 +444,12 @@ public sealed class EfReservationService(
         if (reservation is null)
         {
             return ReservationServiceResult<ReservationDto>.Missing("Reservation was not found.");
+        }
+
+        var versionConflict = GuardVersion(reservation, request.ExpectedVersion);
+        if (versionConflict is not null)
+        {
+            return versionConflict;
         }
 
         if (string.IsNullOrWhiteSpace(request.Reason))
@@ -425,12 +470,53 @@ public sealed class EfReservationService(
             reservation.CancelledAtUtc = now;
             reservation.UpdatedByStaffUserId = actorStaffUserId;
             reservation.UpdatedAtUtc = now;
-            await dbContext.SaveChangesAsync(cancellationToken);
+            reservation.Version++;
+            var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
+            if (saveConflict is not null)
+            {
+                return saveConflict;
+            }
         }
 
         return ReservationServiceResult<ReservationDto>.Ok(
             (await ProjectAsync([reservation], cancellationToken))[0]);
     }
+
+    private static ReservationServiceResult<ReservationDto>? GuardVersion(
+        ReservationEntity reservation,
+        int expectedVersion) =>
+        reservation.Version == expectedVersion
+            ? null
+            : VersionConflict(reservation.Version);
+
+    private async Task<ReservationServiceResult<ReservationDto>?> SaveMutationAsync(
+        ReservationEntity reservation,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return null;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            dbContext.ChangeTracker.Clear();
+            var currentVersion = await dbContext.Reservations
+                .AsNoTracking()
+                .Where(candidate => candidate.ReservationId == reservation.ReservationId)
+                .Select(candidate => (int?)candidate.Version)
+                .SingleOrDefaultAsync(cancellationToken);
+            return currentVersion is int version
+                ? VersionConflict(version)
+                : ReservationServiceResult<ReservationDto>.Missing("Reservation was not found.");
+        }
+    }
+
+    private static ReservationServiceResult<ReservationDto> VersionConflict(int currentVersion) =>
+        ReservationServiceResult<ReservationDto>.RequestConflict(
+            "Reservation changed since it was loaded.",
+            "version_conflict",
+            currentVersion);
 
     private async Task<string?> ValidateReservationShapeAsync(
         Guid organizationId,

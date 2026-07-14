@@ -6,6 +6,7 @@ export type BookingTone = 'confirmed' | 'online' | 'pending' | 'seated' | 'cance
 export interface BookingItem {
   reservationId: string;
   reservationGroupId: string; // '' = одиночная бронь; общий id связывает блоки одной группы
+  version: number;
   state: string;
   source: string;
   startMs: number;
@@ -105,6 +106,7 @@ export function mapReservationsToItems(
     return {
       reservationId: readString(reservation, 'reservationId'),
       reservationGroupId: readString(reservation, 'reservationGroupId'),
+      version: readNumber(reservation, 'version', 1),
       state,
       source,
       startMs: safeStart,

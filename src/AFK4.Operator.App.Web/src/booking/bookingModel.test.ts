@@ -29,13 +29,14 @@ it('bookingStateLabelKey: каждое известное состояние →
 
 it('mapReservationsToItems: парсит поля и считает endMs из длительности', () => {
   const items = mapReservationsToItems([
-    { reservationId: 'r1', state: 'pending', source: 'online', startsAtUtc: '2026-06-17T14:00:00Z',
+    { reservationId: 'r1', version: 9, state: 'pending', source: 'online', startsAtUtc: '2026-06-17T14:00:00Z',
       durationMinutes: 60, customerName: 'Марат', phoneNumber: '+992', seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A' }
   ], 'Гость');
   expect(items).toHaveLength(1);
   expect(items[0].customerName).toBe('Марат');
   expect(items[0].endMs - items[0].startMs).toBe(60 * 60_000);
   expect(items[0].tone).toBe('online');
+  expect(items[0].version).toBe(9);
 });
 
 it('mapReservationsToItems: читает reservationGroupId (пусто если нет)', () => {

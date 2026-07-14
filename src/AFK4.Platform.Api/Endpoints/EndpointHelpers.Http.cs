@@ -121,7 +121,12 @@ internal static partial class EndpointHelpers
     {
         if (result.Conflict)
         {
-            return Results.Conflict(new { Error = result.Error });
+            return Results.Conflict(new
+            {
+                Error = result.Error,
+                result.Code,
+                result.CurrentVersion
+            });
         }
 
         if (result.NotFound)

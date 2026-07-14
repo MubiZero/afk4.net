@@ -219,6 +219,7 @@ describe('operator API clients', () => {
     };
     const updateRequest = {
       organizationId,
+      expectedVersion: 4,
       seatId,
       customerName: 'Aziz Prime',
       startsAtUtc: '2026-05-21T17:00:00.000Z',
@@ -235,9 +236,9 @@ describe('operator API clients', () => {
     });
     await clients.reservations.create(branchId, createRequest);
     await clients.reservations.update(reservationId, updateRequest);
-    await clients.reservations.confirm(reservationId, { organizationId });
-    await clients.reservations.seat(reservationId, { organizationId });
-    await clients.reservations.cancel(reservationId, { organizationId, reason: 'client called' });
+    await clients.reservations.confirm(reservationId, { organizationId, expectedVersion: 5 });
+    await clients.reservations.seat(reservationId, { organizationId, expectedVersion: 6 });
+    await clients.reservations.cancel(reservationId, { organizationId, reason: 'client called', expectedVersion: 7 });
 
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
       `GET /api/branches/${branchId}/reservations?fromUtc=2026-05-21T00%3A00%3A00.000Z&toUtc=2026-05-21T23%3A59%3A59.999Z&limit=40&state=confirmed`,
@@ -249,7 +250,9 @@ describe('operator API clients', () => {
     ]);
     expect(calls[1].body).toEqual(createRequest);
     expect(calls[2].body).toEqual(updateRequest);
-    expect(calls[5].body).toEqual({ organizationId, reason: 'client called' });
+    expect(calls[3].body).toEqual({ organizationId, expectedVersion: 5 });
+    expect(calls[4].body).toEqual({ organizationId, expectedVersion: 6 });
+    expect(calls[5].body).toEqual({ organizationId, reason: 'client called', expectedVersion: 7 });
   });
 
   it('maps settings, device, diagnostics, updates, and audit clients', async () => {

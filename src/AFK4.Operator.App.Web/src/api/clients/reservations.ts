@@ -41,19 +41,23 @@ export interface ReservationGroupResultDto {
 
 export interface UpdateReservationRequest extends Record<string, unknown> {
   organizationId: Guid;
+  expectedVersion: number;
 }
 
 export interface ConfirmReservationRequest {
   organizationId: Guid;
+  expectedVersion: number;
 }
 
 export interface SeatReservationRequest {
   organizationId: Guid;
+  expectedVersion: number;
 }
 
 export interface CancelReservationRequest {
   organizationId: Guid;
   reason: string;
+  expectedVersion: number;
 }
 
 export function createReservationClient(api: PlatformApiClient) {

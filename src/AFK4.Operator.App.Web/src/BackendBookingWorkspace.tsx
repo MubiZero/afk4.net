@@ -195,6 +195,16 @@ export function BackendBookingWorkspace({
       setReloadVersion((v) => v + 1);
       afterSuccess?.();
     } catch (error) {
+      if (error instanceof PlatformApiError && error.status === 409) {
+        try {
+          const body = JSON.parse(error.body) as { code?: string };
+          if (body.code === 'version_conflict') {
+            setReloadVersion((v) => v + 1);
+          }
+        } catch {
+          // Preserve the normal projected error when a non-standard 409 body cannot be parsed.
+        }
+      }
       setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
@@ -282,15 +292,22 @@ export function BackendBookingWorkspace({
     }
   };
 
-  const confirmReservation = (reservationId: string, label: string) => runReservationAction(label, async (clients) => {
+  const confirmReservation = (item: typeof items[number], label: string) => runReservationAction(label, async (clients) => {
     const nextBackend = requireBackend(backend, t);
-    return await clients.reservations.confirm(reservationId, { organizationId: nextBackend.session.organizationId });
+    return await clients.reservations.confirm(item.reservationId, {
+      organizationId: nextBackend.session.organizationId,
+      expectedVersion: item.version
+    });
   });
 
   const seatReservation = () => runReservationAction(t('op.booking.action.seat'), async (clients) => {
     const nextBackend = requireBackend(backend, t);
     if (!selectedReservationId) throw new Error(t('op.booking.error.selectReservation'));
-    return await clients.reservations.seat(selectedReservationId, { organizationId: nextBackend.session.organizationId });
+    if (!selectedItem) throw new Error(t('op.booking.error.selectReservation'));
+    return await clients.reservations.seat(selectedReservationId, {
+      organizationId: nextBackend.session.organizationId,
+      expectedVersion: selectedItem.version
+    });
   }, () => {
     const item = items.find((i) => i.reservationId === selectedReservationId);
     if (item?.seatId) onOpenSeat(item.seatId);
@@ -299,9 +316,11 @@ export function BackendBookingWorkspace({
   const moveReservation = (targetSeatId: string) => runReservationAction(t('op.booking.action.move'), async (clients) => {
     const nextBackend = requireBackend(backend, t);
     if (!selectedReservationId) throw new Error(t('op.booking.error.selectReservation'));
+    if (!selectedItem) throw new Error(t('op.booking.error.selectReservation'));
     const seat = floorMap.seats.find((s) => s.id === targetSeatId);
     return await clients.reservations.update(selectedReservationId, {
       organizationId: nextBackend.session.organizationId,
+      expectedVersion: selectedItem.version,
       seatId: targetSeatId,
       note: t('op.booking.note.moved', { seat: seat?.name ?? targetSeatId })
     });
@@ -310,9 +329,11 @@ export function BackendBookingWorkspace({
   const cancelReservation = () => runReservationAction(t('op.booking.action.cancel'), async (clients) => {
     const nextBackend = requireBackend(backend, t);
     if (!selectedReservationId) throw new Error(t('op.booking.error.selectReservation'));
+    if (!selectedItem) throw new Error(t('op.booking.error.selectReservation'));
     return await clients.reservations.cancel(selectedReservationId, {
       organizationId: nextBackend.session.organizationId,
-      reason: t('op.booking.note.cancelReason')
+      reason: t('op.booking.note.cancelReason'),
+      expectedVersion: selectedItem.version
     });
   });
 
@@ -325,7 +346,8 @@ export function BackendBookingWorkspace({
     for (const member of members) {
       await clients.reservations.cancel(member.reservationId, {
         organizationId: nextBackend.session.organizationId,
-        reason: t('op.booking.note.cancelReason')
+        reason: t('op.booking.note.cancelReason'),
+        expectedVersion: member.version
       });
     }
   }, () => setDrawerMode(null));
@@ -497,7 +519,7 @@ export function BackendBookingWorkspace({
         busy={reservationBusy}
         canManage={canManageReservations}
         onCreate={openCreateDrawer}
-        onAccept={(item) => confirmReservation(item.reservationId, t('op.booking.requests.acceptLabel', { client: item.customerName }))}
+        onAccept={(item) => confirmReservation(item, t('op.booking.requests.acceptLabel', { client: item.customerName }))}
         onClarify={(item) => openDetailDrawer(item.reservationId)}
       />
 
@@ -548,7 +570,7 @@ export function BackendBookingWorkspace({
             onSeat={seatReservation}
             onMove={moveReservation}
             onCancel={cancelReservation}
-            onConfirm={(item) => confirmReservation(item.reservationId, t('op.booking.requests.acceptLabel', { client: item.customerName }))}
+            onConfirm={(item) => confirmReservation(item, t('op.booking.requests.acceptLabel', { client: item.customerName }))}
             onOpenMap={onOpenSeat}
           />
         )}

@@ -3,10 +3,16 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { I18nProvider } from '@afk4/i18n';
 import type { OperatorFloorMapState } from './floorMapState';
 import type { SeatSummary } from './operatorData';
+import type { OperatorBackendContext } from './operatorTypes';
 import { ToastProvider } from './operatorToast';
 import { BackendBookingWorkspace } from './BackendBookingWorkspace';
 
-afterEach(cleanup);
+const originalFetch = globalThis.fetch;
+
+afterEach(() => {
+  cleanup();
+  globalThis.fetch = originalFetch;
+});
 
 function seat(id: string, name: string): SeatSummary {
   return {
@@ -59,5 +65,94 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
     fireEvent.click(tracks[1], { clientX: 1500, metaKey: true });
     expect(freshDrawer.querySelector('.booking-seat-chip')).toBeNull();
     expect(within(freshDrawer).getByRole('button', { name: 'Создать бронь' })).toBeDisabled();
+  });
+
+  it('sends the selected version and refreshes authoritative reservations without closing details on conflict', async () => {
+    let reservationReads = 0;
+    let confirmBody: Record<string, unknown> | null = null;
+    const startsAtUtc = new Date();
+    startsAtUtc.setHours(16, 0, 0, 0);
+    const reservation = {
+      reservationId: 'reservation-1',
+      reservationGroupId: null,
+      organizationId: 'org-1',
+      branchId: 'branch-1',
+      seatId: 'a',
+      seatName: 'PC-01',
+      zoneName: 'Зал A',
+      customerName: 'Guest stale',
+      phoneNumber: '+992900000001',
+      startsAtUtc: startsAtUtc.toISOString(),
+      durationMinutes: 60,
+      state: 'pending',
+      source: 'online',
+      note: '',
+      version: 7
+    };
+    globalThis.fetch = (async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('/reservations') && init?.method === 'GET') {
+        reservationReads += 1;
+        return new Response(JSON.stringify({ reservations: [reservation], limit: 40 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      if (url.pathname.endsWith('/sessions/timeline')) {
+        return new Response(JSON.stringify({ sessions: [], limit: 40 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      if (url.pathname.endsWith('/reservations/reservation-1/confirm')) {
+        confirmBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        return new Response(JSON.stringify({
+          error: 'Reservation changed since it was loaded.',
+          code: 'version_conflict',
+          currentVersion: 8
+        }), {
+          status: 409,
+          statusText: 'Conflict',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url.pathname}`);
+    }) as typeof fetch;
+    const backend: OperatorBackendContext = {
+      config: {
+        runtime: 'browser-test',
+        shellMode: 'test',
+        platformBaseUrl: 'http://localhost:5074/',
+        currencyCode: 'TJS'
+      },
+      branchId: 'branch-1',
+      session: {
+        staffUserId: 'staff-1',
+        organizationId: 'org-1',
+        displayName: 'Operator',
+        accessToken: 'test-token',
+        accessTokenExpiresAtUtc: '2026-07-15T00:00:00Z',
+        refreshTokenExpiresAtUtc: '2026-07-16T00:00:00Z',
+        branchIds: ['branch-1'],
+        activeBranchId: 'branch-1',
+        permissions: ['reservations.view', 'reservations.manage']
+      }
+    };
+
+    render(
+      <I18nProvider>
+        <ToastProvider>
+          <BackendBookingWorkspace floorMap={floorMap} backend={backend} currencyCode="TJS" onOpenSeat={() => {}} />
+        </ToastProvider>
+      </I18nProvider>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Guest stale' }));
+    const details = await screen.findByRole('dialog', { name: 'Бронь' });
+    fireEvent.click(within(details).getByRole('button', { name: 'Принять' }));
+
+    await waitFor(() => expect(confirmBody).toEqual({ organizationId: 'org-1', expectedVersion: 7 }));
+    await waitFor(() => expect(reservationReads).toBeGreaterThanOrEqual(2));
+    expect(screen.getByRole('dialog', { name: 'Бронь' })).toBeInTheDocument();
   });
 });

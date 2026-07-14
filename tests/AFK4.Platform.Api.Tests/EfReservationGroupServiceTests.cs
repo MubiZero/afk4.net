@@ -93,4 +93,95 @@ public sealed class EfReservationGroupServiceTests
         // All-or-nothing: nothing was written, not even the free SeatA.
         Assert.Equal(0, await db.Reservations.CountAsync());
     }
+
+    [Fact]
+    public async Task ConfirmAsync_WhenTwoContextsLoadedSameVersion_ReturnsAuthoritativeConflictForLoser()
+    {
+        var options = NewOptions();
+        await SeedAsync(options, sessionOnSeatC: false);
+        var reservationId = await SeedPendingReservationAsync(options);
+
+        await using var winnerDb = new PlatformDbContext(options);
+        await using var loserDb = new PlatformDbContext(options);
+        await winnerDb.Reservations.SingleAsync(reservation => reservation.ReservationId == reservationId);
+        await loserDb.Reservations.SingleAsync(reservation => reservation.ReservationId == reservationId);
+        var winner = new EfReservationService(winnerDb, TimeProvider.System);
+        var loser = new EfReservationService(loserDb, TimeProvider.System);
+        var request = new ConfirmReservationRequest(OrgId, ExpectedVersion: 1);
+
+        var won = await winner.ConfirmAsync(reservationId, Actor, request, CancellationToken.None);
+        var lost = await loser.ConfirmAsync(reservationId, Actor, request, CancellationToken.None);
+
+        Assert.True(won.Succeeded);
+        Assert.Equal(2, won.Response!.Version);
+        Assert.True(lost.Conflict);
+        Assert.Equal("version_conflict", lost.Code);
+        Assert.Equal(2, lost.CurrentVersion);
+        await using var verificationDb = new PlatformDbContext(options);
+        var persisted = await verificationDb.Reservations.AsNoTracking()
+            .SingleAsync(reservation => reservation.ReservationId == reservationId);
+        Assert.Equal(ReservationStateNames.Confirmed, persisted.State);
+        Assert.Equal(2, persisted.Version);
+    }
+
+    [Fact]
+    public async Task ConfirmAsync_WhenAlreadyConfirmed_IsIdempotentAtCurrentVersionButRejectsOldVersion()
+    {
+        var options = NewOptions();
+        await SeedAsync(options, sessionOnSeatC: false);
+        var reservationId = await SeedPendingReservationAsync(options);
+        await using var db = new PlatformDbContext(options);
+        var service = new EfReservationService(db, TimeProvider.System);
+
+        var first = await service.ConfirmAsync(
+            reservationId,
+            Actor,
+            new ConfirmReservationRequest(OrgId, ExpectedVersion: 1),
+            CancellationToken.None);
+        var replay = await service.ConfirmAsync(
+            reservationId,
+            Actor,
+            new ConfirmReservationRequest(OrgId, ExpectedVersion: 2),
+            CancellationToken.None);
+        var stale = await service.ConfirmAsync(
+            reservationId,
+            Actor,
+            new ConfirmReservationRequest(OrgId, ExpectedVersion: 1),
+            CancellationToken.None);
+
+        Assert.True(first.Succeeded);
+        Assert.Equal(2, first.Response!.Version);
+        Assert.True(replay.Succeeded);
+        Assert.Equal(2, replay.Response!.Version);
+        Assert.True(stale.Conflict);
+        Assert.Equal("version_conflict", stale.Code);
+        Assert.Equal(2, stale.CurrentVersion);
+    }
+
+    private static async Task<Guid> SeedPendingReservationAsync(DbContextOptions<PlatformDbContext> options)
+    {
+        await using var db = new PlatformDbContext(options);
+        var reservation = new ReservationEntity
+        {
+            ReservationId = Guid.NewGuid(),
+            OrganizationId = OrgId,
+            BranchId = BranchId,
+            SeatId = SeatA,
+            CustomerName = "Concurrent guest",
+            StartsAtUtc = Start,
+            EndsAtUtc = Start.AddHours(1),
+            State = ReservationStateNames.Pending,
+            Source = ReservationSourceNames.Online,
+            Note = string.Empty,
+            CancelReason = string.Empty,
+            CreatedByStaffUserId = Actor,
+            UpdatedByStaffUserId = Actor,
+            CreatedAtUtc = Start.AddHours(-1),
+            UpdatedAtUtc = Start.AddHours(-1),
+            Version = 1
+        };
+        db.Reservations.Add(reservation);
+        await db.SaveChangesAsync();
+        return reservation.ReservationId;
+    }
 }

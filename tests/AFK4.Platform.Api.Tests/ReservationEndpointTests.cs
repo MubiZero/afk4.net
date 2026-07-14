@@ -80,6 +80,7 @@ public sealed class ReservationEndpointTests
         Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
         Assert.NotNull(confirmed);
         Assert.Equal(ReservationStateNames.Confirmed, confirmed.State);
+        Assert.Equal(created.Version + 1, confirmed.Version);
 
         var updateResponse = await client.PatchAsJsonAsync(
             $"/api/reservations/{created.ReservationId}",
@@ -100,6 +101,7 @@ public sealed class ReservationEndpointTests
         Assert.Equal("Aziz Prime", updated.CustomerName);
         Assert.Equal(SeatTwoId, updated.SeatId);
         Assert.Equal(90, updated.DurationMinutes);
+        Assert.Equal(confirmed.Version + 1, updated.Version);
 
         var listResponse = await client.GetAsync(
             $"/api/branches/{TestIds.BranchId}/reservations?fromUtc=2026-05-21T00:00:00Z&toUtc=2026-05-21T23:59:59Z");
@@ -116,6 +118,7 @@ public sealed class ReservationEndpointTests
         Assert.NotNull(cancelled);
         Assert.Equal(ReservationStateNames.Cancelled, cancelled.State);
         Assert.Equal("client left", cancelled.CancelReason);
+        Assert.Equal(updated.Version + 1, cancelled.Version);
 
         var seatCreateResponse = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId}/reservations",
@@ -140,6 +143,7 @@ public sealed class ReservationEndpointTests
         Assert.Equal(HttpStatusCode.OK, seatResponse.StatusCode);
         Assert.NotNull(seated);
         Assert.Equal(ReservationStateNames.Seated, seated.State);
+        Assert.Equal(seatCandidate.Version + 1, seated.Version);
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -149,6 +153,69 @@ public sealed class ReservationEndpointTests
         Assert.Contains(audits, audit => audit.Action == AuditActionNames.UpdateReservation && audit.Outcome == AuditOutcome.Succeeded);
         Assert.Contains(audits, audit => audit.Action == AuditActionNames.SeatReservation && audit.Outcome == AuditOutcome.Succeeded);
         Assert.Contains(audits, audit => audit.Action == AuditActionNames.CancelReservation && audit.Outcome == AuditOutcome.Succeeded);
+    }
+
+    [Theory]
+    [InlineData("update")]
+    [InlineData("confirm")]
+    [InlineData("cancel")]
+    [InlineData("seat")]
+    public async Task ReservationMutation_WithStaleVersion_ReturnsAuthoritativeConflictAndLeavesEntityUnchanged(
+        string mutation)
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await SeedLayoutAsync(factory);
+        var current = await SeedReservationAsync(factory);
+
+        using var response = mutation switch
+        {
+            "update" => await client.PatchAsJsonAsync(
+                $"/api/reservations/{current.ReservationId}",
+                new UpdateReservationRequest(
+                    TestIds.OrganizationId,
+                    PlayerAccountId: null,
+                    SeatTwoId,
+                    CustomerName: "Changed by stale operator",
+                    PhoneNumber: "+992900000099",
+                    StartsAtUtc: BookingDay.AddHours(18),
+                    DurationMinutes: 120,
+                    Source: ReservationSourceNames.Operator,
+                    Note: "stale update",
+                    ExpectedVersion: current.Version - 1)),
+            "confirm" => await client.PostAsJsonAsync(
+                $"/api/reservations/{current.ReservationId}/confirm",
+                new ConfirmReservationRequest(TestIds.OrganizationId, current.Version - 1)),
+            "cancel" => await client.PostAsJsonAsync(
+                $"/api/reservations/{current.ReservationId}/cancel",
+                new CancelReservationRequest(TestIds.OrganizationId, "stale cancellation", current.Version - 1)),
+            "seat" => await client.PostAsJsonAsync(
+                $"/api/reservations/{current.ReservationId}/seat",
+                new SeatReservationRequest(TestIds.OrganizationId, current.Version - 1)),
+            _ => throw new ArgumentOutOfRangeException(nameof(mutation), mutation, null)
+        };
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var conflict = await response.Content.ReadFromJsonAsync<ReservationConflictBody>();
+        Assert.NotNull(conflict);
+        Assert.Equal("version_conflict", conflict.Code);
+        Assert.Equal(current.Version, conflict.CurrentVersion);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var unchanged = await dbContext.Reservations.AsNoTracking()
+            .SingleAsync(reservation => reservation.ReservationId == current.ReservationId);
+        Assert.Equal(current.Version, unchanged.Version);
+        Assert.Equal(current.State, unchanged.State);
+        Assert.Equal(current.SeatId, unchanged.SeatId);
+        Assert.Equal(current.CustomerName, unchanged.CustomerName);
+        Assert.Equal(current.PhoneNumber, unchanged.PhoneNumber);
+        Assert.Equal(current.StartsAtUtc, unchanged.StartsAtUtc);
+        Assert.Equal(current.EndsAtUtc, unchanged.EndsAtUtc);
+        Assert.Equal(current.Note, unchanged.Note);
+        Assert.Null(unchanged.CancelledAtUtc);
+        Assert.Null(unchanged.SeatedAtUtc);
     }
 
     [Fact]
@@ -224,4 +291,35 @@ public sealed class ReservationEndpointTests
             });
         await dbContext.SaveChangesAsync();
     }
+
+    private static async Task<ReservationEntity> SeedReservationAsync(PlatformApiFactory factory)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var reservation = new ReservationEntity
+        {
+            ReservationId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            SeatId = SeatOneId,
+            CustomerName = "Original guest",
+            PhoneNumber = "+992900000001",
+            StartsAtUtc = BookingDay.AddHours(16),
+            EndsAtUtc = BookingDay.AddHours(17),
+            State = ReservationStateNames.Pending,
+            Source = ReservationSourceNames.Online,
+            Note = "original note",
+            CreatedByStaffUserId = TestIds.TechnicianStaffUserId,
+            UpdatedByStaffUserId = TestIds.TechnicianStaffUserId,
+            CreatedAtUtc = BookingDay,
+            UpdatedAtUtc = BookingDay,
+            CancelReason = string.Empty,
+            Version = 1
+        };
+        dbContext.Reservations.Add(reservation);
+        await dbContext.SaveChangesAsync();
+        return reservation;
+    }
+
+    private sealed record ReservationConflictBody(string? Error, string? Code, int? CurrentVersion);
 }
