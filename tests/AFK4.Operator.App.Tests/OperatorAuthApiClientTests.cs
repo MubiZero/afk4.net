@@ -37,6 +37,7 @@ public sealed class OperatorAuthApiClientTests
         Assert.Equal("/api/auth/staff/sign-in", handler.LastPathAndQuery);
         Assert.Equal("access-token", tokenStore.SavedSnapshot?.AccessToken);
         Assert.Equal("refresh-token", tokenStore.SavedSnapshot?.RefreshToken);
+        Assert.Equal(["cashier_operator"], tokenStore.SavedSnapshot?.RoleNames);
         Assert.Contains(StaffPermissionNames.ViewFloorMap, result.Permissions);
 
         var body = DeserializeRequest<StaffSignInRequest>(handler.LastRequestBody);
@@ -95,7 +96,10 @@ public sealed class OperatorAuthApiClientTests
             refreshToken,
             DateTimeOffset.Parse("2026-05-15T10:00:00Z"),
             [BranchId],
-            permissions);
+            permissions)
+        {
+            RoleNames = ["cashier_operator"]
+        };
     }
 
     private static T DeserializeRequest<T>(string? json)

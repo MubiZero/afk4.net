@@ -272,7 +272,8 @@ public sealed class OperatorWebHostBridge(
             response.RefreshTokenExpiresAtUtc,
             response.BranchIds,
             response.BranchIds.FirstOrDefault() == Guid.Empty ? null : response.BranchIds.FirstOrDefault(),
-            response.Permissions);
+            response.Permissions,
+            response.RoleNames);
     }
 
     private static OperatorWebAuthSession CreateSession(OperatorTokenSnapshot snapshot)
@@ -286,7 +287,8 @@ public sealed class OperatorWebHostBridge(
             snapshot.RefreshTokenExpiresAtUtc,
             snapshot.BranchIds,
             snapshot.BranchIds.FirstOrDefault() == Guid.Empty ? null : snapshot.BranchIds.FirstOrDefault(),
-            snapshot.Permissions);
+            snapshot.Permissions,
+            snapshot.RoleNames);
     }
 
     private static string CreateResponse(
@@ -340,7 +342,8 @@ public sealed class OperatorWebHostBridge(
         DateTimeOffset RefreshTokenExpiresAtUtc,
         IReadOnlyList<Guid> BranchIds,
         Guid? ActiveBranchId,
-        IReadOnlyList<string> Permissions);
+        IReadOnlyList<string> Permissions,
+        IReadOnlyList<string> RoleNames);
 
     private sealed record OperatorWebStoredConnectionPayload(
         string? OrganizationId,

@@ -44,6 +44,7 @@ public sealed class OperatorWebHostBridgeTests
         Assert.Equal("access-token", payload.GetProperty("accessToken").GetString());
         Assert.Equal("Cashier One", payload.GetProperty("displayName").GetString());
         Assert.Equal(BranchId.ToString("D"), payload.GetProperty("activeBranchId").GetGuid().ToString("D"));
+        Assert.Equal("cashier_operator", payload.GetProperty("roleNames")[0].GetString());
         Assert.Equal(OrganizationId, authClient.LastOrganizationId);
         Assert.Equal("cashier", authClient.LastUserName);
     }
@@ -63,7 +64,8 @@ public sealed class OperatorWebHostBridgeTests
                 DateTimeOffset.Parse("2026-05-15T10:00:00Z"))
             {
                 BranchIds = [BranchId],
-                Permissions = [StaffPermissionNames.ViewFloorMap]
+                Permissions = [StaffPermissionNames.ViewFloorMap],
+                RoleNames = ["cashier_operator"]
             }
         };
         var bridge = new OperatorWebHostBridge(new RecordingOperatorAuthApiClient(), tokenStore, new RecordingOperatorConnectionStore());
@@ -80,6 +82,7 @@ public sealed class OperatorWebHostBridgeTests
         Assert.Equal("stored-access-token", payload.GetProperty("accessToken").GetString());
         Assert.Equal(BranchId.ToString("D"), payload.GetProperty("activeBranchId").GetGuid().ToString("D"));
         Assert.Equal(StaffPermissionNames.ViewFloorMap, payload.GetProperty("permissions")[0].GetString());
+        Assert.Equal("cashier_operator", payload.GetProperty("roleNames")[0].GetString());
     }
 
     [Fact]
@@ -409,7 +412,10 @@ public sealed class OperatorWebHostBridgeTests
                 refreshToken,
                 DateTimeOffset.Parse("2026-05-15T10:00:00Z"),
                 [BranchId],
-                [StaffPermissionNames.ViewFloorMap]);
+                [StaffPermissionNames.ViewFloorMap])
+            {
+                RoleNames = ["cashier_operator"]
+            };
         }
     }
 

@@ -144,6 +144,7 @@ public sealed class HttpOperatorAuthApiClient(HttpClient httpClient, IOperatorTo
                 response.RefreshToken,
                 response.RefreshTokenExpiresAtUtc)
             {
+                RoleNames = response.RoleNames,
                 BranchIds = response.BranchIds,
                 Permissions = response.Permissions
             },

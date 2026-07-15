@@ -17,7 +17,10 @@ public sealed class OperatorTokenStoreTests
             AccessToken: "access-token",
             AccessTokenExpiresAtUtc: DateTimeOffset.Parse("2026-05-12T01:00:00Z"),
             RefreshToken: "refresh-token",
-            RefreshTokenExpiresAtUtc: DateTimeOffset.Parse("2026-06-11T01:00:00Z"));
+            RefreshTokenExpiresAtUtc: DateTimeOffset.Parse("2026-06-11T01:00:00Z"))
+        {
+            RoleNames = ["cashier_operator"]
+        };
 
         try
         {
@@ -36,6 +39,7 @@ public sealed class OperatorTokenStoreTests
             Assert.Equal(snapshot.RefreshTokenExpiresAtUtc, loaded.RefreshTokenExpiresAtUtc);
             Assert.Equal(snapshot.BranchIds, loaded.BranchIds);
             Assert.Equal(snapshot.Permissions, loaded.Permissions);
+            Assert.Equal(snapshot.RoleNames, loaded.RoleNames);
             Assert.False(ContainsSequence(protectedBytes, Encoding.UTF8.GetBytes(snapshot.AccessToken)));
             Assert.False(ContainsSequence(protectedBytes, Encoding.UTF8.GetBytes(snapshot.RefreshToken)));
 

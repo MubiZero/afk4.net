@@ -21,7 +21,7 @@ public sealed class OperatorWebBootstrapScriptTests
             "vite-dist",
             @"C:\afk4\dist");
 
-        var script = OperatorWebBootstrapScript.Create(appOptions, launchTarget);
+        var script = OperatorWebBootstrapScript.Create(appOptions, launchTarget, "2.45.1");
 
         Assert.StartsWith("window.__AFK4_OPERATOR_CONFIG__ = ", script, StringComparison.Ordinal);
         using var document = JsonDocument.Parse(script["window.__AFK4_OPERATOR_CONFIG__ = ".Length..].TrimEnd(';'));
@@ -30,6 +30,7 @@ public sealed class OperatorWebBootstrapScriptTests
         Assert.Equal("vite-dist", root.GetProperty("shellMode").GetString());
         Assert.Equal("https://afk4.staging.mubi.dev/", root.GetProperty("platformBaseUrl").GetString());
         Assert.Equal("USD", root.GetProperty("currencyCode").GetString());
+        Assert.Equal("2.45.1", root.GetProperty("appVersion").GetString());
         Assert.Equal("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", root.GetProperty("organizationId").GetString());
         Assert.Equal("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", root.GetProperty("branchId").GetString());
     }
