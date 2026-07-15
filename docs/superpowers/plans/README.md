@@ -3,6 +3,9 @@
 Implementation plans for completed work are archived once their work lands on
 `main`. The active plans are:
 
+- `2026-07-15-operator-cash-terminal-redesign.md` — approved TDD implementation
+  plan for the Operator App shift, cash-operation, receipt, approvals, and audit
+  terminal redesign; ready to execute.
 - `2026-06-11-installer-shared-runtime-workstream-a.md` — shared-runtime client
   installer workstream; blocked on the production signing/certificate decision.
 
