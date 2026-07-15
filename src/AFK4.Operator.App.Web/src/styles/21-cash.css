@@ -64,6 +64,92 @@
 .cash-tab:hover { color: var(--text-primary); }
 .cash-tab.active { color: var(--accent-bright); border-bottom-color: var(--accent); }
 .cash-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Общий каркас плотного кассового терминала: метрики → реестр → стабильный инспектор. */
+.cash-terminal-metrics {
+  display: grid;
+  grid-template-columns: repeat(var(--cash-metric-count, 4), minmax(0, 1fr));
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+}
+.cash-terminal-metric {
+  min-width: 0;
+  padding: 10px var(--space-3);
+  border-left: 1px solid var(--border-soft);
+}
+.cash-terminal-metric:first-child { border-left: 0; }
+.cash-terminal-metric > span,
+.cash-terminal-metric > small {
+  display: block;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cash-terminal-metric > span { font-weight: 700; letter-spacing: 0.055em; text-transform: uppercase; }
+.cash-terminal-metric > strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  line-height: 1.15;
+}
+.cash-terminal-metric.tone-positive > strong { color: var(--accent-text); }
+.cash-terminal-metric.tone-attention > strong { color: var(--warning, #d9a441); }
+.cash-terminal-metric.tone-danger > strong { color: var(--danger); }
+
+.cash-terminal-split {
+  display: grid;
+  grid-template-columns: minmax(0, 64fr) minmax(300px, 36fr);
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+}
+.cash-terminal-register { min-width: 0; min-height: 0; overflow: auto; }
+.cash-terminal-inspector {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  border-left: 1px solid var(--border-soft);
+  background: var(--surface-sunken);
+}
+.cash-inspector-close {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-sm);
+  height: var(--control-sm);
+  padding: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+}
+.cash-register-rows { min-width: 0; }
+.cash-register-row {
+  min-height: 44px;
+  border-top: 1px solid var(--border-soft);
+  background: transparent;
+  cursor: pointer;
+  transform: none;
+  transition: background-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+.cash-register-row:first-child { border-top: 0; }
+.cash-register-row:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.cash-register-row[aria-selected='true'] { background: color-mix(in srgb, var(--accent) 10%, transparent); box-shadow: inset 3px 0 0 var(--accent); }
+.cash-register-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
 /* Вертикальная цепочка высот раздела: оболочка даёт .cash-screen ограниченную высоту
    (flex:1), дальше — флексом, без магических calc. Так встроенный POS и его нижние панели
    («Последние чеки» / «Быстрые операции») не уезжают под нижний край вьюпорта. */
