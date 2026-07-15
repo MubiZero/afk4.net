@@ -92,6 +92,12 @@ to Coolify staging:
   sequential `POS-...-0001/0002/0003` receipts for the mixed sale and session checkouts;
   the final fresh prepaid session produced exactly one `gameplay_charge=-300`, no
   checkout payment/debt entries, and a zero checkout quote.
+- **Operator post-auth shift gate** — staff with `shifts.open` now remain on an
+  authoritative, non-dismissible shift-opening screen after interactive sign-in or
+  native session restore until an existing shift is confirmed or a new shift is
+  opened. The floor map, workspaces, preloading, and realtime stay inactive while
+  gated; staff without that permission continue directly, and permanently
+  unauthorized rail sections are hidden instead of shown as disabled controls.
 
 Plus the earlier base: identity/tenancy/RBAC/audit, devices/floor-map, owner-code
 enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
@@ -106,7 +112,7 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   on PostgreSQL 17.10, including deterministic settlement/refund, inventory/
   currency, reservation-start, rollback, and cross-command concurrency tests.
   The full solution build passed with 0 warnings and 0 errors.
-- Operator Web passed 735 tests across the component/model and App integration runs;
+- Operator Web passed 753 tests across the component/model and App integration runs;
   the generated ru/en/tg catalog check passed 23/23 and the production build
   completed. Existing React test diagnostics, SignalR annotation warnings, and
   the large-chunk warning remain non-failing.

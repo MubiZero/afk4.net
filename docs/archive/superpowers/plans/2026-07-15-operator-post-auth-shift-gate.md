@@ -31,7 +31,7 @@
 - Consumes: `canOpenWorkspace(session, workspaceId): boolean` and `navSections`.
 - Produces: `WorkspaceRail` renders only sections containing at least one permitted workspace.
 
-- [ ] **Step 1: Write the failing navigation tests**
+- [x] **Step 1: Write the failing navigation tests**
 
 Create a localized component test that renders `WorkspaceRail` inside `I18nProvider` with a minimal session. Assert that a floor-map-only employee sees the floor section and does not see Cash, Reports, or Management; assert that a session with one management permission still sees Management.
 
@@ -50,13 +50,13 @@ it('keeps a section when one nested workspace is permitted', () => {
 });
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run: `bun test src/WorkspaceRail.test.tsx`
 
 Expected: the first test fails because locked sections are still rendered.
 
-- [ ] **Step 3: Filter the rail before mapping**
+- [x] **Step 3: Filter the rail before mapping**
 
 Derive visible sections once during render and remove locked-button rendering:
 
@@ -85,13 +85,13 @@ return (
     })}
 ```
 
-- [ ] **Step 4: Run GREEN**
+- [x] **Step 4: Run GREEN**
 
 Run: `bun test src/WorkspaceRail.test.tsx`
 
 Expected: 2 passed, 0 failed.
 
-- [ ] **Step 5: Commit the navigation unit**
+- [x] **Step 5: Commit the navigation unit**
 
 ```bash
 git add src/AFK4.Operator.App.Web/src/WorkspaceRail.tsx \
@@ -128,7 +128,7 @@ export interface PostAuthShiftClient {
 }
 ```
 
-- [ ] **Step 1: Write failing controller tests**
+- [x] **Step 1: Write failing controller tests**
 
 Use `renderHook`, deferred promises, and an injected `PostAuthShiftClient`. Cover these exact behaviors:
 
@@ -163,13 +163,13 @@ it('opens idempotently and reconciles a concurrent open', async () => {
 });
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run: `bun test src/usePostAuthShiftGate.test.tsx`
 
 Expected: FAIL because `usePostAuthShiftGate` does not exist.
 
-- [ ] **Step 3: Implement the minimal state machine**
+- [x] **Step 3: Implement the minimal state machine**
 
 Use a request key based on `staffUserId` and `branchId`; expose `checking`
 synchronously whenever the eligible key differs from the last resolved key.
@@ -196,7 +196,7 @@ The default client is created only inside active check/open paths; tests inject
 the narrow client interface. `retry()` is a stable callback. An invalidated
 request must never update status or error.
 
-- [ ] **Step 4: Run GREEN and type-check the unit**
+- [x] **Step 4: Run GREEN and type-check the unit**
 
 Run:
 
@@ -207,7 +207,7 @@ bunx tsc -b --pretty false
 
 Expected: controller tests pass and TypeScript reports no errors.
 
-- [ ] **Step 5: Commit the controller**
+- [x] **Step 5: Commit the controller**
 
 ```bash
 git add src/AFK4.Operator.App.Web/src/usePostAuthShiftGate.ts \
@@ -238,7 +238,7 @@ export function PostAuthShiftGate(props: {
 }): JSX.Element;
 ```
 
-- [ ] **Step 1: Write failing presentation tests**
+- [x] **Step 1: Write failing presentation tests**
 
 Cover loading, required form, invalid negative cash, pending duplicate-submit
 protection, failed check retry, and sign-out. The required-state assertion is:
@@ -255,13 +255,13 @@ expect(openShift).toHaveBeenCalledWith(expect.objectContaining({
 }));
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run: `bun test src/PostAuthShiftGate.test.tsx`
 
 Expected: FAIL because the component does not exist.
 
-- [ ] **Step 3: Implement the screen and localized copy**
+- [x] **Step 3: Implement the screen and localized copy**
 
 Render inside `AuthFrame` and reuse existing auth panel/form primitives. Add
 Russian, English, and Tajik values for these keys:
@@ -279,7 +279,7 @@ form values across open failures, disable fields for `opening`, and show
 `controller.error` in `role="alert"`. The component has no close handler and no
 document-level Escape listener.
 
-- [ ] **Step 4: Run GREEN and the i18n tests**
+- [x] **Step 4: Run GREEN and the i18n tests**
 
 Run:
 
@@ -290,7 +290,7 @@ bun test ../../packages/i18n/src/messages.test.ts
 
 Expected: all focused tests pass with no missing-key failures.
 
-- [ ] **Step 5: Commit the screen**
+- [x] **Step 5: Commit the screen**
 
 ```bash
 git add src/AFK4.Operator.App.Web/src/PostAuthShiftGate.tsx \
@@ -312,7 +312,7 @@ git commit -m "feat(operator): require shift opening after auth"
 - Consumes: `usePostAuthShiftGate`, `PostAuthShiftGate`, `handleSignOut`, `backendContext`.
 - Produces: normal Operator shell mounts only for `ready` or `not-required`.
 
-- [ ] **Step 1: Write failing App integration tests**
+- [x] **Step 1: Write failing App integration tests**
 
 Add tests for both native restore and interactive sign-in with `/shifts/current`
 returning a 404/empty optional response. Assert the required heading is visible,
@@ -333,7 +333,7 @@ expect(await screen.findByRole('navigation', { name: 'Рабочие места'
 expect(await screen.findByLabelText('ПК зала')).toBeInTheDocument();
 ```
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run only the new named tests:
 
@@ -343,7 +343,7 @@ bun test src/App.test.tsx --test-name-pattern "requires an open shift|skips the 
 
 Expected: the app renders the floor map before the required form exists.
 
-- [ ] **Step 3: Wire the gate before operational data flows**
+- [x] **Step 3: Wire the gate before operational data flows**
 
 Call `usePostAuthShiftGate` after `backendContext` is derived. Compute:
 
@@ -374,7 +374,7 @@ This preserves hook order, prevents operational fetch/realtime startup during
 the gate, and avoids a one-frame shell flash because eligible unresolved keys
 expose `checking` synchronously.
 
-- [ ] **Step 4: Run GREEN and regression tests**
+- [x] **Step 4: Run GREEN and regression tests**
 
 Run:
 
@@ -385,7 +385,7 @@ bun test src/App.test.tsx
 
 Expected: new tests pass, then all App tests pass.
 
-- [ ] **Step 5: Commit root integration**
+- [x] **Step 5: Commit root integration**
 
 ```bash
 git add src/AFK4.Operator.App.Web/src/App.tsx \
@@ -405,7 +405,7 @@ git commit -m "feat(operator): gate workspaces on shift readiness"
 - Consumes: all prior task outputs.
 - Produces: verified implementation state and an archived/completed plan at publication time.
 
-- [ ] **Step 1: Run the complete Operator Web verification**
+- [x] **Step 1: Run the complete Operator Web verification**
 
 Run:
 
@@ -418,7 +418,7 @@ bun run build
 
 Expected: all tests pass and Vite production build completes.
 
-- [ ] **Step 2: Run repository hygiene checks**
+- [x] **Step 2: Run repository hygiene checks**
 
 Run from the repository root:
 
@@ -430,13 +430,13 @@ git diff --stat origin/main...HEAD
 
 Expected: no whitespace errors and only intended feature/docs files differ.
 
-- [ ] **Step 3: Update durable progress**
+- [x] **Step 3: Update durable progress**
 
 Record the permission-based post-auth gate, hidden unauthorized rail sections,
 fresh test count, production build, and any known environment limitation in the
 compact current-state section. Do not copy full logs into progress.
 
-- [ ] **Step 4: Mark the plan complete and commit docs**
+- [x] **Step 4: Mark the plan complete and commit docs**
 
 Check every completed step, move the plan to
 `docs/archive/superpowers/plans/2026-07-15-operator-post-auth-shift-gate.md`, then run:
@@ -448,7 +448,7 @@ git diff --cached --check
 git commit -m "docs(operator): record post-auth shift gate"
 ```
 
-- [ ] **Step 5: Self-review and publication gate**
+- [x] **Step 5: Self-review and publication gate**
 
 Inspect `git diff origin/main...HEAD`, confirm no role-name authorization was
 introduced, confirm all required actions remain backend-confirmed, and use the
