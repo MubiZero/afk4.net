@@ -232,7 +232,11 @@ Success criteria:
 3. Backend resolves the tenant and branch and then authenticates the staff user.
 4. Operator App stores only approved connection/session state in protected
    Windows storage.
-5. Operator lands on the branch floor map after authorization succeeds.
+5. After authorization succeeds, staff with `shifts.open` must pass the
+   authoritative open-shift check before reaching the branch workspace. If no
+   shift is open, the Operator App requires them to open one or sign out.
+   Staff without `shifts.open`, and staff entering a branch that already has an
+   open shift, continue to their first permitted workspace without this gate.
 
 Success criteria:
 
@@ -261,7 +265,9 @@ Success criteria:
 
 1. Operator signs in to the native Operator App.
 2. Backend resolves organization, branch, role, and permissions.
-3. Operator opens a shift with starting cash amount.
+3. If the operator has `shifts.open`, the app checks the authoritative current
+   shift immediately after sign-in or native session restore. When no shift is
+   open, the operator must open one with a starting cash amount or sign out.
 4. System records shift open event and audit trail.
 5. Operator lands on the floor map and can begin normal work.
 
