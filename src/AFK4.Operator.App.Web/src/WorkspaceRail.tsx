@@ -25,18 +25,20 @@ export function WorkspaceRail({
   onSignOut: () => void;
 }) {
   const { t } = useI18n();
+  const visibleSections = navSections.filter((section) =>
+    section.items.some((item) => canOpenWorkspace(session, item.id))
+  );
+
   return (
     <nav className="workspace-rail" aria-label={t('op.shell.workspaces')}>
-      {navSections.map((section) => {
+      {visibleSections.map((section) => {
         const Icon = section.icon;
-        const isAllowed = section.items.some((item) => canOpenWorkspace(session, item.id));
         const label = t(section.labelKey);
         return (
           <button
             key={section.key}
             type="button"
-            className={[section.key === activeSectionKey ? 'active' : '', !isAllowed ? 'locked' : ''].filter(Boolean).join(' ')}
-            aria-disabled={!isAllowed}
+            className={section.key === activeSectionKey ? 'active' : ''}
             title={label}
             onClick={() => onNavigateSection(section)}
           >
