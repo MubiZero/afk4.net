@@ -6,6 +6,9 @@ The active architecture source of truth is:
 
 Approved backlog specs:
 
+- `2026-07-15-operator-system-status-footer-design.md` — approved authoritative
+  Operator footer with staff roles, active club, realtime/backend state,
+  installed host version, and local time; pending implementation planning.
 - `2026-06-11-productionize-client-installer-design.md` — shared bundled .NET
   runtime (framework-dependent apps + WiX Burn bundle) to cut the ~160 MB agent
   MSI, channel-driven prod URL, and code signing (blocked on a cert). Includes a
