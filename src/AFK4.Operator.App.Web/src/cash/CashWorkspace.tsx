@@ -34,18 +34,18 @@ export function CashWorkspace({
 
   return (
     <main className="workspace-screen cash-screen">
-      <CashShiftHeader
+      {activeTab !== 'shift' && <CashShiftHeader
         backend={backend}
         currencyCode={currencyCode}
         session={session}
         shiftNonce={shiftNonce}
         onShiftChanged={() => setShiftNonce((n) => n + 1)}
-      />
+      />}
       <CashTabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} label={t('op.shell.navGroup.cashier')} />
       <div className="cash-tab-content">
         {activeTab === 'sales' && <CashSalesWorkspace backend={backend} currencyCode={currencyCode} session={session} />}
         {activeTab === 'shift' && backend !== null && (
-          <CashShiftWorkspace backend={backend} branchId={backend.branchId} currencyCode={currencyCode} shiftNonce={shiftNonce} />
+          <CashShiftWorkspace backend={backend} branchId={backend.branchId} currencyCode={currencyCode} session={session} shiftNonce={shiftNonce} onShiftChanged={() => setShiftNonce((n) => n + 1)} />
         )}
         {activeTab === 'journal' && <CashJournalWorkspace backend={backend} currencyCode={currencyCode} session={session} />}
       </div>

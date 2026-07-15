@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-07-14
+Last updated: 2026-07-15
 
 ## Purpose
 
@@ -98,6 +98,14 @@ to Coolify staging:
   opened. The floor map, workspaces, preloading, and realtime stay inactive while
   gated; staff without that permission continue directly, and permanently
   unauthorized rail sections are hidden instead of shown as disabled controls.
+- **Operator cash terminal redesign** — `Смена`, cash operations, receipts,
+  approvals, and audit now share a dense register/inspector grammar with stable
+  selectable rows, permission-derived navigation, responsive inspectors, and
+  backend-confirmed money actions. The shift screen follows an operational
+  command-center hierarchy: status, prominent drawer reconciliation, revenue,
+  readable cash movements, past shifts, compact exports, and a quieter two-sided
+  shell footer. Receipt-only staff retain direct journal access, and dark/light
+  rendered QA covers 1920, 1440, 1280, and the narrow stacked state.
 
 Plus the earlier base: identity/tenancy/RBAC/audit, devices/floor-map, owner-code
 enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
@@ -112,10 +120,13 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   on PostgreSQL 17.10, including deterministic settlement/refund, inventory/
   currency, reservation-start, rollback, and cross-command concurrency tests.
   The full solution build passed with 0 warnings and 0 errors.
-- Operator Web passed 753 tests across the component/model and App integration runs;
+- Operator Web passed 787 tests across the component/model and App integration runs;
   the generated ru/en/tg catalog check passed 23/23 and the production build
-  completed. Existing React test diagnostics, SignalR annotation warnings, and
-  the large-chunk warning remain non-failing.
+  completed. Rendered cash-terminal QA passed in dark and light themes at 1920,
+  1440, 1280, and 1100 widths with no browser console errors; the selected shift
+  design comparison is recorded in `design-qa.md`. Existing React test diagnostics,
+  test-harness `ECONNREFUSED`, SignalR annotation warnings, and the large-chunk
+  warning remain non-failing.
 - Platform Web passed 381/381 Bun tests and its production build; its existing
   large-chunk warning remains.
 - Player Shell Web passed 51/51 Bun tests and its production build.

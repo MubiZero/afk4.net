@@ -6,7 +6,7 @@
   min-width: 960px;
   min-height: 600px;
   grid-template-columns: 74px minmax(0, 1fr) var(--shell-context-col, minmax(260px, 292px));
-  grid-template-rows: 46px minmax(0, 1fr) 26px;
+  grid-template-rows: 46px minmax(0, 1fr) 30px;
   background: var(--surface-canvas);
   /* Высота тулбара карты (.map-header) — единый источник: по ней же правый context-zone опускает
      карточку вровень с доской зала. Меняешь шапку — правь это число, отступ панели едет сам. */

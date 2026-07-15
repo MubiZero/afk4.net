@@ -46,4 +46,11 @@ describe('CashTerminalSplit', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Закрыть детали' }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('closes an open inspector with Escape', () => {
+    const onClose = mock(() => {});
+    render(<CashTerminalSplit register={<div>Register</div>} inspector={<div>Detail</div>} inspectorOpen closeLabel="Close" onCloseInspector={onClose} />);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

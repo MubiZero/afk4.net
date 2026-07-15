@@ -1,5 +1,7 @@
 # Operator Cash Terminal Redesign Implementation Plan
 
+**Status:** Implemented and verified on `feat/operator-cash-terminal-redesign` on 2026-07-15. The archived checklist below preserves the execution recipe; final evidence is summarized in `docs/progress/2026-05-12-vertical-slice-progress.md` and `design-qa.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Rebuild the Operator App shift, cash-operation, receipt, approval, and audit surfaces as a cohesive dense cash terminal with stable master-detail workflows.

@@ -71,7 +71,10 @@ export const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = 
     permissionNames.voidPosSale,
     permissionNames.viewShift,
     permissionNames.openShift,
+    permissionNames.closeShift,
+    permissionNames.manageShiftCash,
     permissionNames.viewReports,
+    permissionNames.viewReceipt,
     permissionNames.approveMoneyAction
   ],
   players: [
@@ -105,7 +108,7 @@ export const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = 
 };
 
 export function hasPermission(session: OperatorAuthSession | null, permission: string) {
-  return session?.permissions.some((candidate) => candidate.toLowerCase() === permission.toLowerCase()) ?? false;
+  return session?.permissions?.some((candidate) => candidate.toLowerCase() === permission.toLowerCase()) ?? false;
 }
 
 export function hasAllPermissions(session: OperatorAuthSession | null, permissions: readonly string[]) {

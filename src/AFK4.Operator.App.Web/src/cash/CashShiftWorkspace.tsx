@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { ReceiptText, Banknote, ArrowRightLeft } from 'lucide-react';
+import { ArrowRightLeft, Banknote, ChevronRight, Clock3, MoreHorizontal, ReceiptText } from 'lucide-react';
 import {
   cashOperationTypeLabel,
   createAuthenticatedOperatorClients,
@@ -13,32 +13,56 @@ import {
 import { projectOperatorError } from '../apiErrors';
 import { Money } from '../operatorPrimitives';
 import type { OperatorBackendContext } from '../operatorTypes';
+import type { OperatorAuthSession } from '../authClient';
 import type { ShiftRevenueDto } from '../operatorApiClients';
-import { CashMetricStrip, CashRegisterRows, CashTerminalSplit } from './CashTerminalFrame';
+import { CashRegisterRows } from './CashTerminalFrame';
+import { CashShiftCommandBar } from './CashShiftCommandBar';
 
 interface ShiftCockpitClient {
   current(branchId: string): Promise<ShiftRevenueDto | null>;
   history(branchId: string, limit?: number): Promise<{ shifts: ShiftRevenueDto[]; limit: number }>;
 }
+
 interface ShiftCockpitReports {
   getCashOperationReport(branchId: string, query?: { limit?: number }): Promise<Record<string, unknown>>;
 }
 
-// Вкладка «Смена»: кокпит кассира — выручка + сверка из shiftRevenue, последние движения наличных,
-// CSV-экспорты, история. Действия (открыть/закрыть/внести/изъять) — в шапке-якоре, не здесь.
-// Полная поисковая лента операций + сетка методов отложены в S2 «Журнал кассы».
+function formatElapsed(openedAtUtc: string): string {
+  const openedAt = Date.parse(openedAtUtc);
+  if (!Number.isFinite(openedAt)) return '—';
+  const totalMinutes = Math.max(0, Math.floor((Date.now() - openedAt) / 60_000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return hours > 0 ? `${hours} ч ${minutes} мин` : `${minutes} мин`;
+}
+
+function formatOpenedAt(openedAtUtc: string, todayLabel: string): string {
+  const opened = new Date(openedAtUtc);
+  if (Number.isNaN(opened.getTime())) return '—';
+  const now = new Date();
+  const sameDay = opened.getFullYear() === now.getFullYear()
+    && opened.getMonth() === now.getMonth()
+    && opened.getDate() === now.getDate();
+  const time = opened.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  return sameDay ? `${todayLabel}, ${time}` : `${opened.toLocaleDateString('ru-RU')}, ${time}`;
+}
+
 export function CashShiftWorkspace({
   backend,
   branchId,
   currencyCode,
+  session = backend?.session ?? null,
   shiftNonce = 0,
+  onShiftChanged = () => {},
   revenueClient: injectedRevenue,
   reports: injectedReports
 }: {
   backend: OperatorBackendContext | null;
   branchId: string;
   currencyCode: string;
+  session?: OperatorAuthSession | null;
   shiftNonce?: number;
+  onShiftChanged?: () => void;
   revenueClient?: ShiftCockpitClient;
   reports?: ShiftCockpitReports;
 }) {
@@ -67,12 +91,12 @@ export function CashShiftWorkspace({
     Promise.all([
       revenueClient.current(branchId),
       revenueClient.history(branchId, 20),
-      reports.getCashOperationReport(branchId, { limit: 6 })
+      reports.getCashOperationReport(branchId, { limit: 8 })
     ])
       .then(([cur, hist, cash]) => {
         if (!active) return;
         setCurrent(cur);
-        setHistory(hist.shifts.filter((s) => s.state === 'closed'));
+        setHistory(hist.shifts.filter((shift) => shift.state === 'closed'));
         setCashRows(readArray<Record<string, unknown>>(cash, 'rows'));
       })
       .catch((error) => { if (active) setLoadError(projectOperatorError(error, t).detail); })
@@ -83,7 +107,6 @@ export function CashShiftWorkspace({
   const exportCsv = async (kind: 'shifts' | 'cash' | 'sales') => {
     if (backend === null) return;
     try {
-      // Клиент строится lazy, только при клике — не на рендере.
       const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
       if (kind === 'shifts') {
@@ -99,107 +122,102 @@ export function CashShiftWorkspace({
     }
   };
 
-  if (loading) {
-    return <main className="workspace-screen cash-shift-screen"><p className="workspace-loading">{t('op.shifts.loading')}</p></main>;
-  }
-  if (loadError) {
-    return (
-      <main className="workspace-screen cash-shift-screen">
-        <p className="workspace-error" role="alert">{loadError}</p>
-      </main>
-    );
-  }
+  if (loading) return <main className="workspace-screen cash-shift-screen"><p className="workspace-loading">{t('op.shifts.loading')}</p></main>;
+  if (loadError) return <main className="workspace-screen cash-shift-screen"><p className="workspace-error" role="alert">{loadError}</p></main>;
 
   const selectedShift = history.find((shift) => shift.shiftId === selectedShiftId)
     ?? (current === null ? history[0] : null);
-  const metricShift = current ?? selectedShift;
-  const revenueMaximum = metricShift
-    ? Math.max(metricShift.earned.time.minorUnits, metricShift.earned.goods.minorUnits, 1)
-    : 1;
+  const operatorName = backend?.session.displayName?.trim() || t('op.cash.shift.operatorFallback');
+  const movementTotal = cashRows.reduce((total, row) => total + (readMoney(row, 'cashImpact')?.minorUnits ?? 0), 0);
+  const earnedTotal = current?.earned.total.minorUnits ?? 0;
+  const percent = (value: number) => earnedTotal > 0 ? Math.round(value / earnedTotal * 100) : 0;
 
-  const shiftInspector = selectedShift ? (
-    <div className="cash-shift-inspector-content">
-      <p className="cash-shift-inspector-kicker">{current === null ? t('op.cash.shift.lastClosed') : t('op.cash.shift.selectedClosed')}</p>
-      <h2>{new Date(selectedShift.openedAtUtc).toLocaleDateString('ru-RU')}</h2>
-      <div className="cash-shift-rows">
-        <div className="cash-shift-row"><span>{t('op.shifts.earned')}</span><strong><Money minorUnits={selectedShift.earned.total.minorUnits} currencyCode={currencyCode} /></strong></div>
-        <div className="cash-shift-row"><span>{t('op.cash.shift.expected')}</span><strong><Money minorUnits={selectedShift.cash.expected.minorUnits} currencyCode={currencyCode} /></strong></div>
-        <div className="cash-shift-row"><span>{t('op.cash.shift.counted')}</span><strong>{selectedShift.cash.counted ? <Money minorUnits={selectedShift.cash.counted.minorUnits} currencyCode={currencyCode} /> : '—'}</strong></div>
-        <div className={`cash-shift-row ${selectedShift.cash.difference?.minorUnits ? 'attention' : ''}`}><span>{t('op.cash.shift.difference')}</span><strong>{selectedShift.cash.difference ? <Money minorUnits={selectedShift.cash.difference.minorUnits} currencyCode={currencyCode} /> : '—'}</strong></div>
-      </div>
-    </div>
-  ) : (
-    <div className="cash-shift-inspector-content cash-shift-inspector-content--quiet">
-      <p className="cash-shift-inspector-kicker">{t('op.cash.shift.exportTitle')}</p>
-      <h2>{t('op.cash.shift.exportHint')}</h2>
-      <div className="cash-shift-exports">
+  const exportMenu = (
+    <details className="cash-shift-export-menu">
+      <summary aria-label={t('op.cash.shift.exportTitle')}><MoreHorizontal size={18} aria-hidden="true" /><span>{t('op.cash.shift.exportTitle')}</span></summary>
+      <div className="cash-shift-export-popover">
         <button type="button" onClick={() => void exportCsv('shifts')}><ReceiptText size={15} aria-hidden="true" />{t('op.cash.shift.exportShiftSummary')}</button>
         <button type="button" onClick={() => void exportCsv('cash')}><Banknote size={15} aria-hidden="true" />{t('op.cash.shift.exportCashMovements')}</button>
         <button type="button" onClick={() => void exportCsv('sales')}><ArrowRightLeft size={15} aria-hidden="true" />{t('op.cash.shift.exportReceipts')}</button>
+        {exportError && <p className="cash-export-error" role="alert">{exportError}</p>}
       </div>
-      {exportError && <p className="cash-export-error" role="alert">{exportError}</p>}
-    </div>
+    </details>
   );
 
   return (
     <main className="workspace-screen cash-shift-screen">
-      {metricShift ? <CashMetricStrip ariaLabel={t('op.cash.shift.metricsAria')} items={[
-        { label: t('op.shifts.earned'), value: <Money minorUnits={metricShift.earned.total.minorUnits} currencyCode={currencyCode} />, tone: 'positive' },
-        { label: t('op.shifts.cash'), value: <Money minorUnits={metricShift.inflow.cash.minorUnits} currencyCode={currencyCode} /> },
-        { label: t('op.cash.shift.expectedMetric'), value: <Money minorUnits={metricShift.cash.expected.minorUnits} currencyCode={currencyCode} /> },
-        { label: t('op.cash.shift.difference'), value: metricShift.cash.difference ? <Money minorUnits={metricShift.cash.difference.minorUnits} currencyCode={currencyCode} /> : t('op.cash.shift.notClosed'), tone: metricShift.cash.difference?.minorUnits ? 'danger' : 'default' }
-      ]} /> : null}
-
-      <CashTerminalSplit
-        inspector={shiftInspector}
-        inspectorOpen={selectedShift !== null}
-        closeLabel={t('common.close')}
-        onCloseInspector={() => setSelectedShiftId('')}
-        register={<div className="cash-shift-register">
-          {current ? <div className="cash-shift-primary-grid">
-            <section className="cash-shift-panel">
-              <div className="cash-shift-section-head"><h2>{t('op.cash.shift.revenueTitle')}</h2><strong><Money minorUnits={current.earned.total.minorUnits} currencyCode={currencyCode} /></strong></div>
-              {[{ label: t('op.shifts.time'), amount: current.earned.time.minorUnits }, { label: t('op.shifts.goods'), amount: current.earned.goods.minorUnits }].map((part) => (
-                <div className="cash-shift-revenue-row" key={part.label}><span>{part.label}</span><i><b style={{ width: `${Math.max(4, part.amount / revenueMaximum * 100)}%` }} /></i><strong><Money minorUnits={part.amount} currencyCode={currencyCode} /></strong></div>
-              ))}
-              <div className="cash-shift-methods">
-                <span>{t('op.shifts.cash')} <b><Money minorUnits={current.inflow.cash.minorUnits} currencyCode={currencyCode} /></b></span>
-                <span>{t('op.shifts.nonCash')} <b><Money minorUnits={current.inflow.nonCash.minorUnits} currencyCode={currencyCode} /></b></span>
-                <span>{t('op.shifts.walletTopUps')} <b><Money minorUnits={current.inflow.walletTopUps.minorUnits} currencyCode={currencyCode} /></b></span>
-              </div>
-            </section>
-            <section className="cash-shift-panel cash-shift-reconcile">
-              <div className="cash-shift-section-head"><h2>{t('op.cash.shift.reconcileTitle')}</h2><strong className="muted">{t('op.cash.shift.notClosed')}</strong></div>
-              <p className="cash-shift-formula">{t('op.cash.shift.formula')}</p>
-              <div className="cash-shift-rows">
-                <div className="cash-shift-row"><span>{t('op.cash.shift.starting')}</span><strong><Money minorUnits={current.cash.starting.minorUnits} currencyCode={currencyCode} /></strong></div>
-                <div className="cash-shift-row"><span>{t('op.cash.shift.expected')}</span><strong><Money minorUnits={current.cash.expected.minorUnits} currencyCode={currencyCode} /></strong></div>
-                <div className="cash-shift-row"><span>{t('op.cash.shift.counted')}</span><strong>{current.cash.counted ? <Money minorUnits={current.cash.counted.minorUnits} currencyCode={currencyCode} /> : t('op.cash.shift.notClosed')}</strong></div>
-              </div>
-            </section>
-          </div> : <section className="cash-shift-no-open"><span>{t('op.cash.shift.empty')}</span><h2>{t('op.cash.shift.noOpenNow')}</h2><p>{history.length ? t('op.cash.shift.noOpenHint') : t('op.cash.shift.historyEmpty')}</p></section>}
-
-          <section className="cash-shift-panel">
-            <div className="cash-shift-section-head"><h2>{t('op.cash.shift.movementsTitle')}</h2><span>{cashRows.length}</span></div>
-            {cashRows.length === 0 ? <p className="cash-shift-empty-note">{t('op.cash.shift.movementsEmpty')}</p> : <ul className="cash-shift-movements">
-              {cashRows.slice(0, 6).map((row) => {
-                const impact = readMoney(row, 'cashImpact');
-                const negative = impact !== null && impact.minorUnits < 0;
-                return <li key={readString(row, 'operationId')} className={negative ? 'out' : 'in'}><span>{formatTime(readString(row, 'createdAtUtc'))}</span><strong>{cashOperationTypeLabel(readString(row, 'operationType', 'cash'), t)}<small>{readString(row, 'reason', '—')}</small></strong><b><Money minorUnits={impact?.minorUnits ?? 0} currencyCode={currencyCode} /></b></li>;
-              })}
-            </ul>}
+      {current ? (
+        <>
+          <section className="cash-shift-status-card" aria-label={t('op.cash.shift.statusAria')}>
+            <div className="cash-shift-status-block cash-shift-status-lead">
+              <Clock3 size={25} aria-hidden="true" />
+              <span>{t('op.cash.shift.openStatus')}</span>
+              <strong>{formatElapsed(current.openedAtUtc)}</strong>
+            </div>
+            <div className="cash-shift-status-block"><span>{t('op.cash.shift.cashier')}</span><strong>{operatorName}</strong></div>
+            <div className="cash-shift-status-block"><span>{t('op.cash.shift.opened')}</span><strong>{formatOpenedAt(current.openedAtUtc, t('op.cash.shift.today'))}</strong></div>
+            <div className="cash-shift-status-block"><span>{t('op.cash.shift.starting')}</span><strong><Money minorUnits={current.cash.starting.minorUnits} currencyCode={currencyCode} /></strong></div>
+            <div className="cash-shift-status-actions">{exportMenu}<CashShiftCommandBar backend={backend} session={session} shiftId={current.shiftId} isOpen expectedCash={current.cash.expected} currencyCode={currencyCode} revenue={current} onShiftChanged={onShiftChanged} /></div>
           </section>
 
-          <section className="cash-shift-history-register">
-            <div className="cash-shift-section-head"><h2>{t('op.cash.shift.historyTitle')}</h2><span>{history.length}</span></div>
-            {history.length === 0 ? <p className="cash-shift-empty-note">{t('op.cash.shift.historyEmpty')}</p> : <CashRegisterRows rows={history} selectedId={selectedShift?.shiftId ?? ''} getId={(shift) => shift.shiftId} onSelect={setSelectedShiftId} ariaLabel={t('op.cash.shift.historyTitle')} renderRow={(shift) => <>
-              <span className="cash-shift-hist-date">{new Date(shift.openedAtUtc).toLocaleDateString('ru-RU')}</span>
-              <span className="cash-shift-hist-cell"><em>{t('op.shifts.earned')}</em><b><Money minorUnits={shift.earned.total.minorUnits} currencyCode={currencyCode} /></b></span>
-              <span className={`cash-shift-hist-cell ${shift.cash.difference?.minorUnits ? 'attention' : ''}`}><em>{t('op.cash.shift.difference')}</em><b>{shift.cash.difference ? <Money minorUnits={shift.cash.difference.minorUnits} currencyCode={currencyCode} /> : '—'}</b></span>
-            </>} />}
+          <section className="cash-shift-reconcile-band" aria-label={t('op.cash.shift.reconcileTitle')}>
+            <div><span>{t('op.cash.shift.expectedDrawer')}</span><strong><Money minorUnits={current.cash.expected.minorUnits} currencyCode={currencyCode} /></strong><small>{t('op.cash.shift.expectedHint')}</small></div>
+            <div className="cash-shift-reconcile-pending"><span>{t('op.cash.shift.actualDrawer')}</span><strong>{t('op.cash.shift.notEntered')}</strong><small>{t('op.cash.shift.actualHint')}</small></div>
+            <div><span>{t('op.cash.shift.difference')}</span><strong>{current.cash.difference ? <Money minorUnits={current.cash.difference.minorUnits} currencyCode={currencyCode} /> : '—'}</strong><small>{t('op.cash.shift.differenceHint')}</small></div>
           </section>
-        </div>}
-      />
+
+          <div className="cash-shift-main-grid">
+            <div className="cash-shift-main-column">
+              <section className="cash-shift-revenue-strip">
+                <div className="cash-shift-revenue-total"><span>{t('op.cash.shift.revenueTitle')}</span><strong><Money minorUnits={current.earned.total.minorUnits} currencyCode={currencyCode} /></strong></div>
+                <div><span>{t('op.shifts.time')}</span><strong><Money minorUnits={current.earned.time.minorUnits} currencyCode={currencyCode} /></strong><small>{percent(current.earned.time.minorUnits)}%</small></div>
+                <div><span>{t('op.shifts.goods')}</span><strong><Money minorUnits={current.earned.goods.minorUnits} currencyCode={currencyCode} /></strong><small>{percent(current.earned.goods.minorUnits)}%</small></div>
+                <div><span>{t('op.shifts.cash')}</span><strong><Money minorUnits={current.inflow.cash.minorUnits} currencyCode={currencyCode} /></strong><small>{percent(current.inflow.cash.minorUnits)}%</small></div>
+                <div><span>{t('op.shifts.nonCash')}</span><strong><Money minorUnits={current.inflow.nonCash.minorUnits} currencyCode={currencyCode} /></strong><small>{percent(current.inflow.nonCash.minorUnits)}%</small></div>
+                <div><span>{t('op.shifts.walletTopUps')}</span><strong><Money minorUnits={current.inflow.walletTopUps.minorUnits} currencyCode={currencyCode} /></strong></div>
+              </section>
+
+              <section className="cash-shift-movement-ledger">
+                <header><h2>{t('op.cash.shift.movementsTitle')}</h2><span>{cashRows.length}</span></header>
+                <div className="cash-shift-movement-head" aria-hidden="true"><span>{t('op.cash.shift.timeColumn')}</span><span>{t('op.cash.shift.operationColumn')}</span><span>{t('op.cash.shift.reasonColumn')}</span><span>{t('op.cash.shift.operatorColumn')}</span><span>{t('op.cash.shift.amountColumn')}</span></div>
+                {cashRows.length === 0 ? <p className="cash-shift-empty-note">{t('op.cash.shift.movementsEmpty')}</p> : <ul className="cash-shift-movements">
+                  {cashRows.slice(0, 8).map((row) => {
+                    const impact = readMoney(row, 'cashImpact');
+                    const negative = impact !== null && impact.minorUnits < 0;
+                    return <li key={readString(row, 'operationId')} className={negative ? 'out' : 'in'}><span>{formatTime(readString(row, 'createdAtUtc'))}</span><strong>{cashOperationTypeLabel(readString(row, 'operationType', 'cash'), t)}</strong><em>{readString(row, 'reason', '—')}</em><span>{readString(row, 'createdByDisplayName', operatorName)}</span><b><Money minorUnits={impact?.minorUnits ?? 0} currencyCode={currencyCode} signed /></b></li>;
+                  })}
+                </ul>}
+                <footer><span>{t('op.cash.shift.movementTotal')}</span><strong><Money minorUnits={movementTotal} currencyCode={currencyCode} signed /></strong></footer>
+              </section>
+            </div>
+
+            <section className="cash-shift-history-panel">
+              <header><h2>{t('op.cash.shift.pastShifts')}</h2><span>{history.length}</span></header>
+              {history.length === 0 ? <p className="cash-shift-empty-note">{t('op.cash.shift.historyEmpty')}</p> : <CashRegisterRows rows={history.slice(0, 8)} selectedId={selectedShift?.shiftId ?? ''} getId={(shift) => shift.shiftId} onSelect={setSelectedShiftId} ariaLabel={t('op.cash.shift.pastShifts')} renderRow={(shift) => <div className="cash-shift-history-row">
+                <span>{new Date(shift.openedAtUtc).toLocaleDateString('ru-RU')}</span>
+                <span><small>{t('op.shifts.earned')}</small><strong><Money minorUnits={shift.earned.total.minorUnits} currencyCode={currencyCode} /></strong></span>
+                <span className={shift.cash.difference?.minorUnits ? 'attention' : ''}><small>{t('op.cash.shift.difference')}</small><strong>{shift.cash.difference ? <Money minorUnits={shift.cash.difference.minorUnits} currencyCode={currencyCode} /> : '—'}</strong></span>
+                <ChevronRight size={16} aria-hidden="true" />
+              </div>} />}
+              {selectedShift ? <div className="cash-shift-history-detail">
+                <span>{t('op.cash.shift.selectedClosed')}</span>
+                <strong><Money minorUnits={selectedShift.earned.total.minorUnits} currencyCode={currencyCode} /></strong>
+                <dl>
+                  <div><dt>{t('op.cash.shift.expected')}</dt><dd><Money minorUnits={selectedShift.cash.expected.minorUnits} currencyCode={currencyCode} /></dd></div>
+                  <div><dt>{t('op.cash.shift.counted')}</dt><dd>{selectedShift.cash.counted ? <Money minorUnits={selectedShift.cash.counted.minorUnits} currencyCode={currencyCode} /> : '—'}</dd></div>
+                  <div><dt>{t('op.cash.shift.difference')}</dt><dd>{selectedShift.cash.difference ? <Money minorUnits={selectedShift.cash.difference.minorUnits} currencyCode={currencyCode} /> : '—'}</dd></div>
+                </dl>
+              </div> : null}
+            </section>
+          </div>
+        </>
+      ) : (
+        <section className="cash-shift-no-open">
+          <span>{t('op.cash.shift.empty')}</span><h2>{t('op.cash.shift.noOpenNow')}</h2><p>{history.length ? t('op.cash.shift.noOpenHint') : t('op.cash.shift.historyEmpty')}</p>
+          <div className="cash-shift-no-open-actions">{exportMenu}<CashShiftCommandBar backend={backend} session={session} shiftId={null} isOpen={false} expectedCash={null} currencyCode={currencyCode} onShiftChanged={onShiftChanged} /></div>
+          {selectedShift ? <div className="cash-shift-last-closed"><span>{t('op.cash.shift.lastClosed')}</span><strong>{new Date(selectedShift.openedAtUtc).toLocaleDateString('ru-RU')}</strong><b><Money minorUnits={selectedShift.earned.total.minorUnits} currencyCode={currencyCode} /></b></div> : null}
+        </section>
+      )}
     </main>
   );
 }

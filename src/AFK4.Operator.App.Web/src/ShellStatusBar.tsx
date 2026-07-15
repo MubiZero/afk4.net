@@ -1,4 +1,4 @@
-import { CircleDollarSign, LockKeyhole } from 'lucide-react';
+import { LockKeyhole } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import type { OperatorRealtimeConnectionState } from './operatorRealtime';
 import { dataSourceLabel, realtimeLabel } from './operatorHelpers';
@@ -32,7 +32,7 @@ export function ShellStatusBar({
   return (
     <footer className="signals-strip">
       {/* Касса — в левом углу. */}
-      <span className="signal-item signal-pos"><CircleDollarSign size={13} />{posText}</span>
+      <span className="signal-item signal-pos"><i className="signal-dot ok" aria-hidden="true" />{posText}</span>
       {workspaceFeedback && (
         <span className="signal-item rail-feedback"><LockKeyhole size={13} />{workspaceFeedback}</span>
       )}

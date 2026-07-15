@@ -1,4 +1,4 @@
-import { useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 
 export interface CashMetricItem {
@@ -35,6 +35,15 @@ export function CashTerminalSplit({
   closeLabel: string;
   onCloseInspector: () => void;
 }) {
+  useEffect(() => {
+    if (!inspectorOpen) return undefined;
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') onCloseInspector();
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [inspectorOpen, onCloseInspector]);
+
   return (
     <div className={`cash-terminal-split${inspectorOpen ? ' inspector-open' : ''}`}>
       <section className="cash-terminal-register">{register}</section>

@@ -946,9 +946,9 @@ describe('App', () => {
 
     gotoWorkspace('Смена');
     expect(await screen.findByText('Выручка смены')).toBeInTheDocument();
-    expect(screen.getByText('Сверка кассы')).toBeInTheDocument();
-    expect(screen.getByText('Ожидается')).toBeInTheDocument();
-    expect(screen.getByText('История смен')).toBeInTheDocument();
+    expect(screen.getByText('Ожидается в кассе')).toBeInTheDocument();
+    expect(screen.getByText('Фактически в кассе')).toBeInTheDocument();
+    expect(screen.getByText('Прошлые смены')).toBeInTheDocument();
     // дренаж: CashShiftHeader делает отдельный фетч /shifts/revenue/current независимо от Workspace;
     // ждём завершения обоих (>= 2 вызовов сделано И ответы обработаны) перед уходом со вкладки
     await waitFor(() => {
@@ -1420,7 +1420,8 @@ describe('App', () => {
 
     // Кокпит вкладки «Смена» загружает данные из мока и показывает выручку + сверку.
     expect(await screen.findByText('Выручка смены')).toBeInTheDocument();
-    expect(screen.getByText('Сверка кассы')).toBeInTheDocument();
+    expect(screen.getByText('Ожидается в кассе')).toBeInTheDocument();
+    expect(screen.getByText('Фактически в кассе')).toBeInTheDocument();
     // Проверяем, что реальные данные смены из мока доехали до кокпита (нет generic заглушек).
     expect(screen.queryByText('Нет открытой смены')).not.toBeInTheDocument();
     // Движение наличных — одна строка из createCashReport (operationType=opening, reason='test').
@@ -1449,10 +1450,10 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     gotoWorkspace('Смена');
 
-    // Ждём загрузки кокпита — заголовок «Экспорт» появляется после разрешения промисов.
-    await screen.findByText('Экспорт');
-    // Кнопки экспорта в секции «Экспорт» вкладки «Смена».
-    const exportSection = document.querySelector('.cash-shift-exports') as HTMLElement;
+    // Ждём загрузки кокпита и раскрываем компактное меню экспорта.
+    const exportTrigger = await screen.findByText('Экспорт');
+    fireEvent.click(exportTrigger.closest('summary')!);
+    const exportSection = document.querySelector('.cash-shift-export-popover') as HTMLElement;
     expect(exportSection).toBeInTheDocument();
 
     // «Список чеков» → /reports/sales/export.csv → afk4-check-list-*.csv
@@ -1509,10 +1510,10 @@ describe('App', () => {
     expect(body.idempotencyKey).toMatch(/^shift-close-/);
     // Z-сводка показана по результату закрытия.
     expect(await screen.findByText('Z-отчёт')).toBeInTheDocument();
-    // Дренаж второй волны рефетчей (onShiftChanged → shiftNonce++), чтобы async не утёк в соседние тесты.
+    // Дренаж рефетча рабочего экрана (onShiftChanged → shiftNonce++), чтобы async не утёк в соседние тесты.
     await waitFor(() => {
       const after = fetchMock.mock.calls.filter(([input]) => String(input).includes('/shifts/revenue/current')).length;
-      expect(after).toBeGreaterThanOrEqual(revenueCallsBeforeClose + 2);
+      expect(after).toBeGreaterThanOrEqual(revenueCallsBeforeClose + 1);
     });
     await act(async () => { await Promise.resolve(); });
   });
@@ -1547,11 +1548,11 @@ describe('App', () => {
       reason: 'Размен перед турниром'
     });
     expect(body.idempotencyKey).toMatch(/^shift-cash-movement-/);
-    // дренаж второй волны рефетчей: onShiftChanged → shiftNonce++ → Header + Workspace рефетчат /shifts/revenue/current
+    // Дренаж рефетча рабочего экрана: onShiftChanged → shiftNonce++ → Workspace перечитывает смену.
     await waitFor(() => {
       const revenueCallsAfter = fetchMock.mock.calls.filter(([input]) =>
         String(input).includes('/shifts/revenue/current')).length;
-      expect(revenueCallsAfter).toBeGreaterThanOrEqual(revenueCallsBeforeMovement + 2);
+      expect(revenueCallsAfter).toBeGreaterThanOrEqual(revenueCallsBeforeMovement + 1);
     });
   });
 
@@ -2714,6 +2715,17 @@ describe('App', () => {
     const strip = screen.getByRole('tablist', { name: 'Касса' });
     expect(within(strip).getByRole('tab', { name: 'Продажи' })).toBeInTheDocument();
     expect(within(strip).queryByRole('tab', { name: 'Журнал кассы' })).toBeNull();
+  });
+
+  it('opens journal receipts for receipt-only staff', async () => {
+    installSessionBridge(createSession({ permissions: ['receipts.view'] }));
+    render(<App />);
+    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Рабочие места' })).getByTitle('Касса'));
+    const cashTabs = screen.getByRole('tablist', { name: 'Касса' });
+    fireEvent.click(within(cashTabs).getByRole('tab', { name: 'Журнал кассы' }));
+    expect(await screen.findByRole('tab', { name: 'Чеки' })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('opens the cash journal for a manager', async () => {

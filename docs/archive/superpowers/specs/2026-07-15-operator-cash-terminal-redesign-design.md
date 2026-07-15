@@ -1,7 +1,7 @@
 # Operator Cash Terminal Redesign
 
 **Date:** 2026-07-15
-**Status:** Approved for implementation planning
+**Status:** Implemented and verified on `feat/operator-cash-terminal-redesign`
 
 ## Goal
 

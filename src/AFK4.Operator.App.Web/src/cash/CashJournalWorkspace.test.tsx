@@ -41,9 +41,9 @@ describe('CashJournalWorkspace', () => {
     expect(screen.getAllByRole('tablist')).toHaveLength(2);
   });
 
-  it('без права approve сегмент «Проверка» скрыт, лента кассовых операций рендерится', async () => {
+  it('без права approve сегмент «Согласования» скрыт, лента кассовых операций рендерится', async () => {
     renderJournal(['reports.view']);
-    // Один сегмент — таббар скрыт, сегмент «Проверка» не рендерится…
+    // Один сегмент — таббар скрыт, сегмент «Согласования» не рендерится…
     expect(screen.queryByRole('tab', { name: 'Согласования' })).toBeNull();
     // …но сама лента «Кассовые операции» отрисована (пустое состояние от инъект-репортс backend=null).
     await waitFor(() => expect(screen.getByText('Кассовых операций нет')).toBeInTheDocument());
@@ -56,7 +56,7 @@ describe('CashJournalWorkspace', () => {
     expect(screen.queryByRole('tab', { name: 'Согласования' })).toBeNull();
   });
 
-  it('переключение на «Проверка» показывает встроенный ReviewWorkspace', async () => {
+  it('переключение на «Согласования» показывает встроенный ReviewWorkspace', async () => {
     renderJournal(['reports.view', 'billing.money_action.approve']);
     await waitFor(() => expect(screen.getByText('Кассовых операций нет')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('tab', { name: 'Согласования' }));

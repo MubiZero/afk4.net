@@ -137,7 +137,7 @@ function currentShift() {
     shiftId: 'sh1', organizationId: ORG, branchId: BRANCH,
     openedByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', closedByStaffUserId: null, state: 'open',
     startingCash: money(100000), countedCash: null, expectedCash: money(112000), difference: money(0),
-    openingNote: 'Дневная смена', closingNote: '', openedAtUtc: '2026-05-21T08:00:00Z', closedAtUtc: null
+    openingNote: 'Дневная смена', closingNote: '', openedAtUtc: minutesAgoUtc(135), closedAtUtc: null
   };
 }
 
@@ -150,7 +150,7 @@ function currentShiftRevenue() {
     inflow: { cash: m(90000), nonCash: m(33000), walletTopUps: m(15000), directTotal: m(123000) },
     // expected (касса в ящике) = netCashTotal движений (58000) + наличные продажи (90000) = 148000.
     cash: { starting: m(100000), expected: m(148000), counted: null, difference: null },
-    openedAtUtc: '2026-05-21T08:00:00Z', closedAtUtc: null
+    openedAtUtc: minutesAgoUtc(135), closedAtUtc: null
   };
 }
 

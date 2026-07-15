@@ -5,11 +5,11 @@
   gap: 14px;
   min-width: 0;
   overflow: hidden;
-  padding: 0 12px;
+  padding: 0 16px;
   border-top: 1px solid var(--border-soft);
   background: var(--surface-elevated);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* Единый элемент статус-бара: иконка/точка + текст, один размер и вес для всех. */
@@ -20,8 +20,8 @@
   min-width: 0;
   white-space: nowrap;
   color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 550;
 }
 
 .signals-strip .signal-item svg {
@@ -46,6 +46,8 @@
   border-radius: 999px;
   background: var(--text-tertiary);
 }
+
+.signal-pos .signal-dot { width: 7px; height: 7px; }
 
 .signal-dot.ok {
   background: var(--success);
@@ -75,4 +77,3 @@
 .signals-strip .rail-feedback svg {
   color: var(--danger-text);
 }
-
