@@ -9,4 +9,7 @@ public sealed record StaffSignInResponse(
     string RefreshToken,
     DateTimeOffset RefreshTokenExpiresAtUtc,
     IReadOnlyList<Guid> BranchIds,
-    IReadOnlyList<string> Permissions);
+    IReadOnlyList<string> Permissions)
+{
+    public IReadOnlyList<string> RoleNames { get; init; } = [];
+}

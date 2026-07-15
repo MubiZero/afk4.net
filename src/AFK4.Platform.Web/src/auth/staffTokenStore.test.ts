@@ -34,9 +34,11 @@ describe('staffTokenStore', () => {
       refreshToken: 'refresh',
       refreshTokenExpiresAtUtc: '2030-02-01T00:00:00Z',
       branchIds: ['33333333-3333-3333-3333-333333333333'],
-      permissions: ['layout.manage']
+      permissions: ['layout.manage'],
+      roleNames: ['cashier_operator']
     });
 
+    expect(session.roleNames).toEqual(['cashier_operator']);
     writeStaffSession(session, storage);
     expect(readStaffSession(storage)).toEqual(session);
   });

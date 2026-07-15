@@ -5,4 +5,7 @@ public sealed record StaffContext(
     Guid OrganizationId,
     string DisplayName,
     IReadOnlySet<Guid> BranchIds,
-    IReadOnlySet<string> Permissions);
+    IReadOnlySet<string> Permissions)
+{
+    public IReadOnlyList<string> RoleNames { get; init; } = [];
+}

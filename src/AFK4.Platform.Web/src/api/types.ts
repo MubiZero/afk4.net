@@ -26,6 +26,7 @@ export interface StaffSignInResponse {
   refreshTokenExpiresAtUtc: string;
   branchIds: string[];
   permissions: string[];
+  roleNames?: string[];
 }
 
 export interface StaffSignInClubChoice {

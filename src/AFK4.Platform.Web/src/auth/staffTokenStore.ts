@@ -9,6 +9,7 @@ export interface StaffSession {
   displayName: string;
   branchIds: string[];
   permissions: string[];
+  roleNames: string[];
   accessToken: string;
   accessTokenExpiresAtUtc: string;
   refreshToken: string;
@@ -63,6 +64,7 @@ export function staffSessionFromSignInResponse(response: StaffSignInResponse): S
     displayName: response.displayName,
     branchIds: response.branchIds,
     permissions: response.permissions,
+    roleNames: response.roleNames ?? [],
     accessToken: response.accessToken,
     accessTokenExpiresAtUtc: response.accessTokenExpiresAtUtc,
     refreshToken: response.refreshToken,

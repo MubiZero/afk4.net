@@ -104,6 +104,10 @@ public sealed class StaffAuthenticationEndpointTests
         Assert.NotEqual(signInBody.RefreshToken, refreshBody.RefreshToken);
         Assert.Equal(signInBody.StaffUserId, refreshBody.StaffUserId);
         Assert.Contains(StaffPermissionNames.CreateDeviceEnrollmentCode, refreshBody.Permissions);
+        Assert.Equal(
+            [StaffRoleNames.CashierOperator, StaffRoleNames.ShiftSupervisor, StaffRoleNames.Technician],
+            signInBody.RoleNames);
+        Assert.Equal(signInBody.RoleNames, refreshBody.RoleNames);
 
         var replayResponse = await client.PostAsJsonAsync(
             "/api/auth/staff/refresh",
@@ -500,14 +504,31 @@ public sealed class StaffAuthenticationEndpointTests
             CreatedAtUtc = createdAt
         });
         dbContext.StaffUsers.Add(user);
-        dbContext.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
-        {
-            StaffRoleAssignmentId = Guid.NewGuid(),
-            StaffUserId = user.StaffUserId,
-            OrganizationId = user.OrganizationId,
-            BranchId = TestIds.BranchId,
-            RoleName = StaffRoleNames.Technician
-        });
+        dbContext.StaffRoleAssignments.AddRange(
+            new StaffRoleAssignmentEntity
+            {
+                StaffRoleAssignmentId = Guid.NewGuid(),
+                StaffUserId = user.StaffUserId,
+                OrganizationId = user.OrganizationId,
+                BranchId = TestIds.BranchId,
+                RoleName = StaffRoleNames.Technician
+            },
+            new StaffRoleAssignmentEntity
+            {
+                StaffRoleAssignmentId = Guid.NewGuid(),
+                StaffUserId = user.StaffUserId,
+                OrganizationId = user.OrganizationId,
+                BranchId = TestIds.BranchId,
+                RoleName = StaffRoleNames.ShiftSupervisor
+            },
+            new StaffRoleAssignmentEntity
+            {
+                StaffRoleAssignmentId = Guid.NewGuid(),
+                StaffUserId = user.StaffUserId,
+                OrganizationId = user.OrganizationId,
+                BranchId = TestIds.BranchId,
+                RoleName = StaffRoleNames.CashierOperator
+            });
         await dbContext.SaveChangesAsync();
     }
 

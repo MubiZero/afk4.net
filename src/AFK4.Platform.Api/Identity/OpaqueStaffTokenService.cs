@@ -135,7 +135,10 @@ public sealed class OpaqueStaffTokenService(
             RefreshToken: refreshToken,
             RefreshTokenExpiresAtUtc: refreshTokenExpiresAt,
             BranchIds: context.BranchIds.OrderBy(branchId => branchId).ToArray(),
-            Permissions: context.Permissions.Order(StringComparer.OrdinalIgnoreCase).ToArray());
+            Permissions: context.Permissions.Order(StringComparer.OrdinalIgnoreCase).ToArray())
+        {
+            RoleNames = context.RoleNames
+        };
     }
 
     private async Task<StaffContext> CreateContextAsync(StaffUserEntity user, CancellationToken cancellationToken)
@@ -144,13 +147,21 @@ public sealed class OpaqueStaffTokenService(
             .AsNoTracking()
             .Where(role => role.StaffUserId == user.StaffUserId && role.OrganizationId == user.OrganizationId)
             .ToArrayAsync(cancellationToken);
+        var roleNames = roles
+            .Select(role => role.RoleName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
         return new StaffContext(
             StaffUserId: user.StaffUserId,
             OrganizationId: user.OrganizationId,
             DisplayName: user.DisplayName,
             BranchIds: roles.Select(role => role.BranchId).ToHashSet(),
-            Permissions: PermissionCatalog.GetPermissions(roles.Select(role => role.RoleName)));
+            Permissions: PermissionCatalog.GetPermissions(roleNames))
+        {
+            RoleNames = roleNames
+        };
     }
 
     private static string CreateToken(Guid tokenId)
