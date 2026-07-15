@@ -100,10 +100,11 @@ The same operator-console style should apply beyond the floor map:
   sale/receipt state, refunds, and voids;
 - Players should prioritize search, selected-player identity, wallet/debt,
   packages, top-up, and debt payment;
-- Payments and shift should prioritize current transactions, pending
-  post-payments, allowed cancellations, expected cash, cash movements,
-  close-shift reconciliation, and report/export access;
-- Logs should provide current-shift/all-events modes, period/category filters,
+- Cash should prioritize current sales, the active shift, cash operations,
+  receipts, and permitted refund/void actions;
+- Reports should provide a calm exception-first summary, historical shift/cash
+  accountability, revenue with sales/gameplay sources, and filtered exports;
+- Events should provide one immutable feed with period/category filters,
   universal search, and object/subject history detail;
 - Operations/settings should keep pilot setup, devices, diagnostics, audit,
   updates, tariffs, POS catalog, staff, and layout management organized by task.

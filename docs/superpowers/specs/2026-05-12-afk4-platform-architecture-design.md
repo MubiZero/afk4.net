@@ -248,7 +248,9 @@ Primary screens:
 - Context panel for selected seat, session, player, balance, package, timer, debt, and quick actions.
 - POS screen with product selection, cart, payment, returns, and receipt actions.
 - Players screen for search, registration, history, balance, packages, and restrictions.
-- Shift and reports screen for open shift, close shift, reconciliation, sales, gameplay time, refunds, and operator actions.
+- Cash screen for current sales, shift commands, cash operations, receipts, and refunds.
+- Reports center for summary, historical shift/cash accountability, and revenue with sales and gameplay sources.
+- Unified Events feed for operator actions and immutable audit evidence.
 - Settings screens for zones, seats, tariffs, roles, products, devices, and updates.
 
 Technical rules:
@@ -610,7 +612,8 @@ The first full MVP includes:
 - grace mode for active sessions
 - audit trail
 - centralized updates with channels, rollout, and rollback
-- basic reports for shifts, sales, gameplay time, cash operations, and operator actions
+- basic Reports views for shifts, cash, and revenue with sales/gameplay
+  sources, plus operator-action review through the unified Events feed
 
 The MVP does not include:
 

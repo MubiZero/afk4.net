@@ -96,7 +96,8 @@ issues.
 
 Primary needs:
 
-- approve or perform sensitive corrections;
+- confirm or perform sensitive corrections contextually, without leaving the
+  canonical receipt, client, session, or shift workflow;
 - handle failed payments, session disputes, and device errors;
 - close shifts with accurate reconciliation.
 
@@ -503,8 +504,12 @@ Success criteria:
 
 ### Reports
 
-- MVP reports must include shift report, sales report, gameplay time report,
-  cash operations report, and operator actions report.
+- Operator App reports must provide `Сводка`, `Смены и касса`, and `Выручка`.
+- The shift/cash report must cover shift reconciliation and cash operations.
+- The revenue report must preserve sales and gameplay revenue/time as explicit
+  sources rather than separate top-level tabs.
+- Operator actions must remain queryable and exportable through the unified
+  immutable `События` feed rather than being duplicated in Reports.
 - Critical reports should use read models or aggregations where live joins would
   be fragile or expensive.
 - Reports must preserve historical interpretation of tariffs, packages,
