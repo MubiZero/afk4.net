@@ -13,6 +13,7 @@ import { ForgotPassword } from './ForgotPassword';
 import { WindowResizeHandles } from './WindowChrome';
 import { SignInScreen } from './SignInScreen';
 import { BlockedTenantScreen } from './BlockedTenantScreen';
+import { PostAuthShiftGate } from './PostAuthShiftGate';
 import { ShellHeader } from './ShellHeader';
 import { WorkspaceRail } from './WorkspaceRail';
 import { WorkspaceRouter } from './WorkspaceRouter';
@@ -22,6 +23,7 @@ import { useShellData } from './useShellData';
 import { useOperatorRealtime } from './useOperatorRealtime';
 import { usePlayersPreload } from './usePlayersPreload';
 import { useOperatorConnection } from './useOperatorConnection';
+import { usePostAuthShiftGate } from './usePostAuthShiftGate';
 import { useFloorMap } from './useFloorMap';
 import { ToastProvider } from './operatorToast';
 import { useHotkeys } from './useHotkeys';
@@ -105,6 +107,14 @@ function AppInner() {
   const backendContext: OperatorBackendContext | null = authSession !== null && activeBranchId !== null
     ? { config, session: authSession, branchId: activeBranchId }
     : null;
+  const shiftGate = usePostAuthShiftGate({
+    authStatus,
+    backend: backendContext,
+    t
+  });
+  const workspaceAllowed = shiftGate.status === 'ready'
+    || shiftGate.status === 'not-required';
+  const operationalAuthStatus = workspaceAllowed ? authStatus : 'checking';
   const {
     floorMap,
     floorMapRef,
@@ -118,7 +128,7 @@ function AppInner() {
   } = useFloorMap({
     config,
     t,
-    authStatus,
+    authStatus: operationalAuthStatus,
     authSession,
     backendContext,
     setAuthSession,
@@ -126,7 +136,7 @@ function AppInner() {
     setAuthError
   });
   const { realtimeState, realtimeError } = useOperatorRealtime({
-    authStatus,
+    authStatus: operationalAuthStatus,
     authSession,
     config,
     t,
@@ -136,14 +146,14 @@ function AppInner() {
     onShellReconcile: () => setShellReconcileSignal((signal) => signal + 1)
   });
   const { shellCurrentShift, shellDashboardSummary, shellLoadStatus, shellLoadError } = useShellData(
-    authStatus,
+    operationalAuthStatus,
     authSession,
     config,
     t,
     shellReconcileSignal
   );
   // Прогрев кэша клиентов при входе → первый заход в «Клиенты» мгновенный (как заранее загруженный зал).
-  usePlayersPreload(authStatus, authSession, config, t);
+  usePlayersPreload(operationalAuthStatus, authSession, config, t);
   const canUsePcControl = (hasPermission(authSession, permissionNames.viewDiagnostics)
     && hasPermission(authSession, permissionNames.viewDeviceDetail))
     || hasPermission(authSession, permissionNames.dispatchDeviceCommand);
@@ -239,6 +249,17 @@ function AppInner() {
         hostError={authError}
         onSignIn={handleSignIn}
         onForgotPassword={() => setAuthView('forgot')}
+      />
+    );
+  }
+
+  if (!workspaceAllowed) {
+    return (
+      <PostAuthShiftGate
+        controller={shiftGate}
+        organizationId={authSession.organizationId}
+        currencyCode={config.currencyCode}
+        onSignOut={handleSignOut}
       />
     );
   }
