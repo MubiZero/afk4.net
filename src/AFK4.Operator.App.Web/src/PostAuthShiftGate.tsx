@@ -116,7 +116,7 @@ export function PostAuthShiftGate({
           </form>
         )}
 
-        <button type="button" className="shift-gate-signout" onClick={onSignOut} disabled={opening}>
+        <button type="button" className="shift-gate-signout" onClick={onSignOut}>
           <LogOut size={15} aria-hidden="true" />
           <span>{t('op.shiftGate.signOut')}</span>
         </button>

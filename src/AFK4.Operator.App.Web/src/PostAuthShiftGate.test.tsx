@@ -92,9 +92,10 @@ describe('PostAuthShiftGate', () => {
       error: 'Не удалось открыть смену',
       failureKind: 'open'
     });
+    const onSignOut = mock(() => {});
     const { rerender } = render(
       <I18nProvider>
-        <PostAuthShiftGate controller={controller} organizationId={ORG_ID} currencyCode="TJS" onSignOut={() => {}} />
+        <PostAuthShiftGate controller={controller} organizationId={ORG_ID} currencyCode="TJS" onSignOut={onSignOut} />
       </I18nProvider>
     );
     fireEvent.change(screen.getByLabelText('Старт наличных'), { target: { value: '75' } });
@@ -102,11 +103,15 @@ describe('PostAuthShiftGate', () => {
 
     rerender(
       <I18nProvider>
-        <PostAuthShiftGate controller={{ ...controller, status: 'opening', error: null, failureKind: null }} organizationId={ORG_ID} currencyCode="TJS" onSignOut={() => {}} />
+        <PostAuthShiftGate controller={{ ...controller, status: 'opening', error: null, failureKind: null }} organizationId={ORG_ID} currencyCode="TJS" onSignOut={onSignOut} />
       </I18nProvider>
     );
 
     expect(screen.getByLabelText('Старт наличных')).toHaveValue('75');
     expect(screen.getByRole('button', { name: 'Открыть смену' })).toBeDisabled();
+    const signOut = screen.getByRole('button', { name: 'Выйти из аккаунта' });
+    expect(signOut).toBeEnabled();
+    fireEvent.click(signOut);
+    expect(onSignOut).toHaveBeenCalledTimes(1);
   });
 });
