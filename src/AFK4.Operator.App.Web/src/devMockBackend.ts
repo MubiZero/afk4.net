@@ -243,6 +243,32 @@ function salesReport() {
   };
 }
 
+const previewMoneyActions: Array<Record<string, unknown>> = [{
+  moneyActionRequestId: 'ma-preview-1', organizationId: ORG, branchId: BRANCH, shiftId: 'shift-preview',
+  actionType: 'refund', requestedByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
+  amountMinorUnits: 12000, currencyCode: 'TJS', reason: 'Ошибочный чек клиента', state: 'pending',
+  createdAtUtc: minutesAgoUtc(15), expiresAtUtc: new Date(Date.now() + 75 * 60_000).toISOString()
+}];
+
+const previewAuditRecords: Array<Record<string, unknown>> = [
+  { auditRecordId: 'audit-preview-3', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'cash.shift.opened', outcome: 'success', targetType: 'shift', amountMinorUnits: 100000, createdAtUtc: minutesAgoUtc(240) },
+  { auditRecordId: 'audit-preview-2', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'money_action.rejected', outcome: 'rejected', targetType: 'money_action', amountMinorUnits: 5600, decisionReason: 'Нет подтверждения клиента', createdAtUtc: minutesAgoUtc(1440) },
+  { auditRecordId: 'audit-preview-1', actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', action: 'money_action.approved', outcome: 'approved', targetType: 'money_action', amountMinorUnits: 3000, createdAtUtc: minutesAgoUtc(2880) }
+];
+
+function previewAudit(searchParams: URLSearchParams) {
+  const actor = searchParams.get('actorStaffUserId');
+  const minAmount = Number(searchParams.get('minAmount'));
+  const maxAmount = Number(searchParams.get('maxAmount'));
+  const hasMin = searchParams.has('minAmount') && Number.isFinite(minAmount);
+  const hasMax = searchParams.has('maxAmount') && Number.isFinite(maxAmount);
+  const records = previewAuditRecords.filter((record) => {
+    const amount = Number(record.amountMinorUnits ?? 0);
+    return (!actor || record.actorStaffUserId === actor) && (!hasMin || amount >= minAmount) && (!hasMax || amount <= maxAmount);
+  });
+  return { records, limit: 50 };
+}
+
 // Очередь заказов из Player Shell (Заказы): игрок оформляет с места, касса лишь меняет статус.
 // placed → ждёт принятия; accepted → ждёт выдачи. seatId показывается как есть (читаемое имя места).
 function shopOrders() {
@@ -750,6 +776,32 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     const all = currentPreviewReservations();
     const filtered = playerAccountId ? all.filter((r) => r.playerAccountId === playerAccountId) : all;
     return json({ reservations: filtered, limit: 40 });
+  }
+  if (url.pathname.endsWith('/money-actions') && method === 'GET') {
+    return json({ requests: previewMoneyActions });
+  }
+  const moneyDecisionMatch = url.pathname.match(/\/money-actions\/([^/]+)\/(approve|reject)$/);
+  if (moneyDecisionMatch && method === 'POST') {
+    const requestIndex = previewMoneyActions.findIndex((request) => request.moneyActionRequestId === moneyDecisionMatch[1]);
+    if (requestIndex < 0) return jsonError(404, 'money_action_not_found', 'Money action request was not found.');
+    let body: Record<string, unknown> = {};
+    try { body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { body = {}; }
+    const [request] = previewMoneyActions.splice(requestIndex, 1);
+    const approved = moneyDecisionMatch[2] === 'approve';
+    const auditRecord = {
+      auditRecordId: `audit-preview-${Date.now()}`,
+      actorStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
+      action: approved ? 'money_action.approved' : 'money_action.rejected',
+      outcome: approved ? 'approved' : 'rejected', targetType: 'money_action',
+      targetId: request.moneyActionRequestId, amountMinorUnits: request.amountMinorUnits,
+      decisionReason: typeof body.decisionReason === 'string' ? body.decisionReason : null,
+      createdAtUtc: new Date().toISOString()
+    };
+    previewAuditRecords.unshift(auditRecord);
+    return json({ request: { ...request, state: approved ? 'approved' : 'rejected' }, auditRecord });
+  }
+  if (url.pathname.endsWith('/audit') && method === 'GET') {
+    return json(previewAudit(url.searchParams));
   }
   const matched = route(url.pathname, method);
   if (matched !== undefined) {

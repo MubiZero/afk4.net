@@ -37,6 +37,22 @@ describe('devMockFetch receipt preview', () => {
   });
 });
 
+describe('devMockFetch approval preview', () => {
+  it('moves an approved request from pending into audit history', async () => {
+    const pending = await (await devMockFetch('https://x/api/branches/branch/money-actions')).json();
+    expect(pending.requests.length).toBeGreaterThan(0);
+    const request = pending.requests[0];
+    const decision = await devMockFetch(`https://x/api/branches/branch/money-actions/${request.moneyActionRequestId}/approve`, {
+      method: 'POST', body: JSON.stringify({ decisionReason: null })
+    });
+    expect(decision.status).toBe(200);
+    const after = await (await devMockFetch('https://x/api/branches/branch/money-actions')).json();
+    expect(after.requests.some((item: { moneyActionRequestId: string }) => item.moneyActionRequestId === request.moneyActionRequestId)).toBe(false);
+    const audit = await (await devMockFetch('https://x/api/branches/branch/audit?limit=50')).json();
+    expect(audit.records.some((record: { action: string }) => record.action === 'money_action.approved')).toBe(true);
+  });
+});
+
 describe('devMockFetch /ledger keyset pagination', () => {
   it('returns first page with items and nextCursor', async () => {
     const res = await devMockFetch(`https://x/api/players/${playerId}/ledger?limit=10`);

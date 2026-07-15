@@ -22,7 +22,8 @@ describe('CashJournalWorkspace', () => {
   it('менеджер видит оба сегмента, по умолчанию активны «Кассовые операции»', async () => {
     renderJournal(['reports.view', 'billing.money_action.approve']);
     expect(screen.getByRole('tab', { name: 'Кассовые операции' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Проверка' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Согласования' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Проверка' })).toBeNull();
     await waitFor(() => expect(screen.getByText('Кассовых операций нет')).toBeInTheDocument());
   });
 
@@ -35,15 +36,15 @@ describe('CashJournalWorkspace', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Чеки' }));
     expect(screen.getByRole('tab', { name: 'Чеки' })).toHaveAttribute('aria-selected', 'true');
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Проверка' }));
-    expect(screen.getByRole('tab', { name: 'Проверка' })).toHaveAttribute('aria-selected', 'true');
+    fireEvent.click(screen.getByRole('tab', { name: 'Согласования' }));
+    expect(screen.getByRole('tab', { name: 'Согласования' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getAllByRole('tablist')).toHaveLength(2);
   });
 
   it('без права approve сегмент «Проверка» скрыт, лента кассовых операций рендерится', async () => {
     renderJournal(['reports.view']);
     // Один сегмент — таббар скрыт, сегмент «Проверка» не рендерится…
-    expect(screen.queryByRole('tab', { name: 'Проверка' })).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Согласования' })).toBeNull();
     // …но сама лента «Кассовые операции» отрисована (пустое состояние от инъект-репортс backend=null).
     await waitFor(() => expect(screen.getByText('Кассовых операций нет')).toBeInTheDocument());
   });
@@ -52,13 +53,13 @@ describe('CashJournalWorkspace', () => {
     renderJournal(['receipts.view']);
     expect(screen.getByRole('tab', { name: 'Чеки' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByRole('tab', { name: 'Кассовые операции' })).toBeNull();
-    expect(screen.queryByRole('tab', { name: 'Проверка' })).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Согласования' })).toBeNull();
   });
 
   it('переключение на «Проверка» показывает встроенный ReviewWorkspace', async () => {
     renderJournal(['reports.view', 'billing.money_action.approve']);
     await waitFor(() => expect(screen.getByText('Кассовых операций нет')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('tab', { name: 'Проверка' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Согласования' }));
     // Два tablist'а = внешний (сегменты журнала) + внутренний (сегменты встроенного ReviewWorkspace):
     // доказывает, что встроенный review реально отрисовался, а не пустой фрагмент.
     expect(screen.getAllByRole('tablist')).toHaveLength(2);

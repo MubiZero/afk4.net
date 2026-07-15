@@ -117,6 +117,30 @@
   color: var(--danger-text);
 }
 
+/* Согласования: плотный реестр риска с решением в стабильном инспекторе. */
+.review-embed,
+.review-screen { min-height: 0; }
+.review-embed > .cash-terminal-metrics { flex: none; }
+.review-embed > .cash-terminal-split { flex: 1; min-height: 380px; }
+.review-approval-row { display: grid; grid-template-columns: 92px 90px minmax(0, 1fr) 110px auto; align-items: center; gap: var(--space-3); min-height: 54px; padding: var(--space-2) var(--space-3); }
+.review-approval-row > span { color: var(--text-primary); font-size: 12px; font-weight: 650; }
+.review-approval-row > strong { color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.review-approval-row > em { overflow: hidden; color: var(--text-secondary); font-size: 12px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.review-approval-row > small { overflow: hidden; color: var(--text-tertiary); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.review-approval-row > b { color: var(--text-tertiary); font-size: 10px; font-weight: 650; white-space: nowrap; }
+.review-approval-row > b.soon { color: var(--warning-text); }
+.review-approval-row > b.overdue { color: var(--danger-text); }
+.review-approval-inspector { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); }
+.review-approval-inspector > p { margin: 0; color: var(--accent-text); font-size: 10px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
+.review-approval-inspector h2 { margin: 0; color: var(--text-primary); font-size: var(--text-lg); line-height: 1.35; }
+.review-approval-inspector > strong { color: var(--text-primary); font-family: var(--font-mono); font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
+.review-approval-inspector dl { display: flex; flex-direction: column; margin: 0; border-top: 1px solid var(--border-soft); }
+.review-approval-inspector dl > div { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--border-soft); font-size: 11px; }
+.review-approval-inspector dt { color: var(--text-tertiary); }
+.review-approval-inspector dd { margin: 0; color: var(--text-primary); text-align: right; }
+.review-approval-inspector .review-reject-form { padding-top: var(--space-2); border-top: 1px solid var(--border-soft); }
+.review-history-panel { min-height: 220px; }
+
 .payment-cards-screen { display: grid; gap: 16px; padding: 18px 22px; }
 .payment-cards-screen .screen-head h1 { margin: 0 0 4px; }
 .payment-cards-error { color: var(--danger-text); background: var(--danger-soft-bg); border-radius: 8px; padding: 8px 12px; }
@@ -146,4 +170,3 @@
 .payment-card-session[data-health="online"] .payment-card-session-badge { background: var(--success-soft-bg); color: var(--success); }
 .payment-card-session[data-health="offline"] .payment-card-session-badge { background: var(--danger-soft-bg); color: var(--danger-text); }
 .payment-card-session[data-health="configured"] .payment-card-session-badge { background: var(--warning-soft-bg); color: var(--warning); }
-

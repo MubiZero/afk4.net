@@ -17,10 +17,10 @@ import {
   requireBackend,
   workspaceLoadStatusLabel
 } from './operatorHelpers';
-import { StateFlag } from './operatorPrimitives';
 import { useFeedbackToasts } from './useFeedbackToasts';
+import { CashMetricStrip, CashRegisterRows, CashTerminalSplit } from './cash/CashTerminalFrame';
 
-type ReviewSegment = 'queue' | 'audit';
+type ReviewSegment = 'queue' | 'history' | 'audit';
 
 function reviewActionTypeLabel(actionType: string, t: (key: MessageKey) => string): string {
   switch (actionType) {
@@ -60,6 +60,7 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
 
   const [requests, setRequests] = useState<MoneyActionRequestDto[]>([]);
   const [staffNames, setStaffNames] = useState<Record<string, string>>({});
+  const [selectedRequestId, setSelectedRequestId] = useState('');
   const [rejectingId, setRejectingId] = useState('');
   const [decisionReason, setDecisionReason] = useState('');
 
@@ -171,7 +172,11 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
   };
 
   const auditRecords = readArray<Record<string, unknown>>(auditResult, 'records');
+  const decisionRecords = auditRecords.filter((record) => /approv|reject|money.action/i.test(readString(record, 'action')));
   const staffOptions = Object.entries(staffNames);
+  const selectedRequest = requests.find((request) => request.moneyActionRequestId === selectedRequestId) ?? null;
+  const expiringCount = requests.filter((request) => reviewExpiryBadge(request.expiresAtUtc, Date.now(), t)?.tone === 'soon').length;
+  const overdueCount = requests.filter((request) => reviewExpiryBadge(request.expiresAtUtc, Date.now(), t)?.tone === 'overdue').length;
 
   const body = (
     <>
@@ -187,58 +192,38 @@ export function ReviewWorkspace({ currencyCode, backend, embedded = false }: { c
         </section>
       )}
 
-      <section className="state-strip review-state-strip" aria-label={t('op.review.summaryLabel')}>
-        <StateFlag label={t('op.review.flagRequests')} value={String(requests.length)} critical={requests.length > 0} />
-      </section>
+      <CashMetricStrip ariaLabel={t('op.review.summaryLabel')} items={[
+        { label: t('op.review.flagRequests'), value: requests.length, tone: requests.length ? 'attention' : 'default' },
+        { label: t('op.review.expiringCount'), value: expiringCount, tone: expiringCount ? 'attention' : 'default' },
+        { label: t('op.review.overdueCount'), value: overdueCount, tone: overdueCount ? 'danger' : 'default' }
+      ]} />
 
       <div className="review-segments" role="tablist">
         <button type="button" role="tab" aria-selected={activeSegment === 'queue'} className={activeSegment === 'queue' ? 'active' : undefined} onClick={() => setActiveSegment('queue')}>{t('op.review.tabQueue')}</button>
-        <button type="button" role="tab" aria-selected={activeSegment === 'audit'} className={activeSegment === 'audit' ? 'active' : undefined} onClick={() => setActiveSegment('audit')}>{t('op.review.tabAudit')}</button>
+        <button type="button" role="tab" aria-selected={activeSegment === 'history'} className={activeSegment === 'history' ? 'active' : undefined} onClick={() => { setActiveSegment('history'); void applyAuditSearch(); }}>{t('op.review.tabHistory')}</button>
+        <button type="button" role="tab" aria-selected={activeSegment === 'audit'} className={activeSegment === 'audit' ? 'active' : undefined} onClick={() => { setActiveSegment('audit'); if (auditResult === null) void applyAuditSearch(); }}>{t('op.review.tabAudit')}</button>
       </div>
 
       {activeSegment === 'queue' && (
-        <section className="review-panel review-queue-panel">
-          {requests.length === 0 ? (
-            <p className="review-empty">{loadError ?? t('op.review.emptyQueue')}</p>
-          ) : (
-            requests.map((request) => {
-              const expiryBadge = reviewExpiryBadge(request.expiresAtUtc, Date.now(), t);
-              return (
-              <article key={request.moneyActionRequestId} className="review-request-row">
-                <div className="review-request-head">
-                  <strong>{reviewActionTypeLabel(request.actionType, t)}</strong>
-                  <b>{formatMinorUnits(request.amountMinorUnits, request.currencyCode || currencyCode)}</b>
-                </div>
-                <em>{request.reason}</em>
-                <div className="review-request-meta">
-                  <span>{t('op.review.requestedBy', { name: resolveStaffName(request.requestedByStaffUserId) })}</span>
-                  <span>{t('op.review.createdAt', { time: formatTime(request.createdAtUtc) })}</span>
-                  <span>{t('op.review.expiresAt', { time: formatTime(request.expiresAtUtc) })}</span>
-                  {expiryBadge && <span className={`review-expiry-badge ${expiryBadge.tone}`}>{expiryBadge.label}</span>}
-                </div>
-                {rejectingId === request.moneyActionRequestId ? (
-                  <div className="review-reject-form">
-                    <label>
-                      {t('op.review.rejectReasonLabel')}
-                      <input value={decisionReason} onChange={(event) => setDecisionReason(event.currentTarget.value)} placeholder={t('op.review.rejectReasonPlaceholder')} />
-                    </label>
-                    <div className="review-request-actions">
-                      <button type="button" onClick={() => void confirmReject(request)}>{t('op.review.confirmRejectBtn')}</button>
-                      <button type="button" onClick={() => { setRejectingId(''); setDecisionReason(''); }}>{t('common.cancel')}</button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="review-request-actions">
-                    <button type="button" onClick={() => void approveRequest(request)}>{t('op.review.approveBtn')}</button>
-                    <button type="button" onClick={() => { setRejectingId(request.moneyActionRequestId); setDecisionReason(''); }}>{t('devices.action.reject')}</button>
-                  </div>
-                )}
-              </article>
-              );
-            })
-          )}
-        </section>
+        <CashTerminalSplit
+          inspectorOpen={selectedRequest !== null}
+          closeLabel={t('common.close')}
+          onCloseInspector={() => { setSelectedRequestId(''); setRejectingId(''); setDecisionReason(''); }}
+          register={requests.length === 0 ? <p className="review-empty">{loadError ?? t('op.review.emptyQueue')}</p> : <CashRegisterRows rows={requests} selectedId={selectedRequestId} getId={(request) => request.moneyActionRequestId} onSelect={setSelectedRequestId} ariaLabel={t('op.review.queueAria')} renderRow={(request) => {
+            const expiryBadge = reviewExpiryBadge(request.expiresAtUtc, Date.now(), t);
+            return <div className="review-approval-row"><span>{reviewActionTypeLabel(request.actionType, t)}</span><strong>{formatMinorUnits(request.amountMinorUnits, request.currencyCode || currencyCode)}</strong><em>{request.reason}</em><small>{resolveStaffName(request.requestedByStaffUserId)}</small>{expiryBadge ? <b className={expiryBadge.tone}>{expiryBadge.label}</b> : null}</div>;
+          }} />}
+          inspector={selectedRequest ? <div className="review-approval-inspector">
+            <p>{reviewActionTypeLabel(selectedRequest.actionType, t)}</p>
+            <h2>{selectedRequest.reason}</h2>
+            <strong>{formatMinorUnits(selectedRequest.amountMinorUnits, selectedRequest.currencyCode || currencyCode)}</strong>
+            <dl><div><dt>{t('op.review.requestedByLabel')}</dt><dd>{resolveStaffName(selectedRequest.requestedByStaffUserId)}</dd></div><div><dt>{t('op.review.createdLabel')}</dt><dd>{formatTime(selectedRequest.createdAtUtc)}</dd></div><div><dt>{t('op.review.expiresLabel')}</dt><dd>{formatTime(selectedRequest.expiresAtUtc)} {reviewExpiryBadge(selectedRequest.expiresAtUtc, Date.now(), t)?.label ?? ''}</dd></div></dl>
+            {rejectingId === selectedRequest.moneyActionRequestId ? <div className="review-reject-form"><label>{t('op.review.rejectReasonLabel')}<input value={decisionReason} onChange={(event) => setDecisionReason(event.currentTarget.value)} placeholder={t('op.review.rejectReasonPlaceholder')} /></label><div className="review-request-actions"><button type="button" onClick={() => void confirmReject(selectedRequest)}>{t('op.review.confirmRejectBtn')}</button><button type="button" onClick={() => { setRejectingId(''); setDecisionReason(''); }}>{t('common.cancel')}</button></div></div> : <div className="review-request-actions"><button type="button" onClick={() => void approveRequest(selectedRequest)}>{t('op.review.approveBtn')}</button><button type="button" onClick={() => { setRejectingId(selectedRequest.moneyActionRequestId); setDecisionReason(''); }}>{t('devices.action.reject')}</button></div>}
+          </div> : <p className="cash-inspector-empty">{t('op.review.selectHint')}</p>}
+        />
       )}
+
+      {activeSegment === 'history' && <section className="review-panel review-history-panel">{decisionRecords.length === 0 ? <p className="review-empty">{t('op.review.emptyHistory')}</p> : <div className="review-audit-list">{decisionRecords.map((record) => <article key={readString(record, 'auditRecordId')} className="review-audit-row"><span>{formatTime(readString(record, 'createdAtUtc'))}</span><strong>{reviewAuditActorLabel(record)}</strong><em>{auditActionLabel(readString(record, 'action'), t)}</em><b>{readNumber(record, 'amountMinorUnits', 0) ? formatMinorUnits(readNumber(record, 'amountMinorUnits', 0), currencyCode) : '—'}</b></article>)}</div>}</section>}
 
       {activeSegment === 'audit' && (
         <section className="review-panel review-audit-panel">

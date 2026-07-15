@@ -2723,7 +2723,7 @@ describe('App', () => {
 
     gotoWorkspace('Журнал кассы');
     expect(await screen.findByRole('tab', { name: 'Кассовые операции' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: 'Проверка' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Согласования' }));
     expect(await screen.findByText('Клиент отменил заказ')).toBeInTheDocument();
   });
 
@@ -2732,11 +2732,12 @@ describe('App', () => {
     render(<App />);
     await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
     gotoWorkspace('Журнал кассы');
-    fireEvent.click(await screen.findByRole('tab', { name: 'Проверка' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Согласования' }));
 
     expect(await screen.findByText('Клиент отменил заказ')).toBeInTheDocument();
     expect(screen.getByText(/Возврат/)).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole('row', { name: /Возврат.*120/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Одобрить' }));
 
     await waitFor(() => {
@@ -2752,9 +2753,10 @@ describe('App', () => {
     render(<App />);
     await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
     gotoWorkspace('Журнал кассы');
-    fireEvent.click(await screen.findByRole('tab', { name: 'Проверка' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Согласования' }));
     await screen.findByText('Клиент отменил заказ');
 
+    fireEvent.click(screen.getByRole('row', { name: /Возврат.*120/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Отклонить' }));
     fireEvent.click(screen.getByRole('button', { name: 'Подтвердить отклонение' }));
     expect(await screen.findByText('Укажите причину отклонения.')).toBeInTheDocument();
@@ -2776,7 +2778,7 @@ describe('App', () => {
     render(<App />);
     await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
     gotoWorkspace('Журнал кассы');
-    fireEvent.click(await screen.findByRole('tab', { name: 'Проверка' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Согласования' }));
     await screen.findByText('Клиент отменил заказ');
 
     fireEvent.click(screen.getByRole('tab', { name: 'Журнал операций' }));
