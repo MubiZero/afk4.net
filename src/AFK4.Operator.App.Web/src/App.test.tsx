@@ -241,6 +241,80 @@ describe('App', () => {
     expect(sessionStorage.length).toBe(0);
   });
 
+  it('requires an open shift after native session restore before loading operator workspaces', async () => {
+    installSessionBridge();
+    let shiftOpened = false;
+    fetchMock.mockImplementation((input, init) => {
+      const pathname = new URL(String(input)).pathname;
+      if (pathname.endsWith('/shifts/current')) {
+        return shiftOpened
+          ? Promise.resolve(jsonResponse(createCurrentShift()))
+          : Promise.resolve(new Response(null, { status: 404 }));
+      }
+      if (pathname.endsWith('/shifts/open') && init?.method === 'POST') {
+        shiftOpened = true;
+        return Promise.resolve(jsonResponse(createCurrentShift()));
+      }
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Откройте смену' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Рабочие места' })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('ПК зала')).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/floor-map'))).toBe(false);
+
+    fireEvent.change(await screen.findByLabelText('Старт наличных'), { target: { value: '100' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть смену' }));
+
+    expect(await screen.findByRole('navigation', { name: 'Рабочие места' })).toBeInTheDocument();
+    expect(await screen.findByLabelText('ПК зала')).toBeInTheDocument();
+    expect(shiftOpened).toBe(true);
+  });
+
+  it('requires an open shift after interactive sign-in', async () => {
+    window.__AFK4_OPERATOR_CONFIG__ = {
+      runtime: 'browser-dev',
+      shellMode: 'vite-dev',
+      platformBaseUrl: 'http://localhost:5074/',
+      currencyCode: 'TJS',
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      branchId: 'acfc0212-967f-4d84-94be-9003387b09c2'
+    };
+    installSessionBridge(null);
+    fetchMock.mockImplementation((input, init) => {
+      const pathname = new URL(String(input)).pathname;
+      if (pathname.endsWith('/shifts/current')) {
+        return Promise.resolve(new Response(null, { status: 404 }));
+      }
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+    fireEvent.change(await screen.findByLabelText(/номер телефона/i), { target: { value: '937380070' } });
+    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
+
+    expect(await screen.findByRole('heading', { name: 'Откройте смену' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('ПК зала')).not.toBeInTheDocument();
+  });
+
+  it('skips the shift gate for staff without shifts.open', async () => {
+    installSessionBridge(
+      createSession({ permissions: ['floor_map.view'] }),
+      createSession({ permissions: ['floor_map.view'] })
+    );
+
+    render(<App />);
+
+    expect(await screen.findByLabelText('ПК зала')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Откройте смену' })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/shifts/current'))).toBe(false);
+    expect(screen.queryByTitle('Касса')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Управление')).not.toBeInTheDocument();
+  });
+
   it('signs in by login or email after switching off the phone-first mode', async () => {
     window.__AFK4_OPERATOR_CONFIG__ = {
       runtime: 'browser-dev',
@@ -756,17 +830,15 @@ describe('App', () => {
       String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/commands/44444444-4444-4444-4444-444444444444/status'))).toBe(true);
   });
 
-  it('disables unauthorized workspaces and selected-seat actions', async () => {
+  it('hides unauthorized workspaces and disables selected-seat actions', async () => {
     installSessionBridge(createSession({ permissions: ['floor_map.view'] }));
 
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
-    expect(screen.getByTitle('Касса')).toHaveAttribute('aria-disabled', 'true');
-    expect(screen.getByTitle('Брони')).toHaveAttribute('aria-disabled', 'true');
-    fireEvent.click(screen.getByTitle('Брони'));
-    expect(await screen.findByText(/Нет прав на раздел/)).toBeInTheDocument();
+    expect(screen.queryByTitle('Касса')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Брони')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /15 мин/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: /Завершить сессию/ })).toBeDisabled();
     expect(screen.getByText('Нет прав на действия с сессией')).toBeInTheDocument();
@@ -809,7 +881,6 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     const bookingButton = within(screen.getByRole('navigation')).getByTitle('Брони');
-    expect(bookingButton).toHaveAttribute('aria-disabled', 'false');
     expect(bookingButton).toBeEnabled();
 
     fireEvent.click(bookingButton);
@@ -1237,7 +1308,7 @@ describe('App', () => {
     });
   });
 
-  it('opens a shift from the cash header modal when no current shift exists', async () => {
+  it('opens a shift from the post-auth gate when no current shift exists', async () => {
     installSessionBridge();
     let shiftOpened = false;
     fetchMock.mockImplementation((input, init) => {
@@ -1256,18 +1327,10 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Смена');
-
-    // Смена закрыта → в шапке кнопка «Открыть смену» открывает модалку.
-    fireEvent.click(await screen.findByRole('button', { name: 'Открыть смену' }));
-    fireEvent.change(screen.getByLabelText('Старт наличных'), { target: { value: '150.00' } });
+    expect(await screen.findByRole('heading', { name: 'Откройте смену' })).toBeInTheDocument();
+    fireEvent.change(await screen.findByLabelText('Старт наличных'), { target: { value: '150.00' } });
     fireEvent.change(screen.getByLabelText('Комментарий'), { target: { value: 'Утренняя смена' } });
-    // submit модалки (вторая кнопка «Открыть смену» — внутри формы модалки)
-    const dialog = screen.getByRole('dialog');
-    const revenueCallsBefore = fetchMock.mock.calls.filter(([input]) =>
-      String(input).includes('/shifts/revenue/current')).length;
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Открыть смену' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Открыть смену' }));
 
     const openCall = await waitFor(() => {
       const call = fetchMock.mock.calls.find(([input, init]) =>
@@ -1282,12 +1345,7 @@ describe('App', () => {
       openingNote: 'Утренняя смена'
     });
     expect(body.idempotencyKey).toMatch(/^shift-open-/);
-    // дренаж второй волны рефетчей: onShiftChanged → shiftNonce++ → Header + Workspace рефетчат /shifts/revenue/current
-    await waitFor(() => {
-      const revenueCallsAfter = fetchMock.mock.calls.filter(([input]) =>
-        String(input).includes('/shifts/revenue/current')).length;
-      expect(revenueCallsAfter).toBeGreaterThanOrEqual(revenueCallsBefore + 2);
-    });
+    expect(await screen.findByLabelText('ПК зала')).toBeInTheDocument();
   });
 
   it('renders the shift tab without errors on empty reports', async () => {
