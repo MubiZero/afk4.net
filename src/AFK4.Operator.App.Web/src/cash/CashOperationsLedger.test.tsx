@@ -41,6 +41,44 @@ describe('CashOperationsLedger', () => {
     expect(screen.getByText('Инкассация')).toBeInTheDocument();
   });
 
+  it('фильтрует по типу и показывает число видимых операций', async () => {
+    renderLedger(rows);
+    await screen.findByText('Размен кассы');
+    fireEvent.change(screen.getByLabelText('Тип операции'), { target: { value: 'cash_out' } });
+    expect(screen.queryByText('Размен кассы')).toBeNull();
+    expect(screen.getByText('1 операция')).toBeInTheDocument();
+  });
+
+  it('показывает контекст выбранной операции в стабильном инспекторе', async () => {
+    renderLedger(rows);
+    fireEvent.click(await screen.findByRole('row', { name: /Инкассация/ }));
+    const inspector = screen.getByLabelText('Детали выбранной записи');
+    expect(inspector).toHaveTextContent('Инкассация');
+    expect(inspector).toHaveTextContent('c2');
+  });
+
+  it('после ошибки отчёта предлагает локальный повтор', async () => {
+    let calls = 0;
+    render(
+      <I18nProvider initialLocale="ru">
+        <CashOperationsLedger
+          backend={backend}
+          branchId="b1"
+          currencyCode="TJS"
+          reports={{ getCashOperationReport: async () => {
+            calls += 1;
+            if (calls === 1) throw new Error('report failed');
+            return { rows: [] };
+          } }}
+        />
+      </I18nProvider>
+    );
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+    expect(await screen.findByText('Кассовых операций нет')).toBeInTheDocument();
+    expect(calls).toBe(2);
+  });
+
   it('пустой набор → пустое состояние', async () => {
     renderLedger([]);
     await waitFor(() => expect(screen.getByText('Кассовых операций нет')).toBeInTheDocument());

@@ -32,12 +32,13 @@ export function resolveRegisterSelection(
 export function filterCashOperationRows(
   rows: Record<string, unknown>[],
   query: string,
-  operationType: string
+  operationType: string,
+  operationTypeLabel: (operationType: string) => string = (value) => value
 ): Record<string, unknown>[] {
   const needle = query.trim().toLocaleLowerCase();
   return rows.filter((row) => {
     const type = readString(row, 'operationType');
     return (operationType === 'all' || type === operationType)
-      && (needle === '' || `${type} ${readString(row, 'reason')}`.toLocaleLowerCase().includes(needle));
+      && (needle === '' || `${type} ${operationTypeLabel(type)} ${readString(row, 'reason')}`.toLocaleLowerCase().includes(needle));
   });
 }

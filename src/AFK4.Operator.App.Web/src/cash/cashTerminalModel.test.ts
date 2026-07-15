@@ -54,4 +54,8 @@ describe('filterCashOperationRows', () => {
   it('keeps all rows for an empty query and all types', () => {
     expect(filterCashOperationRows(rows, '', 'all')).toEqual(rows);
   });
+
+  it('can search by a localized operation label', () => {
+    expect(filterCashOperationRows(rows, 'внесение', 'all', (type) => type === 'cash_in' ? 'Внесение' : 'Изъятие')).toEqual([rows[0]]);
+  });
 });

@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 
 export interface CashMetricItem {
@@ -10,7 +10,7 @@ export interface CashMetricItem {
 
 export function CashMetricStrip({ items, ariaLabel }: { items: CashMetricItem[]; ariaLabel: string }) {
   return (
-    <section className="cash-terminal-metrics" aria-label={ariaLabel}>
+    <section className="cash-terminal-metrics" aria-label={ariaLabel} style={{ '--cash-metric-count': items.length } as CSSProperties}>
       {items.map((item) => (
         <div key={item.label} className={`cash-terminal-metric tone-${item.tone ?? 'default'}`}>
           <span>{item.label}</span>
@@ -64,6 +64,8 @@ export function CashRegisterRows<TRow>({
   ariaLabel: string;
 }) {
   const rowRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const selectedIndex = rows.findIndex((row) => getId(row) === selectedId);
+  const tabbableIndex = selectedIndex >= 0 ? selectedIndex : 0;
 
   const moveSelection = (event: KeyboardEvent<HTMLDivElement>, index: number) => {
     let nextIndex = index;
@@ -93,7 +95,7 @@ export function CashRegisterRows<TRow>({
             ref={(node) => { rowRefs.current[index] = node; }}
             className="cash-register-row"
             role="row"
-            tabIndex={id === selectedId ? 0 : -1}
+            tabIndex={index === tabbableIndex ? 0 : -1}
             aria-selected={id === selectedId}
             onClick={() => onSelect(id)}
             onKeyDown={(event) => moveSelection(event, index)}

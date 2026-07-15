@@ -393,6 +393,16 @@
   color: var(--text-primary);
 }
 .cash-ledger-search input:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
+.cash-ledger-search select {
+  min-height: var(--control-md);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+}
+.cash-ledger-search select:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
+.cash-ledger-result-count { flex: none; color: var(--text-tertiary); font-size: 11px; white-space: nowrap; }
 .cash-ledger-export {
   display: inline-flex; align-items: center; gap: var(--space-1);
   min-height: var(--control-md); padding: 0 var(--space-2);
@@ -405,6 +415,24 @@
 
 /* Список-обёртка: ряды теперь на общей .ui-ledger-* грамматике (02-ui-kit.css), тут только list-reset. */
 .cash-ledger-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+
+.cash-operations-terminal { display: flex; min-height: 100%; flex-direction: column; gap: var(--space-2); }
+.cash-operations-terminal > .cash-terminal-split { flex: 1; min-height: 380px; }
+.cash-operations-terminal .cash-ledger-search { padding: var(--space-2); border-bottom: 1px solid var(--border-soft); }
+.cash-operation-row { min-height: 50px; padding-right: var(--space-3); padding-left: var(--space-3); }
+.cash-ledger-empty { padding: var(--space-4); }
+.cash-operation-inspector { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-4); }
+.cash-operation-inspector > p { margin: 0; color: var(--accent-text); font-size: 10px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
+.cash-operation-inspector h2 { margin: 0; color: var(--text-primary); font-size: var(--text-lg); line-height: 1.3; }
+.cash-operation-inspector > strong { color: var(--text-primary); font-family: var(--font-mono); font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
+.cash-operation-inspector dl { display: flex; flex-direction: column; margin: var(--space-2) 0 0; border-top: 1px solid var(--border-soft); }
+.cash-operation-inspector dl > div { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(0, 1.4fr); gap: var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--border-soft); }
+.cash-operation-inspector dt { color: var(--text-tertiary); font-size: 11px; }
+.cash-operation-inspector dd { margin: 0; overflow-wrap: anywhere; color: var(--text-primary); font-family: var(--font-mono); font-size: 11px; text-align: right; }
+.cash-inspector-empty { margin: 0; padding: var(--space-4); color: var(--text-tertiary); font-size: 12px; }
+.cash-ledger-failure { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4); }
+.cash-ledger-failure .workspace-error { margin: 0; }
+.cash-ledger-failure button { min-height: var(--control-md); padding: 0 var(--space-3); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); background: var(--surface-elevated); color: var(--text-primary); cursor: pointer; }
 
 /* S2: форма X/Z-отчёта в модалке. */
 .cash-report { display: flex; flex-direction: column; gap: var(--space-3); }
