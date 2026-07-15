@@ -6,6 +6,10 @@ The active architecture source of truth is:
 
 Approved backlog specs:
 
+- `2026-07-15-operator-cash-terminal-redesign-design.md` — approved redesign of
+  the Operator App shift, cash operations, receipts, approvals, and audit
+  surfaces into a dense operational cash terminal; ready for implementation
+  planning.
 - `2026-06-11-productionize-client-installer-design.md` — shared bundled .NET
   runtime (framework-dependent apps + WiX Burn bundle) to cut the ~160 MB agent
   MSI, channel-driven prod URL, and code signing (blocked on a cert). Includes a
