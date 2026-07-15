@@ -10,6 +10,7 @@ export interface OperatorAuthSession {
   branchIds: string[];
   activeBranchId?: string;
   permissions: string[];
+  roleNames?: string[];
 }
 
 export interface OperatorSignInRequest {

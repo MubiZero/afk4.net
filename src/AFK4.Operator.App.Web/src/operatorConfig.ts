@@ -3,6 +3,7 @@ export interface OperatorConfig {
   shellMode: string;
   platformBaseUrl: string;
   currencyCode: string;
+  appVersion?: string;
   organizationId?: string;
   branchId?: string;
 }
@@ -11,7 +12,8 @@ const fallbackConfig: OperatorConfig = {
   runtime: 'browser-dev',
   shellMode: 'vite-dev',
   platformBaseUrl: 'http://localhost:5074/',
-  currencyCode: 'TJS'
+  currencyCode: 'TJS',
+  appVersion: 'dev'
 };
 
 export function getOperatorConfig(): OperatorConfig {
