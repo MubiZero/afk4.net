@@ -296,6 +296,48 @@
 
 .cash-shift-empty, .cash-shift-empty-note { color: var(--text-secondary); font-size: 13px; }
 
+/* S4: «Смена» как операционный терминал — метрики, рабочая область и реестр закрытий. */
+.cash-shift-screen { display: flex; flex-direction: column; gap: var(--space-2); }
+.cash-shift-screen > .cash-terminal-split { flex: 1; min-height: 420px; }
+.cash-shift-register { display: flex; flex-direction: column; min-height: 100%; }
+.cash-shift-primary-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(260px, 2fr); border-bottom: 1px solid var(--border-soft); }
+.cash-shift-panel { min-width: 0; padding: var(--space-3); border-bottom: 1px solid var(--border-soft); }
+.cash-shift-primary-grid .cash-shift-panel { border-bottom: 0; }
+.cash-shift-primary-grid .cash-shift-panel + .cash-shift-panel { border-left: 1px solid var(--border-soft); }
+.cash-shift-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); }
+.cash-shift-section-head h2 { margin: 0; color: var(--text-secondary); font-size: 11px; font-weight: 750; letter-spacing: .055em; text-transform: uppercase; }
+.cash-shift-section-head > strong { color: var(--text-primary); font-family: var(--font-mono); font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
+.cash-shift-section-head > strong.muted,
+.cash-shift-section-head > span { color: var(--text-tertiary); font-family: inherit; font-size: 11px; font-weight: 650; }
+.cash-shift-revenue-row { display: grid; grid-template-columns: 76px minmax(80px, 1fr) auto; align-items: center; gap: var(--space-2); min-height: 28px; font-size: 12px; }
+.cash-shift-revenue-row > span { color: var(--text-secondary); }
+.cash-shift-revenue-row > i { display: block; height: 5px; overflow: hidden; border-radius: 4px; background: var(--surface-sunken); }
+.cash-shift-revenue-row > i b { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+.cash-shift-revenue-row > strong,
+.cash-shift-methods b { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cash-shift-methods { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin-top: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--border-soft); color: var(--text-tertiary); font-size: 11px; }
+.cash-shift-methods span { display: inline-flex; gap: var(--space-1); }
+.cash-shift-formula { margin: 0 0 var(--space-3); padding: var(--space-2); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); background: var(--surface-sunken); color: var(--text-secondary); font-size: 11px; line-height: 1.45; }
+.cash-shift-movements li strong { display: flex; min-width: 0; flex-direction: column; }
+.cash-shift-movements li strong small { overflow: hidden; color: var(--text-tertiary); font-size: 10px; font-weight: 450; text-overflow: ellipsis; white-space: nowrap; }
+.cash-shift-history-register { margin-top: auto; }
+.cash-shift-history-register > .cash-shift-section-head { margin: 0; padding: var(--space-3); border-bottom: 1px solid var(--border-soft); }
+.cash-shift-history-register .cash-register-row { display: grid; grid-template-columns: 120px 1fr 1fr; align-items: baseline; gap: var(--space-3); padding: var(--space-2) var(--space-3); }
+.cash-shift-inspector-content { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); }
+.cash-shift-inspector-kicker { margin: 0; color: var(--accent-text); font-size: 10px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
+.cash-shift-inspector-content h2 { margin: 0; color: var(--text-primary); font-family: var(--font-mono); font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
+.cash-shift-inspector-content--quiet .cash-shift-inspector-kicker { color: var(--text-tertiary); }
+.cash-shift-inspector-content--quiet h2 { max-width: 24ch; font-family: inherit; font-size: var(--text-base); line-height: 1.4; }
+.cash-shift-no-open { padding: var(--space-5) var(--space-4); border-bottom: 1px solid var(--border-soft); }
+.cash-shift-no-open > span { display: inline-block; margin-bottom: var(--space-2); color: var(--text-tertiary); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.cash-shift-no-open h2 { margin: 0; color: var(--text-primary); font-size: var(--text-xl); }
+.cash-shift-no-open p { margin: var(--space-2) 0 0; color: var(--text-secondary); font-size: 12px; }
+
+@media (max-width: 1100px) {
+  .cash-shift-primary-grid { grid-template-columns: 1fr; }
+  .cash-shift-primary-grid .cash-shift-panel + .cash-shift-panel { border-top: 1px solid var(--border-soft); border-left: 0; }
+}
+
 /* S2: вкладка «Журнал кассы» — сегменты, лента операций, встроенная проверка. */
 .cash-journal-segments {
   display: flex;
