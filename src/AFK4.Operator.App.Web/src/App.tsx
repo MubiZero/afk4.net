@@ -41,7 +41,6 @@ import {
 import {
   operatorDisplayNameLabel,
   shellShiftBadge,
-  shellPosLabel,
   resolveActiveBranchId
 } from './operatorHelpers';
 
@@ -158,7 +157,6 @@ function AppInner() {
     && hasPermission(authSession, permissionNames.viewDeviceDetail))
     || hasPermission(authSession, permissionNames.dispatchDeviceCommand);
   const shellShift = shellShiftBadge(shellCurrentShift, shellDashboardSummary, shellLoadStatus, shellLoadError, t);
-  const shellPosText = shellPosLabel(shellDashboardSummary, shellLoadStatus, t);
 
   useEffect(() => {
     if (authStatus !== 'signed-in' || authSession === null) {
@@ -371,11 +369,14 @@ function AppInner() {
       )}
 
       <ShellStatusBar
+        operatorName={authSession.displayName}
+        roleNames={authSession.roleNames ?? []}
+        clubName={displayedFloorMap.source === 'backend' ? displayedFloorMap.branchName : ''}
         realtimeState={realtimeState}
         realtimeError={realtimeError}
         dataSource={floorMap.source}
+        appVersion={config.appVersion ?? ''}
         workspaceFeedback={workspaceFeedback}
-        posText={shellPosText}
       />
     </div>
   );

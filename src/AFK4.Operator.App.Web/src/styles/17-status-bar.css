@@ -1,53 +1,93 @@
 .signals-strip {
   grid-column: 1 / 4;
   display: flex;
-  align-items: center;
-  gap: 14px;
   min-width: 0;
+  height: 32px;
+  align-items: center;
   overflow: hidden;
   padding: 0 16px;
-  border-top: 1px solid var(--border-soft);
+  border-top: 1px solid var(--border-default);
   background: var(--surface-elevated);
   color: var(--text-secondary);
-  font-size: 12px;
-}
-
-/* Единый элемент статус-бара: иконка/точка + текст, один размер и вес для всех. */
-.signals-strip .signal-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
   white-space: nowrap;
+}
+
+.signal-cluster {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  align-items: center;
+}
+
+.signal-left {
+  flex: 1;
+  overflow: hidden;
+}
+
+.signal-right {
+  flex: none;
+  margin-left: auto;
+}
+
+.signal-field {
+  display: inline-flex;
+  min-width: 0;
+  height: 100%;
+  align-items: center;
+  gap: 4px;
+  padding: 0 14px;
+  border-left: 1px solid var(--border-soft);
   color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 550;
+  font-size: 11px;
+  line-height: 1;
 }
 
-.signals-strip .signal-item svg {
+.signal-field:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.signal-field strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-weight: 600;
+  text-overflow: ellipsis;
+}
+
+.signal-left .signal-club {
+  flex-shrink: 3;
+}
+
+.signal-left .signal-role {
+  flex-shrink: 2;
+}
+
+.signal-left .signal-operator {
+  flex-shrink: 1;
+}
+
+.signal-feedback {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  color: var(--danger-text);
+  font-size: 11px;
+  text-overflow: ellipsis;
+}
+
+.signal-feedback svg {
   flex-shrink: 0;
-  color: var(--text-tertiary);
 }
 
-.signals-strip .signal-muted {
-  color: var(--text-tertiary);
-}
-
-/* Единый индикатор связи — курсор-подсказка намекает, что при наведении есть детали (источник данных). */
-.signal-conn {
-  cursor: help;
-}
-
-/* Точка-индикатор связи: цвет = severity, форма одинаковая. */
 .signal-dot {
   flex-shrink: 0;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 999px;
   background: var(--text-tertiary);
 }
-
-.signal-pos .signal-dot { width: 7px; height: 7px; }
 
 .signal-dot.ok {
   background: var(--success);
@@ -61,19 +101,14 @@
   background: var(--danger);
 }
 
-/* Правый кластер — разовый фид-бэк действия, прижат к правому краю (касса теперь слева в потоке). */
-.signals-right {
-  display: inline-flex;
-  align-items: center;
-  gap: 16px;
-  margin-left: auto;
-  min-width: 0;
+.tone-ok {
+  color: var(--success-text);
 }
 
-.signals-strip .rail-feedback {
-  color: var(--danger-text);
+.tone-warn {
+  color: var(--warning-text);
 }
 
-.signals-strip .rail-feedback svg {
+.tone-bad {
   color: var(--danger-text);
 }

@@ -91,7 +91,8 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
     expect(await screen.findByTitle(/Смена открыта/)).toBeInTheDocument();
-    expect(await screen.findByText('Касса: 1 чек сегодня')).toBeInTheDocument();
+    expect(await screen.findByText('Cashier One')).toBeInTheDocument();
+    expect(screen.queryByText(/Касса:/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Смена #24/)).not.toBeInTheDocument();
     expect(screen.queryByText(/неоплаченных чека/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Lease fresh|No route|Device unassigned|Postpaid|режим разработки/)).not.toBeInTheDocument();
@@ -109,6 +110,33 @@ describe('App', () => {
     // Имя оператора из восстановленной сессии живёт в меню аккаунта (рейл показывает ярлык «Аккаунт»).
     fireEvent.click(screen.getByRole('button', { name: 'Мой аккаунт' }));
     expect(screen.getByText(/Оператор смены/)).toBeInTheDocument();
+  });
+
+  it('renders the authoritative system status footer', async () => {
+    window.__AFK4_OPERATOR_CONFIG__ = {
+      runtime: 'webview2',
+      shellMode: 'vite-dist',
+      platformBaseUrl: 'http://localhost:5074/',
+      currencyCode: 'TJS',
+      appVersion: '2.45.1',
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      branchId: 'acfc0212-967f-4d84-94be-9003387b09c2'
+    };
+    installSessionBridge(createSession({
+      displayName: 'Иванов И.И.',
+      roleNames: ['cashier_operator']
+    }));
+
+    const { container } = render(<App />);
+    await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
+    const footer = container.querySelector('.signals-strip');
+
+    expect(footer).not.toBeNull();
+    expect(within(footer as HTMLElement).getByText('Иванов И.И.')).toBeInTheDocument();
+    expect(within(footer as HTMLElement).getByText('Кассир-оператор')).toBeInTheDocument();
+    expect(within(footer as HTMLElement).getByText('AFK4 Dushanbe · зал A')).toBeInTheDocument();
+    expect(within(footer as HTMLElement).getByText('2.45.1')).toBeInTheDocument();
+    expect(within(footer as HTMLElement).queryByText(/Касса:/)).toBeNull();
   });
 
   it('exposes native window drag, maximize, and resize commands', async () => {
