@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { hasAnyPermission, permissionNames } from '../operatorPermissions';
 import type { OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import { CashOperationsLedger } from './CashOperationsLedger';
 import { CashReceiptsLedger } from './CashReceiptsLedger';
 import { ReviewWorkspace } from '../ReviewWorkspace';
-
-type JournalSegment = 'ops' | 'receipts' | 'review';
+import { visibleCashJournalSegments, type CashJournalSegment } from './cashTerminalModel';
 
 // Вкладка «Журнал кассы» = лента кассовых операций + аппрув возвратов/коррекций (ReviewWorkspace
 // во встроенном режиме). Сегменты гейтятся правами — оператор не видит сегмент без доступа.
@@ -21,20 +19,21 @@ export function CashJournalWorkspace({
   session: OperatorAuthSession | null;
 }) {
   const { t } = useI18n();
-  const canOps = hasAnyPermission(session, [permissionNames.viewReports, permissionNames.viewShift, permissionNames.manageShiftCash]);
-  const canReceipts = hasAnyPermission(session, [permissionNames.viewReceipt, permissionNames.refundPosSale]);
-  const canReview = hasAnyPermission(session, [permissionNames.approveMoneyAction]);
-
-  const segments: { id: JournalSegment; label: string }[] = [];
-  if (canOps) segments.push({ id: 'ops', label: t('op.cash.journal.segOps') });
-  if (canReceipts) segments.push({ id: 'receipts', label: t('op.cash.journal.segReceipts') });
-  if (canReview) segments.push({ id: 'review', label: t('op.cash.journal.segReview') });
-
-  const [active, setActive] = useState<JournalSegment>(() => segments[0]?.id ?? 'ops');
+  const visibleSegments = visibleCashJournalSegments(session);
+  const canOps = visibleSegments.includes('ops');
+  const canReceipts = visibleSegments.includes('receipts');
+  const canReview = visibleSegments.includes('review');
+  const labels: Record<CashJournalSegment, string> = {
+    ops: t('op.cash.journal.segOps'),
+    receipts: t('op.cash.journal.segReceipts'),
+    review: t('op.cash.journal.segReview')
+  };
+  const segments = visibleSegments.map((id) => ({ id, label: labels[id] }));
+  const [active, setActive] = useState<CashJournalSegment>(() => visibleSegments[0] ?? 'ops');
 
   return (
     <main className="workspace-screen cash-journal-screen">
-      {segments.length > 1 && (
+      {segments.length > 0 && (
         <div className="cash-journal-segments" role="tablist" aria-label={t('op.cash.journal.title')}>
           {segments.map((segment) => (
             <button

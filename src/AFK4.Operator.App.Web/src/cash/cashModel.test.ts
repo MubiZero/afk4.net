@@ -58,6 +58,12 @@ describe('visibleCashTabs (per-tab гранулярность прав)', () => 
   it('только approveMoneyAction → Журнал', () => {
     expect(visibleCashTabs(session(['billing.money_action.approve']))).toEqual(['journal']);
   });
+  it('только receipts.view → Журнал', () => {
+    expect(visibleCashTabs(session(['receipts.view']))).toEqual(['journal']);
+  });
+  it('только pos.sales.refund → Журнал', () => {
+    expect(visibleCashTabs(session(['pos.sales.refund']))).toEqual(['sales', 'journal']);
+  });
   it('только viewReports → Журнал виден (расширение доступа, не регрессия)', () => {
     expect(visibleCashTabs(session(['reports.view']))).toContain('journal');
   });

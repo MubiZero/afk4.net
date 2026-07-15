@@ -48,6 +48,13 @@ describe('CashJournalWorkspace', () => {
     await waitFor(() => expect(screen.getByText('Кассовых операций нет')).toBeInTheDocument());
   });
 
+  it('сотрудник только с receipts.view попадает прямо в сегмент «Чеки»', () => {
+    renderJournal(['receipts.view']);
+    expect(screen.getByRole('tab', { name: 'Чеки' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('tab', { name: 'Кассовые операции' })).toBeNull();
+    expect(screen.queryByRole('tab', { name: 'Проверка' })).toBeNull();
+  });
+
   it('переключение на «Проверка» показывает встроенный ReviewWorkspace', async () => {
     renderJournal(['reports.view', 'billing.money_action.approve']);
     await waitFor(() => expect(screen.getByText('Кассовых операций нет')).toBeInTheDocument());

@@ -17,7 +17,14 @@ export interface CashHeaderState {
 const CASH_TAB_PERMISSIONS: Record<CashTab, readonly string[]> = {
   sales: [permissionNames.createPosSale, permissionNames.payPosSale, permissionNames.refundPosSale, permissionNames.voidPosSale],
   shift: [permissionNames.viewShift, permissionNames.openShift, permissionNames.closeShift, permissionNames.manageShiftCash, permissionNames.viewReports],
-  journal: [permissionNames.approveMoneyAction, permissionNames.viewReports, permissionNames.viewShift, permissionNames.manageShiftCash]
+  journal: [
+    permissionNames.approveMoneyAction,
+    permissionNames.viewReports,
+    permissionNames.viewShift,
+    permissionNames.manageShiftCash,
+    permissionNames.viewReceipt,
+    permissionNames.refundPosSale
+  ]
 };
 
 const CASH_TAB_ORDER: CashTab[] = ['sales', 'shift', 'journal'];
