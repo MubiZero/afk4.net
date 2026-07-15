@@ -1,6 +1,6 @@
 # Operator System Status Footer Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Replace the simplified Operator footer with an authoritative system status row showing operator, real staff roles, current club, realtime/backend health, installed host version, and local time.
 
@@ -56,7 +56,7 @@
 - Produces: `StaffSession.roleNames : string[]` for the existing Platform Web consumer.
 - Preserves: current positional `StaffSignInResponse` constructor call sites by adding an init property rather than another positional parameter.
 
-- [ ] **Step 1: Write failing shared-contract and endpoint assertions**
+- [x] **Step 1: Write failing shared-contract and endpoint assertions**
 
 Extend the serialization fixture with role names:
 
@@ -89,7 +89,7 @@ Assert.Equal(
 Assert.Equal(signInBody.RoleNames, refreshBody!.RoleNames);
 ```
 
-- [ ] **Step 2: Run the focused .NET tests and verify red**
+- [x] **Step 2: Run the focused .NET tests and verify red**
 
 From the repository root:
 
@@ -100,7 +100,7 @@ From the repository root:
 
 Expected: FAIL because `StaffSignInResponse.RoleNames` does not exist.
 
-- [ ] **Step 3: Add the additive contract and issue ordered roles**
+- [x] **Step 3: Add the additive contract and issue ordered roles**
 
 Use an init property for source and JSON compatibility:
 
@@ -172,7 +172,7 @@ return new StaffSignInResponse(
 };
 ```
 
-- [ ] **Step 4: Keep Platform Web auth storage contract-complete**
+- [x] **Step 4: Keep Platform Web auth storage contract-complete**
 
 Add the field to the TypeScript response and stored session:
 
@@ -219,7 +219,7 @@ expect(staffSessionFromSignInResponse({
 }).roleNames).toEqual(['cashier_operator']);
 ```
 
-- [ ] **Step 5: Verify green and commit**
+- [x] **Step 5: Verify green and commit**
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Shared.Contracts.Tests\AFK4.Shared.Contracts.Tests.csproj --filter StaffAuthContractSerializationTests
@@ -256,7 +256,7 @@ Expected: focused C# and Bun tests PASS.
 - Produces: WebView auth JSON `roleNames: string[]`.
 - Produces: bootstrap JSON `appVersion: string`.
 
-- [ ] **Step 1: Write failing native snapshot and bridge tests**
+- [x] **Step 1: Write failing native snapshot and bridge tests**
 
 Add role data to the token-store fixture:
 
@@ -290,7 +290,7 @@ In `OperatorWebHostBridgeTests`, inspect sign-in and restored-session payloads:
 Assert.Equal("cashier_operator", payload.GetProperty("roleNames")[0].GetString());
 ```
 
-- [ ] **Step 2: Write the failing bootstrap version test**
+- [x] **Step 2: Write the failing bootstrap version test**
 
 Change the bootstrap call to an injectable overload and assert exact JSON:
 
@@ -302,7 +302,7 @@ var root = document.RootElement;
 Assert.Equal("2.45.1", root.GetProperty("appVersion").GetString());
 ```
 
-- [ ] **Step 3: Run the Operator App tests and verify red**
+- [x] **Step 3: Run the Operator App tests and verify red**
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --filter "OperatorAuthApiClientTests|OperatorTokenStoreTests|OperatorWebHostBridgeTests|OperatorWebBootstrapScriptTests"
@@ -310,7 +310,7 @@ Assert.Equal("2.45.1", root.GetProperty("appVersion").GetString());
 
 Expected: FAIL for missing role and version properties/overload.
 
-- [ ] **Step 4: Persist and project role names**
+- [x] **Step 4: Persist and project role names**
 
 Add backward-compatible role storage:
 
@@ -323,7 +323,7 @@ Copy roles in `HttpOperatorAuthApiClient.SaveSnapshotAsync`, then add
 `CreateSession(StaffSignInResponse)` and `CreateSession(OperatorTokenSnapshot)`
 must pass their real role lists.
 
-- [ ] **Step 5: Resolve and expose the installed version**
+- [x] **Step 5: Resolve and expose the installed version**
 
 Add a testable overload and production resolver:
 
@@ -368,7 +368,7 @@ private static string ResolveInstalledVersion()
 }
 ```
 
-- [ ] **Step 6: Verify green and commit**
+- [x] **Step 6: Verify green and commit**
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj --filter "OperatorAuthApiClientTests|OperatorTokenStoreTests|OperatorWebHostBridgeTests|OperatorWebBootstrapScriptTests"
@@ -402,7 +402,7 @@ Expected: all four focused Operator App test classes PASS. If the current Linux 
 - Produces: `SystemStatusField`, `SystemStatusViewModel`, `buildSystemStatusModel(input: SystemStatusInput, t: TFunc): SystemStatusViewModel`, and `staffRoleLabel(roleName: string, t: TFunc): string`.
 - Produces: `useMinuteClock(locale): string`.
 
-- [ ] **Step 1: Write failing footer-model tests**
+- [x] **Step 1: Write failing footer-model tests**
 
 Create tests for known, multiple, unknown, and missing values:
 
@@ -436,7 +436,7 @@ it('keeps an unknown backend role visible and never fabricates missing data', ()
 });
 ```
 
-- [ ] **Step 2: Write failing minute-clock tests**
+- [x] **Step 2: Write failing minute-clock tests**
 
 Use fake timers to prove minute alignment and visibility refresh:
 
@@ -453,7 +453,7 @@ it('updates on the next minute boundary and after visibility resume', () => {
 });
 ```
 
-- [ ] **Step 3: Run Bun tests and verify red**
+- [x] **Step 3: Run Bun tests and verify red**
 
 ```bash
 cd src/AFK4.Operator.App.Web
@@ -462,7 +462,7 @@ bun test src/systemStatusModel.test.ts src/useMinuteClock.test.tsx
 
 Expected: FAIL because the new modules do not exist.
 
-- [ ] **Step 4: Implement the pure projection**
+- [x] **Step 4: Implement the pure projection**
 
 Use existing `roles.*` catalog keys and raw fallback:
 
@@ -524,7 +524,7 @@ export function buildSystemStatusModel(input: SystemStatusInput, t: TFunc): Syst
 }
 ```
 
-- [ ] **Step 5: Implement the minute-aligned hook**
+- [x] **Step 5: Implement the minute-aligned hook**
 
 ```ts
 export function useMinuteClock(locale: string): string {
@@ -545,7 +545,7 @@ export function useMinuteClock(locale: string): string {
 }
 ```
 
-- [ ] **Step 6: Extend React contracts and localized copy**
+- [x] **Step 6: Extend React contracts and localized copy**
 
 ```ts
 export interface OperatorConfig {
@@ -591,7 +591,7 @@ bun run gen
 bun test src/messages.test.ts
 ```
 
-- [ ] **Step 7: Verify green and commit**
+- [x] **Step 7: Verify green and commit**
 
 ```bash
 cd src/AFK4.Operator.App.Web
@@ -621,7 +621,7 @@ Expected: model, hook, i18n, and typecheck PASS.
 - Consumes: `buildSystemStatusModel`, `useMinuteClock`, `OperatorAuthSession.roleNames`, `OperatorConfig.appVersion`.
 - Produces: the final one-row reference footer with real live values.
 
-- [ ] **Step 1: Write failing component semantics tests**
+- [x] **Step 1: Write failing component semantics tests**
 
 Render explicit inputs and assert all permanent fields:
 
@@ -647,13 +647,13 @@ expect(screen.getByText(/^\d{2}:\d{2}$/)).toBeInTheDocument();
 expect(screen.queryByText(/Касса:/)).not.toBeInTheDocument();
 ```
 
-- [ ] **Step 2: Write failing App wiring test**
+- [x] **Step 2: Write failing App wiring test**
 
 Extend the restored native session with `roleNames: ['cashier_operator']` and
 bootstrap config with `appVersion: '2.45.1'`, then assert the rendered App footer
 contains the real operator, role, current mocked branch, and version.
 
-- [ ] **Step 3: Write failing CSS guards**
+- [x] **Step 3: Write failing CSS guards**
 
 ```ts
 expect(statusCss).toMatch(/\.signals-strip\s*\{[^}]*white-space:\s*nowrap/s);
@@ -662,7 +662,7 @@ expect(statusCss).toMatch(/\.signal-left\s*\{[^}]*overflow:\s*hidden/s);
 expect(statusCss).not.toContain('.signal-pos');
 ```
 
-- [ ] **Step 4: Run tests and verify red**
+- [x] **Step 4: Run tests and verify red**
 
 ```bash
 cd src/AFK4.Operator.App.Web
@@ -672,7 +672,7 @@ bun test src/App.test.tsx -t "system status footer"
 
 Expected: FAIL because the footer still accepts `posText` and omits identity, roles, club, version, and time.
 
-- [ ] **Step 5: Implement the status row**
+- [x] **Step 5: Implement the status row**
 
 Render left and right clusters from the model:
 
@@ -714,7 +714,7 @@ return <footer className="signals-strip">
 />
 ```
 
-- [ ] **Step 6: Implement reference-matched CSS**
+- [x] **Step 6: Implement reference-matched CSS**
 
 ```css
 .signals-strip {
@@ -744,7 +744,7 @@ Keep existing dot colors and add explicit `.tone-ok`, `.tone-warn`, and
 `.tone-bad` text colors. Do not introduce cards, shadows, gradients, emoji, or
 custom SVG assets.
 
-- [ ] **Step 7: Verify green and commit**
+- [x] **Step 7: Verify green and commit**
 
 ```bash
 cd src/AFK4.Operator.App.Web
@@ -773,7 +773,7 @@ Expected: component, App wiring, CSS guard, and typecheck PASS.
 - Consumes: completed backend/native/web footer implementation.
 - Produces: same-state reference comparison, verification evidence, archived design/plan, and clean topic branch.
 
-- [ ] **Step 1: Start or reuse the Operator preview**
+- [x] **Step 1: Start or reuse the Operator preview**
 
 ```bash
 cd src/AFK4.Operator.App.Web
@@ -782,7 +782,7 @@ bunx vite --host 127.0.0.1 --port 5177
 
 Use the existing preview login and the already-approved system Chromium fallback.
 
-- [ ] **Step 2: Capture all required states outside the repository**
+- [x] **Step 2: Capture all required states outside the repository**
 
 Capture:
 
@@ -796,7 +796,7 @@ The dark 1920 capture must show a real preview operator, localized role,
 `AFK4 Dushanbe`, Online, Server OK, `dev`, and current time. Record browser
 console/page errors and assert zero.
 
-- [ ] **Step 3: Run the blocking design comparison**
+- [x] **Step 3: Run the blocking design comparison**
 
 Normalize the supplied footer reference and implementation footer crop to the
 same height, combine them into one side-by-side comparison input, and inspect it
@@ -808,7 +808,7 @@ tones, right alignment, truncation, and absence of wrapping. Update
 final result: passed
 ```
 
-- [ ] **Step 4: Run the full affected verification gate**
+- [x] **Step 4: Run the full affected verification gate**
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' test tests\AFK4.Shared.Contracts.Tests\AFK4.Shared.Contracts.Tests.csproj
@@ -828,7 +828,7 @@ Expected: all portable suites and builds PASS. Run the Windows Operator testhost
 on Windows if it cannot execute in the current Linux environment; report that
 environment boundary explicitly.
 
-- [ ] **Step 5: Update and archive durable project state**
+- [x] **Step 5: Update and archive durable project state**
 
 Record the role/version contract, footer behavior, exact test counts, build
 result, rendered sizes/themes, and remaining environment-limited verification in
@@ -844,7 +844,7 @@ docs/superpowers/specs/2026-07-15-operator-system-status-footer-design.md
 Remove the active index entries and list the work among implemented archived
 Operator UI specs/plans.
 
-- [ ] **Step 6: Commit completion evidence**
+- [x] **Step 6: Commit completion evidence**
 
 ```bash
 git add -A

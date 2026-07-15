@@ -3,9 +3,6 @@
 Implementation plans for completed work are archived once their work lands on
 `main`. The active plans are:
 
-- `2026-07-15-operator-system-status-footer.md` — approved TDD implementation
-  plan for an authoritative Operator footer with staff roles, active club,
-  realtime/backend health, installed host version, and local time.
 - `2026-06-11-installer-shared-runtime-workstream-a.md` — shared-runtime client
   installer workstream; blocked on the production signing/certificate decision.
 
@@ -15,8 +12,8 @@ realtime, dcgate payments), the phone/email staff-identity wave, the
 customer-shell WebView2 pivot + Unit F (shop/loyalty/news), shared-AFK4
 Telegram payments, shift-revenue reporting, Operator UI consolidation/QA, and
 the commerce/booking financial-integrity wave are implemented and merged. The
-Operator cash-terminal redesign is implemented and archived on its completed
-topic branch pending integration. The
+Operator cash-terminal redesign and authoritative system footer are implemented
+and archived on their completed topic branch pending integration. The
 2026-07-14 native Operator staging day-flow smoke and its P0 financial fixes are
 also complete and archived.
 

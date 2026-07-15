@@ -106,6 +106,13 @@ to Coolify staging:
   readable cash movements, past shifts, compact exports, and a quieter two-sided
   shell footer. Receipt-only staff retain direct journal access, and dark/light
   rendered QA covers 1920, 1440, 1280, and the narrow stacked state.
+- **Authoritative Operator system footer** — the native auth contract carries
+  ordered real staff roles through protected token restore and refresh, while
+  the WebView bootstrap exposes the installed host assembly version. The
+  one-row footer shows the authenticated operator, localized roles,
+  authoritative current club, independent SignalR/backend health, version, and
+  minute-aligned local time; missing values degrade to an em dash instead of
+  fabricated data.
 
 Plus the earlier base: identity/tenancy/RBAC/audit, devices/floor-map, owner-code
 enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
@@ -113,6 +120,20 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Latest Verification
 
+- Fresh authoritative-footer gate: Shared Contracts passed 129/129; Platform
+  API passed 1391 with 13 PostgreSQL-environment skips; Operator Web passed
+  708/708 component/model tests plus 89/89 App integration tests; i18n passed
+  35/35; and Platform Web passed 381/381. Platform Web and Operator Web
+  production builds completed, and `dotnet build AFK4.sln
+  -p:EnableWindowsTargeting=true -p:NuGetAudit=false` passed with 0 warnings and
+  0 errors. The Windows-targeted Operator App and test assembly compile on
+  Linux, but the testhost cannot execute there because
+  `Microsoft.WindowsDesktop.App` is unavailable; run that suite on Windows
+  before integration.
+- Chrome/Chromium rendered footer QA passed at dark 1920, dark 1280, and light
+  1280 with a measured 32 px row, no wrapping or overflow, and zero console,
+  page, or request errors. The supplied-reference comparison and resolved
+  findings are in `design-qa.md`.
 - `dotnet restore AFK4.sln -p:EnableWindowsTargeting=true -p:NuGetAudit=false`
   and the matching full solution build passed with 0 warnings and 0 errors.
 - Shared contracts passed 129/129. The complete Platform API suite passed
@@ -120,9 +141,11 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   on PostgreSQL 17.10, including deterministic settlement/refund, inventory/
   currency, reservation-start, rollback, and cross-command concurrency tests.
   The full solution build passed with 0 warnings and 0 errors.
-- Operator Web passed 787 tests across the component/model and App integration runs;
+- Operator Web passed 797 tests across the component/model and App integration
+  runs;
   the generated ru/en/tg catalog check passed 23/23 and the production build
-  completed. Rendered cash-terminal QA passed in dark and light themes at 1920,
+  completed. Rendered cash-terminal and system-footer QA passed in dark and
+  light themes at 1920,
   1440, 1280, and 1100 widths with no browser console errors; the selected shift
   design comparison is recorded in `design-qa.md`. Existing React test diagnostics,
   test-harness `ECONNREFUSED`, SignalR annotation warnings, and the large-chunk
@@ -158,7 +181,8 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 - **Remaining Windows evidence** is narrower: repeat the Operator pass on a clean
   `manager_workstation` install at 100%/125% scaling and run the physical Windows
   10/11 gaming-PC smoke for lock/unlock enforcement, reboot recovery, and
-  role-aware update/rollback.
+  role-aware update/rollback. Include the WindowsDesktop Operator App testhost
+  because it cannot execute from the current Linux environment.
 - **Pre-production release decisions** remain: Authenticode custody, production
   object store/CDN, presigned upload automation, package-registration
   credentials, staging secret rotation, backup/restore ownership — tracked in

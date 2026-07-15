@@ -1,4 +1,4 @@
-# Operator cash shift design QA
+# Operator cash shift and system footer design QA
 
 ## Source and state
 
@@ -25,7 +25,7 @@
 - Icons: all visible controls use the existing Lucide icon family; no placeholder or custom-drawn icons were introduced.
 - Behavior: shift commands, export menu, selectable past shifts, loading/error/empty states, keyboard semantics, and permission gates remain functional.
 - Responsiveness: 1440 and 1280 retain the two-column terminal; the narrow layout stacks without overlap or horizontal overflow.
-- Footer: the selected source's quiet status pattern is carried over with a cash-state dot on the left and network state on the right.
+- Footer: the selected source's quiet status pattern is carried over with authoritative operator context on the left and system health on the right.
 
 ## Deliberate product differences from the concept
 
@@ -34,5 +34,26 @@
 - The past-shift list uses current backend history data and an inline selected-shift detail rather than fabricated rows.
 
 No open P0, P1, or P2 findings remain for the selected state.
+
+## Authoritative system footer QA
+
+### Source and captures
+
+- Supplied reference: `/mnt/c/Users/Mukhamedov.M/Documents/ShareX/Screenshots/2026-07/Photos_urJPsWlDuq.png`.
+- Dark 1920 capture: `/tmp/afk4-system-footer-dark-1920.png`.
+- Dark 1280 capture: `/tmp/afk4-system-footer-dark-1280.png`.
+- Light 1280 capture: `/tmp/afk4-system-footer-light-1280.png`.
+- Same-height reference comparison: `/tmp/afk4-footer-comparison-row.png`.
+
+### Blocking comparison
+
+- P1 data fidelity: the initial browser-preview fixture omitted `roleNames` and `appVersion`, producing unavailable values despite complete production contracts. Fixed by mirroring the authenticated role contract, adding `dev` build identity, and preserving live-dev backend roles.
+- P2 composition: permanent fields follow the supplied order and grouping: operator, role, club; Online, server health, version, time. The former cash summary is absent.
+- P2 typography: labels stay quiet while authoritative values use the stronger weight visible in the supplied footer; semantic green is limited to healthy connection/server states.
+- P2 layout: the row is exactly 32 px at 1920 and 1280, `white-space: nowrap` is effective, and measured `scrollWidth` equals `clientWidth` at both widths.
+- P2 themes: dividers, text hierarchy, status tones, and right alignment remain readable in dark and light themes.
+- Runtime: the Chrome/Chromium pass reported zero console, page, and failed-request errors after authenticated preview load.
+
+No open P0, P1, or P2 findings remain for the authoritative system footer.
 
 final result: passed
