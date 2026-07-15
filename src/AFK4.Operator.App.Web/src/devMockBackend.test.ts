@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'bun:test';
-import { devMockFetch } from './devMockBackend';
+import { createMockSession, devMockFetch } from './devMockBackend';
 
 const playerId = 'pl-1';
+
+describe('dev preview session', () => {
+  it('contains the real role contract used by the system footer', () => {
+    expect(createMockSession()).toMatchObject({
+      displayName: 'Оператор смены',
+      roleNames: ['cashier_operator']
+    });
+  });
+});
 
 describe('devMockFetch player data', () => {
   it('returns a populated wallet summary with varied ledger entries', async () => {

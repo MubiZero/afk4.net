@@ -21,6 +21,7 @@ export function createMockSession(): Record<string, unknown> {
     refreshTokenExpiresAtUtc: FAR_FUTURE,
     branchIds: [BRANCH],
     activeBranchId: BRANCH,
+    roleNames: ['cashier_operator'],
     permissions: Object.values(permissionNames)
   };
 }

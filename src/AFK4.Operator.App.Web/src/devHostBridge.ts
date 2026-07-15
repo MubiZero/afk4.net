@@ -48,14 +48,7 @@ export function installDevHostBridge(): void {
     return;
   }
 
-  window.__AFK4_OPERATOR_CONFIG__ = {
-    runtime: 'browser-dev',
-    shellMode: PREVIEW_MOCK ? 'vite-dev-preview' : 'vite-dev',
-    platformBaseUrl: location.origin + '/',
-    currencyCode: 'TJS',
-    organizationId: ORG,
-    branchId: BRANCH
-  };
+  window.__AFK4_OPERATOR_CONFIG__ = createDevOperatorConfig();
 
   const listeners = new Set<(event: { data: unknown }) => void>();
   let refreshToken: string | null = null;
@@ -72,23 +65,12 @@ export function installDevHostBridge(): void {
   }
 
   function toSession(response: unknown): unknown {
-    const r = (response ?? {}) as Record<string, unknown>;
-    const token = r.refreshToken;
-    if (typeof token === 'string') {
-      refreshToken = token;
+    const session = toDevSession(response);
+    const token = (response ?? {} as Record<string, unknown>) as Record<string, unknown>;
+    if (typeof token.refreshToken === 'string') {
+      refreshToken = token.refreshToken;
     }
-    const branchIds = Array.isArray(r.branchIds) ? (r.branchIds as unknown[]) : [];
-    return {
-      staffUserId: r.staffUserId,
-      organizationId: r.organizationId,
-      displayName: r.displayName,
-      accessToken: r.accessToken,
-      accessTokenExpiresAtUtc: r.accessTokenExpiresAtUtc,
-      refreshTokenExpiresAtUtc: r.refreshTokenExpiresAtUtc,
-      branchIds,
-      activeBranchId: branchIds[0] ?? undefined,
-      permissions: r.permissions
-    };
+    return session;
   }
 
   async function handle(type: string, payload: DevBridgeMessage['payload']): Promise<unknown> {
@@ -173,6 +155,35 @@ export function installDevHostBridge(): void {
   if (PREVIEW_MOCK) {
     installMockFetch();
   }
+}
+
+export function createDevOperatorConfig() {
+  return {
+    runtime: 'browser-dev',
+    shellMode: PREVIEW_MOCK ? 'vite-dev-preview' : 'vite-dev',
+    platformBaseUrl: location.origin + '/',
+    currencyCode: 'TJS',
+    appVersion: 'dev',
+    organizationId: ORG,
+    branchId: BRANCH
+  };
+}
+
+export function toDevSession(response: unknown): Record<string, unknown> {
+  const r = (response ?? {}) as Record<string, unknown>;
+  const branchIds = Array.isArray(r.branchIds) ? (r.branchIds as unknown[]) : [];
+  return {
+    staffUserId: r.staffUserId,
+    organizationId: r.organizationId,
+    displayName: r.displayName,
+    accessToken: r.accessToken,
+    accessTokenExpiresAtUtc: r.accessTokenExpiresAtUtc,
+    refreshTokenExpiresAtUtc: r.refreshTokenExpiresAtUtc,
+    branchIds,
+    activeBranchId: branchIds[0] ?? undefined,
+    permissions: r.permissions,
+    roleNames: Array.isArray(r.roleNames) ? r.roleNames : []
+  };
 }
 
 // Preview mode: intercept platform API calls and serve mock data. Non-API requests (Vite assets,
