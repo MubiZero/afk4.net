@@ -3,6 +3,9 @@
 Implementation plans for completed work are archived once their work lands on
 `main`. The active plans are:
 
+- `2026-07-15-operator-system-status-footer.md` — approved TDD implementation
+  plan for an authoritative Operator footer with staff roles, active club,
+  realtime/backend health, installed host version, and local time.
 - `2026-06-11-installer-shared-runtime-workstream-a.md` — shared-runtime client
   installer workstream; blocked on the production signing/certificate decision.
 
