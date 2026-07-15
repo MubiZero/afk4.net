@@ -1,6 +1,6 @@
 # Operator Reports And Workspace Consolidation Design
 
-**Status:** product direction approved; awaiting written-spec review
+**Status:** approved for implementation
 **Date:** 2026-07-15
 
 ## Goal
