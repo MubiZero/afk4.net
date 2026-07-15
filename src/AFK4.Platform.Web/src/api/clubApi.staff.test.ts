@@ -11,7 +11,7 @@ function makeClient(fetchImpl: typeof fetch) {
     baseUrl: 'https://api.test',
     fetchImpl,
     session: {
-      staffUserId: 'u1', organizationId: 'org1', displayName: 'D', branchIds: ['b1'], permissions: [],
+      staffUserId: 'u1', organizationId: 'org1', displayName: 'D', branchIds: ['b1'], roleNames: [], permissions: [],
       accessToken: 'tok', accessTokenExpiresAtUtc: '', refreshToken: 'r', refreshTokenExpiresAtUtc: ''
     },
     onSessionChanged: () => {}

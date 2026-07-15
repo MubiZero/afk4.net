@@ -119,6 +119,7 @@ describe('StaffAuthApiClient', () => {
       organizationId: '22222222-2222-2222-2222-222222222222',
       displayName: 'Demo Owner',
       branchIds: [],
+      roleNames: ['owner'],
       permissions: [],
       accessToken: 'staff-access',
       accessTokenExpiresAtUtc: '2030-01-01T00:00:00Z',

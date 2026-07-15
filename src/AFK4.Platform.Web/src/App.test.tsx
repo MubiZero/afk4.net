@@ -72,6 +72,7 @@ function buildStaffSession(): StaffSession {
     organizationId: '22222222-2222-2222-2222-222222222222',
     displayName: 'Demo Owner',
     branchIds: ['33333333-3333-3333-3333-333333333333'],
+    roleNames: ['owner'],
     permissions: buildStaffSignInResponse().permissions,
     accessToken: 'staff-access-token',
     accessTokenExpiresAtUtc: '2030-01-01T00:00:00Z',
