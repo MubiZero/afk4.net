@@ -89,6 +89,47 @@
   line-height: 1.5;
 }
 
+.shift-gate-panel {
+  width: min(440px, 100%);
+}
+
+.shift-gate-mark {
+  color: var(--accent-text);
+}
+
+.shift-gate-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 52px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.shift-gate-signout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.shift-gate-signout:hover:not(:disabled),
+.shift-gate-signout:focus-visible {
+  color: var(--text-primary);
+}
+
+.shift-gate-signout:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
 .auth-form {
   display: grid;
   gap: 16px;

@@ -24,6 +24,7 @@ export interface PostAuthShiftClient {
 export interface PostAuthShiftGateController {
   status: PostAuthShiftGateStatus;
   error: string | null;
+  failureKind: 'check' | 'open' | null;
   retry(): void;
   openShift(request: OpenShiftRequest): Promise<void>;
 }
@@ -32,6 +33,7 @@ interface GateSnapshot {
   key: string | null;
   status: PostAuthShiftGateStatus;
   error: string | null;
+  failureKind: 'check' | 'open' | null;
 }
 
 function resolveClient(
@@ -62,19 +64,20 @@ export function usePostAuthShiftGate({
   const [snapshot, setSnapshot] = useState<GateSnapshot>({
     key: null,
     status: 'not-required',
-    error: null
+    error: null,
+    failureKind: null
   });
   const generationRef = useRef(0);
 
   useEffect(() => {
     const generation = ++generationRef.current;
     if (gateKey === null || backend === null) {
-      setSnapshot({ key: null, status: 'not-required', error: null });
+      setSnapshot({ key: null, status: 'not-required', error: null, failureKind: null });
       return undefined;
     }
 
     let disposed = false;
-    setSnapshot({ key: gateKey, status: 'checking', error: null });
+    setSnapshot({ key: gateKey, status: 'checking', error: null, failureKind: null });
     const shifts = resolveClient(backend, client);
     void shifts.getCurrentShift(backend.branchId)
       .then((shift) => {
@@ -82,7 +85,8 @@ export function usePostAuthShiftGate({
         setSnapshot({
           key: gateKey,
           status: shift === null ? 'required' : 'ready',
-          error: null
+          error: null,
+          failureKind: null
         });
       })
       .catch((error) => {
@@ -90,7 +94,8 @@ export function usePostAuthShiftGate({
         setSnapshot({
           key: gateKey,
           status: 'failed',
-          error: projectOperatorError(error, t).detail
+          error: projectOperatorError(error, t).detail,
+          failureKind: 'check'
         });
       });
 
@@ -108,18 +113,18 @@ export function usePostAuthShiftGate({
 
     const generation = ++generationRef.current;
     const shifts = resolveClient(backend, client);
-    setSnapshot({ key: gateKey, status: 'opening', error: null });
+    setSnapshot({ key: gateKey, status: 'opening', error: null, failureKind: null });
 
     try {
       await shifts.openShift(backend.branchId, request);
       if (generationRef.current !== generation) return;
-      setSnapshot({ key: gateKey, status: 'ready', error: null });
+      setSnapshot({ key: gateKey, status: 'ready', error: null, failureKind: null });
     } catch (error) {
       try {
         const concurrentShift = await shifts.getCurrentShift(backend.branchId);
         if (generationRef.current !== generation) return;
         if (concurrentShift !== null) {
-          setSnapshot({ key: gateKey, status: 'ready', error: null });
+          setSnapshot({ key: gateKey, status: 'ready', error: null, failureKind: null });
           return;
         }
       } catch {
@@ -130,7 +135,8 @@ export function usePostAuthShiftGate({
       setSnapshot({
         key: gateKey,
         status: 'failed',
-        error: projectOperatorError(error, t).detail
+        error: projectOperatorError(error, t).detail,
+        failureKind: 'open'
       });
     }
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, client, gateKey, t]);
@@ -143,6 +149,7 @@ export function usePostAuthShiftGate({
         ? snapshot.status
         : 'checking',
     error: keyMatches ? snapshot.error : null,
+    failureKind: keyMatches ? snapshot.failureKind : null,
     retry,
     openShift
   };

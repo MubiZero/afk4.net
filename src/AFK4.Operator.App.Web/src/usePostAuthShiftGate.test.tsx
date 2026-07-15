@@ -108,6 +108,7 @@ describe('usePostAuthShiftGate', () => {
 
     await waitFor(() => expect(result.current.status).toBe('failed'));
     expect(result.current.error).toContain('network down');
+    expect(result.current.failureKind).toBe('check');
 
     act(() => result.current.retry());
 
@@ -184,5 +185,31 @@ describe('usePostAuthShiftGate', () => {
 
     expect(result.current.status).toBe('ready');
     expect(result.current.error).toBeNull();
+  });
+
+  it('marks an unreconciled open failure without losing the required workflow', async () => {
+    const getCurrentShift = mock(async () => null);
+    const client = createClient({
+      getCurrentShift,
+      openShift: mock(async () => { throw new Error('open failed'); })
+    });
+    const { result } = renderHook(() => usePostAuthShiftGate({
+      authStatus: 'signed-in',
+      backend: createBackend(['shifts.open']),
+      t,
+      client
+    }));
+    await waitFor(() => expect(result.current.status).toBe('required'));
+
+    await act(async () => result.current.openShift({
+      organizationId: 'org-1',
+      startingCash: { currencyCode: 'TJS', minorUnits: 0 },
+      openingNote: '',
+      idempotencyKey: 'shift-open:failed'
+    }));
+
+    expect(result.current.status).toBe('failed');
+    expect(result.current.failureKind).toBe('open');
+    expect(result.current.error).toContain('open failed');
   });
 });
