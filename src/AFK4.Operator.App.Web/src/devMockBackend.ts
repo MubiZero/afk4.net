@@ -198,22 +198,48 @@ function cashOperationReport() {
   };
 }
 
-// Отчёт по продажам POS — «Последние чеки» в кассе + строка-метрика «Продажи N · сумма».
-// Суммы оплаченных чеков складываются в grossSalesTotal (41000 = goods-выручка смены).
+// Продажи и детали чеков используют один набор: превью не показывает ложную нулевую деталь
+// после выбора строки из отчёта.
+function posSales() {
+  const sale = (posSaleId: string, state: string, totalMinor: number, lineCount: number, itemQuantity: number, minutesBack: number) => {
+    const createdAtUtc = minutesAgoUtc(minutesBack);
+    const lines = Array.from({ length: lineCount }, (_, index) => {
+      const quantity = index === 0 ? Math.max(1, itemQuantity - lineCount + 1) : 1;
+      const lineTotalMinor = index === lineCount - 1
+        ? totalMinor - Math.floor(totalMinor / lineCount) * index
+        : Math.floor(totalMinor / lineCount);
+      return {
+        productId: index === 0 ? 'prod-cola' : `prod-${posSaleId}-${index}`,
+        productName: index === 0 ? 'Cola 0.5' : `Товар ${index + 1}`,
+        quantity,
+        unitPrice: money(Math.round(lineTotalMinor / quantity)),
+        lineTotal: money(lineTotalMinor)
+      };
+    });
+    const receiptId = `rc-${posSaleId.slice(3)}`;
+    return {
+      posSaleId, state, total: money(totalMinor), lineCount, itemQuantity, createdAtUtc, lines,
+      payments: [{ method: 'cash', amount: money(totalMinor) }],
+      latestReceipt: { receiptId, receiptNumber: String(1042 + Number(posSaleId.slice(3))), receiptType: state === 'refunded' ? 'refund' : 'sale', total: money(totalMinor), createdAtUtc }
+    };
+  };
+  return [
+    sale('ps-06', 'paid', 1200, 1, 1, 10),
+    sale('ps-05', 'paid', 5600, 2, 3, 40),
+    sale('ps-04', 'paid', 2500, 1, 1, 60),
+    sale('ps-03', 'paid', 12000, 3, 4, 90),
+    sale('ps-02', 'paid', 19700, 3, 5, 120),
+    sale('ps-01', 'refunded', 3000, 1, 1, 150)
+  ];
+}
+
+// Отчёт по продажам POS строится из тех же продаж, что и GET деталей.
 function salesReport() {
-  const row = (posSaleId: string, state: string, totalMinor: number, lineCount: number, itemQuantity: number, minutesBack: number) =>
-    ({ posSaleId, state, total: money(totalMinor), lineCount, itemQuantity, createdAtUtc: minutesAgoUtc(minutesBack) });
+  const sales = posSales();
   return {
     grossSalesTotal: money(41000),
     refundsTotal: money(3000),
-    rows: [
-      row('ps-06', 'paid', 1200, 1, 1, 10),
-      row('ps-05', 'paid', 5600, 2, 3, 40),
-      row('ps-04', 'paid', 2500, 1, 1, 60),
-      row('ps-03', 'paid', 12000, 3, 4, 90),
-      row('ps-02', 'paid', 19700, 3, 5, 120),
-      row('ps-01', 'refunded', 3000, 1, 1, 150)
-    ]
+    rows: sales.map(({ lines: _lines, payments: _payments, latestReceipt: _latestReceipt, ...row }) => row)
   };
 }
 
@@ -411,6 +437,12 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/shifts/current')) return currentShift();
   if (pathname.endsWith('/reports/cash-operations') && method === 'GET') return cashOperationReport();
   if (pathname.endsWith('/reports/sales') && method === 'GET') return salesReport();
+  const saleMatch = pathname.match(/\/pos\/sales\/([^/]+)$/);
+  if (saleMatch && method === 'GET') return posSales().find((sale) => sale.posSaleId === saleMatch[1]) ?? {};
+  const receiptMatch = pathname.match(/\/receipts\/([^/]+)$/);
+  if (receiptMatch && method === 'GET') {
+    return posSales().map((sale) => sale.latestReceipt).find((receipt) => receipt.receiptId === receiptMatch[1]) ?? {};
+  }
   if (pathname.endsWith('/shop/orders') && method === 'GET') return shopOrders();
   if (pathname.endsWith('/pos/catalog')) return posCatalog();
   if (pathname.endsWith('/reservations') && method === 'GET') return { reservations: reservations(), limit: 40 };

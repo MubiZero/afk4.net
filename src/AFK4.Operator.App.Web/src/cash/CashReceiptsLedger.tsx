@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ArrowRightLeft, ReceiptText, Undo2 } from 'lucide-react';
 import {
@@ -10,6 +10,7 @@ import {
   escapeHtml,
   formatMoney,
   formatTime,
+  paymentSourceLabel,
   posReceiptTypeLabel,
   posSaleLineSummary,
   posSaleStateLabel,
@@ -28,6 +29,13 @@ import type { Feedback, OperatorBackendContext } from '../operatorTypes';
 import type { OperatorAuthSession } from '../authClient';
 import type { PosSaleDto, ReceiptDto } from '../operatorApiClients';
 import { useFeedbackToasts } from '../useFeedbackToasts';
+import { CashMetricStrip, CashRegisterRows, CashTerminalSplit } from './CashTerminalFrame';
+
+type ReceiptDetailState = {
+  status: 'idle' | 'loading' | 'ready' | 'failed';
+  saleId: string;
+  error: string | null;
+};
 
 // Сегмент «Чеки» в «Журнале кассы»: продажи смены + деталь чека + возврат (переехало из POS
 // «Последние чеки»/«Быстрые операции»). Возврат — money-path, та же логика, что была в кассе.
@@ -55,6 +63,8 @@ export function CashReceiptsLedger({
   const [selectedSaleId, setSelectedSaleId] = useState('');
   const [saleDetail, setSaleDetail] = useState<PosSaleDto | null>(null);
   const [receiptDetail, setReceiptDetail] = useState<ReceiptDto | null>(null);
+  const [detailState, setDetailState] = useState<ReceiptDetailState>({ status: 'idle', saleId: '', error: null });
+  const detailRequest = useRef(0);
   const [criticalAction, setCriticalAction] = useState<'refund' | null>(null);
   const [refundReason, setRefundReason] = useState(() => t('op.pos.defaultRefundReason'));
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
@@ -74,20 +84,25 @@ export function CashReceiptsLedger({
   }, [clients, branchId, nonce]);
 
   const rows = readArray<Record<string, unknown>>(report, 'rows');
-  const refundable = rows.filter((row) => readString(row, 'state').toLowerCase() === 'paid');
-  const selected = refundable.find((row) => readString(row, 'posSaleId') === selectedSaleId)
-    ?? rows.find((row) => readString(row, 'posSaleId') === selectedSaleId)
-    ?? refundable[0]
-    ?? rows[0];
+  const selected = rows.find((row) => readString(row, 'posSaleId') === selectedSaleId);
   const selectedId = readString(selected, 'posSaleId');
   const canView = backend !== null && hasPermission(session, permissionNames.viewReceipt);
   const canRefund = backend !== null
     && selectedId.length > 0
     && readString(selected, 'state').toLowerCase() === 'paid'
     && hasPermission(session, permissionNames.refundPosSale);
+  const paymentMethodLabel = (method: string) => {
+    if (method.toLowerCase() === 'card') return t('op.checkout.method.card');
+    if (['wallet', 'deposit'].includes(method.toLowerCase())) return t('op.checkout.method.wallet');
+    return paymentSourceLabel(method, t);
+  };
 
   const loadSaleDetail = async (saleId: string) => {
+    const request = ++detailRequest.current;
+    setSelectedSaleId(saleId);
+    setSaleDetail(null);
     setReceiptDetail(null);
+    setDetailState({ status: 'loading', saleId, error: null });
     setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'pending' });
     try {
       const nextBackend = requireBackend(backend, t);
@@ -100,11 +115,16 @@ export function CashReceiptsLedger({
       const latestReceipt = readRecord(sale, 'latestReceipt');
       const receiptId = readString(latestReceipt, 'receiptId');
       const receipt = receiptId ? await built.pos.getReceipt(receiptId) : null;
+      if (request !== detailRequest.current) return;
       setSaleDetail(sale);
       setReceiptDetail(receipt);
+      setDetailState({ status: 'ready', saleId, error: null });
       setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'confirmed' });
     } catch (error) {
-      setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'failed', detail: projectOperatorError(error, t).detail });
+      if (request !== detailRequest.current) return;
+      const detail = projectOperatorError(error, t).detail;
+      setDetailState({ status: 'failed', saleId, error: detail });
+      setFeedback({ label: t('op.pos.feedback.receiptDetails'), state: 'failed', detail });
     }
   };
 
@@ -126,6 +146,7 @@ export function CashReceiptsLedger({
       });
       setFeedback({ label: t('op.pos.feedback.refund'), state: 'confirmed' });
       setSaleDetail(null);
+      setDetailState({ status: 'idle', saleId: '', error: null });
       setNonce((value) => value + 1);
     } catch (error) {
       setFeedback({ label: t('op.pos.feedback.refund'), state: 'failed', detail: projectOperatorError(error, t).detail });
@@ -168,75 +189,36 @@ export function CashReceiptsLedger({
   if (loadError) return <p className="workspace-error" role="alert">{loadError}</p>;
 
   return (
-    <section className="cash-receipts">
-      <div className="cash-ledger-stats">
-        <span className="cash-ledger-stat cash-ledger-stat--lead">
-          <em>{t('op.pos.strip.sales')}</em><b>{rows.length} · <Money minorUnits={readMoney(report, 'grossSalesTotal')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
-        </span>
-        <span className="cash-ledger-stat cash-ledger-stat--out">
-          <em>{t('op.pos.strip.refunds')}</em><b><Money minorUnits={readMoney(report, 'refundsTotal')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
-        </span>
-      </div>
-
-      <div className="pos-receipt-list">
-        {rows.length === 0 ? (
-          <p className="cash-shift-empty-note">{t('op.pos.receipts.emptyPlatform')}</p>
-        ) : (
-          rows.slice(0, 30).map((row) => {
-            const id = readString(row, 'posSaleId');
-            return (
-              <button
-                key={id}
-                type="button"
-                className={`pos-receipt-row ${id === selectedId ? 'selected' : ''}`}
-                disabled={!canView || feedback.state === 'pending'}
-                onClick={() => { setSelectedSaleId(id); void loadSaleDetail(id); }}
-              >
-                <span>{formatTime(readString(row, 'createdAtUtc'))}</span>
-                <strong>{posSaleStateLabel(readString(row, 'state', 'sale'), t)}</strong>
-                <em>{posSaleLineSummary(row, t)}</em>
-                <b><Money minorUnits={readMoney(row, 'total')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
-              </button>
-            );
-          })
-        )}
-      </div>
-
-      {saleDetail !== null && (
-        <div className="pos-sale-detail">
-          <div>
-            <span>{t('op.pos.receipts.detailsTitle')}</span>
-            <strong>{posSaleStateLabel(readString(saleDetail, 'state', 'sale'), t)}</strong>
-            <b><Money minorUnits={readMoney(saleDetail, 'total')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
-          </div>
-          {readArray(saleDetail, 'lines').slice(0, 6).map((line) => (
-            <p key={`${readString(line, 'productId')}-${readNumber(line, 'quantity', 0)}`}>
-              {readString(line, 'productName', t('op.pos.receipts.productFallback'))} · {readNumber(line, 'quantity', 0)} × <Money minorUnits={readMoney(line, 'unitPrice')?.minorUnits ?? 0} currencyCode={currencyCode} />
-            </p>
-          ))}
-          {receiptDetail !== null && (
-            <div className="pos-receipt-detail">
-              <span>{t('op.pos.receipts.platformReceipt')}</span>
-              <strong>{readString(receiptDetail, 'receiptNumber', t('op.pos.receipts.receiptFallback'))}</strong>
-              <b><Money minorUnits={readMoney(receiptDetail, 'total')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
-              <p>{posReceiptTypeLabel(readString(receiptDetail, 'receiptType', 'sale'), t)}</p>
+    <section className="cash-receipts-terminal">
+      <CashMetricStrip ariaLabel={t('op.cash.receipts.metricsAria')} items={[
+        { label: t('op.pos.strip.sales'), value: rows.length },
+        { label: t('op.cash.receipts.gross'), value: <Money minorUnits={readMoney(report, 'grossSalesTotal')?.minorUnits ?? 0} currencyCode={currencyCode} />, tone: 'positive' },
+        { label: t('op.pos.strip.refunds'), value: <Money minorUnits={readMoney(report, 'refundsTotal')?.minorUnits ?? 0} currencyCode={currencyCode} />, tone: 'danger' }
+      ]} />
+      <CashTerminalSplit
+        inspectorOpen={selected !== undefined}
+        closeLabel={t('common.close')}
+        onCloseInspector={() => { detailRequest.current += 1; setSelectedSaleId(''); setDetailState({ status: 'idle', saleId: '', error: null }); }}
+        register={rows.length === 0 ? <p className="cash-shift-empty-note cash-ledger-empty">{t('op.pos.receipts.emptyPlatform')}</p> : <CashRegisterRows rows={rows.slice(0, 30)} selectedId={selectedSaleId} getId={(row) => readString(row, 'posSaleId')} ariaLabel={t('op.cash.receipts.registerAria')} onSelect={(id) => { if (canView) void loadSaleDetail(id); }} renderRow={(row) => <div className="cash-receipt-row">
+          <span>{formatTime(readString(row, 'createdAtUtc'))}</span>
+          <strong>{posSaleStateLabel(readString(row, 'state', 'sale'), t)}</strong>
+          <em>{posSaleLineSummary(row, t)}</em>
+          <b><Money minorUnits={readMoney(row, 'total')?.minorUnits ?? 0} currencyCode={currencyCode} /></b>
+        </div>} />}
+        inspector={detailState.status === 'loading' ? <p className="cash-receipt-detail-state">{t('op.cash.receipts.detailLoading')}</p>
+          : detailState.status === 'failed' ? <div className="cash-receipt-detail-state"><strong>{t('op.cash.receipts.detailFailed')}</strong><small>{detailState.error}</small><button type="button" onClick={() => void loadSaleDetail(detailState.saleId)}>{t('op.cash.journal.retry')}</button></div>
+          : detailState.status === 'ready' && saleDetail !== null ? <div className="cash-receipt-inspector">
+            <div className="cash-receipt-inspector-head"><span>{t('op.pos.receipts.detailsTitle')}</span><strong>{posSaleStateLabel(readString(saleDetail, 'state', 'sale'), t)}</strong><b>{readMoney(saleDetail, 'total') ? <Money minorUnits={readMoney(saleDetail, 'total')!.minorUnits} currencyCode={currencyCode} /> : '—'}</b></div>
+            <section><h3>{t('op.cash.receipts.lines')}</h3>{readArray(saleDetail, 'lines').map((line) => <div className="cash-receipt-line" key={`${readString(line, 'productId')}-${readNumber(line, 'quantity', 0)}`}><span>{readString(line, 'productName', t('op.pos.receipts.productFallback'))}<small>{readNumber(line, 'quantity', 0)} × <Money minorUnits={readMoney(line, 'unitPrice')?.minorUnits ?? 0} currencyCode={currencyCode} /></small></span><strong><Money minorUnits={readMoney(line, 'lineTotal')?.minorUnits ?? (readMoney(line, 'unitPrice')?.minorUnits ?? 0) * readNumber(line, 'quantity', 0)} currencyCode={currencyCode} /></strong></div>)}</section>
+            <section><h3>{t('op.cash.receipts.payments')}</h3>{readArray(saleDetail, 'payments').map((payment, index) => <div className="cash-receipt-payment" key={`${readString(payment, 'method', readString(payment, 'source'))}-${index}`}><span>{paymentMethodLabel(readString(payment, 'method', readString(payment, 'source')))}</span><strong><Money minorUnits={readMoney(payment, 'amount')?.minorUnits ?? 0} currencyCode={currencyCode} /></strong></div>)}</section>
+            {receiptDetail !== null ? <div className="pos-receipt-detail"><span>{t('op.pos.receipts.platformReceipt')}</span><strong>№ {readString(receiptDetail, 'receiptNumber', t('op.pos.receipts.receiptFallback'))}</strong><p>{posReceiptTypeLabel(readString(receiptDetail, 'receiptType', 'sale'), t)}</p></div> : null}
+            <div className="pos-receipt-actions">
+              {canRefund ? <button type="button" disabled={feedback.state === 'pending'} onClick={() => { setFeedback(emptyFeedback); setCriticalAction('refund'); }}><Undo2 size={13} aria-hidden="true" />{t('op.pos.quick.refundLabel')}</button> : null}
+              <button type="button" disabled={feedback.state === 'pending'} onClick={printReceipt}><ReceiptText size={13} aria-hidden="true" />{t('op.pos.receipts.printBtn')}</button>
+              <button type="button" disabled={feedback.state === 'pending'} onClick={exportReceipt}><ArrowRightLeft size={13} aria-hidden="true" />{t('op.pos.receipts.exportBtn')}</button>
             </div>
-          )}
-          <div className="pos-receipt-actions">
-            {canRefund && (
-              <button type="button" disabled={feedback.state === 'pending'} onClick={() => { setFeedback(emptyFeedback); setCriticalAction('refund'); }}>
-                <Undo2 size={13} aria-hidden="true" />{t('op.pos.quick.refundLabel')}
-              </button>
-            )}
-            <button type="button" disabled={feedback.state === 'pending'} onClick={printReceipt}>
-              <ReceiptText size={13} aria-hidden="true" />{t('op.pos.receipts.printBtn')}
-            </button>
-            <button type="button" disabled={feedback.state === 'pending'} onClick={exportReceipt}>
-              <ArrowRightLeft size={13} aria-hidden="true" />{t('op.pos.receipts.exportBtn')}
-            </button>
-          </div>
-        </div>
-      )}
+          </div> : <p className="cash-inspector-empty">{t('op.cash.receipts.selectHint')}</p>}
+      />
 
       {criticalAction === 'refund' && (
         <CriticalActionConfirmation

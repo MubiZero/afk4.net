@@ -484,3 +484,29 @@
   box-shadow: var(--shadow-card);
 }
 .cash-receipts .pos-receipt-list { padding: 0; }
+
+.cash-receipts-terminal { display: flex; min-height: 100%; flex-direction: column; gap: var(--space-2); }
+.cash-receipts-terminal > .cash-terminal-split { flex: 1; min-height: 400px; }
+.cash-receipt-row { display: grid; grid-template-columns: 56px 90px minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); min-height: 50px; padding: var(--space-2) var(--space-3); }
+.cash-receipt-row > span { color: var(--text-tertiary); font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+.cash-receipt-row > strong { color: var(--text-primary); font-size: 12px; }
+.cash-receipt-row > em { overflow: hidden; color: var(--text-secondary); font-size: 11px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.cash-receipt-row > b { color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+.cash-receipt-detail-state { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); margin: 0; padding: var(--space-4); color: var(--text-secondary); font-size: 12px; }
+.cash-receipt-detail-state strong { color: var(--danger); font-size: 13px; }
+.cash-receipt-detail-state small { color: var(--text-tertiary); }
+.cash-receipt-detail-state button { min-height: var(--control-md); padding: 0 var(--space-3); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); background: var(--surface-elevated); color: var(--text-primary); cursor: pointer; }
+.cash-receipt-inspector { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); }
+.cash-receipt-inspector-head { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: var(--space-1) var(--space-3); }
+.cash-receipt-inspector-head > span { grid-column: 1 / -1; color: var(--text-tertiary); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.cash-receipt-inspector-head > strong { color: var(--accent-text); font-size: 12px; }
+.cash-receipt-inspector-head > b { color: var(--text-primary); font-family: var(--font-mono); font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
+.cash-receipt-inspector section { display: flex; flex-direction: column; border-top: 1px solid var(--border-soft); }
+.cash-receipt-inspector section h3 { margin: 0; padding: var(--space-2) 0; color: var(--text-tertiary); font-size: 10px; letter-spacing: .055em; text-transform: uppercase; }
+.cash-receipt-line,
+.cash-receipt-payment { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--border-soft); font-size: 12px; }
+.cash-receipt-line > span { display: flex; min-width: 0; flex-direction: column; color: var(--text-primary); }
+.cash-receipt-line small { color: var(--text-tertiary); }
+.cash-receipt-line > strong,
+.cash-receipt-payment > strong { color: var(--text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.cash-receipt-payment > span { color: var(--text-secondary); }

@@ -28,6 +28,15 @@ describe('devMockFetch player data', () => {
   });
 });
 
+describe('devMockFetch receipt preview', () => {
+  it('returns matching sale and receipt detail', async () => {
+    const sale = await (await devMockFetch('https://x/api/pos/sales/ps-06')).json();
+    expect(sale).toMatchObject({ posSaleId: 'ps-06', state: 'paid' });
+    const receipt = await (await devMockFetch(`https://x/api/receipts/${sale.latestReceipt.receiptId}`)).json();
+    expect(receipt.total).toEqual(sale.total);
+  });
+});
+
 describe('devMockFetch /ledger keyset pagination', () => {
   it('returns first page with items and nextCursor', async () => {
     const res = await devMockFetch(`https://x/api/players/${playerId}/ledger?limit=10`);

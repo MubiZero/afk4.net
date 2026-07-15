@@ -12,10 +12,11 @@ const getSalesReport = mock(async () => ({
 }));
 const getSale = mock(async () => ({
   posSaleId: 's1', state: 'paid', total: m(1200),
-  lines: [{ productId: 'p1', productName: 'Cola 0.5', quantity: 1, unitPrice: m(1200) }],
-  latestReceipt: {}
+  lines: [{ productId: 'p1', productName: 'Cola 0.5', quantity: 1, unitPrice: m(1200), lineTotal: m(1200) }],
+  payments: [{ method: 'cash', amount: m(700) }, { method: 'card', amount: m(500) }],
+  latestReceipt: { receiptId: 'r1', receiptNumber: '1048', total: m(1200) }
 }));
-const getReceipt = mock(async () => ({}));
+const getReceipt = mock(async () => ({ receiptId: 'r1', receiptNumber: '1048', receiptType: 'sale', total: m(1200) }));
 
 const actualHelpers = await import('../operatorHelpers');
 mock.module('../operatorHelpers', () => ({
@@ -57,6 +58,24 @@ describe('CashReceiptsLedger', () => {
   it('показывает чеки смены', async () => {
     renderReceipts();
     expect(await screen.findByText('Оплачен')).toBeInTheDocument();
+  });
+
+  it('показывает строки чека и смешанную оплату в инспекторе', async () => {
+    renderReceipts();
+    fireEvent.click(await screen.findByRole('row', { name: /Оплачен/ }));
+    const inspector = await screen.findByLabelText('Детали выбранной записи');
+    await waitFor(() => expect(inspector).toHaveTextContent('Cola 0.5'));
+    expect(inspector).toHaveTextContent('Наличные');
+    expect(inspector).toHaveTextContent('Карта');
+    expect(inspector).toHaveTextContent('12 с.');
+  });
+
+  it('при сбое детали показывает повтор, а не ложный ноль', async () => {
+    getSale.mockRejectedValueOnce(new Error('detail failed'));
+    renderReceipts();
+    fireEvent.click(await screen.findByRole('row', { name: /Оплачен/ }));
+    expect(await screen.findByText('Не удалось загрузить детали чека')).toBeInTheDocument();
+    expect(screen.queryByText(/^0 с\.$/)).toBeNull();
   });
 
   it('возврат выбранного чека шлёт refundSale', async () => {
