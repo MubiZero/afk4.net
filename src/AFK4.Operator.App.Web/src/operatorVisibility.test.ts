@@ -57,14 +57,23 @@ const rolePermissions: Record<string, string[]> = {
 // single `management` workspace, and audit/logs left `Управление` (tracked separately as its own
 // future rail section, not restored here). Admin-section visibility is now gated solely by the
 // `management` rule (union of the eight management-destination permission sets), not by
-// audit.view/diagnostics.view. Two roles' expectations shift as a direct consequence:
-//   - shift_supervisor gains 'admin': it already holds devices.detail.view/devices.commands.status.view,
-//     which are read-only permissions listed under the "Залы и ПК" destination.
+// audit.view/diagnostics.view. The "Залы и ПК" (halls) destination's permission set is device
+// MANAGEMENT perms only (enrollment/dispatch/assign/rotate/revoke + layout.manage) — read-only
+// devices.detail.view/devices.commands.status.view were dropped from it (Task 1.5 fix) so that
+// merely being able to *view* device status doesn't unlock the whole Управление section. As a
+// result, relative to the pre-redesign admin section:
+//   - shift_supervisor does NOT gain 'admin': its only device-related permissions are the
+//     read-only devices.detail.view/devices.commands.status.view, which no longer qualify for
+//     any management destination.
+//   - branch_manager and technician keep 'admin': both hold real device-management permissions
+//     (layout.manage for branch_manager; devices.enrollment_codes.create/commands.dispatch/
+//     credentials.rotate/revoke/seat_assignment.assign for technician), so they qualify via
+//     the "Залы и ПК" destination regardless of the read-only-perms fix.
 //   - accountant_auditor loses 'admin': its permissions are all *.view and match none of the eight
 //     management-destination permission sets (it previously saw 'admin' only via logs/audit).
 const expectedSections: Record<string, string[]> = {
   cashier_operator: ['map', 'booking', 'players', 'cashier'],
-  shift_supervisor: ['map', 'booking', 'players', 'cashier', 'reports', 'stock', 'admin'],
+  shift_supervisor: ['map', 'booking', 'players', 'cashier', 'reports', 'stock'],
   branch_manager: ['map', 'booking', 'players', 'cashier', 'reports', 'admin', 'stock'],
   technician: ['map', 'admin', 'stock'],
   accountant_auditor: ['booking', 'players', 'cashier', 'reports', 'stock']

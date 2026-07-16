@@ -30,7 +30,18 @@ export const managementDestinations: readonly ManagementDestination[] = [
     labelKey: 'op.management.dest.halls',
     subtitleKey: 'op.management.dest.halls.subtitle',
     Icon: MonitorCog,
-    permissions: [permissionNames.manageLayout, permissionNames.viewDeviceDetail, permissionNames.viewDeviceCommandStatus]
+    // Gated on the ability to actually DO halls/device work, not read-only viewing —
+    // viewDeviceDetail/viewDeviceCommandStatus still gate device-info controls INSIDE the
+    // layout screen, but must not decide whole-section visibility (monitor-only roles like
+    // shift_supervisor hold those view perms but manage nothing).
+    permissions: [
+      permissionNames.manageLayout,
+      permissionNames.createDeviceEnrollmentCode,
+      permissionNames.assignDeviceSeat,
+      permissionNames.dispatchDeviceCommand,
+      permissionNames.rotateDeviceCredential,
+      permissionNames.revokeDeviceCredential
+    ]
   },
   {
     id: 'tariffs',
