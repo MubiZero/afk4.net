@@ -115,16 +115,20 @@ Expected: FAIL — module not found.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Implement `managementNav.ts`. Map each destination to the permission set already used in `BackendSettingsWorkspace` for that area, and to the standalone-workspace permissions:
-- `club` → `[permissionNames.manageBranchSettings]` (verify exact name in `operatorPermissions.ts`; BackendSettings uses branch-profile save — use the same permission that gates `updateBranchProfile`).
-- `halls` → layout permissions used by `SettingsLayoutSection` (`manageLayout`, device perms — visible if any).
-- `tariffs` → `[manageTariffs, managePackages]`.
-- `staff` → `[manageBranchStaff, manageRoles]`.
-- `goods` → `[managePosCatalog]`.
-- `payment` → `[managePaymentGateways]`.
-- `loyalty` → `[manageLoyaltySettings]`.
-- `news` → `[manageNews]`.
-Icons (lucide-react): `Building2, MonitorCog, BadgeDollarSign, UsersRound, Boxes, CreditCard, Gift, Newspaper`. `allowedManagementDestinations` filters by `hasAnyPermission` (add a small local `hasAnyPermission(session, perms)` using `hasPermission`, or reuse one if it exists).
+VERIFIED against `operatorPermissions.ts` (do not re-guess these):
+- `permissionNames` currently has NO `manageBranchSettings`. The backend permission string is `branches.settings.manage` (`StaffPermissionNames.ManageBranchSettings`, granted to `branch_manager`/`technician`), and it gates `updateBranchProfile`. **Add** `manageBranchSettings: 'branches.settings.manage'` to `permissionNames` in this task (it belongs with the club profile).
+- `hasAnyPermission(session, perms)` and `hasPermission` already exist in `operatorPermissions.ts` — reuse them; do NOT write a local copy.
+
+Map each destination (all names exist in `permissionNames` after adding the one above):
+- `club` → `[permissionNames.manageBranchSettings]`
+- `halls` → `[permissionNames.manageLayout, permissionNames.viewDeviceDetail, permissionNames.viewDeviceCommandStatus]` (visible if any; matches what `SettingsLayoutSection` needs)
+- `tariffs` → `[permissionNames.manageTariffs, permissionNames.managePackages]`
+- `staff` → `[permissionNames.manageBranchStaff, permissionNames.manageRoles]`
+- `goods` → `[permissionNames.managePosCatalog, permissionNames.manageInventoryStock]`
+- `payment` → `[permissionNames.managePaymentGateways]`
+- `loyalty` → `[permissionNames.manageLoyaltySettings]`
+- `news` → `[permissionNames.manageNews]`
+Icons (lucide-react): `Building2, MonitorCog, BadgeDollarSign, UsersRound, Boxes, CreditCard, Gift, Newspaper`. `allowedManagementDestinations` filters with the existing `hasAnyPermission`.
 
 Use these `labelKey`/`subtitleKey` values (added in Task 1.2): `op.management.dest.<id>` and `op.management.dest.<id>.subtitle`.
 
@@ -341,46 +345,46 @@ git commit -m "feat(operator): management unsaved-changes guard hook"
 
 ### Task 1.5: `management` workspace id + rail wiring
 
+**VERIFIED locations (the earlier `operatorVisibility.ts` reference was wrong):**
+`WorkspaceId` is in `operatorTypes.ts`. The array `workspaceIds`, the total record `workspacePermissionRules: Record<WorkspaceId, readonly string[]>`, `canOpenWorkspace`, `firstAllowedWorkspace`, `hasAnyPermission` all live in `operatorPermissions.ts`. The role→sections/workspaces contract test is `operatorVisibility.test.ts` (it maps each staff role to `expectedSections` (rail keys, includes `'admin'`) and to expected workspaces).
+
 **Files:**
-- Modify: `src/AFK4.Operator.App.Web/src/operatorTypes.ts` (`WorkspaceId` union)
-- Modify: `src/AFK4.Operator.App.Web/src/operatorData.ts` (`navSections` admin section → single `management` item)
-- Modify: `src/AFK4.Operator.App.Web/src/operatorVisibility.ts` (`canOpenWorkspace`)
-- Test: `src/AFK4.Operator.App.Web/src/operatorVisibility.test.ts`
+- Modify: `src/AFK4.Operator.App.Web/src/operatorTypes.ts` — `WorkspaceId`: add `'management'`; remove `'settings'`, `'payment_cards'`, `'loyalty'`, `'news'` (keep `'logs'`, `'dashboard'`).
+- Modify: `src/AFK4.Operator.App.Web/src/operatorPermissions.ts` — `workspaceIds` array (same add/remove); `workspacePermissionRules` (add `management`, remove the four); the record is total over `WorkspaceId`, so it will not typecheck until updated.
+- Modify: `src/AFK4.Operator.App.Web/src/operatorData.ts` — admin `NavSection` → single `management` item.
+- Test: `src/AFK4.Operator.App.Web/src/operatorVisibility.test.ts` — update the contract: replace the four removed workspaces with `management` in each role's expected workspace set; `expectedSections` keeps `'admin'` (rail key unchanged).
 
 **Interfaces:**
-- Consumes: `allowedManagementDestinations` (Task 1.1) inside `canOpenWorkspace` for `'management'`.
-- Produces: `WorkspaceId` now includes `'management'`. The admin `NavSection` has a single item `{ id: 'management', labelKey: 'op.shell.navGroup.management' }`. (Keep `logs`/`dashboard` ids in the union; they are unhooked from admin but not deleted here.)
+- Produces: `management` rule in `workspacePermissionRules` = the union of the eight destinations' permission arrays from `managementNav` (import `managementDestinations` and flatten, or inline the same union). `canOpenWorkspace(session, 'management')` is then `hasAnyPermission(session, rule)`, which is equivalent to `allowedManagementDestinations(session).length > 0`.
 
-- [ ] **Step 1: Write the failing test** — extend `operatorVisibility.test.ts`:
+- [ ] **Step 1: Write the failing test** — extend `operatorVisibility.test.ts` (use its existing session helper; check the file for the exact helper name — do not invent `sessionWith`):
 
 ```ts
-it('opens management when the session has any management permission', () => {
-  const session = sessionWith([permissionNames.manageNews]) as never; // helper already in file
-  expect(canOpenWorkspace(session, 'management')).toBe(true);
+it('opens management for a role with any management permission', () => {
+  expect(canOpenWorkspace(sessionForRole('branch_manager'), 'management')).toBe(true);
 });
-it('hides management when the session has no management permission', () => {
-  const session = sessionWith([]) as never;
-  expect(canOpenWorkspace(session, 'management')).toBe(false);
+it('hides management for a role with no management permission', () => {
+  expect(canOpenWorkspace(sessionForRole('cashier_operator'), 'management')).toBe(false);
 });
 ```
+Also update the role→workspaces expectation table so `branch_manager` (and any other management-capable role) expects `management` instead of `settings`/`payment_cards`/`loyalty`/`news`.
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `cd src/AFK4.Operator.App.Web && bun test src/operatorVisibility.test.ts`
-Expected: FAIL — `'management'` not assignable / returns false.
+Expected: FAIL — `'management'` not assignable / rule missing / contract mismatch.
 
-- [ ] **Step 3: Implement**
-Add `'management'` to `WorkspaceId`. In `operatorData.ts`, replace the admin section's five items with `items: [{ id: 'management', labelKey: 'op.shell.navGroup.management' }]` (keep `key:'admin'`, `icon: Settings`). In `canOpenWorkspace`, map `'management'` to `allowedManagementDestinations(session).length > 0`.
+- [ ] **Step 3: Implement** the four file changes above. In `operatorData.ts` replace the admin section's five items with `items: [{ id: 'management', labelKey: 'op.shell.navGroup.management' }]` (keep `key:'admin'`, `icon: Settings`). Then grep the whole operator src for the removed ids — `grep -rn "'settings'\|'payment_cards'\|'loyalty'\|'news'" src` — and fix every remaining reference (e.g. `App.test.tsx` navigates using `loyalty.settings.manage`; it must target `'management'` now). WorkspaceRouter routing for these is handled in Task 1.6.
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd src/AFK4.Operator.App.Web && bun test src/operatorVisibility.test.ts`
-Expected: PASS.
+Run: `cd src/AFK4.Operator.App.Web && bun test src/operatorVisibility.test.ts && bun run build`
+Expected: PASS + build green (the total-record and union types must line up).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/AFK4.Operator.App.Web/src/operatorTypes.ts src/AFK4.Operator.App.Web/src/operatorData.ts src/AFK4.Operator.App.Web/src/operatorVisibility.ts src/AFK4.Operator.App.Web/src/operatorVisibility.test.ts
+git add src/AFK4.Operator.App.Web/src/operatorTypes.ts src/AFK4.Operator.App.Web/src/operatorPermissions.ts src/AFK4.Operator.App.Web/src/operatorData.ts src/AFK4.Operator.App.Web/src/operatorVisibility.test.ts
 git commit -m "feat(operator): add management workspace id + rail visibility"
 ```
 
