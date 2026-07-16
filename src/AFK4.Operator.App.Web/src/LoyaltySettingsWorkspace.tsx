@@ -111,25 +111,29 @@ export function LoyaltySettingsWorkspace({
           that this mounts inside it; this keeps the more descriptive legacy title ("Лояльность
           / кэшбэк") without a second competing top-level heading. */}
       <h2>{t('op.loyalty.title')}</h2>
-      <label>
-        <input type="checkbox" checked={topUpEnabled} onChange={(event) => setTopUpEnabled(event.target.checked)} />
-        {t('op.loyalty.topUpEnabled')}
-      </label>
-      <label>
-        {t('op.loyalty.topUpPercent')}
-        <input type="number" value={topUpPercent} onChange={(event) => setTopUpPercent(event.target.value)} />
-      </label>
-      <label>
-        <input type="checkbox" checked={shopEnabled} onChange={(event) => setShopEnabled(event.target.checked)} />
-        {t('op.loyalty.shopEnabled')}
-      </label>
-      <label>
-        {t('op.loyalty.shopPercent')}
-        <input type="number" value={shopPercent} onChange={(event) => setShopPercent(event.target.value)} />
-      </label>
-      {error && <p role="alert">{error}</p>}
-      {saved && <p>{t('op.loyalty.saved')}</p>}
-      <button type="button" onClick={() => void save()}>{t('op.loyalty.save')}</button>
+      <div className="settings-form-grid">
+        <label>
+          {t('op.loyalty.topUpEnabled')}
+          <input type="checkbox" checked={topUpEnabled} onChange={(event) => setTopUpEnabled(event.target.checked)} />
+        </label>
+        <label>
+          {t('op.loyalty.topUpPercent')}
+          <input type="number" value={topUpPercent} onChange={(event) => setTopUpPercent(event.target.value)} />
+        </label>
+        <label>
+          {t('op.loyalty.shopEnabled')}
+          <input type="checkbox" checked={shopEnabled} onChange={(event) => setShopEnabled(event.target.checked)} />
+        </label>
+        <label>
+          {t('op.loyalty.shopPercent')}
+          <input type="number" value={shopPercent} onChange={(event) => setShopPercent(event.target.value)} />
+        </label>
+        {error && <p className="settings-form-wide" role="alert">{error}</p>}
+        {saved && <p className="settings-form-wide">{t('op.loyalty.saved')}</p>}
+        <div className="settings-form-wide news-form-actions">
+          <button type="button" className="ui-btn ui-btn--primary" onClick={() => void save()}>{t('op.loyalty.save')}</button>
+        </div>
+      </div>
     </>
   );
 }

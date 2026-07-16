@@ -164,7 +164,8 @@
   font-weight: 600;
 }
 
-.settings-form-grid input {
+.settings-form-grid input,
+.settings-form-grid textarea {
   height: 28px;
   min-width: 0;
   border: 1px solid var(--border-default);
@@ -174,6 +175,7 @@
   background: var(--surface-sunken);
   color: var(--text-primary);
   font-size: 12px;
+  font-family: inherit;
 }
 
 .settings-form-grid select {
@@ -188,8 +190,31 @@
   font-size: 12px;
 }
 
+/* Native checkbox: the shared input rule above targets text/number fields — a checkbox
+   boxed the same way (fixed height, padded background) reads as a broken control, so it
+   opts out and keeps the platform's own tick, just sized to sit under the caption like
+   every other control in this grid. */
+.settings-form-grid input[type='checkbox'] {
+  height: auto;
+  width: 16px;
+  border: none;
+  padding: 0;
+  background: none;
+  justify-self: start;
+  accent-color: var(--accent);
+}
+
+.settings-form-grid textarea {
+  height: auto;
+  min-height: 72px;
+  padding: 7px 9px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
 .settings-form-grid input:disabled,
-.settings-form-grid select:disabled {
+.settings-form-grid select:disabled,
+.settings-form-grid textarea:disabled {
   color: var(--text-quaternary);
 }
 
@@ -312,6 +337,61 @@
 
 .settings-form-wide {
   grid-column: 1 / -1;
+}
+
+/* Новости: form actions row (save/cancel) and the list of existing items below the form.
+   Rows mirror .settings-tariff-row's card idiom (border + surface-card, no shadow — nested
+   content stays flat per the surface-elevation rule) but aren't buttons, so they get their
+   own class instead of reusing a <button>-only selector group. */
+.news-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 2px 12px 0;
+}
+
+.news-item-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 0 12px;
+  list-style: none;
+}
+
+.news-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 7px 10px;
+  background: var(--surface-card);
+}
+
+.news-item-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.news-item-title strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.news-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .settings-room-grid {

@@ -124,23 +124,15 @@ export function NewsWorkspace({
   };
 
   if (!ready) {
-    return <p>…</p>;
+    return <p className="workspace-loading">{t('state.loading')}</p>;
   }
 
   return (
     <>
-      <form onSubmit={(event) => { event.preventDefault(); void save(); }}>
+      <form className="settings-form-grid" onSubmit={(event) => { event.preventDefault(); void save(); }}>
         <label>
           {t('op.news.fieldTitle')}
           <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
-        </label>
-        <label>
-          {t('op.news.fieldBody')}
-          <textarea value={form.body} onChange={(event) => setForm({ ...form, body: event.target.value })} />
-        </label>
-        <label>
-          {t('op.news.fieldImage')}
-          <input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} />
         </label>
         <label>
           {t('op.news.fieldBranch')}
@@ -151,13 +143,21 @@ export function NewsWorkspace({
             ))}
           </select>
         </label>
+        <label className="settings-form-wide">
+          {t('op.news.fieldBody')}
+          <textarea value={form.body} onChange={(event) => setForm({ ...form, body: event.target.value })} />
+        </label>
         <label>
+          {t('op.news.fieldImage')}
+          <input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} />
+        </label>
+        <label>
+          {t('op.news.published')}
           <input
             type="checkbox"
             checked={form.isPublished}
             onChange={(event) => setForm({ ...form, isPublished: event.target.checked })}
           />
-          {t('op.news.published')}
         </label>
         <label>
           {t('op.news.publishAt')}
@@ -167,23 +167,32 @@ export function NewsWorkspace({
           {t('op.news.expiresAt')}
           <input type="datetime-local" value={form.expiresAt} onChange={(event) => setForm({ ...form, expiresAt: event.target.value })} />
         </label>
-        {error && <p role="alert">{error}</p>}
-        <button type="submit">{t('op.news.save')}</button>
-        {form.id !== null && (
-          <button type="button" onClick={() => { setForm({ ...EMPTY }); setError(null); }}>{t('op.news.cancel')}</button>
-        )}
+        {error && <p className="settings-form-wide" role="alert">{error}</p>}
+        <div className="settings-form-wide news-form-actions">
+          <button type="submit" className="ui-btn ui-btn--primary">{t('op.news.save')}</button>
+          {form.id !== null && (
+            <button type="button" className="ui-btn" onClick={() => { setForm({ ...EMPTY }); setError(null); }}>{t('op.news.cancel')}</button>
+          )}
+        </div>
       </form>
 
-      {items.length === 0 && <p>{t('op.news.empty')}</p>}
-      <ul>
-        {items.map((item) => (
-          <li key={item.id}>
-            <strong>{item.title}</strong>
-            {!item.isPublished && <em> ({t('op.news.draftTag')})</em>}
-            <button type="button" onClick={() => edit(item)}>{t('op.news.edit')}</button>
-            <button type="button" onClick={() => void remove(item.id)}>{t('op.news.delete')}</button>
-          </li>
-        ))}
+      <ul className="news-item-list">
+        {items.length === 0 ? (
+          <li className="settings-device-empty">{t('op.news.empty')}</li>
+        ) : (
+          items.map((item) => (
+            <li key={item.id} className="news-item-row">
+              <span className="news-item-title">
+                <strong>{item.title}</strong>
+                {!item.isPublished && <span className="ui-chip ui-chip--status is-neutral">{t('op.news.draftTag')}</span>}
+              </span>
+              <span className="news-item-actions">
+                <button type="button" className="ui-btn ui-btn--sm" onClick={() => edit(item)}>{t('op.news.edit')}</button>
+                <button type="button" className="ui-btn ui-btn--sm ui-btn--danger" onClick={() => void remove(item.id)}>{t('op.news.delete')}</button>
+              </span>
+            </li>
+          ))
+        )}
       </ul>
     </>
   );
