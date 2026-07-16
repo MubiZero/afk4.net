@@ -1,7 +1,20 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { OperatorAuthSession } from '../authClient';
-import type { OperatorBackendContext } from '../operatorTypes';
+import { projectOperatorError } from '../apiErrors';
+import { createAuthenticatedOperatorClients, emptyFeedback } from '../operatorHelpers';
+import { hasPermission, permissionNames } from '../operatorPermissions';
+import { useFeedbackToasts } from '../useFeedbackToasts';
+import type {
+  DeviceCommandStatusDto,
+  DeviceInventoryItemDto,
+  PackageOptionDto,
+  PosProductDto,
+  StaffUserDto,
+  TariffOptionDto,
+  ZoneDto
+} from '../operatorApiClients';
+import type { Feedback, LoadStatus, OperatorBackendContext } from '../operatorTypes';
 import { CriticalActionConfirmation, EmptyState } from '../operatorPrimitives';
 import { allowedManagementDestinations, type ManagementDestinationId } from './managementNav';
 import { ManagementScreen } from './ManagementScreen';
@@ -14,6 +27,13 @@ import { NewsDestination } from './destinations/NewsDestination';
 // маршрутизирует club/loyalty/news на реальные компоненты; остальные разделы (Залы, Тарифы,
 // Сотрудники, Товары, Оплата) получают минимальную заглушку-скелет до своих задач слайса 2 —
 // пункт рейла не должен вести в пустоту, даже пока экран за ним не построен.
+//
+// Task 2.1: settings-domain data (zones/staff/catalog/tariffs/packages/device lists) is loaded
+// once here — via createAuthenticatedOperatorClients, same contract as the retired
+// BackendSettingsWorkspace.loadSettings minus diagnostics/rollouts/updates (Integrations was
+// dropped from this redesign) — so it's ready to hand to the halls/tariffs/staff/goods
+// destination wrappers landing in Task 2.2-2.6. Club/Loyalty/News load/save independently and
+// ignore all of it.
 export function ManagementWorkspace({
   backend,
   session,
@@ -38,6 +58,58 @@ export function ManagementWorkspace({
     onNavigate: navigate,
     onDiscard: () => setDirty(false)
   });
+
+  const [settingsLoadStatus, setSettingsLoadStatus] = useState<LoadStatus>('fixture');
+  const [settingsFeedback, setSettingsFeedback] = useState<Feedback>(emptyFeedback);
+  useFeedbackToasts(settingsFeedback);
+  const [zones, setZones] = useState<ZoneDto[]>([]);
+  const [staffUsers, setStaffUsers] = useState<StaffUserDto[]>([]);
+  const [catalog, setCatalog] = useState<PosProductDto[]>([]);
+  const [tariffs, setTariffs] = useState<TariffOptionDto[]>([]);
+  const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
+  const [deviceInventory, setDeviceInventory] = useState<DeviceInventoryItemDto[]>([]);
+  const [branchDeviceCommandHistory, setBranchDeviceCommandHistory] = useState<DeviceCommandStatusDto[]>([]);
+
+  const loadSettings = async (nextBackend = backend) => {
+    if (nextBackend === null) {
+      setSettingsLoadStatus('fixture');
+      return;
+    }
+
+    setSettingsLoadStatus('loading');
+    try {
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const [, staff, layoutZones, products, tariffOptions, packageOptionRows, deviceRows, branchDeviceCommands] = await Promise.all([
+        apiClients.settings.getBranchProfile(nextBackend.branchId),
+        apiClients.settings.getStaffUsers(nextBackend.branchId),
+        apiClients.settings.getLayoutZones(nextBackend.branchId),
+        apiClients.pos.getCatalog(nextBackend.branchId),
+        apiClients.settings.getTariffOptions(nextBackend.branchId),
+        apiClients.settings.getPackageOptions(nextBackend.branchId).catch(() => []),
+        hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)
+          ? apiClients.devices.listDevices(nextBackend.branchId).catch(() => [])
+          : Promise.resolve([]),
+        hasPermission(nextBackend.session, permissionNames.viewDeviceCommandStatus)
+          ? apiClients.devices.listBranchDeviceCommands(nextBackend.branchId, { limit: 50 }).catch(() => [])
+          : Promise.resolve([])
+      ]);
+      setStaffUsers(Array.isArray(staff) ? staff : []);
+      setZones(Array.isArray(layoutZones) ? layoutZones : []);
+      setCatalog(Array.isArray(products) ? products : []);
+      setTariffs(Array.isArray(tariffOptions) ? tariffOptions : []);
+      setPackageOptions(Array.isArray(packageOptionRows) ? packageOptionRows : []);
+      setDeviceInventory(Array.isArray(deviceRows) ? deviceRows : []);
+      setBranchDeviceCommandHistory(Array.isArray(branchDeviceCommands) ? branchDeviceCommands : []);
+      setSettingsLoadStatus('backend');
+    } catch (error) {
+      setSettingsLoadStatus('failed');
+      setSettingsFeedback({ label: t('op.settings.profile.loadFeedbackLabel'), state: 'failed', detail: projectOperatorError(error, t).detail });
+    }
+  };
+
+  useEffect(() => {
+    void loadSettings();
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, currencyCode]);
 
   if (destinations.length === 0) {
     return (
