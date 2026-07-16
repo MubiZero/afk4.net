@@ -2375,6 +2375,8 @@
   "op.management.dest.goods.subtitle": "Product catalog",
   "op.management.dest.payment": "Payment",
   "op.management.dest.payment.subtitle": "Accept online payments",
+  "op.management.dest.payment.noBackendTitle": "No connection to the server",
+  "op.management.dest.payment.noBackendHint": "Connect to the server to manage payments.",
   "op.management.dest.loyalty": "Loyalty",
   "op.management.dest.loyalty.subtitle": "Cashback rules",
   "op.management.dest.news": "News",

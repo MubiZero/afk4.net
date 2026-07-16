@@ -17,20 +17,19 @@ import type {
 import type { Feedback, LoadStatus, OperatorBackendContext } from '../operatorTypes';
 import { CriticalActionConfirmation, EmptyState } from '../operatorPrimitives';
 import { allowedManagementDestinations, type ManagementDestinationId } from './managementNav';
-import { ManagementScreen } from './ManagementScreen';
 import { useUnsavedGuard } from './useUnsavedGuard';
 import { ClubDestination } from './destinations/ClubDestination';
 import { GoodsDestination } from './destinations/GoodsDestination';
 import { HallsDevicesDestination } from './destinations/HallsDevicesDestination';
 import { LoyaltyDestination } from './destinations/LoyaltyDestination';
 import { NewsDestination } from './destinations/NewsDestination';
+import { PaymentDestination } from './destinations/PaymentDestination';
 import { StaffRolesDestination } from './destinations/StaffRolesDestination';
 import { TariffsPackagesDestination } from './destinations/TariffsPackagesDestination';
 
-// Управление: левый рейл разделов, доступных сессии, + активный экран раздела справа. Слайс 1
-// маршрутизирует club/loyalty/news на реальные компоненты; остальные разделы (Залы, Тарифы,
-// Сотрудники, Товары, Оплата) получают минимальную заглушку-скелет до своих задач слайса 2 —
-// пункт рейла не должен вести в пустоту, даже пока экран за ним не построен.
+// Управление: левый рейл разделов, доступных сессии, + активный экран раздела справа. Все 8
+// разделов (Клуб, Залы, Тарифы, Сотрудники, Товары, Оплата, Лояльность, Новости) маршрутизируют
+// на реальные компоненты — заглушек-скелетов больше нет.
 //
 // Task 2.1: settings-domain data (zones/staff/catalog/tariffs/packages/device lists) is loaded
 // once here — via createAuthenticatedOperatorClients, same contract as the retired
@@ -202,13 +201,8 @@ export function ManagementWorkspace({
       );
     }
 
-    // payment: real wrapper lands in slice 2 (Task 2.6).
-    const destination = destinations.find((entry) => entry.id === currentId)!;
-    return (
-      <ManagementScreen title={t(destination.labelKey)} subtitle={t(destination.subtitleKey)}>
-        <p className="workspace-loading">{t(destination.subtitleKey)}</p>
-      </ManagementScreen>
-    );
+    // payment: last remaining destination id — all 8 sections now route to a real wrapper.
+    return <PaymentDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
   };
 
   return (

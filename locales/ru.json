@@ -2573,6 +2573,8 @@
   "op.management.dest.goods.subtitle": "Каталог товаров",
   "op.management.dest.payment": "Оплата",
   "op.management.dest.payment.subtitle": "Приём онлайн-оплаты",
+  "op.management.dest.payment.noBackendTitle": "Нет подключения к серверу",
+  "op.management.dest.payment.noBackendHint": "Подключитесь к серверу, чтобы управлять оплатой.",
   "op.management.dest.loyalty": "Лояльность",
   "op.management.dest.loyalty.subtitle": "Правила кэшбэка",
   "op.management.dest.news": "Новости",

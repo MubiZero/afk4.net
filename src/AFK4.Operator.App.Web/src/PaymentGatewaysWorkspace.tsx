@@ -185,12 +185,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
   };
 
   return (
-    <main className="workspace-screen payment-cards-screen">
-      <section className="screen-head">
-        <h1>{t('payments_cards.title')}</h1>
-        <p>{t('payments_cards.subtitle')}</p>
-      </section>
-
+    <>
       {loadError && <p className="payment-cards-error" role="alert">{loadError}</p>}
 
       <section className="payment-cards-provision">
@@ -298,6 +293,6 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
           </article>
         ))}
       </section>
-    </main>
+    </>
   );
 }
