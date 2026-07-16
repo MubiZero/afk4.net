@@ -104,13 +104,15 @@ describe('ManagementWorkspace', () => {
       />
     );
 
-    await waitFor(() => expect(getBranchProfile).toHaveBeenCalledTimes(1));
-    expect(getBranchProfile).toHaveBeenCalledWith('b1');
-    expect(getLayoutZones).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(getLayoutZones).toHaveBeenCalledTimes(1));
+    expect(getLayoutZones).toHaveBeenCalledWith('b1');
     expect(getTariffOptions).toHaveBeenCalledTimes(1);
     expect(getStaffUsers).toHaveBeenCalledTimes(1);
     expect(getCatalog).toHaveBeenCalledTimes(1);
 
+    // Профиль филиала грузит ТОЛЬКО ClubDestination, не общий lift — иначе заход на «Клуб» даёт
+    // двойной getBranchProfile. Здесь активны «Тарифы», Клуб не смонтирован → 0 вызовов.
+    expect(getBranchProfile).not.toHaveBeenCalled();
     expect(getDiagnostics).not.toHaveBeenCalled();
     expect(getRolloutStatuses).not.toHaveBeenCalled();
   });

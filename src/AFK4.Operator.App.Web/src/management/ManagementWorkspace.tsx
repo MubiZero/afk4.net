@@ -79,8 +79,10 @@ export function ManagementWorkspace({
     setSettingsLoadStatus('loading');
     try {
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const [, staff, layoutZones, products, tariffOptions, packageOptionRows, deviceRows, branchDeviceCommands] = await Promise.all([
-        apiClients.settings.getBranchProfile(nextBackend.branchId),
+      // Профиль филиала здесь НЕ грузим: им владеет ClubDestination (свой load/save). Тянуть его
+      // сюда — лишний дубль-запрос на getBranchProfile при заходе на «Клуб». Грузим ровно то,
+      // что нужно потребителям слайса 2 (Залы/Тарифы/Сотрудники/Товары).
+      const [staff, layoutZones, products, tariffOptions, packageOptionRows, deviceRows, branchDeviceCommands] = await Promise.all([
         apiClients.settings.getStaffUsers(nextBackend.branchId),
         apiClients.settings.getLayoutZones(nextBackend.branchId),
         apiClients.pos.getCatalog(nextBackend.branchId),
