@@ -639,7 +639,7 @@ Removes the dead old structure and files the backlog items. No behavior regressi
 - Modify: any remaining imports/tests referencing them
 - Grep gate: `grep -rn "BackendSettingsWorkspace\|SettingsIntegrationsSection\|settings-nav-panel\|settings-side-panel\|settings-readiness\|settings-action-card\|op.settings.readiness\|op.settings.quickActions" src/AFK4.Operator.App.Web/src` returns nothing (except deletions).
 
-- [ ] **Step 1:** Delete the two files. Remove the now-orphaned readiness/quick-actions/integrations CSS from `15-settings.css` and the orphaned `op.settings.readiness.*`/`op.settings.quickActions.*`/`op.settings.section.integrations*`/update-package i18n keys from all three locales (only those no longer referenced — grep first).
+- [ ] **Step 1:** Delete the two files. Remove the now-orphaned readiness/quick-actions/integrations CSS from `15-settings.css`. For i18n: the message source of truth is `packages/i18n/locales/{ru,en,tg}.json`, and `packages/i18n/src/messages.ts` is GENERATED via `cd packages/i18n && bun run gen` (a test asserts generated matches source). Remove orphaned `op.settings.readiness.*`/`op.settings.quickActions.*`/`op.settings.section.integrations*`/update-package keys from the three `locales/*.json` files (only those no longer referenced — grep the operator src first), then regenerate `messages.ts`. Never hand-edit `messages.ts`.
 - [ ] **Step 2:** Run: the grep gate above (empty), then `cd src/AFK4.Operator.App.Web && bun test && bun run build`. Also `cd packages/i18n && bun test`.
 Expected: all green; no dangling references.
 - [ ] **Step 3:** Commit `refactor(operator): remove old settings workspace, integrations, readiness/quick-actions`.
