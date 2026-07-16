@@ -23,6 +23,7 @@ import { ClubDestination } from './destinations/ClubDestination';
 import { HallsDevicesDestination } from './destinations/HallsDevicesDestination';
 import { LoyaltyDestination } from './destinations/LoyaltyDestination';
 import { NewsDestination } from './destinations/NewsDestination';
+import { TariffsPackagesDestination } from './destinations/TariffsPackagesDestination';
 
 // Управление: левый рейл разделов, доступных сессии, + активный экран раздела справа. Слайс 1
 // маршрутизирует club/loyalty/news на реальные компоненты; остальные разделы (Залы, Тарифы,
@@ -154,8 +155,23 @@ export function ManagementWorkspace({
         />
       );
     }
+    if (currentId === 'tariffs') {
+      return (
+        <TariffsPackagesDestination
+          backend={backend}
+          session={session}
+          currencyCode={currencyCode}
+          onDirtyChange={setDirty}
+          tariffs={tariffs}
+          packageOptions={packageOptions}
+          onReload={loadSettings}
+          onFeedback={setSettingsFeedback}
+          loadStatus={settingsLoadStatus}
+        />
+      );
+    }
 
-    // tariffs/staff/goods/payment: real wrappers land in slice 2 (Task 2.3-2.6).
+    // staff/goods/payment: real wrappers land in slice 2 (Task 2.4-2.6).
     const destination = destinations.find((entry) => entry.id === currentId)!;
     return (
       <ManagementScreen title={t(destination.labelKey)} subtitle={t(destination.subtitleKey)}>
