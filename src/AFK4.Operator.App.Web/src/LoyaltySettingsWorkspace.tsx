@@ -89,31 +89,28 @@ export function LoyaltySettingsWorkspace({
 
   if (loadError) {
     return (
-      <main className="workspace-screen loyalty-settings-screen">
-        <section className="screen-head">
-          <h1>{t('op.loyalty.title')}</h1>
-        </section>
+      <>
+        <h2>{t('op.loyalty.title')}</h2>
         <p className="workspace-error" role="alert">{loadError}</p>
-      </main>
+      </>
     );
   }
 
   if (!ready) {
     return (
-      <main className="workspace-screen loyalty-settings-screen">
-        <section className="screen-head">
-          <h1>{t('op.loyalty.title')}</h1>
-        </section>
+      <>
+        <h2>{t('op.loyalty.title')}</h2>
         <p className="workspace-loading">{t('op.loyalty.loading')}</p>
-      </main>
+      </>
     );
   }
 
   return (
-    <main className="workspace-screen loyalty-settings-screen">
-      <section className="screen-head">
-        <h1>{t('op.loyalty.title')}</h1>
-      </section>
+    <>
+      {/* h2, not h1 — ManagementScreen already owns the page's single h1 ("Лояльность") now
+          that this mounts inside it; this keeps the more descriptive legacy title ("Лояльность
+          / кэшбэк") without a second competing top-level heading. */}
+      <h2>{t('op.loyalty.title')}</h2>
       <label>
         <input type="checkbox" checked={topUpEnabled} onChange={(event) => setTopUpEnabled(event.target.checked)} />
         {t('op.loyalty.topUpEnabled')}
@@ -133,6 +130,6 @@ export function LoyaltySettingsWorkspace({
       {error && <p role="alert">{error}</p>}
       {saved && <p>{t('op.loyalty.saved')}</p>}
       <button type="button" onClick={() => void save()}>{t('op.loyalty.save')}</button>
-    </main>
+    </>
   );
 }

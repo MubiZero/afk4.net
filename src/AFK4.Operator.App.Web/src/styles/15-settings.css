@@ -672,6 +672,78 @@
   font-weight: 600;
 }
 
+/* Управление shell: left destination rail + the active destination's ManagementScreen. Mirrors
+   .settings-nav-panel's card idiom (raised surface + shadow-card, no shadow on nested buttons)
+   so the new rail reads as the same interface, not a parallel visual language. */
+.management-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 10px;
+}
+
+.management-nav {
+  flex-shrink: 0;
+  width: 208px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+  overflow-y: auto;
+}
+
+.management-nav button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 0 12px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.management-nav button svg {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  transition: color 120ms ease;
+}
+
+.management-nav button:hover,
+.management-nav button:focus-visible,
+.management-nav button.active {
+  border-color: var(--accent);
+  background: var(--surface-accent-soft);
+  outline: none;
+}
+
+.management-nav button:hover,
+.management-nav button:focus-visible {
+  transform: translateY(-1px);
+}
+
+.management-nav button:hover svg,
+.management-nav button:focus-visible svg,
+.management-nav button.active svg {
+  color: var(--accent);
+}
+
+.management-active-pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

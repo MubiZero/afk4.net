@@ -11,6 +11,7 @@ import { CashWorkspace } from './cash/CashWorkspace';
 import { BackendPlayersWorkspace } from './BackendPlayersWorkspace';
 import { BackendLogsWorkspace } from './BackendLogsWorkspace';
 import { StockWorkspace } from './stock/StockWorkspace';
+import { ManagementWorkspace } from './management/ManagementWorkspace';
 
 // Маршрутизатор контента: какой экран показать под активным workspace. Обёрнут в
 // WorkspaceErrorBoundary с key={workspace} — переключение раздела сбрасывает границу ошибок.
@@ -88,9 +89,9 @@ export function WorkspaceRouter({
       {workspace === 'stock' && <StockWorkspace currencyCode={currencyCode} backend={backend} session={session} />}
       {workspace === 'players' && <BackendPlayersWorkspace currencyCode={currencyCode} backend={backend} />}
       {workspace === 'logs' && <BackendLogsWorkspace currencyCode={currencyCode} backend={backend} />}
-      {/* 'management' has no case yet — routing to the new Управление scaffold (replacing
-          PaymentGatewaysWorkspace/BackendSettingsWorkspace/LoyaltySettingsWorkspace/NewsWorkspace)
-          lands in Task 1.6. */}
+      {workspace === 'management' && (
+        <ManagementWorkspace backend={backend} session={session} currencyCode={currencyCode} />
+      )}
     </WorkspaceErrorBoundary>
   );
 }

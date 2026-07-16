@@ -994,17 +994,17 @@ describe('App', () => {
     // un-skipped once 1.6 wires real content behind 'management'.
   });
 
-    // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
-  // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
-  // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
-  // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('opens the loyalty settings workspace from the rail', async () => {
+  it('opens the loyalty settings workspace from the rail', async () => {
     installSessionBridge(createSession({ permissions: ['loyalty.settings.manage'] }));
 
     render(<App />);
 
     await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
-    gotoWorkspace('Лояльность');
+    // Task 1.6: Настройки/Приём платежей/Лояльность/Новости/Логи collapsed into one
+    // 'Управление' rail entry with a left destination nav (no tab strip) — open the section,
+    // then pick the destination inside .management-nav.
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Рабочие места' })).getByTitle('Управление'));
+    fireEvent.click(screen.getByRole('button', { name: 'Лояльность' }));
     expect(await screen.findByRole('heading', { name: /Лояльность \/ кэшбэк/ })).toBeInTheDocument();
   });
 
@@ -2051,17 +2051,16 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Обновить роль' })).toBeDisabled();
   });
 
-    // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
-  // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
-  // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
-  // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('saves the Settings branch profile through the backend', async () => {
+  it('saves the Club branch profile through the backend', async () => {
     installSessionBridge();
 
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
+    // Task 1.6: the old 'Настройки' rail button is now the 'Клуб' destination inside the
+    // consolidated 'Управление' section's left nav (no tab strip).
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Рабочие места' })).getByTitle('Управление'));
+    fireEvent.click(screen.getByRole('button', { name: 'Клуб' }));
     expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Название клуба'), { target: { value: 'AFK4 Pilot' } });
     fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Khujand' } });
@@ -3599,7 +3598,11 @@ const allOperatorPermissions = [
   'updates.rollouts.manage',
   'devices.commands.status.view',
   'audit.view',
-  'billing.money_action.approve'
+  'billing.money_action.approve',
+  'branches.settings.manage',
+  'payments.gateways.manage',
+  'loyalty.settings.manage',
+  'news.manage'
 ];
 
 function createSession(overrides: Record<string, unknown> = {}) {

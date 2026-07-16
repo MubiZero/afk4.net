@@ -124,18 +124,11 @@ export function NewsWorkspace({
   };
 
   if (!ready) {
-    return (
-      <main className="workspace-screen news-screen">
-        <section className="screen-head"><h1>{t('op.news.title')}</h1></section>
-        <p>…</p>
-      </main>
-    );
+    return <p>…</p>;
   }
 
   return (
-    <main className="workspace-screen news-screen">
-      <section className="screen-head"><h1>{t('op.news.title')}</h1></section>
-
+    <>
       <form onSubmit={(event) => { event.preventDefault(); void save(); }}>
         <label>
           {t('op.news.fieldTitle')}
@@ -192,6 +185,6 @@ export function NewsWorkspace({
           </li>
         ))}
       </ul>
-    </main>
+    </>
   );
 }
