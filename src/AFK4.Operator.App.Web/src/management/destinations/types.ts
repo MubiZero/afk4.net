@@ -9,6 +9,15 @@ import type {
   ZoneDto
 } from '../../operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from '../../operatorTypes';
+import type { ManagementScreenProps } from '../ManagementScreen';
+
+// Shared LoadStatus -> ManagementScreen.state mapping, so every settings-domain destination
+// (halls/tariffs/staff/goods) wires loading/error the same way instead of re-deriving it.
+export function managementScreenState(loadStatus: LoadStatus | undefined): NonNullable<ManagementScreenProps['state']> {
+  if (loadStatus === 'loading') return 'loading';
+  if (loadStatus === 'failed') return 'error';
+  return 'ready';
+}
 
 // Shared prop contract every «Управление» destination wrapper implements. ManagementWorkspace
 // mounts exactly one of these at a time and only reads `onDirtyChange` back — the destination
@@ -32,6 +41,7 @@ export interface DestinationProps {
   deviceInventory?: DeviceInventoryItemDto[];
   branchDeviceCommandHistory?: DeviceCommandStatusDto[];
   loadStatus?: LoadStatus;
+  errorDetail?: string; // concrete failure text when loadStatus === 'failed' (settingsFeedback.detail)
 
   onStaffUsersChange?: (staffUsers: StaffUserDto[]) => void;
   onCatalogChange?: (catalog: PosProductDto[]) => void;
@@ -39,4 +49,5 @@ export interface DestinationProps {
   onBranchDeviceCommandHistoryChange?: (history: DeviceCommandStatusDto[]) => void;
   onReload?: (nextBackend?: OperatorBackendContext | null) => Promise<void>;
   onFeedback?: (feedback: Feedback) => void;
+  onRetry?: () => void;
 }

@@ -3,7 +3,7 @@ import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../ManagementScreen';
 import { SettingsGoodsSection } from '../../settings/SettingsGoodsSection';
 import { hasPermission, permissionNames } from '../../operatorPermissions';
-import type { DestinationProps } from './types';
+import { managementScreenState, type DestinationProps } from './types';
 
 // Товары: тонкая обёртка над SettingsGoodsSection (каталог + штрихкоды) в общем каркасе
 // ManagementScreen. Движение склада сюда не переехало — оно уже полноценно живёт в разделе
@@ -17,7 +17,10 @@ export function GoodsDestination({
   onCatalogChange,
   onReload,
   onFeedback,
-  onDirtyChange
+  onDirtyChange,
+  loadStatus,
+  errorDetail,
+  onRetry
 }: DestinationProps) {
   const { t } = useI18n();
 
@@ -32,6 +35,10 @@ export function GoodsDestination({
     <ManagementScreen
       title={t('op.management.dest.goods')}
       subtitle={t('op.management.dest.goods.subtitle')}
+      contentWidth="wide"
+      state={managementScreenState(loadStatus)}
+      errorDetail={errorDetail}
+      onRetry={onRetry}
     >
       <div className="management-panel">
         <SettingsGoodsSection

@@ -3,7 +3,7 @@ import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../ManagementScreen';
 import { SettingsStaffSection } from '../../settings/SettingsStaffSection';
 import { hasPermission, permissionNames } from '../../operatorPermissions';
-import type { DestinationProps } from './types';
+import { managementScreenState, type DestinationProps } from './types';
 
 // Сотрудники и роли: тонкая обёртка над SettingsStaffSection (приглашение, профиль, роли,
 // вкл/выкл, сброс пароля) в общем каркасе ManagementScreen. Раздел сохраняет по-действию,
@@ -14,7 +14,10 @@ export function StaffRolesDestination({
   staffUsers,
   onStaffUsersChange,
   onFeedback,
-  onDirtyChange
+  onDirtyChange,
+  loadStatus,
+  errorDetail,
+  onRetry
 }: DestinationProps) {
   const { t } = useI18n();
 
@@ -29,6 +32,10 @@ export function StaffRolesDestination({
     <ManagementScreen
       title={t('op.management.dest.staff')}
       subtitle={t('op.management.dest.staff.subtitle')}
+      contentWidth="wide"
+      state={managementScreenState(loadStatus)}
+      errorDetail={errorDetail}
+      onRetry={onRetry}
     >
       <div className="management-panel">
         <SettingsStaffSection

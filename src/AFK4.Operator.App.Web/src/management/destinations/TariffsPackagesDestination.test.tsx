@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../operatorToast';
@@ -72,5 +72,39 @@ describe('TariffsPackagesDestination', () => {
       />
     );
     expect(onDirtyChange).toHaveBeenCalledWith(false);
+  });
+
+  it('shows a loading skeleton instead of tariffs while loadStatus is loading', () => {
+    const { container } = wrap(
+      <TariffsPackagesDestination
+        backend={null}
+        session={session([])}
+        currencyCode="TJS"
+        tariffs={tariffs}
+        packageOptions={[]}
+        loadStatus="loading"
+      />
+    );
+    expect(container.querySelector('.management-skeleton')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Стандарт/ })).toBeNull();
+  });
+
+  it('shows the concrete error detail and retries via onRetry when loadStatus is failed', () => {
+    const onRetry = mock(() => {});
+    wrap(
+      <TariffsPackagesDestination
+        backend={null}
+        session={session([])}
+        currencyCode="TJS"
+        tariffs={tariffs}
+        packageOptions={[]}
+        loadStatus="failed"
+        errorDetail="boom"
+        onRetry={onRetry}
+      />
+    );
+    expect(screen.getByText('boom')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

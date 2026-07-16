@@ -917,6 +917,81 @@
   overflow: hidden;
 }
 
+/* Loading skeleton — mirrors .management-panel's geometry (raised card, same padding/radius)
+   so the real content doesn't jump when it swaps in. Fades in after a 200ms delay: on backend
+   loads that resolve faster than that (the common case), the skeleton never becomes visible at
+   all, so quick loads don't flash a placeholder. */
+@keyframes management-skeleton-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes management-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.management-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+  opacity: 0;
+  animation: management-skeleton-in 160ms ease-out 200ms forwards;
+}
+
+.management-skeleton-line {
+  height: 14px;
+  border-radius: var(--radius-xs, 4px);
+  background: linear-gradient(90deg, var(--surface-sunken) 25%, var(--border-soft) 50%, var(--surface-sunken) 75%);
+  background-size: 250% 100%;
+  animation: management-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.management-skeleton-line:nth-child(1) {
+  width: 40%;
+}
+
+.management-skeleton-line:nth-child(2) {
+  width: 70%;
+  animation-delay: 0.12s;
+}
+
+.management-skeleton-line:nth-child(3) {
+  width: 55%;
+  animation-delay: 0.24s;
+}
+
+.management-skeleton-line:nth-child(4) {
+  width: 30%;
+  animation-delay: 0.36s;
+}
+
+/* Error state — same raised-card chrome as .management-panel so the swap doesn't read as a
+   different surface; EmptyState supplies the centered icon/title/detail/retry layout. The
+   concrete errorDetail (from projectOperatorError/feedback.detail) renders as EmptyState's
+   description, never replaced by generic copy. */
+.management-error-state {
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

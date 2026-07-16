@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../operatorToast';
@@ -33,9 +33,10 @@ describe('GoodsDestination', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Товары' })).toBeTruthy();
-    // «Каталог товаров» is coincidentally also the POS-section title inside the body, so scope
-    // the subtitle assertion to the screen head to avoid a duplicate-text match.
-    expect(container.querySelector('.management-screen-head')?.textContent).toContain('Каталог товаров');
+    // Subtitle describes the whole section (catalog + prices + barcodes), deliberately distinct
+    // from the «Каталог товаров» POS-section title inside the body — they used to be a verbatim
+    // duplicate (eyebrow vs. inner heading saying the same thing).
+    expect(container.querySelector('.management-screen-head')?.textContent).toContain('Каталог, цены и штрихкоды');
   });
 
   it('renders the catalog passed in from ManagementWorkspace state', () => {
@@ -76,5 +77,37 @@ describe('GoodsDestination', () => {
       />
     );
     expect(onDirtyChange).toHaveBeenCalledWith(false);
+  });
+
+  it('shows a loading skeleton instead of the catalog while loadStatus is loading', () => {
+    const { container } = wrap(
+      <GoodsDestination
+        backend={null}
+        session={session([])}
+        currencyCode="TJS"
+        catalog={catalog}
+        loadStatus="loading"
+      />
+    );
+    expect(container.querySelector('.management-skeleton')).toBeTruthy();
+    expect(screen.queryByText('Cola 0.5')).toBeNull();
+  });
+
+  it('shows the concrete error detail and retries via onRetry when loadStatus is failed', () => {
+    const onRetry = mock(() => {});
+    wrap(
+      <GoodsDestination
+        backend={null}
+        session={session([])}
+        currencyCode="TJS"
+        catalog={catalog}
+        loadStatus="failed"
+        errorDetail="boom"
+        onRetry={onRetry}
+      />
+    );
+    expect(screen.getByText('boom')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

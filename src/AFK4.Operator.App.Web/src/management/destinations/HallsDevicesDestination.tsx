@@ -3,7 +3,7 @@ import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../ManagementScreen';
 import { SettingsLayoutSection } from '../../settings/SettingsLayoutSection';
 import { hasPermission, permissionNames } from '../../operatorPermissions';
-import type { DestinationProps } from './types';
+import { managementScreenState, type DestinationProps } from './types';
 
 // Залы и ПК: тонкая обёртка над SettingsLayoutSection (зоны/места + устройства/команды/ключи) в
 // общем каркасе ManagementScreen. Раздел сохраняет по-действию (создать зону, назначить
@@ -19,7 +19,10 @@ export function HallsDevicesDestination({
   onBranchDeviceCommandHistoryChange,
   onReload,
   onFeedback,
-  onDirtyChange
+  onDirtyChange,
+  loadStatus,
+  errorDetail,
+  onRetry
 }: DestinationProps) {
   const { t } = useI18n();
 
@@ -41,6 +44,9 @@ export function HallsDevicesDestination({
       title={t('op.management.dest.halls')}
       subtitle={t('op.management.dest.halls.subtitle')}
       contentWidth="wide"
+      state={managementScreenState(loadStatus)}
+      errorDetail={errorDetail}
+      onRetry={onRetry}
     >
       <div className="management-panel">
         <SettingsLayoutSection

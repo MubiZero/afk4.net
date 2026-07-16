@@ -128,6 +128,9 @@ export function ManagementWorkspace({
   // мог перестать быть доступным. Падаем на первый разрешённый вместо пустого экрана.
   const currentId = destinations.some((destination) => destination.id === active) ? (active as ManagementDestinationId) : destinations[0].id;
 
+  const settingsErrorDetail = settingsFeedback.state === 'failed' ? settingsFeedback.detail : undefined;
+  const retrySettings = () => void loadSettings();
+
   const renderActiveDestination = () => {
     if (currentId === 'club') {
       return <ClubDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
@@ -153,6 +156,8 @@ export function ManagementWorkspace({
           onReload={loadSettings}
           onFeedback={setSettingsFeedback}
           loadStatus={settingsLoadStatus}
+          errorDetail={settingsErrorDetail}
+          onRetry={retrySettings}
         />
       );
     }
@@ -168,6 +173,8 @@ export function ManagementWorkspace({
           onReload={loadSettings}
           onFeedback={setSettingsFeedback}
           loadStatus={settingsLoadStatus}
+          errorDetail={settingsErrorDetail}
+          onRetry={retrySettings}
         />
       );
     }
@@ -182,6 +189,9 @@ export function ManagementWorkspace({
           staffUsers={staffUsers}
           onStaffUsersChange={setStaffUsers}
           onFeedback={setSettingsFeedback}
+          loadStatus={settingsLoadStatus}
+          errorDetail={settingsErrorDetail}
+          onRetry={retrySettings}
         />
       );
     }
@@ -197,6 +207,9 @@ export function ManagementWorkspace({
           onCatalogChange={setCatalog}
           onReload={loadSettings}
           onFeedback={setSettingsFeedback}
+          loadStatus={settingsLoadStatus}
+          errorDetail={settingsErrorDetail}
+          onRetry={retrySettings}
         />
       );
     }

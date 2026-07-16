@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../operatorToast';
@@ -60,5 +60,37 @@ describe('StaffRolesDestination', () => {
       />
     );
     expect(onDirtyChange).toHaveBeenCalledWith(false);
+  });
+
+  it('shows a loading skeleton instead of staff rows while loadStatus is loading', () => {
+    const { container } = wrap(
+      <StaffRolesDestination
+        backend={null}
+        session={session([])}
+        currencyCode="TJS"
+        staffUsers={staffUsers}
+        loadStatus="loading"
+      />
+    );
+    expect(container.querySelector('.management-skeleton')).toBeTruthy();
+    expect(screen.queryByText('Марина Сидорова')).toBeNull();
+  });
+
+  it('shows the concrete error detail and retries via onRetry when loadStatus is failed', () => {
+    const onRetry = mock(() => {});
+    wrap(
+      <StaffRolesDestination
+        backend={null}
+        session={session([])}
+        currencyCode="TJS"
+        staffUsers={staffUsers}
+        loadStatus="failed"
+        errorDetail="boom"
+        onRetry={onRetry}
+      />
+    );
+    expect(screen.getByText('boom')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

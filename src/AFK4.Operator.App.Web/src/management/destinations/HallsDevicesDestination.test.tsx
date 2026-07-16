@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../operatorToast';
@@ -89,5 +89,41 @@ describe('HallsDevicesDestination', () => {
       />
     );
     expect(onDirtyChange).toHaveBeenCalledWith(false);
+  });
+
+  it('shows a loading skeleton instead of zones while loadStatus is loading', () => {
+    const { container } = wrap(
+      <HallsDevicesDestination
+        backend={null}
+        session={session([])}
+        currencyCode="TJS"
+        zones={zones}
+        deviceInventory={[]}
+        branchDeviceCommandHistory={[]}
+        loadStatus="loading"
+      />
+    );
+    expect(container.querySelector('.management-skeleton')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Зал VIP/ })).toBeNull();
+  });
+
+  it('shows the concrete error detail and retries via onRetry when loadStatus is failed', () => {
+    const onRetry = mock(() => {});
+    wrap(
+      <HallsDevicesDestination
+        backend={null}
+        session={session([])}
+        currencyCode="TJS"
+        zones={zones}
+        deviceInventory={[]}
+        branchDeviceCommandHistory={[]}
+        loadStatus="failed"
+        errorDetail="boom"
+        onRetry={onRetry}
+      />
+    );
+    expect(screen.getByText('boom')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

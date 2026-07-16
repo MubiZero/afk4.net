@@ -3,7 +3,7 @@ import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../ManagementScreen';
 import { SettingsTariffsSection } from '../../settings/SettingsTariffsSection';
 import { hasPermission, permissionNames } from '../../operatorPermissions';
-import type { DestinationProps } from './types';
+import { managementScreenState, type DestinationProps } from './types';
 
 // Тарифы и пакеты: тонкая обёртка над SettingsTariffsSection (тариф-версии + пакеты времени) в
 // общем каркасе ManagementScreen. Раздел сохраняет по-действию (создать/обновить/списать
@@ -16,7 +16,10 @@ export function TariffsPackagesDestination({
   packageOptions,
   onReload,
   onFeedback,
-  onDirtyChange
+  onDirtyChange,
+  loadStatus,
+  errorDetail,
+  onRetry
 }: DestinationProps) {
   const { t } = useI18n();
 
@@ -31,6 +34,9 @@ export function TariffsPackagesDestination({
     <ManagementScreen
       title={t('op.management.dest.tariffs')}
       subtitle={t('op.management.dest.tariffs.subtitle')}
+      state={managementScreenState(loadStatus)}
+      errorDetail={errorDetail}
+      onRetry={onRetry}
     >
       <div className="management-panel">
         <SettingsTariffsSection
