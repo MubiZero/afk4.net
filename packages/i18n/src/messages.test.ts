@@ -49,6 +49,9 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'ledger.type.reversal',
     // «сторно» — международный бухгалтерский термин-заимствование (как ledger.type.reversal)
     'op.players.history.reversalBadge',
+    // «клуб» — общеупотребимое заимствование в тадж. разговорной речи (нет отдельного нативного слова),
+    // уже встречается нетранслируемым внутри op.settings.heading/tg
+    'op.management.dest.club',
     'nav.billing',
     'nav.group.account',
     'nav.group.branch',
