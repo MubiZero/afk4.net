@@ -23,6 +23,7 @@ import { ClubDestination } from './destinations/ClubDestination';
 import { HallsDevicesDestination } from './destinations/HallsDevicesDestination';
 import { LoyaltyDestination } from './destinations/LoyaltyDestination';
 import { NewsDestination } from './destinations/NewsDestination';
+import { StaffRolesDestination } from './destinations/StaffRolesDestination';
 import { TariffsPackagesDestination } from './destinations/TariffsPackagesDestination';
 
 // Управление: левый рейл разделов, доступных сессии, + активный экран раздела справа. Слайс 1
@@ -171,7 +172,21 @@ export function ManagementWorkspace({
       );
     }
 
-    // staff/goods/payment: real wrappers land in slice 2 (Task 2.4-2.6).
+    if (currentId === 'staff') {
+      return (
+        <StaffRolesDestination
+          backend={backend}
+          session={session}
+          currencyCode={currencyCode}
+          onDirtyChange={setDirty}
+          staffUsers={staffUsers}
+          onStaffUsersChange={setStaffUsers}
+          onFeedback={setSettingsFeedback}
+        />
+      );
+    }
+
+    // goods/payment: real wrappers land in slice 2 (Task 2.5-2.6).
     const destination = destinations.find((entry) => entry.id === currentId)!;
     return (
       <ManagementScreen title={t(destination.labelKey)} subtitle={t(destination.subtitleKey)}>
