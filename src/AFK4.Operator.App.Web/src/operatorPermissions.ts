@@ -37,6 +37,7 @@ export const permissionNames = {
   manageBranchStaff: 'identity.branch_staff.manage',
   manageRoles: 'identity.roles.manage',
   manageLayout: 'layout.manage',
+  manageBranchSettings: 'branches.settings.manage',
   createDeviceEnrollmentCode: 'devices.enrollment_codes.create',
   assignDeviceSeat: 'devices.seat_assignment.assign',
   viewDeviceDetail: 'devices.detail.view',
