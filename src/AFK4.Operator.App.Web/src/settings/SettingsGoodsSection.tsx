@@ -11,7 +11,6 @@ import {
   formatMoney,
   formatMoneyInputMinorUnits,
   parseMoneyInputMinorUnits,
-  parseNonNegativeMoneyInputMinorUnits,
   readBoolean,
   readMoney,
   readNumber,
@@ -20,7 +19,8 @@ import {
   triggerFeedback
 } from '../operatorHelpers';
 
-// Раздел «Товары и склад»: форма создания/редактирования товаров + форма записи движений склада.
+// Раздел «Товары»: каталог (категории/товары/штрихкоды). Движение склада сюда не входит — оно
+// живёт в разделе «Склад» (приёмка/журнал/инвентаризация), здесь был бы дубль.
 // Родитель отдаёт серверный catalog + сеттер onCatalogChange + currencyCode + onFeedback + onReload.
 export function SettingsGoodsSection({
   catalog,
@@ -46,7 +46,6 @@ export function SettingsGoodsSection({
   const createProductActionKey = t('op.settings.action.createProduct');
   const updateProductActionKey = t('op.settings.action.updateProduct');
   const delistProductActionKey = t('op.settings.action.delistProduct');
-  const recordMovementActionKey = t('op.settings.action.recordMovement');
 
   const [productCategoryName, setProductCategoryName] = useState(() => t('op.settings.prefill.categoryNameIndexed', { n: 1 }));
   const [productName, setProductName] = useState(() => t('op.settings.prefill.productNameIndexed', { n: 1 }));
@@ -57,20 +56,10 @@ export function SettingsGoodsSection({
   const [productAvailableInShell, setProductAvailableInShell] = useState(false);
   const [productReorderThreshold, setProductReorderThreshold] = useState('0');
   const [selectedProductId, setSelectedProductId] = useState('');
-  const [stockProductId, setStockProductId] = useState('');
-  const [stockMovementType, setStockMovementType] = useState('purchase');
-  const [stockQuantityDelta, setStockQuantityDelta] = useState('10');
-  const [stockUnitCost, setStockUnitCost] = useState('0.00');
-  const [stockReason, setStockReason] = useState(() => t('op.settings.prefill.stockReason'));
-
-  const trackedCatalog = catalog.filter((product) => readBoolean(product, 'trackStock'));
 
   // Засев выбора из загруженных данных: сохранить текущий, если он ещё есть
   useEffect(() => {
     setSelectedProductId((current) => catalog.some((product) => readString(product, 'productId') === current) ? current : '');
-    setStockProductId((current) => catalog.some((product) => readString(product, 'productId') === current && readBoolean(product, 'trackStock'))
-      ? current
-      : readString(catalog.find((product) => readBoolean(product, 'trackStock')), 'productId'));
   }, [catalog]);
 
   const selectCatalogProduct = (product: PosProductDto) => {
@@ -166,29 +155,6 @@ export function SettingsGoodsSection({
           setSelectedProductId('');
         }
         await onReload(nextBackend);
-      } else if (label === recordMovementActionKey) {
-        if (!hasPermission(nextBackend.session, permissionNames.manageInventoryStock)) {
-          throw new Error(t('op.settings.stock.error.noPerm'));
-        }
-
-        const selectedProduct = trackedCatalog.find((product) => readString(product, 'productId') === stockProductId);
-        const quantityDelta = Number(stockQuantityDelta);
-        const unitCostMinorUnits = parseNonNegativeMoneyInputMinorUnits(stockUnitCost);
-        const reason = stockReason.trim();
-        if (!selectedProduct || !Number.isInteger(quantityDelta) || quantityDelta === 0 || unitCostMinorUnits === null || !reason) {
-          throw new Error(t('op.settings.stock.error.fillFields'));
-        }
-
-        await apiClients.inventory.createStockMovement(nextBackend.branchId, {
-          organizationId: nextBackend.session.organizationId,
-          productId: readString(selectedProduct, 'productId'),
-          movementType: stockMovementType,
-          quantityDelta,
-          unitCost: { currencyCode, minorUnits: unitCostMinorUnits },
-          reason,
-          idempotencyKey: createIdempotencyKey('stock-movement-create')
-        });
-        await onReload(nextBackend);
       } else {
         throw new Error(t('op.settings.generic.error.notConnected'));
       }
@@ -252,29 +218,6 @@ export function SettingsGoodsSection({
       ) : canManagePosCatalog ? (
         <p className="settings-barcodes-save-hint">{t('op.barcode.saveFirst')}</p>
       ) : null}
-      <div className="settings-section-title">
-        <span>{t('op.settings.stock.title')}</span>
-        <button type="button" disabled={!canManageInventoryStock || trackedCatalog.length === 0} onClick={() => runAction(recordMovementActionKey)}>{t('op.settings.stock.recordBtn')}</button>
-      </div>
-      <div className="settings-form-grid settings-stock-form">
-        <label>{t('op.settings.stock.product')}
-          <select value={stockProductId} disabled={!canManageInventoryStock || trackedCatalog.length === 0} onChange={(event) => setStockProductId(event.currentTarget.value)}>
-            {trackedCatalog.length === 0 && <option value="">{t('op.settings.stock.noTrackedProducts')}</option>}
-            {trackedCatalog.map((product) => (
-              <option key={readString(product, 'productId')} value={readString(product, 'productId')}>{readString(product, 'name', t('op.settings.pos.productFallback'))} · {t('op.settings.pos.stockOnHand', { count: readNumber(product, 'stockOnHand', 0) })}</option>
-            ))}
-          </select>
-        </label>
-        <label>{t('op.settings.stock.type')}
-          <select value={stockMovementType} disabled={!canManageInventoryStock} onChange={(event) => setStockMovementType(event.currentTarget.value)}>
-            <option value="purchase">{t('op.settings.stock.typePurchase')}</option>
-            <option value="adjustment">{t('op.settings.stock.typeAdjustment')}</option>
-          </select>
-        </label>
-        <label>{t('op.settings.stock.quantity')}<input inputMode="numeric" value={stockQuantityDelta} disabled={!canManageInventoryStock} onChange={(event) => setStockQuantityDelta(event.currentTarget.value)} /></label>
-        <label>{t('op.settings.stock.unitCost')}<input inputMode="decimal" value={stockUnitCost} disabled={!canManageInventoryStock} onChange={(event) => setStockUnitCost(event.currentTarget.value)} /></label>
-        <label>{t('op.settings.stock.reason')}<input value={stockReason} disabled={!canManageInventoryStock} onChange={(event) => setStockReason(event.currentTarget.value)} /></label>
-      </div>
     </>
   );
 }

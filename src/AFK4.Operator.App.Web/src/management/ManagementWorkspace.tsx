@@ -20,6 +20,7 @@ import { allowedManagementDestinations, type ManagementDestinationId } from './m
 import { ManagementScreen } from './ManagementScreen';
 import { useUnsavedGuard } from './useUnsavedGuard';
 import { ClubDestination } from './destinations/ClubDestination';
+import { GoodsDestination } from './destinations/GoodsDestination';
 import { HallsDevicesDestination } from './destinations/HallsDevicesDestination';
 import { LoyaltyDestination } from './destinations/LoyaltyDestination';
 import { NewsDestination } from './destinations/NewsDestination';
@@ -186,7 +187,22 @@ export function ManagementWorkspace({
       );
     }
 
-    // goods/payment: real wrappers land in slice 2 (Task 2.5-2.6).
+    if (currentId === 'goods') {
+      return (
+        <GoodsDestination
+          backend={backend}
+          session={session}
+          currencyCode={currencyCode}
+          onDirtyChange={setDirty}
+          catalog={catalog}
+          onCatalogChange={setCatalog}
+          onReload={loadSettings}
+          onFeedback={setSettingsFeedback}
+        />
+      );
+    }
+
+    // payment: real wrapper lands in slice 2 (Task 2.6).
     const destination = destinations.find((entry) => entry.id === currentId)!;
     return (
       <ManagementScreen title={t(destination.labelKey)} subtitle={t(destination.subtitleKey)}>
