@@ -7,6 +7,10 @@ export interface ManagementScreenProps {
   title: string;
   subtitle: string;
   children: ReactNode; // destination body (panels/forms)
+  // Content column width: 'form' (narrow, single-column config forms) keeps fields a
+  // comfortable measure instead of stretching edge-to-edge across the canvas; 'wide' is
+  // for list/table-heavy screens (halls, catalog, payment cards). Defaults to 'form'.
+  contentWidth?: 'form' | 'wide';
   save?: {
     // omit for read-only destinations
     state: SaveState;
@@ -15,7 +19,7 @@ export interface ManagementScreenProps {
   };
 }
 
-export function ManagementScreen({ title, subtitle, children, save }: ManagementScreenProps): JSX.Element {
+export function ManagementScreen({ title, subtitle, children, contentWidth = 'form', save }: ManagementScreenProps): JSX.Element {
   const { t } = useI18n();
 
   return (
@@ -25,21 +29,25 @@ export function ManagementScreen({ title, subtitle, children, save }: Management
         <h1>{title}</h1>
       </div>
 
-      <div className="management-screen-body">{children}</div>
+      <div className="management-screen-body">
+        <div className={`management-content management-content--${contentWidth}`}>
+          {children}
 
-      {save && (
-        <div className="management-save-bar">
-          <span>{save.state === 'saved' ? t('op.management.save.saved') : save.state === 'clean' ? t('op.management.save.clean') : ''}</span>
-          <button
-            type="button"
-            className="ui-btn ui-btn--primary"
-            disabled={save.state === 'clean' || save.state === 'saving' || save.disabled}
-            onClick={save.onSave}
-          >
-            {t('common.save')}
-          </button>
+          {save && (
+            <div className="management-save-bar">
+              <span>{save.state === 'saved' ? t('op.management.save.saved') : save.state === 'clean' ? t('op.management.save.clean') : ''}</span>
+              <button
+                type="button"
+                className="ui-btn ui-btn--primary"
+                disabled={save.state === 'clean' || save.state === 'saving' || save.disabled}
+                onClick={save.onSave}
+              >
+                {t('common.save')}
+              </button>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </section>
   );
 }

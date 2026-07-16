@@ -732,6 +732,99 @@
   overflow-y: auto;
 }
 
+/* Content column: bounds the form/list measure so it doesn't stretch edge-to-edge across a
+   wide canvas (the #1 "half-empty, unfinished" tell). Left-aligned under the head, not
+   centered — the operator is a dense left-anchored shell. The save bar aligns to this width. */
+.management-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.management-content--form {
+  max-width: 720px;
+}
+
+.management-content--wide {
+  max-width: 1180px;
+}
+
+/* Raised card that holds a destination's form/section. Depth = a lighter/raised surface with
+   shadow-card (operator surface-elevation rule), never a form floating on bare canvas. */
+.management-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+
+/* Лояльность: each cashback rule is one row — toggle+label grouped on the left, its percent
+   field on the right — instead of the checkbox and its percent landing in opposite columns of a
+   full-width 2-col grid. The percent only matters when the rule is on, so it disables with it. */
+.loyalty-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.loyalty-rule {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.loyalty-rule + .loyalty-rule {
+  border-top: 1px solid var(--border-soft);
+}
+
+.loyalty-rule-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.loyalty-rule-toggle input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+.loyalty-rule-percent {
+  display: grid;
+  gap: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.loyalty-rule-percent input {
+  width: 96px;
+  height: 28px;
+  justify-self: end;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 0 9px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: right;
+}
+
+.loyalty-rule-percent input:disabled {
+  color: var(--text-quaternary);
+}
+
 .management-save-bar {
   flex-shrink: 0;
   position: sticky;

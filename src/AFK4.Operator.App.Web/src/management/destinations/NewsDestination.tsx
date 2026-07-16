@@ -16,7 +16,9 @@ export function NewsDestination({ backend, onDirtyChange }: DestinationProps) {
 
   return (
     <ManagementScreen title={t('op.management.dest.news')} subtitle={t('op.management.dest.news.subtitle')}>
-      <NewsWorkspace backend={backend} />
+      <div className="management-panel">
+        <NewsWorkspace backend={backend} />
+      </div>
     </ManagementScreen>
   );
 }

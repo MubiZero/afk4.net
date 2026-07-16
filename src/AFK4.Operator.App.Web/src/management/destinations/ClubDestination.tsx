@@ -99,17 +99,19 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
       subtitle={t('op.management.dest.club.subtitle')}
       save={{ state: saveState, onSave: () => void save(), disabled: backend === null }}
     >
-      <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>
-        {workspaceLoadStatusLabel(loadStatus, t('op.settings.profile.loadFeedbackLabel'), t)}
-      </span>
-      <SettingsProfileSection
-        clubName={clubName}
-        city={city}
-        currencyCode={currencyCode}
-        hasBackend={backend !== null}
-        onClubNameChange={(value) => { setClubName(value); markDirty(); }}
-        onCityChange={(value) => { setCity(value); markDirty(); }}
-      />
+      <div className="management-panel">
+        <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>
+          {workspaceLoadStatusLabel(loadStatus, t('op.settings.profile.loadFeedbackLabel'), t)}
+        </span>
+        <SettingsProfileSection
+          clubName={clubName}
+          city={city}
+          currencyCode={currencyCode}
+          hasBackend={backend !== null}
+          onClubNameChange={(value) => { setClubName(value); markDirty(); }}
+          onCityChange={(value) => { setCity(value); markDirty(); }}
+        />
+      </div>
     </ManagementScreen>
   );
 }

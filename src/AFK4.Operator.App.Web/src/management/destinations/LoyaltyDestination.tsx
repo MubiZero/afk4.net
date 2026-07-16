@@ -17,7 +17,9 @@ export function LoyaltyDestination({ backend, onDirtyChange }: DestinationProps)
 
   return (
     <ManagementScreen title={t('op.management.dest.loyalty')} subtitle={t('op.management.dest.loyalty.subtitle')}>
-      <LoyaltySettingsWorkspace backend={backend} />
+      <div className="management-panel">
+        <LoyaltySettingsWorkspace backend={backend} />
+      </div>
     </ManagementScreen>
   );
 }

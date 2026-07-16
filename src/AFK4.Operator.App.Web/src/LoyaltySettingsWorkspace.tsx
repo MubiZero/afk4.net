@@ -111,28 +111,32 @@ export function LoyaltySettingsWorkspace({
           that this mounts inside it; this keeps the more descriptive legacy title ("Лояльность
           / кэшбэк") without a second competing top-level heading. */}
       <h2>{t('op.loyalty.title')}</h2>
-      <div className="settings-form-grid">
-        <label>
-          {t('op.loyalty.topUpEnabled')}
-          <input type="checkbox" checked={topUpEnabled} onChange={(event) => setTopUpEnabled(event.target.checked)} />
-        </label>
-        <label>
-          {t('op.loyalty.topUpPercent')}
-          <input type="number" value={topUpPercent} onChange={(event) => setTopUpPercent(event.target.value)} />
-        </label>
-        <label>
-          {t('op.loyalty.shopEnabled')}
-          <input type="checkbox" checked={shopEnabled} onChange={(event) => setShopEnabled(event.target.checked)} />
-        </label>
-        <label>
-          {t('op.loyalty.shopPercent')}
-          <input type="number" value={shopPercent} onChange={(event) => setShopPercent(event.target.value)} />
-        </label>
-        {error && <p className="settings-form-wide" role="alert">{error}</p>}
-        {saved && <p className="settings-form-wide">{t('op.loyalty.saved')}</p>}
-        <div className="settings-form-wide news-form-actions">
-          <button type="button" className="ui-btn ui-btn--primary" onClick={() => void save()}>{t('op.loyalty.save')}</button>
+      <div className="loyalty-rules">
+        <div className="loyalty-rule">
+          <label className="loyalty-rule-toggle">
+            <input type="checkbox" checked={topUpEnabled} onChange={(event) => setTopUpEnabled(event.target.checked)} />
+            {t('op.loyalty.topUpEnabled')}
+          </label>
+          <label className="loyalty-rule-percent">
+            {t('op.loyalty.topUpPercent')}
+            <input type="number" min="0" max="100" value={topUpPercent} disabled={!topUpEnabled} onChange={(event) => setTopUpPercent(event.target.value)} />
+          </label>
         </div>
+        <div className="loyalty-rule">
+          <label className="loyalty-rule-toggle">
+            <input type="checkbox" checked={shopEnabled} onChange={(event) => setShopEnabled(event.target.checked)} />
+            {t('op.loyalty.shopEnabled')}
+          </label>
+          <label className="loyalty-rule-percent">
+            {t('op.loyalty.shopPercent')}
+            <input type="number" min="0" max="100" value={shopPercent} disabled={!shopEnabled} onChange={(event) => setShopPercent(event.target.value)} />
+          </label>
+        </div>
+      </div>
+      {error && <p role="alert">{error}</p>}
+      {saved && <p>{t('op.loyalty.saved')}</p>}
+      <div className="news-form-actions">
+        <button type="button" className="ui-btn ui-btn--primary" onClick={() => void save()}>{t('op.loyalty.save')}</button>
       </div>
     </>
   );
