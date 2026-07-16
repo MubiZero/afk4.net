@@ -9,11 +9,7 @@ import { DashboardWorkspace } from './DashboardWorkspace';
 import { BackendBookingWorkspace } from './BackendBookingWorkspace';
 import { CashWorkspace } from './cash/CashWorkspace';
 import { BackendPlayersWorkspace } from './BackendPlayersWorkspace';
-import { PaymentGatewaysWorkspace } from './PaymentGatewaysWorkspace';
 import { BackendLogsWorkspace } from './BackendLogsWorkspace';
-import { BackendSettingsWorkspace } from './BackendSettingsWorkspace';
-import { LoyaltySettingsWorkspace } from './LoyaltySettingsWorkspace';
-import { NewsWorkspace } from './NewsWorkspace';
 import { StockWorkspace } from './stock/StockWorkspace';
 
 // Маршрутизатор контента: какой экран показать под активным workspace. Обёрнут в
@@ -91,17 +87,10 @@ export function WorkspaceRouter({
       {workspace === 'cash' && <CashWorkspace currencyCode={currencyCode} backend={backend} session={session} />}
       {workspace === 'stock' && <StockWorkspace currencyCode={currencyCode} backend={backend} session={session} />}
       {workspace === 'players' && <BackendPlayersWorkspace currencyCode={currencyCode} backend={backend} />}
-      {workspace === 'payment_cards' && backend !== null && (
-        <PaymentGatewaysWorkspace backend={backend} />
-      )}
       {workspace === 'logs' && <BackendLogsWorkspace currencyCode={currencyCode} backend={backend} />}
-      {workspace === 'settings' && <BackendSettingsWorkspace currencyCode={currencyCode} backend={backend} />}
-      {workspace === 'loyalty' && backend !== null && (
-        <LoyaltySettingsWorkspace backend={backend} />
-      )}
-      {workspace === 'news' && backend !== null && (
-        <NewsWorkspace backend={backend} />
-      )}
+      {/* 'management' has no case yet — routing to the new Управление scaffold (replacing
+          PaymentGatewaysWorkspace/BackendSettingsWorkspace/LoyaltySettingsWorkspace/NewsWorkspace)
+          lands in Task 1.6. */}
     </WorkspaceErrorBoundary>
   );
 }

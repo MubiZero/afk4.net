@@ -2,7 +2,8 @@ import type { LucideIcon } from 'lucide-react';
 import { Building2, MonitorCog, BadgeDollarSign, UsersRound, Boxes, CreditCard, Gift, Newspaper } from 'lucide-react';
 import type { MessageKey } from '@afk4/i18n';
 import type { OperatorAuthSession } from '../authClient';
-import { permissionNames, hasAnyPermission } from '../operatorPermissions';
+import { hasAnyPermission } from '../operatorPermissions';
+import { permissionNames } from '../permissionNames';
 
 export type ManagementDestinationId =
   | 'club' | 'halls' | 'tariffs' | 'staff' | 'goods'

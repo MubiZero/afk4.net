@@ -53,12 +53,21 @@ const rolePermissions: Record<string, string[]> = {
 };
 
 // §2 contract: which rail sections (navSections[].key) each role may see.
+// NOTE (Управление redesign, 2026-07-16 design doc): the admin section's items collapsed to a
+// single `management` workspace, and audit/logs left `Управление` (tracked separately as its own
+// future rail section, not restored here). Admin-section visibility is now gated solely by the
+// `management` rule (union of the eight management-destination permission sets), not by
+// audit.view/diagnostics.view. Two roles' expectations shift as a direct consequence:
+//   - shift_supervisor gains 'admin': it already holds devices.detail.view/devices.commands.status.view,
+//     which are read-only permissions listed under the "Залы и ПК" destination.
+//   - accountant_auditor loses 'admin': its permissions are all *.view and match none of the eight
+//     management-destination permission sets (it previously saw 'admin' only via logs/audit).
 const expectedSections: Record<string, string[]> = {
   cashier_operator: ['map', 'booking', 'players', 'cashier'],
-  shift_supervisor: ['map', 'booking', 'players', 'cashier', 'reports', 'stock'],
+  shift_supervisor: ['map', 'booking', 'players', 'cashier', 'reports', 'stock', 'admin'],
   branch_manager: ['map', 'booking', 'players', 'cashier', 'reports', 'admin', 'stock'],
   technician: ['map', 'admin', 'stock'],
-  accountant_auditor: ['booking', 'players', 'cashier', 'reports', 'admin', 'stock']
+  accountant_auditor: ['booking', 'players', 'cashier', 'reports', 'stock']
 };
 
 function visibleSections(permissions: string[]): string[] {
@@ -75,6 +84,18 @@ describe('role → visible rail sections (Этап 0 §2 contract)', () => {
       expect(visibleSections(rolePermissions[role])).toEqual([...expectedSections[role]].sort());
     });
   }
+});
+
+describe('management workspace visibility', () => {
+  it('opens management for a role with any management permission', () => {
+    const session = { permissions: rolePermissions.branch_manager } as OperatorAuthSession;
+    expect(canOpenWorkspace(session, 'management')).toBe(true);
+  });
+
+  it('hides management for a role with no management permission', () => {
+    const session = { permissions: rolePermissions.cashier_operator } as OperatorAuthSession;
+    expect(canOpenWorkspace(session, 'management')).toBe(false);
+  });
 });
 
 describe('stock workspace visibility', () => {

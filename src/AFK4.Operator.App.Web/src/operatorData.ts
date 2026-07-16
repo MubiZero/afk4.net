@@ -108,11 +108,7 @@ export const navSections: NavSection[] = [
     labelKey: 'op.shell.navGroup.management',
     icon: Settings,
     items: [
-      { id: 'settings', labelKey: 'op.shell.nav.settings' },
-      { id: 'payment_cards', labelKey: 'op.shell.nav.payment_cards' },
-      { id: 'loyalty', labelKey: 'op.loyalty.nav' },
-      { id: 'news', labelKey: 'op.news.nav' },
-      { id: 'logs', labelKey: 'op.shell.nav.logs' }
+      { id: 'management', labelKey: 'op.shell.navGroup.management' }
     ]
   }
 ];

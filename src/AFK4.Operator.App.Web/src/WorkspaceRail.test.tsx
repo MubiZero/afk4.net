@@ -47,7 +47,10 @@ describe('WorkspaceRail permissions', () => {
   });
 
   it('keeps a section when one nested workspace is permitted', () => {
-    renderRail(['diagnostics.view']);
+    // devices.detail.view is one of several permissions behind the single `management` workspace
+    // item (see managementNav.ts "Залы и ПК" destination) — diagnostics.view no longer qualifies
+    // since audit/logs left `Управление` in the redesign (2026-07-16 design doc).
+    renderRail(['devices.detail.view']);
 
     expect(screen.getByTitle('Управление')).toBeInTheDocument();
   });
