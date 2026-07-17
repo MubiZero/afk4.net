@@ -96,6 +96,11 @@ describe('GoodsDestination', () => {
     expect(screen.getByText('Cola 0.5')).toBeTruthy();
   });
 
+  it('does not render a "Категория" column — PosProductDto carries no category name and there is no GET endpoint to look one up', () => {
+    wrap(<GoodsDestination backend={null} session={session([])} currencyCode="TJS" catalog={[cola]} />);
+    expect(screen.queryByText('Категория')).toBeNull();
+  });
+
   it('renders the whole catalog beyond 8 items — the old settings-section cap is gone', () => {
     wrap(<GoodsDestination backend={null} session={session([])} currencyCode="TJS" catalog={manyProducts} />);
     for (const product of manyProducts) {
@@ -214,6 +219,42 @@ describe('GoodsDestination', () => {
 
     fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Снять с продажи' }));
     await waitFor(() => expect(updateProduct).toHaveBeenCalledWith('b1', productId, expect.objectContaining({ isActive: false, name: 'Cola 0.5', sku: 'COLA-05' })));
+    await waitFor(() => expect(onReload).toHaveBeenCalled());
+  });
+
+  it('an active product shows "Снять с продажи" but not "Вернуть в продажу" in the row menu', () => {
+    const { container } = wrap(
+      <GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[cola]} />
+    );
+    fireEvent.click(within(container).getAllByRole('button', { name: 'Действия' })[0]);
+    expect(screen.getByRole('menuitem', { name: 'Снять с продажи' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'Вернуть в продажу' })).toBeNull();
+  });
+
+  it('a delisted product shows "Вернуть в продажу" in the row menu and re-lists it without confirmation', async () => {
+    const delisted: PosProductDto = { ...cola, isActive: false } as never;
+    const onReload = mock(async () => {});
+    const { container } = wrap(
+      <GoodsDestination
+        backend={backend}
+        session={session([permissionNames.managePosCatalog])}
+        currencyCode="TJS"
+        catalog={[delisted]}
+        onReload={onReload}
+      />
+    );
+    fireEvent.click(within(container).getAllByRole('button', { name: 'Действия' })[0]);
+    expect(screen.queryByRole('menuitem', { name: 'Снять с продажи' })).toBeNull();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Вернуть в продажу' }));
+
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith('b1', productId, expect.objectContaining({
+      isActive: true,
+      categoryId: 'cat1',
+      name: 'Cola 0.5',
+      sku: 'COLA-05',
+      price: { currencyCode: 'TJS', minorUnits: 1000 }
+    })));
     await waitFor(() => expect(onReload).toHaveBeenCalled());
   });
 

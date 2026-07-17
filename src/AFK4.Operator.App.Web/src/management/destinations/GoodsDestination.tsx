@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { Archive, Package, Pencil } from 'lucide-react';
+import { Archive, ArchiveRestore, Package, Pencil } from 'lucide-react';
 import { ManagementScreen } from '../ManagementScreen';
 import { MgmtTable } from '../kit/MgmtTable';
 import { MgmtDrawer } from '../kit/MgmtDrawer';
@@ -213,11 +213,12 @@ export function GoodsDestination({
     }
   };
 
-  const confirmDelist = async () => {
-    if (!delistAction) return;
-    const label = t('op.settings.action.delistProduct');
-    const { productId } = delistAction;
-    setDelistAction(null);
+  // Снятие с продажи и возврат в продажу — оба через updateProduct с тем же телом товара, только
+  // isActive меняется. Снятие блокирует продажу товара кассиру → подтверждение
+  // (CriticalActionConfirmation). Возврат безобиден/обратим в один клик — уходит сразу, без
+  // диалога (как enable в Сотрудниках).
+  const applyProductActiveState = async (productId: string, isActive: boolean) => {
+    const label = t(isActive ? 'op.settings.action.relistProduct' : 'op.settings.action.delistProduct');
     onFeedback?.({ label, state: 'pending' });
     try {
       const nextBackend = requireBackend(backend, t);
@@ -242,9 +243,11 @@ export function GoodsDestination({
         allowNegativeStock: readBoolean(product, 'allowNegativeStock'),
         availableInShell: readBoolean(product, 'availableInShell'),
         reorderThreshold: readNumber(product, 'reorderThreshold', 0),
-        isActive: false
+        isActive
       });
-      setSelectedProductId((current) => (current === productId ? null : current));
+      if (!isActive) {
+        setSelectedProductId((current) => (current === productId ? null : current));
+      }
       await onReload?.(nextBackend);
       onFeedback?.({ label, state: 'confirmed' });
     } catch (error) {
@@ -252,34 +255,61 @@ export function GoodsDestination({
     }
   };
 
+  const confirmDelist = async () => {
+    if (!delistAction) return;
+    const { productId } = delistAction;
+    setDelistAction(null);
+    await applyProductActiveState(productId, false);
+  };
+
+  const submitRelist = (productId: string) => applyProductActiveState(productId, true);
+
   const rowActions = canManagePosCatalog
-    ? (product: Product): RowAction[] => [
-      {
-        id: 'edit',
-        label: t('op.settings.action.updateProduct'),
-        icon: <Pencil size={14} aria-hidden="true" />,
-        onSelect: () => setSelectedProductId(readString(product, 'productId'))
-      },
-      {
-        id: 'delist',
-        label: t('op.settings.action.delistProduct'),
-        icon: <Archive size={14} aria-hidden="true" />,
-        danger: true,
-        disabled: !readBoolean(product, 'isActive', true),
-        onSelect: () => setDelistAction({ productId: readString(product, 'productId'), name: readString(product, 'name', t('op.settings.pos.productFallback')) })
-      }
-    ]
+    ? (product: Product): RowAction[] => {
+      const isActive = readBoolean(product, 'isActive', true);
+      const productId = readString(product, 'productId');
+      const name = readString(product, 'name', t('op.settings.pos.productFallback'));
+      return [
+        {
+          id: 'edit',
+          label: t('op.settings.action.updateProduct'),
+          icon: <Pencil size={14} aria-hidden="true" />,
+          onSelect: () => setSelectedProductId(productId)
+        },
+        isActive
+          ? {
+            id: 'delist',
+            label: t('op.settings.action.delistProduct'),
+            icon: <Archive size={14} aria-hidden="true" />,
+            danger: true,
+            onSelect: () => setDelistAction({ productId, name })
+          }
+          : {
+            id: 'relist',
+            label: t('op.settings.action.relistProduct'),
+            icon: <ArchiveRestore size={14} aria-hidden="true" />,
+            onSelect: () => void submitRelist(productId)
+          }
+      ];
+    }
     : undefined;
 
-  const drawerActions: RowAction[] = selectedProduct && canManagePosCatalog && selectedProductIsActive
+  const drawerActions: RowAction[] = selectedProduct && canManagePosCatalog
     ? [
-      {
-        id: 'delist',
-        label: t('op.settings.action.delistProduct'),
-        icon: <Archive size={14} aria-hidden="true" />,
-        danger: true,
-        onSelect: () => setDelistAction({ productId: readString(selectedProduct, 'productId'), name: readString(selectedProduct, 'name', t('op.settings.pos.productFallback')) })
-      }
+      selectedProductIsActive
+        ? {
+          id: 'delist',
+          label: t('op.settings.action.delistProduct'),
+          icon: <Archive size={14} aria-hidden="true" />,
+          danger: true,
+          onSelect: () => setDelistAction({ productId: readString(selectedProduct, 'productId'), name: readString(selectedProduct, 'name', t('op.settings.pos.productFallback')) })
+        }
+        : {
+          id: 'relist',
+          label: t('op.settings.action.relistProduct'),
+          icon: <ArchiveRestore size={14} aria-hidden="true" />,
+          onSelect: () => void submitRelist(readString(selectedProduct, 'productId'))
+        }
     ]
     : [];
 
@@ -306,7 +336,6 @@ export function GoodsDestination({
                 return <Money minorUnits={money?.minorUnits ?? 0} currencyCode={money?.currencyCode ?? currencyCode} />;
               }
             },
-            { key: 'category', header: t('op.management.goods.col.category'), render: (product) => readString(product, 'categoryName', '—') },
             {
               key: 'stock',
               header: t('op.management.goods.col.stock'),
@@ -321,7 +350,7 @@ export function GoodsDestination({
           ]}
           rows={catalogRows}
           rowKey={(product) => readString(product, 'productId')}
-          gridTemplate="1.3fr 0.9fr 0.8fr 1fr 0.7fr 0.9fr"
+          gridTemplate="1.3fr 0.9fr 0.8fr 0.7fr 0.9fr"
           selectedKey={selectedProductId}
           onSelectRow={(product) => setSelectedProductId(readString(product, 'productId'))}
           rowActions={rowActions}
