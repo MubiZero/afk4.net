@@ -406,10 +406,26 @@
   gap: 8px;
 }
 
-/* Explanatory line under a form field (e.g. staff invite code: what happens next) — secondary,
-   not another field. */
+/* В узком drawer форма подаётся вертикально: поля — одной колонкой, а кнопка действия секции —
+   во всю ширину. Иначе маленькая кнопка отлетает к правому краю с большим пустым зазором и
+   форма выглядит «враскидку». Модалки (PanelModal) — вне .mgmt-drawer, там остаётся 2-колоночная
+   сетка и правое выравнивание пары кнопок Отмена/Сохранить. */
+.mgmt-drawer .mgmt-form-grid {
+  grid-template-columns: 1fr;
+}
+
+.mgmt-drawer .mgmt-form-actions {
+  justify-content: stretch;
+}
+
+.mgmt-drawer .mgmt-form-actions .ui-btn {
+  flex: 1;
+}
+
+/* Пояснительная строка под полем/секцией drawer (напр. код приглашения: что дальше;
+   «карточка ещё не открыта») — вторичный текст, не ещё одно поле. */
 .mgmt-drawer-hint {
-  margin: -4px 0 0;
+  margin: 0;
   color: var(--text-secondary);
   font-size: 12px;
 }
@@ -419,13 +435,6 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-}
-
-/* Приглушённая подсказка внутри drawer-секции (напр. «карточка ещё не открыта»). */
-.mgmt-drawer-hint {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 12px;
 }
 
 @media (max-width: 720px) {
