@@ -111,6 +111,9 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.logs.target.session',
     'op.logs.target.tariff',
     'op.logs.tone.session',
+    // «ПК» — та же неизменяемая аббревиатура, что и op.settings.layout.seatFallback
+    'op.management.halls.addSeatCta',
+    'op.management.halls.col.seatName',
     'op.map.feedbackOffline',
     'op.map.panel.confirmStatusBilling',
     'op.map.panel.packageLabel',

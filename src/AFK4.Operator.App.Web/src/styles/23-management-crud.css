@@ -352,6 +352,20 @@
   gap: 8px;
 }
 
+/* Inline status pair in a table cell (напр. онлайн/офлайн · заблокирован/разблокирован). */
+.mgmt-status-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Приглушённая подсказка внутри drawer-секции (напр. «карточка ещё не открыта»). */
+.mgmt-drawer-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
 @media (max-width: 720px) {
   .mgmt-master-detail {
     grid-template-columns: 1fr;
