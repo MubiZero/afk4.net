@@ -406,6 +406,14 @@
   gap: 8px;
 }
 
+/* Explanatory line under a form field (e.g. staff invite code: what happens next) — secondary,
+   not another field. */
+.mgmt-drawer-hint {
+  margin: -4px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
 /* Inline status pair in a table cell (напр. онлайн/офлайн · заблокирован/разблокирован). */
 .mgmt-status-pair {
   display: inline-flex;

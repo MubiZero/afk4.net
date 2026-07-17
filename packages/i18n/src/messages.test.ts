@@ -120,6 +120,9 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.management.tariffs.addTariffCta',
     'op.management.tariffs.addPackageCta',
     'op.management.tariffs.col.bonus',
+    // «Логин» — то же общепринятое заимствование, что и operators.field.userName/
+    // platform.profile.field.userName, отдельного нативного слова для UI-ярлыка нет.
+    'op.management.staff.col.login',
     'op.map.feedbackOffline',
     'op.map.panel.confirmStatusBilling',
     'op.map.panel.packageLabel',
