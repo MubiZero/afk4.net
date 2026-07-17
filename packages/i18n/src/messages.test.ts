@@ -123,6 +123,9 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «Логин» — то же общепринятое заимствование, что и operators.field.userName/
     // platform.profile.field.userName, отдельного нативного слова для UI-ярлыка нет.
     'op.management.staff.col.login',
+    // «Артикул»/«Категория» — те же заимствования, что и op.settings.pos.sku/op.settings.pos.category.
+    'op.management.goods.col.sku',
+    'op.management.goods.col.category',
     'op.map.feedbackOffline',
     'op.map.panel.confirmStatusBilling',
     'op.map.panel.packageLabel',
