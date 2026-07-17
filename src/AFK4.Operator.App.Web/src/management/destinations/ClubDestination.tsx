@@ -7,12 +7,11 @@ import {
   createAuthenticatedOperatorClients,
   emptyFeedback,
   readString,
-  triggerFeedback,
-  workspaceLoadStatusLabel
+  triggerFeedback
 } from '../../operatorHelpers';
 import { useFeedbackToasts } from '../../useFeedbackToasts';
 import type { BranchProfileDto } from '../../operatorApiClients';
-import type { Feedback, LoadStatus } from '../../operatorTypes';
+import type { Feedback } from '../../operatorTypes';
 import type { DestinationProps } from './types';
 
 // Клуб: профиль филиала (имя человекочитаемое, НИКОГДА не UUID — см. constraint). Загрузка/save
@@ -25,18 +24,15 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [loadStatus, setLoadStatus] = useState<LoadStatus>('fixture');
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   useFeedbackToasts(feedback);
 
   useEffect(() => {
     if (backend === null) {
-      setLoadStatus('fixture');
       return undefined;
     }
 
     let active = true;
-    setLoadStatus('loading');
     const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
     clients.settings.getBranchProfile(backend.branchId)
       .then((profile) => {
@@ -44,11 +40,9 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
         setClubName(readString(profile, 'name', 'AFK4'));
         setCity(readString(profile, 'city', 'Dushanbe'));
         setDirty(false);
-        setLoadStatus('backend');
       })
       .catch((error) => {
         if (!active) return;
-        setLoadStatus('failed');
         setFeedback({ label: t('op.settings.profile.loadFeedbackLabel'), state: 'failed', detail: projectOperatorError(error, t).detail });
       });
     return () => { active = false; };
@@ -100,9 +94,6 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
       save={{ state: saveState, onSave: () => void save(), disabled: backend === null }}
     >
       <div className="management-panel">
-        <span className={`map-load-state ${loadStatus === 'backend' ? 'ready' : loadStatus}`}>
-          {workspaceLoadStatusLabel(loadStatus, t('op.settings.profile.loadFeedbackLabel'), t)}
-        </span>
         <SettingsProfileSection
           clubName={clubName}
           city={city}

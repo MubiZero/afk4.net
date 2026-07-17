@@ -2061,7 +2061,9 @@ describe('App', () => {
     // consolidated 'Управление' section's left nav (no tab strip).
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Рабочие места' })).getByTitle('Управление'));
     fireEvent.click(screen.getByRole('button', { name: 'Клуб' }));
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
+    // Пилюля «Настройки загружены» убрана — ждём догрузку профиля по значению инпута
+    // (мок GET /profile отдаёт name «AFK4 Dushanbe», ≠ дефолт), иначе поздний .then перезатрёт ввод.
+    await waitFor(() => expect(screen.getByLabelText('Название клуба')).toHaveValue('AFK4 Dushanbe'));
     fireEvent.change(screen.getByLabelText('Название клуба'), { target: { value: 'AFK4 Pilot' } });
     fireEvent.change(screen.getByLabelText('Город'), { target: { value: 'Khujand' } });
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
