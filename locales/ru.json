@@ -2588,6 +2588,7 @@
   "op.management.noAccess": "Нет доступных разделов",
   "op.management.state.errorTitle": "Не удалось загрузить",
   "op.management.state.retry": "Повторить",
+  "op.management.crud.rowMenu": "Действия",
   "op.shifts.nav": "Смены",
   "op.shifts.title": "Смены",
   "op.shifts.loading": "Загрузка…",

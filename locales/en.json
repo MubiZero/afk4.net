@@ -2390,6 +2390,7 @@
   "op.management.noAccess": "No sections available",
   "op.management.state.errorTitle": "Failed to load",
   "op.management.state.retry": "Retry",
+  "op.management.crud.rowMenu": "Actions",
   "op.shifts.nav": "Shifts",
   "op.shifts.title": "Shifts",
   "op.shifts.loading": "Loading…",

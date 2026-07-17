@@ -2390,6 +2390,7 @@
   "op.management.noAccess": "Бахшҳои дастрас нест",
   "op.management.state.errorTitle": "Бор карда нашуд",
   "op.management.state.retry": "Такрор кардан",
+  "op.management.crud.rowMenu": "Амалҳо",
   "op.shifts.nav": "Навбатҳо",
   "op.shifts.title": "Навбатҳо",
   "op.shifts.loading": "Бор шуда истодааст…",
