@@ -30,15 +30,15 @@ export const managementDestinations: readonly ManagementDestination[] = [
     labelKey: 'op.management.dest.halls',
     subtitleKey: 'op.management.dest.halls.subtitle',
     Icon: MonitorCog,
-    // Gated on the ability to actually DO halls/device work, not read-only viewing —
-    // viewDeviceDetail/viewDeviceCommandStatus still gate device-info controls INSIDE the
-    // layout screen, but must not decide whole-section visibility (monitor-only roles like
-    // shift_supervisor hold those view perms but manage nothing).
+    // Gated on the ability to actually DO work in the reworked halls screen: manage the
+    // floor layout (zones/seats) or manage a device (assign to a seat, rotate/revoke its
+    // credential). Enrollment codes and lock/unlock commands were dropped from this screen
+    // (provisioning is the Setup Wizard's job; lock/unlock lives on the Map), so those perms
+    // no longer unlock anything here and must not grant section visibility on their own —
+    // otherwise a role holding only one of them lands on an empty screen (semi-presence).
     permissions: [
       permissionNames.manageLayout,
-      permissionNames.createDeviceEnrollmentCode,
       permissionNames.assignDeviceSeat,
-      permissionNames.dispatchDeviceCommand,
       permissionNames.rotateDeviceCredential,
       permissionNames.revokeDeviceCredential
     ]

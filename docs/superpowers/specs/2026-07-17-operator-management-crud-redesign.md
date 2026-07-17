@@ -73,3 +73,10 @@
 - Деньги нейтральные; филиал по имени не UUID; loading=skeleton, error=конкретный текст+retry, empty=честный.
 - Функционально: все операции старых секций работают (особенно устройства/ключи).
 - `bun test` + `bun run build` + i18n parity зелёные.
+
+## Ревизия «Устройства» + лейаут (после визуальной приёмки эталона, 2026-07-17)
+Разведка подтвердила: enrollment-code МЁРТВ (провижининг через Setup Wizard authenticated install `/api/install/auth/*`; legacy `/api/devices/enroll` без вызывающих). Ревизия вкладки «Устройства»:
+- ВЫКИНУТЬ: генерацию enrollment-кода (CTA/модалка «Подключить устройство», `createEnrollmentCode`); секцию «История команд филиала» + drawer «Недавние команды» (`listBranchDeviceCommands`/`listDeviceCommands`); сырой lock/unlock из дровера (управление ПК живёт на Карте контекстно).
+- ОСТАВИТЬ: список enrolled-устройств со статусом (online/locked) и здоровьем (agent ver/heartbeat/pending/failed) — ядро; seat-assignment; ротацию/отзыв ключа (security, отзыв за confirm).
+- БЭКЛОГ (не сейчас): device-approval экран в операторе (`RequireManualDeviceApproval`, default off, сейчас только owner-web Platform.Web).
+Лейаут: `ManagementScreen` получает `contentWidth="full"` (без 1180-cap) для CRUD-экранов. «Залы и места» = две панели (список залов слева ~300px + детали зала справа с таблицей его ПК, автовыбор первого). «Устройства» = полноширинная таблица + drawer по клику.
