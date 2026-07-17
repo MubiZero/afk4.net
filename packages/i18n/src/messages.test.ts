@@ -114,6 +114,12 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «ПК» — та же неизменяемая аббревиатура, что и op.settings.layout.seatFallback
     'op.management.halls.addSeatCta',
     'op.management.halls.col.seatName',
+    // «Тариф»/«Пакет» — те же нетранслируемые заимствования, что и op.settings.tariffs.tariffFallback/
+    // op.settings.packages.packageFallback; «Бонус» — общеупотребимое заимствование без отдельного
+    // нативного слова (см. op.settings.packages.bonusMinutes = «Бонус, дақ»).
+    'op.management.tariffs.addTariffCta',
+    'op.management.tariffs.addPackageCta',
+    'op.management.tariffs.col.bonus',
     'op.map.feedbackOffline',
     'op.map.panel.confirmStatusBilling',
     'op.map.panel.packageLabel',

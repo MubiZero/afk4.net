@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../operatorToast';
-import type { TariffOptionDto } from '../../operatorApiClients';
+import type { PackageOptionDto, TariffOptionDto } from '../../operatorApiClients';
 import { TariffsPackagesDestination } from './TariffsPackagesDestination';
 
 afterEach(() => cleanup());
@@ -23,9 +23,20 @@ const tariffs: TariffOptionDto[] = [{
   currencyCode: 'TJS'
 } as never];
 
+const packageOptions: PackageOptionDto[] = [{
+  packageDefinitionId: 'p1',
+  name: 'Ночной пакет',
+  priceMinorUnits: 25000,
+  includedSeconds: 300 * 60,
+  bonusSeconds: 30 * 60,
+  expiresAfterDays: 30,
+  isActive: true,
+  currencyCode: 'TJS'
+} as never];
+
 describe('TariffsPackagesDestination', () => {
-  it('renders the ManagementScreen title and subtitle', () => {
-    wrap(
+  it('renders the ManagementScreen title and subtitle at full content width', () => {
+    const { container } = wrap(
       <TariffsPackagesDestination
         backend={null}
         session={session([])}
@@ -37,26 +48,43 @@ describe('TariffsPackagesDestination', () => {
 
     expect(screen.getByRole('heading', { name: 'Тарифы и пакеты' })).toBeTruthy();
     expect(screen.getByText('Тарифы и пакеты времени')).toBeTruthy();
+    expect(container.querySelector('.management-content--full')).toBeTruthy();
   });
 
-  it('renders the tariff price without an amber/warning class — money is neutral text', () => {
+  it('defaults to the "Тарифы" tab and lists the tariffs, price shown per hour with no amber class', () => {
+    const { container } = wrap(
+      <TariffsPackagesDestination
+        backend={null}
+        session={session([])}
+        currencyCode="TJS"
+        tariffs={tariffs}
+        packageOptions={packageOptions}
+      />
+    );
+
+    expect(screen.getByRole('tab', { name: 'Тарифы', selected: true })).toBeTruthy();
+    expect(screen.getByText('Стандарт')).toBeTruthy();
+    expect(screen.queryByText('Ночной пакет')).toBeNull();
+    const priceEl = container.querySelector('.ui-money');
+    expect(priceEl).toBeTruthy();
+    expect(priceEl!.textContent).toContain('90'); // 150/min * 60 -> 90.00/hour
+    expect(priceEl!.className).toBe('ui-money');
+  });
+
+  it('switches to the "Пакеты" tab and shows package definitions instead of tariffs', () => {
     wrap(
       <TariffsPackagesDestination
         backend={null}
         session={session([])}
         currencyCode="TJS"
         tariffs={tariffs}
-        packageOptions={[]}
+        packageOptions={packageOptions}
       />
     );
 
-    const row = screen.getByRole('button', { name: /Стандарт/ });
-    const priceEl = row.querySelector('b');
-    expect(priceEl).toBeTruthy();
-    expect(priceEl!.textContent).toContain('90');
-    expect(priceEl!.className).not.toContain('amber');
-    expect(priceEl!.className).not.toContain('warning');
-    expect(priceEl!.className).toBe('');
+    fireEvent.click(screen.getByRole('tab', { name: 'Пакеты' }));
+    expect(screen.queryByText('Стандарт')).toBeNull();
+    expect(screen.getByText('Ночной пакет')).toBeTruthy();
   });
 
   it('calls onDirtyChange(false) on mount since the section saves per-action', () => {
@@ -74,6 +102,19 @@ describe('TariffsPackagesDestination', () => {
     expect(onDirtyChange).toHaveBeenCalledWith(false);
   });
 
+  it('hides the "+ Тариф" action without manageTariffs permission even with a backend', () => {
+    wrap(
+      <TariffsPackagesDestination
+        backend={{ config: {}, session: { permissions: [] }, branchId: 'b1' } as never}
+        session={session([])}
+        currencyCode="TJS"
+        tariffs={tariffs}
+        packageOptions={[]}
+      />
+    );
+    expect(screen.queryByRole('button', { name: '+ Тариф' })).toBeNull();
+  });
+
   it('shows a loading skeleton instead of tariffs while loadStatus is loading', () => {
     const { container } = wrap(
       <TariffsPackagesDestination
@@ -86,7 +127,7 @@ describe('TariffsPackagesDestination', () => {
       />
     );
     expect(container.querySelector('.management-skeleton')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Стандарт/ })).toBeNull();
+    expect(screen.queryByText('Стандарт')).toBeNull();
   });
 
   it('shows the concrete error detail and retries via onRetry when loadStatus is failed', () => {
