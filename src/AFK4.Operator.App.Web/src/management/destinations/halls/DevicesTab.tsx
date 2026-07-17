@@ -1,16 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { KeyRound, Lock, MonitorSmartphone, RefreshCw, Unlock, Wifi, WifiOff } from 'lucide-react';
+import { KeyRound, Lock, MonitorSmartphone, Unlock, Wifi, WifiOff } from 'lucide-react';
 import { MgmtTable } from '../../kit/MgmtTable';
 import { MgmtDrawer } from '../../kit/MgmtDrawer';
-import { PanelModal } from '../../../PanelModal';
-import { CriticalActionConfirmation, EmptyState, Skeleton } from '../../../operatorPrimitives';
+import { CriticalActionConfirmation, Skeleton } from '../../../operatorPrimitives';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
 import { projectOperatorError } from '../../../apiErrors';
 import {
-  commandStatusLabel,
-  commandStatusMessageLabel,
-  commandTypeLabel,
   createAuthenticatedOperatorClients,
   formatTime,
   isGuid,
@@ -19,7 +15,7 @@ import {
   readString,
   requireBackend
 } from '../../../operatorHelpers';
-import type { DeviceCommandStatusDto, DeviceInventoryItemDto } from '../../../operatorApiClients';
+import type { DeviceInventoryItemDto } from '../../../operatorApiClients';
 import type { Feedback, OperatorBackendContext } from '../../../operatorTypes';
 
 type Device = Record<string, unknown>;
@@ -27,65 +23,45 @@ type SeatOption = { seatId: string; label: string };
 
 interface DevicesTabProps {
   deviceInventory: DeviceInventoryItemDto[];
-  branchDeviceCommandHistory: DeviceCommandStatusDto[];
   layoutSeatOptions: SeatOption[];
   backend: OperatorBackendContext | null;
-  canCreateDeviceEnrollmentCode: boolean;
   canAssignDeviceSeat: boolean;
   canViewDeviceDetail: boolean;
-  canViewDeviceCommandStatus: boolean;
-  canDispatchDeviceCommand: boolean;
   canRotateDeviceCredential: boolean;
   canRevokeDeviceCredential: boolean;
   onDeviceInventoryChange: (inventory: DeviceInventoryItemDto[]) => void;
-  onBranchDeviceCommandHistoryChange: (history: DeviceCommandStatusDto[]) => void;
   onReload: (nextBackend: OperatorBackendContext) => Promise<void>;
   onFeedback: (feedback: Feedback) => void;
 }
 
-// Домен B раздела «Залы и ПК»: список устройств + drawer с карточкой/назначением/командами/
-// ключами. Все 7 операций (B1-B7, см. task-B-halls-brief.md) портированы 1:1 из
-// settings/SettingsLayoutSection.tsx.runAction — тот же двойной permission-гейт (can*-проп на
-// секцию/кнопку + серверный hasPermission(nextBackend.session, ...) на каждый вызов), та же
-// валидация, тот же onReload/onDeviceInventoryChange/onBranchDeviceCommandHistoryChange по
-// операции и тот же onFeedback pending→confirmed/failed. Открытие карточки устройства (B3)
-// теперь происходит автоматически при клике по строке (а не отдельной кнопкой) — так того
-// требует список+drawer, но сама операция и её feedback-цикл не изменились.
+// Домен B раздела «Залы и ПК»: список устройств + drawer с карточкой/назначением/ключами.
+// Provисиoning устройств живёт в Мастере настройки, а lock/unlock — на Карте (см.
+// task-B2-halls-rework-brief.md) — здесь остались только B2 (назначение на место), B3 (карточка
+// устройства через getDeviceDetail) и B6/B7 (выдать/отозвать ключ), каждая за своим двойным
+// permission-гейтом (can*-проп на секцию/кнопку + серверный hasPermission(nextBackend.session, ...)
+// на каждый вызов). Открытие карточки устройства (B3) происходит автоматически при клике по
+// строке — так того требует список+drawer.
 export function DevicesTab({
   deviceInventory,
-  branchDeviceCommandHistory,
   layoutSeatOptions,
   backend,
-  canCreateDeviceEnrollmentCode,
   canAssignDeviceSeat,
   canViewDeviceDetail,
-  canViewDeviceCommandStatus,
-  canDispatchDeviceCommand,
   canRotateDeviceCredential,
   canRevokeDeviceCredential,
   onDeviceInventoryChange,
-  onBranchDeviceCommandHistoryChange,
   onReload,
   onFeedback
 }: DevicesTabProps) {
   const { t } = useI18n();
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const [deviceDetail, setDeviceDetail] = useState<Record<string, unknown> | null>(null);
-  const [deviceCommands, setDeviceCommands] = useState<DeviceCommandStatusDto[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [assignSeatId, setAssignSeatId] = useState('');
-  const [commandType, setCommandType] = useState('lock');
-  const [commandReason, setCommandReason] = useState(() => t('op.settings.prefill.deviceCommandReason'));
-  const [lastCommand, setLastCommand] = useState<Record<string, unknown> | null>(null);
   const [rotatedCredential, setRotatedCredential] = useState<Record<string, unknown> | null>(null);
   const [credentialIdToRevoke, setCredentialIdToRevoke] = useState('');
   const [criticalAction, setCriticalAction] = useState<{ deviceId: string } | null>(null);
-  const [enrollModalOpen, setEnrollModalOpen] = useState(false);
-  const [enrollMinutes, setEnrollMinutes] = useState('15');
-  const [enrollmentCode, setEnrollmentCode] = useState<Record<string, unknown> | null>(null);
   const [busy, setBusy] = useState(false);
-  const [enrollBusy, setEnrollBusy] = useState(false);
-  const [historyBusy, setHistoryBusy] = useState(false);
 
   const selectedDevice = deviceInventory.find((device) => readString(device, 'deviceId') === selectedDeviceId) ?? null;
 
@@ -103,14 +79,8 @@ export function DevicesTab({
       }
 
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const [detail, commands] = await Promise.all([
-        apiClients.devices.getDeviceDetail(deviceId),
-        hasPermission(nextBackend.session, permissionNames.viewDeviceCommandStatus)
-          ? apiClients.devices.listDeviceCommands(deviceId, { limit: 25 }).catch(() => [])
-          : Promise.resolve([])
-      ]);
+      const detail = await apiClients.devices.getDeviceDetail(deviceId);
       setDeviceDetail(detail);
-      setDeviceCommands(Array.isArray(commands) ? commands : []);
       onFeedback({ label, state: 'confirmed' });
     } catch (error) {
       onFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
@@ -126,10 +96,8 @@ export function DevicesTab({
     const currentSeatId = readString(selectedDevice, 'seatId');
     setAssignSeatId(isGuid(currentSeatId) ? currentSeatId : (layoutSeatOptions[0]?.seatId ?? ''));
     setDeviceDetail(null);
-    setDeviceCommands([]);
     setRotatedCredential(null);
     setCredentialIdToRevoke('');
-    setLastCommand(null);
     if (canViewDeviceDetail && backend !== null) {
       void loadDeviceCard(selectedDeviceId);
     }
@@ -158,58 +126,9 @@ export function DevicesTab({
         seatId
       });
       if (hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)) {
-        const [detail, commands] = await Promise.all([
-          apiClients.devices.getDeviceDetail(deviceId),
-          hasPermission(nextBackend.session, permissionNames.viewDeviceCommandStatus)
-            ? apiClients.devices.listDeviceCommands(deviceId, { limit: 25 }).catch(() => [])
-            : Promise.resolve([])
-        ]);
-        setDeviceDetail(detail);
-        setDeviceCommands(Array.isArray(commands) ? commands : []);
+        setDeviceDetail(await apiClients.devices.getDeviceDetail(deviceId));
       }
       await onReload(nextBackend);
-      onFeedback({ label, state: 'confirmed' });
-    } catch (error) {
-      onFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const sendCommand = async () => {
-    const label = t('op.settings.action.sendCommand');
-    setBusy(true);
-    onFeedback({ label, state: 'pending' });
-    try {
-      const nextBackend = requireBackend(backend, t);
-      if (!hasPermission(nextBackend.session, permissionNames.dispatchDeviceCommand)) {
-        throw new Error(t('op.settings.devices.error.noPermSendCommand'));
-      }
-
-      const deviceId = (selectedDeviceId ?? '').trim();
-      const type = commandType.trim();
-      const reason = commandReason.trim();
-      if (!isGuid(deviceId) || !type || !reason) {
-        throw new Error(t('op.settings.devices.error.fillCommandFields'));
-      }
-
-      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const command = await apiClients.devices.dispatchDeviceCommand(deviceId, {
-        type,
-        payload: { reason, source: 'operator-settings' }
-      });
-      setLastCommand(command);
-      if (hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)) {
-        onDeviceInventoryChange(await apiClients.devices.listDevices(nextBackend.branchId).catch(() => deviceInventory));
-      }
-      if (hasPermission(nextBackend.session, permissionNames.viewDeviceCommandStatus)) {
-        const [selectedCommands, branchCommands] = await Promise.all([
-          apiClients.devices.listDeviceCommands(deviceId, { limit: 25 }).catch(() => deviceCommands),
-          apiClients.devices.listBranchDeviceCommands(nextBackend.branchId, { limit: 50 }).catch(() => branchDeviceCommandHistory)
-        ]);
-        setDeviceCommands(Array.isArray(selectedCommands) ? selectedCommands : []);
-        onBranchDeviceCommandHistoryChange(Array.isArray(branchCommands) ? branchCommands : []);
-      }
       onFeedback({ label, state: 'confirmed' });
     } catch (error) {
       onFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
@@ -278,59 +197,6 @@ export function DevicesTab({
     }
   };
 
-  const submitEnrollment = async () => {
-    const label = t('op.settings.action.createEnrollmentCode');
-    setEnrollBusy(true);
-    onFeedback({ label, state: 'pending' });
-    try {
-      const nextBackend = requireBackend(backend, t);
-      if (!hasPermission(nextBackend.session, permissionNames.createDeviceEnrollmentCode)) {
-        throw new Error(t('op.settings.devices.error.noPermEnrollment'));
-      }
-
-      const expiresInMinutes = Number(enrollMinutes);
-      if (!Number.isInteger(expiresInMinutes) || expiresInMinutes < 1 || expiresInMinutes > 1440) {
-        throw new Error(t('op.settings.devices.error.enrollmentRange'));
-      }
-
-      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const code = await apiClients.devices.createEnrollmentCode(nextBackend.branchId, nextBackend.session.organizationId, expiresInMinutes * 60);
-      setEnrollmentCode(code);
-      onFeedback({ label, state: 'confirmed' });
-    } catch (error) {
-      onFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
-    } finally {
-      setEnrollBusy(false);
-    }
-  };
-
-  const refreshBranchHistory = async () => {
-    const label = t('op.settings.action.refreshCommandHistory');
-    setHistoryBusy(true);
-    onFeedback({ label, state: 'pending' });
-    try {
-      const nextBackend = requireBackend(backend, t);
-      if (!hasPermission(nextBackend.session, permissionNames.viewDeviceCommandStatus)) {
-        throw new Error(t('op.settings.devices.error.noPermCommandHistory'));
-      }
-
-      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const commands = await apiClients.devices.listBranchDeviceCommands(nextBackend.branchId, { limit: 50 });
-      onBranchDeviceCommandHistoryChange(Array.isArray(commands) ? commands : []);
-      onFeedback({ label, state: 'confirmed' });
-    } catch (error) {
-      onFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
-    } finally {
-      setHistoryBusy(false);
-    }
-  };
-
-  const openEnrollModal = () => {
-    setEnrollMinutes('15');
-    setEnrollmentCode(null);
-    setEnrollModalOpen(true);
-  };
-
   const selectedDeviceName = readString(selectedDevice, 'machineName', t('op.settings.devices.deviceFallback'));
   const rotatedCredentialLabel = isGuid(credentialIdToRevoke)
     ? t('op.settings.devices.credentialRotated', { deviceName: selectedDeviceName })
@@ -382,15 +248,11 @@ export function DevicesTab({
           gridTemplate="1.1fr 160px 1fr 1.7fr"
           selectedKey={selectedDeviceId}
           onSelectRow={(device) => setSelectedDeviceId(readString(device, 'deviceId'))}
-          toolbar={{
-            title: t('op.management.halls.devicesTable.title'),
-            primary: canCreateDeviceEnrollmentCode ? { label: t('op.management.halls.connectDeviceCta'), onClick: openEnrollModal } : undefined
-          }}
+          toolbar={{ title: t('op.management.halls.devicesTable.title') }}
           empty={{
             icon: <MonitorSmartphone size={22} aria-hidden="true" />,
             title: t('op.management.halls.devicesEmpty.title'),
-            description: t('op.settings.devices.emptyInventory'),
-            action: canCreateDeviceEnrollmentCode ? { label: t('op.management.halls.connectDeviceCta'), onClick: openEnrollModal } : undefined
+            description: t('op.management.halls.devicesEmpty.description')
           }}
         />
 
@@ -437,52 +299,9 @@ export function DevicesTab({
               </div>
             )}
 
-            {(canDispatchDeviceCommand || canViewDeviceCommandStatus) && (
-              <div className="mgmt-drawer-section">
-                <div className="mgmt-section-title"><span>{t('op.management.halls.deviceDrawer.commandsSection')}</span></div>
-                {canDispatchDeviceCommand && (
-                  <div className="mgmt-form">
-                    <label>{t('op.settings.devices.commandType')}
-                      <select value={commandType} disabled={busy} onChange={(event) => setCommandType(event.currentTarget.value)}>
-                        <option value="lock">{t('op.settings.devices.commandLock')}</option>
-                        <option value="unlock">{t('op.settings.devices.commandUnlock')}</option>
-                      </select>
-                    </label>
-                    <label>{t('op.settings.devices.commandReason')}
-                      <input value={commandReason} disabled={busy} onChange={(event) => setCommandReason(event.currentTarget.value)} />
-                    </label>
-                    <div className="mgmt-form-actions">
-                      <button type="button" className="ui-btn ui-btn--primary" disabled={busy} onClick={() => void sendCommand()}>
-                        {t('op.settings.action.sendCommand')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {lastCommand && (
-                  <p className="mgmt-drawer-hint">{t('op.settings.devices.lastCommand')}: {commandTypeLabel(readString(lastCommand, 'type', 'command'), t)} · {t('op.settings.devices.lastCommandSent')}</p>
-                )}
-                {canViewDeviceCommandStatus && (
-                  deviceCommands.length > 0 ? (
-                    <div className="settings-command-history">
-                      <div className="mgmt-section-title"><span>{t('op.management.halls.deviceDrawer.recentCommands')}</span></div>
-                      {deviceCommands.map((command) => (
-                        <span key={readString(command, 'commandId')}>
-                          <strong>{commandTypeLabel(readString(command, 'type', 'command'), t)}</strong>
-                          <b>{commandStatusLabel(readString(command, 'status', 'unknown'), t)}</b>
-                          <em>{commandStatusMessageLabel(readString(command, 'message'), t) || formatTime(readString(command, 'updatedAtUtc'))}</em>
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="mgmt-drawer-hint">{t('op.management.halls.deviceDrawer.noRecentCommands')}</p>
-                  )
-                )}
-              </div>
-            )}
-
             {(canRotateDeviceCredential || canRevokeDeviceCredential) && (
               <div className="mgmt-drawer-section">
-                <div className="mgmt-section-title"><span>{t('op.management.halls.deviceDrawer.keysSection')}</span></div>
+                <div className="mgmt-section-title"><span>{t('op.management.halls.deviceDrawer.securitySection')}</span></div>
                 <div className="mgmt-form">
                   <label>{t('op.settings.devices.credentialToRevoke')}
                     <input readOnly value={rotatedCredentialLabel} />
@@ -515,53 +334,6 @@ export function DevicesTab({
           </MgmtDrawer>
         )}
       </div>
-
-      <div className="mgmt-drawer-section" style={{ marginTop: 14 }}>
-        <div className="mgmt-section-title">
-          <span>{t('op.settings.devices.branchHistory')}</span>
-          <button type="button" className="ui-btn ui-btn--ghost" disabled={!canViewDeviceCommandStatus || historyBusy} onClick={() => void refreshBranchHistory()}>
-            <RefreshCw size={14} aria-hidden="true" />{t('op.settings.action.refreshCommandHistory')}
-          </button>
-        </div>
-        {branchDeviceCommandHistory.length > 0 ? (
-          <div className="settings-command-history" aria-label={t('op.settings.devices.branchHistory')}>
-            {branchDeviceCommandHistory.map((command) => {
-              const deviceId = readString(command, 'deviceId');
-              const deviceName = readString(deviceInventory.find((device) => readString(device, 'deviceId') === deviceId), 'machineName', t('op.settings.devices.deviceFallback'));
-              return (
-                <span key={`${deviceId}-${readString(command, 'commandId')}`}>
-                  <strong>{deviceName}</strong>
-                  <b>{commandTypeLabel(readString(command, 'type', 'command'), t)} · {commandStatusLabel(readString(command, 'status', 'unknown'), t)}</b>
-                  <em>{commandStatusMessageLabel(readString(command, 'message'), t) || formatTime(readString(command, 'updatedAtUtc'))}</em>
-                </span>
-              );
-            })}
-          </div>
-        ) : (
-          <EmptyState title={t('op.management.halls.deviceDrawer.noRecentCommands')} />
-        )}
-      </div>
-
-      {enrollModalOpen && (
-        <PanelModal title={t('op.management.halls.enrollModal.title')} onClose={() => setEnrollModalOpen(false)} closeDisabled={enrollBusy}>
-          <form className="mgmt-form" onSubmit={(event) => { event.preventDefault(); void submitEnrollment(); }}>
-            <div className="mgmt-form-grid">
-              <label>{t('op.settings.devices.enrollmentMinutes')}
-                <input inputMode="numeric" value={enrollMinutes} onChange={(event) => setEnrollMinutes(event.currentTarget.value)} autoFocus />
-              </label>
-              {enrollmentCode && (
-                <label className="mgmt-form-wide">{t('op.settings.devices.enrollmentCode')}
-                  <input readOnly value={readString(enrollmentCode, 'code', '—')} />
-                </label>
-              )}
-            </div>
-            <div className="mgmt-form-actions">
-              <button type="button" className="ui-btn" onClick={() => setEnrollModalOpen(false)} disabled={enrollBusy}>{t('common.close')}</button>
-              <button type="submit" className="ui-btn ui-btn--primary" disabled={enrollBusy}>{t('op.settings.action.createEnrollmentCode')}</button>
-            </div>
-          </form>
-        </PanelModal>
-      )}
 
       {criticalAction && (
         <CriticalActionConfirmation

@@ -10,8 +10,10 @@ export interface ManagementScreenProps {
   children: ReactNode; // destination body (panels/forms)
   // Content column width: 'form' (narrow, single-column config forms) keeps fields a
   // comfortable measure instead of stretching edge-to-edge across the canvas; 'wide' is
-  // for list/table-heavy screens (halls, catalog, payment cards). Defaults to 'form'.
-  contentWidth?: 'form' | 'wide';
+  // for list/table-heavy screens (catalog, payment cards); 'full' drops the max-width entirely
+  // for screens whose content IS a two-pane grid (halls/devices master-detail) that should use
+  // the whole workspace width. Defaults to 'form'.
+  contentWidth?: 'form' | 'wide' | 'full';
   // Loading/error swap the body for a skeleton/error affordance instead of children — save bar
   // is suppressed in both. Defaults to 'ready' (renders children as before).
   state?: 'loading' | 'error' | 'ready';

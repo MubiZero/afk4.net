@@ -6,7 +6,6 @@ import { createAuthenticatedOperatorClients, emptyFeedback } from '../operatorHe
 import { hasPermission, permissionNames } from '../operatorPermissions';
 import { useFeedbackToasts } from '../useFeedbackToasts';
 import type {
-  DeviceCommandStatusDto,
   DeviceInventoryItemDto,
   PackageOptionDto,
   PosProductDto,
@@ -71,7 +70,6 @@ export function ManagementWorkspace({
   const [tariffs, setTariffs] = useState<TariffOptionDto[]>([]);
   const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
   const [deviceInventory, setDeviceInventory] = useState<DeviceInventoryItemDto[]>([]);
-  const [branchDeviceCommandHistory, setBranchDeviceCommandHistory] = useState<DeviceCommandStatusDto[]>([]);
 
   const loadSettings = async (nextBackend = backend) => {
     if (nextBackend === null) {
@@ -85,7 +83,7 @@ export function ManagementWorkspace({
       // Профиль филиала здесь НЕ грузим: им владеет ClubDestination (свой load/save). Тянуть его
       // сюда — лишний дубль-запрос на getBranchProfile при заходе на «Клуб». Грузим ровно то,
       // что нужно потребителям слайса 2 (Залы/Тарифы/Сотрудники/Товары).
-      const [staff, layoutZones, products, tariffOptions, packageOptionRows, deviceRows, branchDeviceCommands] = await Promise.all([
+      const [staff, layoutZones, products, tariffOptions, packageOptionRows, deviceRows] = await Promise.all([
         apiClients.settings.getStaffUsers(nextBackend.branchId),
         apiClients.settings.getLayoutZones(nextBackend.branchId),
         apiClients.pos.getCatalog(nextBackend.branchId),
@@ -93,9 +91,6 @@ export function ManagementWorkspace({
         apiClients.settings.getPackageOptions(nextBackend.branchId).catch(() => []),
         hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)
           ? apiClients.devices.listDevices(nextBackend.branchId).catch(() => [])
-          : Promise.resolve([]),
-        hasPermission(nextBackend.session, permissionNames.viewDeviceCommandStatus)
-          ? apiClients.devices.listBranchDeviceCommands(nextBackend.branchId, { limit: 50 }).catch(() => [])
           : Promise.resolve([])
       ]);
       setStaffUsers(Array.isArray(staff) ? staff : []);
@@ -104,7 +99,6 @@ export function ManagementWorkspace({
       setTariffs(Array.isArray(tariffOptions) ? tariffOptions : []);
       setPackageOptions(Array.isArray(packageOptionRows) ? packageOptionRows : []);
       setDeviceInventory(Array.isArray(deviceRows) ? deviceRows : []);
-      setBranchDeviceCommandHistory(Array.isArray(branchDeviceCommands) ? branchDeviceCommands : []);
       setSettingsLoadStatus('backend');
     } catch (error) {
       setSettingsLoadStatus('failed');
@@ -150,9 +144,7 @@ export function ManagementWorkspace({
           onDirtyChange={setDirty}
           zones={zones}
           deviceInventory={deviceInventory}
-          branchDeviceCommandHistory={branchDeviceCommandHistory}
           onDeviceInventoryChange={setDeviceInventory}
-          onBranchDeviceCommandHistoryChange={setBranchDeviceCommandHistory}
           onReload={loadSettings}
           onFeedback={setSettingsFeedback}
           loadStatus={settingsLoadStatus}

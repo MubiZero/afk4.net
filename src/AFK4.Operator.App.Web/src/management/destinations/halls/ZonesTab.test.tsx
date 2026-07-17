@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../../operatorToast';
@@ -54,21 +54,43 @@ const zones: ZoneDto[] = [{
   seats: [{ seatId: 's1', name: 'PC-01', sortOrder: 10 }]
 } as never];
 
+const twoZones: ZoneDto[] = [
+  ...zones,
+  { zoneId: 'z2', name: 'Общий зал', sortOrder: 20, seats: [] } as never
+];
+
 const onReload = mock(async () => {});
 const onFeedback = mock(() => {});
 
+// The zones list and the (now permanent) right-hand seat table both render an .mgmt-table — with
+// auto-select active, the selected zone's name/⋯-menu appear in BOTH the list row and the drawer
+// head at once, so tests that target the LIST specifically must scope to it, not `screen`.
+const zonesTableOf = (container: HTMLElement) => container.querySelector('.mgmt-master-detail > .mgmt-table') as HTMLElement;
+
 describe('ZonesTab', () => {
-  it('renders the zone list with seat count and sort order', () => {
-    wrap(<ZonesTab zones={zones} backend={null} canManageLayout={false} onReload={onReload} onFeedback={onFeedback} />);
-    expect(screen.getByText('Зал VIP')).toBeTruthy();
-    expect(screen.getByText('1')).toBeTruthy(); // seat count
-    expect(screen.getByText('10')).toBeTruthy(); // sort order
+  it('renders the zone list with a seat-count badge', () => {
+    const { container } = wrap(<ZonesTab zones={zones} backend={null} canManageLayout={false} onReload={onReload} onFeedback={onFeedback} />);
+    const list = within(zonesTableOf(container));
+    expect(list.getByText('Зал VIP')).toBeTruthy();
+    expect(list.getByText('1 ПК')).toBeTruthy(); // seat-count badge
   });
 
-  it('opens the drawer with the zone seats when a zone row is clicked', () => {
+  it('auto-selects the first zone on mount so the right panel shows its seats without a click', () => {
     wrap(<ZonesTab zones={zones} backend={null} canManageLayout={false} onReload={onReload} onFeedback={onFeedback} />);
-    fireEvent.click(screen.getByText('Зал VIP'));
     expect(screen.getByText('PC-01')).toBeTruthy();
+  });
+
+  it('shows a create-first-zone empty state in the right panel when there are no zones', () => {
+    wrap(<ZonesTab zones={[]} backend={null} canManageLayout onReload={onReload} onFeedback={onFeedback} />);
+    expect(screen.getByText('Создайте первый зал')).toBeTruthy();
+  });
+
+  it('switches the right panel to another zone on click', () => {
+    wrap(<ZonesTab zones={twoZones} backend={null} canManageLayout={false} onReload={onReload} onFeedback={onFeedback} />);
+    expect(screen.getByText('PC-01')).toBeTruthy(); // first zone auto-selected
+    fireEvent.click(screen.getByText('Общий зал'));
+    expect(screen.queryByText('PC-01')).toBeNull();
+    expect(screen.getByText('В этом зале нет ПК')).toBeTruthy();
   });
 
   it('hides the "+ Зал" primary action and row menu without canManageLayout', () => {
@@ -94,8 +116,10 @@ describe('ZonesTab', () => {
   });
 
   it('deleting a zone via the row menu asks for confirmation before calling settings.deleteZone', async () => {
-    wrap(<ZonesTab zones={zones} backend={backend as never} canManageLayout onReload={onReload} onFeedback={onFeedback} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Действия' }));
+    const { container } = wrap(<ZonesTab zones={zones} backend={backend as never} canManageLayout onReload={onReload} onFeedback={onFeedback} />);
+    // The zone is auto-selected, so its permanent detail panel ALSO shows a "Действия" ⋯-menu —
+    // scope to the list row's menu specifically, not the drawer head's.
+    fireEvent.click(within(zonesTableOf(container)).getByRole('button', { name: 'Действия' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Удалить зал' }));
 
     expect(deleteZone).not.toHaveBeenCalled();
@@ -103,5 +127,10 @@ describe('ZonesTab', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Подтвердить удаление зала' }));
     await waitFor(() => expect(deleteZone).toHaveBeenCalledWith('b1', 'z1', 'org'));
+  });
+
+  it('the right-side zone detail panel has no close button — it is a permanent panel, not a closable drawer', () => {
+    wrap(<ZonesTab zones={zones} backend={null} canManageLayout onReload={onReload} onFeedback={onFeedback} />);
+    expect(screen.queryByRole('button', { name: 'Закрыть' })).toBeNull();
   });
 });

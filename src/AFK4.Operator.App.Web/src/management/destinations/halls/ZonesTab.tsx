@@ -5,7 +5,7 @@ import { MgmtTable } from '../../kit/MgmtTable';
 import { MgmtDrawer } from '../../kit/MgmtDrawer';
 import type { RowAction } from '../../kit/types';
 import { PanelModal } from '../../../PanelModal';
-import { CriticalActionConfirmation } from '../../../operatorPrimitives';
+import { CriticalActionConfirmation, EmptyState } from '../../../operatorPrimitives';
 import { projectOperatorError } from '../../../apiErrors';
 import { hasPermission, permissionNames } from '../../../operatorPermissions';
 import {
@@ -33,14 +33,16 @@ type CriticalAction =
   | { kind: 'delete-zone'; zoneId: string; zoneName: string; seatCount: number }
   | { kind: 'delete-seat'; zoneId: string; seatId: string; seatName: string };
 
-// Домен A раздела «Залы и ПК»: список залов + drawer выбранного зала с его рабочими местами.
-// Все 6 операций (A1-A6, см. task-B-halls-brief.md) портированы 1:1 из
+// Домен A раздела «Залы и ПК»: узкий список залов слева + ПОСТОЯННАЯ панель деталей выбранного
+// зала справа (см. task-B2-halls-rework-brief.md — визуальная приёмка потребовала эффективный
+// two-pane лейаут вместо список+закрываемый drawer: правая панель не закрывается и всегда
+// показывает актуальный зал, первый зал автовыбирается на маунте и при инвалидации выбора, чтобы
+// панель не пустовала). Все 6 операций (A1-A6) портированы 1:1 из
 // settings/SettingsLayoutSection.tsx.runAction — те же клиентские вызовы, тот же двойной
 // permission-гейт (canManageLayout проп + серверный hasPermission(nextBackend.session, ...) на
-// каждый вызов), та же валидация и onFeedback pending→confirmed/failed. Отличие от исходника —
-// only UI shell: список+drawer вместо вечно-развёрнутой формы, create/edit — в PanelModal,
-// удаление — через CriticalActionConfirmation, без предварительного «pending»-тоста на клик
-// (современный паттерн, см. MapSidePanel: тост только вокруг реального вызова).
+// каждый вызов), та же валидация и onFeedback pending→confirmed/failed. create/edit — в
+// PanelModal, удаление — через CriticalActionConfirmation, без предварительного «pending»-тоста
+// на клик (современный паттерн, см. MapSidePanel: тост только вокруг реального вызова).
 export function ZonesTab({
   zones,
   backend,
@@ -65,10 +67,16 @@ export function ZonesTab({
   const [seatSortOrder, setSeatSortOrder] = useState('10');
   const [busy, setBusy] = useState(false);
 
-  // Залы могли пропасть из выборки после удаления/reload — держим выбор валидным, иначе drawer
-  // продолжал бы показывать удалённый зал.
+  // Правая панель ПОСТОЯННАЯ (не закрывается), поэтому ей всегда нужен валидный зал: автовыбор
+  // первого зала на маунте и всякий раз, когда текущий выбор пропал из выборки (удаление/reload) —
+  // иначе панель пустовала бы до ручного клика.
   useEffect(() => {
-    setSelectedZoneId((current) => (current && zones.some((zone) => readString(zone, 'zoneId') === current) ? current : null));
+    setSelectedZoneId((current) => {
+      if (current && zones.some((zone) => readString(zone, 'zoneId') === current)) {
+        return current;
+      }
+      return zones[0] ? readString(zones[0], 'zoneId') : null;
+    });
   }, [zones]);
 
   const selectedZone = zones.find((zone) => readString(zone, 'zoneId') === selectedZoneId) ?? null;
@@ -279,16 +287,23 @@ export function ZonesTab({
 
   return (
     <>
-      <div className="mgmt-master-detail">
+      <div className="mgmt-master-detail mgmt-master-detail--nav">
         <MgmtTable<Zone>
           columns={[
-            { key: 'zone', header: t('op.management.halls.col.zone'), render: (zone) => readString(zone, 'name', t('op.settings.layout.zoneFallback')) },
-            { key: 'seats', header: t('op.management.halls.col.seatCount'), align: 'end', render: (zone) => String(readArray(zone, 'seats').length) },
-            { key: 'order', header: t('op.management.halls.col.sortOrder'), align: 'end', render: (zone) => String(readNumber(zone, 'sortOrder', 0)) }
+            {
+              key: 'zone',
+              header: t('op.management.halls.col.zone'),
+              render: (zone) => (
+                <span className="mgmt-zone-row">
+                  <span>{readString(zone, 'name', t('op.settings.layout.zoneFallback'))}</span>
+                  <span className="mgmt-count-badge">{t('op.settings.layout.seatCount', { count: readArray(zone, 'seats').length })}</span>
+                </span>
+              )
+            }
           ]}
           rows={zones}
           rowKey={(zone) => readString(zone, 'zoneId')}
-          gridTemplate="1fr 130px 100px"
+          gridTemplate="1fr"
           selectedKey={selectedZoneId}
           onSelectRow={(zone) => setSelectedZoneId(readString(zone, 'zoneId'))}
           rowActions={zoneRowActions}
@@ -304,12 +319,11 @@ export function ZonesTab({
           }}
         />
 
-        {selectedZone && (
+        {selectedZone ? (
           <MgmtDrawer
             title={readString(selectedZone, 'name', t('op.settings.layout.zoneFallback'))}
             subtitle={t('op.settings.layout.seatCount', { count: selectedZoneSeats.length })}
             actions={drawerActions}
-            onClose={() => setSelectedZoneId(null)}
           >
             <div className="mgmt-drawer-section">
               <div className="mgmt-section-title"><span>{t('op.management.halls.seatsSection.title')}</span></div>
@@ -337,6 +351,15 @@ export function ZonesTab({
               />
             </div>
           </MgmtDrawer>
+        ) : (
+          <div className="mgmt-detail-empty">
+            <EmptyState
+              icon={<Layers size={22} aria-hidden="true" />}
+              title={t('op.management.halls.noZones.title')}
+              description={t('op.management.halls.noZones.description')}
+              action={canManageLayout ? { label: t('op.management.halls.addZoneCta'), onClick: openCreateZone } : undefined}
+            />
+          </div>
         )}
       </div>
 

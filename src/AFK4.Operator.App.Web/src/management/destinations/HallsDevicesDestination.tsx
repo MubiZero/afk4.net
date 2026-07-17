@@ -10,17 +10,16 @@ import { DevicesTab } from './halls/DevicesTab';
 type HallsTab = 'layout' | 'devices';
 
 // Залы и ПК: эталон CRUD-раздела «Управления» — список + drawer вместо вечно-развёрнутой формы
-// (см. task-B-halls-brief.md). Домен A (зоны/места, ZonesTab) и домен B (устройства/команды/
-// ключи, DevicesTab) живут во внутренних вкладках раздела. Каждая операция коммитит сама — общего
-// save-бара нет, поэтому dirty-guard не нужен, сигнализируем "clean" сразу на маунте.
+// (см. task-B2-halls-rework-brief.md). Домен A (зоны/места, ZonesTab, two-pane full width) и
+// домен B (устройства/ключи, DevicesTab — provisioning живёт в Мастере настройки, lock/unlock на
+// Карте) живут во внутренних вкладках раздела. Каждая операция коммитит сама — общего save-бара
+// нет, поэтому dirty-guard не нужен, сигнализируем "clean" сразу на маунте.
 export function HallsDevicesDestination({
   backend,
   session,
   zones,
   deviceInventory,
-  branchDeviceCommandHistory,
   onDeviceInventoryChange,
-  onBranchDeviceCommandHistoryChange,
   onReload,
   onFeedback,
   onDirtyChange,
@@ -37,14 +36,10 @@ export function HallsDevicesDestination({
 
   const zoneRows = zones ?? [];
   const deviceRows = deviceInventory ?? [];
-  const branchHistoryRows = branchDeviceCommandHistory ?? [];
 
   const canManageLayout = hasPermission(session, permissionNames.manageLayout);
-  const canCreateDeviceEnrollmentCode = hasPermission(session, permissionNames.createDeviceEnrollmentCode);
   const canAssignDeviceSeat = hasPermission(session, permissionNames.assignDeviceSeat);
   const canViewDeviceDetail = hasPermission(session, permissionNames.viewDeviceDetail);
-  const canViewDeviceCommandStatus = hasPermission(session, permissionNames.viewDeviceCommandStatus);
-  const canDispatchDeviceCommand = hasPermission(session, permissionNames.dispatchDeviceCommand);
   const canRotateDeviceCredential = hasPermission(session, permissionNames.rotateDeviceCredential);
   const canRevokeDeviceCredential = hasPermission(session, permissionNames.revokeDeviceCredential);
 
@@ -59,7 +54,7 @@ export function HallsDevicesDestination({
     <ManagementScreen
       title={t('op.management.dest.halls')}
       subtitle={t('op.management.dest.halls.subtitle')}
-      contentWidth="wide"
+      contentWidth="full"
       state={managementScreenState(loadStatus)}
       errorDetail={errorDetail}
       onRetry={onRetry}
@@ -96,18 +91,13 @@ export function HallsDevicesDestination({
       ) : (
         <DevicesTab
           deviceInventory={deviceRows}
-          branchDeviceCommandHistory={branchHistoryRows}
           layoutSeatOptions={layoutSeatOptions}
           backend={backend}
-          canCreateDeviceEnrollmentCode={canCreateDeviceEnrollmentCode}
           canAssignDeviceSeat={canAssignDeviceSeat}
           canViewDeviceDetail={canViewDeviceDetail}
-          canViewDeviceCommandStatus={canViewDeviceCommandStatus}
-          canDispatchDeviceCommand={canDispatchDeviceCommand}
           canRotateDeviceCredential={canRotateDeviceCredential}
           canRevokeDeviceCredential={canRevokeDeviceCredential}
           onDeviceInventoryChange={onDeviceInventoryChange ?? (() => {})}
-          onBranchDeviceCommandHistoryChange={onBranchDeviceCommandHistoryChange ?? (() => {})}
           onReload={onReload ?? (async () => {})}
           onFeedback={onFeedback ?? (() => {})}
         />

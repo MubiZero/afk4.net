@@ -28,23 +28,23 @@ const deviceInventory: DeviceInventoryItemDto[] = [{
 } as never];
 
 describe('HallsDevicesDestination', () => {
-  it('renders the ManagementScreen title and subtitle', () => {
-    wrap(
+  it('renders the ManagementScreen title and subtitle at full content width', () => {
+    const { container } = wrap(
       <HallsDevicesDestination
         backend={null}
         session={session([])}
         currencyCode="TJS"
         zones={zones}
         deviceInventory={[]}
-        branchDeviceCommandHistory={[]}
       />
     );
 
     expect(screen.getByRole('heading', { name: 'Залы и ПК' })).toBeTruthy();
     expect(screen.getByText('Залы, зоны и рабочие места')).toBeTruthy();
+    expect(container.querySelector('.management-content--full')).toBeTruthy();
   });
 
-  it('defaults to the "Залы и места" tab and shows the zones from state', () => {
+  it('defaults to the "Залы и места" tab and shows the zones from state, right panel auto-selected', () => {
     wrap(
       <HallsDevicesDestination
         backend={null}
@@ -52,12 +52,13 @@ describe('HallsDevicesDestination', () => {
         currencyCode="TJS"
         zones={zones}
         deviceInventory={deviceInventory}
-        branchDeviceCommandHistory={[]}
       />
     );
 
     expect(screen.getByRole('tab', { name: 'Залы и места', selected: true })).toBeTruthy();
-    expect(screen.getByText('Зал VIP')).toBeTruthy();
+    // "Зал VIP" appears twice: once in the list row, once in the auto-selected detail panel's head.
+    expect(screen.getAllByText('Зал VIP').length).toBe(2);
+    expect(screen.getByText('PC-01')).toBeTruthy(); // auto-selected zone's seat table, no click needed
   });
 
   it('switches to the devices tab and shows device inventory instead of zones', () => {
@@ -68,7 +69,6 @@ describe('HallsDevicesDestination', () => {
         currencyCode="TJS"
         zones={zones}
         deviceInventory={deviceInventory}
-        branchDeviceCommandHistory={[]}
       />
     );
 
@@ -86,7 +86,6 @@ describe('HallsDevicesDestination', () => {
         currencyCode="TJS"
         zones={zones}
         deviceInventory={[]}
-        branchDeviceCommandHistory={[]}
         onDirtyChange={onDirtyChange}
       />
     );
@@ -101,7 +100,6 @@ describe('HallsDevicesDestination', () => {
         currencyCode="TJS"
         zones={zones}
         deviceInventory={[]}
-        branchDeviceCommandHistory={[]}
         loadStatus="loading"
       />
     );
@@ -118,7 +116,6 @@ describe('HallsDevicesDestination', () => {
         currencyCode="TJS"
         zones={zones}
         deviceInventory={[]}
-        branchDeviceCommandHistory={[]}
         loadStatus="failed"
         errorDetail="boom"
         onRetry={onRetry}

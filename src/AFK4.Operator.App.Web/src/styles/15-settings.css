@@ -750,6 +750,12 @@
   max-width: 1180px;
 }
 
+/* Full-bleed content: table/master-detail screens (halls, devices) that benefit from using the
+   entire workspace width instead of being capped to a comfortable reading measure. */
+.management-content--full {
+  max-width: none;
+}
+
 /* Raised card that holds a destination's form/section. Depth = a lighter/raised surface with
    shadow-card (operator surface-elevation rule), never a form floating on bare canvas. */
 .management-panel {

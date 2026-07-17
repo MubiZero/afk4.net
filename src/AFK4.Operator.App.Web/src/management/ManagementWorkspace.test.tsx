@@ -18,7 +18,6 @@ const getCatalog = mock(async () => []);
 const getDiagnostics = mock(async () => ({}));
 const getRolloutStatuses = mock(async () => []);
 const listDevices = mock(async () => []);
-const listBranchDeviceCommands = mock(async () => []);
 
 const actualHelpers = await import('../operatorHelpers');
 mock.module('../operatorHelpers', () => ({
@@ -34,7 +33,7 @@ mock.module('../operatorHelpers', () => ({
     pos: { getCatalog },
     diagnostics: { getDiagnostics },
     updates: { getRolloutStatuses },
-    devices: { listDevices, listBranchDeviceCommands }
+    devices: { listDevices }
   })
 }));
 
@@ -57,7 +56,6 @@ afterEach(() => {
   getDiagnostics.mockClear();
   getRolloutStatuses.mockClear();
   listDevices.mockClear();
-  listBranchDeviceCommands.mockClear();
 });
 
 const wrap = (ui: React.ReactNode) =>

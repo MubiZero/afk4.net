@@ -1,6 +1,5 @@
 import type { OperatorAuthSession } from '../../authClient';
 import type {
-  DeviceCommandStatusDto,
   DeviceInventoryItemDto,
   PackageOptionDto,
   PosProductDto,
@@ -39,14 +38,12 @@ export interface DestinationProps {
   tariffs?: TariffOptionDto[];
   packageOptions?: PackageOptionDto[];
   deviceInventory?: DeviceInventoryItemDto[];
-  branchDeviceCommandHistory?: DeviceCommandStatusDto[];
   loadStatus?: LoadStatus;
   errorDetail?: string; // concrete failure text when loadStatus === 'failed' (settingsFeedback.detail)
 
   onStaffUsersChange?: (staffUsers: StaffUserDto[]) => void;
   onCatalogChange?: (catalog: PosProductDto[]) => void;
   onDeviceInventoryChange?: (deviceInventory: DeviceInventoryItemDto[]) => void;
-  onBranchDeviceCommandHistoryChange?: (history: DeviceCommandStatusDto[]) => void;
   onReload?: (nextBackend?: OperatorBackendContext | null) => Promise<void>;
   onFeedback?: (feedback: Feedback) => void;
   onRetry?: () => void;

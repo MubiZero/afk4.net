@@ -17,13 +17,9 @@ const getDeviceDetail = mock(async () => ({
   activeCredentialCount: 1,
   installedAppCount: 4
 }));
-const listDeviceCommands = mock(async () => []);
-const listBranchDeviceCommands = mock(async () => []);
 const listDevices = mock(async () => []);
-const dispatchDeviceCommand = mock(async () => ({ type: 'lock' }));
 const rotateDeviceCredential = mock(async () => ({ credentialId: '33333333-3333-3333-3333-333333333333', credentialSecret: 'top-secret' }));
 const revokeDeviceCredential = mock(async () => undefined);
-const createEnrollmentCode = mock(async () => ({ code: 'ABC123' }));
 const assignDeviceSeat = mock(async () => ({}));
 
 const actualHelpers = await import('../../../operatorHelpers');
@@ -33,13 +29,9 @@ mock.module('../../../operatorHelpers', () => ({
     settings: { assignDeviceSeat },
     devices: {
       getDeviceDetail,
-      listDeviceCommands,
-      listBranchDeviceCommands,
       listDevices,
-      dispatchDeviceCommand,
       rotateDeviceCredential,
-      revokeDeviceCredential,
-      createEnrollmentCode
+      revokeDeviceCredential
     }
   })
 }));
@@ -55,13 +47,9 @@ afterAll(() => {
 afterEach(() => {
   cleanup();
   getDeviceDetail.mockClear();
-  listDeviceCommands.mockClear();
-  listBranchDeviceCommands.mockClear();
   listDevices.mockClear();
-  dispatchDeviceCommand.mockClear();
   rotateDeviceCredential.mockClear();
   revokeDeviceCredential.mockClear();
-  createEnrollmentCode.mockClear();
   assignDeviceSeat.mockClear();
 });
 
@@ -74,11 +62,8 @@ const backend = {
     accessToken: 't',
     organizationId: 'org',
     permissions: [
-      permissionNames.createDeviceEnrollmentCode,
       permissionNames.assignDeviceSeat,
       permissionNames.viewDeviceDetail,
-      permissionNames.viewDeviceCommandStatus,
-      permissionNames.dispatchDeviceCommand,
       permissionNames.rotateDeviceCredential,
       permissionNames.revokeDeviceCredential
     ]
@@ -105,30 +90,58 @@ const layoutSeatOptions = [{ seatId: '22222222-2222-2222-2222-222222222222', lab
 
 const baseProps = {
   deviceInventory,
-  branchDeviceCommandHistory: [],
   layoutSeatOptions,
   onDeviceInventoryChange: mock(() => {}),
-  onBranchDeviceCommandHistoryChange: mock(() => {}),
   onReload: mock(async () => {}),
   onFeedback: mock(() => {})
 };
 
 describe('DevicesTab', () => {
-  it('renders the device inventory list', () => {
-    wrap(
+  it('renders the device inventory list with status', () => {
+    const { container } = wrap(
       <DevicesTab
         {...baseProps}
         backend={null}
-        canCreateDeviceEnrollmentCode={false}
         canAssignDeviceSeat={false}
         canViewDeviceDetail={false}
-        canViewDeviceCommandStatus={false}
-        canDispatchDeviceCommand={false}
         canRotateDeviceCredential={false}
         canRevokeDeviceCredential={false}
       />
     );
     expect(screen.getByText('PC-VIP-01')).toBeTruthy();
+    expect(container.querySelector('.mgmt-status-pair')?.textContent).toContain('онлайн');
+  });
+
+  it('has no "+ Подключить устройство" enrollment CTA anywhere — provisioning moved to the Setup Wizard', () => {
+    wrap(
+      <DevicesTab
+        {...baseProps}
+        backend={backend as never}
+        canAssignDeviceSeat
+        canViewDeviceDetail
+        canRotateDeviceCredential
+        canRevokeDeviceCredential
+      />
+    );
+    expect(screen.queryByRole('button', { name: '+ Подключить устройство' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Подключить устройство' })).toBeNull();
+  });
+
+  it('shows a wizard-provisioning empty state, without a code CTA, when there is no inventory', () => {
+    wrap(
+      <DevicesTab
+        {...baseProps}
+        deviceInventory={[]}
+        backend={null}
+        canAssignDeviceSeat={false}
+        canViewDeviceDetail={false}
+        canRotateDeviceCredential={false}
+        canRevokeDeviceCredential={false}
+      />
+    );
+    expect(screen.getByText('Нет подключённых устройств')).toBeTruthy();
+    expect(screen.getByText('Устройства появляются здесь после установки клиентского ПК через Мастер настройки.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '+ Подключить устройство' })).toBeNull();
   });
 
   it('opens the drawer and loads the device card on row click', async () => {
@@ -136,11 +149,8 @@ describe('DevicesTab', () => {
       <DevicesTab
         {...baseProps}
         backend={backend as never}
-        canCreateDeviceEnrollmentCode
         canAssignDeviceSeat
         canViewDeviceDetail
-        canViewDeviceCommandStatus
-        canDispatchDeviceCommand
         canRotateDeviceCredential
         canRevokeDeviceCredential
       />
@@ -150,46 +160,40 @@ describe('DevicesTab', () => {
     await waitFor(() => expect(screen.getByText('1.2.3')).toBeTruthy());
   });
 
-  it('hides "+ Подключить устройство" and drawer sections without the matching permissions', () => {
+  it('hides drawer sections without the matching permissions', () => {
     wrap(
       <DevicesTab
         {...baseProps}
         backend={backend as never}
-        canCreateDeviceEnrollmentCode={false}
         canAssignDeviceSeat={false}
         canViewDeviceDetail={false}
-        canViewDeviceCommandStatus={false}
-        canDispatchDeviceCommand={false}
         canRotateDeviceCredential={false}
         canRevokeDeviceCredential={false}
       />
     );
-    expect(screen.queryByRole('button', { name: '+ Подключить устройство' })).toBeNull();
     fireEvent.click(screen.getByText('PC-VIP-01'));
-    expect(screen.queryByText('Назначение')).toBeNull();
-    expect(screen.queryByText('Ключи')).toBeNull();
+    expect(screen.queryByText('Назначение на место')).toBeNull();
+    expect(screen.queryByText('Безопасность')).toBeNull();
     expect(getDeviceDetail).not.toHaveBeenCalled();
   });
 
-  it('"+ Подключить устройство" opens the enrollment modal and creates a code', async () => {
+  it('has no commands section and no command history anywhere in the drawer — dispatch moved to the Map', () => {
     wrap(
       <DevicesTab
         {...baseProps}
         backend={backend as never}
-        canCreateDeviceEnrollmentCode
-        canAssignDeviceSeat={false}
-        canViewDeviceDetail={false}
-        canViewDeviceCommandStatus={false}
-        canDispatchDeviceCommand={false}
-        canRotateDeviceCredential={false}
-        canRevokeDeviceCredential={false}
+        canAssignDeviceSeat
+        canViewDeviceDetail
+        canRotateDeviceCredential
+        canRevokeDeviceCredential
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: '+ Подключить устройство' }));
-    expect(screen.getByRole('dialog', { name: 'Подключить устройство' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Создать код подключения' }));
-    await waitFor(() => expect(createEnrollmentCode).toHaveBeenCalledWith('b1', 'org', 15 * 60));
-    expect(await screen.findByDisplayValue('ABC123')).toBeTruthy();
+    fireEvent.click(screen.getByText('PC-VIP-01'));
+    expect(screen.queryByText('Команды')).toBeNull();
+    expect(screen.queryByText('Недавние команды')).toBeNull();
+    expect(screen.queryByText('История команд филиала')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Отправить команду' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Обновить историю команд' })).toBeNull();
   });
 
   it('assigns a device to a seat from the drawer', async () => {
@@ -197,11 +201,8 @@ describe('DevicesTab', () => {
       <DevicesTab
         {...baseProps}
         backend={backend as never}
-        canCreateDeviceEnrollmentCode={false}
         canAssignDeviceSeat
         canViewDeviceDetail={false}
-        canViewDeviceCommandStatus={false}
-        canDispatchDeviceCommand={false}
         canRotateDeviceCredential={false}
         canRevokeDeviceCredential={false}
       />
@@ -211,16 +212,13 @@ describe('DevicesTab', () => {
     await waitFor(() => expect(assignDeviceSeat).toHaveBeenCalledWith('b1', '11111111-1111-1111-1111-111111111111', { organizationId: 'org', seatId: '22222222-2222-2222-2222-222222222222' }));
   });
 
-  it('rotates then revokes a device credential', async () => {
+  it('rotates then revokes a device credential behind a confirmation', async () => {
     wrap(
       <DevicesTab
         {...baseProps}
         backend={backend as never}
-        canCreateDeviceEnrollmentCode={false}
         canAssignDeviceSeat={false}
         canViewDeviceDetail={false}
-        canViewDeviceCommandStatus={false}
-        canDispatchDeviceCommand={false}
         canRotateDeviceCredential
         canRevokeDeviceCredential
       />
@@ -237,85 +235,5 @@ describe('DevicesTab', () => {
     const confirmDialog = screen.getByRole('alertdialog');
     fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Отозвать ключ' }));
     await waitFor(() => expect(revokeDeviceCredential).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111', '33333333-3333-3333-3333-333333333333'));
-  });
-
-  it('sends a lock command from the drawer', async () => {
-    wrap(
-      <DevicesTab
-        {...baseProps}
-        backend={backend as never}
-        canCreateDeviceEnrollmentCode={false}
-        canAssignDeviceSeat={false}
-        canViewDeviceDetail={false}
-        canViewDeviceCommandStatus={false}
-        canDispatchDeviceCommand
-        canRotateDeviceCredential={false}
-        canRevokeDeviceCredential={false}
-      />
-    );
-    fireEvent.click(screen.getByText('PC-VIP-01'));
-    const reasonInput = screen.getByLabelText('Причина команды');
-    fireEvent.change(reasonInput, { target: { value: 'проверка' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Отправить команду' }));
-    await waitFor(() => expect(dispatchDeviceCommand).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111', {
-      type: 'lock',
-      payload: { reason: 'проверка', source: 'operator-settings' }
-    }));
-  });
-
-  it('hides the commands section without canDispatchDeviceCommand or canViewDeviceCommandStatus', () => {
-    wrap(
-      <DevicesTab
-        {...baseProps}
-        backend={backend as never}
-        canCreateDeviceEnrollmentCode={false}
-        canAssignDeviceSeat={false}
-        canViewDeviceDetail={false}
-        canViewDeviceCommandStatus={false}
-        canDispatchDeviceCommand={false}
-        canRotateDeviceCredential={false}
-        canRevokeDeviceCredential={false}
-      />
-    );
-    fireEvent.click(screen.getByText('PC-VIP-01'));
-    expect(screen.queryByText('Команды')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Отправить команду' })).toBeNull();
-  });
-
-  it('refreshes the branch device command history', async () => {
-    wrap(
-      <DevicesTab
-        {...baseProps}
-        backend={backend as never}
-        canCreateDeviceEnrollmentCode={false}
-        canAssignDeviceSeat={false}
-        canViewDeviceDetail={false}
-        canViewDeviceCommandStatus
-        canDispatchDeviceCommand={false}
-        canRotateDeviceCredential={false}
-        canRevokeDeviceCredential={false}
-      />
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Обновить историю команд' }));
-    await waitFor(() => expect(listBranchDeviceCommands).toHaveBeenCalledWith('b1', { limit: 50 }));
-    await waitFor(() => expect(baseProps.onBranchDeviceCommandHistoryChange).toHaveBeenCalledWith([]));
-  });
-
-  it('disables the branch history refresh button without canViewDeviceCommandStatus', () => {
-    wrap(
-      <DevicesTab
-        {...baseProps}
-        backend={backend as never}
-        canCreateDeviceEnrollmentCode={false}
-        canAssignDeviceSeat={false}
-        canViewDeviceDetail={false}
-        canViewDeviceCommandStatus={false}
-        canDispatchDeviceCommand={false}
-        canRotateDeviceCredential={false}
-        canRevokeDeviceCredential={false}
-      />
-    );
-    expect(screen.getByRole('button', { name: 'Обновить историю команд' })).toBeDisabled();
-    expect(listBranchDeviceCommands).not.toHaveBeenCalled();
   });
 });
