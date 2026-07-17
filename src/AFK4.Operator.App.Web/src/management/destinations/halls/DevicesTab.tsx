@@ -503,7 +503,7 @@ export function DevicesTab({
                         type="button"
                         className="ui-btn ui-btn--danger"
                         disabled={busy || !isGuid(credentialIdToRevoke)}
-                        onClick={() => setCriticalAction({ deviceId: selectedDeviceId! })}
+                        onClick={() => setCriticalAction({ deviceId: selectedDeviceId ?? '' })}
                       >
                         {t('op.settings.action.revokeKey')}
                       </button>

@@ -238,4 +238,84 @@ describe('DevicesTab', () => {
     fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Отозвать ключ' }));
     await waitFor(() => expect(revokeDeviceCredential).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111', '33333333-3333-3333-3333-333333333333'));
   });
+
+  it('sends a lock command from the drawer', async () => {
+    wrap(
+      <DevicesTab
+        {...baseProps}
+        backend={backend as never}
+        canCreateDeviceEnrollmentCode={false}
+        canAssignDeviceSeat={false}
+        canViewDeviceDetail={false}
+        canViewDeviceCommandStatus={false}
+        canDispatchDeviceCommand
+        canRotateDeviceCredential={false}
+        canRevokeDeviceCredential={false}
+      />
+    );
+    fireEvent.click(screen.getByText('PC-VIP-01'));
+    const reasonInput = screen.getByLabelText('Причина команды');
+    fireEvent.change(reasonInput, { target: { value: 'проверка' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Отправить команду' }));
+    await waitFor(() => expect(dispatchDeviceCommand).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111', {
+      type: 'lock',
+      payload: { reason: 'проверка', source: 'operator-settings' }
+    }));
+  });
+
+  it('hides the commands section without canDispatchDeviceCommand or canViewDeviceCommandStatus', () => {
+    wrap(
+      <DevicesTab
+        {...baseProps}
+        backend={backend as never}
+        canCreateDeviceEnrollmentCode={false}
+        canAssignDeviceSeat={false}
+        canViewDeviceDetail={false}
+        canViewDeviceCommandStatus={false}
+        canDispatchDeviceCommand={false}
+        canRotateDeviceCredential={false}
+        canRevokeDeviceCredential={false}
+      />
+    );
+    fireEvent.click(screen.getByText('PC-VIP-01'));
+    expect(screen.queryByText('Команды')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Отправить команду' })).toBeNull();
+  });
+
+  it('refreshes the branch device command history', async () => {
+    wrap(
+      <DevicesTab
+        {...baseProps}
+        backend={backend as never}
+        canCreateDeviceEnrollmentCode={false}
+        canAssignDeviceSeat={false}
+        canViewDeviceDetail={false}
+        canViewDeviceCommandStatus
+        canDispatchDeviceCommand={false}
+        canRotateDeviceCredential={false}
+        canRevokeDeviceCredential={false}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Обновить историю команд' }));
+    await waitFor(() => expect(listBranchDeviceCommands).toHaveBeenCalledWith('b1', { limit: 50 }));
+    await waitFor(() => expect(baseProps.onBranchDeviceCommandHistoryChange).toHaveBeenCalledWith([]));
+  });
+
+  it('disables the branch history refresh button without canViewDeviceCommandStatus', () => {
+    wrap(
+      <DevicesTab
+        {...baseProps}
+        backend={backend as never}
+        canCreateDeviceEnrollmentCode={false}
+        canAssignDeviceSeat={false}
+        canViewDeviceDetail={false}
+        canViewDeviceCommandStatus={false}
+        canDispatchDeviceCommand={false}
+        canRotateDeviceCredential={false}
+        canRevokeDeviceCredential={false}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Обновить историю команд' })).toBeDisabled();
+    expect(listBranchDeviceCommands).not.toHaveBeenCalled();
+  });
 });

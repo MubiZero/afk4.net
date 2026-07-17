@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../ManagementScreen';
 import { hasPermission, permissionNames } from '../../operatorPermissions';
-import { readArray, readString } from '../../operatorHelpers';
+import { isGuid, readArray, readString } from '../../operatorHelpers';
 import { managementScreenState, type DestinationProps } from './types';
 import { ZonesTab } from './halls/ZonesTab';
 import { DevicesTab } from './halls/DevicesTab';
@@ -53,7 +53,7 @@ export function HallsDevicesDestination({
       seatId: readString(seat, 'seatId'),
       label: `${readString(zone, 'name', t('op.settings.layout.zoneFallback'))} · ${readString(seat, 'name', t('op.settings.layout.seatFallback'))}`
     }))
-  ).filter((seat) => seat.seatId.length > 0), [zoneRows, t]);
+  ).filter((seat) => isGuid(seat.seatId)), [zoneRows, t]);
 
   return (
     <ManagementScreen
