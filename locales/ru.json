@@ -2021,7 +2021,7 @@
   "op.settings.pos.price": "Цена",
   "op.settings.pos.trackStock": "Учёт остатков",
   "op.settings.pos.allowNegative": "Минусовой остаток",
-  "op.settings.pos.availableInShell": "Доступно в шелле",
+  "op.settings.pos.availableInShell": "Доступно в оболочке игрока",
   "op.settings.pos.yes": "да",
   "op.settings.pos.no": "нет",
   "op.settings.pos.productFallback": "Товар",

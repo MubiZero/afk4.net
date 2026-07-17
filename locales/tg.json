@@ -2021,7 +2021,7 @@
   "op.settings.pos.price": "Нарх",
   "op.settings.pos.trackStock": "Ҳисоби захира",
   "op.settings.pos.allowNegative": "Захираи манфӣ",
-  "op.settings.pos.availableInShell": "Дастрас дар шелл",
+  "op.settings.pos.availableInShell": "Дар оболочкаи бозингар дастрас",
   "op.settings.pos.yes": "ҳа",
   "op.settings.pos.no": "не",
   "op.settings.pos.productFallback": "Мол",

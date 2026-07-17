@@ -407,8 +407,9 @@ export function GoodsDestination({
                       <option value="yes">{t('op.settings.pos.yes')}</option>
                     </select>
                   </label>
-                  <label>{t('op.settings.pos.availableInShell')}
+                  <label className="mgmt-check mgmt-form-wide">
                     <input type="checkbox" checked={availableInShell} disabled={!canManagePosCatalog || busy} onChange={(event) => setAvailableInShell(event.currentTarget.checked)} />
+                    {t('op.settings.pos.availableInShell')}
                   </label>
                   <label>{t('op.settings.pos.reorderThreshold')}
                     <input inputMode="numeric" value={reorderThreshold} disabled={!canManagePosCatalog || busy} onChange={(event) => setReorderThreshold(event.currentTarget.value)} />
@@ -458,8 +459,9 @@ export function GoodsDestination({
                   <option value="yes">{t('op.settings.pos.yes')}</option>
                 </select>
               </label>
-              <label>{t('op.settings.pos.availableInShell')}
+              <label className="mgmt-check mgmt-form-wide">
                 <input type="checkbox" checked={availableInShell} disabled={busy} onChange={(event) => setAvailableInShell(event.currentTarget.checked)} />
+                {t('op.settings.pos.availableInShell')}
               </label>
               <label>{t('op.settings.pos.reorderThreshold')}
                 <input inputMode="numeric" value={reorderThreshold} disabled={busy} onChange={(event) => setReorderThreshold(event.currentTarget.value)} />

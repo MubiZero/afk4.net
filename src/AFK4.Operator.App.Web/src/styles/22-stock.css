@@ -680,7 +680,17 @@
   display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-3);
   flex-wrap: wrap;
 }
-.barcode-add-row input { flex: 1; min-width: 160px; }
+.barcode-add-row input {
+  flex: 1; min-width: 160px;
+  height: var(--control-md);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 0 12px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.barcode-add-row input:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 /* ── Инвентаризация (S4) ── */
 .stock-inventory { display: flex; flex-direction: column; min-width: 0; }

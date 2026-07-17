@@ -111,12 +111,12 @@ export function ProductBarcodesSection({
             onChange={(e) => setManualCode(e.currentTarget.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { void addCode(manualCode); } }}
           />
-          <button type="button" onClick={() => void addCode(manualCode)}>
+          <button type="button" className="ui-btn" onClick={() => void addCode(manualCode)}>
             {t('op.barcode.add')}
           </button>
           <button
             type="button"
-            className={scanning ? 'active' : undefined}
+            className={scanning ? 'ui-btn ui-btn--primary' : 'ui-btn'}
             onClick={() => setScanning((s) => !s)}
           >
             {scanning ? t('op.barcode.scanning') : t('op.barcode.scan')}

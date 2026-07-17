@@ -379,7 +379,7 @@
   grid-column: 1 / -1;
 }
 
-.mgmt-form input,
+.mgmt-form input:not([type="checkbox"]),
 .mgmt-form select {
   height: var(--control-md);
   border: 1px solid var(--border-default);
@@ -390,7 +390,7 @@
   font-size: 13px;
 }
 
-.mgmt-form input:focus-visible,
+.mgmt-form input:not([type="checkbox"]):focus-visible,
 .mgmt-form select:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
@@ -398,6 +398,32 @@
 
 .mgmt-form input:read-only {
   color: var(--text-secondary);
+}
+
+/* Чекбокс-поле: галка и подпись в строку. Обычные поля идут «лейбл сверху инпута», но
+   у булева переключателя подпись сверху пустого бокса читается как сломанный инпут (что и
+   было видно в дровере товара). Здесь — компактная строка «☑ Подпись». */
+.mgmt-form input[type="checkbox"] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.mgmt-form label.mgmt-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.mgmt-form label.mgmt-check:has(input:disabled) {
+  color: var(--text-tertiary);
+  cursor: not-allowed;
 }
 
 .mgmt-form-actions {
@@ -428,6 +454,27 @@
   margin: 0;
   color: var(--text-secondary);
   font-size: 12px;
+}
+
+/* Встроенная в узкий drawer секция штрихкодов (ProductBarcodesSection). Её собственная
+   строка добавления рассчитана на широкую форму (input + 2 кнопки в ряд); в 380px дровере
+   поле уходит на всю ширину строкой, а кнопки «Добавить»/«Отсканировать» делят строку ниже
+   поровну. Свой margin-top у секции гасим — вертикальный ритм задаёт .mgmt-drawer-body. */
+.mgmt-drawer .settings-barcodes-section {
+  margin-top: 0;
+}
+
+.mgmt-drawer .barcode-add-row {
+  gap: 8px;
+}
+
+.mgmt-drawer .barcode-add-row input {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.mgmt-drawer .barcode-add-row .ui-btn {
+  flex: 1;
 }
 
 /* Inline status pair in a table cell (напр. онлайн/офлайн · заблокирован/разблокирован). */
