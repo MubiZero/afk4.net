@@ -15,7 +15,11 @@ public sealed class LoyaltySettingsEndpointsTests
         var (_, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
 
         var put = await owner.PostAsJsonAsync("/api/owner/loyalty-settings",
-            new UpdateLoyaltySettingsRequest(TopUpEnabled: true, TopUpPercentBasisPoints: 500, ShopEnabled: false, ShopPercentBasisPoints: 0));
+            new UpdateLoyaltySettingsRequest(
+                TopUpEnabled: true, TopUpPercentBasisPoints: 500,
+                ShopEnabled: false, ShopPercentBasisPoints: 0,
+                SessionEnabled: true, SessionPercentBasisPoints: 300,
+                CashbackCapMinorUnits: 5000, MinimumSourceMinorUnits: 1000));
         Assert.Equal(HttpStatusCode.OK, put.StatusCode);
 
         var get = await owner.GetAsync("/api/owner/loyalty-settings");
@@ -24,6 +28,10 @@ public sealed class LoyaltySettingsEndpointsTests
         Assert.True(dto!.TopUpEnabled);
         Assert.Equal(500, dto.TopUpPercentBasisPoints);
         Assert.False(dto.ShopEnabled);
+        Assert.True(dto.SessionEnabled);
+        Assert.Equal(300, dto.SessionPercentBasisPoints);
+        Assert.Equal(5000, dto.CashbackCapMinorUnits);
+        Assert.Equal(1000, dto.MinimumSourceMinorUnits);
     }
 
     [Fact]
@@ -34,7 +42,31 @@ public sealed class LoyaltySettingsEndpointsTests
         var (_, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
 
         var put = await owner.PostAsJsonAsync("/api/owner/loyalty-settings",
-            new UpdateLoyaltySettingsRequest(true, 10001, false, 0));
+            new UpdateLoyaltySettingsRequest(true, 10001, false, 0, false, 0, 0, 0));
+        Assert.Equal(HttpStatusCode.BadRequest, put.StatusCode);
+    }
+
+    [Fact]
+    public async Task Put_RejectsOutOfRangeSessionPercent()
+    {
+        await using var factory = new PlatformApiFactory();
+        var client = factory.CreateClient();
+        var (_, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
+
+        var put = await owner.PostAsJsonAsync("/api/owner/loyalty-settings",
+            new UpdateLoyaltySettingsRequest(false, 0, false, 0, true, 10001, 0, 0));
+        Assert.Equal(HttpStatusCode.BadRequest, put.StatusCode);
+    }
+
+    [Fact]
+    public async Task Put_RejectsNegativeLimits()
+    {
+        await using var factory = new PlatformApiFactory();
+        var client = factory.CreateClient();
+        var (_, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
+
+        var put = await owner.PostAsJsonAsync("/api/owner/loyalty-settings",
+            new UpdateLoyaltySettingsRequest(true, 500, false, 0, false, 0, -1, 0));
         Assert.Equal(HttpStatusCode.BadRequest, put.StatusCode);
     }
 
@@ -46,7 +78,7 @@ public sealed class LoyaltySettingsEndpointsTests
         var nonOwner = await OwnerTestAuth.SignInNonOwnerAsync(factory, client);
 
         var put = await nonOwner.PostAsJsonAsync("/api/owner/loyalty-settings",
-            new UpdateLoyaltySettingsRequest(true, 500, false, 0));
+            new UpdateLoyaltySettingsRequest(true, 500, false, 0, false, 0, 0, 0));
         Assert.Equal(HttpStatusCode.Forbidden, put.StatusCode);
     }
 

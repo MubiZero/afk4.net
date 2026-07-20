@@ -5,6 +5,11 @@ export interface LoyaltySettingsDto {
   topUpPercentBasisPoints: number;
   shopEnabled: boolean;
   shopPercentBasisPoints: number;
+  sessionEnabled: boolean;
+  sessionPercentBasisPoints: number;
+  // Limits applied to every accrual; 0 disables the limit. Minor units.
+  cashbackCapMinorUnits: number;
+  minimumSourceMinorUnits: number;
 }
 
 export function createLoyaltySettingsClient(api: PlatformApiClient) {

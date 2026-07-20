@@ -1,4 +1,5 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Tariffs;
@@ -10,6 +11,7 @@ public sealed class SessionBillingService(
     PlatformDbContext dbContext,
     ITariffService tariffService,
     IOpenShiftResolver openShiftResolver,
+    ILoyaltyAccrualService loyaltyAccrualService,
     TimeProvider timeProvider) : ISessionBillingService
 {
     private const string DefaultCurrencyCode = "TJS";
@@ -337,6 +339,7 @@ public sealed class SessionBillingService(
                     actorStaffUserId,
                     now,
                     shiftId));
+                await AppendSessionCashbackAsync(session, playerAccountId, sessionId, validation, now, cancellationToken);
                 break;
 
             case BillingModeNames.PostpaidDebt:
@@ -378,6 +381,34 @@ public sealed class SessionBillingService(
 
             default:
                 throw new InvalidOperationException($"Unsupported session billing mode '{billingMode}'.");
+        }
+    }
+
+    // Loyalty: cashback on a prepaid-wallet game-time charge (start/extend). Credits the wallet,
+    // added to the same DbContext so it saves atomically with the charge above. Package/postpaid
+    // modes accrue session cashback elsewhere (postpaid at checkout); prepaid time is paid here.
+    private async Task AppendSessionCashbackAsync(
+        SessionEntity session,
+        Guid playerAccountId,
+        Guid sessionId,
+        SessionBillingValidationResult validation,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var cashback = await loyaltyAccrualService.BuildCashbackEntryAsync(
+            LoyaltyAccrualSource.Session,
+            session.OrganizationId,
+            session.BranchId,
+            playerAccountId,
+            sessionId,
+            validation.AmountMinorUnits,
+            validation.CurrencyCode,
+            $"cashback:session:{sessionId:D}",
+            now,
+            cancellationToken);
+        if (cashback is not null)
+        {
+            dbContext.LedgerEntries.Add(cashback);
         }
     }
 

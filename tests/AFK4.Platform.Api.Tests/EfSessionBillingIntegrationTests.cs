@@ -9,6 +9,8 @@ using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
 
+using AFK4.Platform.Api.Loyalty;
+
 namespace AFK4.Platform.Api.Tests;
 
 public sealed class EfSessionBillingIntegrationTests
@@ -683,6 +685,7 @@ public sealed class EfSessionBillingIntegrationTests
             db,
             new EfTariffService(db, timeProvider),
             new EfShiftService(db, timeProvider),
+            new LoyaltyAccrualService(db),
             timeProvider);
     }
 
@@ -724,7 +727,7 @@ public sealed class EfSessionBillingIntegrationTests
         var timeProvider = new FixedTimeProvider(Now);
         var shiftService = new EfShiftService(db, timeProvider);
         var leaseSigner = new FakeSessionLeaseSigner();
-        var billing = new SessionBillingService(db, new EfTariffService(db, timeProvider), shiftService, timeProvider);
+        var billing = new SessionBillingService(db, new EfTariffService(db, timeProvider), shiftService, new LoyaltyAccrualService(db), timeProvider);
         var lifecycleNotifier = new RecordingSessionLifecycleNotifier();
         return new EfSessionCommandService(
             db,

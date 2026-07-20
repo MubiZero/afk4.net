@@ -839,6 +839,16 @@
   opacity: 0.6;
 }
 
+/* Лимиты начисления — отдельный блок под правилами, отбит линией. */
+.loyalty-limits {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-soft);
+}
+
 .management-save-bar {
   flex-shrink: 0;
   position: sticky;

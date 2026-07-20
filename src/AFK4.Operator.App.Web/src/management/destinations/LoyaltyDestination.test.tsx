@@ -4,7 +4,12 @@ import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../operatorToast';
 import type { LoyaltySettingsDto } from '../../operatorApiClients';
 
-const defaults: LoyaltySettingsDto = { topUpEnabled: false, topUpPercentBasisPoints: 0, shopEnabled: false, shopPercentBasisPoints: 0 };
+const defaults: LoyaltySettingsDto = {
+  topUpEnabled: false, topUpPercentBasisPoints: 0,
+  shopEnabled: false, shopPercentBasisPoints: 0,
+  sessionEnabled: false, sessionPercentBasisPoints: 0,
+  cashbackCapMinorUnits: 0, minimumSourceMinorUnits: 0
+};
 const get = mock(async (): Promise<LoyaltySettingsDto> => defaults);
 const update = mock(async (req: LoyaltySettingsDto): Promise<LoyaltySettingsDto> => req);
 
@@ -45,7 +50,11 @@ describe('LoyaltyDestination', () => {
       topUpEnabled: true,
       topUpPercentBasisPoints: 500,
       shopEnabled: false,
-      shopPercentBasisPoints: 0
+      shopPercentBasisPoints: 0,
+      sessionEnabled: false,
+      sessionPercentBasisPoints: 0,
+      cashbackCapMinorUnits: 0,
+      minimumSourceMinorUnits: 0
     }));
   });
 

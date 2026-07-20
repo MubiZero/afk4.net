@@ -530,10 +530,16 @@ describe('createLoyaltySettingsClient', () => {
     };
     const client = createLoyaltySettingsClient(apiFake as never);
     await client.get();
-    await client.update({ topUpEnabled: true, topUpPercentBasisPoints: 500, shopEnabled: false, shopPercentBasisPoints: 0 });
+    const payload = {
+      topUpEnabled: true, topUpPercentBasisPoints: 500,
+      shopEnabled: false, shopPercentBasisPoints: 0,
+      sessionEnabled: true, sessionPercentBasisPoints: 300,
+      cashbackCapMinorUnits: 5000, minimumSourceMinorUnits: 1000
+    };
+    await client.update(payload);
     expect(calls).toEqual([
       { method: 'GET', path: '/api/owner/loyalty-settings' },
-      { method: 'POST', path: '/api/owner/loyalty-settings', body: { topUpEnabled: true, topUpPercentBasisPoints: 500, shopEnabled: false, shopPercentBasisPoints: 0 } }
+      { method: 'POST', path: '/api/owner/loyalty-settings', body: payload }
     ]);
   });
 });

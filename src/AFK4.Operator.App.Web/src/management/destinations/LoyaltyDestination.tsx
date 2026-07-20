@@ -2,7 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen, type SaveState } from '../ManagementScreen';
 import { projectOperatorError } from '../../apiErrors';
-import { createAuthenticatedOperatorClients, emptyFeedback } from '../../operatorHelpers';
+import {
+  createAuthenticatedOperatorClients,
+  emptyFeedback,
+  formatMoneyInputMinorUnits,
+  parseNonNegativeMoneyInputMinorUnits
+} from '../../operatorHelpers';
 import { useFeedbackToasts } from '../../useFeedbackToasts';
 import type { Feedback } from '../../operatorTypes';
 import type { DestinationProps } from './types';
@@ -21,12 +26,16 @@ function toBasisPoints(percent: string): number | null {
 // при загрузке, панель ошибки с «Повторить»), результат сохранения — тостом (useFeedbackToasts).
 // Реальный dirty-tracking включает unsaved-guard. Одна сущность на организацию (два правила:
 // пополнение/магазин), поэтому это форма, а не list+drawer.
-export function LoyaltyDestination({ backend, onDirtyChange }: DestinationProps) {
+export function LoyaltyDestination({ backend, currencyCode, onDirtyChange }: DestinationProps) {
   const { t } = useI18n();
   const [topUpEnabled, setTopUpEnabled] = useState(false);
   const [topUpPercent, setTopUpPercent] = useState('0');
   const [shopEnabled, setShopEnabled] = useState(false);
   const [shopPercent, setShopPercent] = useState('0');
+  const [sessionEnabled, setSessionEnabled] = useState(false);
+  const [sessionPercent, setSessionPercent] = useState('0');
+  const [cashbackCap, setCashbackCap] = useState('0');
+  const [minimumSource, setMinimumSource] = useState('0');
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -47,6 +56,10 @@ export function LoyaltyDestination({ backend, onDirtyChange }: DestinationProps)
         setTopUpPercent(String(settings.topUpPercentBasisPoints / 100));
         setShopEnabled(settings.shopEnabled);
         setShopPercent(String(settings.shopPercentBasisPoints / 100));
+        setSessionEnabled(settings.sessionEnabled);
+        setSessionPercent(String(settings.sessionPercentBasisPoints / 100));
+        setCashbackCap(formatMoneyInputMinorUnits(settings.cashbackCapMinorUnits));
+        setMinimumSource(formatMoneyInputMinorUnits(settings.minimumSourceMinorUnits));
         setDirty(false);
         setReady(true);
       })
@@ -72,8 +85,15 @@ export function LoyaltyDestination({ backend, onDirtyChange }: DestinationProps)
     if (backend === null) return;
     const topUpBps = toBasisPoints(topUpPercent);
     const shopBps = toBasisPoints(shopPercent);
-    if (topUpBps === null || shopBps === null) {
+    const sessionBps = toBasisPoints(sessionPercent);
+    if (topUpBps === null || shopBps === null || sessionBps === null) {
       setFeedback({ label: t('op.loyalty.feedbackLabel'), state: 'failed', detail: t('op.loyalty.percentError') });
+      return;
+    }
+    const capMinor = parseNonNegativeMoneyInputMinorUnits(cashbackCap);
+    const minimumMinor = parseNonNegativeMoneyInputMinorUnits(minimumSource);
+    if (capMinor === null || minimumMinor === null) {
+      setFeedback({ label: t('op.loyalty.feedbackLabel'), state: 'failed', detail: t('op.loyalty.limitError') });
       return;
     }
 
@@ -85,12 +105,20 @@ export function LoyaltyDestination({ backend, onDirtyChange }: DestinationProps)
         topUpEnabled,
         topUpPercentBasisPoints: topUpBps,
         shopEnabled,
-        shopPercentBasisPoints: shopBps
+        shopPercentBasisPoints: shopBps,
+        sessionEnabled,
+        sessionPercentBasisPoints: sessionBps,
+        cashbackCapMinorUnits: capMinor,
+        minimumSourceMinorUnits: minimumMinor
       });
       setTopUpEnabled(settings.topUpEnabled);
       setTopUpPercent(String(settings.topUpPercentBasisPoints / 100));
       setShopEnabled(settings.shopEnabled);
       setShopPercent(String(settings.shopPercentBasisPoints / 100));
+      setSessionEnabled(settings.sessionEnabled);
+      setSessionPercent(String(settings.sessionPercentBasisPoints / 100));
+      setCashbackCap(formatMoneyInputMinorUnits(settings.cashbackCapMinorUnits));
+      setMinimumSource(formatMoneyInputMinorUnits(settings.minimumSourceMinorUnits));
       setDirty(false);
       setSaved(true);
       setFeedback({ label: t('op.loyalty.feedbackLabel'), state: 'confirmed' });
@@ -165,6 +193,56 @@ export function LoyaltyDestination({ backend, onDirtyChange }: DestinationProps)
                   disabled={backend === null || saving || !shopEnabled}
                   onChange={(event) => { setShopPercent(event.currentTarget.value); markDirty(); }}
                 />
+              </label>
+            </div>
+
+            <div className="loyalty-rule">
+              <label className="mgmt-check loyalty-rule-toggle">
+                <input
+                  type="checkbox"
+                  checked={sessionEnabled}
+                  disabled={backend === null || saving}
+                  onChange={(event) => { setSessionEnabled(event.currentTarget.checked); markDirty(); }}
+                />
+                <span className="loyalty-rule-text">
+                  <span className="loyalty-rule-name">{t('op.loyalty.sessionEnabled')}</span>
+                  <span className="loyalty-rule-hint">{t('op.loyalty.sessionHint')}</span>
+                </span>
+              </label>
+              <label className="loyalty-rule-percent">
+                {t('op.loyalty.sessionPercent')}
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={sessionPercent}
+                  disabled={backend === null || saving || !sessionEnabled}
+                  onChange={(event) => { setSessionPercent(event.currentTarget.value); markDirty(); }}
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="loyalty-limits">
+            <div className="mgmt-section-title"><span>{t('op.loyalty.limits.title')}</span></div>
+            <div className="mgmt-form-grid">
+              <label>{`${t('op.loyalty.cap')}, ${currencyCode}`}
+                <input
+                  inputMode="decimal"
+                  value={cashbackCap}
+                  disabled={backend === null || saving}
+                  onChange={(event) => { setCashbackCap(event.currentTarget.value); markDirty(); }}
+                />
+                <span className="settings-field-hint">{t('op.loyalty.capHint')}</span>
+              </label>
+              <label>{`${t('op.loyalty.minimum')}, ${currencyCode}`}
+                <input
+                  inputMode="decimal"
+                  value={minimumSource}
+                  disabled={backend === null || saving}
+                  onChange={(event) => { setMinimumSource(event.currentTarget.value); markDirty(); }}
+                />
+                <span className="settings-field-hint">{t('op.loyalty.minimumHint')}</span>
               </label>
             </div>
           </div>

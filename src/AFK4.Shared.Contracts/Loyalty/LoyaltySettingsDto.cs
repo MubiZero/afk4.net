@@ -4,4 +4,8 @@ public sealed record LoyaltySettingsDto(
     bool TopUpEnabled,
     int TopUpPercentBasisPoints,
     bool ShopEnabled,
-    int ShopPercentBasisPoints);
+    int ShopPercentBasisPoints,
+    bool SessionEnabled,
+    int SessionPercentBasisPoints,
+    long CashbackCapMinorUnits,
+    long MinimumSourceMinorUnits);

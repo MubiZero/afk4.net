@@ -3442,7 +3442,11 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
       topUpEnabled: false,
       topUpPercentBasisPoints: 0,
       shopEnabled: false,
-      shopPercentBasisPoints: 0
+      shopPercentBasisPoints: 0,
+      sessionEnabled: false,
+      sessionPercentBasisPoints: 0,
+      cashbackCapMinorUnits: 0,
+      minimumSourceMinorUnits: 0
     });
   }
 

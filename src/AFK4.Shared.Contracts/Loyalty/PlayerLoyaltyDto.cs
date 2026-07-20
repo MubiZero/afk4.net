@@ -7,5 +7,7 @@ public sealed record PlayerLoyaltyDto(
     int TopUpPercentBasisPoints,
     bool ShopEnabled,
     int ShopPercentBasisPoints,
+    bool SessionEnabled,
+    int SessionPercentBasisPoints,
     MoneyDto TotalEarned,
     IReadOnlyList<CashbackEntryDto> Recent);
