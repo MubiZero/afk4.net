@@ -1005,7 +1005,10 @@ describe('App', () => {
     // then pick the destination inside .management-nav.
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Рабочие места' })).getByTitle('Управление'));
     fireEvent.click(screen.getByRole('button', { name: 'Лояльность' }));
-    expect(await screen.findByRole('heading', { name: /Лояльность \/ кэшбэк/ })).toBeInTheDocument();
+    // ManagementScreen owns the page heading («Лояльность» / подзаголовок «Правила кэшбэка»);
+    // the cashback form mounts once loyalty-settings load, so wait for a rule toggle.
+    expect(await screen.findByRole('heading', { name: 'Лояльность' })).toBeInTheDocument();
+    expect(await screen.findByLabelText(/кэшбэк с пополнений/i)).toBeInTheDocument();
   });
 
   it('downloads the Overview sales export without dashboard copy', async () => {

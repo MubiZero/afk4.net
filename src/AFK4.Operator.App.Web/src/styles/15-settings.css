@@ -775,60 +775,68 @@
 .loyalty-rules {
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
+/* Правило кэшбэка: слева переключатель с названием и пояснением (что делает правило), справа —
+   поле процента. Пояснение может быть длинным → align-items: flex-start, чтобы галка и поле
+   держались у первой строки, а не съезжали к центру двухстрочного текста. */
 .loyalty-rule {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  padding: 12px 0;
+  gap: 24px;
+  padding: 16px 0;
 }
 
 .loyalty-rule + .loyalty-rule {
   border-top: 1px solid var(--border-soft);
 }
 
-.loyalty-rule-toggle {
+.loyalty-rule-toggle.mgmt-check {
+  flex: 1;
+  align-items: flex-start;
+  gap: 12px;
+  font-weight: 600;
+}
+
+/* Галку прижимаем к первой строке текста (name), а не к центру блока name+hint. */
+.loyalty-rule-toggle input[type='checkbox'] {
+  margin-top: 1px;
+}
+
+.loyalty-rule-text {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.loyalty-rule-name {
   color: var(--text-primary);
   font-size: 13px;
   font-weight: 600;
 }
 
-.loyalty-rule-toggle input[type='checkbox'] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--accent);
+.loyalty-rule-hint {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
 }
 
 .loyalty-rule-percent {
-  display: grid;
-  gap: 4px;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
+  flex: none;
+  width: 150px;
   text-align: right;
 }
 
 .loyalty-rule-percent input {
-  width: 96px;
-  height: 28px;
-  justify-self: end;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 0 9px;
-  background: var(--surface-sunken);
-  color: var(--text-primary);
-  font-size: 12px;
+  width: 100%;
   text-align: right;
 }
 
 .loyalty-rule-percent input:disabled {
-  color: var(--text-quaternary);
+  color: var(--text-tertiary);
+  opacity: 0.6;
 }
 
 .management-save-bar {
