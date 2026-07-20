@@ -10,9 +10,8 @@ interface Props {
 // Eskhata. Модель мгновенных действий (у каждого блока свои кнопки), общего save-бара нет.
 export function GatewaysTab({ backend }: Props) {
   return (
-    <div className="management-panel">
+    <div className="management-panel payment-gateways">
       <PaymentGatewaysWorkspace backend={backend} />
-      <hr className="eskhata-divider" />
       <EskhataGatewayForm backend={backend} />
     </div>
   );

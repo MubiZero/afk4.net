@@ -874,13 +874,7 @@
   max-width: 200px;
 }
 
-/* Eskhata Merchant — блок реквизитов под dcgate-картами во вкладке «Платёжные шлюзы». */
-.eskhata-divider {
-  margin: 20px 0 0;
-  border: none;
-  border-top: 1px solid var(--border-soft);
-}
-
+/* Eskhata Merchant — блок реквизитов во вкладке «Платёжные шлюзы», секцией под dcgate-картами. */
 .eskhata-gateway {
   display: flex;
   flex-direction: column;
@@ -888,20 +882,29 @@
   margin-top: 20px;
 }
 
-.eskhata-status-chip {
-  padding: 2px 10px;
-  border-radius: 999px;
-  background: var(--surface-sunken);
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: normal;
-  text-transform: none;
-}
-
 .eskhata-note {
   margin: 0;
 }
+
+/* Платёжные шлюзы: dcgate-карты + Eskhata стопкой без разделителя (см. GatewaysTab). */
+.payment-gateways { display: grid; gap: 24px; }
+.payment-gateways .eskhata-gateway { margin-top: 0; }
+.payment-card-rows { display: grid; gap: 10px; }
+.payment-card-row {
+  display: grid; gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+.payment-card-main { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.payment-card-pan { font-weight: 600; color: var(--text-primary); }
+.payment-card-disable { margin-left: auto; }
+.payment-card-session-last { color: var(--text-secondary); font-size: 12px; }
+.payment-attach-row { display: flex; align-items: flex-end; gap: 10px; }
+.payment-attach-row label { flex: 1; }
+.payment-card-attached { color: var(--success-text); font-size: 13px; font-weight: 600; margin: 0; }
+.ui-inline-error { color: var(--danger-text); font-size: 13px; margin: 0; }
 
 /* Панель «Как это работает»: read-only примеры «сумма → +кэшбэк», пересчёт при вводе. Строки
    с активным правилом подсвечены акцентом, выключенные/ниже-минимума приглушены. */

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import type { TelegramStartResponse } from './operatorApiClients';
@@ -72,6 +72,10 @@ describe('PaymentGatewaysWorkspace', () => {
   afterEach(() => {
     cleanup();
     mock.restore();
+    listMock.mockClear();
+    provisionMock.mockClear();
+    startMock.mockClear();
+    disableMock.mockClear();
   });
 
   it('lists existing gateways with a pending-telegram badge', async () => {
@@ -105,16 +109,22 @@ describe('PaymentGatewaysWorkspace', () => {
   });
 
   it('disables a card after confirmation', async () => {
-    const originalConfirm = globalThis.confirm;
-    globalThis.confirm = () => true;
-    try {
-      render(<I18nProvider><PaymentGatewaysWorkspace backend={backend} /></I18nProvider>);
-      await screen.findByText(/4242/);
-      fireEvent.click(screen.getByRole('button', { name: /отключить|disable/i }));
-      await waitFor(() => expect(disableMock).toHaveBeenCalledWith('g1'));
-    } finally {
-      globalThis.confirm = originalConfirm;
-    }
+    render(<I18nProvider><PaymentGatewaysWorkspace backend={backend} /></I18nProvider>);
+    await screen.findByText(/4242/);
+    fireEvent.click(screen.getByRole('button', { name: /отключить|disable/i }));
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /отключить|disable/i }));
+    await waitFor(() => expect(disableMock).toHaveBeenCalledWith('g1'));
+  });
+
+  it('closes the disable confirmation without calling disable on cancel', async () => {
+    render(<I18nProvider><PaymentGatewaysWorkspace backend={backend} /></I18nProvider>);
+    await screen.findByText(/4242/);
+    fireEvent.click(screen.getByRole('button', { name: /отключить|disable/i }));
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /отмена|cancel/i }));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(disableMock).not.toHaveBeenCalled();
   });
 
   it('skips OTP when dcgate reports the phone already attached', async () => {

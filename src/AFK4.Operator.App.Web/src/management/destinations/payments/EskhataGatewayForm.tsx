@@ -84,7 +84,7 @@ export function EskhataGatewayForm({ backend }: Props) {
       <div className="mgmt-section-title">
         <span>{t('op.eskhata.title')}</span>
         {status === 'configured' && (
-          <span className="eskhata-status-chip">{t('op.eskhata.statusConfigured')}</span>
+          <span className="ui-chip ui-chip--status ui-chip--xs is-neutral">{t('op.eskhata.statusConfigured')}</span>
         )}
       </div>
 
