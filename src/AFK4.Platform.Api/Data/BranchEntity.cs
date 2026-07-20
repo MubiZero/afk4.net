@@ -12,6 +12,24 @@ public sealed class BranchEntity
 
     public string City { get; set; } = string.Empty;
 
+    // Club-profile fields shown on the operator "Клуб" screen; all optional, existing branches
+    // are unaffected until an operator fills them in.
+    public string? Description { get; set; }
+
+    public string? Address { get; set; }
+
+    public string? Phone { get; set; }
+
+    public string? Telegram { get; set; }
+
+    public string? Website { get; set; }
+
+    public string? LogoUrl { get; set; }
+
+    public Guid? LogoMediaId { get; set; }
+
+    public string? WorkingHoursJson { get; set; }
+
     public bool RequireManualDeviceApproval { get; set; }
 
     /// <summary>

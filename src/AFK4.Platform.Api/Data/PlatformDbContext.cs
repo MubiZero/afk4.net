@@ -238,6 +238,13 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(branch => branch.Slug).HasMaxLength(64).IsRequired();
             entity.Property(branch => branch.Name).HasMaxLength(160).IsRequired();
             entity.Property(branch => branch.City).HasMaxLength(120).IsRequired();
+            entity.Property(branch => branch.Description).HasMaxLength(500);
+            entity.Property(branch => branch.Address).HasMaxLength(300);
+            entity.Property(branch => branch.Phone).HasMaxLength(40);
+            entity.Property(branch => branch.Telegram).HasMaxLength(120);
+            entity.Property(branch => branch.Website).HasMaxLength(300);
+            entity.Property(branch => branch.LogoUrl).HasMaxLength(600);
+            entity.Property(branch => branch.WorkingHoursJson).HasColumnType("jsonb");
             entity.Property(branch => branch.RequireManualDeviceApproval).HasDefaultValue(false);
             entity.Property(branch => branch.PreferredLocale).HasMaxLength(8).HasDefaultValue("ru").IsRequired();
             entity.Property(branch => branch.PreferredTimeZone).HasMaxLength(64).HasDefaultValue("Asia/Dushanbe").IsRequired();
