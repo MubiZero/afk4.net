@@ -322,6 +322,12 @@ builder.Services.Configure<MediaOptions>(builder.Configuration.GetSection(MediaO
 // (Scoped) client would leak handlers/sockets under load. MediaOptions is read once at construction.
 builder.Services.AddSingleton<IMediaStorage, MinioMediaStorage>();
 builder.Services.AddScoped<IMediaService, EfMediaService>();
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    // MaxBytes (10 MB, see MediaOptions) + headroom for multipart framing. Kestrel's own
+    // MaxRequestBodySize defaults to 30 MB, comfortably above this, so it is left untouched.
+    options.MultipartBodyLengthLimit = 12 * 1024 * 1024;
+});
 
 builder.Services.Configure<DcGateOptions>(builder.Configuration.GetSection(DcGateOptions.SectionName));
 builder.Services.AddHttpClient(DcGateClientFactory.HttpClientName, (provider, http) =>
@@ -427,6 +433,7 @@ app.UseMiddleware<TenantSuspensionMiddleware>();
 app.MapHealthEndpoints();
 app.MapFloorMapEndpoints();
 app.MapBranchSettingsEndpoints();
+app.MapMediaEndpoints();
 app.MapAuthEndpoints();
 app.MapPaymentGatewayEndpoints();
 app.MapEskhataConfigEndpoints();

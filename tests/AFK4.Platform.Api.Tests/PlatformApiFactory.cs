@@ -3,9 +3,11 @@ using System.Security.Cryptography;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Install;
+using AFK4.Platform.Api.Media;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Platform.Api.Sessions;
+using AFK4.Platform.Api.Tests.Fakes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -182,6 +184,11 @@ internal sealed class PlatformApiFactory : IAsyncDisposable, IDisposable
                     services.RemoveAll<ISessionBillingService>();
                     services.AddSingleton<ISessionBillingService, FakeSessionBillingService>();
                 }
+
+                // Prod registration of IMediaStorage is Singleton; the fake must be too, so a test can
+                // resolve the SAME instance the endpoint used (see FakeMediaStorage.Objects).
+                services.RemoveAll<IMediaStorage>();
+                services.AddSingleton<IMediaStorage, FakeMediaStorage>();
 
                 using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
                 var signingPrivateKeyPem = key.ExportECPrivateKeyPem();
