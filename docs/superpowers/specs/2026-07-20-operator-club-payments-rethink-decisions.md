@@ -22,6 +22,12 @@
    «выходной»); хранение JSON; машинно-читаемо → потом «открыто сейчас» и т.п.
 4. **Настройки филиала:** часовой пояс, язык по умолчанию, валюта (read-only — уровень сети).
 
+**⚠ При интеграции логотипа (MediaUpload):** `MediaUpload.mediaIdFromUrl` парсит mediaId из URL
+формата `{base}/{org}/{branch}/{mediaId}.{ext}` и при незнакомом формате ТИХО очищает поле, не
+вызвав DELETE (осиротит объект). Перед вкручиванием: (а) проверить, что у существующих филиалов в
+поле логотипа лежит именно upload-URL этого формата (а не legacy-строка); (б) правильный фикс —
+хранить в профиле `logoMediaId` рядом с `logoUrl`, чтобы удаление не зависело от парсинга URL.
+
 **Бэкенд (Platform.Api + миграция):** новые колонки филиала — `description`, `address`, `phone`,
 `telegram`, `website`, `workingHours` (JSON/jsonb), `timezone`, `locale`. Расширить
 `BranchProfileDto`/`UpdateBranchProfileRequest` + валидация.

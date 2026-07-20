@@ -317,16 +317,20 @@ builder.Services.Configure<SecretProtectionOptions>(
 builder.Services.AddSingleton<ISecretProtector, AesGcmSecretProtector>();
 builder.Services.AddScoped<IBranchPaymentGatewayResolver, EfBranchPaymentGatewayResolver>();
 
-builder.Services.Configure<MediaOptions>(builder.Configuration.GetSection(MediaOptions.SectionName));
+var mediaSection = builder.Configuration.GetSection(MediaOptions.SectionName);
+builder.Services.Configure<MediaOptions>(mediaSection);
 // Singleton: AmazonS3Client is thread-safe and owns an HttpClient/connection pool; a per-request
 // (Scoped) client would leak handlers/sockets under load. MediaOptions is read once at construction.
 builder.Services.AddSingleton<IMediaStorage, MinioMediaStorage>();
 builder.Services.AddScoped<IMediaService, EfMediaService>();
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
 {
-    // MaxBytes (10 MB, see MediaOptions) + headroom for multipart framing. Kestrel's own
-    // MaxRequestBodySize defaults to 30 MB, comfortably above this, so it is left untouched.
-    options.MultipartBodyLengthLimit = 12 * 1024 * 1024;
+    // Track Media:MaxBytes (not a hardcoded literal) + headroom for multipart framing, so raising
+    // MaxBytes via config actually widens uploads instead of hitting a stale framework-level 400
+    // before EfMediaService's own size check. Kestrel's MaxRequestBodySize (30 MB default) stays
+    // above this for the current default; revisit if MaxBytes is configured near/above ~28 MB.
+    var maxBytes = mediaSection.Get<MediaOptions>()?.MaxBytes ?? new MediaOptions().MaxBytes;
+    options.MultipartBodyLengthLimit = maxBytes + 2 * 1024 * 1024;
 });
 
 builder.Services.Configure<DcGateOptions>(builder.Configuration.GetSection(DcGateOptions.SectionName));
