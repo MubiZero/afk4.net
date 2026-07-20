@@ -71,7 +71,22 @@ public sealed class PilotSetupEndpointTests
 
         var updateResponse = await client.PatchAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/profile",
-            new UpdateBranchProfileRequest(TestIds.OrganizationId, "AFK4 Pilot", "Dushanbe"));
+            new UpdateBranchProfileRequest(
+                TestIds.OrganizationId,
+                "AFK4 Pilot",
+                "Dushanbe",
+                Description: null,
+                Address: null,
+                Phone: null,
+                Telegram: null,
+                Website: null,
+                LogoUrl: null,
+                LogoMediaId: null,
+                TimeZone: "Asia/Dushanbe",
+                Locale: "ru",
+                WorkingHours: Enumerable.Range(1, 7)
+                    .Select(d => new BranchWorkingHoursDayDto(d, false, "10:00", "22:00"))
+                    .ToList()));
         var updatedProfile = await updateResponse.Content.ReadFromJsonAsync<BranchProfileDto>();
 
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
@@ -89,7 +104,22 @@ public sealed class PilotSetupEndpointTests
 
         var response = await client.PatchAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/profile",
-            new UpdateBranchProfileRequest(TestIds.OrganizationId, "Blocked", "Dushanbe"));
+            new UpdateBranchProfileRequest(
+                TestIds.OrganizationId,
+                "Blocked",
+                "Dushanbe",
+                Description: null,
+                Address: null,
+                Phone: null,
+                Telegram: null,
+                Website: null,
+                LogoUrl: null,
+                LogoMediaId: null,
+                TimeZone: "Asia/Dushanbe",
+                Locale: "ru",
+                WorkingHours: Enumerable.Range(1, 7)
+                    .Select(d => new BranchWorkingHoursDayDto(d, false, "10:00", "22:00"))
+                    .ToList()));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }

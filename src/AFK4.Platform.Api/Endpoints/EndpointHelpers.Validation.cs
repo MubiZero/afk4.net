@@ -196,8 +196,27 @@ internal static partial class EndpointHelpers
             return "City is required.";
         }
 
-        return request.City.Trim().Length <= 120
-            ? null
-            : "City must contain 120 characters or fewer.";
+        if (request.City.Trim().Length > 120)
+        {
+            return "City must contain 120 characters or fewer.";
+        }
+
+        if ((request.Description?.Length ?? 0) > 500) return "Description must contain 500 characters or fewer.";
+        if ((request.Address?.Length ?? 0) > 300) return "Address must contain 300 characters or fewer.";
+        if ((request.Phone?.Length ?? 0) > 40) return "Phone must contain 40 characters or fewer.";
+        if ((request.Telegram?.Length ?? 0) > 120) return "Telegram must contain 120 characters or fewer.";
+        if ((request.Website?.Length ?? 0) > 300) return "Website must contain 300 characters or fewer.";
+
+        if (string.IsNullOrWhiteSpace(request.TimeZone) || request.TimeZone.Length > 64)
+        {
+            return "TimeZone is required and must contain 64 characters or fewer.";
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Locale) || request.Locale.Length > 8)
+        {
+            return "Locale is required and must contain 8 characters or fewer.";
+        }
+
+        return AFK4.Platform.Api.Branches.BranchWorkingHours.Validate(request.WorkingHours);
     }
 }
