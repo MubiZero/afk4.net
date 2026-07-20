@@ -18,6 +18,7 @@ using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Identity.PhoneOtp;
 using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Inventory;
+using AFK4.Platform.Api.Media;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Payments;
@@ -315,6 +316,9 @@ builder.Services.Configure<SecretProtectionOptions>(
     builder.Configuration.GetSection(SecretProtectionOptions.SectionName));
 builder.Services.AddSingleton<ISecretProtector, AesGcmSecretProtector>();
 builder.Services.AddScoped<IBranchPaymentGatewayResolver, EfBranchPaymentGatewayResolver>();
+
+builder.Services.Configure<MediaOptions>(builder.Configuration.GetSection(MediaOptions.SectionName));
+builder.Services.AddScoped<IMediaStorage, MinioMediaStorage>();
 
 builder.Services.Configure<DcGateOptions>(builder.Configuration.GetSection(DcGateOptions.SectionName));
 builder.Services.AddHttpClient(DcGateClientFactory.HttpClientName, (provider, http) =>
