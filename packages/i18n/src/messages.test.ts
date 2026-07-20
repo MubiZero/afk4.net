@@ -68,6 +68,8 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.booking.seatsOne',
     'op.booking.source.operator',
     'op.cash.title',
+    // Telegram — бренд-топоним, одинаков во всех локалях.
+    'op.club.field.telegram',
     'op.command.stage.cashier',
     'op.dashboard.pcs',
     'op.dashboard.signalsShort',
