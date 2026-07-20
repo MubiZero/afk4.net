@@ -93,4 +93,13 @@ describe('PaymentsLoyaltyDestination', () => {
       topUpPercentBasisPoints: 500
     })));
   });
+
+  it('shows a live accrual example when a rule is enabled', async () => {
+    view([permissionNames.manageLoyaltySettings]);
+    const toggle = await screen.findByLabelText(/кэшбэк с пополнений/i);
+    fireEvent.click(toggle);
+    fireEvent.change(screen.getByLabelText(/процент с пополнений/i), { target: { value: '10' } });
+    // 10% со 100 → +10.00 (Money signed рендерит с «+»)
+    expect(await screen.findByText(/\+10/)).toBeInTheDocument();
+  });
 });
