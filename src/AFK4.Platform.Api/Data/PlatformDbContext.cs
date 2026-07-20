@@ -10,6 +10,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<NewsItemEntity> NewsItems => Set<NewsItemEntity>();
 
+    public DbSet<UploadedMediaEntity> UploadedMedia => Set<UploadedMediaEntity>();
+
     public DbSet<BranchEntity> Branches => Set<BranchEntity>();
 
     public DbSet<BranchPaymentGatewayEntity> BranchPaymentGateways => Set<BranchPaymentGatewayEntity>();
@@ -179,6 +181,17 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(news => news.Body).HasMaxLength(4000).IsRequired();
             entity.Property(news => news.ImageUrl).HasMaxLength(2048);
             entity.HasIndex(news => news.OrganizationId);
+        });
+
+        modelBuilder.Entity<UploadedMediaEntity>(entity =>
+        {
+            entity.ToTable("uploaded_media");
+            entity.HasKey(media => media.MediaId);
+            entity.Property(media => media.Purpose).HasMaxLength(64).IsRequired();
+            entity.Property(media => media.ObjectKey).HasMaxLength(512).IsRequired();
+            entity.Property(media => media.ContentType).HasMaxLength(128).IsRequired();
+            entity.Property(media => media.PublicUrl).HasMaxLength(2048).IsRequired();
+            entity.HasIndex(media => new { media.OrganizationId, media.BranchId, media.Purpose });
         });
 
         modelBuilder.Entity<SubscriptionPlanEntity>(entity =>
