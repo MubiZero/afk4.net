@@ -2050,8 +2050,6 @@
   "op.barcode.primary": "Асосӣ",
   "op.barcode.add": "Илова кардан",
   "op.barcode.manualPlaceholder": "Рамзро ворид кунед ё скан кунед",
-  "op.barcode.scan": "Сканер кардан",
-  "op.barcode.scanning": "Интизори скан…",
   "op.barcode.remove": "Штрихкодро хориҷ кунед",
   "op.barcode.duplicate": "Ин штрихкод аллакай ба мол пайваст аст",
   "op.barcode.added": "Штрихкод пайваст шуд",

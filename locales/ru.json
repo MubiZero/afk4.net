@@ -2050,8 +2050,6 @@
   "op.barcode.primary": "Основной",
   "op.barcode.add": "Добавить",
   "op.barcode.manualPlaceholder": "Введите или отсканируйте код",
-  "op.barcode.scan": "Отсканировать",
-  "op.barcode.scanning": "Ожидание скана…",
   "op.barcode.remove": "Удалить штрих-код",
   "op.barcode.duplicate": "Этот штрих-код уже привязан к товару",
   "op.barcode.added": "Штрих-код привязан",

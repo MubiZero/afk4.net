@@ -404,12 +404,49 @@
    у булева переключателя подпись сверху пустого бокса читается как сломанный инпут (что и
    было видно в дровере товара). Здесь — компактная строка «☑ Подпись». */
 .mgmt-form input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
   flex: none;
   width: 18px;
   height: 18px;
   margin: 0;
-  accent-color: var(--accent);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
   cursor: pointer;
+  position: relative;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.mgmt-form input[type="checkbox"]:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.mgmt-form input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.mgmt-form input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 4px;
+  height: 9px;
+  border: solid var(--text-on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.mgmt-form input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.mgmt-form input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .mgmt-form label.mgmt-check {

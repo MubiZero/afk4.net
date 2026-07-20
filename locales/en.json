@@ -2050,8 +2050,6 @@
   "op.barcode.primary": "Primary",
   "op.barcode.add": "Add",
   "op.barcode.manualPlaceholder": "Enter or scan a code",
-  "op.barcode.scan": "Scan",
-  "op.barcode.scanning": "Waiting for scan…",
   "op.barcode.remove": "Remove barcode",
   "op.barcode.duplicate": "This barcode is already attached to the product",
   "op.barcode.added": "Barcode attached",
