@@ -452,7 +452,8 @@
 .mgmt-form label.mgmt-check {
   flex-direction: row;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 4px 0;
   color: var(--text-primary);
   font-size: 13px;
   font-weight: 500;
@@ -493,25 +494,27 @@
   font-size: 12px;
 }
 
-/* Встроенная в узкий drawer секция штрихкодов (ProductBarcodesSection). Её собственная
-   строка добавления рассчитана на широкую форму (input + 2 кнопки в ряд); в 380px дровере
-   поле уходит на всю ширину строкой, а кнопки «Добавить»/«Отсканировать» делят строку ниже
-   поровну. Свой margin-top у секции гасим — вертикальный ритм задаёт .mgmt-drawer-body. */
+/* Встроенная в узкий drawer секция штрихкодов (ProductBarcodesSection). Свой margin-top у
+   секции гасим — вертикальный ритм задаёт .mgmt-drawer-body. Поле и компактная кнопка
+   «Добавить» стоят в один ряд: это второстепенное действие (привязать код), оно НЕ должно
+   визуально спорить с главной кнопкой «Сохранить» в подвале — потому нейтральная и не на
+   всю ширину. */
 .mgmt-drawer .settings-barcodes-section {
   margin-top: 0;
 }
 
 .mgmt-drawer .barcode-add-row {
   gap: 8px;
+  flex-wrap: nowrap;
 }
 
 .mgmt-drawer .barcode-add-row input {
-  flex: 1 1 100%;
+  flex: 1;
   min-width: 0;
 }
 
 .mgmt-drawer .barcode-add-row .ui-btn {
-  flex: 1;
+  flex: none;
 }
 
 /* Inline status pair in a table cell (напр. онлайн/офлайн · заблокирован/разблокирован). */

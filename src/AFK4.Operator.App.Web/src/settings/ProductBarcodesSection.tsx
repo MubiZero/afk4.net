@@ -102,7 +102,7 @@ export function ProductBarcodesSection({
             onChange={(e) => setManualCode(e.currentTarget.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { void addCode(manualCode); } }}
           />
-          <button type="button" className="ui-btn ui-btn--primary" onClick={() => void addCode(manualCode)}>
+          <button type="button" className="ui-btn" onClick={() => void addCode(manualCode)}>
             {t('op.barcode.add')}
           </button>
         </div>
