@@ -102,4 +102,12 @@ describe('PaymentsLoyaltyDestination', () => {
     // 10% со 100 → +10.00 (Money signed рендерит с «+»)
     expect(await screen.findByText(/\+10/)).toBeInTheDocument();
   });
+
+  it('hides the accrual example when the rule is disabled', async () => {
+    view([permissionNames.manageLoyaltySettings]);
+    await screen.findByLabelText(/кэшбэк с пополнений/i);
+    // Percent has a value but the rule stays off → example must not render.
+    fireEvent.change(screen.getByLabelText(/процент с пополнений/i), { target: { value: '10' } });
+    expect(screen.queryByText(/\+10/)).toBeNull();
+  });
 });
