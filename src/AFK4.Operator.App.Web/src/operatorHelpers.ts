@@ -826,6 +826,15 @@ export function readString(value: unknown, name: string, fallback = ''): string 
   return typeof nextValue === 'string' && nextValue.length > 0 ? nextValue : fallback;
 }
 
+export function readNullableString(value: unknown, name: string): string | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const nextValue = value[name];
+  return typeof nextValue === 'string' ? nextValue : null;
+}
+
 export function readNumber(value: unknown, name: string, fallback = 0): number {
   if (!isRecord(value)) {
     return fallback;

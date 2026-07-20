@@ -29,12 +29,14 @@ import {
   emptyFeedback,
   isRecord,
   readArray,
+  readNullableString,
   readNumber,
   readString,
   requireBackend,
   triggerFeedback,
   workspaceLoadStatusLabel
 } from './operatorHelpers';
+import { normalizeWorkingHours } from './settings/club/workingHours';
 import { useFeedbackToasts } from './useFeedbackToasts';
 
 export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
@@ -57,6 +59,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
   const [selectedSection, setSelectedSection] = useState(() => t('op.settings.section.profile'));
   const [clubName, setClubName] = useState('AFK4');
   const [city, setCity] = useState('Dushanbe');
+  const [rawProfile, setRawProfile] = useState<BranchProfileDto | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   useFeedbackToasts(feedback);
@@ -114,6 +117,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
       setBranchDeviceCommandHistory(Array.isArray(branchDeviceCommands) ? branchDeviceCommands : []);
       setClubName(readString(branchProfile, 'name', 'AFK4'));
       setCity(readString(branchProfile, 'city', 'Dushanbe'));
+      setRawProfile(branchProfile);
       setSettingsDirty(false);
       setLoadStatus('backend');
     } catch (error) {
@@ -201,10 +205,21 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
       const branchProfile: BranchProfileDto = await apiClients.settings.updateBranchProfile(nextBackend.branchId, {
         organizationId: nextBackend.session.organizationId,
         name: clubName.trim(),
-        city: city.trim()
+        city: city.trim(),
+        description: readNullableString(rawProfile, 'description'),
+        address: readNullableString(rawProfile, 'address'),
+        phone: readNullableString(rawProfile, 'phone'),
+        telegram: readNullableString(rawProfile, 'telegram'),
+        website: readNullableString(rawProfile, 'website'),
+        logoUrl: readNullableString(rawProfile, 'logoUrl'),
+        logoMediaId: readNullableString(rawProfile, 'logoMediaId'),
+        timeZone: readString(rawProfile, 'timeZone', 'Asia/Dushanbe'),
+        locale: readString(rawProfile, 'locale', 'ru'),
+        workingHours: normalizeWorkingHours(rawProfile?.workingHours)
       });
       setClubName(readString(branchProfile, 'name', clubName.trim()));
       setCity(readString(branchProfile, 'city', city.trim()));
+      setRawProfile(branchProfile);
       setSettingsDirty(false);
       setFeedback({ label: t('op.settings.profile.feedbackLabel'), state: 'confirmed' });
     } catch (error) {
