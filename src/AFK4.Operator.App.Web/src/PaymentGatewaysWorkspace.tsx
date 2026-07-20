@@ -186,7 +186,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
   };
 
   return (
-    <div className="mgmt-form payment-gateways-cards">
+    <div className="mgmt-form">
       <div className="mgmt-section-title"><span>{t('op.payments.section.cards')}</span></div>
       {loadError && <p className="ui-inline-error" role="alert">{loadError}</p>}
 

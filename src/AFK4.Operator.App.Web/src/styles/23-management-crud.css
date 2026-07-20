@@ -556,7 +556,7 @@
   display: grid;
   gap: 8px;
   padding-top: 4px;
-  border-top: 1px solid var(--border-subtle, var(--border-default));
+  border-top: 1px solid var(--border-default);
 }
 .mgmt-meta-row {
   display: flex;

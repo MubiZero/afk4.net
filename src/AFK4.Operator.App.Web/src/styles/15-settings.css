@@ -351,49 +351,6 @@
   padding: 2px 12px 0;
 }
 
-.news-item-list {
-  display: grid;
-  gap: 6px;
-  margin-top: 10px;
-  padding: 0 12px;
-  list-style: none;
-}
-
-.news-item-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 40px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 7px 10px;
-  background: var(--surface-card);
-}
-
-.news-item-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.news-item-title strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.news-item-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
 .settings-room-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -898,61 +855,17 @@
   background: var(--surface-card);
 }
 .payment-card-main { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-.payment-card-pan { font-weight: 600; color: var(--text-primary); }
+.payment-card-pan { font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .payment-card-disable { margin-left: auto; }
 .payment-card-session-last { color: var(--text-secondary); font-size: 12px; }
 .payment-attach-row { display: flex; align-items: flex-end; gap: 10px; }
 .payment-attach-row label { flex: 1; }
+.payment-card-attach {
+  padding-top: 10px;
+  border-top: 1px solid var(--border-default);
+}
 .payment-card-attached { color: var(--success-text); font-size: 13px; font-weight: 600; margin: 0; }
 .ui-inline-error { color: var(--danger-text); font-size: 13px; margin: 0; }
-
-/* Панель «Как это работает»: read-only примеры «сумма → +кэшбэк», пересчёт при вводе. Строки
-   с активным правилом подсвечены акцентом, выключенные/ниже-минимума приглушены. */
-.loyalty-preview-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.loyalty-preview-list li {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 10px 0;
-  font-size: 13px;
-}
-
-.loyalty-preview-list li + li {
-  border-top: 1px solid var(--border-soft);
-}
-
-.loyalty-preview-source {
-  color: var(--text-secondary);
-}
-
-.loyalty-preview-result {
-  flex: none;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.loyalty-preview-list li.is-active .loyalty-preview-result {
-  color: var(--accent);
-}
-
-.loyalty-preview-list li.is-muted .loyalty-preview-result {
-  color: var(--text-tertiary);
-}
-
-.loyalty-preview-note {
-  margin: 0;
-  color: var(--text-tertiary);
-  font-size: 12px;
-  line-height: 1.5;
-}
 
 .management-save-bar {
   flex-shrink: 0;
