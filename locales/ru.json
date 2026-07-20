@@ -1867,6 +1867,7 @@
   "op.settings.action.createRollout": "Создать публикацию обновления",
   "op.settings.action.changePackageState": "Изменить состояние пакета",
   "op.settings.action.changeRolloutState": "Изменить состояние публикации",
+  "op.club.profileSection": "Профиль клуба",
   "op.settings.profile.clubName": "Название клуба",
   "op.settings.profile.city": "Город",
   "op.settings.profile.currency": "Валюта",

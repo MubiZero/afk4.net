@@ -532,3 +532,28 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Справочные (read-only) пары «метка → значение» в mgmt-form: не disabled-инпуты (читаются как
+   сломанные), а тихие строки под редактируемыми полями. */
+.mgmt-meta-grid {
+  display: grid;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-subtle, var(--border-default));
+}
+.mgmt-meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.mgmt-meta-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.mgmt-meta-value {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}

@@ -1867,6 +1867,7 @@
   "op.settings.action.createRollout": "Create update rollout",
   "op.settings.action.changePackageState": "Change package state",
   "op.settings.action.changeRolloutState": "Change rollout state",
+  "op.club.profileSection": "Club profile",
   "op.settings.profile.clubName": "Club name",
   "op.settings.profile.city": "City",
   "op.settings.profile.currency": "Currency",
