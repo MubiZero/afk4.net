@@ -14,6 +14,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<BranchPaymentGatewayEntity> BranchPaymentGateways => Set<BranchPaymentGatewayEntity>();
 
+    public DbSet<EskhataMerchantConfigEntity> EskhataMerchantConfigs => Set<EskhataMerchantConfigEntity>();
+
     public DbSet<StaffUserEntity> StaffUsers => Set<StaffUserEntity>();
 
     public DbSet<StaffRoleAssignmentEntity> StaffRoleAssignments => Set<StaffRoleAssignmentEntity>();
@@ -898,6 +900,17 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(gateway => gateway.Status).HasMaxLength(32).IsRequired();
             entity.HasIndex(gateway => gateway.DcgateProjectId).IsUnique();
             entity.HasIndex(gateway => new { gateway.OrganizationId, gateway.BranchId });
+        });
+
+        modelBuilder.Entity<EskhataMerchantConfigEntity>(entity =>
+        {
+            entity.ToTable("eskhata_merchant_configs");
+            entity.HasKey(config => config.EskhataMerchantConfigId);
+            entity.Property(config => config.BaseUrl).HasMaxLength(512).IsRequired();
+            entity.Property(config => config.CompanyId).HasMaxLength(256).IsRequired();
+            entity.Property(config => config.HashKeyEncrypted).HasMaxLength(1024).IsRequired();
+            entity.Property(config => config.Status).HasMaxLength(32).IsRequired();
+            entity.HasIndex(config => new { config.OrganizationId, config.BranchId }).IsUnique();
         });
 
         modelBuilder.Entity<PlatformAdminUserEntity>(entity =>

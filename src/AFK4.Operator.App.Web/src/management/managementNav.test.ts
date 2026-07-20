@@ -5,15 +5,18 @@ import { permissionNames } from '../operatorPermissions';
 const sessionWith = (perms: string[]) => ({ permissions: perms }) as never;
 
 describe('managementNav', () => {
-  it('lists exactly the eight destinations in order', () => {
+  it('lists exactly the seven destinations in order', () => {
     expect(managementDestinations.map((d) => d.id)).toEqual([
-      'club', 'halls', 'tariffs', 'staff', 'goods', 'payment', 'loyalty', 'news'
+      'club', 'halls', 'tariffs', 'staff', 'goods', 'payments', 'news'
     ]);
   });
 
-  it('hides destinations the session has no permission for', () => {
-    const only = allowedManagementDestinations(sessionWith([permissionNames.manageLoyaltySettings]));
-    expect(only.map((d) => d.id)).toEqual(['loyalty']);
+  it('shows the merged payments section for either payment or loyalty permission', () => {
+    const loyaltyOnly = allowedManagementDestinations(sessionWith([permissionNames.manageLoyaltySettings]));
+    expect(loyaltyOnly.map((d) => d.id)).toEqual(['payments']);
+
+    const gatewaysOnly = allowedManagementDestinations(sessionWith([permissionNames.managePaymentGateways]));
+    expect(gatewaysOnly.map((d) => d.id)).toEqual(['payments']);
   });
 
   it('returns nothing for a null session', () => {

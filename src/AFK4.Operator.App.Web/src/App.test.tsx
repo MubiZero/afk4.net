@@ -10,7 +10,7 @@ import { playersSnapshotCache } from './players/playersSnapshot';
 const TAB_SECTION: Record<string, string> = {
   'Продажи': 'Касса', 'Смена': 'Касса', 'Журнал кассы': 'Касса',
   'Дашборд': 'Отчёты',
-  'Настройки': 'Управление', 'Приём платежей': 'Управление', 'Лояльность': 'Управление', 'Новости': 'Управление', 'Логи': 'Управление'
+  'Настройки': 'Управление', 'Платежи и лояльность': 'Управление', 'Новости': 'Управление', 'Логи': 'Управление'
 };
 
 function gotoWorkspace(label: string) {
@@ -1004,10 +1004,10 @@ describe('App', () => {
     // 'Управление' rail entry with a left destination nav (no tab strip) — open the section,
     // then pick the destination inside .management-nav.
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Рабочие места' })).getByTitle('Управление'));
-    fireEvent.click(screen.getByRole('button', { name: 'Лояльность' }));
-    // ManagementScreen owns the page heading («Лояльность» / подзаголовок «Правила кэшбэка»);
-    // the cashback form mounts once loyalty-settings load, so wait for a rule toggle.
-    expect(await screen.findByRole('heading', { name: 'Лояльность' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Платежи и лояльность' }));
+    // «Платежи и лояльность» owns the page heading; with only loyalty permission there's no tab
+    // strip — the cashback form mounts directly once loyalty-settings load, so wait for a toggle.
+    expect(await screen.findByRole('heading', { name: 'Платежи и лояльность' })).toBeInTheDocument();
     expect(await screen.findByLabelText(/кэшбэк с пополнений/i)).toBeInTheDocument();
   });
 

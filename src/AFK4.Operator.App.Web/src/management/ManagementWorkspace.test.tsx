@@ -73,7 +73,7 @@ describe('ManagementWorkspace', () => {
   it('renders only the destinations the session may see', () => {
     wrap(<ManagementWorkspace backend={null} session={session([permissionNames.manageNews, permissionNames.manageLoyaltySettings])} currencyCode="TJS" />);
     expect(screen.getByRole('button', { name: 'Новости' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Лояльность' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Платежи и лояльность' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Клуб' })).toBeNull();
   });
 

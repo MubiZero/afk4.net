@@ -16,12 +16,12 @@ describe('useUnsavedGuard', () => {
     const onNavigate = mock(() => {});
     const onDiscard = mock(() => {});
     const { result } = renderHook(() => useUnsavedGuard({ isDirty: true, onNavigate, onDiscard }));
-    act(() => result.current.requestNavigate('loyalty'));
+    act(() => result.current.requestNavigate('payments'));
     expect(onNavigate).not.toHaveBeenCalled();
-    expect(result.current.pendingTarget).toBe('loyalty');
+    expect(result.current.pendingTarget).toBe('payments');
     act(() => result.current.confirm());
     expect(onDiscard).toHaveBeenCalledTimes(1);
-    expect(onNavigate).toHaveBeenCalledWith('loyalty');
+    expect(onNavigate).toHaveBeenCalledWith('payments');
     expect(result.current.pendingTarget).toBeNull();
   });
 

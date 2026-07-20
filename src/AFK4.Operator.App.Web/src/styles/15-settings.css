@@ -769,9 +769,17 @@
   box-shadow: var(--shadow-card);
 }
 
-/* Лояльность: each cashback rule is one row — toggle+label grouped on the left, its percent
-   field on the right — instead of the checkbox and its percent landing in opposite columns of a
-   full-width 2-col grid. The percent only matters when the rule is on, so it disables with it. */
+/* Лояльность — компактная форма на вкладке раздела «Платежи и лояльность»: правила начисления
+   стопкой, ниже блок лимитов (отбит линией). Save-бар живёт в контейнере ManagementScreen. */
+.loyalty-form > .loyalty-limits {
+  margin-top: 4px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-soft);
+}
+
+/* Каждое правило кэшбэка — одна строка: слева переключатель с названием, справа поле процента,
+   вместо галки и процента в противоположных колонках широкого грида. Процент важен только когда
+   правило включено, поэтому дизейблится вместе с ним. */
 .loyalty-rules {
   display: flex;
   flex-direction: column;
@@ -785,7 +793,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
-  padding: 16px 0;
+  padding: 13px 0;
 }
 
 .loyalty-rule + .loyalty-rule {
@@ -825,7 +833,7 @@
 
 .loyalty-rule-percent {
   flex: none;
-  width: 150px;
+  width: 116px;
   text-align: right;
 }
 
@@ -839,14 +847,93 @@
   opacity: 0.6;
 }
 
-/* Лимиты начисления — отдельный блок под правилами, отбит линией. */
+/* Лимиты начисления: money-инпуты держат «денежную» ширину, а не тянутся на всю колонку грида
+   (пустой бокс под «50.00» читается недоделанным). */
 .loyalty-limits {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 4px;
-  padding-top: 20px;
+}
+
+.loyalty-limits .mgmt-form-grid input {
+  max-width: 200px;
+}
+
+/* Eskhata Merchant — блок реквизитов под dcgate-картами во вкладке «Платёжные шлюзы». */
+.eskhata-divider {
+  margin: 20px 0 0;
+  border: none;
   border-top: 1px solid var(--border-soft);
+}
+
+.eskhata-gateway {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.eskhata-status-chip {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.eskhata-note {
+  margin: 0;
+}
+
+/* Панель «Как это работает»: read-only примеры «сумма → +кэшбэк», пересчёт при вводе. Строки
+   с активным правилом подсвечены акцентом, выключенные/ниже-минимума приглушены. */
+.loyalty-preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.loyalty-preview-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  font-size: 13px;
+}
+
+.loyalty-preview-list li + li {
+  border-top: 1px solid var(--border-soft);
+}
+
+.loyalty-preview-source {
+  color: var(--text-secondary);
+}
+
+.loyalty-preview-result {
+  flex: none;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.loyalty-preview-list li.is-active .loyalty-preview-result {
+  color: var(--accent);
+}
+
+.loyalty-preview-list li.is-muted .loyalty-preview-result {
+  color: var(--text-tertiary);
+}
+
+.loyalty-preview-note {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .management-save-bar {

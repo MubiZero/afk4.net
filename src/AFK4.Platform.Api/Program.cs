@@ -422,6 +422,7 @@ app.MapFloorMapEndpoints();
 app.MapBranchSettingsEndpoints();
 app.MapAuthEndpoints();
 app.MapPaymentGatewayEndpoints();
+app.MapEskhataConfigEndpoints();
 app.MapLoyaltySettingsEndpoints();
 app.MapNewsEndpoints();
 app.MapPlayerSelfServiceEndpoints();

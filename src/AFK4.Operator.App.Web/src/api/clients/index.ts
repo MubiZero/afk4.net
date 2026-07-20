@@ -18,6 +18,7 @@ import { createPaymentGatewayClient } from './paymentGateways';
 import { createAccountClient } from './account';
 import { createShopOrderClient } from './shopOrders';
 import { createLoyaltySettingsClient } from './loyaltySettings';
+import { createEskhataConfigClient } from './eskhataConfig';
 import { createNewsClient } from './news';
 
 export function createOperatorApiClients(api: PlatformApiClient) {
@@ -41,6 +42,7 @@ export function createOperatorApiClients(api: PlatformApiClient) {
     account: createAccountClient(api),
     shopOrders: createShopOrderClient(api),
     loyaltySettings: createLoyaltySettingsClient(api),
+    eskhataConfig: createEskhataConfigClient(api),
     news: createNewsClient(api)
   };
 }

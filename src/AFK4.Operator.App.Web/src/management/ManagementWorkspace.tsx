@@ -20,9 +20,8 @@ import { useUnsavedGuard } from './useUnsavedGuard';
 import { ClubDestination } from './destinations/ClubDestination';
 import { GoodsDestination } from './destinations/GoodsDestination';
 import { HallsDevicesDestination } from './destinations/HallsDevicesDestination';
-import { LoyaltyDestination } from './destinations/LoyaltyDestination';
 import { NewsDestination } from './destinations/NewsDestination';
-import { PaymentDestination } from './destinations/PaymentDestination';
+import { PaymentsLoyaltyDestination } from './destinations/PaymentsLoyaltyDestination';
 import { StaffRolesDestination } from './destinations/StaffRolesDestination';
 import { TariffsPackagesDestination } from './destinations/TariffsPackagesDestination';
 
@@ -129,9 +128,6 @@ export function ManagementWorkspace({
     if (currentId === 'club') {
       return <ClubDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
     }
-    if (currentId === 'loyalty') {
-      return <LoyaltyDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
-    }
     if (currentId === 'news') {
       return <NewsDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
     }
@@ -206,8 +202,8 @@ export function ManagementWorkspace({
       );
     }
 
-    // payment: last remaining destination id — all 8 sections now route to a real wrapper.
-    return <PaymentDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
+    // payments: merged «Платежи и лояльность» — last remaining destination id.
+    return <PaymentsLoyaltyDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
   };
 
   return (

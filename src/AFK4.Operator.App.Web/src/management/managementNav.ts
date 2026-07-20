@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, MonitorCog, BadgeDollarSign, UsersRound, Boxes, CreditCard, Gift, Newspaper } from 'lucide-react';
+import { Building2, MonitorCog, BadgeDollarSign, UsersRound, Boxes, CreditCard, Newspaper } from 'lucide-react';
 import type { MessageKey } from '@afk4/i18n';
 import type { OperatorAuthSession } from '../authClient';
 import { hasAnyPermission } from '../operatorPermissions';
@@ -7,7 +7,7 @@ import { permissionNames } from '../permissionNames';
 
 export type ManagementDestinationId =
   | 'club' | 'halls' | 'tariffs' | 'staff' | 'goods'
-  | 'payment' | 'loyalty' | 'news';
+  | 'payments' | 'news';
 
 export interface ManagementDestination {
   id: ManagementDestinationId;
@@ -65,18 +65,14 @@ export const managementDestinations: readonly ManagementDestination[] = [
     permissions: [permissionNames.managePosCatalog, permissionNames.manageInventoryStock]
   },
   {
-    id: 'payment',
-    labelKey: 'op.management.dest.payment',
-    subtitleKey: 'op.management.dest.payment.subtitle',
+    id: 'payments',
+    labelKey: 'op.management.dest.payments',
+    subtitleKey: 'op.management.dest.payments.subtitle',
     Icon: CreditCard,
-    permissions: [permissionNames.managePaymentGateways]
-  },
-  {
-    id: 'loyalty',
-    labelKey: 'op.management.dest.loyalty',
-    subtitleKey: 'op.management.dest.loyalty.subtitle',
-    Icon: Gift,
-    permissions: [permissionNames.manageLoyaltySettings]
+    // Union of both tabs' permissions — visible if the session can manage payment gateways OR
+    // loyalty. Which tabs actually render is gated per-tab inside PaymentsLoyaltyDestination, so a
+    // role holding only one permission sees only its tab (no empty second tab).
+    permissions: [permissionNames.managePaymentGateways, permissionNames.manageLoyaltySettings]
   },
   {
     id: 'news',
