@@ -321,6 +321,7 @@ builder.Services.Configure<MediaOptions>(builder.Configuration.GetSection(MediaO
 // Singleton: AmazonS3Client is thread-safe and owns an HttpClient/connection pool; a per-request
 // (Scoped) client would leak handlers/sockets under load. MediaOptions is read once at construction.
 builder.Services.AddSingleton<IMediaStorage, MinioMediaStorage>();
+builder.Services.AddScoped<IMediaService, EfMediaService>();
 
 builder.Services.Configure<DcGateOptions>(builder.Configuration.GetSection(DcGateOptions.SectionName));
 builder.Services.AddHttpClient(DcGateClientFactory.HttpClientName, (provider, http) =>
