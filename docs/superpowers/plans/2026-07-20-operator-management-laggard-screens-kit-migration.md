@@ -12,7 +12,8 @@
 
 - **Только разметка/классы меняются.** API-вызовы, стейт-машины, валидация, идемпотентность, permission-гейты и money-path guards — переносятся дословно. Это не рефактор логики.
 - **Переиспользовать принятые кирпичи**, не плодить новые классы `payment-card-*`/`news-item-*`/`settings-form-grid` в этих экранах: `MgmtTable`, `MgmtDrawer`, `mgmt-form`/`mgmt-form-grid`/`mgmt-form-wide`/`mgmt-check`/`mgmt-section-title`/`mgmt-form-actions`, `mgmt-master-detail`, `ui-btn`/`ui-btn--primary`/`ui-btn--danger`/`ui-btn--sm`, `ui-chip ui-chip--status` (варианты `is-live`/`is-warning`/`is-danger`/`is-neutral`), примитивы `EmptyState`/`Money`/`CriticalActionConfirmation` из `operatorPrimitives`.
-- **i18n паритет обязателен.** Каждый новый ключ добавляется в ru, en И tg в `packages/i18n/src/messages.ts`. Гард `messages.test.ts` требует идентичные наборы ключей во всех трёх локалях. Гард `tg===ru` запрещает копию русского в tg (кроме whitelisted loanwords) — новые tg-значения ниже — **настоящий таджикский**. Гард `i18nKeysExist.test.ts` требует, чтобы каждый литеральный `t('key')` в исходниках оператора существовал в каталоге ru.
+- **i18n источник правды — `/locales/{ru,en,tg}.json` (корень репо), НЕ `messages.ts`.** `packages/i18n/src/messages.ts` — АВТО-ГЕНЕРИРУЕМЫЙ файл (шапка «Do not edit by hand»). Порядок добавления ключа: (1) вписать ключ в `/locales/ru.json`, `/locales/en.json`, `/locales/tg.json`; (2) `cd packages/i18n && bun run gen` — регенерит `src/messages.ts`; (3) коммитить И JSON, И регенерированный `messages.ts`. Везде ниже, где в задачах написано «в `messages.ts`», читать как «в `/locales/*.json` + `bun run gen`».
+- **i18n паритет обязателен.** Каждый новый ключ добавляется в ru, en И tg. Гард `messages.test.ts` требует идентичные наборы ключей во всех трёх локалях. Гард `tg===ru` запрещает копию русского в tg (кроме whitelisted loanwords) — новые tg-значения ниже — **настоящий таджикский**. Гард `i18nKeysExist.test.ts` требует, чтобы каждый литеральный `t('key')` в исходниках оператора существовал в каталоге ru.
 - **Тема-aware, surface-иерархия оператора:** светлая тема = ПОДЪЁМ (белая панель + `--shadow-card`), не затемнение. Акцент emerald (`--accent`). Использовать существующие CSS-переменные (`--surface-*`, `--border-*`, `--text-*`, `--space-*`, `--radius-*`, `--success-*`, `--warning-*`, `--danger-*`).
 - **Гейт каждого слайса:** `bun test <файлы слайса>` зелёный И `bun run build` зелёный (build тайпчекает и тест-файлы — bun-моки типизировать). Коммит в конце слайса.
 - Рабочая директория для команд: `src/AFK4.Operator.App.Web`. `bun` — по полному пути окружения (см. env-quirks). Ветка: `feat/operator-management-redesign` (текущая).
@@ -24,7 +25,7 @@
 **Files:**
 - Modify: `src/AFK4.Operator.App.Web/src/settings/SettingsProfileSection.tsx`
 - Modify: `src/AFK4.Operator.App.Web/src/management/destinations/ClubDestination.tsx` (только className обёртки, если нужно)
-- Modify: `packages/i18n/src/messages.ts` (1 новый ключ ×3 локали)
+- Modify: `/locales/{ru,en,tg}.json` (1 новый ключ ×3) + `cd packages/i18n && bun run gen` (регенерит `src/messages.ts`)
 - Modify: `src/AFK4.Operator.App.Web/src/styles/23-management-crud.css` (мета-строки)
 - Test: `src/AFK4.Operator.App.Web/src/management/destinations/ClubDestination.test.tsx` (создать)
 
@@ -36,7 +37,7 @@
 
 - [ ] **Step 1: Добавить i18n-ключ секции профиля**
 
-В `packages/i18n/src/messages.ts` добавить в ru/en/tg (рядом с существующими `op.settings.profile.*`):
+В `/locales/ru.json`, `/locales/en.json`, `/locales/tg.json` добавить (рядом с существующими `op.settings.profile.*`), затем `cd packages/i18n && bun run gen`:
 
 ```ts
 // ru
@@ -167,7 +168,7 @@ Expected: успешно (0 ошибок TS).
 git add src/AFK4.Operator.App.Web/src/settings/SettingsProfileSection.tsx \
         src/AFK4.Operator.App.Web/src/management/destinations/ClubDestination.test.tsx \
         src/AFK4.Operator.App.Web/src/styles/23-management-crud.css \
-        packages/i18n/src/messages.ts
+        locales/ru.json locales/en.json locales/tg.json packages/i18n/src/messages.ts
 git commit -m "feat(operator): rework Клуб profile to mgmt-form with read-only meta rows"
 ```
 
@@ -177,7 +178,7 @@ git commit -m "feat(operator): rework Клуб profile to mgmt-form with read-on
 
 **Files:**
 - Modify: `src/AFK4.Operator.App.Web/src/management/destinations/payments/LoyaltyTab.tsx`
-- Modify: `packages/i18n/src/messages.ts` (4 новых ключа ×3)
+- Modify: `/locales/{ru,en,tg}.json` (4 новых ключа ×3) + `cd packages/i18n && bun run gen`
 - Modify: `src/AFK4.Operator.App.Web/src/styles/15-settings.css` (карточки правил + пример)
 - Test: `src/AFK4.Operator.App.Web/src/management/destinations/PaymentsLoyaltyDestination.test.tsx` (дополнить)
 
@@ -187,7 +188,7 @@ git commit -m "feat(operator): rework Клуб profile to mgmt-form with read-on
 
 - [ ] **Step 1: Добавить i18n-ключи**
 
-В `packages/i18n/src/messages.ts` (ru/en/tg):
+В `/locales/{ru,en,tg}.json` (затем `cd packages/i18n && bun run gen`):
 
 ```ts
 // ru
@@ -368,7 +369,7 @@ Expected: успешно.
 git add src/AFK4.Operator.App.Web/src/management/destinations/payments/LoyaltyTab.tsx \
         src/AFK4.Operator.App.Web/src/management/destinations/PaymentsLoyaltyDestination.test.tsx \
         src/AFK4.Operator.App.Web/src/styles/15-settings.css \
-        packages/i18n/src/messages.ts
+        locales/ru.json locales/en.json locales/tg.json packages/i18n/src/messages.ts
 git commit -m "feat(operator): rework Лояльность to rule cards with live accrual example"
 ```
 
@@ -380,7 +381,7 @@ git commit -m "feat(operator): rework Лояльность to rule cards with li
 - Modify: `src/AFK4.Operator.App.Web/src/PaymentGatewaysWorkspace.tsx` (только render + confirm)
 - Modify: `src/AFK4.Operator.App.Web/src/management/destinations/payments/GatewaysTab.tsx`
 - Modify: `src/AFK4.Operator.App.Web/src/management/destinations/payments/EskhataGatewayForm.tsx` (обёртка секции)
-- Modify: `packages/i18n/src/messages.ts` (новые ключи ×3)
+- Modify: `/locales/{ru,en,tg}.json` (новые ключи ×3) + `cd packages/i18n && bun run gen`
 - Modify: `src/AFK4.Operator.App.Web/src/styles/13-payments.css` и/или `15-settings.css` (карты-строки, убрать divider)
 - Test: `src/AFK4.Operator.App.Web/src/PaymentGatewaysWorkspace.test.tsx` (обновить под новую разметку)
 
@@ -390,7 +391,7 @@ git commit -m "feat(operator): rework Лояльность to rule cards with li
 
 - [ ] **Step 1: i18n-ключи**
 
-В `packages/i18n/src/messages.ts` (ru/en/tg). Часть строк уже есть в namespace `payments_cards.*` — переиспользуем; добавляем только новые:
+В `/locales/{ru,en,tg}.json` (затем `cd packages/i18n && bun run gen`). Часть строк уже есть в namespace `payments_cards.*` — переиспользуем; добавляем только новые:
 
 ```ts
 // ru
@@ -640,7 +641,7 @@ git add src/AFK4.Operator.App.Web/src/PaymentGatewaysWorkspace.tsx \
         src/AFK4.Operator.App.Web/src/management/destinations/payments/GatewaysTab.tsx \
         src/AFK4.Operator.App.Web/src/management/destinations/payments/EskhataGatewayForm.tsx \
         src/AFK4.Operator.App.Web/src/styles/15-settings.css \
-        packages/i18n/src/messages.ts
+        locales/ru.json locales/en.json locales/tg.json packages/i18n/src/messages.ts
 git commit -m "feat(operator): migrate dcgate cards to kit, unify with Eskhata section"
 ```
 
@@ -651,7 +652,7 @@ git commit -m "feat(operator): migrate dcgate cards to kit, unify with Eskhata s
 **Files:**
 - Rewrite: `src/AFK4.Operator.App.Web/src/NewsWorkspace.tsx`
 - Modify: `src/AFK4.Operator.App.Web/src/management/destinations/NewsDestination.tsx` (contentWidth="full")
-- Modify: `packages/i18n/src/messages.ts` (новые ключи ×3)
+- Modify: `/locales/{ru,en,tg}.json` (новые ключи ×3) + `cd packages/i18n && bun run gen`
 - Modify: `src/AFK4.Operator.App.Web/src/styles/23-management-crud.css` (при необходимости — textarea в mgmt-form)
 - Test: `src/AFK4.Operator.App.Web/src/NewsWorkspace.test.tsx` (переписать под таблицу/drawer)
 
@@ -661,7 +662,7 @@ git commit -m "feat(operator): migrate dcgate cards to kit, unify with Eskhata s
 
 - [ ] **Step 1: i18n-ключи**
 
-В `packages/i18n/src/messages.ts` (ru/en/tg):
+В `/locales/{ru,en,tg}.json` (затем `cd packages/i18n && bun run gen`):
 
 ```ts
 // ru
@@ -929,7 +930,7 @@ git add src/AFK4.Operator.App.Web/src/NewsWorkspace.tsx \
         src/AFK4.Operator.App.Web/src/NewsWorkspace.test.tsx \
         src/AFK4.Operator.App.Web/src/management/destinations/NewsDestination.tsx \
         src/AFK4.Operator.App.Web/src/styles/23-management-crud.css \
-        packages/i18n/src/messages.ts
+        locales/ru.json locales/en.json locales/tg.json packages/i18n/src/messages.ts
 git commit -m "feat(operator): rebuild Новости as MgmtTable + drawer with delete confirmation"
 ```
 
