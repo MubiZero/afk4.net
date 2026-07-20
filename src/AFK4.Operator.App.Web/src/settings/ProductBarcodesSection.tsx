@@ -70,9 +70,7 @@ export function ProductBarcodesSection({
   return (
     <div className="settings-barcodes-section">
       <div className="settings-section-subtitle">{t('op.barcode.section.title')}</div>
-      {barcodes.length === 0 ? (
-        <p className="settings-barcodes-empty">{t('op.barcode.empty')}</p>
-      ) : (
+      {barcodes.length > 0 && (
         <div className="barcode-chips">
           {barcodes.map((b) => (
             <span key={b.barcodeId} className={`barcode-chip${b.isPrimary ? ' is-primary' : ''}`}>

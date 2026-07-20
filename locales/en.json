@@ -2046,7 +2046,6 @@
   "op.settings.pos.reorderThreshold": "Reorder threshold",
   "op.settings.pos.reorderThresholdHint": "0 — no low-stock alert",
   "op.barcode.section.title": "Barcodes",
-  "op.barcode.empty": "No barcodes attached",
   "op.barcode.primary": "Primary",
   "op.barcode.add": "Add",
   "op.barcode.manualPlaceholder": "Enter or scan a code",

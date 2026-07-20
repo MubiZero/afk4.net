@@ -152,7 +152,7 @@ describe('GoodsDestination', () => {
     expect(screen.getByRole('textbox', { name: 'Товар' })).toHaveValue('Cola 0.5');
     expect(screen.getByRole('textbox', { name: 'Артикул' })).toHaveValue('COLA-05');
     await waitFor(() => expect(getProductBarcodes).toHaveBeenCalledWith('b1', productId));
-    expect(await screen.findByText('Штрих-коды не привязаны')).toBeTruthy();
+    expect(await screen.findByText('Штрих-коды')).toBeTruthy();
   });
 
   it('hides the "+ Товар" primary action and row menu without canManagePosCatalog', () => {

@@ -2046,7 +2046,6 @@
   "op.settings.pos.reorderThreshold": "Порог заказа",
   "op.settings.pos.reorderThresholdHint": "0 — без оповещения о низком остатке",
   "op.barcode.section.title": "Штрих-коды",
-  "op.barcode.empty": "Штрих-коды не привязаны",
   "op.barcode.primary": "Основной",
   "op.barcode.add": "Добавить",
   "op.barcode.manualPlaceholder": "Введите или отсканируйте код",

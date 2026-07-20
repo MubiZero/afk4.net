@@ -2046,7 +2046,6 @@
   "op.settings.pos.reorderThreshold": "Ҳадди фармоиш",
   "op.settings.pos.reorderThresholdHint": "0 — огоҳии захираи кам нест",
   "op.barcode.section.title": "Штрихкодҳо",
-  "op.barcode.empty": "Штрихкодҳо пайваст нашудаанд",
   "op.barcode.primary": "Асосӣ",
   "op.barcode.add": "Илова кардан",
   "op.barcode.manualPlaceholder": "Рамзро ворид кунед ё скан кунед",

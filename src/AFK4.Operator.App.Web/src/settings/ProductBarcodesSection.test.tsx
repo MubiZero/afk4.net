@@ -39,10 +39,11 @@ afterEach(() => {
 afterAll(() => mock.restore());
 
 describe('ProductBarcodesSection', () => {
-  it('отображает пустое состояние когда штрихкодов нет', async () => {
+  it('показывает секцию без чипов когда штрихкодов нет', async () => {
     getProductBarcodes.mockResolvedValueOnce([]);
     view();
-    expect(await screen.findByText('Штрих-коды не привязаны')).toBeInTheDocument();
+    expect(await screen.findByText('Штрих-коды')).toBeInTheDocument();
+    expect(screen.queryByText('111')).toBeNull();
   });
 
   it('помечает primary-штрихкод лейблом «Основной»', async () => {
@@ -61,7 +62,7 @@ describe('ProductBarcodesSection', () => {
       { barcodeId: 'b2', productId: 'p1', code: '222', isPrimary: false }
     ]);
     view();
-    await screen.findByText('Штрих-коды не привязаны');
+    await screen.findByText('Штрих-коды');
     fireEvent.change(screen.getByPlaceholderText('Введите или отсканируйте код'), { target: { value: '222' } });
     fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
     await waitFor(() => expect(addProductBarcode).toHaveBeenCalledTimes(1));
@@ -93,13 +94,13 @@ describe('ProductBarcodesSection', () => {
     await waitFor(() => expect(deleteProductBarcode).toHaveBeenCalledTimes(1));
     const [, , barcodeId] = deleteProductBarcode.mock.calls[0] as [string, string, string];
     expect(barcodeId).toBe('b1');
-    expect(await screen.findByText('Штрих-коды не привязаны')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('111')).toBeNull());
   });
 
   it('скрывает поля ввода при canManage=false', async () => {
     getProductBarcodes.mockResolvedValueOnce([]);
     view('p1', false);
-    await screen.findByText('Штрих-коды не привязаны');
+    await screen.findByText('Штрих-коды');
     expect(screen.queryByPlaceholderText('Введите или отсканируйте код')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Добавить' })).toBeNull();
   });
