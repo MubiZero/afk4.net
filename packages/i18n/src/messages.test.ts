@@ -135,6 +135,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.map.panel.confirmStatusBilling',
     'op.map.panel.packageLabel',
     'op.map.panel.tariffLabel',
+    'op.news.col.branch',
     'op.news.fieldBranch',
     'op.players.actions.packageBonus',
     'op.players.editProfile.phoneLabel',

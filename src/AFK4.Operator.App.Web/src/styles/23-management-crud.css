@@ -396,6 +396,23 @@
   box-shadow: var(--focus-ring);
 }
 
+.mgmt-form textarea {
+  min-height: 96px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.mgmt-form textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .mgmt-form input:read-only {
   color: var(--text-secondary);
 }
