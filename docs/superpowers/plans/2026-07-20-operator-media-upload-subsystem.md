@@ -527,9 +527,9 @@ static MultipartFormDataContent PngForm(string purpose = "branch-logo")
 В `tests/AFK4.Platform.Api.Tests/PlatformApiFactory.cs` (`ConfigureWebHost`, где уже заменяется `ISessionBillingService`) добавить:
 ```csharp
 services.RemoveAll<IMediaStorage>();
-services.AddScoped<IMediaStorage, FakeMediaStorage>();
+services.AddSingleton<IMediaStorage, FakeMediaStorage>(); // Singleton: тест инспектирует тот же инстанс, что видел эндпоинт
 ```
-(`using AFK4.Platform.Api.Media;` + `Microsoft.Extensions.DependencyInjection.Extensions` для `RemoveAll`.)
+(`using AFK4.Platform.Api.Media;` + `Microsoft.Extensions.DependencyInjection.Extensions` для `RemoveAll`. Прод-регистрация `IMediaStorage` — Singleton; фейк тоже Singleton, иначе тест и запрос получат разные инстансы и проверка `FakeMediaStorage.Objects` не увидит загруженное.)
 
 - [ ] **Step 3: Запустить — провал**
 

@@ -318,7 +318,9 @@ builder.Services.AddSingleton<ISecretProtector, AesGcmSecretProtector>();
 builder.Services.AddScoped<IBranchPaymentGatewayResolver, EfBranchPaymentGatewayResolver>();
 
 builder.Services.Configure<MediaOptions>(builder.Configuration.GetSection(MediaOptions.SectionName));
-builder.Services.AddScoped<IMediaStorage, MinioMediaStorage>();
+// Singleton: AmazonS3Client is thread-safe and owns an HttpClient/connection pool; a per-request
+// (Scoped) client would leak handlers/sockets under load. MediaOptions is read once at construction.
+builder.Services.AddSingleton<IMediaStorage, MinioMediaStorage>();
 
 builder.Services.Configure<DcGateOptions>(builder.Configuration.GetSection(DcGateOptions.SectionName));
 builder.Services.AddHttpClient(DcGateClientFactory.HttpClientName, (provider, http) =>
