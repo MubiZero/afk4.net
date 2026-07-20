@@ -242,6 +242,40 @@
 }
 .ui-field-error { color: var(--danger-text); font-size: var(--text-xs); }
 
+/* ============ Media upload ============ */
+/* Reusable image-upload widget (branch logo etc. — see components/MediaUpload.tsx). Native
+   file input is visually hidden; a kit button triggers it, so the control stays theme-aware
+   and keyboard/focus-visible-compatible for free. */
+.media-upload {
+  display: grid;
+  gap: var(--space-2);
+}
+.media-upload-input {
+  display: none;
+}
+.media-upload-preview-img {
+  display: block;
+  max-width: 100%;
+  max-height: 160px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  object-fit: cover;
+}
+.media-upload-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+/* .ui-btn--sm is 28px tall (dense lists); this widget's buttons are the primary control on
+   screen, so bump the hit area to the 44px touch-target floor without changing the kit default. */
+.media-upload-actions .ui-btn {
+  min-height: var(--control-lg);
+}
+.media-upload-hint {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
 /* ============ Search field (иконка + инпут в общей рамке) ============ */
 .ui-search-field {
   display: flex;

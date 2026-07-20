@@ -59,6 +59,18 @@ export class PlatformApiClient {
     return this.send<TResponse>('DELETE', path, undefined, query);
   }
 
+  // Multipart uploads (e.g. media). Body is sent as-is so the browser sets the
+  // `Content-Type: multipart/form-data; boundary=...` header itself — forcing
+  // `application/json` (like the other methods do) would break the boundary.
+  async postForm<TResponse>(path: string, formData: FormData): Promise<TResponse> {
+    const response = await this.fetchAuthorizedRaw('POST', path, formData);
+    await ensureSuccess(response);
+    if (response.status === 204) {
+      return null as TResponse;
+    }
+    return await response.json() as TResponse;
+  }
+
   async getWithEtag<TResponse>(path: string, query?: QueryParams): Promise<{ value: TResponse; etag: string | null }> {
     const response = await this.fetchAuthorized('GET', path, undefined, query);
     await ensureSuccess(response);
@@ -145,6 +157,25 @@ export class PlatformApiClient {
       method,
       headers,
       body: requestBody
+    });
+  }
+
+  private async fetchAuthorizedRaw(method: string, path: string, body: BodyInit): Promise<Response> {
+    const accessToken = await this.getAccessToken();
+    if (!accessToken) {
+      throw new Error('Operator access token is missing.');
+    }
+
+    // No Content-Type set here on purpose — the caller's BodyInit (e.g. FormData)
+    // dictates it, and forcing one here would drop the multipart boundary.
+    const headers = new Headers({
+      Authorization: `Bearer ${accessToken}`
+    });
+
+    return await this.fetchImpl(this.buildUrl(path), {
+      method,
+      headers,
+      body
     });
   }
 }
