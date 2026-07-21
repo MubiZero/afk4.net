@@ -14,4 +14,6 @@ public sealed record PlayerTopUpIntentDto(
     bool IsExpired,
     string? PayUrl = null,
     string? Comment = null,
-    DateTimeOffset? GatewayExpiresAtUtc = null);
+    DateTimeOffset? GatewayExpiresAtUtc = null,
+    string? Qr = null,
+    string? DeepLink = null);

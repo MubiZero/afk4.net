@@ -223,6 +223,7 @@ internal static class PlayerSelfServiceEndpoints
             IDcGateClientFactory dcGateClientFactory,
             IBranchPaymentGatewayResolver gatewayResolver,
             ISecretProtector secretProtector,
+            AFK4.Platform.Api.Payments.Eskhata.IEskhataMerchantClientFactory eskhataClientFactory,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -241,9 +242,9 @@ internal static class PlayerSelfServiceEndpoints
             var method = string.IsNullOrWhiteSpace(request.Method)
                 ? "counter"
                 : request.Method.Trim().ToLowerInvariant();
-            if (method != "counter" && method != "dcgate")
+            if (method != "counter" && method != "dcgate" && method != "eskhata")
             {
-                return Results.BadRequest(new { Error = "Method must be 'counter' or 'dcgate'." });
+                return Results.BadRequest(new { Error = "Method must be 'counter', 'dcgate' or 'eskhata'." });
             }
 
             var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
@@ -300,6 +301,40 @@ internal static class PlayerSelfServiceEndpoints
                 intent.GatewayExpiresAtUtc = payment.ExpiresAt;
             }
 
+            if (method == "eskhata")
+            {
+                var eskhataClient = await eskhataClientFactory.CreateForOrganizationAsync(
+                    intent.OrganizationId, cancellationToken);
+                if (eskhataClient is null)
+                {
+                    return Results.Json(
+                        new { Error = "online_payment_unavailable" },
+                        statusCode: StatusCodes.Status409Conflict);
+                }
+
+                var merchantId = await ResolveEskhataMerchantIdAsync(
+                    dbContext, intent.OrganizationId, cancellationToken);
+                if (merchantId is null)
+                {
+                    return Results.Json(
+                        new { Error = "online_payment_unavailable" },
+                        statusCode: StatusCodes.Status409Conflict);
+                }
+
+                var order = await eskhataClient.CreateOrderAsync(
+                    intent.PaymentIntentId.ToString("N"),
+                    intent.AmountMinorUnits,
+                    intent.CurrencyCode == "TJS" ? "972" : intent.CurrencyCode,
+                    "AFK4 wallet top-up",
+                    merchantId.Value,
+                    cancellationToken);
+
+                intent.GatewayPaymentId = order.OrderId;
+                intent.GatewayPayUrl = order.InvoiceUrl;
+                intent.GatewayQrPayload = order.Qr;
+                intent.GatewayPosId = order.PosId;
+            }
+
             dbContext.PaymentIntents.Add(intent);
             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -315,7 +350,9 @@ internal static class PlayerSelfServiceEndpoints
                 IsExpired: false,
                 PayUrl: intent.GatewayPayUrl,
                 Comment: intent.GatewayComment,
-                GatewayExpiresAtUtc: intent.GatewayExpiresAtUtc));
+                GatewayExpiresAtUtc: intent.GatewayExpiresAtUtc,
+                Qr: intent.GatewayQrPayload,
+                DeepLink: AFK4.Platform.Api.Payments.Eskhata.EskhataDeepLink.FromInvoiceUrl(intent.GatewayPayUrl)));
         }).RequireRateLimiting("player-me");
 
         app.MapGet("/api/me/wallet/top-up-intents", async (
@@ -615,5 +652,13 @@ internal static class PlayerSelfServiceEndpoints
             return Results.Ok(result.Response);
         }).RequireRateLimiting("player-me");
 
+    }
+
+    private static async Task<int?> ResolveEskhataMerchantIdAsync(
+        PlatformDbContext db, Guid organizationId, CancellationToken cancellationToken)
+    {
+        var config = await db.EskhataMerchantConfigs.AsNoTracking()
+            .SingleOrDefaultAsync(c => c.OrganizationId == organizationId && c.BranchId == null, cancellationToken);
+        return config?.MerchantId;
     }
 }
