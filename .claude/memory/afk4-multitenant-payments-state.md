@@ -5,6 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: e09930db-5386-415e-96b4-9fc396df0c89
+  modified: 2026-07-20T08:57:39.678Z
 ---
 
 Each club owner takes player top-up payments on their **own bank card** (possibly a different card per branch). In dcgate **one project = one card**, and dcgate confirms a payment by reading the bank's deposit message in a **Telegram account** tied to that card's bank phone. Payment matching is by a unique `comment` (afk4 `PaymentIntentId`), card is secondary. Repos: afk4 = THIS repo (`AFK4.Platform.Api` + `AFK4.Operator.App.Web`); dcgate = `/home/fedya/projects/dcgate` (MubiZero/dcgate, NestJS+Prisma+gramjs).
@@ -25,5 +26,7 @@ Each club owner takes player top-up payments on their **own bank card** (possibl
 - e2e fixtures (to resume): org `0169044b-2f74-46a7-8e52-7656a39a8f8c`, owner `e2eowner`/`E2eOwner!2026` (has `payments.gateways.manage`), player `+992900000001`/`112233`. Active gateway = card 5500 (`9762000085435500`), gateway `d546320b-a934-41a5-b832-f12132c0d134`, dcgate project `cmq7tksva0002ll010lrlpssi`, org-level; attached phone `+992920211467`. Old card-1953 gateway `93eda272` was disabled. Pending intent `d22e654d` (1 TJS) left to expire.
 
 **STILL TODO:** (1) when the bank bot recovers, re-run the money e2e end-to-end (phone+OTP → online → top-up → webhook → wallet credited). (2) **Prod afk4 deploy** still deferred — Coolify app EXISTS but is EMPTY (project `sm54z5to8ibzt4u4jd5jt1qz` / env `v3x8bitios8nrdfxllp2d0y4`); repo has only `staging.*` deploy config, so prod = build-from-scratch (full env incl. the encryption key + DB + migrations). Backlog: live listener start for a brand-new account without a worker restart.
+
+**ESKHATA MERCHANT (2-й провайдер, UI-подготовка сделана 2026-07-20, ветка `feat/operator-management-redesign`):** официальная альтернатива серому dcgate-userbot (подписанные SHA-256 запросы, создание счёта, статус, webhook). Референс механики — `nj-cosmetics.com/docs/integrations/eskhata-merchant.md` (ДРУГОЙ проект, Laravel-магазин с заказами; у нас пополнение кошелька → flow проектировать заново). **Сделано только UI+хранение:** сущность `EskhataMerchantConfigEntity` (org-level BranchId=null; BaseUrl/CompanyId/PosId открыто, HashKeyEncrypted через тот же `ISecretProtector`; Status `configured|inactive`, НИКОГДА `active`), эндпоинт GET/POST `/api/owner/eskhata-config` (гейт `payments.gateways.manage`, hash key наружу НЕ возвращается — только `hashKeySet`), форма в UI. **ОТЛОЖЕННЫЙ ЭПИК:** сам Merchant API (клиент/подпись/счёт/статус/webhook/кредит кошелька) — нужны реальные тест-реквизиты банка + согласование webhook-URL/IP-allowlist; трогает money-path. dcgate НЕ тронут.
 
 Origin: customer-shell Unit 2 online top-up — see [[afk4-sp4-shipped]]. Env/runbook in [[afk4-env-quirks]].
