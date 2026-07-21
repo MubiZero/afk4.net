@@ -23,6 +23,25 @@ const emptyForm: ClubProfileForm = {
 
 const blankToNull = (value: string): string | null => (value.trim() === '' ? null : value.trim());
 
+// Профиль с сервера (camelCase DTO) → форма. Один источник маппинга для загрузки и для эха после save,
+// чтобы серверная нормализация (напр. форматирование телефона) доезжала до всех полей, а не только name/city.
+function mapProfileToForm(profile: BranchProfileDto): ClubProfileForm {
+  return {
+    name: readString(profile, 'name', 'AFK4'),
+    city: readString(profile, 'city', ''),
+    description: readString(profile, 'description', ''),
+    address: readString(profile, 'address', ''),
+    phone: readString(profile, 'phone', ''),
+    telegram: readString(profile, 'telegram', ''),
+    website: readString(profile, 'website', ''),
+    logoUrl: (profile.logoUrl as string | null) ?? null,
+    logoMediaId: (profile.logoMediaId as string | null) ?? null,
+    timeZone: readString(profile, 'timeZone', 'Asia/Dushanbe'),
+    locale: readString(profile, 'locale', 'ru'),
+    workingHours: normalizeWorkingHours(profile.workingHours)
+  };
+}
+
 // Клуб: полный профиль филиала (лицо игрока + контакты + часы + настройки). Название — человекочитаемое,
 // НИКОГДА не UUID. Гейт раздела — manageBranchSettings (managementNav); эндпоинт profile — то же право.
 export function ClubDestination({ backend, currencyCode, onDirtyChange }: DestinationProps) {
@@ -41,20 +60,7 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
     clients.settings.getBranchProfile(backend.branchId)
       .then((profile) => {
         if (!active) return;
-        setForm({
-          name: readString(profile, 'name', 'AFK4'),
-          city: readString(profile, 'city', ''),
-          description: readString(profile, 'description', ''),
-          address: readString(profile, 'address', ''),
-          phone: readString(profile, 'phone', ''),
-          telegram: readString(profile, 'telegram', ''),
-          website: readString(profile, 'website', ''),
-          logoUrl: (profile.logoUrl as string | null) ?? null,
-          logoMediaId: (profile.logoMediaId as string | null) ?? null,
-          timeZone: readString(profile, 'timeZone', 'Asia/Dushanbe'),
-          locale: readString(profile, 'locale', 'ru'),
-          workingHours: normalizeWorkingHours(profile.workingHours)
-        });
+        setForm(mapProfileToForm(profile));
         setDirty(false);
       })
       .catch((error) => {
@@ -100,12 +106,7 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
           : day))
       };
       const profile: BranchProfileDto = await clients.settings.updateBranchProfile(backend.branchId, request);
-      setForm((prev) => ({
-        ...prev,
-        name: readString(profile, 'name', prev.name),
-        city: readString(profile, 'city', prev.city),
-        workingHours: normalizeWorkingHours(profile.workingHours)
-      }));
+      setForm(mapProfileToForm(profile));
       setDirty(false);
       setSaved(true);
       setFeedback({ label: t('op.settings.profile.feedbackLabel'), state: 'confirmed' });
@@ -127,7 +128,7 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
       <div className="club-profile-layout">
         <div className="management-panel">
           {backend !== null && (
-            <ClubProfileFields form={form} currencyCode={currencyCode} backend={backend} onField={onField} />
+            <ClubProfileFields form={form} currencyCode={currencyCode} backend={backend} disabled={saving} onField={onField} />
           )}
         </div>
         <ClubPlayerPreview form={form} />
