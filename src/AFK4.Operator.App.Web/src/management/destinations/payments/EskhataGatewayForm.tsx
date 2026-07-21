@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { CreditCard } from 'lucide-react';
 import { projectOperatorError } from '../../../apiErrors';
 import { createAuthenticatedOperatorClients, emptyFeedback } from '../../../operatorHelpers';
 import { useFeedbackToasts } from '../../../useFeedbackToasts';
@@ -9,10 +10,11 @@ interface Props {
   backend: OperatorBackendContext;
 }
 
-// Реквизиты Eskhata Merchant (UI-подготовка). Своя кнопка «Сохранить» — вкладка шлюзов работает
-// моделью мгновенных действий, общего save-бара тут нет. Hash key наружу не приходит: сервер
-// отдаёт только hashKeySet; пустое поле при сохранении оставляет прежний секрет. Приём платежей
-// (Merchant API) — отдельный отложенный эпик, поэтому статус максимум «настроен · не активен».
+// Eskhata Merchant — тихий резервный способ приёма: свёрнутая строка со статусом, «Настроить»
+// разворачивает форму реквизитов. Своя кнопка «Сохранить» (модель мгновенных действий, общего
+// save-бара нет). Hash key наружу не приходит: сервер отдаёт только hashKeySet; пустое поле при
+// сохранении оставляет прежний секрет. Приём платежей (Merchant API) — отложенный эпик, поэтому
+// статус максимум «настроен · не активен».
 export function EskhataGatewayForm({ backend }: Props) {
   const { t } = useI18n();
   const [baseUrl, setBaseUrl] = useState('');
@@ -22,6 +24,7 @@ export function EskhataGatewayForm({ backend }: Props) {
   const [hashKeySet, setHashKeySet] = useState(false);
   const [status, setStatus] = useState('inactive');
   const [saving, setSaving] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   useFeedbackToasts(feedback);
 
@@ -79,64 +82,76 @@ export function EskhataGatewayForm({ backend }: Props) {
     }
   };
 
+  const summary = status === 'configured'
+    ? `${t('op.eskhata.statusConfigured')}. ${t('op.eskhata.note')}`
+    : t('op.eskhata.note');
+
   return (
-    <section className="eskhata-gateway">
-      <div className="mgmt-section-title">
-        <span>{t('op.eskhata.title')}</span>
-        {status === 'configured' && (
-          <span className="ui-chip ui-chip--status ui-chip--xs is-neutral">{t('op.eskhata.statusConfigured')}</span>
-        )}
+    <div className="eskhata-gateway">
+      <div className="payset-method">
+        <span className="payset-method-icon" aria-hidden="true">
+          <CreditCard size={18} strokeWidth={2} />
+        </span>
+        <div className="payset-method-body">
+          <div className="payset-method-title">{t('op.eskhata.title')}</div>
+          <div className="payset-method-sub">{summary}</div>
+        </div>
+        <button type="button" className="ui-btn" onClick={() => setExpanded((v) => !v)}>
+          {expanded ? t('common.cancel') : t('op.eskhata.configure')}
+        </button>
       </div>
 
-      <div className="mgmt-form">
-        <div className="mgmt-form-grid">
-          <label className="mgmt-form-wide">{t('op.eskhata.baseUrl')}
-            <input
-              inputMode="url"
-              value={baseUrl}
-              disabled={saving}
-              onChange={(event) => setBaseUrl(event.currentTarget.value)}
-            />
-          </label>
-          <label>{t('op.eskhata.companyId')}
-            <input
-              value={companyId}
-              disabled={saving}
-              onChange={(event) => setCompanyId(event.currentTarget.value)}
-            />
-          </label>
-          <label>{t('op.eskhata.posId')}
-            <input
-              inputMode="numeric"
-              value={posId}
-              disabled={saving}
-              onChange={(event) => setPosId(event.currentTarget.value)}
-            />
-          </label>
-          <label className="mgmt-form-wide">{t('op.eskhata.hashKey')}
-            <input
-              type="password"
-              value={hashKey}
-              disabled={saving}
-              placeholder={hashKeySet ? `${t('op.eskhata.hashKeySet')} — ${t('op.eskhata.hashKeyPlaceholder')}` : ''}
-              onChange={(event) => setHashKey(event.currentTarget.value)}
-            />
-          </label>
-        </div>
+      {expanded && (
+        <div className="payset-reveal">
+          <div className="mgmt-form">
+            <div className="mgmt-form-grid">
+              <label className="mgmt-form-wide">{t('op.eskhata.baseUrl')}
+                <input
+                  inputMode="url"
+                  value={baseUrl}
+                  disabled={saving}
+                  onChange={(event) => setBaseUrl(event.currentTarget.value)}
+                />
+              </label>
+              <label>{t('op.eskhata.companyId')}
+                <input
+                  value={companyId}
+                  disabled={saving}
+                  onChange={(event) => setCompanyId(event.currentTarget.value)}
+                />
+              </label>
+              <label>{t('op.eskhata.posId')}
+                <input
+                  inputMode="numeric"
+                  value={posId}
+                  disabled={saving}
+                  onChange={(event) => setPosId(event.currentTarget.value)}
+                />
+              </label>
+              <label className="mgmt-form-wide">{t('op.eskhata.hashKey')}
+                <input
+                  type="password"
+                  value={hashKey}
+                  disabled={saving}
+                  placeholder={hashKeySet ? `${t('op.eskhata.hashKeySet')} · ${t('op.eskhata.hashKeyPlaceholder')}` : ''}
+                  onChange={(event) => setHashKey(event.currentTarget.value)}
+                />
+              </label>
+            </div>
 
-        <p className="settings-field-hint eskhata-note">{t('op.eskhata.note')}</p>
-
-        <div className="mgmt-form-actions">
-          <button
-            type="button"
-            className="ui-btn ui-btn--primary"
-            disabled={saving || !valid}
-            onClick={() => void save()}
-          >
-            {t('common.save')}
-          </button>
+            <div className="mgmt-form-actions">
+              <button
+                type="button"
+                className="ui-btn ui-btn--primary"
+                disabled={saving || !valid}
+                onClick={() => void save()}
+              >
+                {t('common.save')}
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
+      )}
+    </div>
   );
 }

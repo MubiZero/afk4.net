@@ -37,9 +37,9 @@ export interface LoyaltySettingsController {
   retry: () => void;
 }
 
-// Загрузка/сохранение настроек лояльности, поднятые из прежнего LoyaltyDestination, чтобы
-// контейнер PaymentsLoyaltyDestination мог отдать save/state в общий save-бар ManagementScreen
-// только когда активна вкладка «Лояльность». Money-контракт loyaltySettings не трогаем.
+// Загрузка/сохранение настроек лояльности для зоны «Как вы возвращаете». Контроллер отдаёт
+// save/state/dirty секционной кнопке внутри LoyaltySection (глобального save-бара на экране нет).
+// Money-контракт loyaltySettings не трогаем.
 export function useLoyaltySettings(backend: OperatorBackendContext | null, enabled = true): LoyaltySettingsController {
   const { t } = useI18n();
   const [topUpEnabled, setTopUpEnabled] = useState(false);

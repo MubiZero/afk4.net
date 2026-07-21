@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
+import { Plus } from 'lucide-react';
 import { PlatformApiClient } from './platformApi';
 import {
   createOperatorApiClients,
@@ -25,6 +26,9 @@ interface Props {
   backend: PaymentGatewaysBackend;
 }
 
+// Приём по картам (dcgate): список карт спокойными строками с человеческим статусом, «Добавить
+// карту» раскрывает форму, привязка Telegram идёт прямо в строке карты. Часть спокойного
+// setup-экрана «Платежи и лояльность» — модель мгновенных действий, общего save-бара нет.
 export function PaymentGatewaysWorkspace({ backend }: Props) {
   const { t, formatDate } = useI18n();
   const [gateways, setGateways] = useState<OwnerPaymentGatewayDto[]>([]);
@@ -34,7 +38,8 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
   const [busy, setBusy] = useState(false);
   const [disableTarget, setDisableTarget] = useState<string | null>(null);
 
-  // provision form
+  // add-card form
+  const [showAdd, setShowAdd] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
   const [scopeBranch, setScopeBranch] = useState(false);
 
@@ -107,6 +112,8 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
         cardNumber: cardNumber.trim()
       });
       setCardNumber('');
+      setScopeBranch(false);
+      setShowAdd(false);
       await reload();
     } catch (error) {
       setLoadError(projectOperatorError(error, t).detail);
@@ -186,70 +193,57 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
   };
 
   return (
-    <div className="mgmt-form">
-      <div className="mgmt-section-title"><span>{t('op.payments.section.cards')}</span></div>
-      {loadError && <p className="ui-inline-error" role="alert">{loadError}</p>}
-
-      <div className="mgmt-form-grid">
-        <label>{t('payments_cards.card_number')}
-          <input value={cardNumber} onChange={(e) => setCardNumber(e.currentTarget.value)} inputMode="numeric" />
-        </label>
-        <label className="mgmt-check">
-          <input type="checkbox" checked={scopeBranch} onChange={(e) => setScopeBranch(e.currentTarget.checked)} />
-          {scopeBranch ? t('payments_cards.scope.branch') : t('payments_cards.scope.org')}
-        </label>
-      </div>
-      <div className="mgmt-form-actions">
-        <button type="button" className="ui-btn ui-btn--primary"
-          disabled={busy || cardNumber.trim().length < 12} onClick={() => void provision()}>
-          {t('payments_cards.provision')}
-        </button>
-      </div>
+    <div>
+      {loadError && <p className="payset-inline-error" role="alert">{loadError}</p>}
 
       {loading ? (
-        <p className="workspace-loading">{t('payments_cards.loading')}</p>
+        <div className="payset-loading" data-testid="gateways-skeleton" aria-hidden="true">
+          <div className="management-skeleton-line" />
+          <div className="management-skeleton-line" />
+        </div>
       ) : gateways.length === 0 ? (
         <EmptyState title={t('payments_cards.empty')} description={t('op.payments.cards.emptyHint')} />
       ) : (
-        <div className="payment-card-rows">
+        <div className="payset-cards">
           {gateways.map((g) => {
             const live = statuses[g.branchPaymentGatewayId];
             const known = live && (live.sessionHealth === 'online' || live.sessionHealth === 'offline' || live.sessionHealth === 'configured');
             const statusTone = g.status === 'disabled' ? 'is-neutral' : g.status === 'pending_telegram' ? 'is-warning' : 'is-live';
             return (
-              <article key={g.branchPaymentGatewayId} className="payment-card-row" data-status={g.status}>
-                <div className="payment-card-main">
-                  <span className="payment-card-pan">•••• {g.cardLast4}</span>
-                  <span className="ui-chip ui-chip--status ui-chip--xs is-neutral">
-                    {g.branchId ? t('payments_cards.scope.branch') : t('payments_cards.scope.org')}
-                  </span>
-                  <span className={`ui-chip ui-chip--status ui-chip--xs ${statusTone}`}>
-                    {t(`payments_cards.status.${g.status}` as MessageKey)}
-                  </span>
-                  {known && (
-                    <span className={`ui-chip ui-chip--status ui-chip--xs ${live.sessionHealth === 'online' ? 'is-live' : 'is-neutral'}`}>
-                      {t(`payments_cards.session.${live.sessionHealth}` as MessageKey)}
+              <article key={g.branchPaymentGatewayId} className="payset-card" data-status={g.status}>
+                <span className="payset-card-pan">•••• {g.cardLast4}</span>
+                <div className="payset-card-meta">
+                  <div className="payset-card-tags">
+                    <span className="ui-chip ui-chip--status ui-chip--xs is-neutral">
+                      {g.branchId ? t('payments_cards.scope.branch') : t('payments_cards.scope.org')}
                     </span>
-                  )}
-                  {g.status !== 'disabled' && (
-                    <button type="button" className="ui-btn ui-btn--sm ui-btn--danger payment-card-disable"
-                      disabled={busy} onClick={() => setDisableTarget(g.branchPaymentGatewayId)}>
-                      {t('payments_cards.disable')}
-                    </button>
+                    <span className={`ui-chip ui-chip--status ui-chip--xs ${statusTone}`}>
+                      {t(`payments_cards.status.${g.status}` as MessageKey)}
+                    </span>
+                    {known && (
+                      <span className={`ui-chip ui-chip--status ui-chip--xs ${live.sessionHealth === 'online' ? 'is-live' : 'is-neutral'}`}>
+                        {t(`payments_cards.session.${live.sessionHealth}` as MessageKey)}
+                      </span>
+                    )}
+                  </div>
+                  {live?.lastMessageAt && (
+                    <span className="payset-card-note">
+                      {t('payments_cards.session.last_message')}: {formatDate(live.lastMessageAt)}
+                    </span>
                   )}
                 </div>
 
-                {live?.lastMessageAt && (
-                  <span className="payment-card-session-last">
-                    {t('payments_cards.session.last_message')}: {formatDate(live.lastMessageAt)}
-                  </span>
+                {g.status !== 'disabled' && (
+                  <button type="button" className="ui-btn ui-btn--sm ui-btn--danger"
+                    disabled={busy} onClick={() => setDisableTarget(g.branchPaymentGatewayId)}>
+                    {t('payments_cards.disable')}
+                  </button>
                 )}
 
                 {g.status === 'pending_telegram' && (
-                  <div className="payment-card-attach mgmt-form">
-                    <div className="mgmt-section-title"><span>{t('payments_cards.telegram.title')}</span></div>
+                  <div className="payset-attach">
                     {(attachId !== g.branchPaymentGatewayId || attachPhase === 'idle') && (
-                      <div className="payment-attach-row">
+                      <div className="payset-attach-row">
                         <label>{t('payments_cards.telegram.phone')}
                           <input aria-label="phone" value={phone} onChange={(e) => setPhone(e.currentTarget.value)} />
                         </label>
@@ -260,7 +254,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
                       </div>
                     )}
                     {attachId === g.branchPaymentGatewayId && attachPhase === 'code_required' && (
-                      <div className="payment-attach-row">
+                      <div className="payset-attach-row">
                         <label>{t('payments_cards.telegram.code')}
                           <input value={code} onChange={(e) => setCode(e.currentTarget.value)} inputMode="numeric" />
                         </label>
@@ -270,7 +264,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
                       </div>
                     )}
                     {attachId === g.branchPaymentGatewayId && attachPhase === 'password_required' && (
-                      <div className="payment-attach-row">
+                      <div className="payset-attach-row">
                         <label>{t('payments_cards.telegram.password')}
                           <input type="password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} />
                         </label>
@@ -280,7 +274,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
                       </div>
                     )}
                     {attachId === g.branchPaymentGatewayId && attachPhase === 'attached' && (
-                      <p className="payment-card-attached">{t('payments_cards.telegram.attached')}</p>
+                      <p className="payset-attach-done">{t('payments_cards.telegram.attached')}</p>
                     )}
                   </div>
                 )}
@@ -288,6 +282,40 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
             );
           })}
         </div>
+      )}
+
+      {!loading && (
+        showAdd ? (
+          <div className="payset-reveal">
+            <div className="mgmt-form">
+              <div className="mgmt-form-grid">
+                <label className="mgmt-form-wide">{t('payments_cards.card_number')}
+                  <input value={cardNumber} onChange={(e) => setCardNumber(e.currentTarget.value)} inputMode="numeric" autoFocus />
+                </label>
+                <label className="mgmt-check">
+                  <input type="checkbox" checked={scopeBranch} onChange={(e) => setScopeBranch(e.currentTarget.checked)} />
+                  {scopeBranch ? t('payments_cards.scope.branch') : t('payments_cards.scope.org')}
+                </label>
+              </div>
+              <div className="mgmt-form-actions">
+                <button type="button" className="ui-btn" disabled={busy}
+                  onClick={() => { setShowAdd(false); setCardNumber(''); setScopeBranch(false); }}>
+                  {t('common.cancel')}
+                </button>
+                <button type="button" className="ui-btn ui-btn--primary"
+                  disabled={busy || cardNumber.trim().length < 12} onClick={() => void provision()}>
+                  {t('payments_cards.provision')}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <button type="button" className="payset-add" style={{ marginTop: gateways.length ? 10 : 0 }}
+            onClick={() => setShowAdd(true)}>
+            <Plus size={18} strokeWidth={2} />
+            {t('op.payments.cards.add')}
+          </button>
+        )
       )}
 
       {disableTarget && (

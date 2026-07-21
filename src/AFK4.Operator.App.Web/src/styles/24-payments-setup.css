@@ -1,0 +1,515 @@
+/* ── Платежи и лояльность — спокойный setup-экран ────────────────────────────────────────
+   Экран, куда заходят раз в несколько месяцев: приоритет — спокойствие, воздух и
+   самообъяснимость, а НЕ плотность рабочих вкладок (Карта/Касса). Две ясные секции с
+   человеческим лидом-пояснением, крупная спокойная типографика. Переиспользует готовые атомы
+   .ui-chip/.ui-btn и токены @afk4/tokens; свой namespace payset-*.
+   ─────────────────────────────────────────────────────────────────────────────────────── */
+
+/* Две половины одного экрана: приём | возврат. auto-fit сводит в одну колонку, когда видна лишь
+   одна зона (по правам) или окно узкое — без пустой половины. Выравнивание по верху: у секций
+   разная высота, тянуть их до общей — лишний воздух в короткой. */
+.payset-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+/* Секция — приподнятая спокойная панель с воздухом (глубина = подъём + shadow-card). */
+.payset-section {
+  padding: 26px 28px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+
+.payset-section-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.payset-section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--surface-accent-soft);
+  color: var(--accent-text);
+}
+
+.payset-section-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.payset-section-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+/* Лид — человеческое пояснение «что это и зачем» для того, кто зашёл впервые за месяцы. */
+.payset-section-lead {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.payset-subhead {
+  margin: 0 0 12px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.payset-divider {
+  height: 1px;
+  margin: 26px 0;
+  background: var(--border-soft);
+}
+
+.payset-inline-error {
+  margin: 0 0 12px;
+  color: var(--danger-text);
+  font-size: 13px;
+}
+
+/* ── Карты приёма ─────────────────────────────────────────────────────────────────────── */
+.payset-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.payset-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 64px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.payset-card:hover {
+  border-color: var(--border-accent);
+  background: var(--surface-hover);
+  transform: translateY(-1px);
+}
+
+.payset-card-pan {
+  flex: none;
+  min-width: 92px;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.payset-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.payset-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.payset-card-note {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.payset-card > .ui-btn {
+  flex: none;
+}
+
+/* Пунктирная «Добавить карту» — тихое второстепенное действие, не спорит с основными кнопками. */
+.payset-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.payset-add:hover {
+  border-color: var(--border-accent);
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.payset-add:focus-visible {
+  outline: none;
+  border-color: var(--border-accent);
+  box-shadow: var(--focus-ring);
+}
+
+/* Раскрытая форма добавления карты — компактная, на подложке-sunken, без вида «ещё одна панель». */
+.payset-reveal {
+  margin-top: 10px;
+  padding: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+/* Attach-flow Telegram внутри строки карты (телефон→код→пароль). */
+.payset-attach {
+  flex-basis: 100%;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.payset-attach-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.payset-attach-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.payset-attach-row input {
+  height: var(--control-md);
+  min-width: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 0 12px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.payset-attach-row input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.payset-attach-done {
+  margin: 0;
+  color: var(--success-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Пояснительная строка под подзаголовком (напр. про способ DushanbeCity) — вторичный текст. */
+.payset-note {
+  margin: -6px 0 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ── Способ приёма — блок метода (напр. Eskhata), свёрнут, «Настроить» раскрывает форму ──── */
+.payset-method {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+
+.payset-method-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--surface-accent-soft);
+  color: var(--accent-text);
+}
+
+.payset-method-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.payset-method-title {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.payset-method-sub {
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.payset-method > .ui-btn {
+  flex: none;
+}
+
+/* ── Правила кэшбэка ──────────────────────────────────────────────────────────────────── */
+.payset-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.payset-rule {
+  padding: 16px 18px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.payset-rule.is-on {
+  border-color: var(--border-accent);
+  background: var(--surface-accent-soft);
+}
+
+.payset-rule-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.payset-rule-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.payset-rule-name {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.payset-rule-hint {
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.payset-pct {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.payset-pct input {
+  width: 72px;
+  height: 36px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 0 10px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.payset-pct input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.payset-pct input:disabled {
+  color: var(--text-tertiary);
+  opacity: 0.6;
+}
+
+.payset-rule-example {
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  font-size: 13.5px;
+}
+
+:root[data-theme="light"] .payset-rule-example {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+/* ── Тумблер (switch) — тактильнее галочки, под стать «пульту» настроек ──────────────────── */
+.payset-switch {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 26px;
+  cursor: pointer;
+}
+
+.payset-switch input {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.payset-switch .payset-track {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.payset-switch .payset-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  transition: transform 150ms ease, background 150ms ease;
+}
+
+.payset-switch input:checked ~ .payset-track {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.payset-switch input:checked ~ .payset-knob {
+  transform: translateX(18px);
+  background: var(--text-on-accent);
+}
+
+.payset-switch input:focus-visible ~ .payset-track {
+  box-shadow: var(--focus-ring);
+}
+
+.payset-switch input:disabled {
+  cursor: not-allowed;
+}
+
+.payset-switch input:disabled ~ .payset-track,
+.payset-switch input:disabled ~ .payset-knob {
+  opacity: 0.5;
+}
+
+/* ── Ограничения ──────────────────────────────────────────────────────────────────────── */
+.payset-limits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+}
+
+.payset-field label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.payset-field-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payset-field input {
+  width: 140px;
+  height: 36px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 0 12px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.payset-field input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.payset-field-unit {
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.payset-field-hint {
+  margin-top: 6px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.payset-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+/* Спокойный скелетон загрузки — строки-шиммеры без card-chrome (секция уже панель). */
+.payset-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  opacity: 0;
+  animation: management-skeleton-in 160ms ease-out 200ms forwards;
+}
+
+@media (max-width: 640px) {
+  .payset-section {
+    padding: 22px 18px;
+  }
+  .payset-limits {
+    grid-template-columns: 1fr;
+  }
+}
