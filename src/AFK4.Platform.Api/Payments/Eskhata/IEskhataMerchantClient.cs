@@ -6,7 +6,7 @@ public interface IEskhataMerchantClient
         string invoiceId, long amountMinor, string currencyCode, string description,
         int merchantId, CancellationToken cancellationToken);
 
-    // Возвращает orderStatus (NEW/IN PROCESS/COMPLETED/CANCELED/REFUNDED) или null при неуспехе банка.
+    // Возвращает orderStatus (NEW/IN PROCESS/COMPLETED/CANCELED/REFUNDED) или null при неуспехе банка, сетевой ошибке или невалидном ответе.
     Task<string?> GetOrderStatusAsync(
         string invoiceId, string orderId, long amountMinor, string currencyCode, int posId,
         CancellationToken cancellationToken);

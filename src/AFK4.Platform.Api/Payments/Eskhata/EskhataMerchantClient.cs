@@ -68,7 +68,7 @@ public sealed class EskhataMerchantClient : IEskhataMerchantClient
             var data = await PostAsync("/merchant/api/v1/orders/status", body, cancellationToken);
             return GetString(data, "orderStatus");
         }
-        catch (HttpRequestException)
+        catch (Exception ex) when (ex is HttpRequestException or JsonException)
         {
             return null;
         }

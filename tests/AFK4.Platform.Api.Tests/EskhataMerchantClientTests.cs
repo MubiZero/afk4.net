@@ -86,4 +86,15 @@ public class EskhataMerchantClientTests
         await Assert.ThrowsAsync<HttpRequestException>(() =>
             Create(handler).CreateOrderAsync("inv1", 5000, "972", "d", 28652, CancellationToken.None));
     }
+
+    [Fact]
+    public async Task GetOrderStatusAsync_ReturnsNull_OnMalformedBody()
+    {
+        var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("not json", System.Text.Encoding.UTF8, "application/json")
+        });
+        var status = await Create(handler).GetOrderStatusAsync("inv1", "o1", 5000, "972", 48741, CancellationToken.None);
+        Assert.Null(status);
+    }
 }
