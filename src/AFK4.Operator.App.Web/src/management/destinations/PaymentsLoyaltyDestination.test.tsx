@@ -51,38 +51,42 @@ afterEach(() => {
 });
 afterAll(() => mock.restore());
 
-describe('PaymentsLoyaltyDestination', () => {
-  // The gateways tab has the Eskhata form's own «Сохранить»; the shared save bar is the
-  // ManagementScreen-level `.management-save-bar`, so assert that element specifically.
-  it('shows both tabs and toggles the shared save bar per active tab', async () => {
+describe('PaymentsLoyaltyDestination (одна страница, без табов)', () => {
+  // Одна связная страница: обе зоны стопкой, без таб-стрипа и без глобального save-бара
+  // ManagementScreen (каждая зона сохраняется своей кнопкой).
+  it('renders both zones with no tab strip and no shared save bar', async () => {
     const { container } = view([permissionNames.managePaymentGateways, permissionNames.manageLoyaltySettings]);
 
-    expect(screen.getByRole('tab', { name: 'Платёжные шлюзы' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Лояльность' })).toBeInTheDocument();
-    // Default tab is gateways: dcgate stub visible, no shared save bar.
     expect(screen.getByTestId('dcgate-stub')).toBeInTheDocument();
-    expect(container.querySelector('.management-save-bar')).toBeNull();
-
-    fireEvent.click(screen.getByRole('tab', { name: 'Лояльность' }));
     expect(await screen.findByLabelText(/кэшбэк с пополнений/i)).toBeInTheDocument();
-    expect(container.querySelector('.management-save-bar')).not.toBeNull();
-  });
-
-  it('shows only the loyalty form (no tab strip, with save bar) for loyalty-only permission', async () => {
-    const { container } = view([permissionNames.manageLoyaltySettings]);
-    expect(await screen.findByLabelText(/кэшбэк с пополнений/i)).toBeInTheDocument();
-    expect(screen.queryByRole('tab')).toBeNull();
-    expect(container.querySelector('.management-save-bar')).not.toBeNull();
-  });
-
-  it('shows only the gateways tab (no shared save bar) for payments-only permission', () => {
-    const { container } = view([permissionNames.managePaymentGateways]);
-    expect(screen.getByTestId('dcgate-stub')).toBeInTheDocument();
     expect(screen.queryByRole('tab')).toBeNull();
     expect(container.querySelector('.management-save-bar')).toBeNull();
   });
 
-  it('saves loyalty percents in basis points from the save bar', async () => {
+  it('shows only the payment-methods zone for gateways-only permission', () => {
+    view([permissionNames.managePaymentGateways]);
+    expect(screen.getByTestId('dcgate-stub')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/кэшбэк с пополнений/i)).toBeNull();
+    expect(screen.queryByRole('tab')).toBeNull();
+  });
+
+  it('shows only the loyalty zone for loyalty-only permission', async () => {
+    view([permissionNames.manageLoyaltySettings]);
+    expect(await screen.findByLabelText(/кэшбэк с пополнений/i)).toBeInTheDocument();
+    expect(screen.queryByTestId('dcgate-stub')).toBeNull();
+    expect(screen.queryByRole('tab')).toBeNull();
+  });
+
+  it('keeps the loyalty section save button disabled until something changes', async () => {
+    view([permissionNames.manageLoyaltySettings]);
+    await screen.findByLabelText(/кэшбэк с пополнений/i);
+    const saveButton = screen.getByRole('button', { name: /сохранить/i });
+    expect(saveButton).toBeDisabled();
+    fireEvent.click(screen.getByLabelText(/кэшбэк с пополнений/i));
+    expect(saveButton).toBeEnabled();
+  });
+
+  it('saves loyalty percents in basis points from its own section button', async () => {
     view([permissionNames.manageLoyaltySettings]);
     const toggle = await screen.findByLabelText(/кэшбэк с пополнений/i);
     fireEvent.click(toggle);

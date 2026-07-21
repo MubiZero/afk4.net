@@ -21,7 +21,7 @@ interface RuleCardProps {
   t: TFn;
 }
 
-// Карточка правила на уровне модуля (не внутри LoyaltyTab): нужна стабильная функция-компонент,
+// Карточка правила на уровне модуля (не внутри LoyaltySection): нужна стабильная функция-компонент,
 // иначе React пересоздаёт identity на каждый рендер родителя и ремонтирует чекбокс+инпут процента —
 // оператор теряет фокус клавиатуры после первой введённой цифры.
 function RuleCard({
@@ -66,36 +66,29 @@ function RuleCard({
   );
 }
 
-// Компактная форма правил кэшбэка (без панели «Как это работает»): три правила стопкой + блок
-// лимитов. Save-бар живёт в контейнере (ManagementScreen), поэтому здесь только поля. Loading/error
-// рисуются внутри вкладки, чтобы не подменять весь экран (у соседней вкладки шлюзов своя жизнь).
-export function LoyaltyTab({ controller: c, currencyCode, hasBackend }: Props) {
+// Зона «Как вы возвращаете»: правила кэшбэка + лимиты со своей секционной кнопкой сохранения.
+// Модель мгновенных действий, как у соседних шлюзов — глобального save-бара ManagementScreen на
+// экране нет. Loading/error рисуются внутри секции, чтобы не подменять весь экран (у соседней
+// зоны шлюзов своя жизнь).
+export function LoyaltySection({ controller: c, currencyCode, hasBackend }: Props) {
   const { t } = useI18n();
 
-  if (c.loadError) {
-    return (
-      <div className="management-error-state">
-        <EmptyState
-          title={t('op.management.state.errorTitle')}
-          description={c.loadError}
-          action={{ label: t('op.management.state.retry'), onClick: c.retry }}
-        />
-      </div>
-    );
-  }
-
-  if (hasBackend && !c.ready) {
-    return (
-      <div className="management-skeleton" data-testid="loyalty-skeleton" aria-hidden="true">
-        <div className="management-skeleton-line" />
-        <div className="management-skeleton-line" />
-        <div className="management-skeleton-line" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="management-panel">
+  const body = c.loadError ? (
+    <div className="management-error-state">
+      <EmptyState
+        title={t('op.management.state.errorTitle')}
+        description={c.loadError}
+        action={{ label: t('op.management.state.retry'), onClick: c.retry }}
+      />
+    </div>
+  ) : hasBackend && !c.ready ? (
+    <div className="management-skeleton" data-testid="loyalty-skeleton" aria-hidden="true">
+      <div className="management-skeleton-line" />
+      <div className="management-skeleton-line" />
+      <div className="management-skeleton-line" />
+    </div>
+  ) : (
+    <>
       <div className="mgmt-form loyalty-form">
         <div className="loyalty-rules">
           <div className="mgmt-section-title"><span>{t('op.loyalty.rules.title')}</span></div>
@@ -163,6 +156,24 @@ export function LoyaltyTab({ controller: c, currencyCode, hasBackend }: Props) {
           </div>
         </div>
       </div>
-    </div>
+
+      <div className="mgmt-form-actions">
+        <button
+          type="button"
+          className="ui-btn ui-btn--primary"
+          disabled={c.disabled || !c.dirty}
+          onClick={() => void c.save()}
+        >
+          {t('op.loyalty.save')}
+        </button>
+      </div>
+    </>
+  );
+
+  return (
+    <section className="management-panel loyalty-section">
+      <h3 className="payment-zone-title">{t('op.payments.zone.loyalty')}</h3>
+      {body}
+    </section>
   );
 }
