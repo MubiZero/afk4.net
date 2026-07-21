@@ -103,6 +103,20 @@ describe('MediaUpload', () => {
     fireEvent.click(screen.getByText('Удалить'));
 
     await waitFor(() => expect(removeMock).toHaveBeenCalledTimes(1));
+    expect(removeMock).toHaveBeenCalledWith('b1', 'existing');
+    expect(onChange).toHaveBeenCalledWith(null);
+  });
+
+  it('removes using the explicit mediaId prop, not the id parsed from the URL', async () => {
+    const { onChange } = renderUpload({
+      value: 'https://cdn.test/existing.png',
+      mediaId: 'db-media-id-42'
+    });
+
+    fireEvent.click(screen.getByText('Удалить'));
+
+    await waitFor(() => expect(removeMock).toHaveBeenCalledTimes(1));
+    expect(removeMock).toHaveBeenCalledWith('b1', 'db-media-id-42');
     expect(onChange).toHaveBeenCalledWith(null);
   });
 });

@@ -57,6 +57,7 @@ export function ClubProfileFields({ form, currencyCode, backend, disabled, onFie
       <label className="club-logo-field">{t('op.club.field.logo')}
         <MediaUpload
           value={form.logoUrl}
+          mediaId={form.logoMediaId}
           purpose={BRANCH_LOGO_PURPOSE}
           branchId={backend.branchId}
           backend={backend}

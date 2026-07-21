@@ -16,9 +16,9 @@ function validateFile(file: File): FileProblem {
 }
 
 // The public media URL Platform.Api hands back is `{base}/{organizationId}/{branchId}/{mediaId}.{ext}`
-// (see Media/EfMediaService.UploadAsync) — the mediaId is the URL's filename stem. The component's
-// controlled `value` only carries that bare URL (no separate mediaId prop in the contract), so this
-// recovers the id the delete endpoint needs when the caller only ever persisted the URL.
+// (see Media/EfMediaService.UploadAsync) — the mediaId is the URL's filename stem. Callers that
+// persist only the URL (no `mediaId` prop) still need a way to resolve the delete-endpoint id, so
+// this recovers it as a fallback when the caller doesn't pass `mediaId` explicitly.
 function mediaIdFromUrl(url: string): string | null {
   const path = url.split('?')[0].split('#')[0];
   const fileName = path.slice(path.lastIndexOf('/') + 1);
@@ -29,6 +29,7 @@ function mediaIdFromUrl(url: string): string | null {
 
 export interface MediaUploadProps {
   value: string | null;
+  mediaId?: string | null;
   onChange: (media: { mediaId: string; url: string } | null) => void;
   purpose: string;
   branchId: string;
@@ -36,7 +37,7 @@ export interface MediaUploadProps {
   disabled?: boolean;
 }
 
-export function MediaUpload({ value, onChange, purpose, branchId, backend, disabled }: MediaUploadProps) {
+export function MediaUpload({ value, mediaId: explicitMediaId, onChange, purpose, branchId, backend, disabled }: MediaUploadProps) {
   const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -80,7 +81,7 @@ export function MediaUpload({ value, onChange, purpose, branchId, backend, disab
 
   const handleRemove = async () => {
     if (value === null) return;
-    const mediaId = mediaIdFromUrl(value);
+    const mediaId = explicitMediaId != null && explicitMediaId !== '' ? explicitMediaId : mediaIdFromUrl(value);
     if (mediaId === null) {
       onChange(null);
       return;
