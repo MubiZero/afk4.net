@@ -13,7 +13,7 @@ const loyaltyDefaults: LoyaltySettingsDto = {
 };
 const loyaltyGet = mock(async (): Promise<LoyaltySettingsDto> => loyaltyDefaults);
 const loyaltyUpdate = mock(async (req: LoyaltySettingsDto): Promise<LoyaltySettingsDto> => req);
-const eskhataGet = mock(async (): Promise<EskhataConfigDto> => ({ baseUrl: '', companyId: '', posId: 0, hashKeySet: false, status: 'inactive' }));
+const eskhataGet = mock(async (): Promise<EskhataConfigDto> => ({ baseUrl: '', companyId: '', merchantId: 0, hashKeySet: false, status: 'inactive' }));
 
 const actual = (globalThis as Record<string, unknown>).__afk4RealOperatorHelpers as Record<string, unknown>;
 mock.module('../../operatorHelpers', () => ({

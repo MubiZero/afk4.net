@@ -20,8 +20,9 @@ public sealed class EskhataMerchantConfigEntity
     // Company ID in its raw form; base64 encoding for the X-CompanyId header is the client's job.
     public string CompanyId { get; set; } = string.Empty;
 
-    // Numeric POS ID issued by Eskhata.
-    public int PosId { get; set; }
+    // Идентификатор торговой точки (merchantId) для orderTypeId=3 (DynamicPos).
+    // posId при типе 3 не задаётся оператором — банк возвращает его в ответе на create.
+    public int MerchantId { get; set; }
 
     public string HashKeyEncrypted { get; set; } = string.Empty;
 

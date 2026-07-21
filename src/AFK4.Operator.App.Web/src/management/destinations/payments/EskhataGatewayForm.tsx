@@ -19,7 +19,7 @@ export function EskhataGatewayForm({ backend }: Props) {
   const { t } = useI18n();
   const [baseUrl, setBaseUrl] = useState('');
   const [companyId, setCompanyId] = useState('');
-  const [posId, setPosId] = useState('');
+  const [merchantId, setMerchantId] = useState('');
   const [hashKey, setHashKey] = useState('');
   const [hashKeySet, setHashKeySet] = useState(false);
   const [status, setStatus] = useState('inactive');
@@ -36,7 +36,7 @@ export function EskhataGatewayForm({ backend }: Props) {
         if (!active) return;
         setBaseUrl(config.baseUrl);
         setCompanyId(config.companyId);
-        setPosId(config.posId > 0 ? String(config.posId) : '');
+        setMerchantId(config.merchantId > 0 ? String(config.merchantId) : '');
         setHashKeySet(config.hashKeySet);
         setStatus(config.status);
       })
@@ -47,10 +47,10 @@ export function EskhataGatewayForm({ backend }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backend.config, backend.session]);
 
-  const posNumber = Number(posId);
+  const merchNumber = Number(merchantId);
   const valid = baseUrl.trim().length > 0
     && companyId.trim().length > 0
-    && Number.isInteger(posNumber) && posNumber > 0
+    && Number.isInteger(merchNumber) && merchNumber > 0
     && (hashKeySet || hashKey.trim().length > 0);
 
   const save = async () => {
@@ -65,12 +65,12 @@ export function EskhataGatewayForm({ backend }: Props) {
       const config = await clients.eskhataConfig.update({
         baseUrl: baseUrl.trim(),
         companyId: companyId.trim(),
-        posId: posNumber,
+        merchantId: merchNumber,
         hashKey: hashKey.trim() || null
       });
       setBaseUrl(config.baseUrl);
       setCompanyId(config.companyId);
-      setPosId(config.posId > 0 ? String(config.posId) : '');
+      setMerchantId(config.merchantId > 0 ? String(config.merchantId) : '');
       setHashKeySet(config.hashKeySet);
       setStatus(config.status);
       setHashKey('');
@@ -120,12 +120,12 @@ export function EskhataGatewayForm({ backend }: Props) {
                   onChange={(event) => setCompanyId(event.currentTarget.value)}
                 />
               </label>
-              <label>{t('op.eskhata.posId')}
+              <label>{t('op.eskhata.merchantId')}
                 <input
                   inputMode="numeric"
-                  value={posId}
+                  value={merchantId}
                   disabled={saving}
-                  onChange={(event) => setPosId(event.currentTarget.value)}
+                  onChange={(event) => setMerchantId(event.currentTarget.value)}
                 />
               </label>
               <label className="mgmt-form-wide">{t('op.eskhata.hashKey')}

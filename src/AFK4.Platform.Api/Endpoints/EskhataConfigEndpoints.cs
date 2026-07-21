@@ -33,7 +33,7 @@ internal static class EskhataConfigEndpoints
                 : new EskhataMerchantConfigDto(
                     row.BaseUrl,
                     row.CompanyId,
-                    row.PosId,
+                    row.MerchantId,
                     !string.IsNullOrEmpty(row.HashKeyEncrypted),
                     row.Status));
         });
@@ -75,7 +75,7 @@ internal static class EskhataConfigEndpoints
 
             row.BaseUrl = request.BaseUrl.Trim().TrimEnd('/');
             row.CompanyId = request.CompanyId.Trim();
-            row.PosId = request.PosId;
+            row.MerchantId = request.MerchantId;
             if (!string.IsNullOrWhiteSpace(request.HashKey))
             {
                 row.HashKeyEncrypted = secretProtector.Protect(request.HashKey.Trim());
@@ -99,14 +99,14 @@ internal static class EskhataConfigEndpoints
                 {
                     request.BaseUrl,
                     request.CompanyId,
-                    request.PosId,
+                    request.MerchantId,
                     HashKeyRotated = !string.IsNullOrWhiteSpace(request.HashKey)
                 })), ct);
 
             return Results.Ok(new EskhataMerchantConfigDto(
                 row.BaseUrl,
                 row.CompanyId,
-                row.PosId,
+                row.MerchantId,
                 !string.IsNullOrEmpty(row.HashKeyEncrypted),
                 row.Status));
         });
@@ -129,9 +129,9 @@ internal static class EskhataConfigEndpoints
             errors["companyId"] = ["Company ID is required."];
         }
 
-        if (request.PosId <= 0)
+        if (request.MerchantId <= 0)
         {
-            errors["posId"] = ["POS ID must be a positive number."];
+            errors["merchantId"] = ["Merchant ID must be a positive number."];
         }
 
         // Hash key is required on first save; on later saves an empty value keeps the stored secret.

@@ -26,7 +26,7 @@ public sealed class EskhataConfigEndpointsTests
         var dto = await get.Content.ReadFromJsonAsync<EskhataMerchantConfigDto>();
         Assert.Equal("https://merchant-api.example.tld", dto!.BaseUrl);
         Assert.Equal("company-demo-001", dto.CompanyId);
-        Assert.Equal(17, dto.PosId);
+        Assert.Equal(17, dto.MerchantId);
         Assert.True(dto.HashKeySet);
         Assert.Equal("configured", dto.Status);
     }
@@ -62,7 +62,7 @@ public sealed class EskhataConfigEndpointsTests
 
         var dto = await (await owner.GetAsync("/api/owner/eskhata-config")).Content.ReadFromJsonAsync<EskhataMerchantConfigDto>();
         Assert.Equal("company-demo-002", dto!.CompanyId);
-        Assert.Equal(18, dto.PosId);
+        Assert.Equal(18, dto.MerchantId);
         Assert.True(dto.HashKeySet);
     }
 
@@ -91,7 +91,7 @@ public sealed class EskhataConfigEndpointsTests
     }
 
     [Fact]
-    public async Task Post_RejectsNonPositivePosId()
+    public async Task Post_RejectsNonPositiveMerchantId()
     {
         await using var factory = new PlatformApiFactory();
         var client = factory.CreateClient();
@@ -125,7 +125,7 @@ public sealed class EskhataConfigEndpointsTests
         Assert.Equal(HttpStatusCode.OK, get.StatusCode);
         var dto = await get.Content.ReadFromJsonAsync<EskhataMerchantConfigDto>();
         Assert.Equal(string.Empty, dto!.BaseUrl);
-        Assert.Equal(0, dto.PosId);
+        Assert.Equal(0, dto.MerchantId);
         Assert.False(dto.HashKeySet);
         Assert.Equal("inactive", dto.Status);
     }

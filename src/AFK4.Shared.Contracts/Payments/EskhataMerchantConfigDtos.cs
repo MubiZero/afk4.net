@@ -5,7 +5,7 @@ namespace AFK4.Shared.Contracts.Payments;
 public sealed record EskhataMerchantConfigDto(
     string BaseUrl,
     string CompanyId,
-    int PosId,
+    int MerchantId,
     bool HashKeySet,
     string Status);
 
@@ -14,5 +14,5 @@ public sealed record EskhataMerchantConfigDto(
 public sealed record UpdateEskhataMerchantConfigRequest(
     string BaseUrl,
     string CompanyId,
-    int PosId,
+    int MerchantId,
     string? HashKey);
