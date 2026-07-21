@@ -5,13 +5,14 @@ import { hasPermission, permissionNames } from '../../operatorPermissions';
 import { EmptyState } from '../../operatorPrimitives';
 import { PaymentMethodsSection } from './payments/PaymentMethodsSection';
 import { LoyaltySection } from './payments/LoyaltySection';
+import { PaymentsSetupSection } from './payments/PaymentsSetupSection';
 import { useLoyaltySettings } from './payments/useLoyaltySettings';
 import type { DestinationProps } from './types';
 
-// «Платежи и лояльность»: одна связная страница «деньги ↔ игрок», без табов. Две озаглавленные
-// зоны, каждая самодостаточна — глобального save-бара ManagementScreen нет (именно он навязывал
-// одну save-модель на весь экран и породил табы). Зоны показываются по правам: нет права — нет
-// зоны, без пустых блоков и размытия прав.
+// «Платежи и лояльность» — спокойный setup-экран, куда заходят раз в несколько месяцев. Две ясные
+// секции с человеческим лидом: «Как игрок платит вам» (приём) и «Как вы возвращаете» (кэшбэк).
+// Приоритет — ясность и воздух, а не плотность рабочих вкладок. Каждая секция самодостаточна
+// (своя кнопка сохранения), глобального save-бара нет. Зоны гейтятся по правам.
 export function PaymentsLoyaltyDestination({ backend, session, currencyCode, onDirtyChange }: DestinationProps) {
   const { t } = useI18n();
   const canGateways = hasPermission(session, permissionNames.managePaymentGateways);
@@ -29,22 +30,36 @@ export function PaymentsLoyaltyDestination({ backend, session, currencyCode, onD
       subtitle={t('op.management.dest.payments.subtitle')}
       contentWidth="wide"
     >
-      {canGateways && (
-        backend === null ? (
-          <div className="management-panel">
-            <EmptyState
-              title={t('op.management.dest.payment.noBackendTitle')}
-              description={t('op.management.dest.payment.noBackendHint')}
-            />
-          </div>
-        ) : (
-          <PaymentMethodsSection backend={backend} />
-        )
-      )}
+      {/* Две половины одного экрана: приём слева, возврат справа. auto-fit сам сводит в одну
+          колонку, если видна лишь одна зона (по правам) или окно узкое. */}
+      <div className="payset-columns">
+        {canGateways && (
+          <PaymentsSetupSection
+            direction="in"
+            title={t('op.payments.zone.income')}
+            lead={t('op.payments.zone.income.lead')}
+          >
+            {backend !== null ? (
+              <PaymentMethodsSection backend={backend} />
+            ) : (
+              <EmptyState
+                title={t('op.management.dest.payment.noBackendTitle')}
+                description={t('op.management.dest.payment.noBackendHint')}
+              />
+            )}
+          </PaymentsSetupSection>
+        )}
 
-      {canLoyalty && (
-        <LoyaltySection controller={loyalty} currencyCode={currencyCode} hasBackend={backend !== null} />
-      )}
+        {canLoyalty && (
+          <PaymentsSetupSection
+            direction="out"
+            title={t('op.payments.zone.loyalty')}
+            lead={t('op.payments.zone.loyalty.lead')}
+          >
+            <LoyaltySection controller={loyalty} currencyCode={currencyCode} hasBackend={backend !== null} />
+          </PaymentsSetupSection>
+        )}
+      </div>
     </ManagementScreen>
   );
 }

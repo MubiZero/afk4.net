@@ -7,16 +7,21 @@ interface Props {
   backend: OperatorBackendContext;
 }
 
-// Зона «Как игрок платит вам»: настраиваемые онлайн-способы приёма денег — dcgate (приём по
-// картам + привязка Telegram) и реквизиты Eskhata. Каждый блок работает моделью мгновенных
-// действий (свои кнопки), общего save-бара на экране нет.
+// Содержимое секции «Как игрок платит вам»: Eskhata Merchant — основной способ (сверху), перевод
+// на карту DushanbeCity — дополнительный (ниже). Обёртку-секцию с заголовком/лидом даёт
+// PaymentsSetupSection.
 export function PaymentMethodsSection({ backend }: Props) {
   const { t } = useI18n();
   return (
-    <section className="management-panel payment-methods">
-      <h3 className="payment-zone-title">{t('op.payments.zone.income')}</h3>
-      <PaymentGatewaysWorkspace backend={backend} />
+    <div>
+      <div className="payset-subhead">{t('op.payments.primary.subhead')}</div>
       <EskhataGatewayForm backend={backend} />
-    </section>
+
+      <div className="payset-divider" />
+
+      <div className="payset-subhead">{t('op.payments.dc.subhead')}</div>
+      <p className="payset-note">{t('op.payments.dc.note')}</p>
+      <PaymentGatewaysWorkspace backend={backend} />
+    </div>
   );
 }

@@ -41,6 +41,8 @@ afterAll(() => mock.restore());
 describe('EskhataGatewayForm', () => {
   it('keeps Save disabled until all required fields are valid, then saves', async () => {
     view();
+    // Eskhata — тихий резервный блок: форма свёрнута, «Настроить» её раскрывает.
+    fireEvent.click(await screen.findByRole('button', { name: /настроить/i }));
     const save = await screen.findByRole('button', { name: /сохранить/i });
     expect(save).toBeDisabled();
 
@@ -62,6 +64,7 @@ describe('EskhataGatewayForm', () => {
   it('shows the «задан» placeholder and allows saving without re-entering the hash key', async () => {
     stored = { baseUrl: 'https://merchant-api.example.tld', companyId: 'company-demo-001', posId: 17, hashKeySet: true, status: 'configured' };
     view();
+    fireEvent.click(await screen.findByRole('button', { name: /настроить/i }));
 
     const hashInput = await screen.findByLabelText('Hash key');
     await waitFor(() => expect((hashInput as HTMLInputElement).placeholder).toMatch(/задан/i));
