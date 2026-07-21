@@ -7,6 +7,8 @@ using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 
+using AFK4.Platform.Api.Loyalty;
+
 namespace AFK4.Platform.Api.Tests;
 
 public sealed class EfAutoProtectionRunnerTests
@@ -138,7 +140,7 @@ public sealed class EfAutoProtectionRunnerTests
         var timeProvider = new FixedTimeProvider(Now);
         return new AutoProtectionRunner(
             db,
-            new SessionBillingService(db, new EfTariffService(db, timeProvider), new EfShiftService(db, timeProvider), timeProvider),
+            new SessionBillingService(db, new EfTariffService(db, timeProvider), new EfShiftService(db, timeProvider), new LoyaltyAccrualService(db), timeProvider),
             dispatcher,
             new AutoProtectionOptions(),
             timeProvider);

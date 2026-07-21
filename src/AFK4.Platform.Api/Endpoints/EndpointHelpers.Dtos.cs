@@ -152,6 +152,17 @@ internal static partial class EndpointHelpers
             branch.BranchId,
             branch.Name,
             branch.City,
+            branch.Description,
+            branch.Address,
+            branch.Phone,
+            branch.Telegram,
+            branch.Website,
+            branch.Instagram,
+            branch.LogoUrl,
+            branch.LogoMediaId,
+            branch.PreferredTimeZone,
+            branch.PreferredLocale,
+            AFK4.Platform.Api.Branches.BranchWorkingHours.Deserialize(branch.WorkingHoursJson),
             branch.CreatedAtUtc);
     }
 

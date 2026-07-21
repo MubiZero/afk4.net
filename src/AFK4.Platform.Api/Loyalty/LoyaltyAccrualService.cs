@@ -36,9 +36,16 @@ public sealed class LoyaltyAccrualService(PlatformDbContext dbContext) : ILoyalt
         {
             LoyaltyAccrualSource.TopUp => (settings.TopUpEnabled, settings.TopUpPercentBasisPoints),
             LoyaltyAccrualSource.Shop => (settings.ShopEnabled, settings.ShopPercentBasisPoints),
+            LoyaltyAccrualSource.Session => (settings.SessionEnabled, settings.SessionPercentBasisPoints),
             _ => (false, 0)
         };
         if (!enabled || basisPoints <= 0)
+        {
+            return null;
+        }
+
+        // Minimum-to-qualify: the source amount must reach the org's threshold to earn anything.
+        if (settings.MinimumSourceMinorUnits > 0 && sourceMinorUnits < settings.MinimumSourceMinorUnits)
         {
             return null;
         }
@@ -47,6 +54,12 @@ public sealed class LoyaltyAccrualService(PlatformDbContext dbContext) : ILoyalt
         if (cashback <= 0)
         {
             return null;
+        }
+
+        // Per-accrual cap: never grant more than the org's ceiling for a single event.
+        if (settings.CashbackCapMinorUnits > 0 && cashback > settings.CashbackCapMinorUnits)
+        {
+            cashback = settings.CashbackCapMinorUnits;
         }
 
         // Cashback is a system-initiated grant (actor = Guid.Empty), not a cashier cash operation,

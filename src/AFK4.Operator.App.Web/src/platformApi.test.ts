@@ -139,6 +139,25 @@ describe('PlatformApiClient layout save support', () => {
     expect(result.etag).toBe('W/"v1"');
   });
 
+  it('postForm sends FormData without forcing a Content-Type header', async () => {
+    let seen: Request | null = null;
+    const client = clientWith(async (input, init) => {
+      seen = new Request(input, init);
+      return new Response(JSON.stringify({ mediaId: 'm1' }), { status: 200 });
+    });
+    const form = new FormData();
+    form.append('file', new File(['x'], 'a.png', { type: 'image/png' }));
+
+    const body = await client.postForm<{ mediaId: string }>('/x', form);
+
+    expect(body.mediaId).toBe('m1');
+    expect(seen!.method).toBe('POST');
+    // We must not force 'application/json' — the runtime derives the multipart
+    // boundary from the FormData body itself once we leave Content-Type unset.
+    expect(seen!.headers.get('Content-Type')).toContain('multipart/form-data');
+    expect(seen!.headers.get('Authorization')).toBe('Bearer tok');
+  });
+
   it('put sends the If-Match header and JSON body', async () => {
     let seen: Request | null = null;
     const client = clientWith(async (input, init) => {

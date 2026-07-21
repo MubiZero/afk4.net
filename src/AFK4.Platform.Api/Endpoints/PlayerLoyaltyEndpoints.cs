@@ -41,6 +41,8 @@ internal static class PlayerLoyaltyEndpoints
                 settings?.TopUpPercentBasisPoints ?? 0,
                 settings?.ShopEnabled ?? false,
                 settings?.ShopPercentBasisPoints ?? 0,
+                settings?.SessionEnabled ?? false,
+                settings?.SessionPercentBasisPoints ?? 0,
                 new MoneyDto(currency, totalMinor),
                 recent));
         }).RequireRateLimiting("player-me");

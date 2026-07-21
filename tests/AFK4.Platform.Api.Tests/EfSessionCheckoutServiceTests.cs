@@ -17,6 +17,8 @@ using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
 
+using AFK4.Platform.Api.Loyalty;
+
 namespace AFK4.Platform.Api.Tests;
 
 public sealed class EfSessionCheckoutServiceTests
@@ -84,6 +86,37 @@ public sealed class EfSessionCheckoutServiceTests
         var outboxRow = Assert.Single(db.OutboxMessages);
         Assert.Equal(OutboxMessageTypes.SessionCheckout, outboxRow.Type);
         Assert.Equal(OutboxMessageStatus.Pending, outboxRow.Status);
+    }
+
+    [Fact]
+    public async Task CheckoutAsync_AccruesSessionCashbackWhenEnabled()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedOpenPostpaidSessionAsync(db);
+        db.OrganizationLoyaltySettings.Add(new OrganizationLoyaltySettingsEntity
+        {
+            OrganizationId = TestIds.OrganizationId,
+            SessionEnabled = true,
+            SessionPercentBasisPoints = 1000, // 10%
+            UpdatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+        var service = CreateService(db, new RecordingDispatch());
+
+        var result = await service.CheckoutAsync(
+            SessionId,
+            ActorStaffUserId,
+            new SessionCheckoutRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", ExpectedTimeCharge))],
+                "checkout-cashback"),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var cashback = Assert.Single(db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.Cashback));
+        Assert.Equal(ExpectedTimeCharge * 1000 / 10000, cashback.AmountMinorUnits); // floor(2250 * 10%) = 225
+        Assert.Equal(LedgerAccountTypeNames.Wallet, cashback.AccountType);
     }
 
     [Fact]
@@ -514,7 +547,8 @@ public sealed class EfSessionCheckoutServiceTests
         var shiftService = new EfShiftService(db, timeProvider);
         return new EfSessionCheckoutService(
             db,
-            new SessionBillingService(db, new EfTariffService(db, timeProvider), shiftService, timeProvider),
+            new SessionBillingService(db, new EfTariffService(db, timeProvider), shiftService, new LoyaltyAccrualService(db), timeProvider),
+            new LoyaltyAccrualService(db),
             new ReceiptNumberGenerator(db),
             dispatcher,
             shiftService,

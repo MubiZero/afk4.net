@@ -241,7 +241,7 @@ public sealed class BillingShiftIntegrationTests
     {
         var timeProvider = new FixedTimeProvider(Now);
         var leaseSigner = new FakeSessionLeaseSigner();
-        var billing = new SessionBillingService(db, new EfTariffService(db, timeProvider), openShiftResolver, timeProvider);
+        var billing = new SessionBillingService(db, new EfTariffService(db, timeProvider), openShiftResolver, new LoyaltyAccrualService(db), timeProvider);
         var lifecycleNotifier = new RecordingSessionLifecycleNotifier();
         return new EfSessionCommandService(
             db,

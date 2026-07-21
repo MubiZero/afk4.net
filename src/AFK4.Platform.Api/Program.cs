@@ -18,6 +18,7 @@ using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Identity.PhoneOtp;
 using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Inventory;
+using AFK4.Platform.Api.Media;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Payments;
@@ -316,6 +317,22 @@ builder.Services.Configure<SecretProtectionOptions>(
 builder.Services.AddSingleton<ISecretProtector, AesGcmSecretProtector>();
 builder.Services.AddScoped<IBranchPaymentGatewayResolver, EfBranchPaymentGatewayResolver>();
 
+var mediaSection = builder.Configuration.GetSection(MediaOptions.SectionName);
+builder.Services.Configure<MediaOptions>(mediaSection);
+// Singleton: AmazonS3Client is thread-safe and owns an HttpClient/connection pool; a per-request
+// (Scoped) client would leak handlers/sockets under load. MediaOptions is read once at construction.
+builder.Services.AddSingleton<IMediaStorage, MinioMediaStorage>();
+builder.Services.AddScoped<IMediaService, EfMediaService>();
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    // Track Media:MaxBytes (not a hardcoded literal) + headroom for multipart framing, so raising
+    // MaxBytes via config actually widens uploads instead of hitting a stale framework-level 400
+    // before EfMediaService's own size check. Kestrel's MaxRequestBodySize (30 MB default) stays
+    // above this for the current default; revisit if MaxBytes is configured near/above ~28 MB.
+    var maxBytes = mediaSection.Get<MediaOptions>()?.MaxBytes ?? new MediaOptions().MaxBytes;
+    options.MultipartBodyLengthLimit = maxBytes + 2 * 1024 * 1024;
+});
+
 builder.Services.Configure<DcGateOptions>(builder.Configuration.GetSection(DcGateOptions.SectionName));
 builder.Services.AddHttpClient(DcGateClientFactory.HttpClientName, (provider, http) =>
 {
@@ -420,8 +437,10 @@ app.UseMiddleware<TenantSuspensionMiddleware>();
 app.MapHealthEndpoints();
 app.MapFloorMapEndpoints();
 app.MapBranchSettingsEndpoints();
+app.MapMediaEndpoints();
 app.MapAuthEndpoints();
 app.MapPaymentGatewayEndpoints();
+app.MapEskhataConfigEndpoints();
 app.MapLoyaltySettingsEndpoints();
 app.MapNewsEndpoints();
 app.MapPlayerSelfServiceEndpoints();

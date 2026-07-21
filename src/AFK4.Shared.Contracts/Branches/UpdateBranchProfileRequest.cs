@@ -3,4 +3,15 @@ namespace AFK4.Shared.Contracts.Branches;
 public sealed record UpdateBranchProfileRequest(
     Guid OrganizationId,
     string Name,
-    string City);
+    string City,
+    string? Description,
+    string? Address,
+    string? Phone,
+    string? Telegram,
+    string? Website,
+    string? Instagram,
+    string? LogoUrl,
+    Guid? LogoMediaId,
+    string TimeZone,
+    string Locale,
+    IReadOnlyList<BranchWorkingHoursDayDto> WorkingHours);

@@ -134,6 +134,10 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Address")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
                     b.Property<string>("City")
                         .IsRequired()
                         .HasMaxLength(120)
@@ -145,11 +149,26 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<int?>("GraceLeaseMinutes")
                         .HasColumnType("integer");
 
                     b.Property<long?>("HighRiskApprovalThresholdMinorUnits")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("Instagram")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<Guid?>("LogoMediaId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LogoUrl")
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -158,6 +177,10 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
 
                     b.Property<long?>("PostpaidCreditLimitMinorUnits")
                         .HasColumnType("bigint");
@@ -194,6 +217,17 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Telegram")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Website")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("WorkingHoursJson")
+                        .HasColumnType("jsonb");
 
                     b.HasKey("BranchId");
 
@@ -649,6 +683,55 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("OrganizationId", "BranchId", "Status", "UpdatedAtUtc");
 
                     b.ToTable("device_update_statuses", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.EskhataMerchantConfigEntity", b =>
+                {
+                    b.Property<Guid>("EskhataMerchantConfigId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BaseUrl")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CompanyId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("HashKeyEncrypted")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("PosId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("EskhataMerchantConfigId");
+
+                    b.HasIndex("OrganizationId", "BranchId")
+                        .IsUnique();
+
+                    b.ToTable("eskhata_merchant_configs", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.InvoiceEntity", b =>
@@ -1155,6 +1238,18 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<Guid>("OrganizationId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<long>("CashbackCapMinorUnits")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("MinimumSourceMinorUnits")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("SessionEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("SessionPercentBasisPoints")
+                        .HasColumnType("integer");
 
                     b.Property<bool>("ShopEnabled")
                         .HasColumnType("boolean");
@@ -3590,6 +3685,54 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("OrganizationId", "BranchId", "DeviceId");
 
                     b.ToTable("update_rollout_targets", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.UploadedMediaEntity", b =>
+                {
+                    b.Property<Guid>("MediaId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ObjectKey")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PublicUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("MediaId");
+
+                    b.HasIndex("OrganizationId", "BranchId", "Purpose");
+
+                    b.ToTable("uploaded_media", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.WallEntity", b =>

@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
+import { Newspaper } from 'lucide-react';
+import { MgmtTable } from './management/kit/MgmtTable';
+import { MgmtDrawer } from './management/kit/MgmtDrawer';
+import { CriticalActionConfirmation } from './operatorPrimitives';
 import { createAuthenticatedOperatorClients } from './operatorHelpers';
 import type { OperatorBackendContext } from './operatorTypes';
 import type { NewsItemDto, NewsItemInput, OwnerBranchSummaryDto } from './operatorApiClients';
@@ -42,7 +46,7 @@ export function NewsWorkspace({
   backend: OperatorBackendContext | null;
   client?: NewsClient;
 }) {
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const memoizedClient = useMemo(
     () => (backend ? createAuthenticatedOperatorClients(backend.config, backend.session).news : null),
     [backend?.config, backend?.session]
@@ -54,6 +58,10 @@ export function NewsWorkspace({
   const [form, setForm] = useState({ ...EMPTY });
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null); // id или '__new__' для создания
+  const [deleteTarget, setDeleteTarget] = useState<NewsItemDto | null>(null);
+  const isDrawerOpen = selectedId !== null;
+  const isCreate = selectedId === '__new__';
 
   useEffect(() => {
     if (client === null) return undefined;
@@ -84,6 +92,13 @@ export function NewsWorkspace({
       publishAt: toLocalInput(item.publishAtUtc),
       expiresAt: toLocalInput(item.expiresAtUtc)
     });
+    setSelectedId(item.id);
+  };
+
+  const openCreate = () => {
+    setForm({ ...EMPTY });
+    setError(null);
+    setSelectedId('__new__');
   };
 
   const save = async () => {
@@ -115,83 +130,139 @@ export function NewsWorkspace({
     }
     setForm({ ...EMPTY });
     await reload();
+    setSelectedId(null);
   };
 
   const remove = async (id: string) => {
     if (client === null) return;
     await client.remove(id);
     await reload();
+    setSelectedId(null);
   };
 
   if (!ready) {
-    return (
-      <main className="workspace-screen news-screen">
-        <section className="screen-head"><h1>{t('op.news.title')}</h1></section>
-        <p>…</p>
-      </main>
-    );
+    return <p className="workspace-loading">{t('state.loading')}</p>;
   }
 
+  const branchName = (branchId: string | null) =>
+    branchId === null ? t('op.news.allBranches') : (branches.find((b) => b.branchId === branchId)?.name ?? '—');
+
+  const windowLabel = (item: NewsItemDto) => {
+    const from = item.publishAtUtc ? formatDate(item.publishAtUtc) : '';
+    const to = item.expiresAtUtc ? formatDate(item.expiresAtUtc) : '';
+    if (!from && !to) return '—';
+    return `${from || '…'} — ${to || '…'}`;
+  };
+
   return (
-    <main className="workspace-screen news-screen">
-      <section className="screen-head"><h1>{t('op.news.title')}</h1></section>
+    <div className="mgmt-master-detail">
+      <MgmtTable<NewsItemDto>
+        columns={[
+          { key: 'title', header: t('op.news.fieldTitle'), render: (n) => n.title },
+          { key: 'branch', header: t('op.news.col.branch'), render: (n) => branchName(n.branchId) },
+          {
+            key: 'status',
+            header: t('op.news.col.status'),
+            render: (n) => (
+              <span className={`ui-chip ui-chip--status ui-chip--xs ${n.isPublished ? 'is-live' : 'is-neutral'}`}>
+                {n.isPublished ? t('op.news.statusPublished') : t('op.news.draftTag')}
+              </span>
+            )
+          },
+          { key: 'window', header: t('op.news.col.window'), render: (n) => windowLabel(n) }
+        ]}
+        rows={items}
+        rowKey={(n) => n.id}
+        gridTemplate="1.6fr 1fr 0.8fr 1.2fr"
+        selectedKey={isCreate ? null : selectedId}
+        onSelectRow={(n) => edit(n)}
+        toolbar={{
+          title: t('op.management.dest.news'),
+          primary: { label: t('op.news.addCta'), onClick: openCreate }
+        }}
+        empty={{
+          icon: <Newspaper size={22} aria-hidden="true" />,
+          title: t('op.news.empty'),
+          description: t('op.news.emptyDescription'),
+          action: { label: t('op.news.addCta'), onClick: openCreate }
+        }}
+      />
 
-      <form onSubmit={(event) => { event.preventDefault(); void save(); }}>
-        <label>
-          {t('op.news.fieldTitle')}
-          <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
-        </label>
-        <label>
-          {t('op.news.fieldBody')}
-          <textarea value={form.body} onChange={(event) => setForm({ ...form, body: event.target.value })} />
-        </label>
-        <label>
-          {t('op.news.fieldImage')}
-          <input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} />
-        </label>
-        <label>
-          {t('op.news.fieldBranch')}
-          <select value={form.branchId} onChange={(event) => setForm({ ...form, branchId: event.target.value })}>
-            <option value="">{t('op.news.allBranches')}</option>
-            {branches.map((branch) => (
-              <option key={branch.branchId} value={branch.branchId}>{branch.name}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={form.isPublished}
-            onChange={(event) => setForm({ ...form, isPublished: event.target.checked })}
-          />
-          {t('op.news.published')}
-        </label>
-        <label>
-          {t('op.news.publishAt')}
-          <input type="datetime-local" value={form.publishAt} onChange={(event) => setForm({ ...form, publishAt: event.target.value })} />
-        </label>
-        <label>
-          {t('op.news.expiresAt')}
-          <input type="datetime-local" value={form.expiresAt} onChange={(event) => setForm({ ...form, expiresAt: event.target.value })} />
-        </label>
-        {error && <p role="alert">{error}</p>}
-        <button type="submit">{t('op.news.save')}</button>
-        {form.id !== null && (
-          <button type="button" onClick={() => { setForm({ ...EMPTY }); setError(null); }}>{t('op.news.cancel')}</button>
-        )}
-      </form>
+      {isDrawerOpen && (
+        <MgmtDrawer
+          title={isCreate ? t('op.news.createTitle') : (form.title || t('op.news.createTitle'))}
+          subtitle={isCreate ? undefined : (form.isPublished ? t('op.news.statusPublished') : t('op.news.draftTag'))}
+          onClose={() => { setSelectedId(null); setForm({ ...EMPTY }); setError(null); }}
+          footer={
+            <div className="mgmt-form-actions">
+              {!isCreate && (
+                <button
+                  type="button"
+                  className="ui-btn ui-btn--danger"
+                  onClick={() => setDeleteTarget(items.find((n) => n.id === form.id) ?? null)}
+                >
+                  {t('op.news.delete')}
+                </button>
+              )}
+              <button type="button" className="ui-btn ui-btn--primary" onClick={() => void save()}>
+                {t('op.news.save')}
+              </button>
+            </div>
+          }
+        >
+          <form className="mgmt-form" onSubmit={(event) => { event.preventDefault(); void save(); }}>
+            <label>
+              {t('op.news.fieldTitle')}
+              <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
+            </label>
+            <label>
+              {t('op.news.fieldBranch')}
+              <select value={form.branchId} onChange={(event) => setForm({ ...form, branchId: event.target.value })}>
+                <option value="">{t('op.news.allBranches')}</option>
+                {branches.map((branch) => (
+                  <option key={branch.branchId} value={branch.branchId}>{branch.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {t('op.news.fieldBody')}
+              <textarea value={form.body} onChange={(event) => setForm({ ...form, body: event.target.value })} rows={5} />
+            </label>
+            <label>
+              {t('op.news.fieldImage')}
+              <input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} />
+            </label>
+            <label className="mgmt-check">
+              <input
+                type="checkbox"
+                checked={form.isPublished}
+                onChange={(event) => setForm({ ...form, isPublished: event.target.checked })}
+              />
+              {t('op.news.published')}
+            </label>
+            <label>
+              {t('op.news.publishAt')}
+              <input type="datetime-local" value={form.publishAt} onChange={(event) => setForm({ ...form, publishAt: event.target.value })} />
+            </label>
+            <label>
+              {t('op.news.expiresAt')}
+              <input type="datetime-local" value={form.expiresAt} onChange={(event) => setForm({ ...form, expiresAt: event.target.value })} />
+            </label>
+            {error && <p className="ui-inline-error" role="alert">{error}</p>}
+          </form>
+        </MgmtDrawer>
+      )}
 
-      {items.length === 0 && <p>{t('op.news.empty')}</p>}
-      <ul>
-        {items.map((item) => (
-          <li key={item.id}>
-            <strong>{item.title}</strong>
-            {!item.isPublished && <em> ({t('op.news.draftTag')})</em>}
-            <button type="button" onClick={() => edit(item)}>{t('op.news.edit')}</button>
-            <button type="button" onClick={() => void remove(item.id)}>{t('op.news.delete')}</button>
-          </li>
-        ))}
-      </ul>
-    </main>
+      {deleteTarget && (
+        <CriticalActionConfirmation
+          title={t('op.news.deleteTitle')}
+          detail={deleteTarget.title}
+          impact={t('op.news.deleteImpact')}
+          confirmLabel={t('op.news.delete')}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={() => { const id = deleteTarget.id; setDeleteTarget(null); void remove(id); }}
+        />
+      )}
+    </div>
   );
 }

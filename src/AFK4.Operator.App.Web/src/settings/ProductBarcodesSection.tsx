@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { createAuthenticatedOperatorClients } from '../operatorHelpers';
-import { useBarcodeScanner } from '../useBarcodeScanner';
 import { useToast } from '../operatorToast';
 import type { ProductBarcodeDto } from '../api/clients/settings';
 import type { OperatorBackendContext } from '../operatorTypes';
@@ -25,7 +24,6 @@ export function ProductBarcodesSection({
   const [loading, setLoading] = useState(true);
   const [manualCode, setManualCode] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [scanning, setScanning] = useState(false);
 
   const fetchBarcodes = useCallback(async () => {
     if (!backend || !productId) return;
@@ -56,7 +54,6 @@ export function ProductBarcodesSection({
       isPrimary,
     });
     setManualCode('');
-    setScanning(false);
     toast.success(t('op.barcode.added'));
     await fetchBarcodes();
   };
@@ -68,20 +65,12 @@ export function ProductBarcodesSection({
     await fetchBarcodes();
   };
 
-  // Сканер: слушает только когда режим «сканирование» активен
-  useBarcodeScanner(scanning && canManage, (code) => {
-    setScanning(false);
-    void addCode(code);
-  });
-
   if (loading) return null;
 
   return (
     <div className="settings-barcodes-section">
       <div className="settings-section-subtitle">{t('op.barcode.section.title')}</div>
-      {barcodes.length === 0 ? (
-        <p className="settings-barcodes-empty">{t('op.barcode.empty')}</p>
-      ) : (
+      {barcodes.length > 0 && (
         <div className="barcode-chips">
           {barcodes.map((b) => (
             <span key={b.barcodeId} className={`barcode-chip${b.isPrimary ? ' is-primary' : ''}`}>
@@ -111,15 +100,8 @@ export function ProductBarcodesSection({
             onChange={(e) => setManualCode(e.currentTarget.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { void addCode(manualCode); } }}
           />
-          <button type="button" onClick={() => void addCode(manualCode)}>
+          <button type="button" className="ui-btn" onClick={() => void addCode(manualCode)}>
             {t('op.barcode.add')}
-          </button>
-          <button
-            type="button"
-            className={scanning ? 'active' : undefined}
-            onClick={() => setScanning((s) => !s)}
-          >
-            {scanning ? t('op.barcode.scanning') : t('op.barcode.scan')}
           </button>
         </div>
       )}

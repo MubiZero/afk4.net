@@ -44,10 +44,28 @@ export interface ResetStaffUserPasswordRequest extends Record<string, unknown> {
   newPassword: string;
 }
 
+export interface BranchWorkingHoursDay {
+  dayOfWeek: number; // 1=Пн … 7=Вс
+  isClosed: boolean;
+  openTime: string | null;
+  closeTime: string | null;
+}
+
 export interface UpdateBranchProfileRequest extends Record<string, unknown> {
   organizationId: Guid;
   name: string;
   city: string;
+  description: string | null;
+  address: string | null;
+  phone: string | null;
+  telegram: string | null;
+  website: string | null;
+  instagram: string | null;
+  logoUrl: string | null;
+  logoMediaId: string | null;
+  timeZone: string;
+  locale: string;
+  workingHours: BranchWorkingHoursDay[];
 }
 
 export interface CreateZoneRequest extends Record<string, unknown> {

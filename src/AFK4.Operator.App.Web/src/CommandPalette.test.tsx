@@ -6,9 +6,9 @@ import type { OperatorAuthSession } from './authClient';
 
 const makeSession = (permissions: string[]) => ({ permissions } as unknown as OperatorAuthSession);
 
-// Менеджер: видит зал, брони, клиентов + управление (открывает settings).
+// Менеджер: видит зал, брони, клиентов + управление (открывает management).
 const managerPerms = ['floor_map.view', 'reservations.view', 'players.view', 'identity.branch_staff.manage'];
-// Кассир: только создание продаж — открывает pos/shop_orders, но НЕ settings.
+// Кассир: только создание продаж — открывает pos/shop_orders, но НЕ management.
 const cashierPerms = ['pos.sales.create'];
 
 function renderPalette(perms: string[], handlers: { onNavigate?: (id: string) => void; onClose?: () => void } = {}) {
@@ -38,12 +38,12 @@ describe('CommandPalette', () => {
 
   it('filters the nav list by the localized label as the user types', () => {
     renderPalette(managerPerms);
-    // До ввода видны и "Карта", и "Настройки".
+    // До ввода видны и "Карта", и "Управление".
     expect(screen.getByText('Карта')).toBeDefined();
-    expect(screen.getByText('Настройки')).toBeDefined();
+    expect(screen.getByText('Управление')).toBeDefined();
     fireEvent.change(screen.getByLabelText('Командная палитра'), { target: { value: 'Карта' } });
     expect(screen.getByText('Карта')).toBeDefined();
-    expect(screen.queryByText('Настройки')).toBeNull();
+    expect(screen.queryByText('Управление')).toBeNull();
   });
 
   it('Enter on the active row navigates then closes', () => {
@@ -75,6 +75,6 @@ describe('CommandPalette', () => {
   it('hides screens the session cannot open (cashier has no management screen)', () => {
     renderPalette(cashierPerms);
     expect(screen.getByText('Касса')).toBeDefined();
-    expect(screen.queryByText('Настройки')).toBeNull();
+    expect(screen.queryByText('Управление')).toBeNull();
   });
 });

@@ -47,7 +47,13 @@ describe('WorkspaceRail permissions', () => {
   });
 
   it('keeps a section when one nested workspace is permitted', () => {
-    renderRail(['diagnostics.view']);
+    // devices.seat_assignment.assign is one of several permissions behind the single `management`
+    // workspace item (see managementNav.ts "Залы и ПК" destination). After the CRUD rework
+    // (2026-07-17) enrollment-code/dispatch-command were dropped from that screen, so
+    // devices.commands.dispatch no longer qualifies — the gate is now the perms that actually
+    // unlock content (layout.manage / seat assignment / credential rotate-revoke). Read-only
+    // devices.detail.view/commands.status.view still do NOT grant whole-section visibility.
+    renderRail(['devices.seat_assignment.assign']);
 
     expect(screen.getByTitle('Управление')).toBeInTheDocument();
   });

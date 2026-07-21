@@ -450,9 +450,46 @@ function tariffOptions() {
   ];
 }
 
+// Настройки лояльности: мутируемые, чтобы «Сохранить» в превью реально держалось до перезагрузки.
+// Значения реалистичные (не нули) — иначе экран выглядит пустым/сломанным. Money в minor units.
+let mutableLoyaltySettings: Record<string, unknown> | null = null;
+function loyaltySettings(): Record<string, unknown> {
+  if (mutableLoyaltySettings === null) {
+    mutableLoyaltySettings = {
+      topUpEnabled: true,
+      topUpPercentBasisPoints: 500,
+      shopEnabled: true,
+      shopPercentBasisPoints: 300,
+      sessionEnabled: false,
+      sessionPercentBasisPoints: 200,
+      cashbackCapMinorUnits: 5000,
+      minimumSourceMinorUnits: 2000
+    };
+  }
+  return mutableLoyaltySettings;
+}
+
+// Конфиг Eskhata Merchant: мутируемый, чтобы «Сохранить» в превью держался. Секрет наружу не
+// отдаём — только hashKeySet (как реальный эндпоинт). Значения реалистичные (не пустые).
+let mutableEskhataConfig: Record<string, unknown> | null = null;
+function eskhataConfig(): Record<string, unknown> {
+  if (mutableEskhataConfig === null) {
+    mutableEskhataConfig = {
+      baseUrl: 'https://merchant-api.example.tld',
+      companyId: 'company-demo-001',
+      posId: 17,
+      hashKeySet: true,
+      status: 'configured'
+    };
+  }
+  return mutableEskhataConfig;
+}
+
 // Route a platform request to a fixture. Returns null when nothing matches, so the caller can apply
 // a safe default.
 function route(pathname: string, method: string): unknown | undefined {
+  if (pathname.endsWith('/owner/loyalty-settings') && method === 'GET') return loyaltySettings();
+  if (pathname.endsWith('/owner/eskhata-config') && method === 'GET') return eskhataConfig();
   if (pathname.endsWith('/checkout/quote') && method === 'GET') return checkoutQuote();
   if (pathname.endsWith('/tariffs/options')) return tariffOptions();
   if (pathname.endsWith('/floor-map')) return currentPreviewFloorMap();
@@ -837,6 +874,25 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     };
     prependLedger(entry);
     return json(entry);
+  }
+  if (url.pathname.endsWith('/owner/loyalty-settings') && method === 'POST') {
+    let req: Record<string, unknown> = {};
+    try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
+    mutableLoyaltySettings = { ...loyaltySettings(), ...req };
+    return json(mutableLoyaltySettings);
+  }
+  if (url.pathname.endsWith('/owner/eskhata-config') && method === 'POST') {
+    let req: Record<string, unknown> = {};
+    try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
+    const hashKeyProvided = typeof req.hashKey === 'string' && req.hashKey.trim().length > 0;
+    mutableEskhataConfig = {
+      baseUrl: String(req.baseUrl ?? '').trim().replace(/\/+$/, ''),
+      companyId: String(req.companyId ?? '').trim(),
+      posId: Number(req.posId ?? 0),
+      hashKeySet: hashKeyProvided || Boolean(eskhataConfig().hashKeySet),
+      status: 'configured'
+    };
+    return json(mutableEskhataConfig);
   }
   if (url.pathname.endsWith('/pos/sales') && method === 'POST') {
     return json({ posSaleId: `ps-${nextPosSaleSeq++}`, state: 'created' });

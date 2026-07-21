@@ -85,7 +85,7 @@ internal static class BranchProfileLayoutEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageLayout,
+                StaffPermissionNames.ManageBranchSettings,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -148,7 +148,7 @@ internal static class BranchProfileLayoutEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageLayout,
+                StaffPermissionNames.ManageBranchSettings,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -196,6 +196,17 @@ internal static class BranchProfileLayoutEndpoints
 
             branch.Name = request.Name.Trim();
             branch.City = request.City.Trim();
+            branch.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+            branch.Address = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim();
+            branch.Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
+            branch.Telegram = string.IsNullOrWhiteSpace(request.Telegram) ? null : request.Telegram.Trim();
+            branch.Website = string.IsNullOrWhiteSpace(request.Website) ? null : request.Website.Trim();
+            branch.Instagram = string.IsNullOrWhiteSpace(request.Instagram) ? null : request.Instagram.Trim();
+            branch.LogoUrl = string.IsNullOrWhiteSpace(request.LogoUrl) ? null : request.LogoUrl.Trim();
+            branch.LogoMediaId = request.LogoMediaId;
+            branch.PreferredTimeZone = request.TimeZone.Trim();
+            branch.PreferredLocale = request.Locale.Trim();
+            branch.WorkingHoursJson = AFK4.Platform.Api.Branches.BranchWorkingHours.Serialize(request.WorkingHours);
             await dbContext.SaveChangesAsync(cancellationToken);
 
             var response = ToBranchProfileDto(branch);

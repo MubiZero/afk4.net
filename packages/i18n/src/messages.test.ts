@@ -49,6 +49,15 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'ledger.type.reversal',
     // «сторно» — международный бухгалтерский термин-заимствование (как ledger.type.reversal)
     'op.players.history.reversalBadge',
+    // «клуб» — общеупотребимое заимствование в тадж. разговорной речи (нет отдельного нативного слова),
+    // уже встречается нетранслируемым внутри op.settings.heading/tg
+    'op.management.dest.club',
+    // Eskhata Merchant — бренд и технические ярлыки реквизитов; одинаковы во всех языках.
+    'op.eskhata.title',
+    'op.eskhata.baseUrl',
+    'op.eskhata.companyId',
+    'op.eskhata.posId',
+    'op.eskhata.hashKey',
     'nav.billing',
     'nav.group.account',
     'nav.group.branch',
@@ -59,6 +68,15 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.booking.seatsOne',
     'op.booking.source.operator',
     'op.cash.title',
+    // Telegram / Instagram — бренд-топонимы, одинаковы во всех локалях.
+    'op.club.field.telegram',
+    'op.club.field.instagram',
+    // Плейсхолдеры-примеры форматов и топоним «Душанбе» — одинаковы в ru/tg (число, url, @-хэндл, город).
+    'op.club.ph.city',
+    'op.club.ph.phone',
+    'op.club.ph.telegram',
+    'op.club.ph.website',
+    'op.club.ph.instagram',
     'op.command.stage.cashier',
     'op.dashboard.pcs',
     'op.dashboard.signalsShort',
@@ -108,10 +126,25 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.logs.target.session',
     'op.logs.target.tariff',
     'op.logs.tone.session',
+    // «ПК» — та же неизменяемая аббревиатура, что и op.settings.layout.seatFallback
+    'op.management.halls.addSeatCta',
+    'op.management.halls.col.seatName',
+    // «Тариф»/«Пакет» — те же нетранслируемые заимствования, что и op.settings.tariffs.tariffFallback/
+    // op.settings.packages.packageFallback; «Бонус» — общеупотребимое заимствование без отдельного
+    // нативного слова (см. op.settings.packages.bonusMinutes = «Бонус, дақ»).
+    'op.management.tariffs.addTariffCta',
+    'op.management.tariffs.addPackageCta',
+    'op.management.tariffs.col.bonus',
+    // «Логин» — то же общепринятое заимствование, что и operators.field.userName/
+    // platform.profile.field.userName, отдельного нативного слова для UI-ярлыка нет.
+    'op.management.staff.col.login',
+    // «Артикул» — то же заимствование, что и op.settings.pos.sku.
+    'op.management.goods.col.sku',
     'op.map.feedbackOffline',
     'op.map.panel.confirmStatusBilling',
     'op.map.panel.packageLabel',
     'op.map.panel.tariffLabel',
+    'op.news.col.branch',
     'op.news.fieldBranch',
     'op.players.actions.packageBonus',
     'op.players.editProfile.phoneLabel',

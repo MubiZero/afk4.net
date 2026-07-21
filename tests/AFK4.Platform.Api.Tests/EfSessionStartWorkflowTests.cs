@@ -10,6 +10,8 @@ using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
+using AFK4.Platform.Api.Loyalty;
+
 namespace AFK4.Platform.Api.Tests;
 
 public sealed class EfSessionStartWorkflowTests
@@ -150,6 +152,7 @@ public sealed class EfSessionStartWorkflowTests
             db,
             new EfTariffService(db, timeProvider),
             new AlwaysOpenShiftResolver(),
+            new LoyaltyAccrualService(db),
             timeProvider);
         var validation = new SessionBillingValidationResult(
             true,

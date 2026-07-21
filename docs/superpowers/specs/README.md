@@ -6,6 +6,10 @@ The active architecture source of truth is:
 
 Approved backlog specs:
 
+- `2026-07-15-operator-reports-workspace-consolidation-design.md` — redesigns
+  Reports as `Сводка / Смены и касса / Выручка`, gives Cash, Events, and Stock
+  one clear ownership model, and replaces the separate approvals inbox with
+  contextual second-manager confirmation using an existing AFK4 account.
 - `2026-06-11-productionize-client-installer-design.md` — shared bundled .NET
   runtime (framework-dependent apps + WiX Burn bundle) to cut the ~160 MB agent
   MSI, channel-driven prod URL, and code signing (blocked on a cert). Includes a

@@ -16,14 +16,67 @@ public sealed class LoyaltyAccrualServiceTests
         new(new DbContextOptionsBuilder<PlatformDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N")).Options);
 
-    private static async Task SeedSettingsAsync(PlatformDbContext db, bool topUpEnabled, int topUpBps, bool shopEnabled, int shopBps)
+    private static async Task SeedSettingsAsync(
+        PlatformDbContext db, bool topUpEnabled, int topUpBps, bool shopEnabled, int shopBps,
+        bool sessionEnabled = false, int sessionBps = 0, long capMinorUnits = 0, long minimumSourceMinorUnits = 0)
     {
         db.OrganizationLoyaltySettings.Add(new OrganizationLoyaltySettingsEntity
         {
             OrganizationId = OrgId, TopUpEnabled = topUpEnabled, TopUpPercentBasisPoints = topUpBps,
-            ShopEnabled = shopEnabled, ShopPercentBasisPoints = shopBps, UpdatedAtUtc = Now
+            ShopEnabled = shopEnabled, ShopPercentBasisPoints = shopBps,
+            SessionEnabled = sessionEnabled, SessionPercentBasisPoints = sessionBps,
+            CashbackCapMinorUnits = capMinorUnits, MinimumSourceMinorUnits = minimumSourceMinorUnits,
+            UpdatedAtUtc = Now
         });
         await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task BuildsSessionCashbackWhenEnabled()
+    {
+        await using var db = Db();
+        await SeedSettingsAsync(db, topUpEnabled: false, topUpBps: 0, shopEnabled: false, shopBps: 0,
+            sessionEnabled: true, sessionBps: 1000);
+        var service = new LoyaltyAccrualService(db);
+
+        var entry = await service.BuildCashbackEntryAsync(
+            LoyaltyAccrualSource.Session, OrgId, BranchId, PlayerId, sessionId: Guid.NewGuid(),
+            sourceMinorUnits: 2000, currencyCode: "TJS", reason: "cashback:session", Now, CancellationToken.None);
+
+        Assert.NotNull(entry);
+        Assert.Equal(LedgerEntryTypeNames.Cashback, entry!.EntryType);
+        Assert.Equal(200, entry.AmountMinorUnits); // floor(2000 * 1000 / 10000) = 200
+    }
+
+    [Fact]
+    public async Task ClampsCashbackToCap()
+    {
+        await using var db = Db();
+        await SeedSettingsAsync(db, topUpEnabled: true, topUpBps: 1000, shopEnabled: false, shopBps: 0,
+            capMinorUnits: 150);
+        var service = new LoyaltyAccrualService(db);
+
+        var entry = await service.BuildCashbackEntryAsync(
+            LoyaltyAccrualSource.TopUp, OrgId, BranchId, PlayerId, null,
+            sourceMinorUnits: 5000, currencyCode: "TJS", reason: "cashback:topup", Now, CancellationToken.None);
+
+        Assert.NotNull(entry);
+        Assert.Equal(150, entry!.AmountMinorUnits); // floor(5000 * 1000 / 10000) = 500 clamped to cap 150
+    }
+
+    [Fact]
+    public async Task ReturnsNullWhenSourceBelowMinimum()
+    {
+        await using var db = Db();
+        await SeedSettingsAsync(db, topUpEnabled: true, topUpBps: 1000, shopEnabled: false, shopBps: 0,
+            minimumSourceMinorUnits: 1000);
+        var service = new LoyaltyAccrualService(db);
+
+        var entry = await service.BuildCashbackEntryAsync(
+            LoyaltyAccrualSource.TopUp, OrgId, BranchId, PlayerId, null,
+            sourceMinorUnits: 999, currencyCode: "TJS", reason: "cashback:topup", Now, CancellationToken.None);
+
+        Assert.Null(entry); // 999 < minimum 1000 -> no cashback
     }
 
     [Fact]

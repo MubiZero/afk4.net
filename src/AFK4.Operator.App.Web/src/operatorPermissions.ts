@@ -1,62 +1,14 @@
 import type { OperatorAuthSession } from './authClient';
 import type { WorkspaceId } from './operatorTypes';
+import { managementDestinations } from './management/managementNav';
+import { permissionNames } from './permissionNames';
 
-export const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'cash', 'players', 'payment_cards', 'logs', 'settings', 'loyalty', 'news', 'stock'];
+export const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'cash', 'players', 'logs', 'management', 'stock'];
 
-export const permissionNames = {
-  viewFloorMap: 'floor_map.view',
-  startSession: 'sessions.start',
-  extendSession: 'sessions.extend',
-  transferSession: 'sessions.transfer',
-  endSession: 'sessions.end',
-  viewSessions: 'sessions.view',
-  viewPlayers: 'players.view',
-  createPlayerAccount: 'players.create',
-  viewBilling: 'billing.view',
-  topUpWallet: 'billing.wallet.top_up',
-  payDebt: 'billing.debt.pay',
-  viewPackages: 'packages.view',
-  managePackages: 'packages.manage',
-  purchasePackage: 'packages.purchase',
-  viewShift: 'shifts.view',
-  openShift: 'shifts.open',
-  closeShift: 'shifts.close',
-  manageShiftCash: 'shifts.cash.manage',
-  viewReports: 'reports.view',
-  viewReservations: 'reservations.view',
-  manageReservations: 'reservations.manage',
-  createPosSale: 'pos.sales.create',
-  payPosSale: 'pos.sales.pay',
-  refundPosSale: 'pos.sales.refund',
-  voidPosSale: 'pos.sales.void',
-  viewInventory: 'inventory.view',
-  manageInventoryStock: 'inventory.stock.manage',
-  managePosCatalog: 'pos.catalog.manage',
-  viewReceipt: 'receipts.view',
-  viewDiagnostics: 'diagnostics.view',
-  manageBranchStaff: 'identity.branch_staff.manage',
-  manageRoles: 'identity.roles.manage',
-  manageLayout: 'layout.manage',
-  createDeviceEnrollmentCode: 'devices.enrollment_codes.create',
-  assignDeviceSeat: 'devices.seat_assignment.assign',
-  viewDeviceDetail: 'devices.detail.view',
-  dispatchDeviceCommand: 'devices.commands.dispatch',
-  rotateDeviceCredential: 'devices.credentials.rotate',
-  revokeDeviceCredential: 'devices.credentials.revoke',
-  manageTariffs: 'tariffs.manage',
-  viewTariffs: 'tariffs.view',
-  viewUpdateStatus: 'updates.status.view',
-  manageUpdatePackages: 'updates.packages.manage',
-  manageUpdateRollouts: 'updates.rollouts.manage',
-  viewDeviceCommandStatus: 'devices.commands.status.view',
-  viewAudit: 'audit.view',
-  approveMoneyAction: 'billing.money_action.approve',
-  manualCorrection: 'billing.manual_correction',
-  refundLedgerEntry: 'billing.refund',
-  managePaymentGateways: 'payments.gateways.manage',
-  manageLoyaltySettings: 'loyalty.settings.manage',
-  manageNews: 'news.manage'
-} as const;
+// Re-exported so existing `import { permissionNames } from './operatorPermissions'` call sites keep
+// working; the catalog itself lives in permissionNames.ts to avoid an import cycle with
+// management/managementNav.ts (see that file's comment).
+export { permissionNames };
 
 export const staffRoleOptions = ['cashier_operator', 'shift_supervisor', 'branch_manager', 'technician', 'accountant_auditor'] as const;
 
@@ -86,24 +38,11 @@ export const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = 
     permissionNames.viewPackages,
     permissionNames.purchasePackage
   ],
-  payment_cards: [permissionNames.managePaymentGateways],
   logs: [permissionNames.viewAudit, permissionNames.viewDiagnostics],
-  settings: [
-    permissionNames.manageBranchStaff,
-    permissionNames.manageLayout,
-    permissionNames.createDeviceEnrollmentCode,
-    permissionNames.assignDeviceSeat,
-    permissionNames.rotateDeviceCredential,
-    permissionNames.revokeDeviceCredential,
-    permissionNames.manageInventoryStock,
-    permissionNames.managePosCatalog,
-    permissionNames.managePackages,
-    permissionNames.manageUpdatePackages,
-    permissionNames.manageUpdateRollouts,
-    permissionNames.manageTariffs
-  ],
-  loyalty: [permissionNames.manageLoyaltySettings],
-  news: [permissionNames.manageNews],
+  // Union of the eight `Управление` destinations' permission sets (managementNav.ts), deduped —
+  // canOpenWorkspace(session, 'management') is then equivalent to
+  // allowedManagementDestinations(session).length > 0.
+  management: [...new Set(managementDestinations.flatMap((destination) => destination.permissions))],
   stock: [permissionNames.viewInventory, permissionNames.manageInventoryStock]
 };
 

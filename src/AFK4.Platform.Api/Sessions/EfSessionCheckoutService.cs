@@ -3,6 +3,7 @@ using System.Text.Json;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
+using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Shifts;
@@ -25,6 +26,7 @@ namespace AFK4.Platform.Api.Sessions;
 public sealed class EfSessionCheckoutService(
     PlatformDbContext dbContext,
     ISessionBillingService sessionBillingService,
+    ILoyaltyAccrualService loyaltyAccrualService,
     IReceiptNumberGenerator receiptNumberGenerator,
     IDeviceCommandDispatchService deviceCommandDispatchService,
     IOpenShiftResolver openShiftResolver,
@@ -220,6 +222,25 @@ public sealed class EfSessionCheckoutService(
                     actorStaffUserId,
                     now,
                     shiftId));
+
+                // Loyalty: cashback on the game-time charge (credits the wallet, atomic with the
+                // settlement above). Comp/guest/prepaid-wallet sessions never reach this branch —
+                // their time charge is zero here — so they correctly earn no session cashback.
+                var sessionCashback = await loyaltyAccrualService.BuildCashbackEntryAsync(
+                    LoyaltyAccrualSource.Session,
+                    trackedSession.OrganizationId,
+                    trackedSession.BranchId,
+                    timePlayerId,
+                    sessionId,
+                    timeCharge.AmountMinorUnits,
+                    currency,
+                    $"cashback:session:{sessionId:D}",
+                    now,
+                    cancellationToken);
+                if (sessionCashback is not null)
+                {
+                    dbContext.LedgerEntries.Add(sessionCashback);
+                }
             }
 
             // Wallet store credit consumed to fund the bill.

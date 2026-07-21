@@ -73,17 +73,17 @@ describe('POS product editor availableInShell', () => {
 
   it('sends availableInShell when creating a product', async () => {
     await openGoods();
-    fireEvent.click(await screen.findByLabelText(/доступно в шелле|available in shell/i));
+    fireEvent.click(await screen.findByLabelText(/доступно в оболочке игрока|available in player shell/i));
     fireEvent.click(screen.getByRole('button', { name: /создать товар|create product/i }));
     await waitFor(() => expect(createProduct).toHaveBeenCalledWith('b1', expect.objectContaining({ availableInShell: true })));
-    await waitFor(() => expect((screen.getByLabelText(/доступно в шелле|available in shell/i) as HTMLInputElement).checked).toBe(false));
+    await waitFor(() => expect((screen.getByLabelText(/доступно в оболочке игрока|available in player shell/i) as HTMLInputElement).checked).toBe(false));
   });
 
   it('initialises the checkbox from the product and sends it on update', async () => {
     await openGoods();
     // select the existing product (availableInShell: true) → checkbox should turn on
     fireEvent.click(await screen.findByRole('button', { name: /existing/i }));
-    const checkbox = await screen.findByLabelText(/доступно в шелле|available in shell/i);
+    const checkbox = await screen.findByLabelText(/доступно в оболочке игрока|available in player shell/i);
     await waitFor(() => expect((checkbox as HTMLInputElement).checked).toBe(true));
     fireEvent.click(screen.getByRole('button', { name: /обновить товар|update product/i }));
     await waitFor(() => expect(updateProduct).toHaveBeenCalledWith('b1', 'p1', expect.objectContaining({ availableInShell: true })));

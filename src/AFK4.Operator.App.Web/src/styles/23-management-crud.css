@@ -1,0 +1,687 @@
+/* ── Management CRUD-кит (список + drawer) ────────────────────────────────────────────────
+   Общий визуальный слой для разделов «Управления» (Залы/Тарифы/Сотрудники/Товары). Строится на
+   тех же токенах и паттернах, что таблица «Клиентов» (.table-panel/.ctable-*), но с обобщёнными,
+   правильно поимёнованными классами mgmt-*. Формы create/edit — в PanelModal, удаление —
+   CriticalActionConfirmation. Light-тема: глубина = подъём (панель светлее фона + shadow-card).
+   ─────────────────────────────────────────────────────────────────────────────────────── */
+
+/* Мастер-деталь: список + правый drawer (по образцу .clients-grid). Когда drawer закрыт,
+   список занимает всю ширину. */
+.mgmt-master-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 10px;
+  align-items: start;
+  min-height: 0;
+}
+
+.mgmt-master-detail > .mgmt-table:only-child {
+  grid-column: 1 / -1;
+}
+
+/* Модификатор для разделов навигационного мастер-детейла (напр. «Залы и места»): узкий список
+   слева (~300px) + широкая ПОСТОЯННАЯ панель деталей справа, которая занимает всё оставшееся
+   место, а не фиксированные 380px дровера записи. */
+.mgmt-master-detail--nav {
+  grid-template-columns: 300px minmax(0, 1fr);
+}
+
+/* Компактная строка списка мастер-детейла: имя + бейдж счётчика в одной колонке (напр. зал +
+   кол-во ПК), название усекается первым — бейдж всегда на своём месте. */
+.mgmt-zone-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.mgmt-zone-row > span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Бейдж счётчика в компактной строке списка (напр. «6 ПК» рядом с именем зала). */
+.mgmt-count-badge {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Панель деталей, когда выбирать нечего (напр. в филиале ещё нет ни одного зала). Та же
+   "приподнятая" рамка, что у .mgmt-drawer, но без шапки — только центрированный empty-state. */
+.mgmt-detail-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+
+/* Вкладки внутри раздела (два домена, напр. Залы/Устройства) — сегментный переключатель.
+   Это НЕ уровень рейла, а intra-screen tabs (как в Кассе). */
+.mgmt-tabs {
+  display: inline-flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 4px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+.mgmt-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.mgmt-tab:hover:not(.is-active) {
+  color: var(--text-primary);
+}
+
+.mgmt-tab.is-active {
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-card);
+}
+
+.mgmt-tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* Панель-список. Overflow видимый (в отличие от .table-panel), т.к. ⋯-меню строки открывается
+   абсолютом и не должно обрезаться панелью. Скролл — на уровне тела экрана. */
+.mgmt-table {
+  overflow: visible;
+}
+
+.mgmt-table .ctable-body {
+  flex: none;
+  overflow: visible;
+}
+
+.mgmt-tt-title {
+  margin-right: 4px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.mgmt-grid {
+  align-items: center;
+}
+
+/* Ячейка строки: усечение длинного текста, вертикальное центрирование. */
+.mgmt-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mgmt-cell--end {
+  justify-self: end;
+  justify-content: flex-end;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Ячейка ⋯-меню: overflow видимый, чтобы дропдаун не обрезался. */
+.mgmt-cell--menu {
+  justify-self: center;
+  justify-content: center;
+  overflow: visible;
+}
+
+/* ── ⋯-меню строки (обобщение .client-actions-*) ─────────────────────────────────────── */
+.mgmt-menu {
+  position: relative;
+}
+
+.mgmt-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-md);
+  height: var(--control-md);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.mgmt-menu-trigger:hover:not(:disabled) {
+  border-color: var(--border-accent);
+  background: var(--surface-accent-soft);
+  color: var(--accent-bright);
+}
+
+.mgmt-menu-trigger:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: 2px;
+}
+
+.mgmt-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 208px;
+  padding: 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface-card);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+.mgmt-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.mgmt-menu-item:hover:not(:disabled) {
+  background: var(--surface-accent-soft);
+}
+
+.mgmt-menu-item:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.82);
+  outline-offset: -2px;
+}
+
+.mgmt-menu-item:disabled {
+  color: var(--text-quaternary);
+  cursor: not-allowed;
+}
+
+.mgmt-menu-item.is-danger {
+  color: var(--danger-text);
+}
+
+.mgmt-menu-item.is-danger:hover:not(:disabled) {
+  background: var(--danger-soft-bg);
+}
+
+.mgmt-menu-sep {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--border-soft);
+}
+
+/* ── Правый drawer записи ─────────────────────────────────────────────────────────────── */
+.mgmt-drawer {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+
+.mgmt-drawer-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.mgmt-drawer-id {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  margin-right: auto;
+}
+
+.mgmt-drawer-title {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mgmt-drawer-subtitle {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.mgmt-drawer-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--control-md);
+  height: var(--control-md);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.mgmt-drawer-close:hover {
+  border-color: var(--border-accent);
+  color: var(--accent-bright);
+}
+
+.mgmt-drawer-close:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.mgmt-drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 16px 14px;
+  overflow-y: auto;
+}
+
+.mgmt-drawer-footer {
+  flex: none;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border-soft);
+}
+
+/* Подсекция внутри drawer/панели (заголовок + содержимое). */
+.mgmt-drawer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mgmt-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ── Форма в PanelModal / drawer: лейбл сверху инпута, адаптивная сетка ───────────────── */
+.mgmt-form {
+  display: grid;
+  gap: 12px;
+}
+
+.mgmt-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.mgmt-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mgmt-form label.mgmt-form-wide {
+  grid-column: 1 / -1;
+}
+
+.mgmt-form input:not([type="checkbox"]),
+.mgmt-form select {
+  height: var(--control-md);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 0 12px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.mgmt-form input:not([type="checkbox"]):focus-visible,
+.mgmt-form select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.mgmt-form textarea {
+  min-height: 96px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  background: var(--surface-sunken);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.mgmt-form textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.mgmt-form input:read-only {
+  color: var(--text-secondary);
+}
+
+/* Чекбокс-поле: галка и подпись в строку. Обычные поля идут «лейбл сверху инпута», но
+   у булева переключателя подпись сверху пустого бокса читается как сломанный инпут (что и
+   было видно в дровере товара). Здесь — компактная строка «☑ Подпись». */
+.mgmt-form input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  cursor: pointer;
+  position: relative;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.mgmt-form input[type="checkbox"]:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.mgmt-form input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.mgmt-form input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 4px;
+  height: 9px;
+  border: solid var(--text-on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.mgmt-form input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.mgmt-form input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mgmt-form label.mgmt-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.mgmt-form label.mgmt-check:has(input:disabled) {
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.mgmt-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* В узком drawer форма подаётся вертикально: поля — одной колонкой, а кнопка действия секции —
+   во всю ширину. Иначе маленькая кнопка отлетает к правому краю с большим пустым зазором и
+   форма выглядит «враскидку». Модалки (PanelModal) — вне .mgmt-drawer, там остаётся 2-колоночная
+   сетка и правое выравнивание пары кнопок Отмена/Сохранить. */
+.mgmt-drawer .mgmt-form-grid {
+  grid-template-columns: 1fr;
+}
+
+.mgmt-drawer .mgmt-form-actions {
+  justify-content: stretch;
+}
+
+.mgmt-drawer .mgmt-form-actions .ui-btn {
+  flex: 1;
+}
+
+/* Пояснительная строка под полем/секцией drawer (напр. код приглашения: что дальше;
+   «карточка ещё не открыта») — вторичный текст, не ещё одно поле. */
+.mgmt-drawer-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* Встроенная в узкий drawer секция штрихкодов (ProductBarcodesSection). Свой margin-top у
+   секции гасим — вертикальный ритм задаёт .mgmt-drawer-body. Поле и компактная кнопка
+   «Добавить» стоят в один ряд: это второстепенное действие (привязать код), оно НЕ должно
+   визуально спорить с главной кнопкой «Сохранить» в подвале — потому нейтральная и не на
+   всю ширину. */
+.mgmt-drawer .settings-barcodes-section {
+  margin-top: 0;
+}
+
+.mgmt-drawer .barcode-add-row {
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.mgmt-drawer .barcode-add-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.mgmt-drawer .barcode-add-row .ui-btn {
+  flex: none;
+}
+
+/* Inline status pair in a table cell (напр. онлайн/офлайн · заблокирован/разблокирован). */
+.mgmt-status-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+@media (max-width: 720px) {
+  .mgmt-master-detail {
+    grid-template-columns: 1fr;
+  }
+  .mgmt-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Справочные (read-only) пары «метка → значение» в mgmt-form: не disabled-инпуты (читаются как
+   сломанные), а тихие строки под редактируемыми полями. */
+.mgmt-meta-grid {
+  display: grid;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-default);
+}
+.mgmt-meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.mgmt-meta-label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.mgmt-meta-value {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Клуб: профиль + живой предпросмотр «как видит игрок».
+   Раскладка = форма (заполняет ширину плиткой секций) + sticky-превью справа. */
+/* L-раскладка: превью держит только верхний правый угол (рядом с профилем), а часы+настройки
+   уходят под него на всю ширину — превью не занимает пустой вертикальный пласт. */
+.club-profile-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 19rem);
+  grid-template-areas:
+    "profile  preview"
+    "schedule schedule";
+  gap: 24px;
+  align-items: start;
+}
+.club-area-profile { grid-area: profile; }
+.club-area-preview { grid-area: preview; }
+.club-area-schedule { grid-area: schedule; }
+@media (max-width: 960px) {
+  .club-profile-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas: "profile" "schedule" "preview";
+  }
+}
+
+/* Единая сетка полей: все поля одной ширины, выровнены по колонкам. Профиль и настройки
+   используют одну метрику (minmax 280px) → визуальное единство, никаких «разной длины». */
+.club-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px 20px;
+}
+
+/* Лицо игрока: название (укорочено вдвое) и логотип рядом в верхнем ряду, описание — высокий
+   textarea под ними на всю ширину. */
+.club-identity-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "name logo"
+    "desc desc";
+  gap: 12px 20px;
+  align-items: start;
+}
+.club-identity-name { grid-area: name; }
+.club-identity-logo { grid-area: logo; margin: 0; }
+/* Логотип мимикрирует под поле «Название» слева: без подсказки о форматах, кнопка той же высоты
+   (control-md, а не 44px дефолт виджета) и на всю ширину ячейки. */
+.club-identity-logo .media-upload-hint { display: none; }
+.club-identity-logo .media-upload-actions .ui-btn { min-height: var(--control-md); height: var(--control-md); }
+.club-identity-logo .media-upload-actions .ui-btn--primary { flex: 1; }
+.club-identity-desc { grid-area: desc; }
+.club-identity-desc textarea { min-height: 130px; resize: vertical; }
+@media (max-width: 560px) {
+  .club-identity-grid { grid-template-columns: 1fr; grid-template-areas: "name" "logo" "desc"; }
+}
+
+.club-preview { position: sticky; top: 4px; display: flex; flex-direction: column; gap: 10px; }
+/* На узком экране раскладка одноколоночная: sticky-превью пиннилось бы к верху и наезжало на
+   часы работы — в стопке держим его в обычном потоке. */
+@media (max-width: 960px) {
+  .club-preview { position: static; }
+}
+.club-preview-card {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 16px; border-radius: 14px;
+  background: var(--surface-card, #fff); box-shadow: var(--shadow-card);
+}
+.club-preview-logo { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; }
+.club-preview-logo--empty {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; text-align: center; color: var(--text-tertiary);
+  background: var(--surface-sunken, rgba(0,0,0,0.05));
+}
+.club-preview-name { font-weight: 600; font-size: 17px; color: var(--text-primary); }
+.club-preview-desc, .club-preview-address, .club-preview-contact { font-size: 13px; color: var(--text-secondary); }
+.club-preview-today { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.club-preview-hint { font-size: 12px; color: var(--text-tertiary); margin: 0; }
+
+.club-logo-field { display: flex; flex-direction: column; gap: 8px; }
+
+/* Часы работы: компактные строки дней (тумблер работает/выходной, название, диапазон).
+   Закрытый день сворачивается в лёгкую строку «Выходной» без полей. */
+.club-hours-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 2px 32px;
+}
+.club-hours-row {
+  display: grid;
+  grid-template-columns: auto 6rem minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 38px;
+}
+.club-hours-toggle { margin: 0; }
+.club-hours-row--closed { opacity: 0.6; }
+.club-hours-day { font-weight: 500; font-size: 13px; color: var(--text-primary); }
+.club-hours-range { display: flex; align-items: center; gap: 8px; }
+.club-hours-range .club-hours-time { flex: 1 1 0; min-width: 0; min-height: 34px; }
+.club-hours-off { font-size: 13px; color: var(--text-tertiary); }
+.club-hours-sep { color: var(--text-tertiary); }
+/* Нативный time-picker: попап и стрелки берут тему из color-scheme (а не всегда тёмную из :root,
+   иначе в светлой теме белый попап на белом). Иконку часов приглушаем и подсвечиваем на hover. */
+.club-hours-time { color-scheme: dark; }
+:root[data-theme="light"] .club-hours-time { color-scheme: light; }
+.club-hours-time::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 120ms ease;
+}
+.club-hours-time::-webkit-calendar-picker-indicator:hover { opacity: 1; }

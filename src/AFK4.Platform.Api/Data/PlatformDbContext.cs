@@ -10,9 +10,13 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<NewsItemEntity> NewsItems => Set<NewsItemEntity>();
 
+    public DbSet<UploadedMediaEntity> UploadedMedia => Set<UploadedMediaEntity>();
+
     public DbSet<BranchEntity> Branches => Set<BranchEntity>();
 
     public DbSet<BranchPaymentGatewayEntity> BranchPaymentGateways => Set<BranchPaymentGatewayEntity>();
+
+    public DbSet<EskhataMerchantConfigEntity> EskhataMerchantConfigs => Set<EskhataMerchantConfigEntity>();
 
     public DbSet<StaffUserEntity> StaffUsers => Set<StaffUserEntity>();
 
@@ -179,6 +183,17 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(news => news.OrganizationId);
         });
 
+        modelBuilder.Entity<UploadedMediaEntity>(entity =>
+        {
+            entity.ToTable("uploaded_media");
+            entity.HasKey(media => media.MediaId);
+            entity.Property(media => media.Purpose).HasMaxLength(64).IsRequired();
+            entity.Property(media => media.ObjectKey).HasMaxLength(512).IsRequired();
+            entity.Property(media => media.ContentType).HasMaxLength(128).IsRequired();
+            entity.Property(media => media.PublicUrl).HasMaxLength(2048).IsRequired();
+            entity.HasIndex(media => new { media.OrganizationId, media.BranchId, media.Purpose });
+        });
+
         modelBuilder.Entity<SubscriptionPlanEntity>(entity =>
         {
             entity.ToTable("subscription_plans");
@@ -223,6 +238,14 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(branch => branch.Slug).HasMaxLength(64).IsRequired();
             entity.Property(branch => branch.Name).HasMaxLength(160).IsRequired();
             entity.Property(branch => branch.City).HasMaxLength(120).IsRequired();
+            entity.Property(branch => branch.Description).HasMaxLength(500);
+            entity.Property(branch => branch.Address).HasMaxLength(300);
+            entity.Property(branch => branch.Phone).HasMaxLength(40);
+            entity.Property(branch => branch.Telegram).HasMaxLength(120);
+            entity.Property(branch => branch.Website).HasMaxLength(300);
+            entity.Property(branch => branch.Instagram).HasMaxLength(120);
+            entity.Property(branch => branch.LogoUrl).HasMaxLength(600);
+            entity.Property(branch => branch.WorkingHoursJson).HasColumnType("jsonb");
             entity.Property(branch => branch.RequireManualDeviceApproval).HasDefaultValue(false);
             entity.Property(branch => branch.PreferredLocale).HasMaxLength(8).HasDefaultValue("ru").IsRequired();
             entity.Property(branch => branch.PreferredTimeZone).HasMaxLength(64).HasDefaultValue("Asia/Dushanbe").IsRequired();
@@ -898,6 +921,17 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(gateway => gateway.Status).HasMaxLength(32).IsRequired();
             entity.HasIndex(gateway => gateway.DcgateProjectId).IsUnique();
             entity.HasIndex(gateway => new { gateway.OrganizationId, gateway.BranchId });
+        });
+
+        modelBuilder.Entity<EskhataMerchantConfigEntity>(entity =>
+        {
+            entity.ToTable("eskhata_merchant_configs");
+            entity.HasKey(config => config.EskhataMerchantConfigId);
+            entity.Property(config => config.BaseUrl).HasMaxLength(512).IsRequired();
+            entity.Property(config => config.CompanyId).HasMaxLength(256).IsRequired();
+            entity.Property(config => config.HashKeyEncrypted).HasMaxLength(1024).IsRequired();
+            entity.Property(config => config.Status).HasMaxLength(32).IsRequired();
+            entity.HasIndex(config => new { config.OrganizationId, config.BranchId }).IsUnique();
         });
 
         modelBuilder.Entity<PlatformAdminUserEntity>(entity =>

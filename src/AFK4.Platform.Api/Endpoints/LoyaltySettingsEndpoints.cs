@@ -25,8 +25,12 @@ internal static class LoyaltySettingsEndpoints
                 .SingleOrDefaultAsync(s => s.OrganizationId == orgId, ct);
 
             return Results.Ok(row is null
-                ? new LoyaltySettingsDto(false, 0, false, 0)
-                : new LoyaltySettingsDto(row.TopUpEnabled, row.TopUpPercentBasisPoints, row.ShopEnabled, row.ShopPercentBasisPoints));
+                ? new LoyaltySettingsDto(false, 0, false, 0, false, 0, 0, 0)
+                : new LoyaltySettingsDto(
+                    row.TopUpEnabled, row.TopUpPercentBasisPoints,
+                    row.ShopEnabled, row.ShopPercentBasisPoints,
+                    row.SessionEnabled, row.SessionPercentBasisPoints,
+                    row.CashbackCapMinorUnits, row.MinimumSourceMinorUnits));
         });
 
         app.MapPost("/api/owner/loyalty-settings", async (
@@ -41,11 +45,21 @@ internal static class LoyaltySettingsEndpoints
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 
-            if (request.TopUpPercentBasisPoints is < 0 or > 10000 || request.ShopPercentBasisPoints is < 0 or > 10000)
+            if (request.TopUpPercentBasisPoints is < 0 or > 10000
+                || request.ShopPercentBasisPoints is < 0 or > 10000
+                || request.SessionPercentBasisPoints is < 0 or > 10000)
             {
                 return Results.ValidationProblem(new Dictionary<string, string[]>
                 {
                     ["percentBasisPoints"] = ["Percent must be between 0 and 10000 basis points (0–100%)."]
+                });
+            }
+
+            if (request.CashbackCapMinorUnits < 0 || request.MinimumSourceMinorUnits < 0)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["limits"] = ["Cashback cap and minimum source must be zero or positive."]
                 });
             }
 
@@ -63,6 +77,10 @@ internal static class LoyaltySettingsEndpoints
             row.TopUpPercentBasisPoints = request.TopUpPercentBasisPoints;
             row.ShopEnabled = request.ShopEnabled;
             row.ShopPercentBasisPoints = request.ShopPercentBasisPoints;
+            row.SessionEnabled = request.SessionEnabled;
+            row.SessionPercentBasisPoints = request.SessionPercentBasisPoints;
+            row.CashbackCapMinorUnits = request.CashbackCapMinorUnits;
+            row.MinimumSourceMinorUnits = request.MinimumSourceMinorUnits;
             row.UpdatedAtUtc = now;
             await db.SaveChangesAsync(ct);
 
@@ -78,7 +96,10 @@ internal static class LoyaltySettingsEndpoints
                 DetailsJson: System.Text.Json.JsonSerializer.Serialize(request)), ct);
 
             return Results.Ok(new LoyaltySettingsDto(
-                row.TopUpEnabled, row.TopUpPercentBasisPoints, row.ShopEnabled, row.ShopPercentBasisPoints));
+                row.TopUpEnabled, row.TopUpPercentBasisPoints,
+                row.ShopEnabled, row.ShopPercentBasisPoints,
+                row.SessionEnabled, row.SessionPercentBasisPoints,
+                row.CashbackCapMinorUnits, row.MinimumSourceMinorUnits));
         });
     }
 }

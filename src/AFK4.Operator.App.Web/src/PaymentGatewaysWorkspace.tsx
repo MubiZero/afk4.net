@@ -8,6 +8,7 @@ import {
   type TelegramStartRequest
 } from './operatorApiClients';
 import { projectOperatorError } from './apiErrors';
+import { CriticalActionConfirmation, EmptyState } from './operatorPrimitives';
 
 type AttachPhase = 'idle' | 'code_required' | 'password_required' | 'attached';
 
@@ -31,6 +32,7 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [disableTarget, setDisableTarget] = useState<string | null>(null);
 
   // provision form
   const [cardNumber, setCardNumber] = useState('');
@@ -114,7 +116,6 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
   };
 
   const disable = async (id: string) => {
-    if (!window.confirm(t('payments_cards.disable_confirm'))) return;
     setBusy(true);
     try {
       await clients.disable(id);
@@ -185,119 +186,121 @@ export function PaymentGatewaysWorkspace({ backend }: Props) {
   };
 
   return (
-    <main className="workspace-screen payment-cards-screen">
-      <section className="screen-head">
-        <h1>{t('payments_cards.title')}</h1>
-        <p>{t('payments_cards.subtitle')}</p>
-      </section>
+    <div className="mgmt-form">
+      <div className="mgmt-section-title"><span>{t('op.payments.section.cards')}</span></div>
+      {loadError && <p className="ui-inline-error" role="alert">{loadError}</p>}
 
-      {loadError && <p className="payment-cards-error" role="alert">{loadError}</p>}
-
-      <section className="payment-cards-provision">
+      <div className="mgmt-form-grid">
         <label>{t('payments_cards.card_number')}
           <input value={cardNumber} onChange={(e) => setCardNumber(e.currentTarget.value)} inputMode="numeric" />
         </label>
-        <label>
+        <label className="mgmt-check">
           <input type="checkbox" checked={scopeBranch} onChange={(e) => setScopeBranch(e.currentTarget.checked)} />
           {scopeBranch ? t('payments_cards.scope.branch') : t('payments_cards.scope.org')}
         </label>
-        <button type="button" disabled={busy || cardNumber.trim().length < 12} onClick={() => void provision()}>
+      </div>
+      <div className="mgmt-form-actions">
+        <button type="button" className="ui-btn ui-btn--primary"
+          disabled={busy || cardNumber.trim().length < 12} onClick={() => void provision()}>
           {t('payments_cards.provision')}
         </button>
-      </section>
+      </div>
 
-      <section className="payment-cards-list">
-        {loading && <p className="workspace-loading">{t('payments_cards.loading')}</p>}
-        {!loading && gateways.length === 0 && <p className="payment-cards-empty">{t('payments_cards.empty')}</p>}
-        {gateways.map((g) => (
-          <article key={g.branchPaymentGatewayId} className="payment-card-row" data-status={g.status}>
-            <span className="payment-card-pan">•••• {g.cardLast4}</span>
-            <span className="payment-card-scope">
-              {g.branchId ? t('payments_cards.scope.branch') : t('payments_cards.scope.org')}
-            </span>
-            <span className="payment-card-status">{t(`payments_cards.status.${g.status}` as MessageKey)}</span>
-
-            {g.status !== 'disabled' && (
-              <button
-                type="button"
-                className="payment-card-disable"
-                disabled={busy}
-                onClick={() => void disable(g.branchPaymentGatewayId)}
-              >
-                {t('payments_cards.disable')}
-              </button>
-            )}
-
-            {statuses[g.branchPaymentGatewayId] && (() => {
-              const live = statuses[g.branchPaymentGatewayId];
-              const known = live.sessionHealth === 'online'
-                || live.sessionHealth === 'offline'
-                || live.sessionHealth === 'configured';
-              return (
-                <div className="payment-card-session" data-health={live.sessionHealth}>
-                  <span className="payment-card-session-badge">
-                    {known
-                      ? t(`payments_cards.session.${live.sessionHealth}` as MessageKey)
-                      : live.sessionHealth}
+      {loading ? (
+        <p className="workspace-loading">{t('payments_cards.loading')}</p>
+      ) : gateways.length === 0 ? (
+        <EmptyState title={t('payments_cards.empty')} description={t('op.payments.cards.emptyHint')} />
+      ) : (
+        <div className="payment-card-rows">
+          {gateways.map((g) => {
+            const live = statuses[g.branchPaymentGatewayId];
+            const known = live && (live.sessionHealth === 'online' || live.sessionHealth === 'offline' || live.sessionHealth === 'configured');
+            const statusTone = g.status === 'disabled' ? 'is-neutral' : g.status === 'pending_telegram' ? 'is-warning' : 'is-live';
+            return (
+              <article key={g.branchPaymentGatewayId} className="payment-card-row" data-status={g.status}>
+                <div className="payment-card-main">
+                  <span className="payment-card-pan">•••• {g.cardLast4}</span>
+                  <span className="ui-chip ui-chip--status ui-chip--xs is-neutral">
+                    {g.branchId ? t('payments_cards.scope.branch') : t('payments_cards.scope.org')}
                   </span>
-                  {live.lastMessageAt && (
-                    <span className="payment-card-session-last">
-                      {t('payments_cards.session.last_message')}: {formatDate(live.lastMessageAt)}
+                  <span className={`ui-chip ui-chip--status ui-chip--xs ${statusTone}`}>
+                    {t(`payments_cards.status.${g.status}` as MessageKey)}
+                  </span>
+                  {known && (
+                    <span className={`ui-chip ui-chip--status ui-chip--xs ${live.sessionHealth === 'online' ? 'is-live' : 'is-neutral'}`}>
+                      {t(`payments_cards.session.${live.sessionHealth}` as MessageKey)}
                     </span>
                   )}
+                  {g.status !== 'disabled' && (
+                    <button type="button" className="ui-btn ui-btn--sm ui-btn--danger payment-card-disable"
+                      disabled={busy} onClick={() => setDisableTarget(g.branchPaymentGatewayId)}>
+                      {t('payments_cards.disable')}
+                    </button>
+                  )}
                 </div>
-              );
-            })()}
 
-            {g.status === 'pending_telegram' && (
-              <div className="payment-card-attach">
-                <h3>{t('payments_cards.telegram.title')}</h3>
-                {(attachId !== g.branchPaymentGatewayId || attachPhase === 'idle') && (
-                  <>
-                    <label>{t('payments_cards.telegram.phone')}
-                      <input
-                        aria-label="phone"
-                        value={phone}
-                        onChange={(e) => setPhone(e.currentTarget.value)}
-                      />
-                    </label>
-                    <button
-                      type="button"
-                      disabled={busy || !phone.trim()}
-                      onClick={() => void startAttach(g.branchPaymentGatewayId)}
-                    >
-                      {t('payments_cards.telegram.start')}
-                    </button>
-                  </>
+                {live?.lastMessageAt && (
+                  <span className="payment-card-session-last">
+                    {t('payments_cards.session.last_message')}: {formatDate(live.lastMessageAt)}
+                  </span>
                 )}
-                {attachId === g.branchPaymentGatewayId && attachPhase === 'code_required' && (
-                  <>
-                    <label>{t('payments_cards.telegram.code')}
-                      <input value={code} onChange={(e) => setCode(e.currentTarget.value)} inputMode="numeric" />
-                    </label>
-                    <button type="button" disabled={busy} onClick={() => void verifyCode()}>
-                      {t('payments_cards.telegram.code_submit')}
-                    </button>
-                  </>
+
+                {g.status === 'pending_telegram' && (
+                  <div className="payment-card-attach mgmt-form">
+                    <div className="mgmt-section-title"><span>{t('payments_cards.telegram.title')}</span></div>
+                    {(attachId !== g.branchPaymentGatewayId || attachPhase === 'idle') && (
+                      <div className="payment-attach-row">
+                        <label>{t('payments_cards.telegram.phone')}
+                          <input aria-label="phone" value={phone} onChange={(e) => setPhone(e.currentTarget.value)} />
+                        </label>
+                        <button type="button" className="ui-btn ui-btn--primary"
+                          disabled={busy || !phone.trim()} onClick={() => void startAttach(g.branchPaymentGatewayId)}>
+                          {t('payments_cards.telegram.start')}
+                        </button>
+                      </div>
+                    )}
+                    {attachId === g.branchPaymentGatewayId && attachPhase === 'code_required' && (
+                      <div className="payment-attach-row">
+                        <label>{t('payments_cards.telegram.code')}
+                          <input value={code} onChange={(e) => setCode(e.currentTarget.value)} inputMode="numeric" />
+                        </label>
+                        <button type="button" className="ui-btn ui-btn--primary" disabled={busy} onClick={() => void verifyCode()}>
+                          {t('payments_cards.telegram.code_submit')}
+                        </button>
+                      </div>
+                    )}
+                    {attachId === g.branchPaymentGatewayId && attachPhase === 'password_required' && (
+                      <div className="payment-attach-row">
+                        <label>{t('payments_cards.telegram.password')}
+                          <input type="password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} />
+                        </label>
+                        <button type="button" className="ui-btn ui-btn--primary" disabled={busy} onClick={() => void verifyPassword()}>
+                          {t('payments_cards.telegram.password_submit')}
+                        </button>
+                      </div>
+                    )}
+                    {attachId === g.branchPaymentGatewayId && attachPhase === 'attached' && (
+                      <p className="payment-card-attached">{t('payments_cards.telegram.attached')}</p>
+                    )}
+                  </div>
                 )}
-                {attachId === g.branchPaymentGatewayId && attachPhase === 'password_required' && (
-                  <>
-                    <label>{t('payments_cards.telegram.password')}
-                      <input type="password" value={password} onChange={(e) => setPassword(e.currentTarget.value)} />
-                    </label>
-                    <button type="button" disabled={busy} onClick={() => void verifyPassword()}>
-                      {t('payments_cards.telegram.password_submit')}
-                    </button>
-                  </>
-                )}
-                {attachId === g.branchPaymentGatewayId && attachPhase === 'attached' && (
-                  <p className="payment-card-attached">{t('payments_cards.telegram.attached')}</p>
-                )}
-              </div>
-            )}
-          </article>
-        ))}
-      </section>
-    </main>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      {disableTarget && (
+        <CriticalActionConfirmation
+          title={t('op.payments.cards.disableTitle')}
+          detail={`•••• ${gateways.find((g) => g.branchPaymentGatewayId === disableTarget)?.cardLast4 ?? ''}`}
+          impact={t('op.payments.cards.disableImpact')}
+          confirmLabel={t('payments_cards.disable')}
+          disabled={busy}
+          onCancel={() => setDisableTarget(null)}
+          onConfirm={() => { const id = disableTarget; setDisableTarget(null); void disable(id); }}
+        />
+      )}
+    </div>
   );
 }

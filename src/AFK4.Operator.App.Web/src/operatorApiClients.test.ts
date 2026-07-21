@@ -13,6 +13,7 @@ import {
   type TransferSessionRequest
 } from './operatorApiClients';
 import { PlatformApiClient } from './platformApi';
+import { defaultWorkingHours } from './settings/club/workingHours';
 
 const branchId = 'acfc0212-967f-4d84-94be-9003387b09c2';
 const organizationId = '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08';
@@ -290,7 +291,22 @@ describe('operator API clients', () => {
       newPassword: 'ChangeMe456!'
     });
     await clients.settings.getBranchProfile(branchId);
-    await clients.settings.updateBranchProfile(branchId, { organizationId, name: 'AFK4 Pilot', city: 'Dushanbe' });
+    await clients.settings.updateBranchProfile(branchId, {
+      organizationId,
+      name: 'AFK4 Pilot',
+      city: 'Dushanbe',
+      description: null,
+      address: null,
+      phone: null,
+      telegram: null,
+      website: null,
+      instagram: null,
+      logoUrl: null,
+      logoMediaId: null,
+      timeZone: 'Asia/Dushanbe',
+      locale: 'ru',
+      workingHours: defaultWorkingHours()
+    });
     await clients.settings.createZone(branchId, { organizationId, name: 'Main', sortOrder: 10 });
     await clients.settings.createSeat(branchId, { organizationId, zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', name: 'PC-01', sortOrder: 20 });
     await clients.settings.updateZone(branchId, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', { organizationId, name: 'VIP', sortOrder: 30 });
@@ -421,7 +437,22 @@ describe('operator API clients', () => {
     expect(calls[2].body).toEqual({ organizationId, roleNames: ['technician'] });
     expect(calls[3].body).toEqual({ organizationId, isActive: false });
     expect(calls[4].body).toEqual({ organizationId, newPassword: 'ChangeMe456!' });
-    expect(calls[6].body).toEqual({ organizationId, name: 'AFK4 Pilot', city: 'Dushanbe' });
+    expect(calls[6].body).toEqual({
+      organizationId,
+      name: 'AFK4 Pilot',
+      city: 'Dushanbe',
+      description: null,
+      address: null,
+      phone: null,
+      telegram: null,
+      website: null,
+      instagram: null,
+      logoUrl: null,
+      logoMediaId: null,
+      timeZone: 'Asia/Dushanbe',
+      locale: 'ru',
+      workingHours: defaultWorkingHours()
+    });
     expect(calls[7].body).toEqual({ organizationId, name: 'Main', sortOrder: 10 });
     expect(calls[8].body).toEqual({ organizationId, zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', name: 'PC-01', sortOrder: 20 });
     expect(calls[9].body).toEqual({ organizationId, name: 'VIP', sortOrder: 30 });
@@ -530,10 +561,16 @@ describe('createLoyaltySettingsClient', () => {
     };
     const client = createLoyaltySettingsClient(apiFake as never);
     await client.get();
-    await client.update({ topUpEnabled: true, topUpPercentBasisPoints: 500, shopEnabled: false, shopPercentBasisPoints: 0 });
+    const payload = {
+      topUpEnabled: true, topUpPercentBasisPoints: 500,
+      shopEnabled: false, shopPercentBasisPoints: 0,
+      sessionEnabled: true, sessionPercentBasisPoints: 300,
+      cashbackCapMinorUnits: 5000, minimumSourceMinorUnits: 1000
+    };
+    await client.update(payload);
     expect(calls).toEqual([
       { method: 'GET', path: '/api/owner/loyalty-settings' },
-      { method: 'POST', path: '/api/owner/loyalty-settings', body: { topUpEnabled: true, topUpPercentBasisPoints: 500, shopEnabled: false, shopPercentBasisPoints: 0 } }
+      { method: 'POST', path: '/api/owner/loyalty-settings', body: payload }
     ]);
   });
 });

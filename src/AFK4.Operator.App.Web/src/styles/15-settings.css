@@ -164,7 +164,8 @@
   font-weight: 600;
 }
 
-.settings-form-grid input {
+.settings-form-grid input,
+.settings-form-grid textarea {
   height: 28px;
   min-width: 0;
   border: 1px solid var(--border-default);
@@ -174,6 +175,7 @@
   background: var(--surface-sunken);
   color: var(--text-primary);
   font-size: 12px;
+  font-family: inherit;
 }
 
 .settings-form-grid select {
@@ -188,8 +190,31 @@
   font-size: 12px;
 }
 
+/* Native checkbox: the shared input rule above targets text/number fields — a checkbox
+   boxed the same way (fixed height, padded background) reads as a broken control, so it
+   opts out and keeps the platform's own tick, just sized to sit under the caption like
+   every other control in this grid. */
+.settings-form-grid input[type='checkbox'] {
+  height: auto;
+  width: 16px;
+  border: none;
+  padding: 0;
+  background: none;
+  justify-self: start;
+  accent-color: var(--accent);
+}
+
+.settings-form-grid textarea {
+  height: auto;
+  min-height: 72px;
+  padding: 7px 9px;
+  line-height: 1.4;
+  resize: vertical;
+}
+
 .settings-form-grid input:disabled,
-.settings-form-grid select:disabled {
+.settings-form-grid select:disabled,
+.settings-form-grid textarea:disabled {
   color: var(--text-quaternary);
 }
 
@@ -312,6 +337,18 @@
 
 .settings-form-wide {
   grid-column: 1 / -1;
+}
+
+/* Новости: form actions row (save/cancel) and the list of existing items below the form.
+   Rows mirror .settings-tariff-row's card idiom (border + surface-card, no shadow — nested
+   content stays flat per the surface-elevation rule) but aren't buttons, so they get their
+   own class instead of reusing a <button>-only selector group. */
+.news-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 2px 12px 0;
 }
 
 .settings-room-grid {
@@ -615,6 +652,390 @@
   color: var(--text-on-accent);
   font-size: 12px;
   font-weight: 600;
+}
+
+/* Управление — shared scaffold every management destination screen mounts into
+   (header + scrollable body + optional sticky save bar). Fills the workspace
+   height the same way .settings-screen does. */
+.management-screen {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px));
+}
+
+.management-screen-head {
+  flex-shrink: 0;
+  display: grid;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.management-screen-head span {
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+
+.management-screen-head h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 16px;
+  line-height: 1.15;
+}
+
+.management-screen-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Правый gutter: контент (особенно --full) не упирается в скроллбар/край окна. */
+  padding-right: 16px;
+}
+
+/* Content column: bounds the form/list measure so it doesn't stretch edge-to-edge across a
+   wide canvas (the #1 "half-empty, unfinished" tell). Left-aligned under the head, not
+   centered — the operator is a dense left-anchored shell. The save bar aligns to this width. */
+.management-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.management-content--form {
+  max-width: 720px;
+}
+
+.management-content--wide {
+  max-width: 1180px;
+}
+
+/* Full-bleed content: table/master-detail screens (halls, devices) that benefit from using the
+   entire workspace width instead of being capped to a comfortable reading measure. */
+.management-content--full {
+  max-width: none;
+}
+
+/* Raised card that holds a destination's form/section. Depth = a lighter/raised surface with
+   shadow-card (operator surface-elevation rule), never a form floating on bare canvas. */
+.management-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+
+/* Лояльность — компактная форма на вкладке раздела «Платежи и лояльность»: правила начисления
+   стопкой, ниже блок лимитов (отбит линией). Save-бар живёт в контейнере ManagementScreen. */
+.loyalty-form > .loyalty-limits {
+  margin-top: 4px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-soft);
+}
+
+/* Каждое правило кэшбэка — отдельная карточка: переключатель с названием и пояснением, поле
+   процента, и (когда правило включено и процент > 0) живой пример начисления снизу во всю
+   ширину. Светлая тема: карточка — это подъём (белая/приподнятая поверхность), не затемнение;
+   включённая карточка дополнительно подсвечена акцентной рамкой/подложкой. */
+.loyalty-rules {
+  display: flex;
+  flex-direction: column;
+}
+
+.loyalty-section-hint {
+  margin: -4px 0 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.loyalty-rule-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 12px 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+
+.loyalty-rule-card.is-on {
+  border-color: var(--border-accent);
+  background: var(--surface-accent-soft);
+}
+
+.loyalty-rule-card + .loyalty-rule-card {
+  margin-top: 10px;
+}
+
+.loyalty-rule-toggle.mgmt-check {
+  align-items: flex-start;
+  padding: 0;
+}
+
+.loyalty-rule-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.loyalty-rule-name {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.loyalty-rule-hint {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.loyalty-rule-percent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.loyalty-rule-percent input {
+  width: 88px;
+  text-align: right;
+}
+
+.loyalty-rule-percent input:disabled {
+  color: var(--text-tertiary);
+  opacity: 0.6;
+}
+
+.loyalty-rule-example {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* Лимиты начисления: money-инпуты держат «денежную» ширину, а не тянутся на всю колонку грида
+   (пустой бокс под «50.00» читается недоделанным). */
+.loyalty-limits {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.loyalty-limits .mgmt-form-grid input {
+  max-width: 200px;
+}
+
+/* Eskhata Merchant — блок реквизитов во вкладке «Платёжные шлюзы», секцией под dcgate-картами. */
+.eskhata-gateway {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.eskhata-note {
+  margin: 0;
+}
+
+/* Платёжные шлюзы: dcgate-карты + Eskhata стопкой без разделителя (см. GatewaysTab). */
+.payment-gateways { display: grid; gap: 24px; }
+.payment-gateways .eskhata-gateway { margin-top: 0; }
+.payment-card-rows { display: grid; gap: 10px; }
+.payment-card-row {
+  display: grid; gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+}
+.payment-card-main { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.payment-card-pan { font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.payment-card-disable { margin-left: auto; }
+.payment-card-session-last { color: var(--text-secondary); font-size: 12px; }
+.payment-attach-row { display: flex; align-items: flex-end; gap: 10px; }
+.payment-attach-row label { flex: 1; }
+.payment-card-attach {
+  padding-top: 10px;
+  border-top: 1px solid var(--border-default);
+}
+.payment-card-attached { color: var(--success-text); font-size: 13px; font-weight: 600; margin: 0; }
+.ui-inline-error { color: var(--danger-text); font-size: 13px; margin: 0; }
+
+.management-save-bar {
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+
+.management-save-bar span {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Управление shell: left destination rail + the active destination's ManagementScreen. Mirrors
+   .settings-nav-panel's card idiom (raised surface + shadow-card, no shadow on nested buttons)
+   so the new rail reads as the same interface, not a parallel visual language. */
+.management-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 10px;
+}
+
+.management-nav {
+  flex-shrink: 0;
+  width: 208px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+  overflow-y: auto;
+}
+
+.management-nav button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  padding: 0 12px;
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.management-nav button svg {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  transition: color 120ms ease;
+}
+
+.management-nav button:hover,
+.management-nav button:focus-visible,
+.management-nav button.active {
+  border-color: var(--accent);
+  background: var(--surface-accent-soft);
+  outline: none;
+}
+
+.management-nav button:hover,
+.management-nav button:focus-visible {
+  transform: translateY(-1px);
+}
+
+.management-nav button:hover svg,
+.management-nav button:focus-visible svg,
+.management-nav button.active svg {
+  color: var(--accent);
+}
+
+.management-active-pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Loading skeleton — mirrors .management-panel's geometry (raised card, same padding/radius)
+   so the real content doesn't jump when it swaps in. Fades in after a 200ms delay: on backend
+   loads that resolve faster than that (the common case), the skeleton never becomes visible at
+   all, so quick loads don't flash a placeholder. */
+@keyframes management-skeleton-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes management-skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.management-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+  opacity: 0;
+  animation: management-skeleton-in 160ms ease-out 200ms forwards;
+}
+
+.management-skeleton-line {
+  height: 14px;
+  border-radius: var(--radius-xs, 4px);
+  background: linear-gradient(90deg, var(--surface-sunken) 25%, var(--border-soft) 50%, var(--surface-sunken) 75%);
+  background-size: 250% 100%;
+  animation: management-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.management-skeleton-line:nth-child(1) {
+  width: 40%;
+}
+
+.management-skeleton-line:nth-child(2) {
+  width: 70%;
+  animation-delay: 0.12s;
+}
+
+.management-skeleton-line:nth-child(3) {
+  width: 55%;
+  animation-delay: 0.24s;
+}
+
+.management-skeleton-line:nth-child(4) {
+  width: 30%;
+  animation-delay: 0.36s;
+}
+
+/* Error state — same raised-card chrome as .management-panel so the swap doesn't read as a
+   different surface; EmptyState supplies the centered icon/title/detail/retry layout. The
+   concrete errorDetail (from projectOperatorError/feedback.detail) renders as EmptyState's
+   description, never replaced by generic copy. */
+.management-error-state {
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
 }
 
 @media (prefers-reduced-motion: reduce) {
