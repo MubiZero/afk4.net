@@ -157,6 +157,7 @@ internal static partial class EndpointHelpers
             branch.Phone,
             branch.Telegram,
             branch.Website,
+            branch.Instagram,
             branch.LogoUrl,
             branch.LogoMediaId,
             branch.PreferredTimeZone,

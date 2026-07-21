@@ -24,6 +24,8 @@ public sealed class BranchEntity
 
     public string? Website { get; set; }
 
+    public string? Instagram { get; set; }
+
     public string? LogoUrl { get; set; }
 
     public Guid? LogoMediaId { get; set; }

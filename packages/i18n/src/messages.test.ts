@@ -68,8 +68,15 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.booking.seatsOne',
     'op.booking.source.operator',
     'op.cash.title',
-    // Telegram — бренд-топоним, одинаков во всех локалях.
+    // Telegram / Instagram — бренд-топонимы, одинаковы во всех локалях.
     'op.club.field.telegram',
+    'op.club.field.instagram',
+    // Плейсхолдеры-примеры форматов и топоним «Душанбе» — одинаковы в ru/tg (число, url, @-хэндл, город).
+    'op.club.ph.city',
+    'op.club.ph.phone',
+    'op.club.ph.telegram',
+    'op.club.ph.website',
+    'op.club.ph.instagram',
     'op.command.stage.cashier',
     'op.dashboard.pcs',
     'op.dashboard.signalsShort',

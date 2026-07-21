@@ -9,7 +9,7 @@ export function ClubPlayerPreview({ form }: { form: ClubProfileForm }) {
   const today = form.workingHours.find((d) => d.dayOfWeek === isoToday);
 
   return (
-    <aside className="club-preview">
+    <aside className="club-preview club-area-preview">
       <div className="mgmt-section-title"><span>{t('op.club.section.preview')}</span></div>
       <div className="club-preview-card">
         {form.logoUrl
@@ -27,6 +27,7 @@ export function ClubPlayerPreview({ form }: { form: ClubProfileForm }) {
         </div>
         {form.phone && <div className="club-preview-contact">{form.phone}</div>}
         {form.telegram && <div className="club-preview-contact">{form.telegram}</div>}
+        {form.instagram && <div className="club-preview-contact">{form.instagram}</div>}
       </div>
       <p className="club-preview-hint">{t('op.club.preview.hint')}</p>
     </aside>

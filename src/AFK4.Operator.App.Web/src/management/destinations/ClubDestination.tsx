@@ -17,7 +17,7 @@ import type { Feedback } from '../../operatorTypes';
 import type { DestinationProps } from './types';
 
 const emptyForm: ClubProfileForm = {
-  name: 'AFK4', city: 'Dushanbe', description: '', address: '', phone: '', telegram: '', website: '',
+  name: 'AFK4', city: 'Dushanbe', description: '', address: '', phone: '', telegram: '', website: '', instagram: '',
   logoUrl: null, logoMediaId: null, timeZone: 'Asia/Dushanbe', locale: 'ru', workingHours: normalizeWorkingHours(null)
 };
 
@@ -34,6 +34,7 @@ function mapProfileToForm(profile: BranchProfileDto): ClubProfileForm {
     phone: readString(profile, 'phone', ''),
     telegram: readString(profile, 'telegram', ''),
     website: readString(profile, 'website', ''),
+    instagram: readString(profile, 'instagram', ''),
     logoUrl: (profile.logoUrl as string | null) ?? null,
     logoMediaId: (profile.logoMediaId as string | null) ?? null,
     timeZone: readString(profile, 'timeZone', 'Asia/Dushanbe'),
@@ -47,6 +48,8 @@ function mapProfileToForm(profile: BranchProfileDto): ClubProfileForm {
 export function ClubDestination({ backend, currencyCode, onDirtyChange }: DestinationProps) {
   const { t } = useI18n();
   const [form, setForm] = useState<ClubProfileForm>(emptyForm);
+  // Снимок последнего загруженного/сохранённого профиля — база для «Отменить».
+  const [baseline, setBaseline] = useState<ClubProfileForm>(emptyForm);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -60,7 +63,9 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
     clients.settings.getBranchProfile(backend.branchId)
       .then((profile) => {
         if (!active) return;
-        setForm(mapProfileToForm(profile));
+        const mapped = mapProfileToForm(profile);
+        setForm(mapped);
+        setBaseline(mapped);
         setDirty(false);
       })
       .catch((error) => {
@@ -97,6 +102,7 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
         phone: blankToNull(form.phone),
         telegram: blankToNull(form.telegram),
         website: blankToNull(form.website),
+        instagram: blankToNull(form.instagram),
         logoUrl: form.logoUrl,
         logoMediaId: form.logoMediaId,
         timeZone: form.timeZone,
@@ -106,7 +112,9 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
           : day))
       };
       const profile: BranchProfileDto = await clients.settings.updateBranchProfile(backend.branchId, request);
-      setForm(mapProfileToForm(profile));
+      const mapped = mapProfileToForm(profile);
+      setForm(mapped);
+      setBaseline(mapped);
       setDirty(false);
       setSaved(true);
       setFeedback({ label: t('op.settings.profile.feedbackLabel'), state: 'confirmed' });
@@ -117,21 +125,33 @@ export function ClubDestination({ backend, currencyCode, onDirtyChange }: Destin
     }
   };
 
+  const discard = () => {
+    setForm(baseline);
+    setDirty(false);
+    setSaved(false);
+    setFeedback(emptyFeedback);
+  };
+
   const saveState: SaveState = saving ? 'saving' : dirty ? 'dirty' : saved ? 'saved' : 'clean';
 
   return (
     <ManagementScreen
       title={t('op.management.dest.club')}
       subtitle={t('op.management.dest.club.subtitle')}
-      save={{ state: saveState, onSave: () => void save(), disabled: backend === null }}
+      contentWidth="full"
+      save={{ state: saveState, onSave: () => void save(), onDiscard: discard, disabled: backend === null }}
     >
       <div className="club-profile-layout">
-        <div className="management-panel">
-          {backend !== null && (
-            <ClubProfileFields form={form} currencyCode={currencyCode} backend={backend} disabled={saving} onField={onField} />
-          )}
-        </div>
-        <ClubPlayerPreview form={form} />
+        {backend !== null && (
+          <ClubProfileFields
+            form={form}
+            currencyCode={currencyCode}
+            backend={backend}
+            disabled={saving}
+            onField={onField}
+            preview={<ClubPlayerPreview form={form} />}
+          />
+        )}
       </div>
     </ManagementScreen>
   );

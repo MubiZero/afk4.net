@@ -23,6 +23,7 @@ export interface ManagementScreenProps {
     // omit for read-only destinations
     state: SaveState;
     onSave: () => void;
+    onDiscard?: () => void; // revert unsaved edits to the last-loaded/saved state; shows «Отменить» when dirty
     disabled?: boolean; // e.g. no backend / no permission
   };
 }
@@ -70,6 +71,16 @@ export function ManagementScreen({
               {save && (
                 <div className="management-save-bar">
                   <span>{save.state === 'saved' ? t('op.management.save.saved') : save.state === 'clean' ? t('op.management.save.clean') : ''}</span>
+                  {save.onDiscard && (
+                    <button
+                      type="button"
+                      className="ui-btn"
+                      disabled={save.state !== 'dirty' || save.disabled}
+                      onClick={save.onDiscard}
+                    >
+                      {t('op.management.save.discard')}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="ui-btn ui-btn--primary"

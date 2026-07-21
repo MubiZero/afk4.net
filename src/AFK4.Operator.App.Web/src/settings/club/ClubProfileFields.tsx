@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
 import { MediaUpload } from '../../components/MediaUpload';
@@ -18,6 +19,7 @@ export interface ClubProfileForm {
   phone: string;
   telegram: string;
   website: string;
+  instagram: string;
   logoUrl: string | null;
   logoMediaId: string | null;
   timeZone: string;
@@ -38,79 +40,94 @@ interface ClubProfileFieldsProps {
   backend: OperatorBackendContext;
   disabled?: boolean;
   onField: <K extends keyof ClubProfileForm>(key: K, value: ClubProfileForm[K]) => void;
+  // «Как видит игрок» кладём между панелями — грид (club-profile-layout) сам ставит его в правый
+  // верхний угол, поэтому порядок в DOM не важен.
+  preview: ReactNode;
 }
 
-export function ClubProfileFields({ form, currencyCode, backend, disabled, onField }: ClubProfileFieldsProps) {
+// Две панели одинаковой сетки полей (единая ширина колонок = консистентность):
+//  1. «Профиль» — лицо игрока + контакты (рядом превью).
+//  2. «Часы и настройки» — 7-дневный график + пояс/язык/валюта (во всю ширину под превью).
+export function ClubProfileFields({ form, currencyCode, backend, disabled, onField, preview }: ClubProfileFieldsProps) {
   const { t } = useI18n();
 
   return (
-    <div className="mgmt-form">
-      <div className="mgmt-section-title"><span>{t('op.club.section.identity')}</span></div>
-      <div className="mgmt-form-grid">
-        <label>{t('op.settings.profile.clubName')}
-          <input value={form.name} disabled={disabled} onChange={(e) => onField('name', e.currentTarget.value)} />
-        </label>
-        <label className="mgmt-form-wide">{t('op.club.field.description')}
-          <input value={form.description} disabled={disabled} onChange={(e) => onField('description', e.currentTarget.value)} />
-        </label>
-      </div>
-      <label className="club-logo-field">{t('op.club.field.logo')}
-        <MediaUpload
-          value={form.logoUrl}
-          mediaId={form.logoMediaId}
-          purpose={BRANCH_LOGO_PURPOSE}
-          branchId={backend.branchId}
-          backend={backend}
-          disabled={disabled}
-          onChange={(media) => {
-            onField('logoUrl', media?.url ?? null);
-            onField('logoMediaId', media?.mediaId ?? null);
-          }}
-        />
-        <span className="media-upload-hint">{t('op.club.logo.hint')}</span>
-      </label>
+    <>
+      <section className="management-panel club-area-profile">
+        <div className="mgmt-form">
+          <div className="mgmt-section-title"><span>{t('op.club.section.identity')}</span></div>
+          <div className="club-identity-grid">
+            <label className="club-identity-name">{t('op.settings.profile.clubName')}
+              <input value={form.name} disabled={disabled} onChange={(e) => onField('name', e.currentTarget.value)} />
+            </label>
+            <label className="club-identity-desc">{t('op.club.field.description')}
+              <textarea value={form.description} placeholder={t('op.club.ph.description')} disabled={disabled} onChange={(e) => onField('description', e.currentTarget.value)} />
+            </label>
+            <label className="club-logo-field club-identity-logo">{t('op.club.field.logo')}
+              <MediaUpload
+                value={form.logoUrl}
+                mediaId={form.logoMediaId}
+                purpose={BRANCH_LOGO_PURPOSE}
+                branchId={backend.branchId}
+                backend={backend}
+                disabled={disabled}
+                onChange={(media) => {
+                  onField('logoUrl', media?.url ?? null);
+                  onField('logoMediaId', media?.mediaId ?? null);
+                }}
+              />
+            </label>
+          </div>
 
-      <div className="mgmt-section-title"><span>{t('op.club.section.contacts')}</span></div>
-      <div className="mgmt-form-grid">
-        <label>{t('op.club.field.address')}
-          <input value={form.address} disabled={disabled} onChange={(e) => onField('address', e.currentTarget.value)} />
-        </label>
-        <label>{t('op.settings.profile.city')}
-          <input value={form.city} disabled={disabled} onChange={(e) => onField('city', e.currentTarget.value)} />
-        </label>
-        <label>{t('op.club.field.phone')}
-          <input value={form.phone} disabled={disabled} onChange={(e) => onField('phone', e.currentTarget.value)} />
-        </label>
-        <label>{t('op.club.field.telegram')}
-          <input value={form.telegram} disabled={disabled} onChange={(e) => onField('telegram', e.currentTarget.value)} />
-        </label>
-        <label>{t('op.club.field.website')}
-          <input value={form.website} disabled={disabled} onChange={(e) => onField('website', e.currentTarget.value)} />
-        </label>
-      </div>
-
-      <div className="mgmt-section-title"><span>{t('op.club.section.hours')}</span></div>
-      <WorkingHoursEditor value={form.workingHours} disabled={disabled} onChange={(days) => onField('workingHours', days)} />
-
-      <div className="mgmt-section-title"><span>{t('op.club.section.settings')}</span></div>
-      <div className="mgmt-form-grid">
-        <label>{t('op.club.field.timezone')}
-          <select value={form.timeZone} disabled={disabled} onChange={(e) => onField('timeZone', e.currentTarget.value)}>
-            {TIME_ZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
-          </select>
-        </label>
-        <label>{t('op.club.field.locale')}
-          <select value={form.locale} disabled={disabled} onChange={(e) => onField('locale', e.currentTarget.value)}>
-            {LOCALES.map((l) => <option key={l.value} value={l.value}>{t(l.key)}</option>)}
-          </select>
-        </label>
-      </div>
-      <div className="mgmt-meta-grid">
-        <div className="mgmt-meta-row">
-          <span className="mgmt-meta-label">{t('op.settings.profile.currency')}</span>
-          <span className="mgmt-meta-value">{currencyCode}</span>
+          <div className="mgmt-section-title"><span>{t('op.club.section.contacts')}</span></div>
+          <div className="club-field-grid">
+            <label>{t('op.settings.profile.city')}
+              <input value={form.city} placeholder={t('op.club.ph.city')} disabled={disabled} onChange={(e) => onField('city', e.currentTarget.value)} />
+            </label>
+            <label>{t('op.club.field.address')}
+              <input value={form.address} placeholder={t('op.club.ph.address')} disabled={disabled} onChange={(e) => onField('address', e.currentTarget.value)} />
+            </label>
+            <label>{t('op.club.field.phone')}
+              <input value={form.phone} placeholder={t('op.club.ph.phone')} disabled={disabled} onChange={(e) => onField('phone', e.currentTarget.value)} />
+            </label>
+            <label>{t('op.club.field.telegram')}
+              <input value={form.telegram} placeholder={t('op.club.ph.telegram')} disabled={disabled} onChange={(e) => onField('telegram', e.currentTarget.value)} />
+            </label>
+            <label>{t('op.club.field.website')}
+              <input value={form.website} placeholder={t('op.club.ph.website')} disabled={disabled} onChange={(e) => onField('website', e.currentTarget.value)} />
+            </label>
+            <label>{t('op.club.field.instagram')}
+              <input value={form.instagram} placeholder={t('op.club.ph.instagram')} disabled={disabled} onChange={(e) => onField('instagram', e.currentTarget.value)} />
+            </label>
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
+
+      {preview}
+
+      <section className="management-panel club-area-schedule">
+        <div className="mgmt-form">
+          <div className="mgmt-section-title"><span>{t('op.club.section.hours')}</span></div>
+          <WorkingHoursEditor value={form.workingHours} disabled={disabled} onChange={(days) => onField('workingHours', days)} />
+
+          <div className="mgmt-section-title"><span>{t('op.club.section.settings')}</span></div>
+          <div className="club-field-grid">
+            <label>{t('op.club.field.timezone')}
+              <select value={form.timeZone} disabled={disabled} onChange={(e) => onField('timeZone', e.currentTarget.value)}>
+                {TIME_ZONES.map((tz) => <option key={tz} value={tz}>{tz}</option>)}
+              </select>
+            </label>
+            <label>{t('op.club.field.locale')}
+              <select value={form.locale} disabled={disabled} onChange={(e) => onField('locale', e.currentTarget.value)}>
+                {LOCALES.map((l) => <option key={l.value} value={l.value}>{t(l.key)}</option>)}
+              </select>
+            </label>
+            <label>{t('op.settings.profile.currency')}
+              <input value={currencyCode} readOnly />
+            </label>
+          </div>
+        </div>
+      </section>
+    </>
   );
 }

@@ -17,6 +17,7 @@ public class BranchProfileEndpointTests
         Phone: "+992900000000",
         Telegram: "afk4club",
         Website: "https://afk4.net",
+        Instagram: "afk4.club",
         LogoUrl: null,
         LogoMediaId: null,
         TimeZone: "Asia/Dushanbe",
@@ -41,6 +42,7 @@ public class BranchProfileEndpointTests
         Assert.Equal("AFK4 Центр", dto!.Name);
         Assert.Equal("Лучший клуб", dto.Description);
         Assert.Equal("afk4club", dto.Telegram);
+        Assert.Equal("afk4.club", dto.Instagram);
         Assert.Equal("Asia/Dushanbe", dto.TimeZone);
         Assert.Equal(7, dto.WorkingHours.Count);
         Assert.True(dto.WorkingHours.Single(d => d.DayOfWeek == 7).IsClosed);

@@ -38,8 +38,7 @@ describe('ClubDestination', () => {
     );
     expect(await screen.findByDisplayValue('AFK4 Центр')).toBeInTheDocument();
     expect(container.querySelector('.club-preview')).not.toBeNull();
-    expect(container.querySelector('.mgmt-meta-value')).not.toBeNull();
-    expect(screen.getByText('TJS')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('TJS')).toBeInTheDocument();
     // 7 дней часов работы
     expect(container.querySelectorAll('.club-hours-row')).toHaveLength(7);
   });

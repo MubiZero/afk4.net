@@ -243,6 +243,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(branch => branch.Phone).HasMaxLength(40);
             entity.Property(branch => branch.Telegram).HasMaxLength(120);
             entity.Property(branch => branch.Website).HasMaxLength(300);
+            entity.Property(branch => branch.Instagram).HasMaxLength(120);
             entity.Property(branch => branch.LogoUrl).HasMaxLength(600);
             entity.Property(branch => branch.WorkingHoursJson).HasColumnType("jsonb");
             entity.Property(branch => branch.RequireManualDeviceApproval).HasDefaultValue(false);

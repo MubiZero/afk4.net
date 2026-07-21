@@ -687,6 +687,8 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  /* Правый gutter: контент (особенно --full) не упирается в скроллбар/край окна. */
+  padding-right: 16px;
 }
 
 /* Content column: bounds the form/list measure so it doesn't stretch edge-to-edge across a
@@ -870,15 +872,17 @@
 .management-save-bar {
   flex-shrink: 0;
   position: sticky;
-  bottom: 0;
+  bottom: 4px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
   margin-top: 10px;
   padding: 10px 14px;
-  border-top: 1px solid var(--border-default);
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
   background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
 }
 
 .management-save-bar span {

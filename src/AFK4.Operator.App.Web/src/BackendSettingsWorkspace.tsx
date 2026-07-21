@@ -211,6 +211,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
         phone: readNullableString(rawProfile, 'phone'),
         telegram: readNullableString(rawProfile, 'telegram'),
         website: readNullableString(rawProfile, 'website'),
+        instagram: readNullableString(rawProfile, 'instagram'),
         logoUrl: readNullableString(rawProfile, 'logoUrl'),
         logoMediaId: readNullableString(rawProfile, 'logoMediaId'),
         timeZone: readString(rawProfile, 'timeZone', 'Asia/Dushanbe'),

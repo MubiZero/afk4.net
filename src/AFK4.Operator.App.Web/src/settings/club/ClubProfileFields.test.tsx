@@ -14,6 +14,7 @@ const form: ClubProfileForm = {
   phone: '',
   telegram: '',
   website: '',
+  instagram: '',
   logoUrl: null,
   logoMediaId: null,
   timeZone: 'Asia/Dushanbe',
@@ -27,19 +28,19 @@ describe('ClubProfileFields', () => {
   it('renders name value and section titles', () => {
     render(
       <I18nProvider initialLocale="ru">
-        <ClubProfileFields form={form} currencyCode="TJS" backend={backend} onField={() => {}} />
+        <ClubProfileFields form={form} currencyCode="TJS" backend={backend} onField={() => {}} preview={null} />
       </I18nProvider>
     );
     expect(screen.getByDisplayValue('AFK4 Центр')).toBeInTheDocument();
     expect(screen.getByText('Адрес и контакты')).toBeInTheDocument();
-    expect(screen.getByText('TJS')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('TJS')).toBeInTheDocument();
   });
 
   it('editing name calls onField', () => {
     const onField = mock((_k: unknown, _v: unknown) => {});
     render(
       <I18nProvider initialLocale="ru">
-        <ClubProfileFields form={form} currencyCode="TJS" backend={backend} onField={onField} />
+        <ClubProfileFields form={form} currencyCode="TJS" backend={backend} onField={onField} preview={null} />
       </I18nProvider>
     );
     fireEvent.change(screen.getByDisplayValue('AFK4 Центр'), { target: { value: 'AFK4 X' } });

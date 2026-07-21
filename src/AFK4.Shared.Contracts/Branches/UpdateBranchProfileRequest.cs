@@ -9,6 +9,7 @@ public sealed record UpdateBranchProfileRequest(
     string? Phone,
     string? Telegram,
     string? Website,
+    string? Instagram,
     string? LogoUrl,
     Guid? LogoMediaId,
     string TimeZone,

@@ -201,6 +201,7 @@ internal static class BranchProfileLayoutEndpoints
             branch.Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
             branch.Telegram = string.IsNullOrWhiteSpace(request.Telegram) ? null : request.Telegram.Trim();
             branch.Website = string.IsNullOrWhiteSpace(request.Website) ? null : request.Website.Trim();
+            branch.Instagram = string.IsNullOrWhiteSpace(request.Instagram) ? null : request.Instagram.Trim();
             branch.LogoUrl = string.IsNullOrWhiteSpace(request.LogoUrl) ? null : request.LogoUrl.Trim();
             branch.LogoMediaId = request.LogoMediaId;
             branch.PreferredTimeZone = request.TimeZone.Trim();

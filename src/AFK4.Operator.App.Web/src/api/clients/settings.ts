@@ -60,6 +60,7 @@ export interface UpdateBranchProfileRequest extends Record<string, unknown> {
   phone: string | null;
   telegram: string | null;
   website: string | null;
+  instagram: string | null;
   logoUrl: string | null;
   logoMediaId: string | null;
   timeZone: string;
