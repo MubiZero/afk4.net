@@ -196,4 +196,102 @@ public class EskhataTopUpIntentTests
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         Assert.False(await db.PaymentIntents.AnyAsync());
     }
+
+    private static async Task<Guid> SeedPendingIntentForPlayerAsync(
+        PlatformApiFactory factory, SeededPlayer p, string orderId = "order-abc", int posId = 48741)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var intentId = Guid.NewGuid();
+        db.PaymentIntents.Add(new PaymentIntentEntity
+        {
+            PaymentIntentId = intentId,
+            PlayerAccountId = p.PlayerId,
+            OrganizationId = p.OrgId,
+            BranchId = p.BranchId,
+            AmountMinorUnits = 5_000,
+            CurrencyCode = "TJS",
+            Purpose = "wallet_topup",
+            State = "pending",
+            Method = "eskhata",
+            GatewayPaymentId = orderId,
+            GatewayPosId = posId,
+            CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+        return intentId;
+    }
+
+    private static async Task<int> CountTopUpsAsync(PlatformApiFactory factory, Guid playerId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        return await db.LedgerEntries.CountAsync(e => e.PlayerAccountId == playerId && e.EntryType == "top_up");
+    }
+
+    [Fact]
+    public async Task EskhataStatusPoll_WhenCompleted_CreditsAndReturnsPaid()
+    {
+        var fake = new FakeEskhataClient(); // GetOrderStatusAsync → "COMPLETED"
+        await using var factory = CreateGatewayFactory(fake);
+        var p = await SeedPlayerAsync(factory, "1234");
+        var intentId = await SeedPendingIntentForPlayerAsync(factory, p);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var response = await client.PostAsync(
+            $"/api/me/wallet/top-up-intents/{intentId}/eskhata-status", content: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var dto = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        Assert.Equal("paid", dto.GetProperty("payment").GetString());
+
+        Assert.Equal(1, await CountTopUpsAsync(factory, p.PlayerId));
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var intent = await db.PaymentIntents.SingleAsync(i => i.PaymentIntentId == intentId);
+        Assert.Equal("fulfilled", intent.State);
+        Assert.NotNull(intent.FulfilledAtUtc);
+    }
+
+    [Fact]
+    public async Task EskhataStatusPoll_AlreadyFulfilled_ReturnsPaidWithoutSecondCredit()
+    {
+        var fake = new FakeEskhataClient();
+        await using var factory = CreateGatewayFactory(fake);
+        var p = await SeedPlayerAsync(factory, "1234");
+        var intentId = await SeedPendingIntentForPlayerAsync(factory, p);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var first = await client.PostAsync(
+            $"/api/me/wallet/top-up-intents/{intentId}/eskhata-status", content: null);
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+
+        var second = await client.PostAsync(
+            $"/api/me/wallet/top-up-intents/{intentId}/eskhata-status", content: null);
+
+        Assert.Equal(HttpStatusCode.OK, second.StatusCode);
+        var dto = await second.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        Assert.Equal("paid", dto.GetProperty("payment").GetString());
+        Assert.Equal(1, await CountTopUpsAsync(factory, p.PlayerId));
+    }
+
+    [Fact]
+    public async Task EskhataStatusPoll_ForOtherPlayersIntent_ReturnsNotFound()
+    {
+        var fake = new FakeEskhataClient();
+        await using var factory = CreateGatewayFactory(fake);
+        var owner = await SeedPlayerAsync(factory, "1234");
+        var stranger = await SeedPlayerAsync(factory, "5678");
+        var intentId = await SeedPendingIntentForPlayerAsync(factory, owner);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, stranger.OrgId, stranger.Phone, "5678");
+
+        var response = await client.PostAsync(
+            $"/api/me/wallet/top-up-intents/{intentId}/eskhata-status", content: null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
 }

@@ -394,6 +394,80 @@ internal static class PlayerSelfServiceEndpoints
             return Results.Ok(dtos);
         }).RequireRateLimiting("player-me");
 
+        app.MapPost("/api/me/wallet/top-up-intents/{intentId:guid}/eskhata-status", async (
+            Guid intentId,
+            IPlayerContextAccessor playerContextAccessor,
+            AFK4.Platform.Api.Payments.Eskhata.IEskhataMerchantClientFactory eskhataClientFactory,
+            IBillingCommandService billingCommandService,
+            PlatformDbContext dbContext,
+            TimeProvider timeProvider,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var intent = await dbContext.PaymentIntents.SingleOrDefaultAsync(
+                x => x.PaymentIntentId == intentId && x.PlayerAccountId == player.PlayerAccountId,
+                cancellationToken);
+            if (intent is null || intent.Method != "eskhata")
+            {
+                return Results.NotFound();
+            }
+
+            if (intent.State == "fulfilled")
+            {
+                return Results.Ok(new { payment = "paid" });
+            }
+            if (intent.State is "cancelled" or "expired")
+            {
+                return Results.Ok(new { payment = "failed" });
+            }
+
+            var eskhataClient = await eskhataClientFactory.CreateForOrganizationAsync(
+                intent.OrganizationId, cancellationToken);
+            if (eskhataClient is null)
+            {
+                return Results.Ok(new { payment = "pending" });
+            }
+
+            var status = await eskhataClient.GetOrderStatusAsync(
+                intent.PaymentIntentId.ToString("N"),
+                intent.GatewayPaymentId ?? "",
+                intent.AmountMinorUnits,
+                "972",
+                intent.GatewayPosId ?? 0,
+                cancellationToken);
+
+            if (status == "COMPLETED")
+            {
+                var topUpRequest = new TopUpWalletRequest(
+                    intent.OrganizationId,
+                    new MoneyDto(intent.CurrencyCode, intent.AmountMinorUnits),
+                    "eskhata_online_topup",
+                    intent.PaymentIntentId.ToString("N"));
+
+                var billingResult = await billingCommandService.CreditOnlineTopUpAsync(
+                    intent.PlayerAccountId, intent.BranchId, topUpRequest, cancellationToken);
+                if (billingResult.Succeeded)
+                {
+                    intent.State = "fulfilled";
+                    intent.FulfilledAtUtc = timeProvider.GetUtcNow();
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                    return Results.Ok(new { payment = "paid" });
+                }
+            }
+
+            if (status is "CANCELED" or "REFUNDED")
+            {
+                return Results.Ok(new { payment = "failed" });
+            }
+
+            return Results.Ok(new { payment = "pending" });
+        }).RequireRateLimiting("player-me");
+
         app.MapPost("/api/me/reservations", async (
             CreatePlayerReservationRequest request,
             IPlayerContextAccessor playerContextAccessor,
