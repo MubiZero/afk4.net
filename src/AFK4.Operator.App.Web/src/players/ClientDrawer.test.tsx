@@ -37,6 +37,7 @@ const baseProps: DrawerProps = {
   canTopUp: true,
   onChangeTopUpAmount: () => {},
   onTopUp: () => {},
+  onOpenDcTopUp: () => {},
   canPayDebt: true,
   onOpenPayDebt: () => {},
   canManageClient: true,

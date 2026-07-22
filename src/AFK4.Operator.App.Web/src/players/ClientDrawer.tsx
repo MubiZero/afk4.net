@@ -28,6 +28,7 @@ export function ClientDrawer({
   canTopUp,
   onChangeTopUpAmount,
   onTopUp,
+  onOpenDcTopUp,
   canPayDebt,
   onOpenPayDebt,
   canManageClient,
@@ -51,6 +52,7 @@ export function ClientDrawer({
   canTopUp: boolean;
   onChangeTopUpAmount: (value: string) => void;
   onTopUp: () => void;
+  onOpenDcTopUp: () => void;
   canPayDebt: boolean;
   onOpenPayDebt: () => void;
   canManageClient: boolean;
@@ -149,6 +151,7 @@ export function ClientDrawer({
           canTopUp={canTopUp}
           onChangeTopUpAmount={onChangeTopUpAmount}
           onTopUp={onTopUp}
+          onOpenDcTopUp={onOpenDcTopUp}
           canPayDebt={canPayDebt}
           onOpenPayDebt={onOpenPayDebt}
           canCorrect={canCorrect}

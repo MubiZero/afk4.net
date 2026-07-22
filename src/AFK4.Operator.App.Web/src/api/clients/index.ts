@@ -20,6 +20,7 @@ import { createLoyaltySettingsClient } from './loyaltySettings';
 import { createEskhataConfigClient } from './eskhataConfig';
 import { createNewsClient } from './news';
 import { createMediaClient } from './media';
+import { createDcTopUpClient } from './dcTopUps';
 
 export function createOperatorApiClients(api: PlatformApiClient) {
   return {
@@ -43,6 +44,7 @@ export function createOperatorApiClients(api: PlatformApiClient) {
     loyaltySettings: createLoyaltySettingsClient(api),
     eskhataConfig: createEskhataConfigClient(api),
     news: createNewsClient(api),
-    media: createMediaClient(api)
+    media: createMediaClient(api),
+    dcTopUps: createDcTopUpClient(api)
   };
 }

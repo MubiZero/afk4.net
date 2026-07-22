@@ -1,198 +1,96 @@
-# Task 8 Execution Report
+# Task 8 report — Operator.App: DC-пополнение в Кассе (QR + подтверждение)
 
-Date: 2026-07-13
+## Что сделано
 
-Base: `4041081a5144ea237a37a3dda4385bbf5f440036`
+### Клиент (`src/AFK4.Operator.App.Web/src/api/clients/dcTopUps.ts`, новый)
+`createDcTopUpClient(api)` → `{ create, cancel, confirm }`:
+- `create(branchId, {playerAccountId, amountMinorUnits, currencyCode})` → `POST /api/branches/{id}/pos/dc-topups` → `DcTopUpDto`.
+- `cancel(branchId, intentId)` → `POST /api/branches/{id}/pos/dc-topups/{id}/cancel` (204).
+- `confirm(intentId)` → `POST /api/wallet/top-up-intents/{id}/fulfil` (существующий wallet-эндпоинт).
+Типы `DcTopUpDto`/`CreateDcTopUpRequest` сверены с реальными C#-record'ами (`AFK4.Shared.Contracts.Payments.DcTopUpDtos`) — поля совпадают 1:1.
+Зарегистрирован в `api/clients/index.ts` (`dcTopUps: createDcTopUpClient(api)`) и в барреле `operatorApiClients.ts`.
 
-Branch: `feat/commerce-financial-integrity-impl`
+### Диалог (`src/AFK4.Operator.App.Web/src/players/DcTopUpDialog.tsx`, новый)
+Самодостаточный компонент (владеет своим state, как `PhoneVerificationCard`, а не «пресентационный» модалка со state в оркестраторе, как `PayDebtModal`) — оправдано тем, что это многошаговый async-визард (ввод суммы → создание intent → QR → confirm/cancel), а не разовая форма.
 
-## RED / GREEN Evidence
+Ключевое архитектурное решение: `backend`-проп — НЕ весь `OperatorBackendContext` (config+session), а узкий срез `{ dcTopUps: { create, cancel, confirm } }`. Так тест подставляет голые моки без `createAuthenticatedOperatorClients` и без `mock.module` (по памяти `frontends-on-bun-test`: `mock.module` в bun test течёт process-wide между файлами — это реальный источник флака в этом репо, задокументированный в `src/test/setup.ts` и уже наступавший на PhoneVerificationCard/PosOrdersTicker).
 
-### Sales report COGS contracts and implementation
+Фазы:
+1. **Ввод суммы** — `parseMoneyInputMinorUnits` (существующий helper, major→minor через `@afk4/money`, а не наивный `*100`) гейтит кнопку «Показать QR».
+2. **QR** — `QRCode.toDataURL(dto.payUrl)` (паттерн 1:1 с `Player.Shell.Web/TopUpScreen.tsx`), сумма/комментарий/`••••cardLast4`/подсказка, кнопки «Оплата получена» (confirm→onCredited()+onClose()) и «Отмена» (cancel→onClose()).
+3. Ошибки — `useFeedbackToasts` + `projectOperatorError` (уже знает код `open_shift_required` → «Смена не открыта» и т.п.); при ошибке confirm диалог **не закрывается и не падает** — intent всё ещё pending, оператор может открыть смену и повторить.
+4. `useBusyLabel` — маленький локальный хук отложенного спиннера (кнопка блокируется мгновенно; текст-«…» появляется через 250мс, чтобы быстрые запросы не мигали спиннером).
 
-RED:
+Решение **не показывать toast на успех** create/confirm/cancel (в отличие от `runClientAction` в оркестраторе, который зовёт `setFeedback({state:'confirmed'})` после сети): там `feedback`-state живёт в персистентном родителе и переживает закрытие модалки; здесь диалог сам себя закрывает — установка `state:'confirmed'` в том же тике, что и `onClose()`, ненадёжно долетит до toast-эффекта до размонтирования. Закрытие диалога — уже достаточный сигнал успеха; ошибки (диалог остаётся открытым) — единственный канал toast.
 
-```text
-dotnet test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter ReportContractSerializationTests -v minimal
-dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter "EfReportServiceTests|ReportCsvExporterTests" -v minimal
+### Триггер + рефетч баланса
+- `WalletZone.tsx`: новая полноширинная кнопка «DushanbeCity (перевод)» (`ui-btn ui-btn--block`) под формой counter-пополнения — НЕ третьей ячейкой в существующем `.topup-row` (grid 1fr/1fr: поле+«Пополнить»), т.к. у DC своя сумма (вводится внутри диалога, не делит поле «своя сумма»). Гейтится тем же `canTopUp` (permission `TopUpWallet`), что и оба backend-эндпоинта DC.
+- `ClientDrawer.tsx`: прокидывает новый проп `onOpenDcTopUp` в `WalletZone`.
+- `BackendPlayersWorkspace.tsx` (**отклонение от списка файлов брифа** — см. Concerns): добавлено, т.к. это единственное место, где реально доступны `backend.config/session` для сборки `dcTopUps`-клиента и где живут ВСЕ остальные modal-state'ы этого экрана (`payDebtOpen`, `correctionOpen`, ...). `ClientDrawer.tsx` сам никогда не открывал модалки — паттерн проекта: `useState` + условный рендер в оркестраторе, `ClientDrawer` только зовёт callback-пропы. Добавлено:
+  - `dcTopUpOpen` state + `<DcTopUpDialog>` рендер рядом с `PayDebtModal` (тот же гард `backend !== null && selectedClient…`).
+  - `backend={{ dcTopUps: createAuthenticatedOperatorClients(backend.config, backend.session).dcTopUps }}`.
+  - `onCredited={() => { bumpLedger(); bumpWallet(); }}` — новый `walletReloadNonce`/`bumpWallet()`, добавленный в deps эффекта загрузки `walletSummary` (по образцу существующего `ledgerReloadNonce`). Понадобилось, т.к. `fulfil` возвращает `PlayerTopUpIntentDto`, НЕ `WalletSummaryDto` (в отличие от counter top-up, где ответ `topUpWallet` сразу кладётся в `setWalletSummary`) — «тот же рефетч, что после counter-пополнения» реализован как явный ре-триггер эффекта, а не оптимистичная запись ответа.
+
+### i18n (`op.dc.topup.*`, 9 ключей во всех трёх локалях + `bun run gen`)
+`open/amount/showQr/received/cancel/hint/comment/cardLast4/feedbackLabel` — реальный перевод во всех локалях, tg — настоящий таджикский (сверен по терминологии с существующими ключами: «Маблағи пурракунӣ» = тот же корень, что и `op.players.actions.topUpAmountLabel`; «Бекор кардан» = тот же, что и `common.cancel`). Guard-тест `tg-i18n-honesty` (`packages/i18n/src/messages.test.ts`) зелёный без новых whitelist-записей — все новые ru/tg значения реально различаются.
+
+`op.payments.zone.income.lead` (протухшая копи из Task 2) — **не тронута**: перепроверил все 3 локали, текст «Eskhata основной, DushanbeCity дополнительный» уже корректен (DC-конфиг вернулся в Task 7), правки не требовались.
+
+### Зависимость
+`qrcode@1.5.4` + `@types/qrcode@1.5.6` (та же мажорная версия, что в `Player.Shell.Web/package.json`).
+
+## TDD-evidence
+
+RED (до реализации `DcTopUpDialog.tsx`):
+```
+error: Cannot find module './DcTopUpDialog' from '.../DcTopUpDialog.test.tsx'
+0 pass / 1 fail
 ```
 
-Both commands failed to compile for the intended reason: `SalesReportRowDto`
-did not define `GrossCostOfGoods`, `RefundedCostOfGoods`, or `NetCostOfGoods`,
-and `SalesReportResultDto` did not define the corresponding totals.
-
-GREEN:
-
-```text
-dotnet test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter ReportContractSerializationTests -v minimal
-Passed 6, failed 0, skipped 0.
-
-dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter "EfReportServiceTests|ReportCsvExporterTests" -v minimal
-Passed 11, failed 0, skipped 0.
+GREEN (после реализации + i18n gen):
 ```
-
-The implementation derives COGS only from checked multiplication/summation of
-`PosSaleLineEntity.UnitCostMinorUnits`. Refunded sales retain positive gross
-COGS, expose a negative refunded COGS, and net to zero. Retail revenue/refund
-totals remain payment-price based.
-
-### PostgreSQL last-unit concurrency
-
-RED:
-
-```text
-dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter ShopCommercePostgresTests -v minimal
+$ bun test src/players/DcTopUpDialog.test.tsx
+4 pass
+0 fail
+9 expect() calls
 ```
+(4 теста: happy-path создание+QR+confirm из брифа; передача major→minor `*100` в `create`; «Отмена» на экране QR зовёт `cancel`+`onClose`; ошибка confirm — тост с деталью, диалог не падает и не закрывается, `onCredited` не зовётся.)
 
-Compilation failed because `ShopCommercePostgresFixture` did not exist. The
-failing test already required two independent placements, one success, one
-`out_of_stock`, and the exact persisted finance/stock artifacts.
+## Гейты
 
-Explicit gate without environment:
+- Целевой: `bun test src/players/DcTopUpDialog.test.tsx` → **4 pass / 0 fail**.
+- Общий: `bun run test` → **835 pass / 0 fail** (132 файла) + **63 pass / 26 skip / 0 fail** (App.test.tsx, отдельный прогон).
+- Сборка: `bun run build` → `tsc -b && vite build` → **✓ built in 321ms** (типы бан-моков в `DcTopUpDialog.test.tsx` явные — `DcTopUpDialogBackend['dcTopUps']`, тайпчек тест-файлов прошёл).
+- `grep -rn "DcGate\|BranchPaymentGateway\|payments_cards\|PaymentGatewaysWorkspace" src` — совпадения только в исторических EF-миграциях (`BranchPaymentGatewayEntity`, до этой ветки), новых мест не добавлено.
+- `git diff --stat` — `Player.Shell.Web` не затронут (0 файлов).
 
-```text
-dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter ShopCommercePostgresTests -v minimal
-Skipped 1: Set AFK4_COMMERCE_TEST_POSTGRES to a PostgreSQL database whose name ends with _test.
-```
+## Files changed
 
-Real PostgreSQL GREEN:
+Новые:
+- `src/AFK4.Operator.App.Web/src/api/clients/dcTopUps.ts`
+- `src/AFK4.Operator.App.Web/src/players/DcTopUpDialog.tsx`
+- `src/AFK4.Operator.App.Web/src/players/DcTopUpDialog.test.tsx`
 
-```text
-AFK4_COMMERCE_TEST_POSTGRES='Host=127.0.0.1;Port=<temporary>;Database=afk4_commerce_test;Username=postgres;Password=<temporary>' \
-  dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter ShopCommercePostgresTests -v normal
-Passed 1, failed 0, skipped 0; 0 warnings, 0 errors; test duration 3 s.
-```
+Изменённые:
+- `src/AFK4.Operator.App.Web/src/api/clients/index.ts` — регистрация клиента.
+- `src/AFK4.Operator.App.Web/src/operatorApiClients.ts` — ре-экспорт барреля.
+- `src/AFK4.Operator.App.Web/src/players/WalletZone.tsx` + `.test.tsx` — кнопка-триггер, новый тест.
+- `src/AFK4.Operator.App.Web/src/players/ClientDrawer.tsx` + `.test.tsx` — проброс `onOpenDcTopUp`.
+- `src/AFK4.Operator.App.Web/src/BackendPlayersWorkspace.tsx` — state/wiring/рендер диалога, `walletReloadNonce`/`bumpWallet`.
+- `src/AFK4.Operator.App.Web/src/styles/12-players.css` — минимальная вёрстка QR-экрана диалога (`.dc-topup-*`).
+- `src/AFK4.Operator.App.Web/package.json`, `bun.lock` — `qrcode`/`@types/qrcode`.
+- `locales/{ru,en,tg}.json`, `packages/i18n/src/messages.ts` (generated) — `op.dc.topup.*`.
 
-The fixture rejects non-`_test` databases, creates a generated isolated schema,
-runs EF migrations, resolves an independent DI scope/DbContext per placement,
-and drops only its generated schema. The isolated PostgreSQL 17 container was
-stopped and removed after the run; the unrelated ReviewOS PostgreSQL container
-was not touched.
+## Self-review
 
-### Linked Shop, shift, and projection assertions
+- Money-path: `amountMinorUnits` идёт через `parseMoneyInputMinorUnits` (`@afk4/money`, тот же путь, что весь остальной проект) — не наивный `Number(x)*100` (плавающая точка, отсутствие валидации 2 знаков).
+- Permission-guard: DC-кнопка и оба POS-эндпоинта гейтятся одним и тем же `TopUpWallet` — не завёл отдельное разрешение без нужды (бэкенд Task 6 тоже требует именно этот permission на create/cancel).
+- Идемпотентность: `confirm` безопасен при повторном клике (intentId — ключ идемпотентности на бэке, уже закомментировано в клиенте).
+- a11y: QR — `<img alt={t('op.dc.topup.hint')}>` (не пустой alt → доступен по `role=img`), кнопки — обычные `<button>` с текстовым содержимым.
 
-```text
-dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter "BillingShiftIntegrationTests|ShopOrderProjectionTests" -v minimal
-Passed 7, failed 0, skipped 0.
-```
+## Concerns / отклонения от брифа
 
-The assertions prove the linked wallet payment contributes once to the open
-shift, the refund subtracts once, and Shop/POS/receipt IDs and retail totals
-agree while immutable unit cost remains separate from retail price.
-
-## Aggregate Verification
-
-```text
-dotnet test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
-Passed 125, failed 0, skipped 0.
-
-dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter "Shop|Pos|Inventory|BillingShiftIntegrationTests" -v minimal
-Passed 262, failed 0, skipped 1 (the explicit PostgreSQL env gate).
-
-dotnet build src/AFK4.Platform.Api/AFK4.Platform.Api.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
-Build succeeded, 0 warnings, 0 errors.
-
-dotnet build tests/AFK4.Operator.App.Tests/AFK4.Operator.App.Tests.csproj --no-restore -p:EnableWindowsTargeting=true -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
-Build succeeded, 0 warnings, 0 errors.
-
-cd src/AFK4.Player.Shell.Web && bun test && bun run build
-51 tests passed, 0 failed; production build succeeded.
-
-dotnet restore AFK4.sln -p:EnableWindowsTargeting=true -p:NuGetAudit=false -v minimal
-Restore succeeded.
-
-dotnet build AFK4.sln --no-restore -p:EnableWindowsTargeting=true -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
-Build succeeded, 0 warnings, 0 errors.
-```
-
-Full solution test attempt:
-
-```text
-dotnet test AFK4.sln --no-build -p:EnableWindowsTargeting=true -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
-```
-
-Portable results included Platform API 1288 passed / 1 PostgreSQL-env skip,
-Shared Contracts 125/125, Localization 15/15, Building Blocks 3/3, Setup Wizard
-30 passed / 1 environment skip, and Update Publisher 8/8. The command as a
-whole was not green on Fedora: Operator App and Player Shell `.NET` testhosts
-require the unavailable `Microsoft.WindowsDesktop.App 10.0` Windows runtime;
-26 Agent packaging/release tests invoke Windows PowerShell/release tooling and
-failed in this Linux environment. These are explicit platform limitations;
-all affected Task 8 suites and all projects compile successfully.
-
-Player Shell Web emitted the pre-existing React `act(...)` notices in two
-ExtendScreen tests and the existing Vite chunk-size warning; there were no test
-or build failures.
-
-## Review Fixes
-
-### Report invariants and CSV compatibility
-
-RED evidence added three focused failures: the CSV header inserted COGS before
-existing columns, a sale-line currency mismatch was accepted, and a range with
-two sale currencies was aggregated into one result. A follow-up `limit: 1` test
-also failed until currency validation covered the entire requested range before
-pagination.
-
-GREEN:
-
-```text
-dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter "EfReportServiceTests|ReportCsvExporterTests" -v minimal
-Passed 14, failed 0, skipped 0.
-```
-
-Reports now fail closed when the requested range contains multiple sale
-currencies, or when a line/payment currency differs from its sale. The original
-16 CSV column ordinals remain unchanged; the three COGS columns are appended.
-
-### Platform Web report contracts
-
-RED: `bun run build` failed with TS2353 because the six COGS row/total fields
-were absent from `src/api/types.ts`.
-
-GREEN: the focused report model suite passed 7/7 and the production build
-succeeded. The full Platform Web test/build result is recorded in the final
-verification below.
-
-### Deterministic PostgreSQL overlap and artifact semantics
-
-RED: the expanded PostgreSQL test failed to compile because the fixture did not
-yet expose the initial-success and serialization-retry counters required by the
-test.
-
-The test-only settlement wrapper now holds the first two successful settlement
-attempts after both have read stock `1` and staged their artifacts, but before
-either transaction saves/commits. The real coordinator remains unchanged. The
-test also requires two initially successful settlements, at least one actual
-serialization retry, one final success, one `out_of_stock`, and complete linked
-order/sale/line/payment/receipt/wallet-ledger/stock-movement semantics.
-
-Real PostgreSQL GREEN:
-
-```text
-AFK4_COMMERCE_TEST_POSTGRES='Host=127.0.0.1;Port=<temporary>;Database=afk4_commerce_test;Username=postgres;Password=<temporary>' \
-  dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter ShopCommercePostgresTests -v normal
-Passed 2, failed 0, skipped 0; 0 warnings, 0 errors; test duration 3 s.
-```
-
-The temporary PostgreSQL container was stopped and removed after verification.
-
-### Final review verification
-
-```text
-dotnet test tests/AFK4.Shared.Contracts.Tests/AFK4.Shared.Contracts.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
-Passed 125, failed 0, skipped 0.
-
-dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter "Shop|Pos|Inventory|BillingShiftIntegrationTests" -v minimal
-Passed 262, failed 0, skipped 1 (the explicit PostgreSQL env gate).
-
-dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.Tests.csproj --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false --filter "EfReportServiceTests|ReportCsvExporterTests" -v minimal
-Passed 14, failed 0, skipped 0.
-
-cd src/AFK4.Platform.Web && bun test && bun run build
-381 tests passed, 0 failed; production build succeeded with the existing
-large-chunk warning.
-
-dotnet build AFK4.sln --no-restore -p:EnableWindowsTargeting=true -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
-Build succeeded, 0 warnings, 0 errors.
-```
+1. **`BackendPlayersWorkspace.tsx` не был в списке «Modify» брифа, но пришлось его тронуть.** Без этого либо (а) `ClientDrawer.tsx` пришлось бы наделять полным auth-контекстом и превращать в единственное исключение из паттерна «модалки открывает только оркестратор», либо (б) DC-пополнение осталось бы нерабочим (нечем собрать `dcTopUps`-клиент, некуда положить `walletReloadNonce`). Выбрал следовать существующему паттерну проекта (модалки — в оркестраторе), а не плодить новый. Кажется правильным, но раз бриф явно this не called out — фиксирую как отклонение.
+2. **`op.dc.topup.cancel` текстуально дублирует `common.cancel`** («Отмена» и там, и там) — сохранил как отдельный ключ, т.к. бриф явно перечисляет `.cancel` в списке нужных ключей `op.dc.topup.*`, хотя технически можно было переиспользовать `common.cancel`.
+3. **Header-X диалога и footer-кнопка «Отмена» имеют одинаковый accessible name** («Отмена» — X использует `t('common.cancel')` из `PanelModal`) — оба ведут к одному и тому же `cancelIntent()` (согласованное поведение: закрытие с pending-intent должно снимать его на бэке, иначе игрок может оплатить уже «закрытый» pay-link). В своём тесте на «Отмена» пришлось брать `getAllByRole(...)[last]`, а не полагаться на уникальный `name` — не баг, но стоит знать при написании будущих тестов на этот диалог.
+4. Success-toast для DC-пополнения нет (только error-toast) — осознанный выбор (см. раздел «Диалог» выше), но это единственное money-действие в разделе Клиентов без success-toast; если сочтёте несогласованным — можно поднять `feedback`/`onCredited` в оркестратор аналогично прочим action, ценой более объёмного рефакторинга.
