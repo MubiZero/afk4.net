@@ -152,6 +152,25 @@ internal static class WalletEndpoints
                 return Results.Conflict(new { Error = "Payment intent has expired." });
             }
 
+            // Only a still-pending intent may be credited. Any other state (e.g. "cancelled",
+            // set by DcTopUpEndpoints' cancel action) must be rejected here, not silently credited.
+            if (intent.State != "pending")
+            {
+                return Results.Conflict(new { Error = "Payment intent is not pending." });
+            }
+
+            var player = await LoadPlayerForStaffAsync(
+                dbContext,
+                intent.PlayerAccountId,
+                staffContext.OrganizationId,
+                cancellationToken);
+
+            var inactiveGuard = RejectInactivePlayerMoneyAction(player);
+            if (inactiveGuard is not null)
+            {
+                return inactiveGuard;
+            }
+
             // The intent id is the idempotency key: it is the authoritative guard against a
             // double wallet credit. If two operators fulfil the same intent concurrently, both
             // pass the in-memory State == "pending" fast-path above, but TopUpWalletAsync

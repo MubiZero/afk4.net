@@ -94,3 +94,67 @@ $ bun test src/players/DcTopUpDialog.test.tsx
 2. **`op.dc.topup.cancel` текстуально дублирует `common.cancel`** («Отмена» и там, и там) — сохранил как отдельный ключ, т.к. бриф явно перечисляет `.cancel` в списке нужных ключей `op.dc.topup.*`, хотя технически можно было переиспользовать `common.cancel`.
 3. **Header-X диалога и footer-кнопка «Отмена» имеют одинаковый accessible name** («Отмена» — X использует `t('common.cancel')` из `PanelModal`) — оба ведут к одному и тому же `cancelIntent()` (согласованное поведение: закрытие с pending-intent должно снимать его на бэке, иначе игрок может оплатить уже «закрытый» pay-link). В своём тесте на «Отмена» пришлось брать `getAllByRole(...)[last]`, а не полагаться на уникальный `name` — не баг, но стоит знать при написании будущих тестов на этот диалог.
 4. Success-toast для DC-пополнения нет (только error-toast) — осознанный выбор (см. раздел «Диалог» выше), но это единственное money-действие в разделе Клиентов без success-toast; если сочтёте несогласованным — можно поднять `feedback`/`onCredited` в оркестратор аналогично прочим action, ценой более объёмного рефакторинга.
+
+## FINAL-FIX (money-path review wave, ветка `feat/operator-dc-paylink-manual`)
+
+Финальное ревью нашло два подтверждённых дефекта в переиспользуемом `POST /api/wallet/top-up-intents/{intentId}/fulfil` (общий для counter/eskhata/dc) + одну frontend-несогласованность. TDD: RED → GREEN → гейты.
+
+### BLOCKER A — кредит после отмены (State="cancelled" проваливался сквозь чеки)
+
+До фикса `fulfil` проверял только `State=="fulfilled"` (idempotent no-op) и `State=="pending"&&просрочен` (409). Любое другое состояние, включая `"cancelled"` (ставит `DcTopUpEndpoints.cancel`, `src/AFK4.Platform.Api/Endpoints/DcTopUpEndpoints.cs:96`), проваливалось сквозь оба чека и кредитовало кошелёк.
+
+**Фикс:** `src/AFK4.Platform.Api/Endpoints/WalletEndpoints.cs:155-160` — сразу после expiry-guard добавлена явная проверка:
+```csharp
+if (intent.State != "pending")
+{
+    return Results.Conflict(new { Error = "Payment intent is not pending." });
+}
+```
+Отклоняет `cancelled` (и любое иное не-`pending` состояние) 409-м ДО вызова `TopUpWalletAsync`.
+
+### BLOCKER B — кредит неактивному игроку (guard отсутствовал вовсе)
+
+`fulfil` не проверял активность игрока перед кредитом. Найден и применён реальный проектный хелпер `RejectInactivePlayerMoneyAction` (`src/AFK4.Platform.Api/Endpoints/EndpointHelpers.Loaders.cs:191-194`) — тот же, что используют `PlayerManagementEndpoints.cs:500/585/696`, `PackageEndpoints.cs:299`, `MoneyActionEndpoints.cs:434`. Возвращает `400 BadRequest {"Error":"Player account is inactive."}` при `IsActive==false`, иначе `null`.
+
+**Фикс:** `src/AFK4.Platform.Api/Endpoints/WalletEndpoints.cs:162-172` — игрок подгружается через уже имеющийся `LoadPlayerForStaffAsync(dbContext, intent.PlayerAccountId, staffContext.OrganizationId, ct)` (тот же хелпер, что и `LoadPlayerScopedEndpointAsync` использует внутри), затем гард применяется перед сборкой `TopUpWalletRequest`.
+
+Онлайн-топап webhook (Eskhata) через `fulfil` НЕ проходит отдельным путём — комментарий у `RejectInactivePlayerMoneyAction` («online top-up webhook намеренно не роутится сюда») относится к другому эндпоинту, не к этому; `fulfil` — общий кассирский confirm-путь для counter/eskhata/dc, гард корректен для всех трёх методов.
+
+### RED-доказательство (до фикса, тесты добавлены в `tests/AFK4.Platform.Api.Tests/DcTopUpEndpointsTests.cs`)
+
+- `Fulfil_CancelledIntent_DoesNotCreditWallet` — create → cancel (`State="cancelled"`) → fulfil. **До фикса:** `fulfil` вернул `200 OK` (кредит прошёл) — `Assert.NotEqual(HttpStatusCode.OK, ...)` упал: `Expected: Not OK / Actual: OK`.
+- `Fulfil_InactivePlayer_DoesNotCreditWallet` — игрок создан с `IsActive=false`, create → fulfil. **До фикса:** тоже `200 OK` — тот же провал ассерта.
+
+Оба теста прогнаны ДО правки бэкенда (`dotnet test --filter FullyQualifiedName~DcTopUpEndpointsTests`): `Failed: 2, Passed: 4` — обе дыры подтверждены прогоном, не домыслены.
+
+### GREEN
+
+После применения обоих гардов те же два теста проходят; полный прогон `dotnet test tests/AFK4.Platform.Api.Tests`: **Failed: 0, Passed: 1411, Skipped: 13** (включая счастливый путь `DcTopUpEndpointsTests.Confirm_ViaFulfil_CreditsWalletOnce`, `EskhataTopUpIntentTests`, `PortalWritesEndpointTests` — pending+активный игрок по-прежнему кредитуется ровно один раз).
+
+### SOFT — success-тост в DcTopUpDialog
+
+`src/AFK4.Operator.App.Web/src/players/DcTopUpDialog.tsx:107-110` — в `confirmReceived` перед `onCredited()+onClose()` добавлено:
+```tsx
+setFeedback({ label: t('op.dc.topup.feedbackLabel'), state: 'confirmed' });
+```
+Использован уже существующий ключ `op.dc.topup.feedbackLabel` (без нового i18n-ключа) — консистентно с `DcTransferForm.tsx:71` (`state: 'confirmed'` на той же метке).
+
+RED: тест `показывает тост-подтверждение после успешного «Оплата получена»` (`src/AFK4.Operator.App.Web/src/players/DcTopUpDialog.test.tsx`) до фикса падал таймаутом (5000ms) — `findByText('DC-пополнение: подтверждено')` не находил ничего, диалог закрывался без тоста. GREEN: `bun test DcTopUpDialog.test.tsx` → **5 pass / 0 fail**.
+
+### Гейты (все прогнаны реально, не предположены)
+
+- `dotnet build src/AFK4.Platform.Api` → **0 Warning(s), 0 Error(s)**.
+- `dotnet test tests/AFK4.Platform.Api.Tests` → **Failed: 0, Passed: 1411, Skipped: 13, Total: 1424**.
+- `cd src/AFK4.Operator.App.Web && bun test DcTopUpDialog.test.tsx` → **5 pass / 0 fail**.
+- `bun run build` → `tsc -b && vite build` → **✓ built in 525ms** (пред-существующие `INVALID_ANNOTATION`-warnings из `@microsoft/signalr` — шум rolldown, не ошибки, не связаны с правкой).
+
+### Файлы
+
+- `src/AFK4.Platform.Api/Endpoints/WalletEndpoints.cs` — оба backend-гарда (строки ~155-172).
+- `tests/AFK4.Platform.Api.Tests/DcTopUpEndpointsTests.cs` — 2 новых RED→GREEN теста + seed-хелпер `SeedActiveConfigAndInactivePlayerAsync`.
+- `src/AFK4.Operator.App.Web/src/players/DcTopUpDialog.tsx` — success-тост.
+- `src/AFK4.Operator.App.Web/src/players/DcTopUpDialog.test.tsx` — новый тест на success-тост.
+
+### Concerns
+
+Нет. Обе дыры реальны, доказаны красным прогоном, закрыты правильным переиспользованным паттерном (не выдуманным). Онлайн-топап webhook сознательно не затронут (у него другой эндпоинт/путь, вне скоупа этой правки).

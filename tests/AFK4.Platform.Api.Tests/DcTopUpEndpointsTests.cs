@@ -85,6 +85,51 @@ public sealed class DcTopUpEndpointsTests
         var intent = await db.PaymentIntents.AsNoTracking().SingleAsync(i => i.PaymentIntentId == create.IntentId);
         Assert.Equal("cancelled", intent.State);
     }
+
+    // BLOCKER A: fulfil must not credit an intent that has already been cancelled. The in-memory
+    // fast-path only special-cases "fulfilled" and checks expiry on "pending" — a cancelled intent
+    // falls through both and used to hit TopUpWalletAsync anyway.
+    [Fact]
+    public async Task Fulfil_CancelledIntent_DoesNotCreditWallet()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var (branchId, playerId) = await DcTestSetup.SeedActiveConfigAndPlayerAsync(client, factory);
+        var create = await (await client.PostAsJsonAsync($"/api/branches/{branchId}/pos/dc-topups",
+            new CreateDcTopUpRequest(playerId, 5000, "TJS"))).Content.ReadFromJsonAsync<DcTopUpDto>();
+
+        var cancel = await client.PostAsync($"/api/branches/{branchId}/pos/dc-topups/{create!.IntentId}/cancel", null);
+        Assert.Equal(HttpStatusCode.NoContent, cancel.StatusCode);
+
+        var fulfil = await client.PostAsync($"/api/wallet/top-up-intents/{create.IntentId}/fulfil", null);
+        Assert.NotEqual(HttpStatusCode.OK, fulfil.StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var balance = await WalletTestHelper.GetBalanceMinorAsync(db, playerId);
+        Assert.Equal(0, balance);
+    }
+
+    // BLOCKER B: fulfil must not credit a player who has since been deactivated. The rest of the
+    // money-action surface (top-up, package purchase, manual correction) already rejects inactive
+    // players via RejectInactivePlayerMoneyAction; fulfil skipped that guard entirely.
+    [Fact]
+    public async Task Fulfil_InactivePlayer_DoesNotCreditWallet()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var (branchId, playerId) = await DcTestSetup.SeedActiveConfigAndInactivePlayerAsync(client, factory);
+        var create = await (await client.PostAsJsonAsync($"/api/branches/{branchId}/pos/dc-topups",
+            new CreateDcTopUpRequest(playerId, 5000, "TJS"))).Content.ReadFromJsonAsync<DcTopUpDto>();
+
+        var fulfil = await client.PostAsync($"/api/wallet/top-up-intents/{create!.IntentId}/fulfil", null);
+        Assert.NotEqual(HttpStatusCode.OK, fulfil.StatusCode);
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var balance = await WalletTestHelper.GetBalanceMinorAsync(db, playerId);
+        Assert.Equal(0, balance);
+    }
 }
 
 // Thin seeding helpers over the repo's real primitives (StaffAuthTestHelper/TestIds/ISecretProtector),
@@ -111,7 +156,19 @@ internal static class DcTestSetup
         return (TestIds.BranchId, playerId);
     }
 
-    private static async Task<Guid> SeedPlayerAsync(PlatformApiFactory factory)
+    // Simulates a player deactivated after the top-up intent was created (create does not gate on
+    // IsActive; a player can go active→inactive between "create the pay link" and "cashier confirms").
+    public static async Task<(Guid BranchId, Guid PlayerId)> SeedActiveConfigAndInactivePlayerAsync(
+        HttpClient client, PlatformApiFactory factory)
+    {
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        var playerId = await SeedPlayerAsync(factory, isActive: false);
+        await SeedConfigAsync(factory, isActive: true);
+        await SeedOpenShiftAsync(factory);
+        return (TestIds.BranchId, playerId);
+    }
+
+    private static async Task<Guid> SeedPlayerAsync(PlatformApiFactory factory, bool isActive = true)
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -122,7 +179,7 @@ internal static class DcTestSetup
             OrganizationId = TestIds.OrganizationId,
             HomeBranchId = TestIds.BranchId,
             DisplayName = "Test Player",
-            IsActive = true,
+            IsActive = isActive,
             CreatedAtUtc = DateTimeOffset.UtcNow
         });
         await db.SaveChangesAsync();
