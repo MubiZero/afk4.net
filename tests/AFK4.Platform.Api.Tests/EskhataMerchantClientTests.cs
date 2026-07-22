@@ -52,8 +52,12 @@ public class EskhataMerchantClientTests
         var root = sent.RootElement;
         Assert.Equal(3, root.GetProperty("orderTypeId").GetInt32());
         Assert.Equal(28652, root.GetProperty("merchantId").GetInt32());
-        Assert.False(root.TryGetProperty("posId", out _)); // тип 3: posId не шлём
-        Assert.False(string.IsNullOrEmpty(root.GetProperty("hash").GetString()));
+        Assert.Equal(0, root.GetProperty("posId").GetInt32()); // тип 3: posId=0, кассу назначает банк
+        // Порядок подписи заморожен вектором: invoiceId·amount·currency·description·posId·orderTypeId·merchantId
+        // "inv1" "50.00" "972" "AFK4 wallet top-up" "0" "3" "28652" "." + hashKey
+        Assert.Equal(
+            "a2640b8bf8488f98889b029c32d9df45617ee0f178f2b706842d4fc66103350c",
+            root.GetProperty("hash").GetString());
 
         Assert.Equal("3818cdcccc6b4e8f8ff93bdc048a74e1", result.OrderId);
         Assert.Equal("NEW", result.OrderStatus);
