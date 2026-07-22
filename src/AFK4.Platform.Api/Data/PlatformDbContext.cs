@@ -16,6 +16,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<EskhataMerchantConfigEntity> EskhataMerchantConfigs => Set<EskhataMerchantConfigEntity>();
 
+    public DbSet<DcPayLinkConfigEntity> DcPayLinkConfigs => Set<DcPayLinkConfigEntity>();
+
     public DbSet<StaffUserEntity> StaffUsers => Set<StaffUserEntity>();
 
     public DbSet<StaffRoleAssignmentEntity> StaffRoleAssignments => Set<StaffRoleAssignmentEntity>();
@@ -915,6 +917,16 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(config => config.HashKeyEncrypted).HasMaxLength(1024).IsRequired();
             entity.Property(config => config.Status).HasMaxLength(32).IsRequired();
             entity.HasIndex(config => new { config.OrganizationId, config.BranchId }).IsUnique();
+        });
+
+        modelBuilder.Entity<DcPayLinkConfigEntity>(entity =>
+        {
+            entity.ToTable("dc_paylink_configs");
+            entity.HasKey(e => e.DcPayLinkConfigId);
+            entity.Property(e => e.ReceivingCardEncrypted).IsRequired();
+            entity.Property(e => e.CardLast4).HasMaxLength(4).IsRequired();
+            entity.Property(e => e.CommentTemplate).HasMaxLength(64).IsRequired();
+            entity.HasIndex(e => new { e.OrganizationId, e.BranchId }).IsUnique();
         });
 
         modelBuilder.Entity<PlatformAdminUserEntity>(entity =>
