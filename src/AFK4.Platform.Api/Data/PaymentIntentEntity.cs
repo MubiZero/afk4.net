@@ -19,7 +19,7 @@ public sealed class PaymentIntentEntity
     // pending | fulfilled | cancelled | expired
     public string State { get; set; } = "pending";
 
-    // counter | dcgate
+    // counter | eskhata | dc
     public string Method { get; set; } = "counter";
 
     // FulfilledByLedgerEntryId is left null (v1): TopUpWalletAsync returns

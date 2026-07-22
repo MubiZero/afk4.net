@@ -417,6 +417,7 @@ app.MapAuthEndpoints();
 app.MapEskhataConfigEndpoints();
 app.MapEskhataPaymentEndpoints();
 app.MapDcConfigEndpoints();
+app.MapDcTopUpEndpoints();
 app.MapLoyaltySettingsEndpoints();
 app.MapNewsEndpoints();
 app.MapPlayerSelfServiceEndpoints();
