@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 5821be94-92d6-4025-9110-d29b28e7c3be
-  modified: 2026-07-22T05:09:41.773Z
+  modified: 2026-07-22T11:29:58.540Z
 ---
 
 Первый кирпич эпика [[operator-as-unified-admin-epic]]. Пользователь потребовал не полировку, а
@@ -38,6 +38,11 @@ dcgate money-path НЕ трогаем (freeze не нарушен). Уже в р
 Спека `docs/superpowers/specs/2026-07-21-eskhata-merchant-acceptance-design.md`, план `docs/superpowers/plans/2026-07-21-eskhata-merchant-acceptance.md`.
 Тест-доступы юзер прислал в чат (ТОЛЬКО тест: org `5107ba47-fc70-4180-ae2d-18a8eee913bb`, merchID 28652, hash 4f7f…) — прод-ключи только через форму, не в чат/код.
 Ждёт: тестовый base_url + CallbackUrl в ЛК банка + staging-IP в белый список. Тесты Platform.Api: образцы `DcGateWebhookEndpointTests`/`DcGateClientTests`/`EskhataConfigEndpointsTests` (`PlatformApiFactory`,`TestIds`,`StaffAuthTestHelper`,`StubHandler`).
+
+**DC (DushanbeCity) pay-link/QR + ручное подтверждение — SHIPPED в main (merge `a76ccb50`, 2026-07-22).**
+SDD, 8 задач + money-фикс + чистка, per-task + финальное ревью чистые (backend 1411/0/13, frontend 901/0, build ✓).
+Сделано: (1) ПОЛНЫЙ снос старого dcgate — клиент/admin/resolver/webhook/`BranchPaymentGatewayEntity`/`DcGateWebhookEventEntity`+таблицы(дроп)/онлайн-метод `dcgate` в top-up-intent/Telegram-провижининг UI/~30 сиротских using; bank-bot ретайрен (подтвердил юзер), таблицы `payment_intents` НЕ тронуты (`GatewayPaymentId`/`GatewayPayUrl` общие с Eskhata, `GatewayComment` переиспользован под DC-референс). (2) Новый DC-в-Кассе: `DcPayLink` (ссылка `pay.dc.tj/?A=&s=&c=&f1=133`, сумма мажорная 2 знака, comment URL-энкод), `DcPayLinkConfigEntity` (org-level, карта шифр. `ISecretProtector`, только `CardLast4` наружу), `/api/owner/dc-config`, POS `/api/branches/{id}/pos/dc-topups` create+cancel (Method="dc", pending-intent), **подтверждение переиспользует существующий `POST /api/wallet/top-up-intents/{id}/fulfil`** (кредит через `TopUpWalletAsync`, идемпотентно по intentId), форма конфига `DcTransferForm` + диалог `DcTopUpDialog` (QR через `qrcode` в Operator.App, добавлен). Право конфига `payments.gateways.manage`, POS-действий `billing.wallet.top_up`. Анти-фрод усыплён → подтверждение мгновенное.
+**DURABLE money-урок (финальное ревью нашло прогоном 2 дыры в общем `fulfil`, не тронутом веткой):** `fulfil` кредитовал (A) intent в State="cancelled" (наша ветка первой реально ставит cancelled — до этого только в комментарии) и (B) НЕактивного игрока (IsActive-guard стоит в 5 per-player эндпоинтах, но НЕ в `fulfil`; план ошибочно думал что его делает `TopUpWalletAsync`). Фикс в `WalletEndpoints.cs::fulfil`: гард `State!="pending"`→409 + `RejectInactivePlayerMoneyAction` (реальный хелпер `EndpointHelpers.Loaders.cs`) — чинит counter/eskhata/dc разом. **Инвариант: любой новый confirm/fulfil money-пути ОБЯЗАН гардить не-pending state + IsActive игрока.** Success-тост в DcTopUpDialog откачен (не срабатывал: same-batch `setFeedback`+`onClose`→unmount; тест был ложно-зелёный — no-op onClose). План `docs/superpowers/plans/2026-07-22-dc-paylink-manual-acceptance.md`, спека `docs/superpowers/specs/2026-07-22-dc-paylink-manual-acceptance-design.md`. Player.Shell online top-up НЕ тронут (бэклог, переедет на Eskhata) — его dcgate-вызов теперь runtime-мёртв (принято).
 
 3. **Платежи/Лояльность:** структурная расшивка из табов — в main (84aa3a8b). **ВИЗУАЛЬНЫЙ РЕДИЗАЙН
    /interface-limb — СДЕЛАН, ПРИНЯТ юзером и СМЕРЖЕН в main (PR #129, squash `c7920389`).** Durable-урок (3 захода): (1) band+зоны поверх форм → «полная хуйня»;
