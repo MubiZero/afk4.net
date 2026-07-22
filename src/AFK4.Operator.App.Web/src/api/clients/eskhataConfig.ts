@@ -3,7 +3,7 @@ import { PlatformApiClient } from '../../platformApi';
 export interface EskhataConfigDto {
   baseUrl: string;
   companyId: string;
-  posId: number;
+  merchantId: number;
   // The Hash key secret is never returned by the server — only whether one is stored.
   hashKeySet: boolean;
   status: string;
@@ -12,7 +12,7 @@ export interface EskhataConfigDto {
 export interface UpdateEskhataConfigRequest {
   baseUrl: string;
   companyId: string;
-  posId: number;
+  merchantId: number;
   // null/empty keeps the stored secret; a non-empty value replaces it.
   hashKey: string | null;
 }

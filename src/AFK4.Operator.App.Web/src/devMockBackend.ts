@@ -477,7 +477,7 @@ function eskhataConfig(): Record<string, unknown> {
     mutableEskhataConfig = {
       baseUrl: 'https://merchant-api.example.tld',
       companyId: 'company-demo-001',
-      posId: 17,
+      merchantId: 17,
       hashKeySet: true,
       status: 'configured'
     };
@@ -888,7 +888,7 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     mutableEskhataConfig = {
       baseUrl: String(req.baseUrl ?? '').trim().replace(/\/+$/, ''),
       companyId: String(req.companyId ?? '').trim(),
-      posId: Number(req.posId ?? 0),
+      merchantId: Number(req.merchantId ?? 0),
       hashKeySet: hashKeyProvided || Boolean(eskhataConfig().hashKeySet),
       status: 'configured'
     };

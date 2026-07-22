@@ -223,6 +223,7 @@ internal static class PlayerSelfServiceEndpoints
             IDcGateClientFactory dcGateClientFactory,
             IBranchPaymentGatewayResolver gatewayResolver,
             ISecretProtector secretProtector,
+            AFK4.Platform.Api.Payments.Eskhata.IEskhataMerchantClientFactory eskhataClientFactory,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -241,9 +242,9 @@ internal static class PlayerSelfServiceEndpoints
             var method = string.IsNullOrWhiteSpace(request.Method)
                 ? "counter"
                 : request.Method.Trim().ToLowerInvariant();
-            if (method != "counter" && method != "dcgate")
+            if (method != "counter" && method != "dcgate" && method != "eskhata")
             {
-                return Results.BadRequest(new { Error = "Method must be 'counter' or 'dcgate'." });
+                return Results.BadRequest(new { Error = "Method must be 'counter', 'dcgate' or 'eskhata'." });
             }
 
             var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
@@ -300,6 +301,40 @@ internal static class PlayerSelfServiceEndpoints
                 intent.GatewayExpiresAtUtc = payment.ExpiresAt;
             }
 
+            if (method == "eskhata")
+            {
+                var eskhataClient = await eskhataClientFactory.CreateForOrganizationAsync(
+                    intent.OrganizationId, cancellationToken);
+                if (eskhataClient is null)
+                {
+                    return Results.Json(
+                        new { Error = "online_payment_unavailable" },
+                        statusCode: StatusCodes.Status409Conflict);
+                }
+
+                var merchantId = await ResolveEskhataMerchantIdAsync(
+                    dbContext, intent.OrganizationId, cancellationToken);
+                if (merchantId is null)
+                {
+                    return Results.Json(
+                        new { Error = "online_payment_unavailable" },
+                        statusCode: StatusCodes.Status409Conflict);
+                }
+
+                var order = await eskhataClient.CreateOrderAsync(
+                    intent.PaymentIntentId.ToString("N"),
+                    intent.AmountMinorUnits,
+                    intent.CurrencyCode == "TJS" ? "972" : intent.CurrencyCode,
+                    "AFK4 wallet top-up",
+                    merchantId.Value,
+                    cancellationToken);
+
+                intent.GatewayPaymentId = order.OrderId;
+                intent.GatewayPayUrl = order.InvoiceUrl;
+                intent.GatewayQrPayload = order.Qr;
+                intent.GatewayPosId = order.PosId;
+            }
+
             dbContext.PaymentIntents.Add(intent);
             await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -315,7 +350,9 @@ internal static class PlayerSelfServiceEndpoints
                 IsExpired: false,
                 PayUrl: intent.GatewayPayUrl,
                 Comment: intent.GatewayComment,
-                GatewayExpiresAtUtc: intent.GatewayExpiresAtUtc));
+                GatewayExpiresAtUtc: intent.GatewayExpiresAtUtc,
+                Qr: intent.GatewayQrPayload,
+                DeepLink: AFK4.Platform.Api.Payments.Eskhata.EskhataDeepLink.FromInvoiceUrl(intent.GatewayPayUrl)));
         }).RequireRateLimiting("player-me");
 
         app.MapGet("/api/me/wallet/top-up-intents", async (
@@ -355,6 +392,80 @@ internal static class PlayerSelfServiceEndpoints
                 .ToList();
 
             return Results.Ok(dtos);
+        }).RequireRateLimiting("player-me");
+
+        app.MapPost("/api/me/wallet/top-up-intents/{intentId:guid}/eskhata-status", async (
+            Guid intentId,
+            IPlayerContextAccessor playerContextAccessor,
+            AFK4.Platform.Api.Payments.Eskhata.IEskhataMerchantClientFactory eskhataClientFactory,
+            IBillingCommandService billingCommandService,
+            PlatformDbContext dbContext,
+            TimeProvider timeProvider,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var intent = await dbContext.PaymentIntents.SingleOrDefaultAsync(
+                x => x.PaymentIntentId == intentId && x.PlayerAccountId == player.PlayerAccountId,
+                cancellationToken);
+            if (intent is null || intent.Method != "eskhata")
+            {
+                return Results.NotFound();
+            }
+
+            if (intent.State == "fulfilled")
+            {
+                return Results.Ok(new { payment = "paid" });
+            }
+            if (intent.State is "cancelled" or "expired")
+            {
+                return Results.Ok(new { payment = "failed" });
+            }
+
+            var eskhataClient = await eskhataClientFactory.CreateForOrganizationAsync(
+                intent.OrganizationId, cancellationToken);
+            if (eskhataClient is null)
+            {
+                return Results.Ok(new { payment = "pending" });
+            }
+
+            var status = await eskhataClient.GetOrderStatusAsync(
+                intent.PaymentIntentId.ToString("N"),
+                intent.GatewayPaymentId ?? "",
+                intent.AmountMinorUnits,
+                "972",
+                intent.GatewayPosId ?? 0,
+                cancellationToken);
+
+            if (status == "COMPLETED")
+            {
+                var topUpRequest = new TopUpWalletRequest(
+                    intent.OrganizationId,
+                    new MoneyDto(intent.CurrencyCode, intent.AmountMinorUnits),
+                    "eskhata_online_topup",
+                    intent.PaymentIntentId.ToString("N"));
+
+                var billingResult = await billingCommandService.CreditOnlineTopUpAsync(
+                    intent.PlayerAccountId, intent.BranchId, topUpRequest, cancellationToken);
+                if (billingResult.Succeeded)
+                {
+                    intent.State = "fulfilled";
+                    intent.FulfilledAtUtc = timeProvider.GetUtcNow();
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                    return Results.Ok(new { payment = "paid" });
+                }
+            }
+
+            if (status is "CANCELED" or "REFUNDED")
+            {
+                return Results.Ok(new { payment = "failed" });
+            }
+
+            return Results.Ok(new { payment = "pending" });
         }).RequireRateLimiting("player-me");
 
         app.MapPost("/api/me/reservations", async (
@@ -615,5 +726,13 @@ internal static class PlayerSelfServiceEndpoints
             return Results.Ok(result.Response);
         }).RequireRateLimiting("player-me");
 
+    }
+
+    private static async Task<int?> ResolveEskhataMerchantIdAsync(
+        PlatformDbContext db, Guid organizationId, CancellationToken cancellationToken)
+    {
+        var config = await db.EskhataMerchantConfigs.AsNoTracking()
+            .SingleOrDefaultAsync(c => c.OrganizationId == organizationId && c.BranchId == null, cancellationToken);
+        return config?.MerchantId;
     }
 }

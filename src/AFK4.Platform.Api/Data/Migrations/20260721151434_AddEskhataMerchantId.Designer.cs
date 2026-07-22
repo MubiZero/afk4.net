@@ -3,6 +3,7 @@ using System;
 using AFK4.Platform.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AFK4.Platform.Api.Data.Migrations
 {
     [DbContext(typeof(PlatformDbContext))]
-    partial class PlatformDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260721151434_AddEskhataMerchantId")]
+    partial class AddEskhataMerchantId
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1602,12 +1605,6 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<string>("GatewayPaymentId")
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
-
-                    b.Property<int?>("GatewayPosId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("GatewayQrPayload")
-                        .HasColumnType("text");
 
                     b.Property<string>("Method")
                         .IsRequired()

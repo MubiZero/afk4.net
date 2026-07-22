@@ -56,7 +56,7 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.eskhata.title',
     'op.eskhata.baseUrl',
     'op.eskhata.companyId',
-    'op.eskhata.posId',
+    'op.eskhata.merchantId',
     'op.eskhata.hashKey',
     'nav.billing',
     'nav.group.account',

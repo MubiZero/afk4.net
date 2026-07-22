@@ -7,6 +7,7 @@ using System.Text;
 using Microsoft.Extensions.Options;
 using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Payments.DcGate;
+using AFK4.Platform.Api.Payments.Eskhata;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
@@ -343,6 +344,10 @@ builder.Services.AddHttpClient(DcGateClientFactory.HttpClientName, (provider, ht
     }
 });
 builder.Services.AddSingleton<IDcGateClientFactory, DcGateClientFactory>();
+
+builder.Services.AddHttpClient(EskhataMerchantClientFactory.HttpClientName);
+builder.Services.AddScoped<IEskhataMerchantClientFactory, EskhataMerchantClientFactory>();
+
 builder.Services.AddHttpClient(DcGateAdminClientRegistration.HttpClientName, (provider, http) =>
 {
     var opts = provider.GetRequiredService<IOptions<DcGateOptions>>().Value;
@@ -441,6 +446,7 @@ app.MapMediaEndpoints();
 app.MapAuthEndpoints();
 app.MapPaymentGatewayEndpoints();
 app.MapEskhataConfigEndpoints();
+app.MapEskhataPaymentEndpoints();
 app.MapLoyaltySettingsEndpoints();
 app.MapNewsEndpoints();
 app.MapPlayerSelfServiceEndpoints();

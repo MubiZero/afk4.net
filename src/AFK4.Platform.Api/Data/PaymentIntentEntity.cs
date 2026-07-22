@@ -48,4 +48,11 @@ public sealed class PaymentIntentEntity
     // payment.disputed webhook flips this true and leaves State == "pending" for the
     // operator to resolve manually; the player money is NOT credited on a dispute.
     public bool Disputed { get; set; }
+
+    // --- eskhata (orderTypeId=3) ---
+    // Текст Единого QR из ответа create (для киоска/ПК).
+    public string? GatewayQrPayload { get; set; }
+
+    // posId, назначенный банком (нужен для последующих status/cancel/refund).
+    public int? GatewayPosId { get; set; }
 }
