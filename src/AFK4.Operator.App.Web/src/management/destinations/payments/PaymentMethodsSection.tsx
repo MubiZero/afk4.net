@@ -19,7 +19,6 @@ export function PaymentMethodsSection({ backend }: Props) {
 
       <div className="payset-divider" />
       <div className="payset-subhead">{t('op.dc.subhead')}</div>
-      <p className="payset-note">{t('op.dc.note')}</p>
       <DcTransferForm backend={backend} />
     </div>
   );
