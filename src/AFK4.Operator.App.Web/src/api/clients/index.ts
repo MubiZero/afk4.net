@@ -21,6 +21,7 @@ import { createEskhataConfigClient } from './eskhataConfig';
 import { createNewsClient } from './news';
 import { createMediaClient } from './media';
 import { createDcTopUpClient } from './dcTopUps';
+import { createDcConfigClient } from './dcConfig';
 
 export function createOperatorApiClients(api: PlatformApiClient) {
   return {
@@ -45,6 +46,7 @@ export function createOperatorApiClients(api: PlatformApiClient) {
     eskhataConfig: createEskhataConfigClient(api),
     news: createNewsClient(api),
     media: createMediaClient(api),
-    dcTopUps: createDcTopUpClient(api)
+    dcTopUps: createDcTopUpClient(api),
+    dcConfig: createDcConfigClient(api)
   };
 }

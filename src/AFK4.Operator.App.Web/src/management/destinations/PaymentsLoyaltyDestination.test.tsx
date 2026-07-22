@@ -3,7 +3,7 @@ import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/re
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../operatorToast';
 import { permissionNames } from '../../operatorPermissions';
-import type { LoyaltySettingsDto, EskhataConfigDto } from '../../operatorApiClients';
+import type { LoyaltySettingsDto, EskhataConfigDto, DcPayLinkConfigDto } from '../../operatorApiClients';
 
 const loyaltyDefaults: LoyaltySettingsDto = {
   topUpEnabled: false, topUpPercentBasisPoints: 0,
@@ -14,13 +14,15 @@ const loyaltyDefaults: LoyaltySettingsDto = {
 const loyaltyGet = mock(async (): Promise<LoyaltySettingsDto> => loyaltyDefaults);
 const loyaltyUpdate = mock(async (req: LoyaltySettingsDto): Promise<LoyaltySettingsDto> => req);
 const eskhataGet = mock(async (): Promise<EskhataConfigDto> => ({ baseUrl: '', companyId: '', merchantId: 0, hashKeySet: false, status: 'inactive' }));
+const dcConfigGet = mock(async (): Promise<DcPayLinkConfigDto> => ({ cardSet: false, cardLast4: '', commentTemplate: 'AFK4-{ref}', isActive: false }));
 
 const actual = (globalThis as Record<string, unknown>).__afk4RealOperatorHelpers as Record<string, unknown>;
 mock.module('../../operatorHelpers', () => ({
   ...actual,
   createAuthenticatedOperatorClients: () => ({
     loyaltySettings: { get: loyaltyGet, update: loyaltyUpdate },
-    eskhataConfig: { get: eskhataGet, update: mock(async () => ({})) }
+    eskhataConfig: { get: eskhataGet, update: mock(async () => ({})) },
+    dcConfig: { get: dcConfigGet, update: mock(async () => ({})) }
   })
 }));
 
@@ -42,6 +44,7 @@ afterEach(() => {
   loyaltyGet.mockClear();
   loyaltyUpdate.mockClear();
   eskhataGet.mockClear();
+  dcConfigGet.mockClear();
   cleanup();
 });
 afterAll(() => mock.restore());
