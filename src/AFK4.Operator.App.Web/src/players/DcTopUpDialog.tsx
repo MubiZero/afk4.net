@@ -105,7 +105,6 @@ export function DcTopUpDialog({
     setFeedback({ label: t('op.dc.topup.feedbackLabel'), state: 'pending' });
     try {
       await backend.dcTopUps.confirm(intent.intentId);
-      setFeedback({ label: t('op.dc.topup.feedbackLabel'), state: 'confirmed' });
       onCredited();
       onClose();
     } catch (error) {

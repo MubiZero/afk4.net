@@ -49,19 +49,6 @@ describe('DcTopUpDialog', () => {
     await waitFor(() => expect(confirm).toHaveBeenCalledWith('i1'));
   });
 
-  it('показывает тост-подтверждение после успешного «Оплата получена»', async () => {
-    const create = mock(async () => ({ intentId: 'i5', payUrl: 'http://pay.dc.tj/?A=1&s=50.00&c=AFK4-abc&f1=133', comment: 'AFK4-abc', amountMinorUnits: 5000, currencyCode: 'TJS', cardLast4: '3456' }));
-    const confirm = mock(async () => ({}));
-    const backend = makeBackend({ create, confirm });
-    view(backend);
-    fireEvent.change(screen.getByLabelText(/сумм/i), { target: { value: '50' } });
-    fireEvent.click(screen.getByRole('button', { name: /показать qr|создать/i }));
-    await screen.findByRole('img');
-    fireEvent.click(screen.getByRole('button', { name: /оплата получена/i }));
-    await waitFor(() => expect(confirm).toHaveBeenCalled());
-    expect(await screen.findByText('DC-пополнение: подтверждено')).toBeInTheDocument();
-  });
-
   it('передаёт минорные единицы (major*100) и код валюты в create', async () => {
     const create = mock(async () => ({ intentId: 'i2', payUrl: 'http://pay.dc.tj/?A=1', comment: 'AFK4-xyz', amountMinorUnits: 12345, currencyCode: 'TJS', cardLast4: '9999' }));
     const backend = makeBackend({ create });
