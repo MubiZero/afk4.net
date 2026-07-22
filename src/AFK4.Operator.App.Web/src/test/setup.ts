@@ -27,8 +27,8 @@ configure({ asyncUtilTimeout: 5000 });
   __afk4RealOperatorRealtime?: typeof import('../operatorRealtime');
 }).__afk4RealOperatorRealtime = { ...(await import('../operatorRealtime')) };
 
-// Same hazard for operatorApiClients: PaymentGatewaysWorkspace/PhoneVerificationCard tests install
-// a partial mock.module('./operatorApiClients') that bun keeps for the rest of the run and that
+// Same hazard for operatorApiClients: PhoneVerificationCard's test installs a partial
+// mock.module('./operatorApiClients') that bun keeps for the rest of the run and that
 // mutates the shared namespace, breaking App.test.tsx and operatorApiClients.test.ts. Snapshot the
 // genuine factories here so those files can restore/read the real implementation.
 (globalThis as typeof globalThis & {

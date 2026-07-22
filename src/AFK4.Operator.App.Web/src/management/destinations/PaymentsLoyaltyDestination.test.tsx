@@ -24,11 +24,6 @@ mock.module('../../operatorHelpers', () => ({
   })
 }));
 
-// Изолируем контейнер от dcgate-сети: PaymentGatewaysWorkspace подменяем маркером.
-mock.module('../../PaymentGatewaysWorkspace', () => ({
-  PaymentGatewaysWorkspace: () => <div data-testid="dcgate-stub" />
-}));
-
 const { PaymentsLoyaltyDestination } = await import('./PaymentsLoyaltyDestination');
 
 const backend = { config: { platformBaseUrl: 'http://x' }, session: { accessToken: 't', organizationId: 'o1' }, branchId: 'b1' } as never;
@@ -57,7 +52,7 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
   it('renders both zones with no tab strip and no shared save bar', async () => {
     const { container } = view([permissionNames.managePaymentGateways, permissionNames.manageLoyaltySettings]);
 
-    expect(screen.getByTestId('dcgate-stub')).toBeInTheDocument();
+    expect(screen.getByText(/eskhata merchant/i)).toBeInTheDocument();
     expect(await screen.findByLabelText(/кэшбэк с пополнений/i)).toBeInTheDocument();
     expect(screen.queryByRole('tab')).toBeNull();
     expect(container.querySelector('.management-save-bar')).toBeNull();
@@ -65,7 +60,7 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
 
   it('shows only the payment-methods zone for gateways-only permission', () => {
     view([permissionNames.managePaymentGateways]);
-    expect(screen.getByTestId('dcgate-stub')).toBeInTheDocument();
+    expect(screen.getByText(/eskhata merchant/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/кэшбэк с пополнений/i)).toBeNull();
     expect(screen.queryByRole('tab')).toBeNull();
   });
@@ -73,7 +68,7 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
   it('shows only the loyalty zone for loyalty-only permission', async () => {
     view([permissionNames.manageLoyaltySettings]);
     expect(await screen.findByLabelText(/кэшбэк с пополнений/i)).toBeInTheDocument();
-    expect(screen.queryByTestId('dcgate-stub')).toBeNull();
+    expect(screen.queryByText(/eskhata merchant/i)).toBeNull();
     expect(screen.queryByRole('tab')).toBeNull();
   });
 

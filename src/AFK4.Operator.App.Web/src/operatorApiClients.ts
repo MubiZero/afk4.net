@@ -18,7 +18,6 @@ export * from './api/clients/diagnostics';
 export * from './api/clients/updates';
 export * from './api/clients/audit';
 export * from './api/clients/moneyActions';
-export * from './api/clients/paymentGateways';
 export * from './api/clients/account';
 export * from './api/clients/shopOrders';
 export * from './api/clients/loyaltySettings';
