@@ -261,6 +261,8 @@ public static class AuditActionNames
 
     public const string UpdateEskhataMerchantConfig = "payments.eskhata.config.update";
 
+    public const string UpdateDcPayLinkConfig = "payments.dc_config.update";
+
     public const string CreateNews = "news.create";
 
     public const string UpdateNews = "news.update";
