@@ -6,7 +6,6 @@ using System.Text.Json;
 using System.Text;
 using Microsoft.Extensions.Options;
 using AFK4.Platform.Api.AntiFraud;
-using AFK4.Platform.Api.Payments.DcGate;
 using AFK4.Platform.Api.Payments.Eskhata;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
@@ -316,7 +315,6 @@ builder.Services.AddScoped<IUpdateService, EfUpdateService>();
 builder.Services.Configure<SecretProtectionOptions>(
     builder.Configuration.GetSection(SecretProtectionOptions.SectionName));
 builder.Services.AddSingleton<ISecretProtector, AesGcmSecretProtector>();
-builder.Services.AddScoped<IBranchPaymentGatewayResolver, EfBranchPaymentGatewayResolver>();
 
 var mediaSection = builder.Configuration.GetSection(MediaOptions.SectionName);
 builder.Services.Configure<MediaOptions>(mediaSection);
@@ -334,36 +332,8 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(optio
     options.MultipartBodyLengthLimit = maxBytes + 2 * 1024 * 1024;
 });
 
-builder.Services.Configure<DcGateOptions>(builder.Configuration.GetSection(DcGateOptions.SectionName));
-builder.Services.AddHttpClient(DcGateClientFactory.HttpClientName, (provider, http) =>
-{
-    var opts = provider.GetRequiredService<IOptions<DcGateOptions>>().Value;
-    if (!string.IsNullOrWhiteSpace(opts.BaseUrl))
-    {
-        http.BaseAddress = new Uri(opts.BaseUrl);
-    }
-});
-builder.Services.AddSingleton<IDcGateClientFactory, DcGateClientFactory>();
-
 builder.Services.AddHttpClient(EskhataMerchantClientFactory.HttpClientName);
 builder.Services.AddScoped<IEskhataMerchantClientFactory, EskhataMerchantClientFactory>();
-
-builder.Services.AddHttpClient(DcGateAdminClientRegistration.HttpClientName, (provider, http) =>
-{
-    var opts = provider.GetRequiredService<IOptions<DcGateOptions>>().Value;
-    if (!string.IsNullOrWhiteSpace(opts.BaseUrl))
-    {
-        http.BaseAddress = new Uri(opts.BaseUrl);
-    }
-});
-builder.Services.AddSingleton<IDcGateAdminClient>(provider =>
-{
-    var opts = provider.GetRequiredService<IOptions<DcGateOptions>>().Value;
-    var factory = provider.GetRequiredService<IHttpClientFactory>();
-    return new DcGateAdminClient(
-        factory.CreateClient(DcGateAdminClientRegistration.HttpClientName),
-        opts.AdminSecret);
-});
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -444,7 +414,6 @@ app.MapFloorMapEndpoints();
 app.MapBranchSettingsEndpoints();
 app.MapMediaEndpoints();
 app.MapAuthEndpoints();
-app.MapPaymentGatewayEndpoints();
 app.MapEskhataConfigEndpoints();
 app.MapEskhataPaymentEndpoints();
 app.MapLoyaltySettingsEndpoints();
