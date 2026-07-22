@@ -240,59 +240,6 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("branches", (string)null);
                 });
 
-            modelBuilder.Entity("AFK4.Platform.Api.Data.BranchPaymentGatewayEntity", b =>
-                {
-                    b.Property<Guid>("BranchPaymentGatewayId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ApiKeyEncrypted")
-                        .IsRequired()
-                        .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)");
-
-                    b.Property<Guid?>("BranchId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("CardLast4")
-                        .IsRequired()
-                        .HasMaxLength(4)
-                        .HasColumnType("character varying(4)");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DcgateProjectId")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTimeOffset>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("WebhookSecretEncrypted")
-                        .IsRequired()
-                        .HasMaxLength(1024)
-                        .HasColumnType("character varying(1024)");
-
-                    b.HasKey("BranchPaymentGatewayId");
-
-                    b.HasIndex("DcgateProjectId")
-                        .IsUnique();
-
-                    b.HasIndex("OrganizationId", "BranchId");
-
-                    b.ToTable("branch_payment_gateways", (string)null);
-                });
-
             modelBuilder.Entity("AFK4.Platform.Api.Data.CashMovementEntity", b =>
                 {
                     b.Property<Guid>("CashMovementId")
@@ -339,31 +286,47 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("cash_movements", (string)null);
                 });
 
-            modelBuilder.Entity("AFK4.Platform.Api.Data.DcGateWebhookEventEntity", b =>
+            modelBuilder.Entity("AFK4.Platform.Api.Data.DcPayLinkConfigEntity", b =>
                 {
-                    b.Property<Guid>("DcGateWebhookEventId")
+                    b.Property<Guid>("DcPayLinkConfigId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("EventId")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid");
 
-                    b.Property<string>("EventType")
+                    b.Property<string>("CardLast4")
+                        .IsRequired()
+                        .HasMaxLength(4)
+                        .HasColumnType("character varying(4)");
+
+                    b.Property<string>("CommentTemplate")
                         .IsRequired()
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
-                    b.Property<DateTimeOffset>("ProcessedAtUtc")
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("DcGateWebhookEventId");
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
 
-                    b.HasIndex("EventId")
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReceivingCardEncrypted")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("DcPayLinkConfigId");
+
+                    b.HasIndex("OrganizationId", "BranchId")
                         .IsUnique();
 
-                    b.ToTable("dcgate_webhook_events", (string)null);
+                    b.ToTable("dc_paylink_configs", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.DeviceCommandEntity", b =>

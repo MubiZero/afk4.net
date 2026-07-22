@@ -14,13 +14,14 @@ import { createDiagnosticsClient } from './diagnostics';
 import { createUpdateClient } from './updates';
 import { createAuditClient } from './audit';
 import { createMoneyActionClient } from './moneyActions';
-import { createPaymentGatewayClient } from './paymentGateways';
 import { createAccountClient } from './account';
 import { createShopOrderClient } from './shopOrders';
 import { createLoyaltySettingsClient } from './loyaltySettings';
 import { createEskhataConfigClient } from './eskhataConfig';
 import { createNewsClient } from './news';
 import { createMediaClient } from './media';
+import { createDcTopUpClient } from './dcTopUps';
+import { createDcConfigClient } from './dcConfig';
 
 export function createOperatorApiClients(api: PlatformApiClient) {
   return {
@@ -39,12 +40,13 @@ export function createOperatorApiClients(api: PlatformApiClient) {
     updates: createUpdateClient(api),
     audit: createAuditClient(api),
     moneyActions: createMoneyActionClient(api),
-    paymentGateways: createPaymentGatewayClient(api),
     account: createAccountClient(api),
     shopOrders: createShopOrderClient(api),
     loyaltySettings: createLoyaltySettingsClient(api),
     eskhataConfig: createEskhataConfigClient(api),
     news: createNewsClient(api),
-    media: createMediaClient(api)
+    media: createMediaClient(api),
+    dcTopUps: createDcTopUpClient(api),
+    dcConfig: createDcConfigClient(api)
   };
 }

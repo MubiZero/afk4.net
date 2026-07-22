@@ -6,7 +6,6 @@ using System.Text.Json;
 using System.Text;
 using Microsoft.Extensions.Options;
 using AFK4.Platform.Api.AntiFraud;
-using AFK4.Platform.Api.Payments.DcGate;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
@@ -198,36 +197,5 @@ internal static partial class EndpointHelpers
         }
 
         return false;
-    }
-
-    public static bool DcGateSignatureIsValid(HttpRequest request, string rawBody, string secret)
-    {
-        if (string.IsNullOrEmpty(secret))
-        {
-            return false;
-        }
-        if (!request.Headers.TryGetValue("x-dcgate-signature", out var header))
-        {
-            return false;
-        }
-        var provided = header.ToString();
-        const string prefix = "sha256=";
-        if (!provided.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-        var providedHex = provided[prefix.Length..];
-        byte[] providedBytes;
-        try
-        {
-            providedBytes = Convert.FromHexString(providedHex);
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
-        var expected = hmac.ComputeHash(Encoding.UTF8.GetBytes(rawBody));
-        return CryptographicOperations.FixedTimeEquals(providedBytes, expected);
     }
 }

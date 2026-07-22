@@ -6,7 +6,6 @@ using System.Text.Json;
 using System.Text;
 using Microsoft.Extensions.Options;
 using AFK4.Platform.Api.AntiFraud;
-using AFK4.Platform.Api.Payments.DcGate;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
@@ -220,9 +219,6 @@ internal static class PlayerSelfServiceEndpoints
         app.MapPost("/api/me/wallet/top-up-intent", async (
             PlayerTopUpIntentRequest request,
             IPlayerContextAccessor playerContextAccessor,
-            IDcGateClientFactory dcGateClientFactory,
-            IBranchPaymentGatewayResolver gatewayResolver,
-            ISecretProtector secretProtector,
             AFK4.Platform.Api.Payments.Eskhata.IEskhataMerchantClientFactory eskhataClientFactory,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
@@ -242,9 +238,9 @@ internal static class PlayerSelfServiceEndpoints
             var method = string.IsNullOrWhiteSpace(request.Method)
                 ? "counter"
                 : request.Method.Trim().ToLowerInvariant();
-            if (method != "counter" && method != "dcgate" && method != "eskhata")
+            if (method != "counter" && method != "eskhata")
             {
-                return Results.BadRequest(new { Error = "Method must be 'counter', 'dcgate' or 'eskhata'." });
+                return Results.BadRequest(new { Error = "Method must be 'counter' or 'eskhata'." });
             }
 
             var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
@@ -274,32 +270,6 @@ internal static class PlayerSelfServiceEndpoints
                 CreatedAtUtc = now,
                 FulfilledAtUtc = null
             };
-
-            if (method == "dcgate")
-            {
-                var gateway = await gatewayResolver.ResolveForBranchAsync(
-                    intent.OrganizationId, account.HomeBranchId, cancellationToken);
-                if (gateway is null)
-                {
-                    return Results.Json(
-                        new { Error = "online_payment_unavailable" },
-                        statusCode: StatusCodes.Status409Conflict);
-                }
-
-                var apiKey = secretProtector.Unprotect(gateway.ApiKeyEncrypted);
-                var dcGateClient = dcGateClientFactory.CreateForApiKey(apiKey);
-
-                var payment = await dcGateClient.CreatePaymentAsync(
-                    intent.AmountMinorUnits,
-                    intent.CurrencyCode,
-                    intent.PaymentIntentId.ToString("N"),
-                    new { playerAccountId = intent.PlayerAccountId, branchId = intent.BranchId },
-                    cancellationToken);
-                intent.GatewayPaymentId = payment.PaymentId;
-                intent.GatewayPayUrl = payment.PayUrl;
-                intent.GatewayComment = payment.Comment;
-                intent.GatewayExpiresAtUtc = payment.ExpiresAt;
-            }
 
             if (method == "eskhata")
             {

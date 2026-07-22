@@ -11,6 +11,7 @@ const base = {
   canTopUp: true,
   onChangeTopUpAmount: () => {},
   onTopUp: () => {},
+  onOpenDcTopUp: () => {},
   canPayDebt: true,
   onOpenPayDebt: () => {},
   canCorrect: false,
@@ -36,6 +37,15 @@ describe('WalletZone', () => {
   it('exposes the amount field labelled "Сумма пополнения"', () => {
     renderZone();
     expect(screen.getByLabelText('Сумма пополнения')).toBeInTheDocument();
+  });
+
+  it('fires onOpenDcTopUp from the DushanbeCity trigger, gated by the same canTopUp flag', () => {
+    const onOpenDcTopUp = mock(() => {});
+    const { rerender } = renderZone({ canTopUp: false, onOpenDcTopUp });
+    expect(screen.getByRole('button', { name: /DushanbeCity/ })).toBeDisabled();
+    rerender(<I18nProvider initialLocale="ru"><WalletZone {...base} onOpenDcTopUp={onOpenDcTopUp} /></I18nProvider>);
+    fireEvent.click(screen.getByRole('button', { name: /DushanbeCity/ }));
+    expect(onOpenDcTopUp).toHaveBeenCalled();
   });
 
   it('hides the pay-debt button when there is no debt', () => {

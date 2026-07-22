@@ -6,7 +6,6 @@ using System.Text.Json;
 using System.Text;
 using Microsoft.Extensions.Options;
 using AFK4.Platform.Api.AntiFraud;
-using AFK4.Platform.Api.Payments.DcGate;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
@@ -151,6 +150,25 @@ internal static class WalletEndpoints
             if (intent.State == "pending" && intent.CreatedAtUtc < timeProvider.GetUtcNow().AddHours(-24))
             {
                 return Results.Conflict(new { Error = "Payment intent has expired." });
+            }
+
+            // Only a still-pending intent may be credited. Any other state (e.g. "cancelled",
+            // set by DcTopUpEndpoints' cancel action) must be rejected here, not silently credited.
+            if (intent.State != "pending")
+            {
+                return Results.Conflict(new { Error = "Payment intent is not pending." });
+            }
+
+            var player = await LoadPlayerForStaffAsync(
+                dbContext,
+                intent.PlayerAccountId,
+                staffContext.OrganizationId,
+                cancellationToken);
+
+            var inactiveGuard = RejectInactivePlayerMoneyAction(player);
+            if (inactiveGuard is not null)
+            {
+                return inactiveGuard;
             }
 
             // The intent id is the idempotency key: it is the authoritative guard against a

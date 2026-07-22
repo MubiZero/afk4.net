@@ -1,10 +1,9 @@
 namespace AFK4.Platform.Api.Data;
 
-// Eskhata Merchant credentials for a tenant. Separate from BranchPaymentGatewayEntity (which is
-// dcgate card-shaped): Eskhata is merchant-config-shaped. A null BranchId is the org-level config.
-// The Hash key is stored encrypted via ISecretProtector, like the dcgate apiKey. This slice only
-// stores the credentials (UI prep); the Merchant API flow (invoice/status/webhook/credit) is a
-// separate deferred epic, so Status is never "active" here.
+// Eskhata Merchant credentials for a tenant; merchant-config-shaped (not card-shaped).
+// A null BranchId is the org-level config. The Hash key is stored encrypted via ISecretProtector.
+// This slice only stores the credentials (UI prep); the Merchant API flow (invoice/status/webhook/credit)
+// is a separate deferred epic, so Status is never "active" here.
 public sealed class EskhataMerchantConfigEntity
 {
     public Guid EskhataMerchantConfigId { get; set; }

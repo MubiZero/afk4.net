@@ -14,9 +14,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<BranchEntity> Branches => Set<BranchEntity>();
 
-    public DbSet<BranchPaymentGatewayEntity> BranchPaymentGateways => Set<BranchPaymentGatewayEntity>();
-
     public DbSet<EskhataMerchantConfigEntity> EskhataMerchantConfigs => Set<EskhataMerchantConfigEntity>();
+
+    public DbSet<DcPayLinkConfigEntity> DcPayLinkConfigs => Set<DcPayLinkConfigEntity>();
 
     public DbSet<StaffUserEntity> StaffUsers => Set<StaffUserEntity>();
 
@@ -109,8 +109,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<ReservationEntity> Reservations => Set<ReservationEntity>();
 
     public DbSet<PaymentIntentEntity> PaymentIntents => Set<PaymentIntentEntity>();
-
-    public DbSet<DcGateWebhookEventEntity> DcGateWebhookEvents => Set<DcGateWebhookEventEntity>();
 
     public DbSet<PlatformAdminUserEntity> PlatformAdminUsers => Set<PlatformAdminUserEntity>();
 
@@ -910,19 +908,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(intent => new { intent.BranchId, intent.State });
         });
 
-        modelBuilder.Entity<BranchPaymentGatewayEntity>(entity =>
-        {
-            entity.ToTable("branch_payment_gateways");
-            entity.HasKey(gateway => gateway.BranchPaymentGatewayId);
-            entity.Property(gateway => gateway.DcgateProjectId).HasMaxLength(128).IsRequired();
-            entity.Property(gateway => gateway.ApiKeyEncrypted).HasMaxLength(1024).IsRequired();
-            entity.Property(gateway => gateway.WebhookSecretEncrypted).HasMaxLength(1024).IsRequired();
-            entity.Property(gateway => gateway.CardLast4).HasMaxLength(4).IsRequired();
-            entity.Property(gateway => gateway.Status).HasMaxLength(32).IsRequired();
-            entity.HasIndex(gateway => gateway.DcgateProjectId).IsUnique();
-            entity.HasIndex(gateway => new { gateway.OrganizationId, gateway.BranchId });
-        });
-
         modelBuilder.Entity<EskhataMerchantConfigEntity>(entity =>
         {
             entity.ToTable("eskhata_merchant_configs");
@@ -932,6 +917,16 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(config => config.HashKeyEncrypted).HasMaxLength(1024).IsRequired();
             entity.Property(config => config.Status).HasMaxLength(32).IsRequired();
             entity.HasIndex(config => new { config.OrganizationId, config.BranchId }).IsUnique();
+        });
+
+        modelBuilder.Entity<DcPayLinkConfigEntity>(entity =>
+        {
+            entity.ToTable("dc_paylink_configs");
+            entity.HasKey(e => e.DcPayLinkConfigId);
+            entity.Property(e => e.ReceivingCardEncrypted).IsRequired();
+            entity.Property(e => e.CardLast4).HasMaxLength(4).IsRequired();
+            entity.Property(e => e.CommentTemplate).HasMaxLength(64).IsRequired();
+            entity.HasIndex(e => new { e.OrganizationId, e.BranchId }).IsUnique();
         });
 
         modelBuilder.Entity<PlatformAdminUserEntity>(entity =>
@@ -1106,15 +1101,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(invite => invite.TokenHash).IsRequired();
             entity.HasIndex(invite => invite.TokenHash);
             entity.HasIndex(invite => new { invite.OrganizationId, invite.NormalizedUserName });
-        });
-
-        modelBuilder.Entity<DcGateWebhookEventEntity>(entity =>
-        {
-            entity.ToTable("dcgate_webhook_events");
-            entity.HasKey(row => row.DcGateWebhookEventId);
-            entity.Property(row => row.EventId).HasMaxLength(128).IsRequired();
-            entity.Property(row => row.EventType).HasMaxLength(64).IsRequired();
-            entity.HasIndex(row => row.EventId).IsUnique();
         });
 
         modelBuilder.Entity<StaffPhoneOtpEntity>(entity =>

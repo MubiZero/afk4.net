@@ -1,5 +1,5 @@
 import { useI18n } from '@afk4/i18n';
-import { CircleDollarSign, ReceiptText, SlidersHorizontal } from 'lucide-react';
+import { CircleDollarSign, QrCode, ReceiptText, SlidersHorizontal } from 'lucide-react';
 
 // Форма денежных действий клиента: поле «своя сумма» + кнопка пополнения, затем «Погасить
 // долг» (только при долге) / «Ручная корректировка» (только при праве). Баланс/долг как
@@ -12,6 +12,7 @@ export function WalletZone({
   canTopUp,
   onChangeTopUpAmount,
   onTopUp,
+  onOpenDcTopUp,
   canPayDebt,
   onOpenPayDebt,
   canCorrect,
@@ -22,6 +23,7 @@ export function WalletZone({
   canTopUp: boolean;
   onChangeTopUpAmount: (value: string) => void;
   onTopUp: () => void;
+  onOpenDcTopUp: () => void;
   canPayDebt: boolean;
   onOpenPayDebt: () => void;
   canCorrect: boolean;
@@ -56,6 +58,13 @@ export function WalletZone({
           {t('op.players.actions.topUpBtn')}
         </button>
       </form>
+
+      {/* Отдельная строка, а не третья ячейка в .topup-row (1fr/1fr): у DC-пополнения своя
+          сумма (вводится внутри DcTopUpDialog), она не делит поле «своя сумма» с counter-пополнением. */}
+      <button type="button" className="ui-btn ui-btn--block" disabled={!canTopUp} onClick={onOpenDcTopUp}>
+        <QrCode size={15} aria-hidden="true" />
+        {t('op.dc.topup.open')}
+      </button>
 
       {hasSecondaryActions && (
         <div className="clients-wallet-secondary">

@@ -32,6 +32,7 @@ import { PinModal } from './players/PinModal';
 import { EditProfileModal } from './players/EditProfileModal';
 import { ActiveStateConfirmModal } from './players/ActiveStateConfirmModal';
 import { PayDebtModal } from './players/PayDebtModal';
+import { DcTopUpDialog } from './players/DcTopUpDialog';
 
 type PlayerActionId = 'topUp' | 'writeOffDebt' | 'booking' | 'newCard' | 'correction' | 'refund' | 'setPin' | 'updateProfile' | 'toggleActive';
 
@@ -74,7 +75,13 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [editPhone, setEditPhone] = useState('');
   const [activeStateOpen, setActiveStateOpen] = useState(false);
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [dcTopUpOpen, setDcTopUpOpen] = useState(false);
   const [ledgerReloadNonce, setLedgerReloadNonce] = useState(0);
+  // DC-пополнение подтверждается через отдельный wallet fulfil-эндпоинт, который отдаёт
+  // PlayerTopUpIntentDto (не WalletSummaryDto) — значит, в отличие от счётчик-пополнения,
+  // обновлённый баланс не приезжает в ответе. Тот же «рефетч», что после counter-пополнения,
+  // здесь — явный ре-триггер эффекта загрузки кошелька через нонс (как ledgerReloadNonce ниже).
+  const [walletReloadNonce, setWalletReloadNonce] = useState(0);
   // Кросс-контекст ВСЕХ загруженных клиентов (играет-сейчас/ближайшая-бронь), построенный за один
   // проход по branch-wide sessions+reservations — таблица подсвечивает «сейчас» в каждой строке,
   // drawer берёт контекст выбранного из этой же карты (без per-client рефетча).
@@ -164,7 +171,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     return () => {
       disposed = true;
     };
-  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, selectedClient?.playerAccountId, selectedClient?.source]);
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, selectedClient?.playerAccountId, selectedClient?.source, walletReloadNonce]);
 
   // Журнал истории: серверный источник (paged ledger-эндпоинт), отдельно от wallet-summary.
   // Грузим первую страницу при входе на таб «История» / смене клиента / смене фильтра.
@@ -598,6 +605,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   };
 
   const bumpLedger = () => setLedgerReloadNonce((n) => n + 1);
+  const bumpWallet = () => setWalletReloadNonce((n) => n + 1);
 
   const openEditProfile = () => {
     setEditName(selectedClient?.name ?? '');
@@ -667,6 +675,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
             canTopUp={canTopUpWallet}
             onChangeTopUpAmount={setWalletTopUpAmount}
             onTopUp={() => runClientAction('topUp', t('op.players.actions.topUpBtn'))}
+            onOpenDcTopUp={() => setDcTopUpOpen(true)}
             canPayDebt={canPayDebt}
             onOpenPayDebt={() => setPayDebtOpen(true)}
             canManageClient={canManageClient}
@@ -735,6 +744,16 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           onClose={() => setPayDebtOpen(false)}
           onSubmit={() => void runClientAction('writeOffDebt', t('op.players.actions.writeOffDebtBtn'))}
           busy={feedback.state === 'pending'}
+        />
+      )}
+
+      {dcTopUpOpen && backend !== null && selectedClient !== null && selectedClient.source === 'backend' && selectedClient.playerAccountId && (
+        <DcTopUpDialog
+          backend={{ dcTopUps: createAuthenticatedOperatorClients(backend.config, backend.session).dcTopUps }}
+          branchId={backend.branchId}
+          playerAccountId={selectedClient.playerAccountId}
+          onClose={() => setDcTopUpOpen(false)}
+          onCredited={() => { bumpLedger(); bumpWallet(); }}
         />
       )}
 

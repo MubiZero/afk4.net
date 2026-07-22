@@ -3,7 +3,7 @@ import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/re
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../operatorToast';
 import { permissionNames } from '../../operatorPermissions';
-import type { LoyaltySettingsDto, EskhataConfigDto } from '../../operatorApiClients';
+import type { LoyaltySettingsDto, EskhataConfigDto, DcPayLinkConfigDto } from '../../operatorApiClients';
 
 const loyaltyDefaults: LoyaltySettingsDto = {
   topUpEnabled: false, topUpPercentBasisPoints: 0,
@@ -14,19 +14,16 @@ const loyaltyDefaults: LoyaltySettingsDto = {
 const loyaltyGet = mock(async (): Promise<LoyaltySettingsDto> => loyaltyDefaults);
 const loyaltyUpdate = mock(async (req: LoyaltySettingsDto): Promise<LoyaltySettingsDto> => req);
 const eskhataGet = mock(async (): Promise<EskhataConfigDto> => ({ baseUrl: '', companyId: '', merchantId: 0, hashKeySet: false, status: 'inactive' }));
+const dcConfigGet = mock(async (): Promise<DcPayLinkConfigDto> => ({ cardSet: false, cardLast4: '', commentTemplate: 'AFK4-{ref}', isActive: false }));
 
 const actual = (globalThis as Record<string, unknown>).__afk4RealOperatorHelpers as Record<string, unknown>;
 mock.module('../../operatorHelpers', () => ({
   ...actual,
   createAuthenticatedOperatorClients: () => ({
     loyaltySettings: { get: loyaltyGet, update: loyaltyUpdate },
-    eskhataConfig: { get: eskhataGet, update: mock(async () => ({})) }
+    eskhataConfig: { get: eskhataGet, update: mock(async () => ({})) },
+    dcConfig: { get: dcConfigGet, update: mock(async () => ({})) }
   })
-}));
-
-// Изолируем контейнер от dcgate-сети: PaymentGatewaysWorkspace подменяем маркером.
-mock.module('../../PaymentGatewaysWorkspace', () => ({
-  PaymentGatewaysWorkspace: () => <div data-testid="dcgate-stub" />
 }));
 
 const { PaymentsLoyaltyDestination } = await import('./PaymentsLoyaltyDestination');
@@ -47,6 +44,7 @@ afterEach(() => {
   loyaltyGet.mockClear();
   loyaltyUpdate.mockClear();
   eskhataGet.mockClear();
+  dcConfigGet.mockClear();
   cleanup();
 });
 afterAll(() => mock.restore());
@@ -57,7 +55,7 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
   it('renders both zones with no tab strip and no shared save bar', async () => {
     const { container } = view([permissionNames.managePaymentGateways, permissionNames.manageLoyaltySettings]);
 
-    expect(screen.getByTestId('dcgate-stub')).toBeInTheDocument();
+    expect(screen.getByText(/eskhata merchant/i)).toBeInTheDocument();
     expect(await screen.findByLabelText(/кэшбэк с пополнений/i)).toBeInTheDocument();
     expect(screen.queryByRole('tab')).toBeNull();
     expect(container.querySelector('.management-save-bar')).toBeNull();
@@ -65,7 +63,7 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
 
   it('shows only the payment-methods zone for gateways-only permission', () => {
     view([permissionNames.managePaymentGateways]);
-    expect(screen.getByTestId('dcgate-stub')).toBeInTheDocument();
+    expect(screen.getByText(/eskhata merchant/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/кэшбэк с пополнений/i)).toBeNull();
     expect(screen.queryByRole('tab')).toBeNull();
   });
@@ -73,7 +71,7 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
   it('shows only the loyalty zone for loyalty-only permission', async () => {
     view([permissionNames.manageLoyaltySettings]);
     expect(await screen.findByLabelText(/кэшбэк с пополнений/i)).toBeInTheDocument();
-    expect(screen.queryByTestId('dcgate-stub')).toBeNull();
+    expect(screen.queryByText(/eskhata merchant/i)).toBeNull();
     expect(screen.queryByRole('tab')).toBeNull();
   });
 
