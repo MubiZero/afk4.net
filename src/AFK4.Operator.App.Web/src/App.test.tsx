@@ -833,6 +833,40 @@ describe('App', () => {
     await waitFor(() => expect(summaryRequestCount).toBeGreaterThan(summaryBefore));
   });
 
+  // IMP-2: a transient refresh failure (network/5xx) triggered by a 401 on the floor-map load must
+  // not force-logout the operator — the same class of bug IMP-1 already fixed for the initial
+  // silent-refresh on session restore. Only a real 401 on the refresh call means the session is
+  // actually dead; anything else should leave the operator signed-in and just surface an error.
+  it('keeps the session signed-in and surfaces a floor-map error when the post-401 refresh fails transiently (non-401)', async () => {
+    installSessionBridge(
+      createSession({ accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z' }),
+      createSession({ accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z' })
+    );
+    let floorMapRequestCount = 0;
+    fetchMock.mockImplementation((input, init) => {
+      const pathname = new URL(String(input)).pathname;
+      if (pathname.endsWith('/floor-map')) {
+        floorMapRequestCount += 1;
+        if (floorMapRequestCount === 1) {
+          return Promise.resolve(new Response('Platform API returned 401 Unauthorized:', { status: 401 }));
+        }
+      }
+      if (pathname.endsWith('/api/auth/staff/refresh') && init?.method === 'POST') {
+        // Транзиентный сбой бэка (не auth-специфичный) на refresh, вызванном 401-ом карты —
+        // сохранённая сессия ещё может быть годной, стирать её нельзя (см. IMP-1 выше).
+        return Promise.resolve(new Response(JSON.stringify({ error: 'internal_error' }), { status: 500 }));
+      }
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Вход оператора' })).not.toBeInTheDocument();
+    expect(sessionStorage.getItem('afk4.staff.session')).not.toBeNull();
+  });
+
   it('ignores a session-lifecycle event from another branch', async () => {
     installSessionBridge();
     let floorMapRequestCount = 0;

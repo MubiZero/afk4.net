@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import type { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
-import { refreshOperatorSession, type OperatorAuthSession } from './authClient';
+import { refreshOperatorSession, isUnauthorizedStaffAuthError, type OperatorAuthSession } from './authClient';
 import {
   createFixtureFloorMapState,
   hydrateFloorMapStateFromCache,
@@ -164,6 +164,25 @@ export function useFloorMap({
             setSelectedSeatId(nextState.seats[0]?.id ?? '');
             return;
           } catch (refreshError) {
+            if (!isUnauthorizedStaffAuthError(refreshError)) {
+              // Транзиентный сбой refresh (сеть/5xx) или временно нет активного филиала — это НЕ
+              // то же самое, что отозванный/просроченный refresh-токен (401). Сессия может быть ещё
+              // годной, поэтому её не стираем и не форсим релогин — показываем ошибку карты и
+              // остаёмся signed-in (тот же класс фикса, что useOperatorAuth уже применяет к
+              // silent-refresh на старте).
+              if (disposed) {
+                return;
+              }
+
+              setFloorMap((current) => ({
+                ...current,
+                branchId,
+                loadStatus: 'failed',
+                error: projectOperatorError(refreshError, t).detail
+              }));
+              return;
+            }
+
             await clearStoredOperatorSession();
             if (disposed) {
               return;
