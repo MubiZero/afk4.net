@@ -131,17 +131,25 @@ owner-панели Platform.Web/club, функции которой операт
   директория филиалов (аналог `useBranchDirectory`/`branches.ts`); если имена не в сессии, тянуть
   их с бэка.
 
-### C. Ролевой гейт
+### C. Ролевой гейт + починка per-branch авторизации (ПЕРВЫМИ тасками)
 
-- Существующий гейт (`canOpenWorkspace` / `permissionNames` / `workspacePermissionRules`) —
-  оставляем, он достаточен для скрытия/показа разделов.
-- На смену филиала пересчитывать `firstAllowedWorkspace` (см. B2). Права в токене — плоский union
-  по всем филиалам; UI-переизбыток (показать раздел, где на этом филиале прав нет) **наследуется от
-  Platform.Web** и энфорсится бэком per-branch.
-- **Обязательная проверка (в план):** регресс-тест, что `RequireBranchPermissionAsync` реально
-  проверяет право **для конкретного branchId** (членство в per-branch роли), а не «есть право в
-  union И branchId ∈ BranchIds». Если найдётся cross-branch эскалация — это пред-существующий баг,
-  затрагивающий и Platform.Web; чиним в корне (#39) или поднимаем явной задачей.
+- **Найдена cross-branch эскалация (подтверждено кодом):** `StaffAuthorizationService.RequireBranchPermissionAsync`
+  проверяет `staffContext.BranchIds.Contains(branchId) && staffContext.Permissions.Contains(permission)`,
+  где `Permissions` — плоский **union** прав по всем ролям всех филиалов
+  (`OpaqueStaffTokenService.CreateContextAsync` + `PermissionCatalog.GetPermissions`). Роли хранятся
+  per-branch (`StaffRoleAssignment.BranchId`), но при сборке контекста branch теряется. Следствие:
+  менеджер филиала A, назначенный кассиром в B, получает менеджерские права на B.
+- **Решение (принято 2026-07-22): чиним в корне ПЕРВЫМИ тасками фундамента**, до свитчера, потому
+  что свитчер как раз включает кросс-филиальную работу в операторе и делает дыру живой. Починка
+  **локальная и серверная**: `StaffContext` получает per-branch карту прав + метод
+  `HasBranchPermission(branchId, permission)`; `CreateContextAsync` собирает права **по каждому
+  филиалу** (группировка role-assignments по `BranchId`); `RequireBranchPermissionAsync` проверяет
+  право именно для этого branchId. **Контракт `StaffSignInResponse` не меняется** (плоский
+  `Permissions[]` остаётся UI-подсказкой) → **Platform.Web не ломается**. Union-`Permissions` в
+  `StaffContext` сохраняется для org/platform-проверок, которые не branch-специфичны.
+- Клиентский ролевой гейт (`canOpenWorkspace` / `permissionNames` / `workspacePermissionRules`) —
+  оставляем; UI-переизбыток на неактивном филиале безвреден, бэк энфорсит per-branch.
+- На смену филиала пересчитывать `firstAllowedWorkspace` (см. B2).
 
 ### D. Хостинг браузерной сборки
 
@@ -194,15 +202,23 @@ env/логина; свитчер обычно скрыт (одно-филиал�
 - WPF по-прежнему логинится (теперь по HTTP через хост-оболочку) и работает; браузерная сборка
   логинится и работает. `bun run build` зелёный (tsc тайпчекает и тесты).
 
-## Открытые пункты для планирования (не блокируют дизайн)
+## Открытые пункты — ЗАКРЫТЫ (сверено по коду 2026-07-22)
 
-1. **Точная форма staff sign-in Platform.Web** (как резолвится org из личности, форма запроса/ответа) —
-   свериться и зеркалить в браузерном auth оператора.
-2. **Путь PC-control** (управление сиденьями/локами в `App.tsx:156-158`): идёт через API/SignalR к
-   on-site агенту (→ работает удалённо в браузере) или через host-мост (→ скрыть в браузере)?
-   Определить и, если нужно, гейтить по среде.
-3. **Форма переиспользования auth-кода Platform.Web:** вынести в разделяемый пакет vs скопировать
-   минимальный модуль в оператор. Решить в плане по фактической структуре Platform.Web.
+1. **Форма staff sign-in — двухступенчатая, зеркалим Platform.Web:**
+   - Шаг 1: `POST /api/auth/staff/sign-in-by-login` c `{login, password}`. 200 = `StaffSignInResponse`;
+     401 = неверно; **409** = `{clubs:[{organizationId,name}]}` → UI показывает выбор клуба.
+   - Шаг 2 (при 409 или явном клубе): `POST /api/auth/staff/sign-in` c `{organizationId, userName, password}`.
+   - organizationId руками НЕ вводится, из сабдомена НЕ берётся — сервер резолвит по login/email.
+   - Refresh: `POST /api/auth/staff/refresh` c `{organizationId, refreshToken}`. **Серверного
+     sign-out НЕТ** — sign-out локальный (чистка стора). Токены opaque, access 8ч, refresh 30д (ротируется).
+   - Хранение: весь `StaffSignInResponse`-производный сеанс в `sessionStorage['afk4.staff.session']`
+     (образец `Platform.Web/auth/staffTokenStore.ts`); активный филиал — `localStorage['afk4.operator.activeBranchId']`.
+2. **PC-control работает удалённо из браузера — ДА.** Команды лок/анлок идут по HTTP
+   `POST /api/devices/{id}/commands` → SignalR `DeviceHub` → on-site агент; host-мост не участвует.
+   **Деградация в браузере не нужна**, PC-control остаётся как есть. Оффлайн-очередь — локальный буфер.
+3. **Переиспользование auth-кода — КОПИРУЕМ минимальный модуль в оператор.** Platform.Web и оператор —
+   отдельные Vite-приложения без общего пакета; порт `staffTokenStore.ts`-подобного стора +
+   staff-auth-клиента (`staffAuthApi.ts`) в `AFK4.Operator.App.Web/src/auth/` с идентичной семантикой.
 
 ## Вне scope / отложено
 
