@@ -1,14 +1,19 @@
-// DEV-ONLY host-bridge stub. Emulates the native WebView2 auth bridge so the operator UI can
-// sign in from a plain browser against the staging API (proxied by vite). This file is imported
-// only via a `import.meta.env.DEV` dynamic import in main.tsx, so it is tree-shaken out of the
-// production `bun run build` output and never ships in the MSI.
+// DEV-ONLY host-bridge stub. Emulates the native WebView2 host so the operator UI can run in a
+// plain browser (or in a WPF preview host without a real backend) against mock/staging data. This
+// file is imported only via a `import.meta.env.DEV` dynamic import in main.tsx, so it is
+// tree-shaken out of the production `bun run build` output and never ships in the MSI.
 //
 // In the native WebView2 host the real bridge + injected __AFK4_OPERATOR_CONFIG__ already exist;
 // installing this stub there would clobber the native bridge and point platformBaseUrl at the
 // WebView origin (operator.afk4.local) instead of staging — so it stays inert when running inside
 // the host.
+//
+// Auth is plain HTTP now (authClient.ts → StaffAuthApi), not a bridge round-trip — nothing in the
+// app sends `auth:*` messages anymore, in either the browser or the WPF preview host. Preview
+// sign-in is mocked by intercepting fetch (installMockFetch below), which serves `/api/auth/staff/*`
+// from devMockFetch — see devMockBackend.ts.
 
-import { createMockSession, devMockFetch } from './devMockBackend';
+import { devMockFetch } from './devMockBackend';
 
 const ORG = '0169044b-2f74-46a7-8e52-7656a39a8f8c';
 const BRANCH = 'f77b708c-1dc9-4cb3-9c19-21797f7035fc';
@@ -20,7 +25,7 @@ const PREVIEW_MOCK = !location.search.includes('live');
 interface DevBridgeMessage {
   type?: string;
   requestId?: string;
-  payload?: { organizationId?: string; userName?: string; password?: string };
+  payload?: unknown;
 }
 
 interface DevWebView {
@@ -29,19 +34,14 @@ interface DevWebView {
   removeEventListener(type: string, listener: (event: { data: unknown }) => void): void;
 }
 
-function readString(record: Record<string, unknown>, key: string): string {
-  const value = record[key];
-  return typeof value === 'string' ? value : '';
-}
-
 export function installDevHostBridge(): void {
   const nativeWebview = (window as { chrome?: { webview?: DevWebView } }).chrome?.webview;
   if (nativeWebview) {
     // We only reach this module in a vite DEV run, so being inside a WebView2 host means the WPF
     // shell is pointing at the dev server (a preview shell) — never a packaged MSI. In preview mode
-    // (default; opt out with `?live`) overlay mock auth + mock platform data onto the native bridge
-    // so ANY credentials sign in, while window:* / connection:* still reach the real native bridge
-    // (titlebar buttons + connection storage keep working).
+    // (default; opt out with `?live`) overlay mock platform data onto the native bridge so
+    // window:*/connection:* still reach the real native bridge (titlebar buttons + connection
+    // storage keep working).
     if (PREVIEW_MOCK) {
       installHostPreviewOverlay(nativeWebview);
     }
@@ -51,7 +51,6 @@ export function installDevHostBridge(): void {
   window.__AFK4_OPERATOR_CONFIG__ = createDevOperatorConfig();
 
   const listeners = new Set<(event: { data: unknown }) => void>();
-  let refreshToken: string | null = null;
 
   function emit(requestId: string | undefined, ok: boolean, payload: unknown, error: unknown): void {
     const ev = { data: { type: 'host:response', requestId, ok, payload, error } };
@@ -64,61 +63,6 @@ export function installDevHostBridge(): void {
     });
   }
 
-  function toSession(response: unknown): unknown {
-    const session = toDevSession(response);
-    const token = (response ?? {} as Record<string, unknown>) as Record<string, unknown>;
-    if (typeof token.refreshToken === 'string') {
-      refreshToken = token.refreshToken;
-    }
-    return session;
-  }
-
-  async function handle(type: string, payload: DevBridgeMessage['payload']): Promise<unknown> {
-    if (PREVIEW_MOCK && type.indexOf('auth:') === 0) {
-      // Preview: start on the sign-in screen (loadToken → null); any credentials sign in to the
-      // mock session; forgot/reset flows just acknowledge.
-      if (type === 'auth:loadToken') return null;
-      if (type === 'auth:signOut') return { signedOut: true };
-      if (type === 'auth:signIn' || type === 'auth:refresh') return createMockSession();
-      return { ok: true };
-    }
-    if (type === 'auth:loadToken') {
-      return null;
-    }
-    if (type === 'auth:signOut') {
-      refreshToken = null;
-      return { signedOut: true };
-    }
-    if (type === 'auth:signIn') {
-      const body = {
-        organizationId: payload?.organizationId || ORG,
-        userName: payload?.userName,
-        password: payload?.password
-      };
-      const res = await fetch('/api/auth/staff/sign-in', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      if (!res.ok) {
-        throw { code: 'sign_in_failed', message: 'HTTP ' + res.status };
-      }
-      return toSession(await res.json());
-    }
-    if (type === 'auth:refresh') {
-      const res = await fetch('/api/auth/staff/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ organizationId: ORG, refreshToken })
-      });
-      if (!res.ok) {
-        throw { code: 'refresh_failed', message: 'HTTP ' + res.status };
-      }
-      return toSession(await res.json());
-    }
-    throw { code: 'unhandled', message: 'dev bridge: unhandled ' + type };
-  }
-
   const win = window as unknown as { chrome: { webview: DevWebView } };
   win.chrome = win.chrome || ({} as { webview: DevWebView });
   win.chrome.webview = {
@@ -129,16 +73,9 @@ export function installDevHostBridge(): void {
       if (msg.type.indexOf('window:') === 0) {
         return; // native window chrome — no-op in browser
       }
-      Promise.resolve()
-        .then(() => handle(msg.type as string, msg.payload))
-        .then((payload) => emit(msg.requestId, true, payload, undefined))
-        .catch((err: unknown) => {
-          const record = (err ?? {}) as Record<string, unknown>;
-          emit(msg.requestId, false, undefined, {
-            code: readString(record, 'code') || 'host_error',
-            message: readString(record, 'message') || String(err)
-          });
-        });
+      // Nothing else is sent over the bridge anymore (auth is HTTP; connection:* has no plain-
+      // browser backing store here) — report unhandled rather than hanging the caller.
+      emit(msg.requestId, false, undefined, { code: 'unhandled', message: 'dev bridge: unhandled ' + msg.type });
     },
     addEventListener(type: string, listener: (event: { data: unknown }) => void) {
       if (type === 'message') {
@@ -169,24 +106,6 @@ export function createDevOperatorConfig() {
   };
 }
 
-export function toDevSession(response: unknown): Record<string, unknown> {
-  const r = (response ?? {}) as Record<string, unknown>;
-  const branchIds = Array.isArray(r.branchIds) ? (r.branchIds as unknown[]) : [];
-  return {
-    staffUserId: r.staffUserId,
-    organizationId: r.organizationId,
-    displayName: r.displayName,
-    accessToken: r.accessToken,
-    accessTokenExpiresAtUtc: r.accessTokenExpiresAtUtc,
-    refreshToken: r.refreshToken,
-    refreshTokenExpiresAtUtc: r.refreshTokenExpiresAtUtc,
-    branchIds,
-    activeBranchId: branchIds[0] ?? undefined,
-    permissions: r.permissions,
-    roleNames: Array.isArray(r.roleNames) ? r.roleNames : []
-  };
-}
-
 // Preview mode: intercept platform API calls and serve mock data. Non-API requests (Vite assets,
 // HMR) pass through to the real fetch untouched.
 function installMockFetch(): void {
@@ -203,9 +122,9 @@ function installMockFetch(): void {
   globalThis.fetch = mockedFetch as typeof globalThis.fetch;
 }
 
-// Inside the WebView2 host (dev preview shell): wrap the native bridge so auth:* resolves to a mock
-// session (any credentials), platform /api/ calls serve fixtures, and everything else (window:* for
-// the titlebar, connection:* for storage) still reaches the real native bridge.
+// Inside the WebView2 host (dev preview shell): wrap the native bridge so platform /api/ calls serve
+// fixtures (including auth, via installMockFetch/devMockFetch), while window:* (titlebar) and
+// connection:* (storage) still reach the real native bridge.
 function installHostPreviewOverlay(native: DevWebView): void {
   // The connection gate keys off org/branch in the injected config; seed them so preview lands on
   // the sign-in screen even when the host wasn't launched with the org/branch env vars.
@@ -227,36 +146,13 @@ function installHostPreviewOverlay(native: DevWebView): void {
     });
   });
 
-  function emit(requestId: string | undefined, ok: boolean, payload: unknown, error: unknown): void {
-    const ev = { data: { type: 'host:response', requestId, ok, payload, error } };
-    listeners.forEach((l) => {
-      try {
-        l(ev);
-      } catch {
-        // Ignore listener faults; dev-only harness.
-      }
-    });
-  }
-
   const overlay: DevWebView = {
+    // Everything still goes to the real native bridge — auth no longer travels over it at all
+    // (mocked at the fetch layer below), so there is nothing left to intercept here.
     postMessage(msg: DevBridgeMessage) {
       if (!msg || !msg.type) {
         return;
       }
-      if (msg.type.indexOf('auth:') === 0) {
-        Promise.resolve()
-          .then(() => previewAuthResponse(msg.type as string))
-          .then((payload) => emit(msg.requestId, true, payload, undefined))
-          .catch((err: unknown) => {
-            const record = (err ?? {}) as Record<string, unknown>;
-            emit(msg.requestId, false, undefined, {
-              code: readString(record, 'code') || 'host_error',
-              message: readString(record, 'message') || String(err)
-            });
-          });
-        return;
-      }
-      // window:* (titlebar chrome) and connection:* (storage) → real native bridge, untouched.
       nativePost(msg);
     },
     addEventListener(type: string, listener: (event: { data: unknown }) => void) {
@@ -273,11 +169,4 @@ function installHostPreviewOverlay(native: DevWebView): void {
 
   (window as unknown as { chrome: { webview: DevWebView } }).chrome.webview = overlay;
   installMockFetch();
-}
-
-function previewAuthResponse(type: string): unknown {
-  if (type === 'auth:loadToken') return null;
-  if (type === 'auth:signOut') return { signedOut: true };
-  if (type === 'auth:signIn' || type === 'auth:refresh') return createMockSession();
-  return { ok: true };
 }

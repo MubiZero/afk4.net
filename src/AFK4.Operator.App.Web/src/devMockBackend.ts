@@ -489,6 +489,11 @@ function eskhataConfig(): Record<string, unknown> {
 // Route a platform request to a fixture. Returns null when nothing matches, so the caller can apply
 // a safe default.
 function route(pathname: string, method: string): unknown | undefined {
+  // Preview sign-in: any credentials succeed (no real backend behind the mock), mirroring what the
+  // dev host-bridge stub used to fake over the WebView2 auth bridge before auth moved to plain HTTP.
+  if (pathname.endsWith('/auth/staff/sign-in-by-login') && method === 'POST') return createMockSession();
+  if (pathname.endsWith('/auth/staff/sign-in') && method === 'POST') return createMockSession();
+  if (pathname.endsWith('/auth/staff/refresh') && method === 'POST') return createMockSession();
   if (pathname.endsWith('/owner/loyalty-settings') && method === 'GET') return loyaltySettings();
   if (pathname.endsWith('/owner/eskhata-config') && method === 'GET') return eskhataConfig();
   if (pathname.endsWith('/checkout/quote') && method === 'GET') return checkoutQuote();

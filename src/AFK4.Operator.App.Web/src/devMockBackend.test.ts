@@ -12,6 +12,40 @@ describe('dev preview session', () => {
   });
 });
 
+// Preview sign-in is HTTP now (authClient.ts → StaffAuthApi), mocked here instead of over the
+// old WebView2 auth bridge — any credentials succeed against these fixtures.
+describe('devMockFetch staff auth', () => {
+  it('signs in by login with a mock session', async () => {
+    const res = await devMockFetch('https://x/api/auth/staff/sign-in-by-login', {
+      method: 'POST',
+      body: JSON.stringify({ login: 'anyone', password: 'anything' })
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toMatchObject({ displayName: 'Оператор смены', roleNames: ['cashier_operator'] });
+  });
+
+  it('signs in to a chosen club with a mock session', async () => {
+    const res = await devMockFetch('https://x/api/auth/staff/sign-in', {
+      method: 'POST',
+      body: JSON.stringify({ organizationId: 'org-1', userName: 'anyone', password: 'anything' })
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.accessToken).toBeTruthy();
+  });
+
+  it('refreshes with a mock session', async () => {
+    const res = await devMockFetch('https://x/api/auth/staff/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ organizationId: 'org-1', refreshToken: 'preview-refresh-token' })
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.refreshToken).toBeTruthy();
+  });
+});
+
 describe('devMockFetch player data', () => {
   it('returns a populated wallet summary with varied ledger entries', async () => {
     const res = await devMockFetch(`https://x/api/players/${playerId}/wallet-summary`);
