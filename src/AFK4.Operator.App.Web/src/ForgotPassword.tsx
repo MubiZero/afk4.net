@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useI18n, type MessageKey } from '@afk4/i18n';
-import { forgotPasswordByEmail, forgotPasswordByPhone, resetPasswordByEmail, resetPasswordByPhone } from './authClient';
-import { HostBridgeRequestError } from './hostBridge';
+import { forgotPasswordByEmail, forgotPasswordByPhone, resetPasswordByEmail, resetPasswordByPhone, StaffAuthApiError } from './authClient';
 import { AuthFrame } from './AuthFrame';
 import { localPhoneDigits, formatLocal, fullPhoneDigits } from './phoneFormat';
+import { isRecord } from './operatorHelpers';
 
 type Channel = 'email' | 'phone';
 type Step = 'request' | 'verify' | 'done';
@@ -160,15 +160,21 @@ export function ForgotPassword({ onBackToSignIn }: { onBackToSignIn: () => void 
   );
 }
 
+// Аутентификация идёт напрямую по HTTP (StaffAuthApi) — читаем разобранное тело ответа бэка
+// (см. AuthEndpoints.cs: `{ error: 'invalid_code', remainingAttempts }` и т.п.), а не
+// bridge-специфичный код нативного моста (тот путь тут больше не участвует).
 function projectResetError(cause: unknown, t: (key: MessageKey) => string): string {
-  if (cause instanceof HostBridgeRequestError) {
-    switch (cause.code) {
+  if (cause instanceof StaffAuthApiError) {
+    const body = cause.body;
+    const code = isRecord(body) && typeof body.error === 'string' ? body.error : null;
+    const remainingAttempts = isRecord(body) && typeof body.remainingAttempts === 'number' ? body.remainingAttempts : null;
+    switch (code) {
       case 'invalid_phone':
         return t('auth.forgot.phone.error.invalidPhone');
       case 'invalid_code':
-        return cause.remainingAttempts === null
+        return remainingAttempts === null
           ? t('auth.forgot.phone.error.invalidCode')
-          : `${t('auth.forgot.phone.error.invalidCode')} ${t('auth.forgot.phone.error.remaining')}: ${cause.remainingAttempts}`;
+          : `${t('auth.forgot.phone.error.invalidCode')} ${t('auth.forgot.phone.error.remaining')}: ${remainingAttempts}`;
       case 'code_expired':
         return t('auth.forgot.phone.error.expired');
       case 'too_many_attempts':

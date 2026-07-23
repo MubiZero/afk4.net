@@ -66,7 +66,10 @@ let fetchMock: Mock<FetchLike>;
 // mockPlatformFetch отвечает на refresh той же сессией, что лежит в sessionStorage (эхо, как
 // будто "ничего не поменялось"). installSessionBridge переключает это на конкретный ответ
 // (другой набор прав) или на 401 для тестов, которым нужен другой сценарий silent-refresh.
-type AuthRefreshOverride = { kind: 'session'; session: Record<string, unknown> } | { kind: 'reject' };
+type AuthRefreshOverride =
+  | { kind: 'session'; session: Record<string, unknown> }
+  | { kind: 'reject' }
+  | { kind: 'reject-server-error' };
 let authRefreshOverride: AuthRefreshOverride | null = null;
 
 describe('App', () => {
@@ -450,6 +453,37 @@ describe('App', () => {
     await waitFor(() => expect(sessionStorage.getItem('afk4.staff.session')).toBeNull());
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/floor-map'))).toBe(false);
+  });
+
+  // IMP-1: транзиентный сбой (сеть/5xx) — не то же самое, что честный 401. Refresh-токен мог быть
+  // ещё годным, поэтому сохранённую сессию нельзя стирать (иначе транзиентный сбой сети на старте
+  // форсит полный релогин); вместо этого показываем ошибку и уходим в signed-out.
+  it('keeps the stored session and shows an error when the silent refresh fails transiently (non-401)', async () => {
+    installSessionBridge(createSession(), createSession(), {
+      authRefreshServerError: true,
+      loadConnection: buildStoredConnection()
+    });
+
+    render(<App />);
+
+    // Heading выходит на экран сразу при монтировании (ещё в статусе "checking") — она не
+    // сигнализирует, что silent-refresh (реальный fetch) уже осядет. Настоящий наблюдаемый
+    // сигнал завершения — сам alert, его и ждём (как соседний тест ждёт очистку sessionStorage).
+    expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(sessionStorage.getItem('afk4.staff.session')).not.toBeNull();
+  });
+
+  // IMP-3: до этого фикстура createSession() всегда хардкодила прошлый accessTokenExpiresAtUtc,
+  // так что silent-refresh срабатывал на восстановлении в КАЖДОМ тесте — ветка "токен ещё не
+  // истёк, refresh не нужен" не имела ни одного покрывающего теста.
+  it('does not call silent refresh when the restored access token has not expired', async () => {
+    installSessionBridge(createSession({ accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z' }));
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/api/auth/staff/refresh'))).toBe(false);
   });
 
   it('shows the sign-in screen without error when no session is stored (no native-bridge auth dependency)', async () => {
@@ -3029,6 +3063,11 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     if (authRefreshOverride?.kind === 'reject') {
       return new Response('Platform API returned 401 Unauthorized:', { status: 401 });
     }
+    if (authRefreshOverride?.kind === 'reject-server-error') {
+      // Транзиентный сбой бэка (не auth-специфичный) — в отличие от 401 это НЕ "сессия
+      // недействительна", сохранённую сессию стирать нельзя (см. IMP-1).
+      return new Response(JSON.stringify({ error: 'internal_error' }), { status: 500 });
+    }
     if (authRefreshOverride?.kind === 'session') {
       return jsonResponse(authRefreshOverride.session);
     }
@@ -3555,6 +3594,9 @@ function installSessionBridge(
   options: {
     failedRequests?: Record<string, string>;
     loadConnection?: Record<string, unknown> | null;
+    // 5xx/network-стиль сбой silent-refresh — отличается от `failedRequests['auth:refresh']`
+    // (честный 401): проверяет ветку IMP-1, где транзиентный сбой НЕ должен стирать сессию.
+    authRefreshServerError?: boolean;
   } = {}
 ) {
   if (loadSession !== null) {
@@ -3563,11 +3605,13 @@ function installSessionBridge(
     sessionStorage.removeItem('afk4.staff.session');
   }
 
-  authRefreshOverride = options.failedRequests?.['auth:refresh'] !== undefined
-    ? { kind: 'reject' }
-    : refreshSession !== null
-      ? { kind: 'session', session: refreshSession }
-      : null;
+  authRefreshOverride = options.authRefreshServerError
+    ? { kind: 'reject-server-error' }
+    : options.failedRequests?.['auth:refresh'] !== undefined
+      ? { kind: 'reject' }
+      : refreshSession !== null
+        ? { kind: 'session', session: refreshSession }
+        : null;
 
   const listeners = new Set<(event: HostBridgeMessageEvent) => void>();
   const requests: string[] = [];

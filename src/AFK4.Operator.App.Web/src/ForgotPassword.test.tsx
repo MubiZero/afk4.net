@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
-import { HostBridgeRequestError } from './hostBridge';
+import { StaffAuthApiError } from './authClient';
 
 const forgotPasswordByEmail = mock(async () => {});
 const resetPasswordByEmail = mock(async () => {});
@@ -60,7 +60,9 @@ describe('ForgotPassword (operator)', () => {
 
   it('runs the SMS flow and shows remaining attempts on a bad code', async () => {
     resetPasswordByPhone.mockImplementationOnce(async () => {
-      throw new HostBridgeRequestError('bad', 'invalid_code', 2);
+      // Реальный прод-путь: StaffAuthApi разбирает JSON-тело ответа бэка (см. AuthEndpoints.cs),
+      // а не bridge-специфичный код нативного моста.
+      throw new StaffAuthApiError(400, { error: 'invalid_code', remainingAttempts: 2 });
     });
     renderScreen();
     fireEvent.click(screen.getByRole('button', { name: 'По SMS' }));

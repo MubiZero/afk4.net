@@ -5,7 +5,7 @@ import { getOperatorConfig } from './operatorConfig';
 import { projectOperatorError } from './apiErrors';
 import { createOperatorApiClients, type BranchDiagnosticsDto, type OperatorDashboardSummaryDto, type PlayerPackageDto, type PosSaleDto, type ShiftDto } from './operatorApiClients';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
-import { signOutOperator, type OperatorAuthSession } from './authClient';
+import { signOutOperator, StaffAuthApiError, type OperatorAuthSession } from './authClient';
 import { mapFloorMapDtoToState, seatStatusLabel, type FloorMapLoadStatus, type OperatorFloorMapState } from './floorMapState';
 import { saveFloorMapCache } from './floorMapCache';
 import { hasPermission, permissionNames } from './operatorPermissions';
@@ -679,8 +679,8 @@ export function projectAuthSignInError(error: unknown, t: TFunc): string {
     return error.status === 401 ? t('auth.error.invalid') : t('auth.error.generic');
   }
 
-  if (error instanceof Error && /\b401\b/.test(error.message)) {
-    return t('auth.error.invalid');
+  if (error instanceof StaffAuthApiError) {
+    return error.status === 401 ? t('auth.error.invalid') : t('auth.error.generic');
   }
 
   return t('auth.error.generic');

@@ -7,12 +7,13 @@ import {
   signInToClubOperator,
   signOutOperator,
   ChooseClubError,
+  isUnauthorizedStaffAuthError,
   type OperatorAuthSession,
   type ClubChoice
 } from './authClient';
-import { clearStoredSession, isAccessTokenExpired } from './auth/staffSessionStore';
+import { isAccessTokenExpired } from './auth/staffSessionStore';
 import type { AuthStatus, OperatorConfig } from './operatorTypes';
-import { projectAuthSignInError } from './operatorHelpers';
+import { projectAuthSignInError, clearStoredOperatorSession } from './operatorHelpers';
 
 export interface ChooseClubState {
   clubs: ClubChoice[];
@@ -52,10 +53,17 @@ export function useOperatorAuth(
 
         try {
           return await refreshOperatorSession();
-        } catch {
-          // Сохранённая сессия больше не годится (просрочен refresh-токен и т.п.) — тихо
-          // возвращаемся к экрану входа, без тревожного алерта поверх формы.
-          clearStoredSession();
+        } catch (error) {
+          if (!isUnauthorizedStaffAuthError(error)) {
+            // Транзиентный сбой (сеть/5xx) — сохранённая сессия ещё может быть годной, не
+            // стираем её; пробрасываем наверх, чтобы показать ошибку и уйти в signed-out
+            // (пользователь может повторить попытку, вместо форс-релогина на ровном месте).
+            throw error;
+          }
+
+          // Refresh-токен реально отозван/просрочен (401) — сохранённая сессия больше не
+          // годится, тихо возвращаемся к экрану входа без тревожного алерта поверх формы.
+          await clearStoredOperatorSession();
           return null;
         }
       })

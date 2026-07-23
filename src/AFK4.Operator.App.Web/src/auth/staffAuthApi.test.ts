@@ -1,5 +1,5 @@
 import { test, expect } from 'bun:test';
-import { StaffAuthApi, ChooseClubError } from './staffAuthApi';
+import { StaffAuthApi, ChooseClubError, StaffAuthApiError, isUnauthorizedStaffAuthError } from './staffAuthApi';
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -28,6 +28,31 @@ test('signInByLogin throws ChooseClubError on 409', async () => {
 test('signInByLogin throws on 401', async () => {
   const api = new StaffAuthApi('http://x/', async () => jsonResponse(401, {}));
   await expect(api.signInByLogin('u', 'p')).rejects.toThrow();
+});
+
+test('signInByLogin throws a StaffAuthApiError with the status and parsed body on 401', async () => {
+  const api = new StaffAuthApi('http://x/', async () => jsonResponse(401, { error: 'invalid_credentials' }));
+  const err = await api.signInByLogin('u', 'p').catch((e) => e);
+  expect(err).toBeInstanceOf(StaffAuthApiError);
+  expect((err as StaffAuthApiError).status).toBe(401);
+  expect((err as StaffAuthApiError).body).toEqual({ error: 'invalid_credentials' });
+  expect(isUnauthorizedStaffAuthError(err)).toBe(true);
+});
+
+test('refresh throws a non-401 StaffAuthApiError on a server error, without flagging it as unauthorized', async () => {
+  const api = new StaffAuthApi('http://x/', async () => jsonResponse(500, { error: 'internal_error' }));
+  const err = await api.refresh('o', 'r').catch((e) => e);
+  expect(err).toBeInstanceOf(StaffAuthApiError);
+  expect((err as StaffAuthApiError).status).toBe(500);
+  expect(isUnauthorizedStaffAuthError(err)).toBe(false);
+});
+
+test('StaffAuthApiError tolerates a non-JSON error body', async () => {
+  const api = new StaffAuthApi('http://x/', async () => new Response('Gateway Timeout', { status: 504 }));
+  const err = await api.refresh('o', 'r').catch((e) => e);
+  expect(err).toBeInstanceOf(StaffAuthApiError);
+  expect((err as StaffAuthApiError).status).toBe(504);
+  expect((err as StaffAuthApiError).body).toBeNull();
 });
 
 test('refresh posts organizationId + refreshToken', async () => {

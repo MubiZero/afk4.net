@@ -1,5 +1,5 @@
 import { getOperatorConfig } from './operatorConfig';
-import { StaffAuthApi, ChooseClubError, type ClubChoice } from './auth/staffAuthApi';
+import { StaffAuthApi, ChooseClubError, StaffAuthApiError, isUnauthorizedStaffAuthError, type ClubChoice } from './auth/staffAuthApi';
 import {
   readStoredSession,
   writeStoredSession,
@@ -7,7 +7,7 @@ import {
   sessionFromSignInResponse
 } from './auth/staffSessionStore';
 
-export { ChooseClubError };
+export { ChooseClubError, StaffAuthApiError, isUnauthorizedStaffAuthError };
 export type { ClubChoice };
 
 export interface OperatorAuthSession {

@@ -20,6 +20,35 @@ export class ChooseClubError extends Error {
   }
 }
 
+// Структурная ошибка не-ok ответа: несёт HTTP-статус и разобранное тело (если оно было JSON),
+// чтобы вызывающий код мог различить 401 (сессия действительно недействительна) от сети/5xx
+// (транзиентный сбой) и читать коды бэка (invalid_code/code_expired/too_many_attempts и т.п.)
+// вместо строкового парсинга сообщения. Зеркалит подход `toApiError`/`PlatformApiError` из
+// AFK4.Platform.Web (см. src/api/staffAuthApi.ts, platformApi.ts).
+export class StaffAuthApiError extends Error {
+  constructor(public readonly status: number, public readonly body: unknown) {
+    super(`Auth request failed: ${status}`);
+    this.name = 'StaffAuthApiError';
+  }
+}
+
+export function isUnauthorizedStaffAuthError(error: unknown): boolean {
+  return error instanceof StaffAuthApiError && error.status === 401;
+}
+
+async function toStaffAuthApiError(res: Response): Promise<StaffAuthApiError> {
+  let body: unknown = null;
+  try {
+    const text = await res.text();
+    if (text.length > 0) {
+      body = JSON.parse(text);
+    }
+  } catch {
+    // Non-JSON (or empty) error body — leave body as null, status alone still carries meaning.
+  }
+  return new StaffAuthApiError(res.status, body);
+}
+
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 export class StaffAuthApi {
@@ -37,7 +66,7 @@ export class StaffAuthApi {
       body: JSON.stringify(body)
     });
     if (res.status === 409 && on409) return on409(res);
-    if (!res.ok) throw new Error(`Auth request failed: ${res.status}`);
+    if (!res.ok) throw await toStaffAuthApiError(res);
     return res.status === 204 ? (null as T) : (await res.json() as T);
   }
 
