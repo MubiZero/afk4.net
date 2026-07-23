@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import type { useI18n } from '@afk4/i18n';
 import type { OperatorAuthSession } from './authClient';
-import { resolveActiveBranchId } from './operatorHelpers';
 import { canOpenWorkspace } from './operatorPermissions';
 import type { AuthStatus, OperatorConfig } from './operatorTypes';
 import { fetchPlayersData, playersSnapshotCache } from './players/playersSnapshot';
@@ -16,14 +15,17 @@ export function usePlayersPreload(
   authStatus: AuthStatus,
   authSession: OperatorAuthSession | null,
   config: OperatorConfig,
-  t: Translate
+  t: Translate,
+  // Активный филиал (реактивный выбор из свитчера — Task 11); без него прогрев продолжал бы
+  // греть кэш старого филиала после переключения, замороженный на входе в сессию.
+  activeBranchId: string | null
 ): void {
   useEffect(() => {
     if (authStatus !== 'signed-in' || authSession === null || !canOpenWorkspace(authSession, 'players')) {
       return undefined;
     }
 
-    const branchId = resolveActiveBranchId(authSession, config.branchId);
+    const branchId = activeBranchId;
     if (!branchId || playersSnapshotCache.has(branchId)) {
       return undefined;
     }
@@ -41,5 +43,5 @@ export function usePlayersPreload(
       disposed = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus, authSession, config.branchId, config.platformBaseUrl]);
+  }, [authStatus, authSession, activeBranchId, config.platformBaseUrl]);
 }

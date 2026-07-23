@@ -155,6 +155,7 @@ function AppInner() {
     t,
     authStatus: operationalAuthStatus,
     authSession,
+    activeBranchId,
     backendContext,
     setAuthSession,
     setAuthStatus,
@@ -176,10 +177,11 @@ function AppInner() {
     authSession,
     config,
     t,
-    shellReconcileSignal
+    shellReconcileSignal,
+    activeBranchId
   );
   // Прогрев кэша клиентов при входе → первый заход в «Клиенты» мгновенный (как заранее загруженный зал).
-  usePlayersPreload(operationalAuthStatus, authSession, config, t);
+  usePlayersPreload(operationalAuthStatus, authSession, config, t, activeBranchId);
   const canUsePcControl = (hasPermission(authSession, permissionNames.viewDiagnostics)
     && hasPermission(authSession, permissionNames.viewDeviceDetail))
     || hasPermission(authSession, permissionNames.dispatchDeviceCommand);

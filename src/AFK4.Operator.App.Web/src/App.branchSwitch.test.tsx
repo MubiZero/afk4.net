@@ -44,6 +44,41 @@ const BRANCH_NAMES: Record<string, string> = {
   [BRANCH_B]: 'Север'
 };
 
+// One "ready" (free) seat per branch, distinctly named, so a test can prove the operator is
+// looking at — and acting on — the branch that is actually active, not just that a request fired.
+const SEAT_A = {
+  seatId: '11111111-1111-1111-1111-111111111111',
+  seatName: 'PC-A1',
+  deviceId: 'aaaaaaaa-2222-2222-2222-222222222222'
+};
+const SEAT_B = {
+  seatId: '22222222-2222-2222-2222-222222222222',
+  seatName: 'PC-B1',
+  deviceId: 'bbbbbbbb-2222-2222-2222-222222222222'
+};
+const SEAT_BY_BRANCH: Record<string, typeof SEAT_A> = {
+  [BRANCH_A]: SEAT_A,
+  [BRANCH_B]: SEAT_B
+};
+
+function floorMapSeatDto(seat: typeof SEAT_A) {
+  return {
+    seatId: seat.seatId,
+    seatName: seat.seatName,
+    zoneId: 'aaaaaaaa-0000-0000-0000-000000000001',
+    zoneName: 'Зал',
+    sortOrder: 1,
+    // 'Locked' (not yet occupied) resolves to tone 'ready' — the "+"-tile that opens Start.
+    state: 'Locked',
+    deviceId: seat.deviceId,
+    deviceName: seat.seatName,
+    isDeviceOnline: true,
+    isDeviceLocked: true,
+    activeSessionId: null,
+    remainingSeconds: null
+  };
+}
+
 function jsonResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
 }
@@ -231,5 +266,109 @@ describe('App — branch switch (Task 11)', () => {
       realtimeInstances[1].options.onSessionLifecycleChanged?.(lifecycleEvent(BRANCH_B));
     });
     await waitFor(() => expect(floorMapRequestCount).toBeGreaterThan(beforeStaleEvent));
+  });
+
+  // Review fix: useFloorMap/useShellData/usePlayersPreload used to resolve the branch with the
+  // frozen 2-arg resolveActiveBranchId(authSession, config.branchId), which always resolves to
+  // session.activeBranchId (here BRANCH_A) — the switcher's chosenBranchId never fed in. These
+  // three tests exercise the reactive activeBranchId prop end to end: real HTTP requests, real
+  // branchId values in the URL, no mocked-away branch resolution.
+
+  it('reloads the floor map for the newly active branch, not the branch frozen on the session', async () => {
+    installConfig();
+    // session.activeBranchId stays pinned to A for the whole test — exactly the value the old
+    // 2-arg resolveActiveBranchId kept returning after the switch.
+    sessionStorage.setItem('afk4.staff.session', JSON.stringify(createSession()));
+
+    const floorMapPaths: string[] = [];
+    fetchMock.mockImplementation((input) => {
+      const pathname = new URL(String(input)).pathname;
+      if (pathname.endsWith('/floor-map')) {
+        floorMapPaths.push(pathname);
+      }
+      return mockFetch(input);
+    });
+
+    render(<App />);
+
+    const switcher = await screen.findByRole('group', { name: 'Филиалы' });
+    await within(switcher).findByText('Север');
+    await waitFor(() => expect(floorMapPaths.some((path) => path.includes(BRANCH_A))).toBe(true));
+
+    fireEvent.click(within(switcher).getByText('Север'));
+
+    await waitFor(() => expect(floorMapPaths.some((path) => path.includes(BRANCH_B))).toBe(true));
+  });
+
+  it('scopes a seat action (session start) to the newly active branch after switch', async () => {
+    installConfig();
+    sessionStorage.setItem('afk4.staff.session', JSON.stringify(createSession({
+      permissions: ['floor_map.view', 'sessions.start']
+    })));
+
+    const startCalls: string[] = [];
+    fetchMock.mockImplementation((input, init) => {
+      const pathname = new URL(String(input)).pathname;
+      const branchMatch = pathname.match(/\/api\/branches\/([^/]+)\//);
+      const branchId = branchMatch?.[1] ?? BRANCH_A;
+
+      if (pathname.endsWith('/floor-map')) {
+        const seat = SEAT_BY_BRANCH[branchId];
+        return Promise.resolve(jsonResponse({
+          branchId,
+          branchName: BRANCH_NAMES[branchId] ?? branchId,
+          seats: seat ? [floorMapSeatDto(seat)] : []
+        }));
+      }
+      if (pathname.endsWith('/sessions/start') && init?.method === 'POST') {
+        startCalls.push(branchId);
+        return Promise.resolve(jsonResponse({}));
+      }
+      return mockFetch(input);
+    });
+
+    render(<App />);
+
+    const switcher = await screen.findByRole('group', { name: 'Филиалы' });
+    await within(switcher).findByText('Север');
+    fireEvent.click(within(switcher).getByText('Север'));
+
+    // The reloaded map now shows branch B's seat — proves the map itself moved before we even act.
+    const startTile = await screen.findByRole('button', { name: /PC-B1/ });
+    fireEvent.click(startTile);
+
+    const startDialog = await screen.findByRole('dialog', { name: 'Новая сессия' });
+    const confirmButton = await within(startDialog).findByRole('button', { name: /Старт · открытый счёт/ });
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => expect(startCalls.length).toBeGreaterThan(0));
+    expect(startCalls).toEqual([BRANCH_B]);
+  });
+
+  it('refetches shell shift data for the newly active branch after switch', async () => {
+    installConfig();
+    sessionStorage.setItem('afk4.staff.session', JSON.stringify(createSession({
+      permissions: ['floor_map.view', 'shifts.view']
+    })));
+
+    const shiftPaths: string[] = [];
+    fetchMock.mockImplementation((input) => {
+      const pathname = new URL(String(input)).pathname;
+      if (pathname.endsWith('/shifts/current')) {
+        shiftPaths.push(pathname);
+        return Promise.resolve(jsonResponse({ state: 'open', openedAtUtc: '2026-05-21T08:00:00Z' }));
+      }
+      return mockFetch(input);
+    });
+
+    render(<App />);
+
+    const switcher = await screen.findByRole('group', { name: 'Филиалы' });
+    await within(switcher).findByText('Север');
+    await waitFor(() => expect(shiftPaths.some((path) => path.includes(BRANCH_A))).toBe(true));
+
+    fireEvent.click(within(switcher).getByText('Север'));
+
+    await waitFor(() => expect(shiftPaths.some((path) => path.includes(BRANCH_B))).toBe(true));
   });
 });

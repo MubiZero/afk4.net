@@ -30,7 +30,6 @@ import { permissionNames, hasPermission } from './operatorPermissions';
 import {
   defaultSessionDurationMinutes,
   isPendingSeatCommand,
-  resolveActiveBranchId,
   createAuthenticatedOperatorClients,
   isUnauthorizedPlatformError,
   clearStoredOperatorSession,
@@ -50,6 +49,11 @@ export interface UseFloorMapOptions {
   t: Translate;
   authStatus: AuthStatus;
   authSession: OperatorAuthSession | null;
+  // Активный филиал (реактивный выбор из свитчера — Task 11), а не выведенный внутри хука через
+  // замороженный 2-арг resolveActiveBranchId; свитчер должен переносить сюда И загрузку карты,
+  // И billing-действия (start/extend/transfer/checkout/end), иначе оператор видит новый филиал,
+  // но оперирует старым.
+  activeBranchId: string | null;
   backendContext: OperatorBackendContext | null;
   setAuthSession: Dispatch<SetStateAction<OperatorAuthSession | null>>;
   setAuthStatus: Dispatch<SetStateAction<AuthStatus>>;
@@ -76,6 +80,7 @@ export function useFloorMap({
   t,
   authStatus,
   authSession,
+  activeBranchId,
   backendContext,
   setAuthSession,
   setAuthStatus,
@@ -109,7 +114,7 @@ export function useFloorMap({
       return undefined;
     }
 
-    const branchId = resolveActiveBranchId(authSession, config.branchId);
+    const branchId = activeBranchId;
     if (!branchId) {
       setFloorMap((current) => ({
         ...current,
@@ -142,7 +147,9 @@ export function useFloorMap({
         if (isUnauthorizedPlatformError(error)) {
           try {
             const nextSession = await refreshOperatorSession();
-            const nextBranchId = resolveActiveBranchId(nextSession, config.branchId);
+            // A token refresh doesn't move the operator's chosen branch — reuse the reactive
+            // activeBranchId prop rather than re-deriving it from the refreshed session.
+            const nextBranchId = activeBranchId;
             if (!nextBranchId) {
               throw new Error(t('op.dashboard.noBranch'));
             }
@@ -198,7 +205,7 @@ export function useFloorMap({
       disposed = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus, authSession, config.branchId, config.platformBaseUrl]);
+  }, [authStatus, authSession, activeBranchId, config.platformBaseUrl]);
 
   const handleSeatAction = async (request: SeatActionRequest): Promise<SeatActionResult> => {
     const session = authSession;
@@ -206,7 +213,7 @@ export function useFloorMap({
       throw new Error(t('op.shell.err.notSignedIn'));
     }
 
-    const branchId = resolveActiveBranchId(session, config.branchId);
+    const branchId = activeBranchId;
     if (!branchId) {
       throw new Error(t('op.dashboard.noBranch'));
     }

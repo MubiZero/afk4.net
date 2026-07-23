@@ -8,7 +8,6 @@ import { permissionNames, hasPermission } from './operatorPermissions';
 import {
   shellOperationalRefreshMs,
   toDateInputValue,
-  resolveActiveBranchId,
   createAuthenticatedOperatorClients,
   dashboardRangeQuery
 } from './operatorHelpers';
@@ -31,7 +30,10 @@ export function useShellData(
   t: Translate,
   // Bumped by the realtime hook on a session-lifecycle push or a reconnect; a change re-runs the
   // effect, which reconciles the KPIs immediately and resets the safety-net poll.
-  reconcileSignal: number = 0
+  reconcileSignal: number = 0,
+  // Активный филиал (реактивный выбор из свитчера — Task 11). Заменяет замороженный 2-арг
+  // resolveActiveBranchId(authSession, config.branchId), который игнорировал переключение.
+  activeBranchId: string | null = null
 ): ShellData {
   const [shellCurrentShift, setShellCurrentShift] = useState<ShiftDto | null>(null);
   const [shellDashboardSummary, setShellDashboardSummary] = useState<OperatorDashboardSummaryDto | null>(null);
@@ -47,7 +49,7 @@ export function useShellData(
       return undefined;
     }
 
-    const branchId = resolveActiveBranchId(authSession, config.branchId);
+    const branchId = activeBranchId;
     if (!branchId) {
       setShellCurrentShift(null);
       setShellDashboardSummary(null);
@@ -117,7 +119,7 @@ export function useShellData(
       window.clearInterval(intervalId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus, authSession, config.branchId, config.platformBaseUrl, reconcileSignal]);
+  }, [authStatus, authSession, activeBranchId, config.platformBaseUrl, reconcileSignal]);
 
   return { shellCurrentShift, shellDashboardSummary, shellLoadStatus, shellLoadError };
 }
