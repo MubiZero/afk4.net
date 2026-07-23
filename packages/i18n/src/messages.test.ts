@@ -58,6 +58,8 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.eskhata.companyId',
     'op.eskhata.merchantId',
     'op.eskhata.hashKey',
+    // DushanbeCity — бренд-имя платёжного метода; одинаково во всех локалях (subhead/topup.open переведены).
+    'op.dc.title',
     'nav.billing',
     'nav.group.account',
     'nav.group.branch',
