@@ -153,14 +153,24 @@ public sealed class OpaqueStaffTokenService(
             .Order(StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
+        var byBranch = roles
+            .GroupBy(role => role.BranchId)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlySet<string>)PermissionCatalog
+                    .GetPermissions(g.Select(r => r.RoleName).Distinct(StringComparer.OrdinalIgnoreCase))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase));
+
         return new StaffContext(
             StaffUserId: user.StaffUserId,
             OrganizationId: user.OrganizationId,
             DisplayName: user.DisplayName,
-            BranchIds: roles.Select(role => role.BranchId).ToHashSet(),
-            Permissions: PermissionCatalog.GetPermissions(roleNames))
+            BranchIds: byBranch.Keys.ToHashSet(),
+            Permissions: PermissionCatalog.GetPermissions(roleNames)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase))
         {
-            RoleNames = roleNames
+            RoleNames = roleNames,
+            PermissionsByBranch = byBranch
         };
     }
 
