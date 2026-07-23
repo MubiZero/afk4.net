@@ -78,8 +78,10 @@ export function SignInScreen({
 
     // Устройство должно быть привязано к клубу (сопряжение), прежде чем пробовать вход —
     // независимо от того, к каким клубам относится сам логин сотрудника (см. choose-club ниже).
+    // Это касается только WPF/kiosk-хоста: в браузере (owner открыл URL) config никогда не несёт
+    // organizationId по дизайну — сервер резолвит клуб по логину (см. ChooseClubError ниже).
     const organizationId = config.organizationId?.trim() ?? '';
-    if (!isGuid(organizationId)) {
+    if (config.runtime !== 'browser' && !isGuid(organizationId)) {
       setError(t('op.auth.connectionMissing'));
       return;
     }

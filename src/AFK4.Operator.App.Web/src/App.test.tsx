@@ -515,6 +515,24 @@ describe('App', () => {
     expect(screen.queryByRole('heading', { name: 'Вход оператора' })).not.toBeInTheDocument();
   });
 
+  // CRIT-1: an owner opening the production browser build (no WebView2 host, nothing injected,
+  // empty localStorage) must land on the sign-in form, not a kiosk-pairing screen — the browser
+  // runtime never carries org/branch in config by design (server resolves the club by login), so
+  // the connection-resolution gate must not apply to it at all.
+  it('goes straight to sign-in in the browser runtime, skipping connection resolution entirely', async () => {
+    window.__AFK4_OPERATOR_CONFIG__ = {
+      runtime: 'browser',
+      shellMode: 'web',
+      platformBaseUrl: 'http://localhost:5074/',
+      currencyCode: 'TJS'
+    };
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Подключение клуба' })).not.toBeInTheDocument();
+  });
+
   it('skips the connection resolution screen when the native bridge returns a stored connection', async () => {
     installSessionBridge(null, null, { loadConnection: buildStoredConnection() });
 

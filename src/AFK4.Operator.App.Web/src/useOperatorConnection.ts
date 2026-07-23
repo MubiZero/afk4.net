@@ -53,7 +53,13 @@ export function useOperatorConnection(baseConfig: OperatorConfig): OperatorConne
     () => new ConnectionResolver({ baseUrl: baseConfig.platformBaseUrl }),
     [baseConfig.platformBaseUrl]
   );
-  const needsConnectionResolution = !config.organizationId || !config.branchId;
+  // Plain-browser production builds never carry org/branch in config by design (see
+  // browserConfigFromEnv in operatorConfig.ts) — the two-step sign-in flow (login → server picks
+  // the club, 409 ChooseClubError → pick club) resolves the org itself. Connection-resolution
+  // (device-to-branch pairing) is a WPF/kiosk concern only, so the browser runtime skips this gate
+  // entirely rather than getting stuck on a pairing screen it has no use for.
+  const needsConnectionResolution =
+    config.runtime !== 'browser' && (!config.organizationId || !config.branchId);
 
   useEffect(() => {
     let disposed = false;
