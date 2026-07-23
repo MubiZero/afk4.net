@@ -32,3 +32,11 @@ test('isAccessTokenExpired compares against expiry', () => {
   expect(isAccessTokenExpired(soon, Date.parse('2001-01-01T00:00:00Z'))).toBe(true);
   expect(isAccessTokenExpired(sample, Date.parse('2001-01-01T00:00:00Z'))).toBe(false);
 });
+
+test('isAccessTokenExpired returns true for malformed/empty expiry (fail-safe)', () => {
+  const malformed = { ...sample, accessTokenExpiresAtUtc: '' };
+  expect(isAccessTokenExpired(malformed, Date.now())).toBe(true);
+
+  const broken = { ...sample, accessTokenExpiresAtUtc: 'not-a-date' };
+  expect(isAccessTokenExpired(broken, Date.now())).toBe(true);
+});

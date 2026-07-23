@@ -39,5 +39,7 @@ export function sessionFromSignInResponse(r: StaffSignInResponse): OperatorAuthS
 }
 
 export function isAccessTokenExpired(session: OperatorAuthSession, nowMs: number): boolean {
-  return Date.parse(session.accessTokenExpiresAtUtc) <= nowMs;
+  const expiresAt = Date.parse(session.accessTokenExpiresAtUtc);
+  if (Number.isNaN(expiresAt)) return true; // битый/пустой expiry — считаем истёкшим (fail-safe)
+  return expiresAt <= nowMs;
 }
