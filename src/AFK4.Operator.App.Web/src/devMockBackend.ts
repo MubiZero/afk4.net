@@ -18,6 +18,7 @@ export function createMockSession(): Record<string, unknown> {
     displayName: 'Оператор смены',
     accessToken: 'preview-access-token',
     accessTokenExpiresAtUtc: FAR_FUTURE,
+    refreshToken: 'preview-refresh-token',
     refreshTokenExpiresAtUtc: FAR_FUTURE,
     branchIds: [BRANCH],
     activeBranchId: BRANCH,

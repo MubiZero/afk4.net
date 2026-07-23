@@ -15,6 +15,7 @@ function renderRail(permissions: string[]) {
     displayName: 'Тестовый сотрудник',
     accessToken: 'token',
     accessTokenExpiresAtUtc: '2026-07-15T10:00:00Z',
+    refreshToken: 'refresh-token',
     refreshTokenExpiresAtUtc: '2026-07-16T10:00:00Z',
     branchIds: ['branch-1'],
     activeBranchId: 'branch-1',

@@ -6,6 +6,7 @@ export interface OperatorAuthSession {
   displayName: string;
   accessToken: string;
   accessTokenExpiresAtUtc: string;
+  refreshToken: string;
   refreshTokenExpiresAtUtc: string;
   branchIds: string[];
   activeBranchId?: string;

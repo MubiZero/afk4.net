@@ -178,6 +178,7 @@ export function toDevSession(response: unknown): Record<string, unknown> {
     displayName: r.displayName,
     accessToken: r.accessToken,
     accessTokenExpiresAtUtc: r.accessTokenExpiresAtUtc,
+    refreshToken: r.refreshToken,
     refreshTokenExpiresAtUtc: r.refreshTokenExpiresAtUtc,
     branchIds,
     activeBranchId: branchIds[0] ?? undefined,
