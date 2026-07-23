@@ -907,6 +907,8 @@
   "op.auth.usePhone": "Sign in with phone",
   "op.auth.hint.phone": "Enter the full phone number.",
   "op.auth.hint.email": "Check the email address.",
+  "op.branch.switcher.groupLabel": "Branches",
+  "op.branch.unnamed": "Branch",
   "op.cash.title": "Cashier",
   "op.cash.header.open": "Shift open",
   "op.cash.header.closed": "No open shift",

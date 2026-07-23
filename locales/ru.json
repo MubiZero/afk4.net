@@ -907,6 +907,8 @@
   "op.auth.usePhone": "Вход по телефону",
   "op.auth.hint.phone": "Введите номер телефона полностью.",
   "op.auth.hint.email": "Проверьте адрес электронной почты.",
+  "op.branch.switcher.groupLabel": "Филиалы",
+  "op.branch.unnamed": "Филиал",
   "op.cash.title": "Касса",
   "op.cash.header.open": "Смена открыта",
   "op.cash.header.closed": "Смена не открыта",

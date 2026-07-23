@@ -907,6 +907,8 @@
   "op.auth.usePhone": "Ворид бо телефон",
   "op.auth.hint.phone": "Рақами телефонро пурра ворид кунед.",
   "op.auth.hint.email": "Суроғаи почтаи электрониро санҷед.",
+  "op.branch.switcher.groupLabel": "Шӯъбаҳо",
+  "op.branch.unnamed": "Шӯъба",
   "op.cash.title": "Касса",
   "op.cash.header.open": "Навбат кушода",
   "op.cash.header.closed": "Навбати кушода нест",
