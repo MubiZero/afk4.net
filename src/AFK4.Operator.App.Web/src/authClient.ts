@@ -1,4 +1,14 @@
-import { postHostRequest } from './hostBridge';
+import { getOperatorConfig } from './operatorConfig';
+import { StaffAuthApi, ChooseClubError, type ClubChoice } from './auth/staffAuthApi';
+import {
+  readStoredSession,
+  writeStoredSession,
+  clearStoredSession,
+  sessionFromSignInResponse
+} from './auth/staffSessionStore';
+
+export { ChooseClubError };
+export type { ClubChoice };
 
 export interface OperatorAuthSession {
   staffUserId: string;
@@ -14,41 +24,55 @@ export interface OperatorAuthSession {
   roleNames?: string[];
 }
 
-export interface OperatorSignInRequest {
-  organizationId: string;
-  userName: string;
-  password: string;
+function api(): StaffAuthApi {
+  return new StaffAuthApi(getOperatorConfig().platformBaseUrl);
 }
 
 export function loadOperatorSession(): Promise<OperatorAuthSession | null> {
-  return postHostRequest<OperatorAuthSession | null | undefined>('auth:loadToken')
-    .then((session) => session ?? null);
+  return Promise.resolve(readStoredSession());
 }
 
-export function signInOperator(request: OperatorSignInRequest): Promise<OperatorAuthSession> {
-  return postHostRequest<OperatorAuthSession>('auth:signIn', request);
+export async function signInByLoginOperator(login: string, password: string): Promise<OperatorAuthSession> {
+  const session = sessionFromSignInResponse(await api().signInByLogin(login, password));
+  writeStoredSession(session);
+  return session;
 }
 
-export function refreshOperatorSession(): Promise<OperatorAuthSession> {
-  return postHostRequest<OperatorAuthSession>('auth:refresh');
+export async function signInToClubOperator(organizationId: string, login: string, password: string): Promise<OperatorAuthSession> {
+  const session = sessionFromSignInResponse(await api().signInToClub(organizationId, login, password));
+  writeStoredSession(session);
+  return session;
+}
+
+export async function refreshOperatorSession(): Promise<OperatorAuthSession> {
+  const current = readStoredSession();
+  if (!current) {
+    throw new Error('No session to refresh.');
+  }
+
+  const session = sessionFromSignInResponse(await api().refresh(current.organizationId, current.refreshToken));
+  writeStoredSession(session);
+  return session;
 }
 
 export function signOutOperator(): Promise<{ signedOut: boolean }> {
-  return postHostRequest<{ signedOut: boolean }>('auth:signOut');
+  // Серверного sign-out (токен revoke) пока нет — очищаем только локально сохранённую сессию.
+  clearStoredSession();
+  return Promise.resolve({ signedOut: true });
 }
 
 export function forgotPasswordByEmail(userNameOrEmail: string): Promise<void> {
-  return postHostRequest<void>('auth:forgotByEmail', { userNameOrEmail });
+  return api().forgotByEmail(userNameOrEmail);
 }
 
 export function resetPasswordByEmail(userNameOrEmail: string, code: string, newPassword: string): Promise<void> {
-  return postHostRequest<void>('auth:resetByEmail', { userNameOrEmail, code, newPassword });
+  return api().resetByEmail(userNameOrEmail, code, newPassword);
 }
 
 export function forgotPasswordByPhone(phoneNumber: string): Promise<void> {
-  return postHostRequest<void>('auth:forgotByPhone', { phoneNumber });
+  return api().forgotByPhone(phoneNumber);
 }
 
 export function resetPasswordByPhone(phoneNumber: string, code: string, newPassword: string): Promise<void> {
-  return postHostRequest<void>('auth:resetByPhone', { phoneNumber, code, newPassword });
+  return api().resetByPhone(phoneNumber, code, newPassword);
 }

@@ -427,6 +427,54 @@
   outline-offset: 2px;
 }
 
+/* Выбор клуба: логин совпал сразу в нескольких клубах (StaffAuth 409) — список кнопок вместо
+   формы, каждая ведёт прямым sign-in-to-club с уже введёнными логином/паролем. */
+.auth-club-list {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-club-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 44px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 0 14px;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.auth-club-option:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+  background: var(--surface-hover);
+}
+
+.auth-club-option:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 2px;
+}
+
+.auth-club-option:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.auth-club-option:disabled {
+  cursor: wait;
+  color: var(--text-quaternary);
+  opacity: 0.7;
+}
+
+.auth-club-option svg {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+}
+
 .auth-confirm {
   display: grid;
   gap: 14px;

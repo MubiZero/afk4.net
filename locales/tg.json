@@ -2596,7 +2596,6 @@
   "op.shell.err.commandUnsupported": "Ин фармон шартномаи алоҳидаи агент ва серверро талаб мекунад ва ҳоло фаъол нест.",
   "op.shell.err.noPermNav": "Иҷозат барои бахши \"{label}\" барои оператори ҷорӣ нест.",
   "op.shell.err.navRefreshFailed": "Навсозии иҷозатҳо барои \"{label}\" ҳосил нашуд: {detail}",
-  "op.shell.err.nativeAuthUnavailable": "Вуруди бумии барномаи оператор дастрас нест. Барномаро аз нав оғоз кунед ё WebView2-ро санҷед.",
   "op.shell.techMode": "{name}: алоқа ҳаст, Агент {agentVersion}, оболочка {shellVersion}; фармонҳо дар кор: {pending}, хатоҳо: {failed}",
   "op.status.operator": "Корманд",
   "op.status.role": "Нақш",

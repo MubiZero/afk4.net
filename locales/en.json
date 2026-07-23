@@ -2596,7 +2596,6 @@
   "op.shell.err.commandUnsupported": "This command requires a separate agent and server contract and is not yet enabled.",
   "op.shell.err.noPermNav": "No permission for the \"{label}\" section for the current operator.",
   "op.shell.err.navRefreshFailed": "Failed to refresh permissions for \"{label}\": {detail}",
-  "op.shell.err.nativeAuthUnavailable": "Native sign-in for the operator app is unavailable. Restart the app or check WebView2.",
   "op.shell.techMode": "{name}: connection OK, Agent {agentVersion}, shell {shellVersion}; commands in progress: {pending}, errors: {failed}",
   "op.status.operator": "Operator",
   "op.status.role": "Role",

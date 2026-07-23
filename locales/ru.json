@@ -2794,7 +2794,6 @@
   "op.shell.err.commandUnsupported": "Эта команда требует отдельного контракта агента и сервера и пока не включена.",
   "op.shell.err.noPermNav": "Нет прав на раздел \"{label}\" для текущего оператора.",
   "op.shell.err.navRefreshFailed": "Не удалось обновить права для \"{label}\": {detail}",
-  "op.shell.err.nativeAuthUnavailable": "Нативный вход приложения оператора недоступен. Перезапустите приложение или проверьте WebView2.",
   "op.shell.techMode": "{name}: связь есть, Агент {agentVersion}, оболочка {shellVersion}; команд в работе: {pending}, ошибок: {failed}",
   "op.status.operator": "Оператор",
   "op.status.role": "Роль",

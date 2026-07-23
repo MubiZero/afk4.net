@@ -1,16 +1,17 @@
 import { AlertTriangle, ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { type OperatorSignInRequest } from './authClient';
+import type { ClubChoice } from './authClient';
 import { getOperatorConfig } from './operatorConfig';
 import type { AuthStatus } from './operatorTypes';
-import { projectAuthHostError, isGuid } from './operatorHelpers';
+import { projectAuthSignInError, isGuid } from './operatorHelpers';
 import { AuthFrame } from './AuthFrame';
 import { localPhoneDigits, formatLocal, fullPhoneDigits } from './phoneFormat';
 
 // 'phone' — основной вход по номеру (телефон-first). 'credentials' — запасной по логину/email,
 // открывается ссылкой «Вход по логину или почте». Поле одно, режим меняет маску и то, что
-// уходит на бэк как userName (Operator привязан к одному клубу — org-scoped, без выбора клуба).
+// уходит на бэк как userName. Логин сотрудника может совпасть в нескольких клубах — тогда бэк
+// отвечает 409 (ChooseClubError) и форма уступает место списку клубов (см. `chooseClub` ниже).
 type Mode = 'phone' | 'credentials';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -19,13 +20,19 @@ export function SignInScreen({
   config,
   authStatus,
   hostError,
+  chooseClub,
   onSignIn,
+  onChooseClub,
+  onCancelChooseClub,
   onForgotPassword
 }: {
   config: ReturnType<typeof getOperatorConfig>;
   authStatus: AuthStatus;
   hostError: string | null;
-  onSignIn: (request: OperatorSignInRequest) => Promise<void>;
+  chooseClub: { clubs: ClubChoice[] } | null;
+  onSignIn: (userName: string, password: string) => Promise<void>;
+  onChooseClub: (organizationId: string) => Promise<void>;
+  onCancelChooseClub: () => void;
   onForgotPassword: () => void;
 }) {
   const { t } = useI18n();
@@ -69,6 +76,8 @@ export function SignInScreen({
     setTouched(true);
     setError(null);
 
+    // Устройство должно быть привязано к клубу (сопряжение), прежде чем пробовать вход —
+    // независимо от того, к каким клубам относится сам логин сотрудника (см. choose-club ниже).
     const organizationId = config.organizationId?.trim() ?? '';
     if (!isGuid(organizationId)) {
       setError(t('op.auth.connectionMissing'));
@@ -99,14 +108,77 @@ export function SignInScreen({
 
     setIsBusy(true);
     try {
-      await onSignIn({ organizationId, userName, password });
+      await onSignIn(userName, password);
       setPassword('');
     } catch (nextError) {
-      setError(projectAuthHostError(nextError, config, t));
+      setError(projectAuthSignInError(nextError, t));
     } finally {
       setIsBusy(false);
     }
   };
+
+  const [isChoosingClub, setIsChoosingClub] = useState(false);
+  const [chooseClubError, setChooseClubError] = useState<string | null>(null);
+
+  const submitChooseClub = async (organizationId: string) => {
+    setChooseClubError(null);
+    setIsChoosingClub(true);
+    try {
+      await onChooseClub(organizationId);
+    } catch (nextError) {
+      setChooseClubError(projectAuthSignInError(nextError, t));
+    } finally {
+      setIsChoosingClub(false);
+    }
+  };
+
+  if (chooseClub !== null) {
+    return (
+      <AuthFrame>
+        <section className="auth-panel">
+          <header className="auth-panel-head">
+            <img className="auth-brand-mark" src="/favicon.svg" alt="" aria-hidden />
+            <h1>{t('auth.chooseClub.title')}</h1>
+            <p>{t('auth.chooseClub.subtitle')}</p>
+          </header>
+
+          <div className="auth-club-list">
+            {chooseClub.clubs.map((club) => (
+              <button
+                key={club.organizationId}
+                type="button"
+                className="auth-club-option"
+                disabled={isChoosingClub}
+                onClick={() => void submitChooseClub(club.organizationId)}
+              >
+                <span>{club.name}</span>
+                <ArrowRight size={18} aria-hidden />
+              </button>
+            ))}
+          </div>
+
+          {chooseClubError && (
+            <div className="auth-error" role="alert">
+              <AlertTriangle size={16} aria-hidden />
+              <span>{chooseClubError}</span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="auth-link-inline"
+            disabled={isChoosingClub}
+            onClick={() => {
+              setChooseClubError(null);
+              onCancelChooseClub();
+            }}
+          >
+            {t('auth.chooseClub.back')}
+          </button>
+        </section>
+      </AuthFrame>
+    );
+  }
 
   return (
     <AuthFrame>

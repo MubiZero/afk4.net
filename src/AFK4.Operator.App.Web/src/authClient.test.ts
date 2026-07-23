@@ -1,123 +1,152 @@
-import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, mock, type Mock } from 'bun:test';
 import {
+  ChooseClubError,
   forgotPasswordByEmail,
   loadOperatorSession,
+  refreshOperatorSession,
   resetPasswordByPhone,
-  signInOperator,
-  signOutOperator,
+  signInByLoginOperator,
+  signInToClubOperator,
+  signOutOperator
 } from './authClient';
-import type { HostBridgeMessageEvent } from './hostBridge';
 
-describe('operator auth client', () => {
-  afterEach(() => {
-    delete window.chrome;
-    localStorage.clear();
-    sessionStorage.clear();
-    mock.restore();
+// authClient.ts инстанцирует StaffAuthApi внутри (см. `function api()`) — снаружи нет способа
+// впрыснуть свой fetchImpl, кроме подмены глобального fetch. Это тот же трюк, что использует
+// App.test.tsx для платформенного API, и он не трогает модульный реестр (в отличие от
+// mock.module), поэтому не течёт в соседние тестовые файлы (см. [[frontends-on-bun-test]]).
+type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
+const originalFetch = globalThis.fetch;
+let fetchMock: Mock<FetchLike>;
+
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
+const sampleResponse = {
+  staffUserId: 's', organizationId: 'o', displayName: 'D',
+  accessToken: 'a', accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z',
+  refreshToken: 'r', refreshTokenExpiresAtUtc: '2999-01-01T00:00:00Z',
+  branchIds: ['b1'], permissions: ['floor-map:view'], roleNames: []
+};
+
+beforeEach(() => {
+  sessionStorage.clear();
+  fetchMock = mock(async () => jsonResponse(200, sampleResponse)) as unknown as Mock<FetchLike>;
+  globalThis.fetch = fetchMock as unknown as typeof fetch;
+});
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+  sessionStorage.clear();
+});
+
+describe('signInByLoginOperator', () => {
+  it('stores the session on success', async () => {
+    const session = await signInByLoginOperator('u', 'p');
+
+    expect(session.organizationId).toBe('o');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/api/auth/staff/sign-in-by-login');
+    expect(sessionStorage.getItem('afk4.staff.session')).toContain('"accessToken":"a"');
   });
 
-  it('signs in through the native bridge without browser token persistence', async () => {
-    const postMessage = installAuthBridge((message) => {
-      expect(message).toMatchObject({
-        type: 'auth:signIn',
-        payload: {
-          organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-          userName: 'cashier',
-          password: 'password'
-        }
-      });
+  it('throws ChooseClubError on a club collision (409) without storing a session', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(409, {
+      clubs: [{ organizationId: 'o1', name: 'Club 1' }, { organizationId: 'o2', name: 'Club 2' }]
+    }));
 
-      return {
-        staffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
-        organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-        displayName: 'Cashier One',
-        accessToken: 'access-token',
-        accessTokenExpiresAtUtc: '2026-05-14T10:00:00Z',
-        refreshTokenExpiresAtUtc: '2026-05-15T10:00:00Z',
-        branchIds: ['acfc0212-967f-4d84-94be-9003387b09c2'],
-        activeBranchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
-        permissions: ['floor-map:view']
-      };
-    });
+    const error = await signInByLoginOperator('u', 'p').catch((cause) => cause);
 
-    const session = await signInOperator({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      userName: 'cashier',
-      password: 'password'
-    });
-
-    expect(session.displayName).toBe('Cashier One');
-    expect(postMessage).toHaveBeenCalledTimes(1);
-    expect(localStorage.length).toBe(0);
-    expect(sessionStorage.length).toBe(0);
+    expect(error).toBeInstanceOf(ChooseClubError);
+    expect((error as ChooseClubError).clubs).toHaveLength(2);
+    expect(sessionStorage.getItem('afk4.staff.session')).toBeNull();
   });
 
-  it('loads and clears the native token session through host methods', async () => {
-    const postMessage = installAuthBridge((message) => {
-      if (message.type === 'auth:loadToken') {
-        return null;
-      }
+  it('throws on invalid credentials (401) without storing a session', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(401, {}));
 
-      if (message.type === 'auth:signOut') {
-        return { signedOut: true };
-      }
-
-      throw new Error(`Unexpected bridge call ${message.type}`);
-    });
-
-    await expect(loadOperatorSession()).resolves.toBeNull();
-    await expect(signOutOperator()).resolves.toEqual({ signedOut: true });
-    expect(postMessage).toHaveBeenCalledTimes(2);
-  });
-
-  it('requests an email reset through the bridge', async () => {
-    const postMessage = installAuthBridge((message) => {
-      expect(message).toMatchObject({ type: 'auth:forgotByEmail', payload: { userNameOrEmail: 'owner@demo.test' } });
-      return { ok: true };
-    });
-    await forgotPasswordByEmail('owner@demo.test');
-    expect(postMessage).toHaveBeenCalledTimes(1);
-  });
-
-  it('completes a phone reset through the bridge', async () => {
-    const postMessage = installAuthBridge((message) => {
-      expect(message).toMatchObject({
-        type: 'auth:resetByPhone',
-        payload: { phoneNumber: '+992937380070', code: '123456', newPassword: 'Passw0rd!New' }
-      });
-      return { ok: true };
-    });
-    await resetPasswordByPhone('+992937380070', '123456', 'Passw0rd!New');
-    expect(postMessage).toHaveBeenCalledTimes(1);
+    await expect(signInByLoginOperator('u', 'p')).rejects.toThrow();
+    expect(sessionStorage.getItem('afk4.staff.session')).toBeNull();
   });
 });
 
-function installAuthBridge(respond: (message: { type: string; requestId: string; payload?: unknown }) => unknown) {
-  const listeners = new Set<(event: HostBridgeMessageEvent) => void>();
-  const postMessage = mock((message: unknown) => {
-    const request = message as { type: string; requestId: string; payload?: unknown };
-    const payload = respond(request);
-    queueMicrotask(() => {
-      for (const listener of listeners) {
-        listener({
-          data: {
-            type: 'host:response',
-            requestId: request.requestId,
-            ok: true,
-            payload
-          }
-        });
-      }
+describe('signInToClubOperator', () => {
+  it('posts the chosen club and stores the returned session', async () => {
+    await signInToClubOperator('o', 'u', 'p');
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/api/auth/staff/sign-in');
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      organizationId: 'o', userName: 'u', password: 'p'
     });
+    expect(sessionStorage.getItem('afk4.staff.session')).toContain('"organizationId":"o"');
+  });
+});
+
+describe('loadOperatorSession', () => {
+  it('resolves null when nothing is stored', async () => {
+    await expect(loadOperatorSession()).resolves.toBeNull();
   });
 
-  window.chrome = {
-    webview: {
-      postMessage,
-      addEventListener: (_type, listener) => listeners.add(listener),
-      removeEventListener: (_type, listener) => listeners.delete(listener)
-    }
-  };
+  it('resolves the stored session without a network call', async () => {
+    await signInByLoginOperator('u', 'p');
+    fetchMock.mockClear();
 
-  return postMessage;
-}
+    const session = await loadOperatorSession();
+
+    expect(session?.organizationId).toBe('o');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('refreshOperatorSession', () => {
+  it('throws when there is no session to refresh', async () => {
+    await expect(refreshOperatorSession()).rejects.toThrow('No session to refresh.');
+  });
+
+  it('posts the stored organizationId + refreshToken and rewrites the session', async () => {
+    await signInByLoginOperator('u', 'p');
+    fetchMock.mockClear();
+    fetchMock.mockImplementation(async () => jsonResponse(200, { ...sampleResponse, accessToken: 'a2' }));
+
+    const session = await refreshOperatorSession();
+
+    expect(session.accessToken).toBe('a2');
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      organizationId: 'o', refreshToken: 'r'
+    });
+    expect(sessionStorage.getItem('afk4.staff.session')).toContain('"accessToken":"a2"');
+  });
+});
+
+describe('signOutOperator', () => {
+  it('clears the stored session locally without a network call', async () => {
+    await signInByLoginOperator('u', 'p');
+    fetchMock.mockClear();
+
+    await expect(signOutOperator()).resolves.toEqual({ signedOut: true });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem('afk4.staff.session')).toBeNull();
+  });
+});
+
+describe('forgot/reset password', () => {
+  it('forgotPasswordByEmail posts to the email endpoint', async () => {
+    fetchMock.mockImplementation(async () => new Response(null, { status: 204 }));
+    await forgotPasswordByEmail('owner@demo.test');
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/api/auth/staff/forgot-password');
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({ userNameOrEmail: 'owner@demo.test' });
+  });
+
+  it('resetPasswordByPhone posts to the phone reset endpoint', async () => {
+    fetchMock.mockImplementation(async () => new Response(null, { status: 204 }));
+    await resetPasswordByPhone('+992937380070', '123456', 'Passw0rd!New');
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/api/auth/staff/reset-password-by-phone');
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      phoneNumber: '+992937380070', code: '123456', newPassword: 'Passw0rd!New'
+    });
+  });
+});

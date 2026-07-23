@@ -40,7 +40,7 @@ import {
   describeSeatActionResult,
   describeDispatchedDeviceCommand,
   describeTechModeResult,
-  projectAuthHostError
+  projectAuthSignInError
 } from './operatorHelpers';
 
 type Translate = ReturnType<typeof useI18n>['t'];
@@ -164,7 +164,7 @@ export function useFloorMap({
 
             setAuthSession(null);
             setAuthStatus('signed-out');
-            setAuthError(projectAuthHostError(refreshError, config, t));
+            setAuthError(projectAuthSignInError(refreshError, t));
             setFloorMap(createFixtureFloorMapState());
             setSelectedSeatId('');
             return;

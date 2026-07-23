@@ -5,7 +5,6 @@ import { getOperatorConfig } from './operatorConfig';
 import { projectOperatorError } from './apiErrors';
 import { createOperatorApiClients, type BranchDiagnosticsDto, type OperatorDashboardSummaryDto, type PlayerPackageDto, type PosSaleDto, type ShiftDto } from './operatorApiClients';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
-import { isHostBridgeUnavailableError } from './hostBridge';
 import { signOutOperator, type OperatorAuthSession } from './authClient';
 import { mapFloorMapDtoToState, seatStatusLabel, type FloorMapLoadStatus, type OperatorFloorMapState } from './floorMapState';
 import { saveFloorMapCache } from './floorMapCache';
@@ -18,7 +17,6 @@ import type {
   LoadStatus,
   MapFilterId,
   OperatorBackendContext,
-  OperatorConfig,
   SessionBillingModeId,
   SessionBillingSelection
 } from './operatorTypes';
@@ -673,12 +671,19 @@ export function describeTechModeResult(
   });
 }
 
-export function projectAuthHostError(error: unknown, config: OperatorConfig, t: TFunc): string {
-  if (isHostBridgeUnavailableError(error) && config.runtime !== 'browser-dev') {
-    return t('op.shell.err.nativeAuthUnavailable');
+// Аутентификация теперь идёт напрямую по HTTP (StaffAuthApi) — нативный мост здесь ни при чём,
+// поэтому ошибки сводим к человекочитаемому тексту без разбора bridge-специфичных случаев.
+// 401 от сервера = неверный логин/пароль; остальное — общая формулировка "не удалось войти".
+export function projectAuthSignInError(error: unknown, t: TFunc): string {
+  if (error instanceof PlatformApiError) {
+    return error.status === 401 ? t('auth.error.invalid') : t('auth.error.generic');
   }
 
-  return projectOperatorError(error, t).detail;
+  if (error instanceof Error && /\b401\b/.test(error.message)) {
+    return t('auth.error.invalid');
+  }
+
+  return t('auth.error.generic');
 }
 
 export function projectOperatorFacingError(error: unknown, t: TFunc): string {

@@ -62,9 +62,17 @@ type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Respo
 const originalFetch = globalThis.fetch;
 let fetchMock: Mock<FetchLike>;
 
+// Аутентификация теперь идёт по HTTP (StaffAuthApi), не через нативный мост — по умолчанию
+// mockPlatformFetch отвечает на refresh той же сессией, что лежит в sessionStorage (эхо, как
+// будто "ничего не поменялось"). installSessionBridge переключает это на конкретный ответ
+// (другой набор прав) или на 401 для тестов, которым нужен другой сценарий silent-refresh.
+type AuthRefreshOverride = { kind: 'session'; session: Record<string, unknown> } | { kind: 'reject' };
+let authRefreshOverride: AuthRefreshOverride | null = null;
+
 describe('App', () => {
   beforeEach(() => {
     realtimeMock.clients.length = 0;
+    authRefreshOverride = null;
     fetchMock = mock(mockPlatformFetch) as unknown as Mock<FetchLike>;
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     // Снимок клиентов — module-level кэш (переживает размонтирование раздела внутри сессии
@@ -239,7 +247,7 @@ describe('App', () => {
     expect(within(dialog).getAllByText(/\$/).length).toBeGreaterThan(0);
   });
 
-  it('signs in through the native bridge before showing operator workspaces', async () => {
+  it('signs in over HTTP before showing operator workspaces', async () => {
     window.__AFK4_OPERATOR_CONFIG__ = {
       runtime: 'browser-dev',
       shellMode: 'vite-dev',
@@ -260,13 +268,13 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    // The native bridge keeps the session in Windows protected storage — it must never leak auth/session
-    // state into browser storage. (The non-sensitive offline floor-map cache from §6.5 is allowed.)
+    // The session lives in sessionStorage (staffSessionStore) — cleared on tab close, never in
+    // localStorage. Auth is a direct HTTP call now (StaffAuthApi), no native bridge involved.
     const sessionishKeys = Object.keys(localStorage).filter((key) =>
       /token|session|auth|connection|credential/i.test(key)
     );
     expect(sessionishKeys).toEqual([]);
-    expect(sessionStorage.length).toBe(0);
+    expect(sessionStorage.getItem('afk4.staff.session')).toContain('"organizationId"');
   });
 
   it('requires an open shift after native session restore before loading operator workspaces', async () => {
@@ -367,6 +375,50 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
   });
 
+  it('asks to choose a club when the login matches staff in more than one, then signs in to the picked club', async () => {
+    window.__AFK4_OPERATOR_CONFIG__ = {
+      runtime: 'browser-dev',
+      shellMode: 'vite-dev',
+      platformBaseUrl: 'http://localhost:5074/',
+      currencyCode: 'TJS',
+      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
+      branchId: 'acfc0212-967f-4d84-94be-9003387b09c2'
+    };
+    installSessionBridge(null);
+    fetchMock.mockImplementation((input, init) => {
+      const pathname = new URL(String(input)).pathname;
+      if (pathname.endsWith('/api/auth/staff/sign-in-by-login') && init?.method === 'POST') {
+        return Promise.resolve(new Response(JSON.stringify({
+          clubs: [
+            { organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08', name: 'AFK4 Dushanbe' },
+            { organizationId: '11111111-1111-1111-1111-111111111111', name: 'AFK4 Khujand' }
+          ]
+        }), { status: 409, headers: { 'Content-Type': 'application/json' } }));
+      }
+      if (pathname.endsWith('/api/auth/staff/sign-in') && init?.method === 'POST') {
+        expect(JSON.parse(String(init.body))).toMatchObject({
+          organizationId: '11111111-1111-1111-1111-111111111111',
+          userName: 'cashier',
+          password: 'password'
+        });
+        return Promise.resolve(jsonResponse(createSession()));
+      }
+      return mockPlatformFetch(input, init);
+    });
+
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Вход по логину или почте' }));
+    fireEvent.change(screen.getByLabelText(/логин или email/i), { target: { value: 'cashier' } });
+    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
+
+    expect(await screen.findByRole('heading', { name: 'Выберите клуб' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /AFK4 Khujand/ }));
+
+    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
+  });
+
   it('opens the forgot-password screen from the sign-in link', async () => {
     window.__AFK4_OPERATOR_CONFIG__ = {
       runtime: 'browser-dev',
@@ -384,8 +436,8 @@ describe('App', () => {
     expect(await screen.findByRole('button', { name: 'По SMS' })).toBeInTheDocument();
   });
 
-  it('clears restored native session when token refresh is rejected', async () => {
-    const bridge = installSessionBridge(createSession(), createSession(), {
+  it('clears the restored session when the silent refresh is rejected', async () => {
+    installSessionBridge(createSession(), createSession(), {
       failedRequests: {
         'auth:refresh': 'Platform API returned 401 Unauthorized:'
       },
@@ -395,12 +447,12 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
-    await waitFor(() => expect(bridge.requests).toContain('auth:signOut'));
+    await waitFor(() => expect(sessionStorage.getItem('afk4.staff.session')).toBeNull());
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/floor-map'))).toBe(false);
   });
 
-  it('hides native bridge diagnostics in packaged WebView2 auth errors', async () => {
+  it('shows the sign-in screen without error when no session is stored (no native-bridge auth dependency)', async () => {
     seedStoredOperatorConnection();
     window.__AFK4_OPERATOR_CONFIG__ = {
       runtime: 'webview2',
@@ -411,9 +463,10 @@ describe('App', () => {
 
     render(<App />);
 
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('приложения оператора');
-    expect(alert).not.toHaveTextContent('Native host bridge is unavailable.');
+    // No window.chrome bridge installed at all — auth restore reads sessionStorage directly and
+    // finds nothing, so the sign-in screen renders cleanly with no "bridge unavailable" alert.
+    expect(await screen.findByRole('heading', { name: 'Вход оператора' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('shows the connection resolution screen when operator config has no organisation and no stored connection', async () => {
@@ -2972,6 +3025,23 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
   const url = new URL(String(input));
   const pathname = url.pathname;
 
+  if (pathname.endsWith('/api/auth/staff/refresh') && init?.method === 'POST') {
+    if (authRefreshOverride?.kind === 'reject') {
+      return new Response('Platform API returned 401 Unauthorized:', { status: 401 });
+    }
+    if (authRefreshOverride?.kind === 'session') {
+      return jsonResponse(authRefreshOverride.session);
+    }
+    // Без явного override — эхо: "как будто ничего не изменилось" (сессия, что уже в сторе).
+    const stored = sessionStorage.getItem('afk4.staff.session');
+    return jsonResponse(stored ? JSON.parse(stored) : createSession());
+  }
+
+  if ((pathname.endsWith('/api/auth/staff/sign-in-by-login') || pathname.endsWith('/api/auth/staff/sign-in'))
+    && init?.method === 'POST') {
+    return jsonResponse(createSession());
+  }
+
   if (pathname.endsWith('/floor-map')) {
     return jsonResponse(createFloorMap());
   }
@@ -3470,6 +3540,15 @@ function seedStoredOperatorConnection(overrides: Record<string, unknown> = {}) {
   );
 }
 
+// Аутентификация (загрузка/refresh/sign-in/sign-out) больше не идёт через нативный мост — она
+// теперь HTTP (см. mockPlatformFetch выше) и sessionStorage (staffSessionStore). Эта функция:
+// 1) сеет sessionStorage напрямую (как это делает writeStoredSession при реальном входе), чтобы
+//    восстановление сессии при монтировании App нашло её без обращения к window.chrome;
+// 2) настраивает authRefreshOverride — что должен ответить silent-refresh при восстановлении
+//    (та же сессия по умолчанию, другая — если передан отдельный refreshSession, отказ — если
+//    в failedRequests явно указан 'auth:refresh', как в старом bridge-контракте).
+// Мост (window.chrome.webview) остаётся только для оконных команд и подключения клуба/филиала —
+// то, что реально всё ещё нативное.
 function installSessionBridge(
   loadSession: ReturnType<typeof createSession> | null = createSession(),
   refreshSession: ReturnType<typeof createSession> | null = loadSession,
@@ -3478,6 +3557,18 @@ function installSessionBridge(
     loadConnection?: Record<string, unknown> | null;
   } = {}
 ) {
+  if (loadSession !== null) {
+    sessionStorage.setItem('afk4.staff.session', JSON.stringify(loadSession));
+  } else {
+    sessionStorage.removeItem('afk4.staff.session');
+  }
+
+  authRefreshOverride = options.failedRequests?.['auth:refresh'] !== undefined
+    ? { kind: 'reject' }
+    : refreshSession !== null
+      ? { kind: 'session', session: refreshSession }
+      : null;
+
   const listeners = new Set<(event: HostBridgeMessageEvent) => void>();
   const requests: string[] = [];
   const connectionSaves: Array<Record<string, unknown>> = [];
@@ -3487,24 +3578,7 @@ function installSessionBridge(
       postMessage: (message: unknown) => {
         const request = message as { type: string; requestId: string; payload?: unknown };
         requests.push(request.type);
-        let payload: unknown = loadSession;
-
-        if (request.type === 'auth:signIn') {
-          payload = createSession();
-        }
-
-        if (request.type === 'auth:refresh') {
-          payload = refreshSession;
-        }
-
-        if (request.type === 'auth:signOut') {
-          payload = { signedOut: true };
-        }
-
-        if (request.type === 'auth:forgotByEmail' || request.type === 'auth:resetByEmail'
-          || request.type === 'auth:forgotByPhone' || request.type === 'auth:resetByPhone') {
-          payload = { ok: true };
-        }
+        let payload: unknown = null;
 
         if (request.type === 'connection:loadConnection') {
           payload = connectionState;
@@ -3621,6 +3695,7 @@ function createSession(overrides: Record<string, unknown> = {}) {
     displayName: 'Cashier One',
     accessToken: 'access-token',
     accessTokenExpiresAtUtc: '2026-05-14T10:00:00Z',
+    refreshToken: 'refresh-token',
     refreshTokenExpiresAtUtc: '2026-05-15T10:00:00Z',
     branchIds: ['acfc0212-967f-4d84-94be-9003387b09c2'],
     activeBranchId: 'acfc0212-967f-4d84-94be-9003387b09c2',

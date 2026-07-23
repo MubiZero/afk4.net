@@ -79,7 +79,10 @@ function AppInner() {
     setAuthSession,
     setAuthStatus,
     setAuthError,
+    chooseClub,
     handleSignIn,
+    handleChooseClub,
+    cancelChooseClub,
     handleSignOut
   } = useOperatorAuth(config, {
     onSignedIn: () => setWorkspaceFeedback(null),
@@ -245,7 +248,10 @@ function AppInner() {
         config={config}
         authStatus={authStatus}
         hostError={authError}
+        chooseClub={chooseClub}
         onSignIn={handleSignIn}
+        onChooseClub={handleChooseClub}
+        onCancelChooseClub={cancelChooseClub}
         onForgotPassword={() => setAuthView('forgot')}
       />
     );
