@@ -30,7 +30,7 @@ public sealed class StaffAuthorizationService(
             return StaffAuthorizationResult.Denied(staffContext, "Staff user is not assigned to this branch.");
         }
 
-        if (!staffContext.Permissions.Contains(permission))
+        if (!staffContext.HasBranchPermission(branchId, permission))
         {
             return StaffAuthorizationResult.Denied(staffContext, "Staff user does not have the required permission.");
         }
