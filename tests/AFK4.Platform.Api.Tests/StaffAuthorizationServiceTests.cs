@@ -52,8 +52,8 @@ public class StaffAuthorizationServiceTests
         var onB = await client.PatchAsJsonAsync(
             $"/api/branches/{BranchBId}/profile", ProfileRequest(OrganizationId));
 
-        Assert.NotEqual(HttpStatusCode.Forbidden, onA.StatusCode); // менеджер на A — разрешено
-        Assert.Equal(HttpStatusCode.Forbidden, onB.StatusCode);    // кассир на B — НЕ протекает
+        Assert.Equal(HttpStatusCode.OK, onA.StatusCode);         // менеджер на A — разрешено
+        Assert.Equal(HttpStatusCode.Forbidden, onB.StatusCode);  // кассир на B — НЕ протекает
     }
 
     private static async Task<string> SeedTwoBranchStaffAndSignInAsync(PlatformApiFactory factory, HttpClient client)
