@@ -791,12 +791,15 @@ export function makeAccessTokenProvider(
 
   return async () => {
     if (deps.isExpired(current, Date.now())) {
-      inFlight ??= deps.refresh().then((refreshed) => {
-        current = refreshed;
-        inFlight = null;
-        return refreshed;
-      });
-      current = await inFlight;
+      inFlight ??= deps.refresh()
+        .then((refreshed) => {
+          current = refreshed;
+          return refreshed;
+        })
+        .finally(() => {
+          inFlight = null;
+        });
+      await inFlight;
     }
 
     return current.accessToken;
