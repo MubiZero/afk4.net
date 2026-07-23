@@ -747,7 +747,10 @@ export function realtimeLabel(state: OperatorRealtimeConnectionState, error: str
     : t('op.helper.realtime.disconnected');
 }
 
-export function resolveActiveBranchId(session: OperatorAuthSession, configBranchId?: string): string | null {
+export function resolveActiveBranchId(
+  session: OperatorAuthSession, configBranchId?: string, chosenBranchId?: string
+): string | null {
+  if (chosenBranchId && session.branchIds.includes(chosenBranchId)) return chosenBranchId;
   return session.activeBranchId ?? configBranchId ?? session.branchIds[0] ?? null;
 }
 
