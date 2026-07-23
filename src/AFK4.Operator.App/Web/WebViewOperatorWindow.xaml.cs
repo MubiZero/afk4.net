@@ -1,12 +1,10 @@
 using System.ComponentModel;
 using System.Text.Json;
-using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 using AFK4.Localization;
-using AFK4.Operator.App.Auth;
 using AFK4.Operator.App.Configuration;
 using AFK4.Operator.App.Connection;
 using Microsoft.Web.WebView2.Core;
@@ -529,17 +527,9 @@ public partial class WebViewOperatorWindow : Window
     {
         ArgumentNullException.ThrowIfNull(appOptions);
 
-        var tokenStore = new ProtectedDataOperatorTokenStore();
-        var connectionStore = new ProtectedDataOperatorConnectionStore();
-        var httpClient = new HttpClient
-        {
-            BaseAddress = appOptions.PlatformBaseUrl
-        };
-
-        return new OperatorWebHostBridge(
-            new HttpOperatorAuthApiClient(httpClient, tokenStore),
-            tokenStore,
-            connectionStore);
+        // Auth no longer runs through this bridge — the web UI signs itself in over plain HTTP
+        // (see OperatorWebHostBridge). Only device-identity (machine/seat pinning) stays native-side.
+        return new OperatorWebHostBridge(new ProtectedDataOperatorConnectionStore());
     }
 
     // DWM window-attribute ids (Windows 11 22000+): 33 = corner preference, 34 = border colour.

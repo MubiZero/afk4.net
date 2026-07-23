@@ -1,16 +1,13 @@
-using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using AFK4.Operator.App.Auth;
 using AFK4.Operator.App.Connection;
-using AFK4.Shared.Contracts.Identity;
 
 namespace AFK4.Operator.App.Web;
 
-public sealed class OperatorWebHostBridge(
-    IOperatorAuthApiClient authApiClient,
-    IOperatorTokenStore tokenStore,
-    IOperatorConnectionStore connectionStore)
+// The web UI now signs itself in over plain HTTP (staffAuthApi.ts + sessionStorage) — see
+// docs/superpowers/plans/2026-07-22-operator-unified-admin-foundation.md. This bridge is left with
+// only device-identity concerns (machine/seat pinning) that must stay native-side.
+public sealed class OperatorWebHostBridge(IOperatorConnectionStore connectionStore)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -32,28 +29,15 @@ public sealed class OperatorWebHostBridge(
         if (request is null ||
             string.IsNullOrWhiteSpace(request.Type) ||
             string.IsNullOrWhiteSpace(request.RequestId) ||
-            !(request.Type.StartsWith("auth:", StringComparison.Ordinal)
-              || request.Type.StartsWith("connection:", StringComparison.Ordinal)))
+            !request.Type.StartsWith("connection:", StringComparison.Ordinal))
         {
             return null;
         }
-
-        var errorCode = request.Type.StartsWith("connection:", StringComparison.Ordinal)
-            ? "connection_failed"
-            : "auth_failed";
 
         try
         {
             var payload = request.Type switch
             {
-                "auth:loadToken" => await LoadTokenAsync(cancellationToken),
-                "auth:signIn" => await SignInAsync(request.Payload, cancellationToken),
-                "auth:refresh" => await RefreshAsync(cancellationToken),
-                "auth:signOut" => await SignOutAsync(cancellationToken),
-                "auth:forgotByEmail" => await ForgotPasswordByEmailAsync(request.Payload, cancellationToken),
-                "auth:resetByEmail" => await ResetPasswordByEmailAsync(request.Payload, cancellationToken),
-                "auth:forgotByPhone" => await ForgotPasswordByPhoneAsync(request.Payload, cancellationToken),
-                "auth:resetByPhone" => await ResetPasswordByPhoneAsync(request.Payload, cancellationToken),
                 "connection:loadConnection" => await LoadConnectionAsync(cancellationToken),
                 "connection:saveConnection" => await SaveConnectionAsync(request.Payload, cancellationToken),
                 "connection:clearConnection" => await ClearConnectionAsync(cancellationToken),
@@ -62,130 +46,14 @@ public sealed class OperatorWebHostBridge(
 
             return CreateResponse(request.RequestId, ok: true, payload, error: null);
         }
-        catch (OperatorAuthApiException exception)
+        catch (Exception exception) when (exception is InvalidOperationException or JsonException)
         {
             return CreateResponse(
                 request.RequestId,
                 ok: false,
                 payload: null,
-                new OperatorWebBridgeError(exception.Code, exception.Message, exception.RemainingAttempts));
+                new OperatorWebBridgeError("connection_failed", exception.Message));
         }
-        catch (Exception exception) when (exception is InvalidOperationException or HttpRequestException or JsonException)
-        {
-            return CreateResponse(
-                request.RequestId,
-                ok: false,
-                payload: null,
-                new OperatorWebBridgeError(errorCode, exception.Message, null));
-        }
-    }
-
-    private async Task<OperatorWebAuthSession?> LoadTokenAsync(CancellationToken cancellationToken)
-    {
-        var snapshot = await tokenStore.LoadAsync(cancellationToken);
-        return snapshot is null ? null : CreateSession(snapshot);
-    }
-
-    private async Task<OperatorWebAuthSession> SignInAsync(JsonElement payload, CancellationToken cancellationToken)
-    {
-        var signIn = DeserializePayload<OperatorWebSignInPayload>(payload);
-        if (!Guid.TryParse(signIn.OrganizationId, out var organizationId))
-        {
-            throw new InvalidOperationException("OrganizationId must be a valid GUID.");
-        }
-
-        if (string.IsNullOrWhiteSpace(signIn.UserName))
-        {
-            throw new InvalidOperationException("User name is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(signIn.Password))
-        {
-            throw new InvalidOperationException("Password is required.");
-        }
-
-        var response = await authApiClient.SignInAsync(
-            organizationId,
-            signIn.UserName.Trim(),
-            signIn.Password,
-            cancellationToken);
-
-        return CreateSession(response);
-    }
-
-    private async Task<OperatorWebAuthSession> RefreshAsync(CancellationToken cancellationToken)
-    {
-        var snapshot = await tokenStore.LoadAsync(cancellationToken);
-        if (snapshot is null)
-        {
-            throw new InvalidOperationException("Operator refresh token is missing.");
-        }
-
-        var response = await authApiClient.RefreshAsync(snapshot.RefreshToken, cancellationToken);
-        return CreateSession(response);
-    }
-
-    private async Task<object> SignOutAsync(CancellationToken cancellationToken)
-    {
-        await tokenStore.ClearAsync(cancellationToken);
-        return new { signedOut = true };
-    }
-
-    private async Task<object> ForgotPasswordByEmailAsync(JsonElement payload, CancellationToken cancellationToken)
-    {
-        var request = DeserializePayload<OperatorWebForgotByEmailPayload>(payload);
-        if (string.IsNullOrWhiteSpace(request.UserNameOrEmail))
-        {
-            throw new InvalidOperationException("Login or email is required.");
-        }
-
-        await authApiClient.ForgotPasswordByEmailAsync(request.UserNameOrEmail.Trim(), cancellationToken);
-        return new { ok = true };
-    }
-
-    private async Task<object> ResetPasswordByEmailAsync(JsonElement payload, CancellationToken cancellationToken)
-    {
-        var request = DeserializePayload<OperatorWebResetByEmailPayload>(payload);
-        if (string.IsNullOrWhiteSpace(request.UserNameOrEmail)
-            || string.IsNullOrWhiteSpace(request.Code)
-            || string.IsNullOrWhiteSpace(request.NewPassword))
-        {
-            throw new InvalidOperationException("Login or email, code, and new password are required.");
-        }
-
-        await authApiClient.ResetPasswordByEmailAsync(
-            request.UserNameOrEmail.Trim(), request.Code.Trim(), request.NewPassword, cancellationToken);
-        return new { ok = true };
-    }
-
-    private async Task<object> ForgotPasswordByPhoneAsync(JsonElement payload, CancellationToken cancellationToken)
-    {
-        var request = DeserializePayload<OperatorWebForgotByPhonePayload>(payload);
-        if (string.IsNullOrWhiteSpace(request.PhoneNumber))
-        {
-            throw new InvalidOperationException("Phone number is required.");
-        }
-
-        await authApiClient.ForgotPasswordByPhoneAsync(request.PhoneNumber.Trim(), cancellationToken);
-        return new { ok = true };
-    }
-
-    private async Task<object> ResetPasswordByPhoneAsync(JsonElement payload, CancellationToken cancellationToken)
-    {
-        var request = DeserializePayload<OperatorWebResetByPhonePayload>(payload);
-        if (string.IsNullOrWhiteSpace(request.PhoneNumber)
-            || string.IsNullOrWhiteSpace(request.Code)
-            || string.IsNullOrWhiteSpace(request.NewPassword))
-        {
-            throw new InvalidOperationException("Phone, code, and new password are required.");
-        }
-
-        await authApiClient.ResetPasswordByPhoneAsync(
-            request.PhoneNumber.Trim(),
-            request.Code.Trim(),
-            request.NewPassword,
-            cancellationToken);
-        return new { ok = true };
     }
 
     private async Task<OperatorWebStoredConnection?> LoadConnectionAsync(CancellationToken cancellationToken)
@@ -261,36 +129,6 @@ public sealed class OperatorWebHostBridge(
             ?? throw new InvalidOperationException("Host bridge payload is invalid.");
     }
 
-    private static OperatorWebAuthSession CreateSession(StaffSignInResponse response)
-    {
-        return new OperatorWebAuthSession(
-            response.StaffUserId,
-            response.OrganizationId,
-            response.DisplayName,
-            response.AccessToken,
-            response.AccessTokenExpiresAtUtc,
-            response.RefreshTokenExpiresAtUtc,
-            response.BranchIds,
-            response.BranchIds.FirstOrDefault() == Guid.Empty ? null : response.BranchIds.FirstOrDefault(),
-            response.Permissions,
-            response.RoleNames);
-    }
-
-    private static OperatorWebAuthSession CreateSession(OperatorTokenSnapshot snapshot)
-    {
-        return new OperatorWebAuthSession(
-            snapshot.StaffUserId,
-            snapshot.OrganizationId,
-            snapshot.DisplayName,
-            snapshot.AccessToken,
-            snapshot.AccessTokenExpiresAtUtc,
-            snapshot.RefreshTokenExpiresAtUtc,
-            snapshot.BranchIds,
-            snapshot.BranchIds.FirstOrDefault() == Guid.Empty ? null : snapshot.BranchIds.FirstOrDefault(),
-            snapshot.Permissions,
-            snapshot.RoleNames);
-    }
-
     private static string CreateResponse(
         string requestId,
         bool ok,
@@ -315,35 +153,9 @@ public sealed class OperatorWebHostBridge(
         object? Payload,
         OperatorWebBridgeError? Error);
 
-    private sealed record OperatorWebSignInPayload(
-        string? OrganizationId,
-        string? UserName,
-        string? Password);
-
-    private sealed record OperatorWebForgotByEmailPayload(string? UserNameOrEmail);
-
-    private sealed record OperatorWebResetByEmailPayload(string? UserNameOrEmail, string? Code, string? NewPassword);
-
-    private sealed record OperatorWebForgotByPhonePayload(string? PhoneNumber);
-
-    private sealed record OperatorWebResetByPhonePayload(string? PhoneNumber, string? Code, string? NewPassword);
-
     private sealed record OperatorWebBridgeError(
         string Code,
-        string Message,
-        int? RemainingAttempts);
-
-    private sealed record OperatorWebAuthSession(
-        Guid StaffUserId,
-        Guid OrganizationId,
-        string DisplayName,
-        string AccessToken,
-        DateTimeOffset AccessTokenExpiresAtUtc,
-        DateTimeOffset RefreshTokenExpiresAtUtc,
-        IReadOnlyList<Guid> BranchIds,
-        Guid? ActiveBranchId,
-        IReadOnlyList<string> Permissions,
-        IReadOnlyList<string> RoleNames);
+        string Message);
 
     private sealed record OperatorWebStoredConnectionPayload(
         string? OrganizationId,
