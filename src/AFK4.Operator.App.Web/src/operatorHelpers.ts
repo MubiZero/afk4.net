@@ -5,7 +5,8 @@ import { getOperatorConfig } from './operatorConfig';
 import { projectOperatorError } from './apiErrors';
 import { createOperatorApiClients, type BranchDiagnosticsDto, type OperatorDashboardSummaryDto, type PlayerPackageDto, type PosSaleDto, type ShiftDto } from './operatorApiClients';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
-import { signOutOperator, StaffAuthApiError, type OperatorAuthSession } from './authClient';
+import { refreshOperatorSession, signOutOperator, StaffAuthApiError, type OperatorAuthSession } from './authClient';
+import { isAccessTokenExpired } from './auth/staffSessionStore';
 import { mapFloorMapDtoToState, seatStatusLabel, type FloorMapLoadStatus, type OperatorFloorMapState } from './floorMapState';
 import { saveFloorMapCache } from './floorMapCache';
 import { hasPermission, permissionNames } from './operatorPermissions';
@@ -777,10 +778,40 @@ export function shouldReloadFloorMapAfterDeviceStatus(seat: SeatSummary, status:
   return status.isLocked && (Boolean(seat.activeSessionId) || seat.hasActiveSession === true || isPendingSeatCommand(seat));
 }
 
+// Токен-провайдер для PlatformApiClient: перед каждым запросом проверяет истёк ли access-токен
+// (fail-safe — NaN тоже считается истёкшим) и, если да, рефрешит его один раз даже при нескольких
+// одновременных запросах (single in-flight promise), а не по рефрешу на каждый параллельный вызов.
+// refreshOperatorSession сам персистит новую сессию в стор — здесь достаточно держать `current` свежим.
+export function makeAccessTokenProvider(
+  session: OperatorAuthSession,
+  deps: { isExpired: (session: OperatorAuthSession, nowMs: number) => boolean; refresh: () => Promise<OperatorAuthSession> }
+): () => Promise<string | null> {
+  let current = session;
+  let inFlight: Promise<OperatorAuthSession> | null = null;
+
+  return async () => {
+    if (deps.isExpired(current, Date.now())) {
+      inFlight ??= deps.refresh().then((refreshed) => {
+        current = refreshed;
+        inFlight = null;
+        return refreshed;
+      });
+      current = await inFlight;
+    }
+
+    return current.accessToken;
+  };
+}
+
 export function createAuthenticatedOperatorClients(config: ReturnType<typeof getOperatorConfig>, session: OperatorAuthSession) {
+  const getAccessToken = makeAccessTokenProvider(session, {
+    isExpired: isAccessTokenExpired,
+    refresh: refreshOperatorSession
+  });
+
   return createOperatorApiClients(new PlatformApiClient({
     baseUrl: config.platformBaseUrl,
-    getAccessToken: () => session.accessToken
+    getAccessToken
   }));
 }
 

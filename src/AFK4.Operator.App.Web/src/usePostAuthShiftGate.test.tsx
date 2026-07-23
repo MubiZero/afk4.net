@@ -29,7 +29,7 @@ function createBackend(
       organizationId: 'org-1',
       displayName: 'Operator',
       accessToken: 'token',
-      accessTokenExpiresAtUtc: '2026-07-15T10:00:00Z',
+      accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z',
       refreshTokenExpiresAtUtc: '2026-07-16T10:00:00Z',
       branchIds: [branchId],
       activeBranchId: branchId,

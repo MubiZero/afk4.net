@@ -35,7 +35,7 @@ function startBackend(): OperatorBackendContext {
     branchId: 'branch-1',
     session: {
       staffUserId: 'staff-1', organizationId: 'org-1', displayName: 'Operator', accessToken: 'token',
-      accessTokenExpiresAtUtc: '2026-07-15T00:00:00Z', refreshToken: 'refresh-token',
+      accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z', refreshToken: 'refresh-token',
       refreshTokenExpiresAtUtc: '2026-07-16T00:00:00Z',
       branchIds: ['branch-1'], activeBranchId: 'branch-1',
       permissions: ['reservations.view', 'reservations.manage', 'sessions.start', 'sessions.view', 'tariffs.view', 'billing.view']
@@ -196,7 +196,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
         organizationId: 'org-1',
         displayName: 'Operator',
         accessToken: 'test-token',
-        accessTokenExpiresAtUtc: '2026-07-15T00:00:00Z',
+        accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z',
         refreshToken: 'refresh-token',
         refreshTokenExpiresAtUtc: '2026-07-16T00:00:00Z',
         branchIds: ['branch-1'],
@@ -266,7 +266,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
       branchId: 'branch-1',
       session: {
         staffUserId: 'staff-1', organizationId: 'org-1', displayName: 'Operator', accessToken: 'token',
-        accessTokenExpiresAtUtc: '2026-07-15T00:00:00Z', refreshToken: 'refresh-token',
+        accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z', refreshToken: 'refresh-token',
         refreshTokenExpiresAtUtc: '2026-07-16T00:00:00Z',
         branchIds: ['branch-1'], activeBranchId: 'branch-1',
         permissions: ['reservations.view', 'reservations.manage', 'sessions.start', 'sessions.view', 'tariffs.view', 'billing.view']

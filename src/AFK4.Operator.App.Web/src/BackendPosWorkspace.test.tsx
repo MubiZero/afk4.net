@@ -116,6 +116,7 @@ const backend = {
   config: { platformBaseUrl: 'http://test' },
   session: {
     accessToken: 'token',
+    accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z',
     organizationId: 'organization-1',
     permissions: ['players.view', 'pos.sales.create', 'pos.sales.pay']
   },

@@ -38,7 +38,7 @@ function backend(): OperatorBackendContext {
       organizationId: 'org-1',
       displayName: 'Operator',
       accessToken: 'test-token',
-      accessTokenExpiresAtUtc: '2026-07-15T00:00:00Z',
+      accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z',
       refreshToken: 'refresh-token',
       refreshTokenExpiresAtUtc: '2026-07-16T00:00:00Z',
       branchIds: ['branch-1'],
