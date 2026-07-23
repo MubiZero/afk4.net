@@ -10,8 +10,14 @@ export function useActiveBranch(branchIds: readonly string[]): { activeBranchId:
   });
 
   useEffect(() => {
+    // branchIds arrives empty for a beat while the session is still loading (App passes
+    // `authSession?.branchIds ?? []`, and authSession starts null) — that's "not known yet", not
+    // "this session has zero branches". Treating it as the latter used to wipe the persisted
+    // choice on every app boot, right before the real branchIds landed a render later.
+    if (branchIds.length === 0) return;
     if (activeBranchId && branchIds.includes(activeBranchId)) return;
-    const next = branchIds[0] ?? null;
+    const stored = localStorage.getItem(KEY);
+    const next = (stored && branchIds.includes(stored)) ? stored : (branchIds[0] ?? null);
     setActiveBranchId(next);
     if (next) localStorage.setItem(KEY, next); else localStorage.removeItem(KEY);
   }, [branchIds, activeBranchId]);

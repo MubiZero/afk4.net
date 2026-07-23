@@ -104,7 +104,14 @@
   color: var(--text-primary);
 }
 
-.top-command .brand-block {
+/* Левая зона тайтлбара (бренд + опциональный свитчер филиала) — теперь общий grid-item колонки 1,
+   а не сам .brand-block: свитчеру нужно место рядом с брендом, без перестройки трёх колонок
+   top-command. min-width:0 обязателен — иначе grid-item не сожмётся и свитчер вытолкнет поиск. */
+.top-command-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
   justify-self: start;
 }
 
@@ -121,6 +128,7 @@
   /* Лого обрезан по глифу (viewBox), поэтому небольшой gap делает расстояние лого→разделитель
      равным разделитель→«Оператор» (12px у span). */
   gap: 8px;
+  flex-shrink: 0;
   width: max-content;
   line-height: 1;
 }
@@ -284,11 +292,34 @@
 
 /* ───────────────────────── Branch switcher (шапка shell) ───────────────────────── */
 
+/* Сеть в 2-4 филиала — чипы умещаются целиком. Сеть в 30+ — та же разметка не растягивает
+   тайтлбар: контейнер сам скроллится по горизонтали (тонкий скроллбар + затухающая маска справа,
+   паттерн из .pos-orders-ticker-list), а не давит на .command-search своей шириной. */
 .branch-switcher {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  flex: 1 1 auto;
   min-width: 0;
+  max-width: 420px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+          mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent);
+}
+
+.branch-switcher::-webkit-scrollbar {
+  height: 5px;
+}
+
+.branch-switcher::-webkit-scrollbar-thumb {
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+}
+
+.branch-switcher::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .branch-switcher-icon {
@@ -297,8 +328,10 @@
 }
 
 /* --control-lg (44px) — тач-таргет с запасом под будущую мобильную обёртку, а не только под
-   десктопный WebView2-шелл. */
+   десктопный WebView2-шелл. flex:none — чипы не сжимаются при скролле, они либо помещаются
+   целиком, либо уезжают за левый/правый край контейнера. */
 .branch-switcher-item {
+  flex: none;
   height: var(--control-lg);
   max-width: 160px;
   overflow: hidden;

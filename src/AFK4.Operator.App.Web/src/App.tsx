@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { I18nProvider, useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import { refreshOperatorSession } from './authClient';
 import { ConnectionResolutionScreen } from './ConnectionResolutionScreen';
 import { getOperatorConfig } from './operatorConfig';
 import { navSections, type NavSection } from './operatorData';
+import { useActiveBranch } from './branches/useActiveBranch';
+import { BranchSwitcher } from './branches/BranchSwitcher';
+import { useBranchDirectory } from './branches/useBranchDirectory';
 import { AccountPanel } from './AccountPanel';
 import { MapSidePanel } from './MapSidePanel';
 import { ContextPanel } from './ContextPanel';
@@ -41,7 +44,8 @@ import {
 import {
   operatorDisplayNameLabel,
   shellShiftBadge,
-  resolveActiveBranchId
+  resolveActiveBranchId,
+  createAuthenticatedOperatorClients
 } from './operatorHelpers';
 
 
@@ -105,10 +109,29 @@ function AppInner() {
   useHotkeys(paletteHotkeys);
   // Bumped by the realtime hook to make the shell KPIs reconcile event-driven instead of polled.
   const [shellReconcileSignal, setShellReconcileSignal] = useState(0);
-  const activeBranchId = authSession === null ? null : resolveActiveBranchId(authSession, config.branchId);
-  const backendContext: OperatorBackendContext | null = authSession !== null && activeBranchId !== null
-    ? { config, session: authSession, branchId: activeBranchId }
-    : null;
+  // Реактивный выбор филиала (мульти-филиальность): свитчер в шапке меняет `chosenBranchId`
+  // (персистится в localStorage), который перебивает и session.activeBranchId, и config.branchId.
+  const { activeBranchId: chosenBranchId, select: selectBranch } = useActiveBranch(authSession?.branchIds ?? []);
+  const activeBranchId = authSession === null
+    ? null
+    : resolveActiveBranchId(authSession, config.branchId, chosenBranchId ?? undefined);
+  const backendContext: OperatorBackendContext | null = useMemo(
+    () => authSession !== null && activeBranchId !== null
+      ? { config, session: authSession, branchId: activeBranchId }
+      : null,
+    [config, authSession, activeBranchId]
+  );
+  // Имена филиалов для свитчера — подгружаются по branchIds сессии, независимо от того, сколько
+  // их (сам свитчер решает, показываться ли, по количеству). Фолбэк на branchId внутри хука —
+  // сбой одного профиля не валит весь список.
+  const getBranchProfileName = useCallback(async (branchId: string) => {
+    if (authSession === null) {
+      throw new Error('not signed in');
+    }
+    const profile = await createAuthenticatedOperatorClients(config, authSession).settings.getBranchProfile(branchId);
+    return { name: typeof profile.name === 'string' ? profile.name : '' };
+  }, [config, authSession]);
+  const branchDirectory = useBranchDirectory(getBranchProfileName, authSession?.branchIds ?? []);
   const shiftGate = usePostAuthShiftGate({
     authStatus,
     backend: backendContext,
@@ -141,6 +164,7 @@ function AppInner() {
     authStatus: operationalAuthStatus,
     authSession,
     config,
+    activeBranchId,
     t,
     floorMapRef,
     setFloorMap,
@@ -169,7 +193,9 @@ function AppInner() {
     if (!canOpenWorkspace(authSession, workspace)) {
       setWorkspace(firstAllowedWorkspace(authSession));
     }
-  }, [authStatus, authSession, workspace]);
+    // activeBranchId: после смены филиала доступные разделы могут отличаться — увести с
+    // недоступного воркспейса, а не оставить на разделе, к которому больше нет доступа.
+  }, [authStatus, authSession, workspace, activeBranchId]);
 
   const handleWorkspaceNavigation = async (
     workspaceId: WorkspaceId,
@@ -285,7 +311,19 @@ function AppInner() {
       } as CSSProperties}
     >
       <WindowResizeHandles />
-      <ShellHeader onOpenPalette={() => setPaletteOpen(true)} />
+      <ShellHeader
+        onOpenPalette={() => setPaletteOpen(true)}
+        branchSwitcher={authSession.branchIds.length > 1 ? (
+          <BranchSwitcher
+            branches={authSession.branchIds.map((branchId) => ({
+              branchId,
+              name: branchDirectory[branchId]?.name ?? ''
+            }))}
+            activeBranchId={activeBranchId}
+            onSelect={selectBranch}
+          />
+        ) : undefined}
+      />
 
       {accountPanelOpen && backendContext !== null && (
         <AccountPanel

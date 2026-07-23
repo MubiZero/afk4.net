@@ -12,7 +12,6 @@ import {
 } from './operatorRealtime';
 import type { AuthStatus, OperatorConfig } from './operatorTypes';
 import {
-  resolveActiveBranchId,
   matchesRealtimeScope,
   matchesCommandResultScope,
   matchesLifecycleScope,
@@ -32,6 +31,9 @@ export interface UseOperatorRealtimeOptions {
   authStatus: AuthStatus;
   authSession: OperatorAuthSession | null;
   config: OperatorConfig;
+  // Активный филиал (реактивный выбор из свитчера — Task 11), а не выведенный внутри хука; смена
+  // филиала переподписывает realtime (чистый teardown + новая подписка на новый филиал).
+  activeBranchId: string | null;
   t: Translate;
   floorMapRef: MutableRefObject<OperatorFloorMapState>;
   setFloorMap: Dispatch<SetStateAction<OperatorFloorMapState>>;
@@ -47,6 +49,7 @@ export function useOperatorRealtime({
   authStatus,
   authSession,
   config,
+  activeBranchId,
   t,
   floorMapRef,
   setFloorMap,
@@ -63,7 +66,7 @@ export function useOperatorRealtime({
       return undefined;
     }
 
-    const branchId = resolveActiveBranchId(authSession, config.branchId);
+    const branchId = activeBranchId;
     if (!branchId) {
       return undefined;
     }
@@ -215,7 +218,7 @@ export function useOperatorRealtime({
       void realtimeClient.stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus, authSession, config.branchId, config.platformBaseUrl]);
+  }, [authStatus, authSession, activeBranchId, config.platformBaseUrl]);
 
   return { realtimeState, realtimeError };
 }
