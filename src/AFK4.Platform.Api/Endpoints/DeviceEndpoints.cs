@@ -153,6 +153,7 @@ internal static class DeviceEndpoints
         app.MapPost("/api/install/auth/discover", async (
             StaffAuthorizationService authorizationService,
             IInstallService installService,
+            IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.InstallDevice);
@@ -160,6 +161,19 @@ internal static class DeviceEndpoints
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
             var staff = authorization.StaffContext!;
             var result = await installService.DiscoverForStaffAsync(staff.OrganizationId, staff.BranchIds, staff.DisplayName, cancellationToken);
+
+            await WriteAuditAsync(
+                auditRecordWriter,
+                staff.OrganizationId,
+                Guid.Empty,
+                staff.StaffUserId,
+                AuditActionNames.InstallDiscoverInvoked,
+                "Install",
+                null,
+                AuditOutcome.Succeeded,
+                new { BranchCount = staff.BranchIds.Count },
+                cancellationToken);
+
             return ToInstallHttpResult(result);
         });
 
