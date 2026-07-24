@@ -223,6 +223,9 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'roles.technician',
     'setup.wizard.finished.summary.branch',
     'setup.wizard.stepper.branch',
+    // «№» — the same symbol in ru and tg (numeral sign), same reasoning as other symbol entries
+    // above (e.g. brand tokens, {from}→{to}) — the Сеть → Подписка invoices table's number column.
+    'op.network.billing.col.number',
 ]);
 
 it('tg has no silent ru-copies (untranslated strings posing as Tajik)', () => {
@@ -517,6 +520,36 @@ it('includes the network section keys', () => {
     'op.network.dest.install', 'op.network.dest.install.subtitle',
     'op.network.dest.journal', 'op.network.dest.journal.subtitle',
     'op.network.noAccess', 'op.network.placeholder'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+    expect(messages.tg[key]).toBeTruthy();
+  }
+});
+
+it('includes the network billing (subscription) screen keys', () => {
+  for (const key of [
+    'op.network.billing.subscription',
+    'op.network.billing.plan',
+    'op.network.billing.status',
+    'op.network.billing.amount',
+    'op.network.billing.period',
+    'op.network.billing.nextInvoice',
+    'op.network.billing.invoices',
+    'op.network.billing.invoices.empty',
+    'op.network.billing.col.number',
+    'op.network.billing.col.issued',
+    'op.network.billing.col.due',
+    'op.network.billing.col.amount',
+    'op.network.billing.col.status',
+    'op.network.billing.subStatus.trial',
+    'op.network.billing.subStatus.active',
+    'op.network.billing.subStatus.pastDue',
+    'op.network.billing.subStatus.cancelled',
+    'op.network.billing.invStatus.issued',
+    'op.network.billing.invStatus.paid',
+    'op.network.billing.invStatus.void',
+    'op.network.billing.invStatus.overdue'
   ] as const) {
     expect(messages.ru[key]).toBeTruthy();
     expect(messages.en[key]).toBeTruthy();

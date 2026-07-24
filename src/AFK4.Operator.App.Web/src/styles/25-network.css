@@ -98,3 +98,31 @@
   color: var(--text-muted);
   font-size: 13px;
 }
+
+/* Сеть → Подписка: карточка подписки (.network-stat переиспускается для dt/dd-полей, как в
+   карточке филиала выше) + таблица счетов на существующих .table-panel/.ctable-* атомах. */
+
+.network-billing-sub h3,
+.network-billing-invoices h3 {
+  margin: 0 0 14px;
+  color: var(--text-strong);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.network-billing-sub {
+  margin-bottom: 16px;
+}
+
+.network-billing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.network-billing-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
