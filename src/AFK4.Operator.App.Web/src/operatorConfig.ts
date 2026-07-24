@@ -6,6 +6,7 @@ export interface OperatorConfig {
   appVersion?: string;
   organizationId?: string;
   branchId?: string;
+  setupInstallerUrl?: string; // configured at release; empty => show "obtain from IT" (no broken link)
 }
 
 const fallbackConfig: OperatorConfig = {
@@ -32,7 +33,8 @@ function browserConfigFromEnv(): OperatorConfig {
     runtime: 'browser',
     shellMode: 'web',
     platformBaseUrl,
-    currencyCode: 'TJS'
+    currencyCode: 'TJS',
+    setupInstallerUrl: import.meta.env.VITE_SETUP_INSTALLER_URL || undefined
   };
 }
 

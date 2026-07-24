@@ -126,3 +126,57 @@
   color: var(--text-muted);
   font-size: 13px;
 }
+
+/* Сеть → Установка: гайд по установщику-Мастеру (карточки переиспользуют .management-panel). */
+
+.network-install-get h3,
+.network-install-steps h3,
+.network-install-branches h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.network-install-get p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.network-install-get .ui-btn {
+  align-self: flex-start;
+  text-decoration: none;
+}
+
+.network-install-nolink {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.network-install-step-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-strong);
+  font-size: 14px;
+}
+
+.network-install-branches-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.network-install-branch-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-strong);
+  font-size: 14px;
+}

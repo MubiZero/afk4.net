@@ -519,7 +519,12 @@ it('includes the network section keys', () => {
     'op.network.dest.billing', 'op.network.dest.billing.subtitle',
     'op.network.dest.install', 'op.network.dest.install.subtitle',
     'op.network.dest.journal', 'op.network.dest.journal.subtitle',
-    'op.network.noAccess', 'op.network.placeholder'
+    'op.network.noAccess', 'op.network.placeholder',
+    'op.network.install.get.title', 'op.network.install.get.lead', 'op.network.install.download', 'op.network.install.noUrl',
+    'op.network.install.steps.title',
+    'op.network.install.step.run', 'op.network.install.step.signIn', 'op.network.install.step.branch',
+    'op.network.install.step.role', 'op.network.install.step.name', 'op.network.install.step.done',
+    'op.network.install.branches.title', 'op.network.install.branches.empty'
   ] as const) {
     expect(messages.ru[key]).toBeTruthy();
     expect(messages.en[key]).toBeTruthy();
