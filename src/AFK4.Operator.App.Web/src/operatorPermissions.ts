@@ -4,7 +4,7 @@ import { managementDestinations } from './management/managementNav';
 import { networkDestinations } from './network/networkNav';
 import { permissionNames } from './permissionNames';
 
-export const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'cash', 'players', 'logs', 'management', 'stock', 'network'];
+export const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'cash', 'players', 'management', 'stock', 'network'];
 
 // Re-exported so existing `import { permissionNames } from './operatorPermissions'` call sites keep
 // working; the catalog itself lives in permissionNames.ts to avoid an import cycle with
@@ -39,7 +39,6 @@ export const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = 
     permissionNames.viewPackages,
     permissionNames.purchasePackage
   ],
-  logs: [permissionNames.viewAudit, permissionNames.viewDiagnostics],
   // Union of the eight `Управление` destinations' permission sets (managementNav.ts), deduped —
   // canOpenWorkspace(session, 'management') is then equivalent to
   // allowedManagementDestinations(session).length > 0.

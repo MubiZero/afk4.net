@@ -8,7 +8,6 @@ import { MapWorkspace } from './MapWorkspace';
 import { BackendBookingWorkspace } from './BackendBookingWorkspace';
 import { CashWorkspace } from './cash/CashWorkspace';
 import { BackendPlayersWorkspace } from './BackendPlayersWorkspace';
-import { BackendLogsWorkspace } from './BackendLogsWorkspace';
 import { StockWorkspace } from './stock/StockWorkspace';
 import { ManagementWorkspace } from './management/ManagementWorkspace';
 import { NetworkWorkspace } from './network/NetworkWorkspace';
@@ -89,7 +88,6 @@ export function WorkspaceRouter({
       {workspace === 'cash' && <CashWorkspace currencyCode={currencyCode} backend={backend} session={session} />}
       {workspace === 'stock' && <StockWorkspace currencyCode={currencyCode} backend={backend} session={session} />}
       {workspace === 'players' && <BackendPlayersWorkspace currencyCode={currencyCode} backend={backend} />}
-      {workspace === 'logs' && <BackendLogsWorkspace currencyCode={currencyCode} backend={backend} />}
       {workspace === 'management' && (
         <ManagementWorkspace backend={backend} session={session} currencyCode={currencyCode} />
       )}
