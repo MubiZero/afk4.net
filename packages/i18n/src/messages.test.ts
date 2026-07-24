@@ -52,6 +52,11 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «журнал» — устоявшееся заимствование (как journal.actor.system/journal.col.target выше);
     // это заголовок вкладки «Сеть → Журнал» (org-audit), не отдельный термин.
     'op.network.dest.journal',
+    // Тот же org-audit экран «Сеть → Журнал» (Task 8): «система»/«объект» — те же устоявшиеся
+    // заимствования, что journal.actor.system/journal.col.target выше, тот же смысл (актёр-фоллбэк
+    // и подпись колонки «объект действия»), просто отдельный namespace ключей под org-level экран.
+    'op.network.journal.actor.system',
+    'op.network.journal.col.target',
     'ledger.type.reversal',
     // «сторно» — международный бухгалтерский термин-заимствование (как ledger.type.reversal)
     'op.players.history.reversalBadge',
@@ -555,6 +560,38 @@ it('includes the network billing (subscription) screen keys', () => {
     'op.network.billing.invStatus.paid',
     'op.network.billing.invStatus.void',
     'op.network.billing.invStatus.overdue'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+    expect(messages.tg[key]).toBeTruthy();
+  }
+});
+
+it('includes the network journal (org-audit) screen keys', () => {
+  for (const key of [
+    'op.network.journal.actor.system',
+    'op.network.journal.empty',
+    'op.network.journal.limitNote',
+    'op.network.journal.range.today',
+    'op.network.journal.range.7d',
+    'op.network.journal.range.30d',
+    'op.network.journal.range.from',
+    'op.network.journal.range.to',
+    'op.network.journal.filter.action',
+    'op.network.journal.filter.targetType',
+    'op.network.journal.filter.outcome',
+    'op.network.journal.outcome.all',
+    'op.network.journal.outcome.succeeded',
+    'op.network.journal.outcome.denied',
+    'op.network.journal.filter.apply',
+    'op.network.journal.filter.reset',
+    'op.network.journal.col.date',
+    'op.network.journal.col.actor',
+    'op.network.journal.col.action',
+    'op.network.journal.col.target',
+    'op.network.journal.col.outcome',
+    'op.network.journal.col.source',
+    'op.network.journal.col.details'
   ] as const) {
     expect(messages.ru[key]).toBeTruthy();
     expect(messages.en[key]).toBeTruthy();

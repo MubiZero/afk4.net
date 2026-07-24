@@ -10,6 +10,7 @@ import { createShiftRevenueClient } from './shiftRevenue';
 import { createSettingsClient } from './settings';
 import { createOrgBranchesClient } from './orgBranches';
 import { createOrgBillingClient } from './orgBilling';
+import { createOrgAuditClient } from './orgAudit';
 import { createInventoryClient } from './inventory';
 import { createDeviceClient } from './devices';
 import { createDiagnosticsClient } from './diagnostics';
@@ -38,6 +39,7 @@ export function createOperatorApiClients(api: PlatformApiClient) {
     settings: createSettingsClient(api),
     orgBranches: createOrgBranchesClient(api),
     orgBilling: createOrgBillingClient(api),
+    orgAudit: createOrgAuditClient(api),
     inventory: createInventoryClient(api),
     devices: createDeviceClient(api),
     diagnostics: createDiagnosticsClient(api),
