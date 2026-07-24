@@ -72,20 +72,24 @@ const rolePermissions: Record<string, string[]> = {
 //   - accountant_auditor loses 'admin': its permissions are all *.view and match none of the eight
 //     management-destination permission sets (it previously saw 'admin' only via logs/audit).
 //
-// `network` (Task 4, gated by branches.view/billing.subscription.view/devices.install/audit.view —
-// networkNav.ts) is visible to more than just the owner, because PermissionCatalog.cs already
-// grants two of those four permissions to other roles for unrelated reasons:
-//   - branch_manager holds devices.install AND audit.view → sees `network` (Install + Journal
-//     destinations; Branches/Billing stay hidden — it lacks branches.view/billing.subscription.view).
+// `network` (Task 4, gated by branches.view/billing.subscription.view/devices.install/
+// audit.organization.view — networkNav.ts) is visible to more than just the owner, because
+// PermissionCatalog.cs already grants one of those four permissions to other roles for
+// unrelated reasons. The Journal destination's gate was audit.view until the org-audit IDOR
+// fix (org-audit leaked cross-branch data to any audit.view holder); it is now the owner-only
+// audit.organization.view, so audit.view alone no longer unlocks `network`:
+//   - branch_manager holds devices.install (but NOT audit.organization.view) → sees `network`
+//     (Install only; Journal/Branches/Billing stay hidden).
 //   - technician holds devices.install (field provisioning) → sees `network` (Install only).
-//   - accountant_auditor holds audit.view (compliance reporting) → sees `network` (Journal only).
+//   - accountant_auditor holds only audit.view (no devices.install/branches.view/
+//     billing.subscription.view/audit.organization.view) → `network` is now hidden entirely.
 //   - cashier_operator and shift_supervisor hold none of the four → `network` stays hidden.
 const expectedSections: Record<string, string[]> = {
   cashier_operator: ['map', 'booking', 'players', 'cashier'],
   shift_supervisor: ['map', 'booking', 'players', 'cashier', 'reports', 'stock'],
   branch_manager: ['map', 'booking', 'players', 'cashier', 'reports', 'admin', 'stock', 'network'],
   technician: ['map', 'admin', 'stock', 'network'],
-  accountant_auditor: ['booking', 'players', 'cashier', 'reports', 'stock', 'network']
+  accountant_auditor: ['booking', 'players', 'cashier', 'reports', 'stock']
 };
 
 function visibleSections(permissions: string[]): string[] {
@@ -135,12 +139,28 @@ describe('stock workspace visibility', () => {
 
 describe('network workspace visibility', () => {
   it('opens network for an owner-permission session', () => {
-    const session = { permissions: ['branches.view', 'billing.subscription.view', 'devices.install', 'audit.view'] } as OperatorAuthSession;
+    const session = {
+      permissions: [
+        'branches.view',
+        'billing.subscription.view',
+        'devices.install',
+        'audit.organization.view'
+      ]
+    } as OperatorAuthSession;
     expect(canOpenWorkspace(session, 'network')).toBe(true);
   });
 
   it('hides network for a cashier session', () => {
     const session = { permissions: rolePermissions.cashier_operator } as OperatorAuthSession;
+    expect(canOpenWorkspace(session, 'network')).toBe(false);
+  });
+
+  // Regression: branch-scoped audit.view (BranchManager/AccountantAuditor) must not unlock
+  // `network` on its own — only the owner-only audit.organization.view (Journal) or another
+  // network-destination permission (devices.install/branches.view/billing.subscription.view)
+  // should. Confirms the org-audit IDOR fix is reflected in nav visibility.
+  it('hides network for a session with only branch-scoped audit.view', () => {
+    const session = { permissions: ['audit.view'] } as OperatorAuthSession;
     expect(canOpenWorkspace(session, 'network')).toBe(false);
   });
 });

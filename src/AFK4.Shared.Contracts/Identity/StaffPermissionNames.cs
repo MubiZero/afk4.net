@@ -105,6 +105,9 @@ public static class StaffPermissionNames
 
     public const string ViewAudit = "audit.view";
 
+    // Owner-only: read org-wide audit across all branches + org-level records.
+    public const string ViewOrganizationAudit = "audit.organization.view";
+
     public const string ManageBranchSettings = "branches.settings.manage";
 
     // Owner-only: view the org-wide branch roster (network overview).

@@ -42,7 +42,7 @@ export const networkDestinations: readonly NetworkDestination[] = [
     labelKey: 'op.network.dest.journal',
     subtitleKey: 'op.network.dest.journal.subtitle',
     Icon: ScrollText,
-    permissions: [permissionNames.viewAudit]
+    permissions: [permissionNames.viewOrganizationAudit]
   }
 ];
 

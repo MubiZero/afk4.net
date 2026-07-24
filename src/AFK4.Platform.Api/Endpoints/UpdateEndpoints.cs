@@ -553,9 +553,26 @@ internal static class UpdateEndpoints
             IAuditSearchService auditSearchService,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ViewAudit);
+            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ViewOrganizationAudit);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
-            if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    Guid.Empty,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.ViewAudit,
+                    "AuditRecord",
+                    null,
+                    AuditOutcome.Denied,
+                    new { authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
             if (organizationId != authorization.StaffContext!.OrganizationId)
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
 

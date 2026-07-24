@@ -83,4 +83,19 @@ public sealed class OrganizationAuditEndpointTests
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
+
+    // Regression: BranchManager holds branch-scoped audit.view (per-branch) but not the
+    // owner-only audit.organization.view — must not be able to read org-wide audit across
+    // all branches through this endpoint.
+    [Fact]
+    public async Task GET_org_audit_as_branch_manager_returns_403()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/audit");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
 }

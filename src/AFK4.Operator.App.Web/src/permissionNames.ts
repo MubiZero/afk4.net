@@ -52,6 +52,7 @@ export const permissionNames = {
   manageUpdateRollouts: 'updates.rollouts.manage',
   viewDeviceCommandStatus: 'devices.commands.status.view',
   viewAudit: 'audit.view',
+  viewOrganizationAudit: 'audit.organization.view',
   viewSubscription: 'billing.subscription.view',
   installDevice: 'devices.install',
   viewBranches: 'branches.view',

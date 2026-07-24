@@ -37,6 +37,9 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'clients.field.phone',
     'club.billing.subscription.plan',
     'club.billing.title',
+    // «тариф» — то же устоявшееся заимствование, что club.billing.subscription.plan выше,
+    // тот же смысл (подпись тарифного плана), другой namespace (Сеть → Оплата, org-audit fix).
+    'op.network.billing.plan',
     'customer.profile.langEn',
     'customer.receipt.openLink',
     'customer.signin.phone',
