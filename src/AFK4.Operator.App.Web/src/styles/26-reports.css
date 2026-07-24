@@ -1,0 +1,9 @@
+.reports-history { display: flex; flex-direction: column; gap: 16px; }
+.reports-history-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.reports-history-range { display: flex; gap: 12px; flex-wrap: wrap; }
+.reports-history-toolbar { display: flex; justify-content: flex-end; }
+.reports-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.reports-summary-card { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: var(--radius-card, 12px); background: var(--surface-raised, #fff); box-shadow: var(--shadow-card); }
+.reports-summary-label { font-size: 12px; color: var(--text-muted); }
+.reports-summary-value { font-size: 18px; font-variant-numeric: tabular-nums; }
+.reports-history-limit-note { font-size: 12px; color: var(--text-muted); }
