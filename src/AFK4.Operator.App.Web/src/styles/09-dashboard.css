@@ -10,8 +10,7 @@
 }
 
 .players-layout,
-.shift-layout,
-.logs-layout {
+.shift-layout {
   grid-template-columns: minmax(0, 1fr);
 }
 
@@ -40,10 +39,6 @@
 }
 
 .payments-screen {
-  grid-column: 2 / 4;
-}
-
-.logs-screen {
   grid-column: 2 / 4;
 }
 
