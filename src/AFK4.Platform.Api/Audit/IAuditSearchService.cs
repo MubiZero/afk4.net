@@ -9,4 +9,9 @@ public interface IAuditSearchService
         Guid branchId,
         AuditSearchQuery query,
         CancellationToken cancellationToken);
+
+    Task<AuditSearchResultDto> SearchOrganizationAsync(
+        Guid organizationId,
+        AuditSearchQuery query,
+        CancellationToken cancellationToken);
 }

@@ -537,6 +537,49 @@ internal static class UpdateEndpoints
             return Results.Ok(result);
         });
 
+        app.MapGet("/api/organizations/{organizationId:guid}/audit", async (
+            Guid organizationId,
+            string? action,
+            string? outcome,
+            string? targetType,
+            DateTimeOffset? fromUtc,
+            DateTimeOffset? toUtc,
+            int? limit,
+            Guid? actorStaffUserId,
+            long? minAmount,
+            long? maxAmount,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IAuditSearchService auditSearchService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ViewAudit);
+            if (!authorization.IsAuthenticated) return Results.Unauthorized();
+            if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            if (organizationId != authorization.StaffContext!.OrganizationId)
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+
+            var query = new AuditSearchQuery(action, outcome, targetType, fromUtc, toUtc, limit, actorStaffUserId, minAmount, maxAmount);
+            var result = await auditSearchService.SearchOrganizationAsync(
+                authorization.StaffContext.OrganizationId,
+                query,
+                cancellationToken);
+
+            await WriteAuditAsync(
+                auditRecordWriter,
+                authorization.StaffContext.OrganizationId,
+                Guid.Empty,
+                authorization.StaffContext.StaffUserId,
+                AuditActionNames.ViewAudit,
+                "AuditRecord",
+                null,
+                AuditOutcome.Succeeded,
+                new { Scope = "organization", Count = result.Records.Count, result.Limit, action, outcome, targetType, fromUtc, toUtc },
+                cancellationToken);
+
+            return Results.Ok(result);
+        });
+
         app.MapPost("/api/devices/{deviceId:guid}/updates/check", async (
             Guid deviceId,
             DeviceUpdateCheckRequest request,

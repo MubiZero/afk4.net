@@ -9,9 +9,31 @@ public sealed class EfAuditSearchService(PlatformDbContext dbContext) : IAuditSe
     private const int DefaultLimit = 50;
     private const int MaxLimit = 200;
 
-    public async Task<AuditSearchResultDto> SearchAsync(
+    public Task<AuditSearchResultDto> SearchAsync(
         Guid organizationId,
         Guid branchId,
+        AuditSearchQuery query,
+        CancellationToken cancellationToken)
+    {
+        var records = dbContext.AuditRecords
+            .AsNoTracking()
+            .Where(record => record.OrganizationId == organizationId && record.BranchId == branchId);
+        return ExecuteAsync(records, query, cancellationToken);
+    }
+
+    public Task<AuditSearchResultDto> SearchOrganizationAsync(
+        Guid organizationId,
+        AuditSearchQuery query,
+        CancellationToken cancellationToken)
+    {
+        var records = dbContext.AuditRecords
+            .AsNoTracking()
+            .Where(record => record.OrganizationId == organizationId);
+        return ExecuteAsync(records, query, cancellationToken);
+    }
+
+    private static async Task<AuditSearchResultDto> ExecuteAsync(
+        IQueryable<AuditRecordEntity> records,
         AuditSearchQuery query,
         CancellationToken cancellationToken)
     {
@@ -19,12 +41,6 @@ public sealed class EfAuditSearchService(PlatformDbContext dbContext) : IAuditSe
         var action = Normalize(query.Action);
         var outcome = Normalize(query.Outcome);
         var targetType = Normalize(query.TargetType);
-
-        var records = dbContext.AuditRecords
-            .AsNoTracking()
-            .Where(record =>
-                record.OrganizationId == organizationId &&
-                record.BranchId == branchId);
 
         if (action is not null)
         {
