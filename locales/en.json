@@ -2181,6 +2181,7 @@
   "op.shell.navGroup.reports": "Reports",
   "op.shell.navGroup.management": "Management",
   "op.shell.navGroup.warehouse": "Stock",
+  "op.shell.navGroup.network": "Network",
   "op.stock.title": "Stock",
   "op.stock.tab.levels": "Levels",
   "op.stock.tab.receiving": "Receiving",
@@ -2935,5 +2936,15 @@
   "op.shell.queuedCommand": "Command «{action}» queued — it will be sent once the connection is restored.",
   "op.outbox.dropped": "{seat}: command {command} cancelled — state changed on the server",
   "op.toast.close": "Close",
-  "op.toast.region": "Notifications"
+  "op.toast.region": "Notifications",
+  "op.network.dest.branches": "Branches",
+  "op.network.dest.branches.subtitle": "Network overview",
+  "op.network.dest.billing": "Subscription",
+  "op.network.dest.billing.subtitle": "Plan and invoices",
+  "op.network.dest.install": "Install",
+  "op.network.dest.install.subtitle": "Onboard a new PC",
+  "op.network.dest.journal": "Journal",
+  "op.network.dest.journal.subtitle": "Action audit",
+  "op.network.noAccess": "No access to the Network section",
+  "op.network.placeholder": "Coming soon"
 }

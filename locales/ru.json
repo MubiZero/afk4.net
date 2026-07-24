@@ -2379,6 +2379,7 @@
   "op.shell.navGroup.reports": "Отчёты",
   "op.shell.navGroup.management": "Управление",
   "op.shell.navGroup.warehouse": "Склад",
+  "op.shell.navGroup.network": "Сеть",
   "op.stock.title": "Склад",
   "op.stock.tab.levels": "Остатки",
   "op.stock.tab.receiving": "Приёмка",
@@ -2935,5 +2936,15 @@
   "op.shell.queuedCommand": "Команда «{action}» поставлена в очередь — будет отправлена после восстановления связи.",
   "op.outbox.dropped": "{seat}: команда {command} отменена — состояние изменилось на сервере",
   "op.toast.close": "Закрыть",
-  "op.toast.region": "Уведомления"
+  "op.toast.region": "Уведомления",
+  "op.network.dest.branches": "Филиалы",
+  "op.network.dest.branches.subtitle": "Свод по сети",
+  "op.network.dest.billing": "Подписка",
+  "op.network.dest.billing.subtitle": "Тариф и счета",
+  "op.network.dest.install": "Установка",
+  "op.network.dest.install.subtitle": "Подключить новый ПК",
+  "op.network.dest.journal": "Журнал",
+  "op.network.dest.journal.subtitle": "Аудит действий",
+  "op.network.noAccess": "Нет доступа к разделу «Сеть»",
+  "op.network.placeholder": "Скоро"
 }

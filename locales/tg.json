@@ -2181,6 +2181,7 @@
   "op.shell.navGroup.reports": "Ҳисоботҳо",
   "op.shell.navGroup.management": "Идоракунӣ",
   "op.shell.navGroup.warehouse": "Анбор",
+  "op.shell.navGroup.network": "Шабака",
   "op.stock.title": "Анбор",
   "op.stock.tab.levels": "Бақияҳо",
   "op.stock.tab.receiving": "Қабули мол",
@@ -2935,5 +2936,15 @@
   "op.shell.queuedCommand": "Фармони «{action}» ба навбат гузошта шуд — пас аз барқарории алоқа фиристода мешавад.",
   "op.outbox.dropped": "{seat}: фармони {command} бекор шуд — ҳолат дар сервер тағйир ёфт",
   "op.toast.close": "Пӯшидан",
-  "op.toast.region": "Огоҳиномаҳо"
+  "op.toast.region": "Огоҳиномаҳо",
+  "op.network.dest.branches": "Филиалҳо",
+  "op.network.dest.branches.subtitle": "Шарҳи шабака",
+  "op.network.dest.billing": "Обунашавӣ",
+  "op.network.dest.billing.subtitle": "Таъриф ва ҳисобҳо",
+  "op.network.dest.install": "Насб",
+  "op.network.dest.install.subtitle": "Пайваст кардани ПК-и нав",
+  "op.network.dest.journal": "Журнал",
+  "op.network.dest.journal.subtitle": "Аудити амалҳо",
+  "op.network.noAccess": "Дастрасӣ ба бахши «Шабака» нест",
+  "op.network.placeholder": "Ба зудӣ"
 }

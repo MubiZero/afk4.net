@@ -2384,6 +2384,7 @@ export const messages = {
     "op.shell.navGroup.reports": "Отчёты",
     "op.shell.navGroup.management": "Управление",
     "op.shell.navGroup.warehouse": "Склад",
+    "op.shell.navGroup.network": "Сеть",
     "op.stock.title": "Склад",
     "op.stock.tab.levels": "Остатки",
     "op.stock.tab.receiving": "Приёмка",
@@ -2940,7 +2941,17 @@ export const messages = {
     "op.shell.queuedCommand": "Команда «{action}» поставлена в очередь — будет отправлена после восстановления связи.",
     "op.outbox.dropped": "{seat}: команда {command} отменена — состояние изменилось на сервере",
     "op.toast.close": "Закрыть",
-    "op.toast.region": "Уведомления"
+    "op.toast.region": "Уведомления",
+    "op.network.dest.branches": "Филиалы",
+    "op.network.dest.branches.subtitle": "Свод по сети",
+    "op.network.dest.billing": "Подписка",
+    "op.network.dest.billing.subtitle": "Тариф и счета",
+    "op.network.dest.install": "Установка",
+    "op.network.dest.install.subtitle": "Подключить новый ПК",
+    "op.network.dest.journal": "Журнал",
+    "op.network.dest.journal.subtitle": "Аудит действий",
+    "op.network.noAccess": "Нет доступа к разделу «Сеть»",
+    "op.network.placeholder": "Скоро"
   },
   en: {
     "auth.club.title": "Club sign in",
@@ -5125,6 +5136,7 @@ export const messages = {
     "op.shell.navGroup.reports": "Reports",
     "op.shell.navGroup.management": "Management",
     "op.shell.navGroup.warehouse": "Stock",
+    "op.shell.navGroup.network": "Network",
     "op.stock.title": "Stock",
     "op.stock.tab.levels": "Levels",
     "op.stock.tab.receiving": "Receiving",
@@ -5879,7 +5891,17 @@ export const messages = {
     "op.shell.queuedCommand": "Command «{action}» queued — it will be sent once the connection is restored.",
     "op.outbox.dropped": "{seat}: command {command} cancelled — state changed on the server",
     "op.toast.close": "Close",
-    "op.toast.region": "Notifications"
+    "op.toast.region": "Notifications",
+    "op.network.dest.branches": "Branches",
+    "op.network.dest.branches.subtitle": "Network overview",
+    "op.network.dest.billing": "Subscription",
+    "op.network.dest.billing.subtitle": "Plan and invoices",
+    "op.network.dest.install": "Install",
+    "op.network.dest.install.subtitle": "Onboard a new PC",
+    "op.network.dest.journal": "Journal",
+    "op.network.dest.journal.subtitle": "Action audit",
+    "op.network.noAccess": "No access to the Network section",
+    "op.network.placeholder": "Coming soon"
   },
   tg: {
     "auth.club.title": "Воридшавӣ ба клуб",
@@ -8064,6 +8086,7 @@ export const messages = {
     "op.shell.navGroup.reports": "Ҳисоботҳо",
     "op.shell.navGroup.management": "Идоракунӣ",
     "op.shell.navGroup.warehouse": "Анбор",
+    "op.shell.navGroup.network": "Шабака",
     "op.stock.title": "Анбор",
     "op.stock.tab.levels": "Бақияҳо",
     "op.stock.tab.receiving": "Қабули мол",
@@ -8818,7 +8841,17 @@ export const messages = {
     "op.shell.queuedCommand": "Фармони «{action}» ба навбат гузошта шуд — пас аз барқарории алоқа фиристода мешавад.",
     "op.outbox.dropped": "{seat}: фармони {command} бекор шуд — ҳолат дар сервер тағйир ёфт",
     "op.toast.close": "Пӯшидан",
-    "op.toast.region": "Огоҳиномаҳо"
+    "op.toast.region": "Огоҳиномаҳо",
+    "op.network.dest.branches": "Филиалҳо",
+    "op.network.dest.branches.subtitle": "Шарҳи шабака",
+    "op.network.dest.billing": "Обунашавӣ",
+    "op.network.dest.billing.subtitle": "Таъриф ва ҳисобҳо",
+    "op.network.dest.install": "Насб",
+    "op.network.dest.install.subtitle": "Пайваст кардани ПК-и нав",
+    "op.network.dest.journal": "Журнал",
+    "op.network.dest.journal.subtitle": "Аудити амалҳо",
+    "op.network.noAccess": "Дастрасӣ ба бахши «Шабака» нест",
+    "op.network.placeholder": "Ба зудӣ"
   },
 } as const;
 

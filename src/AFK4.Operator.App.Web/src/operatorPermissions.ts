@@ -1,9 +1,10 @@
 import type { OperatorAuthSession } from './authClient';
 import type { WorkspaceId } from './operatorTypes';
 import { managementDestinations } from './management/managementNav';
+import { networkDestinations } from './network/networkNav';
 import { permissionNames } from './permissionNames';
 
-export const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'cash', 'players', 'logs', 'management', 'stock'];
+export const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'cash', 'players', 'logs', 'management', 'stock', 'network'];
 
 // Re-exported so existing `import { permissionNames } from './operatorPermissions'` call sites keep
 // working; the catalog itself lives in permissionNames.ts to avoid an import cycle with
@@ -43,7 +44,11 @@ export const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = 
   // canOpenWorkspace(session, 'management') is then equivalent to
   // allowedManagementDestinations(session).length > 0.
   management: [...new Set(managementDestinations.flatMap((destination) => destination.permissions))],
-  stock: [permissionNames.viewInventory, permissionNames.manageInventoryStock]
+  stock: [permissionNames.viewInventory, permissionNames.manageInventoryStock],
+  // Union of the four `Сеть` destinations' permission sets (networkNav.ts), deduped — same
+  // equivalence as `management` above: canOpenWorkspace(session, 'network') iff
+  // allowedNetworkDestinations(session).length > 0.
+  network: [...new Set(networkDestinations.flatMap((destination) => destination.permissions))]
 };
 
 export function hasPermission(session: OperatorAuthSession | null, permission: string) {

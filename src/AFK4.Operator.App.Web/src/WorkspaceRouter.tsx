@@ -12,6 +12,7 @@ import { BackendPlayersWorkspace } from './BackendPlayersWorkspace';
 import { BackendLogsWorkspace } from './BackendLogsWorkspace';
 import { StockWorkspace } from './stock/StockWorkspace';
 import { ManagementWorkspace } from './management/ManagementWorkspace';
+import { NetworkWorkspace } from './network/NetworkWorkspace';
 
 // Маршрутизатор контента: какой экран показать под активным workspace. Обёрнут в
 // WorkspaceErrorBoundary с key={workspace} — переключение раздела сбрасывает границу ошибок.
@@ -92,6 +93,7 @@ export function WorkspaceRouter({
       {workspace === 'management' && (
         <ManagementWorkspace backend={backend} session={session} currencyCode={currencyCode} />
       )}
+      {workspace === 'network' && <NetworkWorkspace backend={backend} />}
     </WorkspaceErrorBoundary>
   );
 }

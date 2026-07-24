@@ -46,6 +46,9 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'floor.zoneDefault',
     'journal.actor.system',
     'journal.col.target',
+    // «журнал» — устоявшееся заимствование (как journal.actor.system/journal.col.target выше);
+    // это заголовок вкладки «Сеть → Журнал» (org-audit), не отдельный термин.
+    'op.network.dest.journal',
     'ledger.type.reversal',
     // «сторно» — международный бухгалтерский термин-заимствование (как ledger.type.reversal)
     'op.players.history.reversalBadge',
@@ -500,5 +503,20 @@ it('includes the tenant health keys', () => {
   ] as const) {
     expect(messages.ru[key]).toBeTruthy();
     expect(messages.en[key]).toBeTruthy();
+  }
+});
+
+it('includes the network section keys', () => {
+  for (const key of [
+    'op.shell.navGroup.network',
+    'op.network.dest.branches', 'op.network.dest.branches.subtitle',
+    'op.network.dest.billing', 'op.network.dest.billing.subtitle',
+    'op.network.dest.install', 'op.network.dest.install.subtitle',
+    'op.network.dest.journal', 'op.network.dest.journal.subtitle',
+    'op.network.noAccess', 'op.network.placeholder'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+    expect(messages.tg[key]).toBeTruthy();
   }
 });

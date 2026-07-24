@@ -4,6 +4,7 @@ import {
   CalendarClock,
   LayoutDashboard,
   Monitor,
+  Network,
   ReceiptText,
   Settings,
   Users
@@ -110,5 +111,11 @@ export const navSections: NavSection[] = [
     items: [
       { id: 'management', labelKey: 'op.shell.navGroup.management' }
     ]
+  },
+  {
+    key: 'network',
+    labelKey: 'op.shell.navGroup.network',
+    icon: Network,
+    items: [{ id: 'network', labelKey: 'op.shell.navGroup.network' }]
   }
 ];

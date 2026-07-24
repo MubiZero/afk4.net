@@ -71,12 +71,21 @@ const rolePermissions: Record<string, string[]> = {
 //     the "Залы и ПК" destination regardless of the read-only-perms fix.
 //   - accountant_auditor loses 'admin': its permissions are all *.view and match none of the eight
 //     management-destination permission sets (it previously saw 'admin' only via logs/audit).
+//
+// `network` (Task 4, gated by branches.view/billing.subscription.view/devices.install/audit.view —
+// networkNav.ts) is visible to more than just the owner, because PermissionCatalog.cs already
+// grants two of those four permissions to other roles for unrelated reasons:
+//   - branch_manager holds devices.install AND audit.view → sees `network` (Install + Journal
+//     destinations; Branches/Billing stay hidden — it lacks branches.view/billing.subscription.view).
+//   - technician holds devices.install (field provisioning) → sees `network` (Install only).
+//   - accountant_auditor holds audit.view (compliance reporting) → sees `network` (Journal only).
+//   - cashier_operator and shift_supervisor hold none of the four → `network` stays hidden.
 const expectedSections: Record<string, string[]> = {
   cashier_operator: ['map', 'booking', 'players', 'cashier'],
   shift_supervisor: ['map', 'booking', 'players', 'cashier', 'reports', 'stock'],
-  branch_manager: ['map', 'booking', 'players', 'cashier', 'reports', 'admin', 'stock'],
-  technician: ['map', 'admin', 'stock'],
-  accountant_auditor: ['booking', 'players', 'cashier', 'reports', 'stock']
+  branch_manager: ['map', 'booking', 'players', 'cashier', 'reports', 'admin', 'stock', 'network'],
+  technician: ['map', 'admin', 'stock', 'network'],
+  accountant_auditor: ['booking', 'players', 'cashier', 'reports', 'stock', 'network']
 };
 
 function visibleSections(permissions: string[]): string[] {
@@ -121,5 +130,17 @@ describe('stock workspace visibility', () => {
   it('session without inventory permissions cannot open stock workspace', () => {
     const session = { permissions: ['floor_map.view', 'sessions.view'] } as OperatorAuthSession;
     expect(canOpenWorkspace(session, 'stock')).toBe(false);
+  });
+});
+
+describe('network workspace visibility', () => {
+  it('opens network for an owner-permission session', () => {
+    const session = { permissions: ['branches.view', 'billing.subscription.view', 'devices.install', 'audit.view'] } as OperatorAuthSession;
+    expect(canOpenWorkspace(session, 'network')).toBe(true);
+  });
+
+  it('hides network for a cashier session', () => {
+    const session = { permissions: rolePermissions.cashier_operator } as OperatorAuthSession;
+    expect(canOpenWorkspace(session, 'network')).toBe(false);
   });
 });
