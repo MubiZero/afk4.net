@@ -2946,5 +2946,19 @@
   "op.network.dest.journal": "Журнал",
   "op.network.dest.journal.subtitle": "Аудити амалҳо",
   "op.network.noAccess": "Дастрасӣ ба бахши «Шабака» нест",
-  "op.network.placeholder": "Ба зудӣ"
+  "op.network.placeholder": "Ба зудӣ",
+  "op.network.branches.unnamed": "Беном",
+  "op.network.branches.totals.branches": "Филиалҳо",
+  "op.network.branches.kpi.devices": "ПК онлайн",
+  "op.network.branches.kpi.sessions": "Сессияҳо",
+  "op.network.branches.kpi.revenue": "Даромади имрӯз",
+  "op.network.branches.kpi.attention": "Диққат металабанд",
+  "op.network.branches.card.error": "Боркунии филиал ноком шуд",
+  "op.network.branches.empty": "Филиал ёфт нашуд",
+  "op.network.branches.rename": "Тағйири ном",
+  "op.network.branches.rename.title": "Тағйири номи филиал",
+  "op.network.branches.field.name": "Ном",
+  "op.network.branches.field.city": "Шаҳр",
+  "op.network.branches.add": "Илова кардани филиал",
+  "op.network.branches.add.unavailable": "Илова кардани филиал ҳанӯз дастрас нест"
 }

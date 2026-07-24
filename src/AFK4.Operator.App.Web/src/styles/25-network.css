@@ -1,0 +1,100 @@
+/* Сеть → Филиалы: свод KPI по org. Карточки/итоги переиспользуют .management-panel
+   (раскладка/подъём), здесь только грид и типографика статов. */
+
+.network-branches-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.network-total {
+  gap: 6px;
+  padding: 14px 16px;
+}
+
+.network-total-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.network-total-value {
+  color: var(--text-strong);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.network-branches-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.network-branch-card header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.network-branch-card h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.network-branch-city {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.network-branch-error {
+  margin: 0;
+  color: var(--danger-text);
+  font-size: 13px;
+}
+
+.network-branch-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px 16px;
+  margin: 0;
+}
+
+.network-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.network-stat dt {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.network-stat dd {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.network-branch-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.network-branches-add {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.network-branches-add-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}

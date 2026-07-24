@@ -2951,7 +2951,21 @@ export const messages = {
     "op.network.dest.journal": "Журнал",
     "op.network.dest.journal.subtitle": "Аудит действий",
     "op.network.noAccess": "Нет доступа к разделу «Сеть»",
-    "op.network.placeholder": "Скоро"
+    "op.network.placeholder": "Скоро",
+    "op.network.branches.unnamed": "Без названия",
+    "op.network.branches.totals.branches": "Филиалов",
+    "op.network.branches.kpi.devices": "ПК онлайн",
+    "op.network.branches.kpi.sessions": "Сессий",
+    "op.network.branches.kpi.revenue": "Выручка сегодня",
+    "op.network.branches.kpi.attention": "Требуют внимания",
+    "op.network.branches.card.error": "Не удалось загрузить филиал",
+    "op.network.branches.empty": "Филиалы не найдены",
+    "op.network.branches.rename": "Переименовать",
+    "op.network.branches.rename.title": "Переименовать филиал",
+    "op.network.branches.field.name": "Название",
+    "op.network.branches.field.city": "Город",
+    "op.network.branches.add": "Добавить филиал",
+    "op.network.branches.add.unavailable": "Создание филиала пока недоступно"
   },
   en: {
     "auth.club.title": "Club sign in",
@@ -5901,7 +5915,21 @@ export const messages = {
     "op.network.dest.journal": "Journal",
     "op.network.dest.journal.subtitle": "Action audit",
     "op.network.noAccess": "No access to the Network section",
-    "op.network.placeholder": "Coming soon"
+    "op.network.placeholder": "Coming soon",
+    "op.network.branches.unnamed": "Unnamed",
+    "op.network.branches.totals.branches": "Branches",
+    "op.network.branches.kpi.devices": "PCs online",
+    "op.network.branches.kpi.sessions": "Sessions",
+    "op.network.branches.kpi.revenue": "Revenue today",
+    "op.network.branches.kpi.attention": "Need attention",
+    "op.network.branches.card.error": "Failed to load branch",
+    "op.network.branches.empty": "No branches",
+    "op.network.branches.rename": "Rename",
+    "op.network.branches.rename.title": "Rename branch",
+    "op.network.branches.field.name": "Name",
+    "op.network.branches.field.city": "City",
+    "op.network.branches.add": "Add branch",
+    "op.network.branches.add.unavailable": "Adding a branch isn't available yet"
   },
   tg: {
     "auth.club.title": "Воридшавӣ ба клуб",
@@ -8851,7 +8879,21 @@ export const messages = {
     "op.network.dest.journal": "Журнал",
     "op.network.dest.journal.subtitle": "Аудити амалҳо",
     "op.network.noAccess": "Дастрасӣ ба бахши «Шабака» нест",
-    "op.network.placeholder": "Ба зудӣ"
+    "op.network.placeholder": "Ба зудӣ",
+    "op.network.branches.unnamed": "Беном",
+    "op.network.branches.totals.branches": "Филиалҳо",
+    "op.network.branches.kpi.devices": "ПК онлайн",
+    "op.network.branches.kpi.sessions": "Сессияҳо",
+    "op.network.branches.kpi.revenue": "Даромади имрӯз",
+    "op.network.branches.kpi.attention": "Диққат металабанд",
+    "op.network.branches.card.error": "Боркунии филиал ноком шуд",
+    "op.network.branches.empty": "Филиал ёфт нашуд",
+    "op.network.branches.rename": "Тағйири ном",
+    "op.network.branches.rename.title": "Тағйири номи филиал",
+    "op.network.branches.field.name": "Ном",
+    "op.network.branches.field.city": "Шаҳр",
+    "op.network.branches.add": "Илова кардани филиал",
+    "op.network.branches.add.unavailable": "Илова кардани филиал ҳанӯз дастрас нест"
   },
 } as const;
 

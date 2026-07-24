@@ -2946,5 +2946,19 @@
   "op.network.dest.journal": "Journal",
   "op.network.dest.journal.subtitle": "Action audit",
   "op.network.noAccess": "No access to the Network section",
-  "op.network.placeholder": "Coming soon"
+  "op.network.placeholder": "Coming soon",
+  "op.network.branches.unnamed": "Unnamed",
+  "op.network.branches.totals.branches": "Branches",
+  "op.network.branches.kpi.devices": "PCs online",
+  "op.network.branches.kpi.sessions": "Sessions",
+  "op.network.branches.kpi.revenue": "Revenue today",
+  "op.network.branches.kpi.attention": "Need attention",
+  "op.network.branches.card.error": "Failed to load branch",
+  "op.network.branches.empty": "No branches",
+  "op.network.branches.rename": "Rename",
+  "op.network.branches.rename.title": "Rename branch",
+  "op.network.branches.field.name": "Name",
+  "op.network.branches.field.city": "City",
+  "op.network.branches.add": "Add branch",
+  "op.network.branches.add.unavailable": "Adding a branch isn't available yet"
 }

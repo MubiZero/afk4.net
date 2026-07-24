@@ -2946,5 +2946,19 @@
   "op.network.dest.journal": "Журнал",
   "op.network.dest.journal.subtitle": "Аудит действий",
   "op.network.noAccess": "Нет доступа к разделу «Сеть»",
-  "op.network.placeholder": "Скоро"
+  "op.network.placeholder": "Скоро",
+  "op.network.branches.unnamed": "Без названия",
+  "op.network.branches.totals.branches": "Филиалов",
+  "op.network.branches.kpi.devices": "ПК онлайн",
+  "op.network.branches.kpi.sessions": "Сессий",
+  "op.network.branches.kpi.revenue": "Выручка сегодня",
+  "op.network.branches.kpi.attention": "Требуют внимания",
+  "op.network.branches.card.error": "Не удалось загрузить филиал",
+  "op.network.branches.empty": "Филиалы не найдены",
+  "op.network.branches.rename": "Переименовать",
+  "op.network.branches.rename.title": "Переименовать филиал",
+  "op.network.branches.field.name": "Название",
+  "op.network.branches.field.city": "Город",
+  "op.network.branches.add": "Добавить филиал",
+  "op.network.branches.add.unavailable": "Создание филиала пока недоступно"
 }

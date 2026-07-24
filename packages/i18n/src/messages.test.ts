@@ -42,6 +42,9 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'customer.signin.phone',
     'devices.status.offline',
     'devices.status.online',
+    // «ПК» и «онлайн» — те же устоявшиеся заимствования, что devices.status.online выше
+    // (KPI-подпись «ПК онлайн» на своде Сеть → Филиалы).
+    'op.network.branches.kpi.devices',
     'floor.seatDefault',
     'floor.zoneDefault',
     'journal.actor.system',
@@ -514,6 +517,29 @@ it('includes the network section keys', () => {
     'op.network.dest.install', 'op.network.dest.install.subtitle',
     'op.network.dest.journal', 'op.network.dest.journal.subtitle',
     'op.network.noAccess', 'op.network.placeholder'
+  ] as const) {
+    expect(messages.ru[key]).toBeTruthy();
+    expect(messages.en[key]).toBeTruthy();
+    expect(messages.tg[key]).toBeTruthy();
+  }
+});
+
+it('includes the network branches rollup screen keys', () => {
+  for (const key of [
+    'op.network.branches.unnamed',
+    'op.network.branches.totals.branches',
+    'op.network.branches.kpi.devices',
+    'op.network.branches.kpi.sessions',
+    'op.network.branches.kpi.revenue',
+    'op.network.branches.kpi.attention',
+    'op.network.branches.card.error',
+    'op.network.branches.empty',
+    'op.network.branches.rename',
+    'op.network.branches.rename.title',
+    'op.network.branches.field.name',
+    'op.network.branches.field.city',
+    'op.network.branches.add',
+    'op.network.branches.add.unavailable'
   ] as const) {
     expect(messages.ru[key]).toBeTruthy();
     expect(messages.en[key]).toBeTruthy();
