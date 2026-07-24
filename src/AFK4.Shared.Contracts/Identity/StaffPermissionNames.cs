@@ -107,6 +107,9 @@ public static class StaffPermissionNames
 
     public const string ManageBranchSettings = "branches.settings.manage";
 
+    // Owner-only: view the org-wide branch roster (network overview).
+    public const string ViewBranches = "branches.view";
+
     // Owner-only: connect/manage the club's DC-Bank payment cards (dcgate gateways).
     public const string ManagePaymentGateways = "payments.gateways.manage";
 

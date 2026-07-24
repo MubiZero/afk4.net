@@ -31,7 +31,7 @@ internal static class NewsEndpoints
             PlatformDbContext db,
             CancellationToken ct) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ManageNews);
+            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ViewBranches);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 
