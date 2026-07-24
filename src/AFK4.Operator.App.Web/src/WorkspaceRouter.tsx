@@ -5,7 +5,6 @@ import type { OperatorFloorMapState } from './floorMapState';
 import type { MapFilterId, OperatorBackendContext, WorkspaceId } from './operatorTypes';
 import { WorkspaceErrorBoundary } from './WorkspaceErrorBoundary';
 import { MapWorkspace } from './MapWorkspace';
-import { DashboardWorkspace } from './DashboardWorkspace';
 import { BackendBookingWorkspace } from './BackendBookingWorkspace';
 import { CashWorkspace } from './cash/CashWorkspace';
 import { BackendPlayersWorkspace } from './BackendPlayersWorkspace';
@@ -13,6 +12,7 @@ import { BackendLogsWorkspace } from './BackendLogsWorkspace';
 import { StockWorkspace } from './stock/StockWorkspace';
 import { ManagementWorkspace } from './management/ManagementWorkspace';
 import { NetworkWorkspace } from './network/NetworkWorkspace';
+import { ReportsWorkspace } from './reports/ReportsWorkspace';
 
 // Маршрутизатор контента: какой экран показать под активным workspace. Обёрнут в
 // WorkspaceErrorBoundary с key={workspace} — переключение раздела сбрасывает границу ошибок.
@@ -71,9 +71,9 @@ export function WorkspaceRouter({
         />
       )}
       {workspace === 'dashboard' && (
-        <DashboardWorkspace
-          currencyCode={currencyCode}
+        <ReportsWorkspace
           backend={backend}
+          currencyCode={currencyCode}
           onNavigate={onNavigate}
           onOpenSeat={onOpenSeat}
         />

@@ -137,6 +137,26 @@ describe('stock workspace visibility', () => {
   });
 });
 
+describe('reports workspace visibility', () => {
+  // dashboard rule is a union (reports.view OR audit.view) so a manager-auditor without
+  // reports.view still opens «Отчёты» — landing on Journal (the only destination audit.view
+  // unlocks in reportsNav.ts), instead of being shut out of the whole section.
+  it('reports.view alone opens the dashboard workspace', () => {
+    const session = { permissions: ['reports.view'] } as OperatorAuthSession;
+    expect(canOpenWorkspace(session, 'dashboard')).toBe(true);
+  });
+
+  it('audit.view alone opens the dashboard workspace', () => {
+    const session = { permissions: ['audit.view'] } as OperatorAuthSession;
+    expect(canOpenWorkspace(session, 'dashboard')).toBe(true);
+  });
+
+  it('hides the dashboard workspace without reports.view or audit.view', () => {
+    const session = { permissions: ['floor_map.view'] } as OperatorAuthSession;
+    expect(canOpenWorkspace(session, 'dashboard')).toBe(false);
+  });
+});
+
 describe('network workspace visibility', () => {
   it('opens network for an owner-permission session', () => {
     const session = {

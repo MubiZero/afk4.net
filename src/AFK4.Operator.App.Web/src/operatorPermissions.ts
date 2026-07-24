@@ -15,7 +15,7 @@ export const staffRoleOptions = ['cashier_operator', 'shift_supervisor', 'branch
 
 export const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
   map: [permissionNames.viewFloorMap],
-  dashboard: [permissionNames.viewReports],
+  dashboard: [permissionNames.viewReports, permissionNames.viewAudit],
   booking: [permissionNames.viewReservations],
   cash: [
     permissionNames.createPosSale,

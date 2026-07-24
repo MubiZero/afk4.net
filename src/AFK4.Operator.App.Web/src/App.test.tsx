@@ -1174,7 +1174,9 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     gotoWorkspace('Дашборд');
-    expect(screen.getByText('Обзор')).toBeInTheDocument();
+    // «Обзор» now appears twice (destination-switcher nav label + DashboardWorkspace's own
+    // section label) since «Отчёты» became a switcher (Task 5) — getAllByText tolerates that.
+    expect(screen.getAllByText('Обзор').length).toBeGreaterThan(0);
     expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Скачать продажи за/ }));
 

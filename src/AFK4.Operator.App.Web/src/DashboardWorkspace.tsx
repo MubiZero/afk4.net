@@ -307,7 +307,7 @@ export function DashboardWorkspace({
   ];
 
   return (
-    <main className="workspace-screen dashboard-screen">
+    <section className="workspace-screen dashboard-screen">
       <section className="screen-head dashboard-head">
         <div>
           <span>{t('op.dashboard.overview')}</span>
@@ -439,6 +439,6 @@ export function DashboardWorkspace({
         </section>
       </section>
       )}
-    </main>
+    </section>
   );
 }

@@ -42,6 +42,22 @@ configure({ asyncUtilTimeout: 5000 });
   __afk4RealOperatorHelpers?: typeof import('../operatorHelpers');
 }).__afk4RealOperatorHelpers = { ...(await import('../operatorHelpers')) };
 
+// Same hazard for the three «Отчёты» destination modules: ReportsWorkspace.test.tsx stubs all
+// three with mock.module to isolate the switcher from their internals. Snapshot the genuine
+// components here so that file can restore them afterwards for HistoryDestination.test.tsx/
+// BranchJournalDestination.test.tsx (which render the real components).
+(globalThis as typeof globalThis & {
+  __afk4RealReportsOverviewDestination?: typeof import('../reports/overview/OverviewDestination');
+}).__afk4RealReportsOverviewDestination = { ...(await import('../reports/overview/OverviewDestination')) };
+
+(globalThis as typeof globalThis & {
+  __afk4RealReportsHistoryDestination?: typeof import('../reports/history/HistoryDestination');
+}).__afk4RealReportsHistoryDestination = { ...(await import('../reports/history/HistoryDestination')) };
+
+(globalThis as typeof globalThis & {
+  __afk4RealReportsJournalDestination?: typeof import('../reports/journal/BranchJournalDestination');
+}).__afk4RealReportsJournalDestination = { ...(await import('../reports/journal/BranchJournalDestination')) };
+
 // NB: App.test.tsx (the only broad integration suite) depends on the REAL authClient/
 // operatorApiClients/operatorHelpers AND its own operatorRealtime mock. In one bun process the
 // above sibling mock.module registrations leak across files non-deterministically (bun keeps them
