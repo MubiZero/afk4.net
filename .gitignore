@@ -11,7 +11,7 @@ TestResults/
 *.snupkg
 *.tsbuildinfo
 artifacts/
-src/AFK4.Operator.App.Web/dist/
+src/AFK4.OrganizationAdmin.Web/dist/
 src/AFK4.SetupWizard.Web/dist/
 src/AFK4.Player.Shell.Web/dist/
 .superpowers/

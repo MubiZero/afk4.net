@@ -27,7 +27,7 @@ public sealed class SetupWizardPayloadResolverTests
 
         var result = resolver.ResolveOperatorAppMsiPath();
 
-        Assert.EndsWith(System.IO.Path.Combine("payload", "AFK4.Operator.App.msi"), result);
+        Assert.EndsWith(System.IO.Path.Combine("payload", "AFK4.OrganizationAdmin.App.msi"), result);
     }
 
     [Fact]

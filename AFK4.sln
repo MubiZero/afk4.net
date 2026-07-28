@@ -13,7 +13,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFK4.Platform.Api", "src\AF
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFK4.Agent.Service", "src\AFK4.Agent.Service\AFK4.Agent.Service.csproj", "{5BF5772D-4774-4C3F-B353-ACD2E3F091F8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFK4.Operator.App", "src\AFK4.Operator.App\AFK4.Operator.App.csproj", "{3CC1C52F-CCB0-4664-B88D-AC8524AE8C2A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFK4.OrganizationAdmin.App", "src\AFK4.OrganizationAdmin.App\AFK4.OrganizationAdmin.App.csproj", "{3CC1C52F-CCB0-4664-B88D-AC8524AE8C2A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFK4.Player.Shell", "src\AFK4.Player.Shell\AFK4.Player.Shell.csproj", "{3BB1B233-5FA0-47E2-A589-51E706C650A3}"
 EndProject
@@ -27,7 +27,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFK4.Platform.Api.Tests", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFK4.Agent.Service.Tests", "tests\AFK4.Agent.Service.Tests\AFK4.Agent.Service.Tests.csproj", "{E104CB38-E858-4F43-9BCF-CFE749FAA97A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFK4.Operator.App.Tests", "tests\AFK4.Operator.App.Tests\AFK4.Operator.App.Tests.csproj", "{1D5280E0-A26A-41F7-8463-D59FCCDD7361}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFK4.OrganizationAdmin.App.Tests", "tests\AFK4.OrganizationAdmin.App.Tests\AFK4.OrganizationAdmin.App.Tests.csproj", "{1D5280E0-A26A-41F7-8463-D59FCCDD7361}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AFK4.Player.Shell.Tests", "tests\AFK4.Player.Shell.Tests\AFK4.Player.Shell.Tests.csproj", "{9520710C-1403-4BC1-B79A-E08CA11F7A4B}"
 EndProject

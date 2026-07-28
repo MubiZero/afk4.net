@@ -25,9 +25,9 @@ public sealed class EnvironmentBootstrapWriterTests : IDisposable
         "Agent__UpdateRestartExecutablePath",
         "Agent__UpdateRestartArgumentsTemplate",
         "Agent__UpdatePackageSigningPublicKeyPem",
-        "AFK4_OPERATOR_PLATFORM_BASE_URL",
-        "AFK4_OPERATOR_ORGANIZATION_ID",
-        "AFK4_OPERATOR_BRANCH_ID"
+        "AFK4_ORGANIZATION_ADMIN_PLATFORM_BASE_URL",
+        "AFK4_ORGANIZATION_ADMIN_ORGANIZATION_ID",
+        "AFK4_ORGANIZATION_ADMIN_BRANCH_ID"
     ];
 
     [WindowsOnlyFact]
@@ -51,13 +51,13 @@ public sealed class EnvironmentBootstrapWriterTests : IDisposable
         Assert.Equal("https://afk4.staging.mubi.dev", Environment.GetEnvironmentVariable("Agent__PlatformBaseUrl"));
         Assert.Equal(
             "https://afk4.staging.mubi.dev",
-            Environment.GetEnvironmentVariable("AFK4_OPERATOR_PLATFORM_BASE_URL"));
+            Environment.GetEnvironmentVariable("AFK4_ORGANIZATION_ADMIN_PLATFORM_BASE_URL"));
         Assert.Equal(
             config.OrganizationId.ToString("D"),
-            Environment.GetEnvironmentVariable("AFK4_OPERATOR_ORGANIZATION_ID"));
+            Environment.GetEnvironmentVariable("AFK4_ORGANIZATION_ADMIN_ORGANIZATION_ID"));
         Assert.Equal(
             config.BranchId.ToString("D"),
-            Environment.GetEnvironmentVariable("AFK4_OPERATOR_BRANCH_ID"));
+            Environment.GetEnvironmentVariable("AFK4_ORGANIZATION_ADMIN_BRANCH_ID"));
         Assert.Equal(config.OrganizationId.ToString("D"), Environment.GetEnvironmentVariable("Agent__OrganizationId"));
         Assert.Equal(config.BranchId.ToString("D"), Environment.GetEnvironmentVariable("Agent__BranchId"));
         Assert.Equal(config.DeviceId.ToString("D"), Environment.GetEnvironmentVariable("Agent__DeviceId"));

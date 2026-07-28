@@ -622,7 +622,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("- \".config/dotnet-tools.json\"", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"src/AFK4.Shared.Contracts/**\"", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"src/AFK4.BuildingBlocks/**\"", workflow, StringComparison.Ordinal);
-        Assert.Contains("- \"src/AFK4.Operator.App.Web/**\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("- \"src/AFK4.OrganizationAdmin.Web/**\"", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"NuGet.config\"", workflow, StringComparison.Ordinal);
         Assert.Contains("uses: actions/setup-node@v4", workflow, StringComparison.Ordinal);
         Assert.Contains("node-version: 24", workflow, StringComparison.Ordinal);

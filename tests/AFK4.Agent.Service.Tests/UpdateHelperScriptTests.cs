@@ -109,7 +109,7 @@ public sealed class UpdateHelperScriptTests
         var operatorAppBuild = script[
             script.IndexOf("installers/operator-app/Package.wxs", StringComparison.Ordinal)..];
 
-        Assert.Contains("@{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
+        Assert.Contains("@{ Name = 'operator-app'; Path = 'src/AFK4.OrganizationAdmin.App/AFK4.OrganizationAdmin.App.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
         // All four client components must publish framework-dependent so the bundle's shared
         // runtime is the single .NET copy (see Workstream A). A stray "SelfContained = $true" in
         // the $projects list would re-bloat the MSI back toward 160 MB.
@@ -128,7 +128,7 @@ public sealed class UpdateHelperScriptTests
 
         Assert.Contains("BunPath", script, StringComparison.Ordinal);
         Assert.Contains("SkipOperatorWebRestore", script, StringComparison.Ordinal);
-        Assert.Contains("src/AFK4.Operator.App.Web", script, StringComparison.Ordinal);
+        Assert.Contains("src/AFK4.OrganizationAdmin.Web", script, StringComparison.Ordinal);
         Assert.Contains("& $BunPath install --frozen-lockfile", script, StringComparison.Ordinal);
         Assert.Contains("& $BunPath run build", script, StringComparison.Ordinal);
         Assert.Contains("Operator App frontend build did not produce", script, StringComparison.Ordinal);

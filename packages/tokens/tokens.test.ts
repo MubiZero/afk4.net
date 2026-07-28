@@ -6,7 +6,7 @@ const ROOT = join(import.meta.dir, '..', '..');
 const tokensCss = readFileSync(join(import.meta.dir, 'tokens.css'), 'utf8');
 
 const APP_STYLES = [
-  'src/AFK4.Operator.App.Web/src/styles.css',
+  'src/AFK4.OrganizationAdmin.Web/src/styles.css',
   'src/AFK4.SetupWizard.Web/src/styles.css',
 ];
 

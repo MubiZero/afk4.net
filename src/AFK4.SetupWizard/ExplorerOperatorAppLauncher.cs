@@ -5,14 +5,14 @@ using AFK4.SetupWizard.Core;
 namespace AFK4.SetupWizard;
 
 // The wizard runs elevated, but the operator must start as the interactive user with the freshly
-// written machine environment (AFK4_OPERATOR_*). Launching it as a direct child would inherit the
+// written machine environment (AFK4_ORGANIZATION_ADMIN_*). Launching it as a direct child would inherit the
 // wizard's stale, elevated environment — the same trap that left the operator stuck "offline".
 // Handing the launch to explorer.exe runs the app de-elevated with the shell's already-refreshed
 // environment (from our WM_SETTINGCHANGE broadcast) — exactly like the Start Menu shortcut the
 // cashier would otherwise click.
 public sealed class ExplorerOperatorAppLauncher : ISetupWizardOperatorLauncher
 {
-    private const string OperatorAppExeName = "AFK4.Operator.App.exe";
+    private const string OperatorAppExeName = "AFK4.OrganizationAdmin.App.exe";
     private const string OperatorAppFolderName = "Operator App";
 
     public void Launch()

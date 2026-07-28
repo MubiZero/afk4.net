@@ -78,8 +78,8 @@
         "workbox-window": "^7.4.1",
       },
     },
-    "src/AFK4.Operator.App.Web": {
-      "name": "afk4-operator-app-web",
+    "src/AFK4.OrganizationAdmin.Web": {
+      "name": "afk4-organization-admin-web",
       "version": "0.1.0",
       "dependencies": {
         "@afk4/formatting": "workspace:*",
@@ -755,7 +755,7 @@
 
     "afk4-customer-web": ["afk4-customer-web@workspace:src/AFK4.Customer.Web"],
 
-    "afk4-operator-app-web": ["afk4-operator-app-web@workspace:src/AFK4.Operator.App.Web"],
+    "afk4-organization-admin-web": ["afk4-organization-admin-web@workspace:src/AFK4.OrganizationAdmin.Web"],
 
     "afk4-platform-control-web": ["afk4-platform-control-web@workspace:src/AFK4.PlatformControl.Web"],
 

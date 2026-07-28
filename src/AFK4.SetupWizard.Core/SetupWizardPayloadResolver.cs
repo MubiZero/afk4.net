@@ -11,7 +11,7 @@ namespace AFK4.SetupWizard.Core;
 public sealed class SetupWizardPayloadResolver
 {
     public const string PlayerShellMsiFileName = "AFK4.Player.Shell.msi";
-    public const string OperatorAppMsiFileName = "AFK4.Operator.App.msi";
+    public const string OperatorAppMsiFileName = "AFK4.OrganizationAdmin.App.msi";
 
     private readonly Func<string, bool> fileExists;
     private readonly Func<string, string> resolvePath;

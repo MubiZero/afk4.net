@@ -183,7 +183,7 @@ Minimum bar:
    build MSI artifacts, publish signed update metadata to staging MinIO,
    register packages with the staging Platform API, and create an internal
    device rollout. Client package workflows now set up Node 24 and the package
-   script builds `src/AFK4.Operator.App.Web`, then copies the fresh Vite `dist`
+   script builds `src/AFK4.OrganizationAdmin.Web`, then copies the fresh Vite `dist`
    output into the Operator App publish `WebAssets` before WiX builds the
    Operator App MSI; the script also asserts the finished MSI contains the
    frontend `index.html`, JavaScript, and CSS files. The Operator App MSI now

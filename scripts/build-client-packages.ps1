@@ -151,7 +151,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $artifactRoot = Join-Path $repoRoot 'artifacts/client-packages'
 $publishRoot = Join-Path $artifactRoot 'publish'
 $wixInputRoot = Join-Path $artifactRoot 'wix-inputs'
-$operatorWebRoot = Join-Path $repoRoot 'src/AFK4.Operator.App.Web'
+$operatorWebRoot = Join-Path $repoRoot 'src/AFK4.OrganizationAdmin.Web'
 $operatorWebDist = Join-Path $operatorWebRoot 'dist'
 $operatorWebDistIndex = Join-Path $operatorWebDist 'index.html'
 $msiVersion = ConvertTo-MsiVersion $Version
@@ -278,7 +278,7 @@ Get-ChildItem -LiteralPath $setupWizardWebDist -Force |
     Copy-Item -Destination $setupWizardWebAssets -Recurse -Force
 
 $projects = @(
-    @{ Name = 'operator-app'; Path = 'src/AFK4.Operator.App/AFK4.Operator.App.csproj'; SelfContained = $false },
+    @{ Name = 'operator-app'; Path = 'src/AFK4.OrganizationAdmin.App/AFK4.OrganizationAdmin.App.csproj'; SelfContained = $false },
     @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $false },
     @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $false },
     @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $false }
@@ -391,7 +391,7 @@ Assert-OperatorMsiContainsFrontendAssets -MsiPath $operatorMsiPath
 $setupWizardPayloadDir = Join-Path $setupWizardPublishDir 'payload'
 New-Item -ItemType Directory -Force -Path $setupWizardPayloadDir | Out-Null
 Copy-Item -LiteralPath $playerShellMsiPath -Destination (Join-Path $setupWizardPayloadDir 'AFK4.Player.Shell.msi') -Force
-Copy-Item -LiteralPath $operatorMsiPath -Destination (Join-Path $setupWizardPayloadDir 'AFK4.Operator.App.msi') -Force
+Copy-Item -LiteralPath $operatorMsiPath -Destination (Join-Path $setupWizardPayloadDir 'AFK4.OrganizationAdmin.App.msi') -Force
 
 # -Recurse (not -File) so the WebAssets\** subfolder ships in the support dir;
 # the agent MSI harvests SetupWizardFiles from here, and the wizard resolves its
@@ -428,8 +428,8 @@ $agentFiles = Get-MsiFileNames -MsiPath $agentMsiPath
 if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.Player.Shell.msi*' } | Select-Object -First 1)) {
     throw "Agent MSI does not contain the bundled Player Shell MSI (payload\AFK4.Player.Shell.msi)."
 }
-if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.Operator.App.msi*' } | Select-Object -First 1)) {
-    throw "Agent MSI does not contain the bundled Operator App MSI (payload\AFK4.Operator.App.msi)."
+if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.OrganizationAdmin.App.msi*' } | Select-Object -First 1)) {
+    throw "Agent MSI does not contain the bundled Operator App MSI (payload\AFK4.OrganizationAdmin.App.msi)."
 }
 
 # Components publish framework-dependent (one shared .NET runtime, carried by the Burn

@@ -1,0 +1,36 @@
+﻿<Application x:Class="AFK4.OrganizationAdmin.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:AFK4.OrganizationAdmin.App"
+             StartupUri="Web/OrganizationAdminWindow.xaml">
+    <Application.Resources>
+        <!-- AFK4.NET command-grid mark (dark surfaces): diagonal cells in accent emerald -->
+        <DrawingImage x:Key="BrandMark">
+            <DrawingImage.Drawing>
+                <DrawingGroup>
+                    <GeometryDrawing Brush="#173028">
+                        <GeometryDrawing.Geometry>
+                            <GeometryGroup>
+                                <RectangleGeometry Rect="20,3,13,13" RadiusX="3.5" RadiusY="3.5" />
+                                <RectangleGeometry Rect="37,3,13,13" RadiusX="3.5" RadiusY="3.5" />
+                                <RectangleGeometry Rect="3,20,13,13" RadiusX="3.5" RadiusY="3.5" />
+                                <RectangleGeometry Rect="37,20,13,13" RadiusX="3.5" RadiusY="3.5" />
+                                <RectangleGeometry Rect="3,37,13,13" RadiusX="3.5" RadiusY="3.5" />
+                                <RectangleGeometry Rect="20,37,13,13" RadiusX="3.5" RadiusY="3.5" />
+                            </GeometryGroup>
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                    <GeometryDrawing Brush="#2DD4A7">
+                        <GeometryDrawing.Geometry>
+                            <GeometryGroup>
+                                <RectangleGeometry Rect="3,3,13,13" RadiusX="3.5" RadiusY="3.5" />
+                                <RectangleGeometry Rect="20,20,13,13" RadiusX="3.5" RadiusY="3.5" />
+                                <RectangleGeometry Rect="37,37,13,13" RadiusX="3.5" RadiusY="3.5" />
+                            </GeometryGroup>
+                        </GeometryDrawing.Geometry>
+                    </GeometryDrawing>
+                </DrawingGroup>
+            </DrawingImage.Drawing>
+        </DrawingImage>
+    </Application.Resources>
+</Application>

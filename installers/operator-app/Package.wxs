@@ -53,7 +53,7 @@
           Id="OperatorAppShortcut"
           Name="AFK4.NET Operator"
           Description="AFK4.NET Operator workstation"
-          Target="[OperatorAppFolder]AFK4.Operator.App.exe"
+          Target="[OperatorAppFolder]AFK4.OrganizationAdmin.App.exe"
           WorkingDirectory="OperatorAppFolder" />
       <RemoveFolder Id="RemoveOperatorAppMenuFolder" Directory="OperatorAppMenuFolder" On="uninstall" />
       <RegistryValue
@@ -71,7 +71,7 @@
           Id="OperatorAppDesktopShortcutLink"
           Name="AFK4.NET Operator"
           Description="AFK4.NET Operator workstation"
-          Target="[OperatorAppFolder]AFK4.Operator.App.exe"
+          Target="[OperatorAppFolder]AFK4.OrganizationAdmin.App.exe"
           WorkingDirectory="OperatorAppFolder" />
       <RegistryValue
           Root="HKLM"

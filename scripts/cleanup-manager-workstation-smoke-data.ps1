@@ -79,8 +79,8 @@ Useful overrides:
 
 Environment fallbacks:
   AFK4_STAGING_BASE_URL
-  AFK4_STAGING_ORGANIZATION_ID or AFK4_OPERATOR_ORGANIZATION_ID
-  AFK4_STAGING_BRANCH_ID or AFK4_OPERATOR_BRANCH_ID
+  AFK4_STAGING_ORGANIZATION_ID or AFK4_ORGANIZATION_ADMIN_ORGANIZATION_ID
+  AFK4_STAGING_BRANCH_ID or AFK4_ORGANIZATION_ADMIN_BRANCH_ID
   AFK4_STAGING_STAFF_USERNAME
   AFK4_STAGING_STAFF_PASSWORD or AFK4_SMOKE_STAFF_PASSWORD
 "@ | Write-Host
@@ -397,12 +397,12 @@ if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
 $script:ResolvedBaseUrl = $BaseUrl.TrimEnd("/")
 $OrganizationId = Resolve-GuidValue `
     -Value $OrganizationId `
-    -EnvironmentNames @("AFK4_STAGING_ORGANIZATION_ID", "AFK4_OPERATOR_ORGANIZATION_ID") `
+    -EnvironmentNames @("AFK4_STAGING_ORGANIZATION_ID", "AFK4_ORGANIZATION_ADMIN_ORGANIZATION_ID") `
     -DefaultValue $DefaultOrganizationId `
     -DisplayName "OrganizationId"
 $BranchId = Resolve-GuidValue `
     -Value $BranchId `
-    -EnvironmentNames @("AFK4_STAGING_BRANCH_ID", "AFK4_OPERATOR_BRANCH_ID") `
+    -EnvironmentNames @("AFK4_STAGING_BRANCH_ID", "AFK4_ORGANIZATION_ADMIN_BRANCH_ID") `
     -DefaultValue $DefaultBranchId `
     -DisplayName "BranchId"
 

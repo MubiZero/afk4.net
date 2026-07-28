@@ -77,7 +77,7 @@ const REPO = pjoin(BRAND, "..");
 const WEB_FAVICONS = [
   "src/AFK4.Customer.Web/public/favicon.svg",
   "src/AFK4.Platform.Web/public/favicon.svg",
-  "src/AFK4.Operator.App.Web/public/favicon.svg",
+  "src/AFK4.OrganizationAdmin.Web/public/favicon.svg",
 ];
 
 test("every web app ships the new emerald favicon, not the lime placeholder", () => {

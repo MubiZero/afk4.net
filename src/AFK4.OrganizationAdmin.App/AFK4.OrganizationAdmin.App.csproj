@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\AFK4.Shared.Contracts\AFK4.Shared.Contracts.csproj" />
+    <ProjectReference Include="..\AFK4.Localization\AFK4.Localization.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3967.48" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="WebAssets\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Светлая/тёмная иконка окна для рантайм-переключения при смене темы (см.
+         OrganizationAdminWindow.TryHandleWindowMessage "window:theme") — отдельно от
+         ApplicationIcon, который лишь статичная иконка exe/ярлыка. -->
+    <Resource Include="Assets\afk4-icon-light.png" />
+    <Resource Include="Assets\afk4-icon-dark.png" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!-- Embeds the AFK4.NET logo into the exe so both the desktop and Start Menu shortcuts (which
+         target the exe) and the window/taskbar show the brand icon instead of the generic default. -->
+    <ApplicationIcon>afk4-operator.ico</ApplicationIcon>
+  </PropertyGroup>
+
+</Project>

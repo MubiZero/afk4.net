@@ -22,7 +22,7 @@ COPY packages/i18n/package.json ./packages/i18n/
 COPY packages/money/package.json ./packages/money/
 COPY packages/tokens/package.json ./packages/tokens/
 COPY src/AFK4.PlatformControl.Web/package.json ./src/AFK4.PlatformControl.Web/
-COPY src/AFK4.Operator.App.Web/package.json ./src/AFK4.Operator.App.Web/
+COPY src/AFK4.OrganizationAdmin.Web/package.json ./src/AFK4.OrganizationAdmin.Web/
 COPY src/AFK4.Customer.Web/package.json ./src/AFK4.Customer.Web/
 COPY src/AFK4.SetupWizard.Web/package.json ./src/AFK4.SetupWizard.Web/
 COPY src/AFK4.Player.Shell.Web/package.json ./src/AFK4.Player.Shell.Web/

@@ -6,9 +6,9 @@ public sealed class EnvironmentBootstrapWriter(
     string machineName,
     EnvironmentVariableTarget target = EnvironmentVariableTarget.Machine) : ISetupWizardBootstrapWriter
 {
-    private const string OperatorPlatformBaseUrlEnvironmentVariable = "AFK4_OPERATOR_PLATFORM_BASE_URL";
-    private const string OperatorOrganizationIdEnvironmentVariable = "AFK4_OPERATOR_ORGANIZATION_ID";
-    private const string OperatorBranchIdEnvironmentVariable = "AFK4_OPERATOR_BRANCH_ID";
+    private const string OperatorPlatformBaseUrlEnvironmentVariable = "AFK4_ORGANIZATION_ADMIN_PLATFORM_BASE_URL";
+    private const string OperatorOrganizationIdEnvironmentVariable = "AFK4_ORGANIZATION_ADMIN_ORGANIZATION_ID";
+    private const string OperatorBranchIdEnvironmentVariable = "AFK4_ORGANIZATION_ADMIN_BRANCH_ID";
 
     public void Write(SetupWizardBootstrapConfig config)
     {
