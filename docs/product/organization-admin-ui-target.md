@@ -1,12 +1,12 @@
-# AFK4 Operator App UI/UX Target
+# Organization Admin UI/UX Target
 
-Status: UI/UX target for the active Operator App redesign
+Status: UI/UX target for the active Organization Admin redesign
 Last updated: 2026-05-20
 
 ## Purpose
 
 This document records the visual UI and workflow UX target for the native
-Windows Operator App. Future Operator App work should converge toward this
+Windows Organization Admin. Future Organization Admin work should converge toward this
 target unless the PRD or architecture spec intentionally changes.
 
 The target is a dense, modern operator console for computer-club staff. It is
@@ -135,7 +135,7 @@ The target style is modern, restrained, and operational:
 
 ## Acceptance Checklist
 
-Future Operator App UI work should be reviewed against this checklist:
+Future Organization Admin UI work should be reviewed against this checklist:
 
 - Floor map is the first useful screen after sign-in.
 - A trained operator can start, extend, transfer, and end a normal session from

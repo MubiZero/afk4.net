@@ -5,10 +5,10 @@ Last updated: 2026-05-27
 
 ## Purpose
 
-This runbook describes the MVP-safe rollout path for Operator App, Agent
+This runbook describes the MVP-safe rollout path for Organization Admin, Agent
 Service, and Player Shell updates. The staging internal path now has working
 MinIO-backed artifact hosting, signed package metadata, package registration,
-branch-targeted Operator App rollouts, device-targeted Agent Service rollouts,
+branch-targeted Organization Admin rollouts, device-targeted Agent Service rollouts,
 Agent download/install/recovery, and backend status tracking. Production
 signing custody, production storage/CDN policy, and physical-device release
 validation remain release gates rather than active update-epic development
@@ -22,7 +22,7 @@ evidence into the real-device release validation loop.
 
 Register package metadata only after the artifact is built and signed:
 
-- component: `operator-app`, `agent-service`, or `player-shell`;
+- component: `organization-admin`, `agent-service`, or `player-shell`;
 - version;
 - channel: `internal`, `beta`, or `stable`;
 - artifact URI;
@@ -94,4 +94,4 @@ finds a product defect.
 - production object storage/CDN policy;
 - service credential policy for package registration;
 - physical Windows update and rollback evidence;
-- Operator App rollout management UI polish for non-developer operation.
+- Organization Admin rollout management UI polish for non-developer operation.

@@ -6,13 +6,13 @@ Implementation plans for completed work are archived once their work lands on
 - `2026-07-28-platform-organization-big-bang-migration.md` — atomically
   separates Platform Control and Organization Admin across auth domains, APIs,
   roles, permissions, projects, migration, packaging, and release gates.
-- `2026-07-28-platform-web-club-removal.md` — removes the obsolete browser
+- `2026-07-28-platform-control-club-removal.md` — removes the obsolete browser
   `/club` workspace after Operator parity certification while preserving the
-  platform-owner/support Control Plane.
+  platform-owner/support Platform Control.
 
 - `2026-07-28-operator-unified-admin-parity-closure.md` — closes required
   Clients, Monetization, Settings, and Venue gaps and provides the certificate
-  used by the current Platform.Web `/club` removal project.
+  used by the current Platform Control `/club` removal project.
 - `2026-07-15-operator-reports-workspace-consolidation.md` — implements the
   approved Reports center, Cash/Events/Stock ownership model, and secure
   contextual second-manager confirmation before removing the legacy approvals

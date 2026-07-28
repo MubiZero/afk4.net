@@ -198,14 +198,24 @@ $signInBody = @{
     password = 'Passw0rd!'
 } | ConvertTo-Json -Depth 4
 
+$organizationAdminHeaders = @{
+    'X-AFK4-Product' = 'organization-admin'
+    'X-AFK4-Compatibility-Epoch' = '2'
+    'X-AFK4-Client-Version' = '0.2.0-local-smoke'
+}
+
 $staffSession = Invoke-RestMethod `
-    "$baseUrl/api/auth/staff/sign-in" `
+    "$baseUrl/api/organizations/$organizationId/auth/staff/sign-in" `
     -Method Post `
+    -Headers $organizationAdminHeaders `
     -ContentType 'application/json' `
     -Body $signInBody
 
 $staffHeaders = @{
     Authorization = "Bearer $($staffSession.accessToken)"
+    'X-AFK4-Product' = 'organization-admin'
+    'X-AFK4-Compatibility-Epoch' = '2'
+    'X-AFK4-Client-Version' = '0.2.0-local-smoke'
 }
 ```
 
@@ -218,13 +228,17 @@ $refreshBody = @{
 } | ConvertTo-Json -Depth 4
 
 $refreshedStaffSession = Invoke-RestMethod `
-    "$baseUrl/api/auth/staff/refresh" `
+    "$baseUrl/api/organizations/$organizationId/auth/staff/refresh" `
     -Method Post `
+    -Headers $organizationAdminHeaders `
     -ContentType 'application/json' `
     -Body $refreshBody
 
 $staffHeaders = @{
     Authorization = "Bearer $($refreshedStaffSession.accessToken)"
+    'X-AFK4-Product' = 'organization-admin'
+    'X-AFK4-Compatibility-Epoch' = '2'
+    'X-AFK4-Client-Version' = '0.2.0-local-smoke'
 }
 ```
 
@@ -237,7 +251,7 @@ $codeBody = @{
 } | ConvertTo-Json -Depth 4
 
 $code = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/device-enrollment-codes" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/device-enrollment-codes" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -340,7 +354,7 @@ Read the staff-protected persisted floor map:
 
 ```powershell
 $floorMap = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/floor-map" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/floor-map" `
     -Headers $staffHeaders
 ```
 
@@ -355,7 +369,7 @@ $playerBody = @{
 } | ConvertTo-Json -Depth 6
 
 $player = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/players" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/players" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -380,7 +394,7 @@ $openShiftBody = @{
 } | ConvertTo-Json -Depth 8
 
 $shift = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/shifts/open" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/shifts/open" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -389,7 +403,7 @@ $shift = Invoke-RestMethod `
 $shiftId = $shift.shiftId
 
 $currentShift = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/shifts/current" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/shifts/current" `
     -Headers $staffHeaders
 ```
 
@@ -404,7 +418,7 @@ $categoryBody = @{
 } | ConvertTo-Json -Depth 6
 
 $category = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/pos/categories" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/pos/categories" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -425,7 +439,7 @@ $productBody = @{
 } | ConvertTo-Json -Depth 8
 
 $product = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/pos/products" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/pos/products" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -445,14 +459,14 @@ $stockBody = @{
 } | ConvertTo-Json -Depth 8
 
 $purchaseStock = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/inventory/stock-movements" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/inventory/stock-movements" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
     -Body $stockBody
 
 $catalog = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/pos/catalog" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/pos/catalog" `
     -Headers $staffHeaders
 ```
 
@@ -482,7 +496,7 @@ $saleBody = @{
 } | ConvertTo-Json -Depth 10
 
 $sale = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/pos/sales" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/pos/sales" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -599,7 +613,7 @@ $tariffBody = @{
 } | ConvertTo-Json -Depth 6
 
 $tariff = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/tariffs" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/tariffs" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -617,7 +631,7 @@ $tariffVersionBody = @{
 } | ConvertTo-Json -Depth 8
 
 $tariffVersion = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/tariffs/$($tariff.tariffId)/versions" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/tariffs/$($tariff.tariffId)/versions" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -630,7 +644,7 @@ $tariffCalculationBody = @{
 } | ConvertTo-Json -Depth 6
 
 $tariffCalculation = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/tariffs/calculate" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/tariffs/calculate" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -653,7 +667,7 @@ $startSessionBody = @{
 } | ConvertTo-Json -Depth 6
 
 $startedSession = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/sessions/start" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/sessions/start" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -665,7 +679,7 @@ same `sessionId`:
 
 ```powershell
 $repeatedStartSession = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/sessions/start" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/sessions/start" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -694,7 +708,7 @@ $packageDefinitionBody = @{
 } | ConvertTo-Json -Depth 8
 
 $packageDefinition = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/packages" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/packages" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -724,7 +738,7 @@ $packageExtendBody = @{
 } | ConvertTo-Json -Depth 8
 
 $packageExtendedSession = Invoke-RestMethod `
-    "$baseUrl/api/sessions/$sessionId/extend" `
+    "$baseUrl/api/organizations/$organizationId/sessions/$sessionId/extend" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -748,7 +762,7 @@ $extendSessionBody = @{
 } | ConvertTo-Json -Depth 8
 
 $extendedSession = Invoke-RestMethod `
-    "$baseUrl/api/sessions/$sessionId/extend" `
+    "$baseUrl/api/organizations/$organizationId/sessions/$sessionId/extend" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -765,7 +779,7 @@ be reused for a second start in a single smoke run.
 
 ```powershell
 $postpaidCode = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/device-enrollment-codes" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/device-enrollment-codes" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -828,7 +842,7 @@ $postpaidStartBody = @{
 } | ConvertTo-Json -Depth 8
 
 $postpaidSession = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/sessions/start" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/sessions/start" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -910,7 +924,7 @@ $activeReconciliation = Invoke-RestMethod `
 ```
 
 If the smoke setup seeds a second enrolled device and assigned seat, transfer
-the session by posting to `POST /api/sessions/{sessionId}/transfer` with:
+the session by posting to `POST /api/organizations/{organizationId}/sessions/{sessionId}/transfer` with:
 
 ```powershell
 $transferBody = @{
@@ -919,7 +933,7 @@ $transferBody = @{
 } | ConvertTo-Json -Depth 4
 
 $transferredSession = Invoke-RestMethod `
-    "$baseUrl/api/sessions/$sessionId/transfer" `
+    "$baseUrl/api/organizations/$organizationId/sessions/$sessionId/transfer" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -936,7 +950,7 @@ $endSessionBody = @{
 } | ConvertTo-Json -Depth 6
 
 $endingSession = Invoke-RestMethod `
-    "$baseUrl/api/sessions/$sessionId/end" `
+    "$baseUrl/api/organizations/$organizationId/sessions/$sessionId/end" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `

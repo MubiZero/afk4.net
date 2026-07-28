@@ -11,8 +11,8 @@ operator workflows, payments, POS, shifts, audit, updates, and Windows endpoint
 control.
 
 AFK4 is not a local-only club server or a generic CRUD admin. The MVP uses an
-ASP.NET Core cloud backend, an internal SaaS Control Plane for platform-owner
-tenant onboarding and support, a native Windows Operator App for club
+ASP.NET Core cloud backend, an internal Platform Control for platform-owner
+organization onboarding and support, a native Windows app Organization Admin for club
 operations, a Windows Agent Service on gaming PCs, and a Player Shell UI. The
 product should feel like serious platform software in the same category as
 Senet, Langame, and SmartShell, while keeping the first release focused enough
@@ -41,14 +41,14 @@ risk:
 - Web-only tools are not ergonomic enough for fast cashier/operator workflows.
 
 AFK4 should reduce these risks by making the cloud backend the business
-authority, keeping the Operator App fast and native, and making every critical
+authority, keeping the Organization Admin fast and native, and making every critical
 money, session, POS, device, and configuration action explicit and auditable.
 
 ## 3. Target Users And Roles
 
-### Platform Owner / Support Admin
+### Platform Admin / Platform Support
 
-Operates AFK4 as a SaaS business. Needs to onboard clubs, manage tenant status,
+Operates AFK4 as a SaaS business. Needs to onboard clubs, manage organization status,
 plans, limits, owner invites, and support visibility without direct database
 edits.
 
@@ -57,11 +57,11 @@ Primary needs:
 - create organizations and first branches;
 - issue owner/admin invites;
 - set plan, subscription status, and operational limits;
-- suspend or reactivate tenants safely;
-- inspect tenant health, deployment state, and recent support-relevant errors;
+- suspend or reactivate organizations safely;
+- inspect organization health, deployment state, and recent support-relevant errors;
 - perform and review audited support actions.
 
-### Owner
+### Organization Owner
 
 Owns one or more organizations or branches. Needs high-level visibility into
 revenue, utilization, shifts, inventory, staff activity, device health, and
@@ -101,7 +101,7 @@ Primary needs:
 - handle failed payments, session disputes, and device errors;
 - close shifts with accurate reconciliation.
 
-### Cashier / Operator
+### Operator
 
 Works the front desk. Needs the fastest possible path for common workflows:
 start sessions, extend time, accept payments, sell goods, move players, end
@@ -128,7 +128,7 @@ Primary needs:
 - apply or monitor update rollout;
 - inspect device command status.
 
-### Accountant / Auditor
+### Accountant
 
 Reviews financial and operational history. Needs immutable financial records,
 audit history, shift reports, POS reports, and correction history.
@@ -162,10 +162,10 @@ operations through AFK4:
 
 - manage organizations, branches, staff users, predefined roles, and
   permissions;
-- provide an internal SaaS Control Plane for tenant provisioning, owner
-  onboarding, subscription/status controls, tenant health, and support actions;
+- provide an internal Platform Control for organization provisioning, owner
+  onboarding, subscription/status controls, organization health, and support actions;
 - manage zones, seats, and Windows devices;
-- show a usable native Windows Operator App floor map implemented through a
+- show a usable native Windows app Organization Admin floor map implemented through a
   WebView2 desktop shell and React/TypeScript UI;
 - run Agent Service and Player Shell on gaming PCs;
 - report device status and receive cloud-approved commands through realtime
@@ -209,13 +209,13 @@ The first MVP intentionally excludes:
 
 ## 5. Core User Journeys
 
-### Journey 1: Provision A New Tenant
+### Journey 1: Provision A New Organization
 
-1. Platform owner signs in to the internal SaaS Control Plane.
-2. Platform owner creates an organization and first branch with stable slugs.
-3. Platform owner selects plan/subscription status and initial operational
+1. Platform Admin signs in to Platform Control.
+2. Platform Admin creates an organization and first branch with stable slugs.
+3. Platform Admin selects plan/subscription status and initial operational
    limits.
-4. System creates the tenant boundary, default branch roles, and owner invite.
+4. System creates the organization boundary, default branch roles, and owner invite.
 5. Owner receives an invite or setup code and signs in to continue branch setup.
 
 Success criteria:
@@ -223,48 +223,48 @@ Success criteria:
 - no direct PostgreSQL edit is needed to onboard a club;
 - organization and branch slugs are unique and stable;
 - owner invite is short-lived, auditable, and revocable;
-- tenant lifecycle status is visible to platform support.
+- organization lifecycle status is visible to platform support.
 
-### Journey 2: Connect Operator App To SaaS
+### Journey 2: Connect Organization Admin To SaaS
 
-1. Owner or branch manager installs the native Operator App.
-2. Operator App asks for organization/branch slug or invite/setup code instead
+1. Organization Owner or Branch Manager installs Organization Admin.
+2. Organization Admin asks for organization/branch slug or invite/setup code instead
    of raw GUIDs.
-3. Backend resolves the tenant and branch and then authenticates the staff user.
-4. Operator App stores only approved connection/session state in protected
+3. Backend resolves the organization and branch and then authenticates the staff user.
+4. Organization Admin stores only approved connection/session state in protected
    Windows storage.
 5. After authorization succeeds, staff with `shifts.open` must pass the
    authoritative open-shift check before reaching the branch workspace. If no
-   shift is open, the Operator App requires them to open one or sign out.
+   shift is open, the Organization Admin requires them to open one or sign out.
    Staff without `shifts.open`, and staff entering a branch that already has an
    open shift, continue to their first permitted workspace without this gate.
 
 Success criteria:
 
 - a normal club user does not copy organization or branch GUIDs;
-- connection state is scoped to one approved tenant/branch;
-- invalid, suspended, or revoked tenants cannot continue to operational flows;
-- support can identify which tenant and branch the app is trying to reach.
+- connection state is scoped to one approved organization/branch;
+- invalid, suspended, or revoked organizations cannot continue to operational flows;
+- support can identify which organization and branch the app is trying to reach.
 
-### Journey 3: Suspend Or Reactivate A Tenant
+### Journey 3: Suspend Or Reactivate An Organization
 
-1. Platform owner opens a tenant in the SaaS Control Plane.
-2. Platform owner changes tenant status with a required reason.
+1. Platform Admin opens an organization in Platform Control.
+2. Platform Admin changes organization status with a required reason.
 3. Backend records an audit entry and applies status enforcement.
-4. Suspended tenants cannot create new sessions, POS sales, payments, device
+4. Suspended organizations cannot create new sessions, POS sales, payments, device
    enrollments, or update rollouts.
-5. Platform owner can reactivate the tenant after the issue is resolved.
+5. Platform Admin can reactivate the organization after the issue is resolved.
 
 Success criteria:
 
 - suspension is explicit, auditable, and reversible;
 - historical reports and audit remain readable for support;
 - new revenue/session/device mutations are blocked while suspended;
-- Operator App shows actionable blocked-tenant errors.
+- Organization Admin shows actionable blocked-organization errors.
 
 ### Journey 4: Open A Shift
 
-1. Operator signs in to the native Operator App.
+1. Operator signs in to the native Organization Admin.
 2. Backend resolves organization, branch, role, and permissions.
 3. If the operator has `shifts.open`, the app checks the authoritative current
    shift immediately after sign-in or native session restore. When no shift is
@@ -274,7 +274,7 @@ Success criteria:
 
 Success criteria:
 
-- shift state is visible in the Operator App;
+- shift state is visible in the Organization Admin;
 - all money and POS operations are linked to the open shift;
 - opening a shift is auditable.
 
@@ -397,7 +397,7 @@ Success criteria:
 Success criteria:
 
 - unsigned packages cannot be deployed to production;
-- rollout can target tenant, branch, group, or device;
+- rollout can target organization, branch, group, or device;
 - rollback is supported;
 - update behavior must not leave a PC unmanaged or accidentally unlocked.
 
@@ -407,34 +407,35 @@ Success criteria:
 
 - The system must support organizations and branches.
 - Staff users must authenticate against the backend.
-- Predefined MVP roles must include owner, branch manager, shift supervisor,
-  cashier/operator, technician, and accountant/auditor.
+- Predefined organization roles must include Organization Owner, Branch Manager,
+  Shift Supervisor, Operator, Technician, and Accountant. Platform Admin and
+  Platform Support remain separate platform-domain roles.
 - Authorization must be permission-based, not hardcoded only by role name.
-- Every business request must resolve tenant and branch context.
-- Cross-tenant access must be rejected by default.
+- Every business request must resolve organization and branch context.
+- Cross-organization access must be rejected by default.
 - Critical privileged actions must write audit records.
 
-### SaaS Control Plane
+### Platform Control
 
-- The system must provide an internal browser-based Control Plane for AFK4
+- The system must provide an internal browser-based Platform Control for AFK4
   platform-owner and support administration.
 - Platform-admin authentication must be separate from staff and device
   authentication.
-- Control Plane actions must provision organizations, first branches, stable
+- Platform Control actions must provision organizations, first branches, stable
   slugs, default role mappings, and owner invites without direct database
   edits.
-- Tenant lifecycle states must include at least active, suspended, and
+- Organization lifecycle states must include at least active, suspended, and
   deletion-pending states.
-- Tenant plan code, subscription status, basic limits, and support notes must
+- Organization plan code, subscription status, basic limits, and support notes must
   be visible and mutable by authorized platform admins.
-- Control Plane must expose tenant health signals: app/database state where
+- Platform Control must expose organization health signals: app/database state where
   available, last operator sign-in, latest migration version, branch/device
   counts, and recent support-relevant errors.
 - Suspend/reactivate operations must require a reason, be idempotent where
   practical, and write audit records.
-- Suspended tenants must be blocked from new money, POS, session, device
+- Suspended organizations must be blocked from new money, POS, session, device
   enrollment, and rollout mutations while preserving support/report reads.
-- Customer day-to-day operational work remains in the native Operator App.
+- Customer day-to-day operational work remains in the native Organization Admin.
 
 ### Club Layout And Device Management
 
@@ -494,17 +495,17 @@ Success criteria:
 
 ### Updates
 
-- Operator App, Agent Service, and Player Shell must support centralized
+- Organization Admin, Agent Service, and Player Shell must support centralized
   updates.
 - Packages must be signed before production rollout.
 - Channels must include stable, beta, and internal.
-- Rollout must support targeting by tenant, branch, device group, and device.
+- Rollout must support targeting by organization, branch, device group, and device.
 - Rollout status and component versions must be visible.
 - Rollback must be supported.
 
 ### Reports
 
-- Operator App reports must provide `Сводка`, `Смены и касса`, and `Выручка`.
+- Organization Admin reports must provide `Сводка`, `Смены и касса`, and `Выручка`.
 - The shift/cash report must cover shift reconciliation and cash operations.
 - The revenue report must preserve sales and gameplay revenue/time as explicit
   sources rather than separate top-level tabs.
@@ -515,19 +516,19 @@ Success criteria:
 - Reports must preserve historical interpretation of tariffs, packages,
   payments, and corrections.
 
-### Operator App
+### Organization Admin
 
-- Operator App must remain the native Windows desktop application for
-  day-to-day club operations; it must not become the SaaS Control Plane.
-- Operator App must use a .NET desktop shell with WebView2 hosting a
+- Organization Admin must remain the native Windows desktop application for
+  day-to-day club operations; it must not become the Platform Control.
+- Organization Admin must use a .NET desktop shell with WebView2 hosting a
   React/TypeScript UI for the operator experience.
 - The WebView2 shell owns Windows integration such as process lifetime,
   protected token storage, environment configuration, native packaging, and
   safe host-to-web bridges. Business state remains backend-authoritative.
 - Floor map must be the default working screen.
-- Operator App must show pending and failed states explicitly.
+- Organization Admin must show pending and failed states explicitly.
 - Critical actions must wait for backend confirmation.
-- Operator App must support fast workflows for session actions, POS, players,
+- Organization Admin must support fast workflows for session actions, POS, players,
   shifts, and settings.
 - Local cache may improve UI responsiveness but must not be financial or
   session authority.
@@ -560,7 +561,7 @@ Success criteria:
 - Device credentials must be revocable.
 - Backend must reject requests where route identity, credential identity, and
   payload identity conflict.
-- Platform-admin support actions that cross tenant boundaries must be explicit,
+- Platform-admin support actions that cross organization boundaries must be explicit,
   permission-checked, reasoned, and audited.
 - Secrets must not be stored in repository config files.
 
@@ -583,12 +584,12 @@ Success criteria:
 
 ### Observability
 
-- Backend logs must be structured and include tenant, branch, actor, device,
+- Backend logs must be structured and include organization, branch, actor, device,
   session, and correlation context where applicable.
 - Backend must expose health checks.
 - Agent must expose or log heartbeat state, last successful cloud connection,
   command status, update status, and local event backlog size.
-- Operator App must display actionable errors for network, permission, payment,
+- Organization Admin must display actionable errors for network, permission, payment,
   and device command failures.
 
 ### Data Protection
@@ -611,13 +612,13 @@ Shell skeleton.
 ### Phase 2: Identity, Tenancy, And RBAC
 
 Organizations, branches, staff authentication, predefined roles, permissions,
-tenant-aware pipeline, token storage, and audit for privileged actions.
+organization-aware pipeline, token storage, and audit for privileged actions.
 
-### Phase 3: SaaS Control Plane And Tenant Onboarding
+### Phase 3: Platform Control And Organization Onboarding
 
-Internal platform-admin authentication, tenant lifecycle/status, organization
+Internal platform-admin authentication, organization lifecycle/status, organization
 and branch slug provisioning, owner invite flow, plan metadata, basic limits,
-support notes, tenant health views, and suspend/reactivate enforcement.
+support notes, organization health views, and suspend/reactivate enforcement.
 
 ### Phase 4: Club Layout And Device Management
 
@@ -639,7 +640,7 @@ refunds, manual corrections, tariff versioning, and idempotency.
 Product catalog, stock, sales, returns, shift open/close, cash reconciliation,
 receipt/payment provider abstraction, and mock/manual providers.
 
-### Phase 8: Operator App Production UX
+### Phase 8: Organization Admin Production UX
 
 Realtime floor map state, context panel actions, POS workflow, player search,
 shift workflow, settings, role-aware navigation, and hotkeys.
@@ -662,9 +663,9 @@ feature count.
 Product success indicators:
 
 - operator can start a normal session from floor map with minimal steps;
-- platform owner can provision a new tenant, first branch, and owner invite
+- Platform Admin can provision a new organization, first branch, and owner invite
   without a database edit;
-- Operator App can connect to a tenant/branch using slug or setup code rather
+- Organization Admin can connect to an organization/branch using slug or setup code rather
   than copied GUIDs;
 - operator can extend and end sessions without state ambiguity;
 - device lock state is visible and reconciles with backend session state;
@@ -680,7 +681,7 @@ Product success indicators:
 Candidate measurable targets for later validation:
 
 - start guest session in under 15 seconds for a trained operator;
-- provision tenant, first branch, and owner invite in under 5 minutes for a
+- provision organization, first branch, and owner invite in under 5 minutes for a
   platform admin;
 - floor map state update visible within 2 seconds under normal connectivity;
 - 100 percent of money-changing operations represented by ledger entries;
@@ -706,16 +707,16 @@ Because there is no local server, offline behavior is intentionally limited.
 This must be communicated clearly to operators and owners to avoid mismatched
 expectations.
 
-### Tenant Isolation
+### Organization Isolation
 
-Tenant isolation is required from the start. Mistakes here are high impact and
+Organization isolation is required from the start. Mistakes here are high impact and
 must be covered by architecture, tests, and review.
 
-### SaaS Control Plane Security
+### Platform Control Security
 
-Platform-admin capability crosses tenant boundaries by design. The Control
-Plane must keep platform-admin identity, staff identity, support actions,
-tenant status changes, and support notes separated and audited so AFK4 can
+Platform-admin capability crosses organization boundaries by design. Platform
+Control must keep platform-admin identity, staff identity, support actions,
+organization status changes, and support notes separated and audited so AFK4 can
 manage customers without creating hidden database-side operations.
 
 ### Update Safety
@@ -725,13 +726,13 @@ and status reporting need dedicated implementation plans.
 
 ### UI Workflow Complexity
 
-The Operator App must stay fast and dense without becoming confusing. Complex
+The Organization Admin must stay fast and dense without becoming confusing. Complex
 flows such as refunds, transfer, postpaid debt, package consumption, and shift
 close need focused UX design.
 
-### Operator App UI Runtime Migration
+### Organization Admin UI Runtime Migration
 
-The MVP Operator App runtime is changing from WPF-rendered screens to a .NET
+The MVP Organization Admin runtime is changing from WPF-rendered screens to a .NET
 desktop WebView2 shell with React/TypeScript UI. The migration must preserve the
 native Windows app boundary, protected token storage, packaging/update model,
 backend-authoritative critical actions, and staging smoke capability while
@@ -747,7 +748,7 @@ state flow. This needs a dedicated follow-up plan.
 
 - [Project README](../../README.md)
 - [Architecture spec](../superpowers/specs/2026-05-12-afk4-platform-architecture-design.md)
-- [SaaS Control Plane and tenant onboarding plan](../superpowers/plans/2026-05-23-saas-control-plane-tenant-onboarding.md)
-- [Operator App WebView2 React migration plan](../superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md)
+- [Historical Platform Control and organization onboarding plan](../archive/superpowers/plans/2026-05-23-saas-control-plane-tenant-onboarding.md)
+- [Historical Organization Admin WebView2 React migration plan](../archive/superpowers/plans/2026-05-20-operator-app-webview2-react-migration.md)
 - [Archived vertical slice implementation plan](../archive/superpowers/plans/2026-05-12-afk4-platform-vertical-slice.md)
 - [Agent instructions](../../AGENTS.md)

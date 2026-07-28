@@ -24,17 +24,17 @@ outside the current MVP implementation surface.
   requires `devices.seat_assignment.assign`.
 - PowerShell on a trusted operator or release workstation.
 
-## Preferred Path: Operator App
+## Preferred Path: Organization Admin
 
-Use Operator App `Settings` -> `Pilot Setup` when a signed-in owner or branch
+Use Organization Admin `Settings` -> `Pilot Setup` when a signed-in owner or branch
 manager has the required setup permissions.
 
-Use this path only when the Operator App is configured for the target Platform
-API. If no staging-configured Operator App is available, use the PowerShell
+Use this path only when the Organization Admin is configured for the target Platform
+API. If no staging-configured Organization Admin is available, use the PowerShell
 script fallback below.
 
 The panel creates or reuses branch staff users, one layout zone, and seats. It
-creates tariff/POS setup idempotently for reruns through the same Operator App
+creates tariff/POS setup idempotently for reruns through the same Organization Admin
 inputs, and can optionally assign an already enrolled device to a configured
 seat.
 
@@ -83,7 +83,7 @@ $headers = @{ Authorization = "Bearer <staff-access-token>" }
 
 Invoke-RestMethod `
   -Method Post `
-  -Uri "https://afk4.staging.mubi.dev/api/branches/<branch-id>/devices/<device-id>/seat-assignment" `
+  -Uri "https://afk4.staging.mubi.dev/api/organizations/<organization-id>/branches/<branch-id>/devices/<device-id>/seat-assignment" `
   -Headers $headers `
   -ContentType "application/json" `
   -Body (@{
@@ -100,7 +100,7 @@ API path and the gap is explicitly recorded in the progress snapshot.
 After setup:
 
 1. Sign in with the created cashier user.
-2. Load the Operator App floor map.
+2. Load the Organization Admin floor map.
 3. Confirm the configured seats are visible.
 4. Open a shift.
 5. Start and end one guest session on an assigned device.

@@ -200,7 +200,7 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 
   -ReleaseNotes "Internal MSI validation build."
 ```
 
-The Operator App MSI generates one request JSON for `operator-app`, the Agent
+The Organization Admin MSI generates one request JSON for `organization-admin`, the Agent
 MSI generates one request JSON for `agent-service`, and the standalone Player
 Shell MSI generates one request JSON for `player-shell`. The legacy coordinated
 gaming-PC MSI is retired from the default build and is not used for update
@@ -219,7 +219,7 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 
   -OutputDirectory artifacts/update-packages `
   -ArtifactStore http-put `
   -OperatorArtifactUploadUri "https://storage-provider.example/operator-upload-token" `
-  -OperatorArtifactPublicUri "https://cdn.afk4.example/operator-app/stable/1.2.3/afk4-operator-app-1.2.3-stable.msi" `
+  -OperatorArtifactPublicUri "https://cdn.afk4.example/organization-admin/stable/1.2.3/afk4-organization-admin-1.2.3-stable.msi" `
   -AgentArtifactUploadUri "https://storage-provider.example/agent-upload-token" `
   -AgentArtifactPublicUri "https://cdn.afk4.example/agent/stable/1.2.3/afk4-agent-1.2.3-stable.msi" `
   -PlayerShellArtifactUploadUri "https://storage-provider.example/player-shell-upload-token" `
@@ -252,7 +252,7 @@ powershell -ExecutionPolicy Bypass -File scripts/publish-client-msi-updates.ps1 
 POST the generated JSON to:
 
 ```text
-POST /api/branches/{branchId}/updates/packages
+POST /api/organizations/{organizationId}/branches/{branchId}/updates/packages
 ```
 
 The staff token must include `updates.packages.manage`. Register generated
@@ -269,7 +269,7 @@ powershell -ExecutionPolicy Bypass -File scripts/register-update-package-request
 ```
 
 By default, registration leaves package state as `registered`. A human or
-Operator App workflow can validate packages and create rollouts using
+Organization Admin workflow can validate packages and create rollouts using
 `docs/operations/client-update-rollout.md`.
 
 For staging/internal smoke, the script can create a rollout immediately after

@@ -7,7 +7,7 @@ Last updated: 2026-05-26
 
 This runbook describes the current MVP bootstrap flow for a Windows endpoint.
 The default onboarding artifact is now the WiX-built `AFK4 Agent` MSI. It
-installs the Agent Service and WPF Setup Wizard; Player Shell and Operator App
+installs the Agent Service and WPF Setup Wizard; Player Shell and Organization Admin
 are intentionally not bundled in this MSI and are pulled by the Agent from the
 update channel according to the enrolled device role.
 
@@ -65,10 +65,10 @@ update channel according to the enrolled device role.
     `RunOnce` entry so later Agent MSI upgrades do not reopen the wizard.
 12. On its update loop the Agent requests role-compatible update packages:
     `gaming_pc` devices install `player-shell`, and `manager_workstation`
-    devices install `operator-app`. Operator App installation checks for the
+    devices install `organization-admin`. Organization Admin installation checks for the
     Microsoft Edge WebView2 Runtime first and runs the Evergreen bootstrapper
     before the MSI when the runtime is missing.
-13. After installing Agent Service, Player Shell, or Operator App components,
+13. After installing Agent Service, Player Shell, or Organization Admin components,
     the update helper schedules an Agent Service restart so new machine
     environment values, component versions, and Shell executable paths are
     loaded by the running service.

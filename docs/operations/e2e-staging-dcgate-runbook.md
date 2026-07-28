@@ -1,28 +1,31 @@
 # E2E staging runbook — shared AFK4 Telegram app + dcgate online top-up
 
-Живой прогон оплаты реальной картой на staging. Owner-кабинет живёт в десктопном
-WPF (Operator.App.Web), которого на staging нет, поэтому e2e гоняется через API/curl.
+Живой прогон оплаты реальной картой на staging. Кабинет владельца организации
+живёт в Organization Admin, поэтому e2e можно выполнить через API/curl.
 
 ## Константы (staging, на 2026-06-08)
 
 ```
 API       = https://afk4.staging.mubi.dev
-OWNER     = e2eowner / E2eOwner!2026
-ORG       = 0169044b-2f74-46a7-8e52-7656a39a8f8c
-GATEWAY   = 93eda272-93b8-40be-931f-40618cc0a5d2   (dcgate project cmq50ockc0000nw01ltbhfegp, card •1953)
-PLAYER    = +992900000001 / PIN 112233
+OWNER     = <smoke login; password comes from the secret manager>
+ORGANIZATION_ID = <smoke organization UUID>
+GATEWAY   = <smoke gateway UUID>
+PLAYER    = <smoke phone; PIN comes from the secret manager>
 ```
 
 Секреты (телефон Telegram-аккаунта, карта) НЕ хранить в этом файле — передаются по
 месту и используются эфемерно. Общие `api_id`/`api_hash` приложения AFK4 живут в env
 самого dcgate (`TELEGRAM_API_ID` / `TELEGRAM_API_HASH`), afk4 их не передаёт.
 
-## 0. Owner login → токен
+## 0. Organization Owner login → токен
 
 ```bash
-curl.exe -s -X POST "$API/api/auth/staff/sign-in-by-login" \
+curl.exe -s -X POST "$API/api/organizations/$ORGANIZATION_ID/auth/staff/sign-in-by-login" \
   -H "Content-Type: application/json" \
-  --data-binary '{"login":"e2eowner","password":"E2eOwner!2026"}'
+  -H "X-AFK4-Product: organization-admin" \
+  -H "X-AFK4-Compatibility-Epoch: 2" \
+  -H "X-AFK4-Client-Version: 0.2.0" \
+  --data-binary "{\"login\":\"$SMOKE_LOGIN\",\"password\":\"$SMOKE_PASSWORD\"}"
 # → accessToken (живёт ~8 ч). Сохрани в OWNER_TOKEN.
 ```
 
@@ -34,8 +37,9 @@ curl.exe -s -X POST "$API/api/auth/staff/sign-in-by-login" \
 
 ```bash
 # start: передаём только телефон
-curl.exe -s -X POST "$API/api/owner/payment-gateways/$GATEWAY/telegram/start" \
+curl.exe -s -X POST "$API/api/organizations/$ORGANIZATION_ID/payment-gateways/$GATEWAY/telegram/start" \
   -H "Authorization: Bearer $OWNER_TOKEN" -H "Content-Type: application/json" \
+  -H "X-AFK4-Product: organization-admin" -H "X-AFK4-Compatibility-Epoch: 2" -H "X-AFK4-Client-Version: 0.2.0" \
   --data-binary '{"phone":"+992XXXXXXXXX"}'
 # → {"loginAttemptId":"...","state":"code_required"}  (или state:"attached" если уже привязан → шаг 2 пропустить)
 ```
@@ -44,14 +48,16 @@ Telegram пришлёт код в приложение.
 
 ```bash
 # verify-code
-curl.exe -s -X POST "$API/api/owner/payment-gateways/$GATEWAY/telegram/verify-code" \
+curl.exe -s -X POST "$API/api/organizations/$ORGANIZATION_ID/payment-gateways/$GATEWAY/telegram/verify-code" \
   -H "Authorization: Bearer $OWNER_TOKEN" -H "Content-Type: application/json" \
+  -H "X-AFK4-Product: organization-admin" -H "X-AFK4-Compatibility-Epoch: 2" -H "X-AFK4-Client-Version: 0.2.0" \
   --data-binary '{"loginAttemptId":"<ID>","code":"<КОД_ИЗ_TELEGRAM>"}'
 # → state:"attached" | "password_required"
 
 # verify-password (только если включён 2FA / cloud password)
-curl.exe -s -X POST "$API/api/owner/payment-gateways/$GATEWAY/telegram/verify-password" \
+curl.exe -s -X POST "$API/api/organizations/$ORGANIZATION_ID/payment-gateways/$GATEWAY/telegram/verify-password" \
   -H "Authorization: Bearer $OWNER_TOKEN" -H "Content-Type: application/json" \
+  -H "X-AFK4-Product: organization-admin" -H "X-AFK4-Compatibility-Epoch: 2" -H "X-AFK4-Client-Version: 0.2.0" \
   --data-binary '{"loginAttemptId":"<ID>","password":"<2FA_PASSWORD>"}'
 # → state:"attached"
 ```
@@ -60,7 +66,8 @@ curl.exe -s -X POST "$API/api/owner/payment-gateways/$GATEWAY/telegram/verify-pa
 
 ```bash
 # проверка статуса
-curl.exe -s "$API/api/owner/payment-gateways" -H "Authorization: Bearer $OWNER_TOKEN"
+curl.exe -s "$API/api/organizations/$ORGANIZATION_ID/payment-gateways" -H "Authorization: Bearer $OWNER_TOKEN" \
+  -H "X-AFK4-Product: organization-admin" -H "X-AFK4-Compatibility-Epoch: 2" -H "X-AFK4-Client-Version: 0.2.0"
 # → gateways[0].status == "active"
 ```
 
@@ -74,7 +81,7 @@ curl.exe -s "$API/api/owner/payment-gateways" -H "Authorization: Bearer $OWNER_T
 # player login
 curl.exe -s -X POST "$API/api/public/player/sign-in" \
   -H "Content-Type: application/json" \
-  --data-binary '{"organizationId":"0169044b-2f74-46a7-8e52-7656a39a8f8c","phoneNumber":"+992900000001","password":"112233"}'
+  --data-binary "{\"organizationId\":\"$ORGANIZATION_ID\",\"phoneNumber\":\"$PLAYER_PHONE\",\"password\":\"$PLAYER_PIN\"}"
 # → accessToken → PLAYER_TOKEN
 
 # баланс ДО (ожидаем 0)

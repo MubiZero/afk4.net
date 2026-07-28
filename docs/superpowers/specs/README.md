@@ -3,12 +3,15 @@
 The active architecture source of truth is:
 
 - `2026-05-12-afk4-platform-architecture-design.md`
+- `2026-07-28-platform-organization-product-boundary-design.md` — defines the
+  current Platform Control and Organization Admin product, identity, role,
+  permission, route, and release boundaries.
 
 Approved backlog specs:
 
 - `2026-07-28-operator-unified-admin-parity-closure-design.md` — closes the
   required Clients, Monetization, Settings, and Venue gaps; its certified
-  Platform.Web `/club` removal is complete on the current topic branch.
+  Platform Control `/club` removal is complete on the current topic branch.
 - `2026-07-15-operator-reports-workspace-consolidation-design.md` — redesigns
   Reports as `Сводка / Смены и касса / Выручка`, gives Cash, Events, and Stock
   one clear ownership model, and replaces the separate approvals inbox with
@@ -21,7 +24,7 @@ Approved backlog specs:
   is shipped; Slice 2 wallet hold/no-show release remains backlog and must be
   implemented together with the customer self-service tariff/package picker.
 
-All focused design specs for shipped work — the platform-web redesign, the
+All focused design specs for shipped work — the platform-control redesign, the
 2026-06-01 UX-audit feature specs (counter-loop, anti-fraud, offline,
 customer portal/shell, notifications, localization, realtime,
 frontend-consolidation), the dcgate payments design (incl. the shared-AFK4

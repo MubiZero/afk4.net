@@ -10,10 +10,10 @@ backups, device validation, and pilot readiness. Keep it gate-level; detailed
 run history belongs in the progress snapshot or archive notes.
 
 > **Status note (2026-07-14):** the product/feature side has moved far beyond
-> the pilot bar — the full Platform.Web redesign, SP3 admin control plane +
+> the pilot bar — the full Platform Control redesign, SP3 admin control plane +
 > SaaS billing, the entire SP4 wave (counter-loop, anti-fraud, offline,
 > customer portal/shell, notifications, localization, realtime), the dcgate
-> payments subsystem, the Operator App WebView2/React migration, the
+> payments subsystem, the Organization Admin WebView2/React migration, the
 > phone/email staff-identity wave, and the FE forgot/reset-password screen are
 > all implemented and merged. Since 2026-06-04 the customer-shell WebView2
 > pivot shipped end to end — login, self-service extend/top-up, plus Unit F
@@ -55,9 +55,9 @@ Minimum bar:
 - One Windows test endpoint enrolled with Agent Service and Player Shell. A
   clean Windows 11 VM is acceptable for the pilot gate; physical PC validation
   remains recommended hardening before wider rollout.
-- Operator App can perform the core day flow against the deployed backend.
-- One tenant and first branch can be provisioned without direct database edits
-  through a scripted or Control Plane path.
+- Organization Admin can perform the core day flow against the deployed backend.
+- One organization and first branch can be provisioned without direct database edits
+  through a scripted or Platform Control path.
 - Backup and restore rehearsal completed once.
 - Client MSI installation and update rollout tested on a Windows endpoint.
 - Manual/mock payments are acceptable.
@@ -81,8 +81,8 @@ Minimum bar:
   rollout.
 - Staff, role assignment, layout, device, update, audit, and reporting
   workflows are usable by operators/managers.
-- Internal SaaS Control Plane exists for platform-owner tenant onboarding,
-  subscription/status controls, owner invites, tenant health, support notes,
+- Internal Platform Control exists for platform-owner organization onboarding,
+  subscription/status controls, owner invites, organization health, support notes,
   and suspend/reactivate.
 - Operational monitoring and support diagnostics are actionable.
 
@@ -103,13 +103,13 @@ Minimum bar:
    deploys while keeping EF migration changes behind an explicit backup and
    migration confirmation.
 
-2. **Tenant Onboarding And SaaS Control Plane**
+2. **Organization Onboarding And Platform Control**
 
    The product decision changed on 2026-05-23: AFK4 MVP now includes an
-   internal browser-based SaaS Control Plane for the platform owner/support
+   internal browser-based Platform Control for the platform owner/support
    role. The first pilot can still use a scripted provisioning fallback, but
    commercial production must not require direct PostgreSQL edits to create
-   organizations, branches, owner invites, plan/status metadata, tenant limits,
+   organizations, branches, owner invites, plan/status metadata, organization limits,
    support notes, or suspend/reactivate state.
 
 3. **CI Gate**
@@ -147,12 +147,12 @@ Minimum bar:
    `afk4-gaming-pc` MSI have since been retired and removed from the codebase. Windows 11 VM
    smoke reached internal Agent `0.1.29`: VM2 applied the rollout, rebooted,
    kept `AFK4.Agent.Service` running, and did not reopen Setup Wizard. This is
-   enough to proceed with pilot Operator App testing and continued development.
+   enough to proceed with pilot Organization Admin testing and continued development.
    A 2026-05-26 `manager_workstation` smoke found and fixed the local
    seat-assignment model bug: manager workstations must enroll without a
    floor-map seat. The nullable manager-workstation install-enrollment backend
    deployed to staging on 2026-05-27 from `cac13da`; Package Smoke run
-   `26507696459` published internal Operator App `0.1.33` and created the
+   `26507696459` published internal Organization Admin `0.1.33` and created the
    staging branch rollout. A repeatable API cleanup helper now exists at
    `scripts/cleanup-manager-workstation-smoke-data.ps1`; staging still needs
    that helper run with the smoke staff credential, followed by a repeat
@@ -184,9 +184,9 @@ Minimum bar:
    register packages with the staging Platform API, and create an internal
    device rollout. Client package workflows now set up Node 24 and the package
    script builds `src/AFK4.OrganizationAdmin.Web`, then copies the fresh Vite `dist`
-   output into the Operator App publish `WebAssets` before WiX builds the
-   Operator App MSI; the script also asserts the finished MSI contains the
-   frontend `index.html`, JavaScript, and CSS files. The Operator App MSI now
+   output into the Organization Admin publish `WebAssets` before WiX builds the
+   Organization Admin MSI; the script also asserts the finished MSI contains the
+   frontend `index.html`, JavaScript, and CSS files. The Organization Admin MSI now
    also has a WebView2 Evergreen Runtime launch condition using the documented
    EdgeUpdate `pv` registry values, so unsupported machines fail closed with a
    clear prerequisite message. Slice 3.2 adds a new WiX-built
@@ -198,17 +198,17 @@ Minimum bar:
    configuration; the wizard starts it after successful enrollment. Slice 3.3
    adds role-aware Agent component installation:
    `gaming_pc` devices pull a standalone Player Shell MSI, `manager_workstation`
-   devices pull the Operator App MSI after a WebView2 runtime check/install,
-   and update metadata publishing now uses separate Operator App, Agent, and
+   devices pull the Organization Admin MSI after a WebView2 runtime check/install,
+   and update metadata publishing now uses separate Organization Admin, Agent, and
    Player Shell MSI artifacts. The corrected single Agent MSI path now has
    Windows 11 VM evidence through internal Agent version `0.1.29`; the legacy
    coordinated `afk4-gaming-pc` MSI and `AFK4.GamingPc.Setup` bootstrapper have
    since been removed from the codebase entirely (they were already gone from the
    default package-smoke and publishing flow). The
    package-smoke follow-up now creates a staging branch rollout for
-   `operator-app` while keeping the Agent Service rollout device-targeted, so
+   `organization-admin` while keeping the Agent Service rollout device-targeted, so
    clean manager-workstation smoke no longer depends on manually installing the
-   Operator App MSI once that workflow has run on `main`; the registration
+   Organization Admin MSI once that workflow has run on `main`; the registration
    script also handles branch rollouts without device targets.
    Commercial production still needs final Authenticode/signing custody,
    production storage/CDN policy, and service credentials for package
@@ -220,11 +220,11 @@ Minimum bar:
    Document exactly how to create the first organization, branch, staff users,
    roles, zones, seats, devices, tariffs, POS products, and update channels for
    a pilot club. Staff-authorized setup APIs, the pilot setup script, and the
-   minimum Operator App setup panel exist. Club self-service onboarding now has
-   backend install APIs, branch device admin APIs, owner-facing Platform.Web
+   minimum Organization Admin setup panel exist. Club self-service onboarding now has
+   backend install APIs, branch device admin APIs, owner-facing Platform Control
    screens on `main` and staging, separate admin/customer SPA builds, and a
    deployed customer staging app. The single `AFK4 Agent` MSI includes Setup
-   Wizard, role-aware Player Shell / Operator App component install, and
+   Wizard, role-aware Player Shell / Organization Admin component install, and
    Windows 11 VM reboot/service-start evidence. The legacy coordinated
    gaming-PC MSI path is retired from the default onboarding/package flow and
    remains a fallback. Remaining pilot setup evidence is the repeat
@@ -238,9 +238,9 @@ Minimum bar:
 - Production hosting provider and deployment topology are not selected for
   commercial production.
 - Production environments are not codified.
-- Internal SaaS Control Plane and no-DB-edit tenant provisioning are partially
-  implemented and smoke-tested in staging for platform-admin tenant creation,
-  owner invites, tenant status, support notes, and health. The customer SPA
+- Internal Platform Control and no-DB-edit organization provisioning are partially
+  implemented and smoke-tested in staging for platform-admin organization creation,
+  owner invites, organization status, support notes, and health. The customer SPA
   host is deployed, and the Windows SetupWizard/single Agent MSI path has
   Windows 11 VM evidence through Agent `0.1.29`. The legacy bootstrap/
   coordinated gaming-PC MSI path is retired from the default publishing flow;
@@ -290,7 +290,7 @@ Minimum bar:
   wiring and Windows 11 VM smoke evidence. Physical service startup validation
   remains hardening through the real-device smoke runbook.
 - The preferred onboarding path is now the single `afk4-agent` MSI with the
-  owner-code Setup Wizard plus role-aware Player Shell/Operator App
+  owner-code Setup Wizard plus role-aware Player Shell/Organization Admin
   installation. The older release-workstation setup executable and coordinated
   gaming-PC MSI remain in code behind explicit fallback switches only. The
   single Agent MSI path reached internal Agent `0.1.29` on VM2 with update,
@@ -325,12 +325,12 @@ Minimum bar:
 
 ### Operator Workflows
 
-- Staging smoke proved the old Operator App layout was not viable even though
+- Staging smoke proved the old Organization Admin layout was not viable even though
   session start/end worked. After reviewing the WPF redesign branch, the
-  go-forward Operator App runtime changed to a native .NET Windows desktop
+  go-forward Organization Admin runtime changed to a native .NET Windows desktop
   shell with WebView2 and React/TypeScript UI. This keeps the native Windows
   app boundary and keeps day-to-day club operations out of the internal SaaS
-  Control Plane. `docs/product/operator-app-ui-target.md` remains the accepted
+  Platform Control. `docs/product/organization-admin-ui-target.md` remains the accepted
   UI/UX
   target: dense floor-map-centered operator console, selected-seat action
   panel, operational signals, explicit pending/failed backend and device
@@ -456,13 +456,13 @@ Minimum bar:
   failed, and search/filter-miss states instead of using generic
   `Нет backend ...` placeholders.
   The current WPF implementation remains a parity reference and temporary legacy
-  source until the WebView2/React Operator App covers the pilot day flow.
-- Staff management now has general Operator App creation, login/display-name
+  source until the WebView2/React Organization Admin covers the pilot day flow.
+- Staff management now has general Organization Admin creation, login/display-name
   editing, predefined branch-role reassignment, activation/deactivation, and
   password reset paths.
 - Custom roles and arbitrary permission-set editing are not implemented.
 - Branch layout management is implemented as a minimum API path on `main`;
-  the Operator App now has Settings creation/update controls for zone and seat
+  the Organization Admin now has Settings creation/update controls for zone and seat
   names, sort orders, seat moves, unused-seat deletion, and empty-zone deletion,
   but not visual drag/drop layout editing or soft archive flows.
 - Device-seat assignment has a staff-authorized API path and staging smoke
@@ -470,11 +470,10 @@ Minimum bar:
   command-history/credential controls and a branch-wide command-history
   browser. Broader non-command device telemetry/event browsing is still
   missing.
-- Pilot branch setup can now run through either the Operator App Pilot Setup
+- Pilot branch setup can now run through either the Organization Admin Pilot Setup
   panel or the Platform API script fallback. Commercial production still needs
-  the internal SaaS Control Plane for platform-owner tenant onboarding/support
-  plus broader operator-safe configuration screens inside the native Operator
-  App.
+  the internal Platform Control for platform-owner organization onboarding/support
+  plus broader operator-safe configuration screens inside Organization Admin.
 
 ### Observability And Support
 
@@ -485,7 +484,7 @@ Minimum bar:
 
 ## Recommended Next Work
 
-The Operator App WebView2/React migration, the SaaS Control Plane, and the
+The Organization Admin WebView2/React migration, the Platform Control, and the
 full SP3/SP4 feature wave are done and merged (see the status note at the top
 and the progress snapshot). The remaining path to production is operational:
 
@@ -527,7 +526,7 @@ and the progress snapshot). The remaining path to production is operational:
   SDKs.
 - Prefer one real-device smoke loop over more theoretical docs once staging is
   available, but do not treat physical hardware availability as a blocker for
-  current Operator App staging tests.
+  current Organization Admin staging tests.
 - Treat backup restore as a launch gate. Treat physical-device release
   validation as hardening and release-confidence work unless a concrete
-  Operator App staging test is blocked by it.
+  Organization Admin staging test is blocked by it.

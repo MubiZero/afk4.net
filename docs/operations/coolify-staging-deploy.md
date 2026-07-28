@@ -2,10 +2,10 @@
 
 This runbook creates the first AFK4 staging backend on a Linux VPS managed by
 Coolify. It keeps the MVP runtime boundaries intact: the cloud Platform API and
-server-side dependencies are containerized first. The internal SaaS Control
-Plane is an approved platform-owner surface, but its frontend deployment is a
-follow-up until the Control Plane implementation exists. The Windows Operator
-App, Agent Service, and Player Shell remain Windows client runtimes and are not
+server-side dependencies are containerized first. The internal Platform Control
+is an approved platform-owner surface, but its frontend deployment is a
+follow-up until the Platform Control implementation exists. Organization Admin,
+Agent Service, and Player Shell remain Windows client runtimes and are not
 deployed as Linux services.
 
 Do not commit secrets, filled environment files, database dumps, generated
@@ -25,10 +25,10 @@ Included:
 Not included:
 
 - local club server;
-- Control Plane frontend deployment before the Control Plane slice is
+- Platform Control frontend deployment before the Platform Control slice is
   implemented;
 - customer browser operational admin as the primary club UI;
-- Linux services for Operator App, Agent Service, or Player Shell;
+- Linux services for Organization Admin, Agent Service, or Player Shell;
 - production-grade backup retention, PITR, or monitoring automation.
 
 ## Repository Inputs
@@ -113,7 +113,7 @@ contents of `deploy/coolify/staging-update-signing-public.pem` for
 `Install__UpdatePackageSigningPublicKeyPem`; it is a public verification key,
 but it must be preserved as multiline text.
 
-The `Cors__PlatformWebOrigins__*` entry allows the browser-hosted Control Plane
+The `Cors__PlatformWebOrigins__*` entry allows the browser-hosted Platform Control
 to call the Platform API. Do not keep the retired `app.*` origin after the
 external club application is decommissioned.
 
@@ -277,10 +277,10 @@ Minimum first-deploy evidence:
 - the API container logs do not show database connection failures;
 - Coolify reports the deployment healthy on the current commit.
 
-## Platform.Web Control Plane + Public-Endpoint Rate-Limiting
+## Platform Control + Public-Endpoint Rate-Limiting
 
-`src/AFK4.Platform.Web` is the admin-only Control Plane deployed to the existing
-internal platform host. It uses `deploy/coolify/platform-web.Dockerfile` (build
+`src/AFK4.PlatformControl.Web` is the admin-only Platform Control deployed to the existing
+internal platform host. It uses `deploy/coolify/platform-control.Dockerfile` (build
 context = repository root, exposed port `8080`, health path `/healthz`):
 
 | Coolify app | Host | Build arguments |
@@ -289,8 +289,8 @@ context = repository root, exposed port `8080`, health path `/healthz`):
 
 The host exposes `/admin/*`. Verify `/admin` in a browser and confirm that old
 `/club/install` and browser staff sign-in/reset URLs render the explicit
-not-found state. `/auth/accept-invite` remains the public first-owner onboarding
-route issued by Control Plane.
+not-found state. `/account-activation` remains the public Organization Owner
+activation route issued by Platform Control.
 The old `app.*` Coolify application and DNS entry must be decommissioned only
 through a separate explicitly approved external operation.
 
@@ -300,8 +300,10 @@ Wire both dedicated hosts via the Traefik labels in
 Same file documents how to attach a per-source-IP rate-limit middleware to the
 public Platform API endpoints that accept bearer-style setup, install, or
 connection credentials with no auth handshake in front of them
-(`/api/operator-connections/resolve`, `/api/platform/owner-invites/accept`,
-`/api/install/discover`, and `/api/install/enroll`). The labels go on the
+(`/api/operator-connections/resolve`,
+`/api/account-activation/organization-owner`,
+`/api/organizations/{organizationId}/install/discover`, and
+`/api/organizations/{organizationId}/install/enroll`). The labels go on the
 existing Platform API Coolify application and create higher-priority Traefik
 routers for those exact paths, so the rest of the API surface stays unchanged.
 Verify after deploying using the curl recipes at the bottom of the ingress doc.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end staging smoke for AFK4 SaaS Control Plane Slices 1-6,
+"""End-to-end staging smoke for AFK4 Platform Control slices 1-6,
 onboarding Slice 1.4, and hardening A-E.
 
 Usage:

@@ -16,15 +16,15 @@ needed.
 ## Current Product Direction
 
 - AFK4 is a cloud-first SaaS platform for computer clubs.
-- Day-to-day club operations run in the native Windows Operator App (a .NET
+- Day-to-day club operations run in the native Windows app Organization Admin (a .NET
   shell hosting a WebView2 React/TypeScript UI).
-- Platform-owner/support operations run in the browser SaaS Control Plane
-  (`AFK4.Platform.Web`, admin-only SPA under `/admin`).
+- Platform-owner/support operations run in the browser Platform Control
+  (`AFK4.PlatformControl.Web`, admin-only SPA under `/admin`).
 - Players have a self-service shell + installable PWA portal (PIN/QR, balance,
   self-extend, online top-up).
 - Backend is a .NET 10 ASP.NET Core modular monolith on PostgreSQL.
 - Gaming PCs run the Windows Agent Service + Player Shell; manager workstations
-  run the Operator App.
+  run the Organization Admin.
 
 ## Navigation
 
@@ -36,7 +36,7 @@ needed.
 
 ## Implemented (high level)
 
-The full platform-web redesign (both admins), SP3 admin control plane +
+The full platform-control redesign (both admins), SP3 admin control plane +
 SaaS billing, and the entire SP4 wave are implemented and merged to `main`:
 
 - **Counter-loop / postpaid checkout** — open-tab postpaid, credit limits +
@@ -123,19 +123,19 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   role sets, lifecycle-safe client actions, time corrections and partial refunds,
   package context and wallet-backed Cash sales, reusable product categories,
   independent package load errors, and device rename/remove. The 2026-07-28
-  parity certificate is GO for a separate Platform.Web `/club` removal project.
-- **Platform.Web `/club` removal** — the obsolete browser club workspace,
+  parity certificate is GO for a separate Platform Control `/club` removal project.
+- **Platform Control `/club` removal** — the obsolete browser club workspace,
   staff-auth runtime, branch-scoped API client, club-only shell, and audience
-  build switch are removed. `AFK4.Platform.Web` now contains only the internal
-  `/admin` Control Plane; old `/club/*` and browser staff sign-in/reset URLs
+  build switch are removed. `AFK4.PlatformControl.Web` now contains only the internal
+  `/admin` Platform Control; old `/club/*` and browser staff sign-in/reset URLs
   return the explicit not-found screen. Public first-owner invite acceptance
-  remains as a stateless onboarding page and sends the owner to Operator App.
+  remains as a stateless onboarding page and sends the owner to Organization Admin.
   Shared money conversion moved to `src/lib`, while backend branch endpoints
   and Operator contracts remain unchanged.
 
 ## Latest Verification
 
-- Fresh Platform.Web removal gate (2026-07-28): the remaining Control Plane
+- Fresh Platform Control removal gate (2026-07-28): the remaining Platform Control
   suite passed 119/119 tests across 50 files; focused routing/onboarding passed
   7/7, including explicit rejection of `/club/*` and staff sign-in routes while
   preserving stateless owner-invite onboarding; i18n passed 39/39 and the
@@ -143,19 +143,19 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   image and `/healthz` returned `ok`. Existing dialog accessibility, React
   `act`, and large-chunk diagnostics remain non-failing.
 
-- Fresh Operator parity gate (2026-07-28): full Operator Web suite passed
+- Fresh Operator parity gate (2026-07-28): full Organization Admin Web suite passed
   1017 tests with 26 explicit skips and 0 failures across 161 files; App
   integration passed 68 with 26 skips and 0 failures; i18n passed 39/39; the
-  Operator Web production build completed. Existing React `act` diagnostics,
+  Organization Admin Web production build completed. Existing React `act` diagnostics,
   SignalR annotation warnings, and the large-chunk warning remain non-failing.
 
 - Fresh authoritative-footer gate: Shared Contracts passed 129/129; Platform
-  API passed 1391 with 13 PostgreSQL-environment skips; Operator Web passed
+  API passed 1391 with 13 PostgreSQL-environment skips; Organization Admin Web passed
   708/708 component/model tests plus 89/89 App integration tests; i18n passed
-  35/35; and Platform Web passed 381/381. Platform Web and Operator Web
+  35/35; and Platform Control passed 381/381. Platform Control and Organization Admin Web
   production builds completed, and `dotnet build AFK4.sln
   -p:EnableWindowsTargeting=true -p:NuGetAudit=false` passed with 0 warnings and
-  0 errors. The Windows-targeted Operator App and test assembly compile on
+  0 errors. The Windows-targeted Organization Admin and test assembly compile on
   Linux, but the testhost cannot execute there because
   `Microsoft.WindowsDesktop.App` is unavailable; run that suite on Windows
   before integration.
@@ -170,7 +170,7 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   on PostgreSQL 17.10, including deterministic settlement/refund, inventory/
   currency, reservation-start, rollback, and cross-command concurrency tests.
   The full solution build passed with 0 warnings and 0 errors.
-- Operator Web passed 797 tests across the component/model and App integration
+- Organization Admin Web passed 797 tests across the component/model and App integration
   runs;
   the generated ru/en/tg catalog check passed 23/23 and the production build
   completed. Rendered cash-terminal and system-footer QA passed in dark and
@@ -179,7 +179,7 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   design comparison is recorded in `design-qa.md`. Existing React test diagnostics,
   test-harness `ECONNREFUSED`, SignalR annotation warnings, and the large-chunk
   warning remain non-failing.
-- Platform Web passed 381/381 Bun tests and its production build; its existing
+- Platform Control passed 381/381 Bun tests and its production build; its existing
   large-chunk warning remains.
 - Player Shell Web passed 51/51 Bun tests and its production build.
 - GitHub `Package Smoke` run `29326881732` and the migration-gated `Coolify
@@ -210,7 +210,7 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 - **Remaining Windows evidence** is narrower: repeat the Operator pass on a clean
   `manager_workstation` install at 100%/125% scaling and run the physical Windows
   10/11 gaming-PC smoke for lock/unlock enforcement, reboot recovery, and
-  role-aware update/rollback. Include the WindowsDesktop Operator App testhost
+  role-aware update/rollback. Include the WindowsDesktop Organization Admin testhost
   because it cannot execute from the current Linux environment.
 - **Pre-production release decisions** remain: Authenticode custody, production
   object store/CDN, presigned upload automation, package-registration

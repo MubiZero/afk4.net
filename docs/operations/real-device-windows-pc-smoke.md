@@ -49,17 +49,17 @@ Not included:
   through internal version `0.1.29`: owner-code enrollment, Agent update,
   service automatic start after reboot, and no Setup Wizard rerun after upgrade.
   It installs the Agent Service, Setup Wizard, update helpers, Start Menu
-  shortcut, first-run marker, and HKLM `RunOnce`; Player Shell and Operator App
+  shortcut, first-run marker, and HKLM `RunOnce`; Player Shell and Organization Admin
   are installed later by the Agent through role-aware update rollouts.
 - The older staging `gaming-pc-bootstrap` MinIO script is retired from the
   default smoke path. Use it only as a legacy recovery fallback for old staging
   devices, and mark any such run as partial/non-current evidence.
 - The current Setup Wizard authenticates staff directly by phone or
-  email/login and password; the removed Platform.Web `/club` dashboard is not
+  email/login and password; the removed Platform Control `/club` dashboard is not
   part of enrollment.
 - A `manager_workstation` enrollment must prove the role-aware update path:
-  WebView2 Runtime check/install, Operator App MSI install, Agent restart, and
-  an Operator App sign-in screen pointing at staging.
+  WebView2 Runtime check/install, Organization Admin MSI install, Agent restart, and
+  an Organization Admin sign-in screen pointing at staging.
 - `WorkstationLockController` currently records lock/unlock requests through
   the enforcement adapter. If the physical Windows desktop does not actually
   lock or unlock, record that as a real enforcement gap rather than inventing a
@@ -83,21 +83,21 @@ The smoke exercises these API boundaries:
 | Area | Endpoint |
 | --- | --- |
 | Health | `GET /api/health` |
-| Staff auth | `POST /api/auth/staff/sign-in` |
-| Owner code | `GET /api/staff/me/owner-code` |
-| Owner code | `POST /api/staff/me/owner-code/generate` |
-| Owner code | `POST /api/staff/me/owner-code/rotate` |
-| Install discover | `POST /api/install/discover` |
-| Install seat create | `POST /api/install/seats` |
-| Install enroll | `POST /api/install/enroll` |
+| Staff auth | `POST /api/organizations/{organizationId}/auth/staff/sign-in` |
+| Owner code | `GET /api/organizations/{organizationId}/staff/me/owner-code` |
+| Owner code | `POST /api/organizations/{organizationId}/staff/me/owner-code/generate` |
+| Owner code | `POST /api/organizations/{organizationId}/staff/me/owner-code/rotate` |
+| Install discover | `POST /api/organizations/{organizationId}/install/discover` |
+| Install seat create | `POST /api/organizations/{organizationId}/install/seats` |
+| Install enroll | `POST /api/organizations/{organizationId}/install/enroll` |
 | Heartbeat | `POST /api/devices/{deviceId}/heartbeat` |
 | SignalR | `/hubs/devices` |
 | Installed apps | `POST /api/devices/{deviceId}/installed-apps/report` |
 | Device detail | `GET /api/devices/{deviceId}` |
-| Sessions | `POST /api/branches/{branchId}/sessions/start` |
-| Session end | `POST /api/sessions/{sessionId}/end` |
+| Sessions | `POST /api/organizations/{organizationId}/branches/{branchId}/sessions/start` |
+| Session end | `POST /api/organizations/{organizationId}/sessions/{sessionId}/end` |
 | Reconciliation | `POST /api/devices/{deviceId}/session-reconciliation` |
-| Diagnostics | `GET /api/branches/{branchId}/diagnostics` |
+| Diagnostics | `GET /api/organizations/{organizationId}/branches/{branchId}/diagnostics` |
 | Updates | `POST /api/devices/{deviceId}/updates/check` |
 | Updates | `POST /api/devices/{deviceId}/updates/status` |
 
@@ -163,10 +163,10 @@ Use this path for the clean Windows 11 VM gate.
      Shell from the internal update channel and supervises it in the active
      desktop session.
    - `manager_workstation` for an operator PC. Expected follow-on: Agent checks
-     or installs WebView2 Runtime, installs Operator App, restarts, and leaves
-     Operator App ready for staff sign-in against staging.
+     or installs WebView2 Runtime, installs Organization Admin, restarts, and leaves
+     Organization Admin ready for staff sign-in against staging.
 
-5. Confirm in Operator App `Управление → Залы и ПК` that the device appears
+5. Confirm in Organization Admin `Управление → Залы и ПК` that the device appears
    with the selected display name, role, seat, enrollment state, and recent
    heartbeat.
 
@@ -174,14 +174,14 @@ Use this path for the clean Windows 11 VM gate.
 
 Preferred setup is through the Mubi admin SPA plus Setup Wizard and Operator:
 
-1. Mubi creates the tenant and owner invite under
+1. Mubi creates the organization and owner invite under
    `https://platform.afk4.staging.mubi.dev/admin`.
 2. The owner accepts the invitation through the current onboarding path and
-   creates/edits the branch floor map in Operator App.
+   creates/edits the branch floor map in Organization Admin.
 3. The smoke uses the authorized staff login only inside Setup Wizard.
 
 Use the PowerShell/API fallback below only when the dashboard path is blocked
-or when reusing the fixed staging smoke tenant from earlier runs. Do not paste
+or when reusing the fixed staging smoke organization from earlier runs. Do not paste
 real secrets into chat or repository files.
 
 ```powershell
@@ -241,7 +241,7 @@ $env:AFK4_SMOKE_STAFF_PASSWORD_HASH = (& 'C:\Program Files\dotnet\dotnet.exe' ru
 
 Seed the fixed staging smoke organization, branch, staff user, and seat only
 when the dashboard/API path is unavailable or when rebuilding the historical
-smoke tenant. This direct SQL path is a fallback, not the preferred onboarding
+smoke organization. This direct SQL path is a fallback, not the preferred onboarding
 flow.
 
 ```powershell
@@ -321,14 +321,24 @@ $signInBody = @{
     password = $env:AFK4_SMOKE_STAFF_PASSWORD
 } | ConvertTo-Json -Depth 4
 
+$organizationAdminHeaders = @{
+    'X-AFK4-Product' = 'organization-admin'
+    'X-AFK4-Compatibility-Epoch' = '2'
+    'X-AFK4-Client-Version' = '0.2.0-real-device-smoke'
+}
+
 $staffSession = Invoke-RestMethod `
-    "$baseUrl/api/auth/staff/sign-in" `
+    "$baseUrl/api/organizations/$organizationId/auth/staff/sign-in" `
     -Method Post `
+    -Headers $organizationAdminHeaders `
     -ContentType 'application/json' `
     -Body $signInBody
 
 $staffHeaders = @{
     Authorization = "Bearer $($staffSession.accessToken)"
+    'X-AFK4-Product' = 'organization-admin'
+    'X-AFK4-Compatibility-Epoch' = '2'
+    'X-AFK4-Client-Version' = '0.2.0-real-device-smoke'
 }
 ```
 
@@ -343,7 +353,7 @@ $playerBody = @{
 } | ConvertTo-Json -Depth 6
 
 $player = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/players" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/players" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -360,7 +370,7 @@ $openShiftBody = @{
 } | ConvertTo-Json -Depth 8
 
 $shift = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/shifts/open" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/shifts/open" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -373,7 +383,7 @@ $tariffBody = @{
 } | ConvertTo-Json -Depth 6
 
 $tariff = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/tariffs" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/tariffs" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -391,7 +401,7 @@ $tariffVersionBody = @{
 } | ConvertTo-Json -Depth 8
 
 $tariffVersion = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/tariffs/$($tariff.tariffId)/versions" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/tariffs/$($tariff.tariffId)/versions" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -445,7 +455,7 @@ This produces:
 ```text
 artifacts/client-packages/afk4-agent-0.1.0-ci-internal.msi
 artifacts/client-packages/afk4-player-shell-0.1.0-ci-internal.msi
-artifacts/client-packages/afk4-operator-app-0.1.0-ci-internal.msi
+artifacts/client-packages/afk4-organization-admin-0.1.0-ci-internal.msi
 ```
 
 ## Enroll With Setup Wizard
@@ -558,7 +568,7 @@ $deviceDetail = Invoke-RestMethod `
     -Headers $staffHeaders
 
 $diagnostics = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/diagnostics" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/diagnostics" `
     -Headers $staffHeaders
 
 $deviceDetail
@@ -661,7 +671,7 @@ $startSessionBody = @{
 } | ConvertTo-Json -Depth 8
 
 $startedSession = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/sessions/start" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/sessions/start" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -739,7 +749,7 @@ $endSessionBody = @{
 } | ConvertTo-Json -Depth 6
 
 $endingSession = Invoke-RestMethod `
-    "$baseUrl/api/sessions/$sessionId/end" `
+    "$baseUrl/api/organizations/$organizationId/sessions/$sessionId/end" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -781,7 +791,7 @@ $restartSessionBody = @{
 } | ConvertTo-Json -Depth 8
 
 $restartedSession = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/sessions/start" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/sessions/start" `
     -Method Post `
     -Headers $staffHeaders `
     -ContentType 'application/json' `
@@ -794,7 +804,7 @@ Run this baseline check even when no package is being offered. It verifies the
 device-authenticated update boundary without installing anything.
 
 For a `gaming_pc`, report `agent-service` and `player-shell`. For a
-`manager_workstation`, report `agent-service` and `operator-app` instead.
+`manager_workstation`, report `agent-service` and `organization-admin` instead.
 The example below is the gaming-PC shape.
 
 ```powershell
@@ -835,7 +845,7 @@ is intentionally prepared for this exact device. If it is prepared, collect:
 - update package id;
 - rollout id;
 - Agent update logs under `C:\ProgramData\AFK4\Agent\UpdateLogs`;
-- backend rollout status from `GET /api/branches/{branchId}/updates/rollouts`;
+- backend rollout status from `GET /api/organizations/{organizationId}/branches/{branchId}/updates/rollouts`;
 - device status rows from diagnostics.
 
 Expected for a passing Agent-side update smoke:
@@ -844,7 +854,7 @@ Expected for a passing Agent-side update smoke:
   `C:\ProgramData\AFK4\Agent\Updates`;
 - the update log is written under
   `C:\ProgramData\AFK4\Agent\UpdateLogs`;
-- Windows Installer logs successful Agent, Player Shell, or Operator App MSI
+- Windows Installer logs successful Agent, Player Shell, or Organization Admin MSI
   installs for the components intentionally offered to this device;
 - the Agent service restarts and continues heartbeats;
 - backend rollout status for this device reaches `installed`;
@@ -867,11 +877,11 @@ Collect backend evidence:
 
 ```powershell
 $diagnostics = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/diagnostics" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/diagnostics" `
     -Headers $staffHeaders
 
 $audit = Invoke-RestMethod `
-    "$baseUrl/api/branches/$branchId/audit?limit=50" `
+    "$baseUrl/api/organizations/$organizationId/branches/$branchId/audit?limit=50" `
     -Headers $staffHeaders
 
 $diagnostics
@@ -929,7 +939,7 @@ Overall pass requires:
 - `gaming_pc` role installs Player Shell through the update channel, or a
   concrete role-aware update blocker is recorded;
 - `manager_workstation` role installs or verifies WebView2 and installs
-  Operator App through the update channel, or a concrete role-aware update
+  Organization Admin through the update channel, or a concrete role-aware update
   blocker is recorded;
 - session start returns backend approval and creates an unlock command;
 - Agent accepts the signed lease and records active runtime state;

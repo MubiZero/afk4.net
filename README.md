@@ -2,14 +2,14 @@
 
 AFK4.NET is a cloud-first SaaS platform for managing Windows-based cyber clubs.
 It is being built as operator-grade software in the same product category as
-Senet, Langame, and SmartShell: cloud backend, native Windows Operator App,
-internal SaaS Platform Control, Windows Agent Service, Player Shell, sessions,
+Senet, Langame, and SmartShell: cloud backend, native Windows app Organization Admin,
+internal Platform Control, Windows Agent Service, Player Shell, sessions,
 billing, POS, audit, reports, and centralized client updates.
 
 The current codebase is no longer just a scaffold. It contains an implemented
 MVP-oriented vertical slice with tested backend modules, Windows client
 surfaces, Agent/Shell foundations, update packaging, and operational runbooks.
-Current work is concentrated around pilot/production readiness, Operator App
+Current work is concentrated around pilot/production readiness, Organization Admin
 hardening, Windows endpoint smoke, and onboarding/release polish; use the
 progress snapshot and production-readiness roadmap below for the exact current
 state.
@@ -34,9 +34,9 @@ session.
 ## Fixed MVP Decisions
 
 - Cloud-first SaaS; no local club server in the MVP.
-- Internal browser-based SaaS Platform Control is in the MVP for platform-owner
-  tenant onboarding, subscription/status controls, tenant health, and support.
-- Native Windows Operator App built as a .NET desktop shell with WebView2 and
+- Internal browser-based Platform Control is in the MVP for platform-owner
+  organization onboarding, subscription/status controls, organization health, and support.
+- Native Windows app Organization Admin built as a .NET desktop shell with WebView2 and
   a React/TypeScript operator UI.
 - Gaming PCs are Windows 10/11 only in the MVP.
 - Backend is ASP.NET Core on .NET 10, starting as a modular monolith.
@@ -59,20 +59,20 @@ session.
 management, sessions, billing, POS, shifts, reports, audit, updates, and
 reconciliation. PostgreSQL persistence is implemented with EF Core migrations.
 
-### SaaS Platform Control
+### Platform Control
 
-The approved next platform-owner surface is an internal browser-based Control
-Plane for tenant provisioning, first branch setup, owner invites,
-subscription/status controls, tenant health, support notes, and
+The platform-owner surface is the internal browser-based Platform Control for
+organization provisioning, first branch setup, owner invites,
+subscription/status controls, organization health, support notes, and
 suspend/reactivate actions. Its backend endpoints should live behind a
 separate platform-admin authorization boundary, not branch staff tokens.
 
-### Operator App
+### Organization Admin
 
-`src/AFK4.Operator.App` is the native Windows app for operators, cashiers,
+`src/AFK4.OrganizationAdmin.App` is the native Windows app for operators, cashiers,
 managers, technicians, accountants, and owners depending on permissions. The
 approved target is a .NET desktop host with WebView2 and a React/TypeScript
-operator UI. It is distinct from the SaaS Platform Control; the main working
+operator UI. It is distinct from the Platform Control; the main working
 screen is the floor map. The WebView2/React console now has staff sign-in,
 backend-loaded floor-map state, selected-seat session actions, billing-mode
 selection, filters/table view, SignalR reloads, active-session ticking, and
@@ -81,7 +81,7 @@ the migration source for parity areas and operator workflows that are still
 being hardened or ported.
 
 The accepted UI/UX direction for this native operator console is recorded in
-[Operator App UI/UX Target](docs/product/operator-app-ui-target.md).
+[Organization Admin UI/UX Target](docs/product/organization-admin-ui-target.md).
 
 ### Agent Service
 
@@ -109,7 +109,7 @@ trusted authority for sessions, billing, or authorization.
 ### Shared Projects
 
 - `src/AFK4.BuildingBlocks` - low-level domain primitives.
-- `src/AFK4.Shared.Contracts` - DTOs shared by backend, Operator App, Agent,
+- `src/AFK4.Shared.Contracts` - DTOs shared by backend, Organization Admin, Agent,
   and Shell.
 - `src/AFK4.Update.Publisher` - CLI for publishing update artifacts and signed
   package metadata.
@@ -143,15 +143,15 @@ The latest recorded verification can move quickly. See
 [Current Progress](docs/progress/2026-05-12-vertical-slice-progress.md) for the
 current build/test counts, smoke evidence, known gaps, and next work.
 
-## Operator App Staging Smoke
+## Organization Admin Staging Smoke
 
-The Operator App defaults to `http://localhost:5074`. To point the same local
-build at staging for pilot smoke, set `AFK4_OPERATOR_PLATFORM_BASE_URL` before
+The Organization Admin defaults to `http://localhost:5074`. To point the same local
+build at staging for pilot smoke, set `AFK4_ORGANIZATION_ADMIN_PLATFORM_BASE_URL` before
 launching the app:
 
 ```powershell
-$env:AFK4_OPERATOR_PLATFORM_BASE_URL = 'https://afk4.staging.mubi.dev'
-& .\src\AFK4.Operator.App\bin\Debug\net10.0-windows\AFK4.Operator.App.exe
+$env:AFK4_ORGANIZATION_ADMIN_PLATFORM_BASE_URL = 'https://afk4.staging.mubi.dev'
+& .\src\AFK4.OrganizationAdmin.App\bin\Debug\net10.0-windows\AFK4.OrganizationAdmin.App.exe
 ```
 
 ## Local Runbooks
@@ -166,6 +166,7 @@ $env:AFK4_OPERATOR_PLATFORM_BASE_URL = 'https://afk4.staging.mubi.dev'
 - [PostgreSQL Backup And Restore](docs/operations/postgres-backup-restore.md)
 - [Pilot Branch Setup](docs/operations/pilot-branch-setup.md)
 - [Uptime Monitoring](docs/operations/uptime-monitoring.md)
+- [Platform/Organization Big-Bang Cutover](docs/operations/platform-organization-big-bang-cutover.md)
 
 ## Packaging Snapshot
 
@@ -175,7 +176,7 @@ Build the default local MSI package set:
 powershell -ExecutionPolicy Bypass -File scripts/build-client-packages.ps1 -Version 0.1.0-ci -Channel internal
 ```
 
-This produces the Operator App MSI, the Agent + Setup Wizard onboarding MSI
+This produces the Organization Admin MSI, the Agent + Setup Wizard onboarding MSI
 (`afk4-agent-<version>-<channel>.msi`), and the standalone Player Shell MSI
 (`afk4-player-shell-<version>-<channel>.msi`). The legacy coordinated
 gaming-PC MSI and one-click staging bootstrapper are fallback/recovery paths

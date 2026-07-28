@@ -49,7 +49,7 @@ They run from Cloudflare's network on a 5-minute cron schedule.
 | 1 | `https://afk4.staging.mubi.dev/api/health` | GET | 200 | `"status":"ok"` |
 | 2 | `https://afk4.staging.mubi.dev/api/platform/auth/sign-in` (POST body `{}`) | POST | **401** | - |
 | 3 | `https://platform.afk4.staging.mubi.dev/healthz` | GET | 200 | `ok` |
-| 4 | `https://platform.afk4.staging.mubi.dev/` | GET | 200 | `AFK4 Platform Control Plane` |
+| 4 | `https://platform.afk4.staging.mubi.dev/` | GET | 200 | `Platform Control` |
 
 Monitor 2 deliberately submits an empty body to the platform-admin
 sign-in endpoint. The endpoint MUST answer 401. A 5xx means the auth
@@ -155,7 +155,7 @@ When a Telegram alert fires:
    container most commonly crashes on a bad migration or an
    exhausted DB connection pool.
 3. For SPA alerts (monitors 3 and 4), check the Coolify application
-   logs for `afk4-platform-web-staging` and the Traefik ingress
+   logs for `afk4-platform-control-staging` and the Traefik ingress
    labels. The SPA most commonly fails on a broken build or a missing
    Let's Encrypt cert renewal.
 4. If the failure mode looks like a database problem, follow

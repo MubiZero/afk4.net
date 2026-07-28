@@ -1,7 +1,7 @@
 # PostgreSQL Backup And Restore Runbook
 
 This runbook is the MVP baseline for AFK4 PostgreSQL backup and restore
-rehearsal. It applies to the cloud Platform API database, including tenants,
+rehearsal. It applies to the cloud Platform API database, including organizations,
 branches, devices, sessions, ledger entries, POS, inventory, receipts, updates,
 and audit records.
 
@@ -25,7 +25,7 @@ Not covered here:
 
 - provider-specific managed backup APIs;
 - point-in-time recovery automation;
-- tenant export tooling;
+- organization export tooling;
 - direct destructive data repair scripts.
 
 ## Required Tools

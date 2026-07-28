@@ -64,15 +64,15 @@ also still produced as standalone artifacts for update-pipeline publishing and r
   upgrades skip first-run wizard registration for already enrolled machines.
   The Agent MSI **carries the Player Shell MSI in the wizard payload** at
   `…\Setup Wizard\payload\AFK4.Player.Shell.msi`. It does not carry the
-  Operator App payload. It is the MSI the bundle installs.
-- **Operator App MSI.**
+  Organization Admin payload. It is the MSI the bundle installs.
+- **Organization Admin MSI.**
 - **Player Shell MSI** for `gaming_pc` devices. It installs the Shell and writes
   the Agent machine environment values needed to report `player-shell` version
   and supervise the Shell executable. It is delivered inside the Agent MSI's
   wizard payload (above) rather than handed out separately to operators.
-- Agent, Player Shell, and Operator App component installs schedule an Agent
+- Agent, Player Shell, and Organization Admin component installs schedule an Agent
   Service restart so machine environment values written by MSIs are reloaded.
-- MSIX is deferred as a future optional Operator App distribution channel.
+- MSIX is deferred as a future optional Organization Admin distribution channel.
 
 The Setup Wizard installs the Player Shell — it is **not** a manual step. During
 enrollment, the operator signs in (phone or login) and selects the device role.
@@ -177,7 +177,7 @@ bundle under ignored `artifacts/client-packages/`.
 Expected component MSI artifact names (build inputs, in `intermediates/`):
 
 ```text
-afk4-operator-app-<version>-<channel>.msi
+afk4-organization-admin-<version>-<channel>.msi
 afk4-agent-<version>-<channel>.msi
 afk4-player-shell-<version>-<channel>.msi
 ```
@@ -197,7 +197,7 @@ publishes from.
 (enrollment is via the wizard's phone/login sign-in and role selection, and it
 carries the Player Shell MSI in its wizard payload).
 `scripts/publish-client-msi-updates.ps1` publishes role-aware update metadata
-from the Operator App MSI, Agent MSI, and Player Shell MSI.
+from the Organization Admin MSI, Agent MSI, and Player Shell MSI.
 
 ## Authenticode Signing
 
@@ -285,7 +285,7 @@ separate upload/public URI fields. When `artifact_store=http-put`, pass
 {
   "operator": {
     "uploadUri": "https://storage-provider.example/operator-upload-token",
-    "publicUri": "https://cdn.afk4.example/operator-app/stable/1.2.3/afk4-operator-app-1.2.3-stable.msi"
+    "publicUri": "https://cdn.afk4.example/organization-admin/stable/1.2.3/afk4-organization-admin-1.2.3-stable.msi"
   },
   "agent": {
     "uploadUri": "https://storage-provider.example/agent-upload-token",
