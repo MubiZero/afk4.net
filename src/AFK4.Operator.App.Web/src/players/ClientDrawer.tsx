@@ -1,12 +1,13 @@
 import { useI18n } from '@afk4/i18n';
 import { CalendarClock, Play, X } from 'lucide-react';
 import { initials, type PlayerClientItem } from '../operatorHelpers';
-import type { LedgerEntryDto } from '../operatorApiClients';
+import type { LedgerEntryDto, PlayerPackageDto } from '../operatorApiClients';
 import { Money } from '../operatorPrimitives';
 import { playerStatusLabel, type ClientLiveContext } from './playersModel';
 import { WalletZone } from './WalletZone';
 import { HistorySection } from './HistorySection';
 import { ClientActionsMenu } from './ClientActionsMenu';
+import { PackagesSection } from './PackagesSection';
 
 // Сколько последних операций показываем в мини-истории — за остальным уводит «вся история →».
 const RECENT_ENTRIES_LIMIT = 4;
@@ -24,6 +25,9 @@ export function ClientDrawer({
   debtMinorUnits,
   currencyCode,
   recentEntries,
+  packages,
+  packagesLoading,
+  packagesErrorDetail,
   topUpAmount,
   canTopUp,
   onChangeTopUpAmount,
@@ -48,6 +52,9 @@ export function ClientDrawer({
   debtMinorUnits: number;
   currencyCode: string;
   recentEntries: LedgerEntryDto[];
+  packages: PlayerPackageDto[];
+  packagesLoading: boolean;
+  packagesErrorDetail?: string;
   topUpAmount: string;
   canTopUp: boolean;
   onChangeTopUpAmount: (value: string) => void;
@@ -167,6 +174,10 @@ export function ClientDrawer({
             <div className="wallet-sep" />
           </>
         )}
+
+        <PackagesSection packages={packages} loading={packagesLoading} errorDetail={packagesErrorDetail} />
+
+        <div className="wallet-sep" />
 
         <HistorySection
           entries={recentEntries}

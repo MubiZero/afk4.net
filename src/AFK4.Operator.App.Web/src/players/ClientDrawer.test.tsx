@@ -33,6 +33,8 @@ const baseProps: DrawerProps = {
   debtMinorUnits: 0,
   currencyCode: 'TJS',
   recentEntries: [],
+  packages: [],
+  packagesLoading: false,
   topUpAmount: '',
   canTopUp: true,
   onChangeTopUpAmount: () => {},

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
-import type { LedgerEntryDto, SessionTimelineItemDto, WalletSummaryDto } from './operatorApiClients';
+import type { LedgerEntryDto, PlayerPackageDto, SessionTimelineItemDto, WalletSummaryDto } from './operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from './operatorTypes';
 import { hasPermission, permissionNames } from './operatorPermissions';
 import {
@@ -58,6 +58,9 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerPhone, setNewPlayerPhone] = useState('');
   const [ledgerEntries, setLedgerEntries] = useState<LedgerEntryDto[]>([]);
+  const [playerPackages, setPlayerPackages] = useState<PlayerPackageDto[]>([]);
+  const [packagesLoading, setPackagesLoading] = useState(false);
+  const [packagesErrorDetail, setPackagesErrorDetail] = useState<string | undefined>();
   const [ledgerCursor, setLedgerCursor] = useState<string | null>(null);
   const [ledgerFilter, setLedgerFilter] = useState<string | null>(null);
   const [ledgerLoading, setLedgerLoading] = useState(false);
@@ -82,6 +85,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   // обновлённый баланс не приезжает в ответе. Тот же «рефетч», что после counter-пополнения,
   // здесь — явный ре-триггер эффекта загрузки кошелька через нонс (как ledgerReloadNonce ниже).
   const [walletReloadNonce, setWalletReloadNonce] = useState(0);
+
   // Кросс-контекст ВСЕХ загруженных клиентов (играет-сейчас/ближайшая-бронь), построенный за один
   // проход по branch-wide sessions+reservations — таблица подсвечивает «сейчас» в каждой строке,
   // drawer берёт контекст выбранного из этой же карты (без per-client рефетча).
@@ -135,6 +139,22 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, clientSearch, currencyCode]);
 
   const selectedClient = clients.find((client) => client.playerAccountId === selectedClientId) ?? null;
+
+  useEffect(() => {
+    if (backend === null || selectedClient?.source !== 'backend' || !selectedClient.playerAccountId) {
+      setPlayerPackages([]);
+      setPackagesErrorDetail(undefined);
+      return;
+    }
+    let disposed = false;
+    setPackagesLoading(true);
+    setPackagesErrorDetail(undefined);
+    createAuthenticatedOperatorClients(backend.config, backend.session).players.getPlayerPackages(selectedClient.playerAccountId)
+      .then((items) => { if (!disposed) setPlayerPackages(items); })
+      .catch((error) => { if (!disposed) setPackagesErrorDetail(projectOperatorError(error, t).detail); })
+      .finally(() => { if (!disposed) setPackagesLoading(false); });
+    return () => { disposed = true; };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, selectedClient?.playerAccountId, selectedClient?.source, walletReloadNonce, t]);
 
   const canViewLedger = backend !== null
     && selectedClient !== null
@@ -682,6 +702,9 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
             debtMinorUnits={debt}
             currencyCode={currencyCode}
             recentEntries={ledgerEntries}
+            packages={playerPackages}
+            packagesLoading={packagesLoading}
+            packagesErrorDetail={packagesErrorDetail}
             topUpAmount={walletTopUpAmount}
             canTopUp={canTopUpWallet}
             onChangeTopUpAmount={setWalletTopUpAmount}
