@@ -5,6 +5,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+$ripgrep = Get-Command rg -CommandType Application -ErrorAction SilentlyContinue
+if ($null -eq $ripgrep) {
+    throw 'The current product vocabulary guard requires the rg executable in PATH.'
+}
+
 $activeRoots = @(
     'README.md',
     'src',
@@ -31,7 +36,7 @@ foreach ($root in $activeRoots) {
     }
 
     foreach ($rule in $rules) {
-        $matches = & rg --line-number `
+        $matches = & $ripgrep.Source --line-number `
             --glob '!docs/archive/**' `
             --glob '!docs/superpowers/specs/2026-07-28-platform-organization-product-boundary-design.md' `
             --glob '!docs/superpowers/plans/2026-07-28-platform-organization-big-bang-migration.md' `
