@@ -12,7 +12,7 @@ const NOW = new Date('2026-07-06T12:00:00Z').getTime();
 const daysAgoIso = (days: number) => new Date(NOW - days * 24 * 60 * 60 * 1000).toISOString();
 
 const client = (over: Partial<PlayerClientItem>): PlayerClientItem => ({
-  playerAccountId: 'p1', name: 'Фариза Назарова', status: 'active', balanceMinorUnits: 45000,
+  playerAccountId: 'p1', name: 'Фариза Назарова', isActive: true, status: 'active', balanceMinorUnits: 45000,
   debtMinorUnits: 0, last: '', tone: 'active', detail: '', phoneNumber: '+992 93 100 20 30',
   source: 'backend', createdAtUtc: null, lastActivityAtUtc: null,
   activePackageName: null, activePackageRemainingMinutes: 0, ...over
@@ -94,7 +94,7 @@ describe('ClientsTable', () => {
   });
 
   it('shows the "Неактивен" tag and row class for an inactive client', () => {
-    renderTable({ clients: [client({ status: 'inactive' })] });
+    renderTable({ clients: [client({ isActive: false, status: 'inactive' })] });
     const row = screen.getByRole('button', { name: /Фариза Назарова/ });
     expect(row).toHaveTextContent('Неактивен');
     expect(row).toHaveClass('inactive');

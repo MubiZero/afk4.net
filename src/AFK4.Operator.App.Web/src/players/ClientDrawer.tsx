@@ -3,7 +3,7 @@ import { CalendarClock, Play, X } from 'lucide-react';
 import { initials, type PlayerClientItem } from '../operatorHelpers';
 import type { LedgerEntryDto } from '../operatorApiClients';
 import { Money } from '../operatorPrimitives';
-import type { ClientLiveContext } from './playersModel';
+import { playerStatusLabel, type ClientLiveContext } from './playersModel';
 import { WalletZone } from './WalletZone';
 import { HistorySection } from './HistorySection';
 import { ClientActionsMenu } from './ClientActionsMenu';
@@ -68,6 +68,7 @@ export function ClientDrawer({
 }) {
   const { t } = useI18n();
   const hasDebt = debtMinorUnits > 0;
+  const isInactive = !client.isActive;
   // Триггер «⋯» показываем, если у оператора есть ХОТЯ БЫ одно из трёх прав — иначе меню
   // рендерится пустым (см. ClientActionsMenu), а кнопка без пунктов бесполезна.
   const showActionsMenu = canManageClient || canCreateReservation || canCorrect;
@@ -82,7 +83,7 @@ export function ClientDrawer({
         </div>
         {showActionsMenu && (
           <ClientActionsMenu
-            isActive={client.status !== 'inactive'}
+            isActive={client.isActive}
             canManageClient={canManageClient}
             onEditProfile={onEditProfile}
             onSetPin={onSetPin}
@@ -99,6 +100,9 @@ export function ClientDrawer({
       </div>
 
       <div className="drawer-context">
+        {isInactive && (
+          <span className="status-pill neutral">{playerStatusLabel('inactive', t)}</span>
+        )}
         {liveContext.session !== null ? (
           <span className="status-pill ok">
             <Play size={12} aria-hidden="true" />
@@ -145,20 +149,24 @@ export function ClientDrawer({
 
         <div className="wallet-sep" />
 
-        <WalletZone
-          debtMinorUnits={debtMinorUnits}
-          topUpAmount={topUpAmount}
-          canTopUp={canTopUp}
-          onChangeTopUpAmount={onChangeTopUpAmount}
-          onTopUp={onTopUp}
-          onOpenDcTopUp={onOpenDcTopUp}
-          canPayDebt={canPayDebt}
-          onOpenPayDebt={onOpenPayDebt}
-          canCorrect={canCorrect}
-          onCorrect={onCorrect}
-        />
+        {!isInactive && (
+          <>
+            <WalletZone
+              debtMinorUnits={debtMinorUnits}
+              topUpAmount={topUpAmount}
+              canTopUp={canTopUp}
+              onChangeTopUpAmount={onChangeTopUpAmount}
+              onTopUp={onTopUp}
+              onOpenDcTopUp={onOpenDcTopUp}
+              canPayDebt={canPayDebt}
+              onOpenPayDebt={onOpenPayDebt}
+              canCorrect={canCorrect}
+              onCorrect={onCorrect}
+            />
 
-        <div className="wallet-sep" />
+            <div className="wallet-sep" />
+          </>
+        )}
 
         <HistorySection
           entries={recentEntries}

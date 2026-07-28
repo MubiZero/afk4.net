@@ -1362,6 +1362,7 @@ export async function describeDispatchedDeviceCommand(
 export type PlayerClientItem = {
   playerAccountId?: string;
   name: string;
+  isActive: boolean;
   status: string;
   balanceMinorUnits: number;
   debtMinorUnits: number;
@@ -1388,13 +1389,14 @@ export function projectPlayerClient(player: unknown, t: TFunc): PlayerClientItem
   return {
     playerAccountId: readString(player, 'playerAccountId') || undefined,
     name: readString(player, 'displayName', t('op.helper.player.nameFallback')),
-    // Stable status key — rendered via playerStatusLabel and filtered on in BackendPlayersWorkspace.
+    // Stable visual status key — lifecycle decisions use isActive, never this projection.
     // Бейдж подсвечивает только отклонения (долг/деактивация); активный без долга — без подписи.
-    status: debt > 0 ? 'debt' : isActive ? 'active' : 'inactive',
+    isActive,
+    status: !isActive ? 'inactive' : debt > 0 ? 'debt' : 'active',
     balanceMinorUnits: readNumber(player, 'walletBalanceMinorUnits', 0),
     debtMinorUnits: debt,
     last: lastLabel,
-    tone: debt > 0 ? 'debt' : isActive ? 'active' : 'regular',
+    tone: !isActive ? 'regular' : debt > 0 ? 'debt' : 'active',
     detail,
     phoneNumber: readString(player, 'phoneNumber', ''),
     source: 'backend',

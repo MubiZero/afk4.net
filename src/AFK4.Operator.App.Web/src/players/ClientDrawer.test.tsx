@@ -9,7 +9,7 @@ import type { ClientLiveContext } from './playersModel';
 afterEach(cleanup);
 
 const client: PlayerClientItem = {
-  playerAccountId: 'p1', name: 'Фариза Назарова', status: 'active', balanceMinorUnits: 45000,
+  playerAccountId: 'p1', name: 'Фариза Назарова', status: 'active', isActive: true, balanceMinorUnits: 45000,
   debtMinorUnits: 0, last: '', tone: 'active', detail: '', phoneNumber: '+992 93 100 20 30', source: 'backend',
   createdAtUtc: null, lastActivityAtUtc: null, activePackageName: null, activePackageRemainingMinutes: 0
 };
@@ -94,6 +94,20 @@ describe('ClientDrawer', () => {
     expect(document.querySelector('.wallet-debt')).toBeNull();
     rerender(<I18nProvider initialLocale="ru"><ClientDrawer {...baseProps} debtMinorUnits={28000} /></I18nProvider>);
     expect(document.querySelector('.wallet-debt')).toHaveTextContent('280 с.');
+  });
+
+  it('shows inactive lifecycle together with debt, offers activation and hides money actions', () => {
+    renderDrawer({
+      client: { ...client, isActive: false, status: 'inactive', tone: 'regular', debtMinorUnits: 28000 },
+      debtMinorUnits: 28000,
+    });
+
+    expect(screen.getByText('Неактивен')).toBeInTheDocument();
+    expect(document.querySelector('.wallet-debt')).toHaveTextContent('280 с.');
+    fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
+    expect(screen.getByRole('menuitem', { name: 'Активировать' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Пополнить/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Списать долг' })).toBeNull();
   });
 
   it('fires onTopUp from the top-up form', () => {

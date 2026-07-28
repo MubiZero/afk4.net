@@ -107,7 +107,7 @@ export function ClientsTable({
             const live = id ? liveContextByClient.get(id)?.session ?? null : null;
             const packageLabel = activePackageLabel(client.activePackageName, client.activePackageRemainingMinutes, t);
             const isDebt = client.debtMinorUnits > 0;
-            const isInactive = client.status === 'inactive';
+            const isInactive = !client.isActive;
             return (
               <button
                 key={id ?? client.name}

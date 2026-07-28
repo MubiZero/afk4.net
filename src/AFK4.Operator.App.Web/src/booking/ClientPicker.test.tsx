@@ -9,7 +9,7 @@ afterEach(cleanup);
 
 function client(overrides: Partial<PlayerClientItem>): PlayerClientItem {
   return {
-    playerAccountId: 'p1', name: 'Азиз П.', status: 'active', balanceMinorUnits: 0, debtMinorUnits: 0,
+    playerAccountId: 'p1', name: 'Азиз П.', isActive: true, status: 'active', balanceMinorUnits: 0, debtMinorUnits: 0,
     last: '', tone: 'active', detail: '', phoneNumber: '+992 90 555 22 11', source: 'backend',
     createdAtUtc: null, lastActivityAtUtc: null, activePackageName: null, activePackageRemainingMinutes: 0,
     ...overrides

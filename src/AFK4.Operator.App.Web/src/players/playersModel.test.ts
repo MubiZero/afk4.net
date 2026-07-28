@@ -55,6 +55,13 @@ describe('projectPlayerClient', () => {
       t
     );
     expect(inactive.status).toBe('inactive');
+    expect(inactive.isActive).toBe(false);
+
+    const inactiveDebtor = projectPlayerClient(
+      { playerAccountId: 'p6', displayName: 'Inactive debtor', walletBalanceMinorUnits: 0, debtBalanceMinorUnits: 3500, activePackageCount: 0, isActive: false },
+      t
+    );
+    expect(inactiveDebtor).toMatchObject({ isActive: false, debtMinorUnits: 3500, status: 'inactive', tone: 'regular' });
   });
 
   it('projects createdAtUtc/lastActivityAtUtc/active package fields, falling back to null when absent', () => {
@@ -102,7 +109,7 @@ const pkg = (over: Partial<PlayerPackageDto>): PlayerPackageDto => ({
 });
 
 const client = (over: Partial<PlayerClientItem>): PlayerClientItem => ({
-  playerAccountId: 'p', name: 'X', status: 'active', balanceMinorUnits: 0,
+  playerAccountId: 'p', name: 'X', isActive: true, status: 'active', balanceMinorUnits: 0,
   debtMinorUnits: 0, last: '', tone: 'active', detail: '', phoneNumber: '',
   source: 'backend', createdAtUtc: null, lastActivityAtUtc: null,
   activePackageName: null, activePackageRemainingMinutes: 0, ...over
@@ -166,7 +173,7 @@ describe('client segments (stable ids — survive locale change)', () => {
   it('buildClientSegments returns three stable-id segments with correct counts', () => {
     const clients = [
       client({ debtMinorUnits: 3500, status: 'debt' }),
-      client({ status: 'inactive', tone: 'regular' }),
+      client({ isActive: false, status: 'inactive', tone: 'regular' }),
       client({ status: 'active' })
     ];
     const segments = buildClientSegments(clients, t);
@@ -182,7 +189,7 @@ describe('client segments (stable ids — survive locale change)', () => {
     expect(matchesSegment(client({ status: 'active' }), 'all')).toBe(true);
     expect(matchesSegment(client({ debtMinorUnits: 100 }), 'debt')).toBe(true);
     expect(matchesSegment(client({ debtMinorUnits: 0 }), 'debt')).toBe(false);
-    expect(matchesSegment(client({ status: 'inactive' }), 'inactive')).toBe(true);
+    expect(matchesSegment(client({ isActive: false, status: 'inactive' }), 'inactive')).toBe(true);
     expect(matchesSegment(client({ status: 'active' }), 'inactive')).toBe(false);
   });
 });

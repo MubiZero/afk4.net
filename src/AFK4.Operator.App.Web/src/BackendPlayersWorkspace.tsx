@@ -312,7 +312,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     });
   }, [debt, selectedClient?.playerAccountId]);
 
-  const isSelectedInactive = selectedClient !== null && selectedClient.status === 'inactive';
+  const isSelectedInactive = selectedClient !== null && !selectedClient.isActive;
   const canTopUpWallet = backend !== null
     && selectedClient !== null
     && selectedClient.source === 'backend'
@@ -551,14 +551,21 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         }
 
         const backendClient = requireSelectedBackendClient();
-        const nextActive = backendClient.status === 'inactive';
+        const nextActive = !backendClient.isActive;
         const updated = await apiClients.players.setActiveState(nextBackend.branchId, backendClient.playerAccountId, {
           organizationId: nextBackend.session.organizationId,
           isActive: nextActive
         });
-        setClients((items) => items.map((c) => c.playerAccountId === backendClient.playerAccountId
-          ? { ...c, status: updated.isActive ? 'active' : 'inactive', tone: updated.isActive ? 'active' : 'regular' }
-          : c));
+        setClients((items) => items.map((c) => {
+          if (c.playerAccountId !== backendClient.playerAccountId) return c;
+          const isActive = updated.isActive;
+          return {
+            ...c,
+            isActive,
+            status: !isActive ? 'inactive' : c.debtMinorUnits > 0 ? 'debt' : 'active',
+            tone: !isActive ? 'regular' : c.debtMinorUnits > 0 ? 'debt' : 'active'
+          };
+        }));
         setActiveStateOpen(false);
       } else {
         throw new Error(t('op.players.error.actionNotConnected'));
