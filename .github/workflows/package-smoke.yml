@@ -172,7 +172,12 @@ jobs:
 
           $signInResponse = Invoke-RestMethod `
             -Method Post `
-            -Uri "$($env:AFK4_STAGING_PLATFORM_BASE_URL.TrimEnd('/'))/api/auth/staff/sign-in" `
+            -Uri "$($env:AFK4_STAGING_PLATFORM_BASE_URL.TrimEnd('/'))/api/organizations/$($env:AFK4_STAGING_ORGANIZATION_ID)/auth/staff/sign-in" `
+            -Headers @{
+              'X-AFK4-Product' = 'organization-admin'
+              'X-AFK4-Compatibility-Epoch' = '2'
+              'X-AFK4-Client-Version' = "0.2.0-package-smoke-$env:GITHUB_RUN_NUMBER"
+            } `
             -ContentType 'application/json' `
             -Body $signInBody
 
@@ -193,6 +198,7 @@ jobs:
 
           powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
             -PlatformBaseUrl $env:AFK4_STAGING_PLATFORM_BASE_URL `
+            -OrganizationId $env:AFK4_STAGING_ORGANIZATION_ID `
             -BranchId $env:AFK4_STAGING_BRANCH_ID `
             -RequestPath $organizationAdminPackageRequestPath `
             -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN `
@@ -203,6 +209,7 @@ jobs:
 
           powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
             -PlatformBaseUrl $env:AFK4_STAGING_PLATFORM_BASE_URL `
+            -OrganizationId $env:AFK4_STAGING_ORGANIZATION_ID `
             -BranchId $env:AFK4_STAGING_BRANCH_ID `
             -RequestPath $agentPackageRequestPath `
             -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN `
@@ -214,6 +221,7 @@ jobs:
 
           powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
             -PlatformBaseUrl $env:AFK4_STAGING_PLATFORM_BASE_URL `
+            -OrganizationId $env:AFK4_STAGING_ORGANIZATION_ID `
             -BranchId $env:AFK4_STAGING_BRANCH_ID `
             -RequestPath $playerShellPackageRequestPath `
             -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN

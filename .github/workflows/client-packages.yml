@@ -453,6 +453,7 @@ jobs:
 
           $arguments = @(
             '-PlatformBaseUrl', $env:INPUT_PLATFORM_BASE_URL,
+            '-OrganizationId', $env:INPUT_ORGANIZATION_ID,
             '-BranchId', $env:INPUT_BRANCH_ID,
             '-RequestDirectory', 'artifacts/update-packages',
             '-AccessTokenEnvVar', 'AFK4_UPDATE_REGISTRATION_TOKEN')

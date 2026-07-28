@@ -5,7 +5,7 @@ Removes mistaken manager-workstation smoke device assignments from staging.
 .DESCRIPTION
 The script uses the public staff API only:
 - POST /api/devices/{deviceId}/remove to revoke credentials and detach seats.
-- DELETE /api/branches/{branchId}/layout/seats/{seatId} to remove empty smoke
+- DELETE /api/organizations/{organizationId}/branches/{branchId}/layout/seats/{seatId} to remove empty smoke
   seats when explicitly requested.
 
 It runs as a dry run by default. Pass -Apply to mutate staging data, and pass
@@ -441,7 +441,12 @@ Invoke-Afk4Api -Method Get -Path "/api/health" | Out-Null
 
 $signIn = Invoke-Afk4Api `
     -Method Post `
-    -Path "/api/auth/staff/sign-in" `
+    -Path "/api/organizations/$($OrganizationId.ToString("D"))/auth/staff/sign-in" `
+    -Headers @{
+        'X-AFK4-Product' = 'organization-admin'
+        'X-AFK4-Compatibility-Epoch' = '2'
+        'X-AFK4-Client-Version' = '0.2.0-cleanup-smoke'
+    } `
     -Body @{
         organizationId = $OrganizationId.ToString("D")
         userName = $StaffUserName
@@ -450,9 +455,13 @@ $signIn = Invoke-Afk4Api `
 
 $headers = @{
     Authorization = "Bearer $($signIn.accessToken)"
+    'X-AFK4-Product' = 'organization-admin'
+    'X-AFK4-Compatibility-Epoch' = '2'
+    'X-AFK4-Client-Version' = '0.2.0-cleanup-smoke'
 }
 
-$devices = @(Invoke-Afk4Api -Method Get -Path "/api/branches/$($BranchId.ToString("D"))/devices" -Headers $headers)
+$organizationPrefix = "/api/organizations/$($OrganizationId.ToString("D"))"
+$devices = @(Invoke-Afk4Api -Method Get -Path "$organizationPrefix/branches/$($BranchId.ToString("D"))/devices" -Headers $headers)
 $candidateDevices = @(Get-CandidateDevices -Devices $devices -ExplicitDeviceLookup $explicitDeviceLookup)
 
 Write-Host ""
@@ -476,8 +485,8 @@ elseif ($candidateDevices.Count -gt 0) {
     Write-Host "Dry run: re-run with -Apply to remove these devices and detach their seat assignments."
 }
 
-$devicesAfterDeviceCleanup = @(Invoke-Afk4Api -Method Get -Path "/api/branches/$($BranchId.ToString("D"))/devices" -Headers $headers)
-$floorMap = Invoke-Afk4Api -Method Get -Path "/api/branches/$($BranchId.ToString("D"))/floor-map" -Headers $headers
+$devicesAfterDeviceCleanup = @(Invoke-Afk4Api -Method Get -Path "$organizationPrefix/branches/$($BranchId.ToString("D"))/devices" -Headers $headers)
+$floorMap = Invoke-Afk4Api -Method Get -Path "$organizationPrefix/branches/$($BranchId.ToString("D"))/floor-map" -Headers $headers
 $candidateSeats = @(Get-CandidateSeats `
     -Seats @($floorMap.seats) `
     -Devices $devicesAfterDeviceCleanup `
@@ -496,7 +505,7 @@ if ($DeleteEmptySmokeSeats -and $deletableSeats.Count -gt 0 -and $Apply) {
             Write-Host "Deleting empty seat $($seat.SeatId) ($($seat.Name))..."
             Invoke-Afk4Api `
                 -Method Delete `
-                -Path "/api/branches/$($BranchId.ToString("D"))/layout/seats/$($seat.SeatId)?organizationId=$($OrganizationId.ToString("D"))" `
+                -Path "$organizationPrefix/branches/$($BranchId.ToString("D"))/layout/seats/$($seat.SeatId)?organizationId=$($OrganizationId.ToString("D"))" `
                 -Headers $headers | Out-Null
         }
         catch {
@@ -516,8 +525,8 @@ elseif (-not $DeleteEmptySmokeSeats -and $deletableSeats.Count -gt 0) {
     Write-Host "Empty smoke seats matched. Pass -DeleteEmptySmokeSeats with -Apply to delete them."
 }
 
-$finalDevices = @(Invoke-Afk4Api -Method Get -Path "/api/branches/$($BranchId.ToString("D"))/devices" -Headers $headers)
-$finalFloorMap = Invoke-Afk4Api -Method Get -Path "/api/branches/$($BranchId.ToString("D"))/floor-map" -Headers $headers
+$finalDevices = @(Invoke-Afk4Api -Method Get -Path "$organizationPrefix/branches/$($BranchId.ToString("D"))/devices" -Headers $headers)
+$finalFloorMap = Invoke-Afk4Api -Method Get -Path "$organizationPrefix/branches/$($BranchId.ToString("D"))/floor-map" -Headers $headers
 $remainingDevices = @(Get-CandidateDevices -Devices $finalDevices -ExplicitDeviceLookup $explicitDeviceLookup)
 $remainingSeats = @(Get-CandidateSeats `
     -Seats @($finalFloorMap.seats) `

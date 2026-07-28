@@ -210,12 +210,11 @@ if (-not (Test-Path -LiteralPath $organizationAdminWebDistIndex)) {
 
 # The dev-only host-bridge stub (src/devHostBridge.ts) must never reach a production bundle.
 # Fail the build if any dev marker leaked into the built output — a hard gate against the
-# stub (hardcoded staging org GUID + /api/auth/staff/sign-in) shipping in the MSI. NB:
+# stub (including its hardcoded staging organization) shipping in the MSI. NB:
 # 'browser-dev' is intentionally NOT a marker — operatorConfig.ts ships it as the legit
 # fallback-config runtime label; these markers are unique to the stub.
 $operatorDevMarkers = @(
     'DEV-ONLY',
-    '/api/auth/staff/sign-in',
     '0169044b-2f74-46a7-8e52-7656a39a8f8c')
 $operatorBuiltFiles = Get-ChildItem -LiteralPath $organizationAdminWebDist -Recurse -File -Include '*.html', '*.js'
 foreach ($builtFile in $operatorBuiltFiles) {

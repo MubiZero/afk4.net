@@ -263,6 +263,7 @@ $env:AFK4_UPDATE_REGISTRATION_TOKEN = 'example-short-lived-staff-access-token'
 
 powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
   -PlatformBaseUrl https://platform.afk4.example `
+  -OrganizationId '<organization-id>' `
   -BranchId acfc0212-967f-4d84-94be-9003387b09c2 `
   -RequestDirectory artifacts/update-packages `
   -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN
@@ -278,6 +279,7 @@ registration:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
   -PlatformBaseUrl https://afk4.staging.mubi.dev `
+  -OrganizationId '<organization-id>' `
   -BranchId acfc0212-967f-4d84-94be-9003387b09c2 `
   -RequestDirectory artifacts/update-packages `
   -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN `

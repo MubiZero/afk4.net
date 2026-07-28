@@ -78,6 +78,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
 
         Assert.Empty(errors);
         AssertParameter(ast, "PlatformBaseUrl");
+        AssertParameter(ast, "OrganizationId");
         AssertParameter(ast, "BranchId");
         AssertParameter(ast, "RequestPath");
         AssertParameter(ast, "RequestDirectory");
@@ -135,6 +136,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             },
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", baseUrl.TrimEnd('/'),
+            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
             "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestPath", requestPath,
             "-AccessTokenEnvVar", "AFK4_TEST_REGISTRATION_TOKEN");
@@ -147,7 +149,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Equal(0, result.ExitCode);
         var capturedRequest = await capturedRequestTask.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal("POST", capturedRequest.Method);
-        Assert.Equal("/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", capturedRequest.Path);
+        Assert.Equal("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", capturedRequest.Path);
         Assert.Equal("Bearer test-token", capturedRequest.Authorization);
         Assert.Equal(requestBody, capturedRequest.Body);
     }
@@ -194,6 +196,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             environment: null,
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", baseUrl.TrimEnd('/'),
+            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
             "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestPath", requestPath,
             "-AccessToken", "test-token",
@@ -210,8 +213,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
 
         Assert.Equal(0, result.ExitCode);
         var capturedRequests = await capturedRequestsTask.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.Equal("/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", capturedRequests[0].Path);
-        Assert.Equal("/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts", capturedRequests[1].Path);
+        Assert.Equal("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", capturedRequests[0].Path);
+        Assert.Equal("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts", capturedRequests[1].Path);
         Assert.Contains("\"updatePackageId\":", capturedRequests[1].Body, StringComparison.Ordinal);
         Assert.Contains("4a8f4f55-cc8e-49ce-9f69-98e9db9c8be7", capturedRequests[1].Body, StringComparison.Ordinal);
         Assert.Contains("\"targetKind\":", capturedRequests[1].Body, StringComparison.Ordinal);
@@ -261,6 +264,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             environment: null,
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", baseUrl.TrimEnd('/'),
+            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
             "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestPath", requestPath,
             "-AccessToken", "test-token",
@@ -276,8 +280,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
 
         Assert.Equal(0, result.ExitCode);
         var capturedRequests = await capturedRequestsTask.WaitAsync(TimeSpan.FromSeconds(5));
-        Assert.Equal("/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", capturedRequests[0].Path);
-        Assert.Equal("/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts", capturedRequests[1].Path);
+        Assert.Equal("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", capturedRequests[0].Path);
+        Assert.Equal("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts", capturedRequests[1].Path);
         Assert.Contains("\"targetKind\":", capturedRequests[1].Body, StringComparison.Ordinal);
         Assert.Contains("\"branch\"", capturedRequests[1].Body, StringComparison.Ordinal);
         Assert.Contains("\"targetDeviceIds\":", capturedRequests[1].Body, StringComparison.Ordinal);
@@ -312,6 +316,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             environment: null,
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", baseUrl.TrimEnd('/'),
+            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
             "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestPath", requestPath,
             "-AccessToken", "test-token");
@@ -336,6 +341,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             environment: null,
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", "http://127.0.0.1:9",
+            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
             "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestPath", requestPath);
 
@@ -357,6 +363,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             },
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", "http://127.0.0.1:9",
+            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
             "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestPath", requestPath,
             "-AccessToken", "test-token",
@@ -415,6 +422,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             environment: null,
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", baseUrl.TrimEnd('/'),
+            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
             "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestDirectory", requestDirectory,
             "-AccessToken", "test-token");
@@ -428,7 +436,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         var capturedRequests = await capturedRequestsTask.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(new[] { firstBody, secondBody, thirdBody }, capturedRequests.Select(request => request.Body));
         Assert.All(capturedRequests, request => Assert.Equal("POST", request.Method));
-        Assert.All(capturedRequests, request => Assert.Equal("/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", request.Path));
+        Assert.All(capturedRequests, request => Assert.Equal("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages", request.Path));
         Assert.All(capturedRequests, request => Assert.Equal("Bearer test-token", request.Authorization));
     }
 
@@ -443,6 +451,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             environment: null,
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", "http://127.0.0.1:9",
+            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
             "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestPath", requestPath,
             "-AccessToken", "test-token");
@@ -462,6 +471,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             environment: null,
             "-File", ScriptPath("scripts/register-update-package-requests.ps1"),
             "-PlatformBaseUrl", "file:///tmp/afk4",
+            "-OrganizationId", "0c04d6c0-bfa8-4e26-9263-fc0d307d0f08",
             "-BranchId", "acfc0212-967f-4d84-94be-9003387b09c2",
             "-RequestPath", requestPath,
             "-AccessToken", "test-token");

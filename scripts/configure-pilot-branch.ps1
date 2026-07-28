@@ -143,9 +143,16 @@ function Invoke-Afk4Json {
     }
 }
 
+$clientHeaders = @{
+    'X-AFK4-Product' = 'organization-admin'
+    'X-AFK4-Compatibility-Epoch' = '2'
+    'X-AFK4-Client-Version' = '0.2.0-pilot-setup'
+}
+
 $signIn = Invoke-Afk4Json `
     -Method Post `
-    -Path "/api/auth/staff/sign-in" `
+    -Path "/api/organizations/$OrganizationId/auth/staff/sign-in" `
+    -Headers $clientHeaders `
     -Body @{
         organizationId = $OrganizationId
         userName = $AdminUserName
@@ -154,23 +161,26 @@ $signIn = Invoke-Afk4Json `
 
 $headers = @{
     Authorization = "Bearer $($signIn.accessToken)"
+    'X-AFK4-Product' = 'organization-admin'
+    'X-AFK4-Compatibility-Epoch' = '2'
+    'X-AFK4-Client-Version' = '0.2.0-pilot-setup'
 }
 
 $cashier = Invoke-Afk4Json `
     -Method Post `
-    -Path "/api/branches/$BranchId/staff" `
+    -Path "/api/organizations/$OrganizationId/branches/$BranchId/staff" `
     -Headers $headers `
     -Body @{
         organizationId = $OrganizationId
         userName = $CashierUserName
         displayName = $CashierDisplayName
         password = $CashierPassword
-        roleNames = @("cashier_operator")
+        roleNames = @("operator")
     }
 
 $technician = Invoke-Afk4Json `
     -Method Post `
-    -Path "/api/branches/$BranchId/staff" `
+    -Path "/api/organizations/$OrganizationId/branches/$BranchId/staff" `
     -Headers $headers `
     -Body @{
         organizationId = $OrganizationId
@@ -182,7 +192,7 @@ $technician = Invoke-Afk4Json `
 
 $zone = Invoke-Afk4Json `
     -Method Post `
-    -Path "/api/branches/$BranchId/layout/zones" `
+    -Path "/api/organizations/$OrganizationId/branches/$BranchId/layout/zones" `
     -Headers $headers `
     -Body @{
         organizationId = $OrganizationId
@@ -195,7 +205,7 @@ for ($index = 1; $index -le $SeatCount; $index++) {
     $seatName = "{0}{1:000}" -f $SeatPrefix, $index
     $seats += Invoke-Afk4Json `
         -Method Post `
-        -Path "/api/branches/$BranchId/layout/seats" `
+        -Path "/api/organizations/$OrganizationId/branches/$BranchId/layout/seats" `
         -Headers $headers `
         -Body @{
             organizationId = $OrganizationId
@@ -207,7 +217,7 @@ for ($index = 1; $index -le $SeatCount; $index++) {
 
 $tariff = Invoke-Afk4Json `
     -Method Post `
-    -Path "/api/branches/$BranchId/tariffs" `
+    -Path "/api/organizations/$OrganizationId/branches/$BranchId/tariffs" `
     -Headers $headers `
     -Body @{
         organizationId = $OrganizationId
@@ -217,7 +227,7 @@ $tariff = Invoke-Afk4Json `
 
 $tariffVersion = Invoke-Afk4Json `
     -Method Post `
-    -Path "/api/branches/$BranchId/tariffs/$($tariff.tariffId)/versions" `
+    -Path "/api/organizations/$OrganizationId/branches/$BranchId/tariffs/$($tariff.tariffId)/versions" `
     -Headers $headers `
     -Body @{
         organizationId = $OrganizationId
@@ -232,7 +242,7 @@ $tariffVersion = Invoke-Afk4Json `
 
 $category = Invoke-Afk4Json `
     -Method Post `
-    -Path "/api/branches/$BranchId/pos/categories" `
+    -Path "/api/organizations/$OrganizationId/branches/$BranchId/pos/categories" `
     -Headers $headers `
     -Body @{
         organizationId = $OrganizationId
@@ -242,7 +252,7 @@ $category = Invoke-Afk4Json `
 
 $product = Invoke-Afk4Json `
     -Method Post `
-    -Path "/api/branches/$BranchId/pos/products" `
+    -Path "/api/organizations/$OrganizationId/branches/$BranchId/pos/products" `
     -Headers $headers `
     -Body @{
         organizationId = $OrganizationId

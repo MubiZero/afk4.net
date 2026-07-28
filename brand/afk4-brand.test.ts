@@ -76,7 +76,7 @@ const REPO = pjoin(BRAND, "..");
 
 const WEB_FAVICONS = [
   "src/AFK4.Customer.Web/public/favicon.svg",
-  "src/AFK4.Platform.Web/public/favicon.svg",
+  "src/AFK4.PlatformControl.Web/public/favicon.svg",
   "src/AFK4.OrganizationAdmin.Web/public/favicon.svg",
 ];
 

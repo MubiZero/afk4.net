@@ -8,9 +8,9 @@ Usage:
     AFK4_PLATFORM_ADMIN_PASSWORD=... \
         python3 scripts/staging-smoke.py
 
-Creates one fresh tenant + branch + invite per run (slug is stamped with
-the current Unix time so reruns are idempotent at the tenant level).
-The smoke leaves the created tenant in place; clean up via the Slice 3
+Creates one fresh organization + branch + invitation per run (slug is stamped
+with the current Unix time so reruns are idempotent at the organization level).
+The smoke leaves the created organization in place; clean up via the lifecycle
 status PATCH (deletion_pending) or directly in Postgres.
 """
 import json
@@ -23,8 +23,10 @@ import urllib.error
 API = os.environ.get("AFK4_PLATFORM_API", "https://afk4.staging.mubi.dev").rstrip("/")
 USERNAME = os.environ.get("AFK4_PLATFORM_ADMIN_USERNAME", "")
 PW = os.environ.get("AFK4_PLATFORM_ADMIN_PASSWORD", "")
-if not USERNAME or not PW:
-    print("AFK4_PLATFORM_ADMIN_USERNAME and AFK4_PLATFORM_ADMIN_PASSWORD env vars are required.",
+OWNER_PASSWORD = os.environ.get("AFK4_SMOKE_ORGANIZATION_OWNER_PASSWORD", "")
+if not USERNAME or not PW or not OWNER_PASSWORD:
+    print("AFK4_PLATFORM_ADMIN_USERNAME, AFK4_PLATFORM_ADMIN_PASSWORD, and "
+          "AFK4_SMOKE_ORGANIZATION_OWNER_PASSWORD env vars are required.",
           file=sys.stderr)
     sys.exit(2)
 STAMP = int(time.time())
@@ -56,6 +58,12 @@ def request(method, path, *, body=None, auth=None, extra_headers=None):
     headers = {"Content-Type": "application/json"}
     if auth:
         headers["Authorization"] = f"Bearer {auth}"
+    if path.startswith("/api/organizations/") or (staff_token and auth == staff_token):
+        headers.update({
+            "X-AFK4-Product": "organization-admin",
+            "X-AFK4-Compatibility-Epoch": "2",
+            "X-AFK4-Client-Version": "0.2.0-staging-smoke",
+        })
     if extra_headers:
         headers.update(extra_headers)
     data = json.dumps(body).encode() if body is not None else None
@@ -95,13 +103,13 @@ else:
     sys.exit(1)
 
 
-step("2. List tenants (initial)")
-status, body, _ = request("GET", "/api/platform/tenants", auth=token)
+step("2. List organizations (initial)")
+status, body, _ = request("GET", "/api/platform/organizations", auth=token)
 initial_count = len(body) if isinstance(body, list) else -1
-ok(f"initial tenant count: {initial_count}")
+ok(f"initial organization count: {initial_count}")
 
 
-step("3. Create tenant WITH Idempotency-Key (Slice E)")
+step("3. Create organization WITH Idempotency-Key (Slice E)")
 idem_key = f"smoke-{STAMP}"
 create_body = {
     "organizationSlug": ORG_SLUG,
@@ -122,24 +130,24 @@ create_body = {
     "ownerInviteLifetime": "7.00:00:00",
 }
 status, body, headers = request(
-    "POST", "/api/platform/tenants",
+    "POST", "/api/platform/organizations",
     body=create_body, auth=token,
     extra_headers={"Idempotency-Key": idem_key},
 )
-if status == 200 and "tenant" in body:
-    org_id = body["tenant"]["organizationId"]
-    branch_id = body["tenant"]["branches"][0]["branchId"]
-    invite_code = body["ownerInvite"]["code"]
-    invite_id = body["ownerInvite"]["ownerInviteId"]
-    ok(f"tenant created org={org_id} branch={branch_id} invite={invite_id} code={invite_code[:8]}...")
+if status == 200 and "organization" in body:
+    org_id = body["organization"]["organizationId"]
+    branch_id = body["organization"]["branches"][0]["branchId"]
+    invite_code = body["organizationOwnerInvite"]["code"]
+    invite_id = body["organizationOwnerInvite"]["organizationOwnerInviteId"]
+    ok(f"organization created org={org_id} branch={branch_id} invite={invite_id} code={invite_code[:8]}...")
 else:
-    fail(f"tenant create failed: {status} {body}")
+    fail(f"organization create failed: {status} {body}")
     sys.exit(1)
 
 
 step("4. Idempotency replay: same key + body -> 200 + Idempotency-Replayed:true")
 status, body, headers = request(
-    "POST", "/api/platform/tenants",
+    "POST", "/api/platform/organizations",
     body=create_body, auth=token,
     extra_headers={"Idempotency-Key": idem_key},
 )
@@ -152,7 +160,7 @@ else:
 step("5. Idempotency mismatch: same key + DIFFERENT body -> 422")
 diff_body = dict(create_body, organizationName="Mutated")
 status, body, _ = request(
-    "POST", "/api/platform/tenants",
+    "POST", "/api/platform/organizations",
     body=diff_body, auth=token,
     extra_headers={"Idempotency-Key": idem_key},
 )
@@ -162,25 +170,25 @@ else:
     fail(f"expected 422, got {status} {body}")
 
 
-step("6. List tenants after create")
-status, body, _ = request("GET", "/api/platform/tenants", auth=token)
+step("6. List organizations after create")
+status, body, _ = request("GET", "/api/platform/organizations", auth=token)
 after_count = len(body) if isinstance(body, list) else -1
-ok(f"tenant count now: {after_count}")
+ok(f"organization count now: {after_count}")
 
 
-step("7. Get tenant detail")
-status, body, _ = request("GET", f"/api/platform/tenants/{org_id}", auth=token)
+step("7. Get organization detail")
+status, body, _ = request("GET", f"/api/platform/organizations/{org_id}", auth=token)
 if status == 200:
     ok(f"detail: slug={body['slug']} status={body['status']} branches={len(body['branches'])}")
 else:
-    fail(f"get tenant: {status} {body}")
+    fail(f"get organization: {status} {body}")
 
 
 step("8. List owner invites (Slice C -- CodeSuffix masking)")
-status, body, _ = request("GET", f"/api/platform/tenants/{org_id}/owner-invites", auth=token)
+status, body, _ = request("GET", f"/api/platform/organizations/{org_id}/organization-owner-invitations", auth=token)
 if status == 200 and isinstance(body, list):
     for i in body:
-        print(f"  invite={i['ownerInviteId'][:8]}... status={i['status']} codeSuffix={i['codeSuffix']}")
+        print(f"  invite={i['organizationOwnerInviteId'][:8]}... status={i['status']} codeSuffix={i['codeSuffix']}")
     suffix = body[0]["codeSuffix"]
     if len(suffix) == 4 and invite_code.endswith(suffix):
         ok(f"list returned 4-char suffix matching real code (...{suffix})")
@@ -217,35 +225,48 @@ else:
     fail(f"setup-code resolve: {status} {body}")
 
 
-step("11. Accept owner invite -> staff session")
+step("11. Activate Organization Owner account, then sign in")
 status, body, _ = request(
-    "POST", "/api/platform/owner-invites/accept",
+    "POST", "/api/account-activation/organization-owner",
     body={
         "code": invite_code,
         "userName": f"owner@{ORG_SLUG}.test",
         "displayName": "Demo Owner",
-        "password": "OwnerP@ss-Demo24!",
+        "password": OWNER_PASSWORD,
     },
 )
-if status == 200 and body.get("organizationId") == org_id and "accessToken" in body:
-    staff_token = body["accessToken"]
-    ok(f"invite accepted -> staff token len={len(staff_token)} branches={len(body['branchIds'])}")
+if status == 200 and body.get("organizationId") == org_id and body.get("nextStep") == "sign_in_to_organization_admin" and "accessToken" not in body:
+    ok("account activated without issuing a browser staff session")
 else:
-    fail(f"invite accept: {status} {body}")
+    fail(f"account activation: {status} {body}")
+
+status, body, _ = request(
+    "POST", f"/api/organizations/{org_id}/auth/staff/sign-in",
+    body={
+        "organizationId": org_id,
+        "userName": f"owner@{ORG_SLUG}.test",
+        "password": OWNER_PASSWORD,
+    },
+)
+if status == 200 and "accessToken" in body:
+    staff_token = body["accessToken"]
+    ok(f"Organization Owner sign-in OK, token len={len(staff_token)}")
+else:
+    fail(f"Organization Owner sign-in: {status} {body}")
 
 
 step("12. Re-list invites: accepted one should now show status=accepted")
-status, body, _ = request("GET", f"/api/platform/tenants/{org_id}/owner-invites", auth=token)
-target = next((i for i in body if i["ownerInviteId"] == invite_id), None)
+status, body, _ = request("GET", f"/api/platform/organizations/{org_id}/organization-owner-invitations", auth=token)
+target = next((i for i in body if i["organizationOwnerInviteId"] == invite_id), None)
 if target and target["status"] == "accepted":
     ok(f"invite status flipped to 'accepted' (acceptedAtUtc={target['acceptedAtUtc']})")
 else:
     fail(f"invite status: {target}")
 
 
-step("13. Suspend tenant (Slice 3 PATCH)")
+step("13. Suspend organization (Slice 3 PATCH)")
 status, body, _ = request(
-    "PATCH", f"/api/platform/tenants/{org_id}/status",
+    "PATCH", f"/api/platform/organizations/{org_id}/status",
     body={"status": "suspended", "reason": "Smoke test pause"},
     auth=token,
 )
@@ -255,19 +276,19 @@ else:
     fail(f"suspend: {status} {body}")
 
 
-step("14. Staff mutation on suspended tenant -> 403 TenantSuspended")
+step("14. Staff mutation on suspended organization -> 403 OrganizationSuspended")
 status, body, _ = request(
-    "POST", f"/api/branches/{branch_id}/device-enrollment-codes",
+    "POST", f"/api/organizations/{org_id}/branches/{branch_id}/device-enrollment-codes",
     body={"organizationId": org_id, "expiresInSeconds": 3600},
     auth=staff_token,
 )
-if status == 403 and body.get("error") == "TenantSuspended":
-    ok(f"blocked -> 403 TenantSuspended (status={body.get('status')} reason={body.get('reason')})")
+if status == 403 and body.get("error") == "OrganizationSuspended":
+    ok(f"blocked -> 403 OrganizationSuspended (status={body.get('status')} reason={body.get('reason')})")
 else:
-    fail(f"expected 403 TenantSuspended, got {status} {body}")
+    fail(f"expected 403 OrganizationSuspended, got {status} {body}")
 
 
-step("15. Resolve on suspended tenant -> status=suspended (operator app shows blocked-state)")
+step("15. Resolve on suspended organization -> status=suspended")
 status, body, _ = request(
     "POST", "/api/operator-connections/resolve",
     body={"organizationSlug": ORG_SLUG, "branchSlug": BRANCH_SLUG},
@@ -280,7 +301,7 @@ else:
 
 step("16. Reactivate")
 status, body, _ = request(
-    "PATCH", f"/api/platform/tenants/{org_id}/status",
+    "PATCH", f"/api/platform/organizations/{org_id}/status",
     body={"status": "active", "reason": ""},
     auth=token,
 )
@@ -292,7 +313,7 @@ else:
 
 step("17. Staff mutation after reactivation -> 200")
 status, body, _ = request(
-    "POST", f"/api/branches/{branch_id}/device-enrollment-codes",
+    "POST", f"/api/organizations/{org_id}/branches/{branch_id}/device-enrollment-codes",
     body={"organizationId": org_id, "expiresInSeconds": 3600},
     auth=staff_token,
 )
@@ -304,7 +325,7 @@ else:
 
 
 step("18. Slice 1.4 device admin path")
-status, body, headers = request("GET", f"/api/branches/{branch_id}/floor-map", auth=staff_token)
+status, body, headers = request("GET", f"/api/organizations/{org_id}/branches/{branch_id}/floor-map", auth=staff_token)
 etag = header(headers, "ETag")
 if status == 200 and etag:
     ok(f"floor-map loaded for Slice 1.4 setup, etag={etag}")
@@ -322,7 +343,7 @@ floor_map = {
     ],
 }
 status, body, headers = request(
-    "PUT", f"/api/branches/{branch_id}/floor-map",
+    "PUT", f"/api/organizations/{org_id}/branches/{branch_id}/floor-map",
     body=floor_map,
     auth=staff_token,
     extra_headers={"If-Match": etag or ""},
@@ -341,7 +362,7 @@ else:
     seat_2 = None
 
 status, body, _ = request(
-    "PUT", f"/api/branches/{branch_id}/settings",
+    "PUT", f"/api/organizations/{org_id}/branches/{branch_id}/settings",
     body={"organizationId": org_id, "requireManualDeviceApproval": True},
     auth=staff_token,
 )
@@ -350,14 +371,14 @@ if status == 200 and body.get("requireManualDeviceApproval") is True:
 else:
     fail(f"manual approval enable: {status} {body}")
 
-status, body, _ = request("POST", "/api/staff/me/owner-code/generate", auth=staff_token)
+status, body, _ = request("POST", f"/api/organizations/{org_id}/staff/me/owner-code/generate", auth=staff_token)
 owner_code = body.get("ownerCode") if status == 200 else None
 if owner_code and len(owner_code) == 8:
     ok(f"owner code generated suffix={body.get('codeSuffix')}")
 else:
     fail(f"owner code generate: {status} {body}")
 
-status, body, _ = request("POST", "/api/install/discover", body={"ownerCode": owner_code or ""})
+status, body, _ = request("POST", f"/api/organizations/{org_id}/install/discover", body={"ownerCode": owner_code or ""})
 branches = body.get("branches", []) if status == 200 else []
 target_branch = next((b for b in branches if b.get("branchId") == branch_id), None)
 if target_branch and seat_1 in target_branch.get("freeSeatIds", []) and seat_2 in target_branch.get("freeSeatIds", []):
@@ -366,7 +387,7 @@ else:
     fail(f"install discover: {status} {body}")
 
 status, body, _ = request(
-    "POST", "/api/install/enroll",
+    "POST", f"/api/organizations/{org_id}/install/enroll",
     body={
         "ownerCode": owner_code or "",
         "branchId": branch_id,
@@ -383,7 +404,7 @@ if status == 200 and body.get("enrollmentState") == "pending" and smoke_device_i
 else:
     fail(f"install enroll pending: {status} {body}")
 
-status, body, _ = request("GET", f"/api/branches/{branch_id}/devices/pending", auth=staff_token)
+status, body, _ = request("GET", f"/api/organizations/{org_id}/branches/{branch_id}/devices/pending", auth=staff_token)
 pending_device = next((d for d in body if d.get("deviceId") == smoke_device_id), None) if isinstance(body, list) else None
 if status == 200 and pending_device and pending_device.get("enrollmentState") == "pending":
     ok("pending device queue contains enrolled smoke device")
@@ -430,7 +451,7 @@ if status == 200 and body.get("enrollmentState") == "removed" and body.get("seat
 else:
     fail(f"device remove: {status} {body}")
 
-status, body, _ = request("GET", f"/api/branches/{branch_id}/devices", auth=staff_token)
+status, body, _ = request("GET", f"/api/organizations/{org_id}/branches/{branch_id}/devices", auth=staff_token)
 listed = [d.get("deviceId") for d in body] if isinstance(body, list) else []
 if status == 200 and smoke_device_id not in listed:
     ok("removed device is hidden from active branch device list")
@@ -438,8 +459,8 @@ else:
     fail(f"device list after remove: {status} {body}")
 
 
-step("19. Tenant health (Slice 4)")
-status, body, _ = request("GET", f"/api/platform/tenants/{org_id}/health", auth=token)
+step("19. Organization health (Slice 4)")
+status, body, _ = request("GET", f"/api/platform/organizations/{org_id}/health", auth=token)
 if status == 200:
     ok(f"health: branches={body.get('branchCount')} devices={body.get('deviceCount')} staff={body.get('activeStaffUserCount')} recentErrors={body.get('recentErrorCount')}")
 else:
@@ -448,25 +469,25 @@ else:
 
 step("20. Create support note (Slice 4)")
 status, body, _ = request(
-    "POST", f"/api/platform/tenants/{org_id}/support-notes",
-    body={"body": "Smoke test note: tenant lifecycle verified end-to-end."},
+    "POST", f"/api/platform/organizations/{org_id}/support-notes",
+    body={"body": "Smoke test note: organization lifecycle verified end-to-end."},
     auth=token,
 )
-if status == 200 and "tenantSupportNoteId" in body:
-    ok(f"note created id={body['tenantSupportNoteId']} author={body.get('authorDisplayName')}")
+if status == 200 and "organizationSupportNoteId" in body:
+    ok(f"note created id={body['organizationSupportNoteId']} author={body.get('authorDisplayName')}")
 else:
     fail(f"note: {status} {body}")
 
 
 step("21. Update plan + limits")
 status, body, _ = request(
-    "PATCH", f"/api/platform/tenants/{org_id}/subscription",
+    "PATCH", f"/api/platform/organizations/{org_id}/subscription",
     body={"planCode": "growth", "status": "active"},
     auth=token,
 )
 plan_code = body.get("planCode") if status == 200 else "?"
 status2, body2, _ = request(
-    "PATCH", f"/api/platform/tenants/{org_id}/limits",
+    "PATCH", f"/api/platform/organizations/{org_id}/limits",
     body={"limits": {
         "maxBranches": 5,
         "maxDevicesPerBranch": 80,
@@ -499,15 +520,15 @@ else:
 
 step("23. Slice C revoke flow: create + revoke a fresh invite")
 status, body, _ = request(
-    "POST", f"/api/platform/tenants/{org_id}/owner-invites",
+    "POST", f"/api/platform/organizations/{org_id}/organization-owner-invitations",
     body={"branchId": branch_id, "ownerUserName": "owner-2@demo.test", "ownerDisplayName": "Owner Two", "lifetime": "7.00:00:00"},
     auth=token,
 )
 if status == 200:
-    new_invite_id = body["ownerInviteId"]
+    new_invite_id = body["organizationOwnerInviteId"]
     ok(f"second invite created id={new_invite_id}")
     status, body, _ = request(
-        "POST", f"/api/platform/owner-invites/{new_invite_id}/revoke",
+        "POST", f"/api/platform/organization-owner-invitations/{new_invite_id}/revoke",
         body={"reason": "Smoke test: revoking second invite"},
         auth=token,
     )

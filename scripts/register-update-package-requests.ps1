@@ -5,6 +5,9 @@ param(
     [Parameter(Mandatory = $true)]
     [guid] $BranchId,
 
+    [Parameter(Mandatory = $true)]
+    [guid] $OrganizationId,
+
     [string[]] $RequestPath,
 
     [string] $RequestDirectory,
@@ -131,9 +134,15 @@ if ($CreateRollouts) {
 
 $requestFiles = Resolve-RequestFiles $RequestPath $RequestDirectory
 $baseUri = $PlatformBaseUrl.AbsoluteUri.TrimEnd('/')
-$registrationUri = "$baseUri/api/branches/$($BranchId.ToString('D'))/updates/packages"
-$rolloutsUri = "$baseUri/api/branches/$($BranchId.ToString('D'))/updates/rollouts"
-$headers = @{ Authorization = "Bearer $AccessToken" }
+$organizationPrefix = "$baseUri/api/organizations/$($OrganizationId.ToString('D'))"
+$registrationUri = "$organizationPrefix/branches/$($BranchId.ToString('D'))/updates/packages"
+$rolloutsUri = "$organizationPrefix/branches/$($BranchId.ToString('D'))/updates/rollouts"
+$headers = @{
+    Authorization = "Bearer $AccessToken"
+    'X-AFK4-Product' = 'organization-admin'
+    'X-AFK4-Compatibility-Epoch' = '2'
+    'X-AFK4-Client-Version' = '0.2.0-update-registration'
+}
 $rolloutComponents = @($RolloutComponent | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 
 foreach ($requestFile in $requestFiles) {
