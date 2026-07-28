@@ -116,6 +116,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PlatformAdminRefreshTokenEntity> PlatformAdminRefreshTokens => Set<PlatformAdminRefreshTokenEntity>();
 
+    public DbSet<PlatformSupportAccessGrantEntity> PlatformSupportAccessGrants => Set<PlatformSupportAccessGrantEntity>();
+
     public DbSet<OwnerInviteEntity> OwnerInvites => Set<OwnerInviteEntity>();
 
     public DbSet<TenantSupportNoteEntity> TenantSupportNotes => Set<TenantSupportNoteEntity>();
@@ -957,6 +959,15 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(refreshToken => refreshToken.TokenHash).IsRequired();
             entity.HasIndex(refreshToken => refreshToken.TokenHash);
             entity.HasIndex(refreshToken => new { refreshToken.PlatformAdminUserId, refreshToken.ExpiresAtUtc });
+        });
+
+        modelBuilder.Entity<PlatformSupportAccessGrantEntity>(entity =>
+        {
+            entity.ToTable("platform_support_access_grants");
+            entity.HasKey(grant => grant.GrantId);
+            entity.Property(grant => grant.Reason).HasMaxLength(500).IsRequired();
+            entity.HasIndex(grant => new { grant.PlatformAdminUserId, grant.ExpiresAtUtc });
+            entity.HasIndex(grant => new { grant.OrganizationId, grant.ExpiresAtUtc });
         });
 
         modelBuilder.Entity<OwnerInviteEntity>(entity =>

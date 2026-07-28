@@ -1,0 +1,98 @@
+using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Platform.Identity;
+using AFK4.Shared.Contracts.Platform.Support;
+using Microsoft.EntityFrameworkCore;
+
+namespace AFK4.Platform.Api.Platform.Support;
+
+public sealed class PlatformSupportAccessGrantService(PlatformDbContext dbContext, TimeProvider timeProvider)
+{
+    public const string GrantHeaderName = "X-AFK4-Support-Access-Grant";
+
+    public async Task<PlatformSupportContext?> ValidateAsync(
+        HttpContext httpContext,
+        Guid organizationId,
+        string requiredPermission,
+        IPlatformAdminContextAccessor platformContextAccessor,
+        CancellationToken cancellationToken)
+    {
+        var platform = platformContextAccessor.Current;
+        var metadata = httpContext.GetEndpoint()?.Metadata.GetMetadata<PlatformSupportAccessMetadata>();
+        if (platform is null || metadata?.Permission != requiredPermission
+            || !platform.Permissions.Contains(AFK4.Shared.Contracts.Platform.Auth.PlatformAdminPermissionNames.UseSupportAccess)
+            || !Guid.TryParse(httpContext.Request.Headers[GrantHeaderName].SingleOrDefault(), out var grantId))
+            return null;
+
+        var now = timeProvider.GetUtcNow();
+        var grant = await dbContext.PlatformSupportAccessGrants.AsNoTracking().SingleOrDefaultAsync(
+            x => x.GrantId == grantId
+                && x.PlatformAdminUserId == platform.PlatformAdminUserId
+                && x.OrganizationId == organizationId
+                && x.RevokedAtUtc == null
+                && x.ExpiresAtUtc > now,
+            cancellationToken);
+        return grant is null ? null : new PlatformSupportContext(
+            grant.GrantId, grant.PlatformAdminUserId, grant.OrganizationId,
+            grant.Reason, requiredPermission, grant.ExpiresAtUtc);
+    }
+
+    public async Task<PlatformSupportContext?> ValidateBranchAsync(
+        HttpContext httpContext,
+        Guid branchId,
+        string requiredPermission,
+        IPlatformAdminContextAccessor platformContextAccessor,
+        CancellationToken cancellationToken)
+    {
+        var organizationId = await dbContext.Branches.AsNoTracking()
+            .Where(branch => branch.BranchId == branchId)
+            .Select(branch => (Guid?)branch.OrganizationId)
+            .SingleOrDefaultAsync(cancellationToken);
+        return organizationId is null
+            ? null
+            : await ValidateAsync(httpContext, organizationId.Value, requiredPermission, platformContextAccessor, cancellationToken);
+    }
+
+    public async Task<PlatformSupportAccessGrantDto?> CreateAsync(
+        Guid platformAdminUserId,
+        CreatePlatformSupportAccessGrantRequest request,
+        CancellationToken cancellationToken)
+    {
+        var reason = request.Reason.Trim();
+        if (reason.Length < 10 || reason.Length > 500 || request.LifetimeMinutes is < 1 or > 30)
+            return null;
+        if (!await dbContext.Organizations.AnyAsync(x => x.OrganizationId == request.OrganizationId, cancellationToken))
+            return null;
+
+        var now = timeProvider.GetUtcNow();
+        var entity = new PlatformSupportAccessGrantEntity
+        {
+            GrantId = Guid.NewGuid(),
+            PlatformAdminUserId = platformAdminUserId,
+            OrganizationId = request.OrganizationId,
+            Reason = reason,
+            IssuedAtUtc = now,
+            ExpiresAtUtc = now.AddMinutes(request.LifetimeMinutes)
+        };
+        dbContext.PlatformSupportAccessGrants.Add(entity);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return ToDto(entity);
+    }
+
+    public async Task<PlatformSupportAccessGrantEntity?> RevokeAsync(
+        Guid grantId,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken)
+    {
+        var entity = await dbContext.PlatformSupportAccessGrants.SingleOrDefaultAsync(
+            x => x.GrantId == grantId && x.PlatformAdminUserId == platformAdminUserId,
+            cancellationToken);
+        if (entity is null || entity.RevokedAtUtc is not null) return null;
+        entity.RevokedAtUtc = timeProvider.GetUtcNow();
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return entity;
+    }
+
+    private static PlatformSupportAccessGrantDto ToDto(PlatformSupportAccessGrantEntity entity) => new(
+        entity.GrantId, entity.OrganizationId, entity.Reason, entity.IssuedAtUtc, entity.ExpiresAtUtc, entity.RevokedAtUtc);
+}

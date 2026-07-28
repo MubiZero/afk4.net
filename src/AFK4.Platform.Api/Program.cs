@@ -26,6 +26,7 @@ using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Platform.Api.Platform.Idempotency;
 using AFK4.Platform.Api.Shop;
 using AFK4.Platform.Api.Platform.Identity;
+using AFK4.Platform.Api.Platform.Support;
 using AFK4.Platform.Api.Platform.Tenancy;
 using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Receipts;
@@ -182,6 +183,7 @@ builder.Services.AddScoped<IPlatformAdminTokenService, OpaquePlatformAdminTokenS
 builder.Services.AddScoped<IPlatformAdminCredentialService, PasswordHashingPlatformAdminCredentialService>();
 builder.Services.AddScoped<IPlatformAdminContextAccessor, PlatformAdminContextAccessor>();
 builder.Services.AddScoped<PlatformAdminAuthorizationService>();
+builder.Services.AddScoped<PlatformSupportAccessGrantService>();
 builder.Services.Configure<PlatformAdminBootstrapOptions>(
     builder.Configuration.GetSection(PlatformAdminBootstrapOptions.ConfigurationSection));
 builder.Services.AddHostedService<PlatformAdminBootstrapHostedService>();
@@ -432,6 +434,7 @@ app.MapStaffOnboardingEndpoints();
 app.MapReportScheduleEndpoints();
 app.MapPlatformTenantEndpoints();
 app.MapPlatformBillingEndpoints();
+app.MapPlatformSupportAccessEndpoints();
 app.MapStaffEndpoints();
 app.MapBranchProfileLayoutEndpoints();
 app.MapSessionEndpoints();

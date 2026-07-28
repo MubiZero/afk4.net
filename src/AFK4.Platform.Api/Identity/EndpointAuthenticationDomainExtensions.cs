@@ -13,4 +13,10 @@ public static class EndpointAuthenticationDomainExtensions
     {
         return builder.WithMetadata(new AuthenticationDomainMetadata(AuthenticationDomain.Organization));
     }
+
+    public static TBuilder AllowPlatformSupportAccess<TBuilder>(this TBuilder builder, string permission)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        return builder.WithMetadata(new PlatformSupportAccessMetadata(permission));
+    }
 }

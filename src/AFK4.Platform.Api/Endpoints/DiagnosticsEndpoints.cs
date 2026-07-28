@@ -14,6 +14,8 @@ using AFK4.Platform.Api.Diagnostics;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Platform.Identity;
+using AFK4.Platform.Api.Platform.Support;
 using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Notifications;
@@ -21,7 +23,6 @@ using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Platform.Api.Platform.Idempotency;
-using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Platform.Api.Platform.Tenancy;
 using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Receipts;
@@ -77,7 +78,10 @@ internal static class DiagnosticsEndpoints
     {
         app.MapGet("/api/branches/{branchId:guid}/diagnostics", async (
             Guid branchId,
+            HttpContext httpContext,
             StaffAuthorizationService authorizationService,
+            IPlatformAdminContextAccessor platformContextAccessor,
+            PlatformSupportAccessGrantService supportAccessService,
             IAuditRecordWriter auditRecordWriter,
             IBranchDiagnosticsService diagnosticsService,
             CancellationToken cancellationToken) =>
@@ -87,12 +91,17 @@ internal static class DiagnosticsEndpoints
                 OrganizationPermissionNames.ViewDiagnostics,
                 cancellationToken);
 
+            PlatformSupportContext? support = null;
             if (!authorization.IsAuthenticated)
             {
-                return Results.Unauthorized();
+                support = await supportAccessService.ValidateBranchAsync(
+                    httpContext, branchId, OrganizationPermissionNames.ViewDiagnostics,
+                    platformContextAccessor, cancellationToken);
+                if (platformContextAccessor.Current is null) return Results.Unauthorized();
+                if (support is null) return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            if (!authorization.IsAllowed)
+            if (authorization.IsAuthenticated && !authorization.IsAllowed)
             {
                 await WriteAuditAsync(
                     auditRecordWriter,
@@ -110,32 +119,33 @@ internal static class DiagnosticsEndpoints
             }
 
             var result = await diagnosticsService.GetAsync(
-                authorization.StaffContext!.OrganizationId,
+                support?.OrganizationId ?? authorization.StaffContext!.OrganizationId,
                 branchId,
                 cancellationToken);
 
-            await WriteAuditAsync(
-                auditRecordWriter,
-                authorization.StaffContext.OrganizationId,
-                branchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.ViewDiagnostics,
-                "Diagnostics",
-                null,
-                AuditOutcome.Succeeded,
-                new
-                {
-                    result.DeviceSummary.TotalDevices,
-                    result.DeviceSummary.StaleDevices,
-                    result.CommandSummary.PendingCommands,
-                    result.CommandSummary.FailedCommands,
-                    result.UpdateSummary.ActiveRollouts,
-                    result.UpdateSummary.FailedDevices
-                },
-                cancellationToken);
+            var details = new
+            {
+                result.DeviceSummary.TotalDevices,
+                result.DeviceSummary.StaleDevices,
+                result.CommandSummary.PendingCommands,
+                result.CommandSummary.FailedCommands,
+                result.UpdateSummary.ActiveRollouts,
+                result.UpdateSummary.FailedDevices
+            };
+            if (support is null)
+                await WriteAuditAsync(auditRecordWriter, authorization.StaffContext!.OrganizationId,
+                    branchId, authorization.StaffContext.StaffUserId, AuditActionNames.ViewDiagnostics,
+                    "Diagnostics", null, AuditOutcome.Succeeded, details, cancellationToken);
+            else
+                await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+                    support.OrganizationId, branchId, null, AuditActionNames.UsePlatformSupportAccess, "Diagnostics", null,
+                    AuditOutcome.Succeeded, "PlatformApi",
+                    JsonSerializer.Serialize(new { support.GrantId, support.Reason, Permission = support.Permission, details }))
+                { ActorPlatformAdminUserId = support.PlatformAdminUserId }, cancellationToken);
 
             return Results.Ok(result);
-        });
+        }).RequireOrganizationDomain()
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDiagnostics);
 
     }
 }

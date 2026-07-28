@@ -19,7 +19,8 @@ public sealed class AuthenticationDomainEnforcementMiddleware(RequestDelegate ne
         var hasOppositeDomain = metadata.Domain switch
         {
             AuthenticationDomain.Platform => staffContextAccessor.Current is not null,
-            AuthenticationDomain.Organization => platformContextAccessor.Current is not null,
+            AuthenticationDomain.Organization => platformContextAccessor.Current is not null
+                && httpContext.GetEndpoint()?.Metadata.GetMetadata<PlatformSupportAccessMetadata>() is null,
             _ => true
         };
 

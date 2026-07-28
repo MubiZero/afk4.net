@@ -2,6 +2,8 @@ namespace AFK4.Shared.Contracts.Platform.Auth;
 
 public static class PlatformAdminPermissionNames
 {
+    public const string UseSupportAccess = "platform.support.access";
+
     public const string ViewOrganizations = "platform.organizations.view";
 
     public const string CreateOrganization = "platform.organizations.create";

@@ -268,4 +268,10 @@ public static class AuditActionNames
     public const string UpdateNews = "news.update";
 
     public const string DeleteNews = "news.delete";
+
+    public const string GrantPlatformSupportAccess = "platform.support_access.grant";
+
+    public const string UsePlatformSupportAccess = "platform.support_access.use";
+
+    public const string RevokePlatformSupportAccess = "platform.support_access.revoke";
 }

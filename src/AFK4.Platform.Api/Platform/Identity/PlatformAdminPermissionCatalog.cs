@@ -9,6 +9,7 @@ public static class PlatformAdminPermissionCatalog
         {
             [PlatformAdminRoleNames.PlatformAdmin] = new HashSet<string>
             {
+                PlatformAdminPermissionNames.UseSupportAccess,
                 PlatformAdminPermissionNames.ViewOrganizations,
                 PlatformAdminPermissionNames.CreateOrganization,
                 PlatformAdminPermissionNames.UpdateOrganizationStatus,
@@ -25,6 +26,7 @@ public static class PlatformAdminPermissionCatalog
             },
             [PlatformAdminRoleNames.PlatformSupport] = new HashSet<string>
             {
+                PlatformAdminPermissionNames.UseSupportAccess,
                 PlatformAdminPermissionNames.ViewOrganizations,
                 PlatformAdminPermissionNames.UpdateOrganizationStatus,
                 PlatformAdminPermissionNames.ViewOrganizationSupportNotes,

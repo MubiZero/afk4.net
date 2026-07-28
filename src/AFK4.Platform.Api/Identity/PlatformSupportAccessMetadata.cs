@@ -1,0 +1,3 @@
+namespace AFK4.Platform.Api.Identity;
+
+public sealed record PlatformSupportAccessMetadata(string Permission);

@@ -2,11 +2,33 @@ using System.Reflection;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Platform.Identity;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests.Architecture;
 
 public sealed class AuthenticationDomainEndpointTests
 {
+    [Fact]
+    public async Task PlatformSupportAllowlist_ContainsOnlyReadOnlyOrganizationEndpoints()
+    {
+        await using var factory = new PlatformApiFactory();
+        _ = factory.CreateClient();
+        var endpoints = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<PlatformSupportAccessMetadata>() is not null)
+            .ToArray();
+
+        Assert.NotEmpty(endpoints);
+        Assert.All(endpoints, endpoint =>
+        {
+            Assert.Equal(AuthenticationDomain.Organization,
+                endpoint.Metadata.GetMetadata<AuthenticationDomainMetadata>()?.Domain);
+            Assert.Contains("GET", endpoint.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods);
+            Assert.StartsWith("/api/", endpoint.RoutePattern.RawText);
+        });
+    }
+
     [Fact]
     public void ApiAssembly_ExposesExplicitAuthenticationDomainContract()
     {
