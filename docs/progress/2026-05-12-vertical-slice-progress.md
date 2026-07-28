@@ -149,8 +149,27 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   Organization Admin 238/238, Player Shell 33/33, and Agent/release automation
   185/185. A real unsigned package smoke produced the master
   `afk4-client-0.1.999-internal.exe` plus the Organization Admin, Agent, and
-  Player Shell MSI inputs. No deployment, installation, signing, or live-data
-  mutation was performed.
+  Player Shell MSI inputs. This RC verification preceded the staging cutover
+  recorded below; no production deployment, installation, or signing was
+  performed.
+
+- Staging platform/organization big-bang cutover completed for release SHA
+  `1123a53f` on 2026-07-28. The verified pre-cutover custom-format backup is
+  `/root/afk4-cutover-backups/afk4-pre-bigbang-20260728T1800Z.dump` with SHA-256
+  `141b40fa4c61726fd54bae7414104d6e2dd4d59e975dd5fe6cc5bc1156057ea3`;
+  `pg_restore --list` passed. The database advanced through
+  `20260728170032_NamePlatformOrganizations`; unknown organization/platform
+  roles and active interactive tokens are zero, while 18 device credentials
+  remain active. Coolify deployments `u2pnhb9xkkabeqo2tnip9ndn` (Platform API)
+  and `v100hamkph0fof3c9pgonumr` (Platform Control) finished from that SHA with
+  image IDs `sha256:b5c8341c8a30d1001e2540d4bab4f9bd64f5772c85008f877e6101507bb0bb2b`
+  and `sha256:5044140553ceb4045087591ab4f73b0b3686a2db86ce47d3eed0e7e929450d33`.
+  Public API and Platform Control health checks returned 200; a legacy
+  Organization Admin request returned the required 426, the current epoch
+  reached authentication and returned 401 without credentials, and the old
+  club route returned 404. GitHub staging deploy run `30386318369` and Package
+  Smoke run `30386102803` passed. The obsolete staging club web application was
+  stopped and its public route returns 503. Production was not touched.
 
 - Fresh Platform Control removal gate (2026-07-28): the remaining Platform Control
   suite passed 119/119 tests across 50 files; focused routing/onboarding passed
@@ -228,10 +247,6 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   10/11 gaming-PC smoke for lock/unlock enforcement, reboot recovery, and
   role-aware update/rollback. The WindowsDesktop and unsigned package-build gates
   are already green; this remaining item is physical-device UX/runtime evidence.
-- **Big-bang rehearsal is still environment-gated:** run
-  `scripts/rehearse-platform-organization-cutover.ps1` against the approved
-  PostgreSQL snapshot. This workspace has the PostgreSQL tools and Windows
-  PowerShell runtime but no approved rehearsal connection string.
 - **Rotate the former staging smoke credential** before the next staging smoke;
   it was removed from the tracked runbook and must be supplied only through the
   approved secret store.
