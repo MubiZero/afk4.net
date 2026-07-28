@@ -1,3 +1,5 @@
+using AFK4.Platform.Api.Identity;
+
 namespace AFK4.Platform.Api.Platform.Identity;
 
 public sealed record PlatformAdminContext(
@@ -5,4 +7,7 @@ public sealed record PlatformAdminContext(
     string UserName,
     string DisplayName,
     IReadOnlySet<string> Roles,
-    IReadOnlySet<string> Permissions);
+    IReadOnlySet<string> Permissions)
+{
+    public AuthenticationDomain Domain => AuthenticationDomain.Platform;
+}

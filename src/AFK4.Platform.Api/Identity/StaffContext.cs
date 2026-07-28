@@ -7,6 +7,8 @@ public sealed record StaffContext(
     IReadOnlySet<Guid> BranchIds,
     IReadOnlySet<string> Permissions)
 {
+    public AuthenticationDomain Domain => AuthenticationDomain.Organization;
+
     public IReadOnlyList<string> RoleNames { get; init; } = [];
 
     // Права, сгруппированные по филиалу. Пустой словарь = деградация к union (обратная совместимость

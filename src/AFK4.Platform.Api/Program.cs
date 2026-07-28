@@ -406,6 +406,7 @@ app.UseRateLimiter();
 app.UseMiddleware<StaffAuthenticationMiddleware>();
 app.UseMiddleware<PlatformAdminAuthenticationMiddleware>();
 app.UseMiddleware<PlayerAuthenticationMiddleware>();
+app.UseMiddleware<AuthenticationDomainEnforcementMiddleware>();
 app.UseMiddleware<TenantSuspensionMiddleware>();
 
 // Endpoint registrations are grouped by domain in Endpoints/*Endpoints.cs
