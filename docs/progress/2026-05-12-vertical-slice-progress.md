@@ -19,7 +19,7 @@ needed.
 - Day-to-day club operations run in the native Windows Operator App (a .NET
   shell hosting a WebView2 React/TypeScript UI).
 - Platform-owner/support operations run in the browser SaaS Control Plane
-  (`AFK4.Platform.Web`, one SPA with `VITE_AUDIENCE` admin/club builds).
+  (`AFK4.Platform.Web`, admin-only SPA under `/admin`).
 - Players have a self-service shell + installable PWA portal (PIN/QR, balance,
   self-extend, online top-up).
 - Backend is a .NET 10 ASP.NET Core modular monolith on PostgreSQL.
@@ -124,8 +124,24 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   package context and wallet-backed Cash sales, reusable product categories,
   independent package load errors, and device rename/remove. The 2026-07-28
   parity certificate is GO for a separate Platform.Web `/club` removal project.
+- **Platform.Web `/club` removal** — the obsolete browser club workspace,
+  staff-auth runtime, branch-scoped API client, club-only shell, and audience
+  build switch are removed. `AFK4.Platform.Web` now contains only the internal
+  `/admin` Control Plane; old `/club/*` and browser staff sign-in/reset URLs
+  return the explicit not-found screen. Public first-owner invite acceptance
+  remains as a stateless onboarding page and sends the owner to Operator App.
+  Shared money conversion moved to `src/lib`, while backend branch endpoints
+  and Operator contracts remain unchanged.
 
 ## Latest Verification
+
+- Fresh Platform.Web removal gate (2026-07-28): the remaining Control Plane
+  suite passed 119/119 tests across 50 files; focused routing/onboarding passed
+  7/7, including explicit rejection of `/club/*` and staff sign-in routes while
+  preserving stateless owner-invite onboarding; i18n passed 39/39 and the
+  production build completed. The corrected Coolify Dockerfile built the nginx
+  image and `/healthz` returned `ok`. Existing dialog accessibility, React
+  `act`, and large-chunk diagnostics remain non-failing.
 
 - Fresh Operator parity gate (2026-07-28): full Operator Web suite passed
   1017 tests with 26 explicit skips and 0 failures across 161 files; App
@@ -203,11 +219,9 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Recommended Next Work
 
-1. Execute the separately scoped Platform.Web `/club` removal plan, preserving
-   browser Control Plane owner/support surfaces and rerunning Platform Web gates.
-2. Repeat the now-passing Operator day flow from a clean `manager_workstation`
+1. Repeat the now-passing Operator day flow from a clean `manager_workstation`
    install and record 100%/125% scaling plus keyboard-focus evidence.
-3. Run the physical gaming-PC Agent/Shell smoke, then add permission-aware entity
+2. Run the physical gaming-PC Agent/Shell smoke, then add permission-aware entity
    search to the command palette if it does not expose a higher-priority gap.
-4. Wire real per-environment SMTP settings and work through the remaining
+3. Wire real per-environment SMTP settings and work through the remaining
    pre-production decisions in the production-readiness roadmap.

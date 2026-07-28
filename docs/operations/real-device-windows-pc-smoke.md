@@ -54,9 +54,9 @@ Not included:
 - The older staging `gaming-pc-bootstrap` MinIO script is retired from the
   default smoke path. Use it only as a legacy recovery fallback for old staging
   devices, and mark any such run as partial/non-current evidence.
-- The customer dashboard at `https://app.afk4.staging.mubi.dev/club/install`
-  is now the preferred owner-code source. The raw staff API fallback below is
-  only for diagnosing dashboard/auth problems.
+- The current Setup Wizard authenticates staff directly by phone or
+  email/login and password; the removed Platform.Web `/club` dashboard is not
+  part of enrollment.
 - A `manager_workstation` enrollment must prove the role-aware update path:
   WebView2 Runtime check/install, Operator App MSI install, Agent restart, and
   an Operator App sign-in screen pointing at staging.
@@ -144,19 +144,9 @@ Use this path for the clean Windows 11 VM gate.
      https://updates.afk4.staging.mubi.dev/afk4-updates-staging/agent-service/internal/0.1.29/afk4-agent-0.1.29-internal.msi
      ```
 
-2. In the customer dashboard, sign in at:
-
-   ```text
-   https://app.afk4.staging.mubi.dev/auth/sign-in
-   ```
-
-   Open `/club/install`, generate or rotate the owner code, and keep the full
-   8-digit code only in the live smoke terminal/session notes. Do not paste it
-   into repository files or chat.
-   If browser sign-in fails with a CORS `NetworkError`, confirm the staging
-   Platform API has runtime env
-   `Cors__PlatformWebOrigins__1=https://app.afk4.staging.mubi.dev`, restart
-   the API app, and verify the preflight before retrying.
+2. Prepare an authorized staging branch staff account. Keep its credential only
+   in the live smoke environment; do not paste it into repository files or
+   chat. The Setup Wizard performs the staff sign-in itself.
 
 3. On the clean VM, install `afk4-agent-<version>-internal.msi`
    interactively. The Setup Wizard should open after install. If it does not,
@@ -166,8 +156,8 @@ Use this path for the clean Windows 11 VM gate.
    & 'C:\Program Files\AFK4\Setup Wizard\AFK4.SetupWizard.exe'
    ```
 
-4. In the wizard, enter the owner code, choose the branch, choose or create a
-   seat, select the role, and finish enrollment:
+4. In the wizard, sign in, choose the branch, choose or create a seat, select
+   the role, and finish enrollment:
 
    - `gaming_pc` for a player PC. Expected follow-on: Agent installs Player
      Shell from the internal update channel and supervises it in the active
@@ -176,22 +166,19 @@ Use this path for the clean Windows 11 VM gate.
      or installs WebView2 Runtime, installs Operator App, restarts, and leaves
      Operator App ready for staff sign-in against staging.
 
-5. Confirm in `/club/branches/{branchId}/devices` that the device appears with
-   the selected display name, role, seat, enrollment state, and recent
-   heartbeat. If the branch requires manual approval, approve it in the pending
-   device queue before expecting command delivery or role-aware component
-   installation.
+5. Confirm in Operator App `Управление → Залы и ПК` that the device appears
+   with the selected display name, role, seat, enrollment state, and recent
+   heartbeat.
 
 ## Prepare Staging Data
 
-Preferred setup is through the Mubi admin SPA plus customer dashboard:
+Preferred setup is through the Mubi admin SPA plus Setup Wizard and Operator:
 
 1. Mubi creates the tenant and owner invite under
    `https://platform.afk4.staging.mubi.dev/admin`.
-2. The owner accepts the setup code, signs in at
-   `https://app.afk4.staging.mubi.dev`, creates/edits the branch floor map,
-   and generates the owner code from `/club/install`.
-3. The smoke then uses the owner code only in the Setup Wizard.
+2. The owner accepts the invitation through the current onboarding path and
+   creates/edits the branch floor map in Operator App.
+3. The smoke uses the authorized staff login only inside Setup Wizard.
 
 Use the PowerShell/API fallback below only when the dashboard path is blocked
 or when reusing the fixed staging smoke tenant from earlier runs. Do not paste
@@ -497,7 +484,7 @@ If the wizard does not open automatically, run:
 
 In the wizard:
 
-1. Enter the 8-digit owner code from `/club/install`.
+1. Sign in with the authorized branch staff account.
 2. Choose the branch.
 3. Choose a free seat, or create a new seat from the wizard.
 4. Select `Gaming PC` or `Manager workstation`.

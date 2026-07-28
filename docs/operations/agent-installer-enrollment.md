@@ -15,7 +15,8 @@ update channel according to the enrolled device role.
 
 - The PC runs Windows 10/11.
 - The branch exists in the AFK4 backend.
-- The branch owner can generate an 8-digit owner code from `/club/install`.
+- A branch staff account with enrollment access can sign in through the Setup
+  Wizard by phone or email/login and password.
 - Agent Service and Setup Wizard binaries come from an approved AFK4
   distribution source.
 - Production secrets and signing keys are not stored in the repository.
@@ -35,7 +36,7 @@ update channel according to the enrolled device role.
    `AFK4.SetupWizard.exe` after installation. For silent/headless deployment,
    the operator can launch the wizard from the Start Menu or wait for
    `RunOnce`.
-4. Enter the owner code generated in `/club/install`.
+4. Sign in in the Setup Wizard with the authorized branch staff account.
 5. Choose the target branch and a free floor-map seat. If the seat is missing,
    create it from inside the wizard.
 6. Choose the role: `gaming_pc` or `manager_workstation`.
@@ -79,8 +80,8 @@ staging recovery fallbacks for old test devices.
 ## Safety Rules
 
 - Never ship a hardcoded device credential in installer files.
-- Owner codes must remain scoped to `install/*` endpoints and must not sign in
-  to the SPA.
+- Setup Wizard staff tokens must remain scoped to authenticated `install/auth/*`
+  endpoints and must not be persisted as device credentials.
 - A device credential belongs to exactly one device id.
 - If enrollment is repeated for replacement hardware, revoke old credentials
   through the backend.
@@ -97,7 +98,7 @@ If enrollment or startup fails:
 2. Inspect local Agent logs and backend device command/status records.
 3. Remove only the local AFK4 configuration and credential for this device if a
    clean re-enrollment is required.
-4. Rotate the owner code from `/club/install` if the old code may have leaked.
+4. Revoke or reset the staff credential if it may have leaked.
 5. Re-run `AFK4.SetupWizard.exe` from the Start Menu and re-enroll the device.
 6. Revoke stale credentials for the previous enrollment.
 

@@ -100,7 +100,6 @@ Install__ApiBaseUrl=https://<coolify-staging-domain>
 Install__UpdateChannel=internal
 Install__UpdatePackageSigningPublicKeyPem=<public PEM from deploy/coolify/staging-update-signing-public.pem>
 Cors__PlatformWebOrigins__0=https://platform.afk4.staging.mubi.dev
-Cors__PlatformWebOrigins__1=https://app.afk4.staging.mubi.dev
 ConnectionStrings__PlatformDatabase=<Coolify PostgreSQL connection string>
 Sessions__SigningPrivateKeyPem=<Coolify secret PEM>
 ```
@@ -114,11 +113,9 @@ contents of `deploy/coolify/staging-update-signing-public.pem` for
 `Install__UpdatePackageSigningPublicKeyPem`; it is a public verification key,
 but it must be preserved as multiline text.
 
-The `Cors__PlatformWebOrigins__*` entries are required for the browser-hosted
-admin and customer SPAs. Without the customer `app.afk4.staging.mubi.dev`
-origin, `/auth/sign-in` fails in the browser even when the staff credentials
-are valid because the preflight response does not include
-`Access-Control-Allow-Origin`.
+The `Cors__PlatformWebOrigins__*` entry allows the browser-hosted Control Plane
+to call the Platform API. Do not keep the retired `app.*` origin after the
+external club application is decommissioned.
 
 For Coolify internal PostgreSQL, include `SSL Mode=Disable` unless SSL has been
 explicitly configured for that database. For Linux containers, include
@@ -280,32 +277,25 @@ Minimum first-deploy evidence:
 - the API container logs do not show database connection failures;
 - Coolify reports the deployment healthy on the current commit.
 
-## Platform.Web SPA Audiences + Public-Endpoint Rate-Limiting
+## Platform.Web Control Plane + Public-Endpoint Rate-Limiting
 
-`src/AFK4.Platform.Web` is one codebase deployed as two Coolify applications:
-the internal admin host and the customer club host. Both use
-`deploy/coolify/platform-web.Dockerfile` (build context = repository root,
-exposed port `8080`, health path `/healthz`) and differ only by build args and
-Traefik host labels:
+`src/AFK4.Platform.Web` is the admin-only Control Plane deployed to the existing
+internal platform host. It uses `deploy/coolify/platform-web.Dockerfile` (build
+context = repository root, exposed port `8080`, health path `/healthz`):
 
 | Coolify app | Host | Build arguments |
 | --- | --- | --- |
-| Admin SPA | `platform.afk4.staging.mubi.dev` | `VITE_PLATFORM_API_BASE_URL=https://afk4.staging.mubi.dev`, `VITE_AUDIENCE=admin` |
-| Customer SPA | `app.afk4.staging.mubi.dev` | `VITE_PLATFORM_API_BASE_URL=https://afk4.staging.mubi.dev`, `VITE_AUDIENCE=club` |
+| Admin SPA | `platform.afk4.staging.mubi.dev` | `VITE_PLATFORM_API_BASE_URL=https://afk4.staging.mubi.dev` |
 
-For Slice 2.5, add the customer SPA as a new Coolify application from the same
-repository and Dockerfile. Keep the existing admin SPA application and hostname
-unchanged. Add the DNS A/AAAA record for `app.afk4.staging.mubi.dev` before
-deploying so Let's Encrypt can issue the certificate.
-
-The build-time `VITE_AUDIENCE` value is baked into the Vite bundle: the admin
-host exposes only `/admin/*` plus `/auth/*`; the customer host exposes only
-`/club/*` plus `/auth/*`. Verify route isolation in a browser after deploy:
-`/club/install` on `platform.*` and `/admin/tenants` on `app.*` must render the
-SPA not-found state, while `/auth/sign-in` must render on both hosts.
+The host exposes `/admin/*`. Verify `/admin` in a browser and confirm that old
+`/club/install` and browser staff sign-in/reset URLs render the explicit
+not-found state. `/auth/accept-invite` remains the public first-owner onboarding
+route issued by Control Plane.
+The old `app.*` Coolify application and DNS entry must be decommissioned only
+through a separate explicitly approved external operation.
 
 Wire both dedicated hosts via the Traefik labels in
-[`deploy/coolify/ingress.md`](../../deploy/coolify/ingress.md#1-platformweb-spa-audiences).
+[`deploy/coolify/ingress.md`](../../deploy/coolify/ingress.md#1-platformweb-control-plane).
 
 Same file documents how to attach a per-source-IP rate-limit middleware to the
 public Platform API endpoints that accept bearer-style setup, install, or

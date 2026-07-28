@@ -43,3 +43,20 @@ Date: 2026-07-28
 ## Removal gate
 
 The next sub-project may remove Platform.Web `/club` only with its own route/import cleanup, browser build/tests, and confirmation that no Control Plane owner/support surface imports club-only code. This certificate establishes functional parity; it does not authorize deployment or deletion by itself.
+
+## Removal result
+
+Completed on 2026-07-28 on the dedicated parity/removal topic branch. The
+Platform.Web club route union, feature tree, staff sign-in runtime,
+branch-scoped transport, and audience build switch were removed. Public
+first-owner invite acceptance remains as a stateless onboarding boundary; it
+does not persist the staff token returned by the endpoint. Control Plane money
+imports now use the neutral `src/lib/money.ts` boundary, and the remaining
+source has no runtime import of club-only code.
+
+Fresh removal verification: 119/119 Platform Web tests passed across 50 files;
+focused routing/onboarding passed 7/7; i18n passed 39/39; and the production
+build completed. The corrected Coolify Dockerfile built the nginx image and
+its `/healthz` returned `ok`. `/club/*` and browser staff sign-in URLs are
+covered as explicit not-found routes, while owner-invite acceptance remains
+covered. No deployment was performed.
