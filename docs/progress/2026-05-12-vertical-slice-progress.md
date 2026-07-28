@@ -135,7 +135,7 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Latest Verification
 
-- Platform/organization big-bang RC gate for code SHA `2c7464e2` (2026-07-28):
+- Platform/organization big-bang RC gate through code SHA `6e9a8507` (2026-07-28):
   `dotnet build AFK4.sln -c Release -p:EnableWindowsTargeting=true` completed
   with 0 warnings and 0 errors. Platform API passed 1451 tests with 14 explicit
   PostgreSQL-environment skips; Shared Contracts passed 131/131; the remaining
@@ -145,7 +145,12 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   39/39; Setup Wizard Web passed 20/20 and its bundled WebAssets were rebuilt.
   The Platform Control Docker RC image built and returned `ok` from `/healthz`.
   The current-product vocabulary guard passed via its native ripgrep-equivalent
-  check. No deployment or live-data mutation was performed.
+  check. Native Windows verification from a temporary `C:` worktree passed
+  Organization Admin 238/238, Player Shell 33/33, and Agent/release automation
+  185/185. A real unsigned package smoke produced the master
+  `afk4-client-0.1.999-internal.exe` plus the Organization Admin, Agent, and
+  Player Shell MSI inputs. No deployment, installation, signing, or live-data
+  mutation was performed.
 
 - Fresh Platform Control removal gate (2026-07-28): the remaining Platform Control
   suite passed 119/119 tests across 50 files; focused routing/onboarding passed
@@ -205,12 +210,11 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   and `29337673756` completed with public health verification; the second push
   deploy used one builder and completed without the transient duplicate-worker
   collision seen on the first push attempt.
-- The Linux full-solution test attempt passed Platform API 1288 tests (one
-  explicit PostgreSQL-env skip) and all other portable suites, but cannot run
-  Operator/Player Shell .NET Windows testhosts because `Microsoft.WindowsDesktop.App`
-  has no Linux runtime. Twenty-six Agent packaging tests also remain Windows-only
-  in this environment because they invoke PowerShell/Windows release tooling;
-  their projects compile successfully and require a Windows verification run.
+- The Linux full-solution test attempt cannot directly run WindowsDesktop or
+  Windows PowerShell tests, but the same WSL host can invoke the installed
+  Windows runtime. The current Windows results are recorded in the big-bang RC
+  gate above; release automation must use a drive-letter worktree because nested
+  Windows PowerShell refuses `-File` scripts from a WSL UNC path.
 
 ## Known Gaps
 
@@ -222,13 +226,12 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 - **Remaining Windows evidence** is narrower: repeat the Operator pass on a clean
   `manager_workstation` install at 100%/125% scaling and run the physical Windows
   10/11 gaming-PC smoke for lock/unlock enforcement, reboot recovery, and
-  role-aware update/rollback. Include the WindowsDesktop Organization Admin testhost
-  because it cannot execute from the current Linux environment.
+  role-aware update/rollback. The WindowsDesktop and unsigned package-build gates
+  are already green; this remaining item is physical-device UX/runtime evidence.
 - **Big-bang rehearsal is still environment-gated:** run
   `scripts/rehearse-platform-organization-cutover.ps1` against the approved
-  PostgreSQL snapshot and run the Windows packaging/testhost gates. This Linux
-  workspace has the PostgreSQL tools but no rehearsal connection string or
-  Windows PowerShell runtime.
+  PostgreSQL snapshot. This workspace has the PostgreSQL tools and Windows
+  PowerShell runtime but no approved rehearsal connection string.
 - **Rotate the former staging smoke credential** before the next staging smoke;
   it was removed from the tracked runbook and must be supplied only through the
   approved secret store.
