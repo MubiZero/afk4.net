@@ -62,7 +62,7 @@ public sealed class PilotSetupEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
 
-        var readResponse = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/profile");
+        var readResponse = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/profile");
         var readProfile = await readResponse.Content.ReadFromJsonAsync<BranchProfileDto>();
 
         Assert.Equal(HttpStatusCode.OK, readResponse.StatusCode);
@@ -70,7 +70,7 @@ public sealed class PilotSetupEndpointTests
         Assert.Equal("Demo Branch", readProfile.Name);
 
         var updateResponse = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/profile",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/profile",
             new UpdateBranchProfileRequest(
                 TestIds.OrganizationId,
                 "AFK4 Pilot",
@@ -104,7 +104,7 @@ public sealed class PilotSetupEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/profile",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/profile",
             new UpdateBranchProfileRequest(
                 TestIds.OrganizationId,
                 "Blocked",
@@ -136,7 +136,7 @@ public sealed class PilotSetupEndpointTests
             factory, "profile.one@afk4.test", "Profile One", "Passw0rd!Pilot", [OrganizationRoleNames.Operator]);
 
         var updateResponse = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/profile",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/profile",
             new UpdateStaffUserProfileRequest(
                 TestIds.OrganizationId,
                 "profile.renamed@afk4.test",
@@ -152,10 +152,10 @@ public sealed class PilotSetupEndpointTests
 
         using var signInClient = factory.CreateClient();
         var oldLoginResponse = await signInClient.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "profile.one@afk4.test", "Passw0rd!Pilot"));
         var newLoginResponse = await signInClient.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "profile.renamed@afk4.test", "Passw0rd!Pilot"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, oldLoginResponse.StatusCode);
@@ -181,7 +181,7 @@ public sealed class PilotSetupEndpointTests
             factory, "profile.duplicate@afk4.test", "Profile Duplicate", "Passw0rd!Pilot", [OrganizationRoleNames.Operator]);
 
         var updateResponse = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/profile",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/profile",
             new UpdateStaffUserProfileRequest(
                 TestIds.OrganizationId,
                 "tech@afk4.test",
@@ -198,7 +198,7 @@ public sealed class PilotSetupEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/{TestIds.TechnicianStaffUserId:D}/profile",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/staff/{TestIds.TechnicianStaffUserId:D}/profile",
             new UpdateStaffUserProfileRequest(TestIds.OrganizationId, "cashier.renamed@afk4.test", "Cashier Renamed"));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -214,7 +214,7 @@ public sealed class PilotSetupEndpointTests
             factory, "roles.one@afk4.test", "Roles One", "Passw0rd!Pilot", [OrganizationRoleNames.Operator]);
 
         var updateResponse = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/roles",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/roles",
             new UpdateStaffUserRolesRequest(
                 TestIds.OrganizationId,
                 [OrganizationRoleNames.Technician, OrganizationRoleNames.ShiftSupervisor]));
@@ -251,7 +251,7 @@ public sealed class PilotSetupEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
 
         var response = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/{TestIds.TechnicianStaffUserId:D}/roles",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/staff/{TestIds.TechnicianStaffUserId:D}/roles",
             new UpdateStaffUserRolesRequest(TestIds.OrganizationId, [OrganizationRoleNames.Technician]));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -268,12 +268,12 @@ public sealed class PilotSetupEndpointTests
 
         using var staffClient = factory.CreateClient();
         var firstSignInResponse = await staffClient.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "state.one@afk4.test", "Passw0rd!Pilot"));
         Assert.Equal(HttpStatusCode.OK, firstSignInResponse.StatusCode);
 
         var deactivateResponse = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/state",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/state",
             new UpdateStaffUserStateRequest(TestIds.OrganizationId, false));
         var deactivatedStaffUser = await deactivateResponse.Content.ReadFromJsonAsync<StaffUserDto>();
 
@@ -282,7 +282,7 @@ public sealed class PilotSetupEndpointTests
         Assert.False(deactivatedStaffUser.IsActive);
 
         var blockedSignInResponse = await staffClient.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "state.one@afk4.test", "Passw0rd!Pilot"));
         Assert.Equal(HttpStatusCode.Unauthorized, blockedSignInResponse.StatusCode);
 
@@ -306,7 +306,7 @@ public sealed class PilotSetupEndpointTests
         }
 
         var reactivateResponse = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/state",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/state",
             new UpdateStaffUserStateRequest(TestIds.OrganizationId, true));
         var reactivatedStaffUser = await reactivateResponse.Content.ReadFromJsonAsync<StaffUserDto>();
 
@@ -315,7 +315,7 @@ public sealed class PilotSetupEndpointTests
         Assert.True(reactivatedStaffUser.IsActive);
 
         var restoredSignInResponse = await staffClient.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "state.one@afk4.test", "Passw0rd!Pilot"));
         Assert.Equal(HttpStatusCode.OK, restoredSignInResponse.StatusCode);
     }
@@ -331,12 +331,12 @@ public sealed class PilotSetupEndpointTests
 
         using var staffClient = factory.CreateClient();
         var firstSignInResponse = await staffClient.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "reset.one@afk4.test", "Passw0rd!Pilot"));
         Assert.Equal(HttpStatusCode.OK, firstSignInResponse.StatusCode);
 
         var resetResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/password-reset",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/staff/{staffUserId:D}/password-reset",
             new ResetStaffUserPasswordRequest(TestIds.OrganizationId, "Passw0rd!Reset"));
         var resetStaffUser = await resetResponse.Content.ReadFromJsonAsync<StaffUserDto>();
 
@@ -364,10 +364,10 @@ public sealed class PilotSetupEndpointTests
         }
 
         var oldPasswordSignInResponse = await staffClient.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "reset.one@afk4.test", "Passw0rd!Pilot"));
         var newPasswordSignInResponse = await staffClient.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "reset.one@afk4.test", "Passw0rd!Reset"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, oldPasswordSignInResponse.StatusCode);
@@ -382,7 +382,7 @@ public sealed class PilotSetupEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/{TestIds.TechnicianStaffUserId:D}/state",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/staff/{TestIds.TechnicianStaffUserId:D}/state",
             new UpdateStaffUserStateRequest(TestIds.OrganizationId, false));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -395,21 +395,21 @@ public sealed class PilotSetupEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var zoneResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/layout/zones",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/zones",
             new CreateZoneRequest(TestIds.OrganizationId, "Main Hall", 10));
         var zone = await zoneResponse.Content.ReadFromJsonAsync<ZoneDto>();
         Assert.Equal(HttpStatusCode.OK, zoneResponse.StatusCode);
         Assert.NotNull(zone);
 
         var seatResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/layout/seats",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/seats",
             new CreateSeatRequest(TestIds.OrganizationId, zone.ZoneId, "PC-001", 1));
         var seat = await seatResponse.Content.ReadFromJsonAsync<SeatDto>();
         Assert.Equal(HttpStatusCode.OK, seatResponse.StatusCode);
         Assert.NotNull(seat);
         Assert.Equal(zone.ZoneId, seat.ZoneId);
 
-        var listResponse = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/layout/zones");
+        var listResponse = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/zones");
         var zones = await listResponse.Content.ReadFromJsonAsync<IReadOnlyList<ZoneDto>>();
 
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
@@ -426,22 +426,22 @@ public sealed class PilotSetupEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var zoneResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/layout/zones",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/zones",
             new CreateZoneRequest(TestIds.OrganizationId, "Main Hall", 10));
         var zone = await zoneResponse.Content.ReadFromJsonAsync<ZoneDto>();
         Assert.NotNull(zone);
         var seatResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/layout/seats",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/seats",
             new CreateSeatRequest(TestIds.OrganizationId, zone.ZoneId, "PC-001", 1));
         var seat = await seatResponse.Content.ReadFromJsonAsync<SeatDto>();
         Assert.NotNull(seat);
 
         var updateZoneResponse = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/layout/zones/{zone.ZoneId:D}",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/zones/{zone.ZoneId:D}",
             new UpdateZoneRequest(TestIds.OrganizationId, "VIP Hall", 30));
         var updatedZone = await updateZoneResponse.Content.ReadFromJsonAsync<ZoneDto>();
         var updateSeatResponse = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/layout/seats/{seat.SeatId:D}",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/seats/{seat.SeatId:D}",
             new UpdateSeatRequest(TestIds.OrganizationId, zone.ZoneId, "VIP-01", 40));
         var updatedSeat = await updateSeatResponse.Content.ReadFromJsonAsync<SeatDto>();
 
@@ -454,7 +454,7 @@ public sealed class PilotSetupEndpointTests
         Assert.Equal("VIP-01", updatedSeat.Name);
         Assert.Equal(40, updatedSeat.SortOrder);
 
-        var listResponse = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/layout/zones");
+        var listResponse = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/zones");
         var zones = await listResponse.Content.ReadFromJsonAsync<IReadOnlyList<ZoneDto>>();
         var listedZone = Assert.Single(zones!);
         Assert.Equal("VIP Hall", listedZone.Name);
@@ -474,20 +474,20 @@ public sealed class PilotSetupEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var zoneResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/layout/zones",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/zones",
             new CreateZoneRequest(TestIds.OrganizationId, "Delete Hall", 50));
         var zone = await zoneResponse.Content.ReadFromJsonAsync<ZoneDto>();
         Assert.NotNull(zone);
         var seatResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/layout/seats",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/seats",
             new CreateSeatRequest(TestIds.OrganizationId, zone.ZoneId, "DELETE-01", 50));
         var seat = await seatResponse.Content.ReadFromJsonAsync<SeatDto>();
         Assert.NotNull(seat);
 
         var deleteSeatResponse = await client.DeleteAsync(
-            $"/api/branches/{TestIds.BranchId:D}/layout/seats/{seat.SeatId:D}?organizationId={TestIds.OrganizationId:D}");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/seats/{seat.SeatId:D}?organizationId={TestIds.OrganizationId:D}");
         var deleteZoneResponse = await client.DeleteAsync(
-            $"/api/branches/{TestIds.BranchId:D}/layout/zones/{zone.ZoneId:D}?organizationId={TestIds.OrganizationId:D}");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/zones/{zone.ZoneId:D}?organizationId={TestIds.OrganizationId:D}");
 
         Assert.Equal(HttpStatusCode.NoContent, deleteSeatResponse.StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, deleteZoneResponse.StatusCode);
@@ -507,12 +507,12 @@ public sealed class PilotSetupEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var zoneResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/layout/zones",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/zones",
             new CreateZoneRequest(TestIds.OrganizationId, "Assigned Hall", 60));
         var zone = await zoneResponse.Content.ReadFromJsonAsync<ZoneDto>();
         Assert.NotNull(zone);
         var seatResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/layout/seats",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/seats",
             new CreateSeatRequest(TestIds.OrganizationId, zone.ZoneId, "ASSIGNED-01", 60));
         var seat = await seatResponse.Content.ReadFromJsonAsync<SeatDto>();
         Assert.NotNull(seat);
@@ -532,9 +532,9 @@ public sealed class PilotSetupEndpointTests
         }
 
         var deleteSeatResponse = await client.DeleteAsync(
-            $"/api/branches/{TestIds.BranchId:D}/layout/seats/{seat.SeatId:D}?organizationId={TestIds.OrganizationId:D}");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/seats/{seat.SeatId:D}?organizationId={TestIds.OrganizationId:D}");
         var deleteZoneResponse = await client.DeleteAsync(
-            $"/api/branches/{TestIds.BranchId:D}/layout/zones/{zone.ZoneId:D}?organizationId={TestIds.OrganizationId:D}");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/zones/{zone.ZoneId:D}?organizationId={TestIds.OrganizationId:D}");
 
         Assert.Equal(HttpStatusCode.Conflict, deleteSeatResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, deleteZoneResponse.StatusCode);
@@ -548,7 +548,7 @@ public sealed class PilotSetupEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/layout/zones",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/layout/zones",
             new CreateZoneRequest(TestIds.OrganizationId, "Main Hall", 10));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);

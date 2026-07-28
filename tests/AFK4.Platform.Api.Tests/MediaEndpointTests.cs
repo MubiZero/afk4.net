@@ -40,7 +40,7 @@ public sealed class MediaEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.PostAsync($"/api/branches/{TestIds.BranchId:D}/media", PngForm());
+        var response = await client.PostAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/media", PngForm());
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -52,7 +52,7 @@ public sealed class MediaEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
-        var response = await client.PostAsync($"/api/branches/{TestIds.BranchId:D}/media", PngForm());
+        var response = await client.PostAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/media", PngForm());
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -64,7 +64,7 @@ public sealed class MediaEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
-        var response = await client.PostAsync($"/api/branches/{TestIds.BranchId:D}/media", PngForm());
+        var response = await client.PostAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/media", PngForm());
         var body = await response.Content.ReadFromJsonAsync<UploadedMediaDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -90,7 +90,7 @@ public sealed class MediaEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
-        var response = await client.PostAsync($"/api/branches/{TestIds.BranchId:D}/media", PdfForm());
+        var response = await client.PostAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/media", PdfForm());
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -102,7 +102,7 @@ public sealed class MediaEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
-        var response = await client.PostAsync($"/api/branches/{TestIds.OtherBranchId:D}/media", PngForm());
+        var response = await client.PostAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.OtherBranchId:D}/media", PngForm());
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -114,11 +114,11 @@ public sealed class MediaEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
-        var uploadResponse = await client.PostAsync($"/api/branches/{TestIds.BranchId:D}/media", PngForm());
+        var uploadResponse = await client.PostAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/media", PngForm());
         var uploaded = await uploadResponse.Content.ReadFromJsonAsync<UploadedMediaDto>();
         Assert.NotNull(uploaded);
 
-        var deleteResponse = await client.DeleteAsync($"/api/branches/{TestIds.BranchId:D}/media/{uploaded.MediaId:D}");
+        var deleteResponse = await client.DeleteAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/media/{uploaded.MediaId:D}");
 
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
 

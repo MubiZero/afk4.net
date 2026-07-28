@@ -9,7 +9,7 @@ export type DashboardSummaryQuery = ReportQuery;
 export function createDashboardClient(api: PlatformApiClient) {
   return {
     getSummary(branchId: Guid, query?: DashboardSummaryQuery): Promise<OperatorDashboardSummaryDto> {
-      return api.get<OperatorDashboardSummaryDto>(`/api/branches/${branchId}/dashboard/summary`, normalizeReportQuery(query));
+      return api.get<OperatorDashboardSummaryDto>(`branches/${branchId}/dashboard/summary`, normalizeReportQuery(query));
     }
   };
 }

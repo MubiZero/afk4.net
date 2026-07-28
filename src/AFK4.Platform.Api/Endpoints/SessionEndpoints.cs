@@ -73,11 +73,11 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class SessionEndpoints
 {
-    public static void MapSessionEndpoints(this WebApplication app)
+    public static void MapSessionEndpoints(this IEndpointRouteBuilder app)
     {
         // Started sessions (running and completed) overlapping a day window — feeds the booking
         // timeline's session layer. Defaults to today when the window is omitted.
-        app.MapGet("/api/branches/{branchId:guid}/sessions", async (
+        app.MapGet("branches/{branchId:guid}/sessions", async (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -137,7 +137,7 @@ internal static class SessionEndpoints
             return Results.Ok(result);
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/sessions/start", async (
+        app.MapPost("branches/{branchId:guid}/sessions/start", async (
             Guid branchId,
             StartGuestSessionRequest request,
             StaffAuthorizationService authorizationService,
@@ -225,7 +225,7 @@ internal static class SessionEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/sessions/{sessionId:guid}/extend", async (
+        app.MapPost("sessions/{sessionId:guid}/extend", async (
             Guid sessionId,
             ExtendSessionRequest request,
             PlatformDbContext dbContext,
@@ -313,7 +313,7 @@ internal static class SessionEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/sessions/{sessionId:guid}/transfer", async (
+        app.MapPost("sessions/{sessionId:guid}/transfer", async (
             Guid sessionId,
             TransferSessionRequest request,
             PlatformDbContext dbContext,
@@ -401,7 +401,7 @@ internal static class SessionEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/sessions/{sessionId:guid}/end", async (
+        app.MapPost("sessions/{sessionId:guid}/end", async (
             Guid sessionId,
             EndSessionRequest request,
             PlatformDbContext dbContext,
@@ -489,7 +489,7 @@ internal static class SessionEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/sessions/{sessionId:guid}/checkout", async (
+        app.MapPost("sessions/{sessionId:guid}/checkout", async (
             Guid sessionId,
             SessionCheckoutRequest request,
             PlatformDbContext dbContext,
@@ -578,7 +578,7 @@ internal static class SessionEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapGet("/api/sessions/{sessionId:guid}/checkout/quote", async (
+        app.MapGet("sessions/{sessionId:guid}/checkout/quote", async (
             Guid sessionId,
             PlatformDbContext dbContext,
             StaffAuthorizationService authorizationService,

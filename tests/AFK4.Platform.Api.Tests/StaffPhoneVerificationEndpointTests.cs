@@ -39,7 +39,7 @@ public sealed class StaffPhoneVerificationEndpointTests
         var staffUserId = TestIds.TechnicianStaffUserId;
 
         var start = await client.PostAsJsonAsync(
-            "/api/auth/staff/phone/start-verification",
+            $"/api/organizations/{TestIds.OrganizationId:D}/account/phone/start-verification",
             new StaffPhoneStartVerificationRequest("+992 93 738-00-70"));
         Assert.Equal(HttpStatusCode.OK, start.StatusCode);
 
@@ -49,7 +49,7 @@ public sealed class StaffPhoneVerificationEndpointTests
         Assert.False(string.IsNullOrEmpty(code));
 
         var confirm = await client.PostAsJsonAsync(
-            "/api/auth/staff/phone/confirm",
+            $"/api/organizations/{TestIds.OrganizationId:D}/account/phone/confirm",
             new StaffPhoneConfirmRequest(code));
         Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
 
@@ -67,7 +67,7 @@ public sealed class StaffPhoneVerificationEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/phone/start-verification",
+            $"/api/organizations/{TestIds.OrganizationId:D}/account/phone/start-verification",
             new StaffPhoneStartVerificationRequest("992937380070"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -80,7 +80,7 @@ public sealed class StaffPhoneVerificationEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
-        var response = await client.GetAsync("/api/auth/staff/phone");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/account/phone");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var status = await response.Content.ReadFromJsonAsync<StaffPhoneStatusResponse>();
@@ -95,7 +95,7 @@ public sealed class StaffPhoneVerificationEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/api/auth/staff/phone");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/account/phone");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -113,17 +113,17 @@ public sealed class StaffPhoneVerificationEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
         var startResp = await client.PostAsJsonAsync(
-            "/api/auth/staff/phone/start-verification",
+            $"/api/organizations/{TestIds.OrganizationId:D}/account/phone/start-verification",
             new StaffPhoneStartVerificationRequest("+992 93 738-00-70"));
         Assert.Equal(HttpStatusCode.OK, startResp.StatusCode);
 
         var code = Regex.Match(Assert.Single(recording.Sent).Text, "\\d{6}").Value;
 
         var confirmResp = await client.PostAsJsonAsync(
-            "/api/auth/staff/phone/confirm", new StaffPhoneConfirmRequest(code));
+            $"/api/organizations/{TestIds.OrganizationId:D}/account/phone/confirm", new StaffPhoneConfirmRequest(code));
         Assert.Equal(HttpStatusCode.OK, confirmResp.StatusCode);
 
-        var response = await client.GetAsync("/api/auth/staff/phone");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/account/phone");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var status = await response.Content.ReadFromJsonAsync<StaffPhoneStatusResponse>();

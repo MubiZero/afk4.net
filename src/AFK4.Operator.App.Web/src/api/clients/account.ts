@@ -17,15 +17,15 @@ export interface StaffPhoneConfirmedDto {
 export function createAccountClient(api: PlatformApiClient) {
   return {
     getMyPhone(): Promise<StaffPhoneStatusDto> {
-      return api.get<StaffPhoneStatusDto>('/api/auth/staff/phone');
+      return api.get<StaffPhoneStatusDto>('account/phone');
     },
     startPhoneVerification(request: { phone: string }): Promise<StaffPhoneVerificationStartedDto> {
       return api.post<StaffPhoneVerificationStartedDto, { phone: string }>(
-        '/api/auth/staff/phone/start-verification', request);
+        'account/phone/start-verification', request);
     },
     confirmPhoneVerification(request: { code: string }): Promise<StaffPhoneConfirmedDto> {
       return api.post<StaffPhoneConfirmedDto, { code: string }>(
-        '/api/auth/staff/phone/confirm', request);
+        'account/phone/confirm', request);
     }
   };
 }

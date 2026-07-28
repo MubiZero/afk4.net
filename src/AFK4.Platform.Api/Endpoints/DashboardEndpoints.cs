@@ -73,9 +73,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class DashboardEndpoints
 {
-    public static void MapDashboardEndpoints(this WebApplication app)
+    public static void MapDashboardEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/branches/{branchId:guid}/dashboard/summary", async (
+        app.MapGet("branches/{branchId:guid}/dashboard/summary", async (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,

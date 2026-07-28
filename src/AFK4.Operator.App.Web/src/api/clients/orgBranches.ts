@@ -11,7 +11,7 @@ export interface OwnerBranchSummary {
 export function createOrgBranchesClient(api: PlatformApiClient) {
   return {
     getOwnerBranches(): Promise<OwnerBranchSummary[]> {
-      return api.get<OwnerBranchSummary[]>('/api/owner/branches');
+      return api.get<OwnerBranchSummary[]>('branches');
     }
   };
 }

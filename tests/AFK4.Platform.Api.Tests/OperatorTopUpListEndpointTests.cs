@@ -49,7 +49,7 @@ public sealed class OperatorTopUpListEndpointTests
         }
 
         var response = await client.GetAsync(
-            $"/api/branches/{TestIds.BranchId}/wallet/top-up-intents?status=pending");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/wallet/top-up-intents?status=pending");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var list = await response.Content.ReadFromJsonAsync<List<OperatorTopUpIntentDto>>();
@@ -127,7 +127,7 @@ public sealed class OperatorTopUpListEndpointTests
         }
 
         var response = await client.GetAsync(
-            $"/api/branches/{TestIds.BranchId}/wallet/top-up-intents?status=pending");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/wallet/top-up-intents?status=pending");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var list = await response.Content.ReadFromJsonAsync<List<OperatorTopUpIntentDto>>();

@@ -19,7 +19,7 @@ public sealed class HttpOperatorDiagnosticsApiClient(
     {
         using var message = await CreateRequestAsync(
             HttpMethod.Get,
-            $"/api/branches/{branchId:D}/diagnostics",
+            $"branches/{branchId:D}/diagnostics",
             cancellationToken);
 
         using var response = await httpClient.SendAsync(message, cancellationToken);
@@ -50,7 +50,7 @@ public sealed class HttpOperatorDiagnosticsApiClient(
             throw new InvalidOperationException("Operator access token is missing.");
         }
 
-        var request = new HttpRequestMessage(method, path);
+        var request = new HttpRequestMessage(method, OrganizationApiRoute.Build(snapshot, path));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", snapshot.AccessToken);
         return request;
     }

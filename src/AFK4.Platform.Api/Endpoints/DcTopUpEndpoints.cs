@@ -12,9 +12,9 @@ namespace AFK4.Platform.Api.Endpoints;
 // подтверждает существующим /api/wallet/top-up-intents/{id}/fulfil. Здесь только create + cancel.
 internal static class DcTopUpEndpoints
 {
-    public static void MapDcTopUpEndpoints(this WebApplication app)
+    public static void MapDcTopUpEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/branches/{branchId:guid}/pos/dc-topups", async (
+        app.MapPost("branches/{branchId:guid}/pos/dc-topups", async (
             Guid branchId,
             CreateDcTopUpRequest request,
             StaffAuthorizationService authorizationService,
@@ -73,7 +73,7 @@ internal static class DcTopUpEndpoints
                 intentId, payUrl, comment, request.AmountMinorUnits, currencyCode, config.CardLast4));
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/pos/dc-topups/{intentId:guid}/cancel", async (
+        app.MapPost("branches/{branchId:guid}/pos/dc-topups/{intentId:guid}/cancel", async (
             Guid branchId,
             Guid intentId,
             StaffAuthorizationService authorizationService,

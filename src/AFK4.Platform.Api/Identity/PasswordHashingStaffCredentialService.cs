@@ -68,6 +68,7 @@ public sealed class PasswordHashingStaffCredentialService(
     }
 
     public async Task<StaffLoginResolution> SignInByLoginAsync(
+        Guid organizationId,
         StaffSignInByLoginRequest request,
         CancellationToken cancellationToken)
     {
@@ -81,7 +82,8 @@ public sealed class PasswordHashingStaffCredentialService(
         var loweredLogin = request.Login.Trim().ToLowerInvariant();
         var candidates = await dbContext.StaffUsers
             .AsNoTracking()
-            .Where(candidate => candidate.IsActive &&
+            .Where(candidate => candidate.OrganizationId == organizationId &&
+                candidate.IsActive &&
                 (candidate.NormalizedUserName == normalizedLogin ||
                  (candidate.Email != null && candidate.Email.ToLower() == loweredLogin)))
             .Select(candidate => new { candidate.OrganizationId, candidate.StaffUserId, candidate.PasswordHash })

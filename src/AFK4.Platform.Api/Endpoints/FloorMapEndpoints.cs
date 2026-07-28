@@ -73,9 +73,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class FloorMapEndpoints
 {
-    public static void MapFloorMapEndpoints(this WebApplication app)
+    public static void MapFloorMapEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/branches/{branchId:guid}/floor-map", async (
+        app.MapGet("branches/{branchId:guid}/floor-map", async (
             Guid branchId,
             HttpContext httpContext,
             IFloorMapReadService floorMapReadService,
@@ -108,7 +108,7 @@ internal static class FloorMapEndpoints
             return Results.Ok(result.FloorMap);
         });
 
-        app.MapPut("/api/branches/{branchId:guid}/floor-map", async (
+        app.MapPut("branches/{branchId:guid}/floor-map", async (
             Guid branchId,
             FloorMapBulkUpdateRequest request,
             HttpContext httpContext,

@@ -19,7 +19,7 @@ public sealed class DeviceCredentialLifecycleEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsync(
-            $"/api/devices/{TestIds.DeviceId}/credentials/rotate",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}/credentials/rotate",
             content: null);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -34,7 +34,7 @@ public sealed class DeviceCredentialLifecycleEndpointTests
         var enrollment = await EnrollDeviceAsync(factory);
 
         var response = await client.PostAsync(
-            $"/api/devices/{enrollment.DeviceId}/credentials/rotate",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{enrollment.DeviceId}/credentials/rotate",
             content: null);
         var rotated = await response.Content.ReadFromJsonAsync<RotateDeviceCredentialResponse>();
 
@@ -65,7 +65,7 @@ public sealed class DeviceCredentialLifecycleEndpointTests
         var enrollment = await EnrollDeviceAsync(factory);
 
         var response = await client.PostAsync(
-            $"/api/devices/{enrollment.DeviceId}/credentials/rotate",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{enrollment.DeviceId}/credentials/rotate",
             content: null);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -88,7 +88,7 @@ public sealed class DeviceCredentialLifecycleEndpointTests
         var enrollment = await EnrollDeviceAsync(factory);
 
         var response = await client.PostAsync(
-            $"/api/devices/{enrollment.DeviceId}/credentials/{enrollment.CredentialId}/revoke",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{enrollment.DeviceId}/credentials/{enrollment.CredentialId}/revoke",
             content: null);
         var revoked = await response.Content.ReadFromJsonAsync<RevokeDeviceCredentialResponse>();
 
@@ -117,7 +117,7 @@ public sealed class DeviceCredentialLifecycleEndpointTests
         var enrollment = await EnrollDeviceAsync(factory);
 
         var response = await client.PostAsync(
-            $"/api/devices/{enrollment.DeviceId}/credentials/{enrollment.CredentialId}/revoke",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{enrollment.DeviceId}/credentials/{enrollment.CredentialId}/revoke",
             content: null);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);

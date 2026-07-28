@@ -21,7 +21,7 @@ public sealed class DeviceEnrollmentAuthorizationTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/device-enrollment-codes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 300));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -36,7 +36,7 @@ public sealed class DeviceEnrollmentAuthorizationTests
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", await SignInAsync(client));
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/device-enrollment-codes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 300));
         var code = await response.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
 
@@ -61,7 +61,7 @@ public sealed class DeviceEnrollmentAuthorizationTests
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", await SignInAsync(client));
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/device-enrollment-codes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 300));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -76,7 +76,7 @@ public sealed class DeviceEnrollmentAuthorizationTests
     private static async Task<string> SignInAsync(HttpClient client)
     {
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "tech@afk4.test", "Passw0rd!"));
         var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
 

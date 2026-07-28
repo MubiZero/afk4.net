@@ -34,7 +34,7 @@ public sealed class OperatorAuthApiClientTests
             CancellationToken.None);
 
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal("/api/auth/staff/sign-in", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/auth/staff/sign-in", handler.LastPathAndQuery);
         Assert.Equal("access-token", tokenStore.SavedSnapshot?.AccessToken);
         Assert.Equal("refresh-token", tokenStore.SavedSnapshot?.RefreshToken);
         Assert.Equal(["operator"], tokenStore.SavedSnapshot?.RoleNames);
@@ -72,7 +72,7 @@ public sealed class OperatorAuthApiClientTests
 
         var result = await client.RefreshAsync("old-refresh-token", CancellationToken.None);
 
-        Assert.Equal("/api/auth/staff/refresh", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/auth/staff/refresh", handler.LastPathAndQuery);
         Assert.Equal("rotated-access-token", tokenStore.SavedSnapshot?.AccessToken);
         Assert.Equal("rotated-refresh-token", tokenStore.SavedSnapshot?.RefreshToken);
         Assert.Contains(OrganizationPermissionNames.ViewShift, result.Permissions);

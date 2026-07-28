@@ -30,10 +30,10 @@ export interface InvoiceDto {
 export function createOrgBillingClient(api: PlatformApiClient) {
   return {
     getSubscription(organizationId: Guid): Promise<TenantSubscriptionDto> {
-      return api.get<TenantSubscriptionDto>(`/api/organizations/${organizationId}/subscription`);
+      return api.get<TenantSubscriptionDto>('subscription');
     },
     listInvoices(organizationId: Guid): Promise<InvoiceDto[]> {
-      return api.get<InvoiceDto[]>(`/api/organizations/${organizationId}/invoices`);
+      return api.get<InvoiceDto[]>('invoices');
     }
   };
 }

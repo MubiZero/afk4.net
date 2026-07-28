@@ -18,10 +18,10 @@ export interface UpdateDcPayLinkConfigRequest {
 export function createDcConfigClient(api: PlatformApiClient) {
   return {
     get(): Promise<DcPayLinkConfigDto> {
-      return api.get<DcPayLinkConfigDto>('/api/owner/dc-config');
+      return api.get<DcPayLinkConfigDto>('payments/dc-config');
     },
     update(request: UpdateDcPayLinkConfigRequest): Promise<DcPayLinkConfigDto> {
-      return api.post<DcPayLinkConfigDto, UpdateDcPayLinkConfigRequest>('/api/owner/dc-config', request);
+      return api.post<DcPayLinkConfigDto, UpdateDcPayLinkConfigRequest>('payments/dc-config', request);
     }
   };
 }

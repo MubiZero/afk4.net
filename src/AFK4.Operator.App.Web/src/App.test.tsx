@@ -171,7 +171,7 @@ describe('App', () => {
     installSessionBridge();
     fetchMock.mockImplementation((input, init) => {
       const pathname = new URL(String(input)).pathname;
-      if (pathname.endsWith('/api/devices/11111111-1111-1111-1111-111111111111')) {
+      if (pathname.endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/11111111-1111-1111-1111-111111111111')) {
         return Promise.resolve(jsonResponse(createDeviceDetail({
           deviceId: '11111111-1111-1111-1111-111111111111',
           machineName: 'PC-01',
@@ -197,7 +197,7 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Блокировать/ }));
     await waitFor(() => expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).endsWith('/api/devices/11111111-1111-1111-1111-111111111111/commands') &&
+      String(input).endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/11111111-1111-1111-1111-111111111111/commands') &&
       init?.method === 'POST' &&
       String(init.body).includes('"type":"lock"'))).toBe(true));
   });
@@ -224,7 +224,7 @@ describe('App', () => {
     installSessionBridge();
     const sessionId = '22222222-2222-2222-2222-222222222222';
     fetchMock.mockImplementation((input, init) => {
-      if (String(input).includes(`/api/sessions/${sessionId}/checkout/quote`)) {
+      if (String(input).includes(`/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/sessions/${sessionId}/checkout/quote`)) {
         return Promise.resolve(jsonResponse({
           sessionId,
           timeCharge: { currencyCode: 'USD', minorUnits: 1500 },
@@ -378,50 +378,6 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
   });
 
-  it('asks to choose a club when the login matches staff in more than one, then signs in to the picked club', async () => {
-    window.__AFK4_OPERATOR_CONFIG__ = {
-      runtime: 'browser-dev',
-      shellMode: 'vite-dev',
-      platformBaseUrl: 'http://localhost:5074/',
-      currencyCode: 'TJS',
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      branchId: 'acfc0212-967f-4d84-94be-9003387b09c2'
-    };
-    installSessionBridge(null);
-    fetchMock.mockImplementation((input, init) => {
-      const pathname = new URL(String(input)).pathname;
-      if (pathname.endsWith('/api/auth/staff/sign-in-by-login') && init?.method === 'POST') {
-        return Promise.resolve(new Response(JSON.stringify({
-          clubs: [
-            { organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08', name: 'AFK4 Dushanbe' },
-            { organizationId: '11111111-1111-1111-1111-111111111111', name: 'AFK4 Khujand' }
-          ]
-        }), { status: 409, headers: { 'Content-Type': 'application/json' } }));
-      }
-      if (pathname.endsWith('/api/auth/staff/sign-in') && init?.method === 'POST') {
-        expect(JSON.parse(String(init.body))).toMatchObject({
-          organizationId: '11111111-1111-1111-1111-111111111111',
-          userName: 'cashier',
-          password: 'password'
-        });
-        return Promise.resolve(jsonResponse(createSession()));
-      }
-      return mockPlatformFetch(input, init);
-    });
-
-    render(<App />);
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Вход по логину или почте' }));
-    fireEvent.change(screen.getByLabelText(/логин или email/i), { target: { value: 'cashier' } });
-    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'password' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
-
-    expect(await screen.findByRole('heading', { name: 'Выберите клуб' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /AFK4 Khujand/ }));
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-  });
-
   it('opens the forgot-password screen from the sign-in link', async () => {
     window.__AFK4_OPERATOR_CONFIG__ = {
       runtime: 'browser-dev',
@@ -483,7 +439,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/api/auth/staff/refresh'))).toBe(false);
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/auth/staff/refresh'))).toBe(false);
   });
 
   it('shows the sign-in screen without error when no session is stored (no native-bridge auth dependency)', async () => {
@@ -656,13 +612,13 @@ describe('App', () => {
     const finishDialog = await screen.findByRole('dialog', { name: 'Завершить и принять оплату' });
     expect(finishDialog).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/sessions/22222222-2222-2222-2222-222222222222/end') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/sessions/22222222-2222-2222-2222-222222222222/end') &&
       init?.method === 'POST')).toBe(false);
     fireEvent.click(await within(finishDialog).findByRole('button', { name: 'Завершить' }));
 
     expect((await screen.findAllByText('Готово')).length).toBeGreaterThan(0);
     const postCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/sessions/22222222-2222-2222-2222-222222222222/end') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/sessions/22222222-2222-2222-2222-222222222222/end') &&
       init?.method === 'POST');
     expect(postCall).toBeDefined();
     const body = JSON.parse(String(postCall?.[1]?.body));
@@ -675,7 +631,7 @@ describe('App', () => {
     const sessionId = '22222222-2222-2222-2222-222222222222';
     fetchMock.mockImplementation((input, init) => {
       const url = String(input);
-      if (url.includes(`/api/sessions/${sessionId}/checkout/quote`)) {
+      if (url.includes(`/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/sessions/${sessionId}/checkout/quote`)) {
         return Promise.resolve(jsonResponse({
           sessionId,
           timeCharge: { currencyCode: 'TJS', minorUnits: 2250 },
@@ -687,7 +643,7 @@ describe('App', () => {
         }));
       }
 
-      if (url.includes(`/api/sessions/${sessionId}/checkout`) && init?.method === 'POST') {
+      if (url.includes(`/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/sessions/${sessionId}/checkout`) && init?.method === 'POST') {
         return Promise.resolve(jsonResponse({
           idempotencyKey: 'session-checkout-001',
           sessionId,
@@ -725,7 +681,7 @@ describe('App', () => {
 
     await waitFor(() => {
       const postCall = fetchMock.mock.calls.find(([input, init]) =>
-        String(input).includes(`/api/sessions/${sessionId}/checkout`) &&
+        String(input).includes(`/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/sessions/${sessionId}/checkout`) &&
         !String(input).includes('/quote') &&
         init?.method === 'POST');
       expect(postCall).toBeDefined();
@@ -851,7 +807,7 @@ describe('App', () => {
           return Promise.resolve(new Response('Platform API returned 401 Unauthorized:', { status: 401 }));
         }
       }
-      if (pathname.endsWith('/api/auth/staff/refresh') && init?.method === 'POST') {
+      if (pathname.endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/auth/staff/refresh') && init?.method === 'POST') {
         // Транзиентный сбой бэка (не auth-специфичный) на refresh, вызванном 401-ом карты —
         // сохранённая сессия ещё может быть годной, стирать её нельзя (см. IMP-1 выше).
         return Promise.resolve(new Response(JSON.stringify({ error: 'internal_error' }), { status: 500 }));
@@ -915,7 +871,7 @@ describe('App', () => {
 
     expect((await screen.findAllByText('Готово')).length).toBeGreaterThan(0);
     const postCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/sessions/start') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/sessions/start') &&
       init?.method === 'POST');
     expect(postCall).toBeDefined();
     const body = JSON.parse(String(postCall?.[1]?.body));
@@ -980,7 +936,7 @@ describe('App', () => {
 
     expect((await screen.findAllByText('Готово')).length).toBeGreaterThan(0);
     const postCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/sessions/start') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/sessions/start') &&
       init?.method === 'POST');
     expect(postCall).toBeDefined();
     const body = JSON.parse(String(postCall?.[1]?.body));
@@ -994,7 +950,7 @@ describe('App', () => {
       tariffVersionId: '17171717-1717-1717-1717-171717171717'
     });
     expect(fetchMock.mock.calls.some(([input]) =>
-      String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/commands/44444444-4444-4444-4444-444444444444/status'))).toBe(true);
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/33333333-3333-3333-3333-333333333333/commands/44444444-4444-4444-4444-444444444444/status'))).toBe(true);
   });
 
   it('hides unauthorized workspaces and disables selected-seat actions', async () => {
@@ -1209,7 +1165,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Применить фильтр' }));
 
     expect(await screen.findByText('Применить фильтр: подтверждено')).toBeInTheDocument();
-    const auditCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/audit'));
+    const auditCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/audit'));
     const auditCall = auditCalls[auditCalls.length - 1];
     expect(auditCall).toBeDefined();
     const url = new URL(String(auditCall[0]));
@@ -1224,7 +1180,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сегодня' }));
 
     expect(await screen.findByText('Сегодня: подтверждено')).toBeInTheDocument();
-    const presetCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/audit'));
+    const presetCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/audit'));
     const presetUrl = new URL(String(presetCalls[presetCalls.length - 1][0]));
     const expectedFromUtc = new Date(Date.UTC(beforePreset.getUTCFullYear(), beforePreset.getUTCMonth(), beforePreset.getUTCDate())).toISOString();
     expect(presetUrl.searchParams.get('fromUtc')).toBe(expectedFromUtc);
@@ -1419,7 +1375,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Оплата: подтверждено')).toBeInTheDocument();
     const saleCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/sales') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/sales') &&
       init?.method === 'POST');
     expect(saleCall).toBeDefined();
     const saleBody = JSON.parse(String(saleCall?.[1]?.body));
@@ -1429,7 +1385,7 @@ describe('App', () => {
       playerAccountId: null
     });
     const paymentCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/settlements') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/pos/sales/99999999-9999-9999-9999-999999999999/settlements') &&
       init?.method === 'POST');
     expect(paymentCall).toBeDefined();
     const paymentBody = JSON.parse(String(paymentCall?.[1]?.body));
@@ -1463,7 +1419,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Оплата: подтверждено')).toBeInTheDocument();
     const saleCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/sales') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/sales') &&
       init?.method === 'POST');
     expect(saleCall).toBeDefined();
     const saleBody = JSON.parse(String(saleCall?.[1]?.body));
@@ -1474,7 +1430,7 @@ describe('App', () => {
     });
 
     const paymentCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/pos/sales/99999999-9999-9999-9999-999999999999/settlements') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/pos/sales/99999999-9999-9999-9999-999999999999/settlements') &&
       init?.method === 'POST');
     expect(paymentCall).toBeDefined();
     const paymentBody = JSON.parse(String(paymentCall?.[1]?.body));
@@ -1510,7 +1466,7 @@ describe('App', () => {
 
     const openCall = await waitFor(() => {
       const call = fetchMock.mock.calls.find(([input, init]) =>
-        String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/shifts/open') && init?.method === 'POST');
+        String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/shifts/open') && init?.method === 'POST');
       expect(call).toBeDefined();
       return call!;
     });
@@ -1666,7 +1622,7 @@ describe('App', () => {
 
     // Закрытие ещё не произошло — кнопка submit внутри модалки.
     expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/shifts/66666666-6666-6666-6666-666666666666/close') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/shifts/66666666-6666-6666-6666-666666666666/close') &&
       init?.method === 'POST')).toBe(false);
     const revenueCallsBeforeClose = fetchMock.mock.calls.filter(([input]) =>
       String(input).includes('/shifts/revenue/current')).length;
@@ -1674,7 +1630,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Закрыть смену: подтверждено')).toBeInTheDocument();
     const closeCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/shifts/66666666-6666-6666-6666-666666666666/close') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/shifts/66666666-6666-6666-6666-666666666666/close') &&
       init?.method === 'POST');
     expect(closeCall).toBeDefined();
     const body = JSON.parse(String(closeCall?.[1]?.body));
@@ -1713,7 +1669,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Внесение наличных: подтверждено')).toBeInTheDocument();
     const movementCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/shifts/66666666-6666-6666-6666-666666666666/cash-movements') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/shifts/66666666-6666-6666-6666-666666666666/cash-movements') &&
       init?.method === 'POST');
     expect(movementCall).toBeDefined();
     const body = JSON.parse(String(movementCall?.[1]?.body));
@@ -1749,7 +1705,7 @@ describe('App', () => {
     fireEvent.click(within(createDrawer).getByRole('button', { name: 'Создать бронь' }));
     expect(await screen.findByText('Создать бронь: подтверждено')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/reservations') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/reservations') &&
       init?.method === 'POST')).toBe(true);
 
     // Отмена: клик по блоку брони открывает drawer детали → кнопка «Отменить» → бэкенд-вызов.
@@ -1772,7 +1728,7 @@ describe('App', () => {
     // Сначала убедиться, что бэкенд-вызов отмены реально произошёл, потом проверять текст.
     await waitFor(() => {
       expect(fetchMock.mock.calls.some(([input, init]) =>
-        String(input).includes('/api/reservations/99999999-9999-9999-9999-999999999999/cancel') &&
+        String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/reservations/99999999-9999-9999-9999-999999999999/cancel') &&
         init?.method === 'POST')).toBe(true);
     });
     expect(await screen.findByText('Отменить бронь: подтверждено')).toBeInTheDocument();
@@ -1828,7 +1784,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Создать бронь: подтверждено')).toBeInTheDocument();
     const reservationCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/reservations') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/reservations') &&
       init?.method === 'POST');
     expect(reservationCall).toBeDefined();
     const body = JSON.parse(String(reservationCall?.[1]?.body));
@@ -1871,7 +1827,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Пополнить депозит: подтверждено')).toBeInTheDocument();
     const topUpCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/wallet/top-ups') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/12121212-1212-1212-1212-121212121212/wallet/top-ups') &&
       init?.method === 'POST');
     expect(topUpCall).toBeDefined();
     const body = JSON.parse(String(topUpCall?.[1]?.body));
@@ -1905,7 +1861,7 @@ describe('App', () => {
     // модалка закрывается сама на успехе
     expect(screen.queryByRole('dialog', { name: 'Погасить долг' })).toBeNull();
     const debtCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/players/34343434-3434-3434-3434-343434343434/debts/payments') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/34343434-3434-3434-3434-343434343434/debts/payments') &&
       init?.method === 'POST');
     expect(debtCall).toBeDefined();
     const body = JSON.parse(String(debtCall?.[1]?.body));
@@ -1933,7 +1889,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Пополнить депозит: подтверждено')).toBeInTheDocument();
     const topUpCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/wallet/top-ups') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/12121212-1212-1212-1212-121212121212/wallet/top-ups') &&
       init?.method === 'POST');
     expect(topUpCall).toBeDefined();
     const body = JSON.parse(String(topUpCall?.[1]?.body));
@@ -1963,7 +1919,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Списать долг: подтверждено')).toBeInTheDocument();
     const debtCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/players/34343434-3434-3434-3434-343434343434/debts/payments') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/34343434-3434-3434-3434-343434343434/debts/payments') &&
       init?.method === 'POST');
     expect(debtCall).toBeDefined();
     const body = JSON.parse(String(debtCall?.[1]?.body));
@@ -1986,7 +1942,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Новая карта: подтверждено')).toBeInTheDocument();
     const createPlayerCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/players') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/players') &&
       init?.method === 'POST');
     expect(createPlayerCall).toBeDefined();
     const body = JSON.parse(String(createPlayerCall?.[1]?.body));
@@ -2010,7 +1966,7 @@ describe('App', () => {
     // Журнал грузится сразу для выбранного клиента (drawer показывает мини-историю); источник — /ledger,
     // не recentEntries из wallet-summary.
     await waitFor(() => expect(fetchMock.mock.calls.some(([input]) =>
-      String(input).includes('/api/players/12121212-1212-1212-1212-121212121212/ledger'))).toBe(true));
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/12121212-1212-1212-1212-121212121212/ledger'))).toBe(true));
 
     // «Вся история →» открывает модалку с полным фильтруемым журналом (описание видно, non-compact).
     fireEvent.click(await screen.findByRole('button', { name: /Вся история/ }));
@@ -2044,7 +2000,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Пригласить сотрудника: подтверждено')).toBeInTheDocument();
     const inviteCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/invites') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/invites') &&
       init?.method === 'POST');
     expect(inviteCall).toBeDefined();
     const body = JSON.parse(String(inviteCall?.[1]?.body));
@@ -2077,7 +2033,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Обновить роль: подтверждено')).toBeInTheDocument();
     const roleCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/roles') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/roles') &&
       init?.method === 'PATCH');
     expect(roleCall).toBeDefined();
     const body = JSON.parse(String(roleCall?.[1]?.body));
@@ -2108,7 +2064,7 @@ describe('App', () => {
     expect(await screen.findByText('Обновить профиль сотрудника: подтверждено')).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: /Кассир смены/ })).toBeInTheDocument();
     const profileCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/profile') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/profile') &&
       init?.method === 'PATCH');
     expect(profileCall).toBeDefined();
     const body = JSON.parse(String(profileCall?.[1]?.body));
@@ -2137,7 +2093,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Отключить сотрудника: подтверждено')).toBeInTheDocument();
     const stateCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/state') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/state') &&
       init?.method === 'PATCH');
     expect(stateCall).toBeDefined();
     const body = JSON.parse(String(stateCall?.[1]?.body));
@@ -2166,7 +2122,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Сбросить пароль: подтверждено')).toBeInTheDocument();
     const resetCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/password-reset') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/password-reset') &&
       init?.method === 'POST');
     expect(resetCall).toBeDefined();
     const body = JSON.parse(String(resetCall?.[1]?.body));
@@ -2214,7 +2170,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Профиль клуба: подтверждено')).toBeInTheDocument();
     const profileCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/profile') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/profile') &&
       init?.method === 'PATCH');
     expect(profileCall).toBeDefined();
     const body = JSON.parse(String(profileCall?.[1]?.body));
@@ -2244,7 +2200,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Добавить зал: подтверждено')).toBeInTheDocument();
     const zoneCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/zones') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/zones') &&
       init?.method === 'POST');
     expect(zoneCall).toBeDefined();
     expect(JSON.parse(String(zoneCall?.[1]?.body))).toMatchObject({
@@ -2259,7 +2215,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Добавить ПК: подтверждено')).toBeInTheDocument();
     const seatCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats') &&
       init?.method === 'POST');
     expect(seatCall).toBeDefined();
     expect(JSON.parse(String(seatCall?.[1]?.body))).toMatchObject({
@@ -2290,7 +2246,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Обновить зал: подтверждено')).toBeInTheDocument();
     const zoneCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb') &&
       init?.method === 'PATCH');
     expect(zoneCall).toBeDefined();
     expect(JSON.parse(String(zoneCall?.[1]?.body))).toMatchObject({
@@ -2306,7 +2262,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Обновить ПК: подтверждено')).toBeInTheDocument();
     const seatCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') &&
       init?.method === 'PATCH');
     expect(seatCall).toBeDefined();
     expect(JSON.parse(String(seatCall?.[1]?.body))).toMatchObject({
@@ -2335,13 +2291,13 @@ describe('App', () => {
 
     const seatDeleteDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите удаление ПК' });
     expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') &&
       init?.method === 'DELETE')).toBe(false);
     fireEvent.click(within(seatDeleteDialog).getByRole('button', { name: 'Подтвердить удаление ПК' }));
 
     expect(await screen.findByText('Удалить ПК: подтверждено')).toBeInTheDocument();
     const seatDeleteCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?organizationId=0c04d6c0-bfa8-4e26-9263-fc0d307d0f08') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?organizationId=0c04d6c0-bfa8-4e26-9263-fc0d307d0f08') &&
       init?.method === 'DELETE');
     expect(seatDeleteCall).toBeDefined();
 
@@ -2350,13 +2306,13 @@ describe('App', () => {
 
     const zoneDeleteDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите удаление зала' });
     expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb') &&
       init?.method === 'DELETE')).toBe(false);
     fireEvent.click(within(zoneDeleteDialog).getByRole('button', { name: 'Подтвердить удаление зала' }));
 
     expect(await screen.findByText('Удалить зал: подтверждено')).toBeInTheDocument();
     const zoneDeleteCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb?organizationId=0c04d6c0-bfa8-4e26-9263-fc0d307d0f08') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb?organizationId=0c04d6c0-bfa8-4e26-9263-fc0d307d0f08') &&
       init?.method === 'DELETE');
     expect(zoneDeleteCall).toBeDefined();
   });
@@ -2382,7 +2338,7 @@ describe('App', () => {
     expect(await screen.findByText('Создать код подключения: подтверждено')).toBeInTheDocument();
     expect(screen.getByDisplayValue('AFK4-DEVICE-1234')).toBeInTheDocument();
     const enrollmentCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/device-enrollment-codes') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/device-enrollment-codes') &&
       init?.method === 'POST');
     expect(enrollmentCall).toBeDefined();
     expect(JSON.parse(String(enrollmentCall?.[1]?.body))).toMatchObject({
@@ -2395,7 +2351,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Назначить устройство: подтверждено')).toBeInTheDocument();
     const assignmentCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/devices/33333333-3333-3333-3333-333333333333/seat-assignment') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/devices/33333333-3333-3333-3333-333333333333/seat-assignment') &&
       init?.method === 'POST');
     expect(assignmentCall).toBeDefined();
     expect(JSON.parse(String(assignmentCall?.[1]?.body))).toMatchObject({
@@ -2403,7 +2359,7 @@ describe('App', () => {
       seatId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
     });
     expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/33333333-3333-3333-3333-333333333333') &&
       init?.method === 'GET')).toBe(true);
     expect(screen.getByDisplayValue('PC-02 · PC-01')).toBeInTheDocument();
     expect(screen.getByText('Агент')).toBeInTheDocument();
@@ -2411,7 +2367,7 @@ describe('App', () => {
     expect(screen.getByText('не выполнена')).toBeInTheDocument();
     expect(screen.getAllByText('Агент не ответил').length).toBeGreaterThan(0);
     expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/commands?limit=25') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/33333333-3333-3333-3333-333333333333/commands?limit=25') &&
       init?.method === 'GET')).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: 'Выдать новый ключ' }));
@@ -2420,19 +2376,19 @@ describe('App', () => {
     expect(screen.getByDisplayValue('создан')).toBeInTheDocument();
     expect(screen.getByDisplayValue('device-secret-after-rotation')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/credentials/rotate') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/33333333-3333-3333-3333-333333333333/credentials/rotate') &&
       init?.method === 'POST')).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: 'Отозвать ключ' }));
     const revokeDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите отзыв ключа' });
     expect(revokeDialog).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/credentials/23232323-2323-2323-2323-232323232323/revoke') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/33333333-3333-3333-3333-333333333333/credentials/23232323-2323-2323-2323-232323232323/revoke') &&
       init?.method === 'POST')).toBe(false);
     fireEvent.click(within(revokeDialog).getByRole('button', { name: 'Отозвать ключ' }));
     expect(await screen.findByText('Отозвать ключ: подтверждено')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/credentials/23232323-2323-2323-2323-232323232323/revoke') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/33333333-3333-3333-3333-333333333333/credentials/23232323-2323-2323-2323-232323232323/revoke') &&
       init?.method === 'POST')).toBe(true);
   });
 
@@ -2455,7 +2411,7 @@ describe('App', () => {
     expect(within(branchHistory).getByText('PC-03')).toBeInTheDocument();
     expect(within(branchHistory).getByText(/Обновление сессии/)).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/device-commands?limit=50') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/device-commands?limit=50') &&
       init?.method === 'GET')).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Обновить историю команд' }));
     expect(await screen.findByText('Обновить историю команд: подтверждено')).toBeInTheDocument();
@@ -2471,13 +2427,13 @@ describe('App', () => {
     expect(await screen.findByText('Открыть карточку устройства: подтверждено')).toBeInTheDocument();
     expect(screen.getByDisplayValue('PC-03 · PC-01')).toBeInTheDocument();
     expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/devices') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/devices') &&
       init?.method === 'GET')).toBe(true);
     expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/devices/44444444-4444-4444-8444-444444444444') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/44444444-4444-4444-8444-444444444444') &&
       init?.method === 'GET')).toBe(true);
     expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/devices/44444444-4444-4444-8444-444444444444/commands?limit=25') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/44444444-4444-4444-8444-444444444444/commands?limit=25') &&
       init?.method === 'GET')).toBe(true);
   });
 
@@ -2501,7 +2457,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Отправить команду: подтверждено')).toBeInTheDocument();
     const commandCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/devices/33333333-3333-3333-3333-333333333333/commands') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/33333333-3333-3333-3333-333333333333/commands') &&
       init?.method === 'POST');
     expect(commandCall).toBeDefined();
     expect(JSON.parse(String(commandCall?.[1]?.body))).toMatchObject({
@@ -2533,7 +2489,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Создать товар: подтверждено')).toBeInTheDocument();
     const categoryCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/categories') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/categories') &&
       init?.method === 'POST');
     expect(categoryCall).toBeDefined();
     const categoryBody = JSON.parse(String(categoryCall?.[1]?.body));
@@ -2544,7 +2500,7 @@ describe('App', () => {
     expect(categoryBody.idempotencyKey).toMatch(/^pos-category-create-/);
 
     const productCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/products') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/products') &&
       init?.method === 'POST');
     expect(productCall).toBeDefined();
     const productBody = JSON.parse(String(productCall?.[1]?.body));
@@ -2582,7 +2538,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Обновить товар: подтверждено')).toBeInTheDocument();
     const updateCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/products/77777777-7777-7777-7777-777777777777') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/products/77777777-7777-7777-7777-777777777777') &&
       init?.method === 'PATCH');
     expect(updateCall).toBeDefined();
     const updateBody = JSON.parse(String(updateCall?.[1]?.body));
@@ -2600,7 +2556,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Снять с продажи' }));
     expect(await screen.findByText('Снять с продажи: подтверждено')).toBeInTheDocument();
     const deactivateCall = fetchMock.mock.calls.filter(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/products/77777777-7777-7777-7777-777777777777') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/products/77777777-7777-7777-7777-777777777777') &&
       init?.method === 'PATCH').at(-1);
     expect(deactivateCall).toBeDefined();
     const deactivateBody = JSON.parse(String(deactivateCall?.[1]?.body));
@@ -2636,7 +2592,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Записать движение: подтверждено')).toBeInTheDocument();
     const stockCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/inventory/stock-movements') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/inventory/stock-movements') &&
       init?.method === 'POST');
     expect(stockCall).toBeDefined();
     const body = JSON.parse(String(stockCall?.[1]?.body));
@@ -2673,7 +2629,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Создать пакет: подтверждено')).toBeInTheDocument();
     const packageCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/packages') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/packages') &&
       init?.method === 'POST');
     expect(packageCall).toBeDefined();
     const body = JSON.parse(String(packageCall?.[1]?.body));
@@ -2711,7 +2667,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Обновить пакет: подтверждено')).toBeInTheDocument();
     const updateCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/packages/abababab-abab-abab-abab-abababababab') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/packages/abababab-abab-abab-abab-abababababab') &&
       init?.method === 'PATCH');
     expect(updateCall).toBeDefined();
     const updateBody = JSON.parse(String(updateCall?.[1]?.body));
@@ -2728,7 +2684,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Снять пакет' }));
     expect(await screen.findByText('Снять пакет: подтверждено')).toBeInTheDocument();
     const deactivateCall = fetchMock.mock.calls.filter(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/packages/abababab-abab-abab-abab-abababababab') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/packages/abababab-abab-abab-abab-abababababab') &&
       init?.method === 'PATCH').at(-1);
     expect(deactivateCall).toBeDefined();
     const deactivateBody = JSON.parse(String(deactivateCall?.[1]?.body));
@@ -2761,7 +2717,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Создать тариф: подтверждено')).toBeInTheDocument();
     const tariffCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).endsWith('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs') &&
+      String(input).endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs') &&
       init?.method === 'POST');
     expect(tariffCall).toBeDefined();
     const tariffBody = JSON.parse(String(tariffCall?.[1]?.body));
@@ -2772,7 +2728,7 @@ describe('App', () => {
     expect(tariffBody.idempotencyKey).toMatch(/^tariff-create-/);
 
     const versionCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs/25252525-2525-2525-2525-252525252525/versions') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs/25252525-2525-2525-2525-252525252525/versions') &&
       init?.method === 'POST');
     expect(versionCall).toBeDefined();
     const versionBody = JSON.parse(String(versionCall?.[1]?.body));
@@ -2810,7 +2766,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Обновить тариф: подтверждено')).toBeInTheDocument();
     const tariffCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs/16161616-1616-1616-1616-161616161616') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs/16161616-1616-1616-1616-161616161616') &&
       !String(input).includes('/versions/') &&
       init?.method === 'PATCH');
     expect(tariffCall).toBeDefined();
@@ -2822,7 +2778,7 @@ describe('App', () => {
     });
 
     const versionCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs/16161616-1616-1616-1616-161616161616/versions/17171717-1717-1717-1717-171717171717') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs/16161616-1616-1616-1616-161616161616/versions/17171717-1717-1717-1717-171717171717') &&
       init?.method === 'PATCH');
     expect(versionCall).toBeDefined();
     const versionBody = JSON.parse(String(versionCall?.[1]?.body));
@@ -2838,7 +2794,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Снять тариф' }));
     expect(await screen.findByText('Снять тариф: подтверждено')).toBeInTheDocument();
     const deactivateCall = fetchMock.mock.calls.filter(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs/16161616-1616-1616-1616-161616161616/versions/17171717-1717-1717-1717-171717171717') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs/16161616-1616-1616-1616-161616161616/versions/17171717-1717-1717-1717-171717171717') &&
       init?.method === 'PATCH').at(-1);
     expect(deactivateCall).toBeDefined();
     const deactivateBody = JSON.parse(String(deactivateCall?.[1]?.body));
@@ -2869,7 +2825,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Добавить пакет обновления: подтверждено')).toBeInTheDocument();
     const packageCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages') &&
       init?.method === 'POST');
     expect(packageCall).toBeDefined();
     const packageBody = JSON.parse(String(packageCall?.[1]?.body));
@@ -2893,7 +2849,7 @@ describe('App', () => {
 
     expect(await screen.findByText('Создать публикацию обновления: подтверждено')).toBeInTheDocument();
     const rolloutCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts') &&
       init?.method === 'POST');
     expect(rolloutCall).toBeDefined();
     const rolloutBody = JSON.parse(String(rolloutCall?.[1]?.body));
@@ -2931,13 +2887,13 @@ describe('App', () => {
 
     const packageStateDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите состояние пакета' });
     expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages/15151515-1515-1515-1515-151515151515/state') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages/15151515-1515-1515-1515-151515151515/state') &&
       init?.method === 'POST')).toBe(false);
     fireEvent.click(within(packageStateDialog).getByRole('button', { name: 'Подтвердить состояние пакета' }));
 
     expect(await screen.findByText('Изменить состояние пакета: подтверждено')).toBeInTheDocument();
     const packageStateCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages/15151515-1515-1515-1515-151515151515/state') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages/15151515-1515-1515-1515-151515151515/state') &&
       init?.method === 'POST');
     expect(packageStateCall).toBeDefined();
     const packageStateBody = JSON.parse(String(packageStateCall?.[1]?.body));
@@ -2953,13 +2909,13 @@ describe('App', () => {
 
     const rolloutStateDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите состояние публикации' });
     expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts/14141414-1414-1414-1414-141414141414/state') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts/14141414-1414-1414-1414-141414141414/state') &&
       init?.method === 'POST')).toBe(false);
     fireEvent.click(within(rolloutStateDialog).getByRole('button', { name: 'Подтвердить состояние публикации' }));
 
     expect(await screen.findByText('Изменить состояние публикации: подтверждено')).toBeInTheDocument();
     const rolloutStateCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts/14141414-1414-1414-1414-141414141414/state') &&
+      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts/14141414-1414-1414-1414-141414141414/state') &&
       init?.method === 'POST');
     expect(rolloutStateCall).toBeDefined();
     const rolloutStateBody = JSON.parse(String(rolloutStateCall?.[1]?.body));
@@ -3113,7 +3069,7 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
   const url = new URL(String(input));
   const pathname = url.pathname;
 
-  if (pathname.endsWith('/api/auth/staff/refresh') && init?.method === 'POST') {
+  if (pathname.endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/auth/staff/refresh') && init?.method === 'POST') {
     if (authRefreshOverride?.kind === 'reject') {
       return new Response('Platform API returned 401 Unauthorized:', { status: 401 });
     }
@@ -3130,7 +3086,7 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(stored ? JSON.parse(stored) : createSession());
   }
 
-  if ((pathname.endsWith('/api/auth/staff/sign-in-by-login') || pathname.endsWith('/api/auth/staff/sign-in'))
+  if ((pathname.endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/auth/staff/sign-in-by-login') || pathname.endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/auth/staff/sign-in'))
     && init?.method === 'POST') {
     return jsonResponse(createSession());
   }
@@ -3171,7 +3127,7 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createDeviceCommandHistory());
   }
 
-  if (pathname.endsWith('/device-commands') && pathname.includes('/api/branches/') && init?.method !== 'POST') {
+  if (pathname.endsWith('/device-commands') && pathname.includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/') && init?.method !== 'POST') {
     return jsonResponse(createBranchDeviceCommandHistory());
   }
 
@@ -3503,11 +3459,11 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     }));
   }
 
-  if (pathname.endsWith('/devices') && pathname.includes('/api/branches/') && init?.method !== 'POST') {
+  if (pathname.endsWith('/devices') && pathname.includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/') && init?.method !== 'POST') {
     return jsonResponse(createDeviceInventory());
   }
 
-  if (pathname.includes('/api/devices/') && !pathname.includes('/commands') && init?.method !== 'POST') {
+  if (pathname.includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/') && !pathname.includes('/commands') && init?.method !== 'POST') {
     const parts = pathname.split('/');
     const deviceId = parts[parts.length - 1];
     return jsonResponse(createDeviceDetail({
@@ -3597,7 +3553,7 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
     return jsonResponse(createAudit());
   }
 
-  if (pathname.endsWith('/api/owner/loyalty-settings')) {
+  if (pathname.endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/loyalty-settings')) {
     if (init?.method === 'POST') {
       return jsonResponse(JSON.parse(String(init.body)));
     }

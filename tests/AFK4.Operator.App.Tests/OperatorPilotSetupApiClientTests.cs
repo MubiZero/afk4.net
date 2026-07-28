@@ -37,7 +37,7 @@ public sealed class OperatorPilotSetupApiClientTests
 
         Assert.Single(staffUsers);
         Assert.Equal(HttpMethod.Get, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/staff", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/staff", handler.LastPathAndQuery);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
     }
 
@@ -57,7 +57,7 @@ public sealed class OperatorPilotSetupApiClientTests
 
         Assert.Equal("pilot-invite-code", invite.Code);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/staff/invites", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/staff/invites", handler.LastPathAndQuery);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
 
         var body = DeserializeRequest<CreateStaffInviteRequest>(handler.LastRequestBody);
@@ -98,15 +98,15 @@ public sealed class OperatorPilotSetupApiClientTests
 
         Assert.Single(zones);
         Assert.Equal(HttpMethod.Get, zonesMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/layout/zones", zonesPath);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/layout/zones", zonesPath);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), zonesAuthorization);
         Assert.Equal(ZoneId, zone.ZoneId);
         Assert.Equal(HttpMethod.Post, createZoneMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/layout/zones", createZonePath);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/layout/zones", createZonePath);
         Assert.Equal("Main Hall", createZoneBody.Name);
         Assert.Equal(SeatId, seat.SeatId);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/layout/seats", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/layout/seats", handler.LastPathAndQuery);
 
         var createSeatBody = DeserializeRequest<CreateSeatRequest>(handler.LastRequestBody);
         Assert.Equal(ZoneId, createSeatBody.ZoneId);
@@ -149,12 +149,12 @@ public sealed class OperatorPilotSetupApiClientTests
 
         Assert.Equal(TariffId, tariff.TariffId);
         Assert.Equal(HttpMethod.Post, tariffMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/tariffs", tariffPath);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/tariffs", tariffPath);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), tariffAuthorization);
         Assert.Equal("tariff-create-001", tariffBody.IdempotencyKey);
         Assert.Equal(TariffVersionId, version.TariffVersionId);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/tariffs/{TariffId:D}/versions", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/tariffs/{TariffId:D}/versions", handler.LastPathAndQuery);
 
         var versionBody = DeserializeRequest<CreateTariffVersionRequest>(handler.LastRequestBody);
         Assert.Equal("USD", versionBody.CurrencyCode);
@@ -196,12 +196,12 @@ public sealed class OperatorPilotSetupApiClientTests
 
         Assert.Equal(CategoryId, category.CategoryId);
         Assert.Equal(HttpMethod.Post, categoryMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/pos/categories", categoryPath);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/pos/categories", categoryPath);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), categoryAuthorization);
         Assert.Equal("category-create-001", categoryBody.IdempotencyKey);
         Assert.Equal(ProductId, product.ProductId);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/pos/products", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/pos/products", handler.LastPathAndQuery);
 
         var productBody = DeserializeRequest<CreateProductRequest>(handler.LastRequestBody);
         Assert.Equal("COLA-05", productBody.Sku);
@@ -222,7 +222,7 @@ public sealed class OperatorPilotSetupApiClientTests
 
         Assert.Equal(DeviceSeatAssignmentId, assignment.DeviceSeatAssignmentId);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/devices/{DeviceId:D}/seat-assignment", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/devices/{DeviceId:D}/seat-assignment", handler.LastPathAndQuery);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
 
         var body = DeserializeRequest<AssignDeviceSeatRequest>(handler.LastRequestBody);

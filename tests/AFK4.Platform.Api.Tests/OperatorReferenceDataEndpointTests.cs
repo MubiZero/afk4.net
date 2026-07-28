@@ -28,7 +28,7 @@ public sealed class OperatorReferenceDataEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedPlayersAsync(factory);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/players?query=Alex&limit=20");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/players?query=Alex&limit=20");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var body = await response.Content.ReadFromJsonAsync<IReadOnlyList<PlayerSearchResultDto>>();
@@ -54,7 +54,7 @@ public sealed class OperatorReferenceDataEndpointTests
         var latestSessionActivity = await SeedSessionsAsync(factory);
 
         var response = await client.GetAsync(
-            $"/api/branches/{TestIds.BranchId:D}/players?query=Alex&limit=20&includeInactive=true");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/players?query=Alex&limit=20&includeInactive=true");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var body = await response.Content.ReadFromJsonAsync<IReadOnlyList<PlayerSearchResultDto>>();
@@ -75,7 +75,7 @@ public sealed class OperatorReferenceDataEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedActivePackagePlayersAsync(factory);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/players?query=PackageHolder&limit=20");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/players?query=PackageHolder&limit=20");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var body = await response.Content.ReadFromJsonAsync<IReadOnlyList<PlayerSearchResultDto>>();
@@ -103,7 +103,7 @@ public sealed class OperatorReferenceDataEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var activeVersion = await SeedTariffsAsync(factory);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/tariffs/options");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/tariffs/options");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var body = await response.Content.ReadFromJsonAsync<IReadOnlyList<TariffOptionDto>>();
@@ -125,7 +125,7 @@ public sealed class OperatorReferenceDataEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var activePackage = await SeedPackagesAsync(factory);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/packages/options");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/packages/options");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var body = await response.Content.ReadFromJsonAsync<IReadOnlyList<PackageOptionDto>>();
@@ -149,9 +149,9 @@ public sealed class OperatorReferenceDataEndpointTests
 
         var endpointCases = new[]
         {
-            new EndpointCase($"/api/branches/{TestIds.BranchId:D}/players?query=Alex&limit=20", AuditActionNames.ViewPlayers),
-            new EndpointCase($"/api/branches/{TestIds.BranchId:D}/tariffs/options", AuditActionNames.ViewTariffs),
-            new EndpointCase($"/api/branches/{TestIds.BranchId:D}/packages/options", AuditActionNames.ViewPackages)
+            new EndpointCase($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/players?query=Alex&limit=20", AuditActionNames.ViewPlayers),
+            new EndpointCase($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/tariffs/options", AuditActionNames.ViewTariffs),
+            new EndpointCase($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/packages/options", AuditActionNames.ViewPackages)
         };
 
         foreach (var endpoint in endpointCases)

@@ -41,9 +41,9 @@ describe('createPlayerClient', () => {
     });
 
     expect(calls.map((c) => `${c.method} ${c.path}`)).toEqual([
-      `GET /api/players/${playerId}/wallet-summary`,
-      `POST /api/players/${playerId}/wallet/top-ups`,
-      `POST /api/players/${playerId}/debts/payments`
+      `GET players/${playerId}/wallet-summary`,
+      `POST players/${playerId}/wallet/top-ups`,
+      `POST players/${playerId}/debts/payments`
     ]);
     expect(calls[1].body).toMatchObject({ reason: 'Касса', amount: { minorUnits: 10000 } });
   });
@@ -55,7 +55,7 @@ describe('createPlayerClient', () => {
     await client.getLedger(playerId, { entryType: 'top_up', cursor: 'cur-123', limit: 50 });
 
     expect(calls[0].method).toBe('GET');
-    expect(calls[0].path).toBe(`/api/players/${playerId}/ledger`);
+    expect(calls[0].path).toBe(`players/${playerId}/ledger`);
     // cursor → query-параметр `before`; пустые поля не отправляются.
     expect(calls[0].query).toEqual({ entryType: 'top_up', before: 'cur-123', limit: 50 });
   });

@@ -21,16 +21,16 @@ public sealed class ReportEndpointTests
     private static readonly DateTimeOffset ReportDay = DateTimeOffset.Parse("2026-05-14T00:00:00Z");
 
     [Theory]
-    [InlineData("/api/branches/{0}/reports/shifts")]
-    [InlineData("/api/branches/{0}/reports/sales")]
-    [InlineData("/api/branches/{0}/reports/gameplay-time")]
-    [InlineData("/api/branches/{0}/reports/cash-operations")]
-    [InlineData("/api/branches/{0}/reports/operator-actions")]
-    [InlineData("/api/branches/{0}/reports/shifts/export.csv")]
-    [InlineData("/api/branches/{0}/reports/sales/export.csv")]
-    [InlineData("/api/branches/{0}/reports/gameplay-time/export.csv")]
-    [InlineData("/api/branches/{0}/reports/cash-operations/export.csv")]
-    [InlineData("/api/branches/{0}/reports/operator-actions/export.csv")]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/shifts")]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/sales")]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/gameplay-time")]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/cash-operations")]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/operator-actions")]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/shifts/export.csv")]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/sales/export.csv")]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/gameplay-time/export.csv")]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/cash-operations/export.csv")]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/operator-actions/export.csv")]
     public async Task GetReport_WithoutStaffToken_ReturnsUnauthorized(string routeTemplate)
     {
         await using var factory = new PlatformApiFactory();
@@ -42,16 +42,16 @@ public sealed class ReportEndpointTests
     }
 
     [Theory]
-    [InlineData("/api/branches/{0}/reports/shifts", AuditActionNames.ViewShiftReport)]
-    [InlineData("/api/branches/{0}/reports/sales", AuditActionNames.ViewSalesReport)]
-    [InlineData("/api/branches/{0}/reports/gameplay-time", AuditActionNames.ViewGameplayTimeReport)]
-    [InlineData("/api/branches/{0}/reports/cash-operations", AuditActionNames.ViewCashOperationReport)]
-    [InlineData("/api/branches/{0}/reports/operator-actions", AuditActionNames.ViewOperatorActionReport)]
-    [InlineData("/api/branches/{0}/reports/shifts/export.csv", AuditActionNames.ViewShiftReport)]
-    [InlineData("/api/branches/{0}/reports/sales/export.csv", AuditActionNames.ViewSalesReport)]
-    [InlineData("/api/branches/{0}/reports/gameplay-time/export.csv", AuditActionNames.ViewGameplayTimeReport)]
-    [InlineData("/api/branches/{0}/reports/cash-operations/export.csv", AuditActionNames.ViewCashOperationReport)]
-    [InlineData("/api/branches/{0}/reports/operator-actions/export.csv", AuditActionNames.ViewOperatorActionReport)]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/shifts", AuditActionNames.ViewShiftReport)]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/sales", AuditActionNames.ViewSalesReport)]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/gameplay-time", AuditActionNames.ViewGameplayTimeReport)]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/cash-operations", AuditActionNames.ViewCashOperationReport)]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/operator-actions", AuditActionNames.ViewOperatorActionReport)]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/shifts/export.csv", AuditActionNames.ViewShiftReport)]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/sales/export.csv", AuditActionNames.ViewSalesReport)]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/gameplay-time/export.csv", AuditActionNames.ViewGameplayTimeReport)]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/cash-operations/export.csv", AuditActionNames.ViewCashOperationReport)]
+    [InlineData("/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/{0}/reports/operator-actions/export.csv", AuditActionNames.ViewOperatorActionReport)]
     public async Task GetReport_WithCashierRole_ReturnsForbiddenAndWritesDeniedAudit(
         string routeTemplate,
         string expectedAction)
@@ -79,7 +79,7 @@ public sealed class ReportEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedShiftReportDataAsync(factory);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/reports/shifts?limit=1");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reports/shifts?limit=1");
         var result = await response.Content.ReadFromJsonAsync<ShiftReportResultDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -104,7 +104,7 @@ public sealed class ReportEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedSalesReportDataAsync(factory);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/reports/sales?limit=1");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reports/sales?limit=1");
         var result = await response.Content.ReadFromJsonAsync<SalesReportResultDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -129,7 +129,7 @@ public sealed class ReportEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedGameplayTimeReportDataAsync(factory);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/reports/gameplay-time?limit=1");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reports/gameplay-time?limit=1");
         var result = await response.Content.ReadFromJsonAsync<GameplayTimeReportResultDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -154,7 +154,7 @@ public sealed class ReportEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedCashOperationReportDataAsync(factory);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/reports/cash-operations?limit=5");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reports/cash-operations?limit=5");
         var result = await response.Content.ReadFromJsonAsync<CashOperationReportResultDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -180,7 +180,7 @@ public sealed class ReportEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedOperatorActionReportDataAsync(factory);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/reports/operator-actions?limit=5");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reports/operator-actions?limit=5");
         var result = await response.Content.ReadFromJsonAsync<OperatorActionReportResultDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -208,7 +208,7 @@ public sealed class ReportEndpointTests
         await SeedRefundAuditAmountsAsync(factory);
 
         var response = await client.GetAsync(
-            $"/api/branches/{TestIds.BranchId}/reports/operator-actions?minAmountMinorUnits=5000");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reports/operator-actions?minAmountMinorUnits=5000");
         var result = await response.Content.ReadFromJsonAsync<OperatorActionReportResultDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -228,7 +228,7 @@ public sealed class ReportEndpointTests
         await SeedOwnerDailySummaryDataAsync(factory);
 
         var response = await client.GetAsync(
-            $"/api/branches/{TestIds.BranchId}/reports/owner-daily-summary?date=2026-05-14");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reports/owner-daily-summary?date=2026-05-14");
         var result = await response.Content.ReadFromJsonAsync<OwnerDailySummaryResultDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -256,7 +256,7 @@ public sealed class ReportEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedShiftReportDataAsync(factory);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/reports/shifts/export.csv?limit=1");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reports/shifts/export.csv?limit=1");
         var csv = await response.Content.ReadAsStringAsync();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

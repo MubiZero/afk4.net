@@ -17,7 +17,7 @@ public sealed class DeviceDetailEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -30,7 +30,7 @@ public sealed class DeviceDetailEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedDeviceDetailAsync(factory);
 
-        var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -43,7 +43,7 @@ public sealed class DeviceDetailEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedDeviceDetailAsync(factory);
 
-        var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}");
         var detail = await response.Content.ReadFromJsonAsync<DeviceDetailDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -78,7 +78,7 @@ public sealed class DeviceDetailEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
-        var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

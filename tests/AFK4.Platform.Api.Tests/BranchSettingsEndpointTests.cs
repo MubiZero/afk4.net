@@ -17,7 +17,7 @@ public sealed class BranchSettingsEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/settings");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/settings");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -29,7 +29,7 @@ public sealed class BranchSettingsEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/settings");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/settings");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -41,7 +41,7 @@ public sealed class BranchSettingsEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/settings");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/settings");
         var settings = await response.Content.ReadFromJsonAsync<BranchSettingsDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -59,7 +59,7 @@ public sealed class BranchSettingsEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var request = new UpdateBranchSettingsRequest(TestIds.OrganizationId, RequireManualDeviceApproval: true, PreferredLocale: "ru");
-        var response = await client.PutAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/settings", request);
+        var response = await client.PutAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/settings", request);
         var settings = await response.Content.ReadFromJsonAsync<BranchSettingsDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -82,7 +82,7 @@ public sealed class BranchSettingsEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var request = new UpdateBranchSettingsRequest(Guid.NewGuid(), RequireManualDeviceApproval: true, PreferredLocale: "ru");
-        var response = await client.PutAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/settings", request);
+        var response = await client.PutAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/settings", request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -95,7 +95,7 @@ public sealed class BranchSettingsEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var request = new UpdateBranchSettingsRequest(TestIds.OrganizationId, RequireManualDeviceApproval: false, PreferredLocale: "tg");
-        var response = await client.PutAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/settings", request);
+        var response = await client.PutAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/settings", request);
         var settings = await response.Content.ReadFromJsonAsync<BranchSettingsDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -118,7 +118,7 @@ public sealed class BranchSettingsEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var request = new UpdateBranchSettingsRequest(TestIds.OrganizationId, RequireManualDeviceApproval: false, PreferredLocale: "xx");
-        var response = await client.PutAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/settings", request);
+        var response = await client.PutAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/settings", request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

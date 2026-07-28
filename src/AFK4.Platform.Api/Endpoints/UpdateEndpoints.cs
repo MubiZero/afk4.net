@@ -74,9 +74,11 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class UpdateEndpoints
 {
-    public static void MapUpdateEndpoints(this WebApplication app)
+    public static void MapUpdateEndpoints(
+        this WebApplication app,
+        IEndpointRouteBuilder organizations)
     {
-        app.MapPost("/api/branches/{branchId:guid}/updates/packages", async (
+        organizations.MapPost("branches/{branchId:guid}/updates/packages", async (
             Guid branchId,
             CreateUpdatePackageRequest request,
             StaffAuthorizationService authorizationService,
@@ -142,7 +144,7 @@ internal static class UpdateEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/updates/packages/{packageId:guid}/state", async (
+        organizations.MapPost("branches/{branchId:guid}/updates/packages/{packageId:guid}/state", async (
             Guid branchId,
             Guid packageId,
             UpdatePackageStateChangeRequest request,
@@ -210,7 +212,7 @@ internal static class UpdateEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/updates/rollouts", async (
+        organizations.MapPost("branches/{branchId:guid}/updates/rollouts", async (
             Guid branchId,
             CreateUpdateRolloutRequest request,
             StaffAuthorizationService authorizationService,
@@ -276,7 +278,7 @@ internal static class UpdateEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/updates/rollouts/{rolloutId:guid}/state", async (
+        organizations.MapPost("branches/{branchId:guid}/updates/rollouts/{rolloutId:guid}/state", async (
             Guid branchId,
             Guid rolloutId,
             UpdateRolloutStateChangeRequest request,
@@ -344,7 +346,7 @@ internal static class UpdateEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/updates/rollouts", async (
+        organizations.MapGet("branches/{branchId:guid}/updates/rollouts", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
@@ -403,7 +405,7 @@ internal static class UpdateEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/updates/rollouts/{rolloutId:guid}", async (
+        organizations.MapGet("branches/{branchId:guid}/updates/rollouts/{rolloutId:guid}", async (
             Guid branchId,
             Guid rolloutId,
             StaffAuthorizationService authorizationService,
@@ -464,7 +466,7 @@ internal static class UpdateEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/audit", async (
+        organizations.MapGet("branches/{branchId:guid}/audit", async (
             Guid branchId,
             string? action,
             string? outcome,
@@ -538,7 +540,7 @@ internal static class UpdateEndpoints
             return Results.Ok(result);
         });
 
-        app.MapGet("/api/organizations/{organizationId:guid}/audit", async (
+        organizations.MapGet("audit", async (
             Guid organizationId,
             string? action,
             string? outcome,

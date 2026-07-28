@@ -73,7 +73,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class StaffOnboardingEndpoints
 {
-    public static void MapStaffOnboardingEndpoints(this WebApplication app)
+    public static void MapStaffOnboardingEndpoints(
+        this WebApplication app,
+        IEndpointRouteBuilder organizations)
     {
         app.MapPost("/api/auth/staff/forgot-password", async (
             StaffForgotPasswordRequest request,
@@ -129,7 +131,7 @@ internal static class StaffOnboardingEndpoints
             };
         }).RequireRateLimiting("staff-reset");
 
-        app.MapPost("/api/branches/{branchId:guid}/staff/invites", async (
+        organizations.MapPost("branches/{branchId:guid}/staff/invites", async (
             Guid branchId,
             CreateStaffInviteRequest request,
             StaffAuthorizationService authorizationService,

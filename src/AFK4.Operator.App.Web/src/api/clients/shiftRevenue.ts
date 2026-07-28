@@ -23,10 +23,10 @@ export interface ShiftRevenueListDto {
 export function createShiftRevenueClient(api: PlatformApiClient) {
   return {
     current(branchId: Guid): Promise<ShiftRevenueDto | null> {
-      return api.getOptional<ShiftRevenueDto>(`/api/branches/${branchId}/shifts/revenue/current`);
+      return api.getOptional<ShiftRevenueDto>(`branches/${branchId}/shifts/revenue/current`);
     },
     history(branchId: Guid, limit = 20): Promise<ShiftRevenueListDto> {
-      return api.get<ShiftRevenueListDto>(`/api/branches/${branchId}/shifts/revenue`, { limit });
+      return api.get<ShiftRevenueListDto>(`branches/${branchId}/shifts/revenue`, { limit });
     }
   };
 }

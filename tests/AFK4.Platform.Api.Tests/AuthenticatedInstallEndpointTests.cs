@@ -18,7 +18,7 @@ public sealed class AuthenticatedInstallEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedLayoutAsync(factory);
 
-        var response = await client.PostAsync("/api/install/auth/discover", content: null);
+        var response = await client.PostAsync($"/api/organizations/{TestIds.OrganizationId:D}/install/auth/discover", content: null);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<InstallDiscoverResponse>();
@@ -32,7 +32,7 @@ public sealed class AuthenticatedInstallEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.PostAsync("/api/install/auth/discover", content: null);
+        var response = await client.PostAsync($"/api/organizations/{TestIds.OrganizationId:D}/install/auth/discover", content: null);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -46,7 +46,7 @@ public sealed class AuthenticatedInstallEndpointTests
         await SeedLayoutAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            "/api/install/auth/enroll",
+            $"/api/organizations/{TestIds.OrganizationId:D}/install/auth/enroll",
             new AuthenticatedInstallEnrollRequest(
                 TestIds.BranchId,
                 TestIds.SeatId,
@@ -74,7 +74,7 @@ public sealed class AuthenticatedInstallEndpointTests
         await SeedLayoutAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            "/api/install/auth/enroll",
+            $"/api/organizations/{TestIds.OrganizationId:D}/install/auth/enroll",
             new AuthenticatedInstallEnrollRequest(
                 TestIds.BranchId,
                 null,
@@ -96,7 +96,7 @@ public sealed class AuthenticatedInstallEndpointTests
         await SeedLayoutAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            "/api/install/auth/enroll",
+            $"/api/organizations/{TestIds.OrganizationId:D}/install/auth/enroll",
             new AuthenticatedInstallEnrollRequest(
                 TestIds.BranchId,
                 TestIds.SeatId,

@@ -15,10 +15,10 @@ export interface LoyaltySettingsDto {
 export function createLoyaltySettingsClient(api: PlatformApiClient) {
   return {
     get(): Promise<LoyaltySettingsDto> {
-      return api.get<LoyaltySettingsDto>('/api/owner/loyalty-settings');
+      return api.get<LoyaltySettingsDto>('loyalty-settings');
     },
     update(request: LoyaltySettingsDto): Promise<LoyaltySettingsDto> {
-      return api.post<LoyaltySettingsDto, LoyaltySettingsDto>('/api/owner/loyalty-settings', request);
+      return api.post<LoyaltySettingsDto, LoyaltySettingsDto>('loyalty-settings', request);
     }
   };
 }

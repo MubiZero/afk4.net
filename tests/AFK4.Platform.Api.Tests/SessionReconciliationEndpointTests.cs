@@ -191,7 +191,7 @@ public sealed class SessionReconciliationEndpointTests
     private static async Task<DeviceEnrollmentResponse> EnrollDeviceAsync(HttpClient client)
     {
         var codeResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/device-enrollment-codes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 300));
         Assert.Equal(HttpStatusCode.OK, codeResponse.StatusCode);
         var code = await codeResponse.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
@@ -252,7 +252,7 @@ public sealed class SessionReconciliationEndpointTests
     private static async Task<SessionCommandResponse> StartSessionAsync(HttpClient client)
     {
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/sessions/start",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/sessions/start",
             new StartGuestSessionRequest(
                 OrganizationId: TestIds.OrganizationId,
                 SeatId: SeatId,
@@ -272,7 +272,7 @@ public sealed class SessionReconciliationEndpointTests
     private static async Task<SessionCommandResponse> EndSessionAsync(HttpClient client, Guid sessionId)
     {
         var response = await client.PostAsJsonAsync(
-            $"/api/sessions/{sessionId:D}/end",
+            $"/api/organizations/{TestIds.OrganizationId:D}/sessions/{sessionId:D}/end",
             new EndSessionRequest("operator-end", $"end-seat-1-{Guid.NewGuid():N}"));
         var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
 

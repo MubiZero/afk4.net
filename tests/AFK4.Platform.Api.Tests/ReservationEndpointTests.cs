@@ -32,7 +32,7 @@ public sealed class ReservationEndpointTests
         var reservation = await SeedReservationAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/reservations/{reservation.ReservationId}/start-session",
+            $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{reservation.ReservationId}/start-session",
             StartRequest(reservation.Version));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -51,7 +51,7 @@ public sealed class ReservationEndpointTests
         var reservation = await SeedReservationAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/reservations/{reservation.ReservationId}/start-session",
+            $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{reservation.ReservationId}/start-session",
             StartRequest(reservation.Version));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -77,10 +77,10 @@ public sealed class ReservationEndpointTests
         var reservation = await SeedReservationAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/reservations/{reservation.ReservationId}/start-session",
+            $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{reservation.ReservationId}/start-session",
             StartRequest(reservation.Version) with { OrganizationId = foreignContext.OrganizationId });
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Null(coordinator.LastRequest);
     }
 
@@ -96,7 +96,7 @@ public sealed class ReservationEndpointTests
         var reservation = await SeedReservationAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/reservations/{reservation.ReservationId}/start-session",
+            $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{reservation.ReservationId}/start-session",
             StartRequest(reservation.Version));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -128,7 +128,7 @@ public sealed class ReservationEndpointTests
         var reservation = await SeedReservationAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/reservations/{reservation.ReservationId}/start-session",
+            $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{reservation.ReservationId}/start-session",
             StartRequest(reservation.Version));
 
         Assert.Equal(expectedStatus, response.StatusCode);
@@ -153,7 +153,7 @@ public sealed class ReservationEndpointTests
         var request = StartRequest(reservation.Version);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/reservations/{reservation.ReservationId}/start-session",
+            $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{reservation.ReservationId}/start-session",
             request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -179,7 +179,7 @@ public sealed class ReservationEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/reservations");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reservations");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -191,7 +191,7 @@ public sealed class ReservationEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/reservations");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reservations");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
 
@@ -211,7 +211,7 @@ public sealed class ReservationEndpointTests
         await SeedLayoutAsync(factory);
 
         var createResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/reservations",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reservations",
             new CreateReservationRequest(
                 TestIds.OrganizationId,
                 PlayerAccountId: null,
@@ -231,7 +231,7 @@ public sealed class ReservationEndpointTests
         Assert.Equal("Main", created.ZoneName);
 
         var confirmResponse = await client.PostAsJsonAsync(
-            $"/api/reservations/{created.ReservationId}/confirm",
+            $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{created.ReservationId}/confirm",
             new ConfirmReservationRequest(TestIds.OrganizationId, created.Version));
         var confirmed = await confirmResponse.Content.ReadFromJsonAsync<ReservationDto>();
         Assert.Equal(HttpStatusCode.OK, confirmResponse.StatusCode);
@@ -240,7 +240,7 @@ public sealed class ReservationEndpointTests
         Assert.Equal(created.Version + 1, confirmed.Version);
 
         var updateResponse = await client.PatchAsJsonAsync(
-            $"/api/reservations/{created.ReservationId}",
+            $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{created.ReservationId}",
             new UpdateReservationRequest(
                 TestIds.OrganizationId,
                 PlayerAccountId: null,
@@ -261,14 +261,14 @@ public sealed class ReservationEndpointTests
         Assert.Equal(confirmed.Version + 1, updated.Version);
 
         var listResponse = await client.GetAsync(
-            $"/api/branches/{TestIds.BranchId}/reservations?fromUtc=2026-05-21T00:00:00Z&toUtc=2026-05-21T23:59:59Z");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reservations?fromUtc=2026-05-21T00:00:00Z&toUtc=2026-05-21T23:59:59Z");
         var list = await listResponse.Content.ReadFromJsonAsync<ReservationSearchResultDto>();
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         Assert.NotNull(list);
         Assert.Equal(created.ReservationId, Assert.Single(list.Reservations).ReservationId);
 
         var cancelResponse = await client.PostAsJsonAsync(
-            $"/api/reservations/{created.ReservationId}/cancel",
+            $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{created.ReservationId}/cancel",
             new CancelReservationRequest(TestIds.OrganizationId, "client left", updated.Version));
         var cancelled = await cancelResponse.Content.ReadFromJsonAsync<ReservationDto>();
         Assert.Equal(HttpStatusCode.OK, cancelResponse.StatusCode);
@@ -278,7 +278,7 @@ public sealed class ReservationEndpointTests
         Assert.Equal(updated.Version + 1, cancelled.Version);
 
         var seatCreateResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/reservations",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reservations",
             new CreateReservationRequest(
                 TestIds.OrganizationId,
                 PlayerAccountId: null,
@@ -294,7 +294,7 @@ public sealed class ReservationEndpointTests
         Assert.NotNull(seatCandidate);
 
         var seatResponse = await client.PostAsJsonAsync(
-            $"/api/reservations/{seatCandidate.ReservationId}/seat",
+            $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{seatCandidate.ReservationId}/seat",
             new SeatReservationRequest(TestIds.OrganizationId, seatCandidate.Version));
         var seated = await seatResponse.Content.ReadFromJsonAsync<ReservationDto>();
         Assert.Equal(HttpStatusCode.OK, seatResponse.StatusCode);
@@ -329,7 +329,7 @@ public sealed class ReservationEndpointTests
         using var response = mutation switch
         {
             "update" => await client.PatchAsJsonAsync(
-                $"/api/reservations/{current.ReservationId}",
+                $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{current.ReservationId}",
                 new UpdateReservationRequest(
                     TestIds.OrganizationId,
                     PlayerAccountId: null,
@@ -342,13 +342,13 @@ public sealed class ReservationEndpointTests
                     Note: "stale update",
                     ExpectedVersion: current.Version - 1)),
             "confirm" => await client.PostAsJsonAsync(
-                $"/api/reservations/{current.ReservationId}/confirm",
+                $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{current.ReservationId}/confirm",
                 new ConfirmReservationRequest(TestIds.OrganizationId, current.Version - 1)),
             "cancel" => await client.PostAsJsonAsync(
-                $"/api/reservations/{current.ReservationId}/cancel",
+                $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{current.ReservationId}/cancel",
                 new CancelReservationRequest(TestIds.OrganizationId, "stale cancellation", current.Version - 1)),
             "seat" => await client.PostAsJsonAsync(
-                $"/api/reservations/{current.ReservationId}/seat",
+                $"/api/organizations/{TestIds.OrganizationId:D}/reservations/{current.ReservationId}/seat",
                 new SeatReservationRequest(TestIds.OrganizationId, current.Version - 1)),
             _ => throw new ArgumentOutOfRangeException(nameof(mutation), mutation, null)
         };
@@ -384,7 +384,7 @@ public sealed class ReservationEndpointTests
         await SeedLayoutAsync(factory);
 
         var first = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/reservations",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reservations",
             new CreateReservationRequest(
                 TestIds.OrganizationId,
                 PlayerAccountId: null,
@@ -396,7 +396,7 @@ public sealed class ReservationEndpointTests
                 Source: ReservationSourceNames.Operator,
                 Note: "first"));
         var second = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/reservations",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/reservations",
             new CreateReservationRequest(
                 TestIds.OrganizationId,
                 PlayerAccountId: null,

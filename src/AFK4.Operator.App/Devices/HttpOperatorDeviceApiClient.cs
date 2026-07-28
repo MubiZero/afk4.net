@@ -19,7 +19,7 @@ public sealed class HttpOperatorDeviceApiClient(HttpClient httpClient, IOperator
     {
         return await SendAsync<DeviceEnrollmentCodeDto>(
             HttpMethod.Post,
-            $"/api/branches/{branchId:D}/device-enrollment-codes",
+            $"branches/{branchId:D}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(organizationId, expiresInSeconds),
             cancellationToken);
     }
@@ -32,7 +32,7 @@ public sealed class HttpOperatorDeviceApiClient(HttpClient httpClient, IOperator
     {
         return await SendAsync<DeviceCommandDto>(
             HttpMethod.Post,
-            $"/api/devices/{deviceId:D}/commands",
+            $"devices/{deviceId:D}/commands",
             new DispatchDeviceCommandRequest(type, payload),
             cancellationToken);
     }
@@ -44,7 +44,7 @@ public sealed class HttpOperatorDeviceApiClient(HttpClient httpClient, IOperator
     {
         return await SendAsync<DeviceCommandStatusDto>(
             HttpMethod.Get,
-            $"/api/devices/{deviceId:D}/commands/{commandId:D}/status",
+            $"devices/{deviceId:D}/commands/{commandId:D}/status",
             body: null,
             cancellationToken);
     }
@@ -55,7 +55,7 @@ public sealed class HttpOperatorDeviceApiClient(HttpClient httpClient, IOperator
     {
         return await SendAsync<DeviceDetailDto>(
             HttpMethod.Get,
-            $"/api/devices/{deviceId:D}",
+            $"devices/{deviceId:D}",
             body: null,
             cancellationToken);
     }
@@ -66,7 +66,7 @@ public sealed class HttpOperatorDeviceApiClient(HttpClient httpClient, IOperator
     {
         return await SendAsync<RotateDeviceCredentialResponse>(
             HttpMethod.Post,
-            $"/api/devices/{deviceId:D}/credentials/rotate",
+            $"devices/{deviceId:D}/credentials/rotate",
             body: null,
             cancellationToken);
     }
@@ -78,7 +78,7 @@ public sealed class HttpOperatorDeviceApiClient(HttpClient httpClient, IOperator
     {
         return await SendAsync<RevokeDeviceCredentialResponse>(
             HttpMethod.Post,
-            $"/api/devices/{deviceId:D}/credentials/{credentialId:D}/revoke",
+            $"devices/{deviceId:D}/credentials/{credentialId:D}/revoke",
             body: null,
             cancellationToken);
     }
@@ -120,7 +120,7 @@ public sealed class HttpOperatorDeviceApiClient(HttpClient httpClient, IOperator
             throw new InvalidOperationException("Operator access token is missing.");
         }
 
-        var request = new HttpRequestMessage(method, path);
+        var request = new HttpRequestMessage(method, OrganizationApiRoute.Build(snapshot, path));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", snapshot.AccessToken);
         return request;
     }

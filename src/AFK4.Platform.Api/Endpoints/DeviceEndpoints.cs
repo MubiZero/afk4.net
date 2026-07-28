@@ -73,9 +73,11 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class DeviceEndpoints
 {
-    public static void MapDeviceEndpoints(this WebApplication app)
+    public static void MapDeviceEndpoints(
+        this WebApplication app,
+        IEndpointRouteBuilder organizations)
     {
-        app.MapPost("/api/branches/{branchId:guid}/device-enrollment-codes", async (
+        organizations.MapPost("branches/{branchId:guid}/device-enrollment-codes", async (
             Guid branchId,
             CreateDeviceEnrollmentCodeRequest request,
             IDeviceEnrollmentService enrollmentService,
@@ -150,7 +152,7 @@ internal static class DeviceEndpoints
             return Results.Ok(code);
         });
 
-        app.MapPost("/api/install/auth/discover", async (
+        organizations.MapPost("install/auth/discover", async (
             StaffAuthorizationService authorizationService,
             IInstallService installService,
             IAuditRecordWriter auditRecordWriter,
@@ -177,7 +179,7 @@ internal static class DeviceEndpoints
             return ToInstallHttpResult(result);
         });
 
-        app.MapPost("/api/install/auth/seats", async (
+        organizations.MapPost("install/auth/seats", async (
             AuthenticatedInstallCreateSeatRequest request,
             HttpContext httpContext,
             StaffAuthorizationService authorizationService,
@@ -218,7 +220,7 @@ internal static class DeviceEndpoints
             return ToInstallHttpResult(result);
         });
 
-        app.MapPost("/api/install/auth/enroll", async (
+        organizations.MapPost("install/auth/enroll", async (
             AuthenticatedInstallEnrollRequest request,
             HttpContext httpContext,
             StaffAuthorizationService authorizationService,
@@ -579,7 +581,7 @@ internal static class DeviceEndpoints
             return Results.NoContent();
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/devices", async (
+        organizations.MapGet("branches/{branchId:guid}/devices", async (
             Guid branchId,
             PlatformDbContext dbContext,
             IStaffContextAccessor staffContextAccessor,
@@ -611,7 +613,7 @@ internal static class DeviceEndpoints
             return Results.Ok(devices);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/devices/pending", async (
+        organizations.MapGet("branches/{branchId:guid}/devices/pending", async (
             Guid branchId,
             PlatformDbContext dbContext,
             IStaffContextAccessor staffContextAccessor,
@@ -643,7 +645,7 @@ internal static class DeviceEndpoints
             return Results.Ok(devices);
         });
 
-        app.MapGet("/api/devices/{deviceId:guid}", async (
+        organizations.MapGet("devices/{deviceId:guid}", async (
             Guid deviceId,
             PlatformDbContext dbContext,
             IStaffContextAccessor staffContextAccessor,
@@ -742,7 +744,7 @@ internal static class DeviceEndpoints
                 EnrollmentState: device.EnrollmentState));
         });
 
-        app.MapPost("/api/devices/{deviceId:guid}/approve", async (
+        organizations.MapPost("devices/{deviceId:guid}/approve", async (
             Guid deviceId,
             DeviceStateChangeRequest request,
             PlatformDbContext dbContext,
@@ -817,7 +819,7 @@ internal static class DeviceEndpoints
             return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
         });
 
-        app.MapPost("/api/devices/{deviceId:guid}/reject", async (
+        organizations.MapPost("devices/{deviceId:guid}/reject", async (
             Guid deviceId,
             DeviceStateChangeRequest request,
             PlatformDbContext dbContext,
@@ -899,7 +901,7 @@ internal static class DeviceEndpoints
             return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
         });
 
-        app.MapPost("/api/devices/{deviceId:guid}/rename", async (
+        organizations.MapPost("devices/{deviceId:guid}/rename", async (
             Guid deviceId,
             RenameDeviceRequest request,
             PlatformDbContext dbContext,
@@ -975,7 +977,7 @@ internal static class DeviceEndpoints
             return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
         });
 
-        app.MapPost("/api/devices/{deviceId:guid}/move-seat", async (
+        organizations.MapPost("devices/{deviceId:guid}/move-seat", async (
             Guid deviceId,
             MoveDeviceSeatRequest request,
             PlatformDbContext dbContext,
@@ -1065,7 +1067,7 @@ internal static class DeviceEndpoints
             return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
         });
 
-        app.MapPost("/api/devices/{deviceId:guid}/remove", async (
+        organizations.MapPost("devices/{deviceId:guid}/remove", async (
             Guid deviceId,
             DeviceStateChangeRequest request,
             PlatformDbContext dbContext,
@@ -1143,7 +1145,7 @@ internal static class DeviceEndpoints
             return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/devices/{deviceId:guid}/seat-assignment", async (
+        organizations.MapPost("branches/{branchId:guid}/devices/{deviceId:guid}/seat-assignment", async (
             Guid branchId,
             Guid deviceId,
             AssignDeviceSeatRequest request,
@@ -1303,7 +1305,7 @@ internal static class DeviceEndpoints
             return Results.Ok(ToDeviceSeatAssignmentDto(currentAssignment));
         });
 
-        app.MapPost("/api/devices/{deviceId:guid}/commands", async (
+        organizations.MapPost("devices/{deviceId:guid}/commands", async (
             Guid deviceId,
             CreateDeviceCommandRequest request,
             PlatformDbContext dbContext,
@@ -1406,7 +1408,7 @@ internal static class DeviceEndpoints
             return Results.Ok(command);
         });
 
-        app.MapGet("/api/devices/{deviceId:guid}/commands", async (
+        organizations.MapGet("devices/{deviceId:guid}/commands", async (
             Guid deviceId,
             int? limit,
             PlatformDbContext dbContext,
@@ -1489,7 +1491,7 @@ internal static class DeviceEndpoints
             return Results.Ok(commands);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/device-commands", async (
+        organizations.MapGet("branches/{branchId:guid}/device-commands", async (
             Guid branchId,
             int? limit,
             PlatformDbContext dbContext,
@@ -1570,7 +1572,7 @@ internal static class DeviceEndpoints
             return Results.Ok(commands);
         });
 
-        app.MapGet("/api/devices/{deviceId:guid}/commands/{commandId:guid}/status", async (
+        organizations.MapGet("devices/{deviceId:guid}/commands/{commandId:guid}/status", async (
             Guid deviceId,
             Guid commandId,
             PlatformDbContext dbContext,
@@ -1646,7 +1648,7 @@ internal static class DeviceEndpoints
             return Results.Ok(status);
         });
 
-        app.MapPost("/api/devices/{deviceId:guid}/credentials/rotate", async (
+        organizations.MapPost("devices/{deviceId:guid}/credentials/rotate", async (
             Guid deviceId,
             PlatformDbContext dbContext,
             IStaffContextAccessor staffContextAccessor,
@@ -1719,7 +1721,7 @@ internal static class DeviceEndpoints
             return Results.Ok(rotated);
         });
 
-        app.MapPost("/api/devices/{deviceId:guid}/credentials/{credentialId:guid}/revoke", async (
+        organizations.MapPost("devices/{deviceId:guid}/credentials/{credentialId:guid}/revoke", async (
             Guid deviceId,
             Guid credentialId,
             PlatformDbContext dbContext,

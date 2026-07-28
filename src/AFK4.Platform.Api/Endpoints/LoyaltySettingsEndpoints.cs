@@ -9,9 +9,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class LoyaltySettingsEndpoints
 {
-    public static void MapLoyaltySettingsEndpoints(this WebApplication app)
+    public static void MapLoyaltySettingsEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/owner/loyalty-settings", async (
+        app.MapGet("loyalty-settings", async (
             StaffAuthorizationService authorizationService,
             PlatformDbContext db,
             CancellationToken ct) =>
@@ -33,7 +33,7 @@ internal static class LoyaltySettingsEndpoints
                     row.CashbackCapMinorUnits, row.MinimumSourceMinorUnits));
         });
 
-        app.MapPost("/api/owner/loyalty-settings", async (
+        app.MapPost("loyalty-settings", async (
             UpdateLoyaltySettingsRequest request,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,

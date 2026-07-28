@@ -42,7 +42,7 @@ public sealed class StaffPasswordResetByPhoneEndpointTests
         var staff = new StaffUserEntity
         {
             StaffUserId = Guid.NewGuid(),
-            OrganizationId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
             UserName = "u" + Phone,
             NormalizedUserName = "U" + Phone,
             DisplayName = "Phone Staff",
@@ -163,12 +163,12 @@ public sealed class StaffPasswordResetByPhoneEndpointTests
         Assert.Equal(HttpStatusCode.OK, reset.StatusCode);
 
         var withNew = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-phone",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-phone",
             new StaffSignInByPhoneRequest(Phone, NewPassword));
         Assert.Equal(HttpStatusCode.OK, withNew.StatusCode);
 
         var withOld = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-phone",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-phone",
             new StaffSignInByPhoneRequest(Phone, OldPassword));
         Assert.Equal(HttpStatusCode.Unauthorized, withOld.StatusCode);
     }

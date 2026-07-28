@@ -11,6 +11,23 @@ namespace AFK4.Platform.Api.Tests;
 public sealed class StaffAuthenticationEndpointTests
 {
     [Fact]
+    public async Task PostStaffSignIn_WithAnotherRouteOrganization_ReturnsForbidden()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedTechnicianAsync(factory);
+        using var client = factory.CreateClient();
+
+        var response = await client.PostAsJsonAsync(
+            $"/api/organizations/{Guid.NewGuid():D}/auth/staff/sign-in",
+            new StaffSignInRequest(
+                OrganizationId: TestIds.OrganizationId,
+                UserName: "tech@afk4.test",
+                Password: "Passw0rd!"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task PostStaffSignIn_WithValidCredentials_ReturnsAccessTokenAndPermissions()
     {
         await using var factory = new PlatformApiFactory();
@@ -18,7 +35,7 @@ public sealed class StaffAuthenticationEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(
                 OrganizationId: TestIds.OrganizationId,
                 UserName: "tech@afk4.test",
@@ -44,7 +61,7 @@ public sealed class StaffAuthenticationEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-tenant-key",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-tenant-key",
             new StaffSignInByTenantKeyRequest(
                 TenantKey: "Demo-Club",
                 UserName: "tech@afk4.test",
@@ -67,7 +84,7 @@ public sealed class StaffAuthenticationEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-tenant-key",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-tenant-key",
             new StaffSignInByTenantKeyRequest(
                 TenantKey: TestIds.OrganizationId.ToString("D"),
                 UserName: "tech@afk4.test",
@@ -84,7 +101,7 @@ public sealed class StaffAuthenticationEndpointTests
         using var client = factory.CreateClient();
 
         var signInResponse = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(
                 OrganizationId: TestIds.OrganizationId,
                 UserName: "tech@afk4.test",
@@ -94,7 +111,7 @@ public sealed class StaffAuthenticationEndpointTests
         Assert.NotNull(signInBody);
 
         var refreshResponse = await client.PostAsJsonAsync(
-            "/api/auth/staff/refresh",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/refresh",
             new StaffRefreshTokenRequest(TestIds.OrganizationId, signInBody.RefreshToken));
         var refreshBody = await refreshResponse.Content.ReadFromJsonAsync<StaffSignInResponse>();
 
@@ -110,7 +127,7 @@ public sealed class StaffAuthenticationEndpointTests
         Assert.Equal(signInBody.RoleNames, refreshBody.RoleNames);
 
         var replayResponse = await client.PostAsJsonAsync(
-            "/api/auth/staff/refresh",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/refresh",
             new StaffRefreshTokenRequest(TestIds.OrganizationId, signInBody.RefreshToken));
 
         Assert.Equal(HttpStatusCode.Unauthorized, replayResponse.StatusCode);
@@ -124,7 +141,7 @@ public sealed class StaffAuthenticationEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-login",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-login",
             new StaffSignInByLoginRequest("tech@afk4.test", "Passw0rd!"));
         var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
 
@@ -142,7 +159,7 @@ public sealed class StaffAuthenticationEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-login",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-login",
             new StaffSignInByLoginRequest("tech@afk4.test", "wrong-password"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -156,7 +173,7 @@ public sealed class StaffAuthenticationEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-login",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-login",
             new StaffSignInByLoginRequest("nobody@afk4.test", "Passw0rd!"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -172,7 +189,7 @@ public sealed class StaffAuthenticationEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-login",
+            $"/api/organizations/{SecondOrgId:D}/auth/staff/sign-in-by-login",
             new StaffSignInByLoginRequest("shared@afk4.test", "OrgB-pass"));
         var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
 
@@ -182,7 +199,7 @@ public sealed class StaffAuthenticationEndpointTests
     }
 
     [Fact]
-    public async Task PostStaffSignInByLogin_SameLoginSamePasswordTwoClubs_ReturnsChooseClub()
+    public async Task PostStaffSignInByLogin_SameLoginSamePasswordTwoClubs_UsesRouteOrganization()
     {
         await using var factory = new PlatformApiFactory();
         await SeedTechnicianAsync(factory);
@@ -191,15 +208,13 @@ public sealed class StaffAuthenticationEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-login",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-login",
             new StaffSignInByLoginRequest("shared@afk4.test", "Same-pass"));
-        var body = await response.Content.ReadFromJsonAsync<StaffSignInChooseClubResponse>();
+        var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
 
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
-        Assert.Equal(2, body.Clubs.Count);
-        Assert.Contains(body.Clubs, c => c.OrganizationId == TestIds.OrganizationId);
-        Assert.Contains(body.Clubs, c => c.OrganizationId == SecondOrgId);
+        Assert.Equal(TestIds.OrganizationId, body.OrganizationId);
     }
 
     [Fact]
@@ -211,7 +226,7 @@ public sealed class StaffAuthenticationEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-login",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-login",
             new StaffSignInByLoginRequest("owner@afk4.test", "Passw0rd!"));
         var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
 
@@ -235,7 +250,7 @@ public sealed class StaffAuthenticationEndpointTests
         // Logging in with the email "shared@afk4.test" + Y's password must sign in Y,
         // not fail because X happens to own that string as a username.
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-login",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-login",
             new StaffSignInByLoginRequest("shared@afk4.test", "Y-pass"));
         var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
 
@@ -254,7 +269,7 @@ public sealed class StaffAuthenticationEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "owner@afk4.test", "Passw0rd!"));
         var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
 
@@ -273,7 +288,7 @@ public sealed class StaffAuthenticationEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-login",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-login",
             new StaffSignInByLoginRequest("owner@afk4.test", "wrong-password"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -287,14 +302,14 @@ public sealed class StaffAuthenticationEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-login",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-login",
             new StaffSignInByLoginRequest("ghost@afk4.test", "Passw0rd!"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
-    public async Task PostStaffSignInByLogin_SameEmailTwoClubsSamePassword_ReturnsChooseClub()
+    public async Task PostStaffSignInByLogin_SameEmailTwoClubsSamePassword_UsesRouteOrganization()
     {
         await using var factory = new PlatformApiFactory();
         await SeedTechnicianAsync(factory);
@@ -303,15 +318,13 @@ public sealed class StaffAuthenticationEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-login",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-login",
             new StaffSignInByLoginRequest("shared@afk4.test", "Same-pass"));
-        var body = await response.Content.ReadFromJsonAsync<StaffSignInChooseClubResponse>();
+        var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
 
-        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
-        Assert.Equal(2, body.Clubs.Count);
-        Assert.Contains(body.Clubs, c => c.OrganizationId == TestIds.OrganizationId);
-        Assert.Contains(body.Clubs, c => c.OrganizationId == SecondOrgId);
+        Assert.Equal(TestIds.OrganizationId, body.OrganizationId);
     }
 
     private static readonly Guid SecondOrgId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f09");
@@ -541,7 +554,7 @@ public sealed class StaffAuthenticationEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "992937380070", "Passw0rd!"));
         var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
 
@@ -560,7 +573,7 @@ public sealed class StaffAuthenticationEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "992937380071", "Passw0rd!"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);

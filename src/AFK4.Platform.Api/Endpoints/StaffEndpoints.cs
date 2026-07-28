@@ -73,9 +73,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class StaffEndpoints
 {
-    public static void MapStaffEndpoints(this WebApplication app)
+    public static void MapStaffEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/branches/{branchId:guid}/staff", async (
+        app.MapGet("branches/{branchId:guid}/staff", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
@@ -151,7 +151,7 @@ internal static class StaffEndpoints
             return Results.Ok(response);
         });
 
-        app.MapPatch("/api/branches/{branchId:guid}/staff/{staffUserId:guid}/roles", async (
+        app.MapPatch("branches/{branchId:guid}/staff/{staffUserId:guid}/roles", async (
             Guid branchId,
             Guid staffUserId,
             UpdateStaffUserRolesRequest request,
@@ -270,7 +270,7 @@ internal static class StaffEndpoints
             return Results.Ok(response);
         });
 
-        app.MapPatch("/api/branches/{branchId:guid}/staff/{staffUserId:guid}/profile", async (
+        app.MapPatch("branches/{branchId:guid}/staff/{staffUserId:guid}/profile", async (
             Guid branchId,
             Guid staffUserId,
             UpdateStaffUserProfileRequest request,
@@ -384,7 +384,7 @@ internal static class StaffEndpoints
             return Results.Ok(response);
         });
 
-        app.MapPatch("/api/branches/{branchId:guid}/staff/{staffUserId:guid}/state", async (
+        app.MapPatch("branches/{branchId:guid}/staff/{staffUserId:guid}/state", async (
             Guid branchId,
             Guid staffUserId,
             UpdateStaffUserStateRequest request,
@@ -484,7 +484,7 @@ internal static class StaffEndpoints
             return Results.Ok(response);
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/staff/{staffUserId:guid}/password-reset", async (
+        app.MapPost("branches/{branchId:guid}/staff/{staffUserId:guid}/password-reset", async (
             Guid branchId,
             Guid staffUserId,
             ResetStaffUserPasswordRequest request,

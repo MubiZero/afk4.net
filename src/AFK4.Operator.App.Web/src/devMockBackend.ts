@@ -501,8 +501,8 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/auth/staff/sign-in-by-login') && method === 'POST') return createMockSession();
   if (pathname.endsWith('/auth/staff/sign-in') && method === 'POST') return createMockSession();
   if (pathname.endsWith('/auth/staff/refresh') && method === 'POST') return createMockSession();
-  if (pathname.endsWith('/owner/loyalty-settings') && method === 'GET') return loyaltySettings();
-  if (pathname.endsWith('/owner/eskhata-config') && method === 'GET') return eskhataConfig();
+  if (pathname.endsWith('/loyalty-settings') && method === 'GET') return loyaltySettings();
+  if (pathname.endsWith('/payments/eskhata-config') && method === 'GET') return eskhataConfig();
   if (pathname.endsWith('/checkout/quote') && method === 'GET') return checkoutQuote();
   if (pathname.endsWith('/tariffs/options')) return tariffOptions();
   if (pathname.endsWith('/floor-map')) return currentPreviewFloorMap();
@@ -694,7 +694,7 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   if (url.pathname.endsWith('/reservations/group') && method === 'POST') {
     return json(groupReservationResult(init));
   }
-  const reservationStartMatch = url.pathname.match(/\/api\/reservations\/([^/]+)\/start-session$/);
+  const reservationStartMatch = url.pathname.match(/\/reservations\/([^/]+)\/start-session$/);
   if (reservationStartMatch !== null && method === 'POST') {
     let request: Record<string, unknown> = {};
     try { request = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { request = {}; }
@@ -905,13 +905,13 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     prependLedger(entry);
     return json(entry);
   }
-  if (url.pathname.endsWith('/owner/loyalty-settings') && method === 'POST') {
+  if (url.pathname.endsWith('/loyalty-settings') && method === 'POST') {
     let req: Record<string, unknown> = {};
     try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
     mutableLoyaltySettings = { ...loyaltySettings(), ...req };
     return json(mutableLoyaltySettings);
   }
-  if (url.pathname.endsWith('/owner/eskhata-config') && method === 'POST') {
+  if (url.pathname.endsWith('/payments/eskhata-config') && method === 'POST') {
     let req: Record<string, unknown> = {};
     try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
     const hashKeyProvided = typeof req.hashKey === 'string' && req.hashKey.trim().length > 0;

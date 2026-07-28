@@ -208,7 +208,7 @@ public sealed class PlatformAdminAuthenticationEndpointTests
 
         using var staffClient = factory.CreateClient();
         var staffSignIn = await staffClient.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "tech@afk4.test", "Passw0rd!"));
         var staffSignInBody = await staffSignIn.Content.ReadFromJsonAsync<StaffSignInResponse>();
         Assert.NotNull(staffSignInBody);
@@ -235,7 +235,7 @@ public sealed class PlatformAdminAuthenticationEndpointTests
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", signInBody.AccessToken);
 
-        var floorMapResponse = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
+        var floorMapResponse = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/floor-map");
 
         Assert.Equal(HttpStatusCode.Unauthorized, floorMapResponse.StatusCode);
     }

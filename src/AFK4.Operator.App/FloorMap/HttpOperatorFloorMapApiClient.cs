@@ -36,7 +36,9 @@ public sealed class HttpOperatorFloorMapApiClient(HttpClient httpClient, IOperat
             throw new InvalidOperationException("Operator access token is missing.");
         }
 
-        var request = new HttpRequestMessage(HttpMethod.Get, $"/api/branches/{branchId:D}/floor-map");
+        var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            OrganizationApiRoute.Build(snapshot, $"branches/{branchId:D}/floor-map"));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", snapshot.AccessToken);
         return request;
     }

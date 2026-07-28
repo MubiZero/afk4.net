@@ -74,13 +74,21 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class AuthEndpoints
 {
-    public static void MapAuthEndpoints(this WebApplication app)
+    public static void MapAuthEndpoints(
+        this WebApplication app,
+        IEndpointRouteBuilder organizations)
     {
-        app.MapPost("/api/auth/staff/sign-in", async (
+        organizations.MapPost("auth/staff/sign-in", async (
+            Guid organizationId,
             StaffSignInRequest request,
             IStaffCredentialService credentialService,
             CancellationToken cancellationToken) =>
         {
+            if (request.OrganizationId != organizationId)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
             var response = await credentialService.SignInAsync(request, cancellationToken);
 
             return response is null
@@ -88,42 +96,50 @@ internal static class AuthEndpoints
                 : Results.Ok(response);
         });
 
-        app.MapPost("/api/auth/staff/sign-in-by-tenant-key", async (
+        organizations.MapPost("auth/staff/sign-in-by-tenant-key", async (
+            Guid organizationId,
             StaffSignInByTenantKeyRequest request,
             IStaffCredentialService credentialService,
             CancellationToken cancellationToken) =>
         {
             var response = await credentialService.SignInByTenantKeyAsync(request, cancellationToken);
 
-            return response is null
-                ? Results.Unauthorized()
-                : Results.Ok(response);
+            return response switch
+            {
+                null => Results.Unauthorized(),
+                { OrganizationId: var responseOrganizationId } when responseOrganizationId != organizationId
+                    => Results.StatusCode(StatusCodes.Status403Forbidden),
+                _ => Results.Ok(response)
+            };
         });
 
-        app.MapPost("/api/auth/staff/sign-in-by-login", async (
+        organizations.MapPost("auth/staff/sign-in-by-login", async (
+            Guid organizationId,
             StaffSignInByLoginRequest request,
             IStaffCredentialService credentialService,
             CancellationToken cancellationToken) =>
         {
-            var resolution = await credentialService.SignInByLoginAsync(request, cancellationToken);
+            var resolution = await credentialService.SignInByLoginAsync(
+                organizationId,
+                request,
+                cancellationToken);
 
-            if (resolution.SignedIn is not null)
-            {
-                return Results.Ok(resolution.SignedIn);
-            }
-
-            return resolution.Clubs.Count > 0
-                ? Results.Json(
-                    new StaffSignInChooseClubResponse(resolution.Clubs),
-                    statusCode: StatusCodes.Status409Conflict)
-                : Results.Unauthorized();
+            return resolution.SignedIn is null
+                ? Results.Unauthorized()
+                : Results.Ok(resolution.SignedIn);
         });
 
-        app.MapPost("/api/auth/staff/refresh", async (
+        organizations.MapPost("auth/staff/refresh", async (
+            Guid organizationId,
             StaffRefreshTokenRequest request,
             IStaffTokenService tokenService,
             CancellationToken cancellationToken) =>
         {
+            if (request.OrganizationId != organizationId)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
             var response = await tokenService.RefreshAsync(request, cancellationToken);
 
             return response is null
@@ -163,16 +179,23 @@ internal static class AuthEndpoints
             return org is null ? Results.NotFound() : Results.Ok(org);
         }).RequireRateLimiting("player-public");
 
-        app.MapPost("/api/auth/staff/sign-in-by-phone", async (
+        organizations.MapPost("auth/staff/sign-in-by-phone", async (
+            Guid organizationId,
             StaffSignInByPhoneRequest request,
             IStaffCredentialService credentialService,
             CancellationToken cancellationToken) =>
         {
             var signedIn = await credentialService.SignInByPhoneAsync(request, cancellationToken);
-            return signedIn is not null ? Results.Ok(signedIn) : Results.Unauthorized();
+            return signedIn switch
+            {
+                null => Results.Unauthorized(),
+                { OrganizationId: var responseOrganizationId } when responseOrganizationId != organizationId
+                    => Results.StatusCode(StatusCodes.Status403Forbidden),
+                _ => Results.Ok(signedIn)
+            };
         });
 
-        app.MapPost("/api/auth/staff/phone/start-verification", async (
+        organizations.MapPost("account/phone/start-verification", async (
             StaffPhoneStartVerificationRequest request,
             IStaffContextAccessor staffContextAccessor,
             IStaffPhoneVerificationService verificationService,
@@ -203,7 +226,7 @@ internal static class AuthEndpoints
             };
         });
 
-        app.MapPost("/api/auth/staff/phone/confirm", async (
+        organizations.MapPost("account/phone/confirm", async (
             StaffPhoneConfirmRequest request,
             IStaffContextAccessor staffContextAccessor,
             IStaffPhoneVerificationService verificationService,
@@ -235,7 +258,7 @@ internal static class AuthEndpoints
             };
         });
 
-        app.MapGet("/api/auth/staff/phone", async (
+        organizations.MapGet("account/phone", async (
             IStaffContextAccessor staffContextAccessor,
             IStaffPhoneVerificationService verificationService,
             CancellationToken cancellationToken) =>

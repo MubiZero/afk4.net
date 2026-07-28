@@ -24,40 +24,40 @@ export interface RemoveDeviceRequest { organizationId: Guid; reason: string }
 export function createDeviceClient(api: PlatformApiClient) {
   return {
     listDevices(branchId: Guid): Promise<DeviceInventoryItemDto[]> {
-      return api.get<DeviceInventoryItemDto[]>(`/api/branches/${branchId}/devices`);
+      return api.get<DeviceInventoryItemDto[]>(`branches/${branchId}/devices`);
     },
     createEnrollmentCode(branchId: Guid, organizationId: Guid, expiresInSeconds: number): Promise<DeviceEnrollmentCodeDto> {
-      return api.post<DeviceEnrollmentCodeDto>(`/api/branches/${branchId}/device-enrollment-codes`, {
+      return api.post<DeviceEnrollmentCodeDto>(`branches/${branchId}/device-enrollment-codes`, {
         organizationId,
         expiresInSeconds
       });
     },
     dispatchDeviceCommand(deviceId: Guid, request: DispatchDeviceCommandRequest): Promise<DeviceCommandDto> {
-      return api.post<DeviceCommandDto, DispatchDeviceCommandRequest>(`/api/devices/${deviceId}/commands`, request);
+      return api.post<DeviceCommandDto, DispatchDeviceCommandRequest>(`devices/${deviceId}/commands`, request);
     },
     listDeviceCommands(deviceId: Guid, query?: DeviceCommandSearchQuery): Promise<DeviceCommandStatusDto[]> {
-      return api.get<DeviceCommandStatusDto[]>(`/api/devices/${deviceId}/commands`, normalizeDeviceCommandQuery(query));
+      return api.get<DeviceCommandStatusDto[]>(`devices/${deviceId}/commands`, normalizeDeviceCommandQuery(query));
     },
     listBranchDeviceCommands(branchId: Guid, query?: DeviceCommandSearchQuery): Promise<DeviceCommandStatusDto[]> {
-      return api.get<DeviceCommandStatusDto[]>(`/api/branches/${branchId}/device-commands`, normalizeDeviceCommandQuery(query));
+      return api.get<DeviceCommandStatusDto[]>(`branches/${branchId}/device-commands`, normalizeDeviceCommandQuery(query));
     },
     getDeviceCommandStatus(deviceId: Guid, commandId: Guid): Promise<DeviceCommandStatusDto> {
-      return api.get<DeviceCommandStatusDto>(`/api/devices/${deviceId}/commands/${commandId}/status`);
+      return api.get<DeviceCommandStatusDto>(`devices/${deviceId}/commands/${commandId}/status`);
     },
     getDeviceDetail(deviceId: Guid): Promise<DeviceDetailDto> {
-      return api.get<DeviceDetailDto>(`/api/devices/${deviceId}`);
+      return api.get<DeviceDetailDto>(`devices/${deviceId}`);
     },
     renameDevice(deviceId: Guid, request: RenameDeviceRequest): Promise<DeviceInventoryItemDto> {
-      return api.post<DeviceInventoryItemDto, RenameDeviceRequest>(`/api/devices/${deviceId}/rename`, request);
+      return api.post<DeviceInventoryItemDto, RenameDeviceRequest>(`devices/${deviceId}/rename`, request);
     },
     removeDevice(deviceId: Guid, request: RemoveDeviceRequest): Promise<DeviceInventoryItemDto> {
-      return api.post<DeviceInventoryItemDto, RemoveDeviceRequest>(`/api/devices/${deviceId}/remove`, request);
+      return api.post<DeviceInventoryItemDto, RemoveDeviceRequest>(`devices/${deviceId}/remove`, request);
     },
     rotateDeviceCredential(deviceId: Guid): Promise<RotateDeviceCredentialResponse> {
-      return api.post<RotateDeviceCredentialResponse>(`/api/devices/${deviceId}/credentials/rotate`);
+      return api.post<RotateDeviceCredentialResponse>(`devices/${deviceId}/credentials/rotate`);
     },
     revokeDeviceCredential(deviceId: Guid, credentialId: Guid): Promise<RevokeDeviceCredentialResponse> {
-      return api.post<RevokeDeviceCredentialResponse>(`/api/devices/${deviceId}/credentials/${credentialId}/revoke`);
+      return api.post<RevokeDeviceCredentialResponse>(`devices/${deviceId}/credentials/${credentialId}/revoke`);
     }
   };
 }

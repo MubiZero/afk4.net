@@ -26,33 +26,34 @@ import { createMediaClient } from './media';
 import { createDcTopUpClient } from './dcTopUps';
 import { createDcConfigClient } from './dcConfig';
 
-export function createOperatorApiClients(api: PlatformApiClient) {
+export function createOperatorApiClients(api: PlatformApiClient, organizationId: string) {
+  const organizationApi = api.forOrganization(organizationId);
   return {
-    floorMap: createFloorMapClient(api),
-    sessions: createSessionClient(api),
-    pos: createPosClient(api),
-    players: createPlayerClient(api),
-    dashboard: createDashboardClient(api),
-    reservations: createReservationClient(api),
-    shifts: createShiftClient(api),
-    shiftRevenue: createShiftRevenueClient(api),
-    settings: createSettingsClient(api),
-    orgBranches: createOrgBranchesClient(api),
-    orgBilling: createOrgBillingClient(api),
-    orgAudit: createOrgAuditClient(api),
-    inventory: createInventoryClient(api),
-    devices: createDeviceClient(api),
-    diagnostics: createDiagnosticsClient(api),
-    updates: createUpdateClient(api),
-    audit: createAuditClient(api),
-    moneyActions: createMoneyActionClient(api),
-    account: createAccountClient(api),
-    shopOrders: createShopOrderClient(api),
-    loyaltySettings: createLoyaltySettingsClient(api),
-    eskhataConfig: createEskhataConfigClient(api),
-    news: createNewsClient(api),
-    media: createMediaClient(api),
-    dcTopUps: createDcTopUpClient(api),
-    dcConfig: createDcConfigClient(api)
+    floorMap: createFloorMapClient(organizationApi),
+    sessions: createSessionClient(organizationApi),
+    pos: createPosClient(organizationApi),
+    players: createPlayerClient(organizationApi),
+    dashboard: createDashboardClient(organizationApi),
+    reservations: createReservationClient(organizationApi),
+    shifts: createShiftClient(organizationApi),
+    shiftRevenue: createShiftRevenueClient(organizationApi),
+    settings: createSettingsClient(organizationApi),
+    orgBranches: createOrgBranchesClient(organizationApi),
+    orgBilling: createOrgBillingClient(organizationApi),
+    orgAudit: createOrgAuditClient(organizationApi),
+    inventory: createInventoryClient(organizationApi),
+    devices: createDeviceClient(organizationApi),
+    diagnostics: createDiagnosticsClient(organizationApi),
+    updates: createUpdateClient(organizationApi),
+    audit: createAuditClient(organizationApi),
+    moneyActions: createMoneyActionClient(organizationApi),
+    account: createAccountClient(organizationApi),
+    shopOrders: createShopOrderClient(organizationApi),
+    loyaltySettings: createLoyaltySettingsClient(organizationApi),
+    eskhataConfig: createEskhataConfigClient(organizationApi),
+    news: createNewsClient(organizationApi),
+    media: createMediaClient(organizationApi),
+    dcTopUps: createDcTopUpClient(organizationApi),
+    dcConfig: createDcConfigClient(organizationApi)
   };
 }

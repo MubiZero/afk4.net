@@ -21,10 +21,10 @@ export interface CreateStockMovementRequest extends Record<string, unknown> {
 export function createInventoryClient(api: PlatformApiClient) {
   return {
     getStockMovements(branchId: Guid, query?: StockMovementSearchQuery): Promise<StockMovementDto[]> {
-      return api.get<StockMovementDto[]>(`/api/branches/${branchId}/inventory/stock-movements`, normalizeReportQuery(query));
+      return api.get<StockMovementDto[]>(`branches/${branchId}/inventory/stock-movements`, normalizeReportQuery(query));
     },
     createStockMovement(branchId: Guid, request: CreateStockMovementRequest): Promise<StockMovementDto> {
-      return api.post<StockMovementDto, CreateStockMovementRequest>(`/api/branches/${branchId}/inventory/stock-movements`, request);
+      return api.post<StockMovementDto, CreateStockMovementRequest>(`branches/${branchId}/inventory/stock-movements`, request);
     }
   };
 }

@@ -17,7 +17,7 @@ public sealed class DeviceEnrollmentEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
         var codeResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{branchId}/device-enrollment-codes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{branchId}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(organizationId, ExpiresInSeconds: 300));
         var code = await codeResponse.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
 
@@ -75,7 +75,7 @@ public sealed class DeviceEnrollmentEndpointTests
     private static async Task<string> CreateEnrollmentCodeAsync(HttpClient client, Guid organizationId, Guid branchId)
     {
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{branchId}/device-enrollment-codes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{branchId}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(organizationId, ExpiresInSeconds: 300));
         var code = await response.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
 

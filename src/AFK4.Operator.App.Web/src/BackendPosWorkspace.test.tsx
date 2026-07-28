@@ -42,18 +42,18 @@ const fetchBackend = mock(async (input: RequestInfo | URL, init?: RequestInit) =
   if (init?.body) {
     requestedBodies.push(JSON.parse(String(init.body)));
   }
-  if (url.endsWith('/api/branches/branch-1/pos/catalog')) {
+  if (url.endsWith('/api/organizations/organization-1/branches/branch-1/pos/catalog')) {
     return jsonResponse(removeProductAfterSettlement && requestedUrls.some((item) => item.endsWith('/settlements'))
       ? []
       : [backendProduct]);
   }
-  if (url.endsWith('/api/branches/branch-1/shifts/current')) {
+  if (url.endsWith('/api/organizations/organization-1/branches/branch-1/shifts/current')) {
     return jsonResponse({ shiftId: 'shift-1' });
   }
-  if (url.includes('/api/branches/branch-1/players?')) {
+  if (url.includes('/api/organizations/organization-1/branches/branch-1/players?')) {
     return jsonResponse([linkedPlayer]);
   }
-  if (url.endsWith('/api/branches/branch-1/packages/options')) {
+  if (url.endsWith('/api/organizations/organization-1/branches/branch-1/packages/options')) {
     return jsonResponse([{
       packageDefinitionId: 'package-1',
       name: 'Ночной пакет',
@@ -64,19 +64,19 @@ const fetchBackend = mock(async (input: RequestInfo | URL, init?: RequestInit) =
       expiresAfterDays: 30
     }]);
   }
-  if (url.endsWith('/api/players/player-1/packages/purchases') && init?.method === 'POST') {
+  if (url.endsWith('/api/organizations/organization-1/players/player-1/packages/purchases') && init?.method === 'POST') {
     return jsonResponse({ playerPackageId: 'player-package-1', packageDefinitionId: 'package-1', state: 'active' });
   }
-  if (url.endsWith('/api/players/player-1/wallet-summary')) {
+  if (url.endsWith('/api/organizations/organization-1/players/player-1/wallet-summary')) {
     return jsonResponse({ walletBalance: { currencyCode: 'TJS', minorUnits: 1_500 }, debtBalance: { currencyCode: 'TJS', minorUnits: 0 }, recentEntries: [] });
   }
-  if (url.endsWith('/api/players/player-1/packages')) {
+  if (url.endsWith('/api/organizations/organization-1/players/player-1/packages')) {
     return jsonResponse([{ playerPackageId: 'player-package-1', packageDefinitionId: 'package-1', state: 'active' }]);
   }
-  if (url.endsWith('/api/branches/branch-1/pos/sales') && init?.method === 'POST') {
+  if (url.endsWith('/api/organizations/organization-1/branches/branch-1/pos/sales') && init?.method === 'POST') {
     return jsonResponse({ posSaleId: 'sale-1', state: 'draft' });
   }
-  if (url.endsWith('/api/pos/sales/sale-1/settlements') && init?.method === 'POST') {
+  if (url.endsWith('/api/organizations/organization-1/pos/sales/sale-1/settlements') && init?.method === 'POST') {
     if (settlementResponseGate !== null) {
       return settlementResponseGate;
     }
@@ -94,7 +94,7 @@ const fetchBackend = mock(async (input: RequestInfo | URL, init?: RequestInit) =
     }
     return jsonResponse({ posSaleId: 'sale-1', state: 'paid' });
   }
-  if (url.endsWith('/api/pos/sales/sale-1') && (!init?.method || init.method === 'GET')) {
+  if (url.endsWith('/api/organizations/organization-1/pos/sales/sale-1') && (!init?.method || init.method === 'GET')) {
     return jsonResponse({ posSaleId: 'sale-1', state: saleReadState });
   }
 
@@ -179,7 +179,7 @@ describe('BackendPosWorkspace', () => {
   it('labels backend product price and selected client balance', async () => {
     renderBackendPos();
     await waitFor(() => expect(requestedUrls.length).toBeGreaterThanOrEqual(2));
-    expect(requestedUrls).toContain('http://test/api/branches/branch-1/pos/catalog');
+    expect(requestedUrls).toContain('http://test/api/organizations/organization-1/branches/branch-1/pos/catalog');
     expect((await screen.findAllByText('Cola')).length).toBeGreaterThanOrEqual(1);
 
     expect(screen.getByText('Цена:')).toBeInTheDocument();
@@ -206,15 +206,15 @@ describe('BackendPosWorkspace', () => {
     expect(await screen.findByRole('option', { name: /Ночной пакет/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Купить пакет' }));
 
-    await waitFor(() => expect(requestedUrls).toContain('http://test/api/players/player-1/packages/purchases'));
+    await waitFor(() => expect(requestedUrls).toContain('http://test/api/organizations/organization-1/players/player-1/packages/purchases'));
     const purchaseBody = requestedBodies.find((body) =>
       typeof body === 'object' && body !== null && 'packageDefinitionId' in body) as Record<string, unknown>;
     expect(purchaseBody).toMatchObject({ organizationId: 'organization-1', packageDefinitionId: 'package-1' });
     expect(purchaseBody.idempotencyKey).toEqual(expect.any(String));
-    expect(requestedUrls.some((url) => url.endsWith('/api/branches/branch-1/pos/sales'))).toBe(false);
+    expect(requestedUrls.some((url) => url.endsWith('/api/organizations/organization-1/branches/branch-1/pos/sales'))).toBe(false);
     expect(requestedUrls.some((url) => url.endsWith('/settlements'))).toBe(false);
-    await waitFor(() => expect(requestedUrls).toContain('http://test/api/players/player-1/wallet-summary'));
-    expect(requestedUrls).toContain('http://test/api/players/player-1/packages');
+    await waitFor(() => expect(requestedUrls).toContain('http://test/api/organizations/organization-1/players/player-1/wallet-summary'));
+    expect(requestedUrls).toContain('http://test/api/organizations/organization-1/players/player-1/packages');
     await waitFor(() => expect(screen.getByText('15 с.')).toBeInTheDocument());
   });
 
@@ -315,7 +315,7 @@ describe('BackendPosWorkspace', () => {
       headers: { 'Content-Type': 'application/json' }
     }));
 
-    await waitFor(() => expect(requestedUrls).toContain('http://test/api/pos/sales/sale-1'));
+    await waitFor(() => expect(requestedUrls).toContain('http://test/api/organizations/organization-1/pos/sales/sale-1'));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Оплата' })).toBeNull());
     expect(requestedUrls.filter((url) => url.endsWith('/pos/sales'))).toHaveLength(1);
     expect(requestedUrls.filter((url) => url.endsWith('/settlements'))).toHaveLength(1);
@@ -331,7 +331,7 @@ describe('BackendPosWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
     fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));
 
-    await waitFor(() => expect(requestedUrls).toContain('http://test/api/pos/sales/sale-1'));
+    await waitFor(() => expect(requestedUrls).toContain('http://test/api/organizations/organization-1/pos/sales/sale-1'));
     expect(screen.getByRole('dialog', { name: 'Оплата' })).toBeInTheDocument();
     expect(screen.getAllByText('Cola')).toHaveLength(2);
     expect(screen.getByRole('textbox', { name: 'Получено' })).toHaveValue('100.00');
@@ -386,7 +386,7 @@ describe('BackendPosWorkspace', () => {
       fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
       fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));
 
-      await waitFor(() => expect(requestedUrls).toContain('http://test/api/pos/sales/sale-1'));
+      await waitFor(() => expect(requestedUrls).toContain('http://test/api/organizations/organization-1/pos/sales/sale-1'));
       await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Оплата' })).toBeNull());
       expect(requestedUrls.filter((url) => url.endsWith('/settlements'))).toHaveLength(1);
       expect(screen.getByText('Продажа уже завершена или отменена. Проверьте чек и создайте новую продажу.')).toBeInTheDocument();

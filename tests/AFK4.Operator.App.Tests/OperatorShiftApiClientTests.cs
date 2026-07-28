@@ -33,7 +33,7 @@ public sealed class OperatorShiftApiClientTests
 
         Assert.Equal(ShiftId, shift.ShiftId);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/shifts/open", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/shifts/open", handler.LastPathAndQuery);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
 
         var body = DeserializeRequest<OpenShiftRequest>(handler.LastRequestBody);
@@ -57,7 +57,7 @@ public sealed class OperatorShiftApiClientTests
         var missing = await client.GetCurrentShiftAsync(BranchId, CancellationToken.None);
 
         Assert.Equal(ShiftId, shift?.ShiftId);
-        Assert.Equal($"/api/branches/{BranchId:D}/shifts/current", firstPath);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/shifts/current", firstPath);
         Assert.Null(missing);
         Assert.Equal(HttpMethod.Get, handler.LastMethod);
     }
@@ -87,7 +87,7 @@ public sealed class OperatorShiftApiClientTests
 
         Assert.Equal(CashMovementTypeNames.CashIn, movement.MovementType);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/shifts/{ShiftId:D}/cash-movements", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/shifts/{ShiftId:D}/cash-movements", handler.LastPathAndQuery);
 
         var body = DeserializeRequest<RecordCashMovementRequest>(handler.LastRequestBody);
         Assert.Equal("cash-in-001", body.IdempotencyKey);
@@ -109,7 +109,7 @@ public sealed class OperatorShiftApiClientTests
 
         Assert.Equal(ShiftStateNames.Closed, closed.State);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/shifts/{ShiftId:D}/close", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/shifts/{ShiftId:D}/close", handler.LastPathAndQuery);
 
         var body = DeserializeRequest<CloseShiftRequest>(handler.LastRequestBody);
         Assert.Equal("shift-close-001", body.IdempotencyKey);
@@ -132,7 +132,7 @@ public sealed class OperatorShiftApiClientTests
         Assert.Equal(25, report.Limit);
         Assert.Equal(HttpMethod.Get, handler.LastMethod);
         Assert.NotNull(handler.LastPathAndQuery);
-        Assert.StartsWith($"/api/branches/{BranchId:D}/reports/shifts?", handler.LastPathAndQuery);
+        Assert.StartsWith($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/reports/shifts?", handler.LastPathAndQuery);
         Assert.Contains("fromUtc=", handler.LastPathAndQuery);
         Assert.Contains("toUtc=", handler.LastPathAndQuery);
         Assert.Contains("limit=25", handler.LastPathAndQuery);
@@ -157,7 +157,7 @@ public sealed class OperatorShiftApiClientTests
 
         Assert.Equal(50, report.Limit);
         Assert.Equal(HttpMethod.Get, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/reports/sales", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/reports/sales", handler.LastPathAndQuery);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
     }
 
@@ -184,7 +184,7 @@ public sealed class OperatorShiftApiClientTests
         }
 
         Assert.Equal(HttpMethod.Get, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/reports/{reportName}", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/reports/{reportName}", handler.LastPathAndQuery);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
     }
 
@@ -217,7 +217,7 @@ public sealed class OperatorShiftApiClientTests
         Assert.Equal("id,state\r\n1,open\r\n", csv);
         Assert.Equal(HttpMethod.Get, handler.LastMethod);
         Assert.NotNull(handler.LastPathAndQuery);
-        Assert.StartsWith($"/api/branches/{BranchId:D}/reports/{reportName}/export.csv", handler.LastPathAndQuery);
+        Assert.StartsWith($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/reports/{reportName}/export.csv", handler.LastPathAndQuery);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
         if (reportName == "shifts")
         {

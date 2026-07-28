@@ -31,8 +31,8 @@ describe('operator API clients', () => {
     await clients.devices.renameDevice(deviceId, { organizationId, displayName: 'VIP-01' });
     await clients.devices.removeDevice(deviceId, { organizationId, reason: 'retired' });
     expect(calls).toMatchObject([
-      { method: 'POST', path: `/api/devices/${deviceId}/rename`, body: { organizationId, displayName: 'VIP-01' } },
-      { method: 'POST', path: `/api/devices/${deviceId}/remove`, body: { organizationId, reason: 'retired' } }
+      { method: 'POST', path: `/api/organizations/organization-id/devices/${deviceId}/rename`, body: { organizationId, displayName: 'VIP-01' } },
+      { method: 'POST', path: `/api/organizations/organization-id/devices/${deviceId}/remove`, body: { organizationId, reason: 'retired' } }
     ]);
   });
   it('maps floor-map and session clients to current backend routes', async () => {
@@ -71,12 +71,12 @@ describe('operator API clients', () => {
     await clients.sessions.endSession(sessionId, endRequest);
 
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
-      `GET /api/branches/${branchId}/floor-map`,
-      `GET /api/branches/${branchId}/dashboard/summary?fromUtc=2026-05-21T00%3A00%3A00.000Z&toUtc=2026-05-21T23%3A59%3A59.000Z&limit=8`,
-      `POST /api/branches/${branchId}/sessions/start`,
-      `POST /api/sessions/${sessionId}/extend`,
-      `POST /api/sessions/${sessionId}/transfer`,
-      `POST /api/sessions/${sessionId}/end`
+      `GET /api/organizations/organization-id/branches/${branchId}/floor-map`,
+      `GET /api/organizations/organization-id/branches/${branchId}/dashboard/summary?fromUtc=2026-05-21T00%3A00%3A00.000Z&toUtc=2026-05-21T23%3A59%3A59.000Z&limit=8`,
+      `POST /api/organizations/organization-id/branches/${branchId}/sessions/start`,
+      `POST /api/organizations/organization-id/sessions/${sessionId}/extend`,
+      `POST /api/organizations/organization-id/sessions/${sessionId}/transfer`,
+      `POST /api/organizations/organization-id/sessions/${sessionId}/end`
     ]);
     expect(calls[2].body).toEqual(startRequest);
     expect(calls[5].body).toEqual(endRequest);
@@ -157,20 +157,20 @@ describe('operator API clients', () => {
     });
 
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
-      `GET /api/branches/${branchId}/pos/catalog`,
-      `POST /api/branches/${branchId}/inventory/stock-movements`,
-      `GET /api/branches/${branchId}/inventory/stock-movements?productId=77777777-7777-7777-7777-777777777777&limit=8`,
-      `POST /api/branches/${branchId}/pos/sales`,
-      `POST /api/pos/sales/${saleId}/payments/manual`,
-      `POST /api/pos/sales/${saleId}/refunds`,
-      `POST /api/pos/sales/${saleId}/void`,
-      `GET /api/pos/sales/${saleId}`,
-      'GET /api/receipts/11111111-1111-1111-1111-111111111111',
-      `GET /api/branches/${branchId}/players?query=Amir+K%26VIP&limit=20`,
-      'POST /api/players/12121212-1212-1212-1212-121212121212/packages/purchases',
-      `POST /api/branches/${branchId}/shifts/open`,
-      `POST /api/shifts/${shiftId}/close`,
-      `GET /api/branches/${branchId}/reports/sales/export.csv?fromUtc=2026-05-21T01%3A02%3A03.000Z&toUtc=2026-05-21T02%3A03%3A04.000Z&limit=50`
+      `GET /api/organizations/organization-id/branches/${branchId}/pos/catalog`,
+      `POST /api/organizations/organization-id/branches/${branchId}/inventory/stock-movements`,
+      `GET /api/organizations/organization-id/branches/${branchId}/inventory/stock-movements?productId=77777777-7777-7777-7777-777777777777&limit=8`,
+      `POST /api/organizations/organization-id/branches/${branchId}/pos/sales`,
+      `POST /api/organizations/organization-id/pos/sales/${saleId}/payments/manual`,
+      `POST /api/organizations/organization-id/pos/sales/${saleId}/refunds`,
+      `POST /api/organizations/organization-id/pos/sales/${saleId}/void`,
+      `GET /api/organizations/organization-id/pos/sales/${saleId}`,
+      'GET /api/organizations/organization-id/receipts/11111111-1111-1111-1111-111111111111',
+      `GET /api/organizations/organization-id/branches/${branchId}/players?query=Amir+K%26VIP&limit=20`,
+      'POST /api/organizations/organization-id/players/12121212-1212-1212-1212-121212121212/packages/purchases',
+      `POST /api/organizations/organization-id/branches/${branchId}/shifts/open`,
+      `POST /api/organizations/organization-id/shifts/${shiftId}/close`,
+      `GET /api/organizations/organization-id/branches/${branchId}/reports/sales/export.csv?fromUtc=2026-05-21T01%3A02%3A03.000Z&toUtc=2026-05-21T02%3A03%3A04.000Z&limit=50`
     ]);
     expect(calls[1].body).toEqual(stockRequest);
     expect(calls[3].body).toEqual(saleRequest);
@@ -199,7 +199,7 @@ describe('operator API clients', () => {
     await clients.pos.settleSale(saleId, request);
 
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
-      `POST /api/pos/sales/${saleId}/settlements`
+      `POST /api/organizations/organization-id/pos/sales/${saleId}/settlements`
     ]);
     expect(calls[0].body).toEqual(request);
   });
@@ -262,13 +262,13 @@ describe('operator API clients', () => {
     await clients.reservations.startSession(reservationId, startSessionRequest);
 
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
-      `GET /api/branches/${branchId}/reservations?fromUtc=2026-05-21T00%3A00%3A00.000Z&toUtc=2026-05-21T23%3A59%3A59.999Z&limit=40&state=confirmed`,
-      `POST /api/branches/${branchId}/reservations`,
-      `PATCH /api/reservations/${reservationId}`,
-      `POST /api/reservations/${reservationId}/confirm`,
-      `POST /api/reservations/${reservationId}/seat`,
-      `POST /api/reservations/${reservationId}/cancel`,
-      `POST /api/reservations/${reservationId}/start-session`
+      `GET /api/organizations/organization-id/branches/${branchId}/reservations?fromUtc=2026-05-21T00%3A00%3A00.000Z&toUtc=2026-05-21T23%3A59%3A59.999Z&limit=40&state=confirmed`,
+      `POST /api/organizations/organization-id/branches/${branchId}/reservations`,
+      `PATCH /api/organizations/organization-id/reservations/${reservationId}`,
+      `POST /api/organizations/organization-id/reservations/${reservationId}/confirm`,
+      `POST /api/organizations/organization-id/reservations/${reservationId}/seat`,
+      `POST /api/organizations/organization-id/reservations/${reservationId}/cancel`,
+      `POST /api/organizations/organization-id/reservations/${reservationId}/start-session`
     ]);
     expect(calls[1].body).toEqual(createRequest);
     expect(calls[2].body).toEqual(updateRequest);
@@ -410,37 +410,37 @@ describe('operator API clients', () => {
     });
 
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
-      `GET /api/branches/${branchId}/staff`,
-      `PATCH /api/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/profile`,
-      `PATCH /api/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/roles`,
-      `PATCH /api/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/state`,
-      `POST /api/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/password-reset`,
-      `GET /api/branches/${branchId}/profile`,
-      `PATCH /api/branches/${branchId}/profile`,
-      `POST /api/branches/${branchId}/layout/zones`,
-      `POST /api/branches/${branchId}/layout/seats`,
-      `PATCH /api/branches/${branchId}/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb`,
-      `PATCH /api/branches/${branchId}/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa`,
-      `GET /api/branches/${branchId}/tariffs/options`,
-      `PATCH /api/branches/${branchId}/tariffs/11111111-1111-1111-1111-111111111111`,
-      `PATCH /api/branches/${branchId}/tariffs/11111111-1111-1111-1111-111111111111/versions/22222222-2222-2222-2222-222222222222`,
-      `GET /api/branches/${branchId}/packages/options`,
-      `POST /api/branches/${branchId}/packages`,
-      `PATCH /api/branches/${branchId}/packages/abababab-abab-abab-abab-abababababab`,
-      `POST /api/branches/${branchId}/pos/categories`,
-      `POST /api/branches/${branchId}/pos/products`,
-      `PATCH /api/branches/${branchId}/pos/products/77777777-7777-7777-7777-777777777777`,
-      `POST /api/branches/${branchId}/devices/${deviceId}/seat-assignment`,
-      `GET /api/branches/${branchId}/devices`,
-      `POST /api/branches/${branchId}/device-enrollment-codes`,
-      `POST /api/devices/${deviceId}/commands`,
-      `GET /api/devices/${deviceId}/commands?limit=25`,
-      `GET /api/branches/${branchId}/device-commands?limit=50`,
-      `GET /api/devices/${deviceId}/commands/${commandId}/status`,
-      `GET /api/branches/${branchId}/diagnostics`,
-      `GET /api/branches/${branchId}/updates/rollouts`,
-      `POST /api/branches/${branchId}/updates/rollouts/99999999-9999-9999-9999-999999999999/state`,
-      `GET /api/branches/${branchId}/audit?action=session.end&outcome=success&targetType=session&limit=25`
+      `GET /api/organizations/organization-id/branches/${branchId}/staff`,
+      `PATCH /api/organizations/organization-id/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/profile`,
+      `PATCH /api/organizations/organization-id/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/roles`,
+      `PATCH /api/organizations/organization-id/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/state`,
+      `POST /api/organizations/organization-id/branches/${branchId}/staff/77777777-7777-7777-7777-777777777777/password-reset`,
+      `GET /api/organizations/organization-id/branches/${branchId}/profile`,
+      `PATCH /api/organizations/organization-id/branches/${branchId}/profile`,
+      `POST /api/organizations/organization-id/branches/${branchId}/layout/zones`,
+      `POST /api/organizations/organization-id/branches/${branchId}/layout/seats`,
+      `PATCH /api/organizations/organization-id/branches/${branchId}/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb`,
+      `PATCH /api/organizations/organization-id/branches/${branchId}/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa`,
+      `GET /api/organizations/organization-id/branches/${branchId}/tariffs/options`,
+      `PATCH /api/organizations/organization-id/branches/${branchId}/tariffs/11111111-1111-1111-1111-111111111111`,
+      `PATCH /api/organizations/organization-id/branches/${branchId}/tariffs/11111111-1111-1111-1111-111111111111/versions/22222222-2222-2222-2222-222222222222`,
+      `GET /api/organizations/organization-id/branches/${branchId}/packages/options`,
+      `POST /api/organizations/organization-id/branches/${branchId}/packages`,
+      `PATCH /api/organizations/organization-id/branches/${branchId}/packages/abababab-abab-abab-abab-abababababab`,
+      `POST /api/organizations/organization-id/branches/${branchId}/pos/categories`,
+      `POST /api/organizations/organization-id/branches/${branchId}/pos/products`,
+      `PATCH /api/organizations/organization-id/branches/${branchId}/pos/products/77777777-7777-7777-7777-777777777777`,
+      `POST /api/organizations/organization-id/branches/${branchId}/devices/${deviceId}/seat-assignment`,
+      `GET /api/organizations/organization-id/branches/${branchId}/devices`,
+      `POST /api/organizations/organization-id/branches/${branchId}/device-enrollment-codes`,
+      `POST /api/organizations/organization-id/devices/${deviceId}/commands`,
+      `GET /api/organizations/organization-id/devices/${deviceId}/commands?limit=25`,
+      `GET /api/organizations/organization-id/branches/${branchId}/device-commands?limit=50`,
+      `GET /api/organizations/organization-id/devices/${deviceId}/commands/${commandId}/status`,
+      `GET /api/organizations/organization-id/branches/${branchId}/diagnostics`,
+      `GET /api/organizations/organization-id/branches/${branchId}/updates/rollouts`,
+      `POST /api/organizations/organization-id/branches/${branchId}/updates/rollouts/99999999-9999-9999-9999-999999999999/state`,
+      `GET /api/organizations/organization-id/branches/${branchId}/audit?action=session.end&outcome=success&targetType=session&limit=25`
     ]);
     expect(calls[1].body).toEqual({ organizationId, userName: 'cashier2', displayName: 'Cashier Two' });
     expect(calls[2].body).toEqual({ organizationId, roleNames: ['technician'] });
@@ -493,10 +493,10 @@ describe('operator API clients', () => {
     });
 
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
-      `GET /api/branches/${branchId}/money-actions`,
-      `POST /api/branches/${branchId}/money-actions/${requestId}/approve`,
-      `POST /api/branches/${branchId}/money-actions/${requestId}/reject`,
-      `GET /api/branches/${branchId}/audit?actorStaffUserId=3db1367b-88c6-4b1c-99c3-bcbb5f4d5134&minAmount=1000&maxAmount=5000&limit=50`
+      `GET /api/organizations/organization-id/branches/${branchId}/money-actions`,
+      `POST /api/organizations/organization-id/branches/${branchId}/money-actions/${requestId}/approve`,
+      `POST /api/organizations/organization-id/branches/${branchId}/money-actions/${requestId}/reject`,
+      `GET /api/organizations/organization-id/branches/${branchId}/audit?actorStaffUserId=3db1367b-88c6-4b1c-99c3-bcbb5f4d5134&minAmount=1000&maxAmount=5000&limit=50`
     ]);
     expect(calls[1].body).toEqual({ decisionReason: null });
     expect(calls[2].body).toEqual({ decisionReason: 'Нет чека' });
@@ -509,8 +509,8 @@ describe('operator API clients', () => {
     await clients.settings.deleteZone(branchId, 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', organizationId);
 
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
-      `DELETE /api/branches/${branchId}/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?organizationId=${organizationId}`,
-      `DELETE /api/branches/${branchId}/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb?organizationId=${organizationId}`
+      `DELETE /api/organizations/organization-id/branches/${branchId}/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?organizationId=${organizationId}`,
+      `DELETE /api/organizations/organization-id/branches/${branchId}/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb?organizationId=${organizationId}`
     ]);
   });
 });
@@ -545,7 +545,7 @@ function createRecordedClients(respond?: (url: URL, init: RequestInit) => Respon
 
   return {
     calls,
-    clients: createOperatorApiClients(api)
+    clients: createOperatorApiClients(api, 'organization-id')
   };
 }
 
@@ -561,7 +561,7 @@ function jsonResponse(body: unknown) {
 import { createLoyaltySettingsClient } from './operatorApiClients';
 
 describe('createLoyaltySettingsClient', () => {
-  it('gets and updates /api/owner/loyalty-settings', async () => {
+  it('gets and updates organization loyalty settings', async () => {
     const calls: Array<{ method: string; path: string; body?: unknown }> = [];
     const apiFake = {
       get: async <T,>(path: string) => { calls.push({ method: 'GET', path }); return { topUpEnabled: false, topUpPercentBasisPoints: 0, shopEnabled: false, shopPercentBasisPoints: 0 } as T; },
@@ -578,8 +578,8 @@ describe('createLoyaltySettingsClient', () => {
     };
     await client.update(payload);
     expect(calls).toEqual([
-      { method: 'GET', path: '/api/owner/loyalty-settings' },
-      { method: 'POST', path: '/api/owner/loyalty-settings', body: payload }
+      { method: 'GET', path: 'loyalty-settings' },
+      { method: 'POST', path: 'loyalty-settings', body: payload }
     ]);
   });
 });

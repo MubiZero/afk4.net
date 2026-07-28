@@ -73,9 +73,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class ShiftEndpoints
 {
-    public static void MapShiftEndpoints(this WebApplication app)
+    public static void MapShiftEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/branches/{branchId:guid}/shifts/open", async (
+        app.MapPost("branches/{branchId:guid}/shifts/open", async (
             Guid branchId,
             OpenShiftRequest request,
             StaffAuthorizationService authorizationService,
@@ -141,7 +141,7 @@ internal static class ShiftEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/shifts/current", async (
+        app.MapGet("branches/{branchId:guid}/shifts/current", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IShiftService shiftService,
@@ -172,7 +172,7 @@ internal static class ShiftEndpoints
                 : Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/shifts/{shiftId:guid}/cash-movements", async (
+        app.MapPost("shifts/{shiftId:guid}/cash-movements", async (
             Guid shiftId,
             RecordCashMovementRequest request,
             PlatformDbContext dbContext,
@@ -243,7 +243,7 @@ internal static class ShiftEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/shifts/revenue/current", async (
+        app.MapGet("branches/{branchId:guid}/shifts/revenue/current", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IReportService reportService,
@@ -268,7 +268,7 @@ internal static class ShiftEndpoints
             return result is null ? Results.NotFound() : Results.Ok(result);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/shifts/revenue", async (
+        app.MapGet("branches/{branchId:guid}/shifts/revenue", async (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -297,7 +297,7 @@ internal static class ShiftEndpoints
             return Results.Ok(result);
         });
 
-        app.MapPost("/api/shifts/{shiftId:guid}/close", async (
+        app.MapPost("shifts/{shiftId:guid}/close", async (
             Guid shiftId,
             CloseShiftRequest request,
             PlatformDbContext dbContext,

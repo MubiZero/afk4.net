@@ -73,9 +73,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class PackageEndpoints
 {
-    public static void MapPackageEndpoints(this WebApplication app)
+    public static void MapPackageEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/branches/{branchId:guid}/packages", async (
+        app.MapPost("branches/{branchId:guid}/packages", async (
             Guid branchId,
             CreatePackageDefinitionRequest request,
             StaffAuthorizationService authorizationService,
@@ -141,7 +141,7 @@ internal static class PackageEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPatch("/api/branches/{branchId:guid}/packages/{packageDefinitionId:guid}", async (
+        app.MapPatch("branches/{branchId:guid}/packages/{packageDefinitionId:guid}", async (
             Guid branchId,
             Guid packageDefinitionId,
             UpdatePackageDefinitionRequest request,
@@ -209,7 +209,7 @@ internal static class PackageEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/packages/options", async (
+        app.MapGet("branches/{branchId:guid}/packages/options", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
@@ -251,7 +251,7 @@ internal static class PackageEndpoints
             return Results.Ok(options);
         });
 
-        app.MapPost("/api/players/{playerAccountId:guid}/packages/purchases", async (
+        app.MapPost("players/{playerAccountId:guid}/packages/purchases", async (
             Guid playerAccountId,
             PurchasePackageRequest request,
             PlatformDbContext dbContext,
@@ -329,7 +329,7 @@ internal static class PackageEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapGet("/api/players/{playerAccountId:guid}/packages", async (
+        app.MapGet("players/{playerAccountId:guid}/packages", async (
             Guid playerAccountId,
             PlatformDbContext dbContext,
             IStaffContextAccessor staffContextAccessor,

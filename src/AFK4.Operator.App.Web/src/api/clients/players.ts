@@ -136,13 +136,13 @@ export function createPlayerClient(api: PlatformApiClient) {
     searchPlayers(branchId: Guid, query: string, limit: number, includeInactive = false): Promise<PlayerSearchResultDto[]> {
       const params: Record<string, string | number> = { query, limit };
       if (includeInactive) params.includeInactive = 'true';
-      return api.get<PlayerSearchResultDto[]>(`/api/branches/${branchId}/players`, params);
+      return api.get<PlayerSearchResultDto[]>(`branches/${branchId}/players`, params);
     },
     createPlayer(branchId: Guid, request: CreatePlayerAccountRequest): Promise<PlayerAccountDto> {
-      return api.post<PlayerAccountDto, CreatePlayerAccountRequest>(`/api/branches/${branchId}/players`, request);
+      return api.post<PlayerAccountDto, CreatePlayerAccountRequest>(`branches/${branchId}/players`, request);
     },
     getWalletSummary(playerAccountId: Guid): Promise<WalletSummaryDto> {
-      return api.get<WalletSummaryDto>(`/api/players/${playerAccountId}/wallet-summary`);
+      return api.get<WalletSummaryDto>(`players/${playerAccountId}/wallet-summary`);
     },
     getLedger(
       playerAccountId: Guid,
@@ -153,34 +153,34 @@ export function createPlayerClient(api: PlatformApiClient) {
       if (params.accountType) query.accountType = params.accountType;
       if (params.cursor) query.before = params.cursor; // курсор уходит на бэк как `before`
       if (params.limit !== undefined) query.limit = params.limit;
-      return api.get<CursorPageDto<LedgerEntryDto>>(`/api/players/${playerAccountId}/ledger`, query);
+      return api.get<CursorPageDto<LedgerEntryDto>>(`players/${playerAccountId}/ledger`, query);
     },
     getPlayerPackages(playerAccountId: Guid): Promise<PlayerPackageDto[]> {
-      return api.get<PlayerPackageDto[]>(`/api/players/${playerAccountId}/packages`);
+      return api.get<PlayerPackageDto[]>(`players/${playerAccountId}/packages`);
     },
     purchasePackage(playerAccountId: Guid, request: PurchasePackageRequest): Promise<PlayerPackageDto> {
-      return api.post<PlayerPackageDto, PurchasePackageRequest>(`/api/players/${playerAccountId}/packages/purchases`, request);
+      return api.post<PlayerPackageDto, PurchasePackageRequest>(`players/${playerAccountId}/packages/purchases`, request);
     },
     topUpWallet(playerAccountId: Guid, request: TopUpWalletRequest): Promise<WalletSummaryDto> {
-      return api.post<WalletSummaryDto, TopUpWalletRequest>(`/api/players/${playerAccountId}/wallet/top-ups`, request);
+      return api.post<WalletSummaryDto, TopUpWalletRequest>(`players/${playerAccountId}/wallet/top-ups`, request);
     },
     payDebt(playerAccountId: Guid, request: PayDebtRequest): Promise<WalletSummaryDto> {
-      return api.post<WalletSummaryDto, PayDebtRequest>(`/api/players/${playerAccountId}/debts/payments`, request);
+      return api.post<WalletSummaryDto, PayDebtRequest>(`players/${playerAccountId}/debts/payments`, request);
     },
     manualCorrection(playerAccountId: Guid, request: ManualLedgerCorrectionRequest): Promise<WalletSummaryDto> {
-      return api.post<WalletSummaryDto, ManualLedgerCorrectionRequest>(`/api/players/${playerAccountId}/ledger/manual-corrections`, request);
+      return api.post<WalletSummaryDto, ManualLedgerCorrectionRequest>(`players/${playerAccountId}/ledger/manual-corrections`, request);
     },
     refundLedgerEntry(playerAccountId: Guid, ledgerEntryId: Guid, request: RefundLedgerEntryRequest): Promise<LedgerEntryDto> {
-      return api.post<LedgerEntryDto, RefundLedgerEntryRequest>(`/api/players/${playerAccountId}/ledger/${ledgerEntryId}/refunds`, request);
+      return api.post<LedgerEntryDto, RefundLedgerEntryRequest>(`players/${playerAccountId}/ledger/${ledgerEntryId}/refunds`, request);
     },
     setPlayerPin(branchId: Guid, playerAccountId: Guid, request: SetPlayerPinRequest): Promise<void> {
-      return api.post<void, SetPlayerPinRequest>(`/api/branches/${branchId}/players/${playerAccountId}/pin`, request);
+      return api.post<void, SetPlayerPinRequest>(`branches/${branchId}/players/${playerAccountId}/pin`, request);
     },
     updateProfile(branchId: Guid, playerAccountId: Guid, request: UpdatePlayerAccountRequest): Promise<PlayerAccountDto> {
-      return api.patch<PlayerAccountDto, UpdatePlayerAccountRequest>(`/api/branches/${branchId}/players/${playerAccountId}`, request);
+      return api.patch<PlayerAccountDto, UpdatePlayerAccountRequest>(`branches/${branchId}/players/${playerAccountId}`, request);
     },
     setActiveState(branchId: Guid, playerAccountId: Guid, request: SetPlayerActiveStateRequest): Promise<PlayerAccountDto> {
-      return api.post<PlayerAccountDto, SetPlayerActiveStateRequest>(`/api/branches/${branchId}/players/${playerAccountId}/active-state`, request);
+      return api.post<PlayerAccountDto, SetPlayerActiveStateRequest>(`branches/${branchId}/players/${playerAccountId}/active-state`, request);
     }
   };
 }

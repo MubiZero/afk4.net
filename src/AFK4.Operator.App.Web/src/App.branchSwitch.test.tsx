@@ -105,7 +105,7 @@ function createSession(overrides: Record<string, unknown> = {}) {
 
 function mockFetch(input: RequestInfo | URL): Promise<Response> {
   const pathname = new URL(String(input)).pathname;
-  const branchMatch = pathname.match(/\/api\/branches\/([^/]+)\//);
+  const branchMatch = pathname.match(/\/api\/organizations\/[^/]+\/branches\/([^/]+)\//);
   const branchId = branchMatch?.[1] ?? BRANCH_A;
 
   if (pathname.endsWith('/floor-map')) {
@@ -309,7 +309,7 @@ describe('App — branch switch (Task 11)', () => {
     const startCalls: string[] = [];
     fetchMock.mockImplementation((input, init) => {
       const pathname = new URL(String(input)).pathname;
-      const branchMatch = pathname.match(/\/api\/branches\/([^/]+)\//);
+      const branchMatch = pathname.match(/\/api\/organizations\/[^/]+\/branches\/([^/]+)\//);
       const branchId = branchMatch?.[1] ?? BRANCH_A;
 
       if (pathname.endsWith('/floor-map')) {

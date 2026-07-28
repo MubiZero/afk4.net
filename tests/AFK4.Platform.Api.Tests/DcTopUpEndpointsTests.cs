@@ -21,7 +21,7 @@ public sealed class DcTopUpEndpointsTests
         using var client = factory.CreateClient();
         var (branchId, playerId) = await DcTestSetup.SeedActiveConfigAndPlayerAsync(client, factory);
 
-        var resp = await client.PostAsJsonAsync($"/api/branches/{branchId}/pos/dc-topups",
+        var resp = await client.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{branchId}/pos/dc-topups",
             new CreateDcTopUpRequest(playerId, 5000, "TJS"));
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
         var dto = await resp.Content.ReadFromJsonAsync<DcTopUpDto>();
@@ -43,7 +43,7 @@ public sealed class DcTopUpEndpointsTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         var (branchId, playerId) = await DcTestSetup.SeedPlayerNoConfigAsync(client, factory);
-        var resp = await client.PostAsJsonAsync($"/api/branches/{branchId}/pos/dc-topups",
+        var resp = await client.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{branchId}/pos/dc-topups",
             new CreateDcTopUpRequest(playerId, 5000, "TJS"));
         Assert.Equal(HttpStatusCode.Conflict, resp.StatusCode);
     }
@@ -54,11 +54,11 @@ public sealed class DcTopUpEndpointsTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         var (branchId, playerId) = await DcTestSetup.SeedActiveConfigAndPlayerAsync(client, factory);
-        var create = await (await client.PostAsJsonAsync($"/api/branches/{branchId}/pos/dc-topups",
+        var create = await (await client.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{branchId}/pos/dc-topups",
             new CreateDcTopUpRequest(playerId, 5000, "TJS"))).Content.ReadFromJsonAsync<DcTopUpDto>();
 
-        var f1 = await client.PostAsync($"/api/wallet/top-up-intents/{create!.IntentId}/fulfil", null);
-        var f2 = await client.PostAsync($"/api/wallet/top-up-intents/{create.IntentId}/fulfil", null);
+        var f1 = await client.PostAsync($"/api/organizations/{TestIds.OrganizationId:D}/wallet/top-up-intents/{create!.IntentId}/fulfil", null);
+        var f2 = await client.PostAsync($"/api/organizations/{TestIds.OrganizationId:D}/wallet/top-up-intents/{create.IntentId}/fulfil", null);
         Assert.Equal(HttpStatusCode.OK, f1.StatusCode);
         Assert.Equal(HttpStatusCode.OK, f2.StatusCode); // идемпотентно
 
@@ -74,10 +74,10 @@ public sealed class DcTopUpEndpointsTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         var (branchId, playerId) = await DcTestSetup.SeedActiveConfigAndPlayerAsync(client, factory);
-        var create = await (await client.PostAsJsonAsync($"/api/branches/{branchId}/pos/dc-topups",
+        var create = await (await client.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{branchId}/pos/dc-topups",
             new CreateDcTopUpRequest(playerId, 5000, "TJS"))).Content.ReadFromJsonAsync<DcTopUpDto>();
 
-        var cancel = await client.PostAsync($"/api/branches/{branchId}/pos/dc-topups/{create!.IntentId}/cancel", null);
+        var cancel = await client.PostAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{branchId}/pos/dc-topups/{create!.IntentId}/cancel", null);
         Assert.Equal(HttpStatusCode.NoContent, cancel.StatusCode);
 
         using var scope = factory.Services.CreateScope();
@@ -95,13 +95,13 @@ public sealed class DcTopUpEndpointsTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         var (branchId, playerId) = await DcTestSetup.SeedActiveConfigAndPlayerAsync(client, factory);
-        var create = await (await client.PostAsJsonAsync($"/api/branches/{branchId}/pos/dc-topups",
+        var create = await (await client.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{branchId}/pos/dc-topups",
             new CreateDcTopUpRequest(playerId, 5000, "TJS"))).Content.ReadFromJsonAsync<DcTopUpDto>();
 
-        var cancel = await client.PostAsync($"/api/branches/{branchId}/pos/dc-topups/{create!.IntentId}/cancel", null);
+        var cancel = await client.PostAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{branchId}/pos/dc-topups/{create!.IntentId}/cancel", null);
         Assert.Equal(HttpStatusCode.NoContent, cancel.StatusCode);
 
-        var fulfil = await client.PostAsync($"/api/wallet/top-up-intents/{create.IntentId}/fulfil", null);
+        var fulfil = await client.PostAsync($"/api/organizations/{TestIds.OrganizationId:D}/wallet/top-up-intents/{create.IntentId}/fulfil", null);
         Assert.NotEqual(HttpStatusCode.OK, fulfil.StatusCode);
 
         using var scope = factory.Services.CreateScope();
@@ -119,10 +119,10 @@ public sealed class DcTopUpEndpointsTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         var (branchId, playerId) = await DcTestSetup.SeedActiveConfigAndInactivePlayerAsync(client, factory);
-        var create = await (await client.PostAsJsonAsync($"/api/branches/{branchId}/pos/dc-topups",
+        var create = await (await client.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{branchId}/pos/dc-topups",
             new CreateDcTopUpRequest(playerId, 5000, "TJS"))).Content.ReadFromJsonAsync<DcTopUpDto>();
 
-        var fulfil = await client.PostAsync($"/api/wallet/top-up-intents/{create!.IntentId}/fulfil", null);
+        var fulfil = await client.PostAsync($"/api/organizations/{TestIds.OrganizationId:D}/wallet/top-up-intents/{create!.IntentId}/fulfil", null);
         Assert.NotEqual(HttpStatusCode.OK, fulfil.StatusCode);
 
         using var scope = factory.Services.CreateScope();

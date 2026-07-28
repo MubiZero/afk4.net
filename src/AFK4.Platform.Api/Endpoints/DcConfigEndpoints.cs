@@ -12,9 +12,9 @@ namespace AFK4.Platform.Api.Endpoints;
 // Номер карты пишется шифрованным и наружу не возвращается — GET отдаёт только CardLast4 + CardSet.
 internal static class DcConfigEndpoints
 {
-    public static void MapDcConfigEndpoints(this WebApplication app)
+    public static void MapDcConfigEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/owner/dc-config", async (
+        app.MapGet("payments/dc-config", async (
             StaffAuthorizationService authorizationService,
             PlatformDbContext db,
             CancellationToken ct) =>
@@ -36,7 +36,7 @@ internal static class DcConfigEndpoints
                     row.IsActive));
         });
 
-        app.MapPost("/api/owner/dc-config", async (
+        app.MapPost("payments/dc-config", async (
             UpdateDcPayLinkConfigRequest request,
             StaffAuthorizationService authorizationService,
             ISecretProtector secretProtector,

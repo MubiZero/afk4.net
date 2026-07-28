@@ -160,7 +160,7 @@ public sealed class InstalledAppsEndpointTests
         string machineName = "PC-001")
     {
         var codeResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/device-enrollment-codes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 300));
         var code = await codeResponse.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
         Assert.Equal(HttpStatusCode.OK, codeResponse.StatusCode);

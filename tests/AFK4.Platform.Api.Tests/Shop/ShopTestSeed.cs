@@ -224,7 +224,7 @@ internal static class ShopTestSeed
         }
 
         var signIn = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{organizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(organizationId, email, password));
         signIn.EnsureSuccessStatusCode();
         var tokens = await signIn.Content.ReadFromJsonAsync<StaffSignInResponse>();

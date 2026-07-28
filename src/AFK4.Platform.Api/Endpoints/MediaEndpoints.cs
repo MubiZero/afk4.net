@@ -8,9 +8,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class MediaEndpoints
 {
-    public static void MapMediaEndpoints(this WebApplication app)
+    public static void MapMediaEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/branches/{branchId:guid}/media", async (
+        app.MapPost("branches/{branchId:guid}/media", async (
             Guid branchId,
             [FromForm] string purpose,
             IFormFile file,
@@ -33,7 +33,7 @@ internal static class MediaEndpoints
                 : Results.BadRequest(new { Error = result.Error });
         }).DisableAntiforgery();
 
-        app.MapDelete("/api/branches/{branchId:guid}/media/{mediaId:guid}", async (
+        app.MapDelete("branches/{branchId:guid}/media/{mediaId:guid}", async (
             Guid branchId, Guid mediaId,
             StaffAuthorizationService authorizationService,
             IMediaService mediaService,

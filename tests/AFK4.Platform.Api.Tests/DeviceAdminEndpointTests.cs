@@ -27,7 +27,7 @@ public sealed class DeviceAdminEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Pending);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/devices/pending");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/devices/pending");
         var devices = await response.Content.ReadFromJsonAsync<IReadOnlyList<DeviceInventoryItemDto>>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -48,7 +48,7 @@ public sealed class DeviceAdminEndpointTests
         await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Pending);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/devices/{PendingDeviceId:D}/approve",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{PendingDeviceId:D}/approve",
             new DeviceStateChangeRequest(TestIds.OrganizationId, "Checked serial number."));
         var device = await response.Content.ReadFromJsonAsync<DeviceInventoryItemDto>();
 
@@ -76,7 +76,7 @@ public sealed class DeviceAdminEndpointTests
         await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Pending);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/devices/{PendingDeviceId:D}/reject",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{PendingDeviceId:D}/reject",
             new DeviceStateChangeRequest(TestIds.OrganizationId, "Wrong seat selected."));
         var device = await response.Content.ReadFromJsonAsync<DeviceInventoryItemDto>();
 
@@ -106,7 +106,7 @@ public sealed class DeviceAdminEndpointTests
         await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Approved);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/devices/{PendingDeviceId:D}/rename",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{PendingDeviceId:D}/rename",
             new RenameDeviceRequest(TestIds.OrganizationId, "VIP-01 replacement"));
         var device = await response.Content.ReadFromJsonAsync<DeviceInventoryItemDto>();
 
@@ -132,7 +132,7 @@ public sealed class DeviceAdminEndpointTests
         await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Approved);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/devices/{PendingDeviceId:D}/rename",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{PendingDeviceId:D}/rename",
             new RenameDeviceRequest(TestIds.OrganizationId, new string('D', 81)));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -151,7 +151,7 @@ public sealed class DeviceAdminEndpointTests
         await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Approved);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/devices/{PendingDeviceId:D}/move-seat",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{PendingDeviceId:D}/move-seat",
             new MoveDeviceSeatRequest(TestIds.OrganizationId, SeatBId));
         var device = await response.Content.ReadFromJsonAsync<DeviceInventoryItemDto>();
 
@@ -182,7 +182,7 @@ public sealed class DeviceAdminEndpointTests
         await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Approved);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/devices/{PendingDeviceId:D}/remove",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{PendingDeviceId:D}/remove",
             new DeviceStateChangeRequest(TestIds.OrganizationId, "PC replaced."));
         var removed = await response.Content.ReadFromJsonAsync<DeviceInventoryItemDto>();
 
@@ -191,7 +191,7 @@ public sealed class DeviceAdminEndpointTests
         Assert.Equal(DeviceEnrollmentStateNames.Removed, removed.EnrollmentState);
         Assert.Null(removed.SeatId);
 
-        var listResponse = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/devices");
+        var listResponse = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/devices");
         var listed = await listResponse.Content.ReadFromJsonAsync<IReadOnlyList<DeviceInventoryItemDto>>();
         Assert.DoesNotContain(listed!, device => device.DeviceId == PendingDeviceId);
 
@@ -212,7 +212,7 @@ public sealed class DeviceAdminEndpointTests
         await SeedActiveSessionAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/devices/{PendingDeviceId:D}/remove",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{PendingDeviceId:D}/remove",
             new DeviceStateChangeRequest(TestIds.OrganizationId, "PC replaced."));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);

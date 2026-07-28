@@ -15,7 +15,7 @@ public sealed class FloorMapEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync("/api/branches/acfc0212-967f-4d84-94be-9003387b09c2/floor-map");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/acfc0212-967f-4d84-94be-9003387b09c2/floor-map");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -27,7 +27,7 @@ public sealed class FloorMapEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/floor-map");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -40,7 +40,7 @@ public sealed class FloorMapEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedLayoutAsync(factory);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/floor-map");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var map = await response.Content.ReadFromJsonAsync<FloorMapDto>();

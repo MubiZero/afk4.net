@@ -755,7 +755,7 @@ public sealed class PlatformTenantEndpointTests
 
         using var staffClient = factory.CreateClient();
         var signIn = await staffClient.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "tech@afk4.test", "Passw0rd!"));
         var signInBody = await signIn.Content.ReadFromJsonAsync<StaffSignInResponse>();
         Assert.NotNull(signInBody);

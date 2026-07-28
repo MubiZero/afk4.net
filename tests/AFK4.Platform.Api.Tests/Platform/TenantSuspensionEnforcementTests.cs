@@ -25,7 +25,7 @@ public sealed class TenantSuspensionEnforcementTests
         await SetTenantStatusAsync(factory, TenantStatusNames.Suspended, "Unpaid invoice");
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/device-enrollment-codes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 3600));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -45,7 +45,7 @@ public sealed class TenantSuspensionEnforcementTests
 
         await SetTenantStatusAsync(factory, TenantStatusNames.Suspended, "Holding");
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/floor-map");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -63,7 +63,7 @@ public sealed class TenantSuspensionEnforcementTests
 
         using var freshClient = factory.CreateClient();
         var signInResponse = await freshClient.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "tech@afk4.test", "Passw0rd!"));
 
         Assert.Equal(HttpStatusCode.OK, signInResponse.StatusCode);
@@ -79,7 +79,7 @@ public sealed class TenantSuspensionEnforcementTests
         await SetTenantStatusAsync(factory, TenantStatusNames.DeletionPending, "Tenant offboarding");
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/device-enrollment-codes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 3600));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -96,7 +96,7 @@ public sealed class TenantSuspensionEnforcementTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/device-enrollment-codes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 3600));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -143,14 +143,14 @@ public sealed class TenantSuspensionEnforcementTests
         await SetTenantStatusAsync(factory, TenantStatusNames.Suspended, "Pause");
 
         var blocked = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/device-enrollment-codes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 3600));
         Assert.Equal(HttpStatusCode.Forbidden, blocked.StatusCode);
 
         await SetTenantStatusAsync(factory, TenantStatusNames.Active, null);
 
         var allowed = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/device-enrollment-codes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 3600));
         Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
     }
@@ -241,7 +241,7 @@ public sealed class TenantSuspensionEnforcementTests
         // Create an enrollment code while still active, so the test isolates the suspension check
         // from the "no enrollment code" failure path.
         var codeResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/device-enrollment-codes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 600));
         var code = await codeResponse.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
         Assert.NotNull(code);
@@ -349,7 +349,7 @@ public sealed class TenantSuspensionEnforcementTests
     private static async Task<DeviceEnrollmentResponse> EnrollDeviceAsync(HttpClient client)
     {
         var codeResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/device-enrollment-codes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 300));
         var code = await codeResponse.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
         Assert.NotNull(code);

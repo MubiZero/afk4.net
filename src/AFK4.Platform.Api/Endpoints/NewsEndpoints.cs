@@ -11,9 +11,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class NewsEndpoints
 {
-    public static void MapNewsEndpoints(this WebApplication app)
+    public static void MapNewsEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/owner/news", async (
+        app.MapGet("news", async (
             StaffAuthorizationService authorizationService,
             INewsService news,
             CancellationToken ct) =>
@@ -26,7 +26,7 @@ internal static class NewsEndpoints
             return Results.Ok(items);
         });
 
-        app.MapGet("/api/owner/branches", async (
+        app.MapGet("branches", async (
             StaffAuthorizationService authorizationService,
             PlatformDbContext db,
             CancellationToken ct) =>
@@ -43,7 +43,7 @@ internal static class NewsEndpoints
             return Results.Ok(branches);
         });
 
-        app.MapPost("/api/owner/news", async (
+        app.MapPost("news", async (
             CreateNewsItemRequest request,
             StaffAuthorizationService authorizationService,
             INewsService news,
@@ -75,7 +75,7 @@ internal static class NewsEndpoints
             return Results.Ok(result.Item);
         });
 
-        app.MapPatch("/api/owner/news/{id:guid}", async (
+        app.MapPatch("news/{id:guid}", async (
             Guid id,
             UpdateNewsItemRequest request,
             StaffAuthorizationService authorizationService,
@@ -109,7 +109,7 @@ internal static class NewsEndpoints
             return Results.Ok(result.Item);
         });
 
-        app.MapDelete("/api/owner/news/{id:guid}", async (
+        app.MapDelete("news/{id:guid}", async (
             Guid id,
             StaffAuthorizationService authorizationService,
             INewsService news,

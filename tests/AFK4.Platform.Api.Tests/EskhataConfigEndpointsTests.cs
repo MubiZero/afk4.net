@@ -14,14 +14,14 @@ public sealed class EskhataConfigEndpointsTests
         var client = factory.CreateClient();
         var (_, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
 
-        var post = await owner.PostAsJsonAsync("/api/owner/eskhata-config",
+        var post = await owner.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/payments/eskhata-config",
             new UpdateEskhataMerchantConfigRequest("https://merchant-api.example.tld", "company-demo-001", 17, "example-secret"));
         Assert.Equal(HttpStatusCode.OK, post.StatusCode);
 
         var body = await post.Content.ReadAsStringAsync();
         Assert.DoesNotContain("example-secret", body);
 
-        var get = await owner.GetAsync("/api/owner/eskhata-config");
+        var get = await owner.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/payments/eskhata-config");
         Assert.Equal(HttpStatusCode.OK, get.StatusCode);
         var dto = await get.Content.ReadFromJsonAsync<EskhataMerchantConfigDto>();
         Assert.Equal("https://merchant-api.example.tld", dto!.BaseUrl);
@@ -38,10 +38,10 @@ public sealed class EskhataConfigEndpointsTests
         var client = factory.CreateClient();
         var (_, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
 
-        await owner.PostAsJsonAsync("/api/owner/eskhata-config",
+        await owner.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/payments/eskhata-config",
             new UpdateEskhataMerchantConfigRequest("https://merchant-api.example.tld/", "company-demo-001", 17, "example-secret"));
 
-        var dto = await (await owner.GetAsync("/api/owner/eskhata-config")).Content.ReadFromJsonAsync<EskhataMerchantConfigDto>();
+        var dto = await (await owner.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/payments/eskhata-config")).Content.ReadFromJsonAsync<EskhataMerchantConfigDto>();
         Assert.Equal("https://merchant-api.example.tld", dto!.BaseUrl);
     }
 
@@ -52,15 +52,15 @@ public sealed class EskhataConfigEndpointsTests
         var client = factory.CreateClient();
         var (_, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
 
-        await owner.PostAsJsonAsync("/api/owner/eskhata-config",
+        await owner.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/payments/eskhata-config",
             new UpdateEskhataMerchantConfigRequest("https://merchant-api.example.tld", "company-demo-001", 17, "example-secret"));
 
         // Update other fields without re-sending the secret.
-        var update = await owner.PostAsJsonAsync("/api/owner/eskhata-config",
+        var update = await owner.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/payments/eskhata-config",
             new UpdateEskhataMerchantConfigRequest("https://merchant-api.example.tld", "company-demo-002", 18, null));
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
 
-        var dto = await (await owner.GetAsync("/api/owner/eskhata-config")).Content.ReadFromJsonAsync<EskhataMerchantConfigDto>();
+        var dto = await (await owner.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/payments/eskhata-config")).Content.ReadFromJsonAsync<EskhataMerchantConfigDto>();
         Assert.Equal("company-demo-002", dto!.CompanyId);
         Assert.Equal(18, dto.MerchantId);
         Assert.True(dto.HashKeySet);
@@ -73,7 +73,7 @@ public sealed class EskhataConfigEndpointsTests
         var client = factory.CreateClient();
         var (_, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
 
-        var post = await owner.PostAsJsonAsync("/api/owner/eskhata-config",
+        var post = await owner.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/payments/eskhata-config",
             new UpdateEskhataMerchantConfigRequest("https://merchant-api.example.tld", "company-demo-001", 17, null));
         Assert.Equal(HttpStatusCode.BadRequest, post.StatusCode);
     }
@@ -85,7 +85,7 @@ public sealed class EskhataConfigEndpointsTests
         var client = factory.CreateClient();
         var (_, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
 
-        var post = await owner.PostAsJsonAsync("/api/owner/eskhata-config",
+        var post = await owner.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/payments/eskhata-config",
             new UpdateEskhataMerchantConfigRequest("not-a-url", "company-demo-001", 17, "example-secret"));
         Assert.Equal(HttpStatusCode.BadRequest, post.StatusCode);
     }
@@ -97,7 +97,7 @@ public sealed class EskhataConfigEndpointsTests
         var client = factory.CreateClient();
         var (_, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
 
-        var post = await owner.PostAsJsonAsync("/api/owner/eskhata-config",
+        var post = await owner.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/payments/eskhata-config",
             new UpdateEskhataMerchantConfigRequest("https://merchant-api.example.tld", "company-demo-001", 0, "example-secret"));
         Assert.Equal(HttpStatusCode.BadRequest, post.StatusCode);
     }
@@ -109,7 +109,7 @@ public sealed class EskhataConfigEndpointsTests
         var client = factory.CreateClient();
         var nonOwner = await OwnerTestAuth.SignInNonOwnerAsync(factory, client);
 
-        var post = await nonOwner.PostAsJsonAsync("/api/owner/eskhata-config",
+        var post = await nonOwner.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/payments/eskhata-config",
             new UpdateEskhataMerchantConfigRequest("https://merchant-api.example.tld", "company-demo-001", 17, "example-secret"));
         Assert.Equal(HttpStatusCode.Forbidden, post.StatusCode);
     }
@@ -121,7 +121,7 @@ public sealed class EskhataConfigEndpointsTests
         var client = factory.CreateClient();
         var (_, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
 
-        var get = await owner.GetAsync("/api/owner/eskhata-config");
+        var get = await owner.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/payments/eskhata-config");
         Assert.Equal(HttpStatusCode.OK, get.StatusCode);
         var dto = await get.Content.ReadFromJsonAsync<EskhataMerchantConfigDto>();
         Assert.Equal(string.Empty, dto!.BaseUrl);

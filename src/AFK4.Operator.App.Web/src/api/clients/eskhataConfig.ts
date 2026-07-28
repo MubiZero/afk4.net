@@ -20,10 +20,10 @@ export interface UpdateEskhataConfigRequest {
 export function createEskhataConfigClient(api: PlatformApiClient) {
   return {
     get(): Promise<EskhataConfigDto> {
-      return api.get<EskhataConfigDto>('/api/owner/eskhata-config');
+      return api.get<EskhataConfigDto>('payments/eskhata-config');
     },
     update(request: UpdateEskhataConfigRequest): Promise<EskhataConfigDto> {
-      return api.post<EskhataConfigDto, UpdateEskhataConfigRequest>('/api/owner/eskhata-config', request);
+      return api.post<EskhataConfigDto, UpdateEskhataConfigRequest>('payments/eskhata-config', request);
     }
   };
 }

@@ -29,7 +29,7 @@ public sealed class BillingEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/players",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/players",
             new CreatePlayerAccountRequest(TestIds.OrganizationId, "Player One", "+992000000001", "player-create-001"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -43,7 +43,7 @@ public sealed class BillingEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/players",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/players",
             new CreatePlayerAccountRequest(TestIds.OrganizationId, "Player One", "+992000000001", "player-create-001"));
         var body = await response.Content.ReadFromJsonAsync<PlayerAccountDto>();
 
@@ -70,7 +70,7 @@ public sealed class BillingEndpointTests
         await SeedPlayerAsync(factory);
 
         var response = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}",
             new UpdatePlayerAccountRequest(TestIds.OrganizationId, "Player Renamed", "+992000000099"));
         var body = await response.Content.ReadFromJsonAsync<PlayerAccountDto>();
 
@@ -97,7 +97,7 @@ public sealed class BillingEndpointTests
         await SeedPlayerAsync(factory);
 
         var response = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}",
             new UpdatePlayerAccountRequest(TestIds.OrganizationId, "   ", null));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -111,7 +111,7 @@ public sealed class BillingEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/players/{Guid.NewGuid():D}",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/players/{Guid.NewGuid():D}",
             new UpdatePlayerAccountRequest(TestIds.OrganizationId, "Ghost", null));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -126,7 +126,7 @@ public sealed class BillingEndpointTests
         await SeedPlayerAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}/active-state",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}/active-state",
             new SetPlayerActiveStateRequest(TestIds.OrganizationId, false));
         var body = await response.Content.ReadFromJsonAsync<PlayerAccountDto>();
 
@@ -151,11 +151,11 @@ public sealed class BillingEndpointTests
         await SeedPlayerAsync(factory);
         // деактивируем, затем реактивируем
         await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}/active-state",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}/active-state",
             new SetPlayerActiveStateRequest(TestIds.OrganizationId, false));
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}/active-state",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}/active-state",
             new SetPlayerActiveStateRequest(TestIds.OrganizationId, true));
         var body = await response.Content.ReadFromJsonAsync<PlayerAccountDto>();
 
@@ -178,7 +178,7 @@ public sealed class BillingEndpointTests
         await SeedOpenShiftAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/players/{PlayerAccountId:D}/wallet/top-ups",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{PlayerAccountId:D}/wallet/top-ups",
             new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "front desk cash top-up", "topup-001"));
         var body = await response.Content.ReadFromJsonAsync<WalletSummaryDto>();
 
@@ -205,7 +205,7 @@ public sealed class BillingEndpointTests
         var unknownPlayerId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
 
         var response = await client.PostAsJsonAsync(
-            $"/api/players/{unknownPlayerId:D}/wallet/top-ups",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{unknownPlayerId:D}/wallet/top-ups",
             new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "front desk cash top-up", "topup-unknown-001"));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -230,7 +230,7 @@ public sealed class BillingEndpointTests
         await SeedOpenShiftAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/players/{PlayerAccountId:D}/wallet/top-ups",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{PlayerAccountId:D}/wallet/top-ups",
             new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "front desk cash top-up", "topup-inactive-001"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -251,7 +251,7 @@ public sealed class BillingEndpointTests
         await SeedOpenShiftAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/players/{PlayerAccountId:D}/debts/payments",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{PlayerAccountId:D}/debts/payments",
             new PayDebtRequest(TestIds.OrganizationId, new MoneyDto("TJS", 1000), "settle debt", "paydebt-inactive-001"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -272,7 +272,7 @@ public sealed class BillingEndpointTests
         await SeedOpenShiftAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/players/{PlayerAccountId:D}/packages/purchases",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{PlayerAccountId:D}/packages/purchases",
             new PurchasePackageRequest(TestIds.OrganizationId, Guid.NewGuid(), "purchase-inactive-001"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -292,7 +292,7 @@ public sealed class BillingEndpointTests
         var unknownPlayerId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
 
         var response = await client.PostAsJsonAsync(
-            $"/api/players/{unknownPlayerId:D}/wallet/top-ups",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{unknownPlayerId:D}/wallet/top-ups",
             new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "front desk cash top-up", "topup-unknown-001"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -312,7 +312,7 @@ public sealed class BillingEndpointTests
         await SeedCrossBranchPlayerAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/players/{CrossBranchPlayerAccountId:D}/wallet/top-ups",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{CrossBranchPlayerAccountId:D}/wallet/top-ups",
             new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "front desk cash top-up", "topup-cross-branch-001"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -332,7 +332,7 @@ public sealed class BillingEndpointTests
         await SeedCrossBranchPlayerAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/players/{CrossBranchPlayerAccountId:D}/wallet/top-ups",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{CrossBranchPlayerAccountId:D}/wallet/top-ups",
             new TopUpWalletRequest(TestIds.OrganizationId, new MoneyDto("TJS", 5000), "front desk cash top-up", "topup-cross-branch-001"));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -353,7 +353,7 @@ public sealed class BillingEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         var unknownPlayerId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
 
-        var response = await client.GetAsync($"/api/players/{unknownPlayerId:D}/wallet-summary");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/players/{unknownPlayerId:D}/wallet-summary");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -366,7 +366,7 @@ public sealed class BillingEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedCrossBranchPlayerAsync(factory);
 
-        var response = await client.GetAsync($"/api/players/{CrossBranchPlayerAccountId:D}/wallet-summary");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/players/{CrossBranchPlayerAccountId:D}/wallet-summary");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -380,7 +380,7 @@ public sealed class BillingEndpointTests
         await SeedPlayerAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/players/{PlayerAccountId:D}/ledger/manual-corrections",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{PlayerAccountId:D}/ledger/manual-corrections",
             new ManualLedgerCorrectionRequest(
                 TestIds.OrganizationId,
                 LedgerAccountTypeNames.Wallet,
@@ -409,7 +409,7 @@ public sealed class BillingEndpointTests
         await SeedOpenShiftAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/players/{PlayerAccountId:D}/ledger/manual-corrections",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{PlayerAccountId:D}/ledger/manual-corrections",
             new ManualLedgerCorrectionRequest(
                 TestIds.OrganizationId,
                 LedgerAccountTypeNames.Wallet,
@@ -442,7 +442,7 @@ public sealed class BillingEndpointTests
         await SeedLedgerEntryAsync(factory, LedgerEntryTypeNames.TopUp, LedgerAccountTypeNames.Wallet, 5000);
         await SeedLedgerEntryAsync(factory, LedgerEntryTypeNames.PostpaidDebt, LedgerAccountTypeNames.Debt, 1200);
 
-        var response = await client.GetAsync($"/api/players/{PlayerAccountId:D}/wallet-summary");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/players/{PlayerAccountId:D}/wallet-summary");
         var body = await response.Content.ReadFromJsonAsync<WalletSummaryDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -464,7 +464,7 @@ public sealed class BillingEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/tariffs",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/tariffs",
             new CreateTariffRequest(TestIds.OrganizationId, "Standard", "tariff-create-001"));
         var body = await response.Content.ReadFromJsonAsync<TariffDto>();
 
@@ -488,7 +488,7 @@ public sealed class BillingEndpointTests
         var tariff = await SeedTariffAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/tariffs/{tariff.TariffId:D}/versions",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/tariffs/{tariff.TariffId:D}/versions",
             new CreateTariffVersionRequest(
                 TestIds.OrganizationId,
                 tariff.TariffId,
@@ -521,7 +521,7 @@ public sealed class BillingEndpointTests
         var tariff = await SeedTariffAsync(factory);
 
         var response = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/tariffs/{tariff.TariffId:D}",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/tariffs/{tariff.TariffId:D}",
             new UpdateTariffRequest(TestIds.OrganizationId, "Standard Plus", false));
         var body = await response.Content.ReadFromJsonAsync<TariffDto>();
 
@@ -547,7 +547,7 @@ public sealed class BillingEndpointTests
         var version = await SeedTariffVersionAsync(factory, tariff.TariffId);
 
         var updateResponse = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/tariffs/{tariff.TariffId:D}/versions/{version.TariffVersionId:D}",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/tariffs/{tariff.TariffId:D}/versions/{version.TariffVersionId:D}",
             new UpdateTariffVersionRequest(
                 TestIds.OrganizationId,
                 "TJS",
@@ -564,7 +564,7 @@ public sealed class BillingEndpointTests
         Assert.Null(updated.RetiredAtUtc);
 
         var retireResponse = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/tariffs/{tariff.TariffId:D}/versions/{version.TariffVersionId:D}",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/tariffs/{tariff.TariffId:D}/versions/{version.TariffVersionId:D}",
             new UpdateTariffVersionRequest(
                 TestIds.OrganizationId,
                 "TJS",
@@ -594,7 +594,7 @@ public sealed class BillingEndpointTests
         var version = await SeedTariffVersionAsync(factory, tariff.TariffId);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/tariffs/calculate",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/tariffs/calculate",
             new CalculateTariffRequest(TestIds.OrganizationId, version.TariffVersionId, 76));
         var body = await response.Content.ReadFromJsonAsync<TariffCalculationResult>();
 
@@ -614,7 +614,7 @@ public sealed class BillingEndpointTests
         var version = await SeedTariffVersionAsync(factory, tariff.TariffId);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/tariffs/calculate",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/tariffs/calculate",
             new CalculateTariffRequest(TestIds.OrganizationId, version.TariffVersionId, 0));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -628,7 +628,7 @@ public sealed class BillingEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/tariffs/calculate",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/tariffs/calculate",
             new CalculateTariffRequest(TestIds.OrganizationId, Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), 30));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -642,7 +642,7 @@ public sealed class BillingEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/packages",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/packages",
             CreatePackageRequest("package-create-001"));
         var body = await response.Content.ReadFromJsonAsync<PackageDefinitionDto>();
 
@@ -666,7 +666,7 @@ public sealed class BillingEndpointTests
         var package = await SeedPackageDefinitionAsync(factory);
 
         var response = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/packages/{package.PackageDefinitionId:D}",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/packages/{package.PackageDefinitionId:D}",
             new UpdatePackageDefinitionRequest(
                 TestIds.OrganizationId,
                 "Night 6h",
@@ -701,7 +701,7 @@ public sealed class BillingEndpointTests
         await SeedOpenShiftAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/players/{PlayerAccountId:D}/packages/purchases",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{PlayerAccountId:D}/packages/purchases",
             new PurchasePackageRequest(TestIds.OrganizationId, package.PackageDefinitionId, "package-purchase-001"));
         var body = await response.Content.ReadFromJsonAsync<PlayerPackageDto>();
 
@@ -733,9 +733,9 @@ public sealed class BillingEndpointTests
             "front desk cash top-up",
             "topup-001");
 
-        var first = await client.PostAsJsonAsync($"/api/players/{PlayerAccountId:D}/wallet/top-ups", request);
+        var first = await client.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/players/{PlayerAccountId:D}/wallet/top-ups", request);
         var conflict = await client.PostAsJsonAsync(
-            $"/api/players/{PlayerAccountId:D}/wallet/top-ups",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{PlayerAccountId:D}/wallet/top-ups",
             request with { Amount = new MoneyDto("TJS", 7000) });
 
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
@@ -751,13 +751,13 @@ public sealed class BillingEndpointTests
         await SeedPlayerAsync(factory);
         // деактивируем сид-игрока
         await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}/active-state",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/players/{PlayerAccountId:D}/active-state",
             new SetPlayerActiveStateRequest(TestIds.OrganizationId, false));
 
         var defaultSearch = await client.GetFromJsonAsync<List<PlayerSearchResultDto>>(
-            $"/api/branches/{TestIds.BranchId:D}/players?query=Player");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/players?query=Player");
         var inclusiveSearch = await client.GetFromJsonAsync<List<PlayerSearchResultDto>>(
-            $"/api/branches/{TestIds.BranchId:D}/players?query=Player&includeInactive=true");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/players?query=Player&includeInactive=true");
 
         Assert.NotNull(defaultSearch);
         Assert.DoesNotContain(defaultSearch!, p => p.PlayerAccountId == PlayerAccountId);

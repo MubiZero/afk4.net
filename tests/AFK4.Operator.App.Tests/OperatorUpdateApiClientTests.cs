@@ -59,7 +59,7 @@ public sealed class OperatorUpdateApiClientTests
         Assert.Equal(RolloutId, rollout.UpdateRolloutId);
         Assert.Equal(UpdateStatusNames.Installed, rollout.DeviceStatuses.Single().Status);
         Assert.Equal(HttpMethod.Get, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/updates/rollouts", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/updates/rollouts", handler.LastPathAndQuery);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
     }
 
@@ -74,7 +74,7 @@ public sealed class OperatorUpdateApiClientTests
 
         Assert.Equal(PackageId, result.UpdatePackageId);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/updates/packages", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/updates/packages", handler.LastPathAndQuery);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
         var captured = JsonSerializer.Deserialize<CreateUpdatePackageRequest>(handler.LastBodyJson!, JsonOptions);
         Assert.NotNull(captured);
@@ -97,7 +97,7 @@ public sealed class OperatorUpdateApiClientTests
 
         Assert.Equal(UpdatePackageStateNames.Validated, result.State);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/updates/packages/{PackageId:D}/state", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/updates/packages/{PackageId:D}/state", handler.LastPathAndQuery);
         var captured = JsonSerializer.Deserialize<UpdatePackageStateChangeRequest>(handler.LastBodyJson!, JsonOptions);
         Assert.NotNull(captured);
         Assert.Equal(UpdatePackageStateNames.Validated, captured.State);
@@ -123,7 +123,7 @@ public sealed class OperatorUpdateApiClientTests
 
         Assert.Equal(RolloutId, result.UpdateRolloutId);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/updates/rollouts", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/updates/rollouts", handler.LastPathAndQuery);
         var captured = JsonSerializer.Deserialize<CreateUpdateRolloutRequest>(handler.LastBodyJson!, JsonOptions);
         Assert.NotNull(captured);
         Assert.Equal(25, captured.BatchPercent);
@@ -144,7 +144,7 @@ public sealed class OperatorUpdateApiClientTests
 
         Assert.Equal(UpdateRolloutStateNames.Paused, result.State);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/updates/rollouts/{RolloutId:D}/state", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/updates/rollouts/{RolloutId:D}/state", handler.LastPathAndQuery);
         var captured = JsonSerializer.Deserialize<UpdateRolloutStateChangeRequest>(handler.LastBodyJson!, JsonOptions);
         Assert.NotNull(captured);
         Assert.Equal(UpdateRolloutStateNames.Paused, captured.State);

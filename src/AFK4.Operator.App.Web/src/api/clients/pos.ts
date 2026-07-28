@@ -59,28 +59,28 @@ export type PosProductCategoryDto = Record<string, unknown>;
 export function createPosClient(api: PlatformApiClient) {
   return {
     getCatalog(branchId: Guid): Promise<PosProductDto[]> {
-      return api.get<PosProductDto[]>(`/api/branches/${branchId}/pos/catalog`);
+      return api.get<PosProductDto[]>(`branches/${branchId}/pos/catalog`);
     },
     createSale(branchId: Guid, request: CreatePosSaleRequest): Promise<PosSaleDto> {
-      return api.post<PosSaleDto, CreatePosSaleRequest>(`/api/branches/${branchId}/pos/sales`, request);
+      return api.post<PosSaleDto, CreatePosSaleRequest>(`branches/${branchId}/pos/sales`, request);
     },
     paySaleManual(saleId: Guid, request: ManualPaymentRequest): Promise<PosSaleDto> {
-      return api.post<PosSaleDto, ManualPaymentRequest>(`/api/pos/sales/${saleId}/payments/manual`, request);
+      return api.post<PosSaleDto, ManualPaymentRequest>(`pos/sales/${saleId}/payments/manual`, request);
     },
     settleSale(saleId: Guid, request: SettlePosSaleRequest): Promise<PosSaleDto> {
-      return api.post<PosSaleDto, SettlePosSaleRequest>(`/api/pos/sales/${saleId}/settlements`, request);
+      return api.post<PosSaleDto, SettlePosSaleRequest>(`pos/sales/${saleId}/settlements`, request);
     },
     refundSale(saleId: Guid, request: RefundPosSaleRequest): Promise<PosSaleDto> {
-      return api.post<PosSaleDto, RefundPosSaleRequest>(`/api/pos/sales/${saleId}/refunds`, request);
+      return api.post<PosSaleDto, RefundPosSaleRequest>(`pos/sales/${saleId}/refunds`, request);
     },
     voidSale(saleId: Guid, request: VoidPosSaleRequest): Promise<PosSaleDto> {
-      return api.post<PosSaleDto, VoidPosSaleRequest>(`/api/pos/sales/${saleId}/void`, request);
+      return api.post<PosSaleDto, VoidPosSaleRequest>(`pos/sales/${saleId}/void`, request);
     },
     getSale(saleId: Guid): Promise<PosSaleDto> {
-      return api.get<PosSaleDto>(`/api/pos/sales/${saleId}`);
+      return api.get<PosSaleDto>(`pos/sales/${saleId}`);
     },
     getReceipt(receiptId: Guid): Promise<ReceiptDto> {
-      return api.get<ReceiptDto>(`/api/receipts/${receiptId}`);
+      return api.get<ReceiptDto>(`receipts/${receiptId}`);
     }
   };
 }

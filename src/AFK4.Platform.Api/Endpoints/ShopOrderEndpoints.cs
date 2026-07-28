@@ -11,9 +11,9 @@ public sealed record ShopOrderActionRequest(int? ExpectedVersion);
 
 internal static class ShopOrderEndpoints
 {
-    public static void MapShopOrderEndpoints(this WebApplication app)
+    public static void MapShopOrderEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/branches/{branchId:guid}/shop/orders", async (
+        app.MapGet("branches/{branchId:guid}/shop/orders", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IShopOrderService shopOrderService,
@@ -43,12 +43,12 @@ internal static class ShopOrderEndpoints
     }
 
     private static void MapTransition(
-        WebApplication app,
+        IEndpointRouteBuilder app,
         string verb,
         string auditAction,
         Func<IShopOrderService, Guid, Guid, Guid, int?, CancellationToken, Task<ShopOrderActionResult>> action)
     {
-        app.MapPost($"/api/branches/{{branchId:guid}}/shop/orders/{{orderId:guid}}/{verb}", async (
+        app.MapPost($"branches/{{branchId:guid}}/shop/orders/{{orderId:guid}}/{verb}", async (
             Guid branchId,
             Guid orderId,
             ShopOrderActionRequest request,
@@ -109,9 +109,9 @@ internal static class ShopOrderEndpoints
         });
     }
 
-    private static void MapCancel(WebApplication app)
+    private static void MapCancel(IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/branches/{branchId:guid}/shop/orders/{orderId:guid}/cancel", async (
+        app.MapPost("branches/{branchId:guid}/shop/orders/{orderId:guid}/cancel", async (
             Guid branchId,
             Guid orderId,
             ShopOrderActionRequest request,

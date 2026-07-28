@@ -23,7 +23,7 @@ public sealed class DeviceSeatAssignmentEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/devices/{TestIds.DeviceId:D}/seat-assignment",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/devices/{TestIds.DeviceId:D}/seat-assignment",
             new AssignDeviceSeatRequest(TestIds.OrganizationId, SeatId));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -38,7 +38,7 @@ public sealed class DeviceSeatAssignmentEndpointTests
         await SeedLayoutAndDevicesAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/devices/{TestIds.DeviceId:D}/seat-assignment",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/devices/{TestIds.DeviceId:D}/seat-assignment",
             new AssignDeviceSeatRequest(TestIds.OrganizationId, SeatId));
         var assignment = await response.Content.ReadFromJsonAsync<DeviceSeatAssignmentDto>();
 
@@ -48,7 +48,7 @@ public sealed class DeviceSeatAssignmentEndpointTests
         Assert.Equal(SeatId, assignment.SeatId);
         Assert.Null(assignment.DetachedAtUtc);
 
-        var detail = await client.GetFromJsonAsync<DeviceDetailDto>($"/api/devices/{TestIds.DeviceId:D}");
+        var detail = await client.GetFromJsonAsync<DeviceDetailDto>($"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId:D}");
         Assert.NotNull(detail);
         Assert.Equal(SeatId, detail.SeatId);
 
@@ -70,7 +70,7 @@ public sealed class DeviceSeatAssignmentEndpointTests
         await SeedConflictingAssignmentsAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/devices/{TestIds.DeviceId:D}/seat-assignment",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/devices/{TestIds.DeviceId:D}/seat-assignment",
             new AssignDeviceSeatRequest(TestIds.OrganizationId, SeatId));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -97,11 +97,11 @@ public sealed class DeviceSeatAssignmentEndpointTests
 
         var request = new AssignDeviceSeatRequest(TestIds.OrganizationId, SeatId);
         var first = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/devices/{TestIds.DeviceId:D}/seat-assignment",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/devices/{TestIds.DeviceId:D}/seat-assignment",
             request);
         var firstAssignment = await first.Content.ReadFromJsonAsync<DeviceSeatAssignmentDto>();
         var second = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/devices/{TestIds.DeviceId:D}/seat-assignment",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/devices/{TestIds.DeviceId:D}/seat-assignment",
             request);
         var secondAssignment = await second.Content.ReadFromJsonAsync<DeviceSeatAssignmentDto>();
 
@@ -125,7 +125,7 @@ public sealed class DeviceSeatAssignmentEndpointTests
         await SeedLayoutAndDevicesAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/devices/{TestIds.DeviceId:D}/seat-assignment",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/devices/{TestIds.DeviceId:D}/seat-assignment",
             new AssignDeviceSeatRequest(TestIds.OrganizationId, SeatId));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -148,7 +148,7 @@ public sealed class DeviceSeatAssignmentEndpointTests
         await SeedActiveSessionAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/devices/{TestIds.DeviceId:D}/seat-assignment",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/devices/{TestIds.DeviceId:D}/seat-assignment",
             new AssignDeviceSeatRequest(TestIds.OrganizationId, SeatId));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);

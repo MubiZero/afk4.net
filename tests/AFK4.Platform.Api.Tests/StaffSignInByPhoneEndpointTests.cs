@@ -22,7 +22,7 @@ public sealed class StaffSignInByPhoneEndpointTests
         var staff = new StaffUserEntity
         {
             StaffUserId = staffUserId,
-            OrganizationId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
             UserName = $"u{normalizedPhone}",
             NormalizedUserName = $"U{normalizedPhone}",
             DisplayName = "Phone Staff",
@@ -46,7 +46,7 @@ public sealed class StaffSignInByPhoneEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-phone",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-phone",
             new StaffSignInByPhoneRequest("+992 93 738-00-70", "Passw0rd!"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -64,7 +64,7 @@ public sealed class StaffSignInByPhoneEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-phone",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-phone",
             new StaffSignInByPhoneRequest("992937380070", "WRONG"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -78,7 +78,7 @@ public sealed class StaffSignInByPhoneEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-phone",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-phone",
             new StaffSignInByPhoneRequest("992937380070", "Passw0rd!"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -91,7 +91,7 @@ public sealed class StaffSignInByPhoneEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in-by-phone",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-phone",
             new StaffSignInByPhoneRequest("992000000000", "Passw0rd!"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);

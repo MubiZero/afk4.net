@@ -3,6 +3,24 @@ const originalFetch = globalThis.fetch;
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 
 describe('PlatformApiClient', () => {
+  it('builds organization-scoped URLs from domain-relative paths', async () => {
+    let requestedUrl = '';
+    const api = new PlatformApiClient({
+      baseUrl: 'https://api.test/',
+      getAccessToken: () => 'token',
+      fetchImpl: async (input) => {
+        requestedUrl = String(input);
+        return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+    }).forOrganization('0c04d6c0-bfa8-4e26-9263-fc0d307d0f08');
+
+    await api.get('branches/branch-1/settings');
+
+    expect(requestedUrl).toBe(
+      'https://api.test/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch-1/settings'
+    );
+  });
+
   it('attaches the native access token and reads JSON responses', async () => {
     const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
     const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {

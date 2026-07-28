@@ -27,7 +27,13 @@ afterAll(() => {
   }).__afk4RealOperatorApiClients);
 });
 
-const backend = { config: { platformBaseUrl: 'http://test' }, session: { accessToken: 't' } };
+const backend = {
+  config: { platformBaseUrl: 'http://test' },
+  session: {
+    accessToken: 't',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08'
+  }
+};
 
 describe('PhoneVerificationCard (operator)', () => {
   afterEach(() => { cleanup(); mock.restore(); });

@@ -73,7 +73,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class PlatformBillingEndpoints
 {
-    public static void MapPlatformBillingEndpoints(this WebApplication app)
+    public static void MapPlatformBillingEndpoints(
+        this WebApplication app,
+        IEndpointRouteBuilder organizations)
     {
         app.MapGet("/api/platform/plans", async (
             PlatformAdminAuthorizationService authorizationService,
@@ -292,7 +294,7 @@ internal static class PlatformBillingEndpoints
         });
 
         // --- Club-side (owner) read-only billing (SP3 Plan 7) ---
-        app.MapGet("/api/organizations/{organizationId:guid}/subscription", async (
+        organizations.MapGet("subscription", async (
             Guid organizationId,
             StaffAuthorizationService authorizationService,
             ITenantSubscriptionService subscriptionService,
@@ -310,7 +312,7 @@ internal static class PlatformBillingEndpoints
             return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
         });
 
-        app.MapGet("/api/organizations/{organizationId:guid}/invoices", async (
+        organizations.MapGet("invoices", async (
             Guid organizationId,
             StaffAuthorizationService authorizationService,
             IInvoiceService invoiceService,

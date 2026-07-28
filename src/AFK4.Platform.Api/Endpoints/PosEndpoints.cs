@@ -74,9 +74,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class PosEndpoints
 {
-    public static void MapPosEndpoints(this WebApplication app)
+    public static void MapPosEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/branches/{branchId:guid}/pos/categories", async (
+        app.MapPost("branches/{branchId:guid}/pos/categories", async (
             Guid branchId,
             CreateProductCategoryRequest request,
             StaffAuthorizationService authorizationService,
@@ -142,7 +142,7 @@ internal static class PosEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/pos/products", async (
+        app.MapPost("branches/{branchId:guid}/pos/products", async (
             Guid branchId,
             CreateProductRequest request,
             StaffAuthorizationService authorizationService,
@@ -208,7 +208,7 @@ internal static class PosEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPatch("/api/branches/{branchId:guid}/pos/products/{productId:guid}", async (
+        app.MapPatch("branches/{branchId:guid}/pos/products/{productId:guid}", async (
             Guid branchId,
             Guid productId,
             UpdateProductRequest request,
@@ -276,7 +276,7 @@ internal static class PosEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/pos/catalog", async (
+        app.MapGet("branches/{branchId:guid}/pos/catalog", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IInventoryService inventoryService,
@@ -305,7 +305,7 @@ internal static class PosEndpoints
             return ToHttpResult(result);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/inventory/stock-movements", async (
+        app.MapGet("branches/{branchId:guid}/inventory/stock-movements", async (
             Guid branchId,
             Guid? productId,
             int? limit,
@@ -338,7 +338,7 @@ internal static class PosEndpoints
             return ToHttpResult(result);
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/inventory/stock-movements", async (
+        app.MapPost("branches/{branchId:guid}/inventory/stock-movements", async (
             Guid branchId,
             CreateStockMovementRequest request,
             StaffAuthorizationService authorizationService,
@@ -404,7 +404,7 @@ internal static class PosEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/pos/products/{productId:guid}/barcodes", async (
+        app.MapGet("branches/{branchId:guid}/pos/products/{productId:guid}/barcodes", async (
             Guid branchId,
             Guid productId,
             StaffAuthorizationService authorizationService,
@@ -435,7 +435,7 @@ internal static class PosEndpoints
             return ToHttpResult(result);
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/pos/products/{productId:guid}/barcodes", async (
+        app.MapPost("branches/{branchId:guid}/pos/products/{productId:guid}/barcodes", async (
             Guid branchId,
             Guid productId,
             AddProductBarcodeRequest request,
@@ -503,7 +503,7 @@ internal static class PosEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapDelete("/api/branches/{branchId:guid}/pos/products/{productId:guid}/barcodes/{barcodeId:guid}", async (
+        app.MapDelete("branches/{branchId:guid}/pos/products/{productId:guid}/barcodes/{barcodeId:guid}", async (
             Guid branchId,
             Guid productId,
             Guid barcodeId,
@@ -566,7 +566,7 @@ internal static class PosEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/pos/sales", async (
+        app.MapPost("branches/{branchId:guid}/pos/sales", async (
             Guid branchId,
             CreatePosSaleRequest request,
             StaffAuthorizationService authorizationService,
@@ -632,7 +632,7 @@ internal static class PosEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/pos/sales/{saleId:guid}/payments/manual", async (
+        app.MapPost("pos/sales/{saleId:guid}/payments/manual", async (
             Guid saleId,
             ManualPaymentRequest request,
             PlatformDbContext dbContext,
@@ -703,7 +703,7 @@ internal static class PosEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/pos/sales/{saleId:guid}/settlements", async (
+        app.MapPost("pos/sales/{saleId:guid}/settlements", async (
             Guid saleId,
             SettlePosSaleRequest request,
             PlatformDbContext dbContext,
@@ -778,7 +778,7 @@ internal static class PosEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/pos/sales/{saleId:guid}/refunds", async (
+        app.MapPost("pos/sales/{saleId:guid}/refunds", async (
             Guid saleId,
             RefundPosSaleRequest request,
             PlatformDbContext dbContext,
@@ -849,7 +849,7 @@ internal static class PosEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/pos/sales/{saleId:guid}/void", async (
+        app.MapPost("pos/sales/{saleId:guid}/void", async (
             Guid saleId,
             VoidPosSaleRequest request,
             PlatformDbContext dbContext,
@@ -920,7 +920,7 @@ internal static class PosEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapGet("/api/pos/sales/{saleId:guid}", async (
+        app.MapGet("pos/sales/{saleId:guid}", async (
             Guid saleId,
             PlatformDbContext dbContext,
             IStaffContextAccessor staffContextAccessor,
@@ -954,7 +954,7 @@ internal static class PosEndpoints
             return ToHttpResult(result);
         });
 
-        app.MapGet("/api/receipts/{receiptId:guid}", async (
+        app.MapGet("receipts/{receiptId:guid}", async (
             Guid receiptId,
             PlatformDbContext dbContext,
             IStaffContextAccessor staffContextAccessor,

@@ -818,7 +818,7 @@ export function createAuthenticatedOperatorClients(config: ReturnType<typeof get
   return createOperatorApiClients(new PlatformApiClient({
     baseUrl: config.platformBaseUrl,
     getAccessToken
-  }));
+  }), session.organizationId);
 }
 
 export function isUnauthorizedPlatformError(error: unknown): boolean {

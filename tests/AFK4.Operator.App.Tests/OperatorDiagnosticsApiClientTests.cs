@@ -23,7 +23,7 @@ public sealed class OperatorDiagnosticsApiClientTests
         Assert.Equal(BranchId, result.BranchId);
         Assert.Equal(12, result.DeviceSummary.TotalDevices);
         Assert.Equal(HttpMethod.Get, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/diagnostics", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/diagnostics", handler.LastPathAndQuery);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
     }
 

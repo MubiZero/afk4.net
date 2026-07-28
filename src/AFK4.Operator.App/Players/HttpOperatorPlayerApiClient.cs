@@ -21,7 +21,7 @@ public sealed class HttpOperatorPlayerApiClient(HttpClient httpClient, IOperator
     {
         var encodedQuery = Uri.EscapeDataString(query);
         return GetAsync<IReadOnlyList<PlayerSearchResultDto>>(
-            $"/api/branches/{branchId:D}/players?query={encodedQuery}&limit={limit}",
+            $"branches/{branchId:D}/players?query={encodedQuery}&limit={limit}",
             cancellationToken);
     }
 
@@ -32,7 +32,7 @@ public sealed class HttpOperatorPlayerApiClient(HttpClient httpClient, IOperator
     {
         return SendAsync<PlayerAccountDto, CreatePlayerAccountRequest>(
             HttpMethod.Post,
-            $"/api/branches/{branchId:D}/players",
+            $"branches/{branchId:D}/players",
             request,
             cancellationToken);
     }
@@ -42,7 +42,7 @@ public sealed class HttpOperatorPlayerApiClient(HttpClient httpClient, IOperator
         CancellationToken cancellationToken)
     {
         return GetAsync<WalletSummaryDto>(
-            $"/api/players/{playerAccountId:D}/wallet-summary",
+            $"players/{playerAccountId:D}/wallet-summary",
             cancellationToken);
     }
 
@@ -51,7 +51,7 @@ public sealed class HttpOperatorPlayerApiClient(HttpClient httpClient, IOperator
         CancellationToken cancellationToken)
     {
         return GetAsync<IReadOnlyList<PlayerPackageDto>>(
-            $"/api/players/{playerAccountId:D}/packages",
+            $"players/{playerAccountId:D}/packages",
             cancellationToken);
     }
 
@@ -62,7 +62,7 @@ public sealed class HttpOperatorPlayerApiClient(HttpClient httpClient, IOperator
     {
         return SendAsync<WalletSummaryDto, TopUpWalletRequest>(
             HttpMethod.Post,
-            $"/api/players/{playerAccountId:D}/wallet/top-ups",
+            $"players/{playerAccountId:D}/wallet/top-ups",
             request,
             cancellationToken);
     }
@@ -74,7 +74,7 @@ public sealed class HttpOperatorPlayerApiClient(HttpClient httpClient, IOperator
     {
         return SendAsync<WalletSummaryDto, PayDebtRequest>(
             HttpMethod.Post,
-            $"/api/players/{playerAccountId:D}/debts/payments",
+            $"players/{playerAccountId:D}/debts/payments",
             request,
             cancellationToken);
     }
@@ -127,7 +127,7 @@ public sealed class HttpOperatorPlayerApiClient(HttpClient httpClient, IOperator
             throw new InvalidOperationException("Operator access token is missing.");
         }
 
-        var request = new HttpRequestMessage(method, requestUri);
+        var request = new HttpRequestMessage(method, OrganizationApiRoute.Build(snapshot, requestUri));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", snapshot.AccessToken);
         return request;
     }

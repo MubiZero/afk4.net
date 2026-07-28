@@ -18,7 +18,7 @@ public sealed class DeviceInventoryEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/devices");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/devices");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -31,7 +31,7 @@ public sealed class DeviceInventoryEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedDevicesAsync(factory);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/devices");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/devices");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -44,7 +44,7 @@ public sealed class DeviceInventoryEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedDevicesAsync(factory);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/devices");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/devices");
         var devices = await response.Content.ReadFromJsonAsync<IReadOnlyList<DeviceInventoryItemDto>>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

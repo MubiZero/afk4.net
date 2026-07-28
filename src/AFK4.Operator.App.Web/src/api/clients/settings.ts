@@ -169,94 +169,94 @@ export interface AssignDeviceSeatRequest extends Record<string, unknown> {
 export function createSettingsClient(api: PlatformApiClient) {
   return {
     getBranchProfile(branchId: Guid): Promise<BranchProfileDto> {
-      return api.get<BranchProfileDto>(`/api/branches/${branchId}/profile`);
+      return api.get<BranchProfileDto>(`branches/${branchId}/profile`);
     },
     updateBranchProfile(branchId: Guid, request: UpdateBranchProfileRequest): Promise<BranchProfileDto> {
-      return api.patch<BranchProfileDto, UpdateBranchProfileRequest>(`/api/branches/${branchId}/profile`, request);
+      return api.patch<BranchProfileDto, UpdateBranchProfileRequest>(`branches/${branchId}/profile`, request);
     },
     getStaffUsers(branchId: Guid): Promise<StaffUserDto[]> {
-      return api.get<StaffUserDto[]>(`/api/branches/${branchId}/staff`);
+      return api.get<StaffUserDto[]>(`branches/${branchId}/staff`);
     },
     createStaffInvite(branchId: Guid, request: CreateStaffInviteRequest): Promise<StaffInviteDto> {
-      return api.post<StaffInviteDto, CreateStaffInviteRequest>(`/api/branches/${branchId}/staff/invites`, request);
+      return api.post<StaffInviteDto, CreateStaffInviteRequest>(`branches/${branchId}/staff/invites`, request);
     },
     updateStaffUserProfile(branchId: Guid, staffUserId: Guid, request: UpdateStaffUserProfileRequest): Promise<StaffUserDto> {
-      return api.patch<StaffUserDto, UpdateStaffUserProfileRequest>(`/api/branches/${branchId}/staff/${staffUserId}/profile`, request);
+      return api.patch<StaffUserDto, UpdateStaffUserProfileRequest>(`branches/${branchId}/staff/${staffUserId}/profile`, request);
     },
     updateStaffUserRoles(branchId: Guid, staffUserId: Guid, request: UpdateStaffUserRolesRequest): Promise<StaffUserDto> {
-      return api.patch<StaffUserDto, UpdateStaffUserRolesRequest>(`/api/branches/${branchId}/staff/${staffUserId}/roles`, request);
+      return api.patch<StaffUserDto, UpdateStaffUserRolesRequest>(`branches/${branchId}/staff/${staffUserId}/roles`, request);
     },
     updateStaffUserState(branchId: Guid, staffUserId: Guid, request: UpdateStaffUserStateRequest): Promise<StaffUserDto> {
-      return api.patch<StaffUserDto, UpdateStaffUserStateRequest>(`/api/branches/${branchId}/staff/${staffUserId}/state`, request);
+      return api.patch<StaffUserDto, UpdateStaffUserStateRequest>(`branches/${branchId}/staff/${staffUserId}/state`, request);
     },
     resetStaffUserPassword(branchId: Guid, staffUserId: Guid, request: ResetStaffUserPasswordRequest): Promise<StaffUserDto> {
-      return api.post<StaffUserDto, ResetStaffUserPasswordRequest>(`/api/branches/${branchId}/staff/${staffUserId}/password-reset`, request);
+      return api.post<StaffUserDto, ResetStaffUserPasswordRequest>(`branches/${branchId}/staff/${staffUserId}/password-reset`, request);
     },
     getLayoutZones(branchId: Guid): Promise<ZoneDto[]> {
-      return api.get<ZoneDto[]>(`/api/branches/${branchId}/layout/zones`);
+      return api.get<ZoneDto[]>(`branches/${branchId}/layout/zones`);
     },
     createZone(branchId: Guid, request: CreateZoneRequest): Promise<ZoneDto> {
-      return api.post<ZoneDto, CreateZoneRequest>(`/api/branches/${branchId}/layout/zones`, request);
+      return api.post<ZoneDto, CreateZoneRequest>(`branches/${branchId}/layout/zones`, request);
     },
     updateZone(branchId: Guid, zoneId: Guid, request: UpdateZoneRequest): Promise<ZoneDto> {
-      return api.patch<ZoneDto, UpdateZoneRequest>(`/api/branches/${branchId}/layout/zones/${zoneId}`, request);
+      return api.patch<ZoneDto, UpdateZoneRequest>(`branches/${branchId}/layout/zones/${zoneId}`, request);
     },
     deleteZone(branchId: Guid, zoneId: Guid, organizationId: Guid): Promise<void> {
-      return api.delete<void>(`/api/branches/${branchId}/layout/zones/${zoneId}`, { organizationId });
+      return api.delete<void>(`branches/${branchId}/layout/zones/${zoneId}`, { organizationId });
     },
     createSeat(branchId: Guid, request: CreateSeatRequest): Promise<SeatDto> {
-      return api.post<SeatDto, CreateSeatRequest>(`/api/branches/${branchId}/layout/seats`, request);
+      return api.post<SeatDto, CreateSeatRequest>(`branches/${branchId}/layout/seats`, request);
     },
     updateSeat(branchId: Guid, seatId: Guid, request: UpdateSeatRequest): Promise<SeatDto> {
-      return api.patch<SeatDto, UpdateSeatRequest>(`/api/branches/${branchId}/layout/seats/${seatId}`, request);
+      return api.patch<SeatDto, UpdateSeatRequest>(`branches/${branchId}/layout/seats/${seatId}`, request);
     },
     deleteSeat(branchId: Guid, seatId: Guid, organizationId: Guid): Promise<void> {
-      return api.delete<void>(`/api/branches/${branchId}/layout/seats/${seatId}`, { organizationId });
+      return api.delete<void>(`branches/${branchId}/layout/seats/${seatId}`, { organizationId });
     },
     createTariff(branchId: Guid, request: CreateTariffRequest): Promise<TariffDto> {
-      return api.post<TariffDto, CreateTariffRequest>(`/api/branches/${branchId}/tariffs`, request);
+      return api.post<TariffDto, CreateTariffRequest>(`branches/${branchId}/tariffs`, request);
     },
     createTariffVersion(branchId: Guid, tariffId: Guid, request: CreateTariffVersionRequest): Promise<TariffVersionDto> {
-      return api.post<TariffVersionDto, CreateTariffVersionRequest>(`/api/branches/${branchId}/tariffs/${tariffId}/versions`, request);
+      return api.post<TariffVersionDto, CreateTariffVersionRequest>(`branches/${branchId}/tariffs/${tariffId}/versions`, request);
     },
     updateTariff(branchId: Guid, tariffId: Guid, request: UpdateTariffRequest): Promise<TariffDto> {
-      return api.patch<TariffDto, UpdateTariffRequest>(`/api/branches/${branchId}/tariffs/${tariffId}`, request);
+      return api.patch<TariffDto, UpdateTariffRequest>(`branches/${branchId}/tariffs/${tariffId}`, request);
     },
     updateTariffVersion(branchId: Guid, tariffId: Guid, tariffVersionId: Guid, request: UpdateTariffVersionRequest): Promise<TariffVersionDto> {
-      return api.patch<TariffVersionDto, UpdateTariffVersionRequest>(`/api/branches/${branchId}/tariffs/${tariffId}/versions/${tariffVersionId}`, request);
+      return api.patch<TariffVersionDto, UpdateTariffVersionRequest>(`branches/${branchId}/tariffs/${tariffId}/versions/${tariffVersionId}`, request);
     },
     getTariffOptions(branchId: Guid): Promise<TariffOptionDto[]> {
-      return api.get<TariffOptionDto[]>(`/api/branches/${branchId}/tariffs/options`);
+      return api.get<TariffOptionDto[]>(`branches/${branchId}/tariffs/options`);
     },
     getPackageOptions(branchId: Guid): Promise<PackageOptionDto[]> {
-      return api.get<PackageOptionDto[]>(`/api/branches/${branchId}/packages/options`);
+      return api.get<PackageOptionDto[]>(`branches/${branchId}/packages/options`);
     },
     createPackageDefinition(branchId: Guid, request: CreatePackageDefinitionRequest): Promise<PackageDefinitionDto> {
-      return api.post<PackageDefinitionDto, CreatePackageDefinitionRequest>(`/api/branches/${branchId}/packages`, request);
+      return api.post<PackageDefinitionDto, CreatePackageDefinitionRequest>(`branches/${branchId}/packages`, request);
     },
     updatePackageDefinition(branchId: Guid, packageDefinitionId: Guid, request: UpdatePackageDefinitionRequest): Promise<PackageDefinitionDto> {
-      return api.patch<PackageDefinitionDto, UpdatePackageDefinitionRequest>(`/api/branches/${branchId}/packages/${packageDefinitionId}`, request);
+      return api.patch<PackageDefinitionDto, UpdatePackageDefinitionRequest>(`branches/${branchId}/packages/${packageDefinitionId}`, request);
     },
     createProductCategory(branchId: Guid, request: CreateProductCategoryRequest): Promise<PosProductCategoryDto> {
-      return api.post<PosProductCategoryDto, CreateProductCategoryRequest>(`/api/branches/${branchId}/pos/categories`, request);
+      return api.post<PosProductCategoryDto, CreateProductCategoryRequest>(`branches/${branchId}/pos/categories`, request);
     },
     createProduct(branchId: Guid, request: CreateProductRequest): Promise<PosProductDto> {
-      return api.post<PosProductDto, CreateProductRequest>(`/api/branches/${branchId}/pos/products`, request);
+      return api.post<PosProductDto, CreateProductRequest>(`branches/${branchId}/pos/products`, request);
     },
     updateProduct(branchId: Guid, productId: Guid, request: UpdateProductRequest): Promise<PosProductDto> {
-      return api.patch<PosProductDto, UpdateProductRequest>(`/api/branches/${branchId}/pos/products/${productId}`, request);
+      return api.patch<PosProductDto, UpdateProductRequest>(`branches/${branchId}/pos/products/${productId}`, request);
     },
     getProductBarcodes(branchId: Guid, productId: Guid): Promise<ProductBarcodeDto[]> {
-      return api.get<ProductBarcodeDto[]>(`/api/branches/${branchId}/pos/products/${productId}/barcodes`);
+      return api.get<ProductBarcodeDto[]>(`branches/${branchId}/pos/products/${productId}/barcodes`);
     },
     addProductBarcode(branchId: Guid, productId: Guid, request: AddProductBarcodeRequest): Promise<ProductBarcodeDto> {
-      return api.post<ProductBarcodeDto, AddProductBarcodeRequest>(`/api/branches/${branchId}/pos/products/${productId}/barcodes`, request);
+      return api.post<ProductBarcodeDto, AddProductBarcodeRequest>(`branches/${branchId}/pos/products/${productId}/barcodes`, request);
     },
     deleteProductBarcode(branchId: Guid, productId: Guid, barcodeId: Guid): Promise<void> {
-      return api.delete<void>(`/api/branches/${branchId}/pos/products/${productId}/barcodes/${barcodeId}`);
+      return api.delete<void>(`branches/${branchId}/pos/products/${productId}/barcodes/${barcodeId}`);
     },
     assignDeviceSeat(branchId: Guid, deviceId: Guid, request: AssignDeviceSeatRequest): Promise<DeviceSeatAssignmentDto> {
-      return api.post<DeviceSeatAssignmentDto, AssignDeviceSeatRequest>(`/api/branches/${branchId}/devices/${deviceId}/seat-assignment`, request);
+      return api.post<DeviceSeatAssignmentDto, AssignDeviceSeatRequest>(`branches/${branchId}/devices/${deviceId}/seat-assignment`, request);
     }
   };
 }

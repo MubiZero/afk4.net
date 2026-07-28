@@ -73,9 +73,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class ReportScheduleEndpoints
 {
-    public static void MapReportScheduleEndpoints(this WebApplication app)
+    public static void MapReportScheduleEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/branches/{branchId:guid}/report-schedules", async (
+        app.MapPost("branches/{branchId:guid}/report-schedules", async (
             Guid branchId,
             CreateReportScheduleRequest request,
             StaffAuthorizationService authorizationService,
@@ -144,7 +144,7 @@ internal static class ReportScheduleEndpoints
             return Results.Ok(dto);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/report-schedules", async (
+        app.MapGet("branches/{branchId:guid}/report-schedules", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IReportScheduleService reportScheduleService,
@@ -173,7 +173,7 @@ internal static class ReportScheduleEndpoints
             return Results.Ok(schedules);
         });
 
-        app.MapDelete("/api/branches/{branchId:guid}/report-schedules/{scheduleId:guid}", async (
+        app.MapDelete("branches/{branchId:guid}/report-schedules/{scheduleId:guid}", async (
             Guid branchId,
             Guid scheduleId,
             StaffAuthorizationService authorizationService,

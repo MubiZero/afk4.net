@@ -76,7 +76,7 @@ public sealed class DeviceHeartbeatEndpointTests
         Guid branchId)
     {
         var codeResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{branchId}/device-enrollment-codes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{branchId}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(organizationId, ExpiresInSeconds: 300));
         var code = await codeResponse.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
         Assert.NotNull(code);

@@ -40,7 +40,7 @@ public sealed class OperatorPlayerApiClientTests
 
         Assert.Single(results);
         Assert.Equal(HttpMethod.Get, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/players?query=Alex%20P&limit=20", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/players?query=Alex%20P&limit=20", handler.LastPathAndQuery);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
     }
 
@@ -67,7 +67,7 @@ public sealed class OperatorPlayerApiClientTests
 
         Assert.Equal(PlayerAccountId, result.PlayerAccountId);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/players", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/players", handler.LastPathAndQuery);
 
         var body = DeserializeRequest<CreatePlayerAccountRequest>(handler.LastRequestBody);
         Assert.Equal("player-create-001", body.IdempotencyKey);
@@ -88,7 +88,7 @@ public sealed class OperatorPlayerApiClientTests
 
         Assert.Equal(15000, response.WalletBalance.MinorUnits);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/players/{PlayerAccountId:D}/wallet/top-ups", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/players/{PlayerAccountId:D}/wallet/top-ups", handler.LastPathAndQuery);
 
         var body = DeserializeRequest<TopUpWalletRequest>(handler.LastRequestBody);
         Assert.Equal("wallet-top-up-001", body.IdempotencyKey);
@@ -106,7 +106,7 @@ public sealed class OperatorPlayerApiClientTests
         Assert.Equal(12000, response.WalletBalance.MinorUnits);
         Assert.Equal(5000, response.DebtBalance.MinorUnits);
         Assert.Equal(HttpMethod.Get, handler.LastMethod);
-        Assert.Equal($"/api/players/{PlayerAccountId:D}/wallet-summary", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/players/{PlayerAccountId:D}/wallet-summary", handler.LastPathAndQuery);
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public sealed class OperatorPlayerApiClientTests
 
         Assert.Equal(0, response.DebtBalance.MinorUnits);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/players/{PlayerAccountId:D}/debts/payments", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/players/{PlayerAccountId:D}/debts/payments", handler.LastPathAndQuery);
 
         var body = DeserializeRequest<PayDebtRequest>(handler.LastRequestBody);
         Assert.Equal("debt-pay-001", body.IdempotencyKey);
@@ -156,7 +156,7 @@ public sealed class OperatorPlayerApiClientTests
 
         Assert.Single(packages);
         Assert.Equal(HttpMethod.Get, handler.LastMethod);
-        Assert.Equal($"/api/players/{PlayerAccountId:D}/packages", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/players/{PlayerAccountId:D}/packages", handler.LastPathAndQuery);
     }
 
     private static HttpOperatorPlayerApiClient CreateClient(RecordingHttpMessageHandler handler)

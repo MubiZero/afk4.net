@@ -73,9 +73,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class BranchSettingsEndpoints
 {
-    public static void MapBranchSettingsEndpoints(this WebApplication app)
+    public static void MapBranchSettingsEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/branches/{branchId:guid}/settings", async (
+        app.MapGet("branches/{branchId:guid}/settings", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
@@ -130,7 +130,7 @@ internal static class BranchSettingsEndpoints
             return Results.Ok(response);
         });
 
-        app.MapPut("/api/branches/{branchId:guid}/settings", async (
+        app.MapPut("branches/{branchId:guid}/settings", async (
             Guid branchId,
             UpdateBranchSettingsRequest request,
             StaffAuthorizationService authorizationService,

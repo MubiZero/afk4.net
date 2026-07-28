@@ -29,13 +29,13 @@ export type MoneyActionDecisionResponse = Record<string, unknown>;
 export function createMoneyActionClient(api: PlatformApiClient) {
   return {
     listPending(branchId: Guid): Promise<MoneyActionRequestListResponse> {
-      return api.get<MoneyActionRequestListResponse>(`/api/branches/${branchId}/money-actions`);
+      return api.get<MoneyActionRequestListResponse>(`branches/${branchId}/money-actions`);
     },
     approve(branchId: Guid, requestId: Guid, request: MoneyActionDecisionRequest): Promise<MoneyActionDecisionResponse> {
-      return api.post<MoneyActionDecisionResponse, MoneyActionDecisionRequest>(`/api/branches/${branchId}/money-actions/${requestId}/approve`, request);
+      return api.post<MoneyActionDecisionResponse, MoneyActionDecisionRequest>(`branches/${branchId}/money-actions/${requestId}/approve`, request);
     },
     reject(branchId: Guid, requestId: Guid, request: MoneyActionDecisionRequest): Promise<MoneyActionDecisionResponse> {
-      return api.post<MoneyActionDecisionResponse, MoneyActionDecisionRequest>(`/api/branches/${branchId}/money-actions/${requestId}/reject`, request);
+      return api.post<MoneyActionDecisionResponse, MoneyActionDecisionRequest>(`branches/${branchId}/money-actions/${requestId}/reject`, request);
     }
   };
 }

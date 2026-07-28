@@ -405,7 +405,7 @@ public class PortalWritesEndpointTests
         await SeedOpenShiftAsync(factory, TestIds.OrganizationId, TestIds.BranchId);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/wallet/top-up-intents/{intentId}/fulfil",
+            $"/api/organizations/{TestIds.OrganizationId:D}/wallet/top-up-intents/{intentId}/fulfil",
             new { });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -432,10 +432,10 @@ public class PortalWritesEndpointTests
         var (p, intentId) = await SeedFulfilScenarioAsync(factory, state: "pending");
         await SeedOpenShiftAsync(factory, TestIds.OrganizationId, TestIds.BranchId);
 
-        var r1 = await client.PostAsJsonAsync($"/api/wallet/top-up-intents/{intentId}/fulfil", new { });
+        var r1 = await client.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/wallet/top-up-intents/{intentId}/fulfil", new { });
         Assert.Equal(HttpStatusCode.OK, r1.StatusCode);
 
-        var r2 = await client.PostAsJsonAsync($"/api/wallet/top-up-intents/{intentId}/fulfil", new { });
+        var r2 = await client.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/wallet/top-up-intents/{intentId}/fulfil", new { });
         Assert.Equal(HttpStatusCode.OK, r2.StatusCode);
 
         await using var scope = factory.Services.CreateAsyncScope();
@@ -456,7 +456,7 @@ public class PortalWritesEndpointTests
         await SeedOpenShiftAsync(factory, TestIds.OrganizationId, TestIds.BranchId);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/wallet/top-up-intents/{intentId}/fulfil",
+            $"/api/organizations/{TestIds.OrganizationId:D}/wallet/top-up-intents/{intentId}/fulfil",
             new { });
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
@@ -470,7 +470,7 @@ public class PortalWritesEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/wallet/top-up-intents/{Guid.NewGuid()}/fulfil",
+            $"/api/organizations/{TestIds.OrganizationId:D}/wallet/top-up-intents/{Guid.NewGuid()}/fulfil",
             new { });
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -485,7 +485,7 @@ public class PortalWritesEndpointTests
         var (_, intentId) = await SeedFulfilScenarioAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/wallet/top-up-intents/{intentId}/fulfil",
+            $"/api/organizations/{TestIds.OrganizationId:D}/wallet/top-up-intents/{intentId}/fulfil",
             new { });
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);

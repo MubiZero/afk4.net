@@ -30,7 +30,7 @@ public sealed class OperatorPosApiClientTests
 
         Assert.Single(catalog);
         Assert.Equal(HttpMethod.Get, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/pos/catalog", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/pos/catalog", handler.LastPathAndQuery);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
     }
 
@@ -49,7 +49,7 @@ public sealed class OperatorPosApiClientTests
 
         Assert.Equal(SaleId, sale.PosSaleId);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/pos/sales", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/pos/sales", handler.LastPathAndQuery);
 
         var body = DeserializeRequest<CreatePosSaleRequest>(handler.LastRequestBody);
         Assert.Equal("pos-sale-001", body.IdempotencyKey);
@@ -72,7 +72,7 @@ public sealed class OperatorPosApiClientTests
 
         Assert.Equal(PosSaleStateNames.Paid, sale.State);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/pos/sales/{SaleId:D}/payments/manual", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/pos/sales/{SaleId:D}/payments/manual", handler.LastPathAndQuery);
 
         var body = DeserializeRequest<ManualPaymentRequest>(handler.LastRequestBody);
         Assert.Equal(PaymentMethodNames.Cash, body.PaymentMethod);
@@ -102,9 +102,9 @@ public sealed class OperatorPosApiClientTests
             CancellationToken.None);
 
         Assert.Equal(PosSaleStateNames.Refunded, refunded.State);
-        Assert.Equal($"/api/pos/sales/{SaleId:D}/refunds", refundPath);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/pos/sales/{SaleId:D}/refunds", refundPath);
         Assert.Equal(PosSaleStateNames.Voided, voided.State);
-        Assert.Equal($"/api/pos/sales/{SaleId:D}/void", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/pos/sales/{SaleId:D}/void", handler.LastPathAndQuery);
     }
 
     [Fact]
@@ -131,9 +131,9 @@ public sealed class OperatorPosApiClientTests
         var receipt = await client.GetReceiptAsync(ReceiptId, CancellationToken.None);
 
         Assert.Equal(PosSaleStateNames.Paid, sale.State);
-        Assert.Equal($"/api/pos/sales/{SaleId:D}", salePath);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/pos/sales/{SaleId:D}", salePath);
         Assert.Equal("POS-20260514-0001", receipt.ReceiptNumber);
-        Assert.Equal($"/api/receipts/{ReceiptId:D}", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/receipts/{ReceiptId:D}", handler.LastPathAndQuery);
     }
 
     private static HttpOperatorPosApiClient CreateClient(RecordingHttpMessageHandler handler)

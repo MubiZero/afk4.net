@@ -33,7 +33,12 @@ export function loadOperatorSession(): Promise<OperatorAuthSession | null> {
 }
 
 export async function signInByLoginOperator(login: string, password: string): Promise<OperatorAuthSession> {
-  const session = sessionFromSignInResponse(await api().signInByLogin(login, password));
+  const organizationId = getOperatorConfig().organizationId;
+  if (!organizationId) {
+    throw new Error('Organization Admin requires an organization connection before sign-in.');
+  }
+
+  const session = sessionFromSignInResponse(await api().signInByLogin(organizationId, login, password));
   writeStoredSession(session);
   return session;
 }

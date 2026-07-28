@@ -7,7 +7,7 @@ import { createOperatorApiClients } from './operatorApiClients';
 // declared locally to avoid a circular import (App.tsx imports this file).
 export interface PhoneVerificationBackend {
   config: { platformBaseUrl: string };
-  session: { accessToken: string };
+  session: { accessToken: string; organizationId: string };
 }
 
 type Phase = 'loading' | 'idle' | 'code' | 'verified' | 'load_error';
@@ -49,8 +49,8 @@ export function PhoneVerificationCard({ backend }: { backend: PhoneVerificationB
     () => createOperatorApiClients(new PlatformApiClient({
       baseUrl: backend.config.platformBaseUrl,
       getAccessToken: () => backend.session.accessToken
-    })).account,
-    [backend.config.platformBaseUrl, backend.session.accessToken]
+    }), backend.session.organizationId).account,
+    [backend.config.platformBaseUrl, backend.session.accessToken, backend.session.organizationId]
   );
 
   const [phase, setPhase] = useState<Phase>('loading');

@@ -16,14 +16,14 @@ describe('settings barcode client', () => {
     const { api, calls } = fakeApi();
     const client = createSettingsClient(api as never);
     await client.getProductBarcodes('br1', 'p1');
-    expect(calls[0]).toEqual({ method: 'GET', path: '/api/branches/br1/pos/products/p1/barcodes' });
+    expect(calls[0]).toEqual({ method: 'GET', path: 'branches/br1/pos/products/p1/barcodes' });
   });
 
   it('POST barcode sends organizationId + code in body', async () => {
     const { api, calls } = fakeApi();
     const client = createSettingsClient(api as never);
     const res = await client.addProductBarcode('br1', 'p1', { organizationId: 'org1', code: '111', isPrimary: true });
-    expect(calls[0].path).toBe('/api/branches/br1/pos/products/p1/barcodes');
+    expect(calls[0].path).toBe('branches/br1/pos/products/p1/barcodes');
     expect(calls[0].body).toMatchObject({ organizationId: 'org1', code: '111', isPrimary: true });
     expect(res.code).toBe('111');
   });
@@ -32,6 +32,6 @@ describe('settings barcode client', () => {
     const { api, calls } = fakeApi();
     const client = createSettingsClient(api as never);
     await client.deleteProductBarcode('br1', 'p1', 'b1');
-    expect(calls[0]).toEqual({ method: 'DELETE', path: '/api/branches/br1/pos/products/p1/barcodes/b1' });
+    expect(calls[0]).toEqual({ method: 'DELETE', path: 'branches/br1/pos/products/p1/barcodes/b1' });
   });
 });

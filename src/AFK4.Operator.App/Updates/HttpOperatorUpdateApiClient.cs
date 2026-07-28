@@ -17,7 +17,7 @@ public sealed class HttpOperatorUpdateApiClient(HttpClient httpClient, IOperator
     {
         using var request = await CreateRequestAsync(
             HttpMethod.Get,
-            $"/api/branches/{branchId:D}/updates/rollouts",
+            $"branches/{branchId:D}/updates/rollouts",
             cancellationToken);
 
         using var response = await httpClient.SendAsync(request, cancellationToken);
@@ -44,7 +44,7 @@ public sealed class HttpOperatorUpdateApiClient(HttpClient httpClient, IOperator
     {
         return SendJsonAsync<CreateUpdatePackageRequest, UpdatePackageDto>(
             HttpMethod.Post,
-            $"/api/branches/{branchId:D}/updates/packages",
+            $"branches/{branchId:D}/updates/packages",
             request,
             "update package registration",
             cancellationToken);
@@ -58,7 +58,7 @@ public sealed class HttpOperatorUpdateApiClient(HttpClient httpClient, IOperator
     {
         return SendJsonAsync<UpdatePackageStateChangeRequest, UpdatePackageDto>(
             HttpMethod.Post,
-            $"/api/branches/{branchId:D}/updates/packages/{updatePackageId:D}/state",
+            $"branches/{branchId:D}/updates/packages/{updatePackageId:D}/state",
             request,
             "update package state change",
             cancellationToken);
@@ -71,7 +71,7 @@ public sealed class HttpOperatorUpdateApiClient(HttpClient httpClient, IOperator
     {
         return SendJsonAsync<CreateUpdateRolloutRequest, UpdateRolloutDto>(
             HttpMethod.Post,
-            $"/api/branches/{branchId:D}/updates/rollouts",
+            $"branches/{branchId:D}/updates/rollouts",
             request,
             "update rollout creation",
             cancellationToken);
@@ -85,7 +85,7 @@ public sealed class HttpOperatorUpdateApiClient(HttpClient httpClient, IOperator
     {
         return SendJsonAsync<UpdateRolloutStateChangeRequest, UpdateRolloutDto>(
             HttpMethod.Post,
-            $"/api/branches/{branchId:D}/updates/rollouts/{updateRolloutId:D}/state",
+            $"branches/{branchId:D}/updates/rollouts/{updateRolloutId:D}/state",
             request,
             "update rollout state change",
             cancellationToken);
@@ -129,7 +129,7 @@ public sealed class HttpOperatorUpdateApiClient(HttpClient httpClient, IOperator
             throw new InvalidOperationException("Operator access token is missing.");
         }
 
-        var request = new HttpRequestMessage(method, path);
+        var request = new HttpRequestMessage(method, OrganizationApiRoute.Build(snapshot, path));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", snapshot.AccessToken);
         return request;
     }

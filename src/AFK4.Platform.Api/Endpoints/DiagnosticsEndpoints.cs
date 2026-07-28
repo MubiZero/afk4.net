@@ -74,9 +74,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class DiagnosticsEndpoints
 {
-    public static void MapDiagnosticsEndpoints(this WebApplication app)
+    public static void MapDiagnosticsEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/branches/{branchId:guid}/diagnostics", async (
+        app.MapGet("branches/{branchId:guid}/diagnostics", async (
             Guid branchId,
             HttpContext httpContext,
             StaffAuthorizationService authorizationService,

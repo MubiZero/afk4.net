@@ -18,7 +18,7 @@ public sealed class HttpOperatorSessionApiClient(HttpClient httpClient, IOperato
     {
         return SendAsync<StartGuestSessionRequest, SessionCommandResponse>(
             HttpMethod.Post,
-            $"/api/branches/{branchId:D}/sessions/start",
+            $"branches/{branchId:D}/sessions/start",
             request,
             cancellationToken);
     }
@@ -30,7 +30,7 @@ public sealed class HttpOperatorSessionApiClient(HttpClient httpClient, IOperato
     {
         return SendAsync<ExtendSessionRequest, SessionCommandResponse>(
             HttpMethod.Post,
-            $"/api/sessions/{sessionId:D}/extend",
+            $"sessions/{sessionId:D}/extend",
             request,
             cancellationToken);
     }
@@ -42,7 +42,7 @@ public sealed class HttpOperatorSessionApiClient(HttpClient httpClient, IOperato
     {
         return SendAsync<TransferSessionRequest, SessionCommandResponse>(
             HttpMethod.Post,
-            $"/api/sessions/{sessionId:D}/transfer",
+            $"sessions/{sessionId:D}/transfer",
             request,
             cancellationToken);
     }
@@ -54,7 +54,7 @@ public sealed class HttpOperatorSessionApiClient(HttpClient httpClient, IOperato
     {
         return SendAsync<EndSessionRequest, SessionCommandResponse>(
             HttpMethod.Post,
-            $"/api/sessions/{sessionId:D}/end",
+            $"sessions/{sessionId:D}/end",
             request,
             cancellationToken);
     }
@@ -64,7 +64,7 @@ public sealed class HttpOperatorSessionApiClient(HttpClient httpClient, IOperato
         CancellationToken cancellationToken)
     {
         return GetAsync<SessionCheckoutQuoteResponse>(
-            $"/api/sessions/{sessionId:D}/checkout/quote",
+            $"sessions/{sessionId:D}/checkout/quote",
             cancellationToken);
     }
 
@@ -75,7 +75,7 @@ public sealed class HttpOperatorSessionApiClient(HttpClient httpClient, IOperato
     {
         return SendAsync<SessionCheckoutRequest, SessionCheckoutResponse>(
             HttpMethod.Post,
-            $"/api/sessions/{sessionId:D}/checkout",
+            $"sessions/{sessionId:D}/checkout",
             request,
             cancellationToken);
     }
@@ -130,7 +130,7 @@ public sealed class HttpOperatorSessionApiClient(HttpClient httpClient, IOperato
             throw new InvalidOperationException("Operator access token is missing.");
         }
 
-        var request = new HttpRequestMessage(method, requestUri);
+        var request = new HttpRequestMessage(method, OrganizationApiRoute.Build(snapshot, requestUri));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", snapshot.AccessToken);
         return request;
     }

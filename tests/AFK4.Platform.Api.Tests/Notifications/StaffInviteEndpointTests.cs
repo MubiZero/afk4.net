@@ -33,7 +33,7 @@ public sealed partial class StaffInviteEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var create = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/invites",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/staff/invites",
             new CreateStaffInviteRequest(TestIds.OrganizationId, "new.cashier", "New Cashier", "new.cashier@club.example",
                 [OrganizationRoleNames.Operator]));
         Assert.Equal(HttpStatusCode.OK, create.StatusCode);
@@ -51,7 +51,7 @@ public sealed partial class StaffInviteEndpointTests
         Assert.Equal("new.cashier", accepted.UserName);
 
         // The invitee can now sign in with the password they chose.
-        var signIn = await client.PostAsJsonAsync("/api/auth/staff/sign-in",
+        var signIn = await client.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "new.cashier", "FreshPass123"));
         Assert.Equal(HttpStatusCode.OK, signIn.StatusCode);
     }
@@ -63,7 +63,7 @@ public sealed partial class StaffInviteEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/invites",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/staff/invites",
             new CreateStaffInviteRequest(TestIds.OrganizationId, "new.cashier", "New Cashier", "new.cashier@club.example",
                 [OrganizationRoleNames.Operator]));
 
@@ -79,7 +79,7 @@ public sealed partial class StaffInviteEndpointTests
 
         // "tech@afk4.test" is the seeded owner account — inviting the same username must fail.
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/staff/invites",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/staff/invites",
             new CreateStaffInviteRequest(TestIds.OrganizationId, "tech@afk4.test", "Dup", "dup@club.example",
                 [OrganizationRoleNames.Operator]));
 

@@ -31,7 +31,7 @@ public sealed class DashboardEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/dashboard/summary");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/dashboard/summary");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -43,7 +43,7 @@ public sealed class DashboardEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/dashboard/summary");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/dashboard/summary");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
 
@@ -63,7 +63,7 @@ public sealed class DashboardEndpointTests
         await SeedDashboardDataAsync(factory);
 
         var response = await client.GetAsync(
-            $"/api/branches/{TestIds.BranchId}/dashboard/summary?fromUtc=2026-05-21T00:00:00Z&toUtc=2026-05-21T23:59:59Z&limit=3");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/dashboard/summary?fromUtc=2026-05-21T00:00:00Z&toUtc=2026-05-21T23:59:59Z&limit=3");
         var result = await response.Content.ReadFromJsonAsync<OperatorDashboardSummaryDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

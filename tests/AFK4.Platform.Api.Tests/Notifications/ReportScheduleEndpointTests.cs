@@ -16,7 +16,7 @@ public sealed class ReportScheduleEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var create = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/report-schedules",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/report-schedules",
             new CreateReportScheduleRequest(TestIds.OrganizationId, ScheduledReportTypeNames.Sales, ReportScheduleFrequencyNames.Daily));
         Assert.Equal(HttpStatusCode.OK, create.StatusCode);
         var dto = await create.Content.ReadFromJsonAsync<ReportScheduleDto>();
@@ -26,16 +26,16 @@ public sealed class ReportScheduleEndpointTests
         Assert.True(dto.IsActive);
 
         var list = await client.GetFromJsonAsync<List<ReportScheduleDto>>(
-            $"/api/branches/{TestIds.BranchId:D}/report-schedules");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/report-schedules");
         Assert.NotNull(list);
         Assert.Contains(list!, s => s.ReportScheduleId == dto.ReportScheduleId);
 
         var delete = await client.DeleteAsync(
-            $"/api/branches/{TestIds.BranchId:D}/report-schedules/{dto.ReportScheduleId:D}");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/report-schedules/{dto.ReportScheduleId:D}");
         Assert.Equal(HttpStatusCode.OK, delete.StatusCode);
 
         var afterDelete = await client.GetFromJsonAsync<List<ReportScheduleDto>>(
-            $"/api/branches/{TestIds.BranchId:D}/report-schedules");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/report-schedules");
         Assert.DoesNotContain(afterDelete!, s => s.ReportScheduleId == dto.ReportScheduleId);
     }
 
@@ -47,7 +47,7 @@ public sealed class ReportScheduleEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/report-schedules",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/report-schedules",
             new CreateReportScheduleRequest(TestIds.OrganizationId, "not_a_report", ReportScheduleFrequencyNames.Daily));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -60,7 +60,7 @@ public sealed class ReportScheduleEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/report-schedules",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/report-schedules",
             new CreateReportScheduleRequest(TestIds.OrganizationId, ScheduledReportTypeNames.Sales, ReportScheduleFrequencyNames.Daily));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -74,7 +74,7 @@ public sealed class ReportScheduleEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var response = await client.DeleteAsync(
-            $"/api/branches/{TestIds.BranchId:D}/report-schedules/{Guid.NewGuid():D}");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/report-schedules/{Guid.NewGuid():D}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

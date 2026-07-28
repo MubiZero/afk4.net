@@ -16,7 +16,7 @@ public sealed class OwnerBranchesEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
-        var branches = await client.GetFromJsonAsync<OwnerBranchSummaryDto[]>("/api/owner/branches");
+        var branches = await client.GetFromJsonAsync<OwnerBranchSummaryDto[]>($"/api/organizations/{TestIds.OrganizationId:D}/branches");
 
         Assert.NotNull(branches);
         Assert.Contains(branches!, b => b.BranchId == TestIds.BranchId);
@@ -29,7 +29,7 @@ public sealed class OwnerBranchesEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
-        var response = await client.GetAsync("/api/owner/branches");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }

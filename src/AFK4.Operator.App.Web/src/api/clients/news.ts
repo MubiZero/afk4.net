@@ -31,19 +31,19 @@ export interface NewsItemInput {
 export function createNewsClient(api: PlatformApiClient) {
   return {
     list(): Promise<NewsItemDto[]> {
-      return api.get<NewsItemDto[]>('/api/owner/news');
+      return api.get<NewsItemDto[]>('news');
     },
     listBranches(): Promise<OwnerBranchSummaryDto[]> {
-      return api.get<OwnerBranchSummaryDto[]>('/api/owner/branches');
+      return api.get<OwnerBranchSummaryDto[]>('branches');
     },
     create(request: NewsItemInput): Promise<NewsItemDto> {
-      return api.post<NewsItemDto, NewsItemInput>('/api/owner/news', request);
+      return api.post<NewsItemDto, NewsItemInput>('news', request);
     },
     update(id: string, request: NewsItemInput): Promise<NewsItemDto> {
-      return api.patch<NewsItemDto, NewsItemInput>(`/api/owner/news/${id}`, request);
+      return api.patch<NewsItemDto, NewsItemInput>(`news/${id}`, request);
     },
     remove(id: string): Promise<void> {
-      return api.delete<void>(`/api/owner/news/${id}`);
+      return api.delete<void>(`news/${id}`);
     }
   };
 }

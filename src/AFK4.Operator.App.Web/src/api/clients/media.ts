@@ -13,10 +13,10 @@ export function createMediaClient(api: PlatformApiClient) {
       const form = new FormData();
       form.append('file', file);
       form.append('purpose', purpose);
-      return api.postForm<UploadedMediaDto>(`/api/branches/${branchId}/media`, form);
+      return api.postForm<UploadedMediaDto>(`branches/${branchId}/media`, form);
     },
     remove(branchId: string, mediaId: string): Promise<void> {
-      return api.delete<void>(`/api/branches/${branchId}/media/${mediaId}`);
+      return api.delete<void>(`branches/${branchId}/media/${mediaId}`);
     }
   };
 }

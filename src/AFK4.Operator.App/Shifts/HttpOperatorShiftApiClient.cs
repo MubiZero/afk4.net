@@ -21,7 +21,7 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
     {
         return SendAsync<ShiftDto, OpenShiftRequest>(
             HttpMethod.Post,
-            $"/api/branches/{branchId:D}/shifts/open",
+            $"branches/{branchId:D}/shifts/open",
             request,
             cancellationToken);
     }
@@ -32,7 +32,7 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
     {
         using var request = await CreateRequestAsync(
             HttpMethod.Get,
-            $"/api/branches/{branchId:D}/shifts/current",
+            $"branches/{branchId:D}/shifts/current",
             cancellationToken);
         using var response = await httpClient.SendAsync(request, cancellationToken);
         if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.NoContent)
@@ -52,7 +52,7 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
     {
         return SendAsync<CashMovementDto, RecordCashMovementRequest>(
             HttpMethod.Post,
-            $"/api/shifts/{shiftId:D}/cash-movements",
+            $"shifts/{shiftId:D}/cash-movements",
             request,
             cancellationToken);
     }
@@ -64,7 +64,7 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
     {
         return SendAsync<ShiftDto, CloseShiftRequest>(
             HttpMethod.Post,
-            $"/api/shifts/{shiftId:D}/close",
+            $"shifts/{shiftId:D}/close",
             request,
             cancellationToken);
     }
@@ -77,7 +77,7 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
         CancellationToken cancellationToken)
     {
         return SendGetAsync<ShiftReportResultDto>(
-            BuildReportUri($"/api/branches/{branchId:D}/reports/shifts", fromUtc, toUtc, limit),
+            BuildReportUri($"branches/{branchId:D}/reports/shifts", fromUtc, toUtc, limit),
             cancellationToken);
     }
 
@@ -89,7 +89,7 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
         CancellationToken cancellationToken)
     {
         return SendGetAsync<SalesReportResultDto>(
-            BuildReportUri($"/api/branches/{branchId:D}/reports/sales", fromUtc, toUtc, limit),
+            BuildReportUri($"branches/{branchId:D}/reports/sales", fromUtc, toUtc, limit),
             cancellationToken);
     }
 
@@ -101,7 +101,7 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
         CancellationToken cancellationToken)
     {
         return SendGetAsync<GameplayTimeReportResultDto>(
-            BuildReportUri($"/api/branches/{branchId:D}/reports/gameplay-time", fromUtc, toUtc, limit),
+            BuildReportUri($"branches/{branchId:D}/reports/gameplay-time", fromUtc, toUtc, limit),
             cancellationToken);
     }
 
@@ -113,7 +113,7 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
         CancellationToken cancellationToken)
     {
         return SendGetAsync<CashOperationReportResultDto>(
-            BuildReportUri($"/api/branches/{branchId:D}/reports/cash-operations", fromUtc, toUtc, limit),
+            BuildReportUri($"branches/{branchId:D}/reports/cash-operations", fromUtc, toUtc, limit),
             cancellationToken);
     }
 
@@ -125,7 +125,7 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
         CancellationToken cancellationToken)
     {
         return SendGetAsync<OperatorActionReportResultDto>(
-            BuildReportUri($"/api/branches/{branchId:D}/reports/operator-actions", fromUtc, toUtc, limit),
+            BuildReportUri($"branches/{branchId:D}/reports/operator-actions", fromUtc, toUtc, limit),
             cancellationToken);
     }
 
@@ -137,7 +137,7 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
         CancellationToken cancellationToken)
     {
         return SendGetStringAsync(
-            BuildReportUri($"/api/branches/{branchId:D}/reports/shifts/export.csv", fromUtc, toUtc, limit),
+            BuildReportUri($"branches/{branchId:D}/reports/shifts/export.csv", fromUtc, toUtc, limit),
             cancellationToken);
     }
 
@@ -149,7 +149,7 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
         CancellationToken cancellationToken)
     {
         return SendGetStringAsync(
-            BuildReportUri($"/api/branches/{branchId:D}/reports/sales/export.csv", fromUtc, toUtc, limit),
+            BuildReportUri($"branches/{branchId:D}/reports/sales/export.csv", fromUtc, toUtc, limit),
             cancellationToken);
     }
 
@@ -161,7 +161,7 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
         CancellationToken cancellationToken)
     {
         return SendGetStringAsync(
-            BuildReportUri($"/api/branches/{branchId:D}/reports/gameplay-time/export.csv", fromUtc, toUtc, limit),
+            BuildReportUri($"branches/{branchId:D}/reports/gameplay-time/export.csv", fromUtc, toUtc, limit),
             cancellationToken);
     }
 
@@ -173,7 +173,7 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
         CancellationToken cancellationToken)
     {
         return SendGetStringAsync(
-            BuildReportUri($"/api/branches/{branchId:D}/reports/cash-operations/export.csv", fromUtc, toUtc, limit),
+            BuildReportUri($"branches/{branchId:D}/reports/cash-operations/export.csv", fromUtc, toUtc, limit),
             cancellationToken);
     }
 
@@ -185,7 +185,7 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
         CancellationToken cancellationToken)
     {
         return SendGetStringAsync(
-            BuildReportUri($"/api/branches/{branchId:D}/reports/operator-actions/export.csv", fromUtc, toUtc, limit),
+            BuildReportUri($"branches/{branchId:D}/reports/operator-actions/export.csv", fromUtc, toUtc, limit),
             cancellationToken);
     }
 
@@ -279,7 +279,7 @@ public sealed class HttpOperatorShiftApiClient(HttpClient httpClient, IOperatorT
             throw new InvalidOperationException("Operator access token is missing.");
         }
 
-        var request = new HttpRequestMessage(method, requestUri);
+        var request = new HttpRequestMessage(method, OrganizationApiRoute.Build(snapshot, requestUri));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", snapshot.AccessToken);
         return request;
     }

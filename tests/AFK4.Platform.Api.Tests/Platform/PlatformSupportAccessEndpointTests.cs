@@ -51,9 +51,9 @@ public sealed class PlatformSupportAccessEndpointTests
         client.DefaultRequestHeaders.Add("X-AFK4-Support-Access-Grant", grant.GrantId.ToString("D"));
 
         var allowed = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/audit");
-        var diagnostics = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/diagnostics");
+        var diagnostics = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/diagnostics");
         var crossOrganization = await client.GetAsync($"/api/organizations/{Guid.NewGuid():D}/audit");
-        var mutation = await client.PostAsJsonAsync("/api/owner/loyalty-settings",
+        var mutation = await client.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/loyalty-settings",
             new UpdateLoyaltySettingsRequest(false, 0, false, 0, false, 0, 0, 0));
         var revoked = await client.DeleteAsync($"/api/platform/support-access-grants/{grant.GrantId:D}");
         var afterRevocation = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/audit");

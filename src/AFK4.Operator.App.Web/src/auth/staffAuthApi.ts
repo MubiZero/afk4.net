@@ -70,20 +70,22 @@ export class StaffAuthApi {
     return res.status === 204 ? (null as T) : (await res.json() as T);
   }
 
-  signInByLogin(login: string, password: string): Promise<StaffSignInResponse> {
-    return this.post<StaffSignInResponse>('api/auth/staff/sign-in-by-login', { login, password },
-      async (res) => {
-        const body = await res.json() as { clubs: ClubChoice[] };
-        throw new ChooseClubError(body.clubs);
-      });
+  signInByLogin(organizationId: string, login: string, password: string): Promise<StaffSignInResponse> {
+    return this.post<StaffSignInResponse>(
+      `api/organizations/${organizationId}/auth/staff/sign-in-by-login`,
+      { login, password });
   }
 
   signInToClub(organizationId: string, login: string, password: string): Promise<StaffSignInResponse> {
-    return this.post<StaffSignInResponse>('api/auth/staff/sign-in', { organizationId, userName: login, password });
+    return this.post<StaffSignInResponse>(
+      `api/organizations/${organizationId}/auth/staff/sign-in`,
+      { organizationId, userName: login, password });
   }
 
   refresh(organizationId: string, refreshToken: string): Promise<StaffSignInResponse> {
-    return this.post<StaffSignInResponse>('api/auth/staff/refresh', { organizationId, refreshToken });
+    return this.post<StaffSignInResponse>(
+      `api/organizations/${organizationId}/auth/staff/refresh`,
+      { organizationId, refreshToken });
   }
 
   forgotByEmail(userNameOrEmail: string) { return this.post<void>('api/auth/staff/forgot-password', { userNameOrEmail }); }

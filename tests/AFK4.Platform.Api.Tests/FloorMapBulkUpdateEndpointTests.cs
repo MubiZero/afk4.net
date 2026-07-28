@@ -22,8 +22,8 @@ public sealed class FloorMapBulkUpdateEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         await SeedZoneAsync(factory);
 
-        var first = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
-        var second = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
+        var first = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/floor-map");
+        var second = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/floor-map");
 
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
         var firstEtag = first.Headers.ETag?.Tag;
@@ -44,7 +44,7 @@ public sealed class FloorMapBulkUpdateEndpointTests
             TestIds.OrganizationId,
             Zones: [new FloorMapBulkZoneRequest(null, "z-1", "Hall", 1)],
             Seats: []);
-        var response = await client.PutAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/floor-map", request);
+        var response = await client.PutAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/floor-map", request);
 
         Assert.Equal((HttpStatusCode)428, response.StatusCode);
     }
@@ -57,7 +57,7 @@ public sealed class FloorMapBulkUpdateEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         await SeedZoneAsync(factory);
 
-        var current = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
+        var current = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/floor-map");
         var currentEtag = current.Headers.ETag?.Tag;
         Assert.False(string.IsNullOrWhiteSpace(currentEtag));
 
@@ -80,7 +80,7 @@ public sealed class FloorMapBulkUpdateEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         await SeedZoneAsync(factory);
 
-        var current = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
+        var current = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/floor-map");
         var startingEtag = current.Headers.ETag?.Tag;
         Assert.False(string.IsNullOrWhiteSpace(startingEtag));
 
@@ -127,7 +127,7 @@ public sealed class FloorMapBulkUpdateEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         var (zoneId, seatId) = await SeedZoneAndSeatAsync(factory);
 
-        var current = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
+        var current = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/floor-map");
         var etag = current.Headers.ETag?.Tag;
 
         var request = new FloorMapBulkUpdateRequest(
@@ -155,7 +155,7 @@ public sealed class FloorMapBulkUpdateEndpointTests
         var (zoneId, seatId) = await SeedZoneAndSeatAsync(factory);
         await SeedSessionHistoryAsync(factory, seatId);
 
-        var current = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
+        var current = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/floor-map");
         var etag = current.Headers.ETag?.Tag;
 
         var request = new FloorMapBulkUpdateRequest(
@@ -288,7 +288,7 @@ public sealed class FloorMapBulkUpdateEndpointTests
 
     private static HttpRequestMessage BuildPut(string ifMatch, FloorMapBulkUpdateRequest request)
     {
-        var message = new HttpRequestMessage(HttpMethod.Put, $"/api/branches/{TestIds.BranchId:D}/floor-map")
+        var message = new HttpRequestMessage(HttpMethod.Put, $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/floor-map")
         {
             Content = JsonContent.Create(request)
         };

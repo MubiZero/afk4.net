@@ -73,9 +73,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class WalletEndpoints
 {
-    public static void MapWalletEndpoints(this WebApplication app)
+    public static void MapWalletEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/wallet/top-up-intents/{intentId:guid}/fulfil", async (
+        app.MapPost("wallet/top-up-intents/{intentId:guid}/fulfil", async (
             Guid intentId,
             IStaffContextAccessor staffContextAccessor,
             StaffAuthorizationService authorizationService,
@@ -224,7 +224,7 @@ internal static class WalletEndpoints
                 IsExpired: false));
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/wallet/top-up-intents", async (
+        app.MapGet("branches/{branchId:guid}/wallet/top-up-intents", async (
             Guid branchId,
             string? status,
             StaffAuthorizationService authorizationService,

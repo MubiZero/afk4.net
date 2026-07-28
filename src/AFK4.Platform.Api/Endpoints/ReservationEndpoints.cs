@@ -73,9 +73,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class ReservationEndpoints
 {
-    public static void MapReservationEndpoints(this WebApplication app)
+    public static void MapReservationEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/branches/{branchId:guid}/reservations", async (
+        app.MapGet("branches/{branchId:guid}/reservations", async (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -136,7 +136,7 @@ internal static class ReservationEndpoints
             return Results.Ok(result);
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/reservations", async (
+        app.MapPost("branches/{branchId:guid}/reservations", async (
             Guid branchId,
             CreateReservationRequest request,
             StaffAuthorizationService authorizationService,
@@ -203,7 +203,7 @@ internal static class ReservationEndpoints
 
         // Group create: several seats booked together as one reservation (drag across timeline rows).
         // All-or-nothing — any conflicting seat returns 409 with the conflict list, nothing is written.
-        app.MapPost("/api/branches/{branchId:guid}/reservations/group", async (
+        app.MapPost("branches/{branchId:guid}/reservations/group", async (
             Guid branchId,
             CreateReservationGroupRequest request,
             StaffAuthorizationService authorizationService,
@@ -272,7 +272,7 @@ internal static class ReservationEndpoints
             }
         });
 
-        app.MapPatch("/api/reservations/{reservationId:guid}", async (
+        app.MapPatch("reservations/{reservationId:guid}", async (
             Guid reservationId,
             UpdateReservationRequest request,
             PlatformDbContext dbContext,
@@ -348,7 +348,7 @@ internal static class ReservationEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/reservations/{reservationId:guid}/confirm", async (
+        app.MapPost("reservations/{reservationId:guid}/confirm", async (
             Guid reservationId,
             ConfirmReservationRequest request,
             PlatformDbContext dbContext,
@@ -420,7 +420,7 @@ internal static class ReservationEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/reservations/{reservationId:guid}/seat", async (
+        app.MapPost("reservations/{reservationId:guid}/seat", async (
             Guid reservationId,
             SeatReservationRequest request,
             PlatformDbContext dbContext,
@@ -492,7 +492,7 @@ internal static class ReservationEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/reservations/{reservationId:guid}/cancel", async (
+        app.MapPost("reservations/{reservationId:guid}/cancel", async (
             Guid reservationId,
             CancelReservationRequest request,
             PlatformDbContext dbContext,
@@ -564,7 +564,7 @@ internal static class ReservationEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/reservations/{reservationId:guid}/start-session", async (
+        app.MapPost("reservations/{reservationId:guid}/start-session", async (
             Guid reservationId,
             StartReservationSessionRequest request,
             PlatformDbContext dbContext,

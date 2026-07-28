@@ -17,7 +17,7 @@ public sealed class BranchDiagnosticsEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/diagnostics");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/diagnostics");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -29,7 +29,7 @@ public sealed class BranchDiagnosticsEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/diagnostics");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/diagnostics");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
 
@@ -48,7 +48,7 @@ public sealed class BranchDiagnosticsEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedDiagnosticsDataAsync(factory);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/diagnostics");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/diagnostics");
         var result = await response.Content.ReadFromJsonAsync<BranchDiagnosticsDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -72,7 +72,7 @@ public sealed class BranchDiagnosticsEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/diagnostics");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/diagnostics");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }

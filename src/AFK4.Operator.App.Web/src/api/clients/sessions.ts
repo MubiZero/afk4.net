@@ -100,25 +100,25 @@ export interface SessionTimelineResult {
 export function createSessionClient(api: PlatformApiClient) {
   return {
     timeline(branchId: Guid, query?: ReportQuery): Promise<SessionTimelineResult> {
-      return api.get<SessionTimelineResult>(`/api/branches/${branchId}/sessions`, normalizeReportQuery(query));
+      return api.get<SessionTimelineResult>(`branches/${branchId}/sessions`, normalizeReportQuery(query));
     },
     startGuestSession(branchId: Guid, request: StartGuestSessionRequest): Promise<SessionCommandResponse> {
-      return api.post<SessionCommandResponse, StartGuestSessionRequest>(`/api/branches/${branchId}/sessions/start`, request);
+      return api.post<SessionCommandResponse, StartGuestSessionRequest>(`branches/${branchId}/sessions/start`, request);
     },
     extendSession(sessionId: Guid, request: ExtendSessionRequest): Promise<SessionCommandResponse> {
-      return api.post<SessionCommandResponse, ExtendSessionRequest>(`/api/sessions/${sessionId}/extend`, request);
+      return api.post<SessionCommandResponse, ExtendSessionRequest>(`sessions/${sessionId}/extend`, request);
     },
     transferSession(sessionId: Guid, request: TransferSessionRequest): Promise<SessionCommandResponse> {
-      return api.post<SessionCommandResponse, TransferSessionRequest>(`/api/sessions/${sessionId}/transfer`, request);
+      return api.post<SessionCommandResponse, TransferSessionRequest>(`sessions/${sessionId}/transfer`, request);
     },
     endSession(sessionId: Guid, request: EndSessionRequest): Promise<SessionCommandResponse> {
-      return api.post<SessionCommandResponse, EndSessionRequest>(`/api/sessions/${sessionId}/end`, request);
+      return api.post<SessionCommandResponse, EndSessionRequest>(`sessions/${sessionId}/end`, request);
     },
     checkoutSession(sessionId: Guid, request: SessionCheckoutRequest): Promise<SessionCheckoutResponse> {
-      return api.post<SessionCheckoutResponse, SessionCheckoutRequest>(`/api/sessions/${sessionId}/checkout`, request);
+      return api.post<SessionCheckoutResponse, SessionCheckoutRequest>(`sessions/${sessionId}/checkout`, request);
     },
     getCheckoutQuote(sessionId: Guid): Promise<SessionCheckoutQuoteResponse> {
-      return api.get<SessionCheckoutQuoteResponse>(`/api/sessions/${sessionId}/checkout/quote`);
+      return api.get<SessionCheckoutQuoteResponse>(`sessions/${sessionId}/checkout/quote`);
     }
   };
 }

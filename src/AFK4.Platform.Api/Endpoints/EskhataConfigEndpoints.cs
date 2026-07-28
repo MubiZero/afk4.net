@@ -13,9 +13,9 @@ namespace AFK4.Platform.Api.Endpoints;
 // Hash key is written encrypted and never returned — GET exposes only HashKeySet.
 internal static class EskhataConfigEndpoints
 {
-    public static void MapEskhataConfigEndpoints(this WebApplication app)
+    public static void MapEskhataConfigEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/owner/eskhata-config", async (
+        app.MapGet("payments/eskhata-config", async (
             StaffAuthorizationService authorizationService,
             PlatformDbContext db,
             CancellationToken ct) =>
@@ -38,7 +38,7 @@ internal static class EskhataConfigEndpoints
                     row.Status));
         });
 
-        app.MapPost("/api/owner/eskhata-config", async (
+        app.MapPost("payments/eskhata-config", async (
             UpdateEskhataMerchantConfigRequest request,
             StaffAuthorizationService authorizationService,
             ISecretProtector secretProtector,

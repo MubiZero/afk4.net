@@ -68,10 +68,10 @@ export interface FloorMapWallDto {
 export function createFloorMapClient(api: PlatformApiClient) {
   return {
     getFloorMap(branchId: Guid): Promise<FloorMapDto> {
-      return api.get<FloorMapDto>(`/api/branches/${branchId}/floor-map`);
+      return api.get<FloorMapDto>(`branches/${branchId}/floor-map`);
     },
     getFloorMapWithEtag(branchId: Guid): Promise<{ value: FloorMapDto; etag: string | null }> {
-      return api.getWithEtag<FloorMapDto>(`/api/branches/${branchId}/floor-map`);
+      return api.getWithEtag<FloorMapDto>(`branches/${branchId}/floor-map`);
     }
   };
 }

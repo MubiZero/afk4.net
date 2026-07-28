@@ -34,7 +34,7 @@ public class BranchProfileEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
 
         var response = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/profile", FullRequest(TestIds.OrganizationId));
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile", FullRequest(TestIds.OrganizationId));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var dto = await response.Content.ReadFromJsonAsync<BranchProfileDto>();
@@ -55,8 +55,8 @@ public class BranchProfileEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
 
-        await client.PatchAsJsonAsync($"/api/branches/{TestIds.BranchId}/profile", FullRequest(TestIds.OrganizationId));
-        var dto = await client.GetFromJsonAsync<BranchProfileDto>($"/api/branches/{TestIds.BranchId}/profile");
+        await client.PatchAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile", FullRequest(TestIds.OrganizationId));
+        var dto = await client.GetFromJsonAsync<BranchProfileDto>($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile");
 
         Assert.NotNull(dto);
         Assert.Equal("ул. Рудаки, 1", dto!.Address);
@@ -70,7 +70,7 @@ public class BranchProfileEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
 
-        var dto = await client.GetFromJsonAsync<BranchProfileDto>($"/api/branches/{TestIds.BranchId}/profile");
+        var dto = await client.GetFromJsonAsync<BranchProfileDto>($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile");
         Assert.NotNull(dto);
         Assert.Equal(7, dto!.WorkingHours.Count);
     }
@@ -86,7 +86,7 @@ public class BranchProfileEndpointTests
         {
             WorkingHours = new[] { new BranchWorkingHoursDayDto(1, false, "22:00", "10:00") }
         };
-        var response = await client.PatchAsJsonAsync($"/api/branches/{TestIds.BranchId}/profile", bad);
+        var response = await client.PatchAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile", bad);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
@@ -98,7 +98,7 @@ public class BranchProfileEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/profile", FullRequest(TestIds.OrganizationId));
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile", FullRequest(TestIds.OrganizationId));
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 }

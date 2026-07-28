@@ -21,7 +21,7 @@ public sealed class HttpOperatorPilotSetupApiClient(HttpClient httpClient, IOper
         CancellationToken cancellationToken)
     {
         return GetAsync<IReadOnlyList<StaffUserDto>>(
-            $"/api/branches/{branchId:D}/staff",
+            $"branches/{branchId:D}/staff",
             cancellationToken);
     }
 
@@ -31,7 +31,7 @@ public sealed class HttpOperatorPilotSetupApiClient(HttpClient httpClient, IOper
         CancellationToken cancellationToken)
     {
         return PostAsync<StaffInviteDto, CreateStaffInviteRequest>(
-            $"/api/branches/{branchId:D}/staff/invites",
+            $"branches/{branchId:D}/staff/invites",
             request,
             cancellationToken);
     }
@@ -41,7 +41,7 @@ public sealed class HttpOperatorPilotSetupApiClient(HttpClient httpClient, IOper
         CancellationToken cancellationToken)
     {
         return GetAsync<IReadOnlyList<ZoneDto>>(
-            $"/api/branches/{branchId:D}/layout/zones",
+            $"branches/{branchId:D}/layout/zones",
             cancellationToken);
     }
 
@@ -51,7 +51,7 @@ public sealed class HttpOperatorPilotSetupApiClient(HttpClient httpClient, IOper
         CancellationToken cancellationToken)
     {
         return PostAsync<ZoneDto, CreateZoneRequest>(
-            $"/api/branches/{branchId:D}/layout/zones",
+            $"branches/{branchId:D}/layout/zones",
             request,
             cancellationToken);
     }
@@ -62,7 +62,7 @@ public sealed class HttpOperatorPilotSetupApiClient(HttpClient httpClient, IOper
         CancellationToken cancellationToken)
     {
         return PostAsync<SeatDto, CreateSeatRequest>(
-            $"/api/branches/{branchId:D}/layout/seats",
+            $"branches/{branchId:D}/layout/seats",
             request,
             cancellationToken);
     }
@@ -73,7 +73,7 @@ public sealed class HttpOperatorPilotSetupApiClient(HttpClient httpClient, IOper
         CancellationToken cancellationToken)
     {
         return PostAsync<TariffDto, CreateTariffRequest>(
-            $"/api/branches/{branchId:D}/tariffs",
+            $"branches/{branchId:D}/tariffs",
             request,
             cancellationToken);
     }
@@ -85,7 +85,7 @@ public sealed class HttpOperatorPilotSetupApiClient(HttpClient httpClient, IOper
         CancellationToken cancellationToken)
     {
         return PostAsync<TariffVersionDto, CreateTariffVersionRequest>(
-            $"/api/branches/{branchId:D}/tariffs/{tariffId:D}/versions",
+            $"branches/{branchId:D}/tariffs/{tariffId:D}/versions",
             request,
             cancellationToken);
     }
@@ -96,7 +96,7 @@ public sealed class HttpOperatorPilotSetupApiClient(HttpClient httpClient, IOper
         CancellationToken cancellationToken)
     {
         return PostAsync<PosProductCategoryDto, CreateProductCategoryRequest>(
-            $"/api/branches/{branchId:D}/pos/categories",
+            $"branches/{branchId:D}/pos/categories",
             request,
             cancellationToken);
     }
@@ -107,7 +107,7 @@ public sealed class HttpOperatorPilotSetupApiClient(HttpClient httpClient, IOper
         CancellationToken cancellationToken)
     {
         return PostAsync<PosProductDto, CreateProductRequest>(
-            $"/api/branches/{branchId:D}/pos/products",
+            $"branches/{branchId:D}/pos/products",
             request,
             cancellationToken);
     }
@@ -119,7 +119,7 @@ public sealed class HttpOperatorPilotSetupApiClient(HttpClient httpClient, IOper
         CancellationToken cancellationToken)
     {
         return PostAsync<DeviceSeatAssignmentDto, AssignDeviceSeatRequest>(
-            $"/api/branches/{branchId:D}/devices/{deviceId:D}/seat-assignment",
+            $"branches/{branchId:D}/devices/{deviceId:D}/seat-assignment",
             request,
             cancellationToken);
     }
@@ -171,7 +171,7 @@ public sealed class HttpOperatorPilotSetupApiClient(HttpClient httpClient, IOper
             throw new InvalidOperationException("Operator access token is missing.");
         }
 
-        var request = new HttpRequestMessage(method, requestUri);
+        var request = new HttpRequestMessage(method, OrganizationApiRoute.Build(snapshot, requestUri));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", snapshot.AccessToken);
         return request;
     }

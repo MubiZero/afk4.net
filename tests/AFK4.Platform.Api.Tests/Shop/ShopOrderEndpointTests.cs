@@ -29,17 +29,17 @@ public sealed class ShopOrderEndpointTests
 
         await ShopTestSeed.AuthorizeStaffForBranchAsync(factory, staffClient, seeded.OrganizationId, seeded.BranchId, withShopPermission: true);
 
-        var queue = await staffClient.GetFromJsonAsync<List<ShopOrderDto>>($"/api/branches/{seeded.BranchId:D}/shop/orders");
+        var queue = await staffClient.GetFromJsonAsync<List<ShopOrderDto>>($"/api/organizations/{seeded.OrganizationId:D}/branches/{seeded.BranchId:D}/shop/orders");
         Assert.Contains(queue!, o => o.Id == placed!.Id);
 
         var accept = await staffClient.PostAsJsonAsync(
-            $"/api/branches/{seeded.BranchId:D}/shop/orders/{placed!.Id:D}/accept",
+            $"/api/organizations/{seeded.OrganizationId:D}/branches/{seeded.BranchId:D}/shop/orders/{placed!.Id:D}/accept",
             new { expectedVersion = placed.Version });
         Assert.Equal(HttpStatusCode.OK, accept.StatusCode);
         var accepted = await accept.Content.ReadFromJsonAsync<ShopOrderDto>();
 
         var deliver = await staffClient.PostAsJsonAsync(
-            $"/api/branches/{seeded.BranchId:D}/shop/orders/{placed.Id:D}/deliver",
+            $"/api/organizations/{seeded.OrganizationId:D}/branches/{seeded.BranchId:D}/shop/orders/{placed.Id:D}/deliver",
             new { expectedVersion = accepted!.Version });
         Assert.Equal(HttpStatusCode.OK, deliver.StatusCode);
         var delivered = await deliver.Content.ReadFromJsonAsync<ShopOrderDto>();
@@ -54,7 +54,7 @@ public sealed class ShopOrderEndpointTests
         var seeded = await ShopTestSeed.SeedActivePlayerWithProductsAsync(factory);
         await ShopTestSeed.AuthorizeStaffForBranchAsync(factory, staffClient, seeded.OrganizationId, seeded.BranchId, withShopPermission: false);
 
-        var response = await staffClient.GetAsync($"/api/branches/{seeded.BranchId:D}/shop/orders");
+        var response = await staffClient.GetAsync($"/api/organizations/{seeded.OrganizationId:D}/branches/{seeded.BranchId:D}/shop/orders");
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -74,9 +74,9 @@ public sealed class ShopOrderEndpointTests
 
         var request = new ShopOrderActionRequest(placed!.Version);
         var first = await staffClient.PostAsJsonAsync(
-            $"/api/branches/{seeded.BranchId:D}/shop/orders/{placed.Id:D}/cancel", request);
+            $"/api/organizations/{seeded.OrganizationId:D}/branches/{seeded.BranchId:D}/shop/orders/{placed.Id:D}/cancel", request);
         var second = await staffClient.PostAsJsonAsync(
-            $"/api/branches/{seeded.BranchId:D}/shop/orders/{placed.Id:D}/cancel", request);
+            $"/api/organizations/{seeded.OrganizationId:D}/branches/{seeded.BranchId:D}/shop/orders/{placed.Id:D}/cancel", request);
 
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
         Assert.Equal(HttpStatusCode.OK, second.StatusCode);
@@ -110,7 +110,7 @@ public sealed class ShopOrderEndpointTests
             factory, staffClient, seeded.OrganizationId, seeded.BranchId, withShopPermission: true);
 
         var response = await staffClient.PostAsJsonAsync(
-            $"/api/branches/{seeded.BranchId:D}/shop/orders/{placed.Id:D}/cancel",
+            $"/api/organizations/{seeded.OrganizationId:D}/branches/{seeded.BranchId:D}/shop/orders/{placed.Id:D}/cancel",
             new ShopOrderActionRequest(placed.Version));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

@@ -4,6 +4,7 @@ export interface PlatformApiOptions {
   baseUrl: string;
   getAccessToken: () => string | null | Promise<string | null>;
   fetchImpl?: FetchLike;
+  pathPrefix?: string;
 }
 
 export interface QueryValue {
@@ -28,11 +29,22 @@ export class PlatformApiClient {
   private readonly baseUrl: URL;
   private readonly getAccessToken: PlatformApiOptions['getAccessToken'];
   private readonly fetchImpl: FetchLike;
+  private readonly pathPrefix: string;
 
   constructor(options: PlatformApiOptions) {
     this.baseUrl = new URL(options.baseUrl);
     this.getAccessToken = options.getAccessToken;
     this.fetchImpl = options.fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
+    this.pathPrefix = options.pathPrefix?.replace(/\/$/, '') ?? '';
+  }
+
+  forOrganization(organizationId: string): PlatformApiClient {
+    return new PlatformApiClient({
+      baseUrl: this.baseUrl.toString(),
+      getAccessToken: this.getAccessToken,
+      fetchImpl: this.fetchImpl,
+      pathPrefix: `/api/organizations/${organizationId}`
+    });
   }
 
   get<TResponse>(path: string, query?: QueryParams): Promise<TResponse> {
@@ -88,7 +100,11 @@ export class PlatformApiClient {
   }
 
   buildUrl(path: string, query?: QueryParams): string {
-    const url = new URL(path, this.baseUrl);
+    const normalizedPath = path.replace(/^\//, '');
+    const scopedPath = this.pathPrefix
+      ? `${this.pathPrefix}/${normalizedPath}`
+      : `/${normalizedPath}`;
+    const url = new URL(scopedPath, this.baseUrl);
 
     for (const [name, value] of Object.entries(query ?? {})) {
       if (value === null || value === undefined || value === '') {

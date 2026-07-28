@@ -48,7 +48,7 @@ public sealed class HttpOperatorAuditApiClient(HttpClient httpClient, IOperatorT
         AddQuery(query, "toUtc", request.ToUtc?.ToString("O", CultureInfo.InvariantCulture));
         AddQuery(query, "limit", request.Limit?.ToString(CultureInfo.InvariantCulture));
 
-        var path = $"/api/branches/{request.BranchId:D}/audit";
+        var path = $"branches/{request.BranchId:D}/audit";
         return query.Count == 0
             ? path
             : $"{path}?{string.Join("&", query)}";
@@ -75,7 +75,7 @@ public sealed class HttpOperatorAuditApiClient(HttpClient httpClient, IOperatorT
             throw new InvalidOperationException("Operator access token is missing.");
         }
 
-        var request = new HttpRequestMessage(method, path);
+        var request = new HttpRequestMessage(method, OrganizationApiRoute.Build(snapshot, path));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", snapshot.AccessToken);
         return request;
     }

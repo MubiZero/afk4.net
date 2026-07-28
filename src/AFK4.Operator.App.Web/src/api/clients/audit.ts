@@ -21,7 +21,7 @@ export function createAuditClient(api: PlatformApiClient) {
   return {
     search(request: AuditSearchRequest): Promise<AuditSearchResultDto> {
       const { branchId, ...query } = request;
-      return api.get<AuditSearchResultDto>(`/api/branches/${branchId}/audit`, normalizeReportQuery(query));
+      return api.get<AuditSearchResultDto>(`branches/${branchId}/audit`, normalizeReportQuery(query));
     }
   };
 }

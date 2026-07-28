@@ -32,7 +32,7 @@ public sealed class MoneyActionEndpointTests
         await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/money-actions",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/money-actions",
             SubmitRefund(entryId, 6000, "money-1"));
         var body = await response.Content.ReadFromJsonAsync<MoneyActionSubmitResponse>();
 
@@ -58,7 +58,7 @@ public sealed class MoneyActionEndpointTests
         await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/money-actions",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/money-actions",
             SubmitRefund(entryId, 3000, "money-1"));
         var body = await response.Content.ReadFromJsonAsync<MoneyActionSubmitResponse>();
 
@@ -89,7 +89,7 @@ public sealed class MoneyActionEndpointTests
         {
             await AuthorizeAsAsync(factory, supervisorClient, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
             var submit = await supervisorClient.PostAsJsonAsync(
-                $"/api/branches/{TestIds.BranchId:D}/money-actions",
+                $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/money-actions",
                 SubmitRefund(entryId, 6000, "money-1"));
             var submitBody = await submit.Content.ReadFromJsonAsync<MoneyActionSubmitResponse>();
             requestId = submitBody!.MoneyActionRequestId!.Value;
@@ -98,7 +98,7 @@ public sealed class MoneyActionEndpointTests
         using var managerClient = factory.CreateClient();
         await AuthorizeAsAsync(factory, managerClient, Manager, "manager@afk4.test", OrganizationRoleNames.BranchManager);
         var approve = await managerClient.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/money-actions/{requestId:D}/approve",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/money-actions/{requestId:D}/approve",
             new MoneyActionDecisionRequest("verified receipt"));
         var approveBody = await approve.Content.ReadFromJsonAsync<MoneyActionSubmitResponse>();
 
@@ -128,13 +128,13 @@ public sealed class MoneyActionEndpointTests
         await AuthorizeAsAsync(factory, client, Owner, "owner@afk4.test", OrganizationRoleNames.OrganizationOwner);
 
         var submit = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/money-actions",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/money-actions",
             SubmitRefund(entryId, 6000, "money-1"));
         var submitBody = await submit.Content.ReadFromJsonAsync<MoneyActionSubmitResponse>();
         var requestId = submitBody!.MoneyActionRequestId!.Value;
 
         var approve = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/money-actions/{requestId:D}/approve",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/money-actions/{requestId:D}/approve",
             new MoneyActionDecisionRequest(null));
 
         Assert.Equal(HttpStatusCode.Forbidden, approve.StatusCode);
@@ -158,7 +158,7 @@ public sealed class MoneyActionEndpointTests
         await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/money-actions",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/money-actions",
             SubmitRefund(entryId, 3000, "money-1")); // 18000 + 3000 > 20000
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
@@ -181,14 +181,14 @@ public sealed class MoneyActionEndpointTests
         {
             await AuthorizeAsAsync(factory, supervisorClient, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
             await supervisorClient.PostAsJsonAsync(
-                $"/api/branches/{TestIds.BranchId:D}/money-actions",
+                $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/money-actions",
                 SubmitRefund(entryId, 6000, "money-1"));
         }
 
         using var managerClient = factory.CreateClient();
         await AuthorizeAsAsync(factory, managerClient, Manager, "manager@afk4.test", OrganizationRoleNames.BranchManager);
         var list = await managerClient.GetFromJsonAsync<MoneyActionRequestListResponse>(
-            $"/api/branches/{TestIds.BranchId:D}/money-actions?state=pending");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/money-actions?state=pending");
 
         Assert.Single(list!.Requests);
         Assert.Equal(6000, list.Requests[0].AmountMinorUnits);
@@ -207,7 +207,7 @@ public sealed class MoneyActionEndpointTests
         {
             await AuthorizeAsAsync(factory, ownerClient, Owner, "owner@afk4.test", OrganizationRoleNames.OrganizationOwner);
             var submit = await ownerClient.PostAsJsonAsync(
-                $"/api/branches/{TestIds.BranchId:D}/money-actions",
+                $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/money-actions",
                 SubmitRefund(entryId, 6000, "money-1"));
             requestId = (await submit.Content.ReadFromJsonAsync<MoneyActionSubmitResponse>())!.MoneyActionRequestId!.Value;
         }
@@ -216,7 +216,7 @@ public sealed class MoneyActionEndpointTests
         using var cashierClient = factory.CreateClient();
         await AuthorizeAsAsync(factory, cashierClient, Cashier, "cashier@afk4.test", OrganizationRoleNames.Operator);
         var approve = await cashierClient.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/money-actions/{requestId:D}/approve",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/money-actions/{requestId:D}/approve",
             new MoneyActionDecisionRequest(null));
 
         Assert.Equal(HttpStatusCode.Forbidden, approve.StatusCode);
@@ -234,7 +234,7 @@ public sealed class MoneyActionEndpointTests
 
         // Under-threshold would normally execute immediately — the inactive guard must stop it.
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/money-actions",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/money-actions",
             SubmitRefund(entryId, 3000, "money-1"));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
@@ -260,7 +260,7 @@ public sealed class MoneyActionEndpointTests
         {
             await AuthorizeAsAsync(factory, supervisorClient, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
             var submit = await supervisorClient.PostAsJsonAsync(
-                $"/api/branches/{TestIds.BranchId:D}/money-actions",
+                $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/money-actions",
                 SubmitRefund(entryId, 6000, "money-1"));
             requestId = (await submit.Content.ReadFromJsonAsync<MoneyActionSubmitResponse>())!.MoneyActionRequestId!.Value;
         }
@@ -270,7 +270,7 @@ public sealed class MoneyActionEndpointTests
         using var managerClient = factory.CreateClient();
         await AuthorizeAsAsync(factory, managerClient, Manager, "manager@afk4.test", OrganizationRoleNames.BranchManager);
         var approve = await managerClient.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/money-actions/{requestId:D}/approve",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/money-actions/{requestId:D}/approve",
             new MoneyActionDecisionRequest("verified receipt"));
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, approve.StatusCode);
@@ -427,7 +427,7 @@ public sealed class MoneyActionEndpointTests
         }
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, email, "Passw0rd!"));
         var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

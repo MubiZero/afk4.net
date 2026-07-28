@@ -73,9 +73,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class MoneyActionEndpoints
 {
-    public static void MapMoneyActionEndpoints(this WebApplication app)
+    public static void MapMoneyActionEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/branches/{branchId:guid}/money-actions", async (
+        app.MapPost("branches/{branchId:guid}/money-actions", async (
             Guid branchId,
             MoneyActionSubmitRequest request,
             PlatformDbContext dbContext,
@@ -202,7 +202,7 @@ internal static class MoneyActionEndpoints
             }
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/money-actions/{moneyActionRequestId:guid}/approve", async (
+        app.MapPost("branches/{branchId:guid}/money-actions/{moneyActionRequestId:guid}/approve", async (
             Guid branchId,
             Guid moneyActionRequestId,
             MoneyActionDecisionRequest request,
@@ -287,7 +287,7 @@ internal static class MoneyActionEndpoints
             return Results.Ok(new MoneyActionSubmitResponse("approved", result.ResultingLedgerEntryId, moneyActionRequestId));
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/money-actions/{moneyActionRequestId:guid}/reject", async (
+        app.MapPost("branches/{branchId:guid}/money-actions/{moneyActionRequestId:guid}/reject", async (
             Guid branchId,
             Guid moneyActionRequestId,
             MoneyActionDecisionRequest request,
@@ -344,7 +344,7 @@ internal static class MoneyActionEndpoints
             return Results.Ok(new MoneyActionSubmitResponse("rejected", null, moneyActionRequestId));
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/money-actions", async (
+        app.MapGet("branches/{branchId:guid}/money-actions", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IMoneyActionApprovalService approvalService,
@@ -386,7 +386,7 @@ internal static class MoneyActionEndpoints
             return Results.Ok(new MoneyActionRequestListResponse(dtos));
         });
 
-        app.MapPost("/api/players/{playerAccountId:guid}/debts/payments", async (
+        app.MapPost("players/{playerAccountId:guid}/debts/payments", async (
             Guid playerAccountId,
             PayDebtRequest request,
             PlatformDbContext dbContext,

@@ -83,32 +83,32 @@ export interface StartReservationSessionResponse {
 export function createReservationClient(api: PlatformApiClient) {
   return {
     search(branchId: Guid, query?: ReservationSearchQuery): Promise<ReservationSearchResultDto> {
-      return api.get<ReservationSearchResultDto>(`/api/branches/${branchId}/reservations`, normalizeReportQuery(query));
+      return api.get<ReservationSearchResultDto>(`branches/${branchId}/reservations`, normalizeReportQuery(query));
     },
     create(branchId: Guid, request: CreateReservationRequest): Promise<ReservationDto> {
-      return api.post<ReservationDto, CreateReservationRequest>(`/api/branches/${branchId}/reservations`, request);
+      return api.post<ReservationDto, CreateReservationRequest>(`branches/${branchId}/reservations`, request);
     },
     createGroup(branchId: Guid, request: CreateReservationGroupRequest): Promise<ReservationGroupResultDto> {
-      return api.post<ReservationGroupResultDto, CreateReservationGroupRequest>(`/api/branches/${branchId}/reservations/group`, request);
+      return api.post<ReservationGroupResultDto, CreateReservationGroupRequest>(`branches/${branchId}/reservations/group`, request);
     },
     update(reservationId: Guid, request: UpdateReservationRequest): Promise<ReservationDto> {
-      return api.patch<ReservationDto, UpdateReservationRequest>(`/api/reservations/${reservationId}`, request);
+      return api.patch<ReservationDto, UpdateReservationRequest>(`reservations/${reservationId}`, request);
     },
     confirm(reservationId: Guid, request: ConfirmReservationRequest): Promise<ReservationDto> {
-      return api.post<ReservationDto, ConfirmReservationRequest>(`/api/reservations/${reservationId}/confirm`, request);
+      return api.post<ReservationDto, ConfirmReservationRequest>(`reservations/${reservationId}/confirm`, request);
     },
     seat(reservationId: Guid, request: SeatReservationRequest): Promise<ReservationDto> {
-      return api.post<ReservationDto, SeatReservationRequest>(`/api/reservations/${reservationId}/seat`, request);
+      return api.post<ReservationDto, SeatReservationRequest>(`reservations/${reservationId}/seat`, request);
     },
     cancel(reservationId: Guid, request: CancelReservationRequest): Promise<ReservationDto> {
-      return api.post<ReservationDto, CancelReservationRequest>(`/api/reservations/${reservationId}/cancel`, request);
+      return api.post<ReservationDto, CancelReservationRequest>(`reservations/${reservationId}/cancel`, request);
     },
     startSession(
       reservationId: Guid,
       request: StartReservationSessionRequest
     ): Promise<StartReservationSessionResponse> {
       return api.post<StartReservationSessionResponse, StartReservationSessionRequest>(
-        `/api/reservations/${reservationId}/start-session`,
+        `reservations/${reservationId}/start-session`,
         request
       );
     }

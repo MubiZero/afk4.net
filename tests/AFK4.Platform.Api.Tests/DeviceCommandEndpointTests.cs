@@ -23,7 +23,7 @@ public sealed class DeviceCommandEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            $"/api/devices/{TestIds.DeviceId}/commands",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}/commands",
             new
             {
                 Type = "lock",
@@ -45,7 +45,7 @@ public sealed class DeviceCommandEndpointTests
         await SeedDeviceAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/devices/{TestIds.DeviceId}/commands",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}/commands",
             new
             {
                 Type = "lock",
@@ -82,7 +82,7 @@ public sealed class DeviceCommandEndpointTests
         await SeedDeviceAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/devices/{TestIds.DeviceId}/commands",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}/commands",
             new
             {
                 Type = "lock",
@@ -112,7 +112,7 @@ public sealed class DeviceCommandEndpointTests
         await SeedDeviceAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/devices/{TestIds.DeviceId}/commands",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}/commands",
             new
             {
                 Type = "lock",
@@ -125,7 +125,7 @@ public sealed class DeviceCommandEndpointTests
 
         Assert.NotNull(command);
 
-        var statusResponse = await client.GetAsync($"/api/devices/{TestIds.DeviceId}/commands/{command.CommandId}/status");
+        var statusResponse = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}/commands/{command.CommandId}/status");
         var status = await statusResponse.Content.ReadFromJsonAsync<DeviceCommandStatusDto>();
 
         Assert.Equal(HttpStatusCode.OK, statusResponse.StatusCode);
@@ -285,7 +285,7 @@ public sealed class DeviceCommandEndpointTests
 
         var commandId = Guid.Parse("63d6536d-f2c5-4379-a8b3-cd487f0c1e94");
 
-        var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}/commands/{commandId}/status");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}/commands/{commandId}/status");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -296,7 +296,7 @@ public sealed class DeviceCommandEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}/commands");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}/commands");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -312,7 +312,7 @@ public sealed class DeviceCommandEndpointTests
         await SeedDeviceCommandAsync(factory, Guid.Parse("73d6536d-f2c5-4379-a8b3-cd487f0c1e94"), "Completed", DateTimeOffset.Parse("2026-05-12T00:02:00Z"));
         await SeedDeviceCommandAsync(factory, Guid.Parse("83d6536d-f2c5-4379-a8b3-cd487f0c1e94"), "Failed", DateTimeOffset.Parse("2026-05-12T00:03:00Z"));
 
-        var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}/commands?limit=2");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}/commands?limit=2");
         var commands = await response.Content.ReadFromJsonAsync<IReadOnlyList<DeviceCommandStatusDto>>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -343,7 +343,7 @@ public sealed class DeviceCommandEndpointTests
         await SeedDeviceCommandAsync(factory, Guid.Parse("73d6536d-f2c5-4379-a8b3-cd487f0c1e94"), "Completed", DateTimeOffset.Parse("2026-05-12T00:03:00Z"), secondDeviceId);
         await SeedDeviceCommandAsync(factory, Guid.Parse("83d6536d-f2c5-4379-a8b3-cd487f0c1e94"), "Failed", DateTimeOffset.Parse("2026-05-12T00:04:00Z"), Guid.Parse("5d4b9d5d-60d5-49fe-a285-049ae4a40280"));
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/device-commands?limit=2");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/device-commands?limit=2");
         var commands = await response.Content.ReadFromJsonAsync<IReadOnlyList<DeviceCommandStatusDto>>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -371,7 +371,7 @@ public sealed class DeviceCommandEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedDeviceAsync(factory);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/device-commands");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/device-commands");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
 
@@ -392,7 +392,7 @@ public sealed class DeviceCommandEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedDeviceAsync(factory);
 
-        var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}/commands");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}/commands");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
 
@@ -415,7 +415,7 @@ public sealed class DeviceCommandEndpointTests
         await SeedDeviceAsync(factory);
         await SeedPendingCommandAsync(factory, commandId);
 
-        var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}/commands/{commandId}/status");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}/commands/{commandId}/status");
         var status = await response.Content.ReadFromJsonAsync<DeviceCommandStatusDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -441,7 +441,7 @@ public sealed class DeviceCommandEndpointTests
         await SeedDeviceAsync(factory);
         await SeedPendingCommandAsync(factory, commandId);
 
-        var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}/commands/{commandId}/status");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}/commands/{commandId}/status");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
 
@@ -464,7 +464,7 @@ public sealed class DeviceCommandEndpointTests
 
         var commandId = Guid.Parse("63d6536d-f2c5-4379-a8b3-cd487f0c1e94");
 
-        var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}/commands/{commandId}/status");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}/commands/{commandId}/status");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -480,7 +480,7 @@ public sealed class DeviceCommandEndpointTests
         await SeedDeviceAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/devices/{TestIds.DeviceId}/commands",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}/commands",
             new
             {
                 Type = commandType,
@@ -502,7 +502,7 @@ public sealed class DeviceCommandEndpointTests
         await SeedDeviceAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/devices/{TestIds.DeviceId}/commands",
+            $"/api/organizations/{TestIds.OrganizationId:D}/devices/{TestIds.DeviceId}/commands",
             new
             {
                 Type = "lock",
@@ -553,7 +553,7 @@ public sealed class DeviceCommandEndpointTests
         await dbContext.SaveChangesAsync();
 
         var response = await client.PostAsJsonAsync(
-            "/api/devices/enroll",
+            $"/api/devices/enroll",
             new DeviceEnrollmentRequest(
                 TestIds.OrganizationId,
                 TestIds.BranchId,
@@ -608,7 +608,7 @@ public sealed class DeviceCommandEndpointTests
     private static async Task<SessionCommandResponse> StartSessionAsync(HttpClient client, string idempotencyKey)
     {
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/sessions/start",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/sessions/start",
             new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", idempotencyKey, SessionDurationModes.Fixed, 60));
         var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
 
@@ -624,7 +624,7 @@ public sealed class DeviceCommandEndpointTests
         string idempotencyKey)
     {
         var response = await client.PostAsJsonAsync(
-            $"/api/sessions/{sessionId:D}/end",
+            $"/api/organizations/{TestIds.OrganizationId:D}/sessions/{sessionId:D}/end",
             new EndSessionRequest("operator-end", idempotencyKey));
         var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
 

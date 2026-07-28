@@ -73,9 +73,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class ReportEndpoints
 {
-    public static void MapReportEndpoints(this WebApplication app)
+    public static void MapReportEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/branches/{branchId:guid}/reports/shifts", async (
+        app.MapGet("branches/{branchId:guid}/reports/shifts", async (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -140,7 +140,7 @@ internal static class ReportEndpoints
             return Results.Ok(result);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/reports/sales", async (
+        app.MapGet("branches/{branchId:guid}/reports/sales", async (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -205,7 +205,7 @@ internal static class ReportEndpoints
             return Results.Ok(result);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/reports/gameplay-time", async (
+        app.MapGet("branches/{branchId:guid}/reports/gameplay-time", async (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -270,7 +270,7 @@ internal static class ReportEndpoints
             return Results.Ok(result);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/reports/cash-operations", async (
+        app.MapGet("branches/{branchId:guid}/reports/cash-operations", async (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -335,7 +335,7 @@ internal static class ReportEndpoints
             return Results.Ok(result);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions", async (
+        app.MapGet("branches/{branchId:guid}/reports/operator-actions", async (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -408,7 +408,7 @@ internal static class ReportEndpoints
 
         // Anti-fraud §5.6: on-demand owner daily summary (the report-endpoint fallback to the notification
         // digest). Defaults to the most recently ended UTC day when no date is given.
-        app.MapGet("/api/branches/{branchId:guid}/reports/owner-daily-summary", async (
+        app.MapGet("branches/{branchId:guid}/reports/owner-daily-summary", async (
             Guid branchId,
             DateOnly? date,
             StaffAuthorizationService authorizationService,
@@ -470,7 +470,7 @@ internal static class ReportEndpoints
             return Results.Ok(result);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/reports/shifts/export.csv", async (
+        app.MapGet("branches/{branchId:guid}/reports/shifts/export.csv", async (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -497,7 +497,7 @@ internal static class ReportEndpoints
                 cancellationToken);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/reports/sales/export.csv", async (
+        app.MapGet("branches/{branchId:guid}/reports/sales/export.csv", async (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -524,7 +524,7 @@ internal static class ReportEndpoints
                 cancellationToken);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/reports/gameplay-time/export.csv", async (
+        app.MapGet("branches/{branchId:guid}/reports/gameplay-time/export.csv", async (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -551,7 +551,7 @@ internal static class ReportEndpoints
                 cancellationToken);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/reports/cash-operations/export.csv", async (
+        app.MapGet("branches/{branchId:guid}/reports/cash-operations/export.csv", async (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,
@@ -578,7 +578,7 @@ internal static class ReportEndpoints
                 cancellationToken);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/reports/operator-actions/export.csv", async (
+        app.MapGet("branches/{branchId:guid}/reports/operator-actions/export.csv", async (
             Guid branchId,
             DateTimeOffset? fromUtc,
             DateTimeOffset? toUtc,

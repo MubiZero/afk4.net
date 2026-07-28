@@ -35,7 +35,7 @@ public sealed class LegacyEndpointGuardTests
         await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/players/{PlayerAccountId:D}/ledger/manual-corrections",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{PlayerAccountId:D}/ledger/manual-corrections",
             new ManualLedgerCorrectionRequest(
                 TestIds.OrganizationId,
                 LedgerAccountTypeNames.Wallet,
@@ -66,7 +66,7 @@ public sealed class LegacyEndpointGuardTests
         await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/players/{PlayerAccountId:D}/ledger/manual-corrections",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{PlayerAccountId:D}/ledger/manual-corrections",
             new ManualLedgerCorrectionRequest(
                 TestIds.OrganizationId,
                 LedgerAccountTypeNames.Wallet,
@@ -92,7 +92,7 @@ public sealed class LegacyEndpointGuardTests
         await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/players/{PlayerAccountId:D}/ledger/manual-corrections",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{PlayerAccountId:D}/ledger/manual-corrections",
             new ManualLedgerCorrectionRequest(
                 TestIds.OrganizationId,
                 LedgerAccountTypeNames.Wallet,
@@ -124,7 +124,7 @@ public sealed class LegacyEndpointGuardTests
         await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/players/{PlayerAccountId:D}/ledger/{entryId:D}/refunds",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{PlayerAccountId:D}/ledger/{entryId:D}/refunds",
             new RefundLedgerEntryRequest(
                 TestIds.OrganizationId,
                 entryId,
@@ -149,7 +149,7 @@ public sealed class LegacyEndpointGuardTests
         await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/players/{PlayerAccountId:D}/ledger/{entryId:D}/refunds",
+            $"/api/organizations/{TestIds.OrganizationId:D}/players/{PlayerAccountId:D}/ledger/{entryId:D}/refunds",
             new RefundLedgerEntryRequest(
                 TestIds.OrganizationId,
                 entryId,
@@ -287,7 +287,7 @@ public sealed class LegacyEndpointGuardTests
         }
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, email, "Passw0rd!"));
         var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

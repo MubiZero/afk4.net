@@ -18,7 +18,7 @@ public sealed class HttpOperatorPosApiClient(HttpClient httpClient, IOperatorTok
         CancellationToken cancellationToken)
     {
         return GetAsync<IReadOnlyList<PosProductDto>>(
-            $"/api/branches/{branchId:D}/pos/catalog",
+            $"branches/{branchId:D}/pos/catalog",
             cancellationToken);
     }
 
@@ -29,7 +29,7 @@ public sealed class HttpOperatorPosApiClient(HttpClient httpClient, IOperatorTok
     {
         return SendAsync<PosSaleDto, CreatePosSaleRequest>(
             HttpMethod.Post,
-            $"/api/branches/{branchId:D}/pos/sales",
+            $"branches/{branchId:D}/pos/sales",
             request,
             cancellationToken);
     }
@@ -41,7 +41,7 @@ public sealed class HttpOperatorPosApiClient(HttpClient httpClient, IOperatorTok
     {
         return SendAsync<PosSaleDto, ManualPaymentRequest>(
             HttpMethod.Post,
-            $"/api/pos/sales/{saleId:D}/payments/manual",
+            $"pos/sales/{saleId:D}/payments/manual",
             request,
             cancellationToken);
     }
@@ -53,7 +53,7 @@ public sealed class HttpOperatorPosApiClient(HttpClient httpClient, IOperatorTok
     {
         return SendAsync<PosSaleDto, RefundPosSaleRequest>(
             HttpMethod.Post,
-            $"/api/pos/sales/{saleId:D}/refunds",
+            $"pos/sales/{saleId:D}/refunds",
             request,
             cancellationToken);
     }
@@ -65,7 +65,7 @@ public sealed class HttpOperatorPosApiClient(HttpClient httpClient, IOperatorTok
     {
         return SendAsync<PosSaleDto, VoidPosSaleRequest>(
             HttpMethod.Post,
-            $"/api/pos/sales/{saleId:D}/void",
+            $"pos/sales/{saleId:D}/void",
             request,
             cancellationToken);
     }
@@ -75,7 +75,7 @@ public sealed class HttpOperatorPosApiClient(HttpClient httpClient, IOperatorTok
         CancellationToken cancellationToken)
     {
         return GetAsync<PosSaleDto>(
-            $"/api/pos/sales/{saleId:D}",
+            $"pos/sales/{saleId:D}",
             cancellationToken);
     }
 
@@ -84,7 +84,7 @@ public sealed class HttpOperatorPosApiClient(HttpClient httpClient, IOperatorTok
         CancellationToken cancellationToken)
     {
         return GetAsync<ReceiptDto>(
-            $"/api/receipts/{receiptId:D}",
+            $"receipts/{receiptId:D}",
             cancellationToken);
     }
 
@@ -136,7 +136,7 @@ public sealed class HttpOperatorPosApiClient(HttpClient httpClient, IOperatorTok
             throw new InvalidOperationException("Operator access token is missing.");
         }
 
-        var request = new HttpRequestMessage(method, requestUri);
+        var request = new HttpRequestMessage(method, OrganizationApiRoute.Build(snapshot, requestUri));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", snapshot.AccessToken);
         return request;
     }

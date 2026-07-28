@@ -10,6 +10,25 @@ namespace AFK4.Platform.Api.Tests.Architecture;
 public sealed class AuthenticationDomainEndpointTests
 {
     [Fact]
+    public async Task EveryOrganizationEndpoint_UsesCanonicalOrganizationPrefix()
+    {
+        await using var factory = new PlatformApiFactory();
+        _ = factory.CreateClient();
+        var endpoints = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<AuthenticationDomainMetadata>()?.Domain
+                == AuthenticationDomain.Organization)
+            .ToArray();
+
+        Assert.NotEmpty(endpoints);
+        Assert.All(endpoints, endpoint =>
+            Assert.StartsWith(
+                "/api/organizations/{organizationId:guid}",
+                endpoint.RoutePattern.RawText,
+                StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task PlatformSupportAllowlist_ContainsOnlyReadOnlyOrganizationEndpoints()
     {
         await using var factory = new PlatformApiFactory();
@@ -113,6 +132,39 @@ public sealed class AuthenticationDomainEndpointTests
         await middleware.InvokeAsync(httpContext, staff, platform);
 
         Assert.True(nextWasCalled);
+    }
+
+    [Fact]
+    public async Task DomainEnforcement_RejectsStaffTokenForAnotherRouteOrganization()
+    {
+        var authenticatedOrganizationId = Guid.NewGuid();
+        var nextWasCalled = false;
+        var middleware = new AuthenticationDomainEnforcementMiddleware(_ =>
+        {
+            nextWasCalled = true;
+            return Task.CompletedTask;
+        });
+        var httpContext = new DefaultHttpContext();
+        httpContext.Request.RouteValues["organizationId"] = Guid.NewGuid().ToString("D");
+        httpContext.SetEndpoint(new Endpoint(
+            _ => Task.CompletedTask,
+            new EndpointMetadataCollection(
+                new AuthenticationDomainMetadata(AuthenticationDomain.Organization)),
+            "organization secured"));
+        var staff = new StaffContextAccessor
+        {
+            Current = new StaffContext(
+                Guid.NewGuid(),
+                authenticatedOrganizationId,
+                "Organization",
+                EmptyGuids(),
+                EmptyStrings())
+        };
+
+        await middleware.InvokeAsync(httpContext, staff, new PlatformAdminContextAccessor());
+
+        Assert.Equal(StatusCodes.Status403Forbidden, httpContext.Response.StatusCode);
+        Assert.False(nextWasCalled);
     }
 
     private static IReadOnlySet<Guid> EmptyGuids() => new HashSet<Guid>();

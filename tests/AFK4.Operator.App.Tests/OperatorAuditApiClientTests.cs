@@ -47,7 +47,7 @@ public sealed class OperatorAuditApiClientTests
 
         Assert.Single(result.Records);
         Assert.Equal(HttpMethod.Get, handler.LastMethod);
-        Assert.StartsWith($"/api/branches/{BranchId:D}/audit?", handler.LastPathAndQuery, StringComparison.Ordinal);
+        Assert.StartsWith($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/audit?", handler.LastPathAndQuery, StringComparison.Ordinal);
         Assert.Contains("action=sessions.start", handler.LastPathAndQuery, StringComparison.Ordinal);
         Assert.Contains("outcome=Succeeded", handler.LastPathAndQuery, StringComparison.Ordinal);
         Assert.Contains("targetType=Session", handler.LastPathAndQuery, StringComparison.Ordinal);

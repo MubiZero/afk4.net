@@ -73,9 +73,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class PlayerManagementEndpoints
 {
-    public static void MapPlayerManagementEndpoints(this WebApplication app)
+    public static void MapPlayerManagementEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/branches/{branchId:guid}/players", async (
+        app.MapPost("branches/{branchId:guid}/players", async (
             Guid branchId,
             CreatePlayerAccountRequest request,
             StaffAuthorizationService authorizationService,
@@ -141,7 +141,7 @@ internal static class PlayerManagementEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/players/{playerAccountId:guid}/pin", async (
+        app.MapPost("branches/{branchId:guid}/players/{playerAccountId:guid}/pin", async (
             Guid branchId,
             Guid playerAccountId,
             SetPlayerPinRequest request,
@@ -183,7 +183,7 @@ internal static class PlayerManagementEndpoints
             return Results.NoContent();
         });
 
-        app.MapPatch("/api/branches/{branchId:guid}/players/{playerAccountId:guid}", async (
+        app.MapPatch("branches/{branchId:guid}/players/{playerAccountId:guid}", async (
             Guid branchId,
             Guid playerAccountId,
             UpdatePlayerAccountRequest request,
@@ -251,7 +251,7 @@ internal static class PlayerManagementEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/players/{playerAccountId:guid}/active-state", async (
+        app.MapPost("branches/{branchId:guid}/players/{playerAccountId:guid}/active-state", async (
             Guid branchId,
             Guid playerAccountId,
             SetPlayerActiveStateRequest request,
@@ -323,7 +323,7 @@ internal static class PlayerManagementEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/players", async (
+        app.MapGet("branches/{branchId:guid}/players", async (
             Guid branchId,
             string? query,
             int? limit,
@@ -371,7 +371,7 @@ internal static class PlayerManagementEndpoints
             return Results.Ok(players);
         });
 
-        app.MapGet("/api/players/{playerAccountId:guid}/wallet-summary", async (
+        app.MapGet("players/{playerAccountId:guid}/wallet-summary", async (
             Guid playerAccountId,
             PlatformDbContext dbContext,
             IStaffContextAccessor staffContextAccessor,
@@ -402,7 +402,7 @@ internal static class PlayerManagementEndpoints
                 : Results.Ok(summary);
         });
 
-        app.MapGet("/api/players/{playerAccountId:guid}/ledger", async (
+        app.MapGet("players/{playerAccountId:guid}/ledger", async (
             Guid playerAccountId,
             string? entryType,
             string? accountType,
@@ -452,7 +452,7 @@ internal static class PlayerManagementEndpoints
             return Results.Ok(page);
         });
 
-        app.MapPost("/api/players/{playerAccountId:guid}/wallet/top-ups", async (
+        app.MapPost("players/{playerAccountId:guid}/wallet/top-ups", async (
             Guid playerAccountId,
             TopUpWalletRequest request,
             PlatformDbContext dbContext,
@@ -530,7 +530,7 @@ internal static class PlayerManagementEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/players/{playerAccountId:guid}/ledger/{ledgerEntryId:guid}/refunds", async (
+        app.MapPost("players/{playerAccountId:guid}/ledger/{ledgerEntryId:guid}/refunds", async (
             Guid playerAccountId,
             Guid ledgerEntryId,
             RefundLedgerEntryRequest request,
@@ -647,7 +647,7 @@ internal static class PlayerManagementEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/players/{playerAccountId:guid}/ledger/manual-corrections", async (
+        app.MapPost("players/{playerAccountId:guid}/ledger/manual-corrections", async (
             Guid playerAccountId,
             ManualLedgerCorrectionRequest request,
             PlatformDbContext dbContext,

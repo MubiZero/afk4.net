@@ -11,6 +11,7 @@ public interface IStaffCredentialService
         CancellationToken cancellationToken);
 
     Task<StaffLoginResolution> SignInByLoginAsync(
+        Guid organizationId,
         StaffSignInByLoginRequest request,
         CancellationToken cancellationToken);
 

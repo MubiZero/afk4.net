@@ -30,7 +30,7 @@ public sealed class OperatorDeviceApiClientTests
 
         Assert.Equal("AFK4-TEST-CODE", result.Code);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/device-enrollment-codes", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/device-enrollment-codes", handler.LastPathAndQuery);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
 
         var body = DeserializeRequest<CreateDeviceEnrollmentCodeRequest>(handler.LastRequestBody);
@@ -59,7 +59,7 @@ public sealed class OperatorDeviceApiClientTests
 
         Assert.Equal(CommandId, result.CommandId);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/devices/{DeviceId:D}/commands", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/devices/{DeviceId:D}/commands", handler.LastPathAndQuery);
 
         var body = DeserializeRequest<DispatchDeviceCommandRequest>(handler.LastRequestBody);
         Assert.Equal("lock", body.Type);
@@ -83,7 +83,7 @@ public sealed class OperatorDeviceApiClientTests
 
         Assert.Equal("Pending", result.Status);
         Assert.Equal(HttpMethod.Get, handler.LastMethod);
-        Assert.Equal($"/api/devices/{DeviceId:D}/commands/{CommandId:D}/status", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/devices/{DeviceId:D}/commands/{CommandId:D}/status", handler.LastPathAndQuery);
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public sealed class OperatorDeviceApiClientTests
         Assert.Equal(DeviceId, result.DeviceId);
         Assert.Equal("PC-001", result.MachineName);
         Assert.Equal(HttpMethod.Get, handler.LastMethod);
-        Assert.Equal($"/api/devices/{DeviceId:D}", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/devices/{DeviceId:D}", handler.LastPathAndQuery);
     }
 
     [Fact]
@@ -148,9 +148,9 @@ public sealed class OperatorDeviceApiClientTests
 
         Assert.Equal(CredentialId, rotated.CredentialId);
         Assert.Equal("credential-secret", rotated.CredentialSecret);
-        Assert.Equal($"/api/devices/{DeviceId:D}/credentials/rotate", rotatePath);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/devices/{DeviceId:D}/credentials/rotate", rotatePath);
         Assert.Equal(CredentialId, revoked.CredentialId);
-        Assert.Equal($"/api/devices/{DeviceId:D}/credentials/{CredentialId:D}/revoke", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/devices/{DeviceId:D}/credentials/{CredentialId:D}/revoke", handler.LastPathAndQuery);
     }
 
     private static HttpOperatorDeviceApiClient CreateClient(RecordingHttpMessageHandler handler)

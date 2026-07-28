@@ -44,7 +44,7 @@ function buildQuery(range: DateRange, draft: AuditDraft): BranchAuditQuery {
 }
 
 // Аудит филиала (Отчёты → Журнал): менеджерский branch-scoped журнал. Endpoint
-// /api/branches/{id}/audit идёт через RequireBranchPermissionAsync (фундамент №1) — per-branch,
+// /api/organizations/{organizationId}/branches/{id}/audit идёт через RequireBranchPermissionAsync (фундамент №1) — per-branch,
 // утечки чужих филиалов нет (в отличие от org-журнала в Сеть→Журнал). Переиспользует фильтры и
 // модель строк из network/journal (та же форма записи).
 export function BranchJournalDestination({ backend }: { backend: OperatorBackendContext | null }): JSX.Element {

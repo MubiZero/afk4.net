@@ -30,6 +30,16 @@ public sealed class AuthenticationDomainEnforcementMiddleware(RequestDelegate ne
             return;
         }
 
+        if (metadata.Domain == AuthenticationDomain.Organization
+            && staffContextAccessor.Current is { } staffContext
+            && httpContext.Request.RouteValues.TryGetValue("organizationId", out var routeValue)
+            && (!Guid.TryParse(Convert.ToString(routeValue), out var routeOrganizationId)
+                || routeOrganizationId != staffContext.OrganizationId))
+        {
+            httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return;
+        }
+
         await next(httpContext);
     }
 }

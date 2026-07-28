@@ -17,7 +17,7 @@ public sealed class AuditSearchEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/audit");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/audit");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -29,7 +29,7 @@ public sealed class AuditSearchEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/audit");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/audit");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
 
@@ -68,7 +68,7 @@ public sealed class AuditSearchEndpointTests
             DateTimeOffset.Parse("2026-05-14T12:00:00Z"));
 
         var response = await client.GetAsync(
-            $"/api/branches/{TestIds.BranchId}/audit?action={AuditActionNames.StartSession}&outcome={AuditOutcome.Succeeded}&limit=2");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/audit?action={AuditActionNames.StartSession}&outcome={AuditOutcome.Succeeded}&limit=2");
         var result = await response.Content.ReadFromJsonAsync<AuditSearchResultDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

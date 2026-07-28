@@ -16,7 +16,7 @@ describe('dev preview session', () => {
 // old WebView2 auth bridge — any credentials succeed against these fixtures.
 describe('devMockFetch staff auth', () => {
   it('signs in by login with a mock session', async () => {
-    const res = await devMockFetch('https://x/api/auth/staff/sign-in-by-login', {
+    const res = await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/auth/staff/sign-in-by-login', {
       method: 'POST',
       body: JSON.stringify({ login: 'anyone', password: 'anything' })
     });
@@ -26,7 +26,7 @@ describe('devMockFetch staff auth', () => {
   });
 
   it('signs in to a chosen club with a mock session', async () => {
-    const res = await devMockFetch('https://x/api/auth/staff/sign-in', {
+    const res = await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/auth/staff/sign-in', {
       method: 'POST',
       body: JSON.stringify({ organizationId: 'org-1', userName: 'anyone', password: 'anything' })
     });
@@ -36,7 +36,7 @@ describe('devMockFetch staff auth', () => {
   });
 
   it('refreshes with a mock session', async () => {
-    const res = await devMockFetch('https://x/api/auth/staff/refresh', {
+    const res = await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/auth/staff/refresh', {
       method: 'POST',
       body: JSON.stringify({ organizationId: 'org-1', refreshToken: 'preview-refresh-token' })
     });
@@ -48,7 +48,7 @@ describe('devMockFetch staff auth', () => {
 
 describe('devMockFetch player data', () => {
   it('returns a populated wallet summary with varied ledger entries', async () => {
-    const res = await devMockFetch(`https://x/api/players/${playerId}/wallet-summary`);
+    const res = await devMockFetch(`https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/${playerId}/wallet-summary`);
     const body = await res.json();
     expect(body.walletBalance.minorUnits).toBeGreaterThan(0);
     expect(Array.isArray(body.recentEntries)).toBe(true);
@@ -58,14 +58,14 @@ describe('devMockFetch player data', () => {
   });
 
   it('returns player packages with bonus seconds', async () => {
-    const res = await devMockFetch(`https://x/api/players/${playerId}/packages`);
+    const res = await devMockFetch(`https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/${playerId}/packages`);
     const body = await res.json();
     expect(body.length).toBeGreaterThanOrEqual(1);
     expect(body[0].bonusSeconds).toBeGreaterThan(0);
   });
 
   it('echoes a wallet summary when topping up', async () => {
-    const res = await devMockFetch(`https://x/api/players/${playerId}/wallet/top-ups`, { method: 'POST' });
+    const res = await devMockFetch(`https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/${playerId}/wallet/top-ups`, { method: 'POST' });
     const body = await res.json();
     expect(body.walletBalance).toBeDefined();
   });
@@ -73,45 +73,45 @@ describe('devMockFetch player data', () => {
 
 describe('devMockFetch device lifecycle', () => {
   it('persists rename and removes the device from the authoritative inventory', async () => {
-    const before = await (await devMockFetch('https://x/api/branches/branch/devices')).json();
+    const before = await (await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/devices')).json();
     const deviceId = before[0].deviceId as string;
     await devMockFetch(`https://x/api/devices/${deviceId}/rename`, { method: 'POST', body: JSON.stringify({ displayName: 'VIP-02' }) });
-    const renamed = await (await devMockFetch('https://x/api/branches/branch/devices')).json();
+    const renamed = await (await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/devices')).json();
     expect(renamed.find((device: { deviceId: string }) => device.deviceId === deviceId).machineName).toBe('VIP-02');
     await devMockFetch(`https://x/api/devices/${deviceId}/remove`, { method: 'POST', body: JSON.stringify({ reason: 'retired' }) });
-    const after = await (await devMockFetch('https://x/api/branches/branch/devices')).json();
+    const after = await (await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/devices')).json();
     expect(after.some((device: { deviceId: string }) => device.deviceId === deviceId)).toBe(false);
   });
 });
 
 describe('devMockFetch receipt preview', () => {
   it('returns matching sale and receipt detail', async () => {
-    const sale = await (await devMockFetch('https://x/api/pos/sales/ps-06')).json();
+    const sale = await (await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/pos/sales/ps-06')).json();
     expect(sale).toMatchObject({ posSaleId: 'ps-06', state: 'paid' });
-    const receipt = await (await devMockFetch(`https://x/api/receipts/${sale.latestReceipt.receiptId}`)).json();
+    const receipt = await (await devMockFetch(`https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-cf0d307d0f08/receipts/${sale.latestReceipt.receiptId}`)).json();
     expect(receipt.total).toEqual(sale.total);
   });
 });
 
 describe('devMockFetch approval preview', () => {
   it('moves an approved request from pending into audit history', async () => {
-    const pending = await (await devMockFetch('https://x/api/branches/branch/money-actions')).json();
+    const pending = await (await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/money-actions')).json();
     expect(pending.requests.length).toBeGreaterThan(0);
     const request = pending.requests[0];
-    const decision = await devMockFetch(`https://x/api/branches/branch/money-actions/${request.moneyActionRequestId}/approve`, {
+    const decision = await devMockFetch(`https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/money-actions/${request.moneyActionRequestId}/approve`, {
       method: 'POST', body: JSON.stringify({ decisionReason: null })
     });
     expect(decision.status).toBe(200);
-    const after = await (await devMockFetch('https://x/api/branches/branch/money-actions')).json();
+    const after = await (await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/money-actions')).json();
     expect(after.requests.some((item: { moneyActionRequestId: string }) => item.moneyActionRequestId === request.moneyActionRequestId)).toBe(false);
-    const audit = await (await devMockFetch('https://x/api/branches/branch/audit?limit=50')).json();
+    const audit = await (await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/audit?limit=50')).json();
     expect(audit.records.some((record: { action: string }) => record.action === 'money_action.approved')).toBe(true);
   });
 });
 
 describe('devMockFetch /ledger keyset pagination', () => {
   it('returns first page with items and nextCursor', async () => {
-    const res = await devMockFetch(`https://x/api/players/${playerId}/ledger?limit=10`);
+    const res = await devMockFetch(`https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/${playerId}/ledger?limit=10`);
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(Array.isArray(body.items)).toBe(true);
@@ -121,11 +121,11 @@ describe('devMockFetch /ledger keyset pagination', () => {
   });
 
   it('second page by cursor does not overlap with first page', async () => {
-    const res1 = await devMockFetch(`https://x/api/players/${playerId}/ledger?limit=10`);
+    const res1 = await devMockFetch(`https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/${playerId}/ledger?limit=10`);
     const page1 = await res1.json();
     const cursor = page1.nextCursor as string;
 
-    const res2 = await devMockFetch(`https://x/api/players/${playerId}/ledger?limit=10&before=${cursor}`);
+    const res2 = await devMockFetch(`https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/${playerId}/ledger?limit=10&before=${cursor}`);
     const page2 = await res2.json();
 
     const ids1 = new Set(page1.items.map((e: { ledgerEntryId: string }) => e.ledgerEntryId));
@@ -136,14 +136,14 @@ describe('devMockFetch /ledger keyset pagination', () => {
 
   it('last page has nextCursor null', async () => {
     // 48 записей, limit=50 — влезает в одну страницу
-    const res = await devMockFetch(`https://x/api/players/${playerId}/ledger?limit=50`);
+    const res = await devMockFetch(`https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/${playerId}/ledger?limit=50`);
     const body = await res.json();
     expect(body.items.length).toBeGreaterThanOrEqual(48);
     expect(body.nextCursor).toBeNull();
   });
 
   it('filter by entryType returns only matching records', async () => {
-    const res = await devMockFetch(`https://x/api/players/${playerId}/ledger?entryType=top_up&limit=50`);
+    const res = await devMockFetch(`https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/${playerId}/ledger?entryType=top_up&limit=50`);
     const body = await res.json();
     expect(body.items.length).toBeGreaterThan(0);
     for (const item of body.items) {
@@ -152,7 +152,7 @@ describe('devMockFetch /ledger keyset pagination', () => {
   });
 
   it('filter by accountType returns only matching records', async () => {
-    const res = await devMockFetch(`https://x/api/players/${playerId}/ledger?accountType=debt&limit=50`);
+    const res = await devMockFetch(`https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/${playerId}/ledger?accountType=debt&limit=50`);
     const body = await res.json();
     expect(body.items.length).toBeGreaterThan(0);
     for (const item of body.items) {
@@ -161,7 +161,7 @@ describe('devMockFetch /ledger keyset pagination', () => {
   });
 
   it('ledger route does not intercept /packages endpoint', async () => {
-    const res = await devMockFetch(`https://x/api/players/${playerId}/packages`);
+    const res = await devMockFetch(`https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/players/${playerId}/packages`);
     const body = await res.json();
     // packages возвращает массив, а не { items, nextCursor }
     expect(Array.isArray(body)).toBe(true);
@@ -170,7 +170,7 @@ describe('devMockFetch /ledger keyset pagination', () => {
 
 describe('devMockFetch session preview', () => {
   it('reflects a confirmed open-tab start in the next floor-map read', async () => {
-    const start = await devMockFetch('https://x/api/branches/branch/sessions/start', {
+    const start = await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/sessions/start', {
       method: 'POST',
       body: JSON.stringify({
         seatId: 'a2',
@@ -180,7 +180,7 @@ describe('devMockFetch session preview', () => {
     });
 
     expect(start.status).toBe(200);
-    const after = await (await devMockFetch('https://x/api/branches/branch/floor-map')).json();
+    const after = await (await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/floor-map')).json();
     const seat = after.seats.find((item: { seatId: string }) => item.seatId === 'a2');
 
     expect(seat).toMatchObject({
@@ -193,9 +193,9 @@ describe('devMockFetch session preview', () => {
 
   it('uses the same preview fixtures for layout and staff readiness', async () => {
     const [map, zones, staff] = await Promise.all([
-      devMockFetch('https://x/api/branches/branch/floor-map').then((response) => response.json()),
-      devMockFetch('https://x/api/branches/branch/layout/zones').then((response) => response.json()),
-      devMockFetch('https://x/api/branches/branch/staff').then((response) => response.json())
+      devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/floor-map').then((response) => response.json()),
+      devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/layout/zones').then((response) => response.json()),
+      devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/staff').then((response) => response.json())
     ]);
 
     const layoutSeatCount = zones.reduce((total: number, zone: { seats: unknown[] }) => total + zone.seats.length, 0);
@@ -206,7 +206,7 @@ describe('devMockFetch session preview', () => {
 
 describe('devMockFetch reservation session start', () => {
   it('links one session, replays the same request, and rejects changed re-use', async () => {
-    const before = await (await devMockFetch('https://x/api/branches/branch/reservations')).json();
+    const before = await (await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/reservations')).json();
     const reservation = before.reservations.find((item: { reservationId: string }) => item.reservationId === 'r5');
     expect(reservation).toMatchObject({ state: 'confirmed', version: 1, startedSessionId: null });
 
@@ -219,7 +219,7 @@ describe('devMockFetch reservation session start', () => {
       durationMinutes: 60,
       billingMode: ''
     };
-    const start = await devMockFetch('https://x/api/reservations/r5/start-session', {
+    const start = await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/reservations/r5/start-session', {
       method: 'POST',
       body: JSON.stringify(request)
     });
@@ -237,14 +237,14 @@ describe('devMockFetch reservation session start', () => {
       session: { sessionId: started.reservation.startedSessionId, state: 'Active' }
     });
 
-    const replay = await devMockFetch('https://x/api/reservations/r5/start-session', {
+    const replay = await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/reservations/r5/start-session', {
       method: 'POST',
       body: JSON.stringify(request)
     });
     expect(replay.status).toBe(200);
     expect(await replay.json()).toEqual(started);
 
-    const independent = await devMockFetch('https://x/api/reservations/g2/start-session', {
+    const independent = await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/reservations/g2/start-session', {
       method: 'POST',
       body: JSON.stringify(request)
     });
@@ -258,21 +258,21 @@ describe('devMockFetch reservation session start', () => {
     });
     expect(independentlyStarted.reservation.startedSessionId).not.toBe(started.reservation.startedSessionId);
 
-    const changedReuse = await devMockFetch('https://x/api/reservations/r5/start-session', {
+    const changedReuse = await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/reservations/r5/start-session', {
       method: 'POST',
       body: JSON.stringify({ ...request, durationMinutes: 90 })
     });
     expect(changedReuse.status).toBe(409);
     expect(await changedReuse.json()).toMatchObject({ code: 'idempotency_conflict', currentVersion: 2 });
 
-    const differentKey = await devMockFetch('https://x/api/reservations/r5/start-session', {
+    const differentKey = await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/reservations/r5/start-session', {
       method: 'POST',
       body: JSON.stringify({ ...request, expectedVersion: 2, idempotencyKey: 'reservation-r5-start-again' })
     });
     expect(differentKey.status).toBe(409);
     expect(await differentKey.json()).toMatchObject({ code: 'reservation_already_started', currentVersion: 2 });
 
-    const after = await (await devMockFetch('https://x/api/branches/branch/reservations')).json();
+    const after = await (await devMockFetch('https://x/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/branch/reservations')).json();
     expect(after.reservations.find((item: { reservationId: string }) => item.reservationId === 'r5'))
       .toEqual(started.reservation);
   });

@@ -48,9 +48,9 @@ public class StaffAuthorizationServiceTests
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
         var onA = await client.PatchAsJsonAsync(
-            $"/api/branches/{BranchAId}/profile", ProfileRequest(OrganizationId));
+            $"/api/organizations/{OrganizationId:D}/branches/{BranchAId}/profile", ProfileRequest(OrganizationId));
         var onB = await client.PatchAsJsonAsync(
-            $"/api/branches/{BranchBId}/profile", ProfileRequest(OrganizationId));
+            $"/api/organizations/{OrganizationId:D}/branches/{BranchBId}/profile", ProfileRequest(OrganizationId));
 
         Assert.Equal(HttpStatusCode.OK, onA.StatusCode);         // менеджер на A — разрешено
         Assert.Equal(HttpStatusCode.Forbidden, onB.StatusCode);  // кассир на B — НЕ протекает
@@ -116,7 +116,7 @@ public class StaffAuthorizationServiceTests
         }
 
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(OrganizationId, "two-branch@afk4.test", "Passw0rd!"));
         var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
 

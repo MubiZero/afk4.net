@@ -22,7 +22,7 @@ internal static class StaffAuthTestHelper
     private static async Task<string> SignInAsync(HttpClient client)
     {
         var response = await client.PostAsJsonAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(TestIds.OrganizationId, "tech@afk4.test", "Passw0rd!"));
         var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
 

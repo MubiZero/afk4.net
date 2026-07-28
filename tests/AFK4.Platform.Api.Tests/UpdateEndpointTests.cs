@@ -19,7 +19,7 @@ public sealed class UpdateEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/updates/packages",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/updates/packages",
             PackageRequest());
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -33,7 +33,7 @@ public sealed class UpdateEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/updates/packages",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/updates/packages",
             PackageRequest());
         var package = await response.Content.ReadFromJsonAsync<UpdatePackageDto>();
 
@@ -58,7 +58,7 @@ public sealed class UpdateEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/updates/packages",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/updates/packages",
             PackageRequest());
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -79,7 +79,7 @@ public sealed class UpdateEndpointTests
         var package = await RegisterPackageAsync(client);
 
         var createResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/updates/rollouts",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/updates/rollouts",
             new CreateUpdateRolloutRequest(
                 TestIds.OrganizationId,
                 package.UpdatePackageId,
@@ -95,7 +95,7 @@ public sealed class UpdateEndpointTests
         Assert.NotNull(rollout);
         Assert.Equal(UpdateRolloutStateNames.Active, rollout.State);
 
-        var getResponse = await client.GetAsync($"/api/branches/{TestIds.BranchId}/updates/rollouts/{rollout.UpdateRolloutId}");
+        var getResponse = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/updates/rollouts/{rollout.UpdateRolloutId}");
         var readBack = await getResponse.Content.ReadFromJsonAsync<UpdateRolloutDto>();
 
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
@@ -131,7 +131,7 @@ public sealed class UpdateEndpointTests
         statusMessage.Headers.Add(DeviceCredentialHeaders.CredentialSecret, enrollment.CredentialSecret);
         var statusResponse = await client.SendAsync(statusMessage);
 
-        var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/updates/rollouts");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/updates/rollouts");
         var rollouts = await response.Content.ReadFromJsonAsync<IReadOnlyList<UpdateRolloutStatusDto>>();
 
         Assert.Equal(HttpStatusCode.OK, statusResponse.StatusCode);
@@ -162,7 +162,7 @@ public sealed class UpdateEndpointTests
         var package = await RegisterPackageAsync(client);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/updates/packages/{package.UpdatePackageId}/state",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/updates/packages/{package.UpdatePackageId}/state",
             new UpdatePackageStateChangeRequest(
                 TestIds.OrganizationId,
                 UpdatePackageStateNames.Validated,
@@ -193,7 +193,7 @@ public sealed class UpdateEndpointTests
         var rollout = await CreateBranchRolloutAsync(client, package.UpdatePackageId);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/updates/rollouts/{rollout.UpdateRolloutId}/state",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/updates/rollouts/{rollout.UpdateRolloutId}/state",
             new UpdateRolloutStateChangeRequest(
                 TestIds.OrganizationId,
                 UpdateRolloutStateNames.Paused,
@@ -230,7 +230,7 @@ public sealed class UpdateEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/updates/rollouts/{Guid.Parse("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb")}/state",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/updates/rollouts/{Guid.Parse("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb")}/state",
             new UpdateRolloutStateChangeRequest(
                 TestIds.OrganizationId,
                 UpdateRolloutStateNames.Paused,
@@ -354,7 +354,7 @@ public sealed class UpdateEndpointTests
     private static async Task<UpdatePackageDto> RegisterPackageAsync(HttpClient client)
     {
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/updates/packages",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/updates/packages",
             PackageRequest());
         var package = await response.Content.ReadFromJsonAsync<UpdatePackageDto>();
 
@@ -367,7 +367,7 @@ public sealed class UpdateEndpointTests
     private static async Task<UpdateRolloutDto> CreateBranchRolloutAsync(HttpClient client, Guid packageId)
     {
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/updates/rollouts",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/updates/rollouts",
             new CreateUpdateRolloutRequest(
                 TestIds.OrganizationId,
                 packageId,
@@ -388,7 +388,7 @@ public sealed class UpdateEndpointTests
     private static async Task<DeviceEnrollmentResponse> EnrollDeviceAsync(HttpClient client)
     {
         var codeResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId}/device-enrollment-codes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/device-enrollment-codes",
             new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 300));
         var code = await codeResponse.Content.ReadFromJsonAsync<DeviceEnrollmentCodeDto>();
         Assert.Equal(HttpStatusCode.OK, codeResponse.StatusCode);

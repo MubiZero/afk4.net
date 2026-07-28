@@ -26,7 +26,7 @@ public sealed class SessionEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/sessions/start",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/sessions/start",
             new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -41,7 +41,7 @@ public sealed class SessionEndpointTests
         await SeedLayoutAsync(factory, includeTargetSeat: false);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/sessions/start",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/sessions/start",
             new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60));
         var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
 
@@ -72,7 +72,7 @@ public sealed class SessionEndpointTests
         var tariffVersion = await SeedBillingAsync(factory, Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"));
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/sessions/start",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/sessions/start",
             new StartGuestSessionRequest(
                 TestIds.OrganizationId,
                 SeatId,
@@ -111,7 +111,7 @@ public sealed class SessionEndpointTests
         await SeedOpenShiftAsync(factory);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/sessions/start",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/sessions/start",
             new StartGuestSessionRequest(
                 TestIds.OrganizationId,
                 SeatId,
@@ -145,7 +145,7 @@ public sealed class SessionEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/sessions/start",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/sessions/start",
             new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -166,8 +166,8 @@ public sealed class SessionEndpointTests
         await SeedLayoutAsync(factory, includeTargetSeat: false);
         var request = new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60);
 
-        var firstResponse = await client.PostAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/sessions/start", request);
-        var secondResponse = await client.PostAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/sessions/start", request);
+        var firstResponse = await client.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/sessions/start", request);
+        var secondResponse = await client.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/sessions/start", request);
         var first = await firstResponse.Content.ReadFromJsonAsync<SessionCommandResponse>();
         var second = await secondResponse.Content.ReadFromJsonAsync<SessionCommandResponse>();
 
@@ -188,10 +188,10 @@ public sealed class SessionEndpointTests
         await SeedLayoutAsync(factory, includeTargetSeat: true);
 
         var firstResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/sessions/start",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/sessions/start",
             new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60));
         var conflict = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/sessions/start",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/sessions/start",
             new StartGuestSessionRequest(TestIds.OrganizationId, TargetSeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60));
 
         Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
@@ -208,7 +208,7 @@ public sealed class SessionEndpointTests
         var started = await StartSessionAsync(client);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/sessions/{started.Session.SessionId:D}/extend",
+            $"/api/organizations/{TestIds.OrganizationId:D}/sessions/{started.Session.SessionId:D}/extend",
             new ExtendSessionRequest(AdditionalMinutes: 30, TariffRuleVersionId: "manual-v2", IdempotencyKey: "extend-session-1"));
         var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
 
@@ -229,7 +229,7 @@ public sealed class SessionEndpointTests
         var started = await StartSessionAsync(client);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/sessions/{started.Session.SessionId:D}/transfer",
+            $"/api/organizations/{TestIds.OrganizationId:D}/sessions/{started.Session.SessionId:D}/transfer",
             new TransferSessionRequest(TargetSeatId, "transfer-session-1"));
         var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
 
@@ -252,7 +252,7 @@ public sealed class SessionEndpointTests
         var started = await StartSessionAsync(client);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/sessions/{started.Session.SessionId:D}/end",
+            $"/api/organizations/{TestIds.OrganizationId:D}/sessions/{started.Session.SessionId:D}/end",
             new EndSessionRequest("operator-end", "end-session-1"));
         var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
 
@@ -263,7 +263,7 @@ public sealed class SessionEndpointTests
         Assert.Equal("lock", body.DeviceCommands[0].Type);
 
         var repeatResponse = await client.PostAsJsonAsync(
-            $"/api/sessions/{started.Session.SessionId:D}/end",
+            $"/api/organizations/{TestIds.OrganizationId:D}/sessions/{started.Session.SessionId:D}/end",
             new EndSessionRequest("operator-end", "end-session-2"));
         var repeatBody = await repeatResponse.Content.ReadFromJsonAsync<SessionCommandResponse>();
 
@@ -277,7 +277,7 @@ public sealed class SessionEndpointTests
     private static async Task<SessionCommandResponse> StartSessionAsync(HttpClient client)
     {
         var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/sessions/start",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/sessions/start",
             new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", $"start-seat-1-{Guid.NewGuid():N}", SessionDurationModes.Fixed, 60));
         var body = await response.Content.ReadFromJsonAsync<SessionCommandResponse>();
 

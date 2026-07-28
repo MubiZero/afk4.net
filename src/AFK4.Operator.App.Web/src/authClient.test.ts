@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock, type Mock } from 'bun:test';
 import {
-  ChooseClubError,
+  StaffAuthApiError,
   forgotPasswordByEmail,
   loadOperatorSession,
   refreshOperatorSession,
@@ -32,12 +32,20 @@ const sampleResponse = {
 
 beforeEach(() => {
   sessionStorage.clear();
+  window.__AFK4_OPERATOR_CONFIG__ = {
+    runtime: 'test',
+    shellMode: 'web',
+    platformBaseUrl: 'http://localhost/',
+    currencyCode: 'TJS',
+    organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08'
+  };
   fetchMock = mock(async () => jsonResponse(200, sampleResponse)) as unknown as Mock<FetchLike>;
   globalThis.fetch = fetchMock as unknown as typeof fetch;
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
+  delete window.__AFK4_OPERATOR_CONFIG__;
   sessionStorage.clear();
 });
 
@@ -47,19 +55,19 @@ describe('signInByLoginOperator', () => {
 
     expect(session.organizationId).toBe('o');
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/api/auth/staff/sign-in-by-login');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/auth/staff/sign-in-by-login');
     expect(sessionStorage.getItem('afk4.staff.session')).toContain('"accessToken":"a"');
   });
 
-  it('throws ChooseClubError on a club collision (409) without storing a session', async () => {
+  it('rejects a legacy club collision response without storing a session', async () => {
     fetchMock.mockImplementation(async () => jsonResponse(409, {
       clubs: [{ organizationId: 'o1', name: 'Club 1' }, { organizationId: 'o2', name: 'Club 2' }]
     }));
 
     const error = await signInByLoginOperator('u', 'p').catch((cause) => cause);
 
-    expect(error).toBeInstanceOf(ChooseClubError);
-    expect((error as ChooseClubError).clubs).toHaveLength(2);
+    expect(error).toBeInstanceOf(StaffAuthApiError);
+    expect((error as StaffAuthApiError).status).toBe(409);
     expect(sessionStorage.getItem('afk4.staff.session')).toBeNull();
   });
 
@@ -75,7 +83,7 @@ describe('signInToClubOperator', () => {
   it('posts the chosen club and stores the returned session', async () => {
     await signInToClubOperator('o', 'u', 'p');
 
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/api/auth/staff/sign-in');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/api/organizations/o/auth/staff/sign-in');
     expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
       organizationId: 'o', userName: 'u', password: 'p'
     });

@@ -319,7 +319,7 @@ public sealed class PlayerAuthenticationEndpointTests
             new AuthenticationHeaderValue("Bearer", tokens!.AccessToken);
 
         // A staff-protected route must not accept a player token.
-        var staffResponse = await client.GetAsync($"/api/branches/{Guid.NewGuid()}/players");
+        var staffResponse = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{Guid.NewGuid()}/players");
         Assert.True(
             staffResponse.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden,
             $"expected 401/403, got {(int)staffResponse.StatusCode}");

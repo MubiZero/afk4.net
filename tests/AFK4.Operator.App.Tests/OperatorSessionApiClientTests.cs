@@ -38,7 +38,7 @@ public sealed class OperatorSessionApiClientTests
 
         Assert.Equal(SessionId, response.Session.SessionId);
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/branches/{BranchId:D}/sessions/start", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/branches/{BranchId:D}/sessions/start", handler.LastPathAndQuery);
         Assert.Equal(new AuthenticationHeaderValue("Bearer", "staff-access-token"), handler.LastAuthorization);
 
         var body = DeserializeRequest<StartGuestSessionRequest>(handler.LastRequestBody);
@@ -56,7 +56,7 @@ public sealed class OperatorSessionApiClientTests
         await client.ExtendSessionAsync(SessionId, request, CancellationToken.None);
 
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/sessions/{SessionId:D}/extend", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/sessions/{SessionId:D}/extend", handler.LastPathAndQuery);
 
         var body = DeserializeRequest<ExtendSessionRequest>(handler.LastRequestBody);
         Assert.Equal(30, body.AdditionalMinutes);
@@ -73,7 +73,7 @@ public sealed class OperatorSessionApiClientTests
         await client.TransferSessionAsync(SessionId, request, CancellationToken.None);
 
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/sessions/{SessionId:D}/transfer", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/sessions/{SessionId:D}/transfer", handler.LastPathAndQuery);
 
         var body = DeserializeRequest<TransferSessionRequest>(handler.LastRequestBody);
         Assert.Equal(TargetSeatId, body.TargetSeatId);
@@ -90,7 +90,7 @@ public sealed class OperatorSessionApiClientTests
         await client.EndSessionAsync(SessionId, request, CancellationToken.None);
 
         Assert.Equal(HttpMethod.Post, handler.LastMethod);
-        Assert.Equal($"/api/sessions/{SessionId:D}/end", handler.LastPathAndQuery);
+        Assert.Equal($"/api/organizations/{OrganizationId:D}/sessions/{SessionId:D}/end", handler.LastPathAndQuery);
 
         var body = DeserializeRequest<EndSessionRequest>(handler.LastRequestBody);
         Assert.Equal("operator close", body.Reason);

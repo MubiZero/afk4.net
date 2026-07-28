@@ -73,9 +73,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class TariffEndpoints
 {
-    public static void MapTariffEndpoints(this WebApplication app)
+    public static void MapTariffEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/api/branches/{branchId:guid}/tariffs", async (
+        app.MapPost("branches/{branchId:guid}/tariffs", async (
             Guid branchId,
             CreateTariffRequest request,
             StaffAuthorizationService authorizationService,
@@ -141,7 +141,7 @@ internal static class TariffEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/tariffs/{tariffId:guid}/versions", async (
+        app.MapPost("branches/{branchId:guid}/tariffs/{tariffId:guid}/versions", async (
             Guid branchId,
             Guid tariffId,
             CreateTariffVersionRequest request,
@@ -213,7 +213,7 @@ internal static class TariffEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPatch("/api/branches/{branchId:guid}/tariffs/{tariffId:guid}", async (
+        app.MapPatch("branches/{branchId:guid}/tariffs/{tariffId:guid}", async (
             Guid branchId,
             Guid tariffId,
             UpdateTariffRequest request,
@@ -281,7 +281,7 @@ internal static class TariffEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPatch("/api/branches/{branchId:guid}/tariffs/{tariffId:guid}/versions/{tariffVersionId:guid}", async (
+        app.MapPatch("branches/{branchId:guid}/tariffs/{tariffId:guid}/versions/{tariffVersionId:guid}", async (
             Guid branchId,
             Guid tariffId,
             Guid tariffVersionId,
@@ -357,7 +357,7 @@ internal static class TariffEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/tariffs/calculate", async (
+        app.MapPost("branches/{branchId:guid}/tariffs/calculate", async (
             Guid branchId,
             CalculateTariffRequest request,
             StaffAuthorizationService authorizationService,
@@ -396,7 +396,7 @@ internal static class TariffEndpoints
                 : Results.Ok(calculation);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/tariffs/options", async (
+        app.MapGet("branches/{branchId:guid}/tariffs/options", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,

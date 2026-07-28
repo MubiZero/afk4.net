@@ -52,10 +52,10 @@ public sealed class PosEndpointTests
         // GET endpoints requiring only ViewInventory (catalog, stock-movements, barcodes) return 200 for Technician, so they are excluded.
         foreach (var endpoint in CreateEndpointCases(UnknownShiftId, UnknownSaleId, UnknownReceiptId, UnknownProductId, UnknownBarcodeId)
                      .Where(endpoint =>
-                         endpoint.Path != $"/api/branches/{TestIds.BranchId:D}/pos/catalog" &&
-                         endpoint.Path != $"/api/branches/{TestIds.BranchId:D}/inventory/stock-movements" &&
+                         endpoint.Path != $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/catalog" &&
+                         endpoint.Path != $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/inventory/stock-movements" &&
                          !(endpoint.Method == HttpMethod.Get &&
-                           endpoint.Path == $"/api/branches/{TestIds.BranchId:D}/pos/products/{UnknownProductId:D}/barcodes")))
+                           endpoint.Path == $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products/{UnknownProductId:D}/barcodes")))
         {
             using var response = await SendAsync(client, endpoint);
 
@@ -70,8 +70,8 @@ public sealed class PosEndpointTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
-        var catalogResponse = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/pos/catalog");
-        var stockHistoryResponse = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/inventory/stock-movements");
+        var catalogResponse = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/catalog");
+        var stockHistoryResponse = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/inventory/stock-movements");
 
         Assert.Equal(HttpStatusCode.Forbidden, catalogResponse.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, stockHistoryResponse.StatusCode);
@@ -86,7 +86,7 @@ public sealed class PosEndpointTests
         var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 10_000);
 
         using var response = await client.PostAsJsonAsync(
-            $"/api/pos/sales/{saleId:D}/settlements",
+            $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{saleId:D}/settlements",
             new SettlePosSaleRequest(
                 TestIds.OrganizationId,
                 [
@@ -125,7 +125,7 @@ public sealed class PosEndpointTests
         var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
 
         using var response = await client.PostAsJsonAsync(
-            $"/api/pos/sales/{saleId:D}/settlements",
+            $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{saleId:D}/settlements",
             new SettlePosSaleRequest(
                 Guid.NewGuid(),
                 [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 1_200))],
@@ -147,7 +147,7 @@ public sealed class PosEndpointTests
         var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
 
         using var response = await client.PostAsJsonAsync(
-            $"/api/pos/sales/{saleId:D}/settlements",
+            $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{saleId:D}/settlements",
             new SettlePosSaleRequest(
                 TestIds.OrganizationId,
                 [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 1_100))],
@@ -169,7 +169,7 @@ public sealed class PosEndpointTests
         var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
 
         using var response = await client.PostAsJsonAsync(
-            $"/api/pos/sales/{saleId:D}/settlements",
+            $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{saleId:D}/settlements",
             new SettlePosSaleRequest(
                 TestIds.OrganizationId,
                 [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 1_200))],
@@ -192,14 +192,14 @@ public sealed class PosEndpointTests
         const string key = "settlement-idempotency-conflict-001";
 
         using var first = await client.PostAsJsonAsync(
-            $"/api/pos/sales/{saleId:D}/settlements",
+            $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{saleId:D}/settlements",
             new SettlePosSaleRequest(
                 TestIds.OrganizationId,
                 [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 1_200))],
                 "first payload",
                 key));
         using var conflict = await client.PostAsJsonAsync(
-            $"/api/pos/sales/{saleId:D}/settlements",
+            $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{saleId:D}/settlements",
             new SettlePosSaleRequest(
                 TestIds.OrganizationId,
                 [new PaymentPartDto(PaymentMethodNames.CardManual, new MoneyDto("TJS", 1_200))],
@@ -222,7 +222,7 @@ public sealed class PosEndpointTests
         var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
 
         using var response = await client.PostAsJsonAsync(
-            $"/api/pos/sales/{saleId:D}/settlements",
+            $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{saleId:D}/settlements",
             new SettlePosSaleRequest(
                 TestIds.OrganizationId,
                 [
@@ -247,7 +247,7 @@ public sealed class PosEndpointTests
 
         var shift = await PostOkAsync<ShiftDto>(
             client,
-            $"/api/branches/{TestIds.BranchId:D}/shifts/open",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/shifts/open",
             new OpenShiftRequest(
                 TestIds.OrganizationId,
                 new MoneyDto("TJS", 50000),
@@ -256,13 +256,13 @@ public sealed class PosEndpointTests
         Assert.Equal(ShiftStateNames.Open, shift.State);
 
         var currentShift = await client.GetFromJsonAsync<ShiftDto>(
-            $"/api/branches/{TestIds.BranchId:D}/shifts/current");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/shifts/current");
         Assert.NotNull(currentShift);
         Assert.Equal(shift.ShiftId, currentShift.ShiftId);
 
         var cashMovement = await PostOkAsync<CashMovementDto>(
             client,
-            $"/api/shifts/{shift.ShiftId:D}/cash-movements",
+            $"/api/organizations/{TestIds.OrganizationId:D}/shifts/{shift.ShiftId:D}/cash-movements",
             new RecordCashMovementRequest(
                 TestIds.OrganizationId,
                 CashMovementTypeNames.CashIn,
@@ -273,12 +273,12 @@ public sealed class PosEndpointTests
 
         var category = await PostOkAsync<PosProductCategoryDto>(
             client,
-            $"/api/branches/{TestIds.BranchId:D}/pos/categories",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/categories",
             new CreateProductCategoryRequest(TestIds.OrganizationId, "Drinks", "category-001"));
 
         var product = await PostOkAsync<PosProductDto>(
             client,
-            $"/api/branches/{TestIds.BranchId:D}/pos/products",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products",
             new CreateProductRequest(
                 TestIds.OrganizationId,
                 category.CategoryId,
@@ -292,7 +292,7 @@ public sealed class PosEndpointTests
 
         var stock = await PostOkAsync<StockMovementDto>(
             client,
-            $"/api/branches/{TestIds.BranchId:D}/inventory/stock-movements",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/inventory/stock-movements",
             new CreateStockMovementRequest(
                 TestIds.OrganizationId,
                 product.ProductId,
@@ -304,7 +304,7 @@ public sealed class PosEndpointTests
         Assert.Equal(24, stock.QuantityDelta);
 
         var stockHistory = await client.GetFromJsonAsync<IReadOnlyList<StockMovementDto>>(
-            $"/api/branches/{TestIds.BranchId:D}/inventory/stock-movements?productId={product.ProductId:D}&limit=10");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/inventory/stock-movements?productId={product.ProductId:D}&limit=10");
         Assert.NotNull(stockHistory);
         var stockHistoryRow = Assert.Single(stockHistory);
         Assert.Equal(stock.StockMovementId, stockHistoryRow.StockMovementId);
@@ -312,7 +312,7 @@ public sealed class PosEndpointTests
 
         var updatedProduct = await PatchOkAsync<PosProductDto>(
             client,
-            $"/api/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}",
             new UpdateProductRequest(
                 TestIds.OrganizationId,
                 category.CategoryId,
@@ -326,7 +326,7 @@ public sealed class PosEndpointTests
         Assert.Equal(24, updatedProduct.StockOnHand);
 
         using var currencyChangeResponse = await client.PatchAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}",
             new UpdateProductRequest(
                 TestIds.OrganizationId,
                 category.CategoryId,
@@ -343,7 +343,7 @@ public sealed class PosEndpointTests
 
         var player = await PostOkAsync<PlayerAccountDto>(
             client,
-            $"/api/branches/{TestIds.BranchId:D}/players",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/players",
             new CreatePlayerAccountRequest(
                 TestIds.OrganizationId,
                 "Player One",
@@ -351,7 +351,7 @@ public sealed class PosEndpointTests
                 "player-create-001"));
 
         var catalog = await client.GetFromJsonAsync<IReadOnlyList<PosProductDto>>(
-            $"/api/branches/{TestIds.BranchId:D}/pos/catalog");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/catalog");
         Assert.NotNull(catalog);
         Assert.Single(catalog);
         Assert.Equal("COLA-ZERO-05", catalog[0].Sku);
@@ -359,7 +359,7 @@ public sealed class PosEndpointTests
 
         var sale = await PostOkAsync<PosSaleDto>(
             client,
-            $"/api/branches/{TestIds.BranchId:D}/pos/sales",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/sales",
             new CreatePosSaleRequest(
                 TestIds.OrganizationId,
                 shift.ShiftId,
@@ -371,7 +371,7 @@ public sealed class PosEndpointTests
 
         var paid = await PostOkAsync<PosSaleDto>(
             client,
-            $"/api/pos/sales/{sale.PosSaleId:D}/payments/manual",
+            $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{sale.PosSaleId:D}/payments/manual",
             new ManualPaymentRequest(
                 TestIds.OrganizationId,
                 PaymentMethodNames.Cash,
@@ -382,7 +382,7 @@ public sealed class PosEndpointTests
         Assert.NotNull(paid.LatestReceipt);
         Assert.StartsWith("POS-", paid.LatestReceipt.ReceiptNumber, StringComparison.Ordinal);
 
-        var readSale = await client.GetFromJsonAsync<PosSaleDto>($"/api/pos/sales/{sale.PosSaleId:D}");
+        var readSale = await client.GetFromJsonAsync<PosSaleDto>($"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{sale.PosSaleId:D}");
         Assert.NotNull(readSale);
         Assert.Equal(PosSaleStateNames.Paid, readSale.State);
         Assert.Equal(player.PlayerAccountId, readSale.PlayerAccountId);
@@ -390,14 +390,14 @@ public sealed class PosEndpointTests
         Assert.Equal(paid.LatestReceipt.ReceiptNumber, readSale.LatestReceipt.ReceiptNumber);
 
         var receiptId = await LoadReceiptIdAsync(factory, sale.PosSaleId, "sale");
-        var receipt = await client.GetFromJsonAsync<ReceiptDto>($"/api/receipts/{receiptId:D}");
+        var receipt = await client.GetFromJsonAsync<ReceiptDto>($"/api/organizations/{TestIds.OrganizationId:D}/receipts/{receiptId:D}");
         Assert.NotNull(receipt);
         Assert.StartsWith("POS-", receipt.ReceiptNumber, StringComparison.Ordinal);
         Assert.EndsWith("-0001", receipt.ReceiptNumber, StringComparison.Ordinal);
 
         var refunded = await PostOkAsync<PosSaleDto>(
             client,
-            $"/api/pos/sales/{sale.PosSaleId:D}/refunds",
+            $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{sale.PosSaleId:D}/refunds",
             new RefundPosSaleRequest(
                 TestIds.OrganizationId,
                 "customer returned unopened item",
@@ -408,7 +408,7 @@ public sealed class PosEndpointTests
 
         var draftToVoid = await PostOkAsync<PosSaleDto>(
             client,
-            $"/api/branches/{TestIds.BranchId:D}/pos/sales",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/sales",
             new CreatePosSaleRequest(
                 TestIds.OrganizationId,
                 shift.ShiftId,
@@ -416,13 +416,13 @@ public sealed class PosEndpointTests
                 "sale-void-001"));
         var voided = await PostOkAsync<PosSaleDto>(
             client,
-            $"/api/pos/sales/{draftToVoid.PosSaleId:D}/void",
+            $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{draftToVoid.PosSaleId:D}/void",
             new VoidPosSaleRequest(TestIds.OrganizationId, "mistaken draft", "void-001"));
         Assert.Equal(PosSaleStateNames.Voided, voided.State);
 
         var closed = await PostOkAsync<ShiftDto>(
             client,
-            $"/api/shifts/{shift.ShiftId:D}/close",
+            $"/api/organizations/{TestIds.OrganizationId:D}/shifts/{shift.ShiftId:D}/close",
             new CloseShiftRequest(
                 TestIds.OrganizationId,
                 new MoneyDto("TJS", 55000),
@@ -458,12 +458,12 @@ public sealed class PosEndpointTests
 
         var category = await PostOkAsync<PosProductCategoryDto>(
             client,
-            $"/api/branches/{TestIds.BranchId:D}/pos/categories",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/categories",
             new CreateProductCategoryRequest(TestIds.OrganizationId, "Drinks", "barcode-cat-001"));
 
         var product = await PostOkAsync<PosProductDto>(
             client,
-            $"/api/branches/{TestIds.BranchId:D}/pos/products",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products",
             new CreateProductRequest(
                 TestIds.OrganizationId,
                 category.CategoryId,
@@ -476,33 +476,33 @@ public sealed class PosEndpointTests
 
         // GET → пустой список
         var initialBarcodes = await client.GetFromJsonAsync<IReadOnlyList<ProductBarcodeDto>>(
-            $"/api/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}/barcodes");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}/barcodes");
         Assert.NotNull(initialBarcodes);
         Assert.Empty(initialBarcodes);
 
         // POST → добавить штрихкод
         var barcode = await PostOkAsync<ProductBarcodeDto>(
             client,
-            $"/api/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}/barcodes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}/barcodes",
             new AddProductBarcodeRequest(TestIds.OrganizationId, "4600001234567"));
         Assert.Equal("4600001234567", barcode.Code);
         Assert.Equal(product.ProductId, barcode.ProductId);
 
         // GET → список с одним штрихкодом
         var barcodes = await client.GetFromJsonAsync<IReadOnlyList<ProductBarcodeDto>>(
-            $"/api/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}/barcodes");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}/barcodes");
         Assert.NotNull(barcodes);
         Assert.Single(barcodes);
         Assert.Equal(barcode.BarcodeId, barcodes[0].BarcodeId);
 
         // DELETE → удалить
         using var deleteResponse = await client.DeleteAsync(
-            $"/api/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}/barcodes/{barcode.BarcodeId:D}");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}/barcodes/{barcode.BarcodeId:D}");
         Assert.Equal(HttpStatusCode.OK, deleteResponse.StatusCode);
 
         // GET → снова пустой список
         var afterDelete = await client.GetFromJsonAsync<IReadOnlyList<ProductBarcodeDto>>(
-            $"/api/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}/barcodes");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products/{product.ProductId:D}/barcodes");
         Assert.NotNull(afterDelete);
         Assert.Empty(afterDelete);
 
@@ -527,12 +527,12 @@ public sealed class PosEndpointTests
         var barcodeId = Guid.NewGuid();
 
         using var postResponse = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes",
             new AddProductBarcodeRequest(TestIds.OrganizationId, "4600001234567"));
         Assert.Equal(HttpStatusCode.Forbidden, postResponse.StatusCode);
 
         using var deleteResponse = await client.DeleteAsync(
-            $"/api/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes/{barcodeId:D}");
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes/{barcodeId:D}");
         Assert.Equal(HttpStatusCode.Forbidden, deleteResponse.StatusCode);
     }
 
@@ -548,7 +548,7 @@ public sealed class PosEndpointTests
         // OrganizationId в теле не совпадает с организацией аутентифицированного стаффа —
         // IDOR-guard должен отклонить запрос с 400 BadRequest.
         using var response = await client.PostAsJsonAsync(
-            $"/api/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes",
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes",
             new AddProductBarcodeRequest(TestIds.OtherOrganizationId, "4600009999999"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -562,7 +562,7 @@ public sealed class PosEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var saleId = await SeedCrossBranchSaleAsync(factory);
 
-        var response = await client.GetAsync($"/api/pos/sales/{saleId:D}");
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{saleId:D}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
 
@@ -589,8 +589,8 @@ public sealed class PosEndpointTests
             "customer changed mind",
             "pos-refund-linked-001");
 
-        var first = await staffClient.PostAsJsonAsync($"/api/pos/sales/{order!.PosSaleId:D}/refunds", request);
-        var second = await staffClient.PostAsJsonAsync($"/api/pos/sales/{order.PosSaleId:D}/refunds", request);
+        var first = await staffClient.PostAsJsonAsync($"/api/organizations/{seeded.OrganizationId:D}/pos/sales/{order!.PosSaleId:D}/refunds", request);
+        var second = await staffClient.PostAsJsonAsync($"/api/organizations/{seeded.OrganizationId:D}/pos/sales/{order.PosSaleId:D}/refunds", request);
 
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
         Assert.Equal(HttpStatusCode.OK, second.StatusCode);
@@ -600,11 +600,11 @@ public sealed class PosEndpointTests
         await PlayerShopEndpointTests.AssertLinkedRefundStateAsync(
             factory, order.Id, order.PosSaleId!.Value);
 
-        var readSale = await staffClient.GetFromJsonAsync<PosSaleDto>($"/api/pos/sales/{order.PosSaleId:D}");
+        var readSale = await staffClient.GetFromJsonAsync<PosSaleDto>($"/api/organizations/{seeded.OrganizationId:D}/pos/sales/{order.PosSaleId:D}");
         Assert.Equal(order.Id, readSale!.ShopOrderId);
         Assert.Equal(order.Id, readSale.LatestReceipt!.ShopOrderId);
         var receipt = await staffClient.GetFromJsonAsync<ReceiptDto>(
-            $"/api/receipts/{readSale.LatestReceipt.ReceiptId:D}");
+            $"/api/organizations/{seeded.OrganizationId:D}/receipts/{readSale.LatestReceipt.ReceiptId:D}");
         Assert.Equal(order.Id, receipt!.ShopOrderId);
     }
 
@@ -639,7 +639,7 @@ public sealed class PosEndpointTests
 
         interceptor.Armed = true;
         using var response = await staffClient.PostAsJsonAsync(
-            $"/api/pos/sales/{order!.PosSaleId:D}/refunds",
+            $"/api/organizations/{seeded.OrganizationId:D}/pos/sales/{order!.PosSaleId:D}/refunds",
             new RefundPosSaleRequest(seeded.OrganizationId, "concurrent acceptance won", "pos-refund-concurrency"));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
@@ -664,67 +664,67 @@ public sealed class PosEndpointTests
         [
             new EndpointCase(
                 HttpMethod.Post,
-                $"/api/branches/{TestIds.BranchId:D}/shifts/open",
+                $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/shifts/open",
                 new OpenShiftRequest(TestIds.OrganizationId, new MoneyDto("TJS", 50000), "front register", "shift-open-001")),
             new EndpointCase(
                 HttpMethod.Get,
-                $"/api/branches/{TestIds.BranchId:D}/shifts/current",
+                $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/shifts/current",
                 null),
             new EndpointCase(
                 HttpMethod.Post,
-                $"/api/shifts/{shiftId:D}/cash-movements",
+                $"/api/organizations/{TestIds.OrganizationId:D}/shifts/{shiftId:D}/cash-movements",
                 new RecordCashMovementRequest(TestIds.OrganizationId, CashMovementTypeNames.CashIn, new MoneyDto("TJS", 1000), "cash in", "cash-in-001")),
             new EndpointCase(
                 HttpMethod.Post,
-                $"/api/shifts/{shiftId:D}/close",
+                $"/api/organizations/{TestIds.OrganizationId:D}/shifts/{shiftId:D}/close",
                 new CloseShiftRequest(TestIds.OrganizationId, new MoneyDto("TJS", 51000), "close", "shift-close-001")),
             new EndpointCase(
                 HttpMethod.Post,
-                $"/api/branches/{TestIds.BranchId:D}/pos/categories",
+                $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/categories",
                 new CreateProductCategoryRequest(TestIds.OrganizationId, "Drinks", "category-001")),
             new EndpointCase(
                 HttpMethod.Post,
-                $"/api/branches/{TestIds.BranchId:D}/pos/products",
+                $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products",
                 new CreateProductRequest(TestIds.OrganizationId, Guid.NewGuid(), "Cola 0.5", "COLA-05", new MoneyDto("TJS", 1200), true, false, "product-001")),
             new EndpointCase(
                 HttpMethod.Patch,
-                $"/api/branches/{TestIds.BranchId:D}/pos/products/{Guid.NewGuid():D}",
+                $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products/{Guid.NewGuid():D}",
                 new UpdateProductRequest(TestIds.OrganizationId, Guid.NewGuid(), "Cola 0.5", "COLA-05", new MoneyDto("TJS", 1200), true, false, true)),
             new EndpointCase(
                 HttpMethod.Get,
-                $"/api/branches/{TestIds.BranchId:D}/pos/catalog",
+                $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/catalog",
                 null),
             new EndpointCase(
                 HttpMethod.Get,
-                $"/api/branches/{TestIds.BranchId:D}/inventory/stock-movements",
+                $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/inventory/stock-movements",
                 null),
             new EndpointCase(
                 HttpMethod.Post,
-                $"/api/branches/{TestIds.BranchId:D}/inventory/stock-movements",
+                $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/inventory/stock-movements",
                 new CreateStockMovementRequest(TestIds.OrganizationId, Guid.NewGuid(), StockMovementTypeNames.Purchase, 24, new MoneyDto("TJS", 900), "initial stock", "stock-001")),
             new EndpointCase(
                 HttpMethod.Get,
-                $"/api/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes",
+                $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes",
                 null),
             new EndpointCase(
                 HttpMethod.Post,
-                $"/api/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes",
+                $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes",
                 new AddProductBarcodeRequest(TestIds.OrganizationId, "4600001234567")),
             new EndpointCase(
                 HttpMethod.Delete,
-                $"/api/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes/{barcodeId:D}",
+                $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/products/{productId:D}/barcodes/{barcodeId:D}",
                 null),
             new EndpointCase(
                 HttpMethod.Post,
-                $"/api/branches/{TestIds.BranchId:D}/pos/sales",
+                $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/pos/sales",
                 new CreatePosSaleRequest(TestIds.OrganizationId, shiftId, [new PosSaleLineDto(Guid.NewGuid(), string.Empty, 1, new MoneyDto("TJS", 0), new MoneyDto("TJS", 0))], "sale-001")),
             new EndpointCase(
                 HttpMethod.Post,
-                $"/api/pos/sales/{saleId:D}/payments/manual",
+                $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{saleId:D}/payments/manual",
                 new ManualPaymentRequest(TestIds.OrganizationId, PaymentMethodNames.Cash, new MoneyDto("TJS", 1200), "cash drawer", "pay-001")),
             new EndpointCase(
                 HttpMethod.Post,
-                $"/api/pos/sales/{saleId:D}/settlements",
+                $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{saleId:D}/settlements",
                 new SettlePosSaleRequest(
                     TestIds.OrganizationId,
                     [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", 1200))],
@@ -732,19 +732,19 @@ public sealed class PosEndpointTests
                     "settle-001")),
             new EndpointCase(
                 HttpMethod.Post,
-                $"/api/pos/sales/{saleId:D}/refunds",
+                $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{saleId:D}/refunds",
                 new RefundPosSaleRequest(TestIds.OrganizationId, "customer return", "refund-001")),
             new EndpointCase(
                 HttpMethod.Post,
-                $"/api/pos/sales/{saleId:D}/void",
+                $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{saleId:D}/void",
                 new VoidPosSaleRequest(TestIds.OrganizationId, "mistaken draft", "void-001")),
             new EndpointCase(
                 HttpMethod.Get,
-                $"/api/pos/sales/{saleId:D}",
+                $"/api/organizations/{TestIds.OrganizationId:D}/pos/sales/{saleId:D}",
                 null),
             new EndpointCase(
                 HttpMethod.Get,
-                $"/api/receipts/{receiptId:D}",
+                $"/api/organizations/{TestIds.OrganizationId:D}/receipts/{receiptId:D}",
                 null)
         ];
     }

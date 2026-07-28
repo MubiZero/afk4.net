@@ -16,7 +16,7 @@ public sealed class InstallDiscoverAuditTests
         using var client = factory.CreateClient();
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
-        var response = await client.PostAsync("/api/install/auth/discover", null);
+        var response = await client.PostAsync($"/api/organizations/{TestIds.OrganizationId:D}/install/auth/discover", null);
         response.EnsureSuccessStatusCode();
 
         await using var scope = factory.Services.CreateAsyncScope();

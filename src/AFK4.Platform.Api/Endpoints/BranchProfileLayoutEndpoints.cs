@@ -73,9 +73,9 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class BranchProfileLayoutEndpoints
 {
-    public static void MapBranchProfileLayoutEndpoints(this WebApplication app)
+    public static void MapBranchProfileLayoutEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/branches/{branchId:guid}/profile", async (
+        app.MapGet("branches/{branchId:guid}/profile", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
@@ -137,7 +137,7 @@ internal static class BranchProfileLayoutEndpoints
             return Results.Ok(response);
         });
 
-        app.MapPatch("/api/branches/{branchId:guid}/profile", async (
+        app.MapPatch("branches/{branchId:guid}/profile", async (
             Guid branchId,
             UpdateBranchProfileRequest request,
             StaffAuthorizationService authorizationService,
@@ -224,7 +224,7 @@ internal static class BranchProfileLayoutEndpoints
             return Results.Ok(response);
         });
 
-        app.MapGet("/api/branches/{branchId:guid}/layout/zones", async (
+        app.MapGet("branches/{branchId:guid}/layout/zones", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
@@ -297,7 +297,7 @@ internal static class BranchProfileLayoutEndpoints
             return Results.Ok(response);
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/layout/zones", async (
+        app.MapPost("branches/{branchId:guid}/layout/zones", async (
             Guid branchId,
             CreateZoneRequest request,
             StaffAuthorizationService authorizationService,
@@ -382,7 +382,7 @@ internal static class BranchProfileLayoutEndpoints
             return Results.Ok(response);
         });
 
-        app.MapPatch("/api/branches/{branchId:guid}/layout/zones/{zoneId:guid}", async (
+        app.MapPatch("branches/{branchId:guid}/layout/zones/{zoneId:guid}", async (
             Guid branchId,
             Guid zoneId,
             UpdateZoneRequest request,
@@ -485,7 +485,7 @@ internal static class BranchProfileLayoutEndpoints
             return Results.Ok(response);
         });
 
-        app.MapDelete("/api/branches/{branchId:guid}/layout/zones/{zoneId:guid}", async (
+        app.MapDelete("branches/{branchId:guid}/layout/zones/{zoneId:guid}", async (
             Guid branchId,
             Guid zoneId,
             Guid organizationId,
@@ -570,7 +570,7 @@ internal static class BranchProfileLayoutEndpoints
             return Results.NoContent();
         });
 
-        app.MapPost("/api/branches/{branchId:guid}/layout/seats", async (
+        app.MapPost("branches/{branchId:guid}/layout/seats", async (
             Guid branchId,
             CreateSeatRequest request,
             StaffAuthorizationService authorizationService,
@@ -673,7 +673,7 @@ internal static class BranchProfileLayoutEndpoints
             return Results.Ok(response);
         });
 
-        app.MapPatch("/api/branches/{branchId:guid}/layout/seats/{seatId:guid}", async (
+        app.MapPatch("branches/{branchId:guid}/layout/seats/{seatId:guid}", async (
             Guid branchId,
             Guid seatId,
             UpdateSeatRequest request,
@@ -784,7 +784,7 @@ internal static class BranchProfileLayoutEndpoints
             return Results.Ok(response);
         });
 
-        app.MapDelete("/api/branches/{branchId:guid}/layout/seats/{seatId:guid}", async (
+        app.MapDelete("branches/{branchId:guid}/layout/seats/{seatId:guid}", async (
             Guid branchId,
             Guid seatId,
             Guid organizationId,

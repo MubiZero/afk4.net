@@ -16,7 +16,7 @@ public sealed class HttpOperatorAuthApiClient(HttpClient httpClient, IOperatorTo
         CancellationToken cancellationToken)
     {
         var response = await SendAsync(
-            "/api/auth/staff/sign-in",
+            $"/api/organizations/{organizationId:D}/auth/staff/sign-in",
             new StaffSignInRequest(organizationId, userName, password),
             cancellationToken);
 
@@ -33,7 +33,7 @@ public sealed class HttpOperatorAuthApiClient(HttpClient httpClient, IOperatorTo
         }
 
         var response = await SendAsync(
-            "/api/auth/staff/refresh",
+            $"/api/organizations/{snapshot.OrganizationId:D}/auth/staff/refresh",
             new StaffRefreshTokenRequest(snapshot.OrganizationId, refreshToken),
             cancellationToken);
 

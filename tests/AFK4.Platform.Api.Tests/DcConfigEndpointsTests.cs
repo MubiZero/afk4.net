@@ -17,7 +17,7 @@ public sealed class DcConfigEndpointsTests
         var client = factory.CreateClient();
         var (_, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
 
-        var post = await owner.PostAsJsonAsync("/api/owner/dc-config",
+        var post = await owner.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/payments/dc-config",
             new UpdateDcPayLinkConfigRequest("1234567890123456", "AFK4-{ref}", true));
         Assert.Equal(HttpStatusCode.OK, post.StatusCode);
         var dto = await post.Content.ReadFromJsonAsync<DcPayLinkConfigDto>();
@@ -25,7 +25,7 @@ public sealed class DcConfigEndpointsTests
         Assert.Equal("3456", dto.CardLast4);
         Assert.True(dto.IsActive);
 
-        var get = await owner.GetFromJsonAsync<DcPayLinkConfigDto>("/api/owner/dc-config");
+        var get = await owner.GetFromJsonAsync<DcPayLinkConfigDto>($"/api/organizations/{TestIds.OrganizationId:D}/payments/dc-config");
         Assert.Equal("3456", get!.CardLast4);
         Assert.True(get.CardSet);
 
@@ -43,7 +43,7 @@ public sealed class DcConfigEndpointsTests
         var client = factory.CreateClient();
         var (_, owner) = await OwnerTestAuth.SignInOwnerAsync(factory, client);
 
-        var post = await owner.PostAsJsonAsync("/api/owner/dc-config",
+        var post = await owner.PostAsJsonAsync($"/api/organizations/{TestIds.OrganizationId:D}/payments/dc-config",
             new UpdateDcPayLinkConfigRequest(null, "AFK4-{ref}", true));
         Assert.Equal(HttpStatusCode.BadRequest, post.StatusCode);
     }
