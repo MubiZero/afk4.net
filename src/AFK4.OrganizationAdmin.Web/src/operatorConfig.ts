@@ -1,4 +1,6 @@
 export interface OperatorConfig {
+  product?: 'organization-admin';
+  compatibilityEpoch?: 2;
   runtime: string;
   shellMode: string;
   platformBaseUrl: string;
@@ -10,6 +12,8 @@ export interface OperatorConfig {
 }
 
 const fallbackConfig: OperatorConfig = {
+  product: 'organization-admin',
+  compatibilityEpoch: 2,
   runtime: 'browser-dev',
   shellMode: 'vite-dev',
   platformBaseUrl: 'http://localhost:5074/',
@@ -30,6 +34,8 @@ function browserConfigFromEnv(): OperatorConfig {
     );
   }
   return {
+    product: 'organization-admin',
+    compatibilityEpoch: 2,
     runtime: 'browser',
     shellMode: 'web',
     platformBaseUrl,

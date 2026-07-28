@@ -40,6 +40,9 @@ describe('PlatformApiClient', () => {
     expect(calls[0][1]?.method).toBe('GET');
     const headers = calls[0][1]?.headers as Headers;
     expect(headers.get('Authorization')).toBe('Bearer access-token');
+    expect(headers.get('X-AFK4-Product')).toBe('organization-admin');
+    expect(headers.get('X-AFK4-Compatibility-Epoch')).toBe('2');
+    expect(headers.get('X-AFK4-Client-Version')).toBe('dev');
   });
 
   it('calls browser fetch through the global receiver when no override is provided', async () => {

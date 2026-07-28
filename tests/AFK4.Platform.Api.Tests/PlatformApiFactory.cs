@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Install;
+using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Media;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Platform.Api.Platform.Identity;
@@ -76,7 +77,17 @@ internal sealed class PlatformApiFactory : IAsyncDisposable, IDisposable
     public HttpClient CreateClient()
     {
         Activate();
-        return host.CreateClient();
+        var client = host.CreateClient();
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            OrganizationAdminCompatibilityMiddleware.ProductHeader,
+            OrganizationAdminCompatibilityMiddleware.ProductName);
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            OrganizationAdminCompatibilityMiddleware.EpochHeader,
+            "2");
+        client.DefaultRequestHeaders.TryAddWithoutValidation(
+            OrganizationAdminCompatibilityMiddleware.VersionHeader,
+            "test");
+        return client;
     }
 
     // Make this test's database the ambient one and seed it once. Called from the test's own async

@@ -26,6 +26,8 @@ public sealed class OrganizationAdminWebBootstrapScriptTests
         Assert.StartsWith("window.__AFK4_ORGANIZATION_ADMIN_CONFIG__ = ", script, StringComparison.Ordinal);
         using var document = JsonDocument.Parse(script["window.__AFK4_ORGANIZATION_ADMIN_CONFIG__ = ".Length..].TrimEnd(';'));
         var root = document.RootElement;
+        Assert.Equal("organization-admin", root.GetProperty("product").GetString());
+        Assert.Equal(2, root.GetProperty("compatibilityEpoch").GetInt32());
         Assert.Equal("webview2", root.GetProperty("runtime").GetString());
         Assert.Equal("vite-dist", root.GetProperty("shellMode").GetString());
         Assert.Equal("https://afk4.staging.mubi.dev/", root.GetProperty("platformBaseUrl").GetString());

@@ -1,3 +1,5 @@
+import { organizationAdminHeaders } from '../organizationAdminCompatibility';
+
 export interface StaffSignInResponse {
   staffUserId: string;
   organizationId: string;
@@ -62,7 +64,7 @@ export class StaffAuthApi {
   private async post<T>(path: string, body: unknown, on409?: (r: Response) => Promise<never>): Promise<T> {
     const res = await this.fetchImpl(new URL(path, this.base).toString(), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...organizationAdminHeaders() },
       body: JSON.stringify(body)
     });
     if (res.status === 409 && on409) return on409(res);

@@ -26,6 +26,8 @@ public static class OrganizationAdminWebBootstrapScript
         var normalizedVersion = string.IsNullOrWhiteSpace(appVersion) ? "—" : appVersion.Trim();
 
         var payload = new OrganizationAdminWebBootstrapPayload(
+            Product: OrganizationAdminOptions.Product,
+            CompatibilityEpoch: OrganizationAdminOptions.CompatibilityEpoch,
             Runtime: "webview2",
             ShellMode: launchTarget.Mode,
             PlatformBaseUrl: appOptions.PlatformBaseUrl.ToString(),
@@ -52,6 +54,8 @@ public static class OrganizationAdminWebBootstrapScript
     }
 
     private sealed record OrganizationAdminWebBootstrapPayload(
+        string Product,
+        int CompatibilityEpoch,
         string Runtime,
         string ShellMode,
         string PlatformBaseUrl,

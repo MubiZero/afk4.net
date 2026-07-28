@@ -4,6 +4,8 @@ namespace AFK4.OrganizationAdmin.App.Configuration;
 
 public sealed class OrganizationAdminOptions
 {
+    public const string Product = "organization-admin";
+    public const int CompatibilityEpoch = 2;
     public const string PlatformBaseUrlEnvironmentVariable = "AFK4_ORGANIZATION_ADMIN_PLATFORM_BASE_URL";
     public const string CurrencyCodeEnvironmentVariable = "AFK4_ORGANIZATION_ADMIN_CURRENCY_CODE";
     public const string OrganizationIdEnvironmentVariable = "AFK4_ORGANIZATION_ADMIN_ORGANIZATION_ID";

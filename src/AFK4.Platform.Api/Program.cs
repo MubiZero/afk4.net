@@ -9,6 +9,7 @@ using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Payments.Eskhata;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
+using AFK4.Platform.Api.Configuration;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Dashboard;
 using AFK4.Platform.Api.Diagnostics;
@@ -189,6 +190,8 @@ builder.Services.Configure<PlatformAdminBootstrapOptions>(
 builder.Services.AddHostedService<PlatformAdminBootstrapHostedService>();
 builder.Services.Configure<PlatformOrganizationOptions>(
     builder.Configuration.GetSection(PlatformOrganizationOptions.ConfigurationSection));
+builder.Services.Configure<OrganizationAdminCompatibilityOptions>(
+    builder.Configuration.GetSection(OrganizationAdminCompatibilityOptions.SectionName));
 builder.Services.AddSingleton<IOrganizationOwnerInviteCodeGenerator, RandomOrganizationOwnerInviteCodeGenerator>();
 builder.Services.Configure<InstallOptions>(
     builder.Configuration.GetSection(InstallOptions.SectionName));
@@ -408,6 +411,7 @@ app.UseRateLimiter();
 app.UseMiddleware<StaffAuthenticationMiddleware>();
 app.UseMiddleware<PlatformAdminAuthenticationMiddleware>();
 app.UseMiddleware<PlayerAuthenticationMiddleware>();
+app.UseMiddleware<OrganizationAdminCompatibilityMiddleware>();
 app.UseMiddleware<AuthenticationDomainEnforcementMiddleware>();
 app.UseMiddleware<OrganizationSuspensionMiddleware>();
 

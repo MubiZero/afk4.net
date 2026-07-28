@@ -1,3 +1,5 @@
+import { organizationAdminHeaders } from './organizationAdminCompatibility';
+
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
 export interface PlatformApiOptions {
@@ -156,7 +158,8 @@ export class PlatformApiClient {
     }
 
     const headers = new Headers({
-      Authorization: `Bearer ${accessToken}`
+      Authorization: `Bearer ${accessToken}`,
+      ...organizationAdminHeaders()
     });
     if (extraHeaders) {
       for (const [name, value] of Object.entries(extraHeaders)) {
@@ -185,7 +188,8 @@ export class PlatformApiClient {
     // No Content-Type set here on purpose — the caller's BodyInit (e.g. FormData)
     // dictates it, and forcing one here would drop the multipart boundary.
     const headers = new Headers({
-      Authorization: `Bearer ${accessToken}`
+      Authorization: `Bearer ${accessToken}`,
+      ...organizationAdminHeaders()
     });
 
     return await this.fetchImpl(this.buildUrl(path), {
