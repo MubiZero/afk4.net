@@ -30,7 +30,7 @@ const renderModal = (over: Partial<Parameters<typeof RefundModal>[0]> = {}) => {
   render(
     <I18nProvider initialLocale="ru">
       <RefundModal
-        entry={entry()}
+        entry={entry({ amount: { currencyCode: 'TJS', minorUnits: 2000 } })}
         currencyCode="TJS"
         reason="возврат"
         onChangeReason={() => {}}
@@ -53,8 +53,16 @@ describe('RefundModal', () => {
 
   it('fires onConfirm on submit', () => {
     const { onConfirm } = renderModal();
+    fireEvent.change(screen.getByLabelText('Сумма возврата'), { target: { value: '12.50' } });
     fireEvent.click(screen.getByRole('button', { name: /Вернуть операцию/ }));
-    expect(onConfirm).toHaveBeenCalled();
+    expect(onConfirm).toHaveBeenCalledWith(1250);
+  });
+
+  it('rejects an amount larger than the original operation', () => {
+    const { onConfirm } = renderModal();
+    fireEvent.change(screen.getByLabelText('Сумма возврата'), { target: { value: '20.01' } });
+    fireEvent.click(screen.getByRole('button', { name: /Вернуть операцию/ }));
+    expect(onConfirm).not.toHaveBeenCalled();
   });
 
   it('disables confirm while busy', () => {

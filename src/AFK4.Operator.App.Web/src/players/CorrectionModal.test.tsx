@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach, mock } from 'bun:test';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { I18nProvider } from '@afk4/i18n';
-import { CorrectionModal } from './CorrectionModal';
+import { CorrectionModal, correctionQuantities } from './CorrectionModal';
 
 afterEach(cleanup);
 
@@ -30,6 +30,17 @@ const renderModal = (over: Partial<Parameters<typeof CorrectionModal>[0]> = {}) 
 };
 
 describe('CorrectionModal', () => {
+  it('converts 90 package minutes into quantitySeconds without a money amount', () => {
+    expect(correctionQuantities('package_time', 'credit', '90')).toEqual({ minorUnits: 0, quantitySeconds: 5400 });
+  });
+
+  it('offers package and bonus time accounts', () => {
+    const onChangeAccount = mock(() => {});
+    renderModal({ onChangeAccount });
+    fireEvent.click(screen.getByRole('button', { name: 'Пакетное время' }));
+    expect(onChangeAccount).toHaveBeenCalledWith('package_time');
+    expect(screen.getByRole('button', { name: 'Бонусное время' })).toBeInTheDocument();
+  });
   it('renders amount and reason fields', () => {
     renderModal();
     expect(screen.getByLabelText('Сумма корректировки')).toBeInTheDocument();

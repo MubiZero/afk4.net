@@ -12,6 +12,8 @@ const view: LedgerEntryView = {
   typeLabel: 'Пополнение',
   description: 'Пополнение кошелька',
   reason: 'Касса',
+  accountType: 'package_time',
+  quantitySeconds: 5400,
   amountMinorUnits: 50000,
   currencyCode: 'TJS',
   isCredit: true,
@@ -30,13 +32,15 @@ describe('LedgerRow', () => {
     renderRow();
     expect(screen.getByText('04:00')).toBeInTheDocument();
     expect(screen.getByText('Пополнение')).toBeInTheDocument();
-    expect(screen.getByText('Пополнение кошелька · Касса')).toBeInTheDocument();
+    expect(screen.getByText('Пакетное время · 90 мин · Пополнение кошелька · Касса')).toBeInTheDocument();
     expect(screen.getByText('+500 с.')).toHaveClass('ui-money--pos');
+    expect(screen.getByText(/Пакетное время/)).toBeInTheDocument();
+    expect(screen.getByText(/90 мин/)).toBeInTheDocument();
   });
 
   it('hides detail and refund in compact variant', () => {
     renderRow({ compact: true, canRefund: true, onRefund: () => {} });
-    expect(screen.queryByText('Пополнение кошелька · Касса')).toBeNull();
+    expect(screen.queryByText(/Пополнение кошелька/)).toBeNull();
     expect(screen.queryByRole('button')).toBeNull();
   });
 

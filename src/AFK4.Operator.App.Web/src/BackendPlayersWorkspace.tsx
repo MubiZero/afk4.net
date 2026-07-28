@@ -26,7 +26,7 @@ import { ClientDrawer } from './players/ClientDrawer';
 import { HistorySection } from './players/HistorySection';
 import { PanelModal } from './PanelModal';
 import { NewClientModal } from './players/NewClientModal';
-import { CorrectionModal, type CorrectionAccount, type CorrectionDirection } from './players/CorrectionModal';
+import { CorrectionModal, correctionQuantities, type CorrectionAccount, type CorrectionDirection } from './players/CorrectionModal';
 import { RefundModal } from './players/RefundModal';
 import { PinModal } from './players/PinModal';
 import { EditProfileModal } from './players/EditProfileModal';
@@ -359,7 +359,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
     return selectedClient as PlayerClientItem & { playerAccountId: string; source: 'backend' };
   };
 
-  const runClientAction = async (id: PlayerActionId, label: string, options?: { topUpMinorUnits?: number }) => {
+  const runClientAction = async (id: PlayerActionId, label: string, options?: { topUpMinorUnits?: number; refundMinorUnits?: number }) => {
     setFeedback({ label, state: 'pending' });
     try {
       const nextBackend = requireBackend(backend, t);
@@ -471,18 +471,17 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
         const backendClient = requireSelectedBackendClient();
 
-        const magnitude = parseMoneyInputMinorUnits(correctionAmount);
+        const quantities = correctionQuantities(correctionAccount, correctionDirection, correctionAmount);
         const reason = correctionReason.trim();
-        if (magnitude === null || magnitude <= 0 || !reason) {
+        if (quantities === null || !reason) {
           throw new Error(t('op.players.error.correctionInvalid'));
         }
 
-        const signed = correctionDirection === 'debit' ? -magnitude : magnitude;
         const wallet = await apiClients.players.manualCorrection(backendClient.playerAccountId, {
           organizationId: nextBackend.session.organizationId,
           accountType: correctionAccount,
-          amount: { currencyCode, minorUnits: signed },
-          quantitySeconds: 0,
+          amount: { currencyCode, minorUnits: quantities.minorUnits },
+          quantitySeconds: quantities.quantitySeconds,
           reason,
           idempotencyKey: createIdempotencyKey('manual-correction')
         });
@@ -500,10 +499,15 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         }
 
         const reason = refundReason.trim();
+        const originalMinorUnits = Math.abs(refundTarget.amount.minorUnits);
+        const refundMinorUnits = options?.refundMinorUnits;
+        if (!reason || refundMinorUnits === undefined || refundMinorUnits <= 0 || refundMinorUnits > originalMinorUnits) {
+          throw new Error(t('op.players.error.refundInvalid'));
+        }
         await apiClients.players.refundLedgerEntry(backendClient.playerAccountId, refundTarget.ledgerEntryId, {
           organizationId: nextBackend.session.organizationId,
           ledgerEntryId: refundTarget.ledgerEntryId,
-          amount: { currencyCode, minorUnits: Math.abs(refundTarget.amount.minorUnits) },
+          amount: { currencyCode, minorUnits: refundMinorUnits },
           reason,
           idempotencyKey: createIdempotencyKey('ledger-refund')
         });
@@ -771,7 +775,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           reason={refundReason}
           onChangeReason={setRefundReason}
           onClose={() => setRefundTarget(null)}
-          onConfirm={() => void runClientAction('refund', t('op.players.actions.refundLabel'))}
+          onConfirm={(refundMinorUnits) => void runClientAction('refund', t('op.players.actions.refundLabel'), { refundMinorUnits })}
           busy={feedback.state === 'pending'}
         />
       )}

@@ -17,7 +17,9 @@ export function LedgerRow({
   onRefund?: () => void;
 }) {
   const { t } = useI18n();
-  const detail = [view.description, view.reason].filter(Boolean).join(' · ');
+  const accountKey = `ledger.account.${view.accountType}` as Parameters<typeof t>[0];
+  const minutes = view.quantitySeconds === 0 ? null : Math.abs(view.quantitySeconds) / 60;
+  const detail = [t(accountKey), minutes === null ? '' : t('op.players.history.minutes', { minutes }), view.description, view.reason].filter(Boolean).join(' · ');
   const showRefund = !compact && canRefund && !view.isReversal && Boolean(onRefund);
   return (
     <div className={`ui-ledger-row${compact ? ' ui-ledger-row--compact' : ''}`}>
@@ -30,7 +32,9 @@ export function LedgerRow({
         {!compact && detail && <span className="ui-ledger-detail">{detail}</span>}
       </div>
       <div className="ui-ledger-aside">
-        <Money minorUnits={view.amountMinorUnits} currencyCode={view.currencyCode || currencyCode} signed />
+        {view.amountMinorUnits !== 0 || minutes === null
+          ? <Money minorUnits={view.amountMinorUnits} currencyCode={view.currencyCode || currencyCode} signed />
+          : <span>{t('op.players.history.minutes', { minutes: view.quantitySeconds / 60 })}</span>}
         {showRefund && (
           <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm ui-ledger-refund" onClick={onRefund}>
             <Undo2 size={13} aria-hidden="true" />

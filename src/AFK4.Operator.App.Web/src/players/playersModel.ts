@@ -60,6 +60,8 @@ export interface LedgerEntryView {
   typeLabel: string;
   description: string;
   reason: string;
+  accountType: string;
+  quantitySeconds: number;
   amountMinorUnits: number;
   currencyCode: string;
   isCredit: boolean;   // знак суммы: >=0 = кредит (зелёный), <0 = дебет (красный)
@@ -74,6 +76,8 @@ export function projectLedgerEntry(entry: LedgerEntryDto, t: TFunc): LedgerEntry
     typeLabel: ledgerTypeLabel(entry.entryType, t),
     description: entry.description ?? '',
     reason: entry.reason ?? '',
+    accountType: entry.accountType,
+    quantitySeconds: entry.quantitySeconds ?? 0,
     amountMinorUnits: minorUnits,
     currencyCode: entry.amount?.currencyCode ?? '',
     isCredit: minorUnits >= 0,
