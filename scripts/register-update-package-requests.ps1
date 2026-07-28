@@ -149,7 +149,7 @@ foreach ($requestFile in $requestFiles) {
     $body = Get-Content -LiteralPath $requestFile -Raw
     $request = $body | ConvertFrom-Json
     $component = [string](Get-JsonPropertyValue $request 'component')
-    $organizationId = [string](Get-JsonPropertyValue $request 'organizationId')
+    $requestOrganizationId = [string](Get-JsonPropertyValue $request 'organizationId')
     $channel = [string](Get-JsonPropertyValue $request 'channel')
     $registration = Invoke-RestMethod -Method Post -Uri $registrationUri -Headers $headers -ContentType 'application/json' -Body $body
     Write-Host "Registered update package request: $requestFile"
@@ -168,7 +168,7 @@ foreach ($requestFile in $requestFiles) {
         }
 
         $rolloutBody = @{
-            organizationId = $organizationId
+            organizationId = $requestOrganizationId
             updatePackageId = $updatePackageId
             channel = $channel
             targetKind = $RolloutTargetKind
