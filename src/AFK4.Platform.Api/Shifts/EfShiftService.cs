@@ -432,9 +432,9 @@ public sealed class EfShiftService(
             return false;
         }
 
-        var permissions = PermissionCatalog.GetPermissions(roles);
-        return permissions.Contains(StaffPermissionNames.CloseShift)
-            || permissions.Contains(StaffPermissionNames.ManageShiftCash);
+        var permissions = OrganizationPermissionCatalog.GetPermissions(roles);
+        return permissions.Contains(OrganizationPermissionNames.CloseShift)
+            || permissions.Contains(OrganizationPermissionNames.ManageShiftCash);
     }
 
     private async Task<Guid?> GetShiftBranchAsync(Guid organizationId, Guid shiftId, CancellationToken cancellationToken)

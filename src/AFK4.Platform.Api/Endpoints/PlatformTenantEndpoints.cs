@@ -164,7 +164,7 @@ internal static class PlatformTenantEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.CreateTenant);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.CreateOrganization);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
@@ -280,7 +280,7 @@ internal static class PlatformTenantEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewTenants);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewOrganizations);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
@@ -324,7 +324,7 @@ internal static class PlatformTenantEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewTenants);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewOrganizations);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
@@ -382,7 +382,7 @@ internal static class PlatformTenantEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOwnerInvites);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOrganizationOwnerInvites);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
@@ -448,7 +448,7 @@ internal static class PlatformTenantEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOwnerInvites);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOrganizationOwnerInvites);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
@@ -524,7 +524,7 @@ internal static class PlatformTenantEndpoints
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOwnerInvites);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOrganizationOwnerInvites);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
@@ -596,7 +596,7 @@ internal static class PlatformTenantEndpoints
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOwnerInvites);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOrganizationOwnerInvites);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
@@ -774,7 +774,7 @@ internal static class PlatformTenantEndpoints
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.UpdateTenantStatus);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.UpdateOrganizationStatus);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
@@ -857,7 +857,7 @@ internal static class PlatformTenantEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.UpdateTenantLimits);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.UpdateOrganizationLimits);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();

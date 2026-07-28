@@ -16,7 +16,7 @@ internal static class LoyaltySettingsEndpoints
             PlatformDbContext db,
             CancellationToken ct) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ManageLoyaltySettings);
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ManageLoyaltySettings);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 
@@ -41,7 +41,7 @@ internal static class LoyaltySettingsEndpoints
             PlatformDbContext db,
             CancellationToken ct) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ManageLoyaltySettings);
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ManageLoyaltySettings);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 

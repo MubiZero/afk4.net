@@ -37,7 +37,7 @@ public sealed class SessionEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedLayoutAsync(factory, includeTargetSeat: false);
 
         var response = await client.PostAsJsonAsync(
@@ -67,7 +67,7 @@ public sealed class SessionEndpointTests
     {
         await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedLayoutAsync(factory, includeTargetSeat: false);
         var tariffVersion = await SeedBillingAsync(factory, Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"));
 
@@ -104,7 +104,7 @@ public sealed class SessionEndpointTests
     {
         await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedLayoutAsync(factory, includeTargetSeat: false);
         var playerAccountId = Guid.Parse("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
         var tariffVersion = await SeedBillingAsync(factory, playerAccountId);
@@ -142,7 +142,7 @@ public sealed class SessionEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/sessions/start",
@@ -162,7 +162,7 @@ public sealed class SessionEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedLayoutAsync(factory, includeTargetSeat: false);
         var request = new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60);
 
@@ -184,7 +184,7 @@ public sealed class SessionEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedLayoutAsync(factory, includeTargetSeat: true);
 
         var firstResponse = await client.PostAsJsonAsync(
@@ -203,7 +203,7 @@ public sealed class SessionEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedLayoutAsync(factory, includeTargetSeat: false);
         var started = await StartSessionAsync(client);
 
@@ -224,7 +224,7 @@ public sealed class SessionEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedLayoutAsync(factory, includeTargetSeat: true);
         var started = await StartSessionAsync(client);
 
@@ -247,7 +247,7 @@ public sealed class SessionEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedLayoutAsync(factory, includeTargetSeat: false);
         var started = await StartSessionAsync(client);
 

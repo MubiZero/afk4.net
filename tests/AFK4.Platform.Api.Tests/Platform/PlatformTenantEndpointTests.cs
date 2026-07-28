@@ -302,8 +302,8 @@ public sealed class PlatformTenantEndpointTests
         Assert.NotNull(signIn);
         Assert.Equal(created.Tenant.OrganizationId, signIn.OrganizationId);
         Assert.Contains(created.Tenant.Branches[0].BranchId, signIn.BranchIds);
-        Assert.Contains(StaffPermissionNames.ViewFloorMap, signIn.Permissions);
-        Assert.Contains(StaffPermissionNames.ManageBranchStaff, signIn.Permissions);
+        Assert.Contains(OrganizationPermissionNames.ViewFloorMap, signIn.Permissions);
+        Assert.Contains(OrganizationPermissionNames.ManageBranchStaff, signIn.Permissions);
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -313,7 +313,7 @@ public sealed class PlatformTenantEndpointTests
         Assert.True(staff.IsActive);
 
         var assignment = await dbContext.StaffRoleAssignments.SingleAsync();
-        Assert.Equal(StaffRoleNames.Owner, assignment.RoleName);
+        Assert.Equal(OrganizationRoleNames.OrganizationOwner, assignment.RoleName);
         Assert.Equal(created.Tenant.Branches[0].BranchId, assignment.BranchId);
 
         var invite = await dbContext.OwnerInvites.SingleAsync();
@@ -750,7 +750,7 @@ public sealed class PlatformTenantEndpointTests
         await using var factory = new PlatformApiFactory();
         using (var seedClient = factory.CreateClient())
         {
-            await StaffAuthTestHelper.AuthorizeAsAsync(factory, seedClient, StaffRoleNames.Owner);
+            await StaffAuthTestHelper.AuthorizeAsAsync(factory, seedClient, OrganizationRoleNames.OrganizationOwner);
         }
 
         using var staffClient = factory.CreateClient();

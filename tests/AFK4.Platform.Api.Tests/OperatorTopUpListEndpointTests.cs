@@ -15,7 +15,7 @@ public sealed class OperatorTopUpListEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, "cashier_operator");
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, "operator");
 
         var playerId = Guid.NewGuid();
         var intentId = Guid.NewGuid();
@@ -66,7 +66,7 @@ public sealed class OperatorTopUpListEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, "cashier_operator");
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, "operator");
 
         var playerId = Guid.NewGuid();
         var intentId = Guid.NewGuid();

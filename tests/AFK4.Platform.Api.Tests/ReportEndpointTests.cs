@@ -58,7 +58,7 @@ public sealed class ReportEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.GetAsync(string.Format(routeTemplate, TestIds.BranchId));
 
@@ -76,7 +76,7 @@ public sealed class ReportEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.AccountantAuditor);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedShiftReportDataAsync(factory);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/reports/shifts?limit=1");
@@ -101,7 +101,7 @@ public sealed class ReportEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.AccountantAuditor);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedSalesReportDataAsync(factory);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/reports/sales?limit=1");
@@ -126,7 +126,7 @@ public sealed class ReportEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.AccountantAuditor);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedGameplayTimeReportDataAsync(factory);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/reports/gameplay-time?limit=1");
@@ -151,7 +151,7 @@ public sealed class ReportEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.AccountantAuditor);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedCashOperationReportDataAsync(factory);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/reports/cash-operations?limit=5");
@@ -177,7 +177,7 @@ public sealed class ReportEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.AccountantAuditor);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedOperatorActionReportDataAsync(factory);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/reports/operator-actions?limit=5");
@@ -204,7 +204,7 @@ public sealed class ReportEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.AccountantAuditor);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedRefundAuditAmountsAsync(factory);
 
         var response = await client.GetAsync(
@@ -224,7 +224,7 @@ public sealed class ReportEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.AccountantAuditor);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedOwnerDailySummaryDataAsync(factory);
 
         var response = await client.GetAsync(
@@ -253,7 +253,7 @@ public sealed class ReportEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.AccountantAuditor);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedShiftReportDataAsync(factory);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/reports/shifts/export.csv?limit=1");

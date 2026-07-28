@@ -19,7 +19,7 @@ const player: PlayerClientItem & { playerAccountId: string } = {
 };
 const backend = {
   config: { platformBaseUrl: 'http://test' }, branchId: 'branch-1',
-  session: { accessToken: 't', organizationId: 'org', permissions: ['packages.purchase'] }
+  session: { accessToken: 't', organizationId: 'org', permissions: ['organization.packages.purchase'] }
 };
 
 describe('PackagePurchasePanel', () => {

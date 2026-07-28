@@ -20,7 +20,7 @@ internal static class ShopOrderEndpoints
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId, StaffPermissionNames.ManageShopOrders, cancellationToken);
+                branchId, OrganizationPermissionNames.ManageShopOrders, cancellationToken);
 
             if (!authorization.IsAuthenticated)
             {
@@ -58,7 +58,7 @@ internal static class ShopOrderEndpoints
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId, StaffPermissionNames.ManageShopOrders, cancellationToken);
+                branchId, OrganizationPermissionNames.ManageShopOrders, cancellationToken);
 
             if (!authorization.IsAuthenticated)
             {
@@ -121,7 +121,7 @@ internal static class ShopOrderEndpoints
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId, StaffPermissionNames.ManageShopOrders, cancellationToken);
+                branchId, OrganizationPermissionNames.ManageShopOrders, cancellationToken);
 
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);

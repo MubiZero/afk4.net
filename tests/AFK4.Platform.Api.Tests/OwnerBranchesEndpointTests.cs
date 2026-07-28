@@ -14,7 +14,7 @@ public sealed class OwnerBranchesEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var branches = await client.GetFromJsonAsync<OwnerBranchSummaryDto[]>("/api/owner/branches");
 
@@ -27,7 +27,7 @@ public sealed class OwnerBranchesEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.GetAsync("/api/owner/branches");
 

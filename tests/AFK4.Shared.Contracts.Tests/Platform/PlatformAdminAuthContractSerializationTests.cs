@@ -29,10 +29,10 @@ public sealed class PlatformAdminAuthContractSerializationTests
             AccessTokenExpiresAtUtc: DateTimeOffset.Parse("2026-05-23T18:00:00Z"),
             RefreshToken: "opaque-refresh",
             RefreshTokenExpiresAtUtc: DateTimeOffset.Parse("2026-06-22T18:00:00Z"),
-            Roles: [PlatformAdminRoleNames.PlatformOwner],
+            Roles: [PlatformAdminRoleNames.PlatformAdmin],
             Permissions: [
-                PlatformAdminPermissionNames.ViewTenants,
-                PlatformAdminPermissionNames.CreateTenant
+                PlatformAdminPermissionNames.ViewOrganizations,
+                PlatformAdminPermissionNames.CreateOrganization
             ]);
 
         var json = JsonSerializer.Serialize(response);
@@ -43,9 +43,9 @@ public sealed class PlatformAdminAuthContractSerializationTests
         Assert.Equal(response.UserName, copy.UserName);
         Assert.Equal(response.AccessToken, copy.AccessToken);
         Assert.Equal(response.RefreshTokenExpiresAtUtc, copy.RefreshTokenExpiresAtUtc);
-        Assert.Equal(PlatformAdminRoleNames.PlatformOwner, copy.Roles.Single());
-        Assert.Contains(PlatformAdminPermissionNames.ViewTenants, copy.Permissions);
-        Assert.Contains(PlatformAdminPermissionNames.CreateTenant, copy.Permissions);
+        Assert.Equal(PlatformAdminRoleNames.PlatformAdmin, copy.Roles.Single());
+        Assert.Contains(PlatformAdminPermissionNames.ViewOrganizations, copy.Permissions);
+        Assert.Contains(PlatformAdminPermissionNames.CreateOrganization, copy.Permissions);
     }
 
     [Fact]

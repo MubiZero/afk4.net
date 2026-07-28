@@ -106,7 +106,7 @@ internal static class WalletEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 intent.BranchId,
-                StaffPermissionNames.TopUpWallet,
+                OrganizationPermissionNames.TopUpWallet,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -233,7 +233,7 @@ internal static class WalletEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.TopUpWallet,
+                OrganizationPermissionNames.TopUpWallet,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)

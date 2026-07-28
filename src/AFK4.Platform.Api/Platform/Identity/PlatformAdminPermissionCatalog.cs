@@ -7,16 +7,16 @@ public static class PlatformAdminPermissionCatalog
     private static readonly IReadOnlyDictionary<string, IReadOnlySet<string>> RolePermissions =
         new Dictionary<string, IReadOnlySet<string>>(StringComparer.OrdinalIgnoreCase)
         {
-            [PlatformAdminRoleNames.PlatformOwner] = new HashSet<string>
+            [PlatformAdminRoleNames.PlatformAdmin] = new HashSet<string>
             {
-                PlatformAdminPermissionNames.ViewTenants,
-                PlatformAdminPermissionNames.CreateTenant,
-                PlatformAdminPermissionNames.UpdateTenantStatus,
-                PlatformAdminPermissionNames.UpdateTenantLimits,
-                PlatformAdminPermissionNames.ViewTenantSupportNotes,
-                PlatformAdminPermissionNames.ManageTenantSupportNotes,
-                PlatformAdminPermissionNames.ManageOwnerInvites,
-                PlatformAdminPermissionNames.ViewTenantHealth,
+                PlatformAdminPermissionNames.ViewOrganizations,
+                PlatformAdminPermissionNames.CreateOrganization,
+                PlatformAdminPermissionNames.UpdateOrganizationStatus,
+                PlatformAdminPermissionNames.UpdateOrganizationLimits,
+                PlatformAdminPermissionNames.ViewOrganizationSupportNotes,
+                PlatformAdminPermissionNames.ManageOrganizationSupportNotes,
+                PlatformAdminPermissionNames.ManageOrganizationOwnerInvites,
+                PlatformAdminPermissionNames.ViewOrganizationHealth,
                 PlatformAdminPermissionNames.ViewPlatformAudit,
                 PlatformAdminPermissionNames.ViewBilling,
                 PlatformAdminPermissionNames.ManagePlans,
@@ -25,12 +25,12 @@ public static class PlatformAdminPermissionCatalog
             },
             [PlatformAdminRoleNames.PlatformSupport] = new HashSet<string>
             {
-                PlatformAdminPermissionNames.ViewTenants,
-                PlatformAdminPermissionNames.UpdateTenantStatus,
-                PlatformAdminPermissionNames.ViewTenantSupportNotes,
-                PlatformAdminPermissionNames.ManageTenantSupportNotes,
-                PlatformAdminPermissionNames.ManageOwnerInvites,
-                PlatformAdminPermissionNames.ViewTenantHealth,
+                PlatformAdminPermissionNames.ViewOrganizations,
+                PlatformAdminPermissionNames.UpdateOrganizationStatus,
+                PlatformAdminPermissionNames.ViewOrganizationSupportNotes,
+                PlatformAdminPermissionNames.ManageOrganizationSupportNotes,
+                PlatformAdminPermissionNames.ManageOrganizationOwnerInvites,
+                PlatformAdminPermissionNames.ViewOrganizationHealth,
                 PlatformAdminPermissionNames.ViewPlatformAudit,
                 PlatformAdminPermissionNames.ViewBilling
             }

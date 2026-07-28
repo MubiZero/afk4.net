@@ -34,9 +34,9 @@ public sealed class StaffAuthContractSerializationTests
             RefreshToken: "refresh-token",
             RefreshTokenExpiresAtUtc: DateTimeOffset.Parse("2026-06-11T01:00:00Z"),
             BranchIds: [Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2")],
-            Permissions: [StaffPermissionNames.CreateDeviceEnrollmentCode])
+            Permissions: [OrganizationPermissionNames.CreateDeviceEnrollmentCode])
         {
-            RoleNames = ["cashier_operator", "shift_supervisor"]
+            RoleNames = ["operator", "shift_supervisor"]
         };
 
         var json = JsonSerializer.Serialize(response);
@@ -47,9 +47,9 @@ public sealed class StaffAuthContractSerializationTests
         Assert.Equal(response.OrganizationId, copy.OrganizationId);
         Assert.Equal(response.RefreshToken, copy.RefreshToken);
         Assert.Equal(response.RefreshTokenExpiresAtUtc, copy.RefreshTokenExpiresAtUtc);
-        Assert.Contains(StaffPermissionNames.CreateDeviceEnrollmentCode, copy.Permissions);
+        Assert.Contains(OrganizationPermissionNames.CreateDeviceEnrollmentCode, copy.Permissions);
         Assert.Single(copy.BranchIds);
-        Assert.Equal(["cashier_operator", "shift_supervisor"], copy.RoleNames);
+        Assert.Equal(["operator", "shift_supervisor"], copy.RoleNames);
     }
 
     [Fact]

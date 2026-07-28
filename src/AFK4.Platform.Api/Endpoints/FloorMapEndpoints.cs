@@ -84,7 +84,7 @@ internal static class FloorMapEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewFloorMap,
+                OrganizationPermissionNames.ViewFloorMap,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -119,7 +119,7 @@ internal static class FloorMapEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageLayout,
+                OrganizationPermissionNames.ManageLayout,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)

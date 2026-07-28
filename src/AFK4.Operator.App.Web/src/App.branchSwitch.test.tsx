@@ -98,7 +98,7 @@ function createSession(overrides: Record<string, unknown> = {}) {
     activeBranchId: BRANCH_A,
     // Only floor_map.view: keeps the shift gate ('not-required') and the players preload
     // (permission-gated) out of the picture, so this file doesn't need their endpoints mocked.
-    permissions: ['floor_map.view'],
+    permissions: ['organization.floor_map.view'],
     ...overrides
   };
 }
@@ -303,7 +303,7 @@ describe('App — branch switch (Task 11)', () => {
   it('scopes a seat action (session start) to the newly active branch after switch', async () => {
     installConfig();
     sessionStorage.setItem('afk4.staff.session', JSON.stringify(createSession({
-      permissions: ['floor_map.view', 'sessions.start']
+      permissions: ['organization.floor_map.view', 'organization.sessions.start']
     })));
 
     const startCalls: string[] = [];
@@ -348,7 +348,7 @@ describe('App — branch switch (Task 11)', () => {
   it('refetches shell shift data for the newly active branch after switch', async () => {
     installConfig();
     sessionStorage.setItem('afk4.staff.session', JSON.stringify(createSession({
-      permissions: ['floor_map.view', 'shifts.view']
+      permissions: ['organization.floor_map.view', 'organization.shifts.view']
     })));
 
     const shiftPaths: string[] = [];

@@ -40,7 +40,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/players",
@@ -66,7 +66,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedPlayerAsync(factory);
 
         var response = await client.PatchAsJsonAsync(
@@ -93,7 +93,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedPlayerAsync(factory);
 
         var response = await client.PatchAsJsonAsync(
@@ -108,7 +108,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PatchAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/players/{Guid.NewGuid():D}",
@@ -122,7 +122,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedPlayerAsync(factory);
 
         var response = await client.PostAsJsonAsync(
@@ -147,7 +147,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedPlayerAsync(factory);
         // деактивируем, затем реактивируем
         await client.PostAsJsonAsync(
@@ -173,7 +173,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedPlayerAsync(factory);
         await SeedOpenShiftAsync(factory);
 
@@ -201,7 +201,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var unknownPlayerId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
 
         var response = await client.PostAsJsonAsync(
@@ -225,7 +225,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         await SeedPlayerAsync(factory, isActive: false);
         await SeedOpenShiftAsync(factory);
 
@@ -246,7 +246,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         await SeedPlayerAsync(factory, isActive: false);
         await SeedOpenShiftAsync(factory);
 
@@ -267,7 +267,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         await SeedPlayerAsync(factory, isActive: false);
         await SeedOpenShiftAsync(factory);
 
@@ -288,7 +288,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var unknownPlayerId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
 
         var response = await client.PostAsJsonAsync(
@@ -308,7 +308,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedCrossBranchPlayerAsync(factory);
 
         var response = await client.PostAsJsonAsync(
@@ -328,7 +328,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedCrossBranchPlayerAsync(factory);
 
         var response = await client.PostAsJsonAsync(
@@ -350,7 +350,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.AccountantAuditor);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         var unknownPlayerId = Guid.Parse("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
 
         var response = await client.GetAsync($"/api/players/{unknownPlayerId:D}/wallet-summary");
@@ -363,7 +363,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedCrossBranchPlayerAsync(factory);
 
         var response = await client.GetAsync($"/api/players/{CrossBranchPlayerAccountId:D}/wallet-summary");
@@ -376,7 +376,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedPlayerAsync(factory);
 
         var response = await client.PostAsJsonAsync(
@@ -404,7 +404,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.ShiftSupervisor);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.ShiftSupervisor);
         await SeedPlayerAsync(factory);
         await SeedOpenShiftAsync(factory);
 
@@ -437,7 +437,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.AccountantAuditor);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
         await SeedPlayerAsync(factory);
         await SeedLedgerEntryAsync(factory, LedgerEntryTypeNames.TopUp, LedgerAccountTypeNames.Wallet, 5000);
         await SeedLedgerEntryAsync(factory, LedgerEntryTypeNames.PostpaidDebt, LedgerAccountTypeNames.Debt, 1200);
@@ -461,7 +461,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/tariffs",
@@ -484,7 +484,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var tariff = await SeedTariffAsync(factory);
 
         var response = await client.PostAsJsonAsync(
@@ -517,7 +517,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var tariff = await SeedTariffAsync(factory);
 
         var response = await client.PatchAsJsonAsync(
@@ -542,7 +542,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var tariff = await SeedTariffAsync(factory);
         var version = await SeedTariffVersionAsync(factory, tariff.TariffId);
 
@@ -589,7 +589,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var tariff = await SeedTariffAsync(factory);
         var version = await SeedTariffVersionAsync(factory, tariff.TariffId);
 
@@ -609,7 +609,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var tariff = await SeedTariffAsync(factory);
         var version = await SeedTariffVersionAsync(factory, tariff.TariffId);
 
@@ -625,7 +625,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/tariffs/calculate",
@@ -639,7 +639,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/packages",
@@ -662,7 +662,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var package = await SeedPackageDefinitionAsync(factory);
 
         var response = await client.PatchAsJsonAsync(
@@ -694,7 +694,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedPlayerAsync(factory);
         await SeedLedgerEntryAsync(factory, LedgerEntryTypeNames.TopUp, LedgerAccountTypeNames.Wallet, 5000);
         var package = await SeedPackageDefinitionAsync(factory);
@@ -724,7 +724,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedPlayerAsync(factory);
         await SeedOpenShiftAsync(factory);
         var request = new TopUpWalletRequest(
@@ -747,7 +747,7 @@ public sealed class BillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedPlayerAsync(factory);
         // деактивируем сид-игрока
         await client.PostAsJsonAsync(

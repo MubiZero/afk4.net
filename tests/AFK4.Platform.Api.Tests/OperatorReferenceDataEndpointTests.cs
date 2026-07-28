@@ -25,7 +25,7 @@ public sealed class OperatorReferenceDataEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedPlayersAsync(factory);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/players?query=Alex&limit=20");
@@ -49,7 +49,7 @@ public sealed class OperatorReferenceDataEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedPlayersAsync(factory);
         var latestSessionActivity = await SeedSessionsAsync(factory);
 
@@ -72,7 +72,7 @@ public sealed class OperatorReferenceDataEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedActivePackagePlayersAsync(factory);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/players?query=PackageHolder&limit=20");
@@ -100,7 +100,7 @@ public sealed class OperatorReferenceDataEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var activeVersion = await SeedTariffsAsync(factory);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/tariffs/options");
@@ -122,7 +122,7 @@ public sealed class OperatorReferenceDataEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var activePackage = await SeedPackagesAsync(factory);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/packages/options");
@@ -145,7 +145,7 @@ public sealed class OperatorReferenceDataEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
         var endpointCases = new[]
         {

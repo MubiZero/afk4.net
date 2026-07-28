@@ -30,7 +30,7 @@ public sealed class DeviceCredentialLifecycleEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var enrollment = await EnrollDeviceAsync(factory);
 
         var response = await client.PostAsync(
@@ -61,7 +61,7 @@ public sealed class DeviceCredentialLifecycleEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var enrollment = await EnrollDeviceAsync(factory);
 
         var response = await client.PostAsync(
@@ -84,7 +84,7 @@ public sealed class DeviceCredentialLifecycleEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var enrollment = await EnrollDeviceAsync(factory);
 
         var response = await client.PostAsync(
@@ -113,7 +113,7 @@ public sealed class DeviceCredentialLifecycleEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var enrollment = await EnrollDeviceAsync(factory);
 
         var response = await client.PostAsync(

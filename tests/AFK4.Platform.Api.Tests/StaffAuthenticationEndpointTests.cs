@@ -33,7 +33,7 @@ public sealed class StaffAuthenticationEndpointTests
         Assert.False(string.IsNullOrWhiteSpace(body.RefreshToken));
         Assert.True(body.RefreshTokenExpiresAtUtc > body.AccessTokenExpiresAtUtc);
         Assert.Contains(TestIds.BranchId, body.BranchIds);
-        Assert.Contains(StaffPermissionNames.CreateDeviceEnrollmentCode, body.Permissions);
+        Assert.Contains(OrganizationPermissionNames.CreateDeviceEnrollmentCode, body.Permissions);
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class StaffAuthenticationEndpointTests
         Assert.Equal(TestIds.OrganizationId, body.OrganizationId);
         Assert.Equal("Tech One", body.DisplayName);
         Assert.Contains(TestIds.BranchId, body.BranchIds);
-        Assert.Contains(StaffPermissionNames.CreateDeviceEnrollmentCode, body.Permissions);
+        Assert.Contains(OrganizationPermissionNames.CreateDeviceEnrollmentCode, body.Permissions);
     }
 
     [Fact]
@@ -103,9 +103,9 @@ public sealed class StaffAuthenticationEndpointTests
         Assert.NotEqual(signInBody.AccessToken, refreshBody.AccessToken);
         Assert.NotEqual(signInBody.RefreshToken, refreshBody.RefreshToken);
         Assert.Equal(signInBody.StaffUserId, refreshBody.StaffUserId);
-        Assert.Contains(StaffPermissionNames.CreateDeviceEnrollmentCode, refreshBody.Permissions);
+        Assert.Contains(OrganizationPermissionNames.CreateDeviceEnrollmentCode, refreshBody.Permissions);
         Assert.Equal(
-            [StaffRoleNames.CashierOperator, StaffRoleNames.ShiftSupervisor, StaffRoleNames.Technician],
+            [OrganizationRoleNames.Operator, OrganizationRoleNames.ShiftSupervisor, OrganizationRoleNames.Technician],
             signInBody.RoleNames);
         Assert.Equal(signInBody.RoleNames, refreshBody.RoleNames);
 
@@ -131,7 +131,7 @@ public sealed class StaffAuthenticationEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
         Assert.Equal(TestIds.OrganizationId, body.OrganizationId);
-        Assert.Contains(StaffPermissionNames.CreateDeviceEnrollmentCode, body.Permissions);
+        Assert.Contains(OrganizationPermissionNames.CreateDeviceEnrollmentCode, body.Permissions);
     }
 
     [Fact]
@@ -341,7 +341,7 @@ public sealed class StaffAuthenticationEndpointTests
             StaffUserId = user.StaffUserId,
             OrganizationId = TestIds.OrganizationId,
             BranchId = TestIds.BranchId,
-            RoleName = StaffRoleNames.Owner
+            RoleName = OrganizationRoleNames.OrganizationOwner
         });
         await dbContext.SaveChangesAsync();
     }
@@ -386,7 +386,7 @@ public sealed class StaffAuthenticationEndpointTests
             StaffUserId = user.StaffUserId,
             OrganizationId = SecondOrgId,
             BranchId = SecondBranchId,
-            RoleName = StaffRoleNames.Owner
+            RoleName = OrganizationRoleNames.OrganizationOwner
         });
         await dbContext.SaveChangesAsync();
     }
@@ -418,7 +418,7 @@ public sealed class StaffAuthenticationEndpointTests
             StaffUserId = user.StaffUserId,
             OrganizationId = TestIds.OrganizationId,
             BranchId = TestIds.BranchId,
-            RoleName = StaffRoleNames.Owner
+            RoleName = OrganizationRoleNames.OrganizationOwner
         });
         await dbContext.SaveChangesAsync();
     }
@@ -465,7 +465,7 @@ public sealed class StaffAuthenticationEndpointTests
             StaffUserId = user.StaffUserId,
             OrganizationId = SecondOrgId,
             BranchId = SecondBranchId,
-            RoleName = StaffRoleNames.Owner
+            RoleName = OrganizationRoleNames.OrganizationOwner
         });
         await dbContext.SaveChangesAsync();
     }
@@ -511,7 +511,7 @@ public sealed class StaffAuthenticationEndpointTests
                 StaffUserId = user.StaffUserId,
                 OrganizationId = user.OrganizationId,
                 BranchId = TestIds.BranchId,
-                RoleName = StaffRoleNames.Technician
+                RoleName = OrganizationRoleNames.Technician
             },
             new StaffRoleAssignmentEntity
             {
@@ -519,7 +519,7 @@ public sealed class StaffAuthenticationEndpointTests
                 StaffUserId = user.StaffUserId,
                 OrganizationId = user.OrganizationId,
                 BranchId = TestIds.BranchId,
-                RoleName = StaffRoleNames.ShiftSupervisor
+                RoleName = OrganizationRoleNames.ShiftSupervisor
             },
             new StaffRoleAssignmentEntity
             {
@@ -527,7 +527,7 @@ public sealed class StaffAuthenticationEndpointTests
                 StaffUserId = user.StaffUserId,
                 OrganizationId = user.OrganizationId,
                 BranchId = TestIds.BranchId,
-                RoleName = StaffRoleNames.CashierOperator
+                RoleName = OrganizationRoleNames.Operator
             });
         await dbContext.SaveChangesAsync();
     }
@@ -595,7 +595,7 @@ public sealed class StaffAuthenticationEndpointTests
             StaffUserId = user.StaffUserId,
             OrganizationId = TestIds.OrganizationId,
             BranchId = TestIds.BranchId,
-            RoleName = StaffRoleNames.Owner
+            RoleName = OrganizationRoleNames.OrganizationOwner
         });
         await dbContext.SaveChangesAsync();
     }

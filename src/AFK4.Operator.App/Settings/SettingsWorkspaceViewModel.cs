@@ -219,72 +219,72 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
 
         if (HasAny(
             permissions,
-            StaffPermissionNames.ViewDeviceDetail,
-            StaffPermissionNames.CreateDeviceEnrollmentCode,
-            StaffPermissionNames.DispatchDeviceCommand,
-            StaffPermissionNames.ViewDeviceCommandStatus,
-            StaffPermissionNames.RotateDeviceCredential,
-            StaffPermissionNames.RevokeDeviceCredential))
+            OrganizationPermissionNames.ViewDeviceDetail,
+            OrganizationPermissionNames.CreateDeviceEnrollmentCode,
+            OrganizationPermissionNames.DispatchDeviceCommand,
+            OrganizationPermissionNames.ViewDeviceCommandStatus,
+            OrganizationPermissionNames.RotateDeviceCredential,
+            OrganizationPermissionNames.RevokeDeviceCredential))
         {
             AddPanel("devices", "Устройства", "Инструменты техника");
         }
 
         if (HasAny(
             permissions,
-            StaffPermissionNames.ManagePosCatalog,
-            StaffPermissionNames.ManageInventoryStock,
-            StaffPermissionNames.ViewInventory))
+            OrganizationPermissionNames.ManagePosCatalog,
+            OrganizationPermissionNames.ManageInventoryStock,
+            OrganizationPermissionNames.ViewInventory))
         {
             AddPanel("pos-catalog", "Каталог POS", "Товары и остатки");
         }
 
         if (HasAny(
             permissions,
-            StaffPermissionNames.ManageTariffs,
-            StaffPermissionNames.ViewTariffs))
+            OrganizationPermissionNames.ManageTariffs,
+            OrganizationPermissionNames.ViewTariffs))
         {
             AddPanel("tariffs", "Тарифы", "Правила цен");
         }
 
         if (HasAny(
             permissions,
-            StaffPermissionNames.ManagePackages,
-            StaffPermissionNames.ViewPackages))
+            OrganizationPermissionNames.ManagePackages,
+            OrganizationPermissionNames.ViewPackages))
         {
             AddPanel("packages", "Пакеты", "Пакеты времени");
         }
 
-        if (permissions.Contains(StaffPermissionNames.ManageRoles))
+        if (permissions.Contains(OrganizationPermissionNames.ManageRoles))
         {
             AddPanel("roles", "Роли", "Доступ персонала");
         }
 
         if (HasAny(
             permissions,
-            StaffPermissionNames.ViewUpdateStatus,
-            StaffPermissionNames.ManageUpdatePackages,
-            StaffPermissionNames.ManageUpdateRollouts))
+            OrganizationPermissionNames.ViewUpdateStatus,
+            OrganizationPermissionNames.ManageUpdatePackages,
+            OrganizationPermissionNames.ManageUpdateRollouts))
         {
             AddPanel("updates", "Обновления", "Пакеты и раскатки");
         }
 
-        if (permissions.Contains(StaffPermissionNames.ViewAudit))
+        if (permissions.Contains(OrganizationPermissionNames.ViewAudit))
         {
             AddPanel("audit", "Аудит", "Действия операторов");
         }
 
-        if (permissions.Contains(StaffPermissionNames.ViewDiagnostics))
+        if (permissions.Contains(OrganizationPermissionNames.ViewDiagnostics))
         {
             AddPanel("diagnostics", "Диагностика", "Состояние филиала");
         }
 
         if (HasAny(
             permissions,
-            StaffPermissionNames.ManageBranchStaff,
-            StaffPermissionNames.ManageLayout,
-            StaffPermissionNames.ManageTariffs,
-            StaffPermissionNames.ManagePosCatalog,
-            StaffPermissionNames.AssignDeviceSeat))
+            OrganizationPermissionNames.ManageBranchStaff,
+            OrganizationPermissionNames.ManageLayout,
+            OrganizationPermissionNames.ManageTariffs,
+            OrganizationPermissionNames.ManagePosCatalog,
+            OrganizationPermissionNames.AssignDeviceSeat))
         {
             AddPanel("pilot-setup", "Пилотная настройка", "Первичная настройка филиала");
         }

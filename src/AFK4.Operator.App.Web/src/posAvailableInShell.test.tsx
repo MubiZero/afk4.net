@@ -54,7 +54,7 @@ afterAll(() => {
 
 const backend = {
   config: { platformBaseUrl: 'http://test' },
-  session: { accessToken: 't', organizationId: 'org', permissions: ['pos.catalog.manage'] },
+  session: { accessToken: 't', organizationId: 'org', permissions: ['organization.pos.catalog.manage'] },
   branchId: 'b1'
 };
 

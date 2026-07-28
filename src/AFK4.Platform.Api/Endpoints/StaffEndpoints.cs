@@ -84,7 +84,7 @@ internal static class StaffEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageBranchStaff,
+                OrganizationPermissionNames.ManageBranchStaff,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -162,7 +162,7 @@ internal static class StaffEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageRoles,
+                OrganizationPermissionNames.ManageRoles,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -192,7 +192,7 @@ internal static class StaffEndpoints
                 return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
             }
 
-            var validation = ValidateStaffRoleNames(request.RoleNames);
+            var validation = ValidateOrganizationRoleNames(request.RoleNames);
             if (validation is not null)
             {
                 return Results.BadRequest(new { Error = validation });
@@ -281,7 +281,7 @@ internal static class StaffEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageBranchStaff,
+                OrganizationPermissionNames.ManageBranchStaff,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -396,7 +396,7 @@ internal static class StaffEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageBranchStaff,
+                OrganizationPermissionNames.ManageBranchStaff,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -496,7 +496,7 @@ internal static class StaffEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageBranchStaff,
+                OrganizationPermissionNames.ManageBranchStaff,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)

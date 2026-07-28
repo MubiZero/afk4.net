@@ -41,7 +41,7 @@ public sealed class DeviceCommandEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedDeviceAsync(factory);
 
         var response = await client.PostAsJsonAsync(
@@ -78,7 +78,7 @@ public sealed class DeviceCommandEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedDeviceAsync(factory);
 
         var response = await client.PostAsJsonAsync(
@@ -108,7 +108,7 @@ public sealed class DeviceCommandEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedDeviceAsync(factory);
 
         var response = await client.PostAsJsonAsync(
@@ -179,7 +179,7 @@ public sealed class DeviceCommandEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var enrollment = await EnrollDeviceAsync(client, factory);
         await SeedSeatAssignmentAsync(factory, enrollment.DeviceId);
         var started = await StartSessionAsync(client, "start-finalize-lock");
@@ -206,7 +206,7 @@ public sealed class DeviceCommandEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var enrollment = await EnrollDeviceAsync(client, factory);
         await SeedSeatAssignmentAsync(factory, enrollment.DeviceId);
         var started = await StartSessionAsync(client, "start-duplicate-lock");
@@ -237,7 +237,7 @@ public sealed class DeviceCommandEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var enrollment = await EnrollDeviceAsync(client, factory);
         await SeedSeatAssignmentAsync(factory, enrollment.DeviceId);
         var started = await StartSessionAsync(client, "start-before-finalization");
@@ -306,7 +306,7 @@ public sealed class DeviceCommandEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedDeviceAsync(factory);
         await SeedDeviceCommandAsync(factory, Guid.Parse("63d6536d-f2c5-4379-a8b3-cd487f0c1e94"), "Pending", DateTimeOffset.Parse("2026-05-12T00:01:00Z"));
         await SeedDeviceCommandAsync(factory, Guid.Parse("73d6536d-f2c5-4379-a8b3-cd487f0c1e94"), "Completed", DateTimeOffset.Parse("2026-05-12T00:02:00Z"));
@@ -336,7 +336,7 @@ public sealed class DeviceCommandEndpointTests
         var secondDeviceId = Guid.Parse("9c6f544b-44ee-455b-861e-f519f4e620b8");
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedDeviceAsync(factory);
         await SeedDeviceAsync(factory, secondDeviceId, "PC-002");
         await SeedDeviceCommandAsync(factory, Guid.Parse("63d6536d-f2c5-4379-a8b3-cd487f0c1e94"), "Pending", DateTimeOffset.Parse("2026-05-12T00:01:00Z"));
@@ -368,7 +368,7 @@ public sealed class DeviceCommandEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedDeviceAsync(factory);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/device-commands");
@@ -389,7 +389,7 @@ public sealed class DeviceCommandEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedDeviceAsync(factory);
 
         var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}/commands");
@@ -410,7 +410,7 @@ public sealed class DeviceCommandEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var commandId = Guid.Parse("63d6536d-f2c5-4379-a8b3-cd487f0c1e94");
         await SeedDeviceAsync(factory);
         await SeedPendingCommandAsync(factory, commandId);
@@ -436,7 +436,7 @@ public sealed class DeviceCommandEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var commandId = Guid.Parse("63d6536d-f2c5-4379-a8b3-cd487f0c1e94");
         await SeedDeviceAsync(factory);
         await SeedPendingCommandAsync(factory, commandId);
@@ -459,7 +459,7 @@ public sealed class DeviceCommandEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedDeviceAsync(factory);
 
         var commandId = Guid.Parse("63d6536d-f2c5-4379-a8b3-cd487f0c1e94");
@@ -476,7 +476,7 @@ public sealed class DeviceCommandEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedDeviceAsync(factory);
 
         var response = await client.PostAsJsonAsync(
@@ -498,7 +498,7 @@ public sealed class DeviceCommandEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedDeviceAsync(factory);
 
         var response = await client.PostAsJsonAsync(

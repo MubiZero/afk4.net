@@ -140,7 +140,7 @@ internal static class DcTestSetup
     public static async Task<(Guid BranchId, Guid PlayerId)> SeedActiveConfigAndPlayerAsync(
         HttpClient client, PlatformApiFactory factory)
     {
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var playerId = await SeedPlayerAsync(factory);
         await SeedConfigAsync(factory, isActive: true);
         // Fulfil credits through TopUpWalletAsync, which requires an open shift on the branch.
@@ -151,7 +151,7 @@ internal static class DcTestSetup
     public static async Task<(Guid BranchId, Guid PlayerId)> SeedPlayerNoConfigAsync(
         HttpClient client, PlatformApiFactory factory)
     {
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var playerId = await SeedPlayerAsync(factory);
         return (TestIds.BranchId, playerId);
     }
@@ -161,7 +161,7 @@ internal static class DcTestSetup
     public static async Task<(Guid BranchId, Guid PlayerId)> SeedActiveConfigAndInactivePlayerAsync(
         HttpClient client, PlatformApiFactory factory)
     {
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var playerId = await SeedPlayerAsync(factory, isActive: false);
         await SeedConfigAsync(factory, isActive: true);
         await SeedOpenShiftAsync(factory);

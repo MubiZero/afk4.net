@@ -35,8 +35,8 @@ public sealed class ReceiptContractSerializationTests
     }
 
     [Fact]
-    public void StaffPermissionNames_ExposeReceiptPermissions()
+    public void OrganizationPermissionNames_ExposeReceiptPermissions()
     {
-        Assert.Equal("receipts.view", StaffPermissionNames.ViewReceipt);
+        Assert.Equal("organization.receipts.view", OrganizationPermissionNames.ViewReceipt);
     }
 }

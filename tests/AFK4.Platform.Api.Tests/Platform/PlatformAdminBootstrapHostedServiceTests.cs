@@ -21,7 +21,7 @@ public sealed class PlatformAdminBootstrapHostedServiceTests
             UserName = "boot-admin@afk4.local",
             DisplayName = "Boot Admin",
             Password = "BootPassw0rd!",
-            Roles = [PlatformAdminRoleNames.PlatformOwner]
+            Roles = [PlatformAdminRoleNames.PlatformAdmin]
         });
         var timeProvider = TimeProvider.System;
         var hostedService = new PlatformAdminBootstrapHostedService(
@@ -38,7 +38,7 @@ public sealed class PlatformAdminBootstrapHostedServiceTests
         Assert.Equal("boot-admin@afk4.local", admin.UserName);
         Assert.Equal("BOOT-ADMIN@AFK4.LOCAL", admin.NormalizedUserName);
         Assert.True(admin.IsActive);
-        Assert.Contains("platform_owner", admin.RolesJson);
+        Assert.Contains("platform_admin", admin.RolesJson);
 
         var hasher = new PasswordHasher<PlatformAdminUserEntity>();
         Assert.Equal(
@@ -64,7 +64,7 @@ public sealed class PlatformAdminBootstrapHostedServiceTests
                 NormalizedUserName = "EXISTING@AFK4.LOCAL",
                 DisplayName = "Existing",
                 PasswordHash = "hash",
-                RolesJson = "[\"platform_owner\"]",
+                RolesJson = "[\"platform_admin\"]",
                 IsActive = true,
                 CreatedAtUtc = DateTimeOffset.UtcNow,
                 UpdatedAtUtc = DateTimeOffset.UtcNow
@@ -77,7 +77,7 @@ public sealed class PlatformAdminBootstrapHostedServiceTests
             UserName = "boot-admin@afk4.local",
             DisplayName = "Boot Admin",
             Password = "BootPassw0rd!",
-            Roles = [PlatformAdminRoleNames.PlatformOwner]
+            Roles = [PlatformAdminRoleNames.PlatformAdmin]
         });
         var hostedService = new PlatformAdminBootstrapHostedService(
             serviceProvider,
@@ -135,7 +135,7 @@ public sealed class PlatformAdminBootstrapHostedServiceTests
         await using var verificationScope = serviceProvider.CreateAsyncScope();
         var dbContext = verificationScope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var admin = await dbContext.PlatformAdminUsers.SingleAsync();
-        Assert.Contains("platform_owner", admin.RolesJson);
+        Assert.Contains("platform_admin", admin.RolesJson);
         Assert.DoesNotContain("ghost_role", admin.RolesJson);
     }
 

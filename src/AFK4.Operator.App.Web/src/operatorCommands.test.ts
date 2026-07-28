@@ -12,7 +12,7 @@ describe('quickActions data', () => {
 });
 describe('getVisibleQuickActions', () => {
   it('keeps only actions whose permission the session holds', () => {
-    const visible = getVisibleQuickActions(session(['players.create']));
+    const visible = getVisibleQuickActions(session(['organization.players.create']));
     expect(visible.map((a) => a.id)).toEqual(['create_player']);
   });
   it('returns nothing for a permission-less session', () => {

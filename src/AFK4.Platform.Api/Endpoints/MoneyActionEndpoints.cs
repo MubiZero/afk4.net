@@ -212,7 +212,7 @@ internal static class MoneyActionEndpoints
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId, StaffPermissionNames.ApproveMoneyAction, cancellationToken);
+                branchId, OrganizationPermissionNames.ApproveMoneyAction, cancellationToken);
 
             if (!authorization.IsAuthenticated)
             {
@@ -297,7 +297,7 @@ internal static class MoneyActionEndpoints
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId, StaffPermissionNames.ApproveMoneyAction, cancellationToken);
+                branchId, OrganizationPermissionNames.ApproveMoneyAction, cancellationToken);
 
             if (!authorization.IsAuthenticated)
             {
@@ -351,7 +351,7 @@ internal static class MoneyActionEndpoints
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId, StaffPermissionNames.ApproveMoneyAction, cancellationToken);
+                branchId, OrganizationPermissionNames.ApproveMoneyAction, cancellationToken);
 
             if (!authorization.IsAuthenticated)
             {
@@ -401,7 +401,7 @@ internal static class MoneyActionEndpoints
                 staffContextAccessor,
                 authorizationService,
                 playerAccountId,
-                StaffPermissionNames.PayDebt,
+                OrganizationPermissionNames.PayDebt,
                 cancellationToken);
             if (player.Result is not null)
             {

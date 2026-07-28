@@ -17,7 +17,7 @@ mock.module('../operatorHelpers', () => ({ ...actual, createAuthenticatedOperato
 const { JournalWorkspace } = await import('./JournalWorkspace');
 
 const backend = { config: { platformBaseUrl: 'http://x' }, session: { accessToken: 't', organizationId: 'o' }, branchId: 'b' } as never;
-const session = { permissions: ['inventory.view'], organizationId: 'o' } as never;
+const session = { permissions: ['organization.inventory.view'], organizationId: 'o' } as never;
 const view = () => render(<I18nProvider initialLocale="ru"><JournalWorkspace backend={backend} currencyCode="TJS" session={session} /></I18nProvider>);
 
 afterEach(() => { getCatalog.mockClear(); getStockMovements.mockClear(); cleanup(); });

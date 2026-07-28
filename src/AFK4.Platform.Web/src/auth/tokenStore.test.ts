@@ -33,7 +33,7 @@ describe('tokenStore', () => {
       accessTokenExpiresAtUtc: '2030-01-01T00:00:00Z',
       refreshToken: 'refresh',
       refreshTokenExpiresAtUtc: '2030-02-01T00:00:00Z',
-      roles: ['platform_owner'],
+      roles: ['platform_admin'],
       permissions: ['platform.tenants.view']
     });
 

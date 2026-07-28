@@ -29,7 +29,7 @@ public sealed class SignInViewModelTests
         Assert.Equal("cashier", authClient.LastUserName);
         Assert.NotNull(signedInContext);
         Assert.Equal(BranchId, signedInContext.BranchId);
-        Assert.Contains(StaffPermissionNames.ViewFloorMap, signedInContext.Permissions);
+        Assert.Contains(OrganizationPermissionNames.ViewFloorMap, signedInContext.Permissions);
         Assert.Equal("Вход выполнен: Cashier One.", viewModel.StatusMessage);
         Assert.Null(viewModel.ErrorMessage);
     }
@@ -81,7 +81,7 @@ public sealed class SignInViewModelTests
                 "refresh-token",
                 DateTimeOffset.Parse("2026-05-15T10:00:00Z"),
                 [BranchId],
-                [StaffPermissionNames.ViewFloorMap]));
+                [OrganizationPermissionNames.ViewFloorMap]));
         }
 
         public Task<StaffSignInResponse> RefreshAsync(string refreshToken, CancellationToken cancellationToken)

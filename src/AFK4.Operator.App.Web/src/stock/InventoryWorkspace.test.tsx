@@ -15,7 +15,7 @@ mock.module('../operatorHelpers', () => ({ ...actual, createAuthenticatedOperato
 const { InventoryWorkspace } = await import('./InventoryWorkspace');
 
 const backend = { config: { platformBaseUrl: 'http://x' }, session: { accessToken: 't', organizationId: 'o' }, branchId: 'b' } as never;
-const manageSession = { permissions: ['inventory.view', 'inventory.stock.manage'], organizationId: 'o' } as never;
+const manageSession = { permissions: ['organization.inventory.view', 'organization.inventory.stock.manage'], organizationId: 'o' } as never;
 
 const view = (props: Record<string, unknown> = {}) =>
   render(
@@ -40,7 +40,7 @@ afterAll(() => mock.restore());
 
 describe('InventoryWorkspace', () => {
   it('без права управления — экран отказа', () => {
-    render(<I18nProvider initialLocale="ru"><ToastProvider><InventoryWorkspace backend={backend} currencyCode="TJS" session={{ permissions: ['inventory.view'], organizationId: 'o' } as never} /></ToastProvider></I18nProvider>);
+    render(<I18nProvider initialLocale="ru"><ToastProvider><InventoryWorkspace backend={backend} currencyCode="TJS" session={{ permissions: ['organization.inventory.view'], organizationId: 'o' } as never} /></ToastProvider></I18nProvider>);
     expect(screen.getByText('Недостаточно прав для инвентаризации')).toBeInTheDocument();
   });
 

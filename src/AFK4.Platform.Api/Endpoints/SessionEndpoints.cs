@@ -88,7 +88,7 @@ internal static class SessionEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewSession,
+                OrganizationPermissionNames.ViewSession,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -147,7 +147,7 @@ internal static class SessionEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.StartSession,
+                OrganizationPermissionNames.StartSession,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -186,7 +186,7 @@ internal static class SessionEndpoints
                 authorization.StaffContext.StaffUserId,
                 request,
                 cancellationToken,
-                actorCanApproveComp: authorization.StaffContext.Permissions.Contains(StaffPermissionNames.ApproveMoneyAction));
+                actorCanApproveComp: authorization.StaffContext.Permissions.Contains(OrganizationPermissionNames.ApproveMoneyAction));
 
             if (result.Conflict)
             {
@@ -245,7 +245,7 @@ internal static class SessionEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 session.BranchId,
-                StaffPermissionNames.ExtendSession,
+                OrganizationPermissionNames.ExtendSession,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -333,7 +333,7 @@ internal static class SessionEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 session.BranchId,
-                StaffPermissionNames.TransferSession,
+                OrganizationPermissionNames.TransferSession,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -421,7 +421,7 @@ internal static class SessionEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 session.BranchId,
-                StaffPermissionNames.EndSession,
+                OrganizationPermissionNames.EndSession,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -509,7 +509,7 @@ internal static class SessionEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 session.BranchId,
-                StaffPermissionNames.EndSession,
+                OrganizationPermissionNames.EndSession,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -596,7 +596,7 @@ internal static class SessionEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 session.BranchId,
-                StaffPermissionNames.EndSession,
+                OrganizationPermissionNames.EndSession,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)

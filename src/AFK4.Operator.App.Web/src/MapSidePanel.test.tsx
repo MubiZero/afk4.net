@@ -43,7 +43,7 @@ function backend(): OperatorBackendContext {
       refreshTokenExpiresAtUtc: '2026-07-16T00:00:00Z',
       branchIds: ['branch-1'],
       activeBranchId: 'branch-1',
-      permissions: ['sessions.start', 'players.view', 'billing.view', 'tariffs.view']
+      permissions: ['organization.sessions.start', 'organization.players.view', 'organization.billing.view', 'organization.tariffs.view']
     }
   };
 }

@@ -58,7 +58,7 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
                 "cashier.pilot@afk4.test",
                 "Pilot Cashier",
                 "cashier.pilot@afk4.test",
-                "cashier_operator"),
+                "operator"),
             new PilotSetupStaffUserViewModel(
                 "technician.pilot@afk4.test",
                 "Pilot Technician",
@@ -268,11 +268,11 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
 
     public void ApplyPermissions(IReadOnlySet<string> permissions)
     {
-        CanSetupStaff = permissions.Contains(StaffPermissionNames.ManageBranchStaff);
-        CanSetupLayout = permissions.Contains(StaffPermissionNames.ManageLayout);
-        CanSetupTariff = permissions.Contains(StaffPermissionNames.ManageTariffs);
-        CanSetupPos = permissions.Contains(StaffPermissionNames.ManagePosCatalog);
-        CanAssignDeviceSeat = permissions.Contains(StaffPermissionNames.AssignDeviceSeat);
+        CanSetupStaff = permissions.Contains(OrganizationPermissionNames.ManageBranchStaff);
+        CanSetupLayout = permissions.Contains(OrganizationPermissionNames.ManageLayout);
+        CanSetupTariff = permissions.Contains(OrganizationPermissionNames.ManageTariffs);
+        CanSetupPos = permissions.Contains(OrganizationPermissionNames.ManagePosCatalog);
+        CanAssignDeviceSeat = permissions.Contains(OrganizationPermissionNames.AssignDeviceSeat);
         HasAnySetupPermission = CanSetupStaff
             || CanSetupLayout
             || CanSetupTariff

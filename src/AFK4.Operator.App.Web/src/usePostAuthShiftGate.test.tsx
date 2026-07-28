@@ -61,7 +61,7 @@ describe('usePostAuthShiftGate', () => {
     const client = createClient();
     const { result } = renderHook(() => usePostAuthShiftGate({
       authStatus: 'signed-in',
-      backend: createBackend(['floor_map.view']),
+      backend: createBackend(['organization.floor_map.view']),
       t,
       client
     }));
@@ -74,7 +74,7 @@ describe('usePostAuthShiftGate', () => {
     const client = createClient({ getCurrentShift: mock(async () => null) });
     const { result } = renderHook(() => usePostAuthShiftGate({
       authStatus: 'signed-in',
-      backend: createBackend(['shifts.open', 'shifts.view']),
+      backend: createBackend(['organization.shifts.open', 'organization.shifts.view']),
       t,
       client
     }));
@@ -87,7 +87,7 @@ describe('usePostAuthShiftGate', () => {
     const client = createClient();
     const { result } = renderHook(() => usePostAuthShiftGate({
       authStatus: 'signed-in',
-      backend: createBackend(['shifts.open', 'shifts.view']),
+      backend: createBackend(['organization.shifts.open', 'organization.shifts.view']),
       t,
       client
     }));
@@ -101,7 +101,7 @@ describe('usePostAuthShiftGate', () => {
     const client = createClient({ getCurrentShift });
     const { result } = renderHook(() => usePostAuthShiftGate({
       authStatus: 'signed-in',
-      backend: createBackend(['shifts.open']),
+      backend: createBackend(['organization.shifts.open']),
       t,
       client
     }));
@@ -126,11 +126,11 @@ describe('usePostAuthShiftGate', () => {
     const client = createClient({ getCurrentShift });
     const { result, rerender } = renderHook(
       ({ backend }) => usePostAuthShiftGate({ authStatus: 'signed-in', backend, t, client }),
-      { initialProps: { backend: createBackend(['shifts.open'], 'branch-a') } }
+      { initialProps: { backend: createBackend(['organization.shifts.open'], 'branch-a') } }
     );
 
     expect(result.current.status).toBe('checking');
-    rerender({ backend: createBackend(['shifts.open'], 'branch-b') });
+    rerender({ backend: createBackend(['organization.shifts.open'], 'branch-b') });
     await waitFor(() => expect(result.current.status).toBe('ready'));
 
     await act(async () => branchA.resolve(null));
@@ -142,7 +142,7 @@ describe('usePostAuthShiftGate', () => {
     const client = createClient({ getCurrentShift: mock(async () => null) });
     const { result } = renderHook(() => usePostAuthShiftGate({
       authStatus: 'signed-in',
-      backend: createBackend(['shifts.open']),
+      backend: createBackend(['organization.shifts.open']),
       t,
       client
     }));
@@ -170,7 +170,7 @@ describe('usePostAuthShiftGate', () => {
     });
     const { result } = renderHook(() => usePostAuthShiftGate({
       authStatus: 'signed-in',
-      backend: createBackend(['shifts.open']),
+      backend: createBackend(['organization.shifts.open']),
       t,
       client
     }));
@@ -195,7 +195,7 @@ describe('usePostAuthShiftGate', () => {
     });
     const { result } = renderHook(() => usePostAuthShiftGate({
       authStatus: 'signed-in',
-      backend: createBackend(['shifts.open']),
+      backend: createBackend(['organization.shifts.open']),
       t,
       client
     }));

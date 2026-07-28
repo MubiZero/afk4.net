@@ -47,7 +47,7 @@ public sealed class DailySummaryHostedServiceTests
             db.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
             {
                 StaffRoleAssignmentId = Guid.NewGuid(), StaffUserId = ownerId,
-                OrganizationId = orgId, BranchId = Guid.NewGuid(), RoleName = StaffRoleNames.Owner
+                OrganizationId = orgId, BranchId = Guid.NewGuid(), RoleName = OrganizationRoleNames.OrganizationOwner
             });
             db.Shifts.Add(new ShiftEntity
             {

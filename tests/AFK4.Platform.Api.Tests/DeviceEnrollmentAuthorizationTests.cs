@@ -31,7 +31,7 @@ public sealed class DeviceEnrollmentAuthorizationTests
     public async Task PostDeviceEnrollmentCode_WithTechnicianPermission_CreatesCodeAndAuditRecord()
     {
         await using var factory = new PlatformApiFactory();
-        await SeedStaffAsync(factory, StaffRoleNames.Technician);
+        await SeedStaffAsync(factory, OrganizationRoleNames.Technician);
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", await SignInAsync(client));
 
@@ -56,7 +56,7 @@ public sealed class DeviceEnrollmentAuthorizationTests
     public async Task PostDeviceEnrollmentCode_WithCashierRole_ReturnsForbiddenAndWritesDeniedAudit()
     {
         await using var factory = new PlatformApiFactory();
-        await SeedStaffAsync(factory, StaffRoleNames.CashierOperator);
+        await SeedStaffAsync(factory, OrganizationRoleNames.Operator);
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", await SignInAsync(client));
 

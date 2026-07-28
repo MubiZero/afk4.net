@@ -10,7 +10,7 @@ public sealed class StaffMoneyCapPolicyTests
     [Fact]
     public void Default_ShiftSupervisor_DailyCapped_PerTxnUnlimited()
     {
-        var cap = StaffMoneyCapPolicy.DefaultForRole(StaffRoleNames.ShiftSupervisor);
+        var cap = StaffMoneyCapPolicy.DefaultForRole(OrganizationRoleNames.ShiftSupervisor);
         Assert.Null(cap.PerTransactionMinorUnits);
         Assert.Equal(20000, cap.DailyMinorUnits);
     }
@@ -18,14 +18,14 @@ public sealed class StaffMoneyCapPolicyTests
     [Fact]
     public void Default_CashierOperator_FullyZeroCapped()
     {
-        var cap = StaffMoneyCapPolicy.DefaultForRole(StaffRoleNames.CashierOperator);
+        var cap = StaffMoneyCapPolicy.DefaultForRole(OrganizationRoleNames.Operator);
         Assert.Equal(0, cap.PerTransactionMinorUnits);
         Assert.Equal(0, cap.DailyMinorUnits);
     }
 
     [Theory]
-    [InlineData(StaffRoleNames.Owner)]
-    [InlineData(StaffRoleNames.BranchManager)]
+    [InlineData(OrganizationRoleNames.OrganizationOwner)]
+    [InlineData(OrganizationRoleNames.BranchManager)]
     [InlineData("some_unknown_role")]
     public void Default_UncappedRoles_AreUnlimited(string roleName)
     {

@@ -7,9 +7,9 @@ import type { OperatorAuthSession } from './authClient';
 const makeSession = (permissions: string[]) => ({ permissions } as unknown as OperatorAuthSession);
 
 // Менеджер: видит зал, брони, клиентов + управление (открывает management).
-const managerPerms = ['floor_map.view', 'reservations.view', 'players.view', 'identity.branch_staff.manage'];
+const managerPerms = ['organization.floor_map.view', 'organization.reservations.view', 'organization.players.view', 'organization.identity.branch_staff.manage'];
 // Кассир: только создание продаж — открывает pos/shop_orders, но НЕ management.
-const cashierPerms = ['pos.sales.create'];
+const cashierPerms = ['organization.pos.sales.create'];
 
 function renderPalette(perms: string[], handlers: { onNavigate?: (id: string) => void; onClose?: () => void } = {}) {
   const onNavigate = handlers.onNavigate ?? mock(() => {});

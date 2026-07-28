@@ -27,7 +27,7 @@ public sealed class ClubBillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         await SeedSubscriptionAsync(factory);
 
         var subscription = await client.GetFromJsonAsync<TenantSubscriptionDto>(
@@ -42,7 +42,7 @@ public sealed class ClubBillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         await SeedSubscriptionAsync(factory);
 
         var response = await client.GetAsync($"/api/organizations/{Guid.NewGuid():D}/subscription");
@@ -55,7 +55,7 @@ public sealed class ClubBillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
         var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/subscription");
 
@@ -67,7 +67,7 @@ public sealed class ClubBillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         await SeedSubscriptionAsync(factory);
         await SeedInvoiceAsync(factory);
 
@@ -94,7 +94,7 @@ public sealed class ClubBillingEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         await SeedSubscriptionAsync(factory);
 
         var response = await client.GetAsync($"/api/organizations/{Guid.NewGuid():D}/invoices");

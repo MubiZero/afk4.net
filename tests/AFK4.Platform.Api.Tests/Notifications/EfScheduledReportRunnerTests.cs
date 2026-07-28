@@ -40,7 +40,7 @@ public sealed class EfScheduledReportRunnerTests
         db.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
         {
             StaffRoleAssignmentId = Guid.NewGuid(), StaffUserId = ownerId,
-            OrganizationId = OrgId, BranchId = BranchId, RoleName = StaffRoleNames.Owner
+            OrganizationId = OrgId, BranchId = BranchId, RoleName = OrganizationRoleNames.OrganizationOwner
         });
         await db.SaveChangesAsync();
     }

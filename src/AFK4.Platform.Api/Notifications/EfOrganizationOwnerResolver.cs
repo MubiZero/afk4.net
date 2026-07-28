@@ -12,7 +12,7 @@ public sealed class EfOrganizationOwnerResolver(PlatformDbContext dbContext) : I
             from assignment in dbContext.StaffRoleAssignments
             join staff in dbContext.StaffUsers on assignment.StaffUserId equals staff.StaffUserId
             where assignment.OrganizationId == organizationId
-                && assignment.RoleName == StaffRoleNames.Owner
+                && assignment.RoleName == OrganizationRoleNames.OrganizationOwner
                 && staff.IsActive
                 && staff.Email != null
             select staff)

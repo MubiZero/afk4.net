@@ -8,7 +8,7 @@ describe('systemStatusModel', () => {
   it('projects real roles and independent realtime/server states', () => {
     const model = buildSystemStatusModel({
       operatorName: 'Иванов И.И.',
-      roleNames: ['cashier_operator', 'shift_supervisor'],
+      roleNames: ['operator', 'shift_supervisor'],
       clubName: 'Арена',
       realtimeState: 'connected',
       dataSource: 'backend',
@@ -17,7 +17,7 @@ describe('systemStatusModel', () => {
 
     expect(model.left.map((field) => field.value)).toEqual([
       'Иванов И.И.',
-      'Кассир-оператор, Старший смены',
+      'Оператор, Старший смены',
       'Арена'
     ]);
     expect(model.connection.tone).toBe('ok');

@@ -21,7 +21,7 @@ function renderSales(permissions: string[]) {
 
 describe('CashSalesWorkspace', () => {
   it('полные права POS: лента заказов и POS на одном экране, без переключателя', () => {
-    renderSales(['pos.sales.create', 'pos.sales.pay', 'pos.sales.refund', 'pos.sales.void']);
+    renderSales(['organization.pos.sales.create', 'organization.pos.sales.pay', 'organization.pos.sales.refund', 'organization.pos.sales.void']);
     // POS встроен.
     expect(document.querySelector('section.pos-embed')).not.toBeNull();
     expect(screen.getByText('Каталог')).toBeInTheDocument();
@@ -32,7 +32,7 @@ describe('CashSalesWorkspace', () => {
   });
 
   it('только pay (без create): лента заказов скрыта, POS отрисован', () => {
-    renderSales(['pos.sales.pay']);
+    renderSales(['organization.pos.sales.pay']);
     expect(document.querySelector('section.pos-embed')).not.toBeNull();
     expect(document.querySelector('section.pos-orders-ticker')).toBeNull();
   });

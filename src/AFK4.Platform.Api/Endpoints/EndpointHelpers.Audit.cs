@@ -78,11 +78,11 @@ internal static partial class EndpointHelpers
         {
             case MoneyActionTypeNames.Refund:
                 requestedType = MoneyActionType.Refund;
-                requiredPermission = StaffPermissionNames.RefundLedgerEntry;
+                requiredPermission = OrganizationPermissionNames.RefundLedgerEntry;
                 return true;
             case MoneyActionTypeNames.ManualCorrection:
                 requestedType = MoneyActionType.ManualCorrection;
-                requiredPermission = StaffPermissionNames.ManualLedgerCorrection;
+                requiredPermission = OrganizationPermissionNames.ManualLedgerCorrection;
                 return true;
             default:
                 requestedType = default;

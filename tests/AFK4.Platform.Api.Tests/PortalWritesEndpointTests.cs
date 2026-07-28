@@ -400,7 +400,7 @@ public class PortalWritesEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var (p, intentId) = await SeedFulfilScenarioAsync(factory);
         await SeedOpenShiftAsync(factory, TestIds.OrganizationId, TestIds.BranchId);
 
@@ -428,7 +428,7 @@ public class PortalWritesEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var (p, intentId) = await SeedFulfilScenarioAsync(factory, state: "pending");
         await SeedOpenShiftAsync(factory, TestIds.OrganizationId, TestIds.BranchId);
 
@@ -451,7 +451,7 @@ public class PortalWritesEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         var (_, intentId) = await SeedFulfilScenarioAsync(factory, state: "pending", createdHoursAgo: 25);
         await SeedOpenShiftAsync(factory, TestIds.OrganizationId, TestIds.BranchId);
 
@@ -467,7 +467,7 @@ public class PortalWritesEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PostAsJsonAsync(
             $"/api/wallet/top-up-intents/{Guid.NewGuid()}/fulfil",
@@ -481,7 +481,7 @@ public class PortalWritesEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var (_, intentId) = await SeedFulfilScenarioAsync(factory);
 
         var response = await client.PostAsJsonAsync(

@@ -18,9 +18,9 @@ public sealed class SettingsWorkspaceViewModelTests
     {
         var permissions = new HashSet<string>
         {
-            StaffPermissionNames.ViewDeviceDetail,
-            StaffPermissionNames.ManageInventoryStock,
-            StaffPermissionNames.ManagePosCatalog
+            OrganizationPermissionNames.ViewDeviceDetail,
+            OrganizationPermissionNames.ManageInventoryStock,
+            OrganizationPermissionNames.ManagePosCatalog
         };
 
         var viewModel = new SettingsWorkspaceViewModel(permissions);
@@ -36,13 +36,13 @@ public sealed class SettingsWorkspaceViewModelTests
     {
         var permissions = new HashSet<string>
         {
-            StaffPermissionNames.ViewDeviceDetail,
-            StaffPermissionNames.ManageInventoryStock,
-            StaffPermissionNames.ManagePosCatalog,
-            StaffPermissionNames.ManageTariffs,
-            StaffPermissionNames.ManagePackages,
-            StaffPermissionNames.ManageRoles,
-            StaffPermissionNames.ViewAudit
+            OrganizationPermissionNames.ViewDeviceDetail,
+            OrganizationPermissionNames.ManageInventoryStock,
+            OrganizationPermissionNames.ManagePosCatalog,
+            OrganizationPermissionNames.ManageTariffs,
+            OrganizationPermissionNames.ManagePackages,
+            OrganizationPermissionNames.ManageRoles,
+            OrganizationPermissionNames.ViewAudit
         };
 
         var viewModel = new SettingsWorkspaceViewModel(permissions);
@@ -56,7 +56,7 @@ public sealed class SettingsWorkspaceViewModelTests
     {
         var updateStatus = new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient());
         var viewModel = new SettingsWorkspaceViewModel(
-            new HashSet<string> { StaffPermissionNames.ViewUpdateStatus },
+            new HashSet<string> { OrganizationPermissionNames.ViewUpdateStatus },
             technicianTools: null,
             updateStatus);
 
@@ -70,7 +70,7 @@ public sealed class SettingsWorkspaceViewModelTests
     {
         var updateStatus = new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient());
         var viewModel = new SettingsWorkspaceViewModel(
-            new HashSet<string> { StaffPermissionNames.ManageUpdatePackages },
+            new HashSet<string> { OrganizationPermissionNames.ManageUpdatePackages },
             technicianTools: null,
             updateStatus);
 
@@ -84,7 +84,7 @@ public sealed class SettingsWorkspaceViewModelTests
     {
         var auditSearch = new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient());
         var viewModel = new SettingsWorkspaceViewModel(
-            new HashSet<string> { StaffPermissionNames.ViewAudit },
+            new HashSet<string> { OrganizationPermissionNames.ViewAudit },
             technicianTools: null,
             updateStatus: null,
             auditSearch: auditSearch);
@@ -99,7 +99,7 @@ public sealed class SettingsWorkspaceViewModelTests
     {
         var diagnostics = new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient());
         var viewModel = new SettingsWorkspaceViewModel(
-            new HashSet<string> { StaffPermissionNames.ViewDiagnostics },
+            new HashSet<string> { OrganizationPermissionNames.ViewDiagnostics },
             technicianTools: null,
             updateStatus: null,
             auditSearch: null,
@@ -115,7 +115,7 @@ public sealed class SettingsWorkspaceViewModelTests
     {
         var pilotSetup = new PilotSetupWorkspaceViewModel(new UnconfiguredOperatorPilotSetupApiClient());
         var viewModel = new SettingsWorkspaceViewModel(
-            new HashSet<string> { StaffPermissionNames.ManageBranchStaff },
+            new HashSet<string> { OrganizationPermissionNames.ManageBranchStaff },
             technicianTools: null,
             updateStatus: null,
             auditSearch: null,
@@ -128,11 +128,11 @@ public sealed class SettingsWorkspaceViewModelTests
     }
 
     [Theory]
-    [InlineData(StaffPermissionNames.ManageBranchStaff, true, false, false, false, false)]
-    [InlineData(StaffPermissionNames.ManageLayout, false, true, false, false, false)]
-    [InlineData(StaffPermissionNames.ManageTariffs, false, false, true, false, false)]
-    [InlineData(StaffPermissionNames.ManagePosCatalog, false, false, false, true, false)]
-    [InlineData(StaffPermissionNames.AssignDeviceSeat, false, false, false, false, true)]
+    [InlineData(OrganizationPermissionNames.ManageBranchStaff, true, false, false, false, false)]
+    [InlineData(OrganizationPermissionNames.ManageLayout, false, true, false, false, false)]
+    [InlineData(OrganizationPermissionNames.ManageTariffs, false, false, true, false, false)]
+    [InlineData(OrganizationPermissionNames.ManagePosCatalog, false, false, false, true, false)]
+    [InlineData(OrganizationPermissionNames.AssignDeviceSeat, false, false, false, false, true)]
     public void SettingsWorkspace_Constructor_ForwardsPilotSetupPermissions(
         string permission,
         bool canSetupStaff,
@@ -163,7 +163,7 @@ public sealed class SettingsWorkspaceViewModelTests
     {
         var technicianTools = new TechnicianDeviceWorkflowViewModel(new UnconfiguredOperatorDeviceApiClient());
         var viewModel = new SettingsWorkspaceViewModel(
-            new HashSet<string> { StaffPermissionNames.RotateDeviceCredential },
+            new HashSet<string> { OrganizationPermissionNames.RotateDeviceCredential },
             technicianTools);
 
         Assert.True(viewModel.HasTechnicianTools);
@@ -179,7 +179,7 @@ public sealed class SettingsWorkspaceViewModelTests
         var auditSearch = new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient());
         var diagnostics = new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient());
         var viewModel = new SettingsWorkspaceViewModel(
-            new HashSet<string> { StaffPermissionNames.ViewDeviceDetail },
+            new HashSet<string> { OrganizationPermissionNames.ViewDeviceDetail },
             technicianTools,
             updateStatus,
             auditSearch,
@@ -204,7 +204,7 @@ public sealed class SettingsWorkspaceViewModelTests
     {
         var pilotSetup = new PilotSetupWorkspaceViewModel(new UnconfiguredOperatorPilotSetupApiClient());
         var viewModel = new SettingsWorkspaceViewModel(
-            new HashSet<string> { StaffPermissionNames.ManageLayout },
+            new HashSet<string> { OrganizationPermissionNames.ManageLayout },
             technicianTools: null,
             updateStatus: null,
             auditSearch: null,
@@ -214,7 +214,7 @@ public sealed class SettingsWorkspaceViewModelTests
         viewModel.ApplyContext(
             OrganizationId,
             BranchId,
-            new HashSet<string> { StaffPermissionNames.ManageLayout });
+            new HashSet<string> { OrganizationPermissionNames.ManageLayout });
 
         Assert.Equal(OrganizationId.ToString("D"), pilotSetup.OrganizationIdText);
         Assert.Equal(BranchId.ToString("D"), pilotSetup.BranchIdText);

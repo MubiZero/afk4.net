@@ -19,7 +19,7 @@ public sealed class OperatorAuthApiClientTests
         var response = CreateAuthResponse(
             accessToken: "access-token",
             refreshToken: "refresh-token",
-            permissions: [StaffPermissionNames.ViewFloorMap]);
+            permissions: [OrganizationPermissionNames.ViewFloorMap]);
         var handler = new RecordingHttpMessageHandler(_ => JsonContentResponse(response));
         var tokenStore = new RecordingOperatorTokenStore();
         var client = new HttpOperatorAuthApiClient(new HttpClient(handler)
@@ -37,8 +37,8 @@ public sealed class OperatorAuthApiClientTests
         Assert.Equal("/api/auth/staff/sign-in", handler.LastPathAndQuery);
         Assert.Equal("access-token", tokenStore.SavedSnapshot?.AccessToken);
         Assert.Equal("refresh-token", tokenStore.SavedSnapshot?.RefreshToken);
-        Assert.Equal(["cashier_operator"], tokenStore.SavedSnapshot?.RoleNames);
-        Assert.Contains(StaffPermissionNames.ViewFloorMap, result.Permissions);
+        Assert.Equal(["operator"], tokenStore.SavedSnapshot?.RoleNames);
+        Assert.Contains(OrganizationPermissionNames.ViewFloorMap, result.Permissions);
 
         var body = DeserializeRequest<StaffSignInRequest>(handler.LastRequestBody);
         Assert.Equal(OrganizationId, body.OrganizationId);
@@ -52,7 +52,7 @@ public sealed class OperatorAuthApiClientTests
         var response = CreateAuthResponse(
             accessToken: "rotated-access-token",
             refreshToken: "rotated-refresh-token",
-            permissions: [StaffPermissionNames.ViewFloorMap, StaffPermissionNames.ViewShift]);
+            permissions: [OrganizationPermissionNames.ViewFloorMap, OrganizationPermissionNames.ViewShift]);
         var handler = new RecordingHttpMessageHandler(_ => JsonContentResponse(response));
         var tokenStore = new RecordingOperatorTokenStore
         {
@@ -75,7 +75,7 @@ public sealed class OperatorAuthApiClientTests
         Assert.Equal("/api/auth/staff/refresh", handler.LastPathAndQuery);
         Assert.Equal("rotated-access-token", tokenStore.SavedSnapshot?.AccessToken);
         Assert.Equal("rotated-refresh-token", tokenStore.SavedSnapshot?.RefreshToken);
-        Assert.Contains(StaffPermissionNames.ViewShift, result.Permissions);
+        Assert.Contains(OrganizationPermissionNames.ViewShift, result.Permissions);
 
         var body = DeserializeRequest<StaffRefreshTokenRequest>(handler.LastRequestBody);
         Assert.Equal(OrganizationId, body.OrganizationId);
@@ -98,7 +98,7 @@ public sealed class OperatorAuthApiClientTests
             [BranchId],
             permissions)
         {
-            RoleNames = ["cashier_operator"]
+            RoleNames = ["operator"]
         };
     }
 

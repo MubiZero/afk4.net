@@ -22,7 +22,7 @@ public sealed class SetupWizardApiClientTests
         var expected = new StaffSignInResponse(
             Guid.NewGuid(), Guid.NewGuid(), "Сотрудник", "access-123",
             DateTimeOffset.UnixEpoch.AddHours(8), "refresh-123", DateTimeOffset.UnixEpoch.AddDays(30),
-            new[] { Guid.NewGuid() }, new[] { "devices.install" });
+            new[] { Guid.NewGuid() }, new[] { "organization.devices.install" });
         var handler = new RecordingHandler(_ => JsonResponse(expected));
         var client = CreateClient(handler);
 
@@ -54,7 +54,7 @@ public sealed class SetupWizardApiClientTests
         var expected = new StaffSignInResponse(
             Guid.NewGuid(), OrganizationId, "Сотрудник", "access-123",
             DateTimeOffset.UnixEpoch.AddHours(8), "refresh-123", DateTimeOffset.UnixEpoch.AddDays(30),
-            new[] { Guid.NewGuid() }, new[] { "devices.install" });
+            new[] { Guid.NewGuid() }, new[] { "organization.devices.install" });
         var handler = new RecordingHandler(_ => JsonResponse(expected));
         var client = CreateClient(handler);
 
@@ -95,7 +95,7 @@ public sealed class SetupWizardApiClientTests
         var expected = new StaffSignInResponse(
             Guid.NewGuid(), OrganizationId, "Сотрудник", "access-123",
             DateTimeOffset.UnixEpoch.AddHours(8), "refresh-123", DateTimeOffset.UnixEpoch.AddDays(30),
-            new[] { Guid.NewGuid() }, new[] { "devices.install" });
+            new[] { Guid.NewGuid() }, new[] { "organization.devices.install" });
         var handler = new RecordingHandler(_ => JsonResponse(expected));
         var client = CreateClient(handler);
 

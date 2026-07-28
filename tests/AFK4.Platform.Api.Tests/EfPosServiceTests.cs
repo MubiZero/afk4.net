@@ -753,7 +753,7 @@ public sealed class EfPosServiceTests
         db.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
         {
             StaffRoleAssignmentId = Guid.NewGuid(), StaffUserId = ownerId,
-            OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, RoleName = StaffRoleNames.Owner
+            OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, RoleName = OrganizationRoleNames.OrganizationOwner
         });
         db.Branches.Add(new BranchEntity { BranchId = TestIds.BranchId, OrganizationId = TestIds.OrganizationId, Name = "Central", CreatedAtUtc = Now });
         await db.SaveChangesAsync();

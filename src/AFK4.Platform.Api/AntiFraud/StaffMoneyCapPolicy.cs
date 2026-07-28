@@ -23,8 +23,8 @@ public static class StaffMoneyCapPolicy
     /// <summary>D4/D5 defaults. Roles not listed are unlimited (Owner/BranchManager are the approvers).</summary>
     public static RoleMoneyCap DefaultForRole(string roleName) => roleName switch
     {
-        StaffRoleNames.ShiftSupervisor => new RoleMoneyCap(PerTransactionMinorUnits: null, DailyMinorUnits: 20000),
-        StaffRoleNames.CashierOperator => new RoleMoneyCap(PerTransactionMinorUnits: 0, DailyMinorUnits: 0),
+        OrganizationRoleNames.ShiftSupervisor => new RoleMoneyCap(PerTransactionMinorUnits: null, DailyMinorUnits: 20000),
+        OrganizationRoleNames.Operator => new RoleMoneyCap(PerTransactionMinorUnits: 0, DailyMinorUnits: 0),
         _ => RoleMoneyCap.Unlimited,
     };
 

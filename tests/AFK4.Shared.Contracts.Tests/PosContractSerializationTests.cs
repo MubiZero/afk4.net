@@ -180,12 +180,12 @@ public sealed class PosContractSerializationTests
     }
 
     [Fact]
-    public void StaffPermissionNames_ExposePosPermissions()
+    public void OrganizationPermissionNames_ExposePosPermissions()
     {
-        Assert.Equal("pos.catalog.manage", StaffPermissionNames.ManagePosCatalog);
-        Assert.Equal("pos.sales.create", StaffPermissionNames.CreatePosSale);
-        Assert.Equal("pos.sales.pay", StaffPermissionNames.PayPosSale);
-        Assert.Equal("pos.sales.refund", StaffPermissionNames.RefundPosSale);
-        Assert.Equal("pos.sales.void", StaffPermissionNames.VoidPosSale);
+        Assert.Equal("organization.pos.catalog.manage", OrganizationPermissionNames.ManagePosCatalog);
+        Assert.Equal("organization.pos.sales.create", OrganizationPermissionNames.CreatePosSale);
+        Assert.Equal("organization.pos.sales.pay", OrganizationPermissionNames.PayPosSale);
+        Assert.Equal("organization.pos.sales.refund", OrganizationPermissionNames.RefundPosSale);
+        Assert.Equal("organization.pos.sales.void", OrganizationPermissionNames.VoidPosSale);
     }
 }

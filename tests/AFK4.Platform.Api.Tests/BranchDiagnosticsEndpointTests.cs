@@ -27,7 +27,7 @@ public sealed class BranchDiagnosticsEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/diagnostics");
 
@@ -45,7 +45,7 @@ public sealed class BranchDiagnosticsEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedDiagnosticsDataAsync(factory);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/diagnostics");
@@ -70,7 +70,7 @@ public sealed class BranchDiagnosticsEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.AccountantAuditor);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Accountant);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/diagnostics");
 

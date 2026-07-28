@@ -80,8 +80,8 @@ public sealed class DiagnosticsContractSerializationTests
     }
 
     [Fact]
-    public void StaffPermissionNames_ExposeDiagnosticsPermission()
+    public void OrganizationPermissionNames_ExposeDiagnosticsPermission()
     {
-        Assert.Equal("diagnostics.view", StaffPermissionNames.ViewDiagnostics);
+        Assert.Equal("organization.diagnostics.view", OrganizationPermissionNames.ViewDiagnostics);
     }
 }

@@ -32,13 +32,13 @@ function backendWith(permissions: string[]) {
 describe('ReportsWorkspace', () => {
   it('renders first allowed destination (overview) by default', async () => {
     const { ReportsWorkspace } = await import('./ReportsWorkspace');
-    render(<I18nProvider initialLocale="ru"><ReportsWorkspace backend={backendWith(['reports.view'])} currencyCode="TJS" onNavigate={() => {}} onOpenSeat={() => {}} /></I18nProvider>);
+    render(<I18nProvider initialLocale="ru"><ReportsWorkspace backend={backendWith(['organization.reports.view'])} currencyCode="TJS" onNavigate={() => {}} onOpenSeat={() => {}} /></I18nProvider>);
     expect(screen.getByText('OVERVIEW')).toBeInTheDocument();
   });
 
   it('shows only journal when session has audit.view alone', async () => {
     const { ReportsWorkspace } = await import('./ReportsWorkspace');
-    render(<I18nProvider initialLocale="ru"><ReportsWorkspace backend={backendWith(['audit.view'])} currencyCode="TJS" onNavigate={() => {}} onOpenSeat={() => {}} /></I18nProvider>);
+    render(<I18nProvider initialLocale="ru"><ReportsWorkspace backend={backendWith(['organization.audit.view'])} currencyCode="TJS" onNavigate={() => {}} onOpenSeat={() => {}} /></I18nProvider>);
     expect(screen.getByText('JOURNAL')).toBeInTheDocument();
     expect(screen.queryByText('OVERVIEW')).not.toBeInTheDocument();
   });

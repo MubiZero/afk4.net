@@ -38,7 +38,7 @@ function startBackend(): OperatorBackendContext {
       accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z', refreshToken: 'refresh-token',
       refreshTokenExpiresAtUtc: '2026-07-16T00:00:00Z',
       branchIds: ['branch-1'], activeBranchId: 'branch-1',
-      permissions: ['reservations.view', 'reservations.manage', 'sessions.start', 'sessions.view', 'tariffs.view', 'billing.view']
+      permissions: ['organization.reservations.view', 'organization.reservations.manage', 'organization.sessions.start', 'organization.sessions.view', 'organization.tariffs.view', 'organization.billing.view']
     }
   };
 }
@@ -201,7 +201,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
         refreshTokenExpiresAtUtc: '2026-07-16T00:00:00Z',
         branchIds: ['branch-1'],
         activeBranchId: 'branch-1',
-        permissions: ['reservations.view', 'reservations.manage']
+        permissions: ['organization.reservations.view', 'organization.reservations.manage']
       }
     };
 
@@ -269,7 +269,7 @@ describe('BackendBookingWorkspace modifier draft transitions', () => {
         accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z', refreshToken: 'refresh-token',
         refreshTokenExpiresAtUtc: '2026-07-16T00:00:00Z',
         branchIds: ['branch-1'], activeBranchId: 'branch-1',
-        permissions: ['reservations.view', 'reservations.manage', 'sessions.start', 'sessions.view', 'tariffs.view', 'billing.view']
+        permissions: ['organization.reservations.view', 'organization.reservations.manage', 'organization.sessions.start', 'organization.sessions.view', 'organization.tariffs.view', 'organization.billing.view']
       }
     };
     const onOpenSeat = mock(() => {});

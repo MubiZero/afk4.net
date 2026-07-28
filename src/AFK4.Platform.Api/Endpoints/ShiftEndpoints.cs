@@ -85,7 +85,7 @@ internal static class ShiftEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.OpenShift,
+                OrganizationPermissionNames.OpenShift,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -149,7 +149,7 @@ internal static class ShiftEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewShift,
+                OrganizationPermissionNames.ViewShift,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -187,7 +187,7 @@ internal static class ShiftEndpoints
                 staffContextAccessor,
                 authorizationService,
                 shiftId,
-                StaffPermissionNames.ManageShiftCash,
+                OrganizationPermissionNames.ManageShiftCash,
                 cancellationToken);
             if (shift.Result is not null)
             {
@@ -250,7 +250,7 @@ internal static class ShiftEndpoints
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId, StaffPermissionNames.ViewReports, cancellationToken);
+                branchId, OrganizationPermissionNames.ViewReports, cancellationToken);
 
             if (!authorization.IsAuthenticated)
             {
@@ -278,7 +278,7 @@ internal static class ShiftEndpoints
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId, StaffPermissionNames.ViewReports, cancellationToken);
+                branchId, OrganizationPermissionNames.ViewReports, cancellationToken);
 
             if (!authorization.IsAuthenticated)
             {
@@ -312,7 +312,7 @@ internal static class ShiftEndpoints
                 staffContextAccessor,
                 authorizationService,
                 shiftId,
-                StaffPermissionNames.CloseShift,
+                OrganizationPermissionNames.CloseShift,
                 cancellationToken);
             if (shift.Result is not null)
             {

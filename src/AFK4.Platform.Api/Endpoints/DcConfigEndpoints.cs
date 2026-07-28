@@ -19,7 +19,7 @@ internal static class DcConfigEndpoints
             PlatformDbContext db,
             CancellationToken ct) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ManagePaymentGateways);
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ManagePaymentGateways);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 
@@ -45,7 +45,7 @@ internal static class DcConfigEndpoints
             PlatformDbContext db,
             CancellationToken ct) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ManagePaymentGateways);
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ManagePaymentGateways);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 

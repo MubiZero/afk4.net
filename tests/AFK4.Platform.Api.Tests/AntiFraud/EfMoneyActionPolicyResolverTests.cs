@@ -23,7 +23,7 @@ public sealed class EfMoneyActionPolicyResolverTests
         await SeedBranchAsync(db);
         var resolver = CreateResolver(db);
 
-        var assessment = await Assess(resolver, [StaffRoleNames.ShiftSupervisor], amount: -4000);
+        var assessment = await Assess(resolver, [OrganizationRoleNames.ShiftSupervisor], amount: -4000);
 
         Assert.Equal(MoneyActionDecision.ExecuteNow, assessment.Decision);
         Assert.Equal(4000, assessment.AmountMinorUnits);
@@ -36,7 +36,7 @@ public sealed class EfMoneyActionPolicyResolverTests
         await SeedBranchAsync(db);
         var resolver = CreateResolver(db);
 
-        var assessment = await Assess(resolver, [StaffRoleNames.ShiftSupervisor], amount: -6000);
+        var assessment = await Assess(resolver, [OrganizationRoleNames.ShiftSupervisor], amount: -6000);
 
         Assert.Equal(MoneyActionDecision.RequireApproval, assessment.Decision);
     }
@@ -50,7 +50,7 @@ public sealed class EfMoneyActionPolicyResolverTests
         var resolver = CreateResolver(db);
 
         // 18000 already spent + 3000 > 20000 daily cap.
-        var assessment = await Assess(resolver, [StaffRoleNames.ShiftSupervisor], amount: -3000);
+        var assessment = await Assess(resolver, [OrganizationRoleNames.ShiftSupervisor], amount: -3000);
 
         Assert.Equal(MoneyActionDecision.Reject, assessment.Decision);
         Assert.Equal(18000, assessment.SpentTodayMinorUnits);
@@ -63,7 +63,7 @@ public sealed class EfMoneyActionPolicyResolverTests
         await SeedBranchAsync(db);
         var resolver = CreateResolver(db);
 
-        var assessment = await Assess(resolver, [StaffRoleNames.CashierOperator], amount: -1000);
+        var assessment = await Assess(resolver, [OrganizationRoleNames.Operator], amount: -1000);
 
         Assert.Equal(MoneyActionDecision.Reject, assessment.Decision);
     }
@@ -75,7 +75,7 @@ public sealed class EfMoneyActionPolicyResolverTests
         await SeedBranchAsync(db);
         var resolver = CreateResolver(db);
 
-        var assessment = await Assess(resolver, [StaffRoleNames.Owner], amount: -999_999);
+        var assessment = await Assess(resolver, [OrganizationRoleNames.OrganizationOwner], amount: -999_999);
 
         Assert.Equal(MoneyActionDecision.RequireApproval, assessment.Decision);
     }
@@ -87,7 +87,7 @@ public sealed class EfMoneyActionPolicyResolverTests
         await SeedBranchAsync(db, approvalThreshold: 10000);
         var resolver = CreateResolver(db);
 
-        var assessment = await Assess(resolver, [StaffRoleNames.ShiftSupervisor], amount: -6000);
+        var assessment = await Assess(resolver, [OrganizationRoleNames.ShiftSupervisor], amount: -6000);
 
         Assert.Equal(MoneyActionDecision.ExecuteNow, assessment.Decision);
     }
@@ -100,7 +100,7 @@ public sealed class EfMoneyActionPolicyResolverTests
         var resolver = CreateResolver(db);
 
         var assessment = await resolver.AssessAsync(
-            TestIds.OrganizationId, TestIds.BranchId, ActorStaffUserId, [StaffRoleNames.ShiftSupervisor],
+            TestIds.OrganizationId, TestIds.BranchId, ActorStaffUserId, [OrganizationRoleNames.ShiftSupervisor],
             MoneyActionType.ManualCorrection, LedgerAccountTypeNames.Debt, signedAmountMinorUnits: -4000,
             CancellationToken.None);
 
@@ -118,7 +118,7 @@ public sealed class EfMoneyActionPolicyResolverTests
         await SeedHighRiskEntryAsync(db, OtherStaffUserId, LedgerEntryTypeNames.Refund, -7000); // other actor
         var resolver = CreateResolver(db);
 
-        var assessment = await Assess(resolver, [StaffRoleNames.ShiftSupervisor], amount: -1000);
+        var assessment = await Assess(resolver, [OrganizationRoleNames.ShiftSupervisor], amount: -1000);
 
         Assert.Equal(7000, assessment.SpentTodayMinorUnits); // 5000 + 2000 only
     }
@@ -135,7 +135,7 @@ public sealed class EfMoneyActionPolicyResolverTests
         await SeedCompAuditAsync(db, OtherStaffUserId, 9000, Now); // other actor → excluded
         var resolver = CreateResolver(db);
 
-        var assessment = await Assess(resolver, [StaffRoleNames.ShiftSupervisor], amount: -1000);
+        var assessment = await Assess(resolver, [OrganizationRoleNames.ShiftSupervisor], amount: -1000);
 
         Assert.Equal(7000, assessment.SpentTodayMinorUnits); // 3000 ledger + 4000 comp
     }

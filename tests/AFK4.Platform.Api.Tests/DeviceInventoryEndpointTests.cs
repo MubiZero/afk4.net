@@ -28,7 +28,7 @@ public sealed class DeviceInventoryEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedDevicesAsync(factory);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/devices");
@@ -41,7 +41,7 @@ public sealed class DeviceInventoryEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedDevicesAsync(factory);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/devices");

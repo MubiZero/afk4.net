@@ -85,7 +85,7 @@ internal static class PackageEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManagePackages,
+                OrganizationPermissionNames.ManagePackages,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -152,7 +152,7 @@ internal static class PackageEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManagePackages,
+                OrganizationPermissionNames.ManagePackages,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -218,7 +218,7 @@ internal static class PackageEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewPackages,
+                OrganizationPermissionNames.ViewPackages,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -266,7 +266,7 @@ internal static class PackageEndpoints
                 staffContextAccessor,
                 authorizationService,
                 playerAccountId,
-                StaffPermissionNames.PurchasePackage,
+                OrganizationPermissionNames.PurchasePackage,
                 cancellationToken);
             if (player.Result is not null)
             {
@@ -341,7 +341,7 @@ internal static class PackageEndpoints
                 staffContextAccessor,
                 authorizationService,
                 playerAccountId,
-                StaffPermissionNames.ViewBilling,
+                OrganizationPermissionNames.ViewBilling,
                 cancellationToken);
             if (player.Result is not null)
             {

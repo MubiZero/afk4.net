@@ -157,7 +157,7 @@ public sealed class OpaqueStaffTokenService(
             .GroupBy(role => role.BranchId)
             .ToDictionary(
                 g => g.Key,
-                g => (IReadOnlySet<string>)PermissionCatalog
+                g => (IReadOnlySet<string>)OrganizationPermissionCatalog
                     .GetPermissions(g.Select(r => r.RoleName).Distinct(StringComparer.OrdinalIgnoreCase))
                     .ToHashSet(StringComparer.OrdinalIgnoreCase));
 
@@ -166,7 +166,7 @@ public sealed class OpaqueStaffTokenService(
             OrganizationId: user.OrganizationId,
             DisplayName: user.DisplayName,
             BranchIds: byBranch.Keys.ToHashSet(),
-            Permissions: PermissionCatalog.GetPermissions(roleNames)
+            Permissions: OrganizationPermissionCatalog.GetPermissions(roleNames)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase))
         {
             RoleNames = roleNames,

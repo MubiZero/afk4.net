@@ -26,8 +26,8 @@ public sealed class ReservationEndpointTests
     {
         var coordinator = new StubReservationSessionCoordinator(StartSuccess());
         await using var factory = CreateStartFactory(coordinator, StaffContextWithPermissions(
-            StaffPermissionNames.ManageReservations,
-            StaffPermissionNames.StartSession));
+            OrganizationPermissionNames.ManageReservations,
+            OrganizationPermissionNames.StartSession));
         using var client = factory.CreateClient();
         var reservation = await SeedReservationAsync(factory);
 
@@ -40,8 +40,8 @@ public sealed class ReservationEndpointTests
     }
 
     [Theory]
-    [InlineData(StaffPermissionNames.ManageReservations)]
-    [InlineData(StaffPermissionNames.StartSession)]
+    [InlineData(OrganizationPermissionNames.ManageReservations)]
+    [InlineData(OrganizationPermissionNames.StartSession)]
     public async Task StartReservationSession_RequiresReservationManagementAndSessionStartPermissions(
         string grantedPermission)
     {
@@ -70,8 +70,8 @@ public sealed class ReservationEndpointTests
     {
         var coordinator = new StubReservationSessionCoordinator(StartSuccess());
         var foreignContext = StaffContextWithPermissions(
-            StaffPermissionNames.ManageReservations,
-            StaffPermissionNames.StartSession) with { OrganizationId = Guid.NewGuid() };
+            OrganizationPermissionNames.ManageReservations,
+            OrganizationPermissionNames.StartSession) with { OrganizationId = Guid.NewGuid() };
         await using var factory = CreateStartFactory(coordinator, foreignContext);
         using var client = AuthorizedClient(factory);
         var reservation = await SeedReservationAsync(factory);
@@ -89,8 +89,8 @@ public sealed class ReservationEndpointTests
     {
         var coordinator = new StubReservationSessionCoordinator(StartSuccess());
         var staff = StaffContextWithPermissions(
-            StaffPermissionNames.ManageReservations,
-            StaffPermissionNames.StartSession) with { BranchIds = new HashSet<Guid>() };
+            OrganizationPermissionNames.ManageReservations,
+            OrganizationPermissionNames.StartSession) with { BranchIds = new HashSet<Guid>() };
         await using var factory = CreateStartFactory(coordinator, staff);
         using var client = AuthorizedClient(factory);
         var reservation = await SeedReservationAsync(factory);
@@ -122,8 +122,8 @@ public sealed class ReservationEndpointTests
         };
         var coordinator = new StubReservationSessionCoordinator(result);
         await using var factory = CreateStartFactory(coordinator, StaffContextWithPermissions(
-            StaffPermissionNames.ManageReservations,
-            StaffPermissionNames.StartSession));
+            OrganizationPermissionNames.ManageReservations,
+            OrganizationPermissionNames.StartSession));
         using var client = AuthorizedClient(factory);
         var reservation = await SeedReservationAsync(factory);
 
@@ -144,9 +144,9 @@ public sealed class ReservationEndpointTests
     {
         var coordinator = new StubReservationSessionCoordinator(StartSuccess());
         var staff = StaffContextWithPermissions(
-            StaffPermissionNames.ManageReservations,
-            StaffPermissionNames.StartSession,
-            StaffPermissionNames.ApproveMoneyAction);
+            OrganizationPermissionNames.ManageReservations,
+            OrganizationPermissionNames.StartSession,
+            OrganizationPermissionNames.ApproveMoneyAction);
         await using var factory = CreateStartFactory(coordinator, staff);
         using var client = AuthorizedClient(factory);
         var reservation = await SeedReservationAsync(factory);
@@ -189,7 +189,7 @@ public sealed class ReservationEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId}/reservations");
 
@@ -207,7 +207,7 @@ public sealed class ReservationEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedLayoutAsync(factory);
 
         var createResponse = await client.PostAsJsonAsync(
@@ -322,7 +322,7 @@ public sealed class ReservationEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedLayoutAsync(factory);
         var current = await SeedReservationAsync(factory);
 
@@ -380,7 +380,7 @@ public sealed class ReservationEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedLayoutAsync(factory);
 
         var first = await client.PostAsJsonAsync(

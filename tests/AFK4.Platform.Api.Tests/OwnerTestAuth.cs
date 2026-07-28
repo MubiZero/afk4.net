@@ -10,7 +10,7 @@ internal static class OwnerTestAuth
     public static async Task<(Guid OrganizationId, HttpClient Client)> SignInOwnerAsync(
         PlatformApiFactory factory, HttpClient client)
     {
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         return (TestIds.OrganizationId, client);
     }
 
@@ -18,7 +18,7 @@ internal static class OwnerTestAuth
     public static async Task<HttpClient> SignInNonOwnerAsync(
         PlatformApiFactory factory, HttpClient client)
     {
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         return client;
     }
 }

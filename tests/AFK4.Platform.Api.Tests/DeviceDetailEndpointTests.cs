@@ -27,7 +27,7 @@ public sealed class DeviceDetailEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedDeviceDetailAsync(factory);
 
         var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}");
@@ -40,7 +40,7 @@ public sealed class DeviceDetailEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedDeviceDetailAsync(factory);
 
         var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}");
@@ -76,7 +76,7 @@ public sealed class DeviceDetailEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
         var response = await client.GetAsync($"/api/devices/{TestIds.DeviceId}");
 

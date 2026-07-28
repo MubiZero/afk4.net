@@ -85,7 +85,7 @@ internal static class ReportScheduleEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewReports,
+                OrganizationPermissionNames.ViewReports,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -152,7 +152,7 @@ internal static class ReportScheduleEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewReports,
+                OrganizationPermissionNames.ViewReports,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -183,7 +183,7 @@ internal static class ReportScheduleEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewReports,
+                OrganizationPermissionNames.ViewReports,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)

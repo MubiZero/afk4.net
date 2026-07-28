@@ -31,9 +31,9 @@ public sealed class PlatformAdminAuthenticationEndpointTests
         Assert.False(string.IsNullOrWhiteSpace(body.AccessToken));
         Assert.False(string.IsNullOrWhiteSpace(body.RefreshToken));
         Assert.True(body.RefreshTokenExpiresAtUtc > body.AccessTokenExpiresAtUtc);
-        Assert.Contains(PlatformAdminRoleNames.PlatformOwner, body.Roles);
-        Assert.Contains(PlatformAdminPermissionNames.ViewTenants, body.Permissions);
-        Assert.Contains(PlatformAdminPermissionNames.CreateTenant, body.Permissions);
+        Assert.Contains(PlatformAdminRoleNames.PlatformAdmin, body.Roles);
+        Assert.Contains(PlatformAdminPermissionNames.ViewOrganizations, body.Permissions);
+        Assert.Contains(PlatformAdminPermissionNames.CreateOrganization, body.Permissions);
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -118,7 +118,7 @@ public sealed class PlatformAdminAuthenticationEndpointTests
         Assert.NotEqual(signInBody.AccessToken, refreshBody.AccessToken);
         Assert.NotEqual(signInBody.RefreshToken, refreshBody.RefreshToken);
         Assert.Equal(signInBody.PlatformAdminId, refreshBody.PlatformAdminId);
-        Assert.Contains(PlatformAdminPermissionNames.ViewTenants, refreshBody.Permissions);
+        Assert.Contains(PlatformAdminPermissionNames.ViewOrganizations, refreshBody.Permissions);
 
         var replayResponse = await client.PostAsJsonAsync(
             "/api/platform/auth/refresh",
@@ -203,7 +203,7 @@ public sealed class PlatformAdminAuthenticationEndpointTests
         await using var factory = new PlatformApiFactory();
         using (var seedClient = factory.CreateClient())
         {
-            await StaffAuthTestHelper.AuthorizeAsAsync(factory, seedClient, AFK4.Platform.Api.Identity.StaffRoleNames.Owner);
+            await StaffAuthTestHelper.AuthorizeAsAsync(factory, seedClient, AFK4.Platform.Api.Identity.OrganizationRoleNames.OrganizationOwner);
         }
 
         using var staffClient = factory.CreateClient();

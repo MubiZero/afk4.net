@@ -50,7 +50,7 @@ public sealed class MediaEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
         var response = await client.PostAsync($"/api/branches/{TestIds.BranchId:D}/media", PngForm());
 
@@ -62,7 +62,7 @@ public sealed class MediaEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var response = await client.PostAsync($"/api/branches/{TestIds.BranchId:D}/media", PngForm());
         var body = await response.Content.ReadFromJsonAsync<UploadedMediaDto>();
@@ -88,7 +88,7 @@ public sealed class MediaEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var response = await client.PostAsync($"/api/branches/{TestIds.BranchId:D}/media", PdfForm());
 
@@ -100,7 +100,7 @@ public sealed class MediaEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var response = await client.PostAsync($"/api/branches/{TestIds.OtherBranchId:D}/media", PngForm());
 
@@ -112,7 +112,7 @@ public sealed class MediaEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var uploadResponse = await client.PostAsync($"/api/branches/{TestIds.BranchId:D}/media", PngForm());
         var uploaded = await uploadResponse.Content.ReadFromJsonAsync<UploadedMediaDto>();

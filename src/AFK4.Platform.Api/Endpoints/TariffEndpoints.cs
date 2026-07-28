@@ -85,7 +85,7 @@ internal static class TariffEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageTariffs,
+                OrganizationPermissionNames.ManageTariffs,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -152,7 +152,7 @@ internal static class TariffEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageTariffs,
+                OrganizationPermissionNames.ManageTariffs,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -224,7 +224,7 @@ internal static class TariffEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageTariffs,
+                OrganizationPermissionNames.ManageTariffs,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -293,7 +293,7 @@ internal static class TariffEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageTariffs,
+                OrganizationPermissionNames.ManageTariffs,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -366,7 +366,7 @@ internal static class TariffEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewBilling,
+                OrganizationPermissionNames.ViewBilling,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -405,7 +405,7 @@ internal static class TariffEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewTariffs,
+                OrganizationPermissionNames.ViewTariffs,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)

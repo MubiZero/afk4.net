@@ -9,7 +9,7 @@ describe('ShellStatusBar', () => {
       <I18nProvider initialLocale="ru">
         <ShellStatusBar
           operatorName="Иванов И.И."
-          roleNames={['cashier_operator']}
+          roleNames={['operator']}
           clubName="Арена"
           realtimeState="connected"
           realtimeError={null}
@@ -21,7 +21,7 @@ describe('ShellStatusBar', () => {
     );
 
     expect(screen.getByText('Иванов И.И.')).toBeInTheDocument();
-    expect(screen.getByText('Кассир-оператор')).toBeInTheDocument();
+    expect(screen.getByText('Оператор')).toBeInTheDocument();
     expect(screen.getByText('Арена')).toBeInTheDocument();
     expect(screen.getByText('Онлайн')).toBeInTheDocument();
     expect(screen.getByText('OK')).toBeInTheDocument();

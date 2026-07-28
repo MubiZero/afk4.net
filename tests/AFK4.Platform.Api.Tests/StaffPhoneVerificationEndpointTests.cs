@@ -35,7 +35,7 @@ public sealed class StaffPhoneVerificationEndpointTests
         });
         using var client = factory.CreateClient();
         // AuthorizeAsAsync returns Task (void) — the seeded staff user id is TestIds.TechnicianStaffUserId
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var staffUserId = TestIds.TechnicianStaffUserId;
 
         var start = await client.PostAsJsonAsync(
@@ -78,7 +78,7 @@ public sealed class StaffPhoneVerificationEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
         var response = await client.GetAsync("/api/auth/staff/phone");
 
@@ -110,7 +110,7 @@ public sealed class StaffPhoneVerificationEndpointTests
             services.AddSingleton<ISmsTransport>(recording);
         });
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
         var startResp = await client.PostAsJsonAsync(
             "/api/auth/staff/phone/start-verification",

@@ -135,7 +135,7 @@ describe('App', () => {
     };
     installSessionBridge(createSession({
       displayName: 'Иванов И.И.',
-      roleNames: ['cashier_operator']
+      roleNames: ['operator']
     }));
 
     const { container } = render(<App />);
@@ -144,7 +144,7 @@ describe('App', () => {
 
     expect(footer).not.toBeNull();
     expect(within(footer as HTMLElement).getByText('Иванов И.И.')).toBeInTheDocument();
-    expect(within(footer as HTMLElement).getByText('Кассир-оператор')).toBeInTheDocument();
+    expect(within(footer as HTMLElement).getByText('Оператор')).toBeInTheDocument();
     expect(within(footer as HTMLElement).getByText('AFK4 Dushanbe · зал A')).toBeInTheDocument();
     expect(within(footer as HTMLElement).getByText('2.45.1')).toBeInTheDocument();
     expect(within(footer as HTMLElement).queryByText(/Касса:/)).toBeNull();
@@ -341,8 +341,8 @@ describe('App', () => {
 
   it('skips the shift gate for staff without shifts.open', async () => {
     installSessionBridge(
-      createSession({ permissions: ['floor_map.view'] }),
-      createSession({ permissions: ['floor_map.view'] })
+      createSession({ permissions: ['organization.floor_map.view'] }),
+      createSession({ permissions: ['organization.floor_map.view'] })
     );
 
     render(<App />);
@@ -998,7 +998,7 @@ describe('App', () => {
   });
 
   it('hides unauthorized workspaces and disables selected-seat actions', async () => {
-    installSessionBridge(createSession({ permissions: ['floor_map.view'] }));
+    installSessionBridge(createSession({ permissions: ['organization.floor_map.view'] }));
 
     render(<App />);
 
@@ -1014,13 +1014,13 @@ describe('App', () => {
   it('opens workspace rail entries with partial role permissions', async () => {
     installSessionBridge(createSession({
       permissions: [
-        'floor_map.view',
-        'pos.sales.create',
-        'pos.sales.pay',
-        'shifts.view',
-        'shifts.open',
-        'receipts.view',
-        'identity.branch_staff.manage'
+        'organization.floor_map.view',
+        'organization.pos.sales.create',
+        'organization.pos.sales.pay',
+        'organization.shifts.view',
+        'organization.shifts.open',
+        'organization.receipts.view',
+        'organization.identity.branch_staff.manage'
       ]
     }));
 
@@ -1041,8 +1041,8 @@ describe('App', () => {
 
   it('refreshes restored native permissions before gating workspace rail entries', async () => {
     installSessionBridge(
-      createSession({ permissions: ['floor_map.view'] }),
-      createSession({ permissions: ['floor_map.view', 'reservations.view'] }));
+      createSession({ permissions: ['organization.floor_map.view'] }),
+      createSession({ permissions: ['organization.floor_map.view', 'organization.reservations.view'] }));
 
     render(<App />);
 
@@ -1134,7 +1134,7 @@ describe('App', () => {
   });
 
   it('opens the loyalty settings workspace from the rail', async () => {
-    installSessionBridge(createSession({ permissions: ['loyalty.settings.manage'] }));
+    installSessionBridge(createSession({ permissions: ['organization.loyalty.settings.manage'] }));
 
     render(<App />);
 
@@ -1779,7 +1779,7 @@ describe('App', () => {
   });
 
   it('keeps booking mutation controls disabled without reservation manage permission', async () => {
-    installSessionBridge(createSession({ permissions: ['floor_map.view', 'reservations.view'] }));
+    installSessionBridge(createSession({ permissions: ['organization.floor_map.view', 'organization.reservations.view'] }));
 
     render(<App />);
 
@@ -1842,7 +1842,7 @@ describe('App', () => {
 
   it('keeps client reservation creation disabled without reservation manage permission', async () => {
     installSessionBridge(createSession({
-      permissions: allOperatorPermissions.filter((permission) => permission !== 'reservations.manage')
+      permissions: allOperatorPermissions.filter((permission) => permission !== 'organization.reservations.manage')
     }));
 
     render(<App />);
@@ -2182,7 +2182,7 @@ describe('App', () => {
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
   it.skip('keeps staff role update disabled without role management permission', async () => {
     installSessionBridge(createSession({
-      permissions: allOperatorPermissions.filter((permission) => permission !== 'identity.roles.manage')
+      permissions: allOperatorPermissions.filter((permission) => permission !== 'organization.identity.roles.manage')
     }));
 
     render(<App />);
@@ -2971,7 +2971,7 @@ describe('App', () => {
   });
 
   it('hides the cash journal tab without cash/review permissions', async () => {
-    installSessionBridge(createSession({ permissions: ['pos.sales.create', 'pos.sales.pay'] }));
+    installSessionBridge(createSession({ permissions: ['organization.pos.sales.create', 'organization.pos.sales.pay'] }));
     render(<App />);
     await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
 
@@ -2983,7 +2983,7 @@ describe('App', () => {
   });
 
   it('opens journal receipts for receipt-only staff', async () => {
-    installSessionBridge(createSession({ permissions: ['receipts.view'] }));
+    installSessionBridge(createSession({ permissions: ['organization.receipts.view'] }));
     render(<App />);
     await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
 
@@ -3734,56 +3734,56 @@ function buildStoredConnection(overrides: Record<string, unknown> = {}) {
 }
 
 const allOperatorPermissions = [
-  'floor_map.view',
-  'sessions.start',
-  'sessions.extend',
-  'sessions.transfer',
-  'sessions.end',
-  'players.view',
-  'players.create',
-  'billing.view',
-  'billing.wallet.top_up',
-  'billing.debt.pay',
-  'packages.view',
-  'packages.manage',
-  'packages.purchase',
-  'shifts.view',
-  'shifts.open',
-  'shifts.close',
-  'shifts.cash.manage',
-  'reports.view',
-  'reservations.view',
-  'reservations.manage',
-  'pos.sales.create',
-  'pos.sales.pay',
-  'pos.sales.refund',
-  'pos.sales.void',
-  'inventory.view',
-  'inventory.stock.manage',
-  'pos.catalog.manage',
-  'receipts.view',
-  'diagnostics.view',
-  'identity.branch_staff.manage',
-  'identity.roles.manage',
-  'layout.manage',
-  'devices.enrollment_codes.create',
-  'devices.seat_assignment.assign',
-  'devices.detail.view',
-  'devices.commands.dispatch',
-  'devices.credentials.rotate',
-  'devices.credentials.revoke',
-  'tariffs.manage',
-  'tariffs.view',
-  'updates.status.view',
-  'updates.packages.manage',
-  'updates.rollouts.manage',
-  'devices.commands.status.view',
-  'audit.view',
-  'billing.money_action.approve',
-  'branches.settings.manage',
-  'payments.gateways.manage',
-  'loyalty.settings.manage',
-  'news.manage'
+  'organization.floor_map.view',
+  'organization.sessions.start',
+  'organization.sessions.extend',
+  'organization.sessions.transfer',
+  'organization.sessions.end',
+  'organization.players.view',
+  'organization.players.create',
+  'organization.billing.view',
+  'organization.billing.wallet.top_up',
+  'organization.billing.debt.pay',
+  'organization.packages.view',
+  'organization.packages.manage',
+  'organization.packages.purchase',
+  'organization.shifts.view',
+  'organization.shifts.open',
+  'organization.shifts.close',
+  'organization.shifts.cash.manage',
+  'organization.reports.view',
+  'organization.reservations.view',
+  'organization.reservations.manage',
+  'organization.pos.sales.create',
+  'organization.pos.sales.pay',
+  'organization.pos.sales.refund',
+  'organization.pos.sales.void',
+  'organization.inventory.view',
+  'organization.inventory.stock.manage',
+  'organization.pos.catalog.manage',
+  'organization.receipts.view',
+  'organization.diagnostics.view',
+  'organization.identity.branch_staff.manage',
+  'organization.identity.roles.manage',
+  'organization.layout.manage',
+  'organization.devices.enrollment_codes.create',
+  'organization.devices.seat_assignment.assign',
+  'organization.devices.detail.view',
+  'organization.devices.commands.dispatch',
+  'organization.devices.credentials.rotate',
+  'organization.devices.credentials.revoke',
+  'organization.tariffs.manage',
+  'organization.tariffs.view',
+  'organization.updates.status.view',
+  'organization.updates.packages.manage',
+  'organization.updates.rollouts.manage',
+  'organization.devices.commands.status.view',
+  'organization.audit.view',
+  'organization.billing.money_action.approve',
+  'organization.branches.settings.manage',
+  'organization.payments.gateways.manage',
+  'organization.loyalty.settings.manage',
+  'organization.news.manage'
 ];
 
 function createSession(overrides: Record<string, unknown> = {}) {
@@ -4441,7 +4441,7 @@ function createStaffUsers() {
       staffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
       userName: 'cashier',
       displayName: 'Cashier One',
-      roleNames: ['cashier_operator']
+      roleNames: ['operator']
     })
   ];
 }
@@ -4494,7 +4494,7 @@ function createStaffUser(overrides: Record<string, unknown> = {}) {
     userName: 'cashier',
     displayName: 'Cashier One',
     isActive: true,
-    roleNames: ['cashier_operator'],
+    roleNames: ['operator'],
     createdAtUtc: '2026-05-21T08:00:00Z',
     ...overrides
   };

@@ -25,12 +25,12 @@ public sealed class OperatorShellViewModelTests
     public void SignIn_WithCashierPermissions_ShowsOperationalWorkspacesOnly()
     {
         var context = CreateContext(
-            StaffPermissionNames.ViewFloorMap,
-            StaffPermissionNames.StartSession,
-            StaffPermissionNames.CreatePosSale,
-            StaffPermissionNames.PayPosSale,
-            StaffPermissionNames.OpenShift,
-            StaffPermissionNames.ViewShift);
+            OrganizationPermissionNames.ViewFloorMap,
+            OrganizationPermissionNames.StartSession,
+            OrganizationPermissionNames.CreatePosSale,
+            OrganizationPermissionNames.PayPosSale,
+            OrganizationPermissionNames.OpenShift,
+            OrganizationPermissionNames.ViewShift);
         var shell = new OperatorShellViewModel();
 
         shell.ApplySignedInContext(context);
@@ -48,9 +48,9 @@ public sealed class OperatorShellViewModelTests
     public void ApplySignedInContext_WithDevicePermissions_ShowsSettings()
     {
         var context = CreateContext(
-            StaffPermissionNames.ViewFloorMap,
-            StaffPermissionNames.ViewDeviceDetail,
-            StaffPermissionNames.RotateDeviceCredential);
+            OrganizationPermissionNames.ViewFloorMap,
+            OrganizationPermissionNames.ViewDeviceDetail,
+            OrganizationPermissionNames.RotateDeviceCredential);
         var shell = new OperatorShellViewModel();
 
         shell.ApplySignedInContext(context);
@@ -63,7 +63,7 @@ public sealed class OperatorShellViewModelTests
     {
         var shell = new OperatorShellViewModel();
 
-        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.ViewUpdateStatus));
+        shell.ApplySignedInContext(CreateContext(OrganizationPermissionNames.ViewUpdateStatus));
 
         Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Settings);
         Assert.Contains(shell.Settings.Panels, panel => panel.Key == "updates");
@@ -74,7 +74,7 @@ public sealed class OperatorShellViewModelTests
     {
         var shell = new OperatorShellViewModel();
 
-        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.ManageUpdateRollouts));
+        shell.ApplySignedInContext(CreateContext(OrganizationPermissionNames.ManageUpdateRollouts));
 
         Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Settings);
         Assert.Contains(shell.Settings.Panels, panel => panel.Key == "updates");
@@ -85,7 +85,7 @@ public sealed class OperatorShellViewModelTests
     {
         var shell = new OperatorShellViewModel();
 
-        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.ViewAudit));
+        shell.ApplySignedInContext(CreateContext(OrganizationPermissionNames.ViewAudit));
 
         Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Settings);
         Assert.Contains(shell.Settings.Panels, panel => panel.Key == "audit");
@@ -96,7 +96,7 @@ public sealed class OperatorShellViewModelTests
     {
         var shell = new OperatorShellViewModel();
 
-        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.ViewDiagnostics));
+        shell.ApplySignedInContext(CreateContext(OrganizationPermissionNames.ViewDiagnostics));
 
         Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Settings);
         Assert.Contains(shell.Settings.Panels, panel => panel.Key == "diagnostics");
@@ -107,7 +107,7 @@ public sealed class OperatorShellViewModelTests
     {
         var shell = new OperatorShellViewModel();
 
-        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.ManageBranchStaff));
+        shell.ApplySignedInContext(CreateContext(OrganizationPermissionNames.ManageBranchStaff));
 
         Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Settings);
         Assert.Contains(shell.Settings.Panels, panel => panel.Key == "pilot-setup");
@@ -119,7 +119,7 @@ public sealed class OperatorShellViewModelTests
     {
         var shell = new OperatorShellViewModel();
 
-        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.ViewPlayers));
+        shell.ApplySignedInContext(CreateContext(OrganizationPermissionNames.ViewPlayers));
 
         Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Players);
     }
@@ -129,7 +129,7 @@ public sealed class OperatorShellViewModelTests
     {
         var shell = new OperatorShellViewModel();
 
-        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.ViewReports));
+        shell.ApplySignedInContext(CreateContext(OrganizationPermissionNames.ViewReports));
 
         Assert.Contains(shell.NavigationItems, item => item.Kind == OperatorWorkspaceKind.Shifts);
     }
@@ -138,8 +138,8 @@ public sealed class OperatorShellViewModelTests
     public void NavigateCommand_ChangesSelectedWorkspaceOnlyWhenItemIsAllowed()
     {
         var context = CreateContext(
-            StaffPermissionNames.ViewFloorMap,
-            StaffPermissionNames.CreatePosSale);
+            OrganizationPermissionNames.ViewFloorMap,
+            OrganizationPermissionNames.CreatePosSale);
         var shell = new OperatorShellViewModel();
         shell.ApplySignedInContext(context);
 
@@ -155,7 +155,7 @@ public sealed class OperatorShellViewModelTests
     public void SignOutCommand_ClearsUserAndNavigation()
     {
         var shell = new OperatorShellViewModel();
-        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.ViewFloorMap));
+        shell.ApplySignedInContext(CreateContext(OrganizationPermissionNames.ViewFloorMap));
 
         shell.SignOutCommand.Execute(null);
 
@@ -179,7 +179,7 @@ public sealed class OperatorShellViewModelTests
             new SettingsWorkspaceViewModel(new HashSet<string>()));
         var shift = CreateOpenShift();
 
-        shell.ApplySignedInContext(CreateContext(StaffPermissionNames.CreatePosSale, StaffPermissionNames.ViewShift));
+        shell.ApplySignedInContext(CreateContext(OrganizationPermissionNames.CreatePosSale, OrganizationPermissionNames.ViewShift));
         shifts.SetCurrentShift(shift);
 
         Assert.Same(pos, shell.Pos);

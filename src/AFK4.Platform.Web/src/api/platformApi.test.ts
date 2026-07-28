@@ -18,7 +18,7 @@ function buildSession(overrides: Partial<PlatformAdminSession> = {}): PlatformAd
     platformAdminId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
     userName: 'admin@platform.test',
     displayName: 'Platform Owner',
-    roles: ['platform_owner'],
+    roles: ['platform_admin'],
     permissions: ['platform.tenants.view'],
     accessToken: 'initial-access',
     accessTokenExpiresAtUtc: '2030-01-01T00:00:00Z',

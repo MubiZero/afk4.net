@@ -13,7 +13,7 @@ public sealed class ReportScheduleEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var create = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/report-schedules",
@@ -44,7 +44,7 @@ public sealed class ReportScheduleEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/report-schedules",
@@ -71,7 +71,7 @@ public sealed class ReportScheduleEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var response = await client.DeleteAsync(
             $"/api/branches/{TestIds.BranchId:D}/report-schedules/{Guid.NewGuid():D}");

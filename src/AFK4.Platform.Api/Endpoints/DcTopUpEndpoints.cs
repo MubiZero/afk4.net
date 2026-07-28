@@ -24,7 +24,7 @@ internal static class DcTopUpEndpoints
             CancellationToken ct) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId, StaffPermissionNames.TopUpWallet, ct);
+                branchId, OrganizationPermissionNames.TopUpWallet, ct);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 
@@ -81,7 +81,7 @@ internal static class DcTopUpEndpoints
             CancellationToken ct) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId, StaffPermissionNames.TopUpWallet, ct);
+                branchId, OrganizationPermissionNames.TopUpWallet, ct);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 

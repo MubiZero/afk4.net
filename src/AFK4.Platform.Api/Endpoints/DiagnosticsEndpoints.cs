@@ -84,7 +84,7 @@ internal static class DiagnosticsEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewDiagnostics,
+                OrganizationPermissionNames.ViewDiagnostics,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)

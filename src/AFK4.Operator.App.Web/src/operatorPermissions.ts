@@ -11,7 +11,7 @@ export const workspaceIds: WorkspaceId[] = ['map', 'dashboard', 'booking', 'cash
 // management/managementNav.ts (see that file's comment).
 export { permissionNames };
 
-export const staffRoleOptions = ['cashier_operator', 'shift_supervisor', 'branch_manager', 'technician', 'accountant_auditor'] as const;
+export const staffRoleOptions = ['operator', 'shift_supervisor', 'branch_manager', 'technician', 'accountant'] as const;
 
 export const workspacePermissionRules: Record<WorkspaceId, readonly string[]> = {
   map: [permissionNames.viewFloorMap],

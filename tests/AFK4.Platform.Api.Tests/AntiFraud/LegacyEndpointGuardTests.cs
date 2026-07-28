@@ -32,7 +32,7 @@ public sealed class LegacyEndpointGuardTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await SeedBaseAsync(factory);
-        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", StaffRoleNames.ShiftSupervisor);
+        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         var response = await client.PostAsJsonAsync(
             $"/api/players/{PlayerAccountId:D}/ledger/manual-corrections",
@@ -63,7 +63,7 @@ public sealed class LegacyEndpointGuardTests
         await SeedBaseAsync(factory);
         // Supervisor already spent 18000 of their 20000 daily cap this shift.
         await SeedPriorHighRiskSpendAsync(factory, Supervisor, 18000);
-        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", StaffRoleNames.ShiftSupervisor);
+        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         var response = await client.PostAsJsonAsync(
             $"/api/players/{PlayerAccountId:D}/ledger/manual-corrections",
@@ -89,7 +89,7 @@ public sealed class LegacyEndpointGuardTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await SeedBaseAsync(factory);
-        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", StaffRoleNames.ShiftSupervisor);
+        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         var response = await client.PostAsJsonAsync(
             $"/api/players/{PlayerAccountId:D}/ledger/manual-corrections",
@@ -121,7 +121,7 @@ public sealed class LegacyEndpointGuardTests
         using var client = factory.CreateClient();
         await SeedBaseAsync(factory);
         var entryId = await SeedRefundableTopUpAsync(factory, 30000);
-        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", StaffRoleNames.ShiftSupervisor);
+        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         var response = await client.PostAsJsonAsync(
             $"/api/players/{PlayerAccountId:D}/ledger/{entryId:D}/refunds",
@@ -146,7 +146,7 @@ public sealed class LegacyEndpointGuardTests
         using var client = factory.CreateClient();
         await SeedBaseAsync(factory);
         var entryId = await SeedRefundableTopUpAsync(factory, 30000);
-        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", StaffRoleNames.ShiftSupervisor);
+        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         var response = await client.PostAsJsonAsync(
             $"/api/players/{PlayerAccountId:D}/ledger/{entryId:D}/refunds",

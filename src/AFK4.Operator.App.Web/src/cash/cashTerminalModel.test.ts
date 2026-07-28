@@ -12,14 +12,14 @@ function session(permissions: string[]): OperatorAuthSession {
 
 describe('visibleCashJournalSegments', () => {
   it('receipt-only staff sees only receipts', () => {
-    expect(visibleCashJournalSegments(session(['receipts.view']))).toEqual(['receipts']);
+    expect(visibleCashJournalSegments(session(['organization.receipts.view']))).toEqual(['receipts']);
   });
 
   it('preserves terminal order for a fully permitted manager', () => {
     expect(visibleCashJournalSegments(session([
-      'reports.view',
-      'receipts.view',
-      'billing.money_action.approve'
+      'organization.reports.view',
+      'organization.receipts.view',
+      'organization.billing.money_action.approve'
     ]))).toEqual(['ops', 'receipts', 'review']);
   });
 });

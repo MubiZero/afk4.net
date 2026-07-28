@@ -16,7 +16,7 @@ mock.module('../operatorHelpers', () => ({ ...actual, createAuthenticatedOperato
 const { ReceivingWorkspace } = await import('./ReceivingWorkspace');
 
 const backend = { config: { platformBaseUrl: 'http://x' }, session: { accessToken: 't', organizationId: 'o' }, branchId: 'b' } as never;
-const session = { permissions: ['inventory.view', 'inventory.stock.manage'], organizationId: 'o' } as never;
+const session = { permissions: ['organization.inventory.view', 'organization.inventory.stock.manage'], organizationId: 'o' } as never;
 
 const view = (props: Record<string, unknown> = {}) =>
   render(
@@ -129,7 +129,7 @@ describe('ReceivingWorkspace', () => {
   });
 
   it('без права управления — экран отказа', () => {
-    render(<I18nProvider initialLocale="ru"><ToastProvider><ReceivingWorkspace backend={backend} currencyCode="TJS" session={{ permissions: ['inventory.view'], organizationId: 'o' } as never} preload={null} onConsumePreload={() => {}} /></ToastProvider></I18nProvider>);
+    render(<I18nProvider initialLocale="ru"><ToastProvider><ReceivingWorkspace backend={backend} currencyCode="TJS" session={{ permissions: ['organization.inventory.view'], organizationId: 'o' } as never} preload={null} onConsumePreload={() => {}} /></ToastProvider></I18nProvider>);
     expect(screen.getByText('Недостаточно прав для приёмки')).toBeInTheDocument();
   });
 

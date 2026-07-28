@@ -49,7 +49,7 @@ public sealed class OrganizationAuditEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         await SeedAuditAsync(factory);
 
         var result = await client.GetFromJsonAsync<AuditSearchResultDto>(
@@ -65,7 +65,7 @@ public sealed class OrganizationAuditEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var response = await client.GetAsync($"/api/organizations/{Guid.NewGuid():D}/audit");
 
@@ -77,7 +77,7 @@ public sealed class OrganizationAuditEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/audit");
 
@@ -92,7 +92,7 @@ public sealed class OrganizationAuditEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
 
         var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/audit");
 

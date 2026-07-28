@@ -27,7 +27,7 @@ public sealed class BranchSettingsEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/settings");
 
@@ -39,7 +39,7 @@ public sealed class BranchSettingsEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/settings");
         var settings = await response.Content.ReadFromJsonAsync<BranchSettingsDto>();
@@ -56,7 +56,7 @@ public sealed class BranchSettingsEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var request = new UpdateBranchSettingsRequest(TestIds.OrganizationId, RequireManualDeviceApproval: true, PreferredLocale: "ru");
         var response = await client.PutAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/settings", request);
@@ -79,7 +79,7 @@ public sealed class BranchSettingsEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var request = new UpdateBranchSettingsRequest(Guid.NewGuid(), RequireManualDeviceApproval: true, PreferredLocale: "ru");
         var response = await client.PutAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/settings", request);
@@ -92,7 +92,7 @@ public sealed class BranchSettingsEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var request = new UpdateBranchSettingsRequest(TestIds.OrganizationId, RequireManualDeviceApproval: false, PreferredLocale: "tg");
         var response = await client.PutAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/settings", request);
@@ -115,7 +115,7 @@ public sealed class BranchSettingsEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var request = new UpdateBranchSettingsRequest(TestIds.OrganizationId, RequireManualDeviceApproval: false, PreferredLocale: "xx");
         var response = await client.PutAsJsonAsync($"/api/branches/{TestIds.BranchId:D}/settings", request);

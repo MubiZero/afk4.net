@@ -37,7 +37,7 @@ public sealed class EfInvoiceNotifierTests
         db.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
         {
             StaffRoleAssignmentId = Guid.NewGuid(), StaffUserId = ownerId,
-            OrganizationId = orgId, BranchId = branchId, RoleName = StaffRoleNames.Owner
+            OrganizationId = orgId, BranchId = branchId, RoleName = OrganizationRoleNames.OrganizationOwner
         });
         await db.SaveChangesAsync();
         return orgId;

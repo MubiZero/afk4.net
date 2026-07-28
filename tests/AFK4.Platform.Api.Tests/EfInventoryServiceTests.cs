@@ -676,7 +676,7 @@ public sealed class EfInventoryServiceTests
         db.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
         {
             StaffRoleAssignmentId = Guid.NewGuid(), StaffUserId = ownerId,
-            OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, RoleName = StaffRoleNames.Owner
+            OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, RoleName = OrganizationRoleNames.OrganizationOwner
         });
         await db.SaveChangesAsync();
     }

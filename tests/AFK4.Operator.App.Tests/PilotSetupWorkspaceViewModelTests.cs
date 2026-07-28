@@ -52,7 +52,7 @@ public sealed class PilotSetupWorkspaceViewModelTests
             "cashier.pilot@afk4.test",
             "Pilot Cashier",
             "cashier.pilot@afk4.test",
-            "cashier_operator");
+            "operator");
         AssertStaffUser(
             viewModel.StaffUsers[1],
             "technician.pilot@afk4.test",
@@ -87,8 +87,8 @@ public sealed class PilotSetupWorkspaceViewModelTests
 
         viewModel.ApplyPermissions(new HashSet<string>
         {
-            StaffPermissionNames.ManageLayout,
-            StaffPermissionNames.AssignDeviceSeat
+            OrganizationPermissionNames.ManageLayout,
+            OrganizationPermissionNames.AssignDeviceSeat
         });
 
         Assert.False(viewModel.CanSetupStaff);
@@ -100,11 +100,11 @@ public sealed class PilotSetupWorkspaceViewModelTests
     }
 
     [Theory]
-    [InlineData(StaffPermissionNames.ManageBranchStaff, true, false, false, false, false, true)]
-    [InlineData(StaffPermissionNames.ManageLayout, false, true, false, false, false, true)]
-    [InlineData(StaffPermissionNames.ManageTariffs, false, false, true, false, false, true)]
-    [InlineData(StaffPermissionNames.ManagePosCatalog, false, false, false, true, false, true)]
-    [InlineData(StaffPermissionNames.AssignDeviceSeat, false, false, false, false, true, true)]
+    [InlineData(OrganizationPermissionNames.ManageBranchStaff, true, false, false, false, false, true)]
+    [InlineData(OrganizationPermissionNames.ManageLayout, false, true, false, false, false, true)]
+    [InlineData(OrganizationPermissionNames.ManageTariffs, false, false, true, false, false, true)]
+    [InlineData(OrganizationPermissionNames.ManagePosCatalog, false, false, false, true, false, true)]
+    [InlineData(OrganizationPermissionNames.AssignDeviceSeat, false, false, false, false, true, true)]
     public void ApplyPermissions_MapsSinglePermissionToOnlyMatchingSection(
         string permission,
         bool canSetupStaff,
@@ -151,11 +151,11 @@ public sealed class PilotSetupWorkspaceViewModelTests
         var apiClient = new RecordingPilotSetupApiClient();
         var viewModel = CreateReadyViewModel(
             apiClient,
-            StaffPermissionNames.ManageBranchStaff,
-            StaffPermissionNames.ManageLayout,
-            StaffPermissionNames.ManageTariffs,
-            StaffPermissionNames.ManagePosCatalog,
-            StaffPermissionNames.AssignDeviceSeat);
+            OrganizationPermissionNames.ManageBranchStaff,
+            OrganizationPermissionNames.ManageLayout,
+            OrganizationPermissionNames.ManageTariffs,
+            OrganizationPermissionNames.ManagePosCatalog,
+            OrganizationPermissionNames.AssignDeviceSeat);
         viewModel.DeviceIdText = RecordingPilotSetupApiClient.DeviceId.ToString("D");
 
         await viewModel.ApplyAsync(CancellationToken.None);
@@ -200,8 +200,8 @@ public sealed class PilotSetupWorkspaceViewModelTests
         };
         var viewModel = CreateReadyViewModel(
             apiClient,
-            StaffPermissionNames.ManageBranchStaff,
-            StaffPermissionNames.ManageLayout);
+            OrganizationPermissionNames.ManageBranchStaff,
+            OrganizationPermissionNames.ManageLayout);
         viewModel.SeatCount = 3;
 
         await viewModel.ApplyAsync(CancellationToken.None);
@@ -218,7 +218,7 @@ public sealed class PilotSetupWorkspaceViewModelTests
     public async Task ApplyAsync_WithInvalidDeviceId_DoesNotCallApiAndShowsError()
     {
         var apiClient = new RecordingPilotSetupApiClient();
-        var viewModel = CreateReadyViewModel(apiClient, StaffPermissionNames.AssignDeviceSeat);
+        var viewModel = CreateReadyViewModel(apiClient, OrganizationPermissionNames.AssignDeviceSeat);
         viewModel.DeviceIdText = "not-a-guid";
 
         await viewModel.ApplyAsync(CancellationToken.None);
@@ -236,7 +236,7 @@ public sealed class PilotSetupWorkspaceViewModelTests
             ExistingZoneName = "Main Hall",
             ExistingSeatNames = new HashSet<string> { "PC-001" }
         };
-        var viewModel = CreateReadyViewModel(apiClient, StaffPermissionNames.AssignDeviceSeat);
+        var viewModel = CreateReadyViewModel(apiClient, OrganizationPermissionNames.AssignDeviceSeat);
         viewModel.DeviceIdText = RecordingPilotSetupApiClient.DeviceId.ToString("D");
         viewModel.TargetAssignmentSeatName = "PC-001";
 
@@ -255,8 +255,8 @@ public sealed class PilotSetupWorkspaceViewModelTests
         var apiClient = new RecordingPilotSetupApiClient();
         var viewModel = CreateReadyViewModel(
             apiClient,
-            StaffPermissionNames.ManageTariffs,
-            StaffPermissionNames.ManagePosCatalog);
+            OrganizationPermissionNames.ManageTariffs,
+            OrganizationPermissionNames.ManagePosCatalog);
         viewModel.TariffName = "Night Standard";
         viewModel.CurrencyCode = "usd";
         viewModel.PricePerMinuteMinorUnits = 250;
@@ -300,7 +300,7 @@ public sealed class PilotSetupWorkspaceViewModelTests
         {
             FailOnCall = "create-staff:technician.pilot@afk4.test"
         };
-        var viewModel = CreateReadyViewModel(apiClient, StaffPermissionNames.ManageBranchStaff);
+        var viewModel = CreateReadyViewModel(apiClient, OrganizationPermissionNames.ManageBranchStaff);
 
         await viewModel.ApplyAsync(CancellationToken.None);
 
@@ -316,7 +316,7 @@ public sealed class PilotSetupWorkspaceViewModelTests
             FailOnCall = "create-staff:cashier.pilot@afk4.test",
             FailureException = new TaskCanceledException("setup timed out")
         };
-        var viewModel = CreateReadyViewModel(apiClient, StaffPermissionNames.ManageBranchStaff);
+        var viewModel = CreateReadyViewModel(apiClient, OrganizationPermissionNames.ManageBranchStaff);
 
         await viewModel.ApplyAsync(CancellationToken.None);
 
@@ -333,7 +333,7 @@ public sealed class PilotSetupWorkspaceViewModelTests
             FailOnCall = "create-staff:cashier.pilot@afk4.test",
             FailureException = new JsonException("json parse failed")
         };
-        var viewModel = CreateReadyViewModel(apiClient, StaffPermissionNames.ManageBranchStaff);
+        var viewModel = CreateReadyViewModel(apiClient, OrganizationPermissionNames.ManageBranchStaff);
 
         await viewModel.ApplyAsync(CancellationToken.None);
 
@@ -346,7 +346,7 @@ public sealed class PilotSetupWorkspaceViewModelTests
     public async Task ApplyAsync_WithEmptyTariffName_DoesNotCallApiAndAddsFailedTariffResult()
     {
         var apiClient = new RecordingPilotSetupApiClient();
-        var viewModel = CreateReadyViewModel(apiClient, StaffPermissionNames.ManageTariffs);
+        var viewModel = CreateReadyViewModel(apiClient, OrganizationPermissionNames.ManageTariffs);
         viewModel.TariffName = string.Empty;
 
         await viewModel.ApplyAsync(CancellationToken.None);
@@ -360,7 +360,7 @@ public sealed class PilotSetupWorkspaceViewModelTests
     public async Task ApplyAsync_WithPosOnlyAndBlankCurrency_DoesNotCallApiAndAddsFailedPosResult()
     {
         var apiClient = new RecordingPilotSetupApiClient();
-        var viewModel = CreateReadyViewModel(apiClient, StaffPermissionNames.ManagePosCatalog);
+        var viewModel = CreateReadyViewModel(apiClient, OrganizationPermissionNames.ManagePosCatalog);
         viewModel.CurrencyCode = "   ";
 
         await viewModel.ApplyAsync(CancellationToken.None);

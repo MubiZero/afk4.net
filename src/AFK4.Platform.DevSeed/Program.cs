@@ -96,16 +96,16 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
         var zones = SeedLayout();
         var seats = zones.SelectMany(zone => zone.Seats).ToList();
         var devices = SeedDevices(seats);
-        var players = SeedPlayers(staff.Owner.StaffUserId);
+        var players = SeedPlayers(staff.OrganizationOwner.StaffUserId);
         var billing = SeedBillingCatalog();
-        var shift = SeedOpenShift(staff.Owner.StaffUserId);
+        var shift = SeedOpenShift(staff.OrganizationOwner.StaffUserId);
 
-        SeedSessions(staff.Owner.StaffUserId, seats, devices, players, billing.StandardTariffVersionId);
-        SeedLedger(staff.Owner.StaffUserId, shift.ShiftId, players);
-        SeedPos(staff.Owner.StaffUserId, shift.ShiftId, players.PrimaryPlayerId);
-        SeedReservations(staff.Owner.StaffUserId, seats, players);
-        SeedUpdates(staff.Owner.StaffUserId, devices);
-        SeedAudit(staff.Owner.StaffUserId);
+        SeedSessions(staff.OrganizationOwner.StaffUserId, seats, devices, players, billing.StandardTariffVersionId);
+        SeedLedger(staff.OrganizationOwner.StaffUserId, shift.ShiftId, players);
+        SeedPos(staff.OrganizationOwner.StaffUserId, shift.ShiftId, players.PrimaryPlayerId);
+        SeedReservations(staff.OrganizationOwner.StaffUserId, seats, players);
+        SeedUpdates(staff.OrganizationOwner.StaffUserId, devices);
+        SeedAudit(staff.OrganizationOwner.StaffUserId);
 
         await dbContext.SaveChangesAsync();
     }
@@ -131,9 +131,9 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
             CreatedAtUtc = now.AddDays(-10)
         });
 
-        var owner = CreateStaff(OwnerStaffUserId, OwnerUserName, "Администратор демо", StaffRoleNames.Owner);
-        var cashier = CreateStaff(StableGuid(6102), "operator@afk4.test", "Оператор смены", StaffRoleNames.CashierOperator);
-        var technician = CreateStaff(StableGuid(6103), "tech@afk4.test", "Техник зала", StaffRoleNames.Technician);
+        var owner = CreateStaff(OwnerStaffUserId, OwnerUserName, "Администратор демо", OrganizationRoleNames.OrganizationOwner);
+        var cashier = CreateStaff(StableGuid(6102), "operator@afk4.test", "Оператор смены", OrganizationRoleNames.Operator);
+        var technician = CreateStaff(StableGuid(6103), "tech@afk4.test", "Техник зала", OrganizationRoleNames.Technician);
 
         return new StaffSeed(owner, cashier, technician);
     }

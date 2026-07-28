@@ -32,7 +32,7 @@ afterAll(() => {
   }).__afk4RealOperatorHelpers);
 });
 
-const session = { permissions: ['receipts.view', 'pos.sales.refund'], organizationId: 'o' };
+const session = { permissions: ['organization.receipts.view', 'organization.pos.sales.refund'], organizationId: 'o' };
 const backend = { config: { platformBaseUrl: 'http://test' }, session: { accessToken: 't', ...session }, branchId: 'b1' };
 
 function renderReceipts() {

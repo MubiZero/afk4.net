@@ -20,7 +20,7 @@ public sealed class TenantSuspensionEnforcementTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         await SetTenantStatusAsync(factory, TenantStatusNames.Suspended, "Unpaid invoice");
 
@@ -41,7 +41,7 @@ public sealed class TenantSuspensionEnforcementTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         await SetTenantStatusAsync(factory, TenantStatusNames.Suspended, "Holding");
 
@@ -56,7 +56,7 @@ public sealed class TenantSuspensionEnforcementTests
         await using var factory = new PlatformApiFactory();
         using (var seedClient = factory.CreateClient())
         {
-            await StaffAuthTestHelper.AuthorizeAsAsync(factory, seedClient, StaffRoleNames.Owner);
+            await StaffAuthTestHelper.AuthorizeAsAsync(factory, seedClient, OrganizationRoleNames.OrganizationOwner);
         }
 
         await SetTenantStatusAsync(factory, TenantStatusNames.Suspended, "Holding");
@@ -74,7 +74,7 @@ public sealed class TenantSuspensionEnforcementTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         await SetTenantStatusAsync(factory, TenantStatusNames.DeletionPending, "Tenant offboarding");
 
@@ -93,7 +93,7 @@ public sealed class TenantSuspensionEnforcementTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/device-enrollment-codes",
@@ -138,7 +138,7 @@ public sealed class TenantSuspensionEnforcementTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         await SetTenantStatusAsync(factory, TenantStatusNames.Suspended, "Pause");
 
@@ -160,7 +160,7 @@ public sealed class TenantSuspensionEnforcementTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var enrollment = await EnrollDeviceAsync(client);
 
         await SetTenantStatusAsync(factory, TenantStatusNames.Suspended, "Unpaid invoice");
@@ -176,7 +176,7 @@ public sealed class TenantSuspensionEnforcementTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var enrollment = await EnrollDeviceAsync(client);
 
         await SetTenantStatusAsync(factory, TenantStatusNames.DeletionPending, "Offboarding");
@@ -192,7 +192,7 @@ public sealed class TenantSuspensionEnforcementTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var enrollment = await EnrollDeviceAsync(client);
 
         using var message = BuildHeartbeatRequest(enrollment);
@@ -206,7 +206,7 @@ public sealed class TenantSuspensionEnforcementTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var enrollment = await EnrollDeviceAsync(client);
 
         await SetTenantStatusAsync(factory, TenantStatusNames.Suspended, "Suspended");
@@ -236,7 +236,7 @@ public sealed class TenantSuspensionEnforcementTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
         // Create an enrollment code while still active, so the test isolates the suspension check
         // from the "no enrollment code" failure path.
@@ -267,7 +267,7 @@ public sealed class TenantSuspensionEnforcementTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var enrollment = await EnrollDeviceAsync(client);
 
         await SetTenantStatusAsync(factory, TenantStatusNames.Suspended, "Paused");
@@ -295,7 +295,7 @@ public sealed class TenantSuspensionEnforcementTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var enrollment = await EnrollDeviceAsync(client);
 
         await SetTenantStatusAsync(factory, TenantStatusNames.Suspended, "Paused");

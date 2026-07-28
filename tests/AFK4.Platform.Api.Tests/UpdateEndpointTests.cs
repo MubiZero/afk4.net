@@ -30,7 +30,7 @@ public sealed class UpdateEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId}/updates/packages",
@@ -55,7 +55,7 @@ public sealed class UpdateEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId}/updates/packages",
@@ -75,7 +75,7 @@ public sealed class UpdateEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var package = await RegisterPackageAsync(client);
 
         var createResponse = await client.PostAsJsonAsync(
@@ -108,7 +108,7 @@ public sealed class UpdateEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var enrollment = await EnrollDeviceAsync(client);
         var package = await RegisterPackageAsync(client);
         var rollout = await CreateBranchRolloutAsync(client, package.UpdatePackageId);
@@ -158,7 +158,7 @@ public sealed class UpdateEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var package = await RegisterPackageAsync(client);
 
         var response = await client.PostAsJsonAsync(
@@ -187,7 +187,7 @@ public sealed class UpdateEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var enrollment = await EnrollDeviceAsync(client);
         var package = await RegisterPackageAsync(client);
         var rollout = await CreateBranchRolloutAsync(client, package.UpdatePackageId);
@@ -227,7 +227,7 @@ public sealed class UpdateEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId}/updates/rollouts/{Guid.Parse("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb")}/state",
@@ -250,7 +250,7 @@ public sealed class UpdateEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var enrollment = await EnrollDeviceAsync(client);
         var package = await RegisterPackageAsync(client);
         await CreateBranchRolloutAsync(client, package.UpdatePackageId);
@@ -300,7 +300,7 @@ public sealed class UpdateEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var enrollment = await EnrollDeviceAsync(client);
         var package = await RegisterPackageAsync(client);
         var rollout = await CreateBranchRolloutAsync(client, package.UpdatePackageId);

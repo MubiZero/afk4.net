@@ -46,7 +46,7 @@ public sealed class PosEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
 
         // Technician has ViewInventory but not ManageInventoryStock.
         // GET endpoints requiring only ViewInventory (catalog, stock-movements, barcodes) return 200 for Technician, so they are excluded.
@@ -68,7 +68,7 @@ public sealed class PosEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var catalogResponse = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/pos/catalog");
         var stockHistoryResponse = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/inventory/stock-movements");
@@ -82,7 +82,7 @@ public sealed class PosEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 10_000);
 
         using var response = await client.PostAsJsonAsync(
@@ -121,7 +121,7 @@ public sealed class PosEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
 
         using var response = await client.PostAsJsonAsync(
@@ -143,7 +143,7 @@ public sealed class PosEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
 
         using var response = await client.PostAsJsonAsync(
@@ -165,7 +165,7 @@ public sealed class PosEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
 
         using var response = await client.PostAsJsonAsync(
@@ -187,7 +187,7 @@ public sealed class PosEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
         const string key = "settlement-idempotency-conflict-001";
 
@@ -218,7 +218,7 @@ public sealed class PosEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var saleId = await SeedDraftSaleAsync(factory, totalMinorUnits: 1_200);
 
         using var response = await client.PostAsJsonAsync(
@@ -243,7 +243,7 @@ public sealed class PosEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
 
         var shift = await PostOkAsync<ShiftDto>(
             client,
@@ -454,7 +454,7 @@ public sealed class PosEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
 
         var category = await PostOkAsync<PosProductCategoryDto>(
             client,
@@ -521,7 +521,7 @@ public sealed class PosEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
 
         var productId = Guid.NewGuid();
         var barcodeId = Guid.NewGuid();
@@ -541,7 +541,7 @@ public sealed class PosEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
 
         var productId = Guid.NewGuid();
 
@@ -559,7 +559,7 @@ public sealed class PosEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var saleId = await SeedCrossBranchSaleAsync(factory);
 
         var response = await client.GetAsync($"/api/pos/sales/{saleId:D}");

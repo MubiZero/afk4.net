@@ -40,7 +40,7 @@ public sealed class ShiftDiscrepancyHookTests
         db.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
         {
             StaffRoleAssignmentId = Guid.NewGuid(), StaffUserId = ownerId,
-            OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, RoleName = StaffRoleNames.Owner
+            OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, RoleName = OrganizationRoleNames.OrganizationOwner
         });
         await db.SaveChangesAsync();
     }
@@ -82,7 +82,7 @@ public sealed class ShiftDiscrepancyHookTests
         db.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
         {
             StaffRoleAssignmentId = Guid.NewGuid(), StaffUserId = managerId,
-            OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, RoleName = StaffRoleNames.BranchManager
+            OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId, RoleName = OrganizationRoleNames.BranchManager
         });
         await db.SaveChangesAsync();
         return managerId;

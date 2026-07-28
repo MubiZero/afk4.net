@@ -15,7 +15,7 @@ public sealed class AuthenticatedInstallEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedLayoutAsync(factory);
 
         var response = await client.PostAsync("/api/install/auth/discover", content: null);
@@ -42,7 +42,7 @@ public sealed class AuthenticatedInstallEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedLayoutAsync(factory);
 
         var response = await client.PostAsJsonAsync(
@@ -70,7 +70,7 @@ public sealed class AuthenticatedInstallEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedLayoutAsync(factory);
 
         var response = await client.PostAsJsonAsync(
@@ -91,8 +91,8 @@ public sealed class AuthenticatedInstallEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        // CashierOperator does NOT have devices.install (confirmed in PermissionCatalog.cs).
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        // CashierOperator does NOT have devices.install (confirmed in OrganizationPermissionCatalog.cs).
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedLayoutAsync(factory);
 
         var response = await client.PostAsJsonAsync(

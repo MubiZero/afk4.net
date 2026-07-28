@@ -14,8 +14,8 @@ mock.module('../operatorHelpers', () => ({ ...actual, createAuthenticatedOperato
 const { StockWorkspace } = await import('./StockWorkspace');
 
 const backend = { config: { platformBaseUrl: 'http://x' }, session: { accessToken: 't', organizationId: 'o' }, branchId: 'b' } as never;
-const manageSession = { permissions: ['inventory.view', 'inventory.stock.manage'], organizationId: 'o' } as never;
-const viewOnlySession = { permissions: ['inventory.view'], organizationId: 'o' } as never;
+const manageSession = { permissions: ['organization.inventory.view', 'organization.inventory.stock.manage'], organizationId: 'o' } as never;
+const viewOnlySession = { permissions: ['organization.inventory.view'], organizationId: 'o' } as never;
 
 const view = (session: unknown) =>
   render(<I18nProvider initialLocale="ru"><ToastProvider><StockWorkspace backend={backend} currencyCode="TJS" session={session as never} /></ToastProvider></I18nProvider>);

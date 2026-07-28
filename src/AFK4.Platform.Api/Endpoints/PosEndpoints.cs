@@ -86,7 +86,7 @@ internal static class PosEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManagePosCatalog,
+                OrganizationPermissionNames.ManagePosCatalog,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -152,7 +152,7 @@ internal static class PosEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManagePosCatalog,
+                OrganizationPermissionNames.ManagePosCatalog,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -219,7 +219,7 @@ internal static class PosEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManagePosCatalog,
+                OrganizationPermissionNames.ManagePosCatalog,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -284,7 +284,7 @@ internal static class PosEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewInventory,
+                OrganizationPermissionNames.ViewInventory,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -315,7 +315,7 @@ internal static class PosEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewInventory,
+                OrganizationPermissionNames.ViewInventory,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -348,7 +348,7 @@ internal static class PosEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageInventoryStock,
+                OrganizationPermissionNames.ManageInventoryStock,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -413,7 +413,7 @@ internal static class PosEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewInventory,
+                OrganizationPermissionNames.ViewInventory,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -446,7 +446,7 @@ internal static class PosEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageInventoryStock,
+                OrganizationPermissionNames.ManageInventoryStock,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -514,7 +514,7 @@ internal static class PosEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageInventoryStock,
+                OrganizationPermissionNames.ManageInventoryStock,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -576,7 +576,7 @@ internal static class PosEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.CreatePosSale,
+                OrganizationPermissionNames.CreatePosSale,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -647,7 +647,7 @@ internal static class PosEndpoints
                 staffContextAccessor,
                 authorizationService,
                 saleId,
-                StaffPermissionNames.PayPosSale,
+                OrganizationPermissionNames.PayPosSale,
                 cancellationToken);
             if (sale.Result is not null)
             {
@@ -718,7 +718,7 @@ internal static class PosEndpoints
                 staffContextAccessor,
                 authorizationService,
                 saleId,
-                StaffPermissionNames.PayPosSale,
+                OrganizationPermissionNames.PayPosSale,
                 cancellationToken);
             if (sale.Result is not null)
             {
@@ -793,7 +793,7 @@ internal static class PosEndpoints
                 staffContextAccessor,
                 authorizationService,
                 saleId,
-                StaffPermissionNames.RefundPosSale,
+                OrganizationPermissionNames.RefundPosSale,
                 cancellationToken);
             if (sale.Result is not null)
             {
@@ -864,7 +864,7 @@ internal static class PosEndpoints
                 staffContextAccessor,
                 authorizationService,
                 saleId,
-                StaffPermissionNames.VoidPosSale,
+                OrganizationPermissionNames.VoidPosSale,
                 cancellationToken);
             if (sale.Result is not null)
             {
@@ -933,7 +933,7 @@ internal static class PosEndpoints
                 staffContextAccessor,
                 authorizationService,
                 saleId,
-                StaffPermissionNames.ViewReceipt,
+                OrganizationPermissionNames.ViewReceipt,
                 cancellationToken);
             if (sale.Result is not null)
             {
@@ -966,7 +966,7 @@ internal static class PosEndpoints
                 staffContextAccessor,
                 authorizationService,
                 receiptId,
-                StaffPermissionNames.ViewReceipt,
+                OrganizationPermissionNames.ViewReceipt,
                 cancellationToken);
             if (receipt.Result is not null)
             {

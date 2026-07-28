@@ -18,7 +18,7 @@ internal static class NewsEndpoints
             INewsService news,
             CancellationToken ct) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ManageNews);
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ManageNews);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 
@@ -31,7 +31,7 @@ internal static class NewsEndpoints
             PlatformDbContext db,
             CancellationToken ct) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ViewBranches);
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewBranches);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 
@@ -50,7 +50,7 @@ internal static class NewsEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken ct) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ManageNews);
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ManageNews);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 
@@ -83,7 +83,7 @@ internal static class NewsEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken ct) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ManageNews);
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ManageNews);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 
@@ -116,7 +116,7 @@ internal static class NewsEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken ct) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ManageNews);
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ManageNews);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 

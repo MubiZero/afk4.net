@@ -15,7 +15,7 @@ public sealed class InstalledAppsEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var enrollment = await EnrollDeviceAsync(client);
         await SeedExistingInstalledAppAsync(factory, enrollment.DeviceId);
         var request = new InstalledAppReportRequest(
@@ -83,7 +83,7 @@ public sealed class InstalledAppsEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var enrollment = await EnrollDeviceAsync(client);
         var request = CreateReport(enrollment);
 
@@ -99,7 +99,7 @@ public sealed class InstalledAppsEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var enrollment = await EnrollDeviceAsync(client);
         var request = CreateReport(enrollment) with { DeviceId = Guid.Parse("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa") };
 
@@ -120,7 +120,7 @@ public sealed class InstalledAppsEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var firstEnrollment = await EnrollDeviceAsync(client, "PC-001");
         var secondEnrollment = await EnrollDeviceAsync(client, "PC-002");
         var request = CreateReport(firstEnrollment);

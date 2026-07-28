@@ -37,7 +37,7 @@ public sealed class MoneyActionApprovalServiceTests
         var service = CreateService(db, new FakeResolver(MoneyActionDecision.ExecuteNow), executor);
 
         var result = await service.RequestAsync(
-            TestIds.OrganizationId, TestIds.BranchId, ShiftId, Requester, [StaffRoleNames.ShiftSupervisor],
+            TestIds.OrganizationId, TestIds.BranchId, ShiftId, Requester, [OrganizationRoleNames.ShiftSupervisor],
             RefundCommand(), CancellationToken.None);
 
         Assert.Equal(MoneyActionRequestOutcome.Executed, result.Outcome);
@@ -54,7 +54,7 @@ public sealed class MoneyActionApprovalServiceTests
         var service = CreateService(db, new FakeResolver(MoneyActionDecision.RequireApproval), executor);
 
         var result = await service.RequestAsync(
-            TestIds.OrganizationId, TestIds.BranchId, ShiftId, Requester, [StaffRoleNames.ShiftSupervisor],
+            TestIds.OrganizationId, TestIds.BranchId, ShiftId, Requester, [OrganizationRoleNames.ShiftSupervisor],
             RefundCommand(amount: 6000), CancellationToken.None);
 
         Assert.Equal(MoneyActionRequestOutcome.PendingApproval, result.Outcome);
@@ -78,7 +78,7 @@ public sealed class MoneyActionApprovalServiceTests
         var service = CreateService(db, new FakeResolver(MoneyActionDecision.Reject), executor);
 
         var result = await service.RequestAsync(
-            TestIds.OrganizationId, TestIds.BranchId, ShiftId, Requester, [StaffRoleNames.CashierOperator],
+            TestIds.OrganizationId, TestIds.BranchId, ShiftId, Requester, [OrganizationRoleNames.Operator],
             RefundCommand(), CancellationToken.None);
 
         Assert.Equal(MoneyActionRequestOutcome.Rejected, result.Outcome);
@@ -220,7 +220,7 @@ public sealed class MoneyActionApprovalServiceTests
     private async Task<Guid> SeedPendingAsync(IMoneyActionApprovalService service, string key = "refund-1")
     {
         var result = await service.RequestAsync(
-            TestIds.OrganizationId, TestIds.BranchId, ShiftId, Requester, [StaffRoleNames.ShiftSupervisor],
+            TestIds.OrganizationId, TestIds.BranchId, ShiftId, Requester, [OrganizationRoleNames.ShiftSupervisor],
             RefundCommand(key: key), CancellationToken.None);
         Assert.Equal(MoneyActionRequestOutcome.PendingApproval, result.Outcome);
         return result.MoneyActionRequestId!.Value;

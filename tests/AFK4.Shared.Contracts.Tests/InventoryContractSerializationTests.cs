@@ -84,10 +84,10 @@ public sealed class InventoryContractSerializationTests
     }
 
     [Fact]
-    public void StaffPermissionNames_ExposeInventoryPermissions()
+    public void OrganizationPermissionNames_ExposeInventoryPermissions()
     {
-        Assert.Equal("inventory.stock.manage", StaffPermissionNames.ManageInventoryStock);
-        Assert.Equal("inventory.view", StaffPermissionNames.ViewInventory);
+        Assert.Equal("organization.inventory.stock.manage", OrganizationPermissionNames.ManageInventoryStock);
+        Assert.Equal("organization.inventory.view", OrganizationPermissionNames.ViewInventory);
     }
 
     [Fact]

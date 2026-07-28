@@ -26,7 +26,7 @@ internal static class PlatformAdminTestHelper
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var hasher = new PasswordHasher<PlatformAdminUserEntity>();
-        var roleNames = (roles ?? [PlatformAdminRoleNames.PlatformOwner]).ToArray();
+        var roleNames = (roles ?? [PlatformAdminRoleNames.PlatformAdmin]).ToArray();
         var now = DateTimeOffset.Parse("2026-05-23T08:00:00Z");
         var admin = new PlatformAdminUserEntity
         {

@@ -154,7 +154,7 @@ public sealed class ProductBarcodeServiceTests
         {
             StaffRoleAssignmentId = Guid.NewGuid(), StaffUserId = ownerId,
             OrganizationId = TestIds.OrganizationId, BranchId = TestIds.BranchId,
-            RoleName = StaffRoleNames.Owner
+            RoleName = OrganizationRoleNames.OrganizationOwner
         });
         await db.SaveChangesAsync();
     }

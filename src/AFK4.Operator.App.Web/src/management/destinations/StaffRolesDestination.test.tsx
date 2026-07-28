@@ -6,16 +6,16 @@ import { permissionNames } from '../../operatorPermissions';
 import type { StaffUserDto } from '../../operatorApiClients';
 
 const createStaffInvite = mock(async () => ({ staffInviteId: 'inv-1', code: 'ABCD-1234', expiresAtUtc: '2026-01-08T00:00:00Z' }));
-const updateStaffUserProfile = mock(async () => ({ staffUserId: 'u1', userName: 'operator1x', displayName: 'Марина Сидорова', roleNames: ['cashier_operator'], isActive: true }));
+const updateStaffUserProfile = mock(async () => ({ staffUserId: 'u1', userName: 'operator1x', displayName: 'Марина Сидорова', roleNames: ['operator'], isActive: true }));
 const updateStaffUserRoles = mock(async () => ({ staffUserId: 'u1', userName: 'operator1', displayName: 'Марина Сидорова', roleNames: ['shift_supervisor'], isActive: true }));
 const updateStaffUserState = mock(async (_branchId: string, _staffUserId: string, request: Record<string, unknown>) => ({
   staffUserId: 'u1',
   userName: 'operator1',
   displayName: 'Марина Сидорова',
-  roleNames: ['cashier_operator'],
+  roleNames: ['operator'],
   isActive: request.isActive
 }));
-const resetStaffUserPassword = mock(async () => ({ staffUserId: 'u1', userName: 'operator1', displayName: 'Марина Сидорова', roleNames: ['cashier_operator'], isActive: true }));
+const resetStaffUserPassword = mock(async () => ({ staffUserId: 'u1', userName: 'operator1', displayName: 'Марина Сидорова', roleNames: ['operator'], isActive: true }));
 
 const actualHelpers = await import('../../operatorHelpers');
 mock.module('../../operatorHelpers', () => ({
@@ -59,7 +59,7 @@ const staffUsers: StaffUserDto[] = [{
   staffUserId,
   userName: 'operator1',
   displayName: 'Марина Сидорова',
-  roleNames: ['cashier_operator'],
+  roleNames: ['operator'],
   isActive: true
 } as never];
 
@@ -74,7 +74,7 @@ describe('StaffRolesDestination', () => {
     wrap(<StaffRolesDestination backend={null} session={session([])} currencyCode="TJS" staffUsers={staffUsers} />);
     expect(screen.getByText('Марина Сидорова')).toBeTruthy();
     expect(screen.getByText('operator1')).toBeTruthy();
-    expect(screen.getByText('Кассир-оператор')).toBeTruthy();
+    expect(screen.getByText('Оператор')).toBeTruthy();
     expect(screen.getByText('активен')).toBeTruthy();
   });
 
@@ -140,7 +140,7 @@ describe('StaffRolesDestination', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Логин для входа' }), { target: { value: 'operator2' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Имя в смене' }), { target: { value: 'Новый сотрудник' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Email для приглашения' }), { target: { value: 'new@club.tj' } });
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Кассир-оператор' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Оператор' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Управляющий' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Техник' }));
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить сотрудника' }));
@@ -179,7 +179,7 @@ describe('StaffRolesDestination', () => {
   });
 
   it('changes the complete role set via updateStaffUserRoles', async () => {
-    const multiRoleStaffUsers: StaffUserDto[] = [{ ...staffUsers[0], roleNames: ['cashier_operator', 'branch_manager'] } as never];
+    const multiRoleStaffUsers: StaffUserDto[] = [{ ...staffUsers[0], roleNames: ['operator', 'branch_manager'] } as never];
     wrap(
       <StaffRolesDestination
         backend={backend as never}
@@ -189,7 +189,7 @@ describe('StaffRolesDestination', () => {
       />
     );
     fireEvent.click(screen.getByText('Марина Сидорова'));
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Кассир-оператор' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Оператор' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Техник' }));
     fireEvent.click(screen.getByRole('button', { name: 'Обновить роль' }));
 
@@ -209,7 +209,7 @@ describe('StaffRolesDestination', () => {
       />
     );
     fireEvent.click(screen.getByText('Марина Сидорова'));
-    expect(screen.getByRole('checkbox', { name: 'Кассир-оператор' })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Оператор' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Обновить роль' })).toBeDisabled();
   });
 

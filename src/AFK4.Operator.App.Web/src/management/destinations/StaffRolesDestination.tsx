@@ -62,11 +62,11 @@ export function StaffRolesDestination({
   const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState(() => t('op.settings.prefill.inviteDisplayName'));
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRoleNames, setInviteRoleNames] = useState<string[]>(['cashier_operator']);
+  const [inviteRoleNames, setInviteRoleNames] = useState<string[]>(['operator']);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [profileUserName, setProfileUserName] = useState('');
   const [profileDisplayName, setProfileDisplayName] = useState('');
-  const [roleNames, setRoleNames] = useState<string[]>(['cashier_operator']);
+  const [roleNames, setRoleNames] = useState<string[]>(['operator']);
   const [newPassword, setNewPassword] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -110,7 +110,7 @@ export function StaffRolesDestination({
     setInviteUserName(`operator${staffRows.length + 1}`);
     setInviteDisplayName(t('op.settings.prefill.inviteDisplayName'));
     setInviteEmail('');
-    setInviteRoleNames(['cashier_operator']);
+    setInviteRoleNames(['operator']);
     setInviteCode(null);
     setInviteOpen(true);
   };

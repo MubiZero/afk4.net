@@ -17,13 +17,13 @@ const renderMenu = (perms: string[], onSelect = mock((_action: QuickAction) => {
 };
 
 const managerPerms = [
-  'sessions.start',
-  'pos.sales.create',
-  'players.create',
-  'reservations.manage',
-  'billing.wallet.top_up',
-  'shifts.cash.manage',
-  'inventory.stock.manage'
+  'organization.sessions.start',
+  'organization.pos.sales.create',
+  'organization.players.create',
+  'organization.reservations.manage',
+  'organization.billing.wallet.top_up',
+  'organization.shifts.cash.manage',
+  'organization.inventory.stock.manage'
 ];
 
 describe('QuickActionsMenu', () => {
@@ -40,7 +40,7 @@ describe('QuickActionsMenu', () => {
   });
 
   it('shows only the permitted action for a cashier session', () => {
-    renderMenu(['pos.sales.create']);
+    renderMenu(['organization.pos.sales.create']);
     fireEvent.click(screen.getByLabelText('Быстрое меню'));
     const items = screen.getAllByRole('menuitem');
     expect(items).toHaveLength(1);

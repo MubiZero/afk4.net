@@ -30,7 +30,7 @@ public sealed class PlatformAdminBootstrapHostedService(
             return;
         }
 
-        var roleNames = (bootstrap.Roles ?? [PlatformAdminRoleNames.PlatformOwner])
+        var roleNames = (bootstrap.Roles ?? [PlatformAdminRoleNames.PlatformAdmin])
             .Where(role => !string.IsNullOrWhiteSpace(role))
             .Select(role => role.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -39,8 +39,8 @@ public sealed class PlatformAdminBootstrapHostedService(
         if (roleNames.Length == 0)
         {
             logger.LogWarning(
-                "Platform admin bootstrap configuration listed no known roles; defaulting to platform_owner.");
-            roleNames = [PlatformAdminRoleNames.PlatformOwner];
+                "Platform admin bootstrap configuration listed no known roles; defaulting to platform_admin.");
+            roleNames = [PlatformAdminRoleNames.PlatformAdmin];
         }
 
         await using var scope = serviceProvider.CreateAsyncScope();

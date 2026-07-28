@@ -29,7 +29,7 @@ public sealed class MoneyActionEndpointTests
         using var client = factory.CreateClient();
         await SeedBaseAsync(factory);
         var entryId = await SeedRefundableTopUpAsync(factory, 10000);
-        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", StaffRoleNames.ShiftSupervisor);
+        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/money-actions",
@@ -55,7 +55,7 @@ public sealed class MoneyActionEndpointTests
         using var client = factory.CreateClient();
         await SeedBaseAsync(factory);
         var entryId = await SeedRefundableTopUpAsync(factory, 10000);
-        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", StaffRoleNames.ShiftSupervisor);
+        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/money-actions",
@@ -87,7 +87,7 @@ public sealed class MoneyActionEndpointTests
         Guid requestId;
         using (var supervisorClient = factory.CreateClient())
         {
-            await AuthorizeAsAsync(factory, supervisorClient, Supervisor, "supervisor@afk4.test", StaffRoleNames.ShiftSupervisor);
+            await AuthorizeAsAsync(factory, supervisorClient, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
             var submit = await supervisorClient.PostAsJsonAsync(
                 $"/api/branches/{TestIds.BranchId:D}/money-actions",
                 SubmitRefund(entryId, 6000, "money-1"));
@@ -96,7 +96,7 @@ public sealed class MoneyActionEndpointTests
         }
 
         using var managerClient = factory.CreateClient();
-        await AuthorizeAsAsync(factory, managerClient, Manager, "manager@afk4.test", StaffRoleNames.BranchManager);
+        await AuthorizeAsAsync(factory, managerClient, Manager, "manager@afk4.test", OrganizationRoleNames.BranchManager);
         var approve = await managerClient.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/money-actions/{requestId:D}/approve",
             new MoneyActionDecisionRequest("verified receipt"));
@@ -125,7 +125,7 @@ public sealed class MoneyActionEndpointTests
         await SeedBaseAsync(factory);
         var entryId = await SeedRefundableTopUpAsync(factory, 10000);
         // Owner holds both the refund permission and ApproveMoneyAction, but still cannot self-approve.
-        await AuthorizeAsAsync(factory, client, Owner, "owner@afk4.test", StaffRoleNames.Owner);
+        await AuthorizeAsAsync(factory, client, Owner, "owner@afk4.test", OrganizationRoleNames.OrganizationOwner);
 
         var submit = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/money-actions",
@@ -155,7 +155,7 @@ public sealed class MoneyActionEndpointTests
         var entryId = await SeedRefundableTopUpAsync(factory, 30000);
         // Supervisor already spent 18000 of their 20000 daily cap this shift.
         await SeedPriorHighRiskSpendAsync(factory, Supervisor, 18000);
-        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", StaffRoleNames.ShiftSupervisor);
+        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/money-actions",
@@ -179,14 +179,14 @@ public sealed class MoneyActionEndpointTests
 
         using (var supervisorClient = factory.CreateClient())
         {
-            await AuthorizeAsAsync(factory, supervisorClient, Supervisor, "supervisor@afk4.test", StaffRoleNames.ShiftSupervisor);
+            await AuthorizeAsAsync(factory, supervisorClient, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
             await supervisorClient.PostAsJsonAsync(
                 $"/api/branches/{TestIds.BranchId:D}/money-actions",
                 SubmitRefund(entryId, 6000, "money-1"));
         }
 
         using var managerClient = factory.CreateClient();
-        await AuthorizeAsAsync(factory, managerClient, Manager, "manager@afk4.test", StaffRoleNames.BranchManager);
+        await AuthorizeAsAsync(factory, managerClient, Manager, "manager@afk4.test", OrganizationRoleNames.BranchManager);
         var list = await managerClient.GetFromJsonAsync<MoneyActionRequestListResponse>(
             $"/api/branches/{TestIds.BranchId:D}/money-actions?state=pending");
 
@@ -205,7 +205,7 @@ public sealed class MoneyActionEndpointTests
         Guid requestId;
         using (var ownerClient = factory.CreateClient())
         {
-            await AuthorizeAsAsync(factory, ownerClient, Owner, "owner@afk4.test", StaffRoleNames.Owner);
+            await AuthorizeAsAsync(factory, ownerClient, Owner, "owner@afk4.test", OrganizationRoleNames.OrganizationOwner);
             var submit = await ownerClient.PostAsJsonAsync(
                 $"/api/branches/{TestIds.BranchId:D}/money-actions",
                 SubmitRefund(entryId, 6000, "money-1"));
@@ -214,7 +214,7 @@ public sealed class MoneyActionEndpointTests
 
         // Cashier lacks ApproveMoneyAction.
         using var cashierClient = factory.CreateClient();
-        await AuthorizeAsAsync(factory, cashierClient, Cashier, "cashier@afk4.test", StaffRoleNames.CashierOperator);
+        await AuthorizeAsAsync(factory, cashierClient, Cashier, "cashier@afk4.test", OrganizationRoleNames.Operator);
         var approve = await cashierClient.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/money-actions/{requestId:D}/approve",
             new MoneyActionDecisionRequest(null));
@@ -230,7 +230,7 @@ public sealed class MoneyActionEndpointTests
         await SeedBaseAsync(factory);
         var entryId = await SeedRefundableTopUpAsync(factory, 10000);
         await SetPlayerActiveAsync(factory, isActive: false);
-        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", StaffRoleNames.ShiftSupervisor);
+        await AuthorizeAsAsync(factory, client, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
 
         // Under-threshold would normally execute immediately — the inactive guard must stop it.
         var response = await client.PostAsJsonAsync(
@@ -258,7 +258,7 @@ public sealed class MoneyActionEndpointTests
         Guid requestId;
         using (var supervisorClient = factory.CreateClient())
         {
-            await AuthorizeAsAsync(factory, supervisorClient, Supervisor, "supervisor@afk4.test", StaffRoleNames.ShiftSupervisor);
+            await AuthorizeAsAsync(factory, supervisorClient, Supervisor, "supervisor@afk4.test", OrganizationRoleNames.ShiftSupervisor);
             var submit = await supervisorClient.PostAsJsonAsync(
                 $"/api/branches/{TestIds.BranchId:D}/money-actions",
                 SubmitRefund(entryId, 6000, "money-1"));
@@ -268,7 +268,7 @@ public sealed class MoneyActionEndpointTests
         await SetPlayerActiveAsync(factory, isActive: false);
 
         using var managerClient = factory.CreateClient();
-        await AuthorizeAsAsync(factory, managerClient, Manager, "manager@afk4.test", StaffRoleNames.BranchManager);
+        await AuthorizeAsAsync(factory, managerClient, Manager, "manager@afk4.test", OrganizationRoleNames.BranchManager);
         var approve = await managerClient.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/money-actions/{requestId:D}/approve",
             new MoneyActionDecisionRequest("verified receipt"));

@@ -85,7 +85,7 @@ internal static class DeviceEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.CreateDeviceEnrollmentCode,
+                OrganizationPermissionNames.CreateDeviceEnrollmentCode,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -156,7 +156,7 @@ internal static class DeviceEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.InstallDevice);
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.InstallDevice);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
             var staff = authorization.StaffContext!;
@@ -186,7 +186,7 @@ internal static class DeviceEndpoints
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
-                request.BranchId, StaffPermissionNames.InstallDevice, cancellationToken);
+                request.BranchId, OrganizationPermissionNames.InstallDevice, cancellationToken);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
@@ -227,7 +227,7 @@ internal static class DeviceEndpoints
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
-                request.BranchId, StaffPermissionNames.InstallDevice, cancellationToken);
+                request.BranchId, OrganizationPermissionNames.InstallDevice, cancellationToken);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
@@ -593,7 +593,7 @@ internal static class DeviceEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewDeviceDetail,
+                OrganizationPermissionNames.ViewDeviceDetail,
                 cancellationToken);
 
             if (!authorization.IsAllowed)
@@ -625,7 +625,7 @@ internal static class DeviceEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewDeviceDetail,
+                OrganizationPermissionNames.ViewDeviceDetail,
                 cancellationToken);
 
             if (!authorization.IsAllowed)
@@ -666,7 +666,7 @@ internal static class DeviceEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 device.BranchId,
-                StaffPermissionNames.ViewDeviceDetail,
+                OrganizationPermissionNames.ViewDeviceDetail,
                 cancellationToken);
 
             if (!authorization.IsAllowed)
@@ -759,7 +759,7 @@ internal static class DeviceEndpoints
                 authorizationService,
                 auditRecordWriter,
                 deviceId,
-                StaffPermissionNames.AssignDeviceSeat,
+                OrganizationPermissionNames.AssignDeviceSeat,
                 AuditActionNames.ApprovePendingDevice,
                 new
                 {
@@ -834,7 +834,7 @@ internal static class DeviceEndpoints
                 authorizationService,
                 auditRecordWriter,
                 deviceId,
-                StaffPermissionNames.AssignDeviceSeat,
+                OrganizationPermissionNames.AssignDeviceSeat,
                 AuditActionNames.RejectPendingDevice,
                 new
                 {
@@ -916,7 +916,7 @@ internal static class DeviceEndpoints
                 authorizationService,
                 auditRecordWriter,
                 deviceId,
-                StaffPermissionNames.AssignDeviceSeat,
+                OrganizationPermissionNames.AssignDeviceSeat,
                 AuditActionNames.RenameDevice,
                 new
                 {
@@ -992,7 +992,7 @@ internal static class DeviceEndpoints
                 authorizationService,
                 auditRecordWriter,
                 deviceId,
-                StaffPermissionNames.AssignDeviceSeat,
+                OrganizationPermissionNames.AssignDeviceSeat,
                 AuditActionNames.MoveDeviceSeat,
                 new
                 {
@@ -1082,7 +1082,7 @@ internal static class DeviceEndpoints
                 authorizationService,
                 auditRecordWriter,
                 deviceId,
-                StaffPermissionNames.RevokeDeviceCredential,
+                OrganizationPermissionNames.RevokeDeviceCredential,
                 AuditActionNames.RemoveDevice,
                 new
                 {
@@ -1171,7 +1171,7 @@ internal static class DeviceEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.AssignDeviceSeat,
+                OrganizationPermissionNames.AssignDeviceSeat,
                 cancellationToken);
 
             if (!authorization.IsAllowed)
@@ -1329,7 +1329,7 @@ internal static class DeviceEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 device.BranchId,
-                StaffPermissionNames.DispatchDeviceCommand,
+                OrganizationPermissionNames.DispatchDeviceCommand,
                 cancellationToken);
 
             if (!authorization.IsAllowed)
@@ -1431,7 +1431,7 @@ internal static class DeviceEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 device.BranchId,
-                StaffPermissionNames.ViewDeviceCommandStatus,
+                OrganizationPermissionNames.ViewDeviceCommandStatus,
                 cancellationToken);
 
             if (!authorization.IsAllowed)
@@ -1505,7 +1505,7 @@ internal static class DeviceEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewDeviceCommandStatus,
+                OrganizationPermissionNames.ViewDeviceCommandStatus,
                 cancellationToken);
 
             if (!authorization.IsAllowed)
@@ -1596,7 +1596,7 @@ internal static class DeviceEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 device.BranchId,
-                StaffPermissionNames.ViewDeviceCommandStatus,
+                OrganizationPermissionNames.ViewDeviceCommandStatus,
                 cancellationToken);
 
             if (!authorization.IsAllowed)
@@ -1671,7 +1671,7 @@ internal static class DeviceEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 device.BranchId,
-                StaffPermissionNames.RotateDeviceCredential,
+                OrganizationPermissionNames.RotateDeviceCredential,
                 cancellationToken);
 
             if (!authorization.IsAllowed)
@@ -1747,7 +1747,7 @@ internal static class DeviceEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 credential.BranchId,
-                StaffPermissionNames.RevokeDeviceCredential,
+                OrganizationPermissionNames.RevokeDeviceCredential,
                 cancellationToken);
 
             if (!authorization.IsAllowed)

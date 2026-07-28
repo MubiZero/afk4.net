@@ -4,25 +4,25 @@ using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Identity;
 
-public sealed class PermissionCatalogInstallDeviceTests
+public sealed class OrganizationPermissionCatalogInstallDeviceTests
 {
     [Theory]
-    [InlineData(StaffRoleNames.Owner)]
-    [InlineData(StaffRoleNames.BranchManager)]
-    [InlineData(StaffRoleNames.Technician)]
+    [InlineData(OrganizationRoleNames.OrganizationOwner)]
+    [InlineData(OrganizationRoleNames.BranchManager)]
+    [InlineData(OrganizationRoleNames.Technician)]
     public void InstallDevice_GrantedTo_InstallerRoles(string role)
     {
-        var permissions = PermissionCatalog.GetPermissions([role]);
-        Assert.Contains(StaffPermissionNames.InstallDevice, permissions);
+        var permissions = OrganizationPermissionCatalog.GetPermissions([role]);
+        Assert.Contains(OrganizationPermissionNames.InstallDevice, permissions);
     }
 
     [Theory]
-    [InlineData(StaffRoleNames.CashierOperator)]
-    [InlineData(StaffRoleNames.ShiftSupervisor)]
-    [InlineData(StaffRoleNames.AccountantAuditor)]
+    [InlineData(OrganizationRoleNames.Operator)]
+    [InlineData(OrganizationRoleNames.ShiftSupervisor)]
+    [InlineData(OrganizationRoleNames.Accountant)]
     public void InstallDevice_NotGrantedTo_OtherRoles(string role)
     {
-        var permissions = PermissionCatalog.GetPermissions([role]);
-        Assert.DoesNotContain(StaffPermissionNames.InstallDevice, permissions);
+        var permissions = OrganizationPermissionCatalog.GetPermissions([role]);
+        Assert.DoesNotContain(OrganizationPermissionNames.InstallDevice, permissions);
     }
 }

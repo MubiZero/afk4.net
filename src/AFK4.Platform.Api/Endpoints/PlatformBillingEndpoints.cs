@@ -298,7 +298,7 @@ internal static class PlatformBillingEndpoints
             ITenantSubscriptionService subscriptionService,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ViewSubscription);
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewSubscription);
             if (!authorization.IsAuthenticated)
                 return Results.Unauthorized();
             if (!authorization.IsAllowed)
@@ -316,7 +316,7 @@ internal static class PlatformBillingEndpoints
             IInvoiceService invoiceService,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ViewSubscription);
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewSubscription);
             if (!authorization.IsAuthenticated)
                 return Results.Unauthorized();
             if (!authorization.IsAllowed)
@@ -670,7 +670,7 @@ internal static class PlatformBillingEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewTenantHealth);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewOrganizationHealth);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
@@ -734,7 +734,7 @@ internal static class PlatformBillingEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewTenantSupportNotes);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewOrganizationSupportNotes);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
@@ -798,7 +798,7 @@ internal static class PlatformBillingEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageTenantSupportNotes);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOrganizationSupportNotes);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
@@ -869,7 +869,7 @@ internal static class PlatformBillingEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageTenantSupportNotes);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOrganizationSupportNotes);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();

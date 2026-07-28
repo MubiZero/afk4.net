@@ -30,12 +30,12 @@ public sealed partial class StaffInviteEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         var create = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/staff/invites",
             new CreateStaffInviteRequest(TestIds.OrganizationId, "new.cashier", "New Cashier", "new.cashier@club.example",
-                [StaffRoleNames.CashierOperator]));
+                [OrganizationRoleNames.Operator]));
         Assert.Equal(HttpStatusCode.OK, create.StatusCode);
         var dto = await create.Content.ReadFromJsonAsync<StaffInviteDto>();
         Assert.NotNull(dto);
@@ -65,7 +65,7 @@ public sealed partial class StaffInviteEndpointTests
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/staff/invites",
             new CreateStaffInviteRequest(TestIds.OrganizationId, "new.cashier", "New Cashier", "new.cashier@club.example",
-                [StaffRoleNames.CashierOperator]));
+                [OrganizationRoleNames.Operator]));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -75,13 +75,13 @@ public sealed partial class StaffInviteEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
 
         // "tech@afk4.test" is the seeded owner account — inviting the same username must fail.
         var response = await client.PostAsJsonAsync(
             $"/api/branches/{TestIds.BranchId:D}/staff/invites",
             new CreateStaffInviteRequest(TestIds.OrganizationId, "tech@afk4.test", "Dup", "dup@club.example",
-                [StaffRoleNames.CashierOperator]));
+                [OrganizationRoleNames.Operator]));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

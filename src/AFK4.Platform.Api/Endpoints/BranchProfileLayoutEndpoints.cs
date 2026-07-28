@@ -84,7 +84,7 @@ internal static class BranchProfileLayoutEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageBranchSettings,
+                OrganizationPermissionNames.ManageBranchSettings,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -147,7 +147,7 @@ internal static class BranchProfileLayoutEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageBranchSettings,
+                OrganizationPermissionNames.ManageBranchSettings,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -233,7 +233,7 @@ internal static class BranchProfileLayoutEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageLayout,
+                OrganizationPermissionNames.ManageLayout,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -308,7 +308,7 @@ internal static class BranchProfileLayoutEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageLayout,
+                OrganizationPermissionNames.ManageLayout,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -393,7 +393,7 @@ internal static class BranchProfileLayoutEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageLayout,
+                OrganizationPermissionNames.ManageLayout,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -496,7 +496,7 @@ internal static class BranchProfileLayoutEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageLayout,
+                OrganizationPermissionNames.ManageLayout,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -581,7 +581,7 @@ internal static class BranchProfileLayoutEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageLayout,
+                OrganizationPermissionNames.ManageLayout,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -684,7 +684,7 @@ internal static class BranchProfileLayoutEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageLayout,
+                OrganizationPermissionNames.ManageLayout,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -795,7 +795,7 @@ internal static class BranchProfileLayoutEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageLayout,
+                OrganizationPermissionNames.ManageLayout,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)

@@ -47,33 +47,33 @@ function session(permissions: string[]) {
 
 describe('visibleCashTabs (per-tab гранулярность прав)', () => {
   it('только право продаж → только Продажи (sales — суперсет, orders-вкладка удалена)', () => {
-    expect(visibleCashTabs(session(['pos.sales.create']))).toEqual(['sales']);
+    expect(visibleCashTabs(session(['organization.pos.sales.create']))).toEqual(['sales']);
   });
   it('reports.view → Смена + Журнал (суперсет прав)', () => {
-    expect(visibleCashTabs(session(['reports.view']))).toEqual(['shift', 'journal']);
+    expect(visibleCashTabs(session(['organization.reports.view']))).toEqual(['shift', 'journal']);
   });
   it('shifts.view → Смена + Журнал (суперсет прав)', () => {
-    expect(visibleCashTabs(session(['shifts.view']))).toEqual(['shift', 'journal']);
+    expect(visibleCashTabs(session(['organization.shifts.view']))).toEqual(['shift', 'journal']);
   });
   it('только approveMoneyAction → Журнал', () => {
-    expect(visibleCashTabs(session(['billing.money_action.approve']))).toEqual(['journal']);
+    expect(visibleCashTabs(session(['organization.billing.money_action.approve']))).toEqual(['journal']);
   });
   it('только receipts.view → Журнал', () => {
-    expect(visibleCashTabs(session(['receipts.view']))).toEqual(['journal']);
+    expect(visibleCashTabs(session(['organization.receipts.view']))).toEqual(['journal']);
   });
   it('только pos.sales.refund → Журнал', () => {
-    expect(visibleCashTabs(session(['pos.sales.refund']))).toEqual(['sales', 'journal']);
+    expect(visibleCashTabs(session(['organization.pos.sales.refund']))).toEqual(['sales', 'journal']);
   });
   it('только viewReports → Журнал виден (расширение доступа, не регрессия)', () => {
-    expect(visibleCashTabs(session(['reports.view']))).toContain('journal');
+    expect(visibleCashTabs(session(['organization.reports.view']))).toContain('journal');
   });
   it('null сессия → пусто', () => {
     expect(visibleCashTabs(null)).toEqual([]);
   });
   it('все права → все 3 вкладки по порядку', () => {
     expect(visibleCashTabs(session([
-      'pos.sales.create', 'pos.sales.pay', 'pos.sales.refund', 'pos.sales.void',
-      'shifts.view', 'shifts.open', 'reports.view', 'billing.money_action.approve'
+      'organization.pos.sales.create', 'organization.pos.sales.pay', 'organization.pos.sales.refund', 'organization.pos.sales.void',
+      'organization.shifts.view', 'organization.shifts.open', 'organization.reports.view', 'organization.billing.money_action.approve'
     ]))).toEqual(['sales', 'shift', 'journal']);
   });
 });

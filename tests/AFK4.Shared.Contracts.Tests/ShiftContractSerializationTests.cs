@@ -140,12 +140,12 @@ public sealed class ShiftContractSerializationTests
     }
 
     [Fact]
-    public void StaffPermissionNames_ExposeShiftPermissions()
+    public void OrganizationPermissionNames_ExposeShiftPermissions()
     {
-        Assert.Equal("shifts.open", StaffPermissionNames.OpenShift);
-        Assert.Equal("shifts.close", StaffPermissionNames.CloseShift);
-        Assert.Equal("shifts.view", StaffPermissionNames.ViewShift);
-        Assert.Equal("shifts.cash.manage", StaffPermissionNames.ManageShiftCash);
-        Assert.Equal("reports.view", StaffPermissionNames.ViewReports);
+        Assert.Equal("organization.shifts.open", OrganizationPermissionNames.OpenShift);
+        Assert.Equal("organization.shifts.close", OrganizationPermissionNames.CloseShift);
+        Assert.Equal("organization.shifts.view", OrganizationPermissionNames.ViewShift);
+        Assert.Equal("organization.shifts.cash.manage", OrganizationPermissionNames.ManageShiftCash);
+        Assert.Equal("organization.reports.view", OrganizationPermissionNames.ViewReports);
     }
 }

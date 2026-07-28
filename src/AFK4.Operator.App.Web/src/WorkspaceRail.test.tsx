@@ -39,7 +39,7 @@ function renderRail(permissions: string[]) {
 
 describe('WorkspaceRail permissions', () => {
   it('hides sections with no permitted workspace', () => {
-    renderRail(['floor_map.view']);
+    renderRail(['organization.floor_map.view']);
 
     expect(screen.getByTitle('Карта')).toBeInTheDocument();
     expect(screen.queryByTitle('Касса')).not.toBeInTheDocument();
@@ -54,7 +54,7 @@ describe('WorkspaceRail permissions', () => {
     // devices.commands.dispatch no longer qualifies — the gate is now the perms that actually
     // unlock content (layout.manage / seat assignment / credential rotate-revoke). Read-only
     // devices.detail.view/commands.status.view still do NOT grant whole-section visibility.
-    renderRail(['devices.seat_assignment.assign']);
+    renderRail(['organization.devices.seat_assignment.assign']);
 
     expect(screen.getByTitle('Управление')).toBeInTheDocument();
   });

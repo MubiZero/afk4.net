@@ -51,7 +51,7 @@ describe('CashShiftHeader', () => {
   });
 
   it('открытая смена + право shifts.close → кнопка «Закрыть смену» в шапке', async () => {
-    const session = { permissions: ['shifts.close'], organizationId: 'o' } as never;
+    const session = { permissions: ['organization.shifts.close'], organizationId: 'o' } as never;
     const actions: CashShiftActionsClient = {
       openShift: async () => ({}),
       recordCashMovement: async () => ({}),

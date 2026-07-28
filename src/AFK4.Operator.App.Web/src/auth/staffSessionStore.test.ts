@@ -6,7 +6,7 @@ const sample: OperatorAuthSession = {
   staffUserId: 's1', organizationId: 'o1', displayName: 'Owner',
   accessToken: 'a.b', accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z',
   refreshToken: 'r.b', refreshTokenExpiresAtUtc: '2999-01-01T00:00:00Z',
-  branchIds: ['b1', 'b2'], permissions: ['pos.sell'], roleNames: ['branch_manager']
+  branchIds: ['b1', 'b2'], permissions: ['organization.pos.sell'], roleNames: ['branch_manager']
 };
 
 beforeEach(() => clearStoredSession());

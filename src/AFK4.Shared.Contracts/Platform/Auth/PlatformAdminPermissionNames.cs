@@ -2,21 +2,21 @@ namespace AFK4.Shared.Contracts.Platform.Auth;
 
 public static class PlatformAdminPermissionNames
 {
-    public const string ViewTenants = "platform.tenants.view";
+    public const string ViewOrganizations = "platform.organizations.view";
 
-    public const string CreateTenant = "platform.tenants.create";
+    public const string CreateOrganization = "platform.organizations.create";
 
-    public const string UpdateTenantStatus = "platform.tenants.status.update";
+    public const string UpdateOrganizationStatus = "platform.organizations.status.update";
 
-    public const string UpdateTenantLimits = "platform.tenants.limits.update";
+    public const string UpdateOrganizationLimits = "platform.organizations.limits.update";
 
-    public const string ViewTenantSupportNotes = "platform.tenants.support_notes.view";
+    public const string ViewOrganizationSupportNotes = "platform.organizations.support_notes.view";
 
-    public const string ManageTenantSupportNotes = "platform.tenants.support_notes.manage";
+    public const string ManageOrganizationSupportNotes = "platform.organizations.support_notes.manage";
 
-    public const string ManageOwnerInvites = "platform.tenants.invites.manage";
+    public const string ManageOrganizationOwnerInvites = "platform.organizations.owner_invites.manage";
 
-    public const string ViewTenantHealth = "platform.tenants.health.view";
+    public const string ViewOrganizationHealth = "platform.organizations.health.view";
 
     public const string ViewPlatformAudit = "platform.audit.view";
 

@@ -87,7 +87,7 @@ internal static class DashboardEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewReports,
+                OrganizationPermissionNames.ViewReports,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)

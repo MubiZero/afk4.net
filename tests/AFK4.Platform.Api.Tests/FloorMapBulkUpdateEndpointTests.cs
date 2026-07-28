@@ -19,7 +19,7 @@ public sealed class FloorMapBulkUpdateEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         await SeedZoneAsync(factory);
 
         var first = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
@@ -37,7 +37,7 @@ public sealed class FloorMapBulkUpdateEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         await SeedZoneAsync(factory);
 
         var request = new FloorMapBulkUpdateRequest(
@@ -54,7 +54,7 @@ public sealed class FloorMapBulkUpdateEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         await SeedZoneAsync(factory);
 
         var current = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
@@ -77,7 +77,7 @@ public sealed class FloorMapBulkUpdateEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         await SeedZoneAsync(factory);
 
         var current = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
@@ -124,7 +124,7 @@ public sealed class FloorMapBulkUpdateEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         var (zoneId, seatId) = await SeedZoneAndSeatAsync(factory);
 
         var current = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/floor-map");
@@ -151,7 +151,7 @@ public sealed class FloorMapBulkUpdateEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Owner);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         var (zoneId, seatId) = await SeedZoneAndSeatAsync(factory);
         await SeedSessionHistoryAsync(factory, seatId);
 
@@ -179,7 +179,7 @@ public sealed class FloorMapBulkUpdateEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedZoneAsync(factory);
 
         var request = new FloorMapBulkUpdateRequest(

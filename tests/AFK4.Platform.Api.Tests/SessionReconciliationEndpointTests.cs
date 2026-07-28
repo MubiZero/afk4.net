@@ -20,7 +20,7 @@ public sealed class SessionReconciliationEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         var enrollment = await EnrollDeviceAsync(client);
         var request = CreateSnapshot(enrollment.DeviceId, activeLease: null);
 
@@ -36,7 +36,7 @@ public sealed class SessionReconciliationEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var enrollment = await EnrollDeviceAsync(client);
         await SeedSeatAssignmentAsync(factory, enrollment.DeviceId);
         var started = await StartSessionAsync(client);
@@ -63,7 +63,7 @@ public sealed class SessionReconciliationEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var enrollment = await EnrollDeviceAsync(client);
         await SeedSeatAssignmentAsync(factory, enrollment.DeviceId);
         var started = await StartSessionAsync(client);
@@ -95,7 +95,7 @@ public sealed class SessionReconciliationEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var enrollment = await EnrollDeviceAsync(client);
         await SeedSeatAssignmentAsync(factory, enrollment.DeviceId);
         var started = await StartSessionAsync(client);
@@ -127,7 +127,7 @@ public sealed class SessionReconciliationEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         var enrollment = await EnrollDeviceAsync(client);
         await SeedSeatAssignmentAsync(factory, enrollment.DeviceId);
         var started = await StartSessionAsync(client);

@@ -467,7 +467,7 @@ public sealed class EfPlatformTenantService(
             StaffUserId = staffUser.StaffUserId,
             OrganizationId = invite.OrganizationId,
             BranchId = invite.BranchId,
-            RoleName = StaffRoleNames.Owner
+            RoleName = OrganizationRoleNames.OrganizationOwner
         });
 
         invite.Status = OwnerInviteStatusNames.Accepted;

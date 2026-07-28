@@ -92,7 +92,7 @@ internal static partial class EndpointHelpers
     {
         var authorization = await authorizationService.RequireBranchPermissionAsync(
             branchId,
-            StaffPermissionNames.ViewReports,
+            OrganizationPermissionNames.ViewReports,
             cancellationToken);
 
         if (!authorization.IsAuthenticated)

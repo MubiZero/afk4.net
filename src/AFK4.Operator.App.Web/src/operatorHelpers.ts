@@ -281,15 +281,15 @@ export function operatorDisplayNameLabel(displayName: string | null | undefined,
 
 export function staffRoleLabel(roleName: string, t: TFunc): string {
   switch (roleName) {
-    case 'cashier_operator':
-      return t('op.helper.staff.cashierOperator');
+    case 'operator':
+      return t('op.helper.staff.operator');
     case 'shift_supervisor':
       return t('op.helper.staff.shiftSupervisor');
     case 'branch_manager':
       return t('op.helper.staff.branchManager');
     case 'technician':
       return t('op.helper.staff.technician');
-    case 'accountant_auditor':
+    case 'accountant':
       return t('op.helper.staff.accountant');
     default:
       return roleName || t('op.helper.staff.roleNotSet');

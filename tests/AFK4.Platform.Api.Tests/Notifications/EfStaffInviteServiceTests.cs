@@ -28,7 +28,7 @@ public sealed class EfStaffInviteServiceTests
         return (service, notifications, time);
     }
 
-    private static IReadOnlyList<string> Roles => [StaffRoleNames.CashierOperator];
+    private static IReadOnlyList<string> Roles => [OrganizationRoleNames.Operator];
 
     [Fact]
     public async Task CreateInviteAsync_PersistsInviteAndEnqueuesStaffInviteEmailWithCode()
@@ -77,7 +77,7 @@ public sealed class EfStaffInviteServiceTests
         await using var db = CreateDb();
         var (service, notifications, _) = CreateService(db);
         var created = await service.CreateInviteAsync(OrgId, BranchId, "newcashier", "New Cashier", "cashier@club.example",
-            [StaffRoleNames.CashierOperator, StaffRoleNames.Technician], CancellationToken.None);
+            [OrganizationRoleNames.Operator, OrganizationRoleNames.Technician], CancellationToken.None);
 
         var result = await service.AcceptInviteAsync(created.Code, "FreshPass123", CancellationToken.None);
 
@@ -94,8 +94,8 @@ public sealed class EfStaffInviteServiceTests
         var roles = await db.StaffRoleAssignments
             .Where(r => r.StaffUserId == staff.StaffUserId && r.BranchId == BranchId)
             .Select(r => r.RoleName).ToListAsync();
-        Assert.Contains(StaffRoleNames.CashierOperator, roles);
-        Assert.Contains(StaffRoleNames.Technician, roles);
+        Assert.Contains(OrganizationRoleNames.Operator, roles);
+        Assert.Contains(OrganizationRoleNames.Technician, roles);
 
         var invite = await db.StaffInvites.SingleAsync();
         Assert.NotNull(invite.AcceptedAtUtc);

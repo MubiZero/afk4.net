@@ -138,7 +138,7 @@ const backend = {
     accessToken: 'token',
     accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z',
     organizationId: 'organization-1',
-    permissions: ['players.view', 'pos.sales.create', 'pos.sales.pay']
+    permissions: ['organization.players.view', 'organization.pos.sales.create', 'organization.pos.sales.pay']
   },
   branchId: 'branch-1'
 };
@@ -195,7 +195,7 @@ describe('BackendPosWorkspace', () => {
   it('purchases a package from the wallet without creating a POS sale and refreshes client state', async () => {
     renderBackendPos({
       ...backend,
-      session: { ...backend.session, permissions: [...backend.session.permissions, 'packages.purchase'] }
+      session: { ...backend.session, permissions: [...backend.session.permissions, 'organization.packages.purchase'] }
     });
     await screen.findAllByText('Cola');
 

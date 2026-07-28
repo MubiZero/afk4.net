@@ -85,7 +85,7 @@ internal static class UpdateEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageUpdatePackages,
+                OrganizationPermissionNames.ManageUpdatePackages,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -152,7 +152,7 @@ internal static class UpdateEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageUpdatePackages,
+                OrganizationPermissionNames.ManageUpdatePackages,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -219,7 +219,7 @@ internal static class UpdateEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageUpdateRollouts,
+                OrganizationPermissionNames.ManageUpdateRollouts,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -286,7 +286,7 @@ internal static class UpdateEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageUpdateRollouts,
+                OrganizationPermissionNames.ManageUpdateRollouts,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -352,7 +352,7 @@ internal static class UpdateEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewUpdateStatus,
+                OrganizationPermissionNames.ViewUpdateStatus,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -412,7 +412,7 @@ internal static class UpdateEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewUpdateStatus,
+                OrganizationPermissionNames.ViewUpdateStatus,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -481,7 +481,7 @@ internal static class UpdateEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewAudit,
+                OrganizationPermissionNames.ViewAudit,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -553,7 +553,7 @@ internal static class UpdateEndpoints
             IAuditSearchService auditSearchService,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequireOrganizationPermission(StaffPermissionNames.ViewOrganizationAudit);
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewOrganizationAudit);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
 
             if (!authorization.IsAllowed)

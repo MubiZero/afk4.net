@@ -24,7 +24,7 @@ public sealed class DeviceAdminEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Pending);
 
         var response = await client.GetAsync($"/api/branches/{TestIds.BranchId:D}/devices/pending");
@@ -44,7 +44,7 @@ public sealed class DeviceAdminEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Pending);
 
         var response = await client.PostAsJsonAsync(
@@ -72,7 +72,7 @@ public sealed class DeviceAdminEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Pending);
 
         var response = await client.PostAsJsonAsync(
@@ -102,7 +102,7 @@ public sealed class DeviceAdminEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Approved);
 
         var response = await client.PostAsJsonAsync(
@@ -128,7 +128,7 @@ public sealed class DeviceAdminEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Approved);
 
         var response = await client.PostAsJsonAsync(
@@ -147,7 +147,7 @@ public sealed class DeviceAdminEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Approved);
 
         var response = await client.PostAsJsonAsync(
@@ -178,7 +178,7 @@ public sealed class DeviceAdminEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Approved);
 
         var response = await client.PostAsJsonAsync(
@@ -207,7 +207,7 @@ public sealed class DeviceAdminEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.BranchManager);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
         await SeedDevicesAsync(factory, pendingDeviceState: DeviceEnrollmentStateNames.Approved);
         await SeedActiveSessionAsync(factory);
 

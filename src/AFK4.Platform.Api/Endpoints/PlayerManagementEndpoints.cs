@@ -85,7 +85,7 @@ internal static class PlayerManagementEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.CreatePlayerAccount,
+                OrganizationPermissionNames.CreatePlayerAccount,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -152,7 +152,7 @@ internal static class PlayerManagementEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.CreatePlayerAccount,
+                OrganizationPermissionNames.CreatePlayerAccount,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -194,7 +194,7 @@ internal static class PlayerManagementEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.CreatePlayerAccount,
+                OrganizationPermissionNames.CreatePlayerAccount,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -266,7 +266,7 @@ internal static class PlayerManagementEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.CreatePlayerAccount,
+                OrganizationPermissionNames.CreatePlayerAccount,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -335,7 +335,7 @@ internal static class PlayerManagementEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewPlayers,
+                OrganizationPermissionNames.ViewPlayers,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -383,7 +383,7 @@ internal static class PlayerManagementEndpoints
                 staffContextAccessor,
                 authorizationService,
                 playerAccountId,
-                StaffPermissionNames.ViewBilling,
+                OrganizationPermissionNames.ViewBilling,
                 cancellationToken);
             if (player.Result is not null)
             {
@@ -428,7 +428,7 @@ internal static class PlayerManagementEndpoints
                 staffContextAccessor,
                 authorizationService,
                 playerAccountId,
-                StaffPermissionNames.ViewBilling,
+                OrganizationPermissionNames.ViewBilling,
                 cancellationToken);
             if (player.Result is not null)
             {
@@ -467,7 +467,7 @@ internal static class PlayerManagementEndpoints
                 staffContextAccessor,
                 authorizationService,
                 playerAccountId,
-                StaffPermissionNames.TopUpWallet,
+                OrganizationPermissionNames.TopUpWallet,
                 cancellationToken);
             if (player.Result is not null)
             {
@@ -547,7 +547,7 @@ internal static class PlayerManagementEndpoints
                 staffContextAccessor,
                 authorizationService,
                 playerAccountId,
-                StaffPermissionNames.RefundLedgerEntry,
+                OrganizationPermissionNames.RefundLedgerEntry,
                 cancellationToken);
             if (player.Result is not null)
             {
@@ -663,7 +663,7 @@ internal static class PlayerManagementEndpoints
                 staffContextAccessor,
                 authorizationService,
                 playerAccountId,
-                StaffPermissionNames.ManualLedgerCorrection,
+                OrganizationPermissionNames.ManualLedgerCorrection,
                 cancellationToken);
             if (player.Result is not null)
             {

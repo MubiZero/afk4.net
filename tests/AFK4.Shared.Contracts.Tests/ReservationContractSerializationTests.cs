@@ -80,8 +80,8 @@ public sealed class ReservationContractSerializationTests
     [Fact]
     public void ReservationPermissions_AreStableContractNames()
     {
-        Assert.Equal("reservations.view", StaffPermissionNames.ViewReservations);
-        Assert.Equal("reservations.manage", StaffPermissionNames.ManageReservations);
+        Assert.Equal("organization.reservations.view", OrganizationPermissionNames.ViewReservations);
+        Assert.Equal("organization.reservations.manage", OrganizationPermissionNames.ManageReservations);
     }
 
     [Fact]

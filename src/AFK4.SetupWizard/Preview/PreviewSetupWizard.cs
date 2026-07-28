@@ -54,7 +54,7 @@ internal static class PreviewSetupWizard
                 RefreshToken: "preview-refresh-token",
                 RefreshTokenExpiresAtUtc: DateTimeOffset.UtcNow.AddDays(30),
                 BranchIds: [BranchId],
-                Permissions: [StaffPermissionNames.InstallDevice]);
+                Permissions: [OrganizationPermissionNames.InstallDevice]);
 
         public Task<SetupWizardLoginResult> SignInByLoginAsync(string login, string password, CancellationToken cancellationToken)
             => Task.FromResult(new SetupWizardLoginResult(SignedIn: PreviewSignIn("Preview Staff"), Clubs: []));

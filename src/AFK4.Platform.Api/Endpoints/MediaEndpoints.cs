@@ -19,7 +19,7 @@ internal static class MediaEndpoints
             CancellationToken ct) =>
         {
             var auth = await authorizationService.RequireBranchPermissionAsync(
-                branchId, StaffPermissionNames.ManageBranchSettings, ct);
+                branchId, OrganizationPermissionNames.ManageBranchSettings, ct);
             if (!auth.IsAuthenticated) return Results.Unauthorized();
             if (!auth.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
             if (file is null || file.Length == 0) return Results.BadRequest(new { Error = "File is required." });
@@ -40,7 +40,7 @@ internal static class MediaEndpoints
             CancellationToken ct) =>
         {
             var auth = await authorizationService.RequireBranchPermissionAsync(
-                branchId, StaffPermissionNames.ManageBranchSettings, ct);
+                branchId, OrganizationPermissionNames.ManageBranchSettings, ct);
             if (!auth.IsAuthenticated) return Results.Unauthorized();
             if (!auth.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 

@@ -46,12 +46,12 @@ export function SettingsStaffSection({
   const [selectedStaffUserId, setSelectedStaffUserId] = useState('');
   const [staffProfileUserName, setStaffProfileUserName] = useState('');
   const [staffProfileDisplayName, setStaffProfileDisplayName] = useState('');
-  const [staffRoleName, setStaffRoleName] = useState('cashier_operator');
+  const [staffRoleName, setStaffRoleName] = useState('operator');
   const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState(() => t('op.settings.prefill.inviteDisplayName'));
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteCode, setInviteCode] = useState<string | null>(null);
-  const [inviteRoleName, setInviteRoleName] = useState('cashier_operator');
+  const [inviteRoleName, setInviteRoleName] = useState('operator');
   const [resetPassword, setResetPassword] = useState('');
 
   // Засев выбора из загруженных данных: сохранить текущего, если он ещё есть; иначе первый
@@ -63,7 +63,7 @@ export function SettingsStaffSection({
     setSelectedStaffUserId(readString(selectedStaff, 'staffUserId'));
     setStaffProfileUserName(readString(selectedStaff, 'userName'));
     setStaffProfileDisplayName(operatorDisplayNameLabel(readString(selectedStaff, 'displayName'), t));
-    setStaffRoleName(selectedStaffRole ?? 'cashier_operator');
+    setStaffRoleName(selectedStaffRole ?? 'operator');
   }, [staffUsers]);
 
   const selectedStaffUser = staffUsers.find((user) => readString(user, 'staffUserId') === selectedStaffUserId);
@@ -91,7 +91,7 @@ export function SettingsStaffSection({
           userName,
           displayName,
           email,
-          roleNames: [inviteRoleName || 'cashier_operator']
+          roleNames: [inviteRoleName || 'operator']
         });
         // The invitee appears in the staff list only after they accept and set a password.
         setInviteCode(invite.code);
@@ -207,7 +207,7 @@ export function SettingsStaffSection({
                 setSelectedStaffUserId(readString(user, 'staffUserId'));
                 setStaffProfileUserName(readString(user, 'userName'));
                 setStaffProfileDisplayName(operatorDisplayNameLabel(readString(user, 'displayName'), t));
-                setStaffRoleName(roleName ?? 'cashier_operator');
+                setStaffRoleName(roleName ?? 'operator');
                 triggerFeedback(onFeedback, operatorDisplayNameLabel(readString(user, 'displayName'), t), 'confirmed');
               }}
             >

@@ -102,7 +102,7 @@ public class StaffAuthorizationServiceTests
                 StaffUserId = user.StaffUserId,
                 OrganizationId = user.OrganizationId,
                 BranchId = BranchAId,
-                RoleName = StaffRoleNames.BranchManager
+                RoleName = OrganizationRoleNames.BranchManager
             });
             dbContext.StaffRoleAssignments.Add(new StaffRoleAssignmentEntity
             {
@@ -110,7 +110,7 @@ public class StaffAuthorizationServiceTests
                 StaffUserId = user.StaffUserId,
                 OrganizationId = user.OrganizationId,
                 BranchId = BranchBId,
-                RoleName = StaffRoleNames.CashierOperator
+                RoleName = OrganizationRoleNames.Operator
             });
             await dbContext.SaveChangesAsync();
         }

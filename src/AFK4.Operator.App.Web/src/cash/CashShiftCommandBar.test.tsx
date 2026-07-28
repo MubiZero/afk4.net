@@ -9,7 +9,7 @@ import { ToastProvider } from '../operatorToast';
 afterEach(cleanup);
 
 const backend = { config: { platformBaseUrl: 'x' }, session: { accessToken: 't', organizationId: 'org1' }, branchId: 'b1' } as never;
-const allPerms = ['shifts.open', 'shifts.close', 'shifts.cash.manage'];
+const allPerms = ['organization.shifts.open', 'organization.shifts.close', 'organization.shifts.cash.manage'];
 const session = (perms: string[]) => ({ permissions: perms, organizationId: 'org1' } as unknown as OperatorAuthSession);
 
 function fakeActions(): CashShiftActionsClient & { calls: Record<string, unknown[]> } {
@@ -106,7 +106,7 @@ describe('CashShiftCommandBar', () => {
   } as never);
 
   it('кнопка X-отчёт открывает форму отчёта по снимку выручки', () => {
-    renderBar({ isOpen: true, perms: [...allPerms, 'reports.view'], revenue: makeRevenue() });
+    renderBar({ isOpen: true, perms: [...allPerms, 'organization.reports.view'], revenue: makeRevenue() });
     fireEvent.click(screen.getByRole('button', { name: /X-отчёт/ }));
     const dialog = screen.getByRole('dialog');
     expect(within(dialog).getByText('X-отчёт')).toBeInTheDocument();

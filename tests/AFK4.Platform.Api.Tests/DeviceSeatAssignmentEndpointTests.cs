@@ -34,7 +34,7 @@ public sealed class DeviceSeatAssignmentEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedLayoutAndDevicesAsync(factory);
 
         var response = await client.PostAsJsonAsync(
@@ -65,7 +65,7 @@ public sealed class DeviceSeatAssignmentEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedLayoutAndDevicesAsync(factory);
         await SeedConflictingAssignmentsAsync(factory);
 
@@ -92,7 +92,7 @@ public sealed class DeviceSeatAssignmentEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedLayoutAndDevicesAsync(factory);
 
         var request = new AssignDeviceSeatRequest(TestIds.OrganizationId, SeatId);
@@ -121,7 +121,7 @@ public sealed class DeviceSeatAssignmentEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.CashierOperator);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
         await SeedLayoutAndDevicesAsync(factory);
 
         var response = await client.PostAsJsonAsync(
@@ -143,7 +143,7 @@ public sealed class DeviceSeatAssignmentEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
-        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, StaffRoleNames.Technician);
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
         await SeedLayoutAndDevicesAsync(factory);
         await SeedActiveSessionAsync(factory);
 

@@ -114,7 +114,7 @@ internal static partial class EndpointHelpers
             return "A valid Email is required to send the invite.";
         }
 
-        return ValidateStaffRoleNames(request.RoleNames);
+        return ValidateOrganizationRoleNames(request.RoleNames);
     }
 
     public static string? ValidateUpdateStaffUserProfileRequest(UpdateStaffUserProfileRequest request)
@@ -151,7 +151,7 @@ internal static partial class EndpointHelpers
             : null;
     }
 
-    public static string? ValidateStaffRoleNames(IReadOnlyList<string> roleNames)
+    public static string? ValidateOrganizationRoleNames(IReadOnlyList<string> roleNames)
     {
         if (roleNames.Count == 0)
         {
@@ -166,11 +166,11 @@ internal static partial class EndpointHelpers
     public static bool IsAssignableBranchStaffRole(string roleName)
     {
         return roleName.Trim() is
-            StaffRoleNames.BranchManager or
-            StaffRoleNames.ShiftSupervisor or
-            StaffRoleNames.CashierOperator or
-            StaffRoleNames.Technician or
-            StaffRoleNames.AccountantAuditor;
+            OrganizationRoleNames.BranchManager or
+            OrganizationRoleNames.ShiftSupervisor or
+            OrganizationRoleNames.Operator or
+            OrganizationRoleNames.Technician or
+            OrganizationRoleNames.Accountant;
     }
 
     public static string? ValidateUpdateBranchProfileRequest(UpdateBranchProfileRequest request)

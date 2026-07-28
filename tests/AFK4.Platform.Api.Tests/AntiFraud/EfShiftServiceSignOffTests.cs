@@ -52,7 +52,7 @@ public sealed class EfShiftServiceSignOffTests
     {
         await using var db = CreateDbContext();
         await SeedOpenShiftAsync(db);
-        await SeedRoleAsync(db, Manager, StaffRoleNames.BranchManager);
+        await SeedRoleAsync(db, Manager, OrganizationRoleNames.BranchManager);
         var service = new EfShiftService(db, new FixedTimeProvider(Now));
 
         var result = await service.CloseShiftAsync(
@@ -71,7 +71,7 @@ public sealed class EfShiftServiceSignOffTests
     {
         await using var db = CreateDbContext();
         await SeedOpenShiftAsync(db);
-        await SeedRoleAsync(db, Closer, StaffRoleNames.BranchManager);
+        await SeedRoleAsync(db, Closer, OrganizationRoleNames.BranchManager);
         var service = new EfShiftService(db, new FixedTimeProvider(Now));
 
         var result = await service.CloseShiftAsync(
@@ -86,7 +86,7 @@ public sealed class EfShiftServiceSignOffTests
     {
         await using var db = CreateDbContext();
         await SeedOpenShiftAsync(db);
-        await SeedRoleAsync(db, Opener, StaffRoleNames.BranchManager);
+        await SeedRoleAsync(db, Opener, OrganizationRoleNames.BranchManager);
         var service = new EfShiftService(db, new FixedTimeProvider(Now));
 
         var result = await service.CloseShiftAsync(
@@ -100,7 +100,7 @@ public sealed class EfShiftServiceSignOffTests
     {
         await using var db = CreateDbContext();
         await SeedOpenShiftAsync(db);
-        await SeedRoleAsync(db, Outsider, StaffRoleNames.Technician); // no CloseShift / ManageShiftCash
+        await SeedRoleAsync(db, Outsider, OrganizationRoleNames.Technician); // no CloseShift / ManageShiftCash
         var service = new EfShiftService(db, new FixedTimeProvider(Now));
 
         var result = await service.CloseShiftAsync(

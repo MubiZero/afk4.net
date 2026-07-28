@@ -90,7 +90,7 @@ internal static class ReservationEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ViewReservations,
+                OrganizationPermissionNames.ViewReservations,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -146,7 +146,7 @@ internal static class ReservationEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageReservations,
+                OrganizationPermissionNames.ManageReservations,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -213,7 +213,7 @@ internal static class ReservationEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageReservations,
+                OrganizationPermissionNames.ManageReservations,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
@@ -294,7 +294,7 @@ internal static class ReservationEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 scoped.Reservation!.BranchId,
-                StaffPermissionNames.ManageReservations,
+                OrganizationPermissionNames.ManageReservations,
                 cancellationToken);
             if (!authorization.IsAuthenticated)
             {
@@ -366,7 +366,7 @@ internal static class ReservationEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 scoped.Reservation!.BranchId,
-                StaffPermissionNames.ManageReservations,
+                OrganizationPermissionNames.ManageReservations,
                 cancellationToken);
             if (!authorization.IsAuthenticated)
             {
@@ -438,7 +438,7 @@ internal static class ReservationEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 scoped.Reservation!.BranchId,
-                StaffPermissionNames.ManageReservations,
+                OrganizationPermissionNames.ManageReservations,
                 cancellationToken);
             if (!authorization.IsAuthenticated)
             {
@@ -510,7 +510,7 @@ internal static class ReservationEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 scoped.Reservation!.BranchId,
-                StaffPermissionNames.ManageReservations,
+                OrganizationPermissionNames.ManageReservations,
                 cancellationToken);
             if (!authorization.IsAuthenticated)
             {
@@ -586,7 +586,7 @@ internal static class ReservationEndpoints
 
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 scoped.Reservation!.BranchId,
-                StaffPermissionNames.ManageReservations,
+                OrganizationPermissionNames.ManageReservations,
                 cancellationToken);
             if (!authorization.IsAuthenticated)
             {
@@ -598,7 +598,7 @@ internal static class ReservationEndpoints
             {
                 var sessionAuthorization = await authorizationService.RequireBranchPermissionAsync(
                     scoped.Reservation.BranchId,
-                    StaffPermissionNames.StartSession,
+                    OrganizationPermissionNames.StartSession,
                     cancellationToken);
                 authorization = sessionAuthorization;
                 denialReason = sessionAuthorization.DenialReason;
@@ -634,7 +634,7 @@ internal static class ReservationEndpoints
             var result = await reservationSessionCoordinator.StartAsync(
                 reservationId,
                 authorization.StaffContext.StaffUserId,
-                authorization.StaffContext.Permissions.Contains(StaffPermissionNames.ApproveMoneyAction),
+                authorization.StaffContext.Permissions.Contains(OrganizationPermissionNames.ApproveMoneyAction),
                 request,
                 cancellationToken);
 

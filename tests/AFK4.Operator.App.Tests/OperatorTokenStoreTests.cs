@@ -19,7 +19,7 @@ public sealed class OperatorTokenStoreTests
             RefreshToken: "refresh-token",
             RefreshTokenExpiresAtUtc: DateTimeOffset.Parse("2026-06-11T01:00:00Z"))
         {
-            RoleNames = ["cashier_operator"]
+            RoleNames = ["operator"]
         };
 
         try

@@ -182,7 +182,7 @@ internal static class ShopTestSeed
     {
         var email = $"staff-{Guid.NewGuid():N}@afk4.test";
         const string password = "Passw0rd!";
-        var roleName = withShopPermission ? StaffRoleNames.Owner : StaffRoleNames.ShiftSupervisor;
+        var roleName = withShopPermission ? OrganizationRoleNames.OrganizationOwner : OrganizationRoleNames.ShiftSupervisor;
 
         await using (var scope = factory.Services.CreateAsyncScope())
         {

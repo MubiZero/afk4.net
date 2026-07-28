@@ -139,7 +139,7 @@ internal static class StaffOnboardingEndpoints
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
                 branchId,
-                StaffPermissionNames.ManageBranchStaff,
+                OrganizationPermissionNames.ManageBranchStaff,
                 cancellationToken);
 
             if (!authorization.IsAuthenticated)
