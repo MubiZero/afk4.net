@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/club/money';
+import { minorToMajor } from '@/lib/money';
 import type { MessageKey } from '@/i18n/messages';
 import type { AttentionReason } from './metricsModel';
 import type { TenantMetricsState } from './useTenantMetrics';

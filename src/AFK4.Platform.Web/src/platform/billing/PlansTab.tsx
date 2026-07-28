@@ -6,7 +6,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/club/money';
+import { minorToMajor } from '@/lib/money';
 import type { PlansApi } from '@/api/platformClients/plans';
 import type { SubscriptionPlan } from '@/api/types';
 import { usePlans } from './usePlans';

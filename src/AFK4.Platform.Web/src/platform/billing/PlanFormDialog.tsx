@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor, majorToMinor } from '@/club/money';
+import { minorToMajor, majorToMinor } from '@/lib/money';
 import { validatePlanForm, type PlanForm } from './billingModel';
 
 interface Props {

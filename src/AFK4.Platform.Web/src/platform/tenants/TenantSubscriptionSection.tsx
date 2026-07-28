@@ -6,7 +6,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { LoadingCards, ErrorState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/club/money';
+import { minorToMajor } from '@/lib/money';
 import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
 import type { PlansApi } from '@/api/platformClients/plans';
 import type { SubscriptionPlan, TenantSubscription } from '@/api/types';

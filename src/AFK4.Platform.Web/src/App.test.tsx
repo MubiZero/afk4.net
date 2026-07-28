@@ -1,33 +1,21 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import App, { readPlatformWebAudience, resolvePlatformRoute } from './App';
-import { clearStaffSession, readStaffSession, writeStaffSession, type StaffSession } from './auth/staffTokenStore';
+import App, { resolvePlatformRoute } from './App';
 import { clearSession, writeSession, type PlatformAdminSession } from './auth/tokenStore';
-import { ThemeProvider } from './theme/ThemeProvider';
-import { I18nProvider } from './i18n/I18nProvider';
 import { ToastProvider } from './components/ui/toast';
+import { I18nProvider } from './i18n/I18nProvider';
+import { ThemeProvider } from './theme/ThemeProvider';
 
 const originalFetch = globalThis.fetch;
 
-// Signed-in club screens now render inside the new AppShell, whose components
-// consume the theme + i18n + toast contexts (mounted in main.tsx in production).
-// Tests that reach a club screen must provide them, mirroring the real app tree.
-function renderWithProviders(ui: ReactElement) {
+function renderApp() {
   return render(
     <ThemeProvider>
       <I18nProvider>
-        <ToastProvider>{ui}</ToastProvider>
+        <ToastProvider><App apiBaseUrl="http://localhost" /></ToastProvider>
       </I18nProvider>
     </ThemeProvider>
   );
-}
-
-function jsonResponse(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' }
-  });
 }
 
 function buildSession(): PlatformAdminSession {
@@ -44,147 +32,15 @@ function buildSession(): PlatformAdminSession {
   };
 }
 
-function buildStaffSignInResponse() {
-  return {
-    staffUserId: '11111111-1111-1111-1111-111111111111',
-    organizationId: '22222222-2222-2222-2222-222222222222',
-    displayName: 'Demo Owner',
-    accessToken: 'staff-access-token',
-    accessTokenExpiresAtUtc: '2030-01-01T00:00:00Z',
-    refreshToken: 'staff-refresh-token',
-    refreshTokenExpiresAtUtc: '2030-02-01T00:00:00Z',
-    branchIds: ['33333333-3333-3333-3333-333333333333'],
-    permissions: [
-      'floor_map.view',
-      'layout.manage',
-      'devices.detail.view',
-      'devices.seat_assignment.assign',
-      'devices.credentials.revoke',
-      'identity.branch_staff.manage',
-      'branches.settings.manage'
-    ]
-  };
+function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
-function buildStaffSession(): StaffSession {
-  return {
-    staffUserId: '11111111-1111-1111-1111-111111111111',
-    organizationId: '22222222-2222-2222-2222-222222222222',
-    displayName: 'Demo Owner',
-    branchIds: ['33333333-3333-3333-3333-333333333333'],
-    roleNames: ['owner'],
-    permissions: buildStaffSignInResponse().permissions,
-    accessToken: 'staff-access-token',
-    accessTokenExpiresAtUtc: '2030-01-01T00:00:00Z',
-    refreshToken: 'staff-refresh-token',
-    refreshTokenExpiresAtUtc: '2030-02-01T00:00:00Z'
-  };
-}
-
-function buildClubFetchMock() {
-  return mock(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = new URL(String(input));
-    const method = init?.method ?? 'GET';
-
-    if (url.pathname === '/api/platform/owner-invites/accept' && method === 'POST') {
-      return jsonResponse(200, buildStaffSignInResponse());
-    }
-    if (url.pathname === '/api/auth/staff/sign-in-by-login' && method === 'POST') {
-      return jsonResponse(200, buildStaffSignInResponse());
-    }
-    if (url.pathname === '/api/branches/33333333-3333-3333-3333-333333333333/profile') {
-      return jsonResponse(200, {
-        organizationId: '22222222-2222-2222-2222-222222222222',
-        branchId: '33333333-3333-3333-3333-333333333333',
-        name: 'Demo Branch',
-        city: 'Dushanbe',
-        createdAtUtc: '2026-05-24T00:00:00Z'
-      });
-    }
-    if (url.pathname === '/api/branches/33333333-3333-3333-3333-333333333333/dashboard/summary') {
-      return jsonResponse(200, {
-        organizationId: '22222222-2222-2222-2222-222222222222',
-        branchId: '33333333-3333-3333-3333-333333333333',
-        fromUtc: '2026-05-25T00:00:00Z',
-        toUtc: '2026-05-25T23:59:59Z',
-        generatedAtUtc: '2026-05-25T12:00:00Z',
-        utilization: {
-          totalSeats: 5,
-          activeSessions: 2,
-          endingSessions: 0,
-          onlineDevices: 3,
-          offlineDevices: 1,
-          sessionStarts: 4,
-          utilizationPercent: 40
-        },
-        alertPressure: {
-          pendingCommands: 0,
-          failedCommands: 1,
-          offlineDevices: 1,
-          endingSessions: 0,
-          totalAlerts: 2
-        },
-        revenue: {
-          posNetSales: { amount: 0, currencyCode: 'TJS' },
-          gameplayRevenue: { amount: 0, currencyCode: 'TJS' },
-          totalRevenue: { amount: 0, currencyCode: 'TJS' },
-          posCheckCount: 0,
-          newPlayerCount: 0
-        }
-      });
-    }
-    if (url.pathname === '/api/branches/33333333-3333-3333-3333-333333333333/devices') {
-      return jsonResponse(200, [
-        {
-          organizationId: '22222222-2222-2222-2222-222222222222',
-          branchId: '33333333-3333-3333-3333-333333333333',
-          deviceId: '44444444-4444-4444-4444-444444444444',
-          machineName: 'PC-01',
-          agentVersion: '0.1.0',
-          shellVersion: '0.1.0',
-          enrolledAtUtc: '2026-05-24T00:00:00Z',
-          lastHeartbeatAtUtc: '2026-05-25T12:00:00Z',
-          isOnline: true,
-          isLocked: false,
-          seatId: null,
-          seatName: null,
-          zoneId: null,
-          zoneName: null,
-          activeCredentialCount: 1,
-          installedAppCount: 0,
-          pendingCommandCount: 0,
-          failedCommandCount: 0,
-          displayName: 'PC-01',
-          role: 'gaming_pc',
-          enrollmentState: 'approved'
-        }
-      ]);
-    }
-    if (url.pathname === '/api/branches/33333333-3333-3333-3333-333333333333/devices/pending') {
-      return jsonResponse(200, []);
-    }
-    if (url.pathname === '/api/branches/33333333-3333-3333-3333-333333333333/floor-map') {
-      return jsonResponse(200, {
-        branchId: '33333333-3333-3333-3333-333333333333',
-        branchName: 'Demo Branch',
-        zones: [],
-        seats: []
-      });
-    }
-
-    return jsonResponse(404, { error: `Unhandled ${method} ${url.pathname}` });
-  });
-}
-
-describe('Platform Web routing', () => {
+describe('Platform Web admin-only routing', () => {
   beforeEach(() => {
     window.history.replaceState(null, '', '/');
     sessionStorage.clear();
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
-      // The admin overview renders billing KPI tiles, which call
-      // GET /api/platform/metrics. The real backend always returns a valid
-      // PlatformBillingMetricsDto (non-empty currencyCode); mirror that here so
-      // formatCurrency doesn't throw. All other endpoints keep the blanket [].
       if (new URL(String(input)).pathname === '/api/platform/metrics') {
         return jsonResponse(200, {
           mrrMinorUnits: 0,
@@ -203,221 +59,50 @@ describe('Platform Web routing', () => {
   afterEach(() => {
     cleanup();
     clearSession();
-    clearStaffSession();
     globalThis.fetch = originalFetch;
   });
 
   it('resolves root and legacy tenant URLs to admin routes', () => {
-    expect(resolvePlatformRoute('/')).toMatchObject({
-      redirectTo: '/admin',
-      route: { kind: 'adminOverview' }
-    });
-    expect(resolvePlatformRoute('/tenants')).toMatchObject({
-      redirectTo: '/admin/tenants',
-      route: { kind: 'tenantList' }
-    });
-    expect(resolvePlatformRoute('/tenants/new')).toMatchObject({
-      redirectTo: '/admin/tenants/new',
-      route: { kind: 'newTenant' }
-    });
+    expect(resolvePlatformRoute('/')).toMatchObject({ redirectTo: '/admin', route: { kind: 'adminOverview' } });
+    expect(resolvePlatformRoute('/tenants')).toMatchObject({ redirectTo: '/admin/tenants', route: { kind: 'tenantList' } });
+    expect(resolvePlatformRoute('/tenants/new')).toMatchObject({ redirectTo: '/admin/tenants/new', route: { kind: 'newTenant' } });
     expect(resolvePlatformRoute('/tenants/org-1')).toMatchObject({
       redirectTo: '/admin/tenants/org-1',
       route: { kind: 'tenantDetail', organizationId: 'org-1' }
     });
   });
 
-  it('resolves public auth URLs without requiring an admin route', () => {
-    expect(resolvePlatformRoute('/auth')).toMatchObject({
-      redirectTo: '/auth/sign-in',
-      route: { kind: 'staffSignIn' }
-    });
-    expect(resolvePlatformRoute('/auth/accept-invite', null, '?code=setup-123')).toMatchObject({
-      route: { kind: 'acceptInvite', code: 'setup-123' }
-    });
-    expect(resolvePlatformRoute('/auth/sign-in')).toMatchObject({
-      route: { kind: 'staffSignIn' }
-    });
-    expect(resolvePlatformRoute('/auth/forgot-password')).toMatchObject({
-      route: { kind: 'forgotPassword' }
+  it('rejects removed club and staff sign-in routes while preserving owner onboarding', () => {
+    expect(resolvePlatformRoute('/club').route).toEqual({ kind: 'notFound', path: '/club' });
+    expect(resolvePlatformRoute('/club/install').route).toEqual({ kind: 'notFound', path: '/club/install' });
+    expect(resolvePlatformRoute('/auth/sign-in').route).toEqual({ kind: 'notFound', path: '/auth/sign-in' });
+    expect(resolvePlatformRoute('/auth/accept-invite', null, '?code=owner-code').route).toEqual({
+      kind: 'acceptInvite',
+      code: 'owner-code'
     });
   });
 
-  it('resolves customer dashboard URLs under /club', () => {
-    expect(resolvePlatformRoute('/club')).toMatchObject({
-      route: { kind: 'clubDashboard' }
-    });
-    expect(resolvePlatformRoute('/club/install')).toMatchObject({
-      route: { kind: 'clubInstall' }
-    });
-    expect(resolvePlatformRoute('/club/branches')).toMatchObject({
-      route: { kind: 'clubBranches' }
-    });
+  it('renders platform-admin sign-in for an admin route without a session', () => {
+    window.history.replaceState(null, '', '/admin');
+    renderApp();
+    expect(screen.getByRole('heading', { name: 'Панель управления платформой' })).toBeInTheDocument();
   });
 
-  it('gates routes by the audience build flag', () => {
-    expect(resolvePlatformRoute('/', null, '', 'admin')).toMatchObject({
-      redirectTo: '/admin',
-      route: { kind: 'adminOverview' }
-    });
-    expect(resolvePlatformRoute('/', null, '', 'club')).toMatchObject({
-      redirectTo: '/club/install',
-      route: { kind: 'clubInstall' }
-    });
-    expect(resolvePlatformRoute('/auth/sign-in', null, '', 'admin')).toMatchObject({
-      route: { kind: 'staffSignIn' }
-    });
-    expect(resolvePlatformRoute('/auth/sign-in', null, '', 'club')).toMatchObject({
-      route: { kind: 'staffSignIn' }
-    });
-    expect(resolvePlatformRoute('/club/install', null, '', 'admin')).toMatchObject({
-      route: { kind: 'notFound', path: '/club/install' }
-    });
-    expect(resolvePlatformRoute('/admin/tenants', null, '', 'club')).toMatchObject({
-      route: { kind: 'notFound', path: '/admin/tenants' }
-    });
-    expect(resolvePlatformRoute('/tenants/org-1', null, '', 'club')).toMatchObject({
-      route: { kind: 'notFound', path: '/tenants/org-1' }
-    });
-  });
-
-  it('normalizes the VITE_AUDIENCE build flag', () => {
-    expect(readPlatformWebAudience({ VITE_AUDIENCE: 'admin' })).toBe('admin');
-    expect(readPlatformWebAudience({ VITE_AUDIENCE: 'club' })).toBe('club');
-    expect(readPlatformWebAudience({ VITE_AUDIENCE: 'ALL' })).toBe('all');
-    expect(readPlatformWebAudience({ VITE_AUDIENCE: 'unexpected' })).toBe('all');
-    expect(readPlatformWebAudience({})).toBe('all');
-  });
-
-  it('does not render customer screens in an admin audience build', () => {
-    window.history.replaceState(null, '', '/club/install');
-    writeStaffSession(buildStaffSession());
-
-    render(<App apiBaseUrl="http://localhost" audience="admin" />);
-
-    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Установка на ПК' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open admin overview' })).toBeInTheDocument();
-  });
-
-  it('does not render platform-admin screens in a club audience build', () => {
-    window.history.replaceState(null, '', '/admin/tenants');
+  it('redirects the root bookmark and renders the signed-in Control Plane overview', async () => {
     writeSession(buildSession());
-
-    render(<App apiBaseUrl="http://localhost" audience="club" />);
-
-    expect(screen.getByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Tenants' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open club install' })).toBeInTheDocument();
-  });
-
-  it('redirects the old root bookmark to /admin for signed-in platform admins', async () => {
-    writeSession(buildSession());
-    renderWithProviders(<App apiBaseUrl="http://localhost" />);
+    renderApp();
 
     await waitFor(() => expect(window.location.pathname).toBe('/admin'));
-    expect(await screen.findByText('Всего тенантов')).toBeInTheDocument();
+    expect(screen.getByText('AFK4.NET Control Plane')).toBeInTheDocument();
+    expect(screen.getByText('Platform Owner')).toBeInTheDocument();
   });
 
-  it('redirects a legacy new-tenant bookmark to the admin-prefixed screen', async () => {
-    window.history.replaceState(null, '', '/tenants/new');
+  it('pushes the admin tenant-list URL from navigation', async () => {
+    window.history.replaceState(null, '', '/admin');
     writeSession(buildSession());
+    renderApp();
 
-    renderWithProviders(<App apiBaseUrl="http://localhost" />);
-
-    await waitFor(() => expect(window.location.pathname).toBe('/admin/tenants/new'));
-    expect(await screen.findByRole('button', { name: 'Создать тенант' })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Тенанты' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/admin/tenants'));
   });
-
-  it('pushes admin-prefixed URLs for tenant list navigation', async () => {
-    window.history.replaceState(null, '', '/admin/tenants');
-    writeSession(buildSession());
-    renderWithProviders(<App apiBaseUrl="http://localhost" />);
-
-    expect(await screen.findByLabelText('Поиск по названию или ключу')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Новый тенант' }));
-
-    expect(window.location.pathname).toBe('/admin/tenants/new');
-    expect(await screen.findByRole('button', { name: 'Создать тенант' })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Отмена' }));
-
-    expect(window.location.pathname).toBe('/admin/tenants');
-    expect(await screen.findByLabelText('Поиск по названию или ключу')).toBeInTheDocument();
-  });
-
-  it('accepts a setup code, stores the staff session, and redirects to /club/install', async () => {
-    window.history.replaceState(null, '', '/auth/accept-invite?code=setup-code-1');
-    const fetchMock = buildClubFetchMock();
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
-
-    renderWithProviders(<App apiBaseUrl="http://localhost" />);
-
-    // Localized: default locale is ru
-    expect(screen.getByRole('heading', { name: 'Активация по коду' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Код приглашения')).toHaveValue('setup-code-1');
-
-    // Display-name field is removed; backend derives it from the login
-    fireEvent.change(screen.getByLabelText('Логин или email'), { target: { value: 'owner@demo.test' } });
-    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!Real' } });
-    fireEvent.change(screen.getByLabelText('Повторите пароль'), { target: { value: 'Passw0rd!Real' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Активировать и открыть клуб' }));
-
-    await waitFor(() => expect(window.location.pathname).toBe('/club/install'));
-    expect(screen.getByRole('heading', { name: 'Установка на ПК' })).toBeInTheDocument();
-    expect(readStaffSession()?.accessToken).toBe('staff-access-token');
-
-    const call = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(call[0]).toBe('http://localhost/api/platform/owner-invites/accept');
-    expect(JSON.parse(call[1].body as string)).toEqual({
-      code: 'setup-code-1',
-      userName: 'owner@demo.test',
-      displayName: '',
-      password: 'Passw0rd!Real'
-    });
-  });
-
-  it('signs in a staff user via the login-only form and lands on the dashboard', async () => {
-    window.history.replaceState(null, '', '/auth/sign-in');
-    const fetchMock = buildClubFetchMock();
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
-
-    renderWithProviders(<App apiBaseUrl="http://localhost" />);
-
-    // Login-only club sign-in renders in Russian (no Club key field).
-    expect(screen.getByRole('heading', { name: 'Вход в клуб' })).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText('Логин или email'), { target: { value: 'owner@demo.test' } });
-    fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!Real' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
-
-    // Lands on the dashboard (/club), not the install screen.
-    await waitFor(() => expect(window.location.pathname).toBe('/club'));
-    expect(screen.getByRole('button', { name: 'Обзор' })).toBeInTheDocument();
-
-    const call = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(call[0]).toBe('http://localhost/api/auth/staff/sign-in-by-login');
-    expect(JSON.parse(call[1].body as string)).toEqual({
-      login: 'owner@demo.test',
-      password: 'Passw0rd!Real'
-    });
-  });
-
-  it('renders the new AppShell with the Overview at /club', async () => {
-    window.history.replaceState(null, '', '/club');
-    writeStaffSession(buildStaffSession());
-    globalThis.fetch = buildClubFetchMock() as unknown as typeof fetch;
-
-    renderWithProviders(<App apiBaseUrl="http://localhost" />);
-
-    // Sidebar nav (new shell) renders the overview item by its i18n label.
-    expect(screen.getByRole('button', { name: 'Обзор' })).toBeInTheDocument();
-
-    // The Overview KPIs resolve from the branch dashboard summary API.
-    await waitFor(() => expect(screen.getByText('Активные сессии')).toBeInTheDocument());
-    expect(screen.getByText('Устройства онлайн')).toBeInTheDocument();
-    // 'Выручка сегодня' is both a KPI label and the revenue card title.
-    expect(screen.getAllByText('Выручка сегодня').length).toBeGreaterThan(0);
-  });
-
 });

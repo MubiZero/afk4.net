@@ -6,7 +6,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/club/money';
+import { minorToMajor } from '@/lib/money';
 import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
 import { useSubscriptions } from './useSubscriptions';
 import {

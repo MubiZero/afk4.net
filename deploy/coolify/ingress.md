@@ -3,8 +3,8 @@
 Coolify ships with Traefik as the cluster ingress. The recipes below cover the
 two ingress concerns that the SaaS Control Plane added in Slice 5–6:
 
-1. **Hosting the Platform.Web SPA** (`src/AFK4.Platform.Web`) as separate
-   admin and customer audience apps on `platform.*` and `app.*` hosts.
+1. **Hosting the Platform.Web Control Plane** (`src/AFK4.Platform.Web`) on the
+   internal `platform.*` host.
 2. **Ingress-level rate-limiting** on the two public endpoints that accept
    bearer-style invite / connection credentials with no auth in front of them:
    - `POST /api/operator-connections/resolve`
@@ -17,20 +17,18 @@ application's **Network ▸ Labels** field (or, for compose-based services, into
 the `labels:` map). The labels assume the Coolify default entrypoint name
 (`https`). Rename if your install differs.
 
-## 1. Platform.Web SPA audiences
+## 1. Platform.Web Control Plane
 
 Build the SPA image from the repo root using
 [`deploy/coolify/platform-web.Dockerfile`](./platform-web.Dockerfile). The
 runtime container listens on port `8080`, serves `dist/` with SPA fallback,
 and exposes `/healthz` for the container probe.
 
-Use two Coolify applications from the same Dockerfile and git ref. The build
-argument `VITE_AUDIENCE` controls which route family the bundle exposes:
-
-| Host | Build arguments | Audience |
-| --- | --- | --- |
-| `platform.afk4.staging.mubi.dev` | `VITE_PLATFORM_API_BASE_URL=https://afk4.staging.mubi.dev`, `VITE_AUDIENCE=admin` | `/admin/*` + `/auth/*` |
-| `app.afk4.staging.mubi.dev` | `VITE_PLATFORM_API_BASE_URL=https://afk4.staging.mubi.dev`, `VITE_AUDIENCE=club` | `/club/*` + `/auth/*` |
+Use the existing `platform.afk4.staging.mubi.dev` Coolify application. Set only
+`VITE_PLATFORM_API_BASE_URL=https://afk4.staging.mubi.dev`; the bundle exposes
+the `/admin/*` Control Plane route family. The old `app.*` club application is
+not a deployment target after the `/club` removal. Decommissioning that
+external Coolify resource and its DNS record is a separate confirmed operation.
 
 Shared Coolify settings:
 
@@ -55,20 +53,8 @@ For Slice 2.5 this label set belongs to the existing admin SPA host.
 - traefik.http.services.afk4-platform-web.loadbalancer.server.port=8080
 ```
 
-Customer SPA Traefik labels (set on the new `app.*` SPA application):
-
-```yaml
-- traefik.enable=true
-- traefik.http.routers.afk4-club-web.rule=Host(`app.afk4.staging.mubi.dev`)
-- traefik.http.routers.afk4-club-web.entrypoints=https
-- traefik.http.routers.afk4-club-web.tls=true
-- traefik.http.routers.afk4-club-web.tls.certresolver=letsencrypt
-- traefik.http.services.afk4-club-web.loadbalancer.server.port=8080
-```
-
-Add DNS A / AAAA records for both SPA hosts before deploying. The existing
-`platform.afk4.staging.mubi.dev` host keeps its uptime monitor and ingress
-labels; the new customer app uses `app.afk4.staging.mubi.dev`.
+Keep the existing `platform.afk4.staging.mubi.dev` uptime monitor and ingress
+labels. Do not point `app.*` at this admin-only bundle.
 
 ## 2. Rate-limit the public Platform API endpoints
 
@@ -151,21 +137,17 @@ Notes:
 After applying the labels:
 
 1. `curl -I https://platform.afk4.staging.mubi.dev/healthz` returns `200`.
-2. `curl -I https://app.afk4.staging.mubi.dev/healthz` returns `200`.
-3. `curl -I https://platform.afk4.staging.mubi.dev/` returns `200` and the
+2. `curl -I https://platform.afk4.staging.mubi.dev/` returns `200` and the
    admin SPA shell.
-4. `curl -I https://app.afk4.staging.mubi.dev/` returns `200` and the customer
-   SPA shell.
-5. Browser-smoke the audience gates: `/club/install` on the platform host and
-   `/admin/tenants` on the customer host must render the SPA not-found state;
-   `/auth/sign-in` must render on both hosts.
-6. From a single source IP, run `for i in $(seq 1 50); do curl -s -o /dev/null
+3. Browser-smoke `/admin` and `/auth/accept-invite?code=invalid`, then confirm
+   `/club/install` and `/auth/sign-in` render the explicit not-found state.
+4. From a single source IP, run `for i in $(seq 1 50); do curl -s -o /dev/null
    -w '%{http_code}\n' -X POST https://afk4.staging.mubi.dev/api/operator-connections/resolve
    -H 'content-type: application/json' -d '{}'; done`. The first ~10 requests
    return 400 (validation), then the rest return 429 until the period rolls.
-7. The same pattern applied to `/api/platform/owner-invites/accept` should
+5. The same pattern applied to `/api/platform/owner-invites/accept` should
    surface 429 after exhausting the burst.
-8. Repeat the same burst check for `/api/install/discover` and
+6. Repeat the same burst check for `/api/install/discover` and
    `/api/install/enroll`; they should also return 429 after the shared burst is
    exhausted. The Platform API also applies an in-process per-source-IP backoff
    to `/api/install/*` so the public install flow still slows noisy callers if

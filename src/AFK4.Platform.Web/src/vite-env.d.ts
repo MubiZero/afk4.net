@@ -3,7 +3,6 @@
 declare module '*.css';
 
 interface ImportMetaEnv {
-  readonly VITE_AUDIENCE?: 'admin' | 'club' | 'all';
   readonly VITE_PLATFORM_API_BASE_URL?: string;
 }
 

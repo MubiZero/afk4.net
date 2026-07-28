@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import { minorToMajor } from '@/club/money';
+import { minorToMajor } from '@/lib/money';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { Invoice } from '@/api/types';
 import { INVOICE_STATUS_VARIANT, INVOICE_STATUS_LABEL } from '@/platform/billing/billingModel';

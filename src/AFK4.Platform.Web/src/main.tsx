@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import App, { readPlatformWebAudience, type PlatformWebAudience } from './App';
+import App from './App';
 import { ThemeProvider } from './theme/ThemeProvider';
 import { I18nProvider } from './i18n/I18nProvider';
 import { ToastProvider } from './components/ui/toast';
@@ -12,15 +12,14 @@ if (container === null) {
   throw new Error('Root element not found.');
 }
 
-const audience = readPlatformWebAudience();
-setDocumentTitle(audience);
+document.title = 'AFK4.NET Platform Control Plane';
 
 createRoot(container).render(
   <StrictMode>
     <ThemeProvider>
       <I18nProvider>
         <ToastProvider>
-          <App apiBaseUrl={resolveApiBaseUrl()} audience={audience} />
+          <App apiBaseUrl={resolveApiBaseUrl()} />
         </ToastProvider>
       </I18nProvider>
     </ThemeProvider>
@@ -39,11 +38,4 @@ function resolveApiBaseUrl(): string {
     return `${window.location.protocol}//${window.location.host}`;
   }
   return 'http://localhost:5000';
-}
-
-function setDocumentTitle(audience: PlatformWebAudience): void {
-  if (typeof document === 'undefined') {
-    return;
-  }
-  document.title = audience === 'club' ? 'AFK4.NET Club Dashboard' : 'AFK4.NET Platform Control Plane';
 }

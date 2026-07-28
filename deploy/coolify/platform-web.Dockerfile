@@ -1,12 +1,10 @@
 # syntax=docker/dockerfile:1.7
 
-# Multistage Dockerfile for Platform.Web (src/AFK4.Platform.Web). Build
-# context = repository root. The same source builds either the internal admin
-# host or the customer club host through VITE_AUDIENCE.
+# Multistage Dockerfile for the admin-only Platform.Web Control Plane
+# (src/AFK4.Platform.Web). Build context = repository root.
 #
 # Build command:
-#   docker build -f deploy/coolify/platform-web.Dockerfile --build-arg VITE_AUDIENCE=admin -t afk4-platform-web-admin .
-#   docker build -f deploy/coolify/platform-web.Dockerfile --build-arg VITE_AUDIENCE=club -t afk4-platform-web-club .
+#   docker build -f deploy/coolify/platform-web.Dockerfile -t afk4-platform-web-admin .
 #
 # Runtime image serves the Vite `dist/` output via nginx with SPA-style
 # fallback (every unknown path is rewritten to /index.html). The actual
@@ -22,18 +20,18 @@ COPY package.json bun.lock ./
 COPY packages/formatting/package.json ./packages/formatting/
 COPY packages/i18n/package.json ./packages/i18n/
 COPY packages/money/package.json ./packages/money/
+COPY packages/tokens/package.json ./packages/tokens/
 COPY src/AFK4.Platform.Web/package.json ./src/AFK4.Platform.Web/
 COPY src/AFK4.Operator.App.Web/package.json ./src/AFK4.Operator.App.Web/
 COPY src/AFK4.Customer.Web/package.json ./src/AFK4.Customer.Web/
 COPY src/AFK4.SetupWizard.Web/package.json ./src/AFK4.SetupWizard.Web/
+COPY src/AFK4.Player.Shell.Web/package.json ./src/AFK4.Player.Shell.Web/
 RUN bun install --frozen-lockfile
 # Bring the full source (node_modules is .dockerignored, so the fresh install stands) and build the
 # Platform.Web app — the @afk4/* packages are consumed as TypeScript source, no separate build step.
 COPY . .
 ARG VITE_PLATFORM_API_BASE_URL=""
-ARG VITE_AUDIENCE="admin"
 ENV VITE_PLATFORM_API_BASE_URL=${VITE_PLATFORM_API_BASE_URL}
-ENV VITE_AUDIENCE=${VITE_AUDIENCE}
 WORKDIR /src/src/AFK4.Platform.Web
 RUN bun run build
 
