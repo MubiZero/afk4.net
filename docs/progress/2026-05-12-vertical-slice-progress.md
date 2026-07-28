@@ -135,6 +135,18 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Latest Verification
 
+- Platform/organization big-bang RC gate for code SHA `2c7464e2` (2026-07-28):
+  `dotnet build AFK4.sln -c Release -p:EnableWindowsTargeting=true` completed
+  with 0 warnings and 0 errors. Platform API passed 1451 tests with 14 explicit
+  PostgreSQL-environment skips; Shared Contracts passed 131/131; the remaining
+  portable .NET suites passed 196 tests with one environment skip. Platform
+  Control passed 119/119 plus its production build; Organization Admin passed
+  1018 tests with 26 explicit skips plus its production build; i18n passed
+  39/39; Setup Wizard Web passed 20/20 and its bundled WebAssets were rebuilt.
+  The Platform Control Docker RC image built and returned `ok` from `/healthz`.
+  The current-product vocabulary guard passed via its native ripgrep-equivalent
+  check. No deployment or live-data mutation was performed.
+
 - Fresh Platform Control removal gate (2026-07-28): the remaining Platform Control
   suite passed 119/119 tests across 50 files; focused routing/onboarding passed
   7/7, including explicit rejection of `/club/*` and staff sign-in routes while
@@ -144,7 +156,7 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   `act`, and large-chunk diagnostics remain non-failing.
 
 - Fresh Operator parity gate (2026-07-28): full Organization Admin Web suite passed
-  1017 tests with 26 explicit skips and 0 failures across 161 files; App
+  1018 tests with 26 explicit skips and 0 failures across 162 files; App
   integration passed 68 with 26 skips and 0 failures; i18n passed 39/39; the
   Organization Admin Web production build completed. Existing React `act` diagnostics,
   SignalR annotation warnings, and the large-chunk warning remain non-failing.
@@ -212,6 +224,14 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   10/11 gaming-PC smoke for lock/unlock enforcement, reboot recovery, and
   role-aware update/rollback. Include the WindowsDesktop Organization Admin testhost
   because it cannot execute from the current Linux environment.
+- **Big-bang rehearsal is still environment-gated:** run
+  `scripts/rehearse-platform-organization-cutover.ps1` against the approved
+  PostgreSQL snapshot and run the Windows packaging/testhost gates. This Linux
+  workspace has the PostgreSQL tools but no rehearsal connection string or
+  Windows PowerShell runtime.
+- **Rotate the former staging smoke credential** before the next staging smoke;
+  it was removed from the tracked runbook and must be supplied only through the
+  approved secret store.
 - **Pre-production release decisions** remain: Authenticode custody, production
   object store/CDN, presigned upload automation, package-registration
   credentials, staging secret rotation, backup/restore ownership — tracked in
