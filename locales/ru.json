@@ -2050,7 +2050,7 @@
   "op.helper.staff.shiftOperator": "Оператор смены",
   "op.helper.staff.clubAdmin": "Администратор клуба",
   "op.helper.staff.branchMgr": "Менеджер филиала",
-  "op.helper.update.component.operatorApp": "Приложение оператора",
+  "op.helper.update.component.organizationAdmin": "Organization Admin",
   "op.helper.update.component.agentService": "Сервис агента",
   "op.helper.update.component.playerShell": "Оболочка игрока",
   "op.helper.update.component.fallback": "Приложение",

@@ -2529,7 +2529,7 @@
   "op.helper.staff.shiftOperator": "Оператори навбат",
   "op.helper.staff.clubAdmin": "Маъмури клуб",
   "op.helper.staff.branchMgr": "Мудири шӯъба",
-  "op.helper.update.component.operatorApp": "Барномаи оператор",
+  "op.helper.update.component.organizationAdmin": "Organization Admin",
   "op.helper.update.component.agentService": "Хидмати агент",
   "op.helper.update.component.playerShell": "Оболочкаи бозингар",
   "op.helper.update.component.fallback": "Барнома",

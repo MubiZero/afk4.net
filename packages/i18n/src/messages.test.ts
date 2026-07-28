@@ -183,18 +183,20 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'payments_cards.scope.branch',
     'platform.billing.column.number',
     'platform.billing.column.plan',
-    'platform.billing.column.tenant',
-    'platform.newTenant.field.planCode',
-    'platform.newTenant.section.plan',
+    'platform.billing.column.organization',
+    'platform.newOrganization.field.planCode',
+    'platform.newOrganization.section.plan',
     'platform.overview.kpi.mrr',
     'platform.plan.growth',
     'platform.plan.scale',
     'platform.plan.starter',
     'platform.profile.field.userName',
-    'platform.tenant.planForm.plan',
-    'platform.tenant.subscriptionForm.plan',
-    'platform.tenants.col.plan',
-    'platform.tenants.filter.plan',
+    'platform.organization.planForm.plan',
+    'platform.organization.subscriptionForm.plan',
+    'platform.organizations.col.plan',
+    'platform.organizations.filter.plan',
+    // Organization Admin is the canonical product name in every locale.
+    'op.helper.update.component.organizationAdmin',
     'products.categoryUnknown',
     'products.col.category',
     'products.col.sku',
@@ -432,8 +434,8 @@ it('includes the profile + install keys', () => {
 it('includes the platform admin keys', () => {
   for (const key of [
     'nav.group.controlPlane', 'nav.group.platformAccount',
-    'nav.platform.overview', 'nav.platform.tenants', 'nav.platform.billing', 'nav.platform.profile',
-    'platform.overview.kpi.tenants', 'platform.overview.kpi.active', 'platform.overview.kpi.suspended',
+    'nav.platform.overview', 'nav.platform.organizations', 'nav.platform.billing', 'nav.platform.profile',
+    'platform.overview.kpi.organizations', 'platform.overview.kpi.active', 'platform.overview.kpi.suspended',
     'platform.overview.kpi.trial', 'platform.overview.kpi.branches', 'platform.overview.kpi.new30d',
     'platform.overview.byPlan.title', 'platform.overview.attention.title', 'platform.overview.attention.empty',
     'platform.overview.attention.suspended', 'platform.overview.attention.pastDue',
@@ -444,16 +446,16 @@ it('includes the platform admin keys', () => {
   }
 });
 
-it('includes the tenants admin keys', () => {
+it('includes the organizations admin keys', () => {
   for (const key of [
-    'platform.tenants.search',
-    'platform.tenants.col.name',
-    'platform.tenant.status.suspended',
-    'platform.tenant.subscription.pastDue',
-    'platform.tenant.section.status',
-    'platform.tenant.planForm.apply',
-    'platform.tenant.limitsForm.maxBranches',
-    'platform.tenant.action.error'
+    'platform.organizations.search',
+    'platform.organizations.col.name',
+    'platform.organization.status.suspended',
+    'platform.organization.subscription.pastDue',
+    'platform.organization.section.status',
+    'platform.organization.planForm.apply',
+    'platform.organization.limitsForm.maxBranches',
+    'platform.organization.action.error'
   ] as const) {
     expect(messages.ru[key]).toBeTruthy();
     expect(messages.en[key]).toBeTruthy();
@@ -470,33 +472,33 @@ it('includes the platform profile keys', () => {
   }
 });
 
-it('includes the new-tenant keys', () => {
+it('includes the new-organization keys', () => {
   for (const key of [
-    'platform.newTenant.section.organization', 'platform.newTenant.section.branch',
-    'platform.newTenant.section.plan', 'platform.newTenant.section.limits', 'platform.newTenant.section.owner',
-    'platform.newTenant.field.orgSlug', 'platform.newTenant.field.orgSlugHint', 'platform.newTenant.field.orgName',
-    'platform.newTenant.field.branchSlug', 'platform.newTenant.field.branchName', 'platform.newTenant.field.branchCity',
-    'platform.newTenant.field.planCode', 'platform.newTenant.field.subscriptionStatus',
-    'platform.newTenant.field.maxBranches', 'platform.newTenant.field.maxDevices',
-    'platform.newTenant.field.maxSessions', 'platform.newTenant.field.maxStaff',
-    'platform.newTenant.field.ownerUserName', 'platform.newTenant.field.ownerDisplayName',
-    'platform.newTenant.sub.trial', 'platform.newTenant.sub.active', 'platform.newTenant.sub.pastDue', 'platform.newTenant.sub.cancelled',
-    'platform.newTenant.submit', 'platform.newTenant.submitting', 'platform.newTenant.cancel',
-    'platform.newTenant.created', 'platform.newTenant.error'
+    'platform.newOrganization.section.organization', 'platform.newOrganization.section.branch',
+    'platform.newOrganization.section.plan', 'platform.newOrganization.section.limits', 'platform.newOrganization.section.owner',
+    'platform.newOrganization.field.orgSlug', 'platform.newOrganization.field.orgSlugHint', 'platform.newOrganization.field.orgName',
+    'platform.newOrganization.field.branchSlug', 'platform.newOrganization.field.branchName', 'platform.newOrganization.field.branchCity',
+    'platform.newOrganization.field.planCode', 'platform.newOrganization.field.subscriptionStatus',
+    'platform.newOrganization.field.maxBranches', 'platform.newOrganization.field.maxDevices',
+    'platform.newOrganization.field.maxSessions', 'platform.newOrganization.field.maxStaff',
+    'platform.newOrganization.field.ownerUserName', 'platform.newOrganization.field.ownerDisplayName',
+    'platform.newOrganization.sub.trial', 'platform.newOrganization.sub.active', 'platform.newOrganization.sub.pastDue', 'platform.newOrganization.sub.cancelled',
+    'platform.newOrganization.submit', 'platform.newOrganization.submitting', 'platform.newOrganization.cancel',
+    'platform.newOrganization.created', 'platform.newOrganization.error'
   ] as const) {
     expect(messages.ru[key]).toBeTruthy();
     expect(messages.en[key]).toBeTruthy();
   }
 });
 
-it('includes the tenant health keys', () => {
+it('includes the organization health keys', () => {
   for (const key of [
-    'platform.tenant.section.health', 'platform.tenant.health.refresh',
-    'platform.tenant.health.status', 'platform.tenant.health.branches', 'platform.tenant.health.devices',
-    'platform.tenant.health.activeStaff', 'platform.tenant.health.lastSignIn', 'platform.tenant.health.latestMigration',
-    'platform.tenant.health.recentErrors', 'platform.tenant.health.recentErrorsEmpty',
-    'platform.tenant.health.col.time', 'platform.tenant.health.col.source', 'platform.tenant.health.col.action',
-    'platform.tenant.health.col.outcome', 'platform.tenant.health.col.message', 'platform.tenant.health.error'
+    'platform.organization.section.health', 'platform.organization.health.refresh',
+    'platform.organization.health.status', 'platform.organization.health.branches', 'platform.organization.health.devices',
+    'platform.organization.health.activeStaff', 'platform.organization.health.lastSignIn', 'platform.organization.health.latestMigration',
+    'platform.organization.health.recentErrors', 'platform.organization.health.recentErrorsEmpty',
+    'platform.organization.health.col.time', 'platform.organization.health.col.source', 'platform.organization.health.col.action',
+    'platform.organization.health.col.outcome', 'platform.organization.health.col.message', 'platform.organization.health.error'
   ] as const) {
     expect(messages.ru[key]).toBeTruthy();
     expect(messages.en[key]).toBeTruthy();

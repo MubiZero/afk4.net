@@ -2529,7 +2529,7 @@
   "op.helper.staff.shiftOperator": "Shift operator",
   "op.helper.staff.clubAdmin": "Club administrator",
   "op.helper.staff.branchMgr": "Branch manager",
-  "op.helper.update.component.operatorApp": "Operator app",
+  "op.helper.update.component.organizationAdmin": "Organization Admin",
   "op.helper.update.component.agentService": "Agent service",
   "op.helper.update.component.playerShell": "Player shell",
   "op.helper.update.component.fallback": "App",

@@ -796,7 +796,7 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
 
     private static Guid StableGuid(int value) => Guid.Parse($"00000000-0000-0000-0000-{value:x12}");
 
-    private sealed record StaffSeed(StaffUserEntity Owner, StaffUserEntity Cashier, StaffUserEntity Technician);
+    private sealed record StaffSeed(StaffUserEntity OrganizationOwner, StaffUserEntity Operator, StaffUserEntity Technician);
 
     private sealed record PlayerSeed(Guid PrimaryPlayerId, Guid VipPlayerId, Guid DebtPlayerId, Guid GuestPlayerId);
 
