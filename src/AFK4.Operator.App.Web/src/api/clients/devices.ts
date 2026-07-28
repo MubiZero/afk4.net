@@ -18,6 +18,8 @@ export interface DispatchDeviceCommandRequest {
 export interface DeviceCommandSearchQuery {
   limit?: number | null;
 }
+export interface RenameDeviceRequest { organizationId: Guid; displayName: string }
+export interface RemoveDeviceRequest { organizationId: Guid; reason: string }
 
 export function createDeviceClient(api: PlatformApiClient) {
   return {
@@ -44,6 +46,12 @@ export function createDeviceClient(api: PlatformApiClient) {
     },
     getDeviceDetail(deviceId: Guid): Promise<DeviceDetailDto> {
       return api.get<DeviceDetailDto>(`/api/devices/${deviceId}`);
+    },
+    renameDevice(deviceId: Guid, request: RenameDeviceRequest): Promise<DeviceInventoryItemDto> {
+      return api.post<DeviceInventoryItemDto, RenameDeviceRequest>(`/api/devices/${deviceId}/rename`, request);
+    },
+    removeDevice(deviceId: Guid, request: RemoveDeviceRequest): Promise<DeviceInventoryItemDto> {
+      return api.post<DeviceInventoryItemDto, RemoveDeviceRequest>(`/api/devices/${deviceId}/remove`, request);
     },
     rotateDeviceCredential(deviceId: Guid): Promise<RotateDeviceCredentialResponse> {
       return api.post<RotateDeviceCredentialResponse>(`/api/devices/${deviceId}/credentials/rotate`);

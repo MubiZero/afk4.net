@@ -60,7 +60,9 @@ export function DevicesTab({
   const [assignSeatId, setAssignSeatId] = useState('');
   const [rotatedCredential, setRotatedCredential] = useState<Record<string, unknown> | null>(null);
   const [credentialIdToRevoke, setCredentialIdToRevoke] = useState('');
-  const [criticalAction, setCriticalAction] = useState<{ deviceId: string } | null>(null);
+  const [criticalAction, setCriticalAction] = useState<{ kind: 'revoke' | 'remove'; deviceId: string } | null>(null);
+  const [displayName, setDisplayName] = useState('');
+  const [removeReason, setRemoveReason] = useState('');
   const [busy, setBusy] = useState(false);
 
   const selectedDevice = deviceInventory.find((device) => readString(device, 'deviceId') === selectedDeviceId) ?? null;
@@ -98,6 +100,8 @@ export function DevicesTab({
     setDeviceDetail(null);
     setRotatedCredential(null);
     setCredentialIdToRevoke('');
+    setDisplayName(readString(selectedDevice, 'machineName'));
+    setRemoveReason('');
     if (canViewDeviceDetail && backend !== null) {
       void loadDeviceCard(selectedDeviceId);
     }
@@ -168,7 +172,7 @@ export function DevicesTab({
   };
 
   const confirmRevoke = async () => {
-    if (!criticalAction) return;
+    if (!criticalAction || criticalAction.kind !== 'revoke') return;
     const label = t('op.settings.action.revokeKey');
     const deviceId = criticalAction.deviceId;
     setCriticalAction(null);
@@ -191,6 +195,48 @@ export function DevicesTab({
       if (hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)) {
         onDeviceInventoryChange(await apiClients.devices.listDevices(nextBackend.branchId).catch(() => deviceInventory));
       }
+      onFeedback({ label, state: 'confirmed' });
+    } catch (error) {
+      onFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
+    }
+  };
+
+  const renameDevice = async () => {
+    const label = t('op.settings.devices.rename');
+    setBusy(true);
+    onFeedback({ label, state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend, t);
+      if (!hasPermission(nextBackend.session, permissionNames.assignDeviceSeat)) throw new Error(t('op.settings.devices.error.noPermAssign'));
+      const deviceId = selectedDeviceId ?? '';
+      const nextName = displayName.trim();
+      if (!isGuid(deviceId) || !nextName) throw new Error(t('op.settings.devices.renameRequired'));
+      await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).devices.renameDevice(deviceId, {
+        organizationId: nextBackend.session.organizationId, displayName: nextName
+      });
+      await onReload(nextBackend);
+      onFeedback({ label, state: 'confirmed' });
+    } catch (error) {
+      onFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
+    } finally { setBusy(false); }
+  };
+
+  const confirmRemove = async () => {
+    if (!criticalAction || criticalAction.kind !== 'remove') return;
+    const deviceId = criticalAction.deviceId;
+    setCriticalAction(null);
+    const label = t('op.settings.devices.remove');
+    onFeedback({ label, state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend, t);
+      if (!hasPermission(nextBackend.session, permissionNames.revokeDeviceCredential)) throw new Error(t('op.settings.devices.error.noPermRevokeKey'));
+      const reason = removeReason.trim();
+      if (!isGuid(deviceId) || !reason) throw new Error(t('op.settings.devices.removeReasonRequired'));
+      await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).devices.removeDevice(deviceId, {
+        organizationId: nextBackend.session.organizationId, reason
+      });
+      setSelectedDeviceId(null);
+      await onReload(nextBackend);
       onFeedback({ label, state: 'confirmed' });
     } catch (error) {
       onFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
@@ -280,6 +326,20 @@ export function DevicesTab({
               )}
             </div>
 
+            {(canAssignDeviceSeat || canRevokeDeviceCredential) && <div className="mgmt-drawer-section">
+              <div className="mgmt-section-title"><span>{t('op.settings.devices.lifecycle')}</span></div>
+              <div className="mgmt-form">
+                {canAssignDeviceSeat && <label>{t('op.settings.devices.displayName')}
+                  <input value={displayName} disabled={busy} onChange={(event) => setDisplayName(event.currentTarget.value)} />
+                </label>}
+                {canAssignDeviceSeat && <button type="button" className="ui-btn" disabled={busy || !displayName.trim()} onClick={() => void renameDevice()}>{t('op.settings.devices.rename')}</button>}
+                {canRevokeDeviceCredential && <label>{t('op.settings.devices.removeReason')}
+                  <input value={removeReason} disabled={busy} onChange={(event) => setRemoveReason(event.currentTarget.value)} />
+                </label>}
+                {canRevokeDeviceCredential && <button type="button" className="ui-btn ui-btn--danger" disabled={busy || !removeReason.trim()} onClick={() => setCriticalAction({ kind: 'remove', deviceId: selectedDeviceId ?? '' })}>{t('op.settings.devices.remove')}</button>}
+              </div>
+            </div>}
+
             {canAssignDeviceSeat && (
               <div className="mgmt-drawer-section">
                 <div className="mgmt-section-title"><span>{t('op.management.halls.deviceDrawer.assignSection')}</span></div>
@@ -322,7 +382,7 @@ export function DevicesTab({
                         type="button"
                         className="ui-btn ui-btn--danger"
                         disabled={busy || !isGuid(credentialIdToRevoke)}
-                        onClick={() => setCriticalAction({ deviceId: selectedDeviceId ?? '' })}
+                        onClick={() => setCriticalAction({ kind: 'revoke', deviceId: selectedDeviceId ?? '' })}
                       >
                         {t('op.settings.action.revokeKey')}
                       </button>
@@ -335,7 +395,7 @@ export function DevicesTab({
         )}
       </div>
 
-      {criticalAction && (
+      {criticalAction?.kind === 'revoke' && (
         <CriticalActionConfirmation
           title={t('op.settings.devices.confirmRevokeKey.title')}
           detail={t('op.settings.devices.confirmRevokeKey.detail', { deviceName: selectedDeviceName })}
@@ -343,6 +403,16 @@ export function DevicesTab({
           confirmLabel={t('op.settings.devices.confirmRevokeKey.confirm')}
           onCancel={() => setCriticalAction(null)}
           onConfirm={() => void confirmRevoke()}
+        />
+      )}
+      {criticalAction?.kind === 'remove' && (
+        <CriticalActionConfirmation
+          title={t('op.settings.devices.removeConfirmTitle')}
+          detail={selectedDeviceName}
+          impact={removeReason.trim()}
+          confirmLabel={t('op.settings.devices.remove')}
+          onCancel={() => setCriticalAction(null)}
+          onConfirm={() => void confirmRemove()}
         />
       )}
     </>

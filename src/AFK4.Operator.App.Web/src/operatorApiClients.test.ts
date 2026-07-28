@@ -26,6 +26,15 @@ const commandId = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
 const reservationId = '99999999-9999-9999-9999-999999999999';
 
 describe('operator API clients', () => {
+  it('maps device rename and remove with exact request bodies', async () => {
+    const { clients, calls } = createRecordedClients();
+    await clients.devices.renameDevice(deviceId, { organizationId, displayName: 'VIP-01' });
+    await clients.devices.removeDevice(deviceId, { organizationId, reason: 'retired' });
+    expect(calls).toMatchObject([
+      { method: 'POST', path: `/api/devices/${deviceId}/rename`, body: { organizationId, displayName: 'VIP-01' } },
+      { method: 'POST', path: `/api/devices/${deviceId}/remove`, body: { organizationId, reason: 'retired' } }
+    ]);
+  });
   it('maps floor-map and session clients to current backend routes', async () => {
     const { clients, calls } = createRecordedClients();
     const startRequest: StartGuestSessionRequest = {

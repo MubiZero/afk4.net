@@ -21,6 +21,8 @@ const listDevices = mock(async () => []);
 const rotateDeviceCredential = mock(async () => ({ credentialId: '33333333-3333-3333-3333-333333333333', credentialSecret: 'top-secret' }));
 const revokeDeviceCredential = mock(async () => undefined);
 const assignDeviceSeat = mock(async () => ({}));
+const renameDevice = mock(async () => ({}));
+const removeDevice = mock(async () => ({}));
 
 const actualHelpers = await import('../../../operatorHelpers');
 mock.module('../../../operatorHelpers', () => ({
@@ -31,7 +33,9 @@ mock.module('../../../operatorHelpers', () => ({
       getDeviceDetail,
       listDevices,
       rotateDeviceCredential,
-      revokeDeviceCredential
+      revokeDeviceCredential,
+      renameDevice,
+      removeDevice
     }
   })
 }));
@@ -51,6 +55,8 @@ afterEach(() => {
   rotateDeviceCredential.mockClear();
   revokeDeviceCredential.mockClear();
   assignDeviceSeat.mockClear();
+  renameDevice.mockClear();
+  removeDevice.mockClear();
 });
 
 const wrap = (ui: React.ReactNode) =>
@@ -235,5 +241,20 @@ describe('DevicesTab', () => {
     const confirmDialog = screen.getByRole('alertdialog');
     fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Отозвать ключ' }));
     await waitFor(() => expect(revokeDeviceCredential).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111', '33333333-3333-3333-3333-333333333333'));
+  });
+
+  it('renames with trimmed text and removes only after reason and confirmation', async () => {
+    wrap(<DevicesTab {...baseProps} backend={backend as never} canAssignDeviceSeat canViewDeviceDetail={false} canRotateDeviceCredential={false} canRevokeDeviceCredential />);
+    fireEvent.click(screen.getByText('PC-VIP-01'));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Название устройства' }), { target: { value: '  VIP-02  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Переименовать' }));
+    await waitFor(() => expect(renameDevice).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111', { organizationId: 'org', displayName: 'VIP-02' }));
+
+    fireEvent.change(screen.getByRole('textbox', { name: 'Причина удаления' }), { target: { value: '  списан  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Удалить устройство' }));
+    expect(removeDevice).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Удалить устройство' }));
+    await waitFor(() => expect(removeDevice).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111', { organizationId: 'org', reason: 'списан' }));
+    await waitFor(() => expect(baseProps.onReload).toHaveBeenCalled());
   });
 });
