@@ -200,7 +200,8 @@ The migration includes:
    Admin installer as one compatibility unit.
 
 Old Organization Admin predecessors are incompatible after the cutover and
-must be blocked through the existing minimum-version/update mechanism. Partial
+must be blocked by a server-side compatibility-epoch gate introduced in the
+same release; update availability alone is not a sufficient block. Partial
 deployment is not supported.
 
 ## Data Migration Safety

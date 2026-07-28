@@ -3,6 +3,9 @@
 Implementation plans for completed work are archived once their work lands on
 `main`. The active plans are:
 
+- `2026-07-28-platform-organization-big-bang-migration.md` — atomically
+  separates Platform Control and Organization Admin across auth domains, APIs,
+  roles, permissions, projects, migration, packaging, and release gates.
 - `2026-07-28-platform-web-club-removal.md` — removes the obsolete browser
   `/club` workspace after Operator parity certification while preserving the
   platform-owner/support Control Plane.
