@@ -2817,7 +2817,7 @@ describe('App', () => {
     expect(screen.getByText('ручное подтверждение')).toBeInTheDocument();
     expect(screen.queryByText(/manual provider|API · staging|URL артефакта|Старт UTC|Ссылка на MSI|Контрольная сумма|Алгоритм подписи|Размер файла, байты/)).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Версия'), { target: { value: '0.2.0' } });
-    fireEvent.change(screen.getByLabelText('Файл установщика'), { target: { value: 'https://updates.afk4.test/operator-app/0.2.0/operator-app.msi' } });
+    fireEvent.change(screen.getByLabelText('Файл установщика'), { target: { value: 'https://updates.afk4.test/organization-admin/0.2.0/organization-admin.msi' } });
     fireEvent.change(screen.getByLabelText('Подпись пакета'), { target: { value: 'operator-package-signature' } });
     fireEvent.change(screen.getByLabelText('Размер файла, КБ'), { target: { value: '4' } });
     fireEvent.change(screen.getByLabelText('Описание релиза'), { target: { value: 'Пакет оператора 0.2.0.' } });
@@ -2831,10 +2831,10 @@ describe('App', () => {
     const packageBody = JSON.parse(String(packageCall?.[1]?.body));
     expect(packageBody).toMatchObject({
       organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      component: 'operator-app',
+      component: 'organization-admin',
       version: '0.2.0',
       channel: 'internal',
-      artifactUri: 'https://updates.afk4.test/operator-app/0.2.0/operator-app.msi',
+      artifactUri: 'https://updates.afk4.test/organization-admin/0.2.0/organization-admin.msi',
       signature: 'operator-package-signature',
       signatureAlgorithm: 'ECDSA-P256-SHA256-IEEE-P1363',
       sizeBytes: 4096,
@@ -4703,16 +4703,16 @@ function createUpdatePackage(overrides: Record<string, unknown> = {}) {
   return {
     organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
     branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
-    component: 'operator-app',
+    component: 'organization-admin',
     version: '0.1.0',
     channel: 'internal',
-    artifactUri: 'https://updates.afk4.staging.mubi.dev/operator-app/0.1.0/operator-app.msi',
+    artifactUri: 'https://updates.afk4.staging.mubi.dev/organization-admin/0.1.0/organization-admin.msi',
     sha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     signature: 'signed-update-package',
     signatureAlgorithm: 'ECDSA-P256-SHA256-IEEE-P1363',
     sizeBytes: 1048576,
     state: 'registered',
-    releaseNotes: 'Operator App update package.',
+    releaseNotes: 'Organization Admin update package.',
     createdAtUtc: '2026-05-21T09:10:00Z',
     ...remainingOverrides,
     updatePackageId
@@ -4725,7 +4725,7 @@ function createUpdateRollout(overrides: Record<string, unknown> = {}) {
     organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
     branchId: 'acfc0212-967f-4d84-94be-9003387b09c2',
     updatePackageId: '19191919-1919-1919-1919-191919191919',
-    component: 'operator-app',
+    component: 'organization-admin',
     version: '0.1.0',
     channel: 'internal',
     state: 'active',

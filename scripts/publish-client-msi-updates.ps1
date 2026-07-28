@@ -20,9 +20,9 @@ param(
 
     [uri] $PublicBaseUri,
 
-    [uri] $OperatorArtifactUploadUri,
+    [uri] $OrganizationAdminArtifactUploadUri,
 
-    [uri] $OperatorArtifactPublicUri,
+    [uri] $OrganizationAdminArtifactPublicUri,
 
     [uri] $AgentArtifactUploadUri,
 
@@ -272,7 +272,7 @@ function Resolve-PackageMsi {
     return Require-File (Join-Path $resolvedPackageDirectory $FileName) $Description
 }
 
-$operatorMsi = Resolve-PackageMsi "afk4-operator-app-$Version-$Channel.msi" 'Operator App MSI'
+$organizationAdminMsi = Resolve-PackageMsi "afk4-organization-admin-$Version-$Channel.msi" 'Organization Admin MSI'
 $agentMsi = Resolve-PackageMsi "afk4-agent-$Version-$Channel.msi" 'Agent MSI'
 $playerShellMsi = Resolve-PackageMsi "afk4-player-shell-$Version-$Channel.msi" 'Player Shell MSI'
 
@@ -298,8 +298,8 @@ if ($ArtifactStore -eq 'file-system') {
     Require-AbsoluteUri $PublicBaseUri 'PublicBaseUri' 'PublicBaseUri is required when ArtifactStore is file-system.'
 }
 elseif ($ArtifactStore -eq 'http-put') {
-    Require-AbsoluteUri $OperatorArtifactUploadUri 'OperatorArtifactUploadUri' 'OperatorArtifactUploadUri is required when ArtifactStore is http-put.'
-    Require-AbsoluteUri $OperatorArtifactPublicUri 'OperatorArtifactPublicUri' 'OperatorArtifactPublicUri is required when ArtifactStore is http-put.'
+    Require-AbsoluteUri $OrganizationAdminArtifactUploadUri 'OrganizationAdminArtifactUploadUri' 'OrganizationAdminArtifactUploadUri is required when ArtifactStore is http-put.'
+    Require-AbsoluteUri $OrganizationAdminArtifactPublicUri 'OrganizationAdminArtifactPublicUri' 'OrganizationAdminArtifactPublicUri is required when ArtifactStore is http-put.'
     Require-AbsoluteUri $AgentArtifactUploadUri 'AgentArtifactUploadUri' 'AgentArtifactUploadUri is required when ArtifactStore is http-put.'
     Require-AbsoluteUri $AgentArtifactPublicUri 'AgentArtifactPublicUri' 'AgentArtifactPublicUri is required when ArtifactStore is http-put.'
     Require-AbsoluteUri $PlayerShellArtifactUploadUri 'PlayerShellArtifactUploadUri' 'PlayerShellArtifactUploadUri is required when ArtifactStore is http-put.'
@@ -329,11 +329,11 @@ else {
 $publisherProject = Join-Path $repoRoot 'src/AFK4.Update.Publisher/AFK4.Update.Publisher.csproj'
 $requests = @(
     [pscustomobject]@{
-        Component = 'operator-app'
-        ArtifactPath = $operatorMsi
-        RequestPath = Assert-PathInsideDirectory $resolvedOutputDirectory (Join-Path $resolvedOutputDirectory "operator-app-$Version-$Channel-request.json") 'Update package request path'
-        ArtifactUploadUri = $OperatorArtifactUploadUri
-        ArtifactPublicUri = $OperatorArtifactPublicUri
+        Component = 'organization-admin'
+        ArtifactPath = $organizationAdminMsi
+        RequestPath = Assert-PathInsideDirectory $resolvedOutputDirectory (Join-Path $resolvedOutputDirectory "organization-admin-$Version-$Channel-request.json") 'Update package request path'
+        ArtifactUploadUri = $OrganizationAdminArtifactUploadUri
+        ArtifactPublicUri = $OrganizationAdminArtifactPublicUri
     },
     [pscustomobject]@{
         Component = 'agent-service'

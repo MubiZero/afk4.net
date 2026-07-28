@@ -19,15 +19,15 @@ public sealed class SetupWizardPayloadResolverTests
     }
 
     [Fact]
-    public void ResolveOperatorAppMsiPath_UsesPayloadSubfolderNextToBaseDirectory()
+    public void ResolveOrganizationAdminMsiPath_UsesPayloadSubfolderNextToBaseDirectory()
     {
         var resolver = new SetupWizardPayloadResolver(
             _ => true,
             fileName => System.IO.Path.Combine(@"C:\Program Files\AFK4\Setup Wizard", "payload", fileName));
 
-        var result = resolver.ResolveOperatorAppMsiPath();
+        var result = resolver.ResolveOrganizationAdminMsiPath();
 
-        Assert.EndsWith(System.IO.Path.Combine("payload", "AFK4.OrganizationAdmin.App.msi"), result);
+        Assert.EndsWith(System.IO.Path.Combine("payload", "AFK4.OrganizationAdmin.msi"), result);
     }
 
     [Fact]

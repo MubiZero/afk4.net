@@ -1,0 +1,106 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+      Name="Organization Admin by AFK4"
+      Manufacturer="AFK4.NET"
+      Version="$(var.PackageVersion)"
+      UpgradeCode="{5B345D78-17AE-4CC7-9FE7-7E5F4203FAF1}"
+      Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of AFK4.NET Organization Admin is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Property Id="WEBVIEW2_RUNTIME_HKLM_PV">
+      <RegistrySearch
+          Id="WebView2RuntimeHklmPv"
+          Root="HKLM"
+          Key="SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+          Name="pv"
+          Type="raw" />
+    </Property>
+    <Property Id="WEBVIEW2_RUNTIME_HKCU_PV">
+      <RegistrySearch
+          Id="WebView2RuntimeHkcuPv"
+          Root="HKCU"
+          Key="Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+          Name="pv"
+          Type="raw" />
+    </Property>
+    <Launch
+        Condition="Installed OR (WEBVIEW2_RUNTIME_HKLM_PV AND WEBVIEW2_RUNTIME_HKLM_PV &lt;&gt; &quot;0.0.0.0&quot;) OR (WEBVIEW2_RUNTIME_HKCU_PV AND WEBVIEW2_RUNTIME_HKCU_PV &lt;&gt; &quot;0.0.0.0&quot;)"
+        Message="Microsoft Edge WebView2 Runtime is required. Install the Evergreen WebView2 Runtime, then run AFK4.NET Organization Admin setup again." />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="AFK4RootFolder" Name="AFK4">
+        <Directory Id="OrganizationAdminFolder" Name="Organization Admin" />
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="OrganizationAdminMenuFolder" Name="AFK4.NET" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="DesktopFolder" />
+
+    <Feature Id="MainFeature" Title="Organization Admin by AFK4" Level="1">
+      <ComponentGroupRef Id="OrganizationAdminFiles" />
+      <ComponentRef Id="OrganizationAdminAgentConfiguration" />
+      <ComponentRef Id="OrganizationAdminStartMenuShortcut" />
+      <ComponentRef Id="OrganizationAdminDesktopShortcut" />
+    </Feature>
+
+    <!-- Start Menu shortcut so the cashier can launch the operator after the wizard installs it. -->
+    <Component Id="OrganizationAdminStartMenuShortcut" Directory="OrganizationAdminMenuFolder" Guid="{5686D743-A622-4B89-8983-29B596BBCBC6}">
+      <Shortcut
+          Id="OrganizationAdminShortcut"
+          Name="Organization Admin"
+          Description="AFK4 organization management"
+          Target="[OrganizationAdminFolder]AFK4.OrganizationAdmin.App.exe"
+          WorkingDirectory="OrganizationAdminFolder" />
+      <RemoveFolder Id="RemoveOrganizationAdminMenuFolder" Directory="OrganizationAdminMenuFolder" On="uninstall" />
+      <RegistryValue
+          Root="HKLM"
+          Key="Software\AFK4\OrganizationAdmin"
+          Name="StartMenuShortcut"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+    </Component>
+
+    <!-- Desktop shortcut: the operator is a daily-use cashier tool, so a desktop icon is expected. -->
+    <Component Id="OrganizationAdminDesktopShortcut" Directory="DesktopFolder" Guid="{5D1BFA85-EE72-4427-AEF9-133EEDB21FB6}">
+      <Shortcut
+          Id="OrganizationAdminDesktopShortcutLink"
+          Name="Organization Admin"
+          Description="AFK4 organization management"
+          Target="[OrganizationAdminFolder]AFK4.OrganizationAdmin.App.exe"
+          WorkingDirectory="OrganizationAdminFolder" />
+      <RegistryValue
+          Root="HKLM"
+          Key="Software\AFK4\OrganizationAdmin"
+          Name="DesktopShortcut"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+    </Component>
+
+    <ComponentGroup Id="OrganizationAdminFiles" Directory="OrganizationAdminFolder">
+      <Files Include="$(var.OrganizationAdminPublishDir)\**" />
+    </ComponentGroup>
+
+    <Component Id="OrganizationAdminAgentConfiguration" Directory="OrganizationAdminFolder" Guid="{17688042-51F4-47C6-894C-E70A2CC2611F}">
+      <RegistryValue
+          Root="HKLM"
+          Key="Software\AFK4\OrganizationAdmin"
+          Name="Installed"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      <Environment
+          Id="OrganizationAdminVersionEnvironment"
+          Name="Agent__OrganizationAdminVersion"
+          Value="$(var.PackageVersion)"
+          Action="set"
+          Part="all"
+          System="yes" />
+    </Component>
+  </Package>
+</Wix>

@@ -152,7 +152,7 @@ export function authenticatedInstallClient(): WizardInstallClient {
   };
 }
 
-/** Retry installing the role's app (Player Shell for gaming_pc, Operator App for
+/** Retry installing the role's app (Player Shell for gaming_pc, Organization Admin for
  *  manager_workstation) after a failed attempt. */
 export function provisionShell(role: WizardRole): Promise<WizardShellOutcome> {
   return postHostRequest<WizardShellOutcome>('wizard:provisionShell', { role }, ENROLL_TIMEOUT_MS);

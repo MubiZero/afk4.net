@@ -86,7 +86,7 @@ jobs:
           # are bundle inputs and live under intermediates\ (see scripts/build-client-packages.ps1).
           $expectedArtifacts = @(
             "artifacts/client-packages/afk4-client-$env:AFK4_PACKAGE_VERSION-internal.exe",
-            "artifacts/client-packages/intermediates/afk4-operator-app-$env:AFK4_PACKAGE_VERSION-internal.msi",
+            "artifacts/client-packages/intermediates/afk4-organization-admin-$env:AFK4_PACKAGE_VERSION-internal.msi",
             "artifacts/client-packages/intermediates/afk4-agent-$env:AFK4_PACKAGE_VERSION-internal.msi",
             "artifacts/client-packages/intermediates/afk4-player-shell-$env:AFK4_PACKAGE_VERSION-internal.msi"
           )
@@ -182,10 +182,10 @@ jobs:
 
           $env:AFK4_UPDATE_REGISTRATION_TOKEN = [string]$signInResponse.accessToken
 
-          $operatorPackageRequestPath = "artifacts/update-packages/operator-app-$env:AFK4_PACKAGE_VERSION-internal-request.json"
+          $organizationAdminPackageRequestPath = "artifacts/update-packages/organization-admin-$env:AFK4_PACKAGE_VERSION-internal-request.json"
           $agentPackageRequestPath = "artifacts/update-packages/agent-service-$env:AFK4_PACKAGE_VERSION-internal-request.json"
           $playerShellPackageRequestPath = "artifacts/update-packages/player-shell-$env:AFK4_PACKAGE_VERSION-internal-request.json"
-          foreach ($requestPath in @($operatorPackageRequestPath, $agentPackageRequestPath, $playerShellPackageRequestPath)) {
+          foreach ($requestPath in @($organizationAdminPackageRequestPath, $agentPackageRequestPath, $playerShellPackageRequestPath)) {
             if (-not (Test-Path -LiteralPath $requestPath -PathType Leaf)) {
               throw "Expected update package request was not produced: $requestPath"
             }
@@ -194,10 +194,10 @@ jobs:
           powershell -ExecutionPolicy Bypass -File scripts/register-update-package-requests.ps1 `
             -PlatformBaseUrl $env:AFK4_STAGING_PLATFORM_BASE_URL `
             -BranchId $env:AFK4_STAGING_BRANCH_ID `
-            -RequestPath $operatorPackageRequestPath `
+            -RequestPath $organizationAdminPackageRequestPath `
             -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN `
             -CreateRollouts `
-            -RolloutComponent operator-app `
+            -RolloutComponent organization-admin `
             -RolloutTargetKind branch `
             -RolloutReason "Automated package smoke operator rollout $env:AFK4_PACKAGE_VERSION."
 

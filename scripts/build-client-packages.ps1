@@ -13,7 +13,7 @@ param(
 
     [string] $BunPath = 'bun',
 
-    [switch] $SkipOperatorWebRestore
+    [switch] $SkipOrganizationAdminWebRestore
 )
 
 $ErrorActionPreference = 'Stop'
@@ -134,7 +134,7 @@ function Assert-OperatorMsiContainsFrontendAssets {
 
     foreach ($asset in $requiredAssets) {
         if (-not ($fileNames | Where-Object { $_ -like $asset.Pattern } | Select-Object -First 1)) {
-            throw "Operator App MSI does not contain $($asset.Label). Build the React frontend and copy dist into WebAssets before WiX packaging."
+            throw "Organization Admin MSI does not contain $($asset.Label). Build the React frontend and copy dist into WebAssets before WiX packaging."
         }
     }
 }
@@ -151,9 +151,9 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $artifactRoot = Join-Path $repoRoot 'artifacts/client-packages'
 $publishRoot = Join-Path $artifactRoot 'publish'
 $wixInputRoot = Join-Path $artifactRoot 'wix-inputs'
-$operatorWebRoot = Join-Path $repoRoot 'src/AFK4.OrganizationAdmin.Web'
-$operatorWebDist = Join-Path $operatorWebRoot 'dist'
-$operatorWebDistIndex = Join-Path $operatorWebDist 'index.html'
+$organizationAdminWebRoot = Join-Path $repoRoot 'src/AFK4.OrganizationAdmin.Web'
+$organizationAdminWebDist = Join-Path $organizationAdminWebRoot 'dist'
+$organizationAdminWebDistIndex = Join-Path $organizationAdminWebDist 'index.html'
 $msiVersion = ConvertTo-MsiVersion $Version
 $publishRootFullPath = [System.IO.Path]::GetFullPath($publishRoot)
 $artifactRootFullPath = [System.IO.Path]::GetFullPath($artifactRoot)
@@ -174,8 +174,8 @@ if (Test-Path -LiteralPath $wixInputRoot) {
 
 New-Item -ItemType Directory -Force -Path $wixInputRoot | Out-Null
 
-if ($SkipOperatorWebRestore) {
-    Write-Host "Skipping Operator App frontend dependency restore because SkipOperatorWebRestore was set."
+if ($SkipOrganizationAdminWebRestore) {
+    Write-Host "Skipping Organization Admin frontend dependency restore because SkipOrganizationAdminWebRestore was set."
 }
 else {
     # Dependencies are managed at the Bun workspace root (single bun.lock), so install from repoRoot.
@@ -192,20 +192,20 @@ else {
     }
 }
 
-Push-Location $operatorWebRoot
+Push-Location $organizationAdminWebRoot
 try {
     & $BunPath run build
 
     if ($LASTEXITCODE -ne 0) {
-        throw "bun run build failed for Operator App frontend with exit code $LASTEXITCODE."
+        throw "bun run build failed for Organization Admin frontend with exit code $LASTEXITCODE."
     }
 }
 finally {
     Pop-Location
 }
 
-if (-not (Test-Path -LiteralPath $operatorWebDistIndex)) {
-    throw "Operator App frontend build did not produce '$operatorWebDistIndex'."
+if (-not (Test-Path -LiteralPath $organizationAdminWebDistIndex)) {
+    throw "Organization Admin frontend build did not produce '$organizationAdminWebDistIndex'."
 }
 
 # The dev-only host-bridge stub (src/devHostBridge.ts) must never reach a production bundle.
@@ -217,12 +217,12 @@ $operatorDevMarkers = @(
     'DEV-ONLY',
     '/api/auth/staff/sign-in',
     '0169044b-2f74-46a7-8e52-7656a39a8f8c')
-$operatorBuiltFiles = Get-ChildItem -LiteralPath $operatorWebDist -Recurse -File -Include '*.html', '*.js'
+$operatorBuiltFiles = Get-ChildItem -LiteralPath $organizationAdminWebDist -Recurse -File -Include '*.html', '*.js'
 foreach ($builtFile in $operatorBuiltFiles) {
     $builtContent = Get-Content -LiteralPath $builtFile.FullName -Raw
     foreach ($marker in $operatorDevMarkers) {
         if ($builtContent -and $builtContent.Contains($marker)) {
-            throw "Operator App build output '$($builtFile.FullName)' contains dev-only marker '$marker'. The dev host-bridge stub must not ship; ensure it stays gated behind import.meta.env.DEV."
+            throw "Organization Admin build output '$($builtFile.FullName)' contains dev-only marker '$marker'. The dev host-bridge stub must not ship; ensure it stays gated behind import.meta.env.DEV."
         }
     }
 }
@@ -278,7 +278,7 @@ Get-ChildItem -LiteralPath $setupWizardWebDist -Force |
     Copy-Item -Destination $setupWizardWebAssets -Recurse -Force
 
 $projects = @(
-    @{ Name = 'operator-app'; Path = 'src/AFK4.OrganizationAdmin.App/AFK4.OrganizationAdmin.App.csproj'; SelfContained = $false },
+    @{ Name = 'organization-admin'; Path = 'src/AFK4.OrganizationAdmin.App/AFK4.OrganizationAdmin.App.csproj'; SelfContained = $false },
     @{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $false },
     @{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $false },
     @{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $false }
@@ -310,22 +310,22 @@ foreach ($project in $projects) {
     }
 }
 
-$operatorAppPublishDir = Join-Path $publishRoot "operator-app-$Version-$Channel"
-$operatorWebAssetsPublishDir = Join-Path $operatorAppPublishDir 'WebAssets'
-$operatorAppPublishDirFullPath = [System.IO.Path]::GetFullPath($operatorAppPublishDir)
-$operatorWebAssetsPublishDirFullPath = [System.IO.Path]::GetFullPath($operatorWebAssetsPublishDir)
+$organizationAdminPublishDir = Join-Path $publishRoot "organization-admin-$Version-$Channel"
+$organizationAdminWebAssetsPublishDir = Join-Path $organizationAdminPublishDir 'WebAssets'
+$organizationAdminPublishDirFullPath = [System.IO.Path]::GetFullPath($organizationAdminPublishDir)
+$organizationAdminWebAssetsPublishDirFullPath = [System.IO.Path]::GetFullPath($organizationAdminWebAssetsPublishDir)
 
-if (-not $operatorWebAssetsPublishDirFullPath.StartsWith($operatorAppPublishDirFullPath, [System.StringComparison]::OrdinalIgnoreCase)) {
-    throw "Computed Operator App WebAssets directory must stay under '$operatorAppPublishDirFullPath'."
+if (-not $organizationAdminWebAssetsPublishDirFullPath.StartsWith($organizationAdminPublishDirFullPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Computed Organization Admin WebAssets directory must stay under '$organizationAdminPublishDirFullPath'."
 }
 
-if (Test-Path -LiteralPath $operatorWebAssetsPublishDir) {
-    Remove-Item -LiteralPath $operatorWebAssetsPublishDir -Recurse -Force
+if (Test-Path -LiteralPath $organizationAdminWebAssetsPublishDir) {
+    Remove-Item -LiteralPath $organizationAdminWebAssetsPublishDir -Recurse -Force
 }
 
-New-Item -ItemType Directory -Force -Path $operatorWebAssetsPublishDir | Out-Null
-Get-ChildItem -LiteralPath $operatorWebDist -Force |
-    Copy-Item -Destination $operatorWebAssetsPublishDir -Recurse -Force
+New-Item -ItemType Directory -Force -Path $organizationAdminWebAssetsPublishDir | Out-Null
+Get-ChildItem -LiteralPath $organizationAdminWebDist -Force |
+    Copy-Item -Destination $organizationAdminWebAssetsPublishDir -Recurse -Force
 
 $agentServicePublishDir = Join-Path $publishRoot "agent-service-$Version-$Channel"
 $setupWizardPublishDir = Join-Path $publishRoot "setup-wizard-$Version-$Channel"
@@ -341,11 +341,11 @@ Get-ChildItem -LiteralPath $agentServicePublishDir -File |
     Where-Object { $_.Name -ne 'AFK4.Agent.Service.exe' } |
     Copy-Item -Destination $agentServiceSupportDir -Force
 
-$operatorMsiPath = Join-Path $artifactRoot "afk4-operator-app-$Version-$Channel.msi"
+$organizationAdminMsiPath = Join-Path $artifactRoot "afk4-organization-admin-$Version-$Channel.msi"
 $agentMsiPath = Join-Path $artifactRoot "afk4-agent-$Version-$Channel.msi"
 $playerShellMsiPath = Join-Path $artifactRoot "afk4-player-shell-$Version-$Channel.msi"
 
-@($operatorMsiPath, $agentMsiPath, $playerShellMsiPath) |
+@($organizationAdminMsiPath, $agentMsiPath, $playerShellMsiPath) |
     Where-Object { Test-Path -LiteralPath $_ } |
     ForEach-Object { Remove-Item -LiteralPath $_ -Force }
 
@@ -372,26 +372,26 @@ if ($LASTEXITCODE -ne 0) {
     throw "WiX build failed for Player Shell MSI with exit code $LASTEXITCODE."
 }
 
-# Build the Operator App MSI next: the agent MSI also bundles it into the wizard payload so the
-# wizard can install the Operator App on cashier/manager workstations (role manager_workstation),
+# Build the Organization Admin MSI next: the agent MSI also bundles it into the wizard payload so the
+# wizard can install the Organization Admin on cashier/manager workstations (role manager_workstation),
 # the same way it installs the Player Shell on gaming PCs. So it must exist before the harvest too.
-& $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/operator-app/Package.wxs') `
+& $DotnetPath wix build -acceptEula wix7 (Join-Path $repoRoot 'installers/organization-admin/Package.wxs') `
     -arch x64 `
     -d "PackageVersion=$msiVersion" `
-    -d "OperatorAppPublishDir=$(Join-Path $publishRoot "operator-app-$Version-$Channel")" `
-    -o $operatorMsiPath
+    -d "OrganizationAdminPublishDir=$(Join-Path $publishRoot "organization-admin-$Version-$Channel")" `
+    -o $organizationAdminMsiPath
 
 if ($LASTEXITCODE -ne 0) {
-    throw "WiX build failed for Operator App MSI with exit code $LASTEXITCODE."
+    throw "WiX build failed for Organization Admin MSI with exit code $LASTEXITCODE."
 }
 
-Assert-OperatorMsiContainsFrontendAssets -MsiPath $operatorMsiPath
+Assert-OperatorMsiContainsFrontendAssets -MsiPath $organizationAdminMsiPath
 
 # Bundle BOTH role apps into the wizard payload before the support dir is harvested.
 $setupWizardPayloadDir = Join-Path $setupWizardPublishDir 'payload'
 New-Item -ItemType Directory -Force -Path $setupWizardPayloadDir | Out-Null
 Copy-Item -LiteralPath $playerShellMsiPath -Destination (Join-Path $setupWizardPayloadDir 'AFK4.Player.Shell.msi') -Force
-Copy-Item -LiteralPath $operatorMsiPath -Destination (Join-Path $setupWizardPayloadDir 'AFK4.OrganizationAdmin.App.msi') -Force
+Copy-Item -LiteralPath $organizationAdminMsiPath -Destination (Join-Path $setupWizardPayloadDir 'AFK4.OrganizationAdmin.msi') -Force
 
 # -Recurse (not -File) so the WebAssets\** subfolder ships in the support dir;
 # the agent MSI harvests SetupWizardFiles from here, and the wizard resolves its
@@ -428,8 +428,8 @@ $agentFiles = Get-MsiFileNames -MsiPath $agentMsiPath
 if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.Player.Shell.msi*' } | Select-Object -First 1)) {
     throw "Agent MSI does not contain the bundled Player Shell MSI (payload\AFK4.Player.Shell.msi)."
 }
-if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.OrganizationAdmin.App.msi*' } | Select-Object -First 1)) {
-    throw "Agent MSI does not contain the bundled Operator App MSI (payload\AFK4.OrganizationAdmin.App.msi)."
+if (-not ($agentFiles | Where-Object { $_ -like '*AFK4.OrganizationAdmin.msi*' } | Select-Object -First 1)) {
+    throw "Agent MSI does not contain the bundled Organization Admin MSI (payload\AFK4.OrganizationAdmin.msi)."
 }
 
 # Components publish framework-dependent (one shared .NET runtime, carried by the Burn
@@ -498,7 +498,7 @@ if ($LASTEXITCODE -ne 0) {
 # deliverable folder presents a single file (the agent MSI) and nobody hands a client the wrong one.
 $intermediatesDir = Join-Path $artifactRoot 'intermediates'
 New-Item -ItemType Directory -Force -Path $intermediatesDir | Out-Null
-foreach ($bundledMsi in @($operatorMsiPath, $playerShellMsiPath)) {
+foreach ($bundledMsi in @($organizationAdminMsiPath, $playerShellMsiPath)) {
     foreach ($artifact in @($bundledMsi, [System.IO.Path]::ChangeExtension($bundledMsi, '.wixpdb'))) {
         if (Test-Path -LiteralPath $artifact) {
             Move-Item -LiteralPath $artifact -Destination $intermediatesDir -Force

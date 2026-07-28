@@ -8,7 +8,7 @@ const search = mock(async () => ({
   records: [{
     auditRecordId: 'r1', branchId: 'b1', actorStaffUserId: 'staff-1', actorPlatformAdminUserId: null,
     action: 'shift.opened', targetType: 'Shift', targetId: 's1', outcome: 'Succeeded',
-    sourceApp: 'OperatorApp', detailsJson: '{}', createdAtUtc: '2026-07-20T10:00:00Z'
+    sourceApp: 'OrganizationAdmin', detailsJson: '{}', createdAtUtc: '2026-07-20T10:00:00Z'
   }]
 }));
 

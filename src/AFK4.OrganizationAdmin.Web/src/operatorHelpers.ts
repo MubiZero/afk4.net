@@ -298,8 +298,8 @@ export function staffRoleLabel(roleName: string, t: TFunc): string {
 
 export function updateComponentLabel(component: string, t: TFunc): string {
   switch (component) {
-    case 'operator-app':
-      return t('op.helper.update.component.operatorApp');
+    case 'organization-admin':
+      return t('op.helper.update.component.organizationAdmin');
     case 'agent-service':
       return t('op.helper.update.component.agentService');
     case 'player-shell':

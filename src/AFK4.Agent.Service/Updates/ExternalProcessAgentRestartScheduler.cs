@@ -67,6 +67,6 @@ public sealed class ExternalProcessAgentRestartScheduler(IOptions<AgentOptions> 
         return component is
             UpdateComponentNames.AgentService or
             UpdateComponentNames.PlayerShell or
-            UpdateComponentNames.OperatorApp;
+            UpdateComponentNames.OrganizationAdmin;
     }
 }

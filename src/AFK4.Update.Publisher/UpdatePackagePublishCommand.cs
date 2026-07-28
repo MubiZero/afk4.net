@@ -143,7 +143,7 @@ public static class UpdatePackagePublishCommand
 
         Required:
           --organization-id <guid>
-          --component <operator-app|agent-service|player-shell>
+          --component <organization-admin|agent-service|player-shell>
           --version <version>
           --channel <internal|beta|stable>
           --artifact <path>

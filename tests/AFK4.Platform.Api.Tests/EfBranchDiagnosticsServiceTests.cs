@@ -199,7 +199,7 @@ public sealed class EfBranchDiagnosticsServiceTests
                 OrganizationId = TestIds.OrganizationId,
                 BranchId = TestIds.BranchId,
                 UpdatePackageId = packageId,
-                Component = "operator-app",
+                Component = "organization-admin",
                 Version = "0.1.0",
                 Channel = "internal",
                 State = UpdateRolloutStateNames.Paused,

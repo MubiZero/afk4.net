@@ -2,7 +2,7 @@ namespace AFK4.Shared.Contracts.Updates;
 
 public static class UpdateComponentNames
 {
-    public const string OperatorApp = "operator-app";
+    public const string OrganizationAdmin = "organization-admin";
 
     public const string AgentService = "agent-service";
 

@@ -101,7 +101,7 @@ on:
         options:
           - agent-service
           - player-shell
-          - operator-app
+          - organization-admin
       rollout_target_kind:
         description: Rollout target kind
         required: false
@@ -401,8 +401,8 @@ jobs:
               throw "http_put_artifact_uris_json must be valid JSON with operator, agent, and playerShell uploadUri/publicUri values."
             }
 
-            $arguments += @('-OperatorArtifactUploadUri', $httpPutUris.operator.uploadUri)
-            $arguments += @('-OperatorArtifactPublicUri', $httpPutUris.operator.publicUri)
+            $arguments += @('-OrganizationAdminArtifactUploadUri', $httpPutUris.operator.uploadUri)
+            $arguments += @('-OrganizationAdminArtifactPublicUri', $httpPutUris.operator.publicUri)
             $arguments += @('-AgentArtifactUploadUri', $httpPutUris.agent.uploadUri)
             $arguments += @('-AgentArtifactPublicUri', $httpPutUris.agent.publicUri)
             $arguments += @('-PlayerShellArtifactUploadUri', $httpPutUris.playerShell.uploadUri)

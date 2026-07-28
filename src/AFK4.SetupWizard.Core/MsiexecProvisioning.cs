@@ -1,6 +1,6 @@
 namespace AFK4.SetupWizard.Core;
 
-// Shared msiexec install for the bundled payload MSIs (Player Shell, Operator App): run a silent
+// Shared msiexec install for the bundled payload MSIs (Player Shell, Organization Admin): run a silent
 // per-machine install and map the exit code to a provisioning result. Kept in one place so both
 // role provisioners agree on the exit-code vocabulary.
 internal static class MsiexecProvisioning

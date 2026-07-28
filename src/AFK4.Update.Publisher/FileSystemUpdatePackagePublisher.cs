@@ -447,7 +447,7 @@ public sealed class FileSystemUpdatePackagePublisher
     private static bool IsSupportedComponent(string component)
     {
         return component is
-            UpdateComponentNames.OperatorApp or
+            UpdateComponentNames.OrganizationAdmin or
             UpdateComponentNames.AgentService or
             UpdateComponentNames.PlayerShell;
     }

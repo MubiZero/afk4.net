@@ -24,14 +24,14 @@ public sealed class UpdateHelperScriptTests
     }
 
     [Fact]
-    public void InstallUpdateMsiScript_InstallsWebView2PrerequisiteBeforeOperatorAppMsi()
+    public void InstallUpdateMsiScript_InstallsWebView2PrerequisiteBeforeOrganizationAdminMsi()
     {
         var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "install-afk4-update-msi.ps1");
         var script = File.ReadAllText(scriptPath);
 
         Assert.Contains("Test-WebView2RuntimeInstalled", script, StringComparison.Ordinal);
         Assert.Contains("Install-WebView2Runtime", script, StringComparison.Ordinal);
-        Assert.Contains("$Component -eq 'operator-app'", script, StringComparison.Ordinal);
+        Assert.Contains("$Component -eq 'organization-admin'", script, StringComparison.Ordinal);
         Assert.Contains(@"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}", script, StringComparison.Ordinal);
         Assert.Contains("MicrosoftEdgeWebView2Setup.exe", script, StringComparison.Ordinal);
         Assert.Contains("/silent", script, StringComparison.Ordinal);
@@ -98,26 +98,26 @@ public sealed class UpdateHelperScriptTests
         // The player-shell MSI is a bundled input (carried inside the agent MSI payload), not a
         // standalone deliverable — the build moves it into the intermediates\ subfolder instead of
         // echoing it as an output (see "move bundled operator/player-shell MSIs into intermediates").
-        Assert.Contains("foreach ($bundledMsi in @($operatorMsiPath, $playerShellMsiPath))", script, StringComparison.Ordinal);
+        Assert.Contains("foreach ($bundledMsi in @($organizationAdminMsiPath, $playerShellMsiPath))", script, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void ClientPackageBuildScript_BuildsStandaloneX64OperatorAppMsi()
+    public void ClientPackageBuildScript_BuildsStandaloneX64OrganizationAdminMsi()
     {
         var scriptPath = Path.Combine(GetRepositoryRoot(), "scripts", "build-client-packages.ps1");
         var script = File.ReadAllText(scriptPath);
-        var operatorAppBuild = script[
-            script.IndexOf("installers/operator-app/Package.wxs", StringComparison.Ordinal)..];
+        var organizationAdminBuild = script[
+            script.IndexOf("installers/organization-admin/Package.wxs", StringComparison.Ordinal)..];
 
-        Assert.Contains("@{ Name = 'operator-app'; Path = 'src/AFK4.OrganizationAdmin.App/AFK4.OrganizationAdmin.App.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
+        Assert.Contains("@{ Name = 'organization-admin'; Path = 'src/AFK4.OrganizationAdmin.App/AFK4.OrganizationAdmin.App.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
         // All four client components must publish framework-dependent so the bundle's shared
         // runtime is the single .NET copy (see Workstream A). A stray "SelfContained = $true" in
         // the $projects list would re-bloat the MSI back toward 160 MB.
         Assert.Contains("@{ Name = 'agent-service'; Path = 'src/AFK4.Agent.Service/AFK4.Agent.Service.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
         Assert.Contains("@{ Name = 'player-shell'; Path = 'src/AFK4.Player.Shell/AFK4.Player.Shell.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
         Assert.Contains("@{ Name = 'setup-wizard'; Path = 'src/AFK4.SetupWizard/AFK4.SetupWizard.csproj'; SelfContained = $false }", script, StringComparison.Ordinal);
-        Assert.Contains("-arch x64", operatorAppBuild, StringComparison.Ordinal);
-        Assert.Contains("-d \"OperatorAppPublishDir=$(Join-Path $publishRoot \"operator-app-$Version-$Channel\")\"", operatorAppBuild, StringComparison.Ordinal);
+        Assert.Contains("-arch x64", organizationAdminBuild, StringComparison.Ordinal);
+        Assert.Contains("-d \"OrganizationAdminPublishDir=$(Join-Path $publishRoot \"organization-admin-$Version-$Channel\")\"", organizationAdminBuild, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -127,20 +127,20 @@ public sealed class UpdateHelperScriptTests
         var script = File.ReadAllText(scriptPath);
 
         Assert.Contains("BunPath", script, StringComparison.Ordinal);
-        Assert.Contains("SkipOperatorWebRestore", script, StringComparison.Ordinal);
+        Assert.Contains("SkipOrganizationAdminWebRestore", script, StringComparison.Ordinal);
         Assert.Contains("src/AFK4.OrganizationAdmin.Web", script, StringComparison.Ordinal);
         Assert.Contains("& $BunPath install --frozen-lockfile", script, StringComparison.Ordinal);
         Assert.Contains("& $BunPath run build", script, StringComparison.Ordinal);
-        Assert.Contains("Operator App frontend build did not produce", script, StringComparison.Ordinal);
-        Assert.Contains("$operatorWebAssetsPublishDir = Join-Path $operatorAppPublishDir 'WebAssets'", script, StringComparison.Ordinal);
-        Assert.Contains("Copy-Item -Destination $operatorWebAssetsPublishDir -Recurse -Force", script, StringComparison.Ordinal);
+        Assert.Contains("Organization Admin frontend build did not produce", script, StringComparison.Ordinal);
+        Assert.Contains("$organizationAdminWebAssetsPublishDir = Join-Path $organizationAdminPublishDir 'WebAssets'", script, StringComparison.Ordinal);
+        Assert.Contains("Copy-Item -Destination $organizationAdminWebAssetsPublishDir -Recurse -Force", script, StringComparison.Ordinal);
         Assert.Contains("WindowsInstaller.Installer", script, StringComparison.Ordinal);
-        Assert.Contains("Assert-OperatorMsiContainsFrontendAssets -MsiPath $operatorMsiPath", script, StringComparison.Ordinal);
-        Assert.Contains("Operator App MSI does not contain", script, StringComparison.Ordinal);
+        Assert.Contains("Assert-OperatorMsiContainsFrontendAssets -MsiPath $organizationAdminMsiPath", script, StringComparison.Ordinal);
+        Assert.Contains("Organization Admin MSI does not contain", script, StringComparison.Ordinal);
     }
 
     [Theory]
-    [InlineData("installers/operator-app/Package.wxs")]
+    [InlineData("installers/organization-admin/Package.wxs")]
     [InlineData("installers/player-shell/Package.wxs")]
     [InlineData("installers/agent/Package.wxs")]
     public void WixPackages_DoNotUseUnsupportedFilesExcludeAttribute(string packagePath)
@@ -211,9 +211,9 @@ public sealed class UpdateHelperScriptTests
     }
 
     [Fact]
-    public void OperatorAppWixPackage_RequiresWebView2Runtime()
+    public void OrganizationAdminWixPackage_RequiresWebView2Runtime()
     {
-        var packagePath = Path.Combine(GetRepositoryRoot(), "installers", "operator-app", "Package.wxs");
+        var packagePath = Path.Combine(GetRepositoryRoot(), "installers", "organization-admin", "Package.wxs");
         var package = File.ReadAllText(packagePath);
 
         Assert.Contains("WEBVIEW2_RUNTIME_HKLM_PV", package, StringComparison.Ordinal);
@@ -227,12 +227,12 @@ public sealed class UpdateHelperScriptTests
     }
 
     [Fact]
-    public void OperatorAppWixPackage_WritesAgentOperatorAppVersion()
+    public void OrganizationAdminWixPackage_WritesAgentOrganizationAdminVersion()
     {
-        var packagePath = Path.Combine(GetRepositoryRoot(), "installers", "operator-app", "Package.wxs");
+        var packagePath = Path.Combine(GetRepositoryRoot(), "installers", "organization-admin", "Package.wxs");
         var package = File.ReadAllText(packagePath);
 
-        Assert.Contains("Agent__OperatorAppVersion", package, StringComparison.Ordinal);
+        Assert.Contains("Agent__OrganizationAdminVersion", package, StringComparison.Ordinal);
         Assert.Contains("Value=\"$(var.PackageVersion)\"", package, StringComparison.Ordinal);
     }
 

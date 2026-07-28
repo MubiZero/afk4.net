@@ -48,7 +48,7 @@ function Install-WebView2Runtime {
     }
 
     if ([string]::IsNullOrWhiteSpace($WebView2BootstrapperPath)) {
-        throw 'WebView2BootstrapperPath is required when installing the Operator App component.'
+        throw 'WebView2BootstrapperPath is required when installing the Organization Admin component.'
     }
 
     if (-not (Test-Path -LiteralPath $WebView2BootstrapperPath)) {
@@ -105,7 +105,7 @@ if (-not (Test-Path -LiteralPath $MsiexecPath)) {
     throw "msiexec was not found at '$MsiexecPath'."
 }
 
-if ($Component -eq 'operator-app' -and -not $SkipWebView2Prerequisite) {
+if ($Component -eq 'organization-admin' -and -not $SkipWebView2Prerequisite) {
     Install-WebView2Runtime
 }
 

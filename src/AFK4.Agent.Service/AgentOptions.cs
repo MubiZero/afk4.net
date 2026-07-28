@@ -18,7 +18,7 @@ public sealed class AgentOptions
 
     public string ShellVersion { get; init; } = string.Empty;
 
-    public string OperatorAppVersion { get; init; } = string.Empty;
+    public string OrganizationAdminVersion { get; init; } = string.Empty;
 
     public string DeviceRole { get; init; } = DeviceRoleNames.GamingPc;
 

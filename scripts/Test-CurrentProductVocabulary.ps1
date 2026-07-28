@@ -18,9 +18,9 @@ $activeRoots = @(
     'docs/roadmap'
 )
 $rules = @(
-    @{ Pattern = '\bOperator App\b'; Label = 'Operator App' },
-    @{ Pattern = '\bControl Plane\b'; Label = 'Control Plane' },
-    @{ Pattern = '/api/owner(?:/|\b)'; Label = '/api/owner' }
+    @{ Pattern = ('\bOperator' + ' App\b'); Label = ('Operator' + ' App') },
+    @{ Pattern = ('\bControl' + ' Plane\b'); Label = ('Control' + ' Plane') },
+    @{ Pattern = ('/api/' + 'owner(?:/|\b)'); Label = ('/api/' + 'owner') }
 )
 $violations = [System.Collections.Generic.List[string]]::new()
 

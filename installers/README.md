@@ -2,7 +2,7 @@
 
 AFK4 uses WiX-authored MSI packages for MVP Windows client distribution.
 
-- `operator-app` packages `AFK4.OrganizationAdmin.App`.
+- `organization-admin` packages `AFK4.OrganizationAdmin.App`.
 - `agent` packages `AFK4.Agent.Service` and `AFK4.SetupWizard`.
 - `player-shell` packages `AFK4.Player.Shell` for Agent-pulled installs.
 - `gaming-pc` is the retired coordinated Agent + Player Shell package kept

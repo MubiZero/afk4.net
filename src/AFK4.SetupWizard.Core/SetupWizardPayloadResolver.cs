@@ -4,14 +4,14 @@ namespace AFK4.SetupWizard.Core;
 
 /// <summary>
 /// Locates an MSI bundled next to the wizard executable under `…\Setup Wizard\payload\`.
-/// The agent MSI ships both the Player Shell (for gaming PCs) and the Operator App (for
+/// The agent MSI ships both the Player Shell (for gaming PCs) and the Organization Admin (for
 /// cashier/manager workstations) here so the wizard can install the right one per role.
 /// Returns null when the requested MSI is absent.
 /// </summary>
 public sealed class SetupWizardPayloadResolver
 {
     public const string PlayerShellMsiFileName = "AFK4.Player.Shell.msi";
-    public const string OperatorAppMsiFileName = "AFK4.OrganizationAdmin.App.msi";
+    public const string OrganizationAdminMsiFileName = "AFK4.OrganizationAdmin.msi";
 
     private readonly Func<string, bool> fileExists;
     private readonly Func<string, string> resolvePath;
@@ -30,7 +30,7 @@ public sealed class SetupWizardPayloadResolver
 
     public string? ResolvePlayerShellMsiPath() => ResolveMsiPath(PlayerShellMsiFileName);
 
-    public string? ResolveOperatorAppMsiPath() => ResolveMsiPath(OperatorAppMsiFileName);
+    public string? ResolveOrganizationAdminMsiPath() => ResolveMsiPath(OrganizationAdminMsiFileName);
 
     private string? ResolveMsiPath(string fileName)
     {

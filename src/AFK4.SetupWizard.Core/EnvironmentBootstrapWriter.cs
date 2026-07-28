@@ -14,7 +14,7 @@ public sealed class EnvironmentBootstrapWriter(
     {
         var platformBaseUrl = config.ApiBaseUrl.TrimEnd('/');
 
-        // Operator App reads these (it runs interactively, so it sees fresh machine env).
+        // Organization Admin reads these (it runs interactively, so it sees fresh machine env).
         Write(OperatorPlatformBaseUrlEnvironmentVariable, platformBaseUrl);
         Write(OperatorOrganizationIdEnvironmentVariable, config.OrganizationId.ToString("D"));
         Write(OperatorBranchIdEnvironmentVariable, config.BranchId.ToString("D"));

@@ -23,9 +23,9 @@ public sealed class AgentComponentVersionProvider(IOptions<AgentOptions> options
         }
 
         if (agentOptions.DeviceRole == DeviceRoleNames.ManagerWorkstation &&
-            !string.IsNullOrWhiteSpace(agentOptions.OperatorAppVersion))
+            !string.IsNullOrWhiteSpace(agentOptions.OrganizationAdminVersion))
         {
-            components.Add(new DeviceComponentVersionDto(UpdateComponentNames.OperatorApp, agentOptions.OperatorAppVersion));
+            components.Add(new DeviceComponentVersionDto(UpdateComponentNames.OrganizationAdmin, agentOptions.OrganizationAdminVersion));
         }
 
         return components;

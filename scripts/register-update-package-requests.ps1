@@ -15,7 +15,7 @@ param(
 
     [switch] $CreateRollouts,
 
-    [ValidateSet('agent-service', 'player-shell', 'operator-app')]
+    [ValidateSet('agent-service', 'player-shell', 'organization-admin')]
     [string[]] $RolloutComponent = @('agent-service'),
 
     [ValidateSet('device', 'branch')]

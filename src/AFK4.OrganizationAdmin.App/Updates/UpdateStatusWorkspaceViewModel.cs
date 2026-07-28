@@ -553,7 +553,7 @@ public sealed class UpdateStatusWorkspaceViewModel : INotifyPropertyChanged
         {
             UpdateComponentNames.AgentService => "AgentService",
             UpdateComponentNames.PlayerShell => "PlayerShell",
-            UpdateComponentNames.OperatorApp => "OperatorApp",
+            UpdateComponentNames.OrganizationAdmin => "OrganizationAdmin",
             _ => component
         };
     }
@@ -615,7 +615,7 @@ public sealed class UpdateRolloutStatusViewModel
         {
             UpdateComponentNames.AgentService => "AgentService",
             UpdateComponentNames.PlayerShell => "PlayerShell",
-            UpdateComponentNames.OperatorApp => "OperatorApp",
+            UpdateComponentNames.OrganizationAdmin => "OrganizationAdmin",
             _ => component
         };
     }

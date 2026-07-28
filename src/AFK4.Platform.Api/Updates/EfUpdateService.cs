@@ -767,7 +767,7 @@ public sealed class EfUpdateService(
     private static bool IsSupportedComponent(string component)
     {
         return component is
-            UpdateComponentNames.OperatorApp or
+            UpdateComponentNames.OrganizationAdmin or
             UpdateComponentNames.AgentService or
             UpdateComponentNames.PlayerShell;
     }
@@ -778,7 +778,7 @@ public sealed class EfUpdateService(
         {
             UpdateComponentNames.AgentService => true,
             UpdateComponentNames.PlayerShell => deviceRole == DeviceRoleNames.GamingPc,
-            UpdateComponentNames.OperatorApp => deviceRole == DeviceRoleNames.ManagerWorkstation,
+            UpdateComponentNames.OrganizationAdmin => deviceRole == DeviceRoleNames.ManagerWorkstation,
             _ => false
         };
     }

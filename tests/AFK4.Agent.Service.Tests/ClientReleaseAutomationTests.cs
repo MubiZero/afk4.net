@@ -52,8 +52,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         AssertParameter(ast, "ArtifactStore");
         AssertParameter(ast, "HostingRoot");
         AssertParameter(ast, "PublicBaseUri");
-        AssertParameter(ast, "OperatorArtifactUploadUri");
-        AssertParameter(ast, "OperatorArtifactPublicUri");
+        AssertParameter(ast, "OrganizationAdminArtifactUploadUri");
+        AssertParameter(ast, "OrganizationAdminArtifactPublicUri");
         AssertParameter(ast, "AgentArtifactUploadUri");
         AssertParameter(ast, "AgentArtifactPublicUri");
         AssertParameter(ast, "PlayerShellArtifactUploadUri");
@@ -223,8 +223,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     public async Task RegisterUpdatePackageRequests_WithBranchRollout_PostsRolloutWithoutDeviceTargets()
     {
         Directory.CreateDirectory(tempRoot);
-        var requestPath = Path.Combine(tempRoot, "operator-app-1.2.3-internal-request.json");
-        const string requestBody = """{"organizationId":"0c04d6c0-bfa8-4e26-9263-fc0d307d0f08","component":"operator-app","channel":"internal"}""";
+        var requestPath = Path.Combine(tempRoot, "organization-admin-1.2.3-internal-request.json");
+        const string requestBody = """{"organizationId":"0c04d6c0-bfa8-4e26-9263-fc0d307d0f08","component":"organization-admin","channel":"internal"}""";
         await File.WriteAllTextAsync(requestPath, requestBody);
         var port = GetFreeTcpPort();
         var baseUrl = $"http://127.0.0.1:{port}/";
@@ -265,7 +265,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             "-RequestPath", requestPath,
             "-AccessToken", "test-token",
             "-CreateRollouts",
-            "-RolloutComponent", "operator-app",
+            "-RolloutComponent", "organization-admin",
             "-RolloutTargetKind", "branch",
             "-RolloutReason", "Automated smoke operator rollout.");
 
@@ -372,9 +372,9 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         var requestDirectory = Path.Combine(tempRoot, "requests");
         Directory.CreateDirectory(requestDirectory);
         var firstBody = """{"component":"agent-service","order":1}""";
-        var secondBody = """{"component":"operator-app","order":2}""";
+        var secondBody = """{"component":"organization-admin","order":2}""";
         var thirdBody = """{"component":"player-shell","order":3}""";
-        await File.WriteAllTextAsync(Path.Combine(requestDirectory, "02-operator-app-request.json"), secondBody);
+        await File.WriteAllTextAsync(Path.Combine(requestDirectory, "02-organization-admin-request.json"), secondBody);
         await File.WriteAllTextAsync(Path.Combine(requestDirectory, "01-agent-service-request.json"), firstBody);
         await File.WriteAllTextAsync(Path.Combine(requestDirectory, "03-player-shell-request.json"), thirdBody);
         await File.WriteAllTextAsync(Path.Combine(requestDirectory, "00-ignored.json"), """{"component":"ignored"}""");
@@ -631,7 +631,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("dotnet tool restore", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_PACKAGE_VERSION=$version", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"scripts/publish-client-msi-updates.ps1\"", workflow, StringComparison.Ordinal);
-        Assert.Contains("afk4-operator-app-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
+        Assert.Contains("afk4-organization-admin-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
         Assert.Contains("afk4-agent-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
         Assert.Contains("afk4-player-shell-$env:AFK4_PACKAGE_VERSION-internal.msi", workflow, StringComparison.Ordinal);
         Assert.DoesNotContain("scripts/publish-staging-bootstrapper.ps1", workflow, StringComparison.Ordinal);
@@ -662,10 +662,10 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(".github/workflows/package-smoke.yml")));
         var registrationStep = ExtractWorkflowStep(workflow, "Register staging update packages and create rollouts");
 
-        Assert.Contains("operator-app-$env:AFK4_PACKAGE_VERSION-internal-request.json", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("organization-admin-$env:AFK4_PACKAGE_VERSION-internal-request.json", registrationStep, StringComparison.Ordinal);
         Assert.Contains("agent-service-$env:AFK4_PACKAGE_VERSION-internal-request.json", registrationStep, StringComparison.Ordinal);
         Assert.Contains("player-shell-$env:AFK4_PACKAGE_VERSION-internal-request.json", registrationStep, StringComparison.Ordinal);
-        Assert.Contains("-RolloutComponent operator-app", registrationStep, StringComparison.Ordinal);
+        Assert.Contains("-RolloutComponent organization-admin", registrationStep, StringComparison.Ordinal);
         Assert.Contains("-RolloutTargetKind branch", registrationStep, StringComparison.Ordinal);
         Assert.Contains("-RolloutComponent agent-service", registrationStep, StringComparison.Ordinal);
         Assert.Contains("-RolloutTargetKind device", registrationStep, StringComparison.Ordinal);
@@ -837,10 +837,10 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         var outputDirectory = Path.Combine(tempRoot, "update-packages");
         Directory.CreateDirectory(packageDirectory);
         Directory.CreateDirectory(outputDirectory);
-        var operatorMsi = Path.Combine(packageDirectory, "afk4-operator-app-1.2.3-internal.msi");
+        var organizationAdminMsi = Path.Combine(packageDirectory, "afk4-organization-admin-1.2.3-internal.msi");
         var agentMsi = Path.Combine(packageDirectory, "afk4-agent-1.2.3-internal.msi");
         var playerShellMsi = Path.Combine(packageDirectory, "afk4-player-shell-1.2.3-internal.msi");
-        File.WriteAllText(operatorMsi, "operator");
+        File.WriteAllText(organizationAdminMsi, "operator");
         File.WriteAllText(agentMsi, "agent");
         File.WriteAllText(playerShellMsi, "player-shell");
         var dotnetArgumentsPath = Path.Combine(tempRoot, "dotnet-args.log");
@@ -866,7 +866,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Equal(0, result.ExitCode);
         var dotnetInvocations = File.ReadAllLines(dotnetArgumentsPath);
         Assert.Equal(3, dotnetInvocations.Length);
-        Assert.Contains(dotnetInvocations, invocation => invocation.Contains("--component|operator-app", StringComparison.Ordinal));
+        Assert.Contains(dotnetInvocations, invocation => invocation.Contains("--component|organization-admin", StringComparison.Ordinal));
         Assert.Contains(dotnetInvocations, invocation => invocation.Contains("--component|agent-service", StringComparison.Ordinal));
         Assert.Contains(dotnetInvocations, invocation => invocation.Contains("--component|player-shell", StringComparison.Ordinal));
         Assert.All(dotnetInvocations, invocation => Assert.Contains("--organization-id|0c04d6c0-bfa8-4e26-9263-fc0d307d0f08", invocation, StringComparison.Ordinal));
@@ -875,10 +875,10 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.All(dotnetInvocations, invocation => Assert.Contains("--public-base-uri|https://updates.afk4.test/packages/", invocation, StringComparison.Ordinal));
         Assert.All(dotnetInvocations, invocation => Assert.Contains("--signing-key|" + signingKeyPath, invocation, StringComparison.Ordinal));
         Assert.All(dotnetInvocations, invocation => Assert.Contains("--release-notes|Internal MSI release.", invocation, StringComparison.Ordinal));
-        Assert.Equal(1, dotnetInvocations.Count(invocation => invocation.Contains("--artifact|" + operatorMsi, StringComparison.Ordinal)));
+        Assert.Equal(1, dotnetInvocations.Count(invocation => invocation.Contains("--artifact|" + organizationAdminMsi, StringComparison.Ordinal)));
         Assert.Equal(1, dotnetInvocations.Count(invocation => invocation.Contains("--artifact|" + agentMsi, StringComparison.Ordinal)));
         Assert.Equal(1, dotnetInvocations.Count(invocation => invocation.Contains("--artifact|" + playerShellMsi, StringComparison.Ordinal)));
-        Assert.Contains(dotnetInvocations, invocation => invocation.Contains("operator-app-1.2.3-internal-request.json", StringComparison.Ordinal));
+        Assert.Contains(dotnetInvocations, invocation => invocation.Contains("organization-admin-1.2.3-internal-request.json", StringComparison.Ordinal));
         Assert.Contains(dotnetInvocations, invocation => invocation.Contains("agent-service-1.2.3-internal-request.json", StringComparison.Ordinal));
         Assert.Contains(dotnetInvocations, invocation => invocation.Contains("player-shell-1.2.3-internal-request.json", StringComparison.Ordinal));
     }
@@ -891,10 +891,10 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         var outputDirectory = Path.Combine(tempRoot, "update-packages");
         Directory.CreateDirectory(packageDirectory);
         Directory.CreateDirectory(outputDirectory);
-        var operatorMsi = Path.Combine(packageDirectory, "afk4-operator-app-1.2.3-beta.msi");
+        var organizationAdminMsi = Path.Combine(packageDirectory, "afk4-organization-admin-1.2.3-beta.msi");
         var agentMsi = Path.Combine(packageDirectory, "afk4-agent-1.2.3-beta.msi");
         var playerShellMsi = Path.Combine(packageDirectory, "afk4-player-shell-1.2.3-beta.msi");
-        File.WriteAllText(operatorMsi, "operator");
+        File.WriteAllText(organizationAdminMsi, "operator");
         File.WriteAllText(agentMsi, "agent");
         File.WriteAllText(playerShellMsi, "player-shell");
         var dotnetArgumentsPath = Path.Combine(tempRoot, "dotnet-http-put-args.log");
@@ -909,8 +909,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             "-PackageDirectory", packageDirectory,
             "-OutputDirectory", outputDirectory,
             "-ArtifactStore", "http-put",
-            "-OperatorArtifactUploadUri", "https://upload.afk4.test/operator",
-            "-OperatorArtifactPublicUri", "https://cdn.afk4.test/operator.msi",
+            "-OrganizationAdminArtifactUploadUri", "https://upload.afk4.test/operator",
+            "-OrganizationAdminArtifactPublicUri", "https://cdn.afk4.test/operator.msi",
             "-AgentArtifactUploadUri", "https://upload.afk4.test/agent",
             "-AgentArtifactPublicUri", "https://cdn.afk4.test/agent.msi",
             "-PlayerShellArtifactUploadUri", "https://upload.afk4.test/player-shell",
@@ -926,9 +926,9 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.All(dotnetInvocations, invocation => Assert.Contains("--signing-key-env-var|AFK4_UPDATE_SIGNING_PRIVATE_KEY", invocation, StringComparison.Ordinal));
         Assert.DoesNotContain(dotnetInvocations, invocation => invocation.Contains("--signing-key|", StringComparison.Ordinal));
 
-        var operatorInvocation = Assert.Single(dotnetInvocations, invocation => invocation.Contains("--component|operator-app", StringComparison.Ordinal));
-        Assert.Contains("--artifact-upload-uri|https://upload.afk4.test/operator", operatorInvocation, StringComparison.Ordinal);
-        Assert.Contains("--artifact-public-uri|https://cdn.afk4.test/operator.msi", operatorInvocation, StringComparison.Ordinal);
+        var organizationAdminInvocation = Assert.Single(dotnetInvocations, invocation => invocation.Contains("--component|organization-admin", StringComparison.Ordinal));
+        Assert.Contains("--artifact-upload-uri|https://upload.afk4.test/operator", organizationAdminInvocation, StringComparison.Ordinal);
+        Assert.Contains("--artifact-public-uri|https://cdn.afk4.test/operator.msi", organizationAdminInvocation, StringComparison.Ordinal);
 
         var agentInvocation = Assert.Single(dotnetInvocations, candidate => candidate.Contains("--component|agent-service", StringComparison.Ordinal));
         Assert.Contains("--artifact|" + agentMsi, agentInvocation, StringComparison.Ordinal);
@@ -949,7 +949,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         var outputDirectory = Path.Combine(tempRoot, "update-packages");
         Directory.CreateDirectory(packageDirectory);
         Directory.CreateDirectory(outputDirectory);
-        File.WriteAllText(Path.Combine(packageDirectory, "afk4-operator-app-1.2.4-internal.msi"), "operator");
+        File.WriteAllText(Path.Combine(packageDirectory, "afk4-organization-admin-1.2.4-internal.msi"), "operator");
         File.WriteAllText(Path.Combine(packageDirectory, "afk4-agent-1.2.4-internal.msi"), "agent");
         File.WriteAllText(Path.Combine(packageDirectory, "afk4-player-shell-1.2.4-internal.msi"), "player-shell");
         var dotnetArgumentsPath = Path.Combine(tempRoot, "dotnet-s3-args.log");
@@ -994,7 +994,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         var outputDirectory = Path.Combine(tempRoot, "update-packages");
         Directory.CreateDirectory(packageDirectory);
         Directory.CreateDirectory(outputDirectory);
-        File.WriteAllText(Path.Combine(packageDirectory, "afk4-operator-app-1.2.3-internal.msi"), "operator");
+        File.WriteAllText(Path.Combine(packageDirectory, "afk4-organization-admin-1.2.3-internal.msi"), "operator");
         File.WriteAllText(Path.Combine(packageDirectory, "afk4-agent-1.2.3-internal.msi"), "agent");
         File.WriteAllText(Path.Combine(packageDirectory, "afk4-player-shell-1.2.3-internal.msi"), "player-shell");
         var fakeDotnetPath = CreateFakeDotnetThatRecordsArguments(Path.Combine(tempRoot, "dotnet-failure-args.log"), exitCode: 23);
@@ -1061,7 +1061,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         var outputDirectory = Path.Combine(tempRoot, "update-packages");
         Directory.CreateDirectory(packageDirectory);
         Directory.CreateDirectory(outputDirectory);
-        File.WriteAllText(Path.Combine(packageDirectory, "afk4-operator-app-1.2.3-internal.msi"), "operator");
+        File.WriteAllText(Path.Combine(packageDirectory, "afk4-organization-admin-1.2.3-internal.msi"), "operator");
         File.WriteAllText(Path.Combine(packageDirectory, "afk4-agent-1.2.3-internal.msi"), "agent");
         File.WriteAllText(Path.Combine(packageDirectory, "afk4-player-shell-1.2.3-internal.msi"), "player-shell");
         var dotnetArgumentsPath = Path.Combine(tempRoot, "dotnet-relative-uri-args.log");
@@ -1106,7 +1106,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     public void SignClientPackages_WithPfxSource_InvokesSigntoolForExplicitPackage()
     {
         Directory.CreateDirectory(tempRoot);
-        var packagePath = Path.Combine(tempRoot, "afk4-operator-app-1.2.3-internal.msi");
+        var packagePath = Path.Combine(tempRoot, "afk4-organization-admin-1.2.3-internal.msi");
         File.WriteAllText(packagePath, "msi");
         var certificatePath = Path.Combine(tempRoot, "release-signing.pfx");
         File.WriteAllText(certificatePath, "pfx");
@@ -1171,7 +1171,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     public void SignClientPackages_WhenSigntoolReturnsNonZero_FailsPackage()
     {
         Directory.CreateDirectory(tempRoot);
-        var packagePath = Path.Combine(tempRoot, "afk4-operator-app-1.2.3-internal.msi");
+        var packagePath = Path.Combine(tempRoot, "afk4-organization-admin-1.2.3-internal.msi");
         File.WriteAllText(packagePath, "msi");
         var certificatePath = Path.Combine(tempRoot, "release-signing.pfx");
         File.WriteAllText(certificatePath, "pfx");
@@ -1226,7 +1226,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     public void SignClientPackages_WithCertificatePathDirectory_FailsClosed()
     {
         Directory.CreateDirectory(tempRoot);
-        var packagePath = Path.Combine(tempRoot, "afk4-operator-app-1.2.3-internal.msi");
+        var packagePath = Path.Combine(tempRoot, "afk4-organization-admin-1.2.3-internal.msi");
         File.WriteAllText(packagePath, "msi");
         var certificatePath = Path.Combine(tempRoot, "release-signing.pfx");
         Directory.CreateDirectory(certificatePath);
@@ -1278,7 +1278,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     public void SignClientPackages_WithoutExactlyOneSigningSource_FailsClosed()
     {
         Directory.CreateDirectory(tempRoot);
-        var packagePath = Path.Combine(tempRoot, "afk4-operator-app-1.2.3-internal.msi");
+        var packagePath = Path.Combine(tempRoot, "afk4-organization-admin-1.2.3-internal.msi");
         File.WriteAllText(packagePath, "msi");
 
         var result = RunPowerShell(

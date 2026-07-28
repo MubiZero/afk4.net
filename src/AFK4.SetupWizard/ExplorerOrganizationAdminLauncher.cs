@@ -10,10 +10,10 @@ namespace AFK4.SetupWizard;
 // Handing the launch to explorer.exe runs the app de-elevated with the shell's already-refreshed
 // environment (from our WM_SETTINGCHANGE broadcast) — exactly like the Start Menu shortcut the
 // cashier would otherwise click.
-public sealed class ExplorerOperatorAppLauncher : ISetupWizardOperatorLauncher
+public sealed class ExplorerOrganizationAdminLauncher : ISetupWizardOperatorLauncher
 {
-    private const string OperatorAppExeName = "AFK4.OrganizationAdmin.App.exe";
-    private const string OperatorAppFolderName = "Operator App";
+    private const string OrganizationAdminExeName = "AFK4.OrganizationAdmin.App.exe";
+    private const string OrganizationAdminFolderName = "Organization Admin";
 
     public void Launch()
     {
@@ -25,8 +25,8 @@ public sealed class ExplorerOperatorAppLauncher : ISetupWizardOperatorLauncher
         var exePath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
             "AFK4",
-            OperatorAppFolderName,
-            OperatorAppExeName);
+            OrganizationAdminFolderName,
+            OrganizationAdminExeName);
 
         if (!File.Exists(exePath))
         {

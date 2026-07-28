@@ -104,7 +104,7 @@ string[] ResolveCorsOrigins(string configurationKey, string[] defaults)
         .ToArray();
 }
 
-var operatorWebOrigins = ResolveCorsOrigins(
+var organizationAdminWebOrigins = ResolveCorsOrigins(
     "Cors:OperatorWebOrigins",
     [
         "https://operator.afk4.local",
@@ -125,7 +125,7 @@ var platformWebOrigins = ResolveCorsOrigins(
         "http://127.0.0.1:4175"
     ]);
 
-var combinedWebOrigins = operatorWebOrigins
+var combinedWebOrigins = organizationAdminWebOrigins
     .Concat(platformWebOrigins)
     .Distinct(StringComparer.OrdinalIgnoreCase)
     .ToArray();
@@ -135,7 +135,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy(
         OperatorWebCorsPolicyName,
         policy => policy
-            .WithOrigins(operatorWebOrigins)
+            .WithOrigins(organizationAdminWebOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());

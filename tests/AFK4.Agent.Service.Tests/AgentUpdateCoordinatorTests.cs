@@ -102,35 +102,35 @@ public sealed class AgentUpdateCoordinatorTests
             CreateOptions(
                 DeviceRoleNames.GamingPc,
                 shellVersion: "1.2.1",
-                operatorAppVersion: "9.9.9")));
+                organizationAdminVersion: "9.9.9")));
 
         var components = provider.GetInstalledComponents();
 
         Assert.Contains(components, component => component.Component == UpdateComponentNames.AgentService && component.Version == "1.2.2");
         Assert.Contains(components, component => component.Component == UpdateComponentNames.PlayerShell && component.Version == "1.2.1");
-        Assert.DoesNotContain(components, component => component.Component == UpdateComponentNames.OperatorApp);
+        Assert.DoesNotContain(components, component => component.Component == UpdateComponentNames.OrganizationAdmin);
     }
 
     [Fact]
-    public void AgentComponentVersionProvider_ReturnsAgentAndOperatorAppVersionsForManagerWorkstationRole()
+    public void AgentComponentVersionProvider_ReturnsAgentAndOrganizationAdminVersionsForManagerWorkstationRole()
     {
         var provider = new AgentComponentVersionProvider(Options.Create(
             CreateOptions(
                 DeviceRoleNames.ManagerWorkstation,
                 shellVersion: "9.9.9",
-                operatorAppVersion: "1.2.4")));
+                organizationAdminVersion: "1.2.4")));
 
         var components = provider.GetInstalledComponents();
 
         Assert.Contains(components, component => component.Component == UpdateComponentNames.AgentService && component.Version == "1.2.2");
-        Assert.Contains(components, component => component.Component == UpdateComponentNames.OperatorApp && component.Version == "1.2.4");
+        Assert.Contains(components, component => component.Component == UpdateComponentNames.OrganizationAdmin && component.Version == "1.2.4");
         Assert.DoesNotContain(components, component => component.Component == UpdateComponentNames.PlayerShell);
     }
 
     private static AgentOptions CreateOptions(
         string deviceRole = DeviceRoleNames.GamingPc,
         string shellVersion = "1.2.1",
-        string operatorAppVersion = "")
+        string organizationAdminVersion = "")
     {
         return new AgentOptions
         {
@@ -140,7 +140,7 @@ public sealed class AgentUpdateCoordinatorTests
             AgentVersion = "1.2.2",
             ShellVersion = shellVersion,
             DeviceRole = deviceRole,
-            OperatorAppVersion = operatorAppVersion
+            OrganizationAdminVersion = organizationAdminVersion
         };
     }
 

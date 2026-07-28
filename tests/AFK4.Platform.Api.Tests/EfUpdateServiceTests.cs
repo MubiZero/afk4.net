@@ -213,12 +213,12 @@ public sealed class EfUpdateServiceTests
             service,
             UpdateComponentNames.PlayerShell,
             "https://updates.afk4.test/player-shell/1.2.3/player-shell.msi");
-        var operatorAppPackage = await RegisterPackageAsync(
+        var organizationAdminPackage = await RegisterPackageAsync(
             service,
-            UpdateComponentNames.OperatorApp,
-            "https://updates.afk4.test/operator-app/1.2.3/operator-app.msi");
+            UpdateComponentNames.OrganizationAdmin,
+            "https://updates.afk4.test/organization-admin/1.2.3/organization-admin.msi");
         await CreateBranchRolloutAsync(service, playerShellPackage.UpdatePackageId, "Player Shell branch rollout.");
-        await CreateBranchRolloutAsync(service, operatorAppPackage.UpdatePackageId, "Operator App branch rollout.");
+        await CreateBranchRolloutAsync(service, organizationAdminPackage.UpdatePackageId, "Organization Admin branch rollout.");
 
         var gamingPcCheck = await service.CheckForUpdatesAsync(
             new DeviceUpdateCheckRequest(
@@ -246,7 +246,7 @@ public sealed class EfUpdateServiceTests
         Assert.True(managerCheck.Succeeded);
         Assert.NotNull(managerCheck.Response);
         var managerUpdate = Assert.Single(managerCheck.Response.Updates);
-        Assert.Equal(UpdateComponentNames.OperatorApp, managerUpdate.Component);
+        Assert.Equal(UpdateComponentNames.OrganizationAdmin, managerUpdate.Component);
     }
 
     [Fact]

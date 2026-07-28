@@ -55,10 +55,10 @@ export function SettingsIntegrationsSection({
   const changePackageStateActionKey = t('op.settings.action.changePackageState');
   const changeRolloutStateActionKey = t('op.settings.action.changeRolloutState');
 
-  const [updateComponent, setUpdateComponent] = useState('operator-app');
+  const [updateComponent, setUpdateComponent] = useState('organization-admin');
   const [updateVersion, setUpdateVersion] = useState('0.1.0');
   const [updateChannel, setUpdateChannel] = useState('internal');
-  const [updateArtifactUri, setUpdateArtifactUri] = useState('https://updates.afk4.staging.mubi.dev/operator-app/0.1.0/operator-app.msi');
+  const [updateArtifactUri, setUpdateArtifactUri] = useState('https://updates.afk4.staging.mubi.dev/organization-admin/0.1.0/organization-admin.msi');
   const [updateSha256, setUpdateSha256] = useState('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef');
   const [updateSignature, setUpdateSignature] = useState('signed-update-package');
   const [updateSignatureAlgorithm, setUpdateSignatureAlgorithm] = useState('ECDSA-P256-SHA256-IEEE-P1363');
@@ -280,7 +280,7 @@ export function SettingsIntegrationsSection({
       <div className="settings-form-grid settings-update-form">
         <label>{t('op.settings.updates.component')}
           <select value={updateComponent} disabled={!canManageUpdatePackages} onChange={(event) => setUpdateComponent(event.currentTarget.value)}>
-            <option value="operator-app">{updateComponentLabel('operator-app', t)}</option>
+            <option value="organization-admin">{updateComponentLabel('organization-admin', t)}</option>
             <option value="agent-service">{updateComponentLabel('agent-service', t)}</option>
             <option value="player-shell">{updateComponentLabel('player-shell', t)}</option>
           </select>

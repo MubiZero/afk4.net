@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet('operator-app', 'agent-service', 'player-shell')]
+    [ValidateSet('organization-admin', 'agent-service', 'player-shell')]
     [string] $Component,
 
     [Parameter(Mandatory = $true)]

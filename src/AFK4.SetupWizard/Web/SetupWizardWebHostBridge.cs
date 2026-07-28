@@ -117,7 +117,7 @@ public sealed class SetupWizardWebHostBridge(
     private WizardShellOutcome FinalizeForRole(string role)
     {
         // Each role installs its own bundled app: gaming PCs get the Player Shell, cashier/manager
-        // workstations get the Operator App. Roles with no app just start the agent.
+        // workstations get the Organization Admin. Roles with no app just start the agent.
         var provisioner = role switch
         {
             DeviceRoleNames.GamingPc => shellProvisioner,

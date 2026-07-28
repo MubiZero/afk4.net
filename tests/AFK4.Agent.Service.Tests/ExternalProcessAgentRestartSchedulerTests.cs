@@ -10,7 +10,7 @@ public sealed class ExternalProcessAgentRestartSchedulerTests
     [Theory]
     [InlineData(UpdateComponentNames.AgentService)]
     [InlineData(UpdateComponentNames.PlayerShell)]
-    [InlineData(UpdateComponentNames.OperatorApp)]
+    [InlineData(UpdateComponentNames.OrganizationAdmin)]
     public async Task ScheduleRestartAsync_RestartsAgentAfterComponentsThatWriteAgentEnvironment(string component)
     {
         var scheduler = new ExternalProcessAgentRestartScheduler(Options.Create(new AgentOptions
