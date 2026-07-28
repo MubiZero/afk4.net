@@ -4,6 +4,7 @@ import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from './apiErrors';
 import type {
   PaymentPartDto,
+  PackageOptionDto,
   PlayerSearchResultDto,
   PosProductDto,
   SettlePosSaleRequest,
@@ -34,6 +35,7 @@ import { useToast } from './operatorToast';
 import { matchByBarcode } from './barcodeScanner';
 import { useBarcodeScanner } from './useBarcodeScanner';
 import { useFeedbackToasts } from './useFeedbackToasts';
+import { PackagePurchasePanel } from './PackagePurchasePanel';
 
 type PosCatalogItem = {
   productId?: string;
@@ -151,6 +153,9 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
   const [selectedPlayerId, setSelectedPlayerId] = useState('');
   const [playerLoadStatus, setPlayerLoadStatus] = useState<LoadStatus>('fixture');
   const [clientPickerOpen, setClientPickerOpen] = useState(false);
+  const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
+  const [packageOptionsLoading, setPackageOptionsLoading] = useState(false);
+  const [packageOptionsError, setPackageOptionsError] = useState<string | null>(null);
   const [cartItems, setCartItems] = useState<PosCartItem[]>(() => {
     if (backend === null) {
       const fixtures = makeFixtureProducts(t);
@@ -281,6 +286,54 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
   const cartTotalMinorUnits = cartItems.reduce((sum, item) => sum + item.priceMinorUnits * item.quantity, 0);
   const lowStockCount = catalog.filter(isLowStock).length;
   const shiftId = readString(currentShift, 'shiftId');
+
+  useEffect(() => {
+    let disposed = false;
+    if (backend === null || selectedPosPlayer === null || !hasPermission(backend.session, permissionNames.purchasePackage)) {
+      setPackageOptions([]);
+      setPackageOptionsError(null);
+      setPackageOptionsLoading(false);
+      return undefined;
+    }
+
+    setPackageOptionsLoading(true);
+    setPackageOptionsError(null);
+    createAuthenticatedOperatorClients(backend.config, backend.session).settings.getPackageOptions(backend.branchId)
+      .then((options) => {
+        if (!disposed) setPackageOptions(Array.isArray(options) ? options : []);
+      })
+      .catch((error) => {
+        if (!disposed) {
+          setPackageOptions([]);
+          setPackageOptionsError(projectOperatorError(error, t).detail);
+        }
+      })
+      .finally(() => {
+        if (!disposed) setPackageOptionsLoading(false);
+      });
+
+    return () => {
+      disposed = true;
+    };
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, selectedPosPlayerId]);
+
+  const refreshPurchasedPackage = async () => {
+    if (backend === null || selectedPosPlayerId === null) return;
+    const clients = createAuthenticatedOperatorClients(backend.config, backend.session);
+    const [wallet] = await Promise.all([
+      clients.players.getWalletSummary(selectedPosPlayerId),
+      clients.players.getPlayerPackages(selectedPosPlayerId)
+    ]);
+    const walletBalance = readMoney(wallet, 'walletBalance');
+    const debtBalance = readMoney(wallet, 'debtBalance');
+    setPosPlayers((players) => players.map((player) => player.playerAccountId === selectedPosPlayerId
+      ? {
+          ...player,
+          balanceMinorUnits: walletBalance?.minorUnits ?? player.balanceMinorUnits,
+          debtMinorUnits: debtBalance?.minorUnits ?? player.debtMinorUnits
+        }
+      : player));
+  };
   const canAcceptPayment = backend !== null
     && shiftId.length > 0
     && cartItems.length > 0
@@ -630,6 +683,22 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
                 {t('op.pos.cart.selectClientBtn')}
               </button>
             </div>
+          )}
+
+          {backend !== null && selectedPosPlayer?.playerAccountId && hasPermission(backend.session, permissionNames.purchasePackage) && (
+            <>
+              {packageOptionsLoading && <p>{workspaceLoadStatusLabel('loading', '', t)}</p>}
+              {packageOptionsError && <p role="alert">{packageOptionsError}</p>}
+              {!packageOptionsLoading && !packageOptionsError && (
+                <PackagePurchasePanel
+                  backend={backend}
+                  player={selectedPosPlayer as PlayerClientItem & { playerAccountId: string }}
+                  options={packageOptions}
+                  shiftOpen={shiftId.length > 0}
+                  onPurchased={refreshPurchasedPackage}
+                />
+              )}
+            </>
           )}
 
           {/* ЧТО — лента товаров */}

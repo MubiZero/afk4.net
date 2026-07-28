@@ -9,7 +9,15 @@ export type SeatDto = Record<string, unknown>;
 export type TariffDto = Record<string, unknown>;
 export type TariffVersionDto = Record<string, unknown>;
 export type TariffOptionDto = Record<string, unknown>;
-export type PackageOptionDto = Record<string, unknown>;
+export interface PackageOptionDto extends Record<string, unknown> {
+  packageDefinitionId: Guid;
+  name: string;
+  currencyCode: string;
+  priceMinorUnits: number;
+  includedSeconds: number;
+  bonusSeconds: number;
+  expiresAfterDays: number;
+}
 export type PackageDefinitionDto = Record<string, unknown>;
 export type DeviceSeatAssignmentDto = Record<string, unknown>;
 

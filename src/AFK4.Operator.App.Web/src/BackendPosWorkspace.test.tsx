@@ -53,6 +53,26 @@ const fetchBackend = mock(async (input: RequestInfo | URL, init?: RequestInit) =
   if (url.includes('/api/branches/branch-1/players?')) {
     return jsonResponse([linkedPlayer]);
   }
+  if (url.endsWith('/api/branches/branch-1/packages/options')) {
+    return jsonResponse([{
+      packageDefinitionId: 'package-1',
+      name: 'Ночной пакет',
+      currencyCode: 'TJS',
+      priceMinorUnits: 3_000,
+      includedSeconds: 18_000,
+      bonusSeconds: 0,
+      expiresAfterDays: 30
+    }]);
+  }
+  if (url.endsWith('/api/players/player-1/packages/purchases') && init?.method === 'POST') {
+    return jsonResponse({ playerPackageId: 'player-package-1', packageDefinitionId: 'package-1', state: 'active' });
+  }
+  if (url.endsWith('/api/players/player-1/wallet-summary')) {
+    return jsonResponse({ walletBalance: { currencyCode: 'TJS', minorUnits: 1_500 }, debtBalance: { currencyCode: 'TJS', minorUnits: 0 }, recentEntries: [] });
+  }
+  if (url.endsWith('/api/players/player-1/packages')) {
+    return jsonResponse([{ playerPackageId: 'player-package-1', packageDefinitionId: 'package-1', state: 'active' }]);
+  }
   if (url.endsWith('/api/branches/branch-1/pos/sales') && init?.method === 'POST') {
     return jsonResponse({ posSaleId: 'sale-1', state: 'draft' });
   }
@@ -123,12 +143,12 @@ const backend = {
   branchId: 'branch-1'
 };
 
-function renderBackendPos() {
+function renderBackendPos(nextBackend = backend) {
   globalThis.fetch = fetchBackend as unknown as typeof fetch;
   render(
     <I18nProvider initialLocale="ru">
       <ToastProvider>
-        <BackendPosWorkspace currencyCode="TJS" backend={backend as never} embedded />
+        <BackendPosWorkspace currencyCode="TJS" backend={nextBackend as never} embedded />
       </ToastProvider>
     </I18nProvider>
   );
@@ -170,6 +190,32 @@ describe('BackendPosWorkspace', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Амир Алиев/ }));
 
     expect(screen.getByText('Баланс:')).toBeInTheDocument();
+  });
+
+  it('purchases a package from the wallet without creating a POS sale and refreshes client state', async () => {
+    renderBackendPos({
+      ...backend,
+      session: { ...backend.session, permissions: [...backend.session.permissions, 'packages.purchase'] }
+    });
+    await screen.findAllByText('Cola');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Выбрать' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Клиент' }), { target: { value: 'Амир' } });
+    fireEvent.click(await screen.findByRole('button', { name: /Амир Алиев/ }));
+
+    expect(await screen.findByRole('option', { name: /Ночной пакет/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Купить пакет' }));
+
+    await waitFor(() => expect(requestedUrls).toContain('http://test/api/players/player-1/packages/purchases'));
+    const purchaseBody = requestedBodies.find((body) =>
+      typeof body === 'object' && body !== null && 'packageDefinitionId' in body) as Record<string, unknown>;
+    expect(purchaseBody).toMatchObject({ organizationId: 'organization-1', packageDefinitionId: 'package-1' });
+    expect(purchaseBody.idempotencyKey).toEqual(expect.any(String));
+    expect(requestedUrls.some((url) => url.endsWith('/api/branches/branch-1/pos/sales'))).toBe(false);
+    expect(requestedUrls.some((url) => url.endsWith('/settlements'))).toBe(false);
+    await waitFor(() => expect(requestedUrls).toContain('http://test/api/players/player-1/wallet-summary'));
+    expect(requestedUrls).toContain('http://test/api/players/player-1/packages');
+    await waitFor(() => expect(screen.getByText('15 с.')).toBeInTheDocument());
   });
 
   it('keeps wallet, cash, cart, and client after a stable settlement failure', async () => {
