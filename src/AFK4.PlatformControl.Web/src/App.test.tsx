@@ -85,7 +85,7 @@ describe('Platform Control admin-only routing', () => {
   it('renders platform-admin sign-in for an admin route without a session', () => {
     window.history.replaceState(null, '', '/admin');
     renderApp();
-    expect(screen.getByRole('heading', { name: 'Панель управления платформой' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Platform Control' })).toBeInTheDocument();
   });
 
   it('redirects the root bookmark and renders the signed-in Platform Control overview', async () => {

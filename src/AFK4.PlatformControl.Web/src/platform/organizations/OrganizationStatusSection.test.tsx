@@ -38,7 +38,7 @@ it('confirms a status change and calls updateStatus then onUpdated', async () =>
   fireEvent.click(trigger);
 
   // Wait for the listbox / option to appear, then click it
-  const option = await screen.findByRole('option', { name: 'Приостановлен' });
+  const option = await screen.findByRole('option', { name: 'Приостановлена' });
   fireEvent.click(option);
 
   // 2) the "Изменить статус" button is now enabled — click it
