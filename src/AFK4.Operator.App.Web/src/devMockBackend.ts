@@ -401,6 +401,13 @@ function deviceDetail() {
   };
 }
 
+let previewDevices = [{
+  deviceId: '11111111-1111-1111-1111-111111111111', machineName: 'PC-01', zoneName: 'Зал A',
+  seatName: 'PC-01', seatId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', isOnline: true, isLocked: false,
+  agentVersion: '0.4', installedAppCount: 2, pendingCommandCount: 0, failedCommandCount: 0,
+  lastHeartbeatAtUtc: '2026-05-21T10:00:00Z'
+}];
+
 function diagnostics() {
   return {
     organizationId: ORG, branchId: BRANCH, generatedAtUtc: '2026-05-21T10:00:00Z',
@@ -809,6 +816,23 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.endsWith('/packages/purchases') && method === 'POST') {
     return json(playerPackages()[0]);
+  }
+  if (url.pathname.endsWith('/devices') && method === 'GET') {
+    return json(previewDevices);
+  }
+  const renameDeviceMatch = url.pathname.match(/\/devices\/([^/]+)\/rename$/);
+  if (renameDeviceMatch && method === 'POST') {
+    const request = JSON.parse(String(init?.body ?? '{}')) as { displayName?: string };
+    previewDevices = previewDevices.map((device) => device.deviceId === renameDeviceMatch[1]
+      ? { ...device, machineName: request.displayName?.trim() || device.machineName }
+      : device);
+    return json(previewDevices.find((device) => device.deviceId === renameDeviceMatch[1]) ?? {});
+  }
+  const removeDeviceMatch = url.pathname.match(/\/devices\/([^/]+)\/remove$/);
+  if (removeDeviceMatch && method === 'POST') {
+    const removed = previewDevices.find((device) => device.deviceId === removeDeviceMatch[1]) ?? {};
+    previewDevices = previewDevices.filter((device) => device.deviceId !== removeDeviceMatch[1]);
+    return json(removed);
   }
   if ((url.pathname.endsWith('/wallet/top-ups') || url.pathname.endsWith('/debts/payments')) && method === 'POST') {
     return json(walletSummary());

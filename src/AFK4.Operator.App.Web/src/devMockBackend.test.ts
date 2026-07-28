@@ -71,6 +71,19 @@ describe('devMockFetch player data', () => {
   });
 });
 
+describe('devMockFetch device lifecycle', () => {
+  it('persists rename and removes the device from the authoritative inventory', async () => {
+    const before = await (await devMockFetch('https://x/api/branches/branch/devices')).json();
+    const deviceId = before[0].deviceId as string;
+    await devMockFetch(`https://x/api/devices/${deviceId}/rename`, { method: 'POST', body: JSON.stringify({ displayName: 'VIP-02' }) });
+    const renamed = await (await devMockFetch('https://x/api/branches/branch/devices')).json();
+    expect(renamed.find((device: { deviceId: string }) => device.deviceId === deviceId).machineName).toBe('VIP-02');
+    await devMockFetch(`https://x/api/devices/${deviceId}/remove`, { method: 'POST', body: JSON.stringify({ reason: 'retired' }) });
+    const after = await (await devMockFetch('https://x/api/branches/branch/devices')).json();
+    expect(after.some((device: { deviceId: string }) => device.deviceId === deviceId)).toBe(false);
+  });
+});
+
 describe('devMockFetch receipt preview', () => {
   it('returns matching sale and receipt detail', async () => {
     const sale = await (await devMockFetch('https://x/api/pos/sales/ps-06')).json();
