@@ -23,6 +23,7 @@ import {
   requireBackend
 } from '../../operatorHelpers';
 import { managementScreenState, type DestinationProps } from './types';
+import { deriveCategoryOptions, type CategoryOption } from './goods/categoryModel';
 
 type Product = Record<string, unknown>;
 
@@ -67,6 +68,9 @@ export function GoodsDestination({
   const [createOpen, setCreateOpen] = useState(false);
   const [delistAction, setDelistAction] = useState<DelistAction | null>(null);
   const [categoryName, setCategoryName] = useState('');
+  const [categoryMode, setCategoryMode] = useState<'existing' | 'new'>('new');
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  const [sessionCategories, setSessionCategories] = useState<CategoryOption[]>([]);
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
   const [price, setPrice] = useState('0.00');
@@ -89,6 +93,7 @@ export function GoodsDestination({
 
   const selectedProduct = catalogRows.find((product) => readString(product, 'productId') === selectedProductId) ?? null;
   const selectedProductIsActive = readBoolean(selectedProduct, 'isActive', true);
+  const categoryOptions = deriveCategoryOptions(catalogRows, sessionCategories, t('op.management.goods.categoryUnknown'));
 
   // Засев формы drawer'а из выбранного товара.
   useEffect(() => {
@@ -100,6 +105,7 @@ export function GoodsDestination({
     setAllowNegativeStock(readBoolean(selectedProduct, 'allowNegativeStock'));
     setAvailableInShell(readBoolean(selectedProduct, 'availableInShell'));
     setReorderThreshold(String(readNumber(selectedProduct, 'reorderThreshold', 0)));
+    setSelectedCategoryId(readString(selectedProduct, 'categoryId'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProductId]);
 
@@ -108,6 +114,8 @@ export function GoodsDestination({
 
   const openCreate = () => {
     setCategoryName('');
+    setCategoryMode(categoryOptions.length > 0 ? 'existing' : 'new');
+    setSelectedCategoryId(categoryOptions[0]?.categoryId ?? '');
     setName('');
     setSku('');
     setPrice('0.00');
@@ -132,17 +140,21 @@ export function GoodsDestination({
       const trimmedName = name.trim();
       const trimmedSku = sku.trim();
       const priceMinorUnits = parseNonNegativeMoneyInputMinorUnits(price);
-      if (!trimmedCategoryName || !trimmedName || !trimmedSku || priceMinorUnits === null) {
+      if ((categoryMode === 'new' ? !trimmedCategoryName : !selectedCategoryId) || !trimmedName || !trimmedSku || priceMinorUnits === null) {
         throw new Error(t('op.settings.pos.error.fillCreate'));
       }
 
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const category = await apiClients.settings.createProductCategory(nextBackend.branchId, {
-        organizationId: nextBackend.session.organizationId,
-        name: trimmedCategoryName,
-        idempotencyKey: createIdempotencyKey('pos-category-create')
-      });
-      const categoryId = readString(category, 'categoryId');
+      let categoryId = selectedCategoryId;
+      if (categoryMode === 'new') {
+        const category = await apiClients.settings.createProductCategory(nextBackend.branchId, {
+          organizationId: nextBackend.session.organizationId,
+          name: trimmedCategoryName,
+          idempotencyKey: createIdempotencyKey('pos-category-create')
+        });
+        categoryId = readString(category, 'categoryId');
+        if (categoryId) setSessionCategories((categories) => [...categories, { categoryId, label: trimmedCategoryName }]);
+      }
       if (!categoryId) {
         throw new Error(t('op.settings.pos.error.categoryNotConfirmed'));
       }
@@ -192,7 +204,7 @@ export function GoodsDestination({
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       await apiClients.settings.updateProduct(nextBackend.branchId, productId, {
         organizationId: nextBackend.session.organizationId,
-        categoryId: readString(selectedProduct, 'categoryId'),
+        categoryId: selectedCategoryId,
         name: trimmedName,
         sku: trimmedSku,
         price: { currencyCode, minorUnits: priceMinorUnits },
@@ -326,6 +338,7 @@ export function GoodsDestination({
         <MgmtTable<Product>
           columns={[
             { key: 'name', header: t('op.management.goods.col.name'), render: (product) => readString(product, 'name', t('op.settings.pos.productFallback')) },
+            { key: 'category', header: t('op.settings.pos.category'), render: (product) => categoryOptions.find((option) => option.categoryId === readString(product, 'categoryId'))?.label ?? '—' },
             { key: 'sku', header: t('op.management.goods.col.sku'), render: (product) => readString(product, 'sku', '—') },
             {
               key: 'price',
@@ -350,7 +363,7 @@ export function GoodsDestination({
           ]}
           rows={catalogRows}
           rowKey={(product) => readString(product, 'productId')}
-          gridTemplate="1.3fr 0.9fr 0.8fr 0.7fr 0.9fr"
+          gridTemplate="1.3fr 1fr 0.9fr 0.8fr 0.7fr 0.9fr"
           selectedKey={selectedProductId}
           onSelectRow={(product) => setSelectedProductId(readString(product, 'productId'))}
           rowActions={rowActions}
@@ -388,6 +401,11 @@ export function GoodsDestination({
                 <div className="mgmt-form-grid">
                   <label>{t('op.settings.pos.productName')}
                     <input value={name} disabled={!canManagePosCatalog || busy} onChange={(event) => setName(event.currentTarget.value)} />
+                  </label>
+                  <label>{t('op.settings.pos.category')}
+                    <select value={selectedCategoryId} disabled={!canManagePosCatalog || busy} onChange={(event) => setSelectedCategoryId(event.currentTarget.value)}>
+                      {categoryOptions.map((category) => <option key={category.categoryId} value={category.categoryId}>{category.label}</option>)}
+                    </select>
                   </label>
                   <label>{t('op.settings.pos.sku')}
                     <input value={sku} disabled={!canManagePosCatalog || busy} onChange={(event) => setSku(event.currentTarget.value)} />
@@ -434,9 +452,21 @@ export function GoodsDestination({
         <PanelModal title={t('op.management.goods.productModal.createTitle')} onClose={() => setCreateOpen(false)} closeDisabled={busy}>
           <form className="mgmt-form" onSubmit={(event) => { event.preventDefault(); void submitCreate(); }}>
             <div className="mgmt-form-grid">
-              <label>{t('op.settings.pos.category')}
-                <input value={categoryName} disabled={busy} onChange={(event) => setCategoryName(event.currentTarget.value)} autoFocus />
-              </label>
+              {categoryOptions.length > 0 && <div className="mgmt-form-wide">
+                <label><input type="radio" name="category-mode" checked={categoryMode === 'existing'} onChange={() => setCategoryMode('existing')} />{t('op.management.goods.categoryExisting')}</label>
+                <label><input type="radio" name="category-mode" checked={categoryMode === 'new'} onChange={() => setCategoryMode('new')} />{t('op.management.goods.categoryNew')}</label>
+              </div>}
+              {categoryMode === 'existing' && categoryOptions.length > 0 ? (
+                <label>{t('op.settings.pos.category')}
+                  <select value={selectedCategoryId} disabled={busy} onChange={(event) => setSelectedCategoryId(event.currentTarget.value)} autoFocus>
+                    {categoryOptions.map((category) => <option key={category.categoryId} value={category.categoryId}>{category.label}</option>)}
+                  </select>
+                </label>
+              ) : (
+                <label>{t('op.settings.pos.category')}
+                  <input value={categoryName} disabled={busy} onChange={(event) => setCategoryName(event.currentTarget.value)} autoFocus />
+                </label>
+              )}
               <label>{t('op.settings.pos.productName')}
                 <input value={name} disabled={busy} onChange={(event) => setName(event.currentTarget.value)} />
               </label>

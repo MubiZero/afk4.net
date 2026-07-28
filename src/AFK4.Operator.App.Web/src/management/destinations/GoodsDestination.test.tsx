@@ -58,6 +58,7 @@ const productId = '11111111-1111-1111-1111-111111111111';
 const cola: PosProductDto = {
   productId,
   categoryId: 'cat1',
+  categoryName: 'Напитки',
   name: 'Cola 0.5',
   sku: 'COLA-05',
   price: { currencyCode: 'TJS', minorUnits: 1000 },
@@ -96,9 +97,10 @@ describe('GoodsDestination', () => {
     expect(screen.getByText('Cola 0.5')).toBeTruthy();
   });
 
-  it('does not render a "Категория" column — PosProductDto carries no category name and there is no GET endpoint to look one up', () => {
+  it('renders the product category from the catalog projection', () => {
     wrap(<GoodsDestination backend={null} session={session([])} currencyCode="TJS" catalog={[cola]} />);
-    expect(screen.queryByText('Категория')).toBeNull();
+    expect(screen.getByText('Категория')).toBeTruthy();
+    expect(screen.getByText('Напитки')).toBeTruthy();
   });
 
   it('renders the whole catalog beyond 8 items — the old settings-section cap is gone', () => {
@@ -180,6 +182,7 @@ describe('GoodsDestination', () => {
     fireEvent.click(screen.getByRole('button', { name: '+ Товар' }));
     expect(screen.getByRole('dialog', { name: 'Новый товар' })).toBeTruthy();
 
+    fireEvent.click(screen.getByRole('radio', { name: 'Новая категория' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Категория' }), { target: { value: 'Снеки' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Товар' }), { target: { value: 'Chips' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Артикул' }), { target: { value: 'CHIPS-01' } });
@@ -198,6 +201,30 @@ describe('GoodsDestination', () => {
       price: { currencyCode: 'TJS', minorUnits: 500 }
     }));
     await waitFor(() => expect(onCatalogChange).toHaveBeenCalledWith([cola, expect.objectContaining({ productId: 'p-new' })]));
+  });
+
+  it('reuses an existing category without creating a duplicate category', async () => {
+    wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[cola]} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ Товар' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Существующая категория' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Категория' }), { target: { value: 'cat1' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Товар' }), { target: { value: 'Water' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Артикул' }), { target: { value: 'WATER-01' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Цена' }), { target: { value: '3.00' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать товар' }));
+
+    await waitFor(() => expect(createProduct).toHaveBeenCalledWith('b1', expect.objectContaining({ categoryId: 'cat1' })));
+    expect(createProductCategory).not.toHaveBeenCalled();
+  });
+
+  it('allows changing a product category in the edit drawer', async () => {
+    const snacks = { ...cola, productId: '22222222-2222-2222-2222-222222222222', categoryId: 'cat2', categoryName: 'Снеки', name: 'Chips' } as never;
+    wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[cola, snacks]} />);
+    fireEvent.click(screen.getByText('Cola 0.5'));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Категория' }), { target: { value: 'cat2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith('b1', productId, expect.objectContaining({ categoryId: 'cat2' })));
   });
 
   it('delisting a product via the row menu asks for confirmation before calling updateProduct with isActive:false', async () => {
