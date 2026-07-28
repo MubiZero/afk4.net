@@ -3,6 +3,9 @@
 Implementation plans for completed work are archived once their work lands on
 `main`. The active plans are:
 
+- `2026-07-28-operator-unified-admin-parity-closure.md` — closes required
+  Clients, Monetization, Settings, and Venue gaps and certifies Operator parity
+  before the separate Platform.Web `/club` removal project.
 - `2026-07-15-operator-reports-workspace-consolidation.md` — implements the
   approved Reports center, Cash/Events/Stock ownership model, and secure
   contextual second-manager confirmation before removing the legacy approvals
