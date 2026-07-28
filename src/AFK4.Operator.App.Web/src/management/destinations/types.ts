@@ -10,6 +10,8 @@ import type {
 import type { Feedback, LoadStatus, OperatorBackendContext } from '../../operatorTypes';
 import type { ManagementScreenProps } from '../ManagementScreen';
 
+export type ResourceState<T> = { status: LoadStatus; data: T; errorDetail?: string };
+
 // Shared LoadStatus -> ManagementScreen.state mapping, so every settings-domain destination
 // (halls/tariffs/staff/goods) wires loading/error the same way instead of re-deriving it.
 export function managementScreenState(loadStatus: LoadStatus | undefined): NonNullable<ManagementScreenProps['state']> {
@@ -37,6 +39,7 @@ export interface DestinationProps {
   catalog?: PosProductDto[];
   tariffs?: TariffOptionDto[];
   packageOptions?: PackageOptionDto[];
+  packageState?: ResourceState<PackageOptionDto[]>;
   deviceInventory?: DeviceInventoryItemDto[];
   loadStatus?: LoadStatus;
   errorDetail?: string; // concrete failure text when loadStatus === 'failed' (settingsFeedback.detail)
@@ -47,4 +50,5 @@ export interface DestinationProps {
   onReload?: (nextBackend?: OperatorBackendContext | null) => Promise<void>;
   onFeedback?: (feedback: Feedback) => void;
   onRetry?: () => void;
+  onRetryPackages?: () => void;
 }

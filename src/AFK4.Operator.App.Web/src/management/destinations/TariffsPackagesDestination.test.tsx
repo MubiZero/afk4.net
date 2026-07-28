@@ -148,4 +148,18 @@ describe('TariffsPackagesDestination', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
+
+  it('keeps tariffs usable while package loading fails and retries only packages', () => {
+    const onRetryPackages = mock(() => {});
+    wrap(<TariffsPackagesDestination
+      backend={null} session={session([])} currencyCode="TJS" tariffs={tariffs} packageOptions={[]}
+      packageState={{ status: 'failed', data: [], errorDetail: 'Пакеты недоступны' }} onRetryPackages={onRetryPackages}
+    />);
+    expect(screen.getByText('Стандарт')).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'Пакеты' }));
+    expect(screen.getByText('Пакеты недоступны')).toBeTruthy();
+    expect(screen.queryByText('Нет пакетов')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+    expect(onRetryPackages).toHaveBeenCalledTimes(1);
+  });
 });

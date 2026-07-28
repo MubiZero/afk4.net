@@ -14,6 +14,7 @@ import type {
   ZoneDto
 } from '../operatorApiClients';
 import type { Feedback, LoadStatus, OperatorBackendContext } from '../operatorTypes';
+import type { ResourceState } from './destinations/types';
 import { CriticalActionConfirmation, EmptyState } from '../operatorPrimitives';
 import { allowedManagementDestinations, type ManagementDestinationId } from './managementNav';
 import { useUnsavedGuard } from './useUnsavedGuard';
@@ -67,8 +68,22 @@ export function ManagementWorkspace({
   const [staffUsers, setStaffUsers] = useState<StaffUserDto[]>([]);
   const [catalog, setCatalog] = useState<PosProductDto[]>([]);
   const [tariffs, setTariffs] = useState<TariffOptionDto[]>([]);
-  const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
+  const [packageState, setPackageState] = useState<ResourceState<PackageOptionDto[]>>({ status: 'fixture', data: [] });
   const [deviceInventory, setDeviceInventory] = useState<DeviceInventoryItemDto[]>([]);
+
+  const loadPackageOptions = async (nextBackend = backend) => {
+    if (nextBackend === null) {
+      setPackageState((state) => ({ status: 'fixture', data: state.data }));
+      return;
+    }
+    setPackageState((state) => ({ status: 'loading', data: state.data }));
+    try {
+      const rows = await createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session).settings.getPackageOptions(nextBackend.branchId);
+      setPackageState({ status: 'backend', data: Array.isArray(rows) ? rows : [] });
+    } catch (error) {
+      setPackageState((state) => ({ status: 'failed', data: state.data, errorDetail: projectOperatorError(error, t).detail }));
+    }
+  };
 
   const loadSettings = async (nextBackend = backend) => {
     if (nextBackend === null) {
@@ -82,12 +97,11 @@ export function ManagementWorkspace({
       // Профиль филиала здесь НЕ грузим: им владеет ClubDestination (свой load/save). Тянуть его
       // сюда — лишний дубль-запрос на getBranchProfile при заходе на «Клуб». Грузим ровно то,
       // что нужно потребителям слайса 2 (Залы/Тарифы/Сотрудники/Товары).
-      const [staff, layoutZones, products, tariffOptions, packageOptionRows, deviceRows] = await Promise.all([
+      const [staff, layoutZones, products, tariffOptions, deviceRows] = await Promise.all([
         apiClients.settings.getStaffUsers(nextBackend.branchId),
         apiClients.settings.getLayoutZones(nextBackend.branchId),
         apiClients.pos.getCatalog(nextBackend.branchId),
         apiClients.settings.getTariffOptions(nextBackend.branchId),
-        apiClients.settings.getPackageOptions(nextBackend.branchId).catch(() => []),
         hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)
           ? apiClients.devices.listDevices(nextBackend.branchId).catch(() => [])
           : Promise.resolve([])
@@ -96,7 +110,6 @@ export function ManagementWorkspace({
       setZones(Array.isArray(layoutZones) ? layoutZones : []);
       setCatalog(Array.isArray(products) ? products : []);
       setTariffs(Array.isArray(tariffOptions) ? tariffOptions : []);
-      setPackageOptions(Array.isArray(packageOptionRows) ? packageOptionRows : []);
       setDeviceInventory(Array.isArray(deviceRows) ? deviceRows : []);
       setSettingsLoadStatus('backend');
     } catch (error) {
@@ -107,6 +120,7 @@ export function ManagementWorkspace({
 
   useEffect(() => {
     void loadSettings();
+    void loadPackageOptions();
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, currencyCode]);
 
   if (destinations.length === 0) {
@@ -123,6 +137,10 @@ export function ManagementWorkspace({
 
   const settingsErrorDetail = settingsFeedback.state === 'failed' ? settingsFeedback.detail : undefined;
   const retrySettings = () => void loadSettings();
+  const retryPackages = () => void loadPackageOptions();
+  const reloadTariffsAndPackages = async (nextBackend = backend) => {
+    await Promise.all([loadSettings(nextBackend), loadPackageOptions(nextBackend)]);
+  };
 
   const renderActiveDestination = () => {
     if (currentId === 'club') {
@@ -157,12 +175,14 @@ export function ManagementWorkspace({
           currencyCode={currencyCode}
           onDirtyChange={setDirty}
           tariffs={tariffs}
-          packageOptions={packageOptions}
-          onReload={loadSettings}
+          packageOptions={packageState.data}
+          packageState={packageState}
+          onReload={reloadTariffsAndPackages}
           onFeedback={setSettingsFeedback}
           loadStatus={settingsLoadStatus}
           errorDetail={settingsErrorDetail}
           onRetry={retrySettings}
+          onRetryPackages={retryPackages}
         />
       );
     }

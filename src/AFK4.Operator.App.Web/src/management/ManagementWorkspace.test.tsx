@@ -114,4 +114,15 @@ describe('ManagementWorkspace', () => {
     expect(getDiagnostics).not.toHaveBeenCalled();
     expect(getRolloutStatuses).not.toHaveBeenCalled();
   });
+
+  it('does not turn a package load failure into an empty package catalog', async () => {
+    getPackageOptions.mockImplementationOnce(async () => { throw new Error('packages offline'); });
+    wrap(<ManagementWorkspace backend={backend as never} session={session([permissionNames.manageTariffs])} currencyCode="TJS" />);
+
+    await waitFor(() => expect(getTariffOptions).toHaveBeenCalled());
+    expect(screen.getByRole('tab', { name: 'Тарифы' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: 'Пакеты' }));
+    expect(await screen.findByText('packages offline')).toBeTruthy();
+    expect(screen.queryByText('Нет пакетов')).toBeNull();
+  });
 });

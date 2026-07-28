@@ -18,12 +18,14 @@ export function TariffsPackagesDestination({
   currencyCode,
   tariffs,
   packageOptions,
+  packageState,
   onReload,
   onFeedback,
   onDirtyChange,
   loadStatus,
   errorDetail,
-  onRetry
+  onRetry,
+  onRetryPackages
 }: DestinationProps) {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<TariffsPackagesTab>('tariffs');
@@ -75,14 +77,23 @@ export function TariffsPackagesDestination({
           onFeedback={onFeedback ?? (() => {})}
         />
       ) : (
-        <PackagesTab
-          packageOptions={packageOptions ?? []}
-          currencyCode={currencyCode}
-          backend={backend}
-          canManagePackages={canManagePackages}
-          onReload={onReload ?? (async () => {})}
-          onFeedback={onFeedback ?? (() => {})}
-        />
+        packageState?.status === 'failed' ? (
+          <div role="alert" className="management-error">
+            <strong>{packageState.errorDetail}</strong>
+            <button type="button" className="ui-btn" onClick={onRetryPackages}>{t('op.management.state.retry')}</button>
+          </div>
+        ) : packageState?.status === 'loading' && packageState.data.length === 0 ? (
+          <div className="management-skeleton" aria-hidden="true" />
+        ) : (
+          <PackagesTab
+            packageOptions={packageState?.data ?? packageOptions ?? []}
+            currencyCode={currencyCode}
+            backend={backend}
+            canManagePackages={canManagePackages}
+            onReload={onReload ?? (async () => {})}
+            onFeedback={onFeedback ?? (() => {})}
+          />
+        )
       )}
     </ManagementScreen>
   );
