@@ -4,7 +4,7 @@ using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Operator;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -18,7 +18,7 @@ public sealed class OperatorConnectionResolutionEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        var organizationId = await CreateTenantAsync(client, "demo-club", "main");
+        var organizationId = await CreateOrganizationAsync(client, "demo-club", "main");
 
         using var publicClient = factory.CreateClient();
         var response = await publicClient.PostAsJsonAsync(
@@ -31,7 +31,7 @@ public sealed class OperatorConnectionResolutionEndpointTests
         Assert.Equal(organizationId, body.OrganizationId);
         Assert.Equal("demo-club", body.OrganizationSlug);
         Assert.Equal("Demo Club", body.OrganizationName);
-        Assert.Equal(TenantStatusNames.Active, body.OrganizationStatus);
+        Assert.Equal(OrganizationStatusNames.Active, body.OrganizationStatus);
         Assert.Equal("main", body.BranchSlug);
         Assert.Equal("Main Branch", body.BranchName);
         Assert.Equal("Dushanbe", body.BranchCity);
@@ -52,7 +52,7 @@ public sealed class OperatorConnectionResolutionEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        await CreateTenantAsync(client, "demo-club", "main");
+        await CreateOrganizationAsync(client, "demo-club", "main");
         var organizationOwnerInvite = await GetLatestInviteAsync(factory);
 
         using var publicClient = factory.CreateClient();
@@ -69,16 +69,16 @@ public sealed class OperatorConnectionResolutionEndpointTests
     }
 
     [Fact]
-    public async Task PostResolve_OnSuspendedTenant_StillResolvesWithSuspendedStatus()
+    public async Task PostResolve_OnSuspendedOrganization_StillResolvesWithSuspendedStatus()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        var organizationId = await CreateTenantAsync(client, "demo-club", "main");
+        var organizationId = await CreateOrganizationAsync(client, "demo-club", "main");
 
         var suspend = await client.PatchAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/status",
-            new UpdateTenantStatusRequest(TenantStatusNames.Suspended, "Unpaid invoice"));
+            $"/api/platform/organizations/{organizationId:D}/status",
+            new UpdateOrganizationStatusRequest(OrganizationStatusNames.Suspended, "Unpaid invoice"));
         Assert.Equal(HttpStatusCode.OK, suspend.StatusCode);
 
         using var publicClient = factory.CreateClient();
@@ -89,7 +89,7 @@ public sealed class OperatorConnectionResolutionEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
-        Assert.Equal(TenantStatusNames.Suspended, body.OrganizationStatus);
+        Assert.Equal(OrganizationStatusNames.Suspended, body.OrganizationStatus);
         Assert.Equal("Unpaid invoice", body.OrganizationStatusReason);
     }
 
@@ -99,7 +99,7 @@ public sealed class OperatorConnectionResolutionEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        await CreateTenantAsync(client, "demo-club", "main");
+        await CreateOrganizationAsync(client, "demo-club", "main");
         var invite = await GetLatestInviteAsync(factory);
 
         var revoke = await client.PostAsJsonAsync(
@@ -121,7 +121,7 @@ public sealed class OperatorConnectionResolutionEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        await CreateTenantAsync(client, "demo-club", "main");
+        await CreateOrganizationAsync(client, "demo-club", "main");
         var invite = await GetLatestInviteAsync(factory);
 
         await using (var scope = factory.Services.CreateAsyncScope())
@@ -166,7 +166,7 @@ public sealed class OperatorConnectionResolutionEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        await CreateTenantAsync(client, "demo-club", "main");
+        await CreateOrganizationAsync(client, "demo-club", "main");
 
         using var publicClient = factory.CreateClient();
         var response = await publicClient.PostAsJsonAsync(
@@ -221,7 +221,7 @@ public sealed class OperatorConnectionResolutionEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        await CreateTenantAsync(client, "demo-club", "main");
+        await CreateOrganizationAsync(client, "demo-club", "main");
         var invite = await GetLatestInviteAsync(factory);
 
         using var publicClient = factory.CreateClient();
@@ -232,26 +232,26 @@ public sealed class OperatorConnectionResolutionEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    private static async Task<Guid> CreateTenantAsync(HttpClient client, string orgSlug, string branchSlug)
+    private static async Task<Guid> CreateOrganizationAsync(HttpClient client, string orgSlug, string branchSlug)
     {
         var response = await client.PostAsJsonAsync(
-            "/api/platform/tenants",
-            new CreateTenantRequest(
+            "/api/platform/organizations",
+            new CreateOrganizationRequest(
                 OrganizationSlug: orgSlug,
                 OrganizationName: "Demo Club",
                 BranchSlug: branchSlug,
                 BranchName: "Main Branch",
                 BranchCity: "Dushanbe",
-                PlanCode: TenantPlanCodeNames.Starter,
+                PlanCode: OrganizationPlanCodeNames.Starter,
                 SubscriptionStatus: SubscriptionStatusNames.Trial,
-                Limits: new TenantLimitsDto(1, 20, 30, 5),
+                Limits: new OrganizationLimitsDto(1, 20, 30, 5),
                 OwnerUserName: "owner@demo-club.test",
                 OwnerDisplayName: "Demo Owner",
                 OrganizationOwnerInviteLifetime: TimeSpan.FromDays(7)));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<CreateTenantResponse>();
+        var body = await response.Content.ReadFromJsonAsync<CreateOrganizationResponse>();
         Assert.NotNull(body);
-        return body.Tenant.OrganizationId;
+        return body.Organization.OrganizationId;
     }
 
     private static async Task<OrganizationOwnerInviteDto> GetLatestInviteAsync(PlatformApiFactory factory)

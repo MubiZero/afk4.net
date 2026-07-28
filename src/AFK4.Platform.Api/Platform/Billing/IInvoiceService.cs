@@ -4,7 +4,7 @@ namespace AFK4.Platform.Api.Platform.Billing;
 
 public interface IInvoiceService
 {
-    Task<BillingOperationResult<IReadOnlyList<InvoiceDto>>> ListForTenantAsync(
+    Task<BillingOperationResult<IReadOnlyList<InvoiceDto>>> ListForOrganizationAsync(
         Guid organizationId,
         string? status,
         CancellationToken cancellationToken);

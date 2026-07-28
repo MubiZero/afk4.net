@@ -17,7 +17,7 @@ export interface ResolveOperatorConnectionResponse {
   source: 'slug' | 'setup_code';
 }
 
-export const OperatorTenantStatus = {
+export const OperatorOrganizationStatus = {
   Active: 'active',
   Suspended: 'suspended',
   DeletionPending: 'deletion_pending'

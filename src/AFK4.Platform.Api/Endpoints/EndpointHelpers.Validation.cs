@@ -53,7 +53,7 @@ using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Operator;
 using AFK4.Shared.Contracts.Platform.SupportNotes;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Receipts;
 using AFK4.Shared.Contracts.Reports;

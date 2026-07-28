@@ -1,6 +1,6 @@
 import { it, expect } from 'bun:test';
 import { applyTheme } from './applyTheme';
-import type { TenantBrandingDto } from '../api/types';
+import type { OrganizationBrandingDto } from '../api/types';
 
 it('writes the accent color into the --accent CSS variable', () => {
   applyTheme({ organizationId: 'o', name: 'CyberX', logoUrl: null, accentColor: '#ff0066' });

@@ -60,7 +60,7 @@ using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Operator;
 using AFK4.Shared.Contracts.Platform.SupportNotes;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Receipts;
 using AFK4.Shared.Contracts.Reports;
@@ -78,7 +78,7 @@ using AFK4.Platform.Api.Endpoints;
 using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 
 const string OperatorWebCorsPolicyName = "operator-web";
-const string PlatformWebCorsPolicyName = "platform-web";
+const string PlatformWebCorsPolicyName = "platform-control";
 const string CombinedWebCorsPolicyName = "afk4-web";
 
 var builder = WebApplication.CreateBuilder(args);
@@ -187,19 +187,19 @@ builder.Services.AddScoped<PlatformSupportAccessGrantService>();
 builder.Services.Configure<PlatformAdminBootstrapOptions>(
     builder.Configuration.GetSection(PlatformAdminBootstrapOptions.ConfigurationSection));
 builder.Services.AddHostedService<PlatformAdminBootstrapHostedService>();
-builder.Services.Configure<PlatformTenantOptions>(
-    builder.Configuration.GetSection(PlatformTenantOptions.ConfigurationSection));
+builder.Services.Configure<PlatformOrganizationOptions>(
+    builder.Configuration.GetSection(PlatformOrganizationOptions.ConfigurationSection));
 builder.Services.AddSingleton<IOrganizationOwnerInviteCodeGenerator, RandomOrganizationOwnerInviteCodeGenerator>();
 builder.Services.Configure<InstallOptions>(
     builder.Configuration.GetSection(InstallOptions.SectionName));
 builder.Services.AddScoped<IInstallService, EfInstallService>();
 builder.Services.AddSingleton<IInstallRequestThrottle, InMemoryInstallRequestThrottle>();
-builder.Services.AddScoped<IPlatformTenantService, EfPlatformTenantService>();
+builder.Services.AddScoped<IPlatformOrganizationService, EfPlatformOrganizationService>();
 builder.Services.AddScoped<IPlatformSupportNoteService, EfPlatformSupportNoteService>();
 builder.Services.AddScoped<IPlatformIdempotencyStore, EfPlatformIdempotencyStore>();
-builder.Services.AddScoped<IPlatformTenantHealthService, EfPlatformTenantHealthService>();
+builder.Services.AddScoped<IPlatformOrganizationHealthService, EfPlatformOrganizationHealthService>();
 builder.Services.AddScoped<IPlanCatalogService, EfPlanCatalogService>();
-builder.Services.AddScoped<ITenantSubscriptionService, EfTenantSubscriptionService>();
+builder.Services.AddScoped<IOrganizationSubscriptionService, EfOrganizationSubscriptionService>();
 builder.Services.AddScoped<IOrganizationOwnerResolver, EfOrganizationOwnerResolver>();
 builder.Services.AddScoped<IInvoiceNotifier, EfInvoiceNotifier>();
 builder.Services.AddScoped<IInvoiceGenerationRunner, EfInvoiceGenerationRunner>();
@@ -262,7 +262,7 @@ builder.Services.AddHostedService<DailySummaryHostedService>();
 builder.Services.AddHostedService<AutoProtectionHostedService>();
 builder.Services.AddHostedService<ScheduledReportHostedService>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
-builder.Services.AddScoped<ITenantStatusGuard, EfTenantStatusGuard>();
+builder.Services.AddScoped<IOrganizationStatusGuard, EfOrganizationStatusGuard>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
 builder.Services.AddScoped<IAuditRecordStager, AuditRecordStager>();
 builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
@@ -409,7 +409,7 @@ app.UseMiddleware<StaffAuthenticationMiddleware>();
 app.UseMiddleware<PlatformAdminAuthenticationMiddleware>();
 app.UseMiddleware<PlayerAuthenticationMiddleware>();
 app.UseMiddleware<AuthenticationDomainEnforcementMiddleware>();
-app.UseMiddleware<TenantSuspensionMiddleware>();
+app.UseMiddleware<OrganizationSuspensionMiddleware>();
 
 // Endpoint registrations are grouped by domain in Endpoints/*Endpoints.cs
 var organizations = app.MapGroup("/api/organizations/{organizationId:guid}")
@@ -435,7 +435,7 @@ organizations.MapShopOrderEndpoints();
 organizations.MapWalletEndpoints();
 app.MapStaffOnboardingEndpoints(organizations);
 organizations.MapReportScheduleEndpoints();
-app.MapPlatformTenantEndpoints();
+app.MapPlatformOrganizationEndpoints();
 app.MapPlatformBillingEndpoints(organizations);
 app.MapPlatformSupportAccessEndpoints();
 organizations.MapStaffEndpoints();

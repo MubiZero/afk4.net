@@ -16,7 +16,7 @@ public interface IInvoiceGenerationRunner
     /// Caller is responsible for SaveChanges.
     /// </summary>
     Task<InvoiceEntity?> GenerateForSubscriptionAsync(
-        TenantSubscriptionEntity subscription,
+        OrganizationSubscriptionEntity subscription,
         DateTimeOffset now,
         CancellationToken cancellationToken);
 }

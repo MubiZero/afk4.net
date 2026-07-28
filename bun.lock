@@ -105,8 +105,8 @@
         "vite": "^8.0.13",
       },
     },
-    "src/AFK4.Platform.Web": {
-      "name": "afk4-platform-web",
+    "src/AFK4.PlatformControl.Web": {
+      "name": "afk4-platform-control-web",
       "version": "0.1.0",
       "dependencies": {
         "@afk4/i18n": "workspace:*",
@@ -757,7 +757,7 @@
 
     "afk4-operator-app-web": ["afk4-operator-app-web@workspace:src/AFK4.Operator.App.Web"],
 
-    "afk4-platform-web": ["afk4-platform-web@workspace:src/AFK4.Platform.Web"],
+    "afk4-platform-control-web": ["afk4-platform-control-web@workspace:src/AFK4.PlatformControl.Web"],
 
     "afk4-player-shell-web": ["afk4-player-shell-web@workspace:src/AFK4.Player.Shell.Web"],
 

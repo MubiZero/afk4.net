@@ -1,9 +1,9 @@
 # Coolify Ingress & Rate-Limiting Recipes
 
 Coolify ships with Traefik as the cluster ingress. The recipes below cover the
-two ingress concerns that the SaaS Control Plane added in Slice 5–6:
+two ingress concerns that the SaaS Platform Control added in Slice 5–6:
 
-1. **Hosting the Platform.Web Control Plane** (`src/AFK4.Platform.Web`) on the
+1. **Hosting the Platform.Web Platform Control** (`src/AFK4.PlatformControl.Web`) on the
    internal `platform.*` host.
 2. **Ingress-level rate-limiting** on the two public endpoints that accept
    bearer-style invite / connection credentials with no auth in front of them:
@@ -17,16 +17,16 @@ application's **Network ▸ Labels** field (or, for compose-based services, into
 the `labels:` map). The labels assume the Coolify default entrypoint name
 (`https`). Rename if your install differs.
 
-## 1. Platform.Web Control Plane
+## 1. Platform.Web Platform Control
 
 Build the SPA image from the repo root using
-[`deploy/coolify/platform-web.Dockerfile`](./platform-web.Dockerfile). The
+[`deploy/coolify/platform-control.Dockerfile`](./platform-control.Dockerfile). The
 runtime container listens on port `8080`, serves `dist/` with SPA fallback,
 and exposes `/healthz` for the container probe.
 
 Use the existing `platform.afk4.staging.mubi.dev` Coolify application. Set only
 `VITE_PLATFORM_API_BASE_URL=https://afk4.staging.mubi.dev`; the bundle exposes
-the `/admin/*` Control Plane route family. The old `app.*` club application is
+the `/admin/*` Platform Control route family. The old `app.*` club application is
 not a deployment target after the `/club` removal. Decommissioning that
 external Coolify resource and its DNS record is a separate confirmed operation.
 
@@ -35,7 +35,7 @@ Shared Coolify settings:
 | Setting | Value |
 | --- | --- |
 | Build context | repository root |
-| Dockerfile path | `deploy/coolify/platform-web.Dockerfile` |
+| Dockerfile path | `deploy/coolify/platform-control.Dockerfile` |
 | Exposed port | `8080` |
 | Health path | `/healthz` |
 
@@ -46,11 +46,11 @@ For Slice 2.5 this label set belongs to the existing admin SPA host.
 
 ```yaml
 - traefik.enable=true
-- traefik.http.routers.afk4-platform-web.rule=Host(`platform.afk4.staging.mubi.dev`)
-- traefik.http.routers.afk4-platform-web.entrypoints=https
-- traefik.http.routers.afk4-platform-web.tls=true
-- traefik.http.routers.afk4-platform-web.tls.certresolver=letsencrypt
-- traefik.http.services.afk4-platform-web.loadbalancer.server.port=8080
+- traefik.http.routers.afk4-platform-control.rule=Host(`platform.afk4.staging.mubi.dev`)
+- traefik.http.routers.afk4-platform-control.entrypoints=https
+- traefik.http.routers.afk4-platform-control.tls=true
+- traefik.http.routers.afk4-platform-control.tls.certresolver=letsencrypt
+- traefik.http.services.afk4-platform-control.loadbalancer.server.port=8080
 ```
 
 Keep the existing `platform.afk4.staging.mubi.dev` uptime monitor and ingress

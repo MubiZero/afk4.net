@@ -5,7 +5,7 @@ using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Tests.Platform;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,24 +13,24 @@ namespace AFK4.Platform.Api.Tests;
 
 public sealed class OrganizationOwnerInviteEmailEndpointTests
 {
-    private static CreateTenantRequest BuildCreateTenantRequest(string slug) => new(
+    private static CreateOrganizationRequest BuildCreateOrganizationRequest(string slug) => new(
         OrganizationSlug: slug,
         OrganizationName: "Demo Club",
         BranchSlug: $"{slug}-branch",
         BranchName: "Demo Branch",
         BranchCity: "Dushanbe",
-        PlanCode: TenantPlanCodeNames.Starter,
+        PlanCode: OrganizationPlanCodeNames.Starter,
         SubscriptionStatus: SubscriptionStatusNames.Trial,
-        Limits: new TenantLimitsDto(MaxBranches: 3, MaxDevicesPerBranch: 60, MaxConcurrentSessions: 80, MaxStaffUsersPerBranch: 20),
+        Limits: new OrganizationLimitsDto(MaxBranches: 3, MaxDevicesPerBranch: 60, MaxConcurrentSessions: 80, MaxStaffUsersPerBranch: 20),
         OwnerUserName: "owner@demo.test",
         OwnerDisplayName: "Demo Owner",
         OrganizationOwnerInviteLifetime: TimeSpan.FromDays(7));
 
-    private static async Task<(Guid OrganizationId, Guid BranchId)> CreateTenantAsync(PlatformApiFactory factory, HttpClient client, string slug)
+    private static async Task<(Guid OrganizationId, Guid BranchId)> CreateOrganizationAsync(PlatformApiFactory factory, HttpClient client, string slug)
     {
-        var response = await client.PostAsJsonAsync("/api/platform/tenants", BuildCreateTenantRequest(slug));
-        var body = await response.Content.ReadFromJsonAsync<CreateTenantResponse>();
-        return (body!.Tenant.OrganizationId, body.Tenant.Branches[0].BranchId);
+        var response = await client.PostAsJsonAsync("/api/platform/organizations", BuildCreateOrganizationRequest(slug));
+        var body = await response.Content.ReadFromJsonAsync<CreateOrganizationResponse>();
+        return (body!.Organization.OrganizationId, body.Organization.Branches[0].BranchId);
     }
 
     private static async Task<int> OrganizationOwnerInviteEmailCountAsync(PlatformApiFactory factory, string toAddress)
@@ -47,10 +47,10 @@ public sealed class OrganizationOwnerInviteEmailEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        var (organizationId, branchId) = await CreateTenantAsync(factory, client, "club-a");
+        var (organizationId, branchId) = await CreateOrganizationAsync(factory, client, "club-a");
 
         var response = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/organization-owner-invitations",
+            $"/api/platform/organizations/{organizationId:D}/organization-owner-invitations",
             new CreateOrganizationOwnerInviteRequest(branchId, "newowner", "New Owner", null, "newowner@club.example"));
         var invite = await response.Content.ReadFromJsonAsync<OrganizationOwnerInviteDto>();
 
@@ -69,10 +69,10 @@ public sealed class OrganizationOwnerInviteEmailEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        var (organizationId, branchId) = await CreateTenantAsync(factory, client, "club-b");
+        var (organizationId, branchId) = await CreateOrganizationAsync(factory, client, "club-b");
 
         var response = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/organization-owner-invitations",
+            $"/api/platform/organizations/{organizationId:D}/organization-owner-invitations",
             new CreateOrganizationOwnerInviteRequest(branchId, "newowner", "New Owner", null));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -87,9 +87,9 @@ public sealed class OrganizationOwnerInviteEmailEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        var (organizationId, branchId) = await CreateTenantAsync(factory, client, "club-c");
+        var (organizationId, branchId) = await CreateOrganizationAsync(factory, client, "club-c");
         var createResponse = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/organization-owner-invitations",
+            $"/api/platform/organizations/{organizationId:D}/organization-owner-invitations",
             new CreateOrganizationOwnerInviteRequest(branchId, "newowner", "New Owner", null, "newowner@club.example"));
         var invite = await createResponse.Content.ReadFromJsonAsync<OrganizationOwnerInviteDto>();
 
@@ -105,9 +105,9 @@ public sealed class OrganizationOwnerInviteEmailEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        var (organizationId, branchId) = await CreateTenantAsync(factory, client, "club-d");
+        var (organizationId, branchId) = await CreateOrganizationAsync(factory, client, "club-d");
         var createResponse = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/organization-owner-invitations",
+            $"/api/platform/organizations/{organizationId:D}/organization-owner-invitations",
             new CreateOrganizationOwnerInviteRequest(branchId, "newowner", "New Owner", null));
         var invite = await createResponse.Content.ReadFromJsonAsync<OrganizationOwnerInviteDto>();
 

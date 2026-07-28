@@ -24,7 +24,7 @@ export class ChooseClubError extends Error {
 // чтобы вызывающий код мог различить 401 (сессия действительно недействительна) от сети/5xx
 // (транзиентный сбой) и читать коды бэка (invalid_code/code_expired/too_many_attempts и т.п.)
 // вместо строкового парсинга сообщения. Зеркалит подход `toApiError`/`PlatformApiError` из
-// AFK4.Platform.Web (см. src/api/staffAuthApi.ts, platformApi.ts).
+// AFK4.PlatformControl.Web (см. src/api/staffAuthApi.ts, platformApi.ts).
 export class StaffAuthApiError extends Error {
   constructor(public readonly status: number, public readonly body: unknown) {
     super(`Auth request failed: ${status}`);

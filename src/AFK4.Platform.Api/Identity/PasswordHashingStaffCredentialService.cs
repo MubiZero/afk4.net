@@ -36,27 +36,27 @@ public sealed class PasswordHashingStaffCredentialService(
             : await tokenService.IssueAsync(user, cancellationToken);
     }
 
-    public async Task<StaffSignInResponse?> SignInByTenantKeyAsync(
-        StaffSignInByTenantKeyRequest request,
+    public async Task<StaffSignInResponse?> SignInByOrganizationKeyAsync(
+        StaffSignInByOrganizationKeyRequest request,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.TenantKey) ||
+        if (string.IsNullOrWhiteSpace(request.OrganizationKey) ||
             string.IsNullOrWhiteSpace(request.UserName) ||
             string.IsNullOrWhiteSpace(request.Password))
         {
             return null;
         }
 
-        var tenantKey = SlugValidator.Normalize(request.TenantKey);
-        if (Guid.TryParse(tenantKey, out _) ||
-            SlugValidator.Validate(tenantKey, nameof(request.TenantKey)) is not null)
+        var organizationKey = SlugValidator.Normalize(request.OrganizationKey);
+        if (Guid.TryParse(organizationKey, out _) ||
+            SlugValidator.Validate(organizationKey, nameof(request.OrganizationKey)) is not null)
         {
             return null;
         }
 
         var organizationId = await dbContext.Organizations
             .AsNoTracking()
-            .Where(candidate => candidate.Slug == tenantKey)
+            .Where(candidate => candidate.Slug == organizationKey)
             .Select(candidate => (Guid?)candidate.OrganizationId)
             .SingleOrDefaultAsync(cancellationToken);
 

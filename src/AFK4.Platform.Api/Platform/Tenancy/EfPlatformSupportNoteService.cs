@@ -10,13 +10,13 @@ public sealed class EfPlatformSupportNoteService(
 {
     private const int MaxBodyLength = 4000;
 
-    public async Task<PlatformTenantOperationResult<IReadOnlyList<TenantSupportNoteDto>>> ListAsync(
+    public async Task<PlatformOrganizationOperationResult<IReadOnlyList<OrganizationSupportNoteDto>>> ListAsync(
         Guid organizationId,
         CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty)
         {
-            return PlatformTenantOperationResult<IReadOnlyList<TenantSupportNoteDto>>.BadRequest(
+            return PlatformOrganizationOperationResult<IReadOnlyList<OrganizationSupportNoteDto>>.BadRequest(
                 "OrganizationId is required.");
         }
 
@@ -24,11 +24,11 @@ public sealed class EfPlatformSupportNoteService(
             .AnyAsync(org => org.OrganizationId == organizationId, cancellationToken);
         if (!organizationExists)
         {
-            return PlatformTenantOperationResult<IReadOnlyList<TenantSupportNoteDto>>.NotFound(
-                "Tenant was not found.");
+            return PlatformOrganizationOperationResult<IReadOnlyList<OrganizationSupportNoteDto>>.NotFound(
+                "Organization was not found.");
         }
 
-        var notes = await dbContext.TenantSupportNotes
+        var notes = await dbContext.OrganizationSupportNotes
             .AsNoTracking()
             .Where(note => note.OrganizationId == organizationId)
             .OrderByDescending(note => note.CreatedAtUtc)
@@ -38,90 +38,90 @@ public sealed class EfPlatformSupportNoteService(
             notes.Select(note => note.AuthorPlatformAdminUserId),
             cancellationToken);
 
-        IReadOnlyList<TenantSupportNoteDto> result = notes
+        IReadOnlyList<OrganizationSupportNoteDto> result = notes
             .Select(note => ToDto(note, displayNames))
             .ToList();
-        return PlatformTenantOperationResult<IReadOnlyList<TenantSupportNoteDto>>.Success(result);
+        return PlatformOrganizationOperationResult<IReadOnlyList<OrganizationSupportNoteDto>>.Success(result);
     }
 
-    public async Task<PlatformTenantOperationResult<TenantSupportNoteDto>> CreateAsync(
+    public async Task<PlatformOrganizationOperationResult<OrganizationSupportNoteDto>> CreateAsync(
         Guid organizationId,
-        CreateTenantSupportNoteRequest request,
+        CreateOrganizationSupportNoteRequest request,
         Guid platformAdminUserId,
         CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty)
         {
-            return PlatformTenantOperationResult<TenantSupportNoteDto>.BadRequest(
+            return PlatformOrganizationOperationResult<OrganizationSupportNoteDto>.BadRequest(
                 "OrganizationId is required.");
         }
 
         var bodyError = ValidateBody(request.Body);
         if (bodyError is not null)
         {
-            return PlatformTenantOperationResult<TenantSupportNoteDto>.BadRequest(bodyError);
+            return PlatformOrganizationOperationResult<OrganizationSupportNoteDto>.BadRequest(bodyError);
         }
 
         var organizationExists = await dbContext.Organizations
             .AnyAsync(org => org.OrganizationId == organizationId, cancellationToken);
         if (!organizationExists)
         {
-            return PlatformTenantOperationResult<TenantSupportNoteDto>.NotFound("Tenant was not found.");
+            return PlatformOrganizationOperationResult<OrganizationSupportNoteDto>.NotFound("Organization was not found.");
         }
 
         var now = timeProvider.GetUtcNow();
-        var entity = new TenantSupportNoteEntity
+        var entity = new OrganizationSupportNoteEntity
         {
-            TenantSupportNoteId = Guid.NewGuid(),
+            OrganizationSupportNoteId = Guid.NewGuid(),
             OrganizationId = organizationId,
             AuthorPlatformAdminUserId = platformAdminUserId,
             Body = request.Body.Trim(),
             CreatedAtUtc = now
         };
-        dbContext.TenantSupportNotes.Add(entity);
+        dbContext.OrganizationSupportNotes.Add(entity);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var displayNames = await LoadAuthorDisplayNamesAsync(
             [platformAdminUserId],
             cancellationToken);
-        return PlatformTenantOperationResult<TenantSupportNoteDto>.Success(ToDto(entity, displayNames));
+        return PlatformOrganizationOperationResult<OrganizationSupportNoteDto>.Success(ToDto(entity, displayNames));
     }
 
-    public async Task<PlatformTenantOperationResult<TenantSupportNoteDto>> UpdateAsync(
+    public async Task<PlatformOrganizationOperationResult<OrganizationSupportNoteDto>> UpdateAsync(
         Guid organizationId,
-        Guid tenantSupportNoteId,
-        UpdateTenantSupportNoteRequest request,
+        Guid organizationSupportNoteId,
+        UpdateOrganizationSupportNoteRequest request,
         Guid platformAdminUserId,
         CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty)
         {
-            return PlatformTenantOperationResult<TenantSupportNoteDto>.BadRequest(
+            return PlatformOrganizationOperationResult<OrganizationSupportNoteDto>.BadRequest(
                 "OrganizationId is required.");
         }
 
-        if (tenantSupportNoteId == Guid.Empty)
+        if (organizationSupportNoteId == Guid.Empty)
         {
-            return PlatformTenantOperationResult<TenantSupportNoteDto>.BadRequest(
-                "TenantSupportNoteId is required.");
+            return PlatformOrganizationOperationResult<OrganizationSupportNoteDto>.BadRequest(
+                "OrganizationSupportNoteId is required.");
         }
 
         var bodyError = ValidateBody(request.Body);
         if (bodyError is not null)
         {
-            return PlatformTenantOperationResult<TenantSupportNoteDto>.BadRequest(bodyError);
+            return PlatformOrganizationOperationResult<OrganizationSupportNoteDto>.BadRequest(bodyError);
         }
 
-        var note = await dbContext.TenantSupportNotes
+        var note = await dbContext.OrganizationSupportNotes
             .SingleOrDefaultAsync(
                 candidate =>
-                    candidate.TenantSupportNoteId == tenantSupportNoteId &&
+                    candidate.OrganizationSupportNoteId == organizationSupportNoteId &&
                     candidate.OrganizationId == organizationId,
                 cancellationToken);
         if (note is null)
         {
-            return PlatformTenantOperationResult<TenantSupportNoteDto>.NotFound(
-                "Support note was not found in this tenant.");
+            return PlatformOrganizationOperationResult<OrganizationSupportNoteDto>.NotFound(
+                "Support note was not found in this organization.");
         }
 
         note.Body = request.Body.Trim();
@@ -132,7 +132,7 @@ public sealed class EfPlatformSupportNoteService(
         var displayNames = await LoadAuthorDisplayNamesAsync(
             [note.AuthorPlatformAdminUserId],
             cancellationToken);
-        return PlatformTenantOperationResult<TenantSupportNoteDto>.Success(ToDto(note, displayNames));
+        return PlatformOrganizationOperationResult<OrganizationSupportNoteDto>.Success(ToDto(note, displayNames));
     }
 
     private async Task<IReadOnlyDictionary<Guid, string>> LoadAuthorDisplayNamesAsync(
@@ -151,12 +151,12 @@ public sealed class EfPlatformSupportNoteService(
             .ToDictionaryAsync(admin => admin.PlatformAdminUserId, admin => admin.DisplayName, cancellationToken);
     }
 
-    private static TenantSupportNoteDto ToDto(
-        TenantSupportNoteEntity note,
+    private static OrganizationSupportNoteDto ToDto(
+        OrganizationSupportNoteEntity note,
         IReadOnlyDictionary<Guid, string> displayNames)
     {
-        return new TenantSupportNoteDto(
-            TenantSupportNoteId: note.TenantSupportNoteId,
+        return new OrganizationSupportNoteDto(
+            OrganizationSupportNoteId: note.OrganizationSupportNoteId,
             OrganizationId: note.OrganizationId,
             AuthorPlatformAdminId: note.AuthorPlatformAdminUserId,
             AuthorDisplayName: displayNames.GetValueOrDefault(note.AuthorPlatformAdminUserId, string.Empty),

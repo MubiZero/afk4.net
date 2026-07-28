@@ -1,7 +1,7 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Billing;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -22,18 +22,18 @@ public sealed class EfInvoiceServiceTests
         return new(db, new EfInvoiceGenerationRunner(db, Options.Create(new BillingOptions()), notifier), notifier, time);
     }
 
-    private static async Task<Guid> SeedTenantWithSubscriptionAsync(PlatformDbContext db)
+    private static async Task<Guid> SeedOrganizationWithSubscriptionAsync(PlatformDbContext db)
     {
         var orgId = Guid.NewGuid();
         db.Organizations.Add(new OrganizationEntity
         {
-            OrganizationId = orgId, Slug = "o", Name = "O", Status = TenantStatusNames.Active,
+            OrganizationId = orgId, Slug = "o", Name = "O", Status = OrganizationStatusNames.Active,
             PlanCode = "starter", SubscriptionStatus = SubscriptionStatusNames.Active, LimitsJson = "{}",
             CreatedAtUtc = Now, UpdatedAtUtc = Now
         });
-        db.TenantSubscriptions.Add(new TenantSubscriptionEntity
+        db.OrganizationSubscriptions.Add(new OrganizationSubscriptionEntity
         {
-            TenantSubscriptionId = Guid.NewGuid(), OrganizationId = orgId, PlanCode = "starter",
+            OrganizationSubscriptionId = Guid.NewGuid(), OrganizationId = orgId, PlanCode = "starter",
             Status = SubscriptionStatusNames.Active, CurrentPeriodStartUtc = Now, CurrentPeriodEndUtc = Now.AddMonths(1),
             NextInvoiceUtc = Now.AddMonths(1), AmountMinorUnits = 290000, CurrencyCode = "RUB",
             BillingInterval = BillingIntervalNames.Monthly, CreatedAtUtc = Now, UpdatedAtUtc = Now
@@ -46,7 +46,7 @@ public sealed class EfInvoiceServiceTests
     public async Task GenerateAsync_IssuesInvoiceForCurrentPeriod()
     {
         await using var db = NewContext();
-        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
         var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)));
 
         var result = await service.GenerateAsync(orgId, CancellationToken.None);
@@ -60,11 +60,11 @@ public sealed class EfInvoiceServiceTests
     public async Task GenerateAsync_AlreadyIssuedForPeriod_ReturnsConflict()
     {
         await using var db = NewContext();
-        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
         var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)));
         await service.GenerateAsync(orgId, CancellationToken.None);
 
-        var subscription = await db.TenantSubscriptions.SingleAsync();
+        var subscription = await db.OrganizationSubscriptions.SingleAsync();
         subscription.CurrentPeriodStartUtc = Now;
         subscription.CurrentPeriodEndUtc = Now.AddMonths(1);
         await db.SaveChangesAsync();
@@ -75,15 +75,15 @@ public sealed class EfInvoiceServiceTests
     }
 
     [Fact]
-    public async Task ListForTenantAsync_FiltersByStatus()
+    public async Task ListForOrganizationAsync_FiltersByStatus()
     {
         await using var db = NewContext();
-        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
         var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)));
         await service.GenerateAsync(orgId, CancellationToken.None);
 
-        var issued = await service.ListForTenantAsync(orgId, InvoiceStatusNames.Issued, CancellationToken.None);
-        var paid = await service.ListForTenantAsync(orgId, InvoiceStatusNames.Paid, CancellationToken.None);
+        var issued = await service.ListForOrganizationAsync(orgId, InvoiceStatusNames.Issued, CancellationToken.None);
+        var paid = await service.ListForOrganizationAsync(orgId, InvoiceStatusNames.Paid, CancellationToken.None);
 
         Assert.Single(issued.Value!);
         Assert.Empty(paid.Value!);
@@ -93,7 +93,7 @@ public sealed class EfInvoiceServiceTests
     public async Task MarkPaidAsync_SetsPaidStatusAndTimestamp()
     {
         await using var db = NewContext();
-        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
         var time = new FixedTimeProvider(Now.AddDays(2));
         var service = NewService(db, time);
         var generated = await service.GenerateAsync(orgId, CancellationToken.None);
@@ -110,7 +110,7 @@ public sealed class EfInvoiceServiceTests
     public async Task MarkPaidAsync_NotifiesPaid()
     {
         await using var db = NewContext();
-        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
         var notifier = new RecordingInvoiceNotifier();
         var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)), notifier);
         var generated = await service.GenerateAsync(orgId, CancellationToken.None);
@@ -126,7 +126,7 @@ public sealed class EfInvoiceServiceTests
     public async Task GenerateAsync_NotifiesIssued()
     {
         await using var db = NewContext();
-        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
         var notifier = new RecordingInvoiceNotifier();
         var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)), notifier);
 
@@ -141,7 +141,7 @@ public sealed class EfInvoiceServiceTests
     public async Task MarkPaidAsync_AlreadyPaid_ReturnsConflict()
     {
         await using var db = NewContext();
-        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
         var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)));
         var generated = await service.GenerateAsync(orgId, CancellationToken.None);
         await service.MarkPaidAsync(generated.Value!.InvoiceId, new MarkInvoicePaidRequest(null), CancellationToken.None);
@@ -155,7 +155,7 @@ public sealed class EfInvoiceServiceTests
     public async Task VoidAsync_RequiresReasonAndSetsVoidStatus()
     {
         await using var db = NewContext();
-        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
         var time = new FixedTimeProvider(Now.AddDays(2));
         var service = NewService(db, time);
         var generated = await service.GenerateAsync(orgId, CancellationToken.None);
@@ -173,7 +173,7 @@ public sealed class EfInvoiceServiceTests
     public async Task MarkPaidAsync_OverdueInvoice_CanBePaid()
     {
         await using var db = NewContext();
-        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
         var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)));
         var generated = await service.GenerateAsync(orgId, CancellationToken.None);
 
@@ -192,7 +192,7 @@ public sealed class EfInvoiceServiceTests
     public async Task VoidAsync_OverdueInvoice_CanBeVoided()
     {
         await using var db = NewContext();
-        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
         var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)));
         var generated = await service.GenerateAsync(orgId, CancellationToken.None);
 
@@ -207,24 +207,24 @@ public sealed class EfInvoiceServiceTests
     }
 
     [Fact]
-    public async Task ListForTenantAsync_InvalidStatus_ReturnsBadRequest()
+    public async Task ListForOrganizationAsync_InvalidStatus_ReturnsBadRequest()
     {
         await using var db = NewContext();
-        var orgId = await SeedTenantWithSubscriptionAsync(db);
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
         var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)));
 
-        var result = await service.ListForTenantAsync(orgId, "garbage", CancellationToken.None);
+        var result = await service.ListForOrganizationAsync(orgId, "garbage", CancellationToken.None);
 
         Assert.Equal(BillingOperationStatus.BadRequest, result.Status);
     }
 
     [Fact]
-    public async Task ListForTenantAsync_UnknownTenant_ReturnsNotFound()
+    public async Task ListForOrganizationAsync_UnknownOrganization_ReturnsNotFound()
     {
         await using var db = NewContext();
         var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)));
 
-        var result = await service.ListForTenantAsync(Guid.NewGuid(), null, CancellationToken.None);
+        var result = await service.ListForOrganizationAsync(Guid.NewGuid(), null, CancellationToken.None);
 
         Assert.Equal(BillingOperationStatus.NotFound, result.Status);
     }

@@ -195,13 +195,13 @@ public static class AuditActionNames
 
     public const string PlatformAdminBootstrap = "identity.platform_admin.bootstrap";
 
-    public const string CreateTenant = "tenancy.tenant.create";
+    public const string CreateOrganization = "tenancy.organization.create";
 
-    public const string UpdateTenantStatus = "tenancy.tenant.status.update";
+    public const string UpdateOrganizationStatus = "tenancy.organization.status.update";
 
-    public const string UpdateTenantLimits = "tenancy.tenant.limits.update";
+    public const string UpdateOrganizationLimits = "tenancy.organization.limits.update";
 
-    public const string ViewTenant = "tenancy.tenant.view";
+    public const string ViewOrganization = "tenancy.organization.view";
 
     public const string CreateOrganizationOwnerInvite = "tenancy.owner_invite.create";
 
@@ -213,13 +213,13 @@ public static class AuditActionNames
 
     public const string ResendOrganizationOwnerInvite = "tenancy.owner_invite.resend";
 
-    public const string CreateTenantSupportNote = "tenancy.support_note.create";
+    public const string CreateOrganizationSupportNote = "tenancy.support_note.create";
 
-    public const string UpdateTenantSupportNote = "tenancy.support_note.update";
+    public const string UpdateOrganizationSupportNote = "tenancy.support_note.update";
 
-    public const string ViewTenantSupportNotes = "tenancy.support_note.view";
+    public const string ViewOrganizationSupportNotes = "tenancy.support_note.view";
 
-    public const string ViewTenantHealth = "tenancy.tenant.health.view";
+    public const string ViewOrganizationHealth = "tenancy.organization.health.view";
 
     public const string ResolveOperatorConnection = "tenancy.operator_connection.resolve";
 

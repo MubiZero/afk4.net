@@ -66,7 +66,7 @@ public sealed class ReservationEndpointTests
     }
 
     [Fact]
-    public async Task StartReservationSession_HidesReservationsOutsideAuthenticatedTenant()
+    public async Task StartReservationSession_HidesReservationsOutsideAuthenticatedOrganization()
     {
         var coordinator = new StubReservationSessionCoordinator(StartSuccess());
         var foreignContext = StaffContextWithPermissions(

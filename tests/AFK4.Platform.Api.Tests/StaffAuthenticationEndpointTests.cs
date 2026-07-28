@@ -54,16 +54,16 @@ public sealed class StaffAuthenticationEndpointTests
     }
 
     [Fact]
-    public async Task PostStaffSignInByTenantKey_WithValidTenantSlug_ReturnsAccessTokenAndPermissions()
+    public async Task PostStaffSignInByOrganizationKey_WithValidOrganizationSlug_ReturnsAccessTokenAndPermissions()
     {
         await using var factory = new PlatformApiFactory();
         await SeedTechnicianAsync(factory);
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-tenant-key",
-            new StaffSignInByTenantKeyRequest(
-                TenantKey: "Demo-Club",
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-organization-key",
+            new StaffSignInByOrganizationKeyRequest(
+                OrganizationKey: "Demo-Club",
                 UserName: "tech@afk4.test",
                 Password: "Passw0rd!"));
         var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
@@ -77,16 +77,16 @@ public sealed class StaffAuthenticationEndpointTests
     }
 
     [Fact]
-    public async Task PostStaffSignInByTenantKey_WithOrganizationGuid_ReturnsUnauthorized()
+    public async Task PostStaffSignInByOrganizationKey_WithOrganizationGuid_ReturnsUnauthorized()
     {
         await using var factory = new PlatformApiFactory();
         await SeedTechnicianAsync(factory);
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-tenant-key",
-            new StaffSignInByTenantKeyRequest(
-                TenantKey: TestIds.OrganizationId.ToString("D"),
+            $"/api/organizations/{TestIds.OrganizationId:D}/auth/staff/sign-in-by-organization-key",
+            new StaffSignInByOrganizationKeyRequest(
+                OrganizationKey: TestIds.OrganizationId.ToString("D"),
                 UserName: "tech@afk4.test",
                 Password: "Passw0rd!"));
 

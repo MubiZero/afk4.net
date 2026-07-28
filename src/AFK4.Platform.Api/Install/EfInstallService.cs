@@ -5,7 +5,7 @@ using AFK4.Platform.Api.FloorMap;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.FloorMap;
 using AFK4.Shared.Contracts.Install;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -53,9 +53,9 @@ public sealed class EfInstallService(
         var organization = await dbContext.Organizations
             .AsNoTracking()
             .SingleOrDefaultAsync(candidate => candidate.OrganizationId == organizationId, cancellationToken);
-        if (organization is null || organization.Status != TenantStatusNames.Active)
+        if (organization is null || organization.Status != OrganizationStatusNames.Active)
         {
-            return InstallOperationResult<InstallEnrollResponse>.BadRequest("Tenant is not active.");
+            return InstallOperationResult<InstallEnrollResponse>.BadRequest("Organization is not active.");
         }
 
         var branch = await dbContext.Branches
@@ -254,10 +254,10 @@ public sealed class EfInstallService(
         var organization = await dbContext.Organizations
             .AsNoTracking()
             .SingleOrDefaultAsync(candidate => candidate.OrganizationId == organizationId, cancellationToken);
-        if (organization is null || organization.Status != TenantStatusNames.Active)
+        if (organization is null || organization.Status != OrganizationStatusNames.Active)
         {
             return InstallOperationResult<InstallCreateSeatResponse>.BadRequest(
-                "Tenant is not active.",
+                "Organization is not active.",
                 organizationId,
                 staffUserId: staffUserId);
         }
@@ -375,10 +375,10 @@ public sealed class EfInstallService(
         var organization = await dbContext.Organizations
             .AsNoTracking()
             .SingleOrDefaultAsync(candidate => candidate.OrganizationId == organizationId, cancellationToken);
-        if (organization is null || organization.Status != TenantStatusNames.Active)
+        if (organization is null || organization.Status != OrganizationStatusNames.Active)
         {
             return InstallOperationResult<InstallDiscoverResponse>.BadRequest(
-                "Tenant is not active.",
+                "Organization is not active.",
                 organizationId: organizationId);
         }
 

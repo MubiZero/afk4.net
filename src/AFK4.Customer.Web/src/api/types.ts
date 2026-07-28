@@ -30,7 +30,7 @@ export interface PlayerDashboardDto {
   activeSession: ActiveSessionDto | null;
 }
 
-export interface TenantBrandingDto {
+export interface OrganizationBrandingDto {
   organizationId: string;
   name: string;
   logoUrl: string | null;

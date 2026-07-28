@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import type { TenantBrandingDto } from '../api/types';
-import { resolveTenantKey } from './resolveTenantKey';
+import type { OrganizationBrandingDto } from '../api/types';
+import { resolveOrganizationKey } from './resolveOrganizationKey';
 import { applyTheme } from './applyTheme';
-import { fetchTenantBranding } from '../api/brandingApi';
+import { fetchOrganizationBranding } from '../api/brandingApi';
 
 interface UseBrandingOptions {
   hostname: string;
   search: string;
   baseUrl: string;
   fallbackOrganizationId?: string;
-  fetchBranding?: (baseUrl: string, tenantKey: string) => Promise<TenantBrandingDto | null>;
-  applyThemeImpl?: (branding: TenantBrandingDto | null) => void;
+  fetchBranding?: (baseUrl: string, organizationKey: string) => Promise<OrganizationBrandingDto | null>;
+  applyThemeImpl?: (branding: OrganizationBrandingDto | null) => void;
 }
 
 export type BrandingState =
@@ -26,12 +26,12 @@ export function useBranding(options: UseBrandingOptions): BrandingState {
   useEffect(() => {
     let cancelled = false;
     const { hostname, search, baseUrl, fallbackOrganizationId } = opts.current;
-    const fetchBranding = opts.current.fetchBranding ?? fetchTenantBranding;
+    const fetchBranding = opts.current.fetchBranding ?? fetchOrganizationBranding;
     const apply = opts.current.applyThemeImpl ?? applyTheme;
 
     async function bootstrap() {
-      const key = resolveTenantKey(hostname, search);
-      let branding: TenantBrandingDto | null = null;
+      const key = resolveOrganizationKey(hostname, search);
+      let branding: OrganizationBrandingDto | null = null;
       if (key) {
         try {
           branding = await fetchBranding(baseUrl, key);

@@ -1,6 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Billing;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Platform.Billing;
@@ -12,7 +12,7 @@ public sealed class EfBillingMetricsService(PlatformDbContext dbContext) : IBill
     public async Task<PlatformBillingMetricsDto> GetAsync(CancellationToken cancellationToken)
     {
         // MRR counts active subscriptions only (locked plan definition); trial/past_due/cancelled are excluded.
-        var activeSubscriptions = await dbContext.TenantSubscriptions.AsNoTracking()
+        var activeSubscriptions = await dbContext.OrganizationSubscriptions.AsNoTracking()
             .Where(s => s.Status == SubscriptionStatusNames.Active)
             .Select(s => new { s.AmountMinorUnits, s.BillingInterval, s.CurrencyCode })
             .ToListAsync(cancellationToken);

@@ -1,7 +1,7 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Billing;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http.Json;
 

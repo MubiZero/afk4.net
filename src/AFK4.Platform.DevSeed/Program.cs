@@ -92,7 +92,7 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
             return;
         }
 
-        var staff = SeedTenantAndStaff();
+        var staff = SeedOrganizationAndStaff();
         var zones = SeedLayout();
         var seats = zones.SelectMany(zone => zone.Seats).ToList();
         var devices = SeedDevices(seats);
@@ -110,7 +110,7 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
         await dbContext.SaveChangesAsync();
     }
 
-    private StaffSeed SeedTenantAndStaff()
+    private StaffSeed SeedOrganizationAndStaff()
     {
         dbContext.Organizations.Add(new OrganizationEntity
         {

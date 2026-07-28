@@ -53,7 +53,7 @@ using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Operator;
 using AFK4.Shared.Contracts.Platform.SupportNotes;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Receipts;
 using AFK4.Shared.Contracts.Reports;
@@ -191,10 +191,10 @@ internal static class PlatformBillingEndpoints
             return Results.Ok(result.Value);
         });
 
-        app.MapGet("/api/platform/tenants/{organizationId:guid}/subscription", async (
+        app.MapGet("/api/platform/organizations/{organizationId:guid}/subscription", async (
             Guid organizationId,
             PlatformAdminAuthorizationService authorizationService,
-            ITenantSubscriptionService subscriptionService,
+            IOrganizationSubscriptionService subscriptionService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -208,7 +208,7 @@ internal static class PlatformBillingEndpoints
                     organizationId: organizationId,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
                     action: AuditActionNames.ViewBilling,
-                    targetType: "TenantSubscription",
+                    targetType: "OrganizationSubscription",
                     targetId: organizationId.ToString("D"),
                     outcome: AuditOutcome.Denied,
                     details: new { authorization.DenialReason },
@@ -220,10 +220,10 @@ internal static class PlatformBillingEndpoints
             return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
         });
 
-        app.MapPatch("/api/platform/tenants/{organizationId:guid}/subscription", async (
+        app.MapPatch("/api/platform/organizations/{organizationId:guid}/subscription", async (
             Guid organizationId,
             PlatformAdminAuthorizationService authorizationService,
-            ITenantSubscriptionService subscriptionService,
+            IOrganizationSubscriptionService subscriptionService,
             IAuditRecordWriter auditRecordWriter,
             UpdateSubscriptionRequest request,
             CancellationToken cancellationToken) =>
@@ -238,7 +238,7 @@ internal static class PlatformBillingEndpoints
                     organizationId: organizationId,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
                     action: AuditActionNames.UpdateSubscription,
-                    targetType: "TenantSubscription",
+                    targetType: "OrganizationSubscription",
                     targetId: organizationId.ToString("D"),
                     outcome: AuditOutcome.Denied,
                     details: new { authorization.DenialReason },
@@ -255,7 +255,7 @@ internal static class PlatformBillingEndpoints
                 organizationId: organizationId,
                 actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
                 action: AuditActionNames.UpdateSubscription,
-                targetType: "TenantSubscription",
+                targetType: "OrganizationSubscription",
                 targetId: organizationId.ToString("D"),
                 outcome: AuditOutcome.Succeeded,
                 details: new { result.Value!.PlanCode, result.Value.Status, result.Value.CancelAtPeriodEnd },
@@ -263,7 +263,7 @@ internal static class PlatformBillingEndpoints
             return Results.Ok(result.Value);
         });
 
-        app.MapGet("/api/platform/tenants/{organizationId:guid}/invoices", async (
+        app.MapGet("/api/platform/organizations/{organizationId:guid}/invoices", async (
             Guid organizationId,
             string? status,
             PlatformAdminAuthorizationService authorizationService,
@@ -289,7 +289,7 @@ internal static class PlatformBillingEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            var result = await invoiceService.ListForTenantAsync(organizationId, status, cancellationToken);
+            var result = await invoiceService.ListForOrganizationAsync(organizationId, status, cancellationToken);
             return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
         });
 
@@ -297,7 +297,7 @@ internal static class PlatformBillingEndpoints
         organizations.MapGet("subscription", async (
             Guid organizationId,
             StaffAuthorizationService authorizationService,
-            ITenantSubscriptionService subscriptionService,
+            IOrganizationSubscriptionService subscriptionService,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewSubscription);
@@ -326,7 +326,7 @@ internal static class PlatformBillingEndpoints
             if (organizationId != authorization.StaffContext!.OrganizationId)
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
 
-            var result = await invoiceService.ListForTenantAsync(authorization.StaffContext!.OrganizationId, status: null, cancellationToken);
+            var result = await invoiceService.ListForOrganizationAsync(authorization.StaffContext!.OrganizationId, status: null, cancellationToken);
             return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
         });
 
@@ -334,7 +334,7 @@ internal static class PlatformBillingEndpoints
             string? status,
             string? planCode,
             PlatformAdminAuthorizationService authorizationService,
-            ITenantSubscriptionService subscriptionService,
+            IOrganizationSubscriptionService subscriptionService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -348,7 +348,7 @@ internal static class PlatformBillingEndpoints
                     organizationId: Guid.Empty,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
                     action: AuditActionNames.ViewBilling,
-                    targetType: "TenantSubscription",
+                    targetType: "OrganizationSubscription",
                     targetId: null,
                     outcome: AuditOutcome.Denied,
                     details: new { authorization.DenialReason },
@@ -417,7 +417,7 @@ internal static class PlatformBillingEndpoints
             return Results.Ok(metrics);
         });
 
-        app.MapPost("/api/platform/tenants/{organizationId:guid}/invoices/generate", async (
+        app.MapPost("/api/platform/organizations/{organizationId:guid}/invoices/generate", async (
             Guid organizationId,
             HttpContext httpContext,
             PlatformAdminAuthorizationService authorizationService,
@@ -665,10 +665,10 @@ internal static class PlatformBillingEndpoints
             return Results.Ok(result.Value);
         });
 
-        app.MapGet("/api/platform/tenants/{organizationId:guid}/health", async (
+        app.MapGet("/api/platform/organizations/{organizationId:guid}/health", async (
             Guid organizationId,
             PlatformAdminAuthorizationService authorizationService,
-            IPlatformTenantHealthService healthService,
+            IPlatformOrganizationHealthService healthService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
@@ -684,8 +684,8 @@ internal static class PlatformBillingEndpoints
                     auditRecordWriter,
                     organizationId: organizationId,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                    action: AuditActionNames.ViewTenantHealth,
-                    targetType: "Tenant",
+                    action: AuditActionNames.ViewOrganizationHealth,
+                    targetType: "Organization",
                     targetId: organizationId.ToString("D"),
                     outcome: AuditOutcome.Denied,
                     details: new { authorization.DenialReason },
@@ -700,21 +700,21 @@ internal static class PlatformBillingEndpoints
                     auditRecordWriter,
                     organizationId: organizationId,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                    action: AuditActionNames.ViewTenantHealth,
-                    targetType: "Tenant",
+                    action: AuditActionNames.ViewOrganizationHealth,
+                    targetType: "Organization",
                     targetId: organizationId.ToString("D"),
                     outcome: AuditOutcome.Denied,
-                    details: new { Error = "Tenant was not found." },
+                    details: new { Error = "Organization was not found." },
                     cancellationToken);
-                return Results.NotFound(new { Error = "Tenant was not found." });
+                return Results.NotFound(new { Error = "Organization was not found." });
             }
 
             await WritePlatformAuditAsync(
                 auditRecordWriter,
                 organizationId: organizationId,
                 actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                action: AuditActionNames.ViewTenantHealth,
-                targetType: "Tenant",
+                action: AuditActionNames.ViewOrganizationHealth,
+                targetType: "Organization",
                 targetId: organizationId.ToString("D"),
                 outcome: AuditOutcome.Succeeded,
                 details: new
@@ -729,7 +729,7 @@ internal static class PlatformBillingEndpoints
             return Results.Ok(health);
         });
 
-        app.MapGet("/api/platform/tenants/{organizationId:guid}/support-notes", async (
+        app.MapGet("/api/platform/organizations/{organizationId:guid}/support-notes", async (
             Guid organizationId,
             PlatformAdminAuthorizationService authorizationService,
             IPlatformSupportNoteService supportNoteService,
@@ -748,8 +748,8 @@ internal static class PlatformBillingEndpoints
                     auditRecordWriter,
                     organizationId: organizationId,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                    action: AuditActionNames.ViewTenantSupportNotes,
-                    targetType: "TenantSupportNote",
+                    action: AuditActionNames.ViewOrganizationSupportNotes,
+                    targetType: "OrganizationSupportNote",
                     targetId: null,
                     outcome: AuditOutcome.Denied,
                     details: new { authorization.DenialReason },
@@ -764,15 +764,15 @@ internal static class PlatformBillingEndpoints
                     auditRecordWriter,
                     organizationId: organizationId,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                    action: AuditActionNames.ViewTenantSupportNotes,
-                    targetType: "TenantSupportNote",
+                    action: AuditActionNames.ViewOrganizationSupportNotes,
+                    targetType: "OrganizationSupportNote",
                     targetId: null,
                     outcome: AuditOutcome.Denied,
                     details: new { Error = result.Error },
                     cancellationToken);
                 return result.Status switch
                 {
-                    PlatformTenantOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
                     _ => Results.BadRequest(new { Error = result.Error })
                 };
             }
@@ -782,8 +782,8 @@ internal static class PlatformBillingEndpoints
                 auditRecordWriter,
                 organizationId: organizationId,
                 actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                action: AuditActionNames.ViewTenantSupportNotes,
-                targetType: "TenantSupportNote",
+                action: AuditActionNames.ViewOrganizationSupportNotes,
+                targetType: "OrganizationSupportNote",
                 targetId: null,
                 outcome: AuditOutcome.Succeeded,
                 details: new { Count = notes.Count },
@@ -792,9 +792,9 @@ internal static class PlatformBillingEndpoints
             return Results.Ok(notes);
         });
 
-        app.MapPost("/api/platform/tenants/{organizationId:guid}/support-notes", async (
+        app.MapPost("/api/platform/organizations/{organizationId:guid}/support-notes", async (
             Guid organizationId,
-            CreateTenantSupportNoteRequest request,
+            CreateOrganizationSupportNoteRequest request,
             PlatformAdminAuthorizationService authorizationService,
             IPlatformSupportNoteService supportNoteService,
             IAuditRecordWriter auditRecordWriter,
@@ -812,8 +812,8 @@ internal static class PlatformBillingEndpoints
                     auditRecordWriter,
                     organizationId: organizationId,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                    action: AuditActionNames.CreateTenantSupportNote,
-                    targetType: "TenantSupportNote",
+                    action: AuditActionNames.CreateOrganizationSupportNote,
+                    targetType: "OrganizationSupportNote",
                     targetId: null,
                     outcome: AuditOutcome.Denied,
                     details: new { authorization.DenialReason },
@@ -833,16 +833,16 @@ internal static class PlatformBillingEndpoints
                     auditRecordWriter,
                     organizationId: organizationId,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
-                    action: AuditActionNames.CreateTenantSupportNote,
-                    targetType: "TenantSupportNote",
+                    action: AuditActionNames.CreateOrganizationSupportNote,
+                    targetType: "OrganizationSupportNote",
                     targetId: null,
                     outcome: AuditOutcome.Denied,
                     details: new { Error = result.Error },
                     cancellationToken);
                 return result.Status switch
                 {
-                    PlatformTenantOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
-                    PlatformTenantOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
                     _ => Results.BadRequest(new { Error = result.Error })
                 };
             }
@@ -852,20 +852,20 @@ internal static class PlatformBillingEndpoints
                 auditRecordWriter,
                 organizationId: organizationId,
                 actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
-                action: AuditActionNames.CreateTenantSupportNote,
-                targetType: "TenantSupportNote",
-                targetId: note.TenantSupportNoteId.ToString("D"),
+                action: AuditActionNames.CreateOrganizationSupportNote,
+                targetType: "OrganizationSupportNote",
+                targetId: note.OrganizationSupportNoteId.ToString("D"),
                 outcome: AuditOutcome.Succeeded,
-                details: new { note.TenantSupportNoteId, BodyLength = note.Body.Length },
+                details: new { note.OrganizationSupportNoteId, BodyLength = note.Body.Length },
                 cancellationToken);
 
             return Results.Ok(note);
         });
 
-        app.MapPatch("/api/platform/tenants/{organizationId:guid}/support-notes/{tenantSupportNoteId:guid}", async (
+        app.MapPatch("/api/platform/organizations/{organizationId:guid}/support-notes/{organizationSupportNoteId:guid}", async (
             Guid organizationId,
-            Guid tenantSupportNoteId,
-            UpdateTenantSupportNoteRequest request,
+            Guid organizationSupportNoteId,
+            UpdateOrganizationSupportNoteRequest request,
             PlatformAdminAuthorizationService authorizationService,
             IPlatformSupportNoteService supportNoteService,
             IAuditRecordWriter auditRecordWriter,
@@ -883,9 +883,9 @@ internal static class PlatformBillingEndpoints
                     auditRecordWriter,
                     organizationId: organizationId,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                    action: AuditActionNames.UpdateTenantSupportNote,
-                    targetType: "TenantSupportNote",
-                    targetId: tenantSupportNoteId.ToString("D"),
+                    action: AuditActionNames.UpdateOrganizationSupportNote,
+                    targetType: "OrganizationSupportNote",
+                    targetId: organizationSupportNoteId.ToString("D"),
                     outcome: AuditOutcome.Denied,
                     details: new { authorization.DenialReason },
                     cancellationToken);
@@ -894,7 +894,7 @@ internal static class PlatformBillingEndpoints
 
             var result = await supportNoteService.UpdateAsync(
                 organizationId,
-                tenantSupportNoteId,
+                organizationSupportNoteId,
                 request,
                 authorization.PlatformAdminContext!.PlatformAdminUserId,
                 cancellationToken);
@@ -905,16 +905,16 @@ internal static class PlatformBillingEndpoints
                     auditRecordWriter,
                     organizationId: organizationId,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
-                    action: AuditActionNames.UpdateTenantSupportNote,
-                    targetType: "TenantSupportNote",
-                    targetId: tenantSupportNoteId.ToString("D"),
+                    action: AuditActionNames.UpdateOrganizationSupportNote,
+                    targetType: "OrganizationSupportNote",
+                    targetId: organizationSupportNoteId.ToString("D"),
                     outcome: AuditOutcome.Denied,
                     details: new { Error = result.Error },
                     cancellationToken);
                 return result.Status switch
                 {
-                    PlatformTenantOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
-                    PlatformTenantOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
                     _ => Results.BadRequest(new { Error = result.Error })
                 };
             }
@@ -924,11 +924,11 @@ internal static class PlatformBillingEndpoints
                 auditRecordWriter,
                 organizationId: organizationId,
                 actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
-                action: AuditActionNames.UpdateTenantSupportNote,
-                targetType: "TenantSupportNote",
-                targetId: note.TenantSupportNoteId.ToString("D"),
+                action: AuditActionNames.UpdateOrganizationSupportNote,
+                targetType: "OrganizationSupportNote",
+                targetId: note.OrganizationSupportNoteId.ToString("D"),
                 outcome: AuditOutcome.Succeeded,
-                details: new { note.TenantSupportNoteId, BodyLength = note.Body.Length },
+                details: new { note.OrganizationSupportNoteId, BodyLength = note.Body.Length },
                 cancellationToken);
 
             return Results.Ok(note);

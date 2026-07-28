@@ -3,7 +3,7 @@ import { useI18n, type MessageKey } from '@afk4/i18n';
 import {
   ConnectionResolutionError,
   ConnectionResolver,
-  OperatorTenantStatus,
+  OperatorOrganizationStatus,
   type ResolveOperatorConnectionResponse
 } from './connectionResolver';
 
@@ -139,12 +139,12 @@ function localizeResolutionErrorDetail(message: string, t: Translate): string {
   return normalized;
 }
 
-export function isOperatorTenantBlocked(
+export function isOperatorOrganizationBlocked(
   resolution: ResolveOperatorConnectionResponse | null
 ): boolean {
   if (resolution === null) {
     return false;
   }
-  return resolution.organizationStatus === OperatorTenantStatus.Suspended
-    || resolution.organizationStatus === OperatorTenantStatus.DeletionPending;
+  return resolution.organizationStatus === OperatorOrganizationStatus.Suspended
+    || resolution.organizationStatus === OperatorOrganizationStatus.DeletionPending;
 }

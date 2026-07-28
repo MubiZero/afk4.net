@@ -1,11 +1,11 @@
 import { PlatformApiClient } from '../../platformApi';
 import type { Guid } from '../types';
 
-// TenantSubscriptionDto / InvoiceDto — AFK4.Shared.Contracts/Platform/Billing/*.cs. Both records
+// OrganizationSubscriptionDto / InvoiceDto — AFK4.Shared.Contracts/Platform/Billing/*.cs. Both records
 // carry a flat `AmountMinorUnits`/`CurrencyCode` pair over the wire (not a nested MoneyDto), so
 // this DTO's field names match the backend record verbatim — unlike dashboard-summary's MoneyDto
 // (see branchRollupModel.ts), there's no shape mismatch to normalize here.
-export interface TenantSubscriptionDto {
+export interface OrganizationSubscriptionDto {
   planCode: string;
   status: string;
   currentPeriodStartUtc: string;
@@ -29,8 +29,8 @@ export interface InvoiceDto {
 // Read-only org billing screen (Сеть → Подписка) — no plan-management actions by design.
 export function createOrgBillingClient(api: PlatformApiClient) {
   return {
-    getSubscription(organizationId: Guid): Promise<TenantSubscriptionDto> {
-      return api.get<TenantSubscriptionDto>('subscription');
+    getSubscription(organizationId: Guid): Promise<OrganizationSubscriptionDto> {
+      return api.get<OrganizationSubscriptionDto>('subscription');
     },
     listInvoices(organizationId: Guid): Promise<InvoiceDto[]> {
       return api.get<InvoiceDto[]>('invoices');

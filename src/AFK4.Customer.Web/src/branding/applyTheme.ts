@@ -1,4 +1,4 @@
-import type { TenantBrandingDto } from '../api/types';
+import type { OrganizationBrandingDto } from '../api/types';
 
 // Simple hex contrast pick for the accent foreground (dark text on light accent, etc.).
 function readableForeground(hex: string): string {
@@ -10,7 +10,7 @@ function readableForeground(hex: string): string {
   return luminance > 0.6 ? '#101314' : '#ffffff';
 }
 
-export function applyTheme(branding: TenantBrandingDto | null): void {
+export function applyTheme(branding: OrganizationBrandingDto | null): void {
   const root = document.documentElement;
   if (branding?.accentColor) {
     root.style.setProperty('--accent', branding.accentColor);

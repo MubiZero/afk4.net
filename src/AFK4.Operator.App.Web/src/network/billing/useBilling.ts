@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { InvoiceDto, TenantSubscriptionDto } from '../../api/clients/orgBilling';
+import type { InvoiceDto, OrganizationSubscriptionDto } from '../../api/clients/orgBilling';
 
 export interface BillingClient {
-  getSubscription(organizationId: string): Promise<TenantSubscriptionDto>;
+  getSubscription(organizationId: string): Promise<OrganizationSubscriptionDto>;
   listInvoices(organizationId: string): Promise<InvoiceDto[]>;
 }
 
 export type BillingState =
   | { status: 'loading' }
   | { status: 'error'; retry: () => void }
-  | { status: 'ready'; subscription: TenantSubscriptionDto; invoices: InvoiceDto[]; retry: () => void };
+  | { status: 'ready'; subscription: OrganizationSubscriptionDto; invoices: InvoiceDto[]; retry: () => void };
 
 // Loads the subscription + invoice list for the active org in parallel. Both calls are read-only
 // (Task 6 is a read-only screen by design — no plan-management actions), so a single combined
@@ -17,7 +17,7 @@ export type BillingState =
 export function useBilling(client: BillingClient, organizationId: string): BillingState {
   const [tick, setTick] = useState(0);
   const [phase, setPhase] = useState<'loading' | 'error' | 'ready'>('loading');
-  const [subscription, setSubscription] = useState<TenantSubscriptionDto | null>(null);
+  const [subscription, setSubscription] = useState<OrganizationSubscriptionDto | null>(null);
   const [invoices, setInvoices] = useState<InvoiceDto[]>([]);
   const clientRef = useRef(client);
   clientRef.current = client;

@@ -1,6 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Billing;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -17,7 +17,7 @@ public sealed class BillingPlanSeedHostedService(
     [
         new()
         {
-            PlanCode = TenantPlanCodeNames.Starter,
+            PlanCode = OrganizationPlanCodeNames.Starter,
             Name = "Starter",
             PriceMinorUnits = 290000,
             CurrencyCode = "RUB",
@@ -31,7 +31,7 @@ public sealed class BillingPlanSeedHostedService(
         },
         new()
         {
-            PlanCode = TenantPlanCodeNames.Growth,
+            PlanCode = OrganizationPlanCodeNames.Growth,
             Name = "Growth",
             PriceMinorUnits = 790000,
             CurrencyCode = "RUB",
@@ -45,7 +45,7 @@ public sealed class BillingPlanSeedHostedService(
         },
         new()
         {
-            PlanCode = TenantPlanCodeNames.Scale,
+            PlanCode = OrganizationPlanCodeNames.Scale,
             Name = "Scale",
             PriceMinorUnits = 1990000,
             CurrencyCode = "RUB",

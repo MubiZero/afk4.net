@@ -53,7 +53,7 @@ using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Operator;
 using AFK4.Shared.Contracts.Platform.SupportNotes;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Receipts;
 using AFK4.Shared.Contracts.Reports;
@@ -289,10 +289,10 @@ internal static class DeviceEndpoints
         app.MapPost("/api/devices/enroll", async (
             DeviceEnrollmentRequest request,
             IDeviceEnrollmentService enrollmentService,
-            ITenantStatusGuard tenantStatusGuard,
+            IOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
-            var suspendedCheck = await tenantStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+            var suspendedCheck = await organizationStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
             if (suspendedCheck is not null)
             {
                 return suspendedCheck;
@@ -314,7 +314,7 @@ internal static class DeviceEndpoints
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
             IDeviceHeartbeatService heartbeatService,
-            ITenantStatusGuard tenantStatusGuard,
+            IOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != request.DeviceId)
@@ -333,7 +333,7 @@ internal static class DeviceEndpoints
                 deviceId,
                 credentialSecret);
 
-            var suspendedCheck = await tenantStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+            var suspendedCheck = await organizationStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
             if (suspendedCheck is not null)
             {
                 return suspendedCheck;
@@ -357,7 +357,7 @@ internal static class DeviceEndpoints
             IDeviceCommandStore commandStore,
             ISessionCommandResultProcessor sessionCommandResultProcessor,
             IHubContext<DeviceHub> hubContext,
-            ITenantStatusGuard tenantStatusGuard,
+            IOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != result.DeviceId)
@@ -376,7 +376,7 @@ internal static class DeviceEndpoints
                 return Results.Unauthorized();
             }
 
-            var suspendedCheck = await tenantStatusGuard.RequireActiveAsync(result.OrganizationId, cancellationToken);
+            var suspendedCheck = await organizationStatusGuard.RequireActiveAsync(result.OrganizationId, cancellationToken);
             if (suspendedCheck is not null)
             {
                 return suspendedCheck;
@@ -398,7 +398,7 @@ internal static class DeviceEndpoints
             PlatformDbContext dbContext,
             IDeviceCredentialValidator credentialValidator,
             IDeviceCommandDispatchService commandDispatchService,
-            ITenantStatusGuard tenantStatusGuard,
+            IOrganizationStatusGuard organizationStatusGuard,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
@@ -418,7 +418,7 @@ internal static class DeviceEndpoints
                 return Results.Unauthorized();
             }
 
-            var suspendedCheck = await tenantStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+            var suspendedCheck = await organizationStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
             if (suspendedCheck is not null)
             {
                 return suspendedCheck;
@@ -519,7 +519,7 @@ internal static class DeviceEndpoints
             HttpContext httpContext,
             PlatformDbContext dbContext,
             IDeviceCredentialValidator credentialValidator,
-            ITenantStatusGuard tenantStatusGuard,
+            IOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != request.DeviceId)
@@ -548,7 +548,7 @@ internal static class DeviceEndpoints
                 return Results.Unauthorized();
             }
 
-            var suspendedCheck = await tenantStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+            var suspendedCheck = await organizationStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
             if (suspendedCheck is not null)
             {
                 return suspendedCheck;

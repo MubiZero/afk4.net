@@ -3,7 +3,7 @@ using AFK4.Shared.Contracts.Reports;
 namespace AFK4.Platform.Api.Reports;
 
 /// <summary>
-/// Manages branch report schedules picked up by the scheduled-report runner. Tenant isolation is
+/// Manages branch report schedules picked up by the scheduled-report runner. Organization isolation is
 /// enforced by always scoping to (organizationId, branchId).
 /// </summary>
 public interface IReportScheduleService

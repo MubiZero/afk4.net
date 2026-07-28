@@ -4,7 +4,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Platform.Billing;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests;
@@ -30,7 +30,7 @@ public sealed class ClubBillingEndpointTests
         await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
         await SeedSubscriptionAsync(factory);
 
-        var subscription = await client.GetFromJsonAsync<TenantSubscriptionDto>(
+        var subscription = await client.GetFromJsonAsync<OrganizationSubscriptionDto>(
             $"/api/organizations/{TestIds.OrganizationId:D}/subscription");
 
         Assert.NotNull(subscription);
@@ -107,9 +107,9 @@ public sealed class ClubBillingEndpointTests
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var now = DateTimeOffset.UtcNow;
-        db.TenantSubscriptions.Add(new TenantSubscriptionEntity
+        db.OrganizationSubscriptions.Add(new OrganizationSubscriptionEntity
         {
-            TenantSubscriptionId = Guid.NewGuid(),
+            OrganizationSubscriptionId = Guid.NewGuid(),
             OrganizationId = TestIds.OrganizationId,
             PlanCode = "starter",
             Status = SubscriptionStatusNames.Active,

@@ -54,7 +54,7 @@ using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Operator;
 using AFK4.Shared.Contracts.Platform.SupportNotes;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Receipts;
 using AFK4.Shared.Contracts.Reports;
@@ -96,13 +96,13 @@ internal static class AuthEndpoints
                 : Results.Ok(response);
         });
 
-        organizations.MapPost("auth/staff/sign-in-by-tenant-key", async (
+        organizations.MapPost("auth/staff/sign-in-by-organization-key", async (
             Guid organizationId,
-            StaffSignInByTenantKeyRequest request,
+            StaffSignInByOrganizationKeyRequest request,
             IStaffCredentialService credentialService,
             CancellationToken cancellationToken) =>
         {
-            var response = await credentialService.SignInByTenantKeyAsync(request, cancellationToken);
+            var response = await credentialService.SignInByOrganizationKeyAsync(request, cancellationToken);
 
             return response switch
             {
@@ -165,16 +165,16 @@ internal static class AuthEndpoints
             return response is null ? Results.Unauthorized() : Results.Ok(response);
         }).RequireRateLimiting("player-public");
 
-        app.MapGet("/api/public/tenant/{tenantKey}/branding", async (
-            string tenantKey,
+        app.MapGet("/api/public/organization/{organizationKey}/branding", async (
+            string organizationKey,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
-            var normalizedKey = SlugValidator.Normalize(tenantKey);
+            var normalizedKey = SlugValidator.Normalize(organizationKey);
             var org = await dbContext.Organizations
                 .AsNoTracking()
                 .Where(o => o.Slug == normalizedKey && o.Status == "active")
-                .Select(o => new TenantBrandingDto(o.OrganizationId, o.Name, o.LogoUrl, o.AccentColor))
+                .Select(o => new OrganizationBrandingDto(o.OrganizationId, o.Name, o.LogoUrl, o.AccentColor))
                 .FirstOrDefaultAsync(cancellationToken);
             return org is null ? Results.NotFound() : Results.Ok(org);
         }).RequireRateLimiting("player-public");

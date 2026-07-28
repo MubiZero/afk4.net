@@ -2,7 +2,7 @@ using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Billing;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests.Platform;
@@ -17,7 +17,7 @@ public sealed class BillingListEndpointTests
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var org = await SeedOrgWithSubscriptionAsync(db, "acme", "Acme", SubscriptionStatusNames.Active);
 
-        var service = scope.ServiceProvider.GetRequiredService<ITenantSubscriptionService>();
+        var service = scope.ServiceProvider.GetRequiredService<IOrganizationSubscriptionService>();
         var result = await service.ListAsync(status: null, planCode: null, CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -35,7 +35,7 @@ public sealed class BillingListEndpointTests
         await SeedOrgWithSubscriptionAsync(db, "alpha-active", "Alpha", SubscriptionStatusNames.Active);
         await SeedOrgWithSubscriptionAsync(db, "beta-cancelled", "Beta", SubscriptionStatusNames.Cancelled);
 
-        var service = scope.ServiceProvider.GetRequiredService<ITenantSubscriptionService>();
+        var service = scope.ServiceProvider.GetRequiredService<IOrganizationSubscriptionService>();
         var result = await service.ListAsync(status: SubscriptionStatusNames.Cancelled, planCode: null, CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -49,7 +49,7 @@ public sealed class BillingListEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         await using var scope = factory.Services.CreateAsyncScope();
-        var service = scope.ServiceProvider.GetRequiredService<ITenantSubscriptionService>();
+        var service = scope.ServiceProvider.GetRequiredService<IOrganizationSubscriptionService>();
 
         var result = await service.ListAsync(status: "bogus", planCode: null, CancellationToken.None);
 
@@ -66,7 +66,7 @@ public sealed class BillingListEndpointTests
         await SeedOrgWithSubscriptionAsync(db, "starter-org", "Starter", SubscriptionStatusNames.Active);
         await SeedOrgWithSubscriptionAsync(db, "growth-org", "Growth", SubscriptionStatusNames.Active, planCode: "growth");
 
-        var service = scope.ServiceProvider.GetRequiredService<ITenantSubscriptionService>();
+        var service = scope.ServiceProvider.GetRequiredService<IOrganizationSubscriptionService>();
         var result = await service.ListAsync(status: null, planCode: "growth", CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -85,16 +85,16 @@ public sealed class BillingListEndpointTests
             OrganizationId = orgId,
             Slug = slug,
             Name = name,
-            Status = TenantStatusNames.Active,
+            Status = OrganizationStatusNames.Active,
             PlanCode = planCode,
             SubscriptionStatus = status,
             LimitsJson = "{}",
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         });
-        db.TenantSubscriptions.Add(new TenantSubscriptionEntity
+        db.OrganizationSubscriptions.Add(new OrganizationSubscriptionEntity
         {
-            TenantSubscriptionId = Guid.NewGuid(),
+            OrganizationSubscriptionId = Guid.NewGuid(),
             OrganizationId = orgId,
             PlanCode = planCode,
             Status = status,

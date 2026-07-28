@@ -6,8 +6,8 @@ public interface IStaffCredentialService
 {
     Task<StaffSignInResponse?> SignInAsync(StaffSignInRequest request, CancellationToken cancellationToken);
 
-    Task<StaffSignInResponse?> SignInByTenantKeyAsync(
-        StaffSignInByTenantKeyRequest request,
+    Task<StaffSignInResponse?> SignInByOrganizationKeyAsync(
+        StaffSignInByOrganizationKeyRequest request,
         CancellationToken cancellationToken);
 
     Task<StaffLoginResolution> SignInByLoginAsync(

@@ -16,7 +16,7 @@ public static class PlatformAdminPermissionNames
 
     public const string ManageOrganizationSupportNotes = "platform.organizations.support_notes.manage";
 
-    public const string ManageOrganizationOrganizationOwnerInvites = "platform.organizations.owner_invites.manage";
+    public const string ManageOrganizationOwnerInvites = "platform.organizations.owner_invites.manage";
 
     public const string ViewOrganizationHealth = "platform.organizations.health.view";
 

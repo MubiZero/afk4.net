@@ -1,6 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Platform.Billing;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -29,7 +29,7 @@ public sealed class BillingPlanSeedHostedServiceTests
         await using var scope = provider.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var codes = await db.SubscriptionPlans.Select(plan => plan.PlanCode).OrderBy(code => code).ToListAsync();
-        Assert.Equal(new[] { TenantPlanCodeNames.Growth, TenantPlanCodeNames.Scale, TenantPlanCodeNames.Starter }, codes);
+        Assert.Equal(new[] { OrganizationPlanCodeNames.Growth, OrganizationPlanCodeNames.Scale, OrganizationPlanCodeNames.Starter }, codes);
     }
 
     [Fact]

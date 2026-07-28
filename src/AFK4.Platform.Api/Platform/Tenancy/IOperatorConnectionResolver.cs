@@ -4,7 +4,7 @@ namespace AFK4.Platform.Api.Platform.Tenancy;
 
 public interface IOperatorConnectionResolver
 {
-    Task<PlatformTenantOperationResult<ResolveOperatorConnectionResponse>> ResolveAsync(
+    Task<PlatformOrganizationOperationResult<ResolveOperatorConnectionResponse>> ResolveAsync(
         ResolveOperatorConnectionRequest request,
         CancellationToken cancellationToken);
 }

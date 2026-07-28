@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { postHostRequest } from './hostBridge';
-import { isOperatorTenantBlocked } from './ConnectionResolutionScreen';
+import { isOperatorOrganizationBlocked } from './ConnectionResolutionScreen';
 import {
   BridgeOperatorConnectionStorage,
   ConnectionResolver,
@@ -29,7 +29,7 @@ export interface OperatorConnection {
 }
 
 // Resolves the operator's org/branch binding from local (or host-bridge) storage and layers it over the
-// base config. A blocked/suspended tenant is surfaced separately so the shell can show the blocked screen.
+// base config. A blocked/suspended organization is surfaced separately so the shell can show the blocked screen.
 export function useOperatorConnection(baseConfig: OperatorConfig): OperatorConnection {
   const connectionStorage = useMemo(() => createOperatorConnectionStorage(), []);
   const [resolvedConnection, setResolvedConnection] = useState<ResolvedOperatorConnection | null>(
@@ -87,7 +87,7 @@ export function useOperatorConnection(baseConfig: OperatorConfig): OperatorConne
   }, [connectionStorage]);
 
   const handleConnectionResolved = async (resolution: ResolveOperatorConnectionResponse) => {
-    if (isOperatorTenantBlocked(resolution)) {
+    if (isOperatorOrganizationBlocked(resolution)) {
       await connectionStorage.clear();
       setResolvedConnection(null);
       setBlockedResolution(resolution);

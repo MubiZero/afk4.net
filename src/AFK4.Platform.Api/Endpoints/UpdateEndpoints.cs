@@ -54,7 +54,7 @@ using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Operator;
 using AFK4.Shared.Contracts.Platform.SupportNotes;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Pos;
 using AFK4.Shared.Contracts.Receipts;
 using AFK4.Shared.Contracts.Reports;
@@ -624,7 +624,7 @@ internal static class UpdateEndpoints
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
             IUpdateService updateService,
-            ITenantStatusGuard tenantStatusGuard,
+            IOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != request.DeviceId)
@@ -638,7 +638,7 @@ internal static class UpdateEndpoints
                 return Results.Unauthorized();
             }
 
-            var suspendedCheck = await tenantStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+            var suspendedCheck = await organizationStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
             if (suspendedCheck is not null)
             {
                 return suspendedCheck;
@@ -655,7 +655,7 @@ internal static class UpdateEndpoints
             HttpContext httpContext,
             IDeviceCredentialValidator credentialValidator,
             IUpdateService updateService,
-            ITenantStatusGuard tenantStatusGuard,
+            IOrganizationStatusGuard organizationStatusGuard,
             CancellationToken cancellationToken) =>
         {
             if (deviceId != request.DeviceId)
@@ -669,7 +669,7 @@ internal static class UpdateEndpoints
                 return Results.Unauthorized();
             }
 
-            var suspendedCheck = await tenantStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
+            var suspendedCheck = await organizationStatusGuard.RequireActiveAsync(request.OrganizationId, cancellationToken);
             if (suspendedCheck is not null)
             {
                 return suspendedCheck;

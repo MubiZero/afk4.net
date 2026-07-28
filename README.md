@@ -3,7 +3,7 @@
 AFK4.NET is a cloud-first SaaS platform for managing Windows-based cyber clubs.
 It is being built as operator-grade software in the same product category as
 Senet, Langame, and SmartShell: cloud backend, native Windows Operator App,
-internal SaaS Control Plane, Windows Agent Service, Player Shell, sessions,
+internal SaaS Platform Control, Windows Agent Service, Player Shell, sessions,
 billing, POS, audit, reports, and centralized client updates.
 
 The current codebase is no longer just a scaffold. It contains an implemented
@@ -34,7 +34,7 @@ session.
 ## Fixed MVP Decisions
 
 - Cloud-first SaaS; no local club server in the MVP.
-- Internal browser-based SaaS Control Plane is in the MVP for platform-owner
+- Internal browser-based SaaS Platform Control is in the MVP for platform-owner
   tenant onboarding, subscription/status controls, tenant health, and support.
 - Native Windows Operator App built as a .NET desktop shell with WebView2 and
   a React/TypeScript operator UI.
@@ -59,7 +59,7 @@ session.
 management, sessions, billing, POS, shifts, reports, audit, updates, and
 reconciliation. PostgreSQL persistence is implemented with EF Core migrations.
 
-### SaaS Control Plane
+### SaaS Platform Control
 
 The approved next platform-owner surface is an internal browser-based Control
 Plane for tenant provisioning, first branch setup, owner invites,
@@ -72,7 +72,7 @@ separate platform-admin authorization boundary, not branch staff tokens.
 `src/AFK4.Operator.App` is the native Windows app for operators, cashiers,
 managers, technicians, accountants, and owners depending on permissions. The
 approved target is a .NET desktop host with WebView2 and a React/TypeScript
-operator UI. It is distinct from the SaaS Control Plane; the main working
+operator UI. It is distinct from the SaaS Platform Control; the main working
 screen is the floor map. The WebView2/React console now has staff sign-in,
 backend-loaded floor-map state, selected-seat session actions, billing-mode
 selection, filters/table view, SignalR reloads, active-session ticking, and

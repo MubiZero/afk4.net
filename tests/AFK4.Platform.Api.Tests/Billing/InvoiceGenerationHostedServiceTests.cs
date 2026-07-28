@@ -1,7 +1,7 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Billing;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -30,13 +30,13 @@ public sealed class InvoiceGenerationHostedServiceTests
             var orgId = Guid.NewGuid();
             db.Organizations.Add(new OrganizationEntity
             {
-                OrganizationId = orgId, Slug = "o", Name = "O", Status = TenantStatusNames.Active,
+                OrganizationId = orgId, Slug = "o", Name = "O", Status = OrganizationStatusNames.Active,
                 PlanCode = "starter", SubscriptionStatus = SubscriptionStatusNames.Active, LimitsJson = "{}",
                 CreatedAtUtc = start, UpdatedAtUtc = start
             });
-            db.TenantSubscriptions.Add(new TenantSubscriptionEntity
+            db.OrganizationSubscriptions.Add(new OrganizationSubscriptionEntity
             {
-                TenantSubscriptionId = Guid.NewGuid(), OrganizationId = orgId, PlanCode = "starter",
+                OrganizationSubscriptionId = Guid.NewGuid(), OrganizationId = orgId, PlanCode = "starter",
                 Status = SubscriptionStatusNames.Active, CurrentPeriodStartUtc = start, CurrentPeriodEndUtc = start.AddMonths(1),
                 NextInvoiceUtc = start.AddMonths(1), AmountMinorUnits = 290000, CurrencyCode = "RUB",
                 BillingInterval = BillingIntervalNames.Monthly, CreatedAtUtc = start, UpdatedAtUtc = start

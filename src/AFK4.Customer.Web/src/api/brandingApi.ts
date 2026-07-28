@@ -1,13 +1,13 @@
-import type { TenantBrandingDto } from './types';
+import type { OrganizationBrandingDto } from './types';
 
-export async function fetchTenantBranding(
+export async function fetchOrganizationBranding(
   baseUrl: string,
-  tenantKey: string,
+  organizationKey: string,
   fetchImpl: typeof fetch = fetch
-): Promise<TenantBrandingDto | null> {
-  const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/api/public/tenant/${encodeURIComponent(tenantKey)}/branding`, {
+): Promise<OrganizationBrandingDto | null> {
+  const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/api/public/organization/${encodeURIComponent(organizationKey)}/branding`, {
     method: 'GET'
   });
   if (!response.ok) return null;
-  return JSON.parse(await response.text()) as TenantBrandingDto;
+  return JSON.parse(await response.text()) as OrganizationBrandingDto;
 }

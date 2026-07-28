@@ -706,7 +706,7 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
 
     const currentVersion = reservation.version;
     if (request.organizationId !== ORG) {
-      return jsonError(400, 'organization_mismatch', 'Organization does not match the preview tenant.', currentVersion);
+      return jsonError(400, 'organization_mismatch', 'Organization does not match the preview organization.', currentVersion);
     }
 
     const idempotencyKey = typeof request.idempotencyKey === 'string' ? request.idempotencyKey.trim() : '';

@@ -4,7 +4,7 @@ using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Platform.SupportNotes;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -18,12 +18,12 @@ public sealed class PlatformSupportNoteEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         var admin = await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        var organizationId = await CreateTenantAsync(client);
+        var organizationId = await CreateOrganizationAsync(client);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/support-notes",
-            new CreateTenantSupportNoteRequest("Owner called about login issue"));
-        var body = await response.Content.ReadFromJsonAsync<TenantSupportNoteDto>();
+            $"/api/platform/organizations/{organizationId:D}/support-notes",
+            new CreateOrganizationSupportNoteRequest("Owner called about login issue"));
+        var body = await response.Content.ReadFromJsonAsync<OrganizationSupportNoteDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
@@ -34,15 +34,15 @@ public sealed class PlatformSupportNoteEndpointTests
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var note = await dbContext.TenantSupportNotes.SingleAsync(n => n.OrganizationId == organizationId);
+        var note = await dbContext.OrganizationSupportNotes.SingleAsync(n => n.OrganizationId == organizationId);
         Assert.Equal("Owner called about login issue", note.Body);
         Assert.Equal(admin.PlatformAdminId, note.AuthorPlatformAdminUserId);
 
         var audit = await dbContext.AuditRecords.SingleAsync(record =>
-            record.Action == AuditActionNames.CreateTenantSupportNote &&
+            record.Action == AuditActionNames.CreateOrganizationSupportNote &&
             record.Outcome == AuditOutcome.Succeeded);
         Assert.Equal(organizationId, audit.OrganizationId);
-        Assert.Equal(note.TenantSupportNoteId.ToString("D"), audit.TargetId);
+        Assert.Equal(note.OrganizationSupportNoteId.ToString("D"), audit.TargetId);
     }
 
     [Fact]
@@ -51,25 +51,25 @@ public sealed class PlatformSupportNoteEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        var organizationId = await CreateTenantAsync(client);
+        var organizationId = await CreateOrganizationAsync(client);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/support-notes",
-            new CreateTenantSupportNoteRequest(""));
+            $"/api/platform/organizations/{organizationId:D}/support-notes",
+            new CreateOrganizationSupportNoteRequest(""));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
-    public async Task PostSupportNote_OnUnknownTenant_Returns404()
+    public async Task PostSupportNote_OnUnknownOrganization_Returns404()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{Guid.NewGuid():D}/support-notes",
-            new CreateTenantSupportNoteRequest("Stray note"));
+            $"/api/platform/organizations/{Guid.NewGuid():D}/support-notes",
+            new CreateOrganizationSupportNoteRequest("Stray note"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -81,8 +81,8 @@ public sealed class PlatformSupportNoteEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{Guid.NewGuid():D}/support-notes",
-            new CreateTenantSupportNoteRequest("hi"));
+            $"/api/platform/organizations/{Guid.NewGuid():D}/support-notes",
+            new CreateOrganizationSupportNoteRequest("hi"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -95,8 +95,8 @@ public sealed class PlatformSupportNoteEndpointTests
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: []);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{Guid.NewGuid():D}/support-notes",
-            new CreateTenantSupportNoteRequest("hi"));
+            $"/api/platform/organizations/{Guid.NewGuid():D}/support-notes",
+            new CreateOrganizationSupportNoteRequest("hi"));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
@@ -107,19 +107,19 @@ public sealed class PlatformSupportNoteEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        var organizationId = await CreateTenantAsync(client);
+        var organizationId = await CreateOrganizationAsync(client);
 
         var first = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/support-notes",
-            new CreateTenantSupportNoteRequest("First note"));
+            $"/api/platform/organizations/{organizationId:D}/support-notes",
+            new CreateOrganizationSupportNoteRequest("First note"));
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
         var second = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/support-notes",
-            new CreateTenantSupportNoteRequest("Second note"));
+            $"/api/platform/organizations/{organizationId:D}/support-notes",
+            new CreateOrganizationSupportNoteRequest("Second note"));
         Assert.Equal(HttpStatusCode.OK, second.StatusCode);
 
-        var listResponse = await client.GetAsync($"/api/platform/tenants/{organizationId:D}/support-notes");
-        var notes = await listResponse.Content.ReadFromJsonAsync<List<TenantSupportNoteDto>>();
+        var listResponse = await client.GetAsync($"/api/platform/organizations/{organizationId:D}/support-notes");
+        var notes = await listResponse.Content.ReadFromJsonAsync<List<OrganizationSupportNoteDto>>();
 
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         Assert.NotNull(notes);
@@ -128,13 +128,13 @@ public sealed class PlatformSupportNoteEndpointTests
     }
 
     [Fact]
-    public async Task GetSupportNotes_OnUnknownTenant_Returns404()
+    public async Task GetSupportNotes_OnUnknownOrganization_Returns404()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
 
-        var response = await client.GetAsync($"/api/platform/tenants/{Guid.NewGuid():D}/support-notes");
+        var response = await client.GetAsync($"/api/platform/organizations/{Guid.NewGuid():D}/support-notes");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -145,18 +145,18 @@ public sealed class PlatformSupportNoteEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        var organizationId = await CreateTenantAsync(client);
+        var organizationId = await CreateOrganizationAsync(client);
 
         var create = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/support-notes",
-            new CreateTenantSupportNoteRequest("Initial"));
-        var created = await create.Content.ReadFromJsonAsync<TenantSupportNoteDto>();
+            $"/api/platform/organizations/{organizationId:D}/support-notes",
+            new CreateOrganizationSupportNoteRequest("Initial"));
+        var created = await create.Content.ReadFromJsonAsync<OrganizationSupportNoteDto>();
         Assert.NotNull(created);
 
         var update = await client.PatchAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/support-notes/{created.TenantSupportNoteId:D}",
-            new UpdateTenantSupportNoteRequest("Updated body with more details"));
-        var updated = await update.Content.ReadFromJsonAsync<TenantSupportNoteDto>();
+            $"/api/platform/organizations/{organizationId:D}/support-notes/{created.OrganizationSupportNoteId:D}",
+            new UpdateOrganizationSupportNoteRequest("Updated body with more details"));
+        var updated = await update.Content.ReadFromJsonAsync<OrganizationSupportNoteDto>();
 
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
         Assert.NotNull(updated);
@@ -164,12 +164,12 @@ public sealed class PlatformSupportNoteEndpointTests
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var note = await dbContext.TenantSupportNotes.SingleAsync(n => n.TenantSupportNoteId == created.TenantSupportNoteId);
+        var note = await dbContext.OrganizationSupportNotes.SingleAsync(n => n.OrganizationSupportNoteId == created.OrganizationSupportNoteId);
         Assert.Equal("Updated body with more details", note.Body);
         var audit = await dbContext.AuditRecords.SingleAsync(record =>
-            record.Action == AuditActionNames.UpdateTenantSupportNote &&
+            record.Action == AuditActionNames.UpdateOrganizationSupportNote &&
             record.Outcome == AuditOutcome.Succeeded);
-        Assert.Equal(note.TenantSupportNoteId.ToString("D"), audit.TargetId);
+        Assert.Equal(note.OrganizationSupportNoteId.ToString("D"), audit.TargetId);
     }
 
     [Fact]
@@ -178,33 +178,33 @@ public sealed class PlatformSupportNoteEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        var organizationId = await CreateTenantAsync(client);
+        var organizationId = await CreateOrganizationAsync(client);
 
         var response = await client.PatchAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/support-notes/{Guid.NewGuid():D}",
-            new UpdateTenantSupportNoteRequest("Edit"));
+            $"/api/platform/organizations/{organizationId:D}/support-notes/{Guid.NewGuid():D}",
+            new UpdateOrganizationSupportNoteRequest("Edit"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
-    public async Task PatchSupportNote_RejectsCrossTenantNote()
+    public async Task PatchSupportNote_RejectsCrossOrganizationNote()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        var tenantA = await CreateTenantAsync(client, orgSlug: "club-a", branchSlug: "main");
-        var tenantB = await CreateTenantAsync(client, orgSlug: "club-b", branchSlug: "main");
+        var organizationA = await CreateOrganizationAsync(client, orgSlug: "club-a", branchSlug: "main");
+        var organizationB = await CreateOrganizationAsync(client, orgSlug: "club-b", branchSlug: "main");
 
         var create = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{tenantA:D}/support-notes",
-            new CreateTenantSupportNoteRequest("Tenant A note"));
-        var created = await create.Content.ReadFromJsonAsync<TenantSupportNoteDto>();
+            $"/api/platform/organizations/{organizationA:D}/support-notes",
+            new CreateOrganizationSupportNoteRequest("Organization A note"));
+        var created = await create.Content.ReadFromJsonAsync<OrganizationSupportNoteDto>();
         Assert.NotNull(created);
 
         var response = await client.PatchAsJsonAsync(
-            $"/api/platform/tenants/{tenantB:D}/support-notes/{created.TenantSupportNoteId:D}",
-            new UpdateTenantSupportNoteRequest("Should fail"));
+            $"/api/platform/organizations/{organizationB:D}/support-notes/{created.OrganizationSupportNoteId:D}",
+            new UpdateOrganizationSupportNoteRequest("Should fail"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -215,40 +215,40 @@ public sealed class PlatformSupportNoteEndpointTests
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
-        var organizationId = await CreateTenantAsync(client);
+        var organizationId = await CreateOrganizationAsync(client);
 
         var create = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/support-notes",
-            new CreateTenantSupportNoteRequest("Some note"));
-        var created = await create.Content.ReadFromJsonAsync<TenantSupportNoteDto>();
+            $"/api/platform/organizations/{organizationId:D}/support-notes",
+            new CreateOrganizationSupportNoteRequest("Some note"));
+        var created = await create.Content.ReadFromJsonAsync<OrganizationSupportNoteDto>();
         Assert.NotNull(created);
 
         var update = await client.PatchAsJsonAsync(
-            $"/api/platform/tenants/{organizationId:D}/support-notes/{created.TenantSupportNoteId:D}",
-            new UpdateTenantSupportNoteRequest("   "));
+            $"/api/platform/organizations/{organizationId:D}/support-notes/{created.OrganizationSupportNoteId:D}",
+            new UpdateOrganizationSupportNoteRequest("   "));
 
         Assert.Equal(HttpStatusCode.BadRequest, update.StatusCode);
     }
 
-    private static async Task<Guid> CreateTenantAsync(HttpClient client, string orgSlug = "demo-club", string branchSlug = "main")
+    private static async Task<Guid> CreateOrganizationAsync(HttpClient client, string orgSlug = "demo-club", string branchSlug = "main")
     {
         var response = await client.PostAsJsonAsync(
-            "/api/platform/tenants",
-            new CreateTenantRequest(
+            "/api/platform/organizations",
+            new CreateOrganizationRequest(
                 OrganizationSlug: orgSlug,
                 OrganizationName: "Demo Club",
                 BranchSlug: branchSlug,
                 BranchName: "Main Branch",
                 BranchCity: "Dushanbe",
-                PlanCode: TenantPlanCodeNames.Starter,
+                PlanCode: OrganizationPlanCodeNames.Starter,
                 SubscriptionStatus: SubscriptionStatusNames.Trial,
-                Limits: new TenantLimitsDto(1, 20, 30, 5),
+                Limits: new OrganizationLimitsDto(1, 20, 30, 5),
                 OwnerUserName: null,
                 OwnerDisplayName: null,
                 OrganizationOwnerInviteLifetime: null));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadFromJsonAsync<CreateTenantResponse>();
+        var body = await response.Content.ReadFromJsonAsync<CreateOrganizationResponse>();
         Assert.NotNull(body);
-        return body.Tenant.OrganizationId;
+        return body.Organization.OrganizationId;
     }
 }

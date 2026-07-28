@@ -10,7 +10,7 @@
 }
 
 :root {
-  /* tenant-overridable accent (applyTheme writes here) */
+  /* organization-overridable accent (applyTheme writes here) */
   --accent: #c8ff00;
   --accent-fg: #101314;
   /* text opacities per dark-theme rule */

@@ -2,7 +2,7 @@ import { it, expect, mock } from 'bun:test';
 import { renderHook, waitFor } from '@testing-library/react';
 import { useBranding } from './useBranding';
 
-it('resolves a tenant key, fetches branding and reports ready', async () => {
+it('resolves a organization key, fetches branding and reports ready', async () => {
   const fetchBranding = mock().mockResolvedValue({ organizationId: 'org-9', name: 'Cyber Arena', logoUrl: null, accentColor: '#ff0080' });
   const apply = mock();
   const { result } = renderHook(() => useBranding({

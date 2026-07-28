@@ -41,7 +41,7 @@ const MONITORS = [
     url: 'https://platform.afk4.staging.mubi.dev/',
     method: 'GET',
     expectStatus: 200,
-    expectBody: 'AFK4 Platform Control Plane',
+    expectBody: 'AFK4 Platform Platform Control',
   },
 ];
 

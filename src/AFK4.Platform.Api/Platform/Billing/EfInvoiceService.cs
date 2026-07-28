@@ -20,7 +20,7 @@ public sealed class EfInvoiceService(
         InvoiceStatusNames.Overdue
     };
 
-    public async Task<BillingOperationResult<IReadOnlyList<InvoiceDto>>> ListForTenantAsync(
+    public async Task<BillingOperationResult<IReadOnlyList<InvoiceDto>>> ListForOrganizationAsync(
         Guid organizationId,
         string? status,
         CancellationToken cancellationToken)
@@ -29,7 +29,7 @@ public sealed class EfInvoiceService(
             .AnyAsync(org => org.OrganizationId == organizationId, cancellationToken);
         if (!orgExists)
         {
-            return BillingOperationResult<IReadOnlyList<InvoiceDto>>.NotFound("Tenant was not found.");
+            return BillingOperationResult<IReadOnlyList<InvoiceDto>>.NotFound("Organization was not found.");
         }
 
         var query = dbContext.Invoices.AsNoTracking()
@@ -57,12 +57,12 @@ public sealed class EfInvoiceService(
         Guid organizationId,
         CancellationToken cancellationToken)
     {
-        var subscription = await dbContext.TenantSubscriptions
+        var subscription = await dbContext.OrganizationSubscriptions
             .SingleOrDefaultAsync(s => s.OrganizationId == organizationId, cancellationToken);
         if (subscription is null)
         {
             return BillingOperationResult<InvoiceDto>.NotFound(
-                "Tenant has no subscription. Open the subscription first to create one.");
+                "Organization has no subscription. Open the subscription first to create one.");
         }
 
         var now = timeProvider.GetUtcNow();

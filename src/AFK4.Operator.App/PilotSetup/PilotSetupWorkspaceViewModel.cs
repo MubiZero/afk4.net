@@ -571,14 +571,14 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
         if (!Guid.TryParse(OrganizationIdText, out organizationId))
         {
             ErrorMessage = "OrganizationId must be a valid GUID.";
-            AddResult("context", "Tenant context", "failed", ErrorMessage, null);
+            AddResult("context", "Organization context", "failed", ErrorMessage, null);
             return false;
         }
 
         if (!Guid.TryParse(BranchIdText, out branchId))
         {
             ErrorMessage = "BranchId must be a valid GUID.";
-            AddResult("context", "Tenant context", "failed", ErrorMessage, null);
+            AddResult("context", "Organization context", "failed", ErrorMessage, null);
             return false;
         }
 

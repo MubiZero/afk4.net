@@ -1,7 +1,7 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Billing;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -19,18 +19,18 @@ public sealed class EfInvoiceGenerationRunnerTests
     private static EfInvoiceGenerationRunner NewRunner(PlatformDbContext db, IInvoiceNotifier? notifier = null) =>
         new(db, Options.Create(new BillingOptions()), notifier ?? new RecordingInvoiceNotifier());
 
-    private static async Task<TenantSubscriptionEntity> SeedActiveDueSubscriptionAsync(PlatformDbContext db)
+    private static async Task<OrganizationSubscriptionEntity> SeedActiveDueSubscriptionAsync(PlatformDbContext db)
     {
         var orgId = Guid.NewGuid();
         db.Organizations.Add(new OrganizationEntity
         {
-            OrganizationId = orgId, Slug = "o", Name = "O", Status = TenantStatusNames.Active,
+            OrganizationId = orgId, Slug = "o", Name = "O", Status = OrganizationStatusNames.Active,
             PlanCode = "starter", SubscriptionStatus = SubscriptionStatusNames.Active, LimitsJson = "{}",
             CreatedAtUtc = Start, UpdatedAtUtc = Start
         });
-        var subscription = new TenantSubscriptionEntity
+        var subscription = new OrganizationSubscriptionEntity
         {
-            TenantSubscriptionId = Guid.NewGuid(),
+            OrganizationSubscriptionId = Guid.NewGuid(),
             OrganizationId = orgId,
             PlanCode = "starter",
             Status = SubscriptionStatusNames.Active,
@@ -43,7 +43,7 @@ public sealed class EfInvoiceGenerationRunnerTests
             CreatedAtUtc = Start,
             UpdatedAtUtc = Start
         };
-        db.TenantSubscriptions.Add(subscription);
+        db.OrganizationSubscriptions.Add(subscription);
         await db.SaveChangesAsync();
         return subscription;
     }
@@ -64,7 +64,7 @@ public sealed class EfInvoiceGenerationRunnerTests
         Assert.Equal(1, invoice.Number);
         Assert.Equal(Start.AddMonths(1), invoice.IssuedAtUtc);
         Assert.Equal(Start.AddMonths(1).AddDays(7), invoice.DueAtUtc); // default InvoiceDueAfter = 7 days
-        var reloaded = await db.TenantSubscriptions.SingleAsync();
+        var reloaded = await db.OrganizationSubscriptions.SingleAsync();
         Assert.Equal(Start.AddMonths(1), reloaded.CurrentPeriodStartUtc);
         Assert.Equal(Start.AddMonths(2), reloaded.CurrentPeriodEndUtc);
     }

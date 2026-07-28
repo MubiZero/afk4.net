@@ -1,7 +1,7 @@
 namespace AFK4.Shared.Contracts.Platform.Billing;
 
 public sealed record SubscriptionListItemDto(
-    Guid TenantSubscriptionId,
+    Guid OrganizationSubscriptionId,
     Guid OrganizationId,
     string OrganizationName,
     string OrganizationSlug,

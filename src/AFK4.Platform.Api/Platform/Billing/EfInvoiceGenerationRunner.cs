@@ -1,6 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Billing;
-using AFK4.Shared.Contracts.Platform.Tenants;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -15,7 +15,7 @@ public sealed class EfInvoiceGenerationRunner(
 
     public async Task<int> RunAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
-        var dueSubscriptions = await dbContext.TenantSubscriptions
+        var dueSubscriptions = await dbContext.OrganizationSubscriptions
             .Where(subscription =>
                 subscription.Status == SubscriptionStatusNames.Active &&
                 subscription.NextInvoiceUtc != null &&
@@ -56,7 +56,7 @@ public sealed class EfInvoiceGenerationRunner(
     }
 
     public async Task<InvoiceEntity?> GenerateForSubscriptionAsync(
-        TenantSubscriptionEntity subscription,
+        OrganizationSubscriptionEntity subscription,
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {

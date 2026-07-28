@@ -54,7 +54,7 @@ jobs:
           $webPrefixes = @(
             ".github/workflows/pr-verification.yml",
             "packages/",
-            "src/AFK4.Platform.Web/",
+            "src/AFK4.PlatformControl.Web/",
             "src/AFK4.Operator.App.Web/",
             "src/AFK4.Customer.Web/",
             "src/AFK4.SetupWizard.Web/"
@@ -150,7 +150,7 @@ jobs:
           set -e
           for dir in \
             packages/formatting packages/i18n packages/money \
-            src/AFK4.Platform.Web src/AFK4.Operator.App.Web \
+            src/AFK4.PlatformControl.Web src/AFK4.Operator.App.Web \
             src/AFK4.Customer.Web src/AFK4.SetupWizard.Web; do
             echo "::group::test $dir"
             # Run each workspace's own `test` script, not a bare `bun test`: the operator app
@@ -165,7 +165,7 @@ jobs:
         run: |
           set -e
           for dir in \
-            src/AFK4.Platform.Web src/AFK4.Operator.App.Web \
+            src/AFK4.PlatformControl.Web src/AFK4.Operator.App.Web \
             src/AFK4.Customer.Web src/AFK4.SetupWizard.Web; do
             echo "::group::build $dir"
             (cd "$dir" && bun run build)

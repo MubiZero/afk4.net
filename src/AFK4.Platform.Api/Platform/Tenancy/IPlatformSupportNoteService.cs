@@ -4,20 +4,20 @@ namespace AFK4.Platform.Api.Platform.Tenancy;
 
 public interface IPlatformSupportNoteService
 {
-    Task<PlatformTenantOperationResult<IReadOnlyList<TenantSupportNoteDto>>> ListAsync(
+    Task<PlatformOrganizationOperationResult<IReadOnlyList<OrganizationSupportNoteDto>>> ListAsync(
         Guid organizationId,
         CancellationToken cancellationToken);
 
-    Task<PlatformTenantOperationResult<TenantSupportNoteDto>> CreateAsync(
+    Task<PlatformOrganizationOperationResult<OrganizationSupportNoteDto>> CreateAsync(
         Guid organizationId,
-        CreateTenantSupportNoteRequest request,
+        CreateOrganizationSupportNoteRequest request,
         Guid platformAdminUserId,
         CancellationToken cancellationToken);
 
-    Task<PlatformTenantOperationResult<TenantSupportNoteDto>> UpdateAsync(
+    Task<PlatformOrganizationOperationResult<OrganizationSupportNoteDto>> UpdateAsync(
         Guid organizationId,
-        Guid tenantSupportNoteId,
-        UpdateTenantSupportNoteRequest request,
+        Guid organizationSupportNoteId,
+        UpdateOrganizationSupportNoteRequest request,
         Guid platformAdminUserId,
         CancellationToken cancellationToken);
 }

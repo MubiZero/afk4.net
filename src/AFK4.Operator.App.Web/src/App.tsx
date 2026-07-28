@@ -15,7 +15,7 @@ import { CommandPalette } from './CommandPalette';
 import { ForgotPassword } from './ForgotPassword';
 import { WindowResizeHandles } from './WindowChrome';
 import { SignInScreen } from './SignInScreen';
-import { BlockedTenantScreen } from './BlockedTenantScreen';
+import { BlockedOrganizationScreen } from './BlockedOrganizationScreen';
 import { PostAuthShiftGate } from './PostAuthShiftGate';
 import { ShellHeader } from './ShellHeader';
 import { WorkspaceRail } from './WorkspaceRail';
@@ -251,7 +251,7 @@ function AppInner() {
 
   if (blockedResolution !== null) {
     return (
-      <BlockedTenantScreen
+      <BlockedOrganizationScreen
         resolution={blockedResolution}
         onChangeConnection={handleChangeConnection}
       />

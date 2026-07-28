@@ -1311,6 +1311,95 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("owner_invites", (string)null);
                 });
 
+            modelBuilder.Entity("AFK4.Platform.Api.Data.OrganizationSubscriptionEntity", b =>
+                {
+                    b.Property<Guid>("OrganizationSubscriptionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("TenantSubscriptionId");
+
+                    b.Property<long>("AmountMinorUnits")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("BillingInterval")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<bool>("CancelAtPeriodEnd")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<DateTimeOffset>("CurrentPeriodEndUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CurrentPeriodStartUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("NextInvoiceUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PlanCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("OrganizationSubscriptionId");
+
+                    b.HasIndex("OrganizationId")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "NextInvoiceUtc");
+
+                    b.ToTable("tenant_subscriptions", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.OrganizationSupportNoteEntity", b =>
+                {
+                    b.Property<Guid>("OrganizationSupportNoteId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("TenantSupportNoteId");
+
+                    b.Property<Guid>("AuthorPlatformAdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("OrganizationSupportNoteId");
+
+                    b.HasIndex("OrganizationId", "CreatedAtUtc");
+
+                    b.ToTable("tenant_support_notes", (string)null);
+                });
+
             modelBuilder.Entity("AFK4.Platform.Api.Data.OutboxMessageEntity", b =>
                 {
                     b.Property<Guid>("OutboxMessageId")
@@ -3423,93 +3512,6 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("OrganizationId", "BranchId", "EffectiveFromUtc");
 
                     b.ToTable("tariff_versions", (string)null);
-                });
-
-            modelBuilder.Entity("AFK4.Platform.Api.Data.TenantSubscriptionEntity", b =>
-                {
-                    b.Property<Guid>("TenantSubscriptionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<long>("AmountMinorUnits")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("BillingInterval")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<bool>("CancelAtPeriodEnd")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CurrencyCode")
-                        .IsRequired()
-                        .HasMaxLength(3)
-                        .HasColumnType("character varying(3)");
-
-                    b.Property<DateTimeOffset>("CurrentPeriodEndUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset>("CurrentPeriodStartUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("NextInvoiceUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("PlanCode")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTimeOffset>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("TenantSubscriptionId");
-
-                    b.HasIndex("OrganizationId")
-                        .IsUnique();
-
-                    b.HasIndex("Status", "NextInvoiceUtc");
-
-                    b.ToTable("tenant_subscriptions", (string)null);
-                });
-
-            modelBuilder.Entity("AFK4.Platform.Api.Data.TenantSupportNoteEntity", b =>
-                {
-                    b.Property<Guid>("TenantSupportNoteId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AuthorPlatformAdminUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("TenantSupportNoteId");
-
-                    b.HasIndex("OrganizationId", "CreatedAtUtc");
-
-                    b.ToTable("tenant_support_notes", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.UpdatePackageEntity", b =>

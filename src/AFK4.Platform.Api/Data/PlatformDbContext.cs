@@ -120,13 +120,13 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<OrganizationOwnerInviteEntity> OrganizationOwnerInvites => Set<OrganizationOwnerInviteEntity>();
 
-    public DbSet<TenantSupportNoteEntity> TenantSupportNotes => Set<TenantSupportNoteEntity>();
+    public DbSet<OrganizationSupportNoteEntity> OrganizationSupportNotes => Set<OrganizationSupportNoteEntity>();
 
     public DbSet<PlatformIdempotencyRecordEntity> PlatformIdempotencyRecords => Set<PlatformIdempotencyRecordEntity>();
 
     public DbSet<SubscriptionPlanEntity> SubscriptionPlans => Set<SubscriptionPlanEntity>();
 
-    public DbSet<TenantSubscriptionEntity> TenantSubscriptions => Set<TenantSubscriptionEntity>();
+    public DbSet<OrganizationSubscriptionEntity> OrganizationSubscriptions => Set<OrganizationSubscriptionEntity>();
 
     public DbSet<InvoiceEntity> Invoices => Set<InvoiceEntity>();
 
@@ -205,10 +205,12 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(plan => plan.SortOrder);
         });
 
-        modelBuilder.Entity<TenantSubscriptionEntity>(entity =>
+        modelBuilder.Entity<OrganizationSubscriptionEntity>(entity =>
         {
             entity.ToTable("tenant_subscriptions");
-            entity.HasKey(subscription => subscription.TenantSubscriptionId);
+            entity.HasKey(subscription => subscription.OrganizationSubscriptionId);
+            entity.Property(subscription => subscription.OrganizationSubscriptionId)
+                .HasColumnName("TenantSubscriptionId");
             entity.Property(subscription => subscription.PlanCode).HasMaxLength(64).IsRequired();
             entity.Property(subscription => subscription.Status).HasMaxLength(32).IsRequired();
             entity.Property(subscription => subscription.CurrencyCode).HasMaxLength(3).IsRequired();
@@ -987,10 +989,12 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(invite => invite.ExpiresAtUtc);
         });
 
-        modelBuilder.Entity<TenantSupportNoteEntity>(entity =>
+        modelBuilder.Entity<OrganizationSupportNoteEntity>(entity =>
         {
             entity.ToTable("tenant_support_notes");
-            entity.HasKey(note => note.TenantSupportNoteId);
+            entity.HasKey(note => note.OrganizationSupportNoteId);
+            entity.Property(note => note.OrganizationSupportNoteId)
+                .HasColumnName("TenantSupportNoteId");
             entity.Property(note => note.Body).HasMaxLength(4000).IsRequired();
             entity.HasIndex(note => new { note.OrganizationId, note.CreatedAtUtc });
         });

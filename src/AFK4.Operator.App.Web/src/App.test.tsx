@@ -559,7 +559,7 @@ describe('App', () => {
     expect(alert).not.toHaveTextContent(/Setup code|Failed to resolve|operator connection|HTTP/);
   });
 
-  it('shows blocked-state copy and does not persist the connection when the resolved tenant is suspended', async () => {
+  it('shows blocked-state copy and does not persist the connection when the resolved organization is suspended', async () => {
     const bridge = installSessionBridge(null);
     fetchMock.mockImplementation((input, init) => {
       const url = new URL(String(input));
