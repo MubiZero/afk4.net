@@ -6,6 +6,9 @@ The active architecture source of truth is:
 
 Approved backlog specs:
 
+- `2026-07-28-operator-unified-admin-parity-closure-design.md` — closes the
+  required Clients, Monetization, Settings, and Venue gaps before Platform.Web
+  `/club` can be removed.
 - `2026-07-15-operator-reports-workspace-consolidation-design.md` — redesigns
   Reports as `Сводка / Смены и касса / Выручка`, gives Cash, Events, and Stock
   one clear ownership model, and replaces the separate approvals inbox with
