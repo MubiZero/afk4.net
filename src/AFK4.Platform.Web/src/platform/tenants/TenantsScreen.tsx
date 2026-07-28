@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { LoadingCards, ErrorState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { PlatformApiClient } from '@/api/platformApi';
-import type { OwnerInvite } from '@/api/types';
+import type { OrganizationOwnerInvite } from '@/api/types';
 import { useTenants } from './useTenants';
 import { buildTenantRows, STATUS_OPTIONS, STATUS_LABEL, PLAN_OPTIONS, PLAN_LABEL } from './tenantsModel';
 import { TenantsTable } from './TenantsTable';
@@ -15,7 +15,7 @@ import { TenantDrawer } from './TenantDrawer';
 interface TenantsScreenProps {
   client: PlatformApiClient;
   selectedTenantId: string | null;
-  initialInvite: OwnerInvite | null;
+  initialInvite: OrganizationOwnerInvite | null;
   onOpenTenant: (organizationId: string) => void;
   onCloseTenant: () => void;
   onCreateTenant: () => void;

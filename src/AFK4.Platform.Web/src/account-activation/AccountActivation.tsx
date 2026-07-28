@@ -1,15 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { OwnerInviteAcceptanceApi } from '../api/ownerInviteAcceptanceApi';
+import type { AccountActivationApi } from './accountActivationApi';
 import { PlatformApiError } from '../api/platformApi';
 import { useI18n } from '../i18n/I18nProvider';
-import { ErrorBanner, Field } from './ui';
+import { ErrorBanner, Field } from '../components/ui';
 
-export interface AcceptOwnerInviteProps {
-  client: OwnerInviteAcceptanceApi;
+export interface AccountActivationProps {
+  client: AccountActivationApi;
   initialCode: string | null;
 }
 
-export function AcceptOwnerInvite({ client, initialCode }: AcceptOwnerInviteProps) {
+export function AccountActivation({ client, initialCode }: AccountActivationProps) {
   const { t } = useI18n();
   const [code, setCode] = useState(initialCode ?? '');
   const [userName, setUserName] = useState('');

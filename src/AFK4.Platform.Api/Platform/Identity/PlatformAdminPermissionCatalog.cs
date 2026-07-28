@@ -16,7 +16,7 @@ public static class PlatformAdminPermissionCatalog
                 PlatformAdminPermissionNames.UpdateOrganizationLimits,
                 PlatformAdminPermissionNames.ViewOrganizationSupportNotes,
                 PlatformAdminPermissionNames.ManageOrganizationSupportNotes,
-                PlatformAdminPermissionNames.ManageOrganizationOwnerInvites,
+                PlatformAdminPermissionNames.ManageOrganizationOrganizationOwnerInvites,
                 PlatformAdminPermissionNames.ViewOrganizationHealth,
                 PlatformAdminPermissionNames.ViewPlatformAudit,
                 PlatformAdminPermissionNames.ViewBilling,
@@ -31,7 +31,7 @@ public static class PlatformAdminPermissionCatalog
                 PlatformAdminPermissionNames.UpdateOrganizationStatus,
                 PlatformAdminPermissionNames.ViewOrganizationSupportNotes,
                 PlatformAdminPermissionNames.ManageOrganizationSupportNotes,
-                PlatformAdminPermissionNames.ManageOrganizationOwnerInvites,
+                PlatformAdminPermissionNames.ManageOrganizationOrganizationOwnerInvites,
                 PlatformAdminPermissionNames.ViewOrganizationHealth,
                 PlatformAdminPermissionNames.ViewPlatformAudit,
                 PlatformAdminPermissionNames.ViewBilling

@@ -16,7 +16,7 @@ export interface PlatformAdminSignInResponse {
   permissions: string[];
 }
 
-export interface AcceptOwnerInviteRequest {
+export interface AccountActivationRequest {
   code: string;
   userName: string;
   displayName: string;
@@ -76,11 +76,11 @@ export interface CreateTenantRequest {
   limits: TenantLimits | null;
   ownerUserName: string | null;
   ownerDisplayName: string | null;
-  ownerInviteLifetime: string | null;
+  organizationOwnerInviteLifetime: string | null;
 }
 
-export interface OwnerInvite {
-  ownerInviteId: string;
+export interface OrganizationOwnerInvite {
+  organizationOwnerInviteId: string;
   organizationId: string;
   branchId: string;
   code: string;
@@ -94,8 +94,8 @@ export interface OwnerInvite {
   createdAtUtc: string;
 }
 
-export interface OwnerInviteSummary {
-  ownerInviteId: string;
+export interface OrganizationOwnerInviteSummary {
+  organizationOwnerInviteId: string;
   organizationId: string;
   branchId: string;
   codeSuffix: string;
@@ -111,7 +111,7 @@ export interface OwnerInviteSummary {
 
 export interface CreateTenantResponse {
   tenant: TenantDetail;
-  ownerInvite: OwnerInvite;
+  organizationOwnerInvite: OrganizationOwnerInvite;
 }
 
 export interface TenantSupportNote {

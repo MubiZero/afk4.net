@@ -74,7 +74,7 @@ public sealed class TenantContractSerializationTests
     }
 
     [Fact]
-    public void CreateTenantRequest_RoundTripsOptionalOwnerInviteFields()
+    public void CreateTenantRequest_RoundTripsOptionalOrganizationOwnerInviteFields()
     {
         var request = new CreateTenantRequest(
             OrganizationSlug: "new-club",
@@ -87,7 +87,7 @@ public sealed class TenantContractSerializationTests
             Limits: new TenantLimitsDto(2, 40, 60, 12),
             OwnerUserName: "owner@new-club.test",
             OwnerDisplayName: "Owner",
-            OwnerInviteLifetime: TimeSpan.FromDays(7));
+            OrganizationOwnerInviteLifetime: TimeSpan.FromDays(7));
 
         var json = JsonSerializer.Serialize(request);
         var copy = JsonSerializer.Deserialize<CreateTenantRequest>(json);
@@ -96,7 +96,7 @@ public sealed class TenantContractSerializationTests
         Assert.Equal(request.OrganizationSlug, copy.OrganizationSlug);
         Assert.Equal(request.BranchSlug, copy.BranchSlug);
         Assert.Equal(request.OwnerUserName, copy.OwnerUserName);
-        Assert.Equal(request.OwnerInviteLifetime, copy.OwnerInviteLifetime);
+        Assert.Equal(request.OrganizationOwnerInviteLifetime, copy.OrganizationOwnerInviteLifetime);
         Assert.NotNull(copy.Limits);
         Assert.Equal(2, copy.Limits!.MaxBranches);
     }
@@ -160,12 +160,12 @@ public sealed class TenantContractSerializationTests
                 ],
                 CreatedAtUtc: DateTimeOffset.Parse("2026-05-23T08:00:00Z"),
                 UpdatedAtUtc: DateTimeOffset.Parse("2026-05-23T08:00:00Z")),
-            OwnerInvite: new AFK4.Shared.Contracts.Platform.Invites.OwnerInviteDto(
-                OwnerInviteId: Guid.Parse("99999999-1111-2222-3333-444444444444"),
+            OrganizationOwnerInvite: new AFK4.Shared.Contracts.Identity.AccountActivation.OrganizationOwnerInviteDto(
+                OrganizationOwnerInviteId: Guid.Parse("99999999-1111-2222-3333-444444444444"),
                 OrganizationId: Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
                 BranchId: Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
                 Code: "demo-invite-abc123",
-                Status: AFK4.Shared.Contracts.Platform.Invites.OwnerInviteStatusNames.Pending,
+                Status: AFK4.Shared.Contracts.Identity.AccountActivation.OrganizationOwnerInviteStatusNames.Pending,
                 OwnerUserName: "owner@demo-club.test",
                 OwnerDisplayName: "Demo Owner",
                 ExpiresAtUtc: DateTimeOffset.Parse("2026-05-30T08:00:00Z"),
@@ -180,7 +180,7 @@ public sealed class TenantContractSerializationTests
         Assert.NotNull(copy);
         Assert.Equal(response.Tenant.OrganizationId, copy.Tenant.OrganizationId);
         Assert.Equal(response.Tenant.Branches[0].Slug, copy.Tenant.Branches[0].Slug);
-        Assert.Equal(response.OwnerInvite.Code, copy.OwnerInvite.Code);
-        Assert.Equal(AFK4.Shared.Contracts.Platform.Invites.OwnerInviteStatusNames.Pending, copy.OwnerInvite.Status);
+        Assert.Equal(response.OrganizationOwnerInvite.Code, copy.OrganizationOwnerInvite.Code);
+        Assert.Equal(AFK4.Shared.Contracts.Identity.AccountActivation.OrganizationOwnerInviteStatusNames.Pending, copy.OrganizationOwnerInvite.Status);
     }
 }

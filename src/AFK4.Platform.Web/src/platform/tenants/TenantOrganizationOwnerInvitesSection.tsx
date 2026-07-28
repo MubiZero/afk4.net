@@ -9,28 +9,28 @@ import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
-import type { OwnerInvitesApi } from '@/api/platformClients/ownerInvites';
-import type { OwnerInvite, OwnerInviteSummary, TenantBranch } from '@/api/types';
+import type { OrganizationOwnerInvitesApi } from '@/api/platformClients/organizationOwnerInvites';
+import type { OrganizationOwnerInvite, OrganizationOwnerInviteSummary, TenantBranch } from '@/api/types';
 import { INVITE_STATUS_VARIANT, INVITE_STATUS_LABEL } from './tenantsModel';
 
-type Client = Pick<OwnerInvitesApi, 'listOwnerInvites' | 'createOwnerInvite' | 'revokeOwnerInvite'>;
+type Client = Pick<OrganizationOwnerInvitesApi, 'listOrganizationOwnerInvites' | 'createOrganizationOwnerInvite' | 'revokeOrganizationOwnerInvite'>;
 
 interface Props {
   client: Client;
   organizationId: string;
   branches: TenantBranch[];
-  initialInvite?: OwnerInvite | null;
+  initialInvite?: OrganizationOwnerInvite | null;
 }
 
-export function TenantOwnerInvitesSection({ client, organizationId, branches, initialInvite }: Props) {
+export function TenantOrganizationOwnerInvitesSection({ client, organizationId, branches, initialInvite }: Props) {
   const { t, formatDate } = useI18n();
   const { toast } = useToast();
   const [tick, setTick] = useState(0);
-  const [invites, setInvites] = useState<OwnerInviteSummary[] | null>(null);
+  const [invites, setInvites] = useState<OrganizationOwnerInviteSummary[] | null>(null);
   const [error, setError] = useState(false);
   const [revealed, setRevealed] = useState<Map<string, string>>(() => {
     const seed = new Map<string, string>();
-    if (initialInvite) seed.set(initialInvite.ownerInviteId, initialInvite.code);
+    if (initialInvite) seed.set(initialInvite.organizationOwnerInviteId, initialInvite.code);
     return seed;
   });
   const [branchId, setBranchId] = useState(branches[0]?.branchId ?? '');
@@ -43,7 +43,7 @@ export function TenantOwnerInvitesSection({ client, organizationId, branches, in
   useEffect(() => {
     let cancelled = false;
     setInvites(null); setError(false);
-    client.listOwnerInvites(organizationId)
+    client.listOrganizationOwnerInvites(organizationId)
       .then(rows => { if (!cancelled) setInvites(rows); })
       .catch(() => { if (!cancelled) setError(true); });
     return () => { cancelled = true; };
@@ -53,14 +53,14 @@ export function TenantOwnerInvitesSection({ client, organizationId, branches, in
     if (branchId === '') return;
     setCreating(true);
     try {
-      const made = await client.createOwnerInvite(
+      const made = await client.createOrganizationOwnerInvite(
         organizationId,
         branchId,
         ownerUserName.trim() === '' ? null : ownerUserName.trim(),
         ownerDisplayName.trim() === '' ? null : ownerDisplayName.trim(),
         null
       );
-      setRevealed(cur => new Map(cur).set(made.ownerInviteId, made.code));
+      setRevealed(cur => new Map(cur).set(made.organizationOwnerInviteId, made.code));
       setOwnerUserName(''); setOwnerDisplayName('');
       toast({ title: t('platform.tenant.invites.created'), variant: 'success' });
       setTick(n => n + 1);
@@ -75,7 +75,7 @@ export function TenantOwnerInvitesSection({ client, organizationId, branches, in
     if (revokeId === null) return;
     setRevoking(true);
     try {
-      await client.revokeOwnerInvite(revokeId, reason);
+      await client.revokeOrganizationOwnerInvite(revokeId, reason);
       setRevealed(cur => { const next = new Map(cur); next.delete(revokeId); return next; });
       setRevokeId(null);
       toast({ title: t('platform.tenant.invites.revoked'), variant: 'success' });
@@ -133,9 +133,9 @@ export function TenantOwnerInvitesSection({ client, organizationId, branches, in
             </TableHeader>
             <TableBody>
               {invites.map(inv => {
-                const code = revealed.get(inv.ownerInviteId);
+                const code = revealed.get(inv.organizationOwnerInviteId);
                 return (
-                  <TableRow key={inv.ownerInviteId}>
+                  <TableRow key={inv.organizationOwnerInviteId}>
                     <TableCell>
                       <Badge variant={INVITE_STATUS_VARIANT[inv.status] ?? 'outline'}>
                         {INVITE_STATUS_LABEL[inv.status] ? t(INVITE_STATUS_LABEL[inv.status]) : inv.status}
@@ -146,7 +146,7 @@ export function TenantOwnerInvitesSection({ client, organizationId, branches, in
                     <TableCell className="tabular-nums">{formatDate(inv.expiresAtUtc)}</TableCell>
                     <TableCell className="text-right">
                       {inv.status === 'pending' && (
-                        <Button variant="ghost" size="sm" onClick={() => setRevokeId(inv.ownerInviteId)}>
+                        <Button variant="ghost" size="sm" onClick={() => setRevokeId(inv.organizationOwnerInviteId)}>
                           {t('platform.tenant.invites.revoke')}
                         </Button>
                       )}

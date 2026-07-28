@@ -77,7 +77,7 @@ export function NewTenantScreen({ client, onCreated, onCancel }: NewTenantScreen
         limits: buildLimits(form),
         ownerUserName: form.ownerUserName.trim() === '' ? null : form.ownerUserName.trim(),
         ownerDisplayName: form.ownerDisplayName.trim() === '' ? null : form.ownerDisplayName.trim(),
-        ownerInviteLifetime: null
+        organizationOwnerInviteLifetime: null
       });
       toast({ title: t('platform.newTenant.created'), variant: 'success' });
       onCreated(response);

@@ -57,7 +57,7 @@ using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Branding;
 using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Platform.Billing;
-using AFK4.Shared.Contracts.Platform.Invites;
+using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Operator;
 using AFK4.Shared.Contracts.Platform.SupportNotes;
 using AFK4.Shared.Contracts.Platform.Tenants;
@@ -189,7 +189,7 @@ builder.Services.Configure<PlatformAdminBootstrapOptions>(
 builder.Services.AddHostedService<PlatformAdminBootstrapHostedService>();
 builder.Services.Configure<PlatformTenantOptions>(
     builder.Configuration.GetSection(PlatformTenantOptions.ConfigurationSection));
-builder.Services.AddSingleton<IOwnerInviteCodeGenerator, RandomOwnerInviteCodeGenerator>();
+builder.Services.AddSingleton<IOrganizationOwnerInviteCodeGenerator, RandomOrganizationOwnerInviteCodeGenerator>();
 builder.Services.Configure<InstallOptions>(
     builder.Configuration.GetSection(InstallOptions.SectionName));
 builder.Services.AddScoped<IInstallService, EfInstallService>();

@@ -203,15 +203,15 @@ public static class AuditActionNames
 
     public const string ViewTenant = "tenancy.tenant.view";
 
-    public const string CreateOwnerInvite = "tenancy.owner_invite.create";
+    public const string CreateOrganizationOwnerInvite = "tenancy.owner_invite.create";
 
-    public const string ViewOwnerInvites = "tenancy.owner_invite.view";
+    public const string ViewOrganizationOwnerInvites = "tenancy.owner_invite.view";
 
-    public const string AcceptOwnerInvite = "tenancy.owner_invite.accept";
+    public const string AcceptOrganizationOwnerInvite = "tenancy.owner_invite.accept";
 
-    public const string RevokeOwnerInvite = "tenancy.owner_invite.revoke";
+    public const string RevokeOrganizationOwnerInvite = "tenancy.owner_invite.revoke";
 
-    public const string ResendOwnerInvite = "tenancy.owner_invite.resend";
+    public const string ResendOrganizationOwnerInvite = "tenancy.owner_invite.resend";
 
     public const string CreateTenantSupportNote = "tenancy.support_note.create";
 

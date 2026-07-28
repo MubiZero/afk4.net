@@ -50,7 +50,7 @@ using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Branding;
 using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Platform.Billing;
-using AFK4.Shared.Contracts.Platform.Invites;
+using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Operator;
 using AFK4.Shared.Contracts.Platform.SupportNotes;
 using AFK4.Shared.Contracts.Platform.Tenants;
@@ -253,7 +253,7 @@ internal static class PlatformTenantEndpoints
                     BranchSlug = created.Tenant.Branches.First().Slug,
                     created.Tenant.PlanCode,
                     created.Tenant.SubscriptionStatus,
-                    OwnerInviteId = created.OwnerInvite.OwnerInviteId
+                    OrganizationOwnerInviteId = created.OrganizationOwnerInvite.OrganizationOwnerInviteId
                 },
                 cancellationToken);
 
@@ -375,14 +375,14 @@ internal static class PlatformTenantEndpoints
             return Results.Ok(detail);
         });
 
-        app.MapGet("/api/platform/tenants/{organizationId:guid}/owner-invites", async (
+        app.MapGet("/api/platform/tenants/{organizationId:guid}/organization-owner-invitations", async (
             Guid organizationId,
             PlatformAdminAuthorizationService authorizationService,
             IPlatformTenantService tenantService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOrganizationOwnerInvites);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOrganizationOrganizationOwnerInvites);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
@@ -394,8 +394,8 @@ internal static class PlatformTenantEndpoints
                     auditRecordWriter,
                     organizationId: organizationId,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                    action: AuditActionNames.ViewOwnerInvites,
-                    targetType: "OwnerInvite",
+                    action: AuditActionNames.ViewOrganizationOwnerInvites,
+                    targetType: "OrganizationOwnerInvite",
                     targetId: null,
                     outcome: AuditOutcome.Denied,
                     details: new { authorization.DenialReason },
@@ -403,7 +403,7 @@ internal static class PlatformTenantEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            var result = await tenantService.ListOwnerInvitesAsync(organizationId, cancellationToken);
+            var result = await tenantService.ListOrganizationOwnerInvitesAsync(organizationId, cancellationToken);
 
             if (!result.Succeeded)
             {
@@ -411,8 +411,8 @@ internal static class PlatformTenantEndpoints
                     auditRecordWriter,
                     organizationId: organizationId,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                    action: AuditActionNames.ViewOwnerInvites,
-                    targetType: "OwnerInvite",
+                    action: AuditActionNames.ViewOrganizationOwnerInvites,
+                    targetType: "OrganizationOwnerInvite",
                     targetId: null,
                     outcome: AuditOutcome.Denied,
                     details: new { Error = result.Error },
@@ -430,8 +430,8 @@ internal static class PlatformTenantEndpoints
                 auditRecordWriter,
                 organizationId: organizationId,
                 actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                action: AuditActionNames.ViewOwnerInvites,
-                targetType: "OwnerInvite",
+                action: AuditActionNames.ViewOrganizationOwnerInvites,
+                targetType: "OrganizationOwnerInvite",
                 targetId: null,
                 outcome: AuditOutcome.Succeeded,
                 details: new { Count = invites.Count },
@@ -440,15 +440,15 @@ internal static class PlatformTenantEndpoints
             return Results.Ok(invites);
         });
 
-        app.MapPost("/api/platform/tenants/{organizationId:guid}/owner-invites", async (
+        app.MapPost("/api/platform/tenants/{organizationId:guid}/organization-owner-invitations", async (
             Guid organizationId,
-            CreateOwnerInviteRequest request,
+            CreateOrganizationOwnerInviteRequest request,
             PlatformAdminAuthorizationService authorizationService,
             IPlatformTenantService tenantService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOrganizationOwnerInvites);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOrganizationOrganizationOwnerInvites);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
@@ -460,8 +460,8 @@ internal static class PlatformTenantEndpoints
                     auditRecordWriter,
                     organizationId: organizationId,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                    action: AuditActionNames.CreateOwnerInvite,
-                    targetType: "OwnerInvite",
+                    action: AuditActionNames.CreateOrganizationOwnerInvite,
+                    targetType: "OrganizationOwnerInvite",
                     targetId: null,
                     outcome: AuditOutcome.Denied,
                     details: new { request.BranchId, authorization.DenialReason },
@@ -469,7 +469,7 @@ internal static class PlatformTenantEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            var result = await tenantService.CreateOrRotateOwnerInviteAsync(
+            var result = await tenantService.CreateOrRotateOrganizationOwnerInviteAsync(
                 organizationId,
                 request,
                 authorization.PlatformAdminContext!.PlatformAdminUserId,
@@ -481,8 +481,8 @@ internal static class PlatformTenantEndpoints
                     auditRecordWriter,
                     organizationId: organizationId,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
-                    action: AuditActionNames.CreateOwnerInvite,
-                    targetType: "OwnerInvite",
+                    action: AuditActionNames.CreateOrganizationOwnerInvite,
+                    targetType: "OrganizationOwnerInvite",
                     targetId: null,
                     outcome: AuditOutcome.Denied,
                     details: new { request.BranchId, Error = result.Error },
@@ -501,9 +501,9 @@ internal static class PlatformTenantEndpoints
                 auditRecordWriter,
                 organizationId: organizationId,
                 actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
-                action: AuditActionNames.CreateOwnerInvite,
-                targetType: "OwnerInvite",
-                targetId: invite.OwnerInviteId.ToString("D"),
+                action: AuditActionNames.CreateOrganizationOwnerInvite,
+                targetType: "OrganizationOwnerInvite",
+                targetId: invite.OrganizationOwnerInviteId.ToString("D"),
                 outcome: AuditOutcome.Succeeded,
                 details: new
                 {
@@ -516,23 +516,23 @@ internal static class PlatformTenantEndpoints
             return Results.Ok(invite);
         });
 
-        app.MapPost("/api/platform/owner-invites/{ownerInviteId:guid}/resend", async (
-            Guid ownerInviteId,
+        app.MapPost("/api/platform/organization-owner-invitations/{organizationOwnerInviteId:guid}/resend", async (
+            Guid organizationOwnerInviteId,
             PlatformAdminAuthorizationService authorizationService,
             IPlatformTenantService tenantService,
             IAuditRecordWriter auditRecordWriter,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOrganizationOwnerInvites);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOrganizationOrganizationOwnerInvites);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
             }
 
-            var organizationId = await dbContext.OwnerInvites
+            var organizationId = await dbContext.OrganizationOwnerInvites
                 .AsNoTracking()
-                .Where(invite => invite.OwnerInviteId == ownerInviteId)
+                .Where(invite => invite.OrganizationOwnerInviteId == organizationOwnerInviteId)
                 .Select(invite => (Guid?)invite.OrganizationId)
                 .SingleOrDefaultAsync(cancellationToken) ?? Guid.Empty;
 
@@ -542,16 +542,16 @@ internal static class PlatformTenantEndpoints
                     auditRecordWriter,
                     organizationId: organizationId,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                    action: AuditActionNames.ResendOwnerInvite,
-                    targetType: "OwnerInvite",
-                    targetId: ownerInviteId.ToString("D"),
+                    action: AuditActionNames.ResendOrganizationOwnerInvite,
+                    targetType: "OrganizationOwnerInvite",
+                    targetId: organizationOwnerInviteId.ToString("D"),
                     outcome: AuditOutcome.Denied,
                     details: new { authorization.DenialReason },
                     cancellationToken);
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            var result = await tenantService.ResendOwnerInviteAsync(ownerInviteId, cancellationToken);
+            var result = await tenantService.ResendOrganizationOwnerInviteAsync(organizationOwnerInviteId, cancellationToken);
 
             if (!result.Succeeded)
             {
@@ -559,9 +559,9 @@ internal static class PlatformTenantEndpoints
                     auditRecordWriter,
                     organizationId: organizationId,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                    action: AuditActionNames.ResendOwnerInvite,
-                    targetType: "OwnerInvite",
-                    targetId: ownerInviteId.ToString("D"),
+                    action: AuditActionNames.ResendOrganizationOwnerInvite,
+                    targetType: "OrganizationOwnerInvite",
+                    targetId: organizationOwnerInviteId.ToString("D"),
                     outcome: AuditOutcome.Denied,
                     details: new { Error = result.Error },
                     cancellationToken);
@@ -577,9 +577,9 @@ internal static class PlatformTenantEndpoints
                 auditRecordWriter,
                 organizationId: organizationId,
                 actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                action: AuditActionNames.ResendOwnerInvite,
-                targetType: "OwnerInvite",
-                targetId: ownerInviteId.ToString("D"),
+                action: AuditActionNames.ResendOrganizationOwnerInvite,
+                targetType: "OrganizationOwnerInvite",
+                targetId: organizationOwnerInviteId.ToString("D"),
                 outcome: AuditOutcome.Succeeded,
                 details: new { result.Value!.BranchId },
                 cancellationToken);
@@ -587,24 +587,24 @@ internal static class PlatformTenantEndpoints
             return Results.Ok(result.Value);
         });
 
-        app.MapPost("/api/platform/owner-invites/{ownerInviteId:guid}/revoke", async (
-            Guid ownerInviteId,
-            RevokeOwnerInviteRequest request,
+        app.MapPost("/api/platform/organization-owner-invitations/{organizationOwnerInviteId:guid}/revoke", async (
+            Guid organizationOwnerInviteId,
+            RevokeOrganizationOwnerInviteRequest request,
             PlatformAdminAuthorizationService authorizationService,
             IPlatformTenantService tenantService,
             IAuditRecordWriter auditRecordWriter,
             PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOrganizationOwnerInvites);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageOrganizationOrganizationOwnerInvites);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();
             }
 
-            var orgIdForAudit = await dbContext.OwnerInvites
+            var orgIdForAudit = await dbContext.OrganizationOwnerInvites
                 .AsNoTracking()
-                .Where(invite => invite.OwnerInviteId == ownerInviteId)
+                .Where(invite => invite.OrganizationOwnerInviteId == organizationOwnerInviteId)
                 .Select(invite => (Guid?)invite.OrganizationId)
                 .SingleOrDefaultAsync(cancellationToken) ?? Guid.Empty;
 
@@ -614,17 +614,17 @@ internal static class PlatformTenantEndpoints
                     auditRecordWriter,
                     organizationId: orgIdForAudit,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
-                    action: AuditActionNames.RevokeOwnerInvite,
-                    targetType: "OwnerInvite",
-                    targetId: ownerInviteId.ToString("D"),
+                    action: AuditActionNames.RevokeOrganizationOwnerInvite,
+                    targetType: "OrganizationOwnerInvite",
+                    targetId: organizationOwnerInviteId.ToString("D"),
                     outcome: AuditOutcome.Denied,
                     details: new { authorization.DenialReason },
                     cancellationToken);
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            var result = await tenantService.RevokeOwnerInviteAsync(
-                ownerInviteId,
+            var result = await tenantService.RevokeOrganizationOwnerInviteAsync(
+                organizationOwnerInviteId,
                 request,
                 authorization.PlatformAdminContext!.PlatformAdminUserId,
                 cancellationToken);
@@ -635,9 +635,9 @@ internal static class PlatformTenantEndpoints
                     auditRecordWriter,
                     organizationId: orgIdForAudit,
                     actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
-                    action: AuditActionNames.RevokeOwnerInvite,
-                    targetType: "OwnerInvite",
-                    targetId: ownerInviteId.ToString("D"),
+                    action: AuditActionNames.RevokeOrganizationOwnerInvite,
+                    targetType: "OrganizationOwnerInvite",
+                    targetId: organizationOwnerInviteId.ToString("D"),
                     outcome: AuditOutcome.Denied,
                     details: new { Error = result.Error },
                     cancellationToken);
@@ -655,23 +655,23 @@ internal static class PlatformTenantEndpoints
                 auditRecordWriter,
                 organizationId: invite.OrganizationId,
                 actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
-                action: AuditActionNames.RevokeOwnerInvite,
-                targetType: "OwnerInvite",
-                targetId: invite.OwnerInviteId.ToString("D"),
+                action: AuditActionNames.RevokeOrganizationOwnerInvite,
+                targetType: "OrganizationOwnerInvite",
+                targetId: invite.OrganizationOwnerInviteId.ToString("D"),
                 outcome: AuditOutcome.Succeeded,
-                details: new { invite.OwnerInviteId, Reason = request.Reason },
+                details: new { invite.OrganizationOwnerInviteId, Reason = request.Reason },
                 cancellationToken);
 
             return Results.Ok(invite);
         });
 
-        app.MapPost("/api/platform/owner-invites/accept", async (
-            AcceptOwnerInviteRequest request,
+        app.MapPost("/api/account-activation/organization-owner", async (
+            AcceptOrganizationOwnerInviteRequest request,
             IPlatformTenantService tenantService,
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var result = await tenantService.AcceptOwnerInviteAsync(request, cancellationToken);
+            var result = await tenantService.AcceptOrganizationOwnerInviteAsync(request, cancellationToken);
 
             if (!result.Succeeded)
             {
@@ -679,8 +679,8 @@ internal static class PlatformTenantEndpoints
                     auditRecordWriter,
                     organizationId: Guid.Empty,
                     actorPlatformAdminUserId: null,
-                    action: AuditActionNames.AcceptOwnerInvite,
-                    targetType: "OwnerInvite",
+                    action: AuditActionNames.AcceptOrganizationOwnerInvite,
+                    targetType: "OrganizationOwnerInvite",
                     targetId: null,
                     outcome: AuditOutcome.Denied,
                     details: new { request.UserName, Error = result.Error },
@@ -694,19 +694,19 @@ internal static class PlatformTenantEndpoints
                 };
             }
 
-            var signIn = result.Value!;
+            var activation = result.Value!;
             await WritePlatformAuditAsync(
                 auditRecordWriter,
-                organizationId: signIn.OrganizationId,
+                organizationId: activation.OrganizationId,
                 actorPlatformAdminUserId: null,
-                action: AuditActionNames.AcceptOwnerInvite,
+                action: AuditActionNames.AcceptOrganizationOwnerInvite,
                 targetType: "StaffUser",
-                targetId: signIn.StaffUserId.ToString("D"),
+                targetId: activation.OrganizationId.ToString("D"),
                 outcome: AuditOutcome.Succeeded,
-                details: new { signIn.DisplayName, request.UserName },
+                details: new { request.UserName, activation.NextStep },
                 cancellationToken);
 
-            return Results.Ok(signIn);
+            return Results.Ok(activation);
         });
 
         app.MapPost("/api/operator-connections/resolve", async (

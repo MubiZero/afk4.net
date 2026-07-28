@@ -1,10 +1,11 @@
 using System.Net;
+using System.Text.Json;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Platform.Auth;
-using AFK4.Shared.Contracts.Platform.Invites;
+using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Tenants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,7 +30,7 @@ public sealed class PlatformTenantEndpointTests
             Limits: new TenantLimitsDto(MaxBranches: 3, MaxDevicesPerBranch: 60, MaxConcurrentSessions: 80, MaxStaffUsersPerBranch: 20),
             OwnerUserName: ownerUserName,
             OwnerDisplayName: "Demo Owner",
-            OwnerInviteLifetime: TimeSpan.FromDays(7));
+            OrganizationOwnerInviteLifetime: TimeSpan.FromDays(7));
     }
 
     [Fact]
@@ -53,10 +54,10 @@ public sealed class PlatformTenantEndpointTests
         Assert.Single(body.Tenant.Branches);
         Assert.Equal("demo-branch", body.Tenant.Branches[0].Slug);
         Assert.Equal("Dushanbe", body.Tenant.Branches[0].City);
-        Assert.Equal(OwnerInviteStatusNames.Pending, body.OwnerInvite.Status);
-        Assert.False(string.IsNullOrWhiteSpace(body.OwnerInvite.Code));
-        Assert.Equal("owner@demo-club.test", body.OwnerInvite.OwnerUserName);
-        Assert.Equal(body.Tenant.Branches[0].BranchId, body.OwnerInvite.BranchId);
+        Assert.Equal(OrganizationOwnerInviteStatusNames.Pending, body.OrganizationOwnerInvite.Status);
+        Assert.False(string.IsNullOrWhiteSpace(body.OrganizationOwnerInvite.Code));
+        Assert.Equal("owner@demo-club.test", body.OrganizationOwnerInvite.OwnerUserName);
+        Assert.Equal(body.Tenant.Branches[0].BranchId, body.OrganizationOwnerInvite.BranchId);
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -68,8 +69,8 @@ public sealed class PlatformTenantEndpointTests
         Assert.Equal("demo-branch", branch.Slug);
         Assert.Equal(organization.OrganizationId, branch.OrganizationId);
 
-        var invite = await dbContext.OwnerInvites.SingleAsync();
-        Assert.Equal(OwnerInviteStatusNames.Pending, invite.Status);
+        var invite = await dbContext.OrganizationOwnerInvites.SingleAsync();
+        Assert.Equal(OrganizationOwnerInviteStatusNames.Pending, invite.Status);
         Assert.Equal(admin.PlatformAdminId, invite.CreatedByPlatformAdminUserId);
 
         var audit = await dbContext.AuditRecords.SingleAsync(record => record.Action == "tenancy.tenant.create");
@@ -220,7 +221,7 @@ public sealed class PlatformTenantEndpointTests
     }
 
     [Fact]
-    public async Task PostOwnerInvites_RotatesPendingInvitesAndReturnsFresh()
+    public async Task PostOrganizationOwnerInvites_RotatesPendingInvitesAndReturnsFresh()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -229,38 +230,38 @@ public sealed class PlatformTenantEndpointTests
         var createResponse = await client.PostAsJsonAsync("/api/platform/tenants", BuildCreateTenantRequest());
         var created = await createResponse.Content.ReadFromJsonAsync<CreateTenantResponse>();
         Assert.NotNull(created);
-        var originalInvite = created.OwnerInvite;
+        var originalInvite = created.OrganizationOwnerInvite;
         var branchId = created.Tenant.Branches[0].BranchId;
 
-        var rotateRequest = new CreateOwnerInviteRequest(
+        var rotateRequest = new CreateOrganizationOwnerInviteRequest(
             BranchId: branchId,
             OwnerUserName: "owner2@demo-club.test",
             OwnerDisplayName: "Replacement Owner",
             Lifetime: TimeSpan.FromDays(14));
         var rotateResponse = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{created.Tenant.OrganizationId:D}/owner-invites",
+            $"/api/platform/tenants/{created.Tenant.OrganizationId:D}/organization-owner-invitations",
             rotateRequest);
-        var rotated = await rotateResponse.Content.ReadFromJsonAsync<OwnerInviteDto>();
+        var rotated = await rotateResponse.Content.ReadFromJsonAsync<OrganizationOwnerInviteDto>();
 
         Assert.Equal(HttpStatusCode.OK, rotateResponse.StatusCode);
         Assert.NotNull(rotated);
-        Assert.NotEqual(originalInvite.OwnerInviteId, rotated.OwnerInviteId);
+        Assert.NotEqual(originalInvite.OrganizationOwnerInviteId, rotated.OrganizationOwnerInviteId);
         Assert.NotEqual(originalInvite.Code, rotated.Code);
-        Assert.Equal(OwnerInviteStatusNames.Pending, rotated.Status);
+        Assert.Equal(OrganizationOwnerInviteStatusNames.Pending, rotated.Status);
         Assert.Equal("owner2@demo-club.test", rotated.OwnerUserName);
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var invites = await dbContext.OwnerInvites.OrderBy(inv => inv.CreatedAtUtc).ToListAsync();
+        var invites = await dbContext.OrganizationOwnerInvites.OrderBy(inv => inv.CreatedAtUtc).ToListAsync();
         Assert.Equal(2, invites.Count);
-        Assert.Equal(OwnerInviteStatusNames.Revoked, invites[0].Status);
+        Assert.Equal(OrganizationOwnerInviteStatusNames.Revoked, invites[0].Status);
         Assert.NotNull(invites[0].RevokedAtUtc);
         Assert.Equal("Rotated by platform admin.", invites[0].RevokedReason);
-        Assert.Equal(OwnerInviteStatusNames.Pending, invites[1].Status);
+        Assert.Equal(OrganizationOwnerInviteStatusNames.Pending, invites[1].Status);
     }
 
     [Fact]
-    public async Task PostOwnerInvites_WithUnknownBranch_Returns404()
+    public async Task PostOrganizationOwnerInvites_WithUnknownBranch_Returns404()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -271,14 +272,14 @@ public sealed class PlatformTenantEndpointTests
         Assert.NotNull(created);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{created.Tenant.OrganizationId:D}/owner-invites",
-            new CreateOwnerInviteRequest(Guid.NewGuid(), null, null, null));
+            $"/api/platform/tenants/{created.Tenant.OrganizationId:D}/organization-owner-invitations",
+            new CreateOrganizationOwnerInviteRequest(Guid.NewGuid(), null, null, null));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
-    public async Task PostOwnerInviteAccept_WithValidCode_CreatesOwnerStaffAndReturnsSignIn()
+    public async Task PostAccountActivation_WithValidCode_CreatesOwnerStaffWithoutIssuingTokens()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -290,20 +291,19 @@ public sealed class PlatformTenantEndpointTests
 
         using var publicClient = factory.CreateClient();
         var acceptResponse = await publicClient.PostAsJsonAsync(
-            "/api/platform/owner-invites/accept",
-            new AcceptOwnerInviteRequest(
-                Code: created.OwnerInvite.Code,
+            "/api/account-activation/organization-owner",
+            new AcceptOrganizationOwnerInviteRequest(
+                Code: created.OrganizationOwnerInvite.Code,
                 UserName: "demo.owner",
                 DisplayName: "Demo Owner",
                 Password: "Passw0rd!Real"));
-        var signIn = await acceptResponse.Content.ReadFromJsonAsync<StaffSignInResponse>();
+        var json = await acceptResponse.Content.ReadFromJsonAsync<JsonElement>();
 
         Assert.Equal(HttpStatusCode.OK, acceptResponse.StatusCode);
-        Assert.NotNull(signIn);
-        Assert.Equal(created.Tenant.OrganizationId, signIn.OrganizationId);
-        Assert.Contains(created.Tenant.Branches[0].BranchId, signIn.BranchIds);
-        Assert.Contains(OrganizationPermissionNames.ViewFloorMap, signIn.Permissions);
-        Assert.Contains(OrganizationPermissionNames.ManageBranchStaff, signIn.Permissions);
+        Assert.Equal(created.Tenant.OrganizationId, json.GetProperty("organizationId").GetGuid());
+        Assert.Equal("sign_in_to_organization_admin", json.GetProperty("nextStep").GetString());
+        Assert.False(json.TryGetProperty("accessToken", out _));
+        Assert.False(json.TryGetProperty("refreshToken", out _));
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -315,27 +315,29 @@ public sealed class PlatformTenantEndpointTests
         var assignment = await dbContext.StaffRoleAssignments.SingleAsync();
         Assert.Equal(OrganizationRoleNames.OrganizationOwner, assignment.RoleName);
         Assert.Equal(created.Tenant.Branches[0].BranchId, assignment.BranchId);
+        Assert.Empty(await dbContext.StaffAccessTokens.ToListAsync());
+        Assert.Empty(await dbContext.StaffRefreshTokens.ToListAsync());
 
-        var invite = await dbContext.OwnerInvites.SingleAsync();
-        Assert.Equal(OwnerInviteStatusNames.Accepted, invite.Status);
+        var invite = await dbContext.OrganizationOwnerInvites.SingleAsync();
+        Assert.Equal(OrganizationOwnerInviteStatusNames.Accepted, invite.Status);
         Assert.Equal(staff.StaffUserId, invite.AcceptedByStaffUserId);
     }
 
     [Fact]
-    public async Task PostOwnerInviteAccept_WithUnknownCode_Returns404()
+    public async Task PostOrganizationOwnerInviteAccept_WithUnknownCode_Returns404()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            "/api/platform/owner-invites/accept",
-            new AcceptOwnerInviteRequest("ghost-code", "owner", "Owner", "Passw0rd!"));
+            "/api/account-activation/organization-owner",
+            new AcceptOrganizationOwnerInviteRequest("ghost-code", "owner", "Owner", "Passw0rd!"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
-    public async Task PostOwnerInviteAccept_WithExpiredInvite_MarksExpiredAndReturns400()
+    public async Task PostOrganizationOwnerInviteAccept_WithExpiredInvite_MarksExpiredAndReturns400()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -348,26 +350,26 @@ public sealed class PlatformTenantEndpointTests
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-            var invite = await dbContext.OwnerInvites.SingleAsync();
+            var invite = await dbContext.OrganizationOwnerInvites.SingleAsync();
             invite.ExpiresAtUtc = DateTimeOffset.UtcNow.AddSeconds(-1);
             await dbContext.SaveChangesAsync();
         }
 
         using var publicClient = factory.CreateClient();
         var response = await publicClient.PostAsJsonAsync(
-            "/api/platform/owner-invites/accept",
-            new AcceptOwnerInviteRequest(created.OwnerInvite.Code, "owner", "Owner", "Passw0rd!"));
+            "/api/account-activation/organization-owner",
+            new AcceptOrganizationOwnerInviteRequest(created.OrganizationOwnerInvite.Code, "owner", "Owner", "Passw0rd!"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
         await using var verificationScope = factory.Services.CreateAsyncScope();
         var dbContext2 = verificationScope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var inviteAfter = await dbContext2.OwnerInvites.SingleAsync();
-        Assert.Equal(OwnerInviteStatusNames.Expired, inviteAfter.Status);
+        var inviteAfter = await dbContext2.OrganizationOwnerInvites.SingleAsync();
+        Assert.Equal(OrganizationOwnerInviteStatusNames.Expired, inviteAfter.Status);
     }
 
     [Fact]
-    public async Task PostOwnerInviteAccept_WithRevokedInvite_Returns400()
+    public async Task PostOrganizationOwnerInviteAccept_WithRevokedInvite_Returns400()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -379,20 +381,20 @@ public sealed class PlatformTenantEndpointTests
 
         // Rotate to revoke the original invite.
         var rotateResponse = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{created.Tenant.OrganizationId:D}/owner-invites",
-            new CreateOwnerInviteRequest(created.Tenant.Branches[0].BranchId, null, null, null));
+            $"/api/platform/tenants/{created.Tenant.OrganizationId:D}/organization-owner-invitations",
+            new CreateOrganizationOwnerInviteRequest(created.Tenant.Branches[0].BranchId, null, null, null));
         Assert.Equal(HttpStatusCode.OK, rotateResponse.StatusCode);
 
         using var publicClient = factory.CreateClient();
         var response = await publicClient.PostAsJsonAsync(
-            "/api/platform/owner-invites/accept",
-            new AcceptOwnerInviteRequest(created.OwnerInvite.Code, "owner", "Owner", "Passw0rd!"));
+            "/api/account-activation/organization-owner",
+            new AcceptOrganizationOwnerInviteRequest(created.OrganizationOwnerInvite.Code, "owner", "Owner", "Passw0rd!"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
-    public async Task PostOwnerInviteAccept_WithDuplicateUserName_Returns409()
+    public async Task PostOrganizationOwnerInviteAccept_WithDuplicateUserName_Returns409()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -422,14 +424,14 @@ public sealed class PlatformTenantEndpointTests
 
         using var publicClient = factory.CreateClient();
         var response = await publicClient.PostAsJsonAsync(
-            "/api/platform/owner-invites/accept",
-            new AcceptOwnerInviteRequest(created.OwnerInvite.Code, "demo.owner", "Demo Owner", "Passw0rd!Real"));
+            "/api/account-activation/organization-owner",
+            new AcceptOrganizationOwnerInviteRequest(created.OrganizationOwnerInvite.Code, "demo.owner", "Demo Owner", "Passw0rd!Real"));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]
-    public async Task PostOwnerInviteAccept_WithShortPassword_Returns400()
+    public async Task PostOrganizationOwnerInviteAccept_WithShortPassword_Returns400()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -441,14 +443,14 @@ public sealed class PlatformTenantEndpointTests
 
         using var publicClient = factory.CreateClient();
         var response = await publicClient.PostAsJsonAsync(
-            "/api/platform/owner-invites/accept",
-            new AcceptOwnerInviteRequest(created.OwnerInvite.Code, "owner", "Owner", "short"));
+            "/api/account-activation/organization-owner",
+            new AcceptOrganizationOwnerInviteRequest(created.OrganizationOwnerInvite.Code, "owner", "Owner", "short"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
-    public async Task AcceptOwnerInvite_WithBlankDisplayName_DerivesDisplayNameFromLogin()
+    public async Task AcceptOrganizationOwnerInvite_WithBlankDisplayName_DerivesDisplayNameFromLogin()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -460,21 +462,20 @@ public sealed class PlatformTenantEndpointTests
 
         using var publicClient = factory.CreateClient();
         var response = await publicClient.PostAsJsonAsync(
-            "/api/platform/owner-invites/accept",
-            new AcceptOwnerInviteRequest(
-                Code: created.OwnerInvite.Code,
+            "/api/account-activation/organization-owner",
+            new AcceptOrganizationOwnerInviteRequest(
+                Code: created.OrganizationOwnerInvite.Code,
                 UserName: "owner@club.test",
                 DisplayName: "",
                 Password: "Passw0rd!Real"));
-        var body = await response.Content.ReadFromJsonAsync<StaffSignInResponse>();
-
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.NotNull(body);
-        Assert.Equal("owner", body.DisplayName);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal("owner", (await dbContext.StaffUsers.SingleAsync()).DisplayName);
     }
 
     [Fact]
-    public async Task RevokeOwnerInvite_WithValidPendingInvite_MarksRevokedAndAudits()
+    public async Task RevokeOrganizationOwnerInvite_WithValidPendingInvite_MarksRevokedAndAudits()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -485,43 +486,43 @@ public sealed class PlatformTenantEndpointTests
         Assert.NotNull(created);
 
         var revoke = await client.PostAsJsonAsync(
-            $"/api/platform/owner-invites/{created.OwnerInvite.OwnerInviteId:D}/revoke",
-            new RevokeOwnerInviteRequest("Owner asked to cancel"));
-        var revoked = await revoke.Content.ReadFromJsonAsync<OwnerInviteDto>();
+            $"/api/platform/organization-owner-invitations/{created.OrganizationOwnerInvite.OrganizationOwnerInviteId:D}/revoke",
+            new RevokeOrganizationOwnerInviteRequest("Owner asked to cancel"));
+        var revoked = await revoke.Content.ReadFromJsonAsync<OrganizationOwnerInviteDto>();
 
         Assert.Equal(HttpStatusCode.OK, revoke.StatusCode);
         Assert.NotNull(revoked);
-        Assert.Equal(OwnerInviteStatusNames.Revoked, revoked.Status);
+        Assert.Equal(OrganizationOwnerInviteStatusNames.Revoked, revoked.Status);
         Assert.Equal("Owner asked to cancel", revoked.RevokedReason);
         Assert.NotNull(revoked.RevokedAtUtc);
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var invite = await dbContext.OwnerInvites.SingleAsync(i => i.OwnerInviteId == created.OwnerInvite.OwnerInviteId);
-        Assert.Equal(OwnerInviteStatusNames.Revoked, invite.Status);
+        var invite = await dbContext.OrganizationOwnerInvites.SingleAsync(i => i.OrganizationOwnerInviteId == created.OrganizationOwnerInvite.OrganizationOwnerInviteId);
+        Assert.Equal(OrganizationOwnerInviteStatusNames.Revoked, invite.Status);
         var audit = await dbContext.AuditRecords
             .Where(record => record.Action == "tenancy.owner_invite.revoke" && record.Outcome == "Succeeded")
             .SingleAsync();
         Assert.Equal(created.Tenant.OrganizationId, audit.OrganizationId);
-        Assert.Equal(created.OwnerInvite.OwnerInviteId.ToString("D"), audit.TargetId);
+        Assert.Equal(created.OrganizationOwnerInvite.OrganizationOwnerInviteId.ToString("D"), audit.TargetId);
     }
 
     [Fact]
-    public async Task RevokeOwnerInvite_WithUnknownInvite_Returns404()
+    public async Task RevokeOrganizationOwnerInvite_WithUnknownInvite_Returns404()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/platform/owner-invites/{Guid.NewGuid():D}/revoke",
-            new RevokeOwnerInviteRequest("anyway"));
+            $"/api/platform/organization-owner-invitations/{Guid.NewGuid():D}/revoke",
+            new RevokeOrganizationOwnerInviteRequest("anyway"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
-    public async Task RevokeOwnerInvite_OnAlreadyRevokedInvite_Returns400()
+    public async Task RevokeOrganizationOwnerInvite_OnAlreadyRevokedInvite_Returns400()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -532,19 +533,19 @@ public sealed class PlatformTenantEndpointTests
         Assert.NotNull(created);
 
         var first = await client.PostAsJsonAsync(
-            $"/api/platform/owner-invites/{created.OwnerInvite.OwnerInviteId:D}/revoke",
-            new RevokeOwnerInviteRequest("First"));
+            $"/api/platform/organization-owner-invitations/{created.OrganizationOwnerInvite.OrganizationOwnerInviteId:D}/revoke",
+            new RevokeOrganizationOwnerInviteRequest("First"));
         Assert.Equal(HttpStatusCode.OK, first.StatusCode);
 
         var second = await client.PostAsJsonAsync(
-            $"/api/platform/owner-invites/{created.OwnerInvite.OwnerInviteId:D}/revoke",
-            new RevokeOwnerInviteRequest("Again"));
+            $"/api/platform/organization-owner-invitations/{created.OrganizationOwnerInvite.OrganizationOwnerInviteId:D}/revoke",
+            new RevokeOrganizationOwnerInviteRequest("Again"));
 
         Assert.Equal(HttpStatusCode.BadRequest, second.StatusCode);
     }
 
     [Fact]
-    public async Task RevokeOwnerInvite_WithoutReason_Returns400()
+    public async Task RevokeOrganizationOwnerInvite_WithoutReason_Returns400()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -555,21 +556,21 @@ public sealed class PlatformTenantEndpointTests
         Assert.NotNull(created);
 
         var response = await client.PostAsJsonAsync(
-            $"/api/platform/owner-invites/{created.OwnerInvite.OwnerInviteId:D}/revoke",
-            new RevokeOwnerInviteRequest(""));
+            $"/api/platform/organization-owner-invitations/{created.OrganizationOwnerInvite.OrganizationOwnerInviteId:D}/revoke",
+            new RevokeOrganizationOwnerInviteRequest(""));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
-    public async Task RevokeOwnerInvite_WithoutAuth_Returns401()
+    public async Task RevokeOrganizationOwnerInvite_WithoutAuth_Returns401()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync(
-            $"/api/platform/owner-invites/{Guid.NewGuid():D}/revoke",
-            new RevokeOwnerInviteRequest("test"));
+            $"/api/platform/organization-owner-invitations/{Guid.NewGuid():D}/revoke",
+            new RevokeOrganizationOwnerInviteRequest("test"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -607,7 +608,7 @@ public sealed class PlatformTenantEndpointTests
         Assert.Equal("true", retryResponse.Headers.GetValues("Idempotency-Replayed").Single());
         Assert.NotNull(retryBody);
         Assert.Equal(firstBody.Tenant.OrganizationId, retryBody.Tenant.OrganizationId);
-        Assert.Equal(firstBody.OwnerInvite.Code, retryBody.OwnerInvite.Code);
+        Assert.Equal(firstBody.OrganizationOwnerInvite.Code, retryBody.OrganizationOwnerInvite.Code);
 
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -665,7 +666,7 @@ public sealed class PlatformTenantEndpointTests
     }
 
     [Fact]
-    public async Task GetOwnerInvites_ReturnsAllInvitesForTenantWithMaskedCodes()
+    public async Task GetOrganizationOwnerInvites_ReturnsAllInvitesForTenantWithMaskedCodes()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -676,19 +677,19 @@ public sealed class PlatformTenantEndpointTests
         Assert.NotNull(created);
 
         var rotateResponse = await client.PostAsJsonAsync(
-            $"/api/platform/tenants/{created.Tenant.OrganizationId:D}/owner-invites",
-            new CreateOwnerInviteRequest(created.Tenant.Branches[0].BranchId, OwnerUserName: "owner-2@demo-club.test", OwnerDisplayName: "Owner Two", Lifetime: TimeSpan.FromDays(7)));
-        var rotated = await rotateResponse.Content.ReadFromJsonAsync<OwnerInviteDto>();
+            $"/api/platform/tenants/{created.Tenant.OrganizationId:D}/organization-owner-invitations",
+            new CreateOrganizationOwnerInviteRequest(created.Tenant.Branches[0].BranchId, OwnerUserName: "owner-2@demo-club.test", OwnerDisplayName: "Owner Two", Lifetime: TimeSpan.FromDays(7)));
+        var rotated = await rotateResponse.Content.ReadFromJsonAsync<OrganizationOwnerInviteDto>();
         Assert.NotNull(rotated);
 
-        var listResponse = await client.GetAsync($"/api/platform/tenants/{created.Tenant.OrganizationId:D}/owner-invites");
-        var invites = await listResponse.Content.ReadFromJsonAsync<List<OwnerInviteSummaryDto>>();
+        var listResponse = await client.GetAsync($"/api/platform/tenants/{created.Tenant.OrganizationId:D}/organization-owner-invitations");
+        var invites = await listResponse.Content.ReadFromJsonAsync<List<OrganizationOwnerInviteSummaryDto>>();
 
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         Assert.NotNull(invites);
         Assert.Equal(2, invites.Count);
 
-        var rotatedSummary = invites.Single(invite => invite.OwnerInviteId == rotated.OwnerInviteId);
+        var rotatedSummary = invites.Single(invite => invite.OrganizationOwnerInviteId == rotated.OrganizationOwnerInviteId);
         Assert.Equal(4, rotatedSummary.CodeSuffix.Length);
         Assert.EndsWith(rotatedSummary.CodeSuffix, rotated.Code, StringComparison.Ordinal);
         Assert.DoesNotContain(rotated.Code, await listResponse.Content.ReadAsStringAsync());
@@ -703,24 +704,24 @@ public sealed class PlatformTenantEndpointTests
     }
 
     [Fact]
-    public async Task GetOwnerInvites_WithoutAuth_Returns401()
+    public async Task GetOrganizationOwnerInvites_WithoutAuth_Returns401()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
-        var response = await client.GetAsync($"/api/platform/tenants/{Guid.NewGuid():D}/owner-invites");
+        var response = await client.GetAsync($"/api/platform/tenants/{Guid.NewGuid():D}/organization-owner-invitations");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [Fact]
-    public async Task GetOwnerInvites_WhenTenantMissing_Returns404()
+    public async Task GetOrganizationOwnerInvites_WhenTenantMissing_Returns404()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
 
-        var response = await client.GetAsync($"/api/platform/tenants/{Guid.NewGuid():D}/owner-invites");
+        var response = await client.GetAsync($"/api/platform/tenants/{Guid.NewGuid():D}/organization-owner-invitations");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }

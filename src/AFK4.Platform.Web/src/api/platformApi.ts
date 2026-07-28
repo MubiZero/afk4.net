@@ -1,7 +1,7 @@
 import { isAccessTokenExpired, type PlatformAdminSession } from '../auth/tokenStore';
 import { PlatformTransport, type PlatformTransportOptions } from './platformTransport';
 import { TenantsApi } from './platformClients/tenants';
-import { OwnerInvitesApi } from './platformClients/ownerInvites';
+import { OrganizationOwnerInvitesApi } from './platformClients/organizationOwnerInvites';
 import { SupportNotesApi } from './platformClients/supportNotes';
 import { PlansApi } from './platformClients/plans';
 import { SubscriptionsApi } from './platformClients/subscriptions';
@@ -20,7 +20,7 @@ export class PlatformApiClient {
   private readonly transport: PlatformTransport;
 
   public readonly tenants: TenantsApi;
-  public readonly ownerInvites: OwnerInvitesApi;
+  public readonly organizationOwnerInvites: OrganizationOwnerInvitesApi;
   public readonly supportNotes: SupportNotesApi;
   public readonly plans: PlansApi;
   public readonly subscriptions: SubscriptionsApi;
@@ -29,7 +29,7 @@ export class PlatformApiClient {
   public constructor(options: PlatformApiClientOptions) {
     this.transport = new PlatformTransport(options);
     this.tenants = new TenantsApi(this.transport);
-    this.ownerInvites = new OwnerInvitesApi(this.transport);
+    this.organizationOwnerInvites = new OrganizationOwnerInvitesApi(this.transport);
     this.supportNotes = new SupportNotesApi(this.transport);
     this.plans = new PlansApi(this.transport);
     this.subscriptions = new SubscriptionsApi(this.transport);

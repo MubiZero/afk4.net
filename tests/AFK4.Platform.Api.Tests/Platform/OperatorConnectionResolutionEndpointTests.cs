@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
-using AFK4.Shared.Contracts.Platform.Invites;
+using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Operator;
 using AFK4.Shared.Contracts.Platform.Tenants;
 using Microsoft.EntityFrameworkCore;
@@ -53,18 +53,18 @@ public sealed class OperatorConnectionResolutionEndpointTests
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
         await CreateTenantAsync(client, "demo-club", "main");
-        var ownerInvite = await GetLatestInviteAsync(factory);
+        var organizationOwnerInvite = await GetLatestInviteAsync(factory);
 
         using var publicClient = factory.CreateClient();
         var response = await publicClient.PostAsJsonAsync(
             "/api/operator-connections/resolve",
-            new ResolveOperatorConnectionRequest(null, null, ownerInvite.Code));
+            new ResolveOperatorConnectionRequest(null, null, organizationOwnerInvite.Code));
         var body = await response.Content.ReadFromJsonAsync<ResolveOperatorConnectionResponse>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(body);
-        Assert.Equal(ownerInvite.OrganizationId, body.OrganizationId);
-        Assert.Equal(ownerInvite.BranchId, body.BranchId);
+        Assert.Equal(organizationOwnerInvite.OrganizationId, body.OrganizationId);
+        Assert.Equal(organizationOwnerInvite.BranchId, body.BranchId);
         Assert.Equal(OperatorConnectionResolutionSources.SetupCode, body.Source);
     }
 
@@ -103,8 +103,8 @@ public sealed class OperatorConnectionResolutionEndpointTests
         var invite = await GetLatestInviteAsync(factory);
 
         var revoke = await client.PostAsJsonAsync(
-            $"/api/platform/owner-invites/{invite.OwnerInviteId:D}/revoke",
-            new RevokeOwnerInviteRequest("Test"));
+            $"/api/platform/organization-owner-invitations/{invite.OrganizationOwnerInviteId:D}/revoke",
+            new RevokeOrganizationOwnerInviteRequest("Test"));
         Assert.Equal(HttpStatusCode.OK, revoke.StatusCode);
 
         using var publicClient = factory.CreateClient();
@@ -127,8 +127,8 @@ public sealed class OperatorConnectionResolutionEndpointTests
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-            var entity = await dbContext.OwnerInvites.SingleAsync(i => i.OwnerInviteId == invite.OwnerInviteId);
-            entity.Status = OwnerInviteStatusNames.Expired;
+            var entity = await dbContext.OrganizationOwnerInvites.SingleAsync(i => i.OrganizationOwnerInviteId == invite.OrganizationOwnerInviteId);
+            entity.Status = OrganizationOwnerInviteStatusNames.Expired;
             await dbContext.SaveChangesAsync();
         }
 
@@ -247,22 +247,22 @@ public sealed class OperatorConnectionResolutionEndpointTests
                 Limits: new TenantLimitsDto(1, 20, 30, 5),
                 OwnerUserName: "owner@demo-club.test",
                 OwnerDisplayName: "Demo Owner",
-                OwnerInviteLifetime: TimeSpan.FromDays(7)));
+                OrganizationOwnerInviteLifetime: TimeSpan.FromDays(7)));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<CreateTenantResponse>();
         Assert.NotNull(body);
         return body.Tenant.OrganizationId;
     }
 
-    private static async Task<OwnerInviteDto> GetLatestInviteAsync(PlatformApiFactory factory)
+    private static async Task<OrganizationOwnerInviteDto> GetLatestInviteAsync(PlatformApiFactory factory)
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var entity = await dbContext.OwnerInvites
+        var entity = await dbContext.OrganizationOwnerInvites
             .OrderByDescending(invite => invite.CreatedAtUtc)
             .FirstAsync();
-        return new OwnerInviteDto(
-            OwnerInviteId: entity.OwnerInviteId,
+        return new OrganizationOwnerInviteDto(
+            OrganizationOwnerInviteId: entity.OrganizationOwnerInviteId,
             OrganizationId: entity.OrganizationId,
             BranchId: entity.BranchId,
             Code: entity.Code,

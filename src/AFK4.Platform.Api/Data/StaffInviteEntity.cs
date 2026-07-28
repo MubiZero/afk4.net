@@ -2,7 +2,7 @@ namespace AFK4.Platform.Api.Data;
 
 /// <summary>
 /// An additive staff onboarding path: an admin invites a new staff member by email, and the
-/// invitee sets their own password on accept (mirrors <see cref="OwnerInviteEntity"/> +
+/// invitee sets their own password on accept (mirrors <see cref="OrganizationOwnerInviteEntity"/> +
 /// <see cref="PasswordResetTokenEntity"/>). Does not replace inline-password staff creation.
 /// Opaque token (RNG -> SHA-256 stored, plaintext emailed once); single-use, expiring.
 /// </summary>

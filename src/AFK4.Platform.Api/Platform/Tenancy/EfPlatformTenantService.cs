@@ -3,8 +3,8 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Shared.Contracts.Identity;
+using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Notifications;
-using AFK4.Shared.Contracts.Platform.Invites;
 using AFK4.Shared.Contracts.Platform.Tenants;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -15,8 +15,7 @@ namespace AFK4.Platform.Api.Platform.Tenancy;
 public sealed class EfPlatformTenantService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    IOwnerInviteCodeGenerator inviteCodeGenerator,
-    IStaffTokenService staffTokenService,
+    IOrganizationOwnerInviteCodeGenerator inviteCodeGenerator,
     INotificationService notifications,
     IOptions<PlatformTenantOptions> tenantOptions) : IPlatformTenantService
 {
@@ -115,7 +114,7 @@ public sealed class EfPlatformTenantService(
             return PlatformTenantOperationResult<CreateTenantResponse>.BadRequest(ownerDisplayNameError);
         }
 
-        var lifetime = request.OwnerInviteLifetime ?? options.DefaultOwnerInviteLifetime;
+        var lifetime = request.OrganizationOwnerInviteLifetime ?? options.DefaultOrganizationOwnerInviteLifetime;
         var lifetimeError = ValidateLifetime(lifetime);
         if (lifetimeError is not null)
         {
@@ -155,7 +154,7 @@ public sealed class EfPlatformTenantService(
             CreatedAtUtc = now
         };
 
-        var invite = BuildOwnerInvite(
+        var invite = BuildOrganizationOwnerInvite(
             organization.OrganizationId,
             branch.BranchId,
             platformAdminUserId,
@@ -178,7 +177,7 @@ public sealed class EfPlatformTenantService(
         dbContext.Organizations.Add(organization);
         dbContext.Branches.Add(branch);
         dbContext.Zones.Add(defaultZone);
-        dbContext.OwnerInvites.Add(invite);
+        dbContext.OrganizationOwnerInvites.Add(invite);
         var catalogPlan = await dbContext.SubscriptionPlans
             .AsNoTracking()
             .SingleOrDefaultAsync(plan => plan.PlanCode == organization.PlanCode, cancellationToken);
@@ -244,39 +243,39 @@ public sealed class EfPlatformTenantService(
         return BuildTenantDetailAsync(organizationId, cancellationToken);
     }
 
-    public async Task<PlatformTenantOperationResult<OwnerInviteDto>> CreateOrRotateOwnerInviteAsync(
+    public async Task<PlatformTenantOperationResult<OrganizationOwnerInviteDto>> CreateOrRotateOrganizationOwnerInviteAsync(
         Guid organizationId,
-        CreateOwnerInviteRequest request,
+        CreateOrganizationOwnerInviteRequest request,
         Guid platformAdminUserId,
         CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty)
         {
-            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest("OrganizationId is required.");
+            return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.BadRequest("OrganizationId is required.");
         }
 
         if (request.BranchId == Guid.Empty)
         {
-            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest("BranchId is required.");
+            return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.BadRequest("BranchId is required.");
         }
 
         var ownerUserNameError = ValidateOptionalUserName(request.OwnerUserName);
         if (ownerUserNameError is not null)
         {
-            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest(ownerUserNameError);
+            return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.BadRequest(ownerUserNameError);
         }
 
         var ownerDisplayNameError = ValidateOptionalDisplayName(request.OwnerDisplayName);
         if (ownerDisplayNameError is not null)
         {
-            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest(ownerDisplayNameError);
+            return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.BadRequest(ownerDisplayNameError);
         }
 
-        var lifetime = request.Lifetime ?? options.DefaultOwnerInviteLifetime;
+        var lifetime = request.Lifetime ?? options.DefaultOrganizationOwnerInviteLifetime;
         var lifetimeError = ValidateLifetime(lifetime);
         if (lifetimeError is not null)
         {
-            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest(lifetimeError);
+            return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.BadRequest(lifetimeError);
         }
 
         var organization = await dbContext.Organizations
@@ -284,7 +283,7 @@ public sealed class EfPlatformTenantService(
             .SingleOrDefaultAsync(org => org.OrganizationId == organizationId, cancellationToken);
         if (organization is null)
         {
-            return PlatformTenantOperationResult<OwnerInviteDto>.NotFound("Tenant was not found.");
+            return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.NotFound("Tenant was not found.");
         }
 
         var branch = await dbContext.Branches
@@ -294,25 +293,25 @@ public sealed class EfPlatformTenantService(
                 cancellationToken);
         if (branch is null)
         {
-            return PlatformTenantOperationResult<OwnerInviteDto>.NotFound("Branch was not found in this tenant.");
+            return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.NotFound("Branch was not found in this tenant.");
         }
 
         var now = timeProvider.GetUtcNow();
-        var pendingInvites = await dbContext.OwnerInvites
+        var pendingInvites = await dbContext.OrganizationOwnerInvites
             .Where(invite =>
                 invite.OrganizationId == organizationId &&
                 invite.BranchId == request.BranchId &&
-                invite.Status == OwnerInviteStatusNames.Pending)
+                invite.Status == OrganizationOwnerInviteStatusNames.Pending)
             .ToListAsync(cancellationToken);
         foreach (var pending in pendingInvites)
         {
-            pending.Status = OwnerInviteStatusNames.Revoked;
+            pending.Status = OrganizationOwnerInviteStatusNames.Revoked;
             pending.RevokedAtUtc = now;
             pending.RevokedByPlatformAdminUserId = platformAdminUserId;
             pending.RevokedReason = "Rotated by platform admin.";
         }
 
-        var freshInvite = BuildOwnerInvite(
+        var freshInvite = BuildOrganizationOwnerInvite(
             organizationId,
             request.BranchId,
             platformAdminUserId,
@@ -321,106 +320,106 @@ public sealed class EfPlatformTenantService(
             request.OwnerEmail,
             lifetime,
             now);
-        dbContext.OwnerInvites.Add(freshInvite);
+        dbContext.OrganizationOwnerInvites.Add(freshInvite);
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        await SendOwnerInviteEmailAsync(freshInvite, $"owner-invite:{freshInvite.OwnerInviteId:N}", cancellationToken);
+        await SendOrganizationOwnerInviteEmailAsync(freshInvite, $"owner-invite:{freshInvite.OrganizationOwnerInviteId:N}", cancellationToken);
 
-        return PlatformTenantOperationResult<OwnerInviteDto>.Success(ToInviteDto(freshInvite));
+        return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.Success(ToInviteDto(freshInvite));
     }
 
-    public async Task<PlatformTenantOperationResult<OwnerInviteDto>> ResendOwnerInviteAsync(
-        Guid ownerInviteId,
+    public async Task<PlatformTenantOperationResult<OrganizationOwnerInviteDto>> ResendOrganizationOwnerInviteAsync(
+        Guid organizationOwnerInviteId,
         CancellationToken cancellationToken)
     {
-        if (ownerInviteId == Guid.Empty)
+        if (organizationOwnerInviteId == Guid.Empty)
         {
-            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest("OwnerInviteId is required.");
+            return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.BadRequest("OrganizationOwnerInviteId is required.");
         }
 
-        var invite = await dbContext.OwnerInvites
-            .SingleOrDefaultAsync(candidate => candidate.OwnerInviteId == ownerInviteId, cancellationToken);
+        var invite = await dbContext.OrganizationOwnerInvites
+            .SingleOrDefaultAsync(candidate => candidate.OrganizationOwnerInviteId == organizationOwnerInviteId, cancellationToken);
         if (invite is null)
         {
-            return PlatformTenantOperationResult<OwnerInviteDto>.NotFound("Owner invite was not found.");
+            return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.NotFound("Owner invite was not found.");
         }
 
-        if (invite.Status != OwnerInviteStatusNames.Pending)
+        if (invite.Status != OrganizationOwnerInviteStatusNames.Pending)
         {
-            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest("Only pending invites can be resent.");
+            return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.BadRequest("Only pending invites can be resent.");
         }
 
         if (string.IsNullOrWhiteSpace(invite.OwnerEmail))
         {
-            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest("This invite has no email address on file.");
+            return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.BadRequest("This invite has no email address on file.");
         }
 
         var now = timeProvider.GetUtcNow();
-        await SendOwnerInviteEmailAsync(invite, $"owner-invite-resend:{invite.OwnerInviteId:N}:{now.UtcTicks}", cancellationToken);
+        await SendOrganizationOwnerInviteEmailAsync(invite, $"owner-invite-resend:{invite.OrganizationOwnerInviteId:N}:{now.UtcTicks}", cancellationToken);
 
-        return PlatformTenantOperationResult<OwnerInviteDto>.Success(ToInviteDto(invite));
+        return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.Success(ToInviteDto(invite));
     }
 
-    public async Task<PlatformTenantOperationResult<StaffSignInResponse>> AcceptOwnerInviteAsync(
-        AcceptOwnerInviteRequest request,
+    public async Task<PlatformTenantOperationResult<OrganizationOwnerAccountActivationResult>> AcceptOrganizationOwnerInviteAsync(
+        AcceptOrganizationOwnerInviteRequest request,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Code))
         {
-            return PlatformTenantOperationResult<StaffSignInResponse>.BadRequest("Code is required.");
+            return PlatformTenantOperationResult<OrganizationOwnerAccountActivationResult>.BadRequest("Code is required.");
         }
 
         if (string.IsNullOrWhiteSpace(request.UserName) || request.UserName.Trim().Length > MaxUserNameLength)
         {
-            return PlatformTenantOperationResult<StaffSignInResponse>.BadRequest(
+            return PlatformTenantOperationResult<OrganizationOwnerAccountActivationResult>.BadRequest(
                 $"UserName is required and must contain {MaxUserNameLength} characters or fewer.");
         }
 
         if (request.DisplayName is { } providedDisplayName && providedDisplayName.Trim().Length > MaxDisplayNameLength)
         {
-            return PlatformTenantOperationResult<StaffSignInResponse>.BadRequest(
+            return PlatformTenantOperationResult<OrganizationOwnerAccountActivationResult>.BadRequest(
                 $"DisplayName must contain {MaxDisplayNameLength} characters or fewer.");
         }
 
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < MinPasswordLength)
         {
-            return PlatformTenantOperationResult<StaffSignInResponse>.BadRequest(
+            return PlatformTenantOperationResult<OrganizationOwnerAccountActivationResult>.BadRequest(
                 $"Password must contain at least {MinPasswordLength} characters.");
         }
 
         var normalizedCode = NormalizeInviteCode(request.Code);
-        var invite = await dbContext.OwnerInvites
+        var invite = await dbContext.OrganizationOwnerInvites
             .SingleOrDefaultAsync(candidate => candidate.NormalizedCode == normalizedCode, cancellationToken);
         if (invite is null)
         {
-            return PlatformTenantOperationResult<StaffSignInResponse>.NotFound("Invite was not found.");
+            return PlatformTenantOperationResult<OrganizationOwnerAccountActivationResult>.NotFound("Invite was not found.");
         }
 
         var now = timeProvider.GetUtcNow();
-        if (invite.Status != OwnerInviteStatusNames.Pending)
+        if (invite.Status != OrganizationOwnerInviteStatusNames.Pending)
         {
-            return PlatformTenantOperationResult<StaffSignInResponse>.BadRequest(
+            return PlatformTenantOperationResult<OrganizationOwnerAccountActivationResult>.BadRequest(
                 $"Invite is no longer pending (status = {invite.Status}).");
         }
 
         if (invite.ExpiresAtUtc <= now)
         {
-            invite.Status = OwnerInviteStatusNames.Expired;
+            invite.Status = OrganizationOwnerInviteStatusNames.Expired;
             await dbContext.SaveChangesAsync(cancellationToken);
-            return PlatformTenantOperationResult<StaffSignInResponse>.BadRequest("Invite has expired.");
+            return PlatformTenantOperationResult<OrganizationOwnerAccountActivationResult>.BadRequest("Invite has expired.");
         }
 
         var organization = await dbContext.Organizations
             .SingleOrDefaultAsync(org => org.OrganizationId == invite.OrganizationId, cancellationToken);
         if (organization is null)
         {
-            return PlatformTenantOperationResult<StaffSignInResponse>.BadRequest("Tenant no longer exists.");
+            return PlatformTenantOperationResult<OrganizationOwnerAccountActivationResult>.BadRequest("Tenant no longer exists.");
         }
 
         if (organization.Status != TenantStatusNames.Active)
         {
-            return PlatformTenantOperationResult<StaffSignInResponse>.BadRequest(
+            return PlatformTenantOperationResult<OrganizationOwnerAccountActivationResult>.BadRequest(
                 $"Tenant is not active (status = {organization.Status}).");
         }
 
@@ -430,7 +429,7 @@ public sealed class EfPlatformTenantService(
                 cancellationToken);
         if (branch is null)
         {
-            return PlatformTenantOperationResult<StaffSignInResponse>.BadRequest("Branch no longer exists.");
+            return PlatformTenantOperationResult<OrganizationOwnerAccountActivationResult>.BadRequest("Branch no longer exists.");
         }
 
         var requestedUserName = request.UserName.Trim();
@@ -442,7 +441,7 @@ public sealed class EfPlatformTenantService(
             cancellationToken);
         if (userNameTaken)
         {
-            return PlatformTenantOperationResult<StaffSignInResponse>.Conflict(
+            return PlatformTenantOperationResult<OrganizationOwnerAccountActivationResult>.Conflict(
                 "UserName is already in use in this tenant.");
         }
 
@@ -470,14 +469,17 @@ public sealed class EfPlatformTenantService(
             RoleName = OrganizationRoleNames.OrganizationOwner
         });
 
-        invite.Status = OwnerInviteStatusNames.Accepted;
+        invite.Status = OrganizationOwnerInviteStatusNames.Accepted;
         invite.AcceptedAtUtc = now;
         invite.AcceptedByStaffUserId = staffUser.StaffUserId;
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var signInResponse = await staffTokenService.IssueAsync(staffUser, cancellationToken);
-        return PlatformTenantOperationResult<StaffSignInResponse>.Success(signInResponse);
+        return PlatformTenantOperationResult<OrganizationOwnerAccountActivationResult>.Success(
+            new OrganizationOwnerAccountActivationResult(
+                invite.OrganizationId,
+                invite.BranchId,
+                "sign_in_to_organization_admin"));
     }
 
     private static string DeriveDisplayNameFromLogin(string login)
@@ -533,50 +535,50 @@ public sealed class EfPlatformTenantService(
         return PlatformTenantOperationResult<TenantDetailDto>.Success(detail!);
     }
 
-    public async Task<PlatformTenantOperationResult<OwnerInviteDto>> RevokeOwnerInviteAsync(
-        Guid ownerInviteId,
-        RevokeOwnerInviteRequest request,
+    public async Task<PlatformTenantOperationResult<OrganizationOwnerInviteDto>> RevokeOrganizationOwnerInviteAsync(
+        Guid organizationOwnerInviteId,
+        RevokeOrganizationOwnerInviteRequest request,
         Guid platformAdminUserId,
         CancellationToken cancellationToken)
     {
-        if (ownerInviteId == Guid.Empty)
+        if (organizationOwnerInviteId == Guid.Empty)
         {
-            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest("OwnerInviteId is required.");
+            return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.BadRequest("OrganizationOwnerInviteId is required.");
         }
 
         if (string.IsNullOrWhiteSpace(request.Reason))
         {
-            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest("Reason is required.");
+            return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.BadRequest("Reason is required.");
         }
 
         var trimmedReason = request.Reason.Trim();
         if (trimmedReason.Length > MaxStatusReasonLength)
         {
-            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest(
+            return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.BadRequest(
                 $"Reason must contain {MaxStatusReasonLength} characters or fewer.");
         }
 
-        var invite = await dbContext.OwnerInvites
-            .SingleOrDefaultAsync(candidate => candidate.OwnerInviteId == ownerInviteId, cancellationToken);
+        var invite = await dbContext.OrganizationOwnerInvites
+            .SingleOrDefaultAsync(candidate => candidate.OrganizationOwnerInviteId == organizationOwnerInviteId, cancellationToken);
         if (invite is null)
         {
-            return PlatformTenantOperationResult<OwnerInviteDto>.NotFound("Owner invite was not found.");
+            return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.NotFound("Owner invite was not found.");
         }
 
-        if (invite.Status != OwnerInviteStatusNames.Pending)
+        if (invite.Status != OrganizationOwnerInviteStatusNames.Pending)
         {
-            return PlatformTenantOperationResult<OwnerInviteDto>.BadRequest(
+            return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.BadRequest(
                 $"Owner invite is not pending (status = {invite.Status}).");
         }
 
         var now = timeProvider.GetUtcNow();
-        invite.Status = OwnerInviteStatusNames.Revoked;
+        invite.Status = OrganizationOwnerInviteStatusNames.Revoked;
         invite.RevokedAtUtc = now;
         invite.RevokedByPlatformAdminUserId = platformAdminUserId;
         invite.RevokedReason = trimmedReason;
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return PlatformTenantOperationResult<OwnerInviteDto>.Success(ToInviteDto(invite));
+        return PlatformTenantOperationResult<OrganizationOwnerInviteDto>.Success(ToInviteDto(invite));
     }
 
     public async Task<PlatformTenantOperationResult<TenantDetailDto>> UpdateLimitsAsync(
@@ -649,7 +651,7 @@ public sealed class EfPlatformTenantService(
         return null;
     }
 
-    private OwnerInviteEntity BuildOwnerInvite(
+    private OrganizationOwnerInviteEntity BuildOrganizationOwnerInvite(
         Guid organizationId,
         Guid branchId,
         Guid platformAdminUserId,
@@ -660,14 +662,14 @@ public sealed class EfPlatformTenantService(
         DateTimeOffset now)
     {
         var code = inviteCodeGenerator.Generate();
-        return new OwnerInviteEntity
+        return new OrganizationOwnerInviteEntity
         {
-            OwnerInviteId = Guid.NewGuid(),
+            OrganizationOwnerInviteId = Guid.NewGuid(),
             OrganizationId = organizationId,
             BranchId = branchId,
             Code = code,
             NormalizedCode = NormalizeInviteCode(code),
-            Status = OwnerInviteStatusNames.Pending,
+            Status = OrganizationOwnerInviteStatusNames.Pending,
             OwnerUserName = string.IsNullOrWhiteSpace(ownerUserName) ? null : ownerUserName.Trim(),
             OwnerDisplayName = string.IsNullOrWhiteSpace(ownerDisplayName) ? null : ownerDisplayName.Trim(),
             OwnerEmail = string.IsNullOrWhiteSpace(ownerEmail) ? null : ownerEmail.Trim(),
@@ -677,7 +679,7 @@ public sealed class EfPlatformTenantService(
         };
     }
 
-    private async Task SendOwnerInviteEmailAsync(OwnerInviteEntity invite, string idempotencyKey, CancellationToken cancellationToken)
+    private async Task SendOrganizationOwnerInviteEmailAsync(OrganizationOwnerInviteEntity invite, string idempotencyKey, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(invite.OwnerEmail))
         {
@@ -685,7 +687,7 @@ public sealed class EfPlatformTenantService(
         }
 
         var request = new NotificationRequest(
-            TemplateKey: NotificationTemplateKeys.OwnerInvite,
+            TemplateKey: NotificationTemplateKeys.OrganizationOwnerInvite,
             Category: NotificationCategory.Transactional,
             Recipient: new NotificationRecipient(Locale: string.Empty, EmailAddress: invite.OwnerEmail),
             Tokens: new Dictionary<string, string>
@@ -738,13 +740,13 @@ public sealed class EfPlatformTenantService(
 
     internal static string NormalizeInviteCode(string code) => code.Trim().ToLowerInvariant();
 
-    public async Task<PlatformTenantOperationResult<IReadOnlyList<OwnerInviteSummaryDto>>> ListOwnerInvitesAsync(
+    public async Task<PlatformTenantOperationResult<IReadOnlyList<OrganizationOwnerInviteSummaryDto>>> ListOrganizationOwnerInvitesAsync(
         Guid organizationId,
         CancellationToken cancellationToken)
     {
         if (organizationId == Guid.Empty)
         {
-            return PlatformTenantOperationResult<IReadOnlyList<OwnerInviteSummaryDto>>.BadRequest(
+            return PlatformTenantOperationResult<IReadOnlyList<OrganizationOwnerInviteSummaryDto>>.BadRequest(
                 "OrganizationId is required.");
         }
 
@@ -753,23 +755,23 @@ public sealed class EfPlatformTenantService(
             .AnyAsync(org => org.OrganizationId == organizationId, cancellationToken);
         if (!tenantExists)
         {
-            return PlatformTenantOperationResult<IReadOnlyList<OwnerInviteSummaryDto>>.NotFound(
+            return PlatformTenantOperationResult<IReadOnlyList<OrganizationOwnerInviteSummaryDto>>.NotFound(
                 "Tenant was not found.");
         }
 
-        var invites = await dbContext.OwnerInvites
+        var invites = await dbContext.OrganizationOwnerInvites
             .AsNoTracking()
             .Where(invite => invite.OrganizationId == organizationId)
             .OrderByDescending(invite => invite.CreatedAtUtc)
             .ToListAsync(cancellationToken);
 
-        IReadOnlyList<OwnerInviteSummaryDto> summaries = invites.Select(ToInviteSummaryDto).ToList();
-        return PlatformTenantOperationResult<IReadOnlyList<OwnerInviteSummaryDto>>.Success(summaries);
+        IReadOnlyList<OrganizationOwnerInviteSummaryDto> summaries = invites.Select(ToInviteSummaryDto).ToList();
+        return PlatformTenantOperationResult<IReadOnlyList<OrganizationOwnerInviteSummaryDto>>.Success(summaries);
     }
 
-    private static OwnerInviteDto ToInviteDto(OwnerInviteEntity entity) =>
+    private static OrganizationOwnerInviteDto ToInviteDto(OrganizationOwnerInviteEntity entity) =>
         new(
-            OwnerInviteId: entity.OwnerInviteId,
+            OrganizationOwnerInviteId: entity.OrganizationOwnerInviteId,
             OrganizationId: entity.OrganizationId,
             BranchId: entity.BranchId,
             Code: entity.Code,
@@ -782,9 +784,9 @@ public sealed class EfPlatformTenantService(
             RevokedReason: entity.RevokedReason,
             CreatedAtUtc: entity.CreatedAtUtc);
 
-    private static OwnerInviteSummaryDto ToInviteSummaryDto(OwnerInviteEntity entity) =>
+    private static OrganizationOwnerInviteSummaryDto ToInviteSummaryDto(OrganizationOwnerInviteEntity entity) =>
         new(
-            OwnerInviteId: entity.OwnerInviteId,
+            OrganizationOwnerInviteId: entity.OrganizationOwnerInviteId,
             OrganizationId: entity.OrganizationId,
             BranchId: entity.BranchId,
             CodeSuffix: SuffixCode(entity.Code),
@@ -915,8 +917,8 @@ public sealed class EfPlatformTenantService(
             return "Owner invite lifetime must be positive.";
         }
 
-        return lifetime > options.MaxOwnerInviteLifetime
-            ? $"Owner invite lifetime must not exceed {options.MaxOwnerInviteLifetime}."
+        return lifetime > options.MaxOrganizationOwnerInviteLifetime
+            ? $"Owner invite lifetime must not exceed {options.MaxOrganizationOwnerInviteLifetime}."
             : null;
     }
 }

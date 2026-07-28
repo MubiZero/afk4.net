@@ -4,7 +4,7 @@ public sealed class PlatformTenantOptions
 {
     public const string ConfigurationSection = "PlatformTenant";
 
-    public TimeSpan DefaultOwnerInviteLifetime { get; set; } = TimeSpan.FromDays(7);
+    public TimeSpan DefaultOrganizationOwnerInviteLifetime { get; set; } = TimeSpan.FromDays(7);
 
-    public TimeSpan MaxOwnerInviteLifetime { get; set; } = TimeSpan.FromDays(30);
+    public TimeSpan MaxOrganizationOwnerInviteLifetime { get; set; } = TimeSpan.FromDays(30);
 }

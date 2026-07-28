@@ -1,6 +1,6 @@
 namespace AFK4.Platform.Api.Platform.Tenancy;
 
-public interface IOwnerInviteCodeGenerator
+public interface IOrganizationOwnerInviteCodeGenerator
 {
     string Generate();
 }

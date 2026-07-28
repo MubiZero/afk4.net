@@ -12,7 +12,7 @@ beforeAll(() => {
 
 const response = {
   tenant: { organizationId: 'org-9' },
-  ownerInvite: { ownerInviteId: 'i1', code: 'X' }
+  organizationOwnerInvite: { organizationOwnerInviteId: 'i1', code: 'X' }
 } as never;
 
 function renderScreen(client: any, onCreated = mock(), onCancel = mock()) {

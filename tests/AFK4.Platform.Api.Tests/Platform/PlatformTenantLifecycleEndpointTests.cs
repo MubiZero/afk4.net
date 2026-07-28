@@ -2,7 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Auth;
-using AFK4.Shared.Contracts.Platform.Invites;
+using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Tenants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,7 +26,7 @@ public sealed class PlatformTenantLifecycleEndpointTests
             Limits: new TenantLimitsDto(3, 60, 80, 20),
             OwnerUserName: "owner@demo-club.test",
             OwnerDisplayName: "Demo Owner",
-            OwnerInviteLifetime: TimeSpan.FromDays(7));
+            OrganizationOwnerInviteLifetime: TimeSpan.FromDays(7));
     }
 
     private static async Task<Guid> CreateTenantAsync(HttpClient client)
@@ -232,7 +232,7 @@ public sealed class PlatformTenantLifecycleEndpointTests
     }
 
     [Fact]
-    public async Task PostOwnerInviteAccept_WhenTenantSuspended_Returns400()
+    public async Task PostOrganizationOwnerInviteAccept_WhenTenantSuspended_Returns400()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -249,9 +249,9 @@ public sealed class PlatformTenantLifecycleEndpointTests
 
         using var publicClient = factory.CreateClient();
         var response = await publicClient.PostAsJsonAsync(
-            "/api/platform/owner-invites/accept",
-            new AcceptOwnerInviteRequest(
-                Code: created.OwnerInvite.Code,
+            "/api/account-activation/organization-owner",
+            new AcceptOrganizationOwnerInviteRequest(
+                Code: created.OrganizationOwnerInvite.Code,
                 UserName: "demo.owner",
                 DisplayName: "Demo Owner",
                 Password: "Passw0rd!Real"));

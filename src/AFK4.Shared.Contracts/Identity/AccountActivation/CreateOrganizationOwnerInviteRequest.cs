@@ -1,6 +1,6 @@
-namespace AFK4.Shared.Contracts.Platform.Invites;
+namespace AFK4.Shared.Contracts.Identity.AccountActivation;
 
-public sealed record CreateOwnerInviteRequest(
+public sealed record CreateOrganizationOwnerInviteRequest(
     Guid BranchId,
     string? OwnerUserName,
     string? OwnerDisplayName,

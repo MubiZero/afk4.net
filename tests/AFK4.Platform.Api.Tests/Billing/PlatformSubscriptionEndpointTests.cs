@@ -21,7 +21,7 @@ public sealed class PlatformSubscriptionEndpointTests
             Limits: new TenantLimitsDto(1, 30, 40, 10),
             OwnerUserName: "owner@sub-club.test",
             OwnerDisplayName: "Owner",
-            OwnerInviteLifetime: TimeSpan.FromDays(7));
+            OrganizationOwnerInviteLifetime: TimeSpan.FromDays(7));
         var response = await client.PostAsJsonAsync("/api/platform/tenants", request);
         var body = await response.Content.ReadFromJsonAsync<CreateTenantResponse>();
         return body!.Tenant.OrganizationId;

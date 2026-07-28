@@ -1,5 +1,5 @@
 using AFK4.Shared.Contracts.Identity;
-using AFK4.Shared.Contracts.Platform.Invites;
+using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Tenants;
 
 namespace AFK4.Platform.Api.Platform.Tenancy;
@@ -15,18 +15,18 @@ public interface IPlatformTenantService
 
     Task<TenantDetailDto?> GetAsync(Guid organizationId, CancellationToken cancellationToken);
 
-    Task<PlatformTenantOperationResult<OwnerInviteDto>> CreateOrRotateOwnerInviteAsync(
+    Task<PlatformTenantOperationResult<OrganizationOwnerInviteDto>> CreateOrRotateOrganizationOwnerInviteAsync(
         Guid organizationId,
-        CreateOwnerInviteRequest request,
+        CreateOrganizationOwnerInviteRequest request,
         Guid platformAdminUserId,
         CancellationToken cancellationToken);
 
-    Task<PlatformTenantOperationResult<IReadOnlyList<OwnerInviteSummaryDto>>> ListOwnerInvitesAsync(
+    Task<PlatformTenantOperationResult<IReadOnlyList<OrganizationOwnerInviteSummaryDto>>> ListOrganizationOwnerInvitesAsync(
         Guid organizationId,
         CancellationToken cancellationToken);
 
-    Task<PlatformTenantOperationResult<StaffSignInResponse>> AcceptOwnerInviteAsync(
-        AcceptOwnerInviteRequest request,
+    Task<PlatformTenantOperationResult<OrganizationOwnerAccountActivationResult>> AcceptOrganizationOwnerInviteAsync(
+        AcceptOrganizationOwnerInviteRequest request,
         CancellationToken cancellationToken);
 
     Task<PlatformTenantOperationResult<TenantDetailDto>> UpdateStatusAsync(
@@ -41,13 +41,13 @@ public interface IPlatformTenantService
         Guid platformAdminUserId,
         CancellationToken cancellationToken);
 
-    Task<PlatformTenantOperationResult<OwnerInviteDto>> RevokeOwnerInviteAsync(
-        Guid ownerInviteId,
-        RevokeOwnerInviteRequest request,
+    Task<PlatformTenantOperationResult<OrganizationOwnerInviteDto>> RevokeOrganizationOwnerInviteAsync(
+        Guid organizationOwnerInviteId,
+        RevokeOrganizationOwnerInviteRequest request,
         Guid platformAdminUserId,
         CancellationToken cancellationToken);
 
-    Task<PlatformTenantOperationResult<OwnerInviteDto>> ResendOwnerInviteAsync(
-        Guid ownerInviteId,
+    Task<PlatformTenantOperationResult<OrganizationOwnerInviteDto>> ResendOrganizationOwnerInviteAsync(
+        Guid organizationOwnerInviteId,
         CancellationToken cancellationToken);
 }

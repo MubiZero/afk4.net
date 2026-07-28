@@ -21,7 +21,7 @@ public static class NotificationTemplateKeys
     public const string StaffPasswordResetSms = "staff.password_reset_sms";
 
     /// <summary>Owner invite email carrying the invite code/link (Stage 3).</summary>
-    public const string OwnerInvite = "owner.invite";
+    public const string OrganizationOwnerInvite = "owner.invite";
 
     /// <summary>Staff invite email carrying the invite code; invitee sets their own password on accept (Stage 3, additive).</summary>
     public const string StaffInvite = "staff.invite";
@@ -48,5 +48,5 @@ public static class NotificationTemplateKeys
     public const string ScheduledReport = "report.scheduled";
 
     public static readonly IReadOnlyList<string> All =
-        [Test, StaffPasswordReset, StaffPhoneVerification, StaffPasswordResetSms, OwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport];
+        [Test, StaffPasswordReset, StaffPhoneVerification, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport];
 }

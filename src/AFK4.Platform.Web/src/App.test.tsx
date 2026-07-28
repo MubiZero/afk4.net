@@ -76,8 +76,8 @@ describe('Platform Web admin-only routing', () => {
     expect(resolvePlatformRoute('/club').route).toEqual({ kind: 'notFound', path: '/club' });
     expect(resolvePlatformRoute('/club/install').route).toEqual({ kind: 'notFound', path: '/club/install' });
     expect(resolvePlatformRoute('/auth/sign-in').route).toEqual({ kind: 'notFound', path: '/auth/sign-in' });
-    expect(resolvePlatformRoute('/auth/accept-invite', null, '?code=owner-code').route).toEqual({
-      kind: 'acceptInvite',
+    expect(resolvePlatformRoute('/account-activation', null, '?code=owner-code').route).toEqual({
+      kind: 'accountActivation',
       code: 'owner-code'
     });
   });

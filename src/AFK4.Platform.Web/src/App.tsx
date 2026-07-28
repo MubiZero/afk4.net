@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PlatformApiClient } from './api/platformApi';
-import { OwnerInviteAcceptanceApi } from './api/ownerInviteAcceptanceApi';
-import type { CreateTenantResponse, OwnerInvite } from './api/types';
+import { AccountActivationApi } from './account-activation/accountActivationApi';
+import type { CreateTenantResponse, OrganizationOwnerInvite } from './api/types';
 import { readSession, type PlatformAdminSession } from './auth/tokenStore';
 import { AppShell } from './components/shell/AppShell';
-import { AcceptOwnerInvite } from './components/AcceptOwnerInvite';
+import { AccountActivation } from './account-activation/AccountActivation';
 import { SignIn } from './components/SignIn';
 import { useI18n, type MessageKey } from './i18n/I18nProvider';
 import { BillingScreen as PlatformBillingScreen } from './platform/billing/BillingScreen';
@@ -22,11 +22,11 @@ export type AdminRoute =
   | { kind: 'adminProfile' }
   | { kind: 'tenantList' }
   | { kind: 'newTenant' }
-  | { kind: 'tenantDetail'; organizationId: string; initialInvite: OwnerInvite | null };
+  | { kind: 'tenantDetail'; organizationId: string; initialInvite: OrganizationOwnerInvite | null };
 
 export type AppRoute =
   | AdminRoute
-  | { kind: 'acceptInvite'; code: string | null }
+  | { kind: 'accountActivation'; code: string | null }
   | { kind: 'notFound'; path: string };
 
 export interface RouteResolution {
@@ -52,8 +52,8 @@ export default function App({ apiBaseUrl }: AppProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [apiBaseUrl]
   );
-  const ownerInviteClient = useMemo(
-    () => new OwnerInviteAcceptanceApi({ baseUrl: apiBaseUrl }),
+  const organizationOwnerInviteClient = useMemo(
+    () => new AccountActivationApi({ baseUrl: apiBaseUrl }),
     [apiBaseUrl]
   );
 
@@ -91,7 +91,7 @@ export default function App({ apiBaseUrl }: AppProps) {
     [navigate]
   );
   const navigateToTenantDetail = useCallback(
-    (organizationId: string, initialInvite: OwnerInvite | null = null) => navigate(
+    (organizationId: string, initialInvite: OrganizationOwnerInvite | null = null) => navigate(
       { kind: 'tenantDetail', organizationId, initialInvite },
       `/admin/tenants/${encodeURIComponent(organizationId)}`,
       { initialInvite }
@@ -112,8 +112,8 @@ export default function App({ apiBaseUrl }: AppProps) {
     );
   }
 
-  if (route.kind === 'acceptInvite') {
-    return <AcceptOwnerInvite client={ownerInviteClient} initialCode={route.code} />;
+  if (route.kind === 'accountActivation') {
+    return <AccountActivation client={organizationOwnerInviteClient} initialCode={route.code} />;
   }
 
   if (adminSession === null) {
@@ -128,7 +128,7 @@ export default function App({ apiBaseUrl }: AppProps) {
       onNavigate={navigateToAdminRoute}
       onCreateTenant={navigateToNewTenant}
       onOpenTenant={navigateToTenantDetail}
-      onCreatedTenant={response => navigateToTenantDetail(response.tenant.organizationId, response.ownerInvite)}
+      onCreatedTenant={response => navigateToTenantDetail(response.tenant.organizationId, response.organizationOwnerInvite)}
       onCancelNewTenant={navigateToTenantList}
       onBackToTenants={navigateToTenantList}
       onSignOut={() => void adminClient.signOut()}
@@ -257,8 +257,8 @@ export function resolvePlatformRoute(
   if (path === '/admin/profile') return { route: { kind: 'adminProfile' } };
   if (path === '/admin/tenants') return { route: { kind: 'tenantList' } };
   if (path === '/admin/tenants/new') return { route: { kind: 'newTenant' } };
-  if (path === '/auth/accept-invite') {
-    return { route: { kind: 'acceptInvite', code: readQueryValue(_search, 'code') } };
+  if (path === '/account-activation') {
+    return { route: { kind: 'accountActivation', code: readQueryValue(_search, 'code') } };
   }
 
   const tenantDetailMatch = /^\/admin\/tenants\/([^/]+)$/u.exec(path);
@@ -302,10 +302,10 @@ function readQueryValue(search: string, key: string): string | null {
   }
 }
 
-function readInitialInvite(historyState: unknown): OwnerInvite | null {
+function readInitialInvite(historyState: unknown): OrganizationOwnerInvite | null {
   if (historyState === null || typeof historyState !== 'object') return null;
   const candidate = (historyState as { initialInvite?: unknown }).initialInvite;
-  return candidate === null || typeof candidate === 'object' ? candidate as OwnerInvite | null : null;
+  return candidate === null || typeof candidate === 'object' ? candidate as OrganizationOwnerInvite | null : null;
 }
 
 function isAdminRoute(route: AppRoute): route is AdminRoute {

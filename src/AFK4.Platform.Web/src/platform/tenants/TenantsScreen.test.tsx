@@ -36,7 +36,7 @@ function client() {
     },
     plans: { listPlans: mock().mockResolvedValue([]) },
     invoices: { listTenantInvoices: mock().mockResolvedValue([]), generateInvoice: mock() },
-    ownerInvites: { listOwnerInvites: mock().mockResolvedValue([]) },
+    organizationOwnerInvites: { listOrganizationOwnerInvites: mock().mockResolvedValue([]) },
     supportNotes: { listSupportNotes: mock().mockResolvedValue([]) }
   } as never;
 }

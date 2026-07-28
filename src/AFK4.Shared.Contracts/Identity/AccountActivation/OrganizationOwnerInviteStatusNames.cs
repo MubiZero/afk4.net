@@ -1,6 +1,6 @@
-namespace AFK4.Shared.Contracts.Platform.Invites;
+namespace AFK4.Shared.Contracts.Identity.AccountActivation;
 
-public static class OwnerInviteStatusNames
+public static class OrganizationOwnerInviteStatusNames
 {
     public const string Pending = "pending";
 

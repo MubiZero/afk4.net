@@ -137,7 +137,7 @@ describe('PlatformApiClient', () => {
   it('lists owner invites for a tenant and returns the masked summary payload', async () => {
     const listBody = [
       {
-        ownerInviteId: '11111111-1111-1111-1111-111111111111',
+        organizationOwnerInviteId: '11111111-1111-1111-1111-111111111111',
         organizationId: '22222222-2222-2222-2222-222222222222',
         branchId: '33333333-3333-3333-3333-333333333333',
         codeSuffix: 'ka9p',
@@ -159,12 +159,12 @@ describe('PlatformApiClient', () => {
       onSessionChanged: () => {}
     });
 
-    const invites = await client.ownerInvites.listOwnerInvites('22222222-2222-2222-2222-222222222222');
+    const invites = await client.organizationOwnerInvites.listOrganizationOwnerInvites('22222222-2222-2222-2222-222222222222');
 
     expect(invites).toHaveLength(1);
     expect(invites[0].codeSuffix).toBe('ka9p');
     const lastCall = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
-    expect(lastCall[0]).toBe('http://localhost/api/platform/tenants/22222222-2222-2222-2222-222222222222/owner-invites');
+    expect(lastCall[0]).toBe('http://localhost/api/platform/tenants/22222222-2222-2222-2222-222222222222/organization-owner-invitations');
     expect(lastCall[1].method).toBe('GET');
   });
 

@@ -118,7 +118,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PlatformSupportAccessGrantEntity> PlatformSupportAccessGrants => Set<PlatformSupportAccessGrantEntity>();
 
-    public DbSet<OwnerInviteEntity> OwnerInvites => Set<OwnerInviteEntity>();
+    public DbSet<OrganizationOwnerInviteEntity> OrganizationOwnerInvites => Set<OrganizationOwnerInviteEntity>();
 
     public DbSet<TenantSupportNoteEntity> TenantSupportNotes => Set<TenantSupportNoteEntity>();
 
@@ -970,10 +970,11 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(grant => new { grant.OrganizationId, grant.ExpiresAtUtc });
         });
 
-        modelBuilder.Entity<OwnerInviteEntity>(entity =>
+        modelBuilder.Entity<OrganizationOwnerInviteEntity>(entity =>
         {
             entity.ToTable("owner_invites");
-            entity.HasKey(invite => invite.OwnerInviteId);
+            entity.HasKey(invite => invite.OrganizationOwnerInviteId);
+            entity.Property(invite => invite.OrganizationOwnerInviteId).HasColumnName("OwnerInviteId");
             entity.Property(invite => invite.Code).HasMaxLength(64).IsRequired();
             entity.Property(invite => invite.NormalizedCode).HasMaxLength(64).IsRequired();
             entity.Property(invite => invite.Status).HasMaxLength(32).IsRequired();

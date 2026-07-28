@@ -11,4 +11,4 @@ public sealed record CreateTenantRequest(
     TenantLimitsDto? Limits,
     string? OwnerUserName,
     string? OwnerDisplayName,
-    TimeSpan? OwnerInviteLifetime);
+    TimeSpan? OrganizationOwnerInviteLifetime);

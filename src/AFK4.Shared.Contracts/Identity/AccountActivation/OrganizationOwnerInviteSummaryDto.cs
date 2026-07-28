@@ -1,7 +1,7 @@
-namespace AFK4.Shared.Contracts.Platform.Invites;
+namespace AFK4.Shared.Contracts.Identity.AccountActivation;
 
-public sealed record OwnerInviteSummaryDto(
-    Guid OwnerInviteId,
+public sealed record OrganizationOwnerInviteSummaryDto(
+    Guid OrganizationOwnerInviteId,
     Guid OrganizationId,
     Guid BranchId,
     string CodeSuffix,

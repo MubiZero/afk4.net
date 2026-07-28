@@ -1,5 +1,5 @@
 using AFK4.Platform.Api.Data;
-using AFK4.Shared.Contracts.Platform.Invites;
+using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Operator;
 using Microsoft.EntityFrameworkCore;
 
@@ -86,7 +86,7 @@ public sealed class EfOperatorConnectionResolver(PlatformDbContext dbContext) : 
                 "SetupCode is required.");
         }
 
-        var invite = await dbContext.OwnerInvites
+        var invite = await dbContext.OrganizationOwnerInvites
             .AsNoTracking()
             .SingleOrDefaultAsync(candidate => candidate.NormalizedCode == normalized, cancellationToken);
         if (invite is null)
@@ -95,7 +95,7 @@ public sealed class EfOperatorConnectionResolver(PlatformDbContext dbContext) : 
                 "Setup code did not match any owner invite.");
         }
 
-        if (invite.Status != OwnerInviteStatusNames.Pending)
+        if (invite.Status != OrganizationOwnerInviteStatusNames.Pending)
         {
             return PlatformTenantOperationResult<ResolveOperatorConnectionResponse>.BadRequest(
                 $"Setup code is no longer usable (status = {invite.Status}).");

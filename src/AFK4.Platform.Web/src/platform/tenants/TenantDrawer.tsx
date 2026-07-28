@@ -3,20 +3,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LoadingCards, ErrorState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { PlatformApiClient } from '@/api/platformApi';
-import type { OwnerInvite, TenantDetail } from '@/api/types';
+import type { OrganizationOwnerInvite, TenantDetail } from '@/api/types';
 import { useTenantDetail } from './useTenantDetail';
 import { TenantStatusSection } from './TenantStatusSection';
 import { TenantSubscriptionSection } from './TenantSubscriptionSection';
 import { TenantInvoicesSection } from './TenantInvoicesSection';
 import { TenantLimitsSection } from './TenantLimitsSection';
-import { TenantOwnerInvitesSection } from './TenantOwnerInvitesSection';
+import { TenantOrganizationOwnerInvitesSection } from './TenantOrganizationOwnerInvitesSection';
 import { TenantSupportNotesSection } from './TenantSupportNotesSection';
 import { TenantHealthSection } from './TenantHealthSection';
 
 interface TenantDrawerProps {
   client: PlatformApiClient;
   organizationId: string;
-  initialInvite: OwnerInvite | null;
+  initialInvite: OrganizationOwnerInvite | null;
   onChanged: () => void;
 }
 
@@ -54,7 +54,7 @@ export function TenantDrawer({ client, organizationId, initialInvite, onChanged 
       <TenantLimitsSection client={client.tenants} tenant={tenant} onUpdated={handleUpdated} />
       <TenantInvoicesSection client={client.invoices} organizationId={tenant.organizationId} />
 
-      <TenantOwnerInvitesSection client={client.ownerInvites} organizationId={tenant.organizationId} branches={tenant.branches} initialInvite={initialInvite} />
+      <TenantOrganizationOwnerInvitesSection client={client.organizationOwnerInvites} organizationId={tenant.organizationId} branches={tenant.branches} initialInvite={initialInvite} />
       <TenantSupportNotesSection client={client.supportNotes} organizationId={tenant.organizationId} />
 
       <TenantHealthSection client={client.tenants} organizationId={tenant.organizationId} />

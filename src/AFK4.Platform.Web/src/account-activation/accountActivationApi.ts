@@ -1,24 +1,24 @@
-import type { AcceptOwnerInviteRequest, FetchLike } from './types';
-import { PlatformApiError } from './platformApi';
+import type { AccountActivationRequest, FetchLike } from '../api/types';
+import { PlatformApiError } from '../api/platformApi';
 
-export interface OwnerInviteAcceptanceApiOptions {
+export interface AccountActivationApiOptions {
   baseUrl: string;
   fetchImpl?: FetchLike;
 }
 
 /** Public onboarding client. A successful response may contain staff tokens,
  * but browser Platform Web deliberately does not persist or expose them. */
-export class OwnerInviteAcceptanceApi {
+export class AccountActivationApi {
   private readonly baseUrl: string;
   private readonly fetchImpl: FetchLike;
 
-  public constructor(options: OwnerInviteAcceptanceApiOptions) {
+  public constructor(options: AccountActivationApiOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/u, '');
     this.fetchImpl = options.fetchImpl ?? fetch.bind(globalThis);
   }
 
-  public async accept(request: AcceptOwnerInviteRequest): Promise<void> {
-    const response = await this.fetchImpl(`${this.baseUrl}/api/platform/owner-invites/accept`, {
+  public async accept(request: AccountActivationRequest): Promise<void> {
+    const response = await this.fetchImpl(`${this.baseUrl}/api/account-activation/organization-owner`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request)

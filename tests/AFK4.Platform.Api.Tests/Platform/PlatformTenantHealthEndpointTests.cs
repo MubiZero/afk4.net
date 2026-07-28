@@ -157,7 +157,7 @@ public sealed class PlatformTenantHealthEndpointTests
                 Limits: new TenantLimitsDto(1, 20, 30, 5),
                 OwnerUserName: null,
                 OwnerDisplayName: null,
-                OwnerInviteLifetime: null));
+                OrganizationOwnerInviteLifetime: null));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<CreateTenantResponse>();
         Assert.NotNull(body);
