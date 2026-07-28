@@ -23,12 +23,19 @@ import { managementScreenState, type DestinationProps } from './types';
 
 type StaffUser = Record<string, unknown>;
 
+export function toggleRole(current: string[], role: string): string[] {
+  const next = current.includes(role)
+    ? current.filter((candidate) => candidate !== role)
+    : [...current, role];
+  return staffRoleOptions.filter((candidate) => next.includes(candidate));
+}
+
 type CriticalAction =
   | { kind: 'disable'; staffUserId: string; name: string }
   | { kind: 'reset-password'; staffUserId: string; name: string; newPassword: string };
 
 // Сотрудники и роли: список+drawer CRUD по эталону «Залы и ПК»/«Тарифы» (см.
-// task-C2-staff-brief.md). Одна сущность — сотрудники (роль — select в карточке, не отдельный
+// task-C2-staff-brief.md). Одна сущность — сотрудники (набор ролей — в карточке, не отдельный
 // список). Все 5 операций (пригласить/профиль/роль/вкл-выкл/сброс пароля) портированы 1:1 из
 // settings/SettingsStaffSection.tsx.runAction — те же клиентские вызовы, тот же двойной
 // permission-гейт (can*-проп + серверный hasPermission на каждый вызов), тот же мёрж результата
@@ -55,11 +62,11 @@ export function StaffRolesDestination({
   const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState(() => t('op.settings.prefill.inviteDisplayName'));
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRoleName, setInviteRoleName] = useState('cashier_operator');
+  const [inviteRoleNames, setInviteRoleNames] = useState<string[]>(['cashier_operator']);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [profileUserName, setProfileUserName] = useState('');
   const [profileDisplayName, setProfileDisplayName] = useState('');
-  const [roleName, setRoleName] = useState('cashier_operator');
+  const [roleNames, setRoleNames] = useState<string[]>(['cashier_operator']);
   const [newPassword, setNewPassword] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -76,14 +83,17 @@ export function StaffRolesDestination({
 
   const selectedStaffUser = staffRows.find((user) => readString(user, 'staffUserId') === selectedStaffUserId) ?? null;
   const selectedStaffIsActive = readBoolean(selectedStaffUser, 'isActive', true);
+  const selectedStaffIsSelf = selectedStaffUserId !== null
+    && session?.staffUserId?.toLowerCase() === selectedStaffUserId.toLowerCase();
 
   // Засев формы drawer'а из выбранного сотрудника.
   useEffect(() => {
     if (!selectedStaffUser) return;
     setProfileUserName(readString(selectedStaffUser, 'userName'));
     setProfileDisplayName(operatorDisplayNameLabel(readString(selectedStaffUser, 'displayName'), t));
-    const currentRole = readArray<string>(selectedStaffUser, 'roleNames').find((role) => staffRoleOptions.includes(role as (typeof staffRoleOptions)[number]));
-    setRoleName(currentRole ?? 'cashier_operator');
+    const currentRoles = readArray<string>(selectedStaffUser, 'roleNames')
+      .filter((role) => staffRoleOptions.includes(role as (typeof staffRoleOptions)[number]));
+    setRoleNames(currentRoles);
     setNewPassword('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStaffUserId]);
@@ -100,7 +110,7 @@ export function StaffRolesDestination({
     setInviteUserName(`operator${staffRows.length + 1}`);
     setInviteDisplayName(t('op.settings.prefill.inviteDisplayName'));
     setInviteEmail('');
-    setInviteRoleName('cashier_operator');
+    setInviteRoleNames(['cashier_operator']);
     setInviteCode(null);
     setInviteOpen(true);
   };
@@ -118,7 +128,7 @@ export function StaffRolesDestination({
       const userName = inviteUserName.trim();
       const displayName = inviteDisplayName.trim();
       const email = inviteEmail.trim();
-      if (!userName || !displayName || !email) {
+      if (!userName || !displayName || !email || inviteRoleNames.length === 0) {
         throw new Error(t('op.settings.staff.error.fillInvite'));
       }
 
@@ -128,7 +138,7 @@ export function StaffRolesDestination({
         userName,
         displayName,
         email,
-        roleNames: [inviteRoleName || 'cashier_operator']
+        roleNames: inviteRoleNames
       });
       // Приглашённый появится в списке сотрудников только после того как примет приглашение и
       // задаст пароль — поэтому список не обновляем, только показываем код.
@@ -186,15 +196,14 @@ export function StaffRolesDestination({
       }
 
       const staffUserId = readString(selectedStaffUser, 'staffUserId');
-      const role = roleName.trim();
-      if (!isGuid(staffUserId) || !staffRoleOptions.includes(role as (typeof staffRoleOptions)[number])) {
+      if (!isGuid(staffUserId) || roleNames.length === 0 || roleNames.some((role) => !staffRoleOptions.includes(role as (typeof staffRoleOptions)[number]))) {
         throw new Error(t('op.settings.staff.error.selectStaffAndRole'));
       }
 
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const staffUser = await apiClients.settings.updateStaffUserRoles(nextBackend.branchId, staffUserId, {
         organizationId: nextBackend.session.organizationId,
-        roleNames: [role]
+        roleNames
       });
       mergeStaffUser(staffUser);
       onFeedback?.({ label, state: 'confirmed' });
@@ -313,6 +322,7 @@ export function StaffRolesDestination({
   const rowActions = canManageBranchStaff
     ? (staffUser: StaffUser): RowAction[] => {
       const isActive = readBoolean(staffUser, 'isActive', true);
+      const isSelf = readString(staffUser, 'staffUserId').toLowerCase() === session?.staffUserId?.toLowerCase();
       return [
         {
           id: 'edit',
@@ -320,13 +330,13 @@ export function StaffRolesDestination({
           icon: <Pencil size={14} aria-hidden="true" />,
           onSelect: () => setSelectedStaffUserId(readString(staffUser, 'staffUserId'))
         },
-        {
+        ...(!isSelf ? [{
           id: 'toggle-access',
           label: isActive ? t('op.settings.action.disableStaff') : t('op.settings.action.enableStaff'),
           icon: isActive ? <PowerOff size={14} aria-hidden="true" /> : <Power size={14} aria-hidden="true" />,
           danger: isActive,
           onSelect: () => toggleAccess(staffUser)
-        },
+        } satisfies RowAction] : []),
         {
           id: 'reset-password',
           label: t('op.settings.action.resetPassword'),
@@ -407,14 +417,23 @@ export function StaffRolesDestination({
               <div className="mgmt-section-title"><span>{t('op.management.staff.roleSection.title')}</span></div>
               <div className="mgmt-form">
                 <div className="mgmt-form-grid">
-                  <label>{t('op.settings.staff.newRole')}
-                    <select value={roleName} disabled={!canManageRoles || busy} onChange={(event) => setRoleName(event.currentTarget.value)}>
-                      {staffRoleOptions.map((role) => <option key={role} value={role}>{staffRoleLabel(role, t)}</option>)}
-                    </select>
-                  </label>
+                  <fieldset className="mgmt-role-set">
+                    <legend>{t('op.management.staff.roleSection.rolesLabel')}</legend>
+                    {staffRoleOptions.map((role) => (
+                      <label key={role} className="mgmt-check">
+                        <input
+                          type="checkbox"
+                          checked={roleNames.includes(role)}
+                          disabled={!canManageRoles || busy}
+                          onChange={() => setRoleNames((current) => toggleRole(current, role))}
+                        />
+                        {staffRoleLabel(role, t)}
+                      </label>
+                    ))}
+                  </fieldset>
                 </div>
                 <div className="mgmt-form-actions">
-                  <button type="button" className="ui-btn ui-btn--primary" disabled={!canManageRoles || busy} onClick={() => void submitRole()}>
+                  <button type="button" className="ui-btn ui-btn--primary" disabled={!canManageRoles || busy || roleNames.length === 0} onClick={() => void submitRole()}>
                     {t('op.settings.action.updateRole')}
                   </button>
                 </div>
@@ -425,14 +444,16 @@ export function StaffRolesDestination({
               <div className="mgmt-section-title"><span>{t('op.management.staff.accessSection.title')}</span></div>
               <div className="mgmt-form">
                 <div className="mgmt-form-actions">
-                  <button
-                    type="button"
-                    className={selectedStaffIsActive ? 'ui-btn ui-btn--danger' : 'ui-btn'}
-                    disabled={!canManageBranchStaff || busy}
-                    onClick={() => toggleAccess(selectedStaffUser)}
-                  >
-                    {selectedStaffIsActive ? t('op.settings.action.disableStaff') : t('op.settings.action.enableStaff')}
-                  </button>
+                  {!selectedStaffIsSelf && (
+                    <button
+                      type="button"
+                      className={selectedStaffIsActive ? 'ui-btn ui-btn--danger' : 'ui-btn'}
+                      disabled={!canManageBranchStaff || busy}
+                      onClick={() => toggleAccess(selectedStaffUser)}
+                    >
+                      {selectedStaffIsActive ? t('op.settings.action.disableStaff') : t('op.settings.action.enableStaff')}
+                    </button>
+                  )}
                 </div>
                 <div className="mgmt-form-grid">
                   <label className="mgmt-form-wide">{t('op.settings.staff.newPassword')}
@@ -468,11 +489,20 @@ export function StaffRolesDestination({
               <label>{t('op.settings.staff.email')}
                 <input type="email" value={inviteEmail} disabled={busy} onChange={(event) => setInviteEmail(event.currentTarget.value)} />
               </label>
-              <label>{t('op.settings.staff.roleAccess')}
-                <select value={inviteRoleName} disabled={busy} onChange={(event) => setInviteRoleName(event.currentTarget.value)}>
-                  {staffRoleOptions.map((role) => <option key={role} value={role}>{staffRoleLabel(role, t)}</option>)}
-                </select>
-              </label>
+              <fieldset className="mgmt-role-set">
+                <legend>{t('op.management.staff.inviteModal.rolesLabel')}</legend>
+                {staffRoleOptions.map((role) => (
+                  <label key={role} className="mgmt-check">
+                    <input
+                      type="checkbox"
+                      checked={inviteRoleNames.includes(role)}
+                      disabled={busy}
+                      onChange={() => setInviteRoleNames((current) => toggleRole(current, role))}
+                    />
+                    {staffRoleLabel(role, t)}
+                  </label>
+                ))}
+              </fieldset>
             </div>
 
             {inviteCode && (
@@ -488,7 +518,7 @@ export function StaffRolesDestination({
 
             <div className="mgmt-form-actions">
               <button type="button" className="ui-btn" onClick={() => setInviteOpen(false)} disabled={busy}>{t('common.cancel')}</button>
-              <button type="submit" className="ui-btn ui-btn--primary" disabled={busy}>{t('op.settings.action.inviteStaff')}</button>
+              <button type="submit" className="ui-btn ui-btn--primary" disabled={busy || inviteRoleNames.length === 0}>{t('op.settings.action.inviteStaff')}</button>
             </div>
           </form>
         </PanelModal>

@@ -45,7 +45,7 @@ afterEach(() => {
 const wrap = (ui: React.ReactNode) =>
   render(<I18nProvider initialLocale="ru"><ToastProvider>{ui}</ToastProvider></I18nProvider>);
 
-const session = (perms: string[]) => ({ permissions: perms, organizationId: 'org', displayName: 'x' }) as never;
+const session = (perms: string[], staffUserId?: string) => ({ permissions: perms, organizationId: 'org', displayName: 'x', staffUserId }) as never;
 
 const backend = {
   config: { platformBaseUrl: 'http://test' },
@@ -131,7 +131,7 @@ describe('StaffRolesDestination', () => {
     expect(screen.getByRole('textbox', { name: 'Логин профиля' })).toHaveValue('operator1');
   });
 
-  it('"+ Сотрудник" opens the invite modal, submits createStaffInvite and shows the invite code', async () => {
+  it('"+ Сотрудник" sends every selected role and shows the invite code', async () => {
     const onFeedback = mock(() => {});
     wrap(<StaffRolesDestination backend={backend as never} session={session([permissionNames.manageBranchStaff])} currencyCode="TJS" staffUsers={staffUsers} onFeedback={onFeedback} />);
     fireEvent.click(screen.getByRole('button', { name: '+ Сотрудник' }));
@@ -140,6 +140,9 @@ describe('StaffRolesDestination', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Логин для входа' }), { target: { value: 'operator2' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Имя в смене' }), { target: { value: 'Новый сотрудник' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Email для приглашения' }), { target: { value: 'new@club.tj' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Кассир-оператор' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Управляющий' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Техник' }));
     fireEvent.click(screen.getByRole('button', { name: 'Пригласить сотрудника' }));
 
     await waitFor(() => expect(createStaffInvite).toHaveBeenCalledTimes(1));
@@ -147,7 +150,8 @@ describe('StaffRolesDestination', () => {
       organizationId: 'org',
       userName: 'operator2',
       displayName: 'Новый сотрудник',
-      email: 'new@club.tj'
+      email: 'new@club.tj',
+      roleNames: ['branch_manager', 'technician']
     }));
     expect(screen.getByDisplayValue('ABCD-1234')).toBeTruthy();
   });
@@ -174,22 +178,24 @@ describe('StaffRolesDestination', () => {
     await waitFor(() => expect(onStaffUsersChange).toHaveBeenCalled());
   });
 
-  it('changes the role via updateStaffUserRoles', async () => {
+  it('changes the complete role set via updateStaffUserRoles', async () => {
+    const multiRoleStaffUsers: StaffUserDto[] = [{ ...staffUsers[0], roleNames: ['cashier_operator', 'branch_manager'] } as never];
     wrap(
       <StaffRolesDestination
         backend={backend as never}
         session={session([permissionNames.manageBranchStaff, permissionNames.manageRoles])}
         currencyCode="TJS"
-        staffUsers={staffUsers}
+        staffUsers={multiRoleStaffUsers}
       />
     );
     fireEvent.click(screen.getByText('Марина Сидорова'));
-    fireEvent.change(screen.getByRole('combobox', { name: 'Новая роль' }), { target: { value: 'shift_supervisor' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Кассир-оператор' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Техник' }));
     fireEvent.click(screen.getByRole('button', { name: 'Обновить роль' }));
 
     await waitFor(() => expect(updateStaffUserRoles).toHaveBeenCalledWith('b1', staffUserId, {
       organizationId: 'org',
-      roleNames: ['shift_supervisor']
+      roleNames: ['branch_manager', 'technician']
     }));
   });
 
@@ -203,8 +209,23 @@ describe('StaffRolesDestination', () => {
       />
     );
     fireEvent.click(screen.getByText('Марина Сидорова'));
-    expect(screen.getByRole('combobox', { name: 'Новая роль' })).toBeDisabled();
+    expect(screen.getByRole('checkbox', { name: 'Кассир-оператор' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Обновить роль' })).toBeDisabled();
+  });
+
+  it('does not offer access deactivation for the authenticated staff user', () => {
+    wrap(
+      <StaffRolesDestination
+        backend={backend as never}
+        session={session([permissionNames.manageBranchStaff], staffUserId)}
+        currencyCode="TJS"
+        staffUsers={staffUsers}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Марина Сидорова'));
+
+    expect(screen.queryByRole('button', { name: 'Отключить сотрудника' })).toBeNull();
   });
 
   it('disabling access asks for confirmation before calling updateStaffUserState with isActive:false', async () => {
