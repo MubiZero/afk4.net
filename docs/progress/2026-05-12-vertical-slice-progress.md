@@ -36,7 +36,7 @@ needed.
 
 ## Implemented (high level)
 
-The full platform-control redesign (both admins), SP3 admin control plane +
+The full Platform Control redesign (both admin roles), SP3 platform administration +
 SaaS billing, and the entire SP4 wave are implemented and merged to `main`:
 
 - **Counter-loop / postpaid checkout** — open-tab postpaid, credit limits +

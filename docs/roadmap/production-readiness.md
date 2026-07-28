@@ -10,7 +10,7 @@ backups, device validation, and pilot readiness. Keep it gate-level; detailed
 run history belongs in the progress snapshot or archive notes.
 
 > **Status note (2026-07-14):** the product/feature side has moved far beyond
-> the pilot bar — the full Platform Control redesign, SP3 admin control plane +
+> the pilot bar — the full Platform Control redesign, SP3 platform administration +
 > SaaS billing, the entire SP4 wave (counter-loop, anti-fraud, offline,
 > customer portal/shell, notifications, localization, realtime), the dcgate
 > payments subsystem, the Organization Admin WebView2/React migration, the

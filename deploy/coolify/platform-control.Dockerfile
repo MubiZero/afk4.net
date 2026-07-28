@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-# Multistage Dockerfile for the admin-only Platform.Web Platform Control
+# Multistage Dockerfile for the internal Platform Control product
 # (src/AFK4.PlatformControl.Web). Build context = repository root.
 #
 # Build command:
@@ -28,7 +28,7 @@ COPY src/AFK4.SetupWizard.Web/package.json ./src/AFK4.SetupWizard.Web/
 COPY src/AFK4.Player.Shell.Web/package.json ./src/AFK4.Player.Shell.Web/
 RUN bun install --frozen-lockfile
 # Bring the full source (node_modules is .dockerignored, so the fresh install stands) and build the
-# Platform.Web app — the @afk4/* packages are consumed as TypeScript source, no separate build step.
+# Platform Control app — the @afk4/* packages are consumed as TypeScript source, no separate build step.
 COPY . .
 ARG VITE_PLATFORM_API_BASE_URL=""
 ENV VITE_PLATFORM_API_BASE_URL=${VITE_PLATFORM_API_BASE_URL}

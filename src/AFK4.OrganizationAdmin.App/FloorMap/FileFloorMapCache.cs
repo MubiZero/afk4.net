@@ -6,7 +6,7 @@ using AFK4.Shared.Contracts.FloorMap;
 namespace AFK4.OrganizationAdmin.App.FloorMap;
 
 /// <summary>
-/// File-backed <see cref="IFloorMapCache"/> stored under the operator app-data directory. Mirrors the
+/// File-backed <see cref="IFloorMapCache"/> stored under the Organization Admin app-data directory. Mirrors the
 /// atomic-write + corrupt-self-heal durability of the agent's <c>FileSessionLeaseStore</c>: each branch
 /// gets its own file, writes go through a temp file, and a parse failure deletes the poisoned file and
 /// degrades to "no cache" rather than crashing the workspace.

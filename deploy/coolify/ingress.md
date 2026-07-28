@@ -61,7 +61,7 @@ labels. Do not point `app.*` at this admin-only bundle.
 Both endpoints below are public on purpose — the slug pair / setup code / invite
 code is the credential. 128 bits of entropy on the invite code makes a brute
 force impractical, but ingress-level rate-limiting is still the right defense
-against a misbehaving operator app loop or a noisy scraper, and it caps the
+against a misbehaving Organization Admin loop or a noisy scraper, and it caps the
 audit-log write rate on the `tenancy.operator_connection.resolve` action.
 
 Add the labels below to the **Platform API** Coolify application. They define
@@ -71,7 +71,7 @@ router (which serves everything else) keeps its existing labels untouched.
 
 ```yaml
 # Rate-limit middleware: at most 30 requests per minute per source IP, with a
-# burst of 10 to absorb the operator app retry-on-typo flow. Tune the average /
+# burst of 10 to absorb the Organization Admin retry-on-typo flow. Tune the average /
 # burst pair if real-world traffic needs more headroom.
 - traefik.http.middlewares.afk4-public-ratelimit.ratelimit.average=30
 - traefik.http.middlewares.afk4-public-ratelimit.ratelimit.period=1m

@@ -1,7 +1,7 @@
 {
   "auth.club.title": "Воридшавӣ ба клуб",
   "auth.club.subtitle": "Бо ҳисоби кории корманди клуб ворид шавед.",
-  "auth.admin.title": "Панели идоракунии платформа",
+  "auth.admin.title": "Platform Control",
   "auth.admin.subtitle": "Бо ҳисоби маъмури платформа ворид шавед.",
   "auth.field.login": "Логин ё email",
   "auth.field.password": "Парол",

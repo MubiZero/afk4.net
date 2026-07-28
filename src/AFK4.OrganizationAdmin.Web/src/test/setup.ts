@@ -10,7 +10,7 @@ expect.extend(matchers);
 
 const { cleanup, configure } = await import('@testing-library/react');
 
-// App.test boots the whole operator app per test (native session restore → floor-map fetch → render
+// App.test boots the whole Organization Admin app per test (native session restore → floor-map fetch → render
 // of the «AFK4 Dushanbe» heading). That async chain normally settles in well under the default
 // 1000ms findBy timeout, but under CPU contention it occasionally overruns and a genuinely-correct
 // boot times out — a flaky failure of the test, not the app (production has no such deadline). Give

@@ -1,7 +1,7 @@
 {
   "auth.club.title": "Вход в клуб",
   "auth.club.subtitle": "Войдите под учётной записью сотрудника клуба.",
-  "auth.admin.title": "Панель управления платформой",
+  "auth.admin.title": "Platform Control",
   "auth.admin.subtitle": "Войдите под учётной записью администратора платформы.",
   "auth.field.login": "Логин или email",
   "auth.field.password": "Пароль",

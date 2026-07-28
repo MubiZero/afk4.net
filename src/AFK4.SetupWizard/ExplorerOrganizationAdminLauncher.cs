@@ -51,7 +51,7 @@ public sealed class ExplorerOrganizationAdminLauncher : ISetupWizardOperatorLaun
         {
             // A failed auto-launch must not fail the wizard — the install already succeeded and the
             // cashier can still start the operator from the Start Menu shortcut.
-            SetupWizardStartupLog.Write("Failed to auto-launch the operator app.", exception);
+            SetupWizardStartupLog.Write("Failed to auto-launch Organization Admin.", exception);
         }
     }
 }

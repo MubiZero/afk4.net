@@ -6,7 +6,7 @@ namespace AFK4.Player.Shell.Web;
 // C:\Program Files\AFK4\Player Shell (read-only for the interactive user), so the default
 // folder can't be created and EnsureCoreWebView2Async throws -> the kiosk window crashes on
 // load and the agent supervisor relaunches it in a loop. Pin the folder under LocalAppData,
-// mirroring the operator app (OperatorWebView2UserDataFolder).
+// mirroring Organization Admin (OrganizationAdminWebView2UserDataFolder).
 public static class PlayerWebView2UserDataFolder
 {
     public static string Resolve()

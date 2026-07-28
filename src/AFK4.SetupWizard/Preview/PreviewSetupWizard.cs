@@ -30,7 +30,7 @@ internal static class PreviewSetupWizard
     {
         public void Launch()
         {
-            // preview must not start the operator app
+            // preview must not start Organization Admin
         }
     }
 

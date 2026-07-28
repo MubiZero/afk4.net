@@ -20,19 +20,19 @@ public sealed class RealDeviceSmokeRunbookTests
 
         Assert.Contains("https://afk4.staging.mubi.dev", runbook, StringComparison.Ordinal);
         Assert.Contains("Windows 10/11", runbook, StringComparison.Ordinal);
-        Assert.Contains("POST /api/install/discover", runbook, StringComparison.Ordinal);
-        Assert.Contains("POST /api/install/seats", runbook, StringComparison.Ordinal);
-        Assert.Contains("POST /api/install/enroll", runbook, StringComparison.Ordinal);
+        Assert.Contains("POST /api/organizations/{organizationId}/install/discover", runbook, StringComparison.Ordinal);
+        Assert.Contains("POST /api/organizations/{organizationId}/install/seats", runbook, StringComparison.Ordinal);
+        Assert.Contains("POST /api/organizations/{organizationId}/install/enroll", runbook, StringComparison.Ordinal);
         Assert.Contains("POST /api/devices/{deviceId}/heartbeat", runbook, StringComparison.Ordinal);
         Assert.Contains("/hubs/devices", runbook, StringComparison.Ordinal);
-        Assert.Contains("POST /api/branches/{branchId}/sessions/start", runbook, StringComparison.Ordinal);
-        Assert.Contains("POST /api/sessions/{sessionId}/end", runbook, StringComparison.Ordinal);
+        Assert.Contains("POST /api/organizations/{organizationId}/branches/{branchId}/sessions/start", runbook, StringComparison.Ordinal);
+        Assert.Contains("POST /api/organizations/{organizationId}/sessions/{sessionId}/end", runbook, StringComparison.Ordinal);
         Assert.Contains("refresh-session-lease", runbook, StringComparison.Ordinal);
         Assert.Contains("lease expiry", runbook, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("lock/unlock", runbook, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Player Shell", runbook, StringComparison.Ordinal);
         Assert.Contains("installed apps", runbook, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("GET /api/branches/{branchId}/diagnostics", runbook, StringComparison.Ordinal);
+        Assert.Contains("GET /api/organizations/{organizationId}/branches/{branchId}/diagnostics", runbook, StringComparison.Ordinal);
         Assert.Contains("POST /api/devices/{deviceId}/updates/check", runbook, StringComparison.Ordinal);
         Assert.Contains("Pass criteria", runbook, StringComparison.Ordinal);
         Assert.Contains("Evidence to collect", runbook, StringComparison.Ordinal);

@@ -1,7 +1,7 @@
 {
   "auth.club.title": "Club sign in",
   "auth.club.subtitle": "Sign in with your club staff account.",
-  "auth.admin.title": "Platform Control Plane",
+  "auth.admin.title": "Platform Control",
   "auth.admin.subtitle": "Sign in with your platform admin credentials.",
   "auth.field.login": "Login or email",
   "auth.field.password": "Password",

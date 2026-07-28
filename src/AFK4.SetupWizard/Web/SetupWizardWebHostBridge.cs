@@ -145,7 +145,7 @@ public sealed class SetupWizardWebHostBridge(
         completionAction.Complete();
 
         // Gaming PCs get their Player Shell launched by the agent service at the lock screen; the
-        // operator app has no such trigger, so start it here so the cashier doesn't have to click
+        // Organization Admin has no such trigger, so start it here so the operator doesn't have to click
         // the Start Menu shortcut after enrolling.
         if (role == DeviceRoleNames.ManagerWorkstation)
         {

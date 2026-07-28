@@ -153,7 +153,7 @@ jobs:
             src/AFK4.PlatformControl.Web src/AFK4.OrganizationAdmin.Web \
             src/AFK4.Customer.Web src/AFK4.SetupWizard.Web; do
             echo "::group::test $dir"
-            # Run each workspace's own `test` script, not a bare `bun test`: the operator app
+            # Run each workspace's own `test` script, not a bare `bun test`: Organization Admin
             # splits App.test into its own bun process to dodge bun's cross-file mock.module leak
             # (see #88). A bare `bun test` here ran every file in one process and reintroduced the
             # flake; `bun run test` honours that isolation. Other workspaces' `test` == `bun test`.

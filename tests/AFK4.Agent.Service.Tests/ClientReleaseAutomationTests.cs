@@ -658,7 +658,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.DoesNotContain("afk4-package-smoke-bootstrapper-0.1.${{ github.run_number }}-internal", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_STAGING_UPDATE_STAFF_USERNAME", workflow, StringComparison.Ordinal);
         Assert.Contains("AFK4_STAGING_UPDATE_STAFF_PASSWORD", workflow, StringComparison.Ordinal);
-        Assert.Contains("/api/auth/staff/sign-in", workflow, StringComparison.Ordinal);
+        Assert.Contains("/api/organizations/$($env:AFK4_STAGING_ORGANIZATION_ID)/auth/staff/sign-in", workflow, StringComparison.Ordinal);
         Assert.Contains("scripts/register-update-package-requests.ps1", workflow, StringComparison.Ordinal);
         Assert.Contains("-CreateRollouts", workflow, StringComparison.Ordinal);
         Assert.Contains("uses: actions/upload-artifact@v4", workflow, StringComparison.Ordinal);

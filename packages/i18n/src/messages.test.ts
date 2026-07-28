@@ -31,6 +31,7 @@ it('ru, en and tg have identical key sets (catalog parity)', () => {
 // it only fakes "translated" coverage. Add a key here ONLY with a real reason above,
 // never to silence the check. Native-Tajik review may move entries out of this list.
 const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
+    'auth.admin.title',
     'account.phone.placeholder',
     'clientPackages.field.package',
     'clients.col.phone',

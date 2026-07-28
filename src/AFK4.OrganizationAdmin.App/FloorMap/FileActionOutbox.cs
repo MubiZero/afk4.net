@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace AFK4.OrganizationAdmin.App.FloorMap;
 
 /// <summary>
-/// File-backed <see cref="IActionOutbox"/> stored under the operator app-data directory. Mirrors the
+/// File-backed <see cref="IActionOutbox"/> stored under the Organization Admin app-data directory. Mirrors the
 /// atomic-write + corrupt-self-heal durability of the agent's command-result outbox: writes go through a
 /// temp file, and a parse failure deletes the poisoned file and degrades to an empty queue.
 /// </summary>

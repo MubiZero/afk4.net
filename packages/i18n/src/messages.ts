@@ -6,7 +6,7 @@ export const messages = {
   ru: {
     "auth.club.title": "Вход в клуб",
     "auth.club.subtitle": "Войдите под учётной записью сотрудника клуба.",
-    "auth.admin.title": "Панель управления платформой",
+    "auth.admin.title": "Platform Control",
     "auth.admin.subtitle": "Войдите под учётной записью администратора платформы.",
     "auth.field.login": "Логин или email",
     "auth.field.password": "Пароль",
@@ -2947,7 +2947,7 @@ export const messages = {
   en: {
     "auth.club.title": "Club sign in",
     "auth.club.subtitle": "Sign in with your club staff account.",
-    "auth.admin.title": "Platform Control Plane",
+    "auth.admin.title": "Platform Control",
     "auth.admin.subtitle": "Sign in with your platform admin credentials.",
     "auth.field.login": "Login or email",
     "auth.field.password": "Password",
@@ -5888,7 +5888,7 @@ export const messages = {
   tg: {
     "auth.club.title": "Воридшавӣ ба клуб",
     "auth.club.subtitle": "Бо ҳисоби кории корманди клуб ворид шавед.",
-    "auth.admin.title": "Панели идоракунии платформа",
+    "auth.admin.title": "Platform Control",
     "auth.admin.subtitle": "Бо ҳисоби маъмури платформа ворид шавед.",
     "auth.field.login": "Логин ё email",
     "auth.field.password": "Парол",
