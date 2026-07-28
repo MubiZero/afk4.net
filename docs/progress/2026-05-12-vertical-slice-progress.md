@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-07-15
+Last updated: 2026-07-28
 
 ## Purpose
 
@@ -118,7 +118,20 @@ Plus the earlier base: identity/tenancy/RBAC/audit, devices/floor-map, owner-cod
 enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 + rollout, and the Agent/Setup-Wizard/Player-Shell/packaging stack.
 
+- **Operator `/club` functional parity closure** — Clients, Monetization,
+  Settings, and Venue gaps are closed in native Operator surfaces: complete staff
+  role sets, lifecycle-safe client actions, time corrections and partial refunds,
+  package context and wallet-backed Cash sales, reusable product categories,
+  independent package load errors, and device rename/remove. The 2026-07-28
+  parity certificate is GO for a separate Platform.Web `/club` removal project.
+
 ## Latest Verification
+
+- Fresh Operator parity gate (2026-07-28): full Operator Web suite passed
+  1017 tests with 26 explicit skips and 0 failures across 161 files; App
+  integration passed 68 with 26 skips and 0 failures; i18n passed 39/39; the
+  Operator Web production build completed. Existing React `act` diagnostics,
+  SignalR annotation warnings, and the large-chunk warning remain non-failing.
 
 - Fresh authoritative-footer gate: Shared Contracts passed 129/129; Platform
   API passed 1391 with 13 PostgreSQL-environment skips; Operator Web passed
@@ -190,9 +203,11 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Recommended Next Work
 
-1. Repeat the now-passing Operator day flow from a clean `manager_workstation`
+1. Execute the separately scoped Platform.Web `/club` removal plan, preserving
+   browser Control Plane owner/support surfaces and rerunning Platform Web gates.
+2. Repeat the now-passing Operator day flow from a clean `manager_workstation`
    install and record 100%/125% scaling plus keyboard-focus evidence.
-2. Run the physical gaming-PC Agent/Shell smoke, then add permission-aware entity
+3. Run the physical gaming-PC Agent/Shell smoke, then add permission-aware entity
    search to the command palette if it does not expose a higher-priority gap.
-3. Wire real per-environment SMTP settings and work through the remaining
+4. Wire real per-environment SMTP settings and work through the remaining
    pre-production decisions in the production-readiness roadmap.
