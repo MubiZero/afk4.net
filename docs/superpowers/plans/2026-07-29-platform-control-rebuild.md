@@ -44,7 +44,7 @@
 - Consumes: `PlatformAdminSession.roles`, `PlatformAdminSession.permissions`, browser `pathname` and `search`.
 - Produces: `PlatformRoute`, `resolvePlatformRoute(location)`, `pathForPlatformRoute(route)`, `PlatformCapability`, `can(session, capability)`, and permission-filtered `buildPlatformNav(session)`.
 
-- [ ] **Step 1: Write failing route and access tests**
+- [x] **Step 1: Write failing route and access tests**
 
 ```ts
 expect(resolvePlatformRoute('/admin/organizations/org-1?tab=support')).toEqual({
@@ -56,13 +56,13 @@ expect(can(supportSession, 'billing.manage')).toBe(false);
 expect(can(ownerSession, 'billing.manage')).toBe(true);
 ```
 
-- [ ] **Step 2: Run the focused tests and verify the old route model fails them**
+- [x] **Step 2: Run the focused tests and verify the old route model fails them**
 
 Run: `cd src/AFK4.PlatformControl.Web && bun test src/routing/platformRoute.test.ts src/auth/platformAccess.test.ts src/platform/nav.test.ts`
 
 Expected: FAIL because the route/access modules and permission-derived navigation do not exist.
 
-- [ ] **Step 3: Implement the route and capability contracts**
+- [x] **Step 3: Implement the route and capability contracts**
 
 ```ts
 export type OrganizationTab = 'summary' | 'clubs' | 'access' | 'subscription' | 'invoices' | 'support' | 'history';
@@ -85,17 +85,17 @@ export type PlatformCapability =
 
 Map capabilities from authoritative session permissions first and role names only for stable navigation grouping. Reject direct forbidden routes with a dedicated forbidden screen instead of redirecting silently.
 
-- [ ] **Step 4: Replace `App.tsx` conditional routing with the new route model and shell**
+- [x] **Step 4: Replace `App.tsx` conditional routing with the new route model and shell**
 
-Keep account activation outside the authenticated shell. Move language and theme controls into `UserMenu`; make the top bar contain a labeled global-search trigger and attention trigger. Remove the legacy organization drawer wiring from `App.tsx`.
+Keep account activation outside the authenticated shell. Keep language and theme controls in `UserMenu`. Add the attention and global-search triggers only with their working destinations in Tasks 3 and 6; remove the legacy organization drawer when its canonical replacement lands in Task 4.
 
-- [ ] **Step 5: Run shell, route, navigation, and App tests**
+- [x] **Step 5: Run shell, route, navigation, and App tests**
 
 Run: `cd src/AFK4.PlatformControl.Web && bun test src/routing src/auth/platformAccess.test.ts src/platform/nav.test.ts src/components/shell src/App.test.tsx`
 
 Expected: PASS, including owner/support navigation differences, forbidden direct routes, browser back, and query restoration.
 
-- [ ] **Step 6: Commit the foundation**
+- [x] **Step 6: Commit the foundation**
 
 ```bash
 git add src/AFK4.PlatformControl.Web/src/App.tsx src/AFK4.PlatformControl.Web/src/App.test.tsx src/AFK4.PlatformControl.Web/src/routing src/AFK4.PlatformControl.Web/src/auth/platformAccess.ts src/AFK4.PlatformControl.Web/src/auth/platformAccess.test.ts src/AFK4.PlatformControl.Web/src/platform/nav.ts src/AFK4.PlatformControl.Web/src/platform/nav.test.ts src/AFK4.PlatformControl.Web/src/components/shell

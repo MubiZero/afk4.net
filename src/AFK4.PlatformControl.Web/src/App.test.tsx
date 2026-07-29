@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import App, { resolvePlatformRoute } from './App';
+import App from './App';
+import { resolvePlatformRoute } from './routing/platformRoute';
 import { clearSession, writeSession, type PlatformAdminSession } from './auth/tokenStore';
 import { ToastProvider } from './components/ui/toast';
 import { I18nProvider } from './i18n/I18nProvider';
@@ -62,25 +63,17 @@ describe('Platform Control admin-only routing', () => {
     globalThis.fetch = originalFetch;
   });
 
-  it('resolves root and legacy organization URLs to admin routes', () => {
-    expect(resolvePlatformRoute('/')).toMatchObject({ redirectTo: '/admin', route: { kind: 'adminOverview' } });
-    expect(resolvePlatformRoute('/organizations')).toMatchObject({ redirectTo: '/admin/organizations', route: { kind: 'organizationList' } });
-    expect(resolvePlatformRoute('/organizations/new')).toMatchObject({ redirectTo: '/admin/organizations/new', route: { kind: 'newOrganization' } });
-    expect(resolvePlatformRoute('/admin/updates')).toMatchObject({ route: { kind: 'adminUpdates' } });
-    expect(resolvePlatformRoute('/organizations/org-1')).toMatchObject({
-      redirectTo: '/admin/organizations/org-1',
-      route: { kind: 'organizationDetail', organizationId: 'org-1' }
-    });
+  it('resolves only canonical admin routes', () => {
+    expect(resolvePlatformRoute('/')).toEqual({ kind: 'overview' });
+    expect(resolvePlatformRoute('/admin/organizations')).toMatchObject({ kind: 'organizations' });
+    expect(resolvePlatformRoute('/admin/updates')).toEqual({ kind: 'updates' });
+    expect(resolvePlatformRoute('/organizations/org-1')).toEqual({ kind: 'notFound', path: '/organizations/org-1' });
   });
 
-  it('rejects removed club and staff sign-in routes while preserving owner onboarding', () => {
-    expect(resolvePlatformRoute('/club').route).toEqual({ kind: 'notFound', path: '/club' });
-    expect(resolvePlatformRoute('/club/install').route).toEqual({ kind: 'notFound', path: '/club/install' });
-    expect(resolvePlatformRoute('/auth/sign-in').route).toEqual({ kind: 'notFound', path: '/auth/sign-in' });
-    expect(resolvePlatformRoute('/account-activation', null, '?code=owner-code').route).toEqual({
-      kind: 'accountActivation',
-      code: 'owner-code'
-    });
+  it('rejects removed club and staff sign-in routes', () => {
+    expect(resolvePlatformRoute('/club')).toEqual({ kind: 'notFound', path: '/club' });
+    expect(resolvePlatformRoute('/club/install')).toEqual({ kind: 'notFound', path: '/club/install' });
+    expect(resolvePlatformRoute('/auth/sign-in')).toEqual({ kind: 'notFound', path: '/auth/sign-in' });
   });
 
   it('renders platform-admin sign-in for an admin route without a session', () => {
@@ -105,5 +98,12 @@ describe('Platform Control admin-only routing', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Организации' }));
     await waitFor(() => expect(window.location.pathname).toBe('/admin/organizations'));
+  });
+
+  it('blocks direct navigation when the session lacks the backend permission', () => {
+    window.history.replaceState(null, '', '/admin/billing');
+    writeSession(buildSession());
+    renderApp();
+    expect(screen.getByRole('heading', { name: 'Access denied' })).toBeInTheDocument();
   });
 });
