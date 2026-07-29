@@ -99,9 +99,12 @@ Then, in this order:
 2. Deploy the Platform API image from the release record.
 3. Deploy the Platform Control image from the same release SHA.
 4. Publish the recorded Organization Admin MSI and `organization-admin`
-   update metadata.
-5. Set `OrganizationAdminCompatibility__RequiredEpoch=2` and the approved MSI
-   download URL. Restart/roll the API only within this coordinated release.
+   update metadata. Promote the same verified bytes to the environment's
+   stable compatibility-download object.
+5. Set `OrganizationAdminCompatibility__RequiredEpoch=2` and set the download
+   URL once to the environment's stable MSI URI. Restart/roll the API only
+   within this coordinated release; later MSI publications replace the stable
+   object atomically and must not restart or deploy the API.
 6. Verify `/api/health` and Platform Control `/healthz` before opening traffic.
 
 The migration maps every known organization role and revokes all platform,

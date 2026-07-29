@@ -35,11 +35,10 @@ the signed request JSON. A focused publishing step then:
 2. verifies `component=organization-admin`, `channel=internal`, an HTTPS
    artifact URI under the configured staging public base URI, and a local MSI
    whose size and SHA-256 match the request;
-3. uploads the same verified bytes to a temporary object under the stable
-   `latest` prefix;
-4. promotes those bytes to the final stable object only after upload
-   verification succeeds;
-5. downloads the public stable object and verifies its size and SHA-256 before
+3. uploads the same verified bytes to the final stable object with
+   `Cache-Control: no-store`; S3 exposes the replacement only after the PUT has
+   completed, so readers never receive a partially uploaded object;
+4. downloads the public stable object and verifies its size and SHA-256 before
    the workflow can pass.
 
 The versioned object and signed request remain authoritative for update
@@ -48,9 +47,11 @@ used as immutable release evidence.
 
 ## Failure And Concurrency Behavior
 
-The final stable object is replaced only after the new object is completely
-available. A failed build, upload, verification, or promotion leaves the
-previous stable MSI usable and fails the workflow.
+The final stable object is replaced only after the new PUT completes. A failed
+build or PUT leaves the previous stable MSI usable. A failed public
+post-upload verification fails the workflow and blocks release acceptance;
+operators then restore the prior verified immutable MSI through the documented
+promotion command.
 
 Concurrent publications for the same environment and channel are serialized by
 GitHub Actions concurrency. The stable object must receive cache headers that

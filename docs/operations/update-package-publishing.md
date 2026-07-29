@@ -308,6 +308,35 @@ an internal device rollout when these repository variables/secrets are present:
   `AFK4_STAGING_UPDATE_STAFF_USERNAME`,
   `AFK4_STAGING_UPDATE_STAFF_PASSWORD`.
 
+For Organization Admin, Package Smoke also atomically replaces the stable
+compatibility-download object after the immutable versioned MSI has been
+published:
+
+```text
+https://updates.afk4.staging.mubi.dev/afk4-updates-staging/organization-admin/internal/latest/afk4-organization-admin-internal.msi
+```
+
+The stable object is uploaded from the same local bytes and carries
+`Cache-Control: no-store`. CI downloads it again and compares its byte length
+and SHA-256 with the signed immutable request JSON. Update registration and
+rollouts continue to use the immutable versioned URI; `latest` is only the
+download target shown to an obsolete Organization Admin client.
+
+Package publishing must not restart or deploy the Platform API. Configure
+`OrganizationAdminCompatibility__DownloadUrl` once to the stable URI. A change
+to the host or compatibility epoch remains a coordinated platform release.
+
+To roll back the convenience download, republish the bytes of a previously
+verified immutable Organization Admin MSI to the same stable object key, then
+download the public stable URI and compare it with that release's recorded
+SHA-256 and size. Do not edit immutable request JSON or point an existing
+rollout at `latest`.
+
+This automatic promotion is staging-only. Production stable promotion requires
+the Authenticode-signed MSI, explicit release approval, recorded immutable hash
+and size, and a recorded rollback artifact; staging credentials must not have
+write access to the production object.
+
 Use exact MSI-compatible versions for automatic MSI smoke, for example
 `0.1.3`. The backend and Agent tolerate prerelease metadata suffixes where
 possible, but Windows Installer exposes `ProductVersion` as numeric fields.
