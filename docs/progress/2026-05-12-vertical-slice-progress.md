@@ -281,6 +281,13 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   Invoices, Support, and real read-only audit History tabs; the obsolete organization
   drawer is removed. Fresh gates: organization/App frontend 42/42, i18n 27/27,
   Platform Organization API 53/53, and the production frontend build.
+- Platform Control rebuild Task 5 is complete: Plans/Subscriptions/Invoices and
+  Packages/Rollouts use bookmarkable URL tabs; mutation controls follow backend
+  manage permissions; Platform Support is limited to organization support and
+  read-only global audit rather than billing/update operations. Global audit now
+  has a permission-protected, server-filtered endpoint and browser workspace.
+  Settings remains intentionally absent because no persisted platform-wide
+  settings contract exists.
 - Player Shell Web passed 51/51 Bun tests and its production build.
 - GitHub `Package Smoke` run `29326881732` and the migration-gated `Coolify
   Staging Deploy` run `29327547027` passed for merge commit `498b7b83`. The
@@ -328,8 +335,8 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Recommended Next Work
 
-1. Continue the approved Platform Control rebuild with global Plans/Billing,
-   Updates, Audit, and Settings workspaces (Task 5), then global search and cleanup.
+1. Continue the approved Platform Control rebuild with global search and
+   attention navigation (Task 6), then remove superseded code and split routes.
 2. After the rebuild, return to the production-readiness backlog: repeat the
    Operator day flow from a clean `manager_workstation` install at 100%/125%,
    then run the physical Windows 10/11 gaming-PC Agent/Shell smoke.

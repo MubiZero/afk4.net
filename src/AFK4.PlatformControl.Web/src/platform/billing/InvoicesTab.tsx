@@ -19,7 +19,7 @@ import {
 
 type Action = { kind: 'markPaid' | 'void'; invoice: InvoiceListItem };
 
-export function InvoicesTab({ client }: { client: InvoicesApi }) {
+export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi; canManage?: boolean }) {
   const { t, formatCurrency, formatDate } = useI18n();
   const { toast } = useToast();
   const state = useInvoices(client);
@@ -93,7 +93,7 @@ export function InvoicesTab({ client }: { client: InvoicesApi }) {
                   <TableCell><Badge variant={INVOICE_STATUS_VARIANT[r.status] ?? 'outline'}>{INVOICE_STATUS_LABEL[r.status] ? t(INVOICE_STATUS_LABEL[r.status]) : r.status}</Badge></TableCell>
                   <TableCell>{formatDate(r.dueAtUtc)}</TableCell>
                   <TableCell className="flex gap-2">
-                    {actionable(r.status) && (
+                    {canManage && actionable(r.status) && (
                       <>
                         <Button variant="outline" onClick={() => setAction({ kind: 'markPaid', invoice: r })}>{t('platform.billing.action.markPaid')}</Button>
                         <Button variant="destructive" onClick={() => setAction({ kind: 'void', invoice: r })}>{t('platform.billing.action.void')}</Button>

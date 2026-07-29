@@ -8,6 +8,7 @@ export type OrganizationTab =
   | 'history';
 
 export type BillingTab = 'plans' | 'subscriptions' | 'invoices';
+export type UpdatesTab = 'packages' | 'rollouts';
 
 export type PlatformRoute =
   | { kind: 'overview' }
@@ -15,8 +16,8 @@ export type PlatformRoute =
   | { kind: 'organization'; organizationId: string; tab: OrganizationTab }
   | { kind: 'organizationNew' }
   | { kind: 'billing'; tab: BillingTab }
-  | { kind: 'updates' }
-  | { kind: 'audit' }
+  | { kind: 'updates'; tab: UpdatesTab }
+  | { kind: 'audit'; organizationId: string; action: string; outcome: string; from: string; to: string }
   | { kind: 'settings' }
   | { kind: 'profile' }
   | { kind: 'notFound'; path: string };
@@ -63,8 +64,8 @@ export function resolvePlatformRoute(pathname: string, search = ''): PlatformRou
         : 'plans'
     };
   }
-  if (path === '/admin/updates') return { kind: 'updates' };
-  if (path === '/admin/audit') return { kind: 'audit' };
+  if (path === '/admin/updates') return { kind: 'updates', tab: query.get('tab') === 'rollouts' ? 'rollouts' : 'packages' };
+  if (path === '/admin/audit') return { kind: 'audit', organizationId: query.get('organizationId') ?? '', action: query.get('action') ?? '', outcome: query.get('outcome') ?? '', from: query.get('from') ?? '', to: query.get('to') ?? '' };
   if (path === '/admin/settings') return { kind: 'settings' };
   if (path === '/admin/profile') return { kind: 'profile' };
   return { kind: 'notFound', path };
@@ -86,8 +87,16 @@ export function pathForPlatformRoute(route: PlatformRoute): string {
       return `/admin/organizations/${encodeURIComponent(route.organizationId)}${route.tab === 'summary' ? '' : `?tab=${route.tab}`}`;
     case 'organizationNew': return '/admin/organizations/new';
     case 'billing': return `/admin/billing${route.tab === 'plans' ? '' : `?tab=${route.tab}`}`;
-    case 'updates': return '/admin/updates';
-    case 'audit': return '/admin/audit';
+    case 'updates': return `/admin/updates${route.tab === 'packages' ? '' : '?tab=rollouts'}`;
+    case 'audit': {
+      const query = new URLSearchParams();
+      if (route.organizationId) query.set('organizationId', route.organizationId);
+      if (route.action) query.set('action', route.action);
+      if (route.outcome) query.set('outcome', route.outcome);
+      if (route.from) query.set('from', route.from);
+      if (route.to) query.set('to', route.to);
+      return `/admin/audit${query.size === 0 ? '' : `?${query}`}`;
+    }
     case 'settings': return '/admin/settings';
     case 'profile': return '/admin/profile';
     case 'notFound': return route.path;

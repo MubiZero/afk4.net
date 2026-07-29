@@ -39,4 +39,11 @@ describe('platformRoute', () => {
       path: '/organizations/org-1'
     });
   });
+
+  it('round-trips global workspace tabs and audit filters', () => {
+    expect(resolvePlatformRoute('/admin/billing', '?tab=invoices')).toEqual({ kind: 'billing', tab: 'invoices' });
+    expect(resolvePlatformRoute('/admin/updates', '?tab=rollouts')).toEqual({ kind: 'updates', tab: 'rollouts' });
+    const audit = { kind: 'audit', organizationId: 'org-1', action: 'updates.rollout.create', outcome: 'succeeded', from: '2026-07-01', to: '2026-07-30' } as const;
+    expect(resolvePlatformRoute('/admin/audit', pathForPlatformRoute(audit).split('?')[1])).toEqual(audit);
+  });
 });

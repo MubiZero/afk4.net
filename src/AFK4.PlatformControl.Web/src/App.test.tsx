@@ -66,7 +66,7 @@ describe('Platform Control admin-only routing', () => {
   it('resolves only canonical admin routes', () => {
     expect(resolvePlatformRoute('/')).toEqual({ kind: 'overview' });
     expect(resolvePlatformRoute('/admin/organizations')).toMatchObject({ kind: 'organizations' });
-    expect(resolvePlatformRoute('/admin/updates')).toEqual({ kind: 'updates' });
+    expect(resolvePlatformRoute('/admin/updates')).toEqual({ kind: 'updates', tab: 'packages' });
     expect(resolvePlatformRoute('/organizations/org-1')).toEqual({ kind: 'notFound', path: '/organizations/org-1' });
   });
 

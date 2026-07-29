@@ -14,7 +14,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 
 type Client = Pick<UpdatesApi, 'listPackages' | 'registerPackage' | 'changePackageState' | 'listRollouts' | 'createRollout' | 'changeRolloutState'>;
 
-export function UpdatesScreen({ client }: { client: Client }) {
+export function UpdatesScreen({ client, tab = 'packages', onTabChange = () => {} }: { client: Client; tab?: 'packages' | 'rollouts'; onTabChange?: (tab: 'packages' | 'rollouts') => void }) {
   const { t } = useI18n();
   const { toast } = useToast();
   const [packages, setPackages] = useState<PlatformUpdatePackage[] | null>(null);
@@ -41,7 +41,7 @@ export function UpdatesScreen({ client }: { client: Client }) {
   if (packages === null || rollouts === null) return <LoadingCards count={3} />;
 
   return (
-    <Tabs defaultValue="packages" className="flex flex-col gap-4">
+    <Tabs value={tab} onValueChange={value => onTabChange(value as typeof tab)} className="flex flex-col gap-4">
       <TabsList>
         <TabsTrigger value="packages">{t('platform.updates.tab.packages')}</TabsTrigger>
         <TabsTrigger value="rollouts">{t('platform.updates.tab.rollouts')}</TabsTrigger>

@@ -36,8 +36,7 @@ public static class PlatformAdminPermissionCatalog
                 PlatformAdminPermissionNames.ManageOrganizationSupportNotes,
                 PlatformAdminPermissionNames.ManageOrganizationOwnerInvites,
                 PlatformAdminPermissionNames.ViewOrganizationHealth,
-                PlatformAdminPermissionNames.ViewPlatformAudit,
-                PlatformAdminPermissionNames.ViewBilling
+                PlatformAdminPermissionNames.ViewPlatformAudit
             }
         };
 

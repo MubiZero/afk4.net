@@ -20,6 +20,7 @@ import { OverviewScreen } from './platform/overview/OverviewScreen';
 import { useOrganizationMetrics } from './platform/overview/useOrganizationMetrics';
 import { ProfileScreen } from './platform/profile/ProfileScreen';
 import { UpdatesScreen } from './platform/updates/UpdatesScreen';
+import { AuditScreen } from './platform/audit/AuditScreen';
 import {
   pathForPlatformRoute,
   resolvePlatformRoute,
@@ -116,8 +117,9 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
       onSignOut={onSignOut}
     >
       {route.kind === 'overview' ? <OverviewScreen state={organizationMetrics} billing={billingMetrics} />
-        : route.kind === 'billing' ? <BillingScreen client={client} />
-        : route.kind === 'updates' ? <UpdatesScreen client={client.updates} />
+        : route.kind === 'billing' ? <BillingScreen client={client} tab={route.tab} onTabChange={tab => navigate({ ...route, tab })} canManage={can(session, 'billing.manage')} />
+        : route.kind === 'updates' ? <UpdatesScreen client={client.updates} tab={route.tab} onTabChange={tab => navigate({ ...route, tab })} />
+        : route.kind === 'audit' ? <AuditScreen client={client.audit} filters={route} onFiltersChange={filters => navigate({ kind: 'audit', ...filters })} />
         : route.kind === 'profile' ? <ProfileScreen session={session} onSignOut={onSignOut} />
         : route.kind === 'organizationNew' ? <NewOrganizationScreen client={client.organizations} onCreated={(response: CreateOrganizationResponse) => openOrganization(response.organization.organizationId, response.organizationOwnerInvite)} onCancel={() => navigate({ kind: 'organizations', query: '', status: 'all', plan: 'all', sort: 'attention' })} />
         : route.kind === 'organization' ? <OrganizationPage client={client} organizationId={route.organizationId} tab={route.tab} access={organizationAccess} initialInvite={readInitialInvite()} onTabChange={tab => navigate({ ...route, tab })} onChanged={() => {}} />

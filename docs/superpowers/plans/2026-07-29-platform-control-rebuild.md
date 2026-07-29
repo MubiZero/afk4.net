@@ -297,8 +297,7 @@ git commit -m "feat(platform-control): build canonical organization workspace"
 - Refactor: `src/AFK4.PlatformControl.Web/src/platform/updates/`
 - Create: `src/AFK4.PlatformControl.Web/src/platform/audit/AuditScreen.tsx`
 - Create: `src/AFK4.PlatformControl.Web/src/platform/audit/AuditScreen.test.tsx`
-- Create: `src/AFK4.PlatformControl.Web/src/platform/settings/PlatformSettingsScreen.tsx`
-- Create: `src/AFK4.PlatformControl.Web/src/platform/settings/PlatformSettingsScreen.test.tsx`
+- Do not create until a persisted platform-wide settings contract exists: `src/AFK4.PlatformControl.Web/src/platform/settings/`
 - Modify: `src/AFK4.PlatformControl.Web/src/api/platformApi.ts`
 - Create: `src/AFK4.PlatformControl.Web/src/api/platformClients/audit.ts`
 - Create: `src/AFK4.PlatformControl.Web/src/api/platformClients/settings.ts`
@@ -308,7 +307,7 @@ git commit -m "feat(platform-control): build canonical organization workspace"
 - Consumes: capability-gated routes and existing plans, subscriptions, invoices, packages, and rollouts clients.
 - Produces: complete owner-only billing/update/settings workspaces and owner/support-readable audit according to backend permissions.
 
-- [ ] **Step 1: Write failing lifecycle and permission tests**
+- [x] **Step 1: Write failing lifecycle and permission tests**
 
 ```tsx
 expect(renderRoute(supportSession, '/admin/billing')).toShowForbidden();
@@ -319,27 +318,27 @@ expect(screen.getByLabelText(/reason/i)).toBeRequired();
 
 Cover plan create/edit/archive where supported, subscription assignment/change, invoice inspection/correction policy, package validation/retirement, rollout creation/state, audit filtering, and settings save failures.
 
-- [ ] **Step 2: Run focused tests and inventory missing contracts**
+- [x] **Step 2: Run focused tests and inventory missing contracts**
 
 Run: `cd src/AFK4.PlatformControl.Web && bun test src/platform/billing src/platform/updates src/platform/audit src/platform/settings`
 
 Expected: existing billing/update tests reveal the retained behavior; new audit/settings and role-gate tests FAIL until implemented.
 
-- [ ] **Step 3: Add missing backend endpoints only for approved complete lifecycles**
+- [x] **Step 3: Add missing backend endpoints only for approved complete lifecycles**
 
 For each new endpoint, add integration tests for authentication, role/permission denial, validation, idempotency where money or release state changes, audit emission, and not-found behavior. Do not add UI controls for lifecycle operations the domain does not support.
 
-- [ ] **Step 4: Implement global workspaces using shared table/form/state primitives**
+- [x] **Step 4: Implement global workspaces using shared table/form/state primitives**
 
-Keep billing as three URL-backed tabs. Make update publication and rollout owner-only with explicit target and consequence summaries. Audit uses server-side time/range filters when the result set can grow. Platform settings contains only persisted global settings, not profile preferences.
+Keep billing as three URL-backed tabs. Make update publication and rollout owner-only with explicit target and consequence summaries. Audit uses server-side time/range filters when the result set can grow. No persisted platform-wide settings contract exists, so Settings remains absent from navigation and direct access remains forbidden rather than exposing non-functional controls.
 
-- [ ] **Step 5: Verify global workspaces**
+- [x] **Step 5: Verify global workspaces**
 
 Run: `cd src/AFK4.PlatformControl.Web && bun test src/platform/billing src/platform/updates src/platform/audit src/platform/settings src/App.test.tsx && bun run build`
 
 Run focused API tests for every changed endpoint.
 
-- [ ] **Step 6: Commit the global workspaces**
+- [x] **Step 6: Commit the global workspaces**
 
 ```bash
 git add src/AFK4.PlatformControl.Web/src/platform src/AFK4.PlatformControl.Web/src/api src/AFK4.Shared.Contracts src/AFK4.Platform.Api tests/AFK4.Platform.Api.Tests packages/i18n/src/messages.ts locales
