@@ -22,7 +22,10 @@ public static class PlatformAdminPermissionCatalog
                 PlatformAdminPermissionNames.ViewBilling,
                 PlatformAdminPermissionNames.ManagePlans,
                 PlatformAdminPermissionNames.ManageSubscriptions,
-                PlatformAdminPermissionNames.ManageInvoices
+                PlatformAdminPermissionNames.ManageInvoices,
+                PlatformAdminPermissionNames.ViewUpdates,
+                PlatformAdminPermissionNames.ManageUpdatePackages,
+                PlatformAdminPermissionNames.ManageUpdateRollouts
             },
             [PlatformAdminRoleNames.PlatformSupport] = new HashSet<string>
             {

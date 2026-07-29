@@ -316,6 +316,7 @@ builder.Services.AddScoped<IPackageService, EfPackageService>();
 builder.Services.AddScoped<ISessionBillingService, SessionBillingService>();
 builder.Services.AddScoped<IOperatorReferenceDataService, EfOperatorReferenceDataService>();
 builder.Services.AddScoped<IUpdateService, EfUpdateService>();
+builder.Services.AddScoped<IPlatformUpdateReleaseService, EfPlatformUpdateReleaseService>();
 
 builder.Services.Configure<SecretProtectionOptions>(
     builder.Configuration.GetSection(SecretProtectionOptions.SectionName));
@@ -442,6 +443,8 @@ organizations.MapReportScheduleEndpoints();
 app.MapPlatformOrganizationEndpoints();
 app.MapPlatformBillingEndpoints(organizations);
 app.MapPlatformSupportAccessEndpoints();
+app.MapPlatformUpdateEndpoints();
+organizations.MapOrganizationAuditEndpoints();
 organizations.MapStaffEndpoints();
 organizations.MapBranchProfileLayoutEndpoints();
 organizations.MapSessionEndpoints();

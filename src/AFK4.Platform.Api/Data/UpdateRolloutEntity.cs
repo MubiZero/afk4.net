@@ -4,10 +4,6 @@ public sealed class UpdateRolloutEntity
 {
     public Guid UpdateRolloutId { get; set; }
 
-    public Guid OrganizationId { get; set; }
-
-    public Guid BranchId { get; set; }
-
     public Guid UpdatePackageId { get; set; }
 
     public string Component { get; set; } = string.Empty;
@@ -24,7 +20,7 @@ public sealed class UpdateRolloutEntity
 
     public string Reason { get; set; } = string.Empty;
 
-    public Guid CreatedByStaffUserId { get; set; }
+    public Guid CreatedByPlatformAdminUserId { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; }
 

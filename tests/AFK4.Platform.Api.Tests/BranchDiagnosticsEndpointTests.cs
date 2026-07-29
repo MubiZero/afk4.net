@@ -154,8 +154,6 @@ public sealed class BranchDiagnosticsEndpointTests
         dbContext.UpdateRollouts.Add(new UpdateRolloutEntity
         {
             UpdateRolloutId = rolloutId,
-            OrganizationId = TestIds.OrganizationId,
-            BranchId = TestIds.BranchId,
             UpdatePackageId = packageId,
             Component = "gaming-pc",
             Version = "0.1.0",
@@ -164,9 +162,18 @@ public sealed class BranchDiagnosticsEndpointTests
             TargetKind = "branch",
             BatchPercent = 100,
             Reason = "test",
-            CreatedByStaffUserId = TestIds.TechnicianStaffUserId,
+            CreatedByPlatformAdminUserId = TestIds.TechnicianStaffUserId,
             CreatedAtUtc = now.AddMinutes(-10),
             StartsAtUtc = now.AddMinutes(-10)
+        });
+        dbContext.UpdateRolloutTargets.Add(new UpdateRolloutTargetEntity
+        {
+            UpdateRolloutTargetId = Guid.NewGuid(),
+            UpdateRolloutId = rolloutId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            TargetKind = "branch",
+            CreatedAtUtc = now.AddMinutes(-10)
         });
 
         dbContext.DeviceUpdateStatuses.Add(new DeviceUpdateStatusEntity

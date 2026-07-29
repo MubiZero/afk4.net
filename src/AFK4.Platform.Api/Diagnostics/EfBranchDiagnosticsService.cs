@@ -73,12 +73,18 @@ public sealed class EfBranchDiagnosticsService(
                 status.OrganizationId == organizationId &&
                 status.BranchId == branchId)
             .ToListAsync(cancellationToken);
+        var branchRolloutIds = await dbContext.UpdateRolloutTargets
+            .AsNoTracking()
+            .Where(target =>
+                target.OrganizationId == organizationId &&
+                (target.TargetKind == "organization" || target.BranchId == branchId))
+            .Select(target => target.UpdateRolloutId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
         var activeRollouts = await dbContext.UpdateRollouts
             .AsNoTracking()
             .CountAsync(
-                rollout =>
-                    rollout.OrganizationId == organizationId &&
-                    rollout.BranchId == branchId &&
+                rollout => branchRolloutIds.Contains(rollout.UpdateRolloutId) &&
                     rollout.State == UpdateRolloutStateNames.Active,
                 cancellationToken);
 
