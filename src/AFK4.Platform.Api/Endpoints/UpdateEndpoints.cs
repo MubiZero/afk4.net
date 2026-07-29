@@ -1,4 +1,5 @@
 using AFK4.Platform.Api.Audit;
+using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Platform.Tenancy;
@@ -9,6 +10,7 @@ using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Updates;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 
 namespace AFK4.Platform.Api.Endpoints;
@@ -17,6 +19,46 @@ internal static class UpdateEndpoints
 {
     public static void MapUpdateEndpoints(this WebApplication app, IEndpointRouteBuilder organizations)
     {
+        organizations.MapGet("branches/{branchId:guid}/updates/preferences", async (
+            Guid branchId,
+            StaffAuthorizationService authorizationService,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId, OrganizationPermissionNames.ViewUpdateStatus, cancellationToken);
+            if (!authorization.IsAuthenticated) return Results.Unauthorized();
+            if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            var branch = await dbContext.Branches.AsNoTracking().SingleAsync(
+                candidate => candidate.BranchId == branchId && candidate.OrganizationId == authorization.StaffContext!.OrganizationId,
+                cancellationToken);
+            return Results.Ok(ToPreference(branch));
+        });
+
+        organizations.MapPut("branches/{branchId:guid}/updates/preferences", async (
+            Guid branchId,
+            UpdateOrganizationAdminUpdatePreferenceRequest request,
+            StaffAuthorizationService authorizationService,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId, OrganizationPermissionNames.ManageBranchSettings, cancellationToken);
+            if (!authorization.IsAuthenticated) return Results.Unauthorized();
+            if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+            if (request.MaintenanceWindowStart == request.MaintenanceWindowEnd)
+                return Results.BadRequest(new { Error = "Maintenance window start and end must be different." });
+            var branch = await dbContext.Branches.SingleAsync(
+                candidate => candidate.BranchId == branchId && candidate.OrganizationId == request.OrganizationId,
+                cancellationToken);
+            branch.OrganizationAdminMaintenanceWindowStart = request.MaintenanceWindowStart;
+            branch.OrganizationAdminMaintenanceWindowEnd = request.MaintenanceWindowEnd;
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return Results.Ok(ToPreference(branch));
+        });
+
         organizations.MapGet("branches/{branchId:guid}/updates/rollouts", async (
             Guid branchId,
             StaffAuthorizationService authorizationService,
@@ -105,4 +147,11 @@ internal static class UpdateEndpoints
 
         app.MapHub<DeviceHub>("/hubs/devices");
     }
+
+    private static OrganizationAdminUpdatePreferenceDto ToPreference(BranchEntity branch) => new(
+        branch.OrganizationId,
+        branch.BranchId,
+        branch.OrganizationAdminMaintenanceWindowStart,
+        branch.OrganizationAdminMaintenanceWindowEnd,
+        branch.PreferredTimeZone);
 }

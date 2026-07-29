@@ -12,6 +12,55 @@ namespace AFK4.Platform.Api.Tests;
 
 public sealed class UpdateEndpointTests
 {
+    [Fact]
+    public async Task OrganizationAdminUpdatePreference_DefaultsAndCanBeChangedByOrganizationOwner()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+        var path = $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/updates/preferences";
+
+        var initial = await client.GetFromJsonAsync<OrganizationAdminUpdatePreferenceDto>(path);
+        var updateResponse = await client.PutAsJsonAsync(path, new UpdateOrganizationAdminUpdatePreferenceRequest(
+            TestIds.OrganizationId, new TimeOnly(23, 30), new TimeOnly(0, 30)));
+        var updated = await updateResponse.Content.ReadFromJsonAsync<OrganizationAdminUpdatePreferenceDto>();
+
+        Assert.Equal(new TimeOnly(4, 0), initial!.MaintenanceWindowStart);
+        Assert.Equal("Asia/Dushanbe", initial.TimeZone);
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.Equal(new TimeOnly(23, 30), updated!.MaintenanceWindowStart);
+        Assert.Equal(new TimeOnly(0, 30), updated.MaintenanceWindowEnd);
+    }
+
+    [Fact]
+    public async Task OrganizationAdminUpdatePreference_RejectsZeroLengthWindow()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+
+        var response = await client.PutAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/updates/preferences",
+            new UpdateOrganizationAdminUpdatePreferenceRequest(TestIds.OrganizationId, new TimeOnly(4, 0), new TimeOnly(4, 0)));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task OrganizationAdminUpdatePreference_TechnicianCanReadButCannotChangeWindow()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        var path = $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/updates/preferences";
+
+        var read = await client.GetAsync(path);
+        var write = await client.PutAsJsonAsync(path, new UpdateOrganizationAdminUpdatePreferenceRequest(
+            TestIds.OrganizationId, new TimeOnly(3, 0), new TimeOnly(4, 0)));
+
+        Assert.Equal(HttpStatusCode.OK, read.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, write.StatusCode);
+    }
     [Theory]
     [InlineData("packages", HttpStatusCode.NotFound)]
     [InlineData("packages/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/state", HttpStatusCode.NotFound)]

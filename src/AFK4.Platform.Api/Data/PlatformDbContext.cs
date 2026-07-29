@@ -251,6 +251,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(branch => branch.RequireManualDeviceApproval).HasDefaultValue(false);
             entity.Property(branch => branch.PreferredLocale).HasMaxLength(8).HasDefaultValue("ru").IsRequired();
             entity.Property(branch => branch.PreferredTimeZone).HasMaxLength(64).HasDefaultValue("Asia/Dushanbe").IsRequired();
+            entity.Property(branch => branch.OrganizationAdminMaintenanceWindowStart)
+                .HasColumnType("time without time zone").HasDefaultValue(new TimeOnly(4, 0));
+            entity.Property(branch => branch.OrganizationAdminMaintenanceWindowEnd)
+                .HasColumnType("time without time zone").HasDefaultValue(new TimeOnly(5, 0));
             entity.HasIndex(branch => new { branch.OrganizationId, branch.BranchId }).IsUnique();
             entity.HasIndex(branch => new { branch.OrganizationId, branch.Slug }).IsUnique();
         });

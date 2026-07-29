@@ -6,6 +6,25 @@ namespace AFK4.Shared.Contracts.Tests;
 public sealed class UpdateContractSerializationTests
 {
     [Fact]
+    public void OrganizationAdminUpdatePreference_RoundTripsWindowAndStatuses()
+    {
+        var dto = new OrganizationAdminUpdatePreferenceDto(
+            Guid.NewGuid(), Guid.NewGuid(), new TimeOnly(4, 0), new TimeOnly(5, 0), "Asia/Dushanbe");
+        var request = new UpdateOrganizationAdminUpdatePreferenceRequest(
+            dto.OrganizationId, new TimeOnly(23, 30), new TimeOnly(0, 30));
+
+        var dtoCopy = JsonSerializer.Deserialize<OrganizationAdminUpdatePreferenceDto>(JsonSerializer.Serialize(dto));
+        var requestCopy = JsonSerializer.Deserialize<UpdateOrganizationAdminUpdatePreferenceRequest>(JsonSerializer.Serialize(request));
+
+        Assert.Equal(new TimeOnly(4, 0), dtoCopy!.MaintenanceWindowStart);
+        Assert.Equal(new TimeOnly(0, 30), requestCopy!.MaintenanceWindowEnd);
+        Assert.Equal("deferred", UpdateStatusNames.Deferred);
+        Assert.Equal("ready-to-install", UpdateStatusNames.ReadyToInstall);
+        Assert.Equal("awaiting-app-exit", UpdateStatusNames.AwaitingAppExit);
+        Assert.Equal("health-checking", UpdateStatusNames.HealthChecking);
+        Assert.Equal("rollback-required", UpdateStatusNames.RollbackRequired);
+    }
+    [Fact]
     public void UpdatePackage_RoundTripsSignedPackageMetadata()
     {
         var request = new CreateUpdatePackageRequest(

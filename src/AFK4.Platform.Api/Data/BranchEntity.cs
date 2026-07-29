@@ -48,6 +48,10 @@ public sealed class BranchEntity
     /// </summary>
     public string PreferredTimeZone { get; set; } = "Asia/Dushanbe";
 
+    public TimeOnly OrganizationAdminMaintenanceWindowStart { get; set; } = new(4, 0);
+
+    public TimeOnly OrganizationAdminMaintenanceWindowEnd { get; set; } = new(5, 0);
+
     // Per-branch default ceiling for an open postpaid tab; null means unbounded.
     public long? PostpaidCreditLimitMinorUnits { get; set; }
 
