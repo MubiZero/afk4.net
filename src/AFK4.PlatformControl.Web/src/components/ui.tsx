@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 export function Loading({ label }: { label?: string }) {
   return (
-    <div className="muted" role="status" aria-live="polite">
+    <div className="text-sm text-muted-foreground" role="status" aria-live="polite">
       {label ?? 'Loading…'}
     </div>
   );
@@ -13,10 +13,10 @@ export function ErrorBanner({ message, onDismiss }: { message: string | null; on
     return null;
   }
   return (
-    <div className="banner banner-error" role="alert">
+    <div className="flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
       <span>{message}</span>
       {onDismiss !== undefined && (
-        <button type="button" className="link" onClick={onDismiss}>
+        <button type="button" className="min-h-6 underline underline-offset-2" onClick={onDismiss}>
           Dismiss
         </button>
       )}
@@ -25,7 +25,7 @@ export function ErrorBanner({ message, onDismiss }: { message: string | null; on
 }
 
 export function EmptyState({ children }: { children: ReactNode }) {
-  return <div className="empty">{children}</div>;
+  return <div className="rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground">{children}</div>;
 }
 
 export function Field({
@@ -40,17 +40,16 @@ export function Field({
   children: ReactNode;
 }) {
   return (
-    <label htmlFor={htmlFor} className="field">
-      <span className="field-label">{label}</span>
+    <label htmlFor={htmlFor} className="flex flex-col gap-1.5">
+      <span className="text-sm font-medium">{label}</span>
       {children}
-      {hint !== undefined && <span className="field-hint">{hint}</span>}
+      {hint !== undefined && <span className="text-xs text-muted-foreground">{hint}</span>}
     </label>
   );
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const className = `badge badge-${status.replace(/_/gu, '-')}`;
-  return <span className={className}>{status}</span>;
+  return <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-xs font-semibold">{status}</span>;
 }
 
 export function formatDate(value: string | null): string {

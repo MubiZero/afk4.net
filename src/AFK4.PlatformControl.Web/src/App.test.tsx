@@ -104,6 +104,6 @@ describe('Platform Control admin-only routing', () => {
     window.history.replaceState(null, '', '/admin/billing');
     writeSession(buildSession());
     renderApp();
-    expect(screen.getByRole('heading', { name: 'Access denied' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Нет доступа' })).toBeInTheDocument();
   });
 });

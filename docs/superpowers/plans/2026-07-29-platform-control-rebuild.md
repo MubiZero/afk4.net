@@ -121,7 +121,7 @@ git commit -m "feat(platform-control): rebuild routing and access shell"
 - Consumes: existing UI primitives and `useI18n()`.
 - Produces: `PageHeader`, `Workspace`, `StatusBadge`, `DescriptionList`, `PageSkeleton`, `EmptyState`, `ErrorState`, `ForbiddenState`, and `PartialFailure`.
 
-- [ ] **Step 1: Write failing state and accessibility tests**
+- [x] **Step 1: Write failing state and accessibility tests**
 
 ```tsx
 render(<EmptyState title="Start by creating an organization" action={<button>Create organization</button>} />);
@@ -132,21 +132,21 @@ render(<PartialFailure title="Invoices are unavailable" onRetry={retry} />);
 expect(screen.getByRole('status')).toHaveTextContent('Invoices are unavailable');
 ```
 
-- [ ] **Step 2: Run the state tests and verify failure**
+- [x] **Step 2: Run the state tests and verify failure**
 
 Run: `cd src/AFK4.PlatformControl.Web && bun test src/components/ui/states.test.tsx`
 
 Expected: FAIL for missing complete state primitives and semantics.
 
-- [ ] **Step 3: Implement semantic tokens and layout primitives**
+- [x] **Step 3: Implement semantic tokens and layout primitives**
 
 Use one neutral surface scale, one action accent, semantic success/warning/danger/info tokens, tabular numeric styles, a 2px `:focus-visible` ring, 100-150 ms micro-feedback, and `prefers-reduced-motion`. Remove global legacy element styling and ensure auth/account-activation use the same primitives.
 
-- [ ] **Step 4: Add real ru/en/tg copy for shared states**
+- [x] **Step 4: Add real ru/en/tg copy for shared states**
 
 Add complete messages for first-use empty, filtered empty, forbidden, expired session, partial failure, retry, and safe fallback actions. Keep every variable sentence as one ICU-ready message rather than JSX fragments.
 
-- [ ] **Step 5: Run UI-state, i18n, and theme verification**
+- [x] **Step 5: Run UI-state, i18n, and theme verification**
 
 Run: `cd src/AFK4.PlatformControl.Web && bun test src/components src/theme && bun run build`
 
@@ -154,7 +154,7 @@ Run the repository's existing i18n catalog parity test identified by `rg -n "cat
 
 Expected: all focused tests and production build PASS; no stale import of `styles.css` remains.
 
-- [ ] **Step 6: Commit the design foundation**
+- [x] **Step 6: Commit the design foundation**
 
 ```bash
 git add src/AFK4.PlatformControl.Web/src/index.css src/AFK4.PlatformControl.Web/src/main.tsx src/AFK4.PlatformControl.Web/src/components packages/i18n/src/messages.ts locales

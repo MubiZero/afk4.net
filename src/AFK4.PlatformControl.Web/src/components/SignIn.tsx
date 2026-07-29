@@ -2,6 +2,9 @@ import { useState, type FormEvent } from 'react';
 import { PlatformApiClient, PlatformApiError } from '../api/platformApi';
 import { useI18n } from '../i18n/I18nProvider';
 import { ErrorBanner, Field } from './ui';
+import { Button } from './ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Input } from './ui/input';
 
 export interface SignInProps {
   client: PlatformApiClient;
@@ -36,13 +39,13 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
   }
 
   return (
-    <div className="page page-narrow">
-      <h1>{t('auth.admin.title')}</h1>
-      <p className="muted">{t('auth.admin.subtitle')}</p>
-      <form className="form" onSubmit={handleSubmit}>
+    <main className="grid min-h-screen place-items-center bg-background p-5">
+      <Card className="w-full max-w-md">
+      <CardHeader><CardTitle><h1>{t('auth.admin.title')}</h1></CardTitle><p className="text-sm text-muted-foreground">{t('auth.admin.subtitle')}</p></CardHeader>
+      <CardContent><form className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <ErrorBanner message={error} onDismiss={() => setError(null)} />
         <Field label={t('auth.field.login')} htmlFor="signin-username">
-          <input
+          <Input
             id="signin-username"
             name="userName"
             type="text"
@@ -54,7 +57,7 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
           />
         </Field>
         <Field label={t('auth.field.password')} htmlFor="signin-password">
-          <input
+          <Input
             id="signin-password"
             name="password"
             type="password"
@@ -65,10 +68,11 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
             required
           />
         </Field>
-        <button type="submit" className="primary" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? t('auth.action.signingIn') : t('auth.action.signIn')}
-        </button>
-      </form>
-    </div>
+        </Button>
+      </form></CardContent>
+      </Card>
+    </main>
   );
 }

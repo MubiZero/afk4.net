@@ -7,7 +7,8 @@ import { can, type PlatformCapability } from './auth/platformAccess';
 import { readSession, type PlatformAdminSession } from './auth/tokenStore';
 import { SignIn } from './components/SignIn';
 import { AppShell } from './components/shell/AppShell';
-import { Button } from './components/ui/button';
+import { ForbiddenState } from './components/ui/states';
+import { Workspace } from './components/layout/Workspace';
 import { useI18n, type MessageKey } from './i18n/I18nProvider';
 import { BillingScreen } from './platform/billing/BillingScreen';
 import { useBillingMetrics } from './platform/billing/useBillingMetrics';
@@ -147,14 +148,17 @@ function readInitialInvite(): OrganizationOwnerInvite | null {
   return candidate !== null && typeof candidate === 'object' ? candidate as OrganizationOwnerInvite : null;
 }
 
-function NotFound({ path, onHome }: { path: string; onHome: () => void }) {
-  return <main className="page page-narrow"><section className="section"><h1>Page not found</h1><p className="muted">No Platform Control route matches <code>{path}</code>.</p><Button onClick={onHome}>Open Platform Control</Button></section></main>;
+function NotFound({ path: _path, onHome }: { path: string; onHome: () => void }) {
+  const { t } = useI18n();
+  return <main className="min-h-screen p-5"><Workspace width="narrow"><ForbiddenState title={t('state.notFound.title')} message={t('state.notFound.message')} actionLabel={t('state.openOverview')} onAction={onHome} /></Workspace></main>;
 }
 
 function Forbidden({ onHome }: { onHome: () => void }) {
-  return <main className="page page-narrow"><section className="section"><h1>Access denied</h1><p className="muted">Your platform role does not allow this page.</p><Button onClick={onHome}>Open overview</Button></section></main>;
+  const { t } = useI18n();
+  return <main className="min-h-screen p-5"><Workspace width="narrow"><ForbiddenState title={t('state.forbidden.title')} message={t('state.forbidden.message')} actionLabel={t('state.openOverview')} onAction={onHome} /></Workspace></main>;
 }
 
 function UnavailableScreen() {
-  return <section className="section"><p className="muted">This workspace is not available yet.</p></section>;
+  const { t } = useI18n();
+  return <p className="text-sm text-muted-foreground">{t('state.unavailable')}</p>;
 }
