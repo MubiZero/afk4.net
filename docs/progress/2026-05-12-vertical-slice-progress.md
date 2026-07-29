@@ -321,9 +321,10 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Recommended Next Work
 
-1. Repeat the now-passing Operator day flow from a clean `manager_workstation`
-   install and record 100%/125% scaling plus keyboard-focus evidence.
-2. Run the physical gaming-PC Agent/Shell smoke, then add permission-aware entity
-   search to the command palette if it does not expose a higher-priority gap.
+1. Rebuild Platform Control around the approved organization-centered product
+   model in `docs/superpowers/specs/2026-07-29-platform-control-rebuild-design.md`.
+2. After the rebuild, return to the production-readiness backlog: repeat the
+   Operator day flow from a clean `manager_workstation` install at 100%/125%,
+   then run the physical Windows 10/11 gaming-PC Agent/Shell smoke.
 3. Wire real per-environment SMTP settings and work through the remaining
    pre-production decisions in the production-readiness roadmap.
