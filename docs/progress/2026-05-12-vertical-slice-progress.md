@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-07-28
+Last updated: 2026-07-29
 
 ## Purpose
 
@@ -117,6 +117,16 @@ to Coolify staging:
 Plus the earlier base: identity/tenancy/RBAC/audit, devices/floor-map, owner-code
 enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 + rollout, and the Agent/Setup-Wizard/Player-Shell/packaging stack.
+
+- **Organization Admin safe update controls** — organization owners can inspect
+  installed/offered Admin App versions, safe progress or failure detail, and the
+  branch maintenance window without receiving Platform Control publication or
+  rollout powers. A permission-gated window editor persists through the branch
+  API; `Перезапустить и обновить` binds the exact rollout/package to a native
+  acknowledgement, refuses to close during critical work, and then lets Agent
+  install after graceful shutdown. Organization Admin Web passed 1039 tests and
+  its production build; i18n passed 39/39, Windows App passed 254/254 on the
+  Windows runtime, and the full solution build passed with 0 warnings/errors.
 
 - **Operator `/club` functional parity closure** — Clients, Monetization,
   Settings, and Venue gaps are closed in native Operator surfaces: complete staff

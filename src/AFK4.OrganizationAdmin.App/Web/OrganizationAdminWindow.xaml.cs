@@ -531,11 +531,16 @@ public partial class OrganizationAdminWindow : Window
 
         // Auth no longer runs through this bridge — the web UI signs itself in over plain HTTP
         // (see OrganizationAdminWebHostBridge). Only device-identity (machine/seat pinning) stays native-side.
-        var activityState = (Application.Current as AFK4.OrganizationAdmin.App.App)?.UpdateActivityState
-            ?? new OrganizationAdminActivityState();
+        var app = Application.Current as AFK4.OrganizationAdmin.App.App;
+        var activityState = app?.UpdateActivityState ?? new OrganizationAdminActivityState();
+        Action? requestShutdown = app is null
+            ? null
+            : () => app.Dispatcher.BeginInvoke(new Action(app.Shutdown));
         return new OrganizationAdminWebHostBridge(
             new ProtectedDataOrganizationAdminConnectionStore(),
-            activityState);
+            activityState,
+            app?.UpdateAcknowledgementStore,
+            requestShutdown);
     }
 
     // DWM window-attribute ids (Windows 11 22000+): 33 = corner preference, 34 = border colour.

@@ -12,6 +12,12 @@ public partial class App : Application
 {
     private NamedPipeUpdateCoordinationServer? updateCoordinationServer;
     internal OrganizationAdminActivityState UpdateActivityState { get; } = new();
+    internal IOrganizationAdminShutdownAcknowledgementStore UpdateAcknowledgementStore { get; } =
+        new FileOrganizationAdminShutdownAcknowledgementStore(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "AFK4",
+            "OrganizationAdmin",
+            "update-shutdown-acknowledgement.json"));
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -27,16 +33,11 @@ public partial class App : Application
         {
             var pipeName = Environment.GetEnvironmentVariable("AFK4_ORGANIZATION_ADMIN_UPDATE_COORDINATION_PIPE_NAME")
                 ?? "afk4-organization-admin-updates";
-            var acknowledgementPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "AFK4",
-                "OrganizationAdmin",
-                "update-shutdown-acknowledgement.json");
             updateCoordinationServer = new NamedPipeUpdateCoordinationServer(
                 pipeName,
                 secret,
                 UpdateActivityState,
-                new FileOrganizationAdminShutdownAcknowledgementStore(acknowledgementPath),
+                UpdateAcknowledgementStore,
                 () => Dispatcher.BeginInvoke(Shutdown));
             updateCoordinationServer.Start();
         }

@@ -15,6 +15,7 @@ import type {
   DeviceCommandStatusDto,
   DeviceInventoryItemDto,
   PackageOptionDto,
+  OrganizationAdminUpdatePreferenceDto,
   PosProductDto,
   StaffUserDto,
   TariffOptionDto,
@@ -37,6 +38,7 @@ import {
 } from './operatorHelpers';
 import { normalizeWorkingHours } from './settings/club/workingHours';
 import { useFeedbackToasts } from './useFeedbackToasts';
+import { postHostRequest } from './hostBridge';
 
 export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
   const { t } = useI18n();
@@ -68,6 +70,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
   const [catalog, setCatalog] = useState<PosProductDto[]>([]);
   const [diagnostics, setDiagnostics] = useState<BranchDiagnosticsDto | null>(null);
   const [rollouts, setRollouts] = useState<UpdateRolloutStatusDto[]>([]);
+  const [updatePreference, setUpdatePreference] = useState<OrganizationAdminUpdatePreferenceDto | null>(null);
   const [tariffs, setTariffs] = useState<TariffOptionDto[]>([]);
   const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
   const [deviceInventory, setDeviceInventory] = useState<DeviceInventoryItemDto[]>([]);
@@ -82,13 +85,18 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
     setLoadStatus('loading');
     try {
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
-      const [branchProfile, staff, layoutZones, products, branchDiagnostics, rolloutStatuses, tariffOptions, packageOptionRows, deviceRows, branchDeviceCommands] = await Promise.all([
+      const [branchProfile, staff, layoutZones, products, branchDiagnostics, rolloutStatuses, preference, tariffOptions, packageOptionRows, deviceRows, branchDeviceCommands] = await Promise.all([
         apiClients.settings.getBranchProfile(nextBackend.branchId),
         apiClients.settings.getStaffUsers(nextBackend.branchId),
         apiClients.settings.getLayoutZones(nextBackend.branchId),
         apiClients.pos.getCatalog(nextBackend.branchId),
         apiClients.diagnostics.getDiagnostics(nextBackend.branchId),
-        apiClients.updates.getRolloutStatuses(nextBackend.branchId),
+        hasPermission(nextBackend.session, permissionNames.viewUpdateStatus)
+          ? apiClients.updates.getRolloutStatuses(nextBackend.branchId)
+          : Promise.resolve([]),
+        hasPermission(nextBackend.session, permissionNames.viewUpdateStatus)
+          ? apiClients.updates.getPreference(nextBackend.branchId)
+          : Promise.resolve(null),
         apiClients.settings.getTariffOptions(nextBackend.branchId),
         apiClients.settings.getPackageOptions(nextBackend.branchId).catch(() => []),
         hasPermission(nextBackend.session, permissionNames.viewDeviceDetail)
@@ -106,6 +114,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
       setDiagnostics(branchDiagnostics);
       const rolloutRows = Array.isArray(rolloutStatuses) ? rolloutStatuses : [];
       setRollouts(rolloutRows);
+      setUpdatePreference(preference);
       const tariffRows = Array.isArray(tariffOptions) ? tariffOptions : [];
       setTariffs(tariffRows);
       const packageRows = Array.isArray(packageOptionRows) ? packageOptionRows : [];
@@ -153,6 +162,8 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
   const canDispatchDeviceCommand = backend !== null && hasPermission(backend.session, permissionNames.dispatchDeviceCommand);
   const canRotateDeviceCredential = backend !== null && hasPermission(backend.session, permissionNames.rotateDeviceCredential);
   const canRevokeDeviceCredential = backend !== null && hasPermission(backend.session, permissionNames.revokeDeviceCredential);
+  const canManageBranchSettings = backend !== null && hasPermission(backend.session, permissionNames.manageBranchSettings);
+  const canViewUpdateStatus = backend !== null && hasPermission(backend.session, permissionNames.viewUpdateStatus);
   const readiness = [
     [t('op.settings.readiness.profile'), `${clubName} · ${city}`],
     [t('op.settings.readiness.layout'), t('op.settings.readiness.layoutSeats', { count: zones.reduce((sum, zone) => sum + readArray(zone, 'seats').length, 0) })],
@@ -221,6 +232,38 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
       setFeedback({ label: t('op.settings.profile.feedbackLabel'), state: 'confirmed' });
     } catch (error) {
       setFeedback({ label: t('op.settings.profile.feedbackLabel'), state: 'failed', detail: projectOperatorError(error, t).detail });
+    }
+  };
+
+  const saveUpdatePreference = async (start: string, end: string) => {
+    const label = t('op.settings.updates.admin.saveWindow');
+    setFeedback({ label, state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend, t);
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      const preference = await apiClients.updates.updatePreference(nextBackend.branchId, {
+        organizationId: nextBackend.session.organizationId,
+        maintenanceWindowStart: `${start}:00`,
+        maintenanceWindowEnd: `${end}:00`
+      });
+      setUpdatePreference(preference);
+      setFeedback({ label: t('op.settings.updates.admin.windowSaved'), state: 'confirmed' });
+    } catch (error) {
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
+    }
+  };
+
+  const restartAndUpdate = async (rolloutId: string, packageId: string) => {
+    const label = t('op.settings.updates.admin.restart');
+    setFeedback({ label, state: 'pending' });
+    try {
+      await postHostRequest('update:restartAndInstall', {
+        updateRolloutId: rolloutId,
+        updatePackageId: packageId
+      });
+      setFeedback({ label: t('op.settings.updates.admin.restartAccepted'), state: 'confirmed' });
+    } catch (error) {
+      setFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
     }
   };
 
@@ -296,6 +339,11 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
         <SettingsIntegrationsSection
           rollouts={rollouts}
           updateSummary={updateSummary as Record<string, unknown> | null}
+          preference={updatePreference}
+          canViewUpdates={canViewUpdateStatus}
+          canManagePreference={canManageBranchSettings}
+          onSavePreference={saveUpdatePreference}
+          onRestart={restartAndUpdate}
         />
       );
     }

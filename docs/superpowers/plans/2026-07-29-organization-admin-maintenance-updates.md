@@ -119,11 +119,11 @@
 **Interfaces:**
 - Shows installed/offered version, progress, safe exact error, maintenance window, `Restart and update`, `Later`; restart is rollout/package-bound via native bridge.
 
-- [ ] **Step 1: Write failing UI tests** for empty/deferred/progress/failure states, permissions, save, restart disablement, focus, and keyboard.
-- [ ] **Step 2: Run RED.**
-- [ ] **Step 3: Implement using existing settings/i18n primitives; never show URI/signature internals.**
-- [ ] **Step 4: Run full Bun tests and production build.**
-- [ ] **Step 5: Commit** as `feat(organization-admin): add safe update controls`.
+- [x] **Step 1: Write failing UI tests** for empty/deferred/progress/failure states, permissions, save, restart disablement, focus, and keyboard.
+- [x] **Step 2: Run RED.**
+- [x] **Step 3: Implement using existing settings/i18n primitives; never show URI/signature internals.**
+- [x] **Step 4: Run full Bun tests and production build.**
+- [x] **Step 5: Commit** as `feat(organization-admin): add safe update controls`.
 
 ### Task 6: Provision and prove Windows lifecycle
 

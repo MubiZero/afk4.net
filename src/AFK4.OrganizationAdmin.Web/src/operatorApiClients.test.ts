@@ -397,6 +397,12 @@ describe('operator API clients', () => {
     await clients.devices.getDeviceCommandStatus(deviceId, commandId);
     await clients.diagnostics.getDiagnostics(branchId);
     await clients.updates.getRolloutStatuses(branchId);
+    await clients.updates.getPreference(branchId);
+    await clients.updates.updatePreference(branchId, {
+      organizationId,
+      maintenanceWindowStart: '03:00:00',
+      maintenanceWindowEnd: '05:00:00'
+    });
     await clients.audit.search({
       branchId,
       action: 'session.end',
@@ -435,6 +441,8 @@ describe('operator API clients', () => {
       `GET /api/organizations/organization-id/devices/${deviceId}/commands/${commandId}/status`,
       `GET /api/organizations/organization-id/branches/${branchId}/diagnostics`,
       `GET /api/organizations/organization-id/branches/${branchId}/updates/rollouts`,
+      `GET /api/organizations/organization-id/branches/${branchId}/updates/preferences`,
+      `PUT /api/organizations/organization-id/branches/${branchId}/updates/preferences`,
       `GET /api/organizations/organization-id/branches/${branchId}/audit?action=session.end&outcome=success&targetType=session&limit=25`
     ]);
     expect(calls[1].body).toEqual({ organizationId, userName: 'cashier2', displayName: 'Cashier Two' });
@@ -463,6 +471,11 @@ describe('operator API clients', () => {
     expect(calls[10].body).toEqual({ organizationId, zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', name: 'VIP-01', sortOrder: 40 });
     expect(calls[12].body).toEqual({ organizationId, name: 'Standard Plus', isActive: false });
     expect(calls[13].body).toMatchObject({ organizationId, pricePerMinuteMinorUnits: 75, isActive: false });
+    expect(calls[30].body).toEqual({
+      organizationId,
+      maintenanceWindowStart: '03:00:00',
+      maintenanceWindowEnd: '05:00:00'
+    });
     expect(calls[15].body).toMatchObject({ organizationId, name: 'Night 5h', includedSeconds: 18000 });
     expect(calls[16].body).toMatchObject({ organizationId, name: 'Night 6h', includedSeconds: 21600, isActive: false });
     expect(calls[17].body).toEqual({ organizationId, name: 'Snacks', idempotencyKey: 'idem-category' });
