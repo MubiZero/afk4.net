@@ -44,6 +44,8 @@ param(
 
     [string] $S3Region = 'us-east-1',
 
+    [string] $OrganizationAdminStableAliasObjectKey,
+
     [string] $SigningKeyPath,
 
     [string] $SigningKeyEnvVar,
@@ -208,7 +210,8 @@ function Invoke-UpdatePublisher {
         [string] $ArtifactPath,
         [string] $RequestPath,
         [uri] $ArtifactUploadUri,
-        [uri] $ArtifactPublicUri
+        [uri] $ArtifactPublicUri,
+        [string] $StableAliasObjectKey
     )
 
     $publisherArgs = @(
@@ -223,6 +226,13 @@ function Invoke-UpdatePublisher {
 
     $publisherArgs = Add-SigningKeyArguments $publisherArgs
     $publisherArgs = Add-ArtifactStoreArguments $publisherArgs $ArtifactUploadUri $ArtifactPublicUri
+    if (-not [string]::IsNullOrWhiteSpace($StableAliasObjectKey)) {
+        if ($ArtifactStore -ne 's3') {
+            throw 'OrganizationAdminStableAliasObjectKey requires ArtifactStore s3.'
+        }
+
+        $publisherArgs += @('--s3-stable-alias-object-key', $StableAliasObjectKey)
+    }
 
     for ($attempt = 1; $attempt -le $PublishMaxAttempts; $attempt++) {
         & $resolvedDotnetPath run --project $publisherProject -- @publisherArgs
@@ -334,6 +344,7 @@ $requests = @(
         RequestPath = Assert-PathInsideDirectory $resolvedOutputDirectory (Join-Path $resolvedOutputDirectory "organization-admin-$Version-$Channel-request.json") 'Update package request path'
         ArtifactUploadUri = $OrganizationAdminArtifactUploadUri
         ArtifactPublicUri = $OrganizationAdminArtifactPublicUri
+        StableAliasObjectKey = $OrganizationAdminStableAliasObjectKey
     },
     [pscustomobject]@{
         Component = 'agent-service'
@@ -341,6 +352,7 @@ $requests = @(
         RequestPath = Assert-PathInsideDirectory $resolvedOutputDirectory (Join-Path $resolvedOutputDirectory "agent-service-$Version-$Channel-request.json") 'Update package request path'
         ArtifactUploadUri = $AgentArtifactUploadUri
         ArtifactPublicUri = $AgentArtifactPublicUri
+        StableAliasObjectKey = $null
     },
     [pscustomobject]@{
         Component = 'player-shell'
@@ -348,6 +360,7 @@ $requests = @(
         RequestPath = Assert-PathInsideDirectory $resolvedOutputDirectory (Join-Path $resolvedOutputDirectory "player-shell-$Version-$Channel-request.json") 'Update package request path'
         ArtifactUploadUri = $PlayerShellArtifactUploadUri
         ArtifactPublicUri = $PlayerShellArtifactPublicUri
+        StableAliasObjectKey = $null
     }
 )
 
@@ -357,7 +370,8 @@ foreach ($request in $requests) {
         -ArtifactPath $request.ArtifactPath `
         -RequestPath $request.RequestPath `
         -ArtifactUploadUri $request.ArtifactUploadUri `
-        -ArtifactPublicUri $request.ArtifactPublicUri
+        -ArtifactPublicUri $request.ArtifactPublicUri `
+        -StableAliasObjectKey $request.StableAliasObjectKey
 }
 
 foreach ($request in $requests) {

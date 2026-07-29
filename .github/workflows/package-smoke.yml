@@ -136,6 +136,7 @@ jobs:
             -S3AccessKeyEnvVar AFK4_STAGING_MINIO_ACCESS_KEY `
             -S3SecretKeyEnvVar AFK4_STAGING_MINIO_SECRET_KEY `
             -PublicBaseUri $env:AFK4_STAGING_UPDATE_PUBLIC_BASE_URI `
+            -OrganizationAdminStableAliasObjectKey organization-admin/internal/latest/afk4-organization-admin-internal.msi `
             -SigningKeyEnvVar AFK4_UPDATE_SIGNING_KEY_PEM `
             -ReleaseNotes "Package smoke build $env:AFK4_PACKAGE_VERSION."
 
@@ -225,6 +226,50 @@ jobs:
             -BranchId $env:AFK4_STAGING_BRANCH_ID `
             -RequestPath $playerShellPackageRequestPath `
             -AccessTokenEnvVar AFK4_UPDATE_REGISTRATION_TOKEN
+
+      - name: Verify stable Organization Admin installer
+        shell: pwsh
+        env:
+          AFK4_STAGING_ORGANIZATION_ID: ${{ vars.AFK4_STAGING_ORGANIZATION_ID }}
+          AFK4_STAGING_BRANCH_ID: ${{ vars.AFK4_STAGING_BRANCH_ID }}
+          AFK4_STAGING_PLATFORM_BASE_URL: ${{ vars.AFK4_STAGING_PLATFORM_BASE_URL }}
+          AFK4_STAGING_UPDATE_PUBLIC_BASE_URI: ${{ vars.AFK4_STAGING_UPDATE_PUBLIC_BASE_URI }}
+        run: |
+          $requestPath = "artifacts/update-packages/organization-admin-$env:AFK4_PACKAGE_VERSION-internal-request.json"
+          if (-not (Test-Path -LiteralPath $requestPath -PathType Leaf)) {
+            throw "Organization Admin update request was not produced: $requestPath"
+          }
+
+          $request = Get-Content -LiteralPath $requestPath -Raw | ConvertFrom-Json
+          if ($request.component -ne 'organization-admin' -or $request.channel -ne 'internal') {
+            throw 'Organization Admin update request has an unexpected component or channel.'
+          }
+
+          $publicBaseUri = [uri]($env:AFK4_STAGING_UPDATE_PUBLIC_BASE_URI.Trim().TrimEnd('/') + '/')
+          $immutableUri = [uri]$request.artifactUri
+          if ($publicBaseUri.Scheme -ne 'https' -or $immutableUri.Scheme -ne 'https' -or $immutableUri.Host -ne $publicBaseUri.Host -or -not $immutableUri.AbsoluteUri.StartsWith($publicBaseUri.AbsoluteUri, [System.StringComparison]::Ordinal)) {
+            throw 'Organization Admin artifact URI is outside AFK4_STAGING_UPDATE_PUBLIC_BASE_URI.'
+          }
+
+          $stableRelativePath = 'organization-admin/internal/latest/afk4-organization-admin-internal.msi'
+          $stableUri = [uri]::new($publicBaseUri, $stableRelativePath)
+          $downloadPath = Join-Path $env:RUNNER_TEMP 'afk4-organization-admin-internal.msi'
+          Invoke-WebRequest -Uri $stableUri -OutFile $downloadPath -TimeoutSec 120
+          $actualSize = (Get-Item -LiteralPath $downloadPath).Length
+          $actualSha256 = (Get-FileHash -LiteralPath $downloadPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualSize -ne [long]$request.sizeBytes -or $actualSha256 -ne [string]$request.sha256) {
+            throw "Stable Organization Admin installer does not match immutable request metadata."
+          }
+
+          $platformBaseUrl = $env:AFK4_STAGING_PLATFORM_BASE_URL.TrimEnd('/')
+          $compatibilityUri = "$platformBaseUrl/api/organizations/$env:AFK4_STAGING_ORGANIZATION_ID/branches/$env:AFK4_STAGING_BRANCH_ID/floor-map"
+          $compatibilityResponse = Invoke-WebRequest -Uri $compatibilityUri -SkipHttpErrorCheck -TimeoutSec 60
+          $compatibilityBody = $compatibilityResponse.Content | ConvertFrom-Json
+          if ($compatibilityResponse.StatusCode -ne 426 -or $compatibilityBody.code -ne 'organization_admin_upgrade_required' -or [string]$compatibilityBody.downloadUrl -ne $stableUri.AbsoluteUri) {
+            throw 'Organization Admin compatibility response does not expose the verified stable installer URL.'
+          }
+
+          Write-Host "Stable Organization Admin installer verified: $($stableUri.AbsoluteUri)"
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@v4

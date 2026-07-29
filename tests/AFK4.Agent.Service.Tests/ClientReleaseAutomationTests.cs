@@ -64,6 +64,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         AssertParameter(ast, "S3AccessKeyEnvVar");
         AssertParameter(ast, "S3SecretKeyEnvVar");
         AssertParameter(ast, "S3Region");
+        AssertParameter(ast, "OrganizationAdminStableAliasObjectKey");
         AssertParameter(ast, "SigningKeyPath");
         AssertParameter(ast, "SigningKeyEnvVar");
         AssertParameter(ast, "ReleaseNotes");
@@ -664,6 +665,13 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("uses: actions/upload-artifact@v4", workflow, StringComparison.Ordinal);
         Assert.Contains("if-no-files-found: error", workflow, StringComparison.Ordinal);
         Assert.Contains("retention-days: 3", workflow, StringComparison.Ordinal);
+        Assert.Contains("-OrganizationAdminStableAliasObjectKey organization-admin/internal/latest/afk4-organization-admin-internal.msi", workflow, StringComparison.Ordinal);
+        Assert.Contains("- name: Verify stable Organization Admin installer", workflow, StringComparison.Ordinal);
+        Assert.Contains("organization_admin_upgrade_required", workflow, StringComparison.Ordinal);
+        Assert.Contains("downloadUrl", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("COOLIFY_API_TOKEN", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("/api/v1/applications/", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("/api/v1/deploy", workflow, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -977,6 +985,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             "-S3Endpoint", "https://updates.afk4.test",
             "-S3Bucket", "afk4-updates-staging",
             "-S3KeyPrefix", "client",
+            "-OrganizationAdminStableAliasObjectKey", "organization-admin/internal/latest/afk4-organization-admin-internal.msi",
             "-S3AccessKeyEnvVar", "AFK4_STAGING_MINIO_ACCESS_KEY",
             "-S3SecretKeyEnvVar", "AFK4_STAGING_MINIO_SECRET_KEY",
             "-PublicBaseUri", "https://updates.afk4.test/afk4-updates-staging/",
@@ -994,6 +1003,11 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.All(dotnetInvocations, invocation => Assert.Contains("--s3-access-key-env-var|AFK4_STAGING_MINIO_ACCESS_KEY", invocation, StringComparison.Ordinal));
         Assert.All(dotnetInvocations, invocation => Assert.Contains("--s3-secret-key-env-var|AFK4_STAGING_MINIO_SECRET_KEY", invocation, StringComparison.Ordinal));
         Assert.All(dotnetInvocations, invocation => Assert.Contains("--public-base-uri|https://updates.afk4.test/afk4-updates-staging/", invocation, StringComparison.Ordinal));
+        var organizationAdminInvocation = Assert.Single(dotnetInvocations, invocation => invocation.Contains("--component|organization-admin", StringComparison.Ordinal));
+        Assert.Contains("--s3-stable-alias-object-key|organization-admin/internal/latest/afk4-organization-admin-internal.msi", organizationAdminInvocation, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            dotnetInvocations.Where(invocation => !invocation.Contains("--component|organization-admin", StringComparison.Ordinal)),
+            invocation => invocation.Contains("--s3-stable-alias-object-key", StringComparison.Ordinal));
     }
 
     [Fact]
