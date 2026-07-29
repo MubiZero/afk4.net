@@ -91,10 +91,6 @@ public static class OrganizationPermissionNames
 
     public const string ViewReceipt = "organization.receipts.view";
 
-    public const string ManageUpdatePackages = "organization.updates.packages.manage";
-
-    public const string ManageUpdateRollouts = "organization.updates.rollouts.manage";
-
     public const string ViewUpdateStatus = "organization.updates.status.view";
 
     public const string ViewDiagnostics = "organization.diagnostics.view";

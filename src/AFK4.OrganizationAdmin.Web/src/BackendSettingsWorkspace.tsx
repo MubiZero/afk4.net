@@ -18,7 +18,6 @@ import type {
   PosProductDto,
   StaffUserDto,
   TariffOptionDto,
-  UpdatePackageDto,
   UpdateRolloutStatusDto,
   ZoneDto
 } from './operatorApiClients';
@@ -69,7 +68,6 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
   const [catalog, setCatalog] = useState<PosProductDto[]>([]);
   const [diagnostics, setDiagnostics] = useState<BranchDiagnosticsDto | null>(null);
   const [rollouts, setRollouts] = useState<UpdateRolloutStatusDto[]>([]);
-  const [registeredUpdatePackages, setRegisteredUpdatePackages] = useState<UpdatePackageDto[]>([]);
   const [tariffs, setTariffs] = useState<TariffOptionDto[]>([]);
   const [packageOptions, setPackageOptions] = useState<PackageOptionDto[]>([]);
   const [deviceInventory, setDeviceInventory] = useState<DeviceInventoryItemDto[]>([]);
@@ -148,8 +146,6 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
   const canManageInventoryStock = backend !== null && hasPermission(backend.session, permissionNames.manageInventoryStock);
   const canManageTariffs = backend !== null && hasPermission(backend.session, permissionNames.manageTariffs);
   const canManagePackages = backend !== null && hasPermission(backend.session, permissionNames.managePackages);
-  const canManageUpdatePackages = backend !== null && hasPermission(backend.session, permissionNames.manageUpdatePackages);
-  const canManageUpdateRollouts = backend !== null && hasPermission(backend.session, permissionNames.manageUpdateRollouts);
   const canCreateDeviceEnrollmentCode = backend !== null && hasPermission(backend.session, permissionNames.createDeviceEnrollmentCode);
   const canAssignDeviceSeat = backend !== null && hasPermission(backend.session, permissionNames.assignDeviceSeat);
   const canViewDeviceDetail = backend !== null && hasPermission(backend.session, permissionNames.viewDeviceDetail);
@@ -299,15 +295,7 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
       return (
         <SettingsIntegrationsSection
           rollouts={rollouts}
-          registeredUpdatePackages={registeredUpdatePackages}
-          deviceInventory={deviceInventory}
           updateSummary={updateSummary as Record<string, unknown> | null}
-          backend={backend}
-          canManageUpdatePackages={canManageUpdatePackages}
-          canManageUpdateRollouts={canManageUpdateRollouts}
-          onRolloutsChange={setRollouts}
-          onRegisteredUpdatePackagesChange={setRegisteredUpdatePackages}
-          onFeedback={setFeedback}
         />
       );
     }
@@ -399,4 +387,3 @@ export function BackendSettingsWorkspace({ currencyCode, backend }: { currencyCo
     </main>
   );
 }
-

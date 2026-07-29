@@ -397,10 +397,6 @@ describe('operator API clients', () => {
     await clients.devices.getDeviceCommandStatus(deviceId, commandId);
     await clients.diagnostics.getDiagnostics(branchId);
     await clients.updates.getRolloutStatuses(branchId);
-    await clients.updates.changeRolloutState(branchId, '99999999-9999-9999-9999-999999999999', {
-      organizationId,
-      state: 'paused'
-    });
     await clients.audit.search({
       branchId,
       action: 'session.end',
@@ -439,7 +435,6 @@ describe('operator API clients', () => {
       `GET /api/organizations/organization-id/devices/${deviceId}/commands/${commandId}/status`,
       `GET /api/organizations/organization-id/branches/${branchId}/diagnostics`,
       `GET /api/organizations/organization-id/branches/${branchId}/updates/rollouts`,
-      `POST /api/organizations/organization-id/branches/${branchId}/updates/rollouts/99999999-9999-9999-9999-999999999999/state`,
       `GET /api/organizations/organization-id/branches/${branchId}/audit?action=session.end&outcome=success&targetType=session&limit=25`
     ]);
     expect(calls[1].body).toEqual({ organizationId, userName: 'cashier2', displayName: 'Cashier Two' });

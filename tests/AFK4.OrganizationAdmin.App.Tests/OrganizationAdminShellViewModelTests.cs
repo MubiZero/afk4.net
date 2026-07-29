@@ -70,14 +70,14 @@ public sealed class OrganizationAdminShellViewModelTests
     }
 
     [Fact]
-    public void ApplySignedInContext_WithUpdateManagementPermission_ShowsSettings()
+    public void ApplySignedInContext_WithRemovedUpdateManagementPermission_DoesNotShowSettings()
     {
         var shell = new OrganizationAdminShellViewModel();
 
-        shell.ApplySignedInContext(CreateContext(OrganizationPermissionNames.ManageUpdateRollouts));
+        shell.ApplySignedInContext(CreateContext("organization.updates.rollouts.manage"));
 
-        Assert.Contains(shell.NavigationItems, item => item.Kind == OrganizationAdminWorkspaceKind.Settings);
-        Assert.Contains(shell.Settings.Panels, panel => panel.Key == "updates");
+        Assert.DoesNotContain(shell.NavigationItems, item => item.Kind == OrganizationAdminWorkspaceKind.Settings);
+        Assert.DoesNotContain(shell.Settings.Panels, panel => panel.Key == "updates");
     }
 
     [Fact]

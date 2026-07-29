@@ -360,8 +360,6 @@ public sealed class OrganizationAdminShellViewModel : INotifyPropertyChanged
                 OrganizationPermissionNames.ManagePackages,
                 OrganizationPermissionNames.ManageRoles,
                 OrganizationPermissionNames.ViewUpdateStatus,
-                OrganizationPermissionNames.ManageUpdatePackages,
-                OrganizationPermissionNames.ManageUpdateRollouts,
                 OrganizationPermissionNames.ViewDiagnostics,
                 OrganizationPermissionNames.ViewAudit),
             _ => false

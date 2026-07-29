@@ -66,17 +66,16 @@ public sealed class SettingsWorkspaceViewModelTests
     }
 
     [Fact]
-    public void SettingsWorkspace_WithUpdateManagementPermission_ExposesUpdatePanel()
+    public void SettingsWorkspace_WithRemovedUpdateManagementPermission_DoesNotExposeUpdatePanel()
     {
         var updateStatus = new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient());
         var viewModel = new SettingsWorkspaceViewModel(
-            new HashSet<string> { OrganizationPermissionNames.ManageUpdatePackages },
+            new HashSet<string> { "organization.updates.packages.manage" },
             technicianTools: null,
             updateStatus);
 
-        Assert.True(viewModel.HasUpdateStatus);
-        Assert.Same(updateStatus, viewModel.UpdateStatus);
-        Assert.Contains(viewModel.Panels, panel => panel.Key == "updates");
+        Assert.False(viewModel.HasUpdateStatus);
+        Assert.DoesNotContain(viewModel.Panels, panel => panel.Key == "updates");
     }
 
     [Fact]
