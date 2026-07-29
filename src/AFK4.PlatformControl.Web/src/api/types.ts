@@ -123,6 +123,68 @@ export interface OrganizationSupportNote {
   createdAtUtc: string;
 }
 
+export interface PlatformUpdatePackage {
+  updatePackageId: string;
+  component: string;
+  version: string;
+  channel: string;
+  artifactUri: string;
+  sha256: string;
+  signature: string;
+  signatureAlgorithm: string;
+  sizeBytes: number;
+  state: string;
+  releaseNotes: string;
+  createdByPlatformAdminUserId: string;
+  createdAtUtc: string;
+  validatedByPlatformAdminUserId: string | null;
+  validatedAtUtc: string | null;
+  retiredAtUtc: string | null;
+}
+
+export interface PlatformUpdateRollout {
+  updateRolloutId: string;
+  updatePackageId: string;
+  component: string;
+  version: string;
+  channel: string;
+  state: string;
+  targetKind: string;
+  organizationIds: string[];
+  branchIds: string[];
+  deviceIds: string[];
+  batchPercent: number;
+  reason: string;
+  createdByPlatformAdminUserId: string;
+  createdAtUtc: string;
+  startsAtUtc: string;
+  completedAtUtc: string | null;
+}
+
+export interface CreatePlatformUpdatePackageRequest {
+  component: string;
+  version: string;
+  channel: string;
+  artifactUri: string;
+  sha256: string;
+  signature: string;
+  signatureAlgorithm: string;
+  sizeBytes: number;
+  releaseNotes: string;
+}
+
+export interface CreatePlatformUpdateRolloutRequest {
+  updatePackageId: string;
+  channel: string;
+  targetKind: string;
+  organizationIds: string[];
+  branchIds: string[];
+  deviceIds: string[];
+  batchPercent: number;
+  startsAtUtc: string;
+  reason: string;
+}
+
 export interface OrganizationHealthError {
   createdAtUtc: string;
   source: string;

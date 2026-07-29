@@ -6,6 +6,7 @@ import { SupportNotesApi } from './platformClients/supportNotes';
 import { PlansApi } from './platformClients/plans';
 import { SubscriptionsApi } from './platformClients/subscriptions';
 import { InvoicesApi } from './platformClients/invoices';
+import { UpdatesApi } from './platformClients/updates';
 
 export { PlatformApiError } from './platformTransport';
 
@@ -25,6 +26,7 @@ export class PlatformApiClient {
   public readonly plans: PlansApi;
   public readonly subscriptions: SubscriptionsApi;
   public readonly invoices: InvoicesApi;
+  public readonly updates: UpdatesApi;
 
   public constructor(options: PlatformApiClientOptions) {
     this.transport = new PlatformTransport(options);
@@ -34,6 +36,7 @@ export class PlatformApiClient {
     this.plans = new PlansApi(this.transport);
     this.subscriptions = new SubscriptionsApi(this.transport);
     this.invoices = new InvoicesApi(this.transport);
+    this.updates = new UpdatesApi(this.transport);
   }
 
   public getSession(): PlatformAdminSession | null {
