@@ -164,6 +164,20 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Latest Verification
 
+- Platform-managed client updates and Organization Admin reports reached
+  staging at merge SHA `72dd2852` on 2026-07-29. Before the schema change,
+  Coolify backup execution `unztlakrm5hbh6huonn6o6vt` completed successfully
+  for `afk4_staging` (custom-format archive, 2,241,508 bytes). The database then
+  advanced through `20260729062507_MoveUpdatesToPlatformControl` and
+  `20260729063952_AddOrganizationAdminMaintenanceWindow`; both migration-history
+  rows and both maintenance-window columns were verified, and temporary public
+  database access was closed. Package Smoke run `30477386609` passed package
+  build, staging MinIO publication, rollout registration, stable Organization
+  Admin installer verification, and artifact upload. Migration-confirmed
+  Coolify staging deploy run `30478515013` passed on the same SHA, the Platform
+  API reports `running:healthy`, and a fresh public `/api/health` probe returned
+  `status = ok`. Production was not touched.
+
 - Platform/organization big-bang RC gate through code SHA `6e9a8507` (2026-07-28):
   `dotnet build AFK4.sln -c Release -p:EnableWindowsTargeting=true` completed
   with 0 warnings and 0 errors. Platform API passed 1451 tests with 14 explicit
