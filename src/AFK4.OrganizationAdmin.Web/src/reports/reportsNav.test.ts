@@ -7,7 +7,7 @@ function session(permissions: string[]) {
 }
 
 describe('reportsNav', () => {
-  it('lists overview/history/journal in order', () => {
+  it('lists summary/shifts-and-cash/revenue in order', () => {
     expect(reportsDestinations.map((d) => d.id)).toEqual(['summary', 'shiftsCash', 'revenue']);
   });
 
