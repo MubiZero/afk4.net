@@ -43,7 +43,7 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
       <Card className="w-full max-w-md">
       <CardHeader><CardTitle><h1>{t('auth.admin.title')}</h1></CardTitle><p className="text-sm text-muted-foreground">{t('auth.admin.subtitle')}</p></CardHeader>
       <CardContent><form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-        <ErrorBanner message={error} onDismiss={() => setError(null)} />
+        <ErrorBanner message={error} dismissLabel={t('common.close')} onDismiss={() => setError(null)} />
         <Field label={t('auth.field.login')} htmlFor="signin-username">
           <Input
             id="signin-username"

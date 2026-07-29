@@ -1,4 +1,5 @@
-{
+// AUTO-GENERATED from locales/tg.json. Do not edit by hand.
+export const tg = {
   "auth.club.title": "Воридшавӣ ба клуб",
   "auth.club.subtitle": "Бо ҳисоби кории корманди клуб ворид шавед.",
   "auth.admin.title": "Platform Control",
@@ -3091,4 +3092,4 @@
   "op.reports.journal.subtitle": "Аудити амалҳои кормандон дар филиал",
   "op.reports.journal.empty": "Сабтҳо ёфт нашуданд",
   "op.reports.journal.actor.system": "система"
-}
+} as const;

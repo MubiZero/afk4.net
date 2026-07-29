@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { useOrganizationMetrics } from './useOrganizationMetrics';
 
 const okOrganizations = [
@@ -30,7 +30,7 @@ describe('useOrganizationMetrics', () => {
     const { result } = renderHook(() => useOrganizationMetrics(failing));
     await waitFor(() => expect(result.current.status).toBe('error'));
     (failing as { listOrganizations: ReturnType<typeof mock> }).listOrganizations.mockResolvedValue(okOrganizations);
-    result.current.retry();
+    act(() => result.current.retry());
     await waitFor(() => expect(result.current.status).toBe('ready'));
   });
 });

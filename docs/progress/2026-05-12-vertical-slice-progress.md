@@ -296,6 +296,20 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   canonical organization sections. Fresh gates: Platform Control 145/145,
   platform API 157/157, shared contracts 137/137, i18n 27/27, production
   frontend build, and full solution build with 0 warnings/errors.
+- Platform Control rebuild Task 7 is complete on the rebuild branch. The final
+  route inventory rejects every removed compatibility URL, unreachable legacy
+  components/helpers are deleted, and `/account-activation` remains the single
+  current owner-invitation journey. Route-level lazy loading plus locale-specific
+  catalog chunks reduced the initial production JS chunk to 309.54 kB without
+  Vite's large-chunk warning. Fresh gates: Platform Control 143/143, i18n 39/39,
+  shared contracts 137/137, Platform API 1476 passed with 14 PostgreSQL-only
+  cases skipped, and the full solution build completed with 0 warnings/errors.
+  Production-bundle Chromium assertions passed for owner organization navigation,
+  global update rollouts, support permission boundaries, desktop/light and
+  narrow/dark layouts, keyboard-opened mobile navigation, 200% zoom, long
+  Unicode names, empty data, partial API failure, forbidden routes, and expired
+  sessions. The browser run used deterministic mocked API responses and therefore
+  does not claim staging deployment or live-backend integration.
 - Player Shell Web passed 51/51 Bun tests and its production build.
 - GitHub `Package Smoke` run `29326881732` and the migration-gated `Coolify
   Staging Deploy` run `29327547027` passed for merge commit `498b7b83`. The
@@ -343,9 +357,9 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Recommended Next Work
 
-1. Finish the approved Platform Control rebuild by removing superseded code,
-   splitting route bundles, and running the big-bang release gate (Task 7).
-2. After the rebuild, return to the production-readiness backlog: repeat the
+1. Integrate the completed Platform Control rebuild after branch review; archive
+   its implementation plan and design spec only once it lands on `main`.
+2. Return to the production-readiness backlog: repeat the
    Operator day flow from a clean `manager_workstation` install at 100%/125%,
    then run the physical Windows 10/11 gaming-PC Agent/Shell smoke.
 3. Wire real per-environment SMTP settings and work through the remaining

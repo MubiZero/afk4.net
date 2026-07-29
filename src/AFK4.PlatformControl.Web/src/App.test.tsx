@@ -98,6 +98,7 @@ describe('Platform Control admin-only routing', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Организации' }));
     await waitFor(() => expect(window.location.pathname).toBe('/admin/organizations'));
+    await screen.findByText('Организации не найдены.');
   });
 
   it('blocks direct navigation when the session lacks the backend permission', () => {

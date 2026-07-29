@@ -19,6 +19,7 @@ function renderShell(onNavigate = mock()) {
         activePath="/admin"
         subtitle=""
         screenTitle="Обзор"
+        menuLabel="Открыть меню"
         userName="Platform Owner"
         roleLabel="Администратор"
         onNavigate={onNavigate}

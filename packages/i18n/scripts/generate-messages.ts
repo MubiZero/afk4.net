@@ -9,27 +9,25 @@ const LOCALES = ['ru', 'en', 'tg'] as const;
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const localesDir = join(scriptDir, '..', '..', '..', 'locales');
-const outFile = join(scriptDir, '..', 'src', 'messages.ts');
+const sourceDir = join(scriptDir, '..', 'src');
+const outFile = join(sourceDir, 'messages.ts');
 
-function indent(text: string, spaces: number): string {
-  const pad = ' '.repeat(spaces);
-  return text
-    .split('\n')
-    .map((line) => (line.length > 0 ? pad + line : line))
-    .join('\n');
-}
-
-const blocks = LOCALES.map((loc) => {
+for (const loc of LOCALES) {
   const obj = JSON.parse(readFileSync(join(localesDir, `${loc}.json`), 'utf8')) as Record<string, string>;
-  return `  ${loc}: ${indent(JSON.stringify(obj, null, 2), 2).trimStart()},`;
-}).join('\n');
+  writeFileSync(
+    join(sourceDir, `messages.${loc}.ts`),
+    `// AUTO-GENERATED from locales/${loc}.json. Do not edit by hand.\nexport const ${loc} = ${JSON.stringify(obj, null, 2)} as const;\n`
+  );
+}
 
 const out = `// AUTO-GENERATED from locales/*.json by packages/i18n/scripts/generate-messages.ts.
 // Do not edit by hand — edit locales/{ru,en,tg}.json then run \`bun run gen\` in packages/i18n.
+${LOCALES.map((loc) => `import { ${loc} } from './messages.${loc}';`).join('\n')}
+
 export type Locale = ${LOCALES.map((l) => `'${l}'`).join(' | ')};
 
 export const messages = {
-${blocks}
+${LOCALES.map((loc) => `  ${loc},`).join('\n')}
 } as const;
 
 export type MessageKey = keyof (typeof messages)['ru'];

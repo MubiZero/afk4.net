@@ -55,7 +55,7 @@ export function AccountActivation({ client, initialCode }: AccountActivationProp
     <main className="grid min-h-screen place-items-center bg-background p-5"><Card className="w-full max-w-md">
       <CardHeader><CardTitle><h1>{t('auth.accept.title')}</h1></CardTitle><p className="text-sm text-muted-foreground">{t('auth.accept.subtitle')}</p></CardHeader>
       <CardContent><form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-        <ErrorBanner message={error} onDismiss={() => setError(null)} />
+        <ErrorBanner message={error} dismissLabel={t('common.close')} onDismiss={() => setError(null)} />
         <Field label={t('auth.accept.field.code')} htmlFor="accept-code">
           <Input id="accept-code" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value)} disabled={isSubmitting} required />
         </Field>

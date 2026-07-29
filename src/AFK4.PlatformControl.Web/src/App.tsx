@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { AccountActivation } from './account-activation/AccountActivation';
 import { AccountActivationApi } from './account-activation/accountActivationApi';
 import { PlatformApiClient } from './api/platformApi';
@@ -7,26 +7,27 @@ import { can, type PlatformCapability } from './auth/platformAccess';
 import { readSession, type PlatformAdminSession } from './auth/tokenStore';
 import { SignIn } from './components/SignIn';
 import { AppShell } from './components/shell/AppShell';
-import { ForbiddenState } from './components/ui/states';
+import { ForbiddenState, LoadingCards } from './components/ui/states';
 import { Workspace } from './components/layout/Workspace';
 import { useI18n, type MessageKey } from './i18n/I18nProvider';
-import { BillingScreen } from './platform/billing/BillingScreen';
 import { useBillingMetrics } from './platform/billing/useBillingMetrics';
 import { buildPlatformNav } from './platform/nav';
-import { NewOrganizationScreen } from './platform/organizations/NewOrganizationScreen';
-import { OrganizationPage } from './platform/organizations/OrganizationPage';
-import { OrganizationsScreen } from './platform/organizations/OrganizationsScreen';
 import { OverviewScreen } from './platform/overview/OverviewScreen';
 import { useOrganizationMetrics } from './platform/overview/useOrganizationMetrics';
-import { ProfileScreen } from './platform/profile/ProfileScreen';
-import { UpdatesScreen } from './platform/updates/UpdatesScreen';
-import { AuditScreen } from './platform/audit/AuditScreen';
 import { GlobalSearch } from './platform/search/GlobalSearch';
 import {
   pathForPlatformRoute,
   resolvePlatformRoute,
   type PlatformRoute
 } from './routing/platformRoute';
+
+const BillingScreen = lazy(() => import('./platform/billing/BillingScreen').then(module => ({ default: module.BillingScreen })));
+const NewOrganizationScreen = lazy(() => import('./platform/organizations/NewOrganizationScreen').then(module => ({ default: module.NewOrganizationScreen })));
+const OrganizationPage = lazy(() => import('./platform/organizations/OrganizationPage').then(module => ({ default: module.OrganizationPage })));
+const OrganizationsScreen = lazy(() => import('./platform/organizations/OrganizationsScreen').then(module => ({ default: module.OrganizationsScreen })));
+const ProfileScreen = lazy(() => import('./platform/profile/ProfileScreen').then(module => ({ default: module.ProfileScreen })));
+const UpdatesScreen = lazy(() => import('./platform/updates/UpdatesScreen').then(module => ({ default: module.UpdatesScreen })));
+const AuditScreen = lazy(() => import('./platform/audit/AuditScreen').then(module => ({ default: module.AuditScreen })));
 
 type AppRoute = PlatformRoute | { kind: 'accountActivation'; code: string | null };
 
@@ -112,13 +113,14 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
       activePath={activePath(route)}
       subtitle=""
       screenTitle={t(TITLE_KEYS[route.kind])}
+      menuLabel={t('platform.shell.menu.open')}
       userName={session.displayName}
       roleLabel={t('platform.profile.roleLabel')}
       topbarSearch={can(session, 'organizations.read') ? <GlobalSearch client={client.search} onNavigate={path => { const url = new URL(path, window.location.origin); navigate(resolvePlatformRoute(url.pathname, url.search)); }} /> : null}
       onNavigate={path => navigate(resolvePlatformRoute(new URL(path, window.location.origin).pathname, new URL(path, window.location.origin).search))}
       onSignOut={onSignOut}
     >
-      {route.kind === 'overview' ? <OverviewScreen state={organizationMetrics} billing={billingMetrics} />
+      <Suspense fallback={<LoadingCards count={3} />}>{route.kind === 'overview' ? <OverviewScreen state={organizationMetrics} billing={billingMetrics} />
         : route.kind === 'billing' ? <BillingScreen client={client} tab={route.tab} onTabChange={tab => navigate({ ...route, tab })} canManage={can(session, 'billing.manage')} />
         : route.kind === 'updates' ? <UpdatesScreen client={client.updates} tab={route.tab} onTabChange={tab => navigate({ ...route, tab })} />
         : route.kind === 'audit' ? <AuditScreen client={client.audit} filters={route} onFiltersChange={filters => navigate({ kind: 'audit', ...filters })} />
@@ -126,7 +128,7 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
         : route.kind === 'organizationNew' ? <NewOrganizationScreen client={client.organizations} onCreated={(response: CreateOrganizationResponse) => openOrganization(response.organization.organizationId, response.organizationOwnerInvite)} onCancel={() => navigate({ kind: 'organizations', query: '', status: 'all', plan: 'all', sort: 'attention' })} />
         : route.kind === 'organization' ? <OrganizationPage client={client} organizationId={route.organizationId} tab={route.tab} access={organizationAccess} initialInvite={readInitialInvite()} onTabChange={tab => navigate({ ...route, tab })} onChanged={() => {}} />
         : route.kind === 'organizations' ? <OrganizationsScreen client={client} selectedOrganizationId={null} initialInvite={null} query={route.query} statusFilter={route.status} planFilter={route.plan} sort={route.sort} onQueryChange={change => navigate({ kind: 'organizations', query: change.query ?? route.query, status: change.statusFilter ?? route.status, plan: change.planFilter ?? route.plan, sort: change.sort ?? route.sort })} onOpenOrganization={id => openOrganization(id)} onCloseOrganization={() => navigate({ kind: 'organizations', query: '', status: 'all', plan: 'all', sort: 'attention' })} onCreateOrganization={() => navigate({ kind: 'organizationNew' })} />
-        : <UnavailableScreen />}
+        : <UnavailableScreen />}</Suspense>
     </AppShell>
   );
 }

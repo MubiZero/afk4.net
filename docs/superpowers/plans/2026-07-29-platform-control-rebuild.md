@@ -412,7 +412,7 @@ git commit -m "feat(platform-control): add global resource search"
 - Consumes: all completed slices.
 - Produces: one reachable Platform Control implementation with no legacy authority or duplicate routes.
 
-- [ ] **Step 1: Add failing big-bang regression tests**
+- [x] **Step 1: Add failing big-bang regression tests**
 
 ```ts
 expect(resolvePlatformRoute('/admin/organizations/org-1?tab=support').kind).toBe('organization');
@@ -422,17 +422,17 @@ expect(screen.queryByTestId('organization-drawer')).not.toBeInTheDocument();
 
 Add route inventory tests covering every supported public/authenticated path and proving legacy `/organizations/*` and duplicate screens are gone.
 
-- [ ] **Step 2: Remove unreachable legacy files and compatibility redirects**
+- [x] **Step 2: Remove unreachable legacy files and compatibility redirects**
 
 Use `rg` to prove each deletion has no live imports. Keep `/account-activation` because it is a current owner-invitation journey; remove only obsolete Platform Control compatibility paths and UI.
 
-- [ ] **Step 3: Run frontend verification**
+- [x] **Step 3: Run frontend verification**
 
 Run: `cd src/AFK4.PlatformControl.Web && bun test && bun run build`
 
 Expected: all Platform Control tests PASS and production bundle builds without stale imports.
 
-- [ ] **Step 4: Run affected backend and solution verification**
+- [x] **Step 4: Run affected backend and solution verification**
 
 If any shared contracts or backend endpoints changed:
 
@@ -443,15 +443,15 @@ dotnet build AFK4.sln -p:EnableWindowsTargeting=true -p:NuGetAudit=false -p:UseS
 
 Expected: PASS. If Linux cannot execute WindowsDesktop tests, run the repository's established Windows-runtime gate before push and report the platform limitation explicitly.
 
-- [ ] **Step 5: Perform browser and accessibility smoke**
+- [x] **Step 5: Perform browser and accessibility smoke**
 
 Run the production build through the repository's local Platform Control host. Verify Platform Owner and Platform Support at desktop and narrow widths, light/dark themes, keyboard-only navigation, 200% zoom, long Unicode names, empty data, partial API failure, forbidden routes, and expired session. Record screenshots or browser assertions for the canonical organization and global update flows.
 
-- [ ] **Step 6: Update durable project state**
+- [x] **Step 6: Update durable project state**
 
 Record the replacement, exact verification counts, remaining gaps, and next project-level work in the compact progress snapshot. Do not claim production deployment or physical Windows smoke.
 
-- [ ] **Step 7: Inspect and commit the final gate**
+- [x] **Step 7: Inspect and commit the final gate**
 
 ```bash
 git diff --check

@@ -1,14 +1,6 @@
 import type { ReactNode } from 'react';
 
-export function Loading({ label }: { label?: string }) {
-  return (
-    <div className="text-sm text-muted-foreground" role="status" aria-live="polite">
-      {label ?? 'Loading…'}
-    </div>
-  );
-}
-
-export function ErrorBanner({ message, onDismiss }: { message: string | null; onDismiss?: () => void }) {
+export function ErrorBanner({ message, dismissLabel, onDismiss }: { message: string | null; dismissLabel: string; onDismiss?: () => void }) {
   if (message === null || message.length === 0) {
     return null;
   }
@@ -17,15 +9,11 @@ export function ErrorBanner({ message, onDismiss }: { message: string | null; on
       <span>{message}</span>
       {onDismiss !== undefined && (
         <button type="button" className="min-h-6 underline underline-offset-2" onClick={onDismiss}>
-          Dismiss
+          {dismissLabel}
         </button>
       )}
     </div>
   );
-}
-
-export function EmptyState({ children }: { children: ReactNode }) {
-  return <div className="rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground">{children}</div>;
 }
 
 export function Field({
@@ -46,19 +34,4 @@ export function Field({
       {hint !== undefined && <span className="text-xs text-muted-foreground">{hint}</span>}
     </label>
   );
-}
-
-export function StatusBadge({ status }: { status: string }) {
-  return <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-xs font-semibold">{status}</span>;
-}
-
-export function formatDate(value: string | null): string {
-  if (value === null) {
-    return '—';
-  }
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) {
-    return value;
-  }
-  return new Date(parsed).toLocaleString();
 }

@@ -1,4 +1,5 @@
-{
+// AUTO-GENERATED from locales/en.json. Do not edit by hand.
+export const en = {
   "auth.club.title": "Club sign in",
   "auth.club.subtitle": "Sign in with your club staff account.",
   "auth.admin.title": "Platform Control",
@@ -3091,4 +3092,4 @@
   "op.reports.journal.subtitle": "Staff action audit in the branch",
   "op.reports.journal.empty": "No records found",
   "op.reports.journal.actor.system": "system"
-}
+} as const;

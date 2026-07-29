@@ -1,4 +1,5 @@
-{
+// AUTO-GENERATED from locales/ru.json. Do not edit by hand.
+export const ru = {
   "auth.club.title": "Вход в клуб",
   "auth.club.subtitle": "Войдите под учётной записью сотрудника клуба.",
   "auth.admin.title": "Platform Control",
@@ -3091,4 +3092,4 @@
   "op.reports.journal.subtitle": "Аудит действий персонала в филиале",
   "op.reports.journal.empty": "Записи не найдены",
   "op.reports.journal.actor.system": "система"
-}
+} as const;

@@ -47,7 +47,8 @@ it('confirms a status change and calls updateStatus then onUpdated', async () =>
   fireEvent.click(applyBtn);
 
   // 3) confirm in the dialog
+  fireEvent.change(await screen.findByLabelText('Причина'), { target: { value: 'Нарушение условий обслуживания' } });
   fireEvent.click(await screen.findByRole('button', { name: 'Применить' }));
-  await waitFor(() => expect(client.updateStatus).toHaveBeenCalledWith('o1', 'suspended', expect.any(String)));
+  await waitFor(() => expect(client.updateStatus).toHaveBeenCalledWith('o1', 'suspended', 'Нарушение условий обслуживания'));
   expect(onUpdated).toHaveBeenCalledWith(next);
 });

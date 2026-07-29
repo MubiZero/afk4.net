@@ -46,4 +46,21 @@ describe('platformRoute', () => {
     const audit = { kind: 'audit', organizationId: 'org-1', action: 'updates.rollout.create', outcome: 'succeeded', from: '2026-07-01', to: '2026-07-30' } as const;
     expect(resolvePlatformRoute('/admin/audit', pathForPlatformRoute(audit).split('?')[1])).toEqual(audit);
   });
+
+  it('has one canonical result for every supported authenticated route', () => {
+    expect([
+      resolvePlatformRoute('/admin').kind,
+      resolvePlatformRoute('/admin/organizations').kind,
+      resolvePlatformRoute('/admin/organizations/new').kind,
+      resolvePlatformRoute('/admin/organizations/org-1').kind,
+      resolvePlatformRoute('/admin/billing').kind,
+      resolvePlatformRoute('/admin/updates').kind,
+      resolvePlatformRoute('/admin/audit').kind,
+      resolvePlatformRoute('/admin/settings').kind,
+      resolvePlatformRoute('/admin/profile').kind
+    ]).toEqual(['overview', 'organizations', 'organizationNew', 'organization', 'billing', 'updates', 'audit', 'settings', 'profile']);
+    expect(resolvePlatformRoute('/organizations').kind).toBe('notFound');
+    expect(resolvePlatformRoute('/club').kind).toBe('notFound');
+    expect(resolvePlatformRoute('/auth/sign-in').kind).toBe('notFound');
+  });
 });
