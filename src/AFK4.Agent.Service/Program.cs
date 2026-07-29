@@ -87,6 +87,7 @@ builder.Services.AddSingleton<IUpdateInstaller, SafeUpdateInstaller>();
 builder.Services.AddSingleton<IAgentUpdateCoordinator, AgentUpdateCoordinator>();
 builder.Services.AddSingleton<IUpdateRecoveryService, UpdateRecoveryService>();
 builder.Services.AddSingleton<IOrganizationAdminUpdateCoordinatorClient, NamedPipeOrganizationAdminUpdateCoordinatorClient>();
+builder.Services.AddSingleton<IOrganizationAdminUpdateReadiness, OrganizationAdminUpdateReadiness>();
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<AgentUpdateWorker>();
 builder.Services.AddHostedService<NamedPipePlayerShellCommandServer>();

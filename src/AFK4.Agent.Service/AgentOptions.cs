@@ -26,6 +26,10 @@ public sealed class AgentOptions
 
     public int OrganizationAdminUpdateCoordinationTimeoutMilliseconds { get; init; } = 2000;
 
+    public int OrganizationAdminUpdateExitTimeoutSeconds { get; init; } = 30;
+
+    public int OrganizationAdminUpdateExitPollMilliseconds { get; init; } = 250;
+
     public string DeviceRole { get; init; } = DeviceRoleNames.GamingPc;
 
     /// <summary>

@@ -135,7 +135,9 @@ public sealed class UpdateContractSerializationTests
                     SignatureAlgorithm: "ed25519",
                     SizeBytes: 42_000_000,
                     ReleaseNotes: "Internal rollout.")
-            ]);
+            ],
+            OrganizationAdminPreference: new OrganizationAdminUpdatePreferenceDto(
+                check.OrganizationId, check.BranchId, new TimeOnly(4, 0), new TimeOnly(5, 0), "Asia/Dushanbe"));
 
         var checkCopy = JsonSerializer.Deserialize<DeviceUpdateCheckRequest>(JsonSerializer.Serialize(check));
         var responseCopy = JsonSerializer.Deserialize<DeviceUpdateCheckResponse>(JsonSerializer.Serialize(response));
@@ -147,6 +149,8 @@ public sealed class UpdateContractSerializationTests
         Assert.Single(responseCopy.Updates);
         Assert.Equal(UpdateComponentNames.AgentService, responseCopy.Updates[0].Component);
         Assert.Equal("1.2.3", responseCopy.Updates[0].Version);
+        Assert.Equal(new TimeOnly(4, 0), responseCopy.OrganizationAdminPreference!.MaintenanceWindowStart);
+        Assert.Equal("Asia/Dushanbe", responseCopy.OrganizationAdminPreference.TimeZone);
     }
 
     [Fact]

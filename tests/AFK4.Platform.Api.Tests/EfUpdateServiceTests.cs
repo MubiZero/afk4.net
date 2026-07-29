@@ -131,6 +131,19 @@ public sealed class EfUpdateServiceTests
 
     private static void SeedDevice(PlatformDbContext db, Guid deviceId, string role)
     {
+        if (!db.Branches.Local.Any(branch => branch.BranchId == TestIds.BranchId))
+        {
+            db.Branches.Add(new BranchEntity
+            {
+                BranchId = TestIds.BranchId,
+                OrganizationId = TestIds.OrganizationId,
+                Name = "Update branch",
+                PreferredTimeZone = "Asia/Dushanbe",
+                OrganizationAdminMaintenanceWindowStart = new TimeOnly(4, 0),
+                OrganizationAdminMaintenanceWindowEnd = new TimeOnly(5, 0),
+                CreatedAtUtc = Now
+            });
+        }
         db.Devices.Add(new DeviceEntity
         {
             DeviceId = deviceId,

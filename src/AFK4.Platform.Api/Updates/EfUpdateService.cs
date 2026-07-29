@@ -168,8 +168,19 @@ public sealed class EfUpdateService(
                 candidate.Package.ReleaseNotes))
             .ToList();
 
+        var preference = await dbContext.Branches
+            .AsNoTracking()
+            .Where(branch => branch.OrganizationId == request.OrganizationId && branch.BranchId == request.BranchId)
+            .Select(branch => new OrganizationAdminUpdatePreferenceDto(
+                branch.OrganizationId,
+                branch.BranchId,
+                branch.OrganizationAdminMaintenanceWindowStart,
+                branch.OrganizationAdminMaintenanceWindowEnd,
+                branch.PreferredTimeZone))
+            .SingleAsync(cancellationToken);
+
         return UpdateServiceResult<DeviceUpdateCheckResponse>.Ok(
-            new DeviceUpdateCheckResponse(timeProvider.GetUtcNow(), candidates));
+            new DeviceUpdateCheckResponse(timeProvider.GetUtcNow(), candidates, preference));
     }
 
     public async Task<UpdateServiceResult<DeviceUpdateStatusResultDto>> ReportStatusAsync(
