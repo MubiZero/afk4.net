@@ -3,6 +3,13 @@
 Implementation plans for completed work are archived once their work lands on
 `main`. The active plans are:
 
+- `2026-07-29-platform-update-release-control.md` — moves package publication
+  and deterministic rollout into Platform Control and release automation.
+- `2026-07-29-organization-admin-maintenance-updates.md` — coordinates Agent and
+  Organization Admin around critical work and maintenance windows.
+- `2026-07-29-client-update-known-good-recovery.md` — replaces fake rollback
+  with verified last-known-good storage, startup health, and recovery.
+
 - `2026-07-28-platform-organization-big-bang-migration.md` — atomically
   separates Platform Control and Organization Admin across auth domains, APIs,
   roles, permissions, projects, migration, packaging, and release gates.
