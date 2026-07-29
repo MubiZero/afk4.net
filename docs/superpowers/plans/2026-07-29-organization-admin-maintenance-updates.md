@@ -35,11 +35,11 @@
 - `GET/PUT /api/organizations/{organizationId}/branches/{branchId}/updates/preferences`.
 - Statuses: `deferred`, `ready-to-install`, `awaiting-app-exit`, `health-checking`, `rollback-required`.
 
-- [ ] **Step 1: Write failing tests** for default, valid window, zero-length/invalid window, timezone, permissions, isolation, and status JSON.
-- [ ] **Step 2: Run RED** in Shared Contracts/API suites.
-- [ ] **Step 3: Implement `TimeOnly` persistence and endpoints; evaluate with existing `PreferredTimeZone`.**
-- [ ] **Step 4: Run GREEN and inspect migration SQL.**
-- [ ] **Step 5: Commit** as `feat(updates): add admin maintenance preferences`.
+- [x] **Step 1: Write failing tests** for default, valid window, zero-length/invalid window, timezone, permissions, isolation, and status JSON.
+- [x] **Step 2: Run RED** in Shared Contracts/API suites.
+- [x] **Step 3: Implement `TimeOnly` persistence and endpoints; evaluate with existing `PreferredTimeZone`.**
+- [x] **Step 4: Run GREEN and inspect migration SQL.**
+- [x] **Step 5: Commit** as `feat(updates): add admin maintenance preferences`.
 
 ### Task 2: Authenticated local coordination
 
@@ -59,11 +59,11 @@
 - `QueryStateAsync` and `RequestShutdownAsync(rolloutId, packageId)` return `not-running`, `idle`, `critical-command-active`, or `shutdown-acknowledged`.
 - A random Setup-provisioned machine secret authenticates length-prefixed JSON; pipe ACL permits LocalSystem and the interactive AFK4 user.
 
-- [ ] **Step 1: Write failing protocol tests** for bad secret, wrong IDs, unavailable/idle/busy app, timeout, cancellation, and persisted acknowledgement.
-- [ ] **Step 2: Run RED.**
-- [ ] **Step 3: Implement using existing Player Shell pipe framing, but a separate pipe/contracts/ACL.**
-- [ ] **Step 4: Run GREEN and full Agent/App tests.**
-- [ ] **Step 5: Commit** as `feat(updates): coordinate admin shutdown over local pipe`.
+- [x] **Step 1: Write failing protocol tests** for bad secret, wrong IDs, unavailable/idle/busy app, timeout, cancellation, and persisted acknowledgement.
+- [x] **Step 2: Run RED.**
+- [x] **Step 3: Implement using existing Player Shell pipe framing, but a separate pipe/contracts/ACL.**
+- [x] **Step 4: Run GREEN and full Agent/App tests.**
+- [x] **Step 5: Commit** as `feat(updates): coordinate admin shutdown over local pipe`.
 
 ### Task 3: Track critical commands
 
@@ -78,11 +78,11 @@
 **Interfaces:**
 - WebView sends reference-counted start/finish messages for money, session, POS, device, and shift mutations; native state exposes `HasCriticalCommandInFlight`.
 
-- [ ] **Step 1: Write failing tests** for concurrency, failure cleanup, read exclusion, explicit mutation classification, and malformed messages.
-- [ ] **Step 2: Run RED** in Bun/App tests.
-- [ ] **Step 3: Implement explicit mutation allowlist and native bridge counter.**
-- [ ] **Step 4: Run GREEN and full Web/App tests.**
-- [ ] **Step 5: Commit** as `feat(organization-admin): protect critical work during updates`.
+- [x] **Step 1: Write failing tests** for concurrency, failure cleanup, read exclusion, explicit mutation classification, and malformed messages.
+- [x] **Step 2: Run RED** in Bun/App tests.
+- [x] **Step 3: Implement explicit mutation allowlist and native bridge counter.**
+- [x] **Step 4: Run GREEN and full Web/App tests.**
+- [x] **Step 5: Commit** as `feat(organization-admin): protect critical work during updates`.
 
 ### Task 4: Agent deferral and relaunch
 
@@ -100,11 +100,11 @@
 - Readiness result: `InstallNow`, `DeferredOutsideWindow`, `DeferredCriticalCommand`, `ReadyAfterShutdown`.
 - Deferred rollout clears its in-memory attempted mark and retries only on normal polling cadence.
 
-- [ ] **Step 1: Write failing tests** for closed/idle/restart-now, midnight/DST, critical command, exit timeout, installer failure, and exactly-once relaunch.
-- [ ] **Step 2: Run RED; confirm current immediate install.**
-- [ ] **Step 3: Gate install with readiness and precise statuses; restart Agent for version reload, then launch app once.**
-- [ ] **Step 4: Run GREEN and full Agent tests.**
-- [ ] **Step 5: Commit** as `feat(agent): defer admin updates safely`.
+- [x] **Step 1: Write failing tests** for closed/idle/restart-now, midnight/DST, critical command, exit timeout, installer failure, and exactly-once relaunch.
+- [x] **Step 2: Run RED; confirm current immediate install.**
+- [x] **Step 3: Gate install with readiness and precise statuses; restart Agent for version reload, then launch app once.**
+- [x] **Step 4: Run GREEN and full Agent tests.**
+- [x] **Step 5: Commit** as `feat(agent): defer admin updates safely`.
 
 ### Task 5: Organization Admin status card
 
