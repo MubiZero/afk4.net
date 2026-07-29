@@ -176,6 +176,113 @@ public sealed class FileSystemUpdatePackagePublisherTests : IDisposable
     }
 
     [Fact]
+    public async Task PublishAsync_WithS3StableAlias_UploadsSameBytesWithoutChangingSignedArtifactUri()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var artifactPath = Path.Combine(tempRoot, "organization-admin.msi");
+        var artifactBytes = new byte[] { 0x41, 0x46, 0x4b, 0x34 };
+        await File.WriteAllBytesAsync(artifactPath, artifactBytes);
+        var privateKeyPath = CreatePrivateKeyPem(out _);
+        var handler = new RecordingHttpMessageHandler();
+        var publisher = new FileSystemUpdatePackagePublisher(httpClient: new HttpClient(handler));
+        Environment.SetEnvironmentVariable("AFK4_TEST_S3_ACCESS_KEY", "test-access");
+        Environment.SetEnvironmentVariable("AFK4_TEST_S3_SECRET_KEY", "test-secret");
+
+        try
+        {
+            var result = await publisher.PublishAsync(
+                new UpdatePackagePublishOptions(
+                    OrganizationId,
+                    UpdateComponentNames.OrganizationAdmin,
+                    "1.2.6",
+                    UpdateChannelNames.Internal,
+                    artifactPath,
+                    HostingRoot: string.Empty,
+                    PublicBaseUri: new Uri("https://updates.example.test/afk4-updates/"),
+                    privateKeyPath,
+                    "Internal Organization Admin update.",
+                    ArtifactStoreKind: UpdateArtifactStoreKindNames.S3,
+                    S3Endpoint: new Uri("https://minio.example.test"),
+                    S3Bucket: "afk4-updates",
+                    S3AccessKeyEnvironmentVariable: "AFK4_TEST_S3_ACCESS_KEY",
+                    S3SecretKeyEnvironmentVariable: "AFK4_TEST_S3_SECRET_KEY",
+                    S3StableAliasObjectKey: "organization-admin/internal/latest/afk4-organization-admin-internal.msi"),
+                CancellationToken.None);
+
+            Assert.Equal(2, handler.Requests.Count);
+            Assert.Equal("https://minio.example.test/afk4-updates/organization-admin/internal/1.2.6/organization-admin.msi", handler.Requests[0].Uri.ToString());
+            Assert.Null(handler.Requests[0].CacheControl);
+            Assert.Equal("https://minio.example.test/afk4-updates/organization-admin/internal/latest/afk4-organization-admin-internal.msi", handler.Requests[1].Uri.ToString());
+            Assert.Equal("no-store", handler.Requests[1].CacheControl);
+            Assert.All(handler.Requests, request => Assert.Equal(artifactBytes, request.Body));
+            Assert.Equal("https://updates.example.test/afk4-updates/organization-admin/internal/1.2.6/organization-admin.msi", result.Request.ArtifactUri);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("AFK4_TEST_S3_ACCESS_KEY", null);
+            Environment.SetEnvironmentVariable("AFK4_TEST_S3_SECRET_KEY", null);
+        }
+    }
+
+    [Fact]
+    public async Task PublishAsync_WithStableAliasOutsideS3_RejectsBeforePublishing()
+    {
+        Directory.CreateDirectory(tempRoot);
+        var artifactPath = Path.Combine(tempRoot, "organization-admin.msi");
+        await File.WriteAllTextAsync(artifactPath, "artifact");
+        var privateKeyPath = CreatePrivateKeyPem(out _);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() => new FileSystemUpdatePackagePublisher().PublishAsync(
+            new UpdatePackagePublishOptions(
+                OrganizationId,
+                UpdateComponentNames.OrganizationAdmin,
+                "1.2.6",
+                UpdateChannelNames.Internal,
+                artifactPath,
+                Path.Combine(tempRoot, "hosted"),
+                new Uri("https://updates.example.test/"),
+                privateKeyPath,
+                "Internal Organization Admin update.",
+                S3StableAliasObjectKey: "organization-admin/internal/latest/afk4-organization-admin-internal.msi"),
+            CancellationToken.None));
+
+        Assert.Equal("S3 stable alias object key is supported only for s3 artifact publishing. (Parameter 'options')", exception.Message);
+    }
+
+    [Theory]
+    [InlineData("/absolute.msi")]
+    [InlineData("organization-admin//latest/installer.msi")]
+    [InlineData("organization-admin/../latest/installer.msi")]
+    public async Task PublishAsync_WithUnsafeS3StableAlias_RejectsBeforePublishing(string alias)
+    {
+        Directory.CreateDirectory(tempRoot);
+        var artifactPath = Path.Combine(tempRoot, "organization-admin.msi");
+        await File.WriteAllTextAsync(artifactPath, "artifact");
+        var privateKeyPath = CreatePrivateKeyPem(out _);
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() => new FileSystemUpdatePackagePublisher().PublishAsync(
+            new UpdatePackagePublishOptions(
+                OrganizationId,
+                UpdateComponentNames.OrganizationAdmin,
+                "1.2.6",
+                UpdateChannelNames.Internal,
+                artifactPath,
+                HostingRoot: string.Empty,
+                PublicBaseUri: new Uri("https://updates.example.test/afk4-updates/"),
+                privateKeyPath,
+                "Internal Organization Admin update.",
+                ArtifactStoreKind: UpdateArtifactStoreKindNames.S3,
+                S3Endpoint: new Uri("https://minio.example.test"),
+                S3Bucket: "afk4-updates",
+                S3AccessKeyEnvironmentVariable: "AFK4_TEST_S3_ACCESS_KEY",
+                S3SecretKeyEnvironmentVariable: "AFK4_TEST_S3_SECRET_KEY",
+                S3StableAliasObjectKey: alias),
+            CancellationToken.None));
+
+        Assert.Equal("S3 stable alias object key must be a safe relative object key. (Parameter 'options')", exception.Message);
+    }
+
+    [Fact]
     public async Task PublishAsync_WithEnvironmentSigningKey_DoesNotRequireKeyFile()
     {
         Directory.CreateDirectory(tempRoot);
@@ -277,6 +384,7 @@ public sealed class FileSystemUpdatePackagePublisherTests : IDisposable
             "--s3-access-key-env-var", "AFK4_S3_ACCESS_KEY",
             "--s3-secret-key-env-var", "AFK4_S3_SECRET_KEY",
             "--s3-region", "us-east-1",
+            "--s3-stable-alias-object-key", "organization-admin/internal/latest/afk4-organization-admin-internal.msi",
             "--public-base-uri", "https://updates.afk4.test/afk4-updates/",
             "--signing-key-env-var", "AFK4_UPDATE_SIGNING_KEY_PEM",
             "--release-notes", "Internal Agent update."
@@ -289,6 +397,7 @@ public sealed class FileSystemUpdatePackagePublisherTests : IDisposable
         Assert.Equal("AFK4_S3_ACCESS_KEY", options.S3AccessKeyEnvironmentVariable);
         Assert.Equal("AFK4_S3_SECRET_KEY", options.S3SecretKeyEnvironmentVariable);
         Assert.Equal("us-east-1", options.S3Region);
+        Assert.Equal("organization-admin/internal/latest/afk4-organization-admin-internal.msi", options.S3StableAliasObjectKey);
         Assert.Equal("https://updates.afk4.test/afk4-updates/", options.PublicBaseUri?.ToString());
     }
 
@@ -323,6 +432,7 @@ public sealed class FileSystemUpdatePackagePublisherTests : IDisposable
 
     private sealed class RecordingHttpMessageHandler : HttpMessageHandler
     {
+        public List<RecordedRequest> Requests { get; } = [];
         public HttpMethod? LastMethod { get; private set; }
 
         public Uri? LastRequestUri { get; private set; }
@@ -349,8 +459,14 @@ public sealed class FileSystemUpdatePackagePublisherTests : IDisposable
             LastBody = request.Content is null
                 ? []
                 : await request.Content.ReadAsByteArrayAsync(cancellationToken);
+            Requests.Add(new RecordedRequest(
+                request.RequestUri!,
+                LastBody,
+                request.Headers.CacheControl?.ToString()));
 
             return new HttpResponseMessage(HttpStatusCode.Created);
         }
+
+        public sealed record RecordedRequest(Uri Uri, byte[] Body, string? CacheControl);
     }
 }

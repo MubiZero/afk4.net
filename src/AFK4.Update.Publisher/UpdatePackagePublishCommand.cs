@@ -56,6 +56,7 @@ public static class UpdatePackagePublishCommand
         values.TryGetValue("--s3-access-key-env-var", out var s3AccessKeyEnvironmentVariable);
         values.TryGetValue("--s3-secret-key-env-var", out var s3SecretKeyEnvironmentVariable);
         values.TryGetValue("--s3-region", out var s3Region);
+        values.TryGetValue("--s3-stable-alias-object-key", out var s3StableAliasObjectKey);
 
         return new UpdatePackagePublishOptions(
             organizationId,
@@ -78,7 +79,8 @@ public static class UpdatePackagePublishCommand
             string.IsNullOrWhiteSpace(s3KeyPrefix) ? null : s3KeyPrefix,
             string.IsNullOrWhiteSpace(s3AccessKeyEnvironmentVariable) ? null : s3AccessKeyEnvironmentVariable,
             string.IsNullOrWhiteSpace(s3SecretKeyEnvironmentVariable) ? null : s3SecretKeyEnvironmentVariable,
-            string.IsNullOrWhiteSpace(s3Region) ? "us-east-1" : s3Region);
+            string.IsNullOrWhiteSpace(s3Region) ? "us-east-1" : s3Region,
+            string.IsNullOrWhiteSpace(s3StableAliasObjectKey) ? null : s3StableAliasObjectKey);
     }
 
     private static Dictionary<string, string> ParsePairs(string[] args)
@@ -174,6 +176,7 @@ public static class UpdatePackagePublishCommand
           --artifact-store <file-system|http-put|s3>
           --s3-key-prefix <prefix>
           --s3-region <region>
+          --s3-stable-alias-object-key <relative-object-key>
           --published-file-name <file-name>
           --output <create-update-package-request-json-path>
         """;

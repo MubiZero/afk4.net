@@ -163,6 +163,18 @@ public sealed class FileSystemUpdatePackagePublisher
             {
                 throw new ArgumentException("Public base URI is required for s3 artifact publishing.", nameof(options));
             }
+
+            if (!string.IsNullOrWhiteSpace(options.S3StableAliasObjectKey) &&
+                !IsSafeRelativeObjectKey(options.S3StableAliasObjectKey))
+            {
+                throw new ArgumentException("S3 stable alias object key must be a safe relative object key.", nameof(options));
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(options.S3StableAliasObjectKey))
+        {
+            throw new ArgumentException(
+                "S3 stable alias object key is supported only for s3 artifact publishing.",
+                nameof(options));
         }
 
         var hasKeyFile = !string.IsNullOrWhiteSpace(options.SigningPrivateKeyPemPath);
@@ -243,9 +255,42 @@ public sealed class FileSystemUpdatePackagePublisher
         var sizeBytes = new FileInfo(artifactPath).Length;
         var publishedFileName = GetPublishedFileName(options, artifactPath);
         var objectKey = CreateObjectKey(options, publishedFileName);
-        var objectUri = CreateS3ObjectUri(options.S3Endpoint!, options.S3Bucket!, objectKey);
         var accessKey = ReadEnvironmentVariable(options.S3AccessKeyEnvironmentVariable!, "S3 access key");
         var secretKey = ReadEnvironmentVariable(options.S3SecretKeyEnvironmentVariable!, "S3 secret key");
+
+        await PutS3ObjectAsync(options, artifactPath, objectKey, sha256, accessKey, secretKey, cacheControl: null, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(options.S3StableAliasObjectKey))
+        {
+            await PutS3ObjectAsync(
+                options,
+                artifactPath,
+                options.S3StableAliasObjectKey,
+                sha256,
+                accessKey,
+                secretKey,
+                cacheControl: "no-store",
+                cancellationToken);
+        }
+
+        var artifactUri = CreateArtifactUri(options.PublicBaseUri!, GetArtifactPathSegments(options, publishedFileName));
+        return new PublishedArtifact(
+            $"s3:{options.S3Bucket}/{objectKey}",
+            artifactUri,
+            sha256,
+            sizeBytes);
+    }
+
+    private async Task PutS3ObjectAsync(
+        UpdatePackagePublishOptions options,
+        string artifactPath,
+        string objectKey,
+        string sha256,
+        string accessKey,
+        string secretKey,
+        string? cacheControl,
+        CancellationToken cancellationToken)
+    {
+        var objectUri = CreateS3ObjectUri(options.S3Endpoint!, options.S3Bucket!, objectKey);
         var amzDate = DateTimeOffset.UtcNow.ToString("yyyyMMdd'T'HHmmss'Z'");
         var dateStamp = amzDate[..8];
 
@@ -257,6 +302,11 @@ public sealed class FileSystemUpdatePackagePublisher
         request.Headers.Host = objectUri.Authority;
         request.Headers.TryAddWithoutValidation("x-amz-content-sha256", sha256);
         request.Headers.TryAddWithoutValidation("x-amz-date", amzDate);
+        if (cacheControl is not null)
+        {
+            request.Headers.TryAddWithoutValidation("Cache-Control", cacheControl);
+        }
+
         request.Headers.Authorization = CreateS3AuthorizationHeader(
             objectUri,
             accessKey,
@@ -264,17 +314,11 @@ public sealed class FileSystemUpdatePackagePublisher
             options.S3Region,
             dateStamp,
             amzDate,
-            sha256);
+            sha256,
+            cacheControl);
 
         using var response = await httpClient.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
-
-        var artifactUri = CreateArtifactUri(options.PublicBaseUri!, GetArtifactPathSegments(options, publishedFileName));
-        return new PublishedArtifact(
-            $"s3:{options.S3Bucket}/{objectKey}",
-            artifactUri,
-            sha256,
-            sizeBytes);
     }
 
     private static async Task<string> LoadSigningPrivateKeyPemAsync(
@@ -378,6 +422,19 @@ public sealed class FileSystemUpdatePackagePublisher
         return new Uri(baseUri + escapedPath);
     }
 
+    private static bool IsSafeRelativeObjectKey(string objectKey)
+    {
+        if (objectKey.StartsWith('/') || objectKey.StartsWith('\\'))
+        {
+            return false;
+        }
+
+        var segments = objectKey.Split(['/', '\\'], StringSplitOptions.None);
+        return segments.Length > 1 && segments.All(segment =>
+            !string.IsNullOrWhiteSpace(segment) &&
+            segment is not "." and not "..");
+    }
+
     private static string ReadEnvironmentVariable(string variableName, string description)
     {
         var value = Environment.GetEnvironmentVariable(variableName);
@@ -393,14 +450,17 @@ public sealed class FileSystemUpdatePackagePublisher
         string region,
         string dateStamp,
         string amzDate,
-        string payloadHash)
+        string payloadHash,
+        string? cacheControl = null)
     {
         const string service = "s3";
         const string algorithm = "AWS4-HMAC-SHA256";
-        const string signedHeaders = "host;x-amz-content-sha256;x-amz-date";
+        var signedHeaders = cacheControl is null
+            ? "host;x-amz-content-sha256;x-amz-date"
+            : "cache-control;host;x-amz-content-sha256;x-amz-date";
         var credentialScope = $"{dateStamp}/{region}/{service}/aws4_request";
-        var canonicalHeaders =
-            $"host:{requestUri.Authority}\n" +
+        var canonicalHeaders = cacheControl is null ? string.Empty : $"cache-control:{cacheControl}\n";
+        canonicalHeaders += $"host:{requestUri.Authority}\n" +
             $"x-amz-content-sha256:{payloadHash}\n" +
             $"x-amz-date:{amzDate}\n";
         var canonicalRequest = string.Join(
