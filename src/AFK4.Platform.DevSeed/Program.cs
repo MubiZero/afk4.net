@@ -4,6 +4,7 @@ using AFK4.Platform.Api.Identity;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Pos;
+using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
@@ -78,6 +79,7 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
     public static readonly Guid OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08");
     public static readonly Guid BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2");
     public static readonly Guid OwnerStaffUserId = Guid.Parse("3db1367b-88c6-4b1c-99c3-bcbb5f4d5134");
+    public static readonly Guid PlatformAdminUserId = Guid.Parse("c10e7d55-2dd8-43e4-970a-6d59a90c6f33");
     public const string OwnerUserName = "owner@afk4.test";
 
     private const string CurrencyCode = "TJS";
@@ -92,6 +94,7 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
             return;
         }
 
+        SeedPlatformAdmin();
         var staff = SeedOrganizationAndStaff();
         var zones = SeedLayout();
         var seats = zones.SelectMany(zone => zone.Seats).ToList();
@@ -104,10 +107,27 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
         SeedLedger(staff.OrganizationOwner.StaffUserId, shift.ShiftId, players);
         SeedPos(staff.OrganizationOwner.StaffUserId, shift.ShiftId, players.PrimaryPlayerId);
         SeedReservations(staff.OrganizationOwner.StaffUserId, seats, players);
-        SeedUpdates(staff.OrganizationOwner.StaffUserId, devices);
+        SeedUpdates(PlatformAdminUserId, devices);
         SeedAudit(staff.OrganizationOwner.StaffUserId);
 
         await dbContext.SaveChangesAsync();
+    }
+
+    private void SeedPlatformAdmin()
+    {
+        var admin = new PlatformAdminUserEntity
+        {
+            PlatformAdminUserId = PlatformAdminUserId,
+            UserName = "platform@afk4.test",
+            NormalizedUserName = "PLATFORM@AFK4.TEST",
+            DisplayName = "AFK4 Platform Admin",
+            RolesJson = JsonSerializer.Serialize(new[] { PlatformAdminRoleNames.PlatformAdmin }),
+            IsActive = true,
+            CreatedAtUtc = now.AddDays(-10),
+            UpdatedAtUtc = now.AddDays(-10)
+        };
+        admin.PasswordHash = new PasswordHasher<PlatformAdminUserEntity>().HashPassword(admin, operatorPassword);
+        dbContext.PlatformAdminUsers.Add(admin);
     }
 
     private StaffSeed SeedOrganizationAndStaff()
@@ -696,7 +716,7 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
         };
     }
 
-    private void SeedUpdates(Guid staffUserId, IReadOnlyDictionary<Guid, DeviceEntity> devices)
+    private void SeedUpdates(Guid platformAdminUserId, IReadOnlyDictionary<Guid, DeviceEntity> devices)
     {
         var packageId = StableGuid(17001);
         var rolloutId = StableGuid(17002);
@@ -704,8 +724,6 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
         dbContext.UpdatePackages.Add(new UpdatePackageEntity
         {
             UpdatePackageId = packageId,
-            OrganizationId = OrganizationId,
-            BranchId = BranchId,
             Component = "organization-admin",
             Version = "0.2.0",
             Channel = "internal",
@@ -716,15 +734,13 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
             SizeBytes = 4096,
             State = UpdatePackageStateNames.Validated,
             ReleaseNotes = "Пакет оператора 0.2.0.",
-            CreatedByStaffUserId = staffUserId,
+            CreatedByPlatformAdminUserId = platformAdminUserId,
             CreatedAtUtc = now.AddHours(-4)
         });
 
         dbContext.UpdateRollouts.Add(new UpdateRolloutEntity
         {
             UpdateRolloutId = rolloutId,
-            OrganizationId = OrganizationId,
-            BranchId = BranchId,
             UpdatePackageId = packageId,
             Component = "organization-admin",
             Version = "0.2.0",
@@ -733,7 +749,7 @@ internal sealed class LocalDevSeed(PlatformDbContext dbContext, string operatorP
             TargetKind = "branch",
             BatchPercent = 25,
             Reason = "Пилотная раскатка",
-            CreatedByStaffUserId = staffUserId,
+            CreatedByPlatformAdminUserId = platformAdminUserId,
             CreatedAtUtc = now.AddHours(-3),
             StartsAtUtc = now.AddHours(-2),
             CompletedAtUtc = null
