@@ -1,13 +1,15 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AFK4.OrganizationAdmin.App.Connection;
+using AFK4.OrganizationAdmin.App.Updates;
 
 namespace AFK4.OrganizationAdmin.Web;
 
-// The web UI now signs itself in over plain HTTP (staffAuthApi.ts + sessionStorage) — see
-// docs/superpowers/plans/2026-07-22-operator-unified-admin-foundation.md. This bridge is left with
-// only device-identity concerns (machine/seat pinning) that must stay native-side.
-public sealed class OrganizationAdminWebHostBridge(IOrganizationAdminConnectionStore connectionStore)
+// Auth runs over plain HTTP (staffAuthApi.ts + sessionStorage). This bridge stays narrow: it owns
+// machine-local connection identity and update-safety activity that cannot live in the browser.
+public sealed class OrganizationAdminWebHostBridge(
+    IOrganizationAdminConnectionStore connectionStore,
+    OrganizationAdminActivityState? updateActivityState = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -26,7 +28,23 @@ public sealed class OrganizationAdminWebHostBridge(IOrganizationAdminConnectionS
             return null;
         }
 
-        if (request is null ||
+        if (request is null)
+        {
+            return null;
+        }
+
+        if (request.Type is "update-activity:start" or "update-activity:finish")
+        {
+            if (updateActivityState is not null &&
+                request.OperationId is { Length: > 0 and <= 128 } operationId)
+            {
+                if (request.Type == "update-activity:start") updateActivityState.StartWebCommand(operationId);
+                else updateActivityState.FinishWebCommand(operationId);
+            }
+            return null;
+        }
+
+        if (
             string.IsNullOrWhiteSpace(request.Type) ||
             string.IsNullOrWhiteSpace(request.RequestId) ||
             !request.Type.StartsWith("connection:", StringComparison.Ordinal))
@@ -143,6 +161,7 @@ public sealed class OrganizationAdminWebHostBridge(IOrganizationAdminConnectionS
     private sealed record OrganizationAdminWebBridgeRequest(
         string? Type,
         string? RequestId,
+        string? OperationId,
         JsonElement Payload);
 
     private sealed record OrganizationAdminWebBridgeResponse(

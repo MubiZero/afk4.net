@@ -8,6 +8,7 @@ using AFK4.Localization;
 using AFK4.OrganizationAdmin.App;
 using AFK4.OrganizationAdmin.App.Configuration;
 using AFK4.OrganizationAdmin.App.Connection;
+using AFK4.OrganizationAdmin.App.Updates;
 using Microsoft.Web.WebView2.Core;
 
 namespace AFK4.OrganizationAdmin.Web;
@@ -530,7 +531,11 @@ public partial class OrganizationAdminWindow : Window
 
         // Auth no longer runs through this bridge — the web UI signs itself in over plain HTTP
         // (see OrganizationAdminWebHostBridge). Only device-identity (machine/seat pinning) stays native-side.
-        return new OrganizationAdminWebHostBridge(new ProtectedDataOrganizationAdminConnectionStore());
+        var activityState = (Application.Current as AFK4.OrganizationAdmin.App.App)?.UpdateActivityState
+            ?? new OrganizationAdminActivityState();
+        return new OrganizationAdminWebHostBridge(
+            new ProtectedDataOrganizationAdminConnectionStore(),
+            activityState);
     }
 
     // DWM window-attribute ids (Windows 11 22000+): 33 = corner preference, 34 = border colour.

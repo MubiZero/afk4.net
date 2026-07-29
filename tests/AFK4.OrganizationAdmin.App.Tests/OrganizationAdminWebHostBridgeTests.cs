@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AFK4.OrganizationAdmin.App.Connection;
+using AFK4.OrganizationAdmin.App.Updates;
 using AFK4.OrganizationAdmin.Web;
 
 namespace AFK4.OrganizationAdmin.App.Tests;
@@ -175,6 +176,38 @@ public sealed class OrganizationAdminWebHostBridgeTests
             CancellationToken.None);
 
         Assert.Null(responseJson);
+    }
+
+    [Fact]
+    public async Task HandleAsync_TracksConcurrentUpdateActivityByOperationId()
+    {
+        var state = new OrganizationAdminActivityState();
+        var bridge = new OrganizationAdminWebHostBridge(new RecordingOrganizationAdminConnectionStore(), state);
+
+        await bridge.HandleAsync(JsonSerializer.Serialize(new { type = "update-activity:start", operationId = "one" }), CancellationToken.None);
+        await bridge.HandleAsync(JsonSerializer.Serialize(new { type = "update-activity:start", operationId = "one" }), CancellationToken.None);
+        await bridge.HandleAsync(JsonSerializer.Serialize(new { type = "update-activity:start", operationId = "two" }), CancellationToken.None);
+        await bridge.HandleAsync(JsonSerializer.Serialize(new { type = "update-activity:finish", operationId = "one" }), CancellationToken.None);
+
+        Assert.True(state.HasCriticalCommandInFlight);
+        await bridge.HandleAsync(JsonSerializer.Serialize(new { type = "update-activity:finish", operationId = "two" }), CancellationToken.None);
+        Assert.False(state.HasCriticalCommandInFlight);
+    }
+
+    [Theory]
+    [InlineData("{not-json")]
+    [InlineData("{\"type\":\"update-activity:start\"}")]
+    [InlineData("{\"type\":\"update-activity:start\",\"operationId\":\"\"}")]
+    [InlineData("{\"type\":\"update-activity:unknown\",\"operationId\":\"one\"}")]
+    public async Task HandleAsync_IgnoresMalformedUpdateActivity(string message)
+    {
+        var state = new OrganizationAdminActivityState();
+        var bridge = new OrganizationAdminWebHostBridge(new RecordingOrganizationAdminConnectionStore(), state);
+
+        var response = await bridge.HandleAsync(message, CancellationToken.None);
+
+        Assert.Null(response);
+        Assert.False(state.HasCriticalCommandInFlight);
     }
 
     private sealed class RecordingOrganizationAdminConnectionStore : IOrganizationAdminConnectionStore

@@ -11,6 +11,7 @@ namespace AFK4.OrganizationAdmin.App;
 public partial class App : Application
 {
     private NamedPipeUpdateCoordinationServer? updateCoordinationServer;
+    internal OrganizationAdminActivityState UpdateActivityState { get; } = new();
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -34,7 +35,7 @@ public partial class App : Application
             updateCoordinationServer = new NamedPipeUpdateCoordinationServer(
                 pipeName,
                 secret,
-                new OrganizationAdminActivityState(),
+                UpdateActivityState,
                 new FileOrganizationAdminShutdownAcknowledgementStore(acknowledgementPath),
                 () => Dispatcher.BeginInvoke(Shutdown));
             updateCoordinationServer.Start();
