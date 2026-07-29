@@ -1130,8 +1130,7 @@ describe('App', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Экспорт CSV' }));
 
     await waitFor(() => expect(downloads.length).toBeGreaterThan(0));
-    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/sales/export.csv'))).toBe(true);
-    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/gameplay-time/export.csv'))).toBe(true);
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/workspace/revenue/export.csv'))).toBe(true);
     expect(downloads.some((download) => download.startsWith('revenue-') && download.endsWith('.csv'))).toBe(true);
     expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:dashboard');
@@ -3145,6 +3144,37 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/dashboard/summary')) {
     return jsonResponse(createDashboardSummary());
+  }
+
+  if (pathname.endsWith('/reports/workspace/summary')) {
+    const money = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
+    return jsonResponse({
+      period: { fromDate: '2026-07-29', toDate: '2026-07-29', timeZone: 'Asia/Dushanbe', fromUtc: '2026-07-28T19:00:00Z', toUtc: '2026-07-29T19:00:00Z' },
+      attentionTotalCount: 0, attentionItems: [],
+      figures: { netRevenue: money(7000), gameplayRevenue: money(3000), posNetSales: money(4000), gameplaySeconds: 7200 },
+      trend: [], activeShift: null
+    });
+  }
+
+  if (pathname.endsWith('/reports/workspace/shifts-cash')) {
+    const cash = createCashReport();
+    return jsonResponse({
+      period: { fromDate: '2026-07-29', toDate: '2026-07-29', timeZone: 'Asia/Dushanbe', fromUtc: '2026-07-28T19:00:00Z', toUtc: '2026-07-29T19:00:00Z' },
+      shifts: createShiftReport().rows, cashOperations: cash.rows,
+      cashInTotal: cash.cashInTotal, cashOutTotal: cash.cashOutTotal, netCashTotal: cash.netCashTotal
+    });
+  }
+
+  if (pathname.endsWith('/reports/workspace/revenue')) {
+    const money = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
+    return jsonResponse({
+      period: { fromDate: '2026-07-29', toDate: '2026-07-29', timeZone: 'Asia/Dushanbe', fromUtc: '2026-07-28T19:00:00Z', toUtc: '2026-07-29T19:00:00Z' },
+      grossRevenue: money(7500), refunds: money(-500), netRevenue: money(7000),
+      gameplayRevenue: money(3000), gameplaySeconds: 7200, posNetSales: money(4000),
+      comparison: { previousNetRevenue: money(6000), differenceMinorUnits: 1000, changePercent: 16.67 },
+      sources: [{ source: 'gameplay', revenue: money(3000) }, { source: 'pos', revenue: money(4000) }],
+      paymentMethods: [], operators: []
+    });
   }
 
   if (pathname.endsWith('/reservations') && init?.method === 'POST') {

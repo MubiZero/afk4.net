@@ -2,9 +2,9 @@ import { describe, expect, it } from 'bun:test';
 import { toReportQuery } from './reportRange';
 
 describe('toReportQuery', () => {
-  it('uses a half-open range that includes the full selected end date', () => {
+  it('sends local calendar dates for server-side branch timezone resolution', () => {
     const query = toReportQuery({ from: '2026-07-01', to: '2026-07-03' });
-    expect(new Date(query.toUtc).getTime() - new Date(query.fromUtc).getTime()).toBe(3 * 86_400_000);
-    expect(query.limit).toBe(200);
+    expect(query.fromDate).toBe('2026-07-01');
+    expect(query.toDate).toBe('2026-07-03');
   });
 });

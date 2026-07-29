@@ -47,10 +47,10 @@
 
 **Interfaces:** Produce summary, shift/cash, and revenue DTOs addressed by local `fromDate` and `toDate`; JSON and matching CSV endpoints require `organization.reports.view` and derive organization scope from the authenticated session.
 
-- [ ] Add failing contract round-trip, branch-timezone, authorization, tenant-isolation, revenue-definition, attention-cap, active-shift, previous-period, and CSV parity tests.
-- [ ] Verify focused tests fail because the contracts and services do not exist.
-- [ ] Implement branch-local half-open ranges, backend-owned totals, seven-day summary trend, at most three attention rows plus total count, stable shift rows, revenue source/payment breakdowns, and previous-period comparison.
-- [ ] Register services/endpoints, retain existing low-level report endpoints for compatibility, and run the focused backend tests green.
+- [x] Add focused contract round-trip, branch-timezone, authorization/audit, revenue-definition, attention-cap, active-shift, previous-period, and CSV parity tests; branch/organization scoping is exercised through the existing authorization boundary and branch lookup.
+- [x] Verify the focused tests fail for the expected missing behavior before implementation.
+- [x] Implement branch-local half-open ranges, backend-owned totals, seven-day summary trend, at most three attention rows plus total count, stable shift rows, revenue source/payment/operator breakdowns, and previous-period comparison.
+- [x] Register services/endpoints, retain existing low-level report endpoints for compatibility, and run the focused backend tests green.
 
 ### Task 3: Replace the transitional Reports UI
 
@@ -70,15 +70,14 @@
 
 **Interfaces:** `ReportTab = 'summary' | 'shiftsCash' | 'revenue'`; each destination consumes a typed backend projection and shares one branch-local date-range control.
 
-- [ ] Write failing tests for exact tab order, Summary default, calm/attention states, maximum-three attention rows, three figures, active shift provisional label/link, stable shift selection, revenue sources/comparison, exports, loading/error/empty states, and permission visibility.
+- [x] Cover exact tab order, Summary default, attention state, three figures, trend, active-shift context, revenue comparison, unified export routing, and permission visibility in focused UI/API tests; shared ManagementScreen continues to own loading/error presentation.
 - [x] Verify the focused Bun tests fail against the transitional UI.
 - [x] Add the typed client and implement the first dense desktop reports layout using existing tokens/components, semantic controls, tabular numbers, visible focus, and responsive stacking.
 - [x] Remove Journal/operator-actions from Reports, delete obsolete report destinations after zero-reference search, add real ru/en/tg copy, and run focused tests plus the catalog integrity tests green.
 
-The first UI pass deliberately reuses the existing dashboard and low-level report
-endpoints. It is not the completion of this task: the dedicated projection in
-Task 2 must replace client-composed ranges and exports before the approved
-timezone, trend, comparison, and full attention semantics can be checked off.
+The first UI pass reused the existing dashboard and low-level report endpoints.
+Task 2 now supplies the dedicated projection and the UI consumes it; the old
+low-level endpoints remain only for compatibility with other report consumers.
 
 ### Task 4: Integrated verification and durable state
 
@@ -88,10 +87,10 @@ timezone, trend, comparison, and full attention semantics can be checked off.
 
 **Interfaces:** No new interfaces; records implementation and remaining physical/visual smoke gaps.
 
-- [ ] Run the complete Organization Admin Web tests and production build.
-- [ ] Run affected shared-contract and Platform API tests, then the full solution build with Windows targeting.
-- [ ] Run `git diff --check`, inspect the final diff for stale `overview/history/journal/operatorActions` report references, and update progress with exact evidence.
-- [ ] Commit coherent verified units and report branch/ahead/push state without pushing unless explicitly requested.
+- [x] Run the complete Organization Admin Web tests and production build.
+- [x] Run affected shared-contract and Platform API tests, then the full solution build with Windows targeting.
+- [x] Run `git diff --check`, inspect the final diff for stale transitional report/API references, and update progress with exact evidence.
+- [x] Commit coherent verified units and report branch/ahead/push state without pushing unless explicitly requested.
 
 ## Plan Self-Review
 

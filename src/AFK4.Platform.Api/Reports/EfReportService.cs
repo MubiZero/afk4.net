@@ -408,7 +408,7 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
         var cashMovements = await cashMovementsQuery.ToListAsync(cancellationToken);
         var payments = await paymentsQuery.ToListAsync(cancellationToken);
         var ledgerEntries = await ledgerEntriesQuery.ToListAsync(cancellationToken);
-        var rows = cashMovements
+        var allRows = cashMovements
             .Select(movement => new CashOperationReportRowDto(
                 movement.CashMovementId,
                 movement.OrganizationId,
@@ -448,18 +448,17 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                 entry.CreatedAtUtc)))
             .OrderByDescending(row => row.CreatedAtUtc)
             .ThenByDescending(row => row.OperationId)
-            .Take(limit)
             .ToList();
-        var resultCurrencyCode = rows.FirstOrDefault()?.CashImpact.CurrencyCode ?? DefaultCurrencyCode;
-        var cashInTotal = rows
+        var resultCurrencyCode = allRows.FirstOrDefault()?.CashImpact.CurrencyCode ?? DefaultCurrencyCode;
+        var cashInTotal = allRows
             .Where(row => row.CashImpact.MinorUnits > 0)
             .Sum(row => row.CashImpact.MinorUnits);
-        var cashOutTotal = rows
+        var cashOutTotal = allRows
             .Where(row => row.CashImpact.MinorUnits < 0)
             .Sum(row => row.CashImpact.MinorUnits);
 
         return new CashOperationReportResultDto(
-            rows,
+            allRows.Take(limit).ToList(),
             limit,
             Money(resultCurrencyCode, cashInTotal),
             Money(resultCurrencyCode, cashOutTotal),

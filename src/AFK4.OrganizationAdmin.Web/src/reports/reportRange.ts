@@ -1,4 +1,4 @@
-import { addDays, toDateInputValue } from '../operatorHelpers';
+import { toDateInputValue } from '../operatorHelpers';
 
 export interface ReportDateRange { from: string; to: string }
 
@@ -7,8 +7,6 @@ export function todayReportRange(now = new Date()): ReportDateRange {
   return { from: value, to: value };
 }
 
-export function toReportQuery(range: ReportDateRange, limit = 200) {
-  const from = new Date(`${range.from}T00:00:00`);
-  const inclusiveTo = new Date(`${range.to}T00:00:00`);
-  return { fromUtc: from.toISOString(), toUtc: addDays(inclusiveTo, 1).toISOString(), limit };
+export function toReportQuery(range: ReportDateRange) {
+  return { fromDate: range.from, toDate: range.to };
 }

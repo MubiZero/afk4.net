@@ -1,6 +1,15 @@
 import { PlatformApiClient } from '../../platformApi';
-import type { Guid, MoneyDto, ReportQuery } from '../types';
-import { normalizeReportQuery } from '../queryHelpers';
+import type { Guid, MoneyDto } from '../types';
+
+export interface OrganizationAdminReportPeriodDto { fromDate: string; toDate: string; timeZone: string; fromUtc: string; toUtc: string }
+export interface OrganizationAdminReportAttentionDto { kind: string; title: string; detail: string; targetId?: Guid | null; amount?: MoneyDto | null }
+export interface OrganizationAdminReportFiguresDto { netRevenue: MoneyDto; gameplayRevenue: MoneyDto; posNetSales: MoneyDto; gameplaySeconds: number }
+export interface OrganizationAdminRevenueTrendPointDto { date: string; netRevenue: MoneyDto }
+export interface OrganizationAdminActiveShiftDto { shiftId: Guid; openedByStaffUserId: Guid; openedAtUtc: string; expectedCash: MoneyDto; isProvisional: boolean }
+export interface OrganizationAdminSummaryReportDto { period: OrganizationAdminReportPeriodDto; attentionTotalCount: number; attentionItems: OrganizationAdminReportAttentionDto[]; figures: OrganizationAdminReportFiguresDto; trend: OrganizationAdminRevenueTrendPointDto[]; activeShift?: OrganizationAdminActiveShiftDto | null }
+export interface OrganizationAdminShiftCashReportDto { period: OrganizationAdminReportPeriodDto; shifts: ReportShiftRowDto[]; cashOperations: CashOperationRowDto[]; cashInTotal: MoneyDto; cashOutTotal: MoneyDto; netCashTotal: MoneyDto }
+export interface OrganizationAdminRevenueReportDto { period: OrganizationAdminReportPeriodDto; grossRevenue: MoneyDto; refunds: MoneyDto; netRevenue: MoneyDto; gameplayRevenue: MoneyDto; gameplaySeconds: number; posNetSales: MoneyDto; comparison: { previousNetRevenue: MoneyDto; differenceMinorUnits: number; changePercent?: number | null }; sources: Array<{ source: string; revenue: MoneyDto }>; paymentMethods: Array<{ key: string; label: string; revenue: MoneyDto }>; operators: Array<{ key: string; label: string; revenue: MoneyDto }> }
+export type OrganizationAdminReportQuery = Record<string, string> & { fromDate: string; toDate: string };
 
 export interface ReportShiftRowDto {
   shiftId: Guid;
@@ -18,29 +27,14 @@ export interface ReportShiftRowDto {
   closedAtUtc?: string | null;
 }
 
-export interface ShiftReportResultDto { rows: ReportShiftRowDto[]; limit: number }
 export interface CashOperationRowDto { operationId: Guid; shiftId?: Guid | null; sourceType: string; operationType: string; cashImpact: MoneyDto; reason: string; createdAtUtc: string }
-export interface CashOperationReportResultDto { rows: CashOperationRowDto[]; limit: number; cashInTotal: MoneyDto; cashOutTotal: MoneyDto; netCashTotal: MoneyDto }
-export interface SalesReportResultDto { rows: unknown[]; limit: number; grossSalesTotal: MoneyDto; refundsTotal: MoneyDto; netSalesTotal: MoneyDto }
-export interface GameplayTimeReportResultDto { rows: unknown[]; limit: number; totalDurationSeconds: number; totalPackageSeconds: number; totalBonusSeconds: number; gameplayRevenueTotal: MoneyDto }
-export interface DashboardReportSummaryDto {
-  fromUtc: string;
-  toUtc: string;
-  generatedAtUtc: string;
-  shift: { shiftId?: Guid | null; state: string; openedAtUtc?: string | null; openedByStaffUserId?: Guid | null; expectedCash: MoneyDto };
-  revenue: { posNetSales: MoneyDto; gameplayRevenue: MoneyDto; totalRevenue: MoneyDto; posCheckCount: number; newPlayerCount: number };
-}
 
 export function createReportsClient(api: PlatformApiClient) {
   return {
-    getSummary: (branchId: Guid, query?: ReportQuery) => api.get<DashboardReportSummaryDto>(`branches/${branchId}/dashboard/summary`, normalizeReportQuery(query)),
-    getShifts: (branchId: Guid, query?: ReportQuery) => api.get<ShiftReportResultDto>(`branches/${branchId}/reports/shifts`, normalizeReportQuery(query)),
-    getCashOperations: (branchId: Guid, query?: ReportQuery) => api.get<CashOperationReportResultDto>(`branches/${branchId}/reports/cash-operations`, normalizeReportQuery(query)),
-    getSales: (branchId: Guid, query?: ReportQuery) => api.get<SalesReportResultDto>(`branches/${branchId}/reports/sales`, normalizeReportQuery(query)),
-    getGameplay: (branchId: Guid, query?: ReportQuery) => api.get<GameplayTimeReportResultDto>(`branches/${branchId}/reports/gameplay-time`, normalizeReportQuery(query)),
-    exportShifts: (branchId: Guid, query?: ReportQuery) => api.getText(`branches/${branchId}/reports/shifts/export.csv`, normalizeReportQuery(query)),
-    exportCashOperations: (branchId: Guid, query?: ReportQuery) => api.getText(`branches/${branchId}/reports/cash-operations/export.csv`, normalizeReportQuery(query)),
-    exportSales: (branchId: Guid, query?: ReportQuery) => api.getText(`branches/${branchId}/reports/sales/export.csv`, normalizeReportQuery(query)),
-    exportGameplay: (branchId: Guid, query?: ReportQuery) => api.getText(`branches/${branchId}/reports/gameplay-time/export.csv`, normalizeReportQuery(query))
+    getWorkspaceSummary: (branchId: Guid, query: OrganizationAdminReportQuery) => api.get<OrganizationAdminSummaryReportDto>(`branches/${branchId}/reports/workspace/summary`, query),
+    getWorkspaceShiftCash: (branchId: Guid, query: OrganizationAdminReportQuery) => api.get<OrganizationAdminShiftCashReportDto>(`branches/${branchId}/reports/workspace/shifts-cash`, query),
+    getWorkspaceRevenue: (branchId: Guid, query: OrganizationAdminReportQuery) => api.get<OrganizationAdminRevenueReportDto>(`branches/${branchId}/reports/workspace/revenue`, query),
+    exportWorkspaceShiftCash: (branchId: Guid, query: OrganizationAdminReportQuery) => api.getText(`branches/${branchId}/reports/workspace/shifts-cash/export.csv`, query),
+    exportWorkspaceRevenue: (branchId: Guid, query: OrganizationAdminReportQuery) => api.getText(`branches/${branchId}/reports/workspace/revenue/export.csv`, query)
   };
 }

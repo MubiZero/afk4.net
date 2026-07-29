@@ -396,6 +396,27 @@ public sealed class EfReportServiceTests
     }
 
     [Fact]
+    public async Task GetCashOperationReportAsync_LimitAppliesOnlyToRows_NotTotals()
+    {
+        await using var db = CreateDbContext();
+        var shiftId = Guid.NewGuid();
+        SeedCashMovement(db, shiftId, CashMovementTypeNames.CashIn, 5_000, ReportDay.AddHours(9));
+        SeedCashMovement(db, shiftId, CashMovementTypeNames.CashOut, 1_000, ReportDay.AddHours(10));
+        await db.SaveChangesAsync();
+
+        var result = await new EfReportService(db).GetCashOperationReportAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            new ReportSearchQuery(ReportDay, ReportDay.AddDays(1), 1),
+            CancellationToken.None);
+
+        Assert.Single(result.Rows);
+        Assert.Equal(5_000, result.CashInTotal.MinorUnits);
+        Assert.Equal(-1_000, result.CashOutTotal.MinorUnits);
+        Assert.Equal(4_000, result.NetCashTotal.MinorUnits);
+    }
+
+    [Fact]
     public async Task GetOperatorActionReportAsync_GroupsAuditRowsByActorActionAndOutcome()
     {
         await using var db = CreateDbContext();
