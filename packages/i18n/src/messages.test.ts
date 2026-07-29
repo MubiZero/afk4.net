@@ -211,9 +211,6 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «№» — the same symbol in ru and tg (numeral sign), same reasoning as other symbol entries
     // above (e.g. brand tokens, {from}→{to}) — the Сеть → Подписка invoices table's number column.
     'op.network.billing.col.number',
-    // «Журнал» — the same loanword as op.network.dest.journal above; History section's own
-    // Journal destination label (Task 3, Отчёты → История/Журнал tab set).
-    'op.reports.dest.journal',
     // «система» — the same actor fallback loanword as op.network.journal.actor.system above,
     // reused verbatim in the History section's own Journal report (Task 3).
     'op.reports.journal.actor.system',

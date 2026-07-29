@@ -25,9 +25,11 @@ import { createNewsClient } from './news';
 import { createMediaClient } from './media';
 import { createDcTopUpClient } from './dcTopUps';
 import { createDcConfigClient } from './dcConfig';
+import { createReportsClient } from './reports';
+import { withCriticalUpdateActivity } from '../../updateActivity';
 
 export function createOperatorApiClients(api: PlatformApiClient, organizationId: string) {
-  const organizationApi = api.forOrganization(organizationId);
+  const organizationApi = withCriticalUpdateActivity(api.forOrganization(organizationId));
   return {
     floorMap: createFloorMapClient(organizationApi),
     sessions: createSessionClient(organizationApi),
@@ -54,6 +56,7 @@ export function createOperatorApiClients(api: PlatformApiClient, organizationId:
     news: createNewsClient(organizationApi),
     media: createMediaClient(organizationApi),
     dcTopUps: createDcTopUpClient(organizationApi),
-    dcConfig: createDcConfigClient(organizationApi)
+    dcConfig: createDcConfigClient(organizationApi),
+    reports: createReportsClient(organizationApi)
   };
 }

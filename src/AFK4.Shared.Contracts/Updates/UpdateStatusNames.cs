@@ -21,4 +21,14 @@ public static class UpdateStatusNames
     public const string RollbackStarted = "rollback-started";
 
     public const string RolledBack = "rolled-back";
+
+    public const string Deferred = "deferred";
+
+    public const string ReadyToInstall = "ready-to-install";
+
+    public const string AwaitingAppExit = "awaiting-app-exit";
+
+    public const string HealthChecking = "health-checking";
+
+    public const string RollbackRequired = "rollback-required";
 }

@@ -29,4 +29,10 @@ public static class PlatformAdminPermissionNames
     public const string ManageSubscriptions = "platform.billing.subscriptions.manage";
 
     public const string ManageInvoices = "platform.billing.invoices.manage";
+
+    public const string ViewUpdates = "platform.updates.view";
+
+    public const string ManageUpdatePackages = "platform.updates.packages.manage";
+
+    public const string ManageUpdateRollouts = "platform.updates.rollouts.manage";
 }

@@ -1,13 +1,18 @@
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AFK4.OrganizationAdmin.App.Connection;
+using AFK4.OrganizationAdmin.App.Updates;
 
 namespace AFK4.OrganizationAdmin.Web;
 
-// The web UI now signs itself in over plain HTTP (staffAuthApi.ts + sessionStorage) — see
-// docs/superpowers/plans/2026-07-22-operator-unified-admin-foundation.md. This bridge is left with
-// only device-identity concerns (machine/seat pinning) that must stay native-side.
-public sealed class OrganizationAdminWebHostBridge(IOrganizationAdminConnectionStore connectionStore)
+// Auth runs over plain HTTP (staffAuthApi.ts + sessionStorage). This bridge stays narrow: it owns
+// machine-local connection identity and update-safety activity that cannot live in the browser.
+public sealed class OrganizationAdminWebHostBridge(
+    IOrganizationAdminConnectionStore connectionStore,
+    OrganizationAdminActivityState? updateActivityState = null,
+    IOrganizationAdminShutdownAcknowledgementStore? shutdownAcknowledgementStore = null,
+    Action? requestShutdown = null)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -26,13 +31,35 @@ public sealed class OrganizationAdminWebHostBridge(IOrganizationAdminConnectionS
             return null;
         }
 
-        if (request is null ||
-            string.IsNullOrWhiteSpace(request.Type) ||
-            string.IsNullOrWhiteSpace(request.RequestId) ||
-            !request.Type.StartsWith("connection:", StringComparison.Ordinal))
+        if (request is null)
         {
             return null;
         }
+
+        if (request.Type is "update-activity:start" or "update-activity:finish")
+        {
+            if (updateActivityState is not null &&
+                request.OperationId is { Length: > 0 and <= 128 } operationId)
+            {
+                if (request.Type == "update-activity:start") updateActivityState.StartWebCommand(operationId);
+                else updateActivityState.FinishWebCommand(operationId);
+            }
+            return null;
+        }
+
+        if (
+            string.IsNullOrWhiteSpace(request.Type) ||
+            string.IsNullOrWhiteSpace(request.RequestId))
+        {
+            return null;
+        }
+
+        if (request.Type == "update:restartAndInstall")
+        {
+            return await RestartAndInstallAsync(request, cancellationToken);
+        }
+
+        if (!request.Type.StartsWith("connection:", StringComparison.Ordinal)) return null;
 
         try
         {
@@ -53,6 +80,45 @@ public sealed class OrganizationAdminWebHostBridge(IOrganizationAdminConnectionS
                 ok: false,
                 payload: null,
                 new OrganizationAdminWebBridgeError("connection_failed", exception.Message));
+        }
+    }
+
+    private async Task<string> RestartAndInstallAsync(
+        OrganizationAdminWebBridgeRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (updateActivityState?.HasCriticalCommandInFlight == true)
+            {
+                return CreateResponse(request.RequestId!, false, null,
+                    new OrganizationAdminWebBridgeError("update_busy", "A critical operation is still running."));
+            }
+
+            if (shutdownAcknowledgementStore is null || requestShutdown is null)
+            {
+                return CreateResponse(request.RequestId!, false, null,
+                    new OrganizationAdminWebBridgeError("update_unavailable", "Local update coordination is unavailable."));
+            }
+
+            var payload = DeserializePayload<OrganizationAdminRestartAndInstallPayload>(request.Payload);
+            if (!Guid.TryParse(payload.UpdateRolloutId, out var rolloutId) || rolloutId == Guid.Empty ||
+                !Guid.TryParse(payload.UpdatePackageId, out var packageId) || packageId == Guid.Empty)
+            {
+                return CreateResponse(request.RequestId!, false, null,
+                    new OrganizationAdminWebBridgeError("update_invalid", "The selected update is invalid."));
+            }
+
+            await shutdownAcknowledgementStore.PersistAsync(
+                new OrganizationAdminShutdownAcknowledgement(rolloutId, packageId, DateTimeOffset.UtcNow),
+                cancellationToken);
+            requestShutdown();
+            return CreateResponse(request.RequestId!, true, new { accepted = true }, null);
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or JsonException or IOException or UnauthorizedAccessException)
+        {
+            return CreateResponse(request.RequestId!, false, null,
+                new OrganizationAdminWebBridgeError("update_failed", "The update restart request could not be saved."));
         }
     }
 
@@ -143,6 +209,7 @@ public sealed class OrganizationAdminWebHostBridge(IOrganizationAdminConnectionS
     private sealed record OrganizationAdminWebBridgeRequest(
         string? Type,
         string? RequestId,
+        string? OperationId,
         JsonElement Payload);
 
     private sealed record OrganizationAdminWebBridgeResponse(
@@ -166,6 +233,10 @@ public sealed class OrganizationAdminWebHostBridge(IOrganizationAdminConnectionS
         string? BranchName,
         string? BranchCity,
         DateTimeOffset? StoredAtUtc);
+
+    private sealed record OrganizationAdminRestartAndInstallPayload(
+        string? UpdateRolloutId,
+        string? UpdatePackageId);
 
     private sealed record OrganizationAdminWebStoredConnection(
         Guid OrganizationId,

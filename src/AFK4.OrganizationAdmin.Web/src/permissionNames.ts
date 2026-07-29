@@ -48,8 +48,6 @@ export const permissionNames = {
   manageTariffs: 'organization.tariffs.manage',
   viewTariffs: 'organization.tariffs.view',
   viewUpdateStatus: 'organization.updates.status.view',
-  manageUpdatePackages: 'organization.updates.packages.manage',
-  manageUpdateRollouts: 'organization.updates.rollouts.manage',
   viewDeviceCommandStatus: 'organization.devices.commands.status.view',
   viewAudit: 'organization.audit.view',
   viewOrganizationAudit: 'organization.audit.organization.view',

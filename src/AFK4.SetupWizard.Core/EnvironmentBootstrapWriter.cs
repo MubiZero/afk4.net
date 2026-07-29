@@ -9,20 +9,26 @@ public sealed class EnvironmentBootstrapWriter(
     private const string OperatorPlatformBaseUrlEnvironmentVariable = "AFK4_ORGANIZATION_ADMIN_PLATFORM_BASE_URL";
     private const string OperatorOrganizationIdEnvironmentVariable = "AFK4_ORGANIZATION_ADMIN_ORGANIZATION_ID";
     private const string OperatorBranchIdEnvironmentVariable = "AFK4_ORGANIZATION_ADMIN_BRANCH_ID";
+    private const string OperatorUpdatePipeNameEnvironmentVariable = "AFK4_ORGANIZATION_ADMIN_UPDATE_COORDINATION_PIPE_NAME";
+    private const string OperatorUpdateSecretEnvironmentVariable = "AFK4_ORGANIZATION_ADMIN_UPDATE_COORDINATION_SECRET";
 
     public void Write(SetupWizardBootstrapConfig config)
     {
         var platformBaseUrl = config.ApiBaseUrl.TrimEnd('/');
 
+        var agentValues = AgentBootstrapValues.Build(config, machineName);
+
         // Organization Admin reads these (it runs interactively, so it sees fresh machine env).
         Write(OperatorPlatformBaseUrlEnvironmentVariable, platformBaseUrl);
         Write(OperatorOrganizationIdEnvironmentVariable, config.OrganizationId.ToString("D"));
         Write(OperatorBranchIdEnvironmentVariable, config.BranchId.ToString("D"));
+        Write(OperatorUpdatePipeNameEnvironmentVariable, agentValues["OrganizationAdminUpdateCoordinationPipeName"]);
+        Write(OperatorUpdateSecretEnvironmentVariable, agentValues["OrganizationAdminUpdateCoordinationSecret"]);
 
         // Agent config is ALSO emitted as machine env as a fallback. The Agent reads the bootstrap
         // FILE first (see FileBootstrapWriter): a service launched by the SCM inherits a stale
         // environment block and would not see these freshly-written values until the next reboot.
-        foreach (var (key, value) in AgentBootstrapValues.Build(config, machineName))
+        foreach (var (key, value) in agentValues)
         {
             Write("Agent__" + key, value);
         }

@@ -4,10 +4,6 @@ public sealed class UpdatePackageEntity
 {
     public Guid UpdatePackageId { get; set; }
 
-    public Guid OrganizationId { get; set; }
-
-    public Guid BranchId { get; set; }
-
     public string Component { get; set; } = string.Empty;
 
     public string Version { get; set; } = string.Empty;
@@ -28,7 +24,13 @@ public sealed class UpdatePackageEntity
 
     public string ReleaseNotes { get; set; } = string.Empty;
 
-    public Guid CreatedByStaffUserId { get; set; }
+    public Guid CreatedByPlatformAdminUserId { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; }
+
+    public Guid? ValidatedByPlatformAdminUserId { get; set; }
+
+    public DateTimeOffset? ValidatedAtUtc { get; set; }
+
+    public DateTimeOffset? RetiredAtUtc { get; set; }
 }

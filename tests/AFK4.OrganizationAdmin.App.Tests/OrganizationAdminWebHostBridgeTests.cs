@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AFK4.OrganizationAdmin.App.Connection;
+using AFK4.OrganizationAdmin.App.Updates;
 using AFK4.OrganizationAdmin.Web;
 
 namespace AFK4.OrganizationAdmin.App.Tests;
@@ -177,6 +178,123 @@ public sealed class OrganizationAdminWebHostBridgeTests
         Assert.Null(responseJson);
     }
 
+    [Fact]
+    public async Task HandleAsync_TracksConcurrentUpdateActivityByOperationId()
+    {
+        var state = new OrganizationAdminActivityState();
+        var bridge = new OrganizationAdminWebHostBridge(new RecordingOrganizationAdminConnectionStore(), state);
+
+        await bridge.HandleAsync(JsonSerializer.Serialize(new { type = "update-activity:start", operationId = "one" }), CancellationToken.None);
+        await bridge.HandleAsync(JsonSerializer.Serialize(new { type = "update-activity:start", operationId = "one" }), CancellationToken.None);
+        await bridge.HandleAsync(JsonSerializer.Serialize(new { type = "update-activity:start", operationId = "two" }), CancellationToken.None);
+        await bridge.HandleAsync(JsonSerializer.Serialize(new { type = "update-activity:finish", operationId = "one" }), CancellationToken.None);
+
+        Assert.True(state.HasCriticalCommandInFlight);
+        await bridge.HandleAsync(JsonSerializer.Serialize(new { type = "update-activity:finish", operationId = "two" }), CancellationToken.None);
+        Assert.False(state.HasCriticalCommandInFlight);
+    }
+
+    [Theory]
+    [InlineData("{not-json")]
+    [InlineData("{\"type\":\"update-activity:start\"}")]
+    [InlineData("{\"type\":\"update-activity:start\",\"operationId\":\"\"}")]
+    [InlineData("{\"type\":\"update-activity:unknown\",\"operationId\":\"one\"}")]
+    public async Task HandleAsync_IgnoresMalformedUpdateActivity(string message)
+    {
+        var state = new OrganizationAdminActivityState();
+        var bridge = new OrganizationAdminWebHostBridge(new RecordingOrganizationAdminConnectionStore(), state);
+
+        var response = await bridge.HandleAsync(message, CancellationToken.None);
+
+        Assert.Null(response);
+        Assert.False(state.HasCriticalCommandInFlight);
+    }
+
+    [Fact]
+    public async Task HandleAsync_RestartAndInstall_PersistsBoundAcknowledgementAndRequestsShutdown()
+    {
+        var rolloutId = Guid.NewGuid();
+        var packageId = Guid.NewGuid();
+        var acknowledgements = new RecordingAcknowledgementStore();
+        var shutdownCount = 0;
+        var bridge = new OrganizationAdminWebHostBridge(
+            new RecordingOrganizationAdminConnectionStore(),
+            new OrganizationAdminActivityState(),
+            acknowledgements,
+            () => shutdownCount++);
+
+        var responseJson = await bridge.HandleAsync(JsonSerializer.Serialize(new
+        {
+            type = "update:restartAndInstall",
+            requestId = "update-1",
+            payload = new { updateRolloutId = rolloutId, updatePackageId = packageId }
+        }), CancellationToken.None);
+
+        Assert.NotNull(responseJson);
+        using var document = JsonDocument.Parse(responseJson);
+        Assert.True(document.RootElement.GetProperty("ok").GetBoolean());
+        Assert.True(document.RootElement.GetProperty("payload").GetProperty("accepted").GetBoolean());
+        Assert.Equal(rolloutId, acknowledgements.Last?.UpdateRolloutId);
+        Assert.Equal(packageId, acknowledgements.Last?.UpdatePackageId);
+        Assert.Equal(1, shutdownCount);
+    }
+
+    [Theory]
+    [InlineData("not-a-guid", "40381761-6043-482d-8eb8-3808f141b636")]
+    [InlineData("40381761-6043-482d-8eb8-3808f141b636", "00000000-0000-0000-0000-000000000000")]
+    public async Task HandleAsync_RestartAndInstall_RejectsInvalidBinding(string rolloutId, string packageId)
+    {
+        var acknowledgements = new RecordingAcknowledgementStore();
+        var shutdownCount = 0;
+        var bridge = new OrganizationAdminWebHostBridge(
+            new RecordingOrganizationAdminConnectionStore(),
+            new OrganizationAdminActivityState(),
+            acknowledgements,
+            () => shutdownCount++);
+
+        var responseJson = await bridge.HandleAsync(JsonSerializer.Serialize(new
+        {
+            type = "update:restartAndInstall",
+            requestId = "update-invalid",
+            payload = new { updateRolloutId = rolloutId, updatePackageId = packageId }
+        }), CancellationToken.None);
+
+        Assert.NotNull(responseJson);
+        using var document = JsonDocument.Parse(responseJson);
+        Assert.False(document.RootElement.GetProperty("ok").GetBoolean());
+        Assert.Equal("update_invalid", document.RootElement.GetProperty("error").GetProperty("code").GetString());
+        Assert.Null(acknowledgements.Last);
+        Assert.Equal(0, shutdownCount);
+    }
+
+    [Fact]
+    public async Task HandleAsync_RestartAndInstall_RejectsWhileCriticalCommandIsActive()
+    {
+        var state = new OrganizationAdminActivityState();
+        using var criticalCommand = state.BeginCriticalCommand();
+        var acknowledgements = new RecordingAcknowledgementStore();
+        var shutdownCount = 0;
+        var bridge = new OrganizationAdminWebHostBridge(
+            new RecordingOrganizationAdminConnectionStore(),
+            state,
+            acknowledgements,
+            () => shutdownCount++);
+
+        var responseJson = await bridge.HandleAsync(JsonSerializer.Serialize(new
+        {
+            type = "update:restartAndInstall",
+            requestId = "update-busy",
+            payload = new { updateRolloutId = Guid.NewGuid(), updatePackageId = Guid.NewGuid() }
+        }), CancellationToken.None);
+
+        Assert.NotNull(responseJson);
+        using var document = JsonDocument.Parse(responseJson);
+        Assert.False(document.RootElement.GetProperty("ok").GetBoolean());
+        Assert.Equal("update_busy", document.RootElement.GetProperty("error").GetProperty("code").GetString());
+        Assert.Null(acknowledgements.Last);
+        Assert.Equal(0, shutdownCount);
+    }
+
     private sealed class RecordingOrganizationAdminConnectionStore : IOrganizationAdminConnectionStore
     {
         public OrganizationAdminConnectionSnapshot? Snapshot { get; set; }
@@ -195,6 +313,17 @@ public sealed class OrganizationAdminWebHostBridgeTests
         public Task ClearAsync(CancellationToken cancellationToken)
         {
             Snapshot = null;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingAcknowledgementStore : IOrganizationAdminShutdownAcknowledgementStore
+    {
+        public OrganizationAdminShutdownAcknowledgement? Last { get; private set; }
+
+        public Task PersistAsync(OrganizationAdminShutdownAcknowledgement acknowledgement, CancellationToken cancellationToken)
+        {
+            Last = acknowledgement;
             return Task.CompletedTask;
         }
     }

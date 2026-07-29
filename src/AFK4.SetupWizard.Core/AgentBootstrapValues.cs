@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using AFK4.Shared.Contracts.Install;
 
 namespace AFK4.SetupWizard.Core;
@@ -15,6 +17,8 @@ public static class AgentBootstrapValues
         var programFiles = ProgramFilesPath();
         var powershell = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
         var helperDirectory = Path.Combine(programFiles, @"AFK4\Update Helpers");
+        var organizationAdminPipeName = $"afk4-organization-admin-updates-{config.DeviceId:N}";
+        var organizationAdminCoordinationSecret = DeriveOrganizationAdminCoordinationSecret(config);
 
         return new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -30,6 +34,9 @@ public static class AgentBootstrapValues
             ["UpdatePackageSigningPublicKeyPem"] = config.UpdatePackageSigningPublicKeyPem,
             ["PlayerShellExecutablePath"] = Path.Combine(programFiles, @"AFK4\Player Shell\AFK4.Player.Shell.exe"),
             ["PlayerShellAutoStartEnabled"] = bool.TrueString,
+            ["OrganizationAdminExecutablePath"] = Path.Combine(programFiles, @"AFK4\Organization Admin\AFK4.OrganizationAdmin.App.exe"),
+            ["OrganizationAdminUpdateCoordinationPipeName"] = organizationAdminPipeName,
+            ["OrganizationAdminUpdateCoordinationSecret"] = organizationAdminCoordinationSecret,
             ["UpdateInstallerExecutablePath"] = powershell,
             ["UpdateInstallerArgumentsTemplate"] =
                 $"-NoProfile -ExecutionPolicy Bypass -File \"{Path.Combine(helperDirectory, "install-afk4-update-msi.ps1")}\" -PackagePath \"{{PackagePath}}\" -Component \"{{Component}}\" -Version \"{{Version}}\"",
@@ -40,6 +47,14 @@ public static class AgentBootstrapValues
             ["UpdateRestartArgumentsTemplate"] =
                 $"-NoProfile -ExecutionPolicy Bypass -File \"{Path.Combine(helperDirectory, "restart-afk4-agent-service.ps1")}\"",
         };
+    }
+
+    private static string DeriveOrganizationAdminCoordinationSecret(SetupWizardBootstrapConfig config)
+    {
+        var key = Encoding.UTF8.GetBytes(config.CredentialSecret);
+        var context = Encoding.UTF8.GetBytes($"AFK4.OrganizationAdmin.UpdateCoordination/v1/{config.DeviceId:D}");
+        var secret = HMACSHA256.HashData(key, context);
+        return Convert.ToBase64String(secret).TrimEnd('=').Replace('+', '-').Replace('/', '_');
     }
 
     public static string ProgramFilesPath()

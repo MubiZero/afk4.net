@@ -1,24 +1,37 @@
 import { PlatformApiClient } from '../../platformApi';
 import type { Guid } from '../types';
 
-export type UpdatePackageDto = Record<string, unknown>;
-export type UpdateRolloutDto = Record<string, unknown>;
-export type UpdateRolloutStatusDto = Record<string, unknown>;
-
-export interface CreateUpdatePackageRequest extends Record<string, unknown> {
-  organizationId: Guid;
+export interface DeviceUpdateStatusSnapshotDto {
+  deviceId: Guid;
+  updateRolloutId: Guid;
+  updatePackageId: Guid;
+  component: string;
+  installedVersion: string;
+  targetVersion: string;
+  status: string;
+  message: string;
+  updatedAtUtc: string;
 }
 
-export interface UpdatePackageStateChangeRequest extends Record<string, unknown> {
+export interface UpdateRolloutStatusDto {
+  updateRolloutId: Guid;
   organizationId: Guid;
+  branchId: Guid;
+  updatePackageId: Guid;
+  component: string;
+  version: string;
+  channel: string;
+  state: string;
+  startsAtUtc: string;
+  deviceStatuses: DeviceUpdateStatusSnapshotDto[];
 }
 
-export interface CreateUpdateRolloutRequest extends Record<string, unknown> {
+export interface OrganizationAdminUpdatePreferenceDto {
   organizationId: Guid;
-}
-
-export interface UpdateRolloutStateChangeRequest extends Record<string, unknown> {
-  organizationId: Guid;
+  branchId: Guid;
+  maintenanceWindowStart: string;
+  maintenanceWindowEnd: string;
+  timeZone: string;
 }
 
 export function createUpdateClient(api: PlatformApiClient) {
@@ -26,17 +39,11 @@ export function createUpdateClient(api: PlatformApiClient) {
     getRolloutStatuses(branchId: Guid): Promise<UpdateRolloutStatusDto[]> {
       return api.get<UpdateRolloutStatusDto[]>(`branches/${branchId}/updates/rollouts`);
     },
-    registerPackage(branchId: Guid, request: CreateUpdatePackageRequest): Promise<UpdatePackageDto> {
-      return api.post<UpdatePackageDto, CreateUpdatePackageRequest>(`branches/${branchId}/updates/packages`, request);
+    getPreference(branchId: Guid): Promise<OrganizationAdminUpdatePreferenceDto> {
+      return api.get<OrganizationAdminUpdatePreferenceDto>(`branches/${branchId}/updates/preferences`);
     },
-    changePackageState(branchId: Guid, updatePackageId: Guid, request: UpdatePackageStateChangeRequest): Promise<UpdatePackageDto> {
-      return api.post<UpdatePackageDto, UpdatePackageStateChangeRequest>(`branches/${branchId}/updates/packages/${updatePackageId}/state`, request);
-    },
-    createRollout(branchId: Guid, request: CreateUpdateRolloutRequest): Promise<UpdateRolloutDto> {
-      return api.post<UpdateRolloutDto, CreateUpdateRolloutRequest>(`branches/${branchId}/updates/rollouts`, request);
-    },
-    changeRolloutState(branchId: Guid, updateRolloutId: Guid, request: UpdateRolloutStateChangeRequest): Promise<UpdateRolloutDto> {
-      return api.post<UpdateRolloutDto, UpdateRolloutStateChangeRequest>(`branches/${branchId}/updates/rollouts/${updateRolloutId}/state`, request);
+    updatePreference(branchId: Guid, request: Pick<OrganizationAdminUpdatePreferenceDto, 'organizationId' | 'maintenanceWindowStart' | 'maintenanceWindowEnd'>): Promise<OrganizationAdminUpdatePreferenceDto> {
+      return api.put<OrganizationAdminUpdatePreferenceDto, typeof request>(`branches/${branchId}/updates/preferences`, request);
     }
   };
 }

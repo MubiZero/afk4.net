@@ -19,7 +19,7 @@ public sealed class ExternalProcessAgentRestartScheduler(IOptions<AgentOptions> 
         var agentOptions = options.Value;
         if (string.IsNullOrWhiteSpace(agentOptions.UpdateRestartExecutablePath))
         {
-            return UpdateRestartResult.NotRequired("Agent restart executable is not configured.");
+            return UpdateRestartResult.Failed("Agent restart executable is not configured.");
         }
 
         if (!File.Exists(agentOptions.UpdateRestartExecutablePath))

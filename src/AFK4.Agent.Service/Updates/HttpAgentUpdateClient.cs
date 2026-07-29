@@ -27,7 +27,7 @@ public sealed class HttpAgentUpdateClient(
             request,
             cancellationToken);
 
-        return new UpdateCheckResult(response.ServerTimeUtc, response.Updates);
+        return new UpdateCheckResult(response.ServerTimeUtc, response.Updates, response.OrganizationAdminPreference);
     }
 
     public async Task<DeviceUpdateStatusResultDto> ReportStatusAsync(

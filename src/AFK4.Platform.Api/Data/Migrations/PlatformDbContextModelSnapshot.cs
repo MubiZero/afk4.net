@@ -175,6 +175,16 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)");
 
+                    b.Property<TimeOnly>("OrganizationAdminMaintenanceWindowEnd")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("time without time zone")
+                        .HasDefaultValue(new TimeOnly(5, 0, 0));
+
+                    b.Property<TimeOnly>("OrganizationAdminMaintenanceWindowStart")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("time without time zone")
+                        .HasDefaultValue(new TimeOnly(4, 0, 0));
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
 
@@ -3525,9 +3535,6 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(1024)
                         .HasColumnType("character varying(1024)");
 
-                    b.Property<Guid>("BranchId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("Channel")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -3541,16 +3548,16 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("CreatedByStaffUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("OrganizationId")
+                    b.Property<Guid>("CreatedByPlatformAdminUserId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("ReleaseNotes")
                         .IsRequired()
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTimeOffset?>("RetiredAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Sha256")
                         .IsRequired()
@@ -3574,6 +3581,12 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
+                    b.Property<DateTimeOffset?>("ValidatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ValidatedByPlatformAdminUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Version")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -3581,9 +3594,9 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.HasKey("UpdatePackageId");
 
-                    b.HasIndex("OrganizationId", "BranchId", "CreatedAtUtc");
+                    b.HasIndex("State", "CreatedAtUtc");
 
-                    b.HasIndex("OrganizationId", "BranchId", "Component", "Version", "Channel")
+                    b.HasIndex("Component", "Version", "Channel")
                         .IsUnique();
 
                     b.ToTable("update_packages", (string)null);
@@ -3597,9 +3610,6 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.Property<int>("BatchPercent")
                         .HasColumnType("integer");
-
-                    b.Property<Guid>("BranchId")
-                        .HasColumnType("uuid");
 
                     b.Property<string>("Channel")
                         .IsRequired()
@@ -3617,10 +3627,7 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("CreatedByStaffUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("OrganizationId")
+                    b.Property<Guid>("CreatedByPlatformAdminUserId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Reason")
@@ -3653,7 +3660,7 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.HasIndex("UpdatePackageId");
 
-                    b.HasIndex("OrganizationId", "BranchId", "Channel", "State", "StartsAtUtc");
+                    b.HasIndex("Channel", "State", "StartsAtUtc");
 
                     b.ToTable("update_rollouts", (string)null);
                 });
@@ -3664,7 +3671,7 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("BranchId")
+                    b.Property<Guid?>("BranchId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
@@ -3673,7 +3680,7 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<Guid?>("DeviceId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("OrganizationId")
+                    b.Property<Guid?>("OrganizationId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("TargetKind")
@@ -3686,8 +3693,17 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.HasKey("UpdateRolloutTargetId");
 
+                    b.HasIndex("UpdateRolloutId", "BranchId")
+                        .IsUnique()
+                        .HasFilter("\"BranchId\" IS NOT NULL");
+
                     b.HasIndex("UpdateRolloutId", "DeviceId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"DeviceId\" IS NOT NULL");
+
+                    b.HasIndex("UpdateRolloutId", "OrganizationId")
+                        .IsUnique()
+                        .HasFilter("\"OrganizationId\" IS NOT NULL");
 
                     b.HasIndex("OrganizationId", "BranchId", "DeviceId");
 

@@ -36,14 +36,14 @@ const rolePermissions: Record<string, string[]> = {
     'organization.shifts.close', 'organization.shifts.view', 'organization.shifts.cash.manage', 'organization.reports.view', 'organization.reservations.view',
     'organization.reservations.manage', 'organization.pos.catalog.manage', 'organization.shop.orders.manage', 'organization.pos.sales.create',
     'organization.pos.sales.pay', 'organization.pos.sales.refund', 'organization.pos.sales.void', 'organization.inventory.stock.manage', 'organization.inventory.view',
-    'organization.receipts.view', 'organization.updates.packages.manage', 'organization.updates.rollouts.manage', 'organization.updates.status.view',
+    'organization.receipts.view', 'organization.updates.status.view',
     'organization.diagnostics.view', 'organization.identity.branch_staff.manage', 'organization.audit.view', 'organization.branches.settings.manage'
   ],
   technician: [
     'organization.devices.enrollment_codes.create', 'organization.devices.commands.dispatch', 'organization.devices.commands.status.view',
     'organization.devices.credentials.rotate', 'organization.devices.credentials.revoke', 'organization.devices.seat_assignment.assign',
     'organization.devices.detail.view', 'organization.devices.install', 'organization.floor_map.view', 'organization.inventory.view',
-    'organization.updates.packages.manage', 'organization.updates.rollouts.manage', 'organization.updates.status.view', 'organization.diagnostics.view'
+    'organization.updates.status.view', 'organization.diagnostics.view'
   ],
   accountant: [
     'organization.sessions.view', 'organization.players.view', 'organization.billing.view', 'organization.tariffs.view', 'organization.packages.view', 'organization.shifts.view',

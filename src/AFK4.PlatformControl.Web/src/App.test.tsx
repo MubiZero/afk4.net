@@ -66,6 +66,7 @@ describe('Platform Control admin-only routing', () => {
     expect(resolvePlatformRoute('/')).toMatchObject({ redirectTo: '/admin', route: { kind: 'adminOverview' } });
     expect(resolvePlatformRoute('/organizations')).toMatchObject({ redirectTo: '/admin/organizations', route: { kind: 'organizationList' } });
     expect(resolvePlatformRoute('/organizations/new')).toMatchObject({ redirectTo: '/admin/organizations/new', route: { kind: 'newOrganization' } });
+    expect(resolvePlatformRoute('/admin/updates')).toMatchObject({ route: { kind: 'adminUpdates' } });
     expect(resolvePlatformRoute('/organizations/org-1')).toMatchObject({
       redirectTo: '/admin/organizations/org-1',
       route: { kind: 'organizationDetail', organizationId: 'org-1' }

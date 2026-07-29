@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-07-28
+Last updated: 2026-07-29
 
 ## Purpose
 
@@ -117,6 +117,35 @@ to Coolify staging:
 Plus the earlier base: identity/tenancy/RBAC/audit, devices/floor-map, owner-code
 enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 + rollout, and the Agent/Setup-Wizard/Player-Shell/packaging stack.
+
+- **Organization Admin Reports redesign** — `Отчёты` now contains only
+  `Сводка`, `Смены и касса`, and `Выручка`; audit evidence stays in `События`.
+  Dedicated branch-scoped API projections resolve local dates through the
+  branch timezone, return backend-owned full-range totals, cap the attention
+  preview while preserving its total, expose a seven-day trend and active-shift
+  context, compare revenue with the previous equivalent period, break revenue
+  down by source/payment method/staff, and produce one CSV per visible report.
+  Failed critical money actions and closed-shift discrepancies feed Summary.
+
+- **Organization Admin safe update controls** — organization owners can inspect
+  installed/offered Admin App versions, safe progress or failure detail, and the
+  branch maintenance window without receiving Platform Control publication or
+  rollout powers. A permission-gated window editor persists through the branch
+  API; `Перезапустить и обновить` binds the exact rollout/package to a native
+  acknowledgement, refuses to close during critical work, and then lets Agent
+  install after graceful shutdown. Organization Admin Web passed 1039 tests and
+  its production build; i18n passed 39/39, Windows App passed 254/254 on the
+  Windows runtime, and the full solution build passed with 0 warnings/errors.
+- **Manager-workstation update provisioning** — Setup now writes the installed
+  Admin App path plus one device-bound pipe name and HMAC-derived coordination
+  secret to Agent bootstrap and matching native-app environment variables; the
+  source device credential is not reused as the pipe secret or logged. Fresh
+  Windows gates passed Agent 201/201 and Setup Wizard 33/33. A real unsigned
+  internal package build produced the master client installer and verified the
+  bundled Organization Admin MSI contents from a drive-letter checkout. This
+  host has no installed/enrolled AFK4 Agent or Admin App, so the closed,
+  idle-open, and critical-command-open physical rollout scenarios remain
+  unclaimed and are specified in the real-device smoke runbook.
 
 - **Operator `/club` functional parity closure** — Clients, Monetization,
   Settings, and Venue gaps are closed in native Operator surfaces: complete staff
@@ -251,6 +280,11 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Known Gaps
 
+- **Rendered Reports QA** — the redesigned Organization Admin Reports views
+  have automated component/App coverage and a green production build, but still
+  need a native WebView2 visual pass at 100%/125% scaling in dark and light
+  themes together with the broader clean `manager_workstation` smoke below.
+
 - **Per-environment SMTP config** still needs the user's real connection
   details wired into `NotificationOptions`.
 - **Operator entity search** is still deferred: the command palette navigates
@@ -259,7 +293,9 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 - **Remaining Windows evidence** is narrower: repeat the Operator pass on a clean
   `manager_workstation` install at 100%/125% scaling and run the physical Windows
   10/11 gaming-PC smoke for lock/unlock enforcement, reboot recovery, and
-  role-aware update/rollback. The WindowsDesktop and unsigned package-build gates
+  role-aware update/rollback. The manager workstation must also prove the Admin
+  App update lifecycle with the app closed, idle-open, and holding a critical
+  command. The WindowsDesktop, provisioning, and unsigned package-build gates
   are already green; this remaining item is physical-device UX/runtime evidence.
 - **Rotate the former staging smoke credential** before the next staging smoke;
   it was removed from the tracked runbook and must be supplied only through the

@@ -25,9 +25,14 @@ public sealed class EnvironmentBootstrapWriterTests : IDisposable
         "Agent__UpdateRestartExecutablePath",
         "Agent__UpdateRestartArgumentsTemplate",
         "Agent__UpdatePackageSigningPublicKeyPem",
+        "Agent__OrganizationAdminExecutablePath",
+        "Agent__OrganizationAdminUpdateCoordinationPipeName",
+        "Agent__OrganizationAdminUpdateCoordinationSecret",
         "AFK4_ORGANIZATION_ADMIN_PLATFORM_BASE_URL",
         "AFK4_ORGANIZATION_ADMIN_ORGANIZATION_ID",
-        "AFK4_ORGANIZATION_ADMIN_BRANCH_ID"
+        "AFK4_ORGANIZATION_ADMIN_BRANCH_ID",
+        "AFK4_ORGANIZATION_ADMIN_UPDATE_COORDINATION_PIPE_NAME",
+        "AFK4_ORGANIZATION_ADMIN_UPDATE_COORDINATION_SECRET"
     ];
 
     [WindowsOnlyFact]
@@ -92,6 +97,14 @@ public sealed class EnvironmentBootstrapWriterTests : IDisposable
             Environment.GetEnvironmentVariable("Agent__PlayerShellExecutablePath"));
         Assert.Equal(bool.TrueString, Environment.GetEnvironmentVariable("Agent__PlayerShellAutoStartEnabled"));
         Assert.Equal("update-public-key", Environment.GetEnvironmentVariable("Agent__UpdatePackageSigningPublicKeyPem"));
+        Assert.EndsWith(@"AFK4\Organization Admin\AFK4.OrganizationAdmin.App.exe", Environment.GetEnvironmentVariable("Agent__OrganizationAdminExecutablePath"));
+        Assert.Equal(
+            Environment.GetEnvironmentVariable("Agent__OrganizationAdminUpdateCoordinationPipeName"),
+            Environment.GetEnvironmentVariable("AFK4_ORGANIZATION_ADMIN_UPDATE_COORDINATION_PIPE_NAME"));
+        Assert.Equal(
+            Environment.GetEnvironmentVariable("Agent__OrganizationAdminUpdateCoordinationSecret"),
+            Environment.GetEnvironmentVariable("AFK4_ORGANIZATION_ADMIN_UPDATE_COORDINATION_SECRET"));
+        Assert.NotEqual("credential-secret", Environment.GetEnvironmentVariable("AFK4_ORGANIZATION_ADMIN_UPDATE_COORDINATION_SECRET"));
     }
 
     public void Dispose()

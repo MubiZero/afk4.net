@@ -251,6 +251,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(branch => branch.RequireManualDeviceApproval).HasDefaultValue(false);
             entity.Property(branch => branch.PreferredLocale).HasMaxLength(8).HasDefaultValue("ru").IsRequired();
             entity.Property(branch => branch.PreferredTimeZone).HasMaxLength(64).HasDefaultValue("Asia/Dushanbe").IsRequired();
+            entity.Property(branch => branch.OrganizationAdminMaintenanceWindowStart)
+                .HasColumnType("time without time zone").HasDefaultValue(new TimeOnly(4, 0));
+            entity.Property(branch => branch.OrganizationAdminMaintenanceWindowEnd)
+                .HasColumnType("time without time zone").HasDefaultValue(new TimeOnly(5, 0));
             entity.HasIndex(branch => new { branch.OrganizationId, branch.BranchId }).IsUnique();
             entity.HasIndex(branch => new { branch.OrganizationId, branch.Slug }).IsUnique();
         });
@@ -792,13 +796,11 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(package => package.ReleaseNotes).HasMaxLength(2000).IsRequired();
             entity.HasIndex(package => new
             {
-                package.OrganizationId,
-                package.BranchId,
                 package.Component,
                 package.Version,
                 package.Channel
             }).IsUnique();
-            entity.HasIndex(package => new { package.OrganizationId, package.BranchId, package.CreatedAtUtc });
+            entity.HasIndex(package => new { package.State, package.CreatedAtUtc });
         });
 
         modelBuilder.Entity<UpdateRolloutEntity>(entity =>
@@ -813,8 +815,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(rollout => rollout.Reason).HasMaxLength(512).IsRequired();
             entity.HasIndex(rollout => new
             {
-                rollout.OrganizationId,
-                rollout.BranchId,
                 rollout.Channel,
                 rollout.State,
                 rollout.StartsAtUtc
@@ -827,7 +827,15 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.ToTable("update_rollout_targets");
             entity.HasKey(target => target.UpdateRolloutTargetId);
             entity.Property(target => target.TargetKind).HasMaxLength(32).IsRequired();
-            entity.HasIndex(target => new { target.UpdateRolloutId, target.DeviceId }).IsUnique();
+            entity.HasIndex(target => new { target.UpdateRolloutId, target.OrganizationId })
+                .IsUnique()
+                .HasFilter("\"OrganizationId\" IS NOT NULL");
+            entity.HasIndex(target => new { target.UpdateRolloutId, target.BranchId })
+                .IsUnique()
+                .HasFilter("\"BranchId\" IS NOT NULL");
+            entity.HasIndex(target => new { target.UpdateRolloutId, target.DeviceId })
+                .IsUnique()
+                .HasFilter("\"DeviceId\" IS NOT NULL");
             entity.HasIndex(target => new { target.OrganizationId, target.BranchId, target.DeviceId });
         });
 

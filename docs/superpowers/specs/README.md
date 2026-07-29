@@ -9,6 +9,10 @@ The active architecture source of truth is:
 
 Approved backlog specs:
 
+- `2026-07-29-platform-managed-client-updates-design.md` — moves signed package
+  publication and rollout authority to Platform Control/release automation,
+  adds deterministic batching and maintenance-aware Organization Admin updates,
+  and replaces fake rollback with verified last-known-good recovery.
 - `2026-07-28-operator-unified-admin-parity-closure-design.md` — closes the
   required Clients, Monetization, Settings, and Venue gaps; its certified
   Platform Control `/club` removal is complete on the current topic branch.

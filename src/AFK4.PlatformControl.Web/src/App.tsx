@@ -15,10 +15,12 @@ import { useOrganizationMetrics } from './platform/overview/useOrganizationMetri
 import { ProfileScreen as PlatformProfileScreen } from './platform/profile/ProfileScreen';
 import { NewOrganizationScreen } from './platform/organizations/NewOrganizationScreen';
 import { OrganizationsScreen } from './platform/organizations/OrganizationsScreen';
+import { UpdatesScreen } from './platform/updates/UpdatesScreen';
 
 export type AdminRoute =
   | { kind: 'adminOverview' }
   | { kind: 'adminBilling' }
+  | { kind: 'adminUpdates' }
   | { kind: 'adminProfile' }
   | { kind: 'organizationList' }
   | { kind: 'newOrganization' }
@@ -152,6 +154,7 @@ interface PlatformAreaProps {
 const PLATFORM_SCREEN_TITLE_KEY: Record<AdminRoute['kind'], MessageKey> = {
   adminOverview: 'nav.platform.overview',
   adminBilling: 'nav.platform.billing',
+  adminUpdates: 'nav.platform.updates',
   adminProfile: 'nav.platform.profile',
   organizationList: 'nav.platform.organizations',
   newOrganization: 'platform.organizations.new',
@@ -162,6 +165,7 @@ function pathForAdminRoute(route: AdminRoute): string {
   switch (route.kind) {
     case 'adminOverview': return '/admin';
     case 'adminBilling': return '/admin/billing';
+    case 'adminUpdates': return '/admin/updates';
     case 'adminProfile': return '/admin/profile';
     case 'organizationList':
     case 'newOrganization':
@@ -214,6 +218,8 @@ function PlatformArea({
         <PlatformOverviewScreen state={metricsState} billing={billingMetricsState} />
       ) : route.kind === 'adminBilling' ? (
         <PlatformBillingScreen client={adminClient} />
+      ) : route.kind === 'adminUpdates' ? (
+        <UpdatesScreen client={adminClient.updates} />
       ) : route.kind === 'adminProfile' ? (
         <PlatformProfileScreen session={session} onSignOut={onSignOut} />
       ) : route.kind === 'newOrganization' ? (
@@ -254,6 +260,7 @@ export function resolvePlatformRoute(
 
   if (path === '/admin') return { route: { kind: 'adminOverview' } };
   if (path === '/admin/billing') return { route: { kind: 'adminBilling' } };
+  if (path === '/admin/updates') return { route: { kind: 'adminUpdates' } };
   if (path === '/admin/profile') return { route: { kind: 'adminProfile' } };
   if (path === '/admin/organizations') return { route: { kind: 'organizationList' } };
   if (path === '/admin/organizations/new') return { route: { kind: 'newOrganization' } };
@@ -311,6 +318,7 @@ function readInitialInvite(historyState: unknown): OrganizationOwnerInvite | nul
 function isAdminRoute(route: AppRoute): route is AdminRoute {
   return route.kind === 'adminOverview'
     || route.kind === 'adminBilling'
+    || route.kind === 'adminUpdates'
     || route.kind === 'adminProfile'
     || route.kind === 'organizationList'
     || route.kind === 'newOrganization'

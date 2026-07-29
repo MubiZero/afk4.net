@@ -170,11 +170,10 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                 $"Sales report range contains multiple currencies: {string.Join(", ", reportCurrencies)}.");
         }
 
-        var sales = await salesQuery
+        var allSales = await salesQuery
             .OrderByDescending(sale => sale.CreatedAtUtc)
-            .Take(limit)
             .ToListAsync(cancellationToken);
-        var saleIds = sales.Select(sale => sale.PosSaleId).ToHashSet();
+        var saleIds = allSales.Select(sale => sale.PosSaleId).ToHashSet();
         var lines = await dbContext.PosSaleLines
             .AsNoTracking()
             .Where(line => saleIds.Contains(line.PosSaleId))
@@ -188,7 +187,7 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                 saleIds.Contains(payment.PosSaleId.Value))
             .ToListAsync(cancellationToken);
 
-        foreach (var sale in sales)
+        foreach (var sale in allSales)
         {
             if (lines.Any(line =>
                     line.PosSaleId == sale.PosSaleId &&
@@ -207,7 +206,7 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             }
         }
 
-        var rows = sales.Select(sale =>
+        var allRows = allSales.Select(sale =>
         {
             var currencyCode = sale.CurrencyCode;
             var salePayments = payments
@@ -251,12 +250,13 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                 Money(currencyCode, netCostMinorUnits));
         }).ToList();
 
-        var resultCurrencyCode = rows.FirstOrDefault()?.Total.CurrencyCode ?? DefaultCurrencyCode;
-        var grossSalesTotal = CheckedSum(rows.Select(row => row.PaidAmount.MinorUnits));
-        var refundsTotal = CheckedSum(rows.Select(row => row.RefundAmount.MinorUnits));
-        var grossCostOfGoodsTotal = CheckedSum(rows.Select(row => row.GrossCostOfGoods.MinorUnits));
-        var refundedCostOfGoodsTotal = CheckedSum(rows.Select(row => row.RefundedCostOfGoods.MinorUnits));
-        var netCostOfGoodsTotal = CheckedSum(rows.Select(row => row.NetCostOfGoods.MinorUnits));
+        var resultCurrencyCode = allRows.FirstOrDefault()?.Total.CurrencyCode ?? DefaultCurrencyCode;
+        var grossSalesTotal = CheckedSum(allRows.Select(row => row.PaidAmount.MinorUnits));
+        var refundsTotal = CheckedSum(allRows.Select(row => row.RefundAmount.MinorUnits));
+        var grossCostOfGoodsTotal = CheckedSum(allRows.Select(row => row.GrossCostOfGoods.MinorUnits));
+        var refundedCostOfGoodsTotal = CheckedSum(allRows.Select(row => row.RefundedCostOfGoods.MinorUnits));
+        var netCostOfGoodsTotal = CheckedSum(allRows.Select(row => row.NetCostOfGoods.MinorUnits));
+        var rows = allRows.Take(limit).ToList();
 
         return new SalesReportResultDto(
             rows,
@@ -295,11 +295,10 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             sessionsQuery = sessionsQuery.Where(session => session.StartedAtUtc <= toUtc);
         }
 
-        var sessions = await sessionsQuery
+        var allSessions = await sessionsQuery
             .OrderByDescending(session => session.StartedAtUtc)
-            .Take(limit)
             .ToListAsync(cancellationToken);
-        var sessionIds = sessions.Select(session => session.SessionId).ToHashSet();
+        var sessionIds = allSessions.Select(session => session.SessionId).ToHashSet();
         var ledgerEntries = await dbContext.LedgerEntries
             .AsNoTracking()
             .Where(entry =>
@@ -313,7 +312,7 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                  entry.EntryType == LedgerEntryTypeNames.BonusConsumption))
             .ToListAsync(cancellationToken);
 
-        var rows = sessions.Select(session =>
+        var allRows = allSessions.Select(session =>
         {
             var entries = ledgerEntries
                 .Where(entry => entry.SessionId == session.SessionId)
@@ -351,15 +350,16 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                 session.EndsAtUtc);
         }).ToList();
 
-        var resultCurrencyCode = rows.FirstOrDefault()?.GameplayRevenue.CurrencyCode ?? DefaultCurrencyCode;
+        var resultCurrencyCode = allRows.FirstOrDefault()?.GameplayRevenue.CurrencyCode ?? DefaultCurrencyCode;
+        var rows = allRows.Take(limit).ToList();
 
         return new GameplayTimeReportResultDto(
             rows,
             limit,
-            rows.Sum(row => row.DurationSeconds),
-            rows.Sum(row => row.PackageSeconds),
-            rows.Sum(row => row.BonusSeconds),
-            Money(resultCurrencyCode, rows.Sum(row => row.GameplayRevenue.MinorUnits)));
+            allRows.Sum(row => row.DurationSeconds),
+            allRows.Sum(row => row.PackageSeconds),
+            allRows.Sum(row => row.BonusSeconds),
+            Money(resultCurrencyCode, allRows.Sum(row => row.GameplayRevenue.MinorUnits)));
     }
 
     public async Task<CashOperationReportResultDto> GetCashOperationReportAsync(
@@ -408,7 +408,7 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
         var cashMovements = await cashMovementsQuery.ToListAsync(cancellationToken);
         var payments = await paymentsQuery.ToListAsync(cancellationToken);
         var ledgerEntries = await ledgerEntriesQuery.ToListAsync(cancellationToken);
-        var rows = cashMovements
+        var allRows = cashMovements
             .Select(movement => new CashOperationReportRowDto(
                 movement.CashMovementId,
                 movement.OrganizationId,
@@ -448,18 +448,17 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                 entry.CreatedAtUtc)))
             .OrderByDescending(row => row.CreatedAtUtc)
             .ThenByDescending(row => row.OperationId)
-            .Take(limit)
             .ToList();
-        var resultCurrencyCode = rows.FirstOrDefault()?.CashImpact.CurrencyCode ?? DefaultCurrencyCode;
-        var cashInTotal = rows
+        var resultCurrencyCode = allRows.FirstOrDefault()?.CashImpact.CurrencyCode ?? DefaultCurrencyCode;
+        var cashInTotal = allRows
             .Where(row => row.CashImpact.MinorUnits > 0)
             .Sum(row => row.CashImpact.MinorUnits);
-        var cashOutTotal = rows
+        var cashOutTotal = allRows
             .Where(row => row.CashImpact.MinorUnits < 0)
             .Sum(row => row.CashImpact.MinorUnits);
 
         return new CashOperationReportResultDto(
-            rows,
+            allRows.Take(limit).ToList(),
             limit,
             Money(resultCurrencyCode, cashInTotal),
             Money(resultCurrencyCode, cashOutTotal),

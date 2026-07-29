@@ -1,5 +1,7 @@
-﻿using System.Windows;
+﻿using System.IO;
+using System.Windows;
 using System.Windows.Threading;
+using AFK4.OrganizationAdmin.App.Updates;
 
 namespace AFK4.OrganizationAdmin.App;
 
@@ -8,6 +10,15 @@ namespace AFK4.OrganizationAdmin.App;
 /// </summary>
 public partial class App : Application
 {
+    private NamedPipeUpdateCoordinationServer? updateCoordinationServer;
+    internal OrganizationAdminActivityState UpdateActivityState { get; } = new();
+    internal IOrganizationAdminShutdownAcknowledgementStore UpdateAcknowledgementStore { get; } =
+        new FileOrganizationAdminShutdownAcknowledgementStore(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "AFK4",
+            "OrganizationAdmin",
+            "update-shutdown-acknowledgement.json"));
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -16,6 +27,26 @@ public partial class App : Application
         // would otherwise tear down the WebView host with no record of why. Log it and keep the
         // dispatcher alive so a single bad message can't crash the app on every launch.
         DispatcherUnhandledException += OnDispatcherUnhandledException;
+
+        var secret = Environment.GetEnvironmentVariable("AFK4_ORGANIZATION_ADMIN_UPDATE_COORDINATION_SECRET");
+        if (!string.IsNullOrWhiteSpace(secret))
+        {
+            var pipeName = Environment.GetEnvironmentVariable("AFK4_ORGANIZATION_ADMIN_UPDATE_COORDINATION_PIPE_NAME")
+                ?? "afk4-organization-admin-updates";
+            updateCoordinationServer = new NamedPipeUpdateCoordinationServer(
+                pipeName,
+                secret,
+                UpdateActivityState,
+                UpdateAcknowledgementStore,
+                () => Dispatcher.BeginInvoke(Shutdown));
+            updateCoordinationServer.Start();
+        }
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        updateCoordinationServer?.Dispose();
+        base.OnExit(e);
     }
 
     private static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
@@ -24,4 +55,3 @@ public partial class App : Application
         e.Handled = true;
     }
 }
-

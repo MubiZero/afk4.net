@@ -179,8 +179,6 @@ public sealed class EfBranchDiagnosticsServiceTests
             new UpdateRolloutEntity
             {
                 UpdateRolloutId = activeRolloutId,
-                OrganizationId = TestIds.OrganizationId,
-                BranchId = TestIds.BranchId,
                 UpdatePackageId = packageId,
                 Component = "gaming-pc",
                 Version = "0.1.0",
@@ -189,15 +187,13 @@ public sealed class EfBranchDiagnosticsServiceTests
                 TargetKind = UpdateTargetKindNames.Branch,
                 BatchPercent = 100,
                 Reason = "test",
-                CreatedByStaffUserId = TestIds.TechnicianStaffUserId,
+                CreatedByPlatformAdminUserId = TestIds.TechnicianStaffUserId,
                 CreatedAtUtc = Now.AddMinutes(-20),
                 StartsAtUtc = Now.AddMinutes(-20)
             },
             new UpdateRolloutEntity
             {
                 UpdateRolloutId = pausedRolloutId,
-                OrganizationId = TestIds.OrganizationId,
-                BranchId = TestIds.BranchId,
                 UpdatePackageId = packageId,
                 Component = "organization-admin",
                 Version = "0.1.0",
@@ -206,9 +202,29 @@ public sealed class EfBranchDiagnosticsServiceTests
                 TargetKind = UpdateTargetKindNames.Branch,
                 BatchPercent = 100,
                 Reason = "test",
-                CreatedByStaffUserId = TestIds.TechnicianStaffUserId,
+                CreatedByPlatformAdminUserId = TestIds.TechnicianStaffUserId,
                 CreatedAtUtc = Now.AddMinutes(-20),
                 StartsAtUtc = Now.AddMinutes(-20)
+            });
+
+        db.UpdateRolloutTargets.AddRange(
+            new UpdateRolloutTargetEntity
+            {
+                UpdateRolloutTargetId = Guid.NewGuid(),
+                UpdateRolloutId = activeRolloutId,
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                TargetKind = UpdateTargetKindNames.Branch,
+                CreatedAtUtc = Now.AddMinutes(-20)
+            },
+            new UpdateRolloutTargetEntity
+            {
+                UpdateRolloutTargetId = Guid.NewGuid(),
+                UpdateRolloutId = pausedRolloutId,
+                OrganizationId = TestIds.OrganizationId,
+                BranchId = TestIds.BranchId,
+                TargetKind = UpdateTargetKindNames.Branch,
+                CreatedAtUtc = Now.AddMinutes(-20)
             });
 
         db.DeviceUpdateStatuses.AddRange(

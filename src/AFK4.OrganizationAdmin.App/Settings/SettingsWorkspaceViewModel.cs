@@ -259,11 +259,7 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             AddPanel("roles", "Роли", "Доступ персонала");
         }
 
-        if (HasAny(
-            permissions,
-            OrganizationPermissionNames.ViewUpdateStatus,
-            OrganizationPermissionNames.ManageUpdatePackages,
-            OrganizationPermissionNames.ManageUpdateRollouts))
+        if (permissions.Contains(OrganizationPermissionNames.ViewUpdateStatus))
         {
             AddPanel("updates", "Обновления", "Пакеты и раскатки");
         }

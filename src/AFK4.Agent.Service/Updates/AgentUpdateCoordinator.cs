@@ -9,7 +9,8 @@ public sealed class AgentUpdateCoordinator(
     IUpdateArtifactDownloader artifactDownloader,
     IUpdatePackageVerifier packageVerifier,
     IUpdateInstaller installer,
-    TimeProvider timeProvider) : IAgentUpdateCoordinator
+    TimeProvider timeProvider,
+    IOrganizationAdminUpdateReadiness? organizationAdminReadiness = null) : IAgentUpdateCoordinator
 {
     private readonly Lock attemptedRolloutsLock = new();
 
@@ -50,6 +51,23 @@ public sealed class AgentUpdateCoordinator(
                 UpdateStatusNames.Offered,
                 "Update offered by platform.",
                 cancellationToken);
+
+            if (instruction.Component == UpdateComponentNames.OrganizationAdmin && organizationAdminReadiness is not null)
+            {
+                var readiness = await organizationAdminReadiness.EvaluateAsync(
+                    instruction, check.OrganizationAdminPreference, check.ServerTimeUtc, cancellationToken);
+                if (!readiness.CanInstall)
+                {
+                    await ReportStatusAsync(instruction, installedVersion, UpdateStatusNames.Deferred, readiness.Message, cancellationToken);
+                    ClearAttempted(instruction.UpdateRolloutId);
+                    continue;
+                }
+                if (readiness.Status == OrganizationAdminUpdateReadinessNames.ReadyAfterShutdown)
+                {
+                    await ReportStatusAsync(
+                        instruction, installedVersion, UpdateStatusNames.ReadyToInstall, readiness.Message, cancellationToken);
+                }
+            }
 
             try
             {

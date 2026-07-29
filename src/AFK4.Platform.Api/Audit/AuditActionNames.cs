@@ -99,6 +99,8 @@ public static class AuditActionNames
 
     public const string ViewOperatorActionReport = "reports.operator_actions.view";
 
+    public const string ViewOrganizationAdminReports = "reports.organization_admin.view";
+
     public const string ViewOwnerDailySummaryReport = "reports.owner_daily_summary.view";
 
     public const string CreateReportSchedule = "reports.schedules.create";
@@ -152,6 +154,16 @@ public static class AuditActionNames
     public const string ChangeUpdateRolloutState = "updates.rollouts.state.change";
 
     public const string ViewUpdateRollout = "updates.rollouts.view";
+
+    public const string PlatformRegisterUpdatePackage = "platform.updates.packages.register";
+
+    public const string PlatformChangeUpdatePackageState = "platform.updates.packages.state.change";
+
+    public const string PlatformCreateUpdateRollout = "platform.updates.rollouts.create";
+
+    public const string PlatformChangeUpdateRolloutState = "platform.updates.rollouts.state.change";
+
+    public const string PlatformViewUpdates = "platform.updates.view";
 
     public const string ViewDiagnostics = "diagnostics.view";
 
