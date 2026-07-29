@@ -14,6 +14,7 @@ import { BillingScreen } from './platform/billing/BillingScreen';
 import { useBillingMetrics } from './platform/billing/useBillingMetrics';
 import { buildPlatformNav } from './platform/nav';
 import { NewOrganizationScreen } from './platform/organizations/NewOrganizationScreen';
+import { OrganizationPage } from './platform/organizations/OrganizationPage';
 import { OrganizationsScreen } from './platform/organizations/OrganizationsScreen';
 import { OverviewScreen } from './platform/overview/OverviewScreen';
 import { useOrganizationMetrics } from './platform/overview/useOrganizationMetrics';
@@ -93,7 +94,14 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
   const organizationMetrics = useOrganizationMetrics(client.organizations);
   const billingMetrics = useBillingMetrics(client.invoices);
   const openOrganization = (organizationId: string, initialInvite: OrganizationOwnerInvite | null = null) =>
-    navigate({ kind: 'organization', organizationId, tab: 'summary' }, { initialInvite });
+    navigate({ kind: 'organization', organizationId, tab: initialInvite === null ? 'summary' : 'access' }, { initialInvite });
+  const organizationAccess = {
+    canManageOrganization: can(session, 'organizations.manage'),
+    canManageAccess: session.permissions.includes('platform.organizations.owner_invites.manage'),
+    canViewSupport: session.permissions.some(permission => permission === 'platform.organizations.support_notes.view' || permission === 'platform.organizations.support_notes.manage'),
+    canViewBilling: can(session, 'billing.read'),
+    canViewAudit: can(session, 'audit.read')
+  };
 
   return (
     <AppShell
@@ -112,7 +120,8 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
         : route.kind === 'updates' ? <UpdatesScreen client={client.updates} />
         : route.kind === 'profile' ? <ProfileScreen session={session} onSignOut={onSignOut} />
         : route.kind === 'organizationNew' ? <NewOrganizationScreen client={client.organizations} onCreated={(response: CreateOrganizationResponse) => openOrganization(response.organization.organizationId, response.organizationOwnerInvite)} onCancel={() => navigate({ kind: 'organizations', query: '', status: 'all', plan: 'all', sort: 'attention' })} />
-        : route.kind === 'organizations' || route.kind === 'organization' ? <OrganizationsScreen client={client} selectedOrganizationId={route.kind === 'organization' ? route.organizationId : null} initialInvite={readInitialInvite()} query={route.kind === 'organizations' ? route.query : ''} statusFilter={route.kind === 'organizations' ? route.status : 'all'} planFilter={route.kind === 'organizations' ? route.plan : 'all'} sort={route.kind === 'organizations' ? route.sort : 'attention'} onQueryChange={change => navigate({ kind: 'organizations', query: change.query ?? (route.kind === 'organizations' ? route.query : ''), status: change.statusFilter ?? (route.kind === 'organizations' ? route.status : 'all'), plan: change.planFilter ?? (route.kind === 'organizations' ? route.plan : 'all'), sort: change.sort ?? (route.kind === 'organizations' ? route.sort : 'attention') })} onOpenOrganization={id => openOrganization(id)} onCloseOrganization={() => navigate({ kind: 'organizations', query: '', status: 'all', plan: 'all', sort: 'attention' })} onCreateOrganization={() => navigate({ kind: 'organizationNew' })} />
+        : route.kind === 'organization' ? <OrganizationPage client={client} organizationId={route.organizationId} tab={route.tab} access={organizationAccess} initialInvite={readInitialInvite()} onTabChange={tab => navigate({ ...route, tab })} onChanged={() => {}} />
+        : route.kind === 'organizations' ? <OrganizationsScreen client={client} selectedOrganizationId={null} initialInvite={null} query={route.query} statusFilter={route.status} planFilter={route.plan} sort={route.sort} onQueryChange={change => navigate({ kind: 'organizations', query: change.query ?? route.query, status: change.statusFilter ?? route.status, plan: change.planFilter ?? route.plan, sort: change.sort ?? route.sort })} onOpenOrganization={id => openOrganization(id)} onCloseOrganization={() => navigate({ kind: 'organizations', query: '', status: 'all', plan: 'all', sort: 'attention' })} onCreateOrganization={() => navigate({ kind: 'organizationNew' })} />
         : <UnavailableScreen />}
     </AppShell>
   );

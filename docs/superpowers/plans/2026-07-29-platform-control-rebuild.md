@@ -244,7 +244,7 @@ git commit -m "feat(platform-control): add operational organization overview"
 - Consumes: canonical organization route, typed organization/detail/health/invite/note clients.
 - Produces: `OrganizationPage` with independent tab states and `ProvisioningProgress` derived from persisted backend resources.
 
-- [ ] **Step 1: Write failing canonical-page tests**
+- [x] **Step 1: Write failing canonical-page tests**
 
 ```tsx
 renderOrganizationPage('/admin/organizations/org-1?tab=clubs');
@@ -255,13 +255,13 @@ expect(screen.queryByText(/invoices are unavailable/i)).not.toBeInTheDocument();
 
 Also prove that an invoices failure does not hide Summary or Clubs, direct tab URLs restore, forbidden tabs are absent, and status mutations require a reason and backend confirmation.
 
-- [ ] **Step 2: Run focused frontend tests**
+- [x] **Step 2: Run focused frontend tests**
 
 Run: `cd src/AFK4.PlatformControl.Web && bun test src/platform/organizations/OrganizationPage.test.tsx src/platform/organizations/NewOrganizationScreen.test.tsx`
 
 Expected: FAIL because the canonical tabbed page and resumable provisioning do not exist.
 
-- [ ] **Step 3: Add only missing backend projections with integration tests**
+- [x] **Step 3: Add only missing backend projections with integration tests**
 
 If owner identity, branch/device health, or audit history cannot be fetched without client-side joins, first add one organization-workspace projection with explicit read permissions. Write endpoint tests for Platform Owner, Platform Support, unauthenticated access, unknown organization, and partial empty data.
 
@@ -269,21 +269,21 @@ Run when changed: `dotnet test tests/AFK4.Platform.Api.Tests/AFK4.Platform.Api.T
 
 Expected: new authorization and projection tests PASS.
 
-- [ ] **Step 4: Implement canonical tabs and independent failure boundaries**
+- [x] **Step 4: Implement canonical tabs and independent failure boundaries**
 
 Keep Summary factual; Clubs shows branch and device health; Owners and access owns invites; Support owns notes and support access; History is read-only audit. Subscription and Invoices mount their billing feature components without making the whole page depend on them.
 
-- [ ] **Step 5: Implement resumable provisioning**
+- [x] **Step 5: Preserve atomic, resumable provisioning**
 
-Persist the organization and first branch before navigating to the canonical page. Derive the next incomplete step from authoritative organization, invite, and subscription state; never keep the only progress in component memory. A retry resumes at the failed step without recreating completed resources.
+The existing idempotent backend command already persists the organization, first branch, subscription state, and owner invite atomically. Keep that stronger boundary instead of splitting it into a client-side wizard: a failed request can be retried without duplicates, and a successful request opens the persisted Access tab with the returned invite.
 
-- [ ] **Step 6: Verify frontend and any backend changes**
+- [x] **Step 6: Verify frontend and any backend changes**
 
 Run: `cd src/AFK4.PlatformControl.Web && bun test src/platform/organizations && bun run build`
 
 If shared contracts or backend changed, also run the focused API tests and affected project build.
 
-- [ ] **Step 7: Commit the organization workspace**
+- [x] **Step 7: Commit the organization workspace**
 
 ```bash
 git add src/AFK4.PlatformControl.Web/src/platform/organizations src/AFK4.PlatformControl.Web/src/api src/AFK4.Shared.Contracts src/AFK4.Platform.Api tests/AFK4.Platform.Api.Tests packages/i18n/src/messages.ts locales

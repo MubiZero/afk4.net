@@ -375,6 +375,47 @@ internal static class PlatformOrganizationEndpoints
             return Results.Ok(detail);
         });
 
+        app.MapGet("/api/platform/organizations/{organizationId:guid}/audit", async (
+            Guid organizationId,
+            int? limit,
+            PlatformAdminAuthorizationService authorizationService,
+            IPlatformOrganizationService organizationService,
+            IAuditSearchService auditSearchService,
+            IAuditRecordWriter auditRecordWriter,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewPlatformAudit);
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WritePlatformAuditAsync(
+                    auditRecordWriter, Guid.Empty, authorization.PlatformAdminContext!.PlatformAdminUserId,
+                    AuditActionNames.ViewAudit, "AuditRecord", null, AuditOutcome.Denied,
+                    new { RequestedOrganizationId = organizationId, authorization.DenialReason }, cancellationToken);
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (await organizationService.GetAsync(organizationId, cancellationToken) is null)
+            {
+                return Results.NotFound(new { Error = "Organization was not found." });
+            }
+
+            var result = await auditSearchService.SearchOrganizationAsync(
+                organizationId,
+                new AuditSearchQuery(null, null, null, null, null, limit, null, null, null),
+                cancellationToken);
+
+            await WritePlatformAuditAsync(
+                auditRecordWriter, organizationId, authorization.PlatformAdminContext!.PlatformAdminUserId,
+                AuditActionNames.ViewAudit, "AuditRecord", null, AuditOutcome.Succeeded,
+                new { Scope = "organization", Count = result.Records.Count, result.Limit }, cancellationToken);
+            return Results.Ok(result);
+        });
+
         app.MapGet("/api/platform/organizations/{organizationId:guid}/organization-owner-invitations", async (
             Guid organizationId,
             PlatformAdminAuthorizationService authorizationService,

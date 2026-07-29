@@ -205,6 +205,27 @@ export interface OrganizationHealth {
   recentErrors: OrganizationHealthError[];
 }
 
+export interface AuditRecord {
+  auditRecordId: string;
+  organizationId: string;
+  branchId: string | null;
+  actorStaffUserId: string | null;
+  actorPlatformAdminUserId: string | null;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  outcome: string;
+  sourceApp: string;
+  detailsJson: string;
+  createdAtUtc: string;
+  amountMinorUnits: number | null;
+}
+
+export interface AuditSearchResult {
+  records: AuditRecord[];
+  limit: number;
+}
+
 export const OrganizationStatus = {
   Active: 'active',
   Suspended: 'suspended',

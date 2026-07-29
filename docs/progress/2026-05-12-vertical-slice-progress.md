@@ -274,6 +274,13 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   warning remain non-failing.
 - Platform Control passed 381/381 Bun tests and its production build; its existing
   large-chunk warning remains.
+- Platform Control rebuild Tasks 1–4 are complete on the rebuild branch: canonical
+  `/admin` routing and permission-derived navigation, the operations design system,
+  attention-first organization overview/list, and the full organization workspace.
+  The workspace has permission-filtered Summary, Clubs, Owners/access, Subscription,
+  Invoices, Support, and real read-only audit History tabs; the obsolete organization
+  drawer is removed. Fresh gates: organization/App frontend 42/42, i18n 27/27,
+  Platform Organization API 53/53, and the production frontend build.
 - Player Shell Web passed 51/51 Bun tests and its production build.
 - GitHub `Package Smoke` run `29326881732` and the migration-gated `Coolify
   Staging Deploy` run `29327547027` passed for merge commit `498b7b83`. The
@@ -321,8 +328,8 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Recommended Next Work
 
-1. Rebuild Platform Control around the approved organization-centered product
-   model in `docs/superpowers/specs/2026-07-29-platform-control-rebuild-design.md`.
+1. Continue the approved Platform Control rebuild with global Plans/Billing,
+   Updates, Audit, and Settings workspaces (Task 5), then global search and cleanup.
 2. After the rebuild, return to the production-readiness backlog: repeat the
    Operator day flow from a clean `manager_workstation` install at 100%/125%,
    then run the physical Windows 10/11 gaming-PC Agent/Shell smoke.
