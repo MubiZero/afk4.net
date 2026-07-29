@@ -171,6 +171,20 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   Smoke run `30386102803` passed. The obsolete staging club web application was
   stopped and its public route returns 503. Production was not touched.
 
+- Stable Organization Admin compatibility download automation completed on
+  2026-07-29. Package Smoke run `30420181692` published immutable internal MSI
+  `0.1.122` and atomically replaced
+  `organization-admin/internal/latest/afk4-organization-admin-internal.msi` in
+  staging MinIO. The immutable request and public stable object both report
+  SHA-256 `378eff0ea65d713de2517a512bd00e38d605a956a1e3e1b46fff2663807520b6`
+  and 1,613,824 bytes; the stable response is HTTP 200 with
+  `Cache-Control: no-store`. The API compatibility response is HTTP 426 and
+  returns the stable URI. Publisher tests passed 13/13, the full Agent/release
+  automation suite passed 185/185 on Windows, and Package Smoke triggered no
+  Coolify deploy or restart. The compatibility URL was changed once through
+  Coolify and restart `rvsw1xe8e7zj5rd3d63fogkj` finished healthy; subsequent
+  package publications update MinIO only.
+
 - Fresh Platform Control removal gate (2026-07-28): the remaining Platform Control
   suite passed 119/119 tests across 50 files; focused routing/onboarding passed
   7/7, including explicit rejection of `/club/*` and staff sign-in routes while
