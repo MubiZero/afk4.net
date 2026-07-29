@@ -21,6 +21,7 @@ import { useOrganizationMetrics } from './platform/overview/useOrganizationMetri
 import { ProfileScreen } from './platform/profile/ProfileScreen';
 import { UpdatesScreen } from './platform/updates/UpdatesScreen';
 import { AuditScreen } from './platform/audit/AuditScreen';
+import { GlobalSearch } from './platform/search/GlobalSearch';
 import {
   pathForPlatformRoute,
   resolvePlatformRoute,
@@ -113,6 +114,7 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
       screenTitle={t(TITLE_KEYS[route.kind])}
       userName={session.displayName}
       roleLabel={t('platform.profile.roleLabel')}
+      topbarSearch={can(session, 'organizations.read') ? <GlobalSearch client={client.search} onNavigate={path => { const url = new URL(path, window.location.origin); navigate(resolvePlatformRoute(url.pathname, url.search)); }} /> : null}
       onNavigate={path => navigate(resolvePlatformRoute(new URL(path, window.location.origin).pathname, new URL(path, window.location.origin).search))}
       onSignOut={onSignOut}
     >

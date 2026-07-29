@@ -288,6 +288,14 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   has a permission-protected, server-filtered endpoint and browser workspace.
   Settings remains intentionally absent because no persisted platform-wide
   settings contract exists.
+- Platform Control rebuild Task 6 is complete: the top bar now searches
+  organizations, clubs, and organization owners through one bounded,
+  permission-protected backend query. Results expose canonical links, support
+  exact-ID lookup and keyboard navigation, and stale requests are cancelled and
+  ignored. Existing overview attention rows continue to link to the same
+  canonical organization sections. Fresh gates: Platform Control 145/145,
+  platform API 157/157, shared contracts 137/137, i18n 27/27, production
+  frontend build, and full solution build with 0 warnings/errors.
 - Player Shell Web passed 51/51 Bun tests and its production build.
 - GitHub `Package Smoke` run `29326881732` and the migration-gated `Coolify
   Staging Deploy` run `29327547027` passed for merge commit `498b7b83`. The
@@ -335,8 +343,8 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Recommended Next Work
 
-1. Continue the approved Platform Control rebuild with global search and
-   attention navigation (Task 6), then remove superseded code and split routes.
+1. Finish the approved Platform Control rebuild by removing superseded code,
+   splitting route bundles, and running the big-bang release gate (Task 7).
 2. After the rebuild, return to the production-readiness backlog: repeat the
    Operator day flow from a clean `manager_workstation` install at 100%/125%,
    then run the physical Windows 10/11 gaming-PC Agent/Shell smoke.

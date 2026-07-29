@@ -362,7 +362,7 @@ git commit -m "feat(platform-control): complete platform administration workspac
 - Consumes: query text, authenticated platform client, capability map, canonical route builder.
 - Produces: `PlatformSearchResult` with `kind`, `id`, `title`, `context`, and canonical `href`.
 
-- [ ] **Step 1: Write failing search tests**
+- [x] **Step 1: Write failing search tests**
 
 ```tsx
 await user.type(screen.getByRole('searchbox', { name: /search platform/i }), 'orion');
@@ -372,27 +372,27 @@ expect(await screen.findByRole('option', { name: /Orion Gaming.*organization/i }
 
 Cover organization, club, owner, exact ID, empty query, no results, transport failure, keyboard selection, Escape, and permission-filtered result kinds.
 
-- [ ] **Step 2: Run search tests and verify failure**
+- [x] **Step 2: Run search tests and verify failure**
 
 Run: `cd src/AFK4.PlatformControl.Web && bun test src/platform/search`
 
 Expected: FAIL because the top bar search is only a shell affordance.
 
-- [ ] **Step 3: Implement a server-backed bounded search contract if current lists are insufficient**
+- [x] **Step 3: Implement a server-backed bounded search contract if current lists are insufficient**
 
 Use a minimum query length, cancellation through `AbortSignal`, bounded result groups, normalized Unicode-insensitive matching where supported by PostgreSQL, and exact-ID lookup. Return only resources visible to the caller.
 
-- [ ] **Step 4: Implement keyboard-first global search**
+- [x] **Step 4: Implement keyboard-first global search**
 
 Results use canonical links so modifier-click, browser history, and copied URLs work. Announce result count through `aria-live`; do not overwrite a newer query with a slower earlier response.
 
-- [ ] **Step 5: Verify search**
+- [x] **Step 5: Verify search**
 
 Run: `cd src/AFK4.PlatformControl.Web && bun test src/platform/search src/components/shell/Topbar.test.tsx && bun run build`
 
 Run focused endpoint tests if the backend search contract was added.
 
-- [ ] **Step 6: Commit search**
+- [x] **Step 6: Commit search**
 
 ```bash
 git add src/AFK4.PlatformControl.Web/src/platform/search src/AFK4.PlatformControl.Web/src/api src/AFK4.PlatformControl.Web/src/components/shell src/AFK4.Shared.Contracts src/AFK4.Platform.Api tests/AFK4.Platform.Api.Tests packages/i18n/src/messages.ts locales
