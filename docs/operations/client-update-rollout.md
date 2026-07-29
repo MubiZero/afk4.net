@@ -1,7 +1,7 @@
 # Client Update Rollout Runbook
 
 Status: Staging-verified role-aware internal MSI rollout runbook
-Last updated: 2026-05-27
+Last updated: 2026-07-29
 
 ## Purpose
 
@@ -44,7 +44,12 @@ state transitions such as rejected or retired.
    - `offered`;
    - `downloading`;
    - `downloaded`;
+   - `deferred` when the Admin App is open outside its maintenance window or a
+     critical command is active;
+   - `ready-to-install` when the maintenance policy permits a graceful close;
+   - `awaiting-app-exit` after the Admin App has accepted the bound shutdown;
    - `installing`;
+   - `health-checking`;
    - `installed`.
 4. Investigate any `failed` status before widening scope.
 5. Register or promote equivalent metadata for `beta`.
@@ -64,6 +69,37 @@ POST /api/devices/{deviceId}/updates/status
 Both requests must use the device credential header. The backend decides whether
 an update is eligible for that device. The Agent reports progress but does not
 change rollout targeting or package metadata.
+
+## Organization Admin maintenance coordination
+
+Setup Wizard provisions one device-bound coordination identity for both sides:
+
+- `Agent__OrganizationAdminExecutablePath` points to the installed native app;
+- `Agent__OrganizationAdminUpdateCoordinationPipeName` is unique per enrolled
+  device;
+- `Agent__OrganizationAdminUpdateCoordinationSecret` is HMAC-derived from the
+  random device credential and device id; the source credential is never reused
+  as the pipe secret or written to coordination diagnostics;
+- matching `AFK4_ORGANIZATION_ADMIN_UPDATE_COORDINATION_*` machine variables let
+  the interactive Admin App join the same local protocol.
+
+The named pipe ACL permits only LocalSystem and the interactive Windows user.
+The secret authenticates the length-prefixed messages but carries no package,
+targeting, or rollout authority. Never print either the device credential or
+the derived coordination secret. Safe diagnostics may record only whether a
+value is configured, the pipe name, executable path, rollout/package ids, and
+the returned coordination status.
+
+For `organization-admin` updates:
+
+1. A closed app may install immediately.
+2. An idle open app is deferred outside the branch maintenance window. Inside
+   the window, or after `Перезапустить и обновить`, Agent requests graceful
+   shutdown bound to the exact rollout and package.
+3. An app with a critical money/session/POS/device/shift command stays open and
+   reports `deferred`; restart-now never bypasses this safety check.
+4. Agent installs only after the app has persisted the acknowledgement and the
+   process has exited. A successful install schedules one interactive relaunch.
 
 ## Rollback
 
@@ -94,4 +130,5 @@ finds a product defect.
 - production object storage/CDN policy;
 - service credential policy for package registration;
 - physical Windows update and rollback evidence;
-- Organization Admin rollout management UI polish for non-developer operation.
+- clean-manager-workstation lifecycle evidence for closed, idle-open, and
+  critical-command-open Admin App states.

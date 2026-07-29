@@ -127,6 +127,16 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   install after graceful shutdown. Organization Admin Web passed 1039 tests and
   its production build; i18n passed 39/39, Windows App passed 254/254 on the
   Windows runtime, and the full solution build passed with 0 warnings/errors.
+- **Manager-workstation update provisioning** — Setup now writes the installed
+  Admin App path plus one device-bound pipe name and HMAC-derived coordination
+  secret to Agent bootstrap and matching native-app environment variables; the
+  source device credential is not reused as the pipe secret or logged. Fresh
+  Windows gates passed Agent 201/201 and Setup Wizard 33/33. A real unsigned
+  internal package build produced the master client installer and verified the
+  bundled Organization Admin MSI contents from a drive-letter checkout. This
+  host has no installed/enrolled AFK4 Agent or Admin App, so the closed,
+  idle-open, and critical-command-open physical rollout scenarios remain
+  unclaimed and are specified in the real-device smoke runbook.
 
 - **Operator `/club` functional parity closure** — Clients, Monetization,
   Settings, and Venue gaps are closed in native Operator surfaces: complete staff
@@ -269,7 +279,9 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 - **Remaining Windows evidence** is narrower: repeat the Operator pass on a clean
   `manager_workstation` install at 100%/125% scaling and run the physical Windows
   10/11 gaming-PC smoke for lock/unlock enforcement, reboot recovery, and
-  role-aware update/rollback. The WindowsDesktop and unsigned package-build gates
+  role-aware update/rollback. The manager workstation must also prove the Admin
+  App update lifecycle with the app closed, idle-open, and holding a critical
+  command. The WindowsDesktop, provisioning, and unsigned package-build gates
   are already green; this remaining item is physical-device UX/runtime evidence.
 - **Rotate the former staging smoke credential** before the next staging smoke;
   it was removed from the tracked runbook and must be supplied only through the

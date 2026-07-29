@@ -37,6 +37,9 @@ public sealed class FileBootstrapWriterTests
             // Emitted as a real JSON boolean so AgentOptions.PlayerShellAutoStartEnabled binds.
             Assert.Equal(JsonValueKind.True, agent.GetProperty("PlayerShellAutoStartEnabled").ValueKind);
             Assert.EndsWith(@"AFK4\Player Shell\AFK4.Player.Shell.exe", agent.GetProperty("PlayerShellExecutablePath").GetString());
+            Assert.EndsWith(@"AFK4\Organization Admin\AFK4.OrganizationAdmin.App.exe", agent.GetProperty("OrganizationAdminExecutablePath").GetString());
+            Assert.StartsWith("afk4-organization-admin-updates-", agent.GetProperty("OrganizationAdminUpdateCoordinationPipeName").GetString());
+            Assert.NotEqual("afk4_secret_value", agent.GetProperty("OrganizationAdminUpdateCoordinationSecret").GetString());
         }
         finally
         {

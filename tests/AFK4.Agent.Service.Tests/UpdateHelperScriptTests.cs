@@ -234,6 +234,9 @@ public sealed class UpdateHelperScriptTests
 
         Assert.Contains("Agent__OrganizationAdminVersion", package, StringComparison.Ordinal);
         Assert.Contains("Value=\"$(var.PackageVersion)\"", package, StringComparison.Ordinal);
+        Assert.Contains("Agent__OrganizationAdminExecutablePath", package, StringComparison.Ordinal);
+        Assert.Contains("[OrganizationAdminFolder]AFK4.OrganizationAdmin.App.exe", package, StringComparison.Ordinal);
+        Assert.DoesNotContain("UPDATE_COORDINATION_SECRET", package, StringComparison.Ordinal);
     }
 
     private static string GetRepositoryRoot()

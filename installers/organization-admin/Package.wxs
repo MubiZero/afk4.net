@@ -101,6 +101,13 @@
           Action="set"
           Part="all"
           System="yes" />
+      <Environment
+          Id="OrganizationAdminExecutablePathEnvironment"
+          Name="Agent__OrganizationAdminExecutablePath"
+          Value="[OrganizationAdminFolder]AFK4.OrganizationAdmin.App.exe"
+          Action="set"
+          Part="all"
+          System="yes" />
     </Component>
   </Package>
 </Wix>

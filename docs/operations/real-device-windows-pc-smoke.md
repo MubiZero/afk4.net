@@ -871,6 +871,54 @@ before its in-process restart scheduler runs.
 Do not create a fake successful `POST /api/devices/{deviceId}/updates/status`
 for a package that was not actually offered to the Agent.
 
+### Organization Admin maintenance lifecycle
+
+Run this only on a clean `manager_workstation` with a deliberately prepared
+internal Organization Admin rollout. Do not print secret values. Verify the
+provisioned shape with boolean-only secret checks:
+
+```powershell
+$bootstrap = Get-Content 'C:\ProgramData\AFK4\Agent\bootstrap.json' -Raw |
+    ConvertFrom-Json
+$agent = $bootstrap.Agent
+[pscustomobject]@{
+    ExecutableExists = Test-Path -LiteralPath $agent.OrganizationAdminExecutablePath
+    PipeConfigured = -not [string]::IsNullOrWhiteSpace($agent.OrganizationAdminUpdateCoordinationPipeName)
+    AgentSecretConfigured = -not [string]::IsNullOrWhiteSpace($agent.OrganizationAdminUpdateCoordinationSecret)
+    AppSecretConfigured = -not [string]::IsNullOrWhiteSpace(
+        [Environment]::GetEnvironmentVariable(
+            'AFK4_ORGANIZATION_ADMIN_UPDATE_COORDINATION_SECRET', 'Machine'))
+}
+```
+
+All four values must be `True`. Capture no `bootstrap.json` contents and no
+environment-variable values in the evidence bundle.
+
+Run three separate rollout attempts and record the exact rollout/package ids,
+process state, status sequence, Agent update log, Windows Installer result, and
+post-install app version:
+
+1. **App closed.** Close Organization Admin before the offer. Expected:
+   `offered → downloading → downloaded → installing → health-checking → installed`;
+   no shutdown request; one interactive relaunch after success.
+2. **App idle and open.** Outside the maintenance window, expect `deferred` and
+   no process exit. Move the branch window to include current local time or use
+   `Перезапустить и обновить`. Expected: `ready-to-install → awaiting-app-exit`,
+   a rollout/package-bound acknowledgement, graceful process exit, install,
+   `installed`, then exactly one interactive relaunch.
+3. **Critical command open.** Hold a real backend mutation in flight (for
+   example, pause a test endpoint while a non-production POS/session command is
+   awaiting its response), then offer the update and also try restart-now.
+   Expected: `deferred`, Admin App remains open, no installer process, and no
+   shutdown acknowledgement. Release the command; the next normal poll may
+   continue according to the maintenance window.
+
+Fail the lifecycle smoke if the app closes during the critical command, an
+outside-window update is reported as `failed`, installation starts before the
+acknowledged process exit, the acknowledgement ids differ from the offered
+instruction, a failed install relaunches the app, or more than one relaunch is
+observed.
+
 ## Diagnostics And Audit Evidence
 
 Collect backend evidence:

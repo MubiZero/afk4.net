@@ -140,8 +140,8 @@
 **Interfaces:**
 - Setup provisions pipe name/secret and app path without logging secrets; smoke proves app closed, idle-open, and critical-command-open.
 
-- [ ] **Step 1: Write failing provisioning/package tests** for coordination config, protected secret, executable path, and log redaction.
-- [ ] **Step 2: Run RED.**
-- [ ] **Step 3: Implement provisioning and exact smoke runbook/status expectations.**
+- [x] **Step 1: Write failing provisioning/package tests** for coordination config, protected secret, executable path, and log redaction.
+- [x] **Step 2: Run RED.**
+- [x] **Step 3: Implement provisioning and exact smoke runbook/status expectations.**
 - [ ] **Step 4: Run full solution/frontends/package gates and physical Windows scenarios.**
-- [ ] **Step 5: Commit code/docs in coherent units; record only fresh evidence.**
+- [x] **Step 5: Commit code/docs in coherent units; record only fresh evidence.**
