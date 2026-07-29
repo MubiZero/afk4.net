@@ -17,6 +17,7 @@ export interface OrganizationsFilter {
   query: string;
   status: string; // 'all' | OrganizationStatus value
   plan: string;   // 'all' | plan code
+  sort: string;
 }
 
 export function buildOrganizationRows(organizations: OrganizationSummary[], filter: OrganizationsFilter): OrganizationRow[] {
@@ -35,7 +36,9 @@ export function buildOrganizationRows(organizations: OrganizationSummary[], filt
       branchCount: t.branchCount,
       updatedAtUtc: t.updatedAtUtc
     }))
-    .sort((a, b) => b.updatedAtUtc.localeCompare(a.updatedAtUtc));
+    .sort(filter.sort === 'name'
+      ? (a, b) => a.name.localeCompare(b.name)
+      : (a, b) => b.updatedAtUtc.localeCompare(a.updatedAtUtc));
 }
 
 export const STATUS_VARIANT: Record<string, BadgeVariant> = {

@@ -35,9 +35,8 @@ export function OrganizationsTable({ rows, selectedId, emptyMessage, onSelect }:
             key={row.organizationId}
             data-clickable="true"
             data-selected={row.organizationId === selectedId ? 'true' : undefined}
-            onClick={() => onSelect(row.organizationId)}
           >
-            <TableCell>{row.name}</TableCell>
+            <TableCell><a className="font-semibold text-foreground underline-offset-4 hover:underline" href={`/admin/organizations/${encodeURIComponent(row.organizationId)}`} onClick={event => { event.preventDefault(); onSelect(row.organizationId); }}>{row.name}</a></TableCell>
             <TableCell><code>{row.slug}</code></TableCell>
             <TableCell>
               <Badge variant={STATUS_VARIANT[row.status] ?? 'secondary'}>

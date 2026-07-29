@@ -26,6 +26,13 @@ describe('platform OverviewScreen', () => {
     expect(screen.getByText('Beta')).toBeInTheDocument();
   });
 
+  it('links attention rows to the affected organization section', () => {
+    wrap(ready);
+    expect(screen.getByRole('link', { name: /Beta/i })).toHaveAttribute(
+      'href', '/admin/organizations/b?tab=summary'
+    );
+  });
+
   it('shows a loading skeleton', () => {
     wrap({ status: 'loading', retry: mock() });
     expect(screen.getByTestId('platform-overview-loading')).toBeInTheDocument();

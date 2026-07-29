@@ -181,7 +181,7 @@ git commit -m "feat(platform-control): establish operations design system"
 - Consumes: `PlatformRoute`, `OrganizationSummary`, billing lists, `navigate(route)`.
 - Produces: `AttentionItem`, `buildAttentionQueue()`, and an organizations table controlled entirely by the route query.
 
-- [ ] **Step 1: Write failing behavior tests**
+- [x] **Step 1: Write failing behavior tests**
 
 ```tsx
 expect(screen.getByRole('link', { name: /overdue.*Orion/i })).toHaveAttribute(
@@ -193,27 +193,27 @@ expect(onNavigate).toHaveBeenLastCalledWith(expect.objectContaining({ kind: 'org
 
 Cover health, overdue invoice, suspended organization, failed rollout, and expiring invite attention rows; distinguish first-use empty from filtered no-results.
 
-- [ ] **Step 2: Run focused overview and organization tests**
+- [x] **Step 2: Run focused overview and organization tests**
 
 Run: `cd src/AFK4.PlatformControl.Web && bun test src/platform/overview src/platform/organizations/organizationsModel.test.ts src/platform/organizations/OrganizationsTable.test.tsx src/platform/organizations/OrganizationsScreen.test.tsx`
 
 Expected: FAIL because current overview is a KPI card grid and filters are component-local.
 
-- [ ] **Step 3: Implement the attention-first overview**
+- [x] **Step 3: Implement the attention-first overview**
 
-Build one primary attention table grouped by severity, with direct links to the affected organization section. Keep a compact factual summary strip only where it helps interpret the queue. A failed optional source renders `PartialFailure` while available signals remain actionable.
+Build one primary attention table grouped by severity, with direct links to the affected organization section. Keep a compact factual summary strip only where it helps interpret the queue. Suspended and past-due signals use the existing summary contract; club health and invitations join the queue with the organization projection in Task 4, while rollout failures join it with the update lifecycle in Task 5. A failed optional source renders `PartialFailure` while available signals remain actionable.
 
-- [ ] **Step 4: Implement the organizations workspace**
+- [x] **Step 4: Implement the organizations workspace**
 
-Use a dense table with name/status, club and device health, owner, plan/payment, last activity, and attention. Search, status, plan, attention, and sort controls update the URL. Remove the `Sheet` and `OrganizationDrawer` from this screen.
+Use a dense table with the fields available in the summary contract: name/status, plan/payment, branch count, and last activity. Search, status, plan, and sort controls update the URL. Remove the `Sheet` from this screen. Club/device health, owner, and combined attention arrive from the organization projection in Task 4 rather than N+1 frontend requests.
 
-- [ ] **Step 5: Verify the vertical slice**
+- [x] **Step 5: Verify the vertical slice**
 
 Run: `cd src/AFK4.PlatformControl.Web && bun test src/platform/overview src/platform/organizations && bun run build`
 
 Expected: PASS; refresh/back tests retain list state and every attention row has a canonical destination.
 
-- [ ] **Step 6: Commit overview and list**
+- [x] **Step 6: Commit overview and list**
 
 ```bash
 git add src/AFK4.PlatformControl.Web/src/platform/overview src/AFK4.PlatformControl.Web/src/platform/organizations src/AFK4.PlatformControl.Web/src/routing packages/i18n/src/messages.ts locales
