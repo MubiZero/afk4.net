@@ -62,6 +62,11 @@ public sealed class AgentUpdateCoordinator(
                     ClearAttempted(instruction.UpdateRolloutId);
                     continue;
                 }
+                if (readiness.Status == OrganizationAdminUpdateReadinessNames.ReadyAfterShutdown)
+                {
+                    await ReportStatusAsync(
+                        instruction, installedVersion, UpdateStatusNames.ReadyToInstall, readiness.Message, cancellationToken);
+                }
             }
 
             try

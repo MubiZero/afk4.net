@@ -6,7 +6,8 @@ public sealed class AgentUpdateWorker(
     ILogger<AgentUpdateWorker> logger,
     IAgentUpdateCoordinator updateCoordinator,
     IUpdateRecoveryService recoveryService,
-    IOptions<AgentOptions> options) : BackgroundService
+    IOptions<AgentOptions> options,
+    IOrganizationAdminProcessLauncher? organizationAdminProcessLauncher = null) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -19,12 +20,27 @@ public sealed class AgentUpdateWorker(
         }
 
         await recoveryService.RecoverAsync(stoppingToken);
+        await TryLaunchOrganizationAdminAsync(stoppingToken);
         await TryApplyUpdatesAsync(stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             await Task.Delay(GetUpdateCheckInterval(), stoppingToken);
+            await TryLaunchOrganizationAdminAsync(stoppingToken);
             await TryApplyUpdatesAsync(stoppingToken);
+        }
+    }
+
+    private async Task TryLaunchOrganizationAdminAsync(CancellationToken cancellationToken)
+    {
+        if (organizationAdminProcessLauncher is null) return;
+        try
+        {
+            await organizationAdminProcessLauncher.LaunchPendingAsync(cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "Pending Organization Admin relaunch failed and will remain queued for retry.");
         }
     }
 

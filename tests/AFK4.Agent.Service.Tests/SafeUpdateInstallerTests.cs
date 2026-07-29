@@ -63,6 +63,46 @@ public sealed class SafeUpdateInstallerTests
         Assert.Empty(restart.ScheduledInstructions);
     }
 
+    [Fact]
+    public async Task InstallAsync_ForOrganizationAdmin_SchedulesRelaunchOnlyAfterSuccessfulInstall()
+    {
+        var instruction = CreateInstruction(UpdateComponentNames.OrganizationAdmin);
+        var launcher = new RecordingOrganizationAdminProcessLauncher();
+        var installer = new SafeUpdateInstaller(
+            new RecordingUpdateInstallStateStore(),
+            new RecordingInstallExecutor(UpdateInstallResult.Success("installed")),
+            new RecordingRollbackExecutor(UpdateRollbackResult.Success("rolled back")),
+            new RecordingRestartScheduler(UpdateRestartResult.Scheduled("restart scheduled")),
+            Options.Create(new AgentOptions()),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T17:00:00Z")),
+            launcher);
+
+        var result = await installer.InstallAsync(instruction, CreateArtifact(instruction), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(instruction, Assert.Single(launcher.Scheduled));
+    }
+
+    [Fact]
+    public async Task InstallAsync_WhenOrganizationAdminInstallFails_DoesNotScheduleRelaunch()
+    {
+        var instruction = CreateInstruction(UpdateComponentNames.OrganizationAdmin);
+        var launcher = new RecordingOrganizationAdminProcessLauncher();
+        var installer = new SafeUpdateInstaller(
+            new RecordingUpdateInstallStateStore(),
+            new RecordingInstallExecutor(UpdateInstallResult.Failed("install failed")),
+            new RecordingRollbackExecutor(UpdateRollbackResult.Success("rolled back")),
+            new RecordingRestartScheduler(UpdateRestartResult.Scheduled("restart scheduled")),
+            Options.Create(new AgentOptions()),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T17:00:00Z")),
+            launcher);
+
+        var result = await installer.InstallAsync(instruction, CreateArtifact(instruction), CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Empty(launcher.Scheduled);
+    }
+
     private static ComponentUpdateInstructionDto CreateInstruction(string component)
     {
         return new ComponentUpdateInstructionDto(
@@ -165,6 +205,17 @@ public sealed class SafeUpdateInstallerTests
 
             return Task.FromResult(result);
         }
+    }
+
+    private sealed class RecordingOrganizationAdminProcessLauncher : IOrganizationAdminProcessLauncher
+    {
+        public List<ComponentUpdateInstructionDto> Scheduled { get; } = [];
+        public Task ScheduleAfterRestartAsync(ComponentUpdateInstructionDto instruction, CancellationToken cancellationToken)
+        {
+            Scheduled.Add(instruction);
+            return Task.CompletedTask;
+        }
+        public Task<bool> LaunchPendingAsync(CancellationToken cancellationToken) => Task.FromResult(false);
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider

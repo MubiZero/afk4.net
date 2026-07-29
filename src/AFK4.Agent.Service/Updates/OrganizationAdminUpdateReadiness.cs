@@ -39,7 +39,16 @@ public sealed class OrganizationAdminUpdateReadiness(
         var state = await coordinatorClient.QueryStateAsync(cancellationToken);
         if (state.Status == LocalUpdateCoordinationStatuses.NotRunning)
             return new(OrganizationAdminUpdateReadinessNames.InstallNow, "Organization Admin is not running.");
-        if (preference is null || !IsInsideWindow(preference, serverTimeUtc))
+        bool insideWindow;
+        try
+        {
+            insideWindow = preference is not null && IsInsideWindow(preference, serverTimeUtc);
+        }
+        catch (Exception exception) when (exception is TimeZoneNotFoundException or InvalidTimeZoneException)
+        {
+            return new(OrganizationAdminUpdateReadinessNames.DeferredOutsideWindow, "Organization Admin maintenance timezone is invalid.");
+        }
+        if (!insideWindow)
             return new(OrganizationAdminUpdateReadinessNames.DeferredOutsideWindow, "Organization Admin is open outside its maintenance window.");
         if (state.Status == LocalUpdateCoordinationStatuses.CriticalCommandActive)
             return new(OrganizationAdminUpdateReadinessNames.DeferredCriticalCommand, state.Message);

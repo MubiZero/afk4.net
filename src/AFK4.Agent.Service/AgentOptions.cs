@@ -20,6 +20,10 @@ public sealed class AgentOptions
 
     public string OrganizationAdminVersion { get; init; } = string.Empty;
 
+    public string OrganizationAdminExecutablePath { get; init; } = string.Empty;
+
+    public string OrganizationAdminStartArguments { get; init; } = string.Empty;
+
     public string OrganizationAdminUpdateCoordinationPipeName { get; init; } = "afk4-organization-admin-updates";
 
     public string OrganizationAdminUpdateCoordinationSecret { get; init; } = string.Empty;

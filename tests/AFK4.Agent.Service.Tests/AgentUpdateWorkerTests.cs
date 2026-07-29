@@ -17,6 +17,7 @@ public sealed class AgentUpdateWorkerTests
         var updateChecked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var coordinator = new RecordingUpdateCoordinator(updateChecked);
         var recovery = new RecordingRecoveryService();
+        var launcher = new RecordingOrganizationAdminProcessLauncher();
         var worker = new AgentUpdateWorker(
             NullLogger<AgentUpdateWorker>.Instance,
             coordinator,
@@ -30,13 +31,15 @@ public sealed class AgentUpdateWorkerTests
                 DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
                 DeviceCredentialSecret = "device-secret",
                 UpdateCheckIntervalSeconds = 60
-            }));
+            }),
+            launcher);
 
         await worker.StartAsync(stopping.Token);
         await updateChecked.Task.WaitAsync(WorkerObservationTimeout);
         await worker.StopAsync(CancellationToken.None);
 
         Assert.Equal(1, recovery.CallCount);
+        Assert.Equal(1, launcher.CallCount);
         Assert.Equal(1, coordinator.CallCount);
     }
 
@@ -108,6 +111,17 @@ public sealed class AgentUpdateWorkerTests
             secondAttempt.TrySetResult();
 
             return Task.FromResult(new AgentUpdateExecutionResult(0, 0, 0));
+        }
+    }
+
+    private sealed class RecordingOrganizationAdminProcessLauncher : IOrganizationAdminProcessLauncher
+    {
+        public int CallCount { get; private set; }
+        public Task ScheduleAfterRestartAsync(AFK4.Shared.Contracts.Updates.ComponentUpdateInstructionDto instruction, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task<bool> LaunchPendingAsync(CancellationToken cancellationToken)
+        {
+            CallCount++;
+            return Task.FromResult(true);
         }
     }
 }

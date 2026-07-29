@@ -9,7 +9,8 @@ public sealed class SafeUpdateInstaller(
     IUpdateRollbackExecutor rollbackExecutor,
     IAgentRestartScheduler restartScheduler,
     IOptions<AgentOptions> options,
-    TimeProvider timeProvider) : IUpdateInstaller
+    TimeProvider timeProvider,
+    IOrganizationAdminProcessLauncher? organizationAdminProcessLauncher = null) : IUpdateInstaller
 {
     public async Task<UpdateInstallResult> InstallAsync(
         ComponentUpdateInstructionDto instruction,
@@ -32,6 +33,11 @@ public sealed class SafeUpdateInstaller(
                 .WithInstalledVersion(instruction.Version)
                 .WithStatus(UpdateStatusNames.Installed, installResult.Message, timeProvider.GetUtcNow());
             await stateStore.SaveAsync(installed, cancellationToken);
+
+            if (instruction.Component == UpdateComponentNames.OrganizationAdmin && organizationAdminProcessLauncher is not null)
+            {
+                await organizationAdminProcessLauncher.ScheduleAfterRestartAsync(instruction, cancellationToken);
+            }
 
             var restartResult = await restartScheduler.ScheduleRestartAsync(instruction, installed, cancellationToken);
             if (!restartResult.Succeeded)

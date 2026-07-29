@@ -96,6 +96,32 @@ public sealed class AgentUpdateCoordinatorTests
     }
 
     [Fact]
+    public async Task CheckAndApplyUpdatesAsync_WhenAdminUpdateIsDeferred_RetriesOnNextPollWithoutDownload()
+    {
+        var instruction = CreateInstruction() with { Component = UpdateComponentNames.OrganizationAdmin };
+        var updateClient = new RecordingAgentUpdateClient([instruction]);
+        var downloader = new RecordingUpdateArtifactDownloader();
+        var coordinator = new AgentUpdateCoordinator(
+            NullLogger<AgentUpdateCoordinator>.Instance,
+            updateClient,
+            new AgentComponentVersionProvider(Options.Create(CreateOptions(DeviceRoleNames.ManagerWorkstation, organizationAdminVersion: "1.2.2"))),
+            downloader,
+            new FixedUpdatePackageVerifier(UpdatePackageVerificationResult.Valid("verified")),
+            new RecordingUpdateInstaller(UpdateInstallResult.Success("installed")),
+            new FixedTimeProvider(DateTimeOffset.Parse("2026-05-14T16:00:00Z")),
+            new FixedOrganizationAdminReadiness(new(
+                OrganizationAdminUpdateReadinessNames.DeferredOutsideWindow, "outside window")));
+
+        var first = await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
+        var second = await coordinator.CheckAndApplyUpdatesAsync(CancellationToken.None);
+
+        Assert.Equal(1, first.OfferedCount);
+        Assert.Equal(1, second.OfferedCount);
+        Assert.Empty(downloader.DownloadedInstructions);
+        Assert.Equal(2, updateClient.ReportedStatuses.Count(status => status.Status == UpdateStatusNames.Deferred));
+    }
+
+    [Fact]
     public void AgentComponentVersionProvider_ReturnsAgentAndPlayerShellVersionsForGamingPcRole()
     {
         var provider = new AgentComponentVersionProvider(Options.Create(
@@ -205,6 +231,16 @@ public sealed class AgentUpdateCoordinatorTests
         string Message,
         string InstalledVersion,
         string TargetVersion);
+
+    private sealed class FixedOrganizationAdminReadiness(OrganizationAdminUpdateReadinessResult result)
+        : IOrganizationAdminUpdateReadiness
+    {
+        public Task<OrganizationAdminUpdateReadinessResult> EvaluateAsync(
+            ComponentUpdateInstructionDto instruction,
+            OrganizationAdminUpdatePreferenceDto? preference,
+            DateTimeOffset serverTimeUtc,
+            CancellationToken cancellationToken) => Task.FromResult(result);
+    }
 
     private sealed class RecordingUpdateArtifactDownloader : IUpdateArtifactDownloader
     {
