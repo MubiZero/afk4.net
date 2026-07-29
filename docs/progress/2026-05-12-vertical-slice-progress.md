@@ -118,6 +118,15 @@ Plus the earlier base: identity/tenancy/RBAC/audit, devices/floor-map, owner-cod
 enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 + rollout, and the Agent/Setup-Wizard/Player-Shell/packaging stack.
 
+- **Organization Admin Reports redesign** — `Отчёты` now contains only
+  `Сводка`, `Смены и касса`, and `Выручка`; audit evidence stays in `События`.
+  Dedicated branch-scoped API projections resolve local dates through the
+  branch timezone, return backend-owned full-range totals, cap the attention
+  preview while preserving its total, expose a seven-day trend and active-shift
+  context, compare revenue with the previous equivalent period, break revenue
+  down by source/payment method/staff, and produce one CSV per visible report.
+  Failed critical money actions and closed-shift discrepancies feed Summary.
+
 - **Organization Admin safe update controls** — organization owners can inspect
   installed/offered Admin App versions, safe progress or failure detail, and the
   branch maintenance window without receiving Platform Control publication or
@@ -270,6 +279,11 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   Windows PowerShell refuses `-File` scripts from a WSL UNC path.
 
 ## Known Gaps
+
+- **Rendered Reports QA** — the redesigned Organization Admin Reports views
+  have automated component/App coverage and a green production build, but still
+  need a native WebView2 visual pass at 100%/125% scaling in dark and light
+  themes together with the broader clean `manager_workstation` smoke below.
 
 - **Per-environment SMTP config** still needs the user's real connection
   details wired into `NotificationOptions`.

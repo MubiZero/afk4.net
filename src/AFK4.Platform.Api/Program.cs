@@ -286,6 +286,7 @@ builder.Services.AddScoped<AFK4.Platform.Api.Commerce.IShopCommerceCoordinator, 
 builder.Services.AddScoped<IPaymentProvider, ManualPaymentProvider>();
 builder.Services.AddScoped<IReceiptNumberGenerator, ReceiptNumberGenerator>();
 builder.Services.AddScoped<IReportService, EfReportService>();
+builder.Services.AddScoped<IOrganizationAdminReportService, OrganizationAdminReportService>();
 builder.Services.AddScoped<IReportScheduleService, EfReportScheduleService>();
 builder.Services.AddScoped<IOperatorDashboardService, EfOperatorDashboardService>();
 builder.Services.AddScoped<IReservationService, EfReservationService>();
@@ -457,6 +458,7 @@ organizations.MapShiftEndpoints();
 organizations.MapDashboardEndpoints();
 organizations.MapReservationEndpoints();
 organizations.MapReportEndpoints();
+organizations.MapOrganizationAdminReportEndpoints();
 organizations.MapDiagnosticsEndpoints();
 organizations.MapPosEndpoints();
 app.MapUpdateEndpoints(organizations);

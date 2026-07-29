@@ -99,6 +99,8 @@ public static class AuditActionNames
 
     public const string ViewOperatorActionReport = "reports.operator_actions.view";
 
+    public const string ViewOrganizationAdminReports = "reports.organization_admin.view";
+
     public const string ViewOwnerDailySummaryReport = "reports.owner_daily_summary.view";
 
     public const string CreateReportSchedule = "reports.schedules.create";
