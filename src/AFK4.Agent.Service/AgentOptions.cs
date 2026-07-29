@@ -20,6 +20,12 @@ public sealed class AgentOptions
 
     public string OrganizationAdminVersion { get; init; } = string.Empty;
 
+    public string OrganizationAdminUpdateCoordinationPipeName { get; init; } = "afk4-organization-admin-updates";
+
+    public string OrganizationAdminUpdateCoordinationSecret { get; init; } = string.Empty;
+
+    public int OrganizationAdminUpdateCoordinationTimeoutMilliseconds { get; init; } = 2000;
+
     public string DeviceRole { get; init; } = DeviceRoleNames.GamingPc;
 
     /// <summary>
