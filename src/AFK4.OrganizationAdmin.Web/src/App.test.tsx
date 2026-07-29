@@ -9,7 +9,7 @@ import { playersSnapshotCache } from './players/playersSnapshot';
 // по вкладке скоупим внутри полоски раздела, чтобы не задеть одноимённые внутренние вкладки экранов).
 const TAB_SECTION: Record<string, string> = {
   'Продажи': 'Касса', 'Смена': 'Касса', 'Журнал кассы': 'Касса',
-  'Дашборд': 'Отчёты',
+  'Сводка': 'Отчёты', 'Смены и касса': 'Отчёты', 'Выручка': 'Отчёты',
   'Настройки': 'Управление', 'Платежи и лояльность': 'Управление', 'Новости': 'Управление', 'Логи': 'Управление'
 };
 
@@ -1016,18 +1016,13 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Дашборд');
-    expect(screen.getByRole('heading', { name: /Что требует внимания/ })).toBeInTheDocument();
-    expect(screen.getByText('Главный фокус')).toBeInTheDocument();
-    expect((await screen.findAllByText(/Блокировка/)).length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: 'Сегодня' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Неделя' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Месяц' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Начало периода')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Скачать продажи за/ })).toBeInTheDocument();
-    expect(screen.getByText('Пульс смены')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Неделя' }));
-    expect(screen.getByText('1 чек')).toBeInTheDocument();
+    gotoWorkspace('Сводка');
+    expect(screen.getByRole('tab', { name: 'Сводка' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Смены и касса' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Выручка' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Применить' })).toBeInTheDocument();
+    expect(screen.getAllByLabelText('С').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Журнал филиала')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTitle('Брони'));
     const bookingHead = screen.getByRole('heading', { name: /Брони/ }).closest('.booking-header');
@@ -1106,7 +1101,7 @@ describe('App', () => {
     expect(await screen.findByLabelText(/кэшбэк с пополнений/i)).toBeInTheDocument();
   });
 
-  it('downloads the Overview sales export without dashboard copy', async () => {
+  it('downloads the Revenue source export without dashboard copy', async () => {
     installSessionBridge();
     const createObjectUrl = mock(() => 'blob:dashboard');
     const revokeObjectUrl = mock();
@@ -1129,16 +1124,15 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Дашборд');
-    // «Обзор» now appears twice (destination-switcher nav label + DashboardWorkspace's own
-    // section label) since «Отчёты» became a switcher (Task 5) — getAllByText tolerates that.
-    expect(screen.getAllByText('Обзор').length).toBeGreaterThan(0);
+    gotoWorkspace('Выручка');
+    expect(screen.getAllByText('Выручка').length).toBeGreaterThan(0);
     expect(screen.queryByText('Dashboard')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Скачать продажи за/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Экспорт CSV' }));
 
-    expect(await screen.findByText('Экспорт: подтверждено')).toBeInTheDocument();
+    await waitFor(() => expect(downloads.length).toBeGreaterThan(0));
     expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/sales/export.csv'))).toBe(true);
-    expect(downloads.some((download) => download.startsWith('afk4-overview-sales-') && download.endsWith('.csv'))).toBe(true);
+    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/gameplay-time/export.csv'))).toBe(true);
+    expect(downloads.some((download) => download.startsWith('revenue-') && download.endsWith('.csv'))).toBe(true);
     expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:dashboard');
     createElementSpy.mockRestore();
@@ -3243,6 +3237,14 @@ async function mockPlatformFetch(input: RequestInfo | URL, init?: RequestInit): 
 
   if (pathname.endsWith('/reports/sales')) {
     return jsonResponse(createSalesReport());
+  }
+
+  if (pathname.endsWith('/reports/gameplay-time')) {
+    return jsonResponse({
+      rows: [], limit: 200, totalDurationSeconds: 7200,
+      totalPackageSeconds: 0, totalBonusSeconds: 0,
+      gameplayRevenueTotal: { currencyCode: 'TJS', minorUnits: 3000 }
+    });
   }
 
   if (pathname.endsWith('/reports/cash-operations')) {

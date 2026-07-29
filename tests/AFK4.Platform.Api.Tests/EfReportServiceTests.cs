@@ -178,6 +178,33 @@ public sealed class EfReportServiceTests
     }
 
     [Fact]
+    public async Task GetSalesReportAsync_LimitAppliesOnlyToRows_NotTotals()
+    {
+        await using var db = CreateDbContext();
+        var shiftId = Guid.NewGuid();
+        var olderSaleId = Guid.NewGuid();
+        var newerSaleId = Guid.NewGuid();
+        SeedSale(db, olderSaleId, shiftId, PosSaleStateNames.Paid, 2_000, ReportDay.AddHours(10));
+        SeedSale(db, newerSaleId, shiftId, PosSaleStateNames.Paid, 5_000, ReportDay.AddHours(11));
+        SeedSaleLine(db, olderSaleId, quantity: 1, lineTotal: 2_000, unitCostMinorUnits: 500);
+        SeedSaleLine(db, newerSaleId, quantity: 1, lineTotal: 5_000, unitCostMinorUnits: 1_500);
+        SeedPayment(db, shiftId, olderSaleId, PaymentMethodNames.Cash, "payment", 2_000);
+        SeedPayment(db, shiftId, newerSaleId, PaymentMethodNames.Cash, "payment", 5_000);
+        await db.SaveChangesAsync();
+
+        var result = await new EfReportService(db).GetSalesReportAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            new ReportSearchQuery(ReportDay, ReportDay.AddDays(1), 1),
+            CancellationToken.None);
+
+        Assert.Single(result.Rows);
+        Assert.Equal(newerSaleId, result.Rows[0].PosSaleId);
+        Assert.Equal(7_000, result.GrossSalesTotal.MinorUnits);
+        Assert.Equal(2_000, result.GrossCostOfGoodsTotal.MinorUnits);
+    }
+
+    [Fact]
     public async Task GetSalesReportAsync_LineCurrencyDiffersFromSale_FailsClosed()
     {
         await using var db = CreateDbContext();
@@ -308,6 +335,30 @@ public sealed class EfReportServiceTests
                 Assert.Equal(600, second.BonusSeconds);
                 Assert.Equal(15000, second.GameplayRevenue.MinorUnits);
             });
+    }
+
+    [Fact]
+    public async Task GetGameplayTimeReportAsync_LimitAppliesOnlyToRows_NotTotals()
+    {
+        await using var db = CreateDbContext();
+        var olderSessionId = Guid.NewGuid();
+        var newerSessionId = Guid.NewGuid();
+        SeedSession(db, olderSessionId, "guest", ReportDay.AddHours(8), ReportDay.AddHours(9));
+        SeedSession(db, newerSessionId, "guest", ReportDay.AddHours(10), ReportDay.AddHours(12));
+        SeedSessionLedgerEntry(db, olderSessionId, LedgerEntryTypeNames.GameplayCharge, -2_000);
+        SeedSessionLedgerEntry(db, newerSessionId, LedgerEntryTypeNames.GameplayCharge, -5_000);
+        await db.SaveChangesAsync();
+
+        var result = await new EfReportService(db).GetGameplayTimeReportAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            new ReportSearchQuery(ReportDay, ReportDay.AddDays(1), 1),
+            CancellationToken.None);
+
+        Assert.Single(result.Rows);
+        Assert.Equal(newerSessionId, result.Rows[0].SessionId);
+        Assert.Equal(10_800, result.TotalDurationSeconds);
+        Assert.Equal(7_000, result.GameplayRevenueTotal.MinorUnits);
     }
 
     [Fact]

@@ -271,6 +271,15 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Known Gaps
 
+- **Organization Admin Reports backend projection** — the Reports surface now
+  exposes only `Сводка`, `Смены и касса`, and `Выручка`; operator-action audit
+  was removed from Reports, real ru/en/tg copy was added, and sales/gameplay
+  totals now cover the full range even when detail rows are limited. The first
+  UI pass still composes existing endpoints in the browser. Before this redesign
+  is complete, the API must own branch-timezone date boundaries, seven-day
+  trend, previous-period comparison, the full attention model, and unified CSV
+  exports. Current combined exports concatenate the existing source CSV files.
+
 - **Per-environment SMTP config** still needs the user's real connection
   details wired into `NotificationOptions`.
 - **Operator entity search** is still deferred: the command palette navigates

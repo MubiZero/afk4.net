@@ -9,6 +9,10 @@ Implementation plans for completed work are archived once their work lands on
   Organization Admin around critical work and maintenance windows.
 - `2026-07-29-client-update-known-good-recovery.md` — replaces fake rollback
   with verified last-known-good storage, startup health, and recovery.
+- `2026-07-29-organization-admin-reports-redesign.md` — replaces the
+  transitional Reports UI with the three approved owner-facing destinations;
+  the backend-authoritative timezone, trend, comparison, and combined-export
+  projection remains the next task in that plan.
 
 - `2026-07-28-platform-organization-big-bang-migration.md` — atomically
   separates Platform Control and Organization Admin across auth domains, APIs,

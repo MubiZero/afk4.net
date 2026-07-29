@@ -8,22 +8,22 @@ function session(permissions: string[]) {
 
 describe('reportsNav', () => {
   it('lists overview/history/journal in order', () => {
-    expect(reportsDestinations.map((d) => d.id)).toEqual(['overview', 'history', 'journal']);
+    expect(reportsDestinations.map((d) => d.id)).toEqual(['summary', 'shiftsCash', 'revenue']);
   });
 
-  it('shows overview+history for reports.view, hides journal', () => {
+  it('shows all report tabs for reports.view', () => {
     const ids = allowedReportsDestinations(session([permissionNames.viewReports])).map((d) => d.id);
-    expect(ids).toEqual(['overview', 'history']);
+    expect(ids).toEqual(['summary', 'shiftsCash', 'revenue']);
   });
 
-  it('shows only journal for audit.view alone', () => {
+  it('shows no report tabs for audit.view alone', () => {
     const ids = allowedReportsDestinations(session([permissionNames.viewAudit])).map((d) => d.id);
-    expect(ids).toEqual(['journal']);
+    expect(ids).toEqual([]);
   });
 
   it('shows all three when both permissions present', () => {
     const ids = allowedReportsDestinations(session([permissionNames.viewReports, permissionNames.viewAudit])).map((d) => d.id);
-    expect(ids).toEqual(['overview', 'history', 'journal']);
+    expect(ids).toEqual(['summary', 'shiftsCash', 'revenue']);
   });
 
   it('hides section entirely with no relevant permission', () => {
