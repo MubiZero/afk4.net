@@ -59,4 +59,14 @@ describe('platform OverviewScreen', () => {
     wrap(ready, billing);
     expect(screen.getByText('MRR')).toBeInTheDocument();
   });
+
+  it('keeps organization signals visible when billing metrics fail', () => {
+    const retry = mock();
+    wrap(ready, { status: 'error', message: 'billing failed', retry });
+
+    expect(screen.getByText('Beta')).toBeVisible();
+    expect(screen.getByRole('status')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+    expect(retry).toHaveBeenCalled();
+  });
 });

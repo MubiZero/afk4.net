@@ -17,7 +17,10 @@ public sealed class OrganizationContractSerializationTests
             SubscriptionStatus: SubscriptionStatusNames.Trial,
             BranchCount: 1,
             CreatedAtUtc: DateTimeOffset.Parse("2026-05-23T08:00:00Z"),
-            UpdatedAtUtc: DateTimeOffset.Parse("2026-05-23T08:10:00Z"));
+            UpdatedAtUtc: DateTimeOffset.Parse("2026-05-23T08:10:00Z"),
+            RecentErrorCount: 2,
+            ExpiringOwnerInviteCount: 1,
+            RolloutAttentionCount: 1);
 
         var json = JsonSerializer.Serialize(summary);
         var copy = JsonSerializer.Deserialize<OrganizationSummaryDto>(json);
@@ -29,6 +32,9 @@ public sealed class OrganizationContractSerializationTests
         Assert.Equal(summary.PlanCode, copy.PlanCode);
         Assert.Equal(summary.SubscriptionStatus, copy.SubscriptionStatus);
         Assert.Equal(summary.BranchCount, copy.BranchCount);
+        Assert.Equal(summary.RecentErrorCount, copy.RecentErrorCount);
+        Assert.Equal(summary.ExpiringOwnerInviteCount, copy.ExpiringOwnerInviteCount);
+        Assert.Equal(summary.RolloutAttentionCount, copy.RolloutAttentionCount);
     }
 
     [Fact]

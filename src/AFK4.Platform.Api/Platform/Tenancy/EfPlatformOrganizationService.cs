@@ -1,11 +1,13 @@
 using System.Text.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Notifications;
 using AFK4.Shared.Contracts.Platform.Organizations;
+using AFK4.Shared.Contracts.Updates;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -225,6 +227,24 @@ public sealed class EfPlatformOrganizationService(
             .Select(group => new { OrganizationId = group.Key, Count = group.Count() })
             .ToListAsync(cancellationToken);
         var branchCountsById = branchCounts.ToDictionary(item => item.OrganizationId, item => item.Count);
+        var now = timeProvider.GetUtcNow();
+        var recentErrorSince = now.AddDays(-7);
+        var inviteCutoff = now.AddDays(3);
+        var recentErrorsById = await dbContext.AuditRecords.AsNoTracking()
+            .Where(record => orgIds.Contains(record.OrganizationId) && record.Outcome == AuditOutcome.Denied && record.CreatedAtUtc >= recentErrorSince)
+            .GroupBy(record => record.OrganizationId)
+            .Select(group => new { OrganizationId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(item => item.OrganizationId, item => item.Count, cancellationToken);
+        var expiringInvitesById = await dbContext.OrganizationOwnerInvites.AsNoTracking()
+            .Where(invite => orgIds.Contains(invite.OrganizationId) && invite.Status == OrganizationOwnerInviteStatusNames.Pending && invite.ExpiresAtUtc > now && invite.ExpiresAtUtc <= inviteCutoff)
+            .GroupBy(invite => invite.OrganizationId)
+            .Select(group => new { OrganizationId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(item => item.OrganizationId, item => item.Count, cancellationToken);
+        var rolloutAttentionById = await dbContext.DeviceUpdateStatuses.AsNoTracking()
+            .Where(status => orgIds.Contains(status.OrganizationId) && status.Status == UpdateStatusNames.Failed)
+            .GroupBy(status => status.OrganizationId)
+            .Select(group => new { OrganizationId = group.Key, Count = group.Select(status => status.UpdateRolloutId).Distinct().Count() })
+            .ToDictionaryAsync(item => item.OrganizationId, item => item.Count, cancellationToken);
 
         return orgs.Select(org => new OrganizationSummaryDto(
             OrganizationId: org.OrganizationId,
@@ -235,7 +255,10 @@ public sealed class EfPlatformOrganizationService(
             SubscriptionStatus: org.SubscriptionStatus,
             BranchCount: branchCountsById.GetValueOrDefault(org.OrganizationId),
             CreatedAtUtc: org.CreatedAtUtc,
-            UpdatedAtUtc: org.UpdatedAtUtc)).ToList();
+            UpdatedAtUtc: org.UpdatedAtUtc,
+            RecentErrorCount: recentErrorsById.GetValueOrDefault(org.OrganizationId),
+            ExpiringOwnerInviteCount: expiringInvitesById.GetValueOrDefault(org.OrganizationId),
+            RolloutAttentionCount: rolloutAttentionById.GetValueOrDefault(org.OrganizationId))).ToList();
     }
 
     public Task<OrganizationDetailDto?> GetAsync(Guid organizationId, CancellationToken cancellationToken)

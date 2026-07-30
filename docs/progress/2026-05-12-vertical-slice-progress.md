@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-07-29
+Last updated: 2026-07-30
 
 ## Purpose
 
@@ -162,7 +162,25 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   Shared money conversion moved to `src/lib`, while backend branch endpoints
   and Operator contracts remain unchanged.
 
+- **Platform Control rebuild review hardening** — the operational overview now
+  receives fixed-query-count organization attention projections for recent
+  denied operations, owner invitations expiring within three days, and failed
+  device rollouts, alongside suspension and past-due billing signals. Optional
+  SaaS billing failure remains visible as a retryable partial state. Overview
+  data loads only on the overview route and only within the caller's billing
+  permission. Direct URLs to forbidden organization tabs now show an explicit
+  access boundary with a safe Summary action. Remaining organization sorting
+  and rollout-target labels are fully localized in ru/en/tg.
+
 ## Latest Verification
+
+- Platform Control rebuild review gate (2026-07-30): Platform Control passed
+  147/147 tests and its production build; i18n passed 39/39; Shared Contracts
+  passed 137/137; Platform API passed 1477 tests with 14 PostgreSQL-only skips;
+  and the sequential full solution build completed with 0 warnings and 0
+  errors. The attention projection integration test covers all three added
+  operational counts without per-organization requests. No push, merge,
+  deployment, or physical Windows smoke was performed.
 
 - Platform-managed client updates and Organization Admin reports reached
   staging at merge SHA `72dd2852` on 2026-07-29. Before the schema change,

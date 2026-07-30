@@ -49,10 +49,11 @@ it('keeps summary available when health fails', async () => {
   expect(screen.getByRole('heading', { name: 'Orion Gaming' })).toBeVisible();
 });
 
-it('omits forbidden tabs and falls back to summary for a forbidden direct tab URL', async () => {
-  setup('history', mock(), { canManageOrganization: false, canManageAccess: false, canViewSupport: false, canViewBilling: false, canViewAudit: false });
-  await waitFor(() => expect(screen.getByRole('heading', { name: 'Orion Gaming' })).toBeVisible());
-  expect(screen.queryByRole('tab', { name: 'История изменений' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('tab', { name: 'Счета' })).not.toBeInTheDocument();
-  expect(screen.getByText('orion')).toBeVisible();
+it('shows a forbidden state for a forbidden direct tab URL', async () => {
+  const onTabChange = mock();
+  setup('history', onTabChange, { canManageOrganization: false, canManageAccess: false, canViewSupport: false, canViewBilling: false, canViewAudit: false });
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Нет доступа' })).toBeVisible());
+  expect(screen.queryByRole('heading', { name: 'Orion Gaming' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Сводка' }));
+  expect(onTabChange).toHaveBeenCalledWith('summary');
 });

@@ -33,6 +33,9 @@ export interface OrganizationSummary {
   branchCount: number;
   createdAtUtc: string;
   updatedAtUtc: string;
+  recentErrorCount?: number;
+  expiringOwnerInviteCount?: number;
+  rolloutAttentionCount?: number;
 }
 
 export interface OrganizationBranch {

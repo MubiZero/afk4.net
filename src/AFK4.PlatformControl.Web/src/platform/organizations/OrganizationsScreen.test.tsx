@@ -1,9 +1,11 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, mock } from 'bun:test';
+import { afterEach, it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { OrganizationsScreen } from './OrganizationsScreen';
 import type { OrganizationSummary } from '@/api/types';
+
+afterEach(() => localStorage.removeItem('afk4.locale'));
 
 function summary(over: Partial<OrganizationSummary>): OrganizationSummary {
   return {
@@ -78,4 +80,11 @@ it('fires onOpenOrganization when a row is clicked', async () => {
   await waitFor(() => expect(screen.getByText('Acme')).toBeInTheDocument());
   fireEvent.click(screen.getByText('Acme'));
   expect(onOpenOrganization).toHaveBeenCalledWith('o1');
+});
+
+it('localizes sorting controls in English', async () => {
+  localStorage.setItem('afk4.locale', 'en');
+  setup();
+  expect(await screen.findByRole('combobox', { name: 'Sort' })).toBeVisible();
+  expect(screen.getByText('Needs attention first')).toBeInTheDocument();
 });

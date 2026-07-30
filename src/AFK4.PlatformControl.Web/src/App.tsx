@@ -94,8 +94,6 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
   onSignOut: () => void;
 }) {
   const { t } = useI18n();
-  const organizationMetrics = useOrganizationMetrics(client.organizations);
-  const billingMetrics = useBillingMetrics(client.invoices);
   const openOrganization = (organizationId: string, initialInvite: OrganizationOwnerInvite | null = null) =>
     navigate({ kind: 'organization', organizationId, tab: initialInvite === null ? 'summary' : 'access' }, { initialInvite });
   const organizationAccess = {
@@ -120,7 +118,7 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
       onNavigate={path => navigate(resolvePlatformRoute(new URL(path, window.location.origin).pathname, new URL(path, window.location.origin).search))}
       onSignOut={onSignOut}
     >
-      <Suspense fallback={<LoadingCards count={3} />}>{route.kind === 'overview' ? <OverviewScreen state={organizationMetrics} billing={billingMetrics} />
+      <Suspense fallback={<LoadingCards count={3} />}>{route.kind === 'overview' ? <OverviewRoute client={client} canViewBilling={can(session, 'billing.read')} />
         : route.kind === 'billing' ? <BillingScreen client={client} tab={route.tab} onTabChange={tab => navigate({ ...route, tab })} canManage={can(session, 'billing.manage')} />
         : route.kind === 'updates' ? <UpdatesScreen client={client.updates} tab={route.tab} onTabChange={tab => navigate({ ...route, tab })} />
         : route.kind === 'audit' ? <AuditScreen client={client.audit} filters={route} onFiltersChange={filters => navigate({ kind: 'audit', ...filters })} />
@@ -131,6 +129,12 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
         : <UnavailableScreen />}</Suspense>
     </AppShell>
   );
+}
+
+function OverviewRoute({ client, canViewBilling }: { client: PlatformApiClient; canViewBilling: boolean }) {
+  const organizationMetrics = useOrganizationMetrics(client.organizations);
+  const billingMetrics = useBillingMetrics(canViewBilling ? client.invoices : null);
+  return <OverviewScreen state={organizationMetrics} billing={canViewBilling ? billingMetrics : undefined} />;
 }
 
 function capabilityForRoute(route: Exclude<PlatformRoute, { kind: 'notFound' }>): PlatformCapability | null {

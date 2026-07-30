@@ -4,7 +4,7 @@ import type { OrganizationOwnerInvite } from '@/api/types';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Workspace } from '@/components/layout/Workspace';
 import { Card, CardContent } from '@/components/ui/card';
-import { ErrorState, LoadingCards } from '@/components/ui/states';
+import { ErrorState, ForbiddenState, LoadingCards } from '@/components/ui/states';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import type { OrganizationTab } from '@/routing/platformRoute';
 import { useOrganizationDetail } from './useOrganizationDetail';
@@ -51,7 +51,10 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
   const organization = state.data;
   const apply = (next: typeof organization) => { state.apply(next); onChanged(); };
   const visibleTabs = TABS.filter(item => item.allowed(access));
-  const activeTab = visibleTabs.some(item => item.value === tab) ? tab : 'summary';
+  if (!visibleTabs.some(item => item.value === tab)) {
+    return <Workspace width="narrow"><ForbiddenState title={t('state.forbidden.title')} message={t('state.forbidden.message')} actionLabel={t('platform.organization.tab.summary')} onAction={() => onTabChange('summary')} /></Workspace>;
+  }
+  const activeTab = tab;
 
   return <Workspace>
     <PageHeader title={organization.name} description={`${organization.slug} · ${organization.status}`} />

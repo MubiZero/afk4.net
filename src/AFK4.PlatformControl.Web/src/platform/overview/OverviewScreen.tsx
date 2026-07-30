@@ -7,6 +7,7 @@ import type { MessageKey } from '@/i18n/messages';
 import type { OrganizationMetricsState } from './useOrganizationMetrics';
 import type { BillingMetricsState } from '@/platform/billing/useBillingMetrics';
 import { AttentionQueue } from './AttentionQueue';
+import { PartialFailure } from '@/components/ui/states';
 
 const PLAN_LABEL: Record<string, MessageKey> = {
   starter: 'platform.plan.starter',
@@ -56,6 +57,7 @@ export function OverviewScreen({ state, billing }: { state: OrganizationMetricsS
         <CompactMetric label={t('platform.overview.kpi.branches')} value={formatNumber(kpis.totalBranches)} />
       </div>
       {billing !== undefined && billing.status === 'ready' ? <div className="grid grid-cols-1 gap-3 md:grid-cols-3"><Kpi label={t('platform.overview.kpi.mrr')} value={formatCurrency(minorToMajor(billing.data.mrrMinorUnits), billing.data.currencyCode)} /><Kpi label={t('platform.overview.kpi.outstanding')} value={formatCurrency(minorToMajor(billing.data.outstandingMinorUnits), billing.data.currencyCode)} /><Kpi label={t('platform.overview.kpi.overdue')} value={formatCurrency(minorToMajor(billing.data.overdueMinorUnits), billing.data.currencyCode)} /></div> : null}
+      {billing !== undefined && billing.status === 'error' ? <PartialFailure title={t('platform.overview.billingUnavailable')} retryLabel={t('state.retry')} onRetry={billing.retry} /> : null}
     </div>
   );
 }

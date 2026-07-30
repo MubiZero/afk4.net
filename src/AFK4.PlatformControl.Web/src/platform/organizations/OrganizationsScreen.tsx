@@ -54,8 +54,8 @@ export function OrganizationsScreen({
           </SelectContent>
         </Select>
         <Select value={sort} onValueChange={value => onQueryChange({ sort: value })}>
-          <SelectTrigger aria-label="Сортировка"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="attention">Сначала требуют внимания</SelectItem><SelectItem value="name">По названию</SelectItem></SelectContent>
+          <SelectTrigger aria-label={t('platform.organizations.sort.label')}><SelectValue /></SelectTrigger>
+          <SelectContent><SelectItem value="attention">{t('platform.organizations.sort.attention')}</SelectItem><SelectItem value="name">{t('platform.organizations.sort.name')}</SelectItem></SelectContent>
         </Select>
         <Button className="ml-auto" onClick={onCreateOrganization}>{t('platform.organizations.new')}</Button>
       </div>

@@ -9,7 +9,7 @@ export type BillingMetricsState =
 
 type Loadable = Pick<InvoicesApi, 'getBillingMetrics'>;
 
-export function useBillingMetrics(client: Loadable): BillingMetricsState {
+export function useBillingMetrics(client: Loadable | null): BillingMetricsState {
   const [tick, setTick] = useState(0);
   const [state, setState] = useState<{ status: 'loading' | 'error' | 'ready'; data?: PlatformBillingMetrics; message?: string }>({ status: 'loading' });
   const retry = useCallback(() => setTick(t => t + 1), []);
@@ -18,6 +18,7 @@ export function useBillingMetrics(client: Loadable): BillingMetricsState {
 
   useEffect(() => {
     let cancelled = false;
+    if (clientRef.current === null) return () => { cancelled = true; };
     setState({ status: 'loading' });
     clientRef.current.getBillingMetrics()
       .then(m => { if (!cancelled) setState({ status: 'ready', data: m }); })

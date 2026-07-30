@@ -9,4 +9,7 @@ public sealed record OrganizationSummaryDto(
     string SubscriptionStatus,
     int BranchCount,
     DateTimeOffset CreatedAtUtc,
-    DateTimeOffset UpdatedAtUtc);
+    DateTimeOffset UpdatedAtUtc,
+    int RecentErrorCount,
+    int ExpiringOwnerInviteCount,
+    int RolloutAttentionCount);

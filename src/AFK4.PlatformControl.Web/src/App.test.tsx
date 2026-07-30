@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 import App from './App';
 import { resolvePlatformRoute } from './routing/platformRoute';
@@ -106,5 +106,23 @@ describe('Platform Control admin-only routing', () => {
     writeSession(buildSession());
     renderApp();
     expect(screen.getByRole('heading', { name: 'Нет доступа' })).toBeInTheDocument();
+  });
+
+  it('does not load overview data outside the overview route', async () => {
+    window.history.replaceState(null, '', '/admin/profile');
+    writeSession(buildSession());
+    const requests: string[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      requests.push(new URL(String(input)).pathname);
+      return jsonResponse(200, []);
+    }) as unknown as typeof fetch;
+
+    await act(async () => {
+      renderApp();
+      await Promise.resolve();
+    });
+
+    await screen.findByText('admin@platform.test');
+    expect(requests).toEqual([]);
   });
 });
