@@ -17,13 +17,14 @@ describe('platform nav', () => {
       'platform.billing.view',
       'platform.audit.view'
     ])).flatMap(g => g.items.map(i => i.key));
-    expect(keys).toContain('overview');
-    expect(keys).toContain('organizations');
-    expect(keys).toContain('billing');
-    expect(keys).toContain('audit');
+    expect(keys).toContain('clubs');
+    expect(keys).toContain('money');
+    expect(keys).toContain('journal');
     expect(keys).toContain('profile');
     expect(keys).not.toContain('updates');
     expect(keys).not.toContain('settings');
+    expect(keys).not.toContain('overview');
+    expect(keys).not.toContain('organizations');
   });
 
   it('marks every platform nav item live', () => {

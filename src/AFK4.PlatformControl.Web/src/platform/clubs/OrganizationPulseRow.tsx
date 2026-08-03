@@ -27,9 +27,10 @@ function alertLabel(alert: PulseAlert): MessageKey {
 interface OrganizationPulseRowProps {
   organization: PulseOrganization;
   defaultExpanded: boolean;
+  onOpen: (organizationId: string) => void;
 }
 
-export function OrganizationPulseRow({ organization, defaultExpanded }: OrganizationPulseRowProps) {
+export function OrganizationPulseRow({ organization, defaultExpanded, onOpen }: OrganizationPulseRowProps) {
   const { t, formatCurrency } = useI18n();
   const [expanded, setExpanded] = useState(defaultExpanded);
 
@@ -50,14 +51,26 @@ export function OrganizationPulseRow({ organization, defaultExpanded }: Organiza
       data-alert-level={organization.alertLevel}
       className={cn('overflow-hidden rounded-lg border border-l-4 border-border bg-card', BORDER_CLASS[organization.alertLevel])}
     >
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         aria-expanded={expanded}
         onClick={() => setExpanded(value => !value)}
-        className="flex w-full flex-wrap items-center gap-3 px-4 py-3 text-left hover:bg-accent focus-visible:bg-accent"
+        onKeyDown={event => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          setExpanded(value => !value);
+        }}
+        className="flex w-full cursor-pointer flex-wrap items-center gap-3 px-4 py-3 text-left hover:bg-accent focus-visible:bg-accent"
       >
         <span className="min-w-0 flex-1">
-          <span className="block font-semibold text-foreground">{organization.name}</span>
+          <a
+            href={`/admin/organizations/${encodeURIComponent(organization.organizationId)}`}
+            onClick={event => { event.preventDefault(); event.stopPropagation(); onOpen(organization.organizationId); }}
+            className="block font-semibold text-foreground underline-offset-4 hover:underline"
+          >
+            {organization.name}
+          </a>
           <span className="block text-xs text-muted-foreground">{planLabel}</span>
         </span>
         <span className="text-sm text-muted-foreground">{aggregateText}</span>
@@ -75,7 +88,7 @@ export function OrganizationPulseRow({ organization, defaultExpanded }: Organiza
             {t(alertLabel(alert))}
           </Badge>
         ))}
-      </button>
+      </div>
       {expanded ? (
         <div className="divide-y divide-border border-t border-border">
           {organization.clubs.length === 0

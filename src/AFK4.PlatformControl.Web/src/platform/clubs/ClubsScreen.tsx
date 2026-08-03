@@ -26,9 +26,10 @@ interface ClubsScreenProps {
   client: Pick<PlatformApiClient, 'pulse'>;
   view: PulseView;
   onViewChange: (view: PulseView) => void;
+  onOpenOrganization: (organizationId: string) => void;
 }
 
-export function ClubsScreen({ client, view, onViewChange }: ClubsScreenProps) {
+export function ClubsScreen({ client, view, onViewChange, onOpenOrganization }: ClubsScreenProps) {
   const { t } = useI18n();
   const state = usePulse(client.pulse);
 
@@ -59,13 +60,13 @@ export function ClubsScreen({ client, view, onViewChange }: ClubsScreenProps) {
       ) : state.status === 'error' ? (
         <ErrorState message={t('state.error')} retryLabel={t('state.retry')} onRetry={state.retry} />
       ) : (
-        <ClubsList organizations={state.data.organizations} view={view} emptyMessage={t(EMPTY_KEY[view])} />
+        <ClubsList organizations={state.data.organizations} view={view} emptyMessage={t(EMPTY_KEY[view])} onOpenOrganization={onOpenOrganization} />
       )}
     </div>
   );
 }
 
-function ClubsList({ organizations, view, emptyMessage }: { organizations: PulseOrganization[]; view: PulseView; emptyMessage: string }) {
+function ClubsList({ organizations, view, emptyMessage, onOpenOrganization }: { organizations: PulseOrganization[]; view: PulseView; emptyMessage: string; onOpenOrganization: (organizationId: string) => void }) {
   const rows = useMemo(() => selectView(organizations, view), [organizations, view]);
   const density = resolveDensity(organizations.length);
 
@@ -74,7 +75,7 @@ function ClubsList({ organizations, view, emptyMessage }: { organizations: Pulse
   return (
     <div className="flex flex-col gap-3">
       {rows.map(organization => (
-        <OrganizationPulseRow key={organization.organizationId} organization={organization} defaultExpanded={density === 'roomy'} />
+        <OrganizationPulseRow key={organization.organizationId} organization={organization} defaultExpanded={density === 'roomy'} onOpen={onOpenOrganization} />
       ))}
     </div>
   );

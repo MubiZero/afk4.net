@@ -34,9 +34,10 @@ function client(overrides: Partial<Pick<PulseApi, 'getPulse'>> = {}) {
 
 function setup(props: Partial<Parameters<typeof ClubsScreen>[0]> = {}) {
   const onViewChange = mock();
+  const onOpenOrganization = mock();
   return render(
     <I18nProvider>
-      <ClubsScreen client={client()} view="now" onViewChange={onViewChange} {...props} />
+      <ClubsScreen client={client()} view="now" onViewChange={onViewChange} onOpenOrganization={onOpenOrganization} {...props} />
     </I18nProvider>
   );
 }
@@ -76,4 +77,17 @@ it('shows an error state, not an empty state, when the pulse fetch fails', async
 
   await waitFor(() => expect(screen.getByRole('button', { name: 'Повторить' })).toBeInTheDocument());
   expect(screen.queryByTestId('pulse-row')).not.toBeInTheDocument();
+});
+
+it('opens the client card when a network name is clicked', async () => {
+  const getPulse = mock().mockResolvedValue({
+    generatedAtUtc: '2026-08-03T00:00:00Z',
+    organizations: [org({ organizationId: 'o1', name: 'Arena' })]
+  });
+  const onOpenOrganization = mock();
+  setup({ client: client({ getPulse }), onOpenOrganization });
+
+  const nameLink = await screen.findByRole('link', { name: 'Arena' });
+  fireEvent.click(nameLink);
+  expect(onOpenOrganization).toHaveBeenCalledWith('o1');
 });

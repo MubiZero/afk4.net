@@ -10,10 +10,7 @@ import { AppShell } from './components/shell/AppShell';
 import { ForbiddenState, LoadingCards } from './components/ui/states';
 import { Workspace } from './components/layout/Workspace';
 import { useI18n, type MessageKey } from './i18n/I18nProvider';
-import { useBillingMetrics } from './platform/billing/useBillingMetrics';
 import { buildPlatformNav } from './platform/nav';
-import { OverviewScreen } from './platform/overview/OverviewScreen';
-import { useOrganizationMetrics } from './platform/overview/useOrganizationMetrics';
 import { GlobalSearch } from './platform/search/GlobalSearch';
 import {
   pathForPlatformRoute,
@@ -22,9 +19,9 @@ import {
 } from './routing/platformRoute';
 
 const BillingScreen = lazy(() => import('./platform/billing/BillingScreen').then(module => ({ default: module.BillingScreen })));
+const ClubsScreen = lazy(() => import('./platform/clubs/ClubsScreen').then(module => ({ default: module.ClubsScreen })));
 const NewOrganizationScreen = lazy(() => import('./platform/organizations/NewOrganizationScreen').then(module => ({ default: module.NewOrganizationScreen })));
 const OrganizationPage = lazy(() => import('./platform/organizations/OrganizationPage').then(module => ({ default: module.OrganizationPage })));
-const OrganizationsScreen = lazy(() => import('./platform/organizations/OrganizationsScreen').then(module => ({ default: module.OrganizationsScreen })));
 const ProfileScreen = lazy(() => import('./platform/profile/ProfileScreen').then(module => ({ default: module.ProfileScreen })));
 const UpdatesScreen = lazy(() => import('./platform/updates/UpdatesScreen').then(module => ({ default: module.UpdatesScreen })));
 const AuditScreen = lazy(() => import('./platform/audit/AuditScreen').then(module => ({ default: module.AuditScreen })));
@@ -49,7 +46,7 @@ export default function App({ apiBaseUrl }: AppProps) {
     const sync = () => setRoute(readCurrentRoute());
     if (window.location.pathname === '/') {
       window.history.replaceState(null, '', '/admin');
-      setRoute({ kind: 'overview' });
+      setRoute({ kind: 'overview', view: 'now' });
     }
     window.addEventListener('popstate', sync);
     return () => window.removeEventListener('popstate', sync);
@@ -63,25 +60,24 @@ export default function App({ apiBaseUrl }: AppProps) {
   if (route.kind === 'accountActivation') {
     return <AccountActivation client={activationClient} initialCode={route.code} />;
   }
-  if (route.kind === 'notFound') return <NotFound path={route.path} onHome={() => navigate({ kind: 'overview' })} />;
+  if (route.kind === 'notFound') return <NotFound path={route.path} onHome={() => navigate({ kind: 'overview', view: 'now' })} />;
   if (session === null) return <SignIn client={client} onSignedIn={() => setSession(client.getSession())} />;
 
   const requiredCapability = capabilityForRoute(route);
   if (requiredCapability !== null && !can(session, requiredCapability)) {
-    return <Forbidden onHome={() => navigate({ kind: 'overview' })} />;
+    return <Forbidden onHome={() => navigate({ kind: 'overview', view: 'now' })} />;
   }
 
   return <PlatformArea client={client} route={route} session={session} navigate={navigate} onSignOut={() => void client.signOut()} />;
 }
 
 const TITLE_KEYS: Record<Exclude<PlatformRoute['kind'], 'notFound'>, MessageKey> = {
-  overview: 'nav.platform.overview',
-  organizations: 'nav.platform.organizations',
+  overview: 'nav.platform.clubs',
   organization: 'platform.organization.title',
   organizationNew: 'platform.organizations.new',
-  billing: 'nav.platform.billing',
+  billing: 'nav.platform.money',
   updates: 'nav.platform.updates',
-  audit: 'nav.platform.audit',
+  audit: 'nav.platform.journal',
   settings: 'nav.platform.settings',
   profile: 'nav.platform.profile'
 };
@@ -122,28 +118,21 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
       onNavigate={path => navigate(resolvePlatformRoute(new URL(path, window.location.origin).pathname, new URL(path, window.location.origin).search))}
       onSignOut={onSignOut}
     >
-      <Suspense fallback={<LoadingCards count={3} />}>{route.kind === 'overview' ? <OverviewRoute client={client} canViewBilling={can(session, 'billing.read')} />
+      <Suspense fallback={<LoadingCards count={3} />}>{route.kind === 'overview' ? <ClubsScreen client={client} view={route.view} onViewChange={view => navigate({ kind: 'overview', view })} onOpenOrganization={id => openOrganization(id)} />
         : route.kind === 'billing' ? <BillingScreen client={client} tab={route.tab} onTabChange={tab => navigate({ ...route, tab })} canManage={can(session, 'billing.manage')} />
         : route.kind === 'updates' ? <UpdatesScreen client={client.updates} tab={route.tab} onTabChange={tab => navigate({ ...route, tab })} />
         : route.kind === 'audit' ? <AuditScreen client={client.audit} filters={route} onFiltersChange={filters => navigate({ kind: 'audit', ...filters })} />
         : route.kind === 'profile' ? <ProfileScreen session={session} onSignOut={onSignOut} />
-        : route.kind === 'organizationNew' ? <NewOrganizationScreen client={client.organizations} onCreated={(response: CreateOrganizationResponse) => openOrganization(response.organization.organizationId, response.organizationOwnerInvite)} onCancel={() => navigate({ kind: 'organizations', query: '', status: 'all', plan: 'all', sort: 'attention' })} />
+        : route.kind === 'organizationNew' ? <NewOrganizationScreen client={client.organizations} onCreated={(response: CreateOrganizationResponse) => openOrganization(response.organization.organizationId, response.organizationOwnerInvite)} onCancel={() => navigate({ kind: 'overview', view: 'now' })} />
         : route.kind === 'organization' ? <OrganizationPage client={client} organizationId={route.organizationId} tab={route.tab} access={organizationAccess} initialInvite={readInitialInvite()} onTabChange={tab => navigate({ ...route, tab })} onChanged={() => {}} />
-        : route.kind === 'organizations' ? <OrganizationsScreen client={client} selectedOrganizationId={null} initialInvite={null} query={route.query} statusFilter={route.status} planFilter={route.plan} sort={route.sort} onQueryChange={change => navigate({ kind: 'organizations', query: change.query ?? route.query, status: change.statusFilter ?? route.status, plan: change.planFilter ?? route.plan, sort: change.sort ?? route.sort })} onOpenOrganization={id => openOrganization(id)} onCloseOrganization={() => navigate({ kind: 'organizations', query: '', status: 'all', plan: 'all', sort: 'attention' })} onCreateOrganization={() => navigate({ kind: 'organizationNew' })} />
         : <UnavailableScreen />}</Suspense>
     </AppShell>
   );
 }
 
-function OverviewRoute({ client, canViewBilling }: { client: PlatformApiClient; canViewBilling: boolean }) {
-  const organizationMetrics = useOrganizationMetrics(client.organizations);
-  const billingMetrics = useBillingMetrics(canViewBilling ? client.invoices : null);
-  return <OverviewScreen state={organizationMetrics} billing={canViewBilling ? billingMetrics : undefined} />;
-}
-
 function capabilityForRoute(route: Exclude<PlatformRoute, { kind: 'notFound' }>): PlatformCapability | null {
   switch (route.kind) {
-    case 'organizations': case 'organization': return 'organizations.read';
+    case 'organization': return 'organizations.read';
     case 'organizationNew': return 'organizations.manage';
     case 'billing': return 'billing.read';
     case 'updates': return 'updates.read';
@@ -154,8 +143,7 @@ function capabilityForRoute(route: Exclude<PlatformRoute, { kind: 'notFound' }>)
 }
 
 function activePath(route: Exclude<PlatformRoute, { kind: 'notFound' }>): string {
-  if (route.kind === 'organization' || route.kind === 'organizationNew') return '/admin/organizations';
-  if (route.kind === 'billing') return '/admin/billing';
+  if (route.kind === 'organization' || route.kind === 'organizationNew') return '/admin';
   return pathForPlatformRoute(route).split('?')[0];
 }
 

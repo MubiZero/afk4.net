@@ -35,15 +35,15 @@ describe('AppShell', () => {
   it('renders Platform Control navigation and body', () => {
     renderShell();
     expect(screen.getByText('Platform Control')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Организации' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Биллинг' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Клубы' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Деньги' })).toBeInTheDocument();
     expect(screen.getByText('screen-body')).toBeInTheDocument();
   });
 
   it('fires admin navigation on item click', () => {
     const onNavigate = mock();
     renderShell(onNavigate);
-    fireEvent.click(screen.getByRole('button', { name: 'Обзор' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Клубы' }));
     expect(onNavigate).toHaveBeenCalledWith('/admin');
   });
 });
