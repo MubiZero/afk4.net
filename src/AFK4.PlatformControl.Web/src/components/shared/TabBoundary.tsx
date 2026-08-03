@@ -5,6 +5,16 @@ import { Button } from '@/components/ui/button';
 interface Props {
   message: string;
   retryLabel: string;
+  /**
+   * Identity that means "this is meaningfully different content, worth a
+   * fresh render attempt" — e.g. `${organizationId}:${activeTab}`. Deliberately
+   * NOT `children`: JSX creates a new element on almost every parent re-render,
+   * so keying off `children` identity would clear the failed state on the very
+   * next render (before the user ever sees the fallback) or, if the same crash
+   * keeps happening, spin in a fail/reset loop. Omit this prop to disable
+   * automatic resets and rely on the manual retry button only.
+   */
+  resetKey?: unknown;
   children: ReactNode;
 }
 
@@ -24,7 +34,7 @@ export class TabBoundary extends Component<Props, State> {
   }
 
   public componentDidUpdate(prevProps: Props): void {
-    if (this.state.failed && prevProps.children !== this.props.children) {
+    if (this.state.failed && prevProps.resetKey !== this.props.resetKey) {
       this.setState({ failed: false });
     }
   }

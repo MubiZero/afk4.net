@@ -12,7 +12,7 @@ import type { OrganizationOwnerInvitesApi } from '@/api/platformClients/organiza
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
 import type { OrganizationDetail, OrganizationSubscription } from '@/api/types';
-import { PLAN_LABEL, STATUS_LABEL, STATUS_VARIANT, SUBSCRIPTION_LABEL } from './organizationsModel';
+import { PLAN_LABEL, STATUS_LABEL, STATUS_VARIANT } from './organizationsModel';
 import type { OrganizationPageAccess } from './OrganizationPage';
 import { OrganizationProfileDialog } from './OrganizationProfileDialog';
 import { SubscriptionDialog } from './SubscriptionDialog';

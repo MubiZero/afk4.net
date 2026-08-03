@@ -60,11 +60,18 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
   }
   const activeTab = tab;
   const boundaryProps = { message: t('platform.organization.tabBoundary.error'), retryLabel: t('platform.organization.tabBoundary.retry') };
+  // Tab-content boundaries unmount/remount on every tab switch anyway (each
+  // panel is a conditional branch), but the passport boundary stays mounted
+  // across the whole page — its resetKey must track the organization, not the
+  // JSX identity of its children, or a stale failure could linger across
+  // organizations (or, with the old children-identity check, clear itself on
+  // the very next unrelated re-render).
+  const tabResetKey = `${organizationId}:${activeTab}`;
 
   return <Workspace>
     <PageHeader title={organization.name} description={`${organization.slug} · ${organization.status}`} />
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[280px_1fr] lg:items-start">
-      <TabBoundary {...boundaryProps}>
+      <TabBoundary {...boundaryProps} resetKey={organizationId}>
         <ClientPassport
           client={{
             organizations: client.organizations,
@@ -82,20 +89,20 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
         <div role="tablist" aria-label={t('platform.organization.tabs.label')} className="flex gap-1 overflow-x-auto border-b border-border">{visibleTabs.map(item => <button key={item.value} type="button" role="tab" aria-selected={activeTab === item.value} onClick={() => onTabChange(item.value)} className="min-h-10 shrink-0 border-b-2 border-transparent px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground aria-selected:border-primary aria-selected:text-foreground">{t(item.labelKey)}</button>)}</div>
 
         {activeTab === 'clubs' ? <div role="tabpanel" className="flex flex-col gap-4">
-            <TabBoundary {...boundaryProps}><OrganizationHealthSection client={client.organizations} organizationId={organizationId} /></TabBoundary>
-            <TabBoundary {...boundaryProps}><OrganizationClubsTab client={client.pulse} organizationId={organizationId} branches={organization.branches} /></TabBoundary>
+            <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationHealthSection client={client.organizations} organizationId={organizationId} /></TabBoundary>
+            <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationClubsTab client={client.pulse} organizationId={organizationId} branches={organization.branches} /></TabBoundary>
           </div> : null}
-        {activeTab === 'invoices' ? <div role="tabpanel"><TabBoundary {...boundaryProps}><OrganizationInvoicesSection client={client.invoices} organizationId={organizationId} /></TabBoundary></div> : null}
+        {activeTab === 'invoices' ? <div role="tabpanel"><TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationInvoicesSection client={client.invoices} organizationId={organizationId} /></TabBoundary></div> : null}
         {activeTab === 'limits' ? <div role="tabpanel" className="flex flex-col gap-4">
-            <TabBoundary {...boundaryProps}><OrganizationStatusSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary>
-            <TabBoundary {...boundaryProps}><OrganizationLimitsSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary>
+            <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationStatusSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary>
+            <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationLimitsSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary>
           </div> : null}
-        {activeTab === 'updates' ? <div role="tabpanel"><TabBoundary {...boundaryProps}><OrganizationUpdateChannelSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary></div> : null}
+        {activeTab === 'updates' ? <div role="tabpanel"><TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationUpdateChannelSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary></div> : null}
         {activeTab === 'access' ? <div role="tabpanel" className="flex flex-col gap-4">
-            {access.canManageAccess ? <TabBoundary {...boundaryProps}><OrganizationOwnerInvitesSection client={client.organizationOwnerInvites} organizationId={organizationId} branches={organization.branches} initialInvite={initialInvite} /></TabBoundary> : null}
-            {access.canViewSupport ? <TabBoundary {...boundaryProps}><OrganizationSupportNotesSection client={client.supportNotes} organizationId={organizationId} /></TabBoundary> : null}
+            {access.canManageAccess ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationOwnerInvitesSection client={client.organizationOwnerInvites} organizationId={organizationId} branches={organization.branches} initialInvite={initialInvite} /></TabBoundary> : null}
+            {access.canViewSupport ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationSupportNotesSection client={client.supportNotes} organizationId={organizationId} /></TabBoundary> : null}
           </div> : null}
-        {activeTab === 'history' ? <div role="tabpanel"><TabBoundary {...boundaryProps}><OrganizationHistoryTab client={client.audit} organizationId={organizationId} /></TabBoundary></div> : null}
+        {activeTab === 'history' ? <div role="tabpanel"><TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationHistoryTab client={client.audit} organizationId={organizationId} /></TabBoundary></div> : null}
       </div>
     </div>
   </Workspace>;
