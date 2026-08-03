@@ -149,6 +149,7 @@ export const ru = {
   "platform.clubs.alert.detail.agentSilentNever": "Устройства ещё не выходили на связь",
   "platform.clubs.alert.detail.agentSilentMinutesAgo": "Последний сигнал {minutes, plural, one {# минуту} few {# минуты} many {# минут} other {# минуты}} назад",
   "platform.clubs.alert.detail.shiftOpenHours": "Смена открыта {hours, plural, one {# час} few {# часа} many {# часов} other {# часа}}",
+  "platform.clubs.alert.detail.rolloutFailedDeviceCount": "{count, plural, one {# устройство} few {# устройства} many {# устройств} other {# устройства}} не обновилось",
   "platform.clubs.club.devices": "{online} из {total} устройств онлайн",
   "platform.clubs.club.seats": "{occupied} из {total} мест занято",
   "platform.clubs.club.shiftOpen": "Смена открыта",

@@ -15,18 +15,19 @@ public static class PulseAlertKindNames
     public const string RolloutFailed = "rollout_failed";
 }
 
-// DetailMinutes carries the elapsed-time figure behind a timing alert (minutes since the
-// last agent heartbeat for AgentSilent, minutes since the shift was opened for
-// ShiftNotClosed) so the client can build a localized message from it. It is null for
-// alert kinds that carry no elapsed-time figure (PaymentOverdue, RolloutFailed) and for
-// AgentSilent specifically when the device has never reported a heartbeat at all.
-// Clients must never render a raw backend string as user-facing alert text — every kind
-// has a translated label, and any parameterized detail is built client-side from
-// DetailMinutes, not shipped as pre-rendered prose.
+// DetailValue carries the single numeric figure behind an alert, meaning depends on Kind:
+// minutes since the last agent heartbeat for AgentSilent, minutes since the shift was
+// opened for ShiftNotClosed, count of devices that reported a failed install for
+// RolloutFailed. It is null for alert kinds/situations with no such figure
+// (PaymentOverdue always; AgentSilent when the device has never reported a heartbeat at
+// all; RolloutFailed when the rollout was flagged manually before any device reported a
+// failure). Clients must never render a raw backend string as user-facing alert text —
+// every kind has a translated label, and any parameterized detail is built client-side
+// from DetailValue, not shipped as pre-rendered prose.
 public sealed record PulseAlertDto(
     string Kind,
     string Level,
-    int? DetailMinutes);
+    int? DetailValue);
 
 public sealed record PulseClubDto(
     Guid BranchId,

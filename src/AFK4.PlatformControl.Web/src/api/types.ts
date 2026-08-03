@@ -401,11 +401,13 @@ export type PulseAlertLevel = 'normal' | 'attention' | 'critical';
 export interface PulseAlert {
   kind: string;
   level: PulseAlertLevel;
-  /** Elapsed-minutes figure behind a timing alert (minutes since last agent heartbeat for
-   * `agent_silent`, minutes since shift opened for `shift_not_closed`); null for kinds with
-   * no elapsed-time figure and for `agent_silent` when the device has never reported at all.
+  /** The numeric figure behind an alert; meaning depends on `kind`: elapsed minutes since
+   * last agent heartbeat for `agent_silent`, elapsed minutes since shift opened for
+   * `shift_not_closed`, count of devices with a failed install for `rollout_failed`. Null
+   * when there's no such figure (`payment_overdue` always; `agent_silent` when the device
+   * has never reported; `rollout_failed` when manually flagged before any device report).
    * Never a pre-rendered string — build user-facing text from this via `pulseModel`. */
-  detailMinutes: number | null;
+  detailValue: number | null;
 }
 
 export interface PulseClub {

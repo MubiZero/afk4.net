@@ -55,53 +55,80 @@ public sealed class EfPlatformPulseService(
             .Select(invoice => new { invoice.OrganizationId, invoice.AmountMinorUnits, invoice.CurrencyCode })
             .ToListAsync(cancellationToken);
 
-        // RollbackRequested is the real, existing rollout state that means "an active
-        // rollout hit an error and needs rollback" — Completed/RolledBack/Cancelled are
-        // resolved/terminal and must not keep flashing an alert once handled.
-        var failingRolloutIds = await dbContext.UpdateRollouts
+        // The real signal that a rollout is failing is the agent reporting a failed
+        // install per device (DeviceUpdateStatusEntity.Status == Failed) — the rollout's
+        // own State never changes when a device fails (see
+        // EfUpdateService.ReportStatusAsync), so State alone cannot detect this. We count
+        // distinct failed devices per organization across rollouts that are still Active
+        // or already flagged RollbackRequested, in one grouped query — no per-organization
+        // or per-club round trip.
+        var trackedRolloutStates = await dbContext.UpdateRollouts
             .AsNoTracking()
+            .Where(rollout => rollout.State == UpdateRolloutStateNames.Active || rollout.State == UpdateRolloutStateNames.RollbackRequested)
+            .Select(rollout => new { rollout.UpdateRolloutId, rollout.State })
+            .ToListAsync(cancellationToken);
+        var trackedRolloutIds = trackedRolloutStates.Select(rollout => rollout.UpdateRolloutId).ToHashSet();
+
+        var failedDeviceCountByOrganization = new Dictionary<Guid, int>();
+        if (trackedRolloutIds.Count > 0)
+        {
+            var failedDeviceReports = await dbContext.DeviceUpdateStatuses
+                .AsNoTracking()
+                .Where(status => status.Status == UpdateStatusNames.Failed && trackedRolloutIds.Contains(status.UpdateRolloutId))
+                .Select(status => new { status.OrganizationId, status.DeviceId })
+                .Distinct()
+                .ToListAsync(cancellationToken);
+            failedDeviceCountByOrganization = failedDeviceReports
+                .GroupBy(report => report.OrganizationId)
+                .ToDictionary(group => group.Key, group => group.Select(report => report.DeviceId).Distinct().Count());
+        }
+
+        // RollbackRequested is also kept as a secondary, manual trigger: an admin can flag
+        // a rollout as needing rollback (POST /rollouts/{id}/state) before any device has
+        // had a chance to report a failure, and that organization should still light up.
+        var manuallyFlaggedRolloutIds = trackedRolloutStates
             .Where(rollout => rollout.State == UpdateRolloutStateNames.RollbackRequested)
             .Select(rollout => rollout.UpdateRolloutId)
-            .ToListAsync(cancellationToken);
-        var organizationIdsWithFailedRollout = new HashSet<Guid>();
-        if (failingRolloutIds.Count > 0)
+            .ToHashSet();
+        var organizationIdsWithManualRollbackRequest = new HashSet<Guid>();
+        if (manuallyFlaggedRolloutIds.Count > 0)
         {
-            var failingTargets = await dbContext.UpdateRolloutTargets
+            var manualTargets = await dbContext.UpdateRolloutTargets
                 .AsNoTracking()
-                .Where(target => failingRolloutIds.Contains(target.UpdateRolloutId))
+                .Where(target => manuallyFlaggedRolloutIds.Contains(target.UpdateRolloutId))
                 .Select(target => new { target.TargetKind, target.OrganizationId, target.BranchId, target.DeviceId })
                 .ToListAsync(cancellationToken);
 
-            foreach (var target in failingTargets)
+            foreach (var target in manualTargets)
             {
                 if (target.TargetKind == PlatformUpdateTargetKindNames.Organization && target.OrganizationId is { } organizationId)
-                    organizationIdsWithFailedRollout.Add(organizationId);
+                    organizationIdsWithManualRollbackRequest.Add(organizationId);
             }
 
-            var failingBranchIds = failingTargets
+            var manualBranchIds = manualTargets
                 .Where(target => target.TargetKind == PlatformUpdateTargetKindNames.Branch && target.BranchId.HasValue)
                 .Select(target => target.BranchId!.Value)
                 .ToHashSet();
-            var failingDeviceIds = failingTargets
+            var manualDeviceIds = manualTargets
                 .Where(target => target.TargetKind == PlatformUpdateTargetKindNames.Device && target.DeviceId.HasValue)
                 .Select(target => target.DeviceId!.Value)
                 .ToHashSet();
 
-            if (failingDeviceIds.Count > 0)
+            if (manualDeviceIds.Count > 0)
             {
                 var deviceOrganizationIds = await dbContext.Devices
                     .AsNoTracking()
-                    .Where(device => failingDeviceIds.Contains(device.DeviceId))
+                    .Where(device => manualDeviceIds.Contains(device.DeviceId))
                     .Select(device => device.OrganizationId)
                     .ToListAsync(cancellationToken);
-                foreach (var organizationId in deviceOrganizationIds) organizationIdsWithFailedRollout.Add(organizationId);
+                foreach (var organizationId in deviceOrganizationIds) organizationIdsWithManualRollbackRequest.Add(organizationId);
             }
 
-            if (failingBranchIds.Count > 0)
+            if (manualBranchIds.Count > 0)
             {
                 // Resolved from the branch roster already loaded below, no extra query needed.
-                foreach (var branch in branches.Where(branch => failingBranchIds.Contains(branch.BranchId)))
-                    organizationIdsWithFailedRollout.Add(branch.OrganizationId);
+                foreach (var branch in branches.Where(branch => manualBranchIds.Contains(branch.BranchId)))
+                    organizationIdsWithManualRollbackRequest.Add(branch.OrganizationId);
             }
         }
 
@@ -156,13 +183,13 @@ public sealed class EfPlatformPulseService(
                     var minutesSinceHeartbeat = lastHeartbeatAtUtc is null
                         ? (int?)null
                         : (int)(now - lastHeartbeatAtUtc.Value).TotalMinutes;
-                    clubAlerts.Add(new PulseAlertDto(PulseAlertKindNames.AgentSilent, PulseAlertLevelNames.Critical, minutesSinceHeartbeat));
+                    clubAlerts.Add(new PulseAlertDto(PulseAlertKindNames.AgentSilent, PulseAlertLevelNames.Critical, DetailValue: minutesSinceHeartbeat));
                 }
 
                 if (hasOpenShift && openShift!.OpenedAtUtc <= staleShiftThreshold)
                 {
                     var minutesOpen = (int)(now - openShift.OpenedAtUtc).TotalMinutes;
-                    clubAlerts.Add(new PulseAlertDto(PulseAlertKindNames.ShiftNotClosed, PulseAlertLevelNames.Attention, minutesOpen));
+                    clubAlerts.Add(new PulseAlertDto(PulseAlertKindNames.ShiftNotClosed, PulseAlertLevelNames.Attention, DetailValue: minutesOpen));
                 }
 
                 clubDtos.Add(new PulseClubDto(
@@ -185,12 +212,16 @@ public sealed class EfPlatformPulseService(
             var currencyCode = overdue.CurrencyCode ?? "TJS";
             if (outstandingMinorUnits > 0)
             {
-                organizationAlerts.Add(new PulseAlertDto(PulseAlertKindNames.PaymentOverdue, PulseAlertLevelNames.Attention, DetailMinutes: null));
+                organizationAlerts.Add(new PulseAlertDto(PulseAlertKindNames.PaymentOverdue, PulseAlertLevelNames.Attention, DetailValue: null));
             }
 
-            if (organizationIdsWithFailedRollout.Contains(organization.OrganizationId))
+            var hasFailedDeviceReports = failedDeviceCountByOrganization.TryGetValue(organization.OrganizationId, out var failedDeviceCount);
+            if (hasFailedDeviceReports || organizationIdsWithManualRollbackRequest.Contains(organization.OrganizationId))
             {
-                organizationAlerts.Add(new PulseAlertDto(PulseAlertKindNames.RolloutFailed, PulseAlertLevelNames.Attention, DetailMinutes: null));
+                organizationAlerts.Add(new PulseAlertDto(
+                    PulseAlertKindNames.RolloutFailed,
+                    PulseAlertLevelNames.Attention,
+                    DetailValue: hasFailedDeviceReports ? failedDeviceCount : null));
             }
 
             var alertLevel = HighestAlertLevel(organizationAlerts, clubDtos);

@@ -25,7 +25,7 @@ public sealed class PulseContractSerializationTests
                     CurrencyCode: "TJS",
                     Alerts:
                     [
-                        new PulseAlertDto(PulseAlertKindNames.PaymentOverdue, PulseAlertLevelNames.Attention, DetailMinutes: null)
+                        new PulseAlertDto(PulseAlertKindNames.PaymentOverdue, PulseAlertLevelNames.Attention, DetailValue: null)
                     ],
                     Clubs:
                     [
@@ -42,7 +42,7 @@ public sealed class PulseContractSerializationTests
                             LastHeartbeatAtUtc: DateTimeOffset.Parse("2026-08-03T06:00:00Z"),
                             Alerts:
                             [
-                                new PulseAlertDto(PulseAlertKindNames.AgentSilent, PulseAlertLevelNames.Critical, DetailMinutes: 120)
+                                new PulseAlertDto(PulseAlertKindNames.AgentSilent, PulseAlertLevelNames.Critical, DetailValue: 120)
                             ])
                     ])
             ]);

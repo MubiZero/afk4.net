@@ -285,59 +285,99 @@ public sealed class PlatformPulseEndpointTests
         Assert.Contains(staleShiftClub.Alerts, alert => alert.Kind == PulseAlertKindNames.ShiftNotClosed);
     }
 
-    [Fact]
-    public async Task GetPulse_RolloutInRollbackRequestedState_RaisesOrganizationLevelAlert()
+    private static UpdatePackageEntity BuildValidatedPackage() => new()
     {
+        UpdatePackageId = Guid.NewGuid(),
+        Component = "agent-service",
+        Version = "1.2.3",
+        Channel = "stable",
+        ArtifactUri = "https://updates.afk4.net/agent-service-1.2.3.zip",
+        Sha256 = new string('a', 64),
+        Signature = "signature",
+        SignatureAlgorithm = "ecdsa-p256-sha256-ieee-p1363",
+        SizeBytes = 1024,
+        State = "validated",
+        ReleaseNotes = "notes",
+        CreatedByPlatformAdminUserId = Guid.NewGuid(),
+        CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-5)
+    };
+
+    private static UpdateRolloutEntity BuildRollout(UpdatePackageEntity package, string state, string reason) => new()
+    {
+        UpdateRolloutId = Guid.NewGuid(),
+        UpdatePackageId = package.UpdatePackageId,
+        Component = package.Component,
+        Version = package.Version,
+        Channel = package.Channel,
+        State = state,
+        TargetKind = PlatformUpdateTargetKindNames.Branch,
+        BatchPercent = 100,
+        Reason = reason,
+        CreatedByPlatformAdminUserId = Guid.NewGuid(),
+        CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-1),
+        StartsAtUtc = DateTimeOffset.UtcNow.AddDays(-1),
+        CompletedAtUtc = state is UpdateRolloutStateNames.Completed or UpdateRolloutStateNames.RolledBack or UpdateRolloutStateNames.Cancelled
+            ? DateTimeOffset.UtcNow
+            : null
+    };
+
+    private static UpdateRolloutTargetEntity BuildBranchTarget(Guid rolloutId, Guid branchId) => new()
+    {
+        UpdateRolloutTargetId = Guid.NewGuid(),
+        UpdateRolloutId = rolloutId,
+        TargetKind = PlatformUpdateTargetKindNames.Branch,
+        BranchId = branchId,
+        CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-1)
+    };
+
+    [Fact]
+    public async Task GetPulse_DeviceReportsFailedInstallUnderActiveRollout_RaisesOrganizationLevelAlertWithFailedDeviceCount()
+    {
+        // This is the live incident path: nobody touches the rollout's own state — the
+        // agent just reports a failed install for a device. The rollout stays Active.
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
 
         var (organizationId, branchId) = await CreateOrganizationAsync(client);
+        var deviceId = Guid.NewGuid();
 
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-            var package = new UpdatePackageEntity
+            dbContext.Devices.Add(new DeviceEntity
             {
-                UpdatePackageId = Guid.NewGuid(),
-                Component = "agent-service",
-                Version = "1.2.3",
-                Channel = "stable",
-                ArtifactUri = "https://updates.afk4.net/agent-service-1.2.3.zip",
-                Sha256 = new string('a', 64),
-                Signature = "signature",
-                SignatureAlgorithm = "ecdsa-p256-sha256-ieee-p1363",
-                SizeBytes = 1024,
-                State = "validated",
-                ReleaseNotes = "notes",
-                CreatedByPlatformAdminUserId = Guid.NewGuid(),
-                CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-5)
-            };
-            dbContext.UpdatePackages.Add(package);
+                DeviceId = deviceId,
+                OrganizationId = organizationId,
+                BranchId = branchId,
+                MachineName = "PC-01",
+                DisplayName = "PC-01",
+                IsOnline = true,
+                LastHeartbeatAtUtc = DateTimeOffset.UtcNow,
+                EnrolledAtUtc = DateTimeOffset.UtcNow.AddDays(-10)
+            });
 
-            var rollout = new UpdateRolloutEntity
+            var package = BuildValidatedPackage();
+            dbContext.UpdatePackages.Add(package);
+            var rollout = BuildRollout(package, UpdateRolloutStateNames.Active, "rolling out to all branches");
+            dbContext.UpdateRollouts.Add(rollout);
+            dbContext.UpdateRolloutTargets.Add(BuildBranchTarget(rollout.UpdateRolloutId, branchId));
+
+            dbContext.DeviceUpdateStatuses.Add(new DeviceUpdateStatusEntity
             {
-                UpdateRolloutId = Guid.NewGuid(),
+                DeviceUpdateStatusId = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                BranchId = branchId,
+                DeviceId = deviceId,
+                UpdateRolloutId = rollout.UpdateRolloutId,
                 UpdatePackageId = package.UpdatePackageId,
                 Component = package.Component,
-                Version = package.Version,
-                Channel = package.Channel,
-                State = UpdateRolloutStateNames.RollbackRequested,
-                TargetKind = PlatformUpdateTargetKindNames.Branch,
-                BatchPercent = 100,
-                Reason = "rollout failed on canary devices",
-                CreatedByPlatformAdminUserId = Guid.NewGuid(),
-                CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-1),
-                StartsAtUtc = DateTimeOffset.UtcNow.AddDays(-1)
-            };
-            dbContext.UpdateRollouts.Add(rollout);
-            dbContext.UpdateRolloutTargets.Add(new UpdateRolloutTargetEntity
-            {
-                UpdateRolloutTargetId = Guid.NewGuid(),
-                UpdateRolloutId = rollout.UpdateRolloutId,
-                TargetKind = PlatformUpdateTargetKindNames.Branch,
-                BranchId = branchId,
-                CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-1)
+                InstalledVersion = "1.2.2",
+                TargetVersion = package.Version,
+                Status = UpdateStatusNames.Failed,
+                Message = "installer exited with code 1",
+                FirstReportedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-5),
+                UpdatedAtUtc = DateTimeOffset.UtcNow
             });
             await dbContext.SaveChangesAsync();
         }
@@ -346,12 +386,14 @@ public sealed class PlatformPulseEndpointTests
 
         Assert.NotNull(pulse);
         var organization = Assert.Single(pulse.Organizations);
-        Assert.Contains(organization.Alerts, alert => alert.Kind == PulseAlertKindNames.RolloutFailed);
+        var alert = Assert.Single(organization.Alerts, alert => alert.Kind == PulseAlertKindNames.RolloutFailed);
+        Assert.Equal(PulseAlertLevelNames.Attention, alert.Level);
+        Assert.Equal(1, alert.DetailValue);
         Assert.Equal(PulseAlertLevelNames.Attention, organization.AlertLevel);
     }
 
     [Fact]
-    public async Task GetPulse_RolloutCompleted_DoesNotRaiseRolloutFailedAlert()
+    public async Task GetPulse_RolloutManuallyFlaggedRollbackRequestedWithNoDeviceReportsYet_StillRaisesAlert()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -362,48 +404,70 @@ public sealed class PlatformPulseEndpointTests
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-            var package = new UpdatePackageEntity
-            {
-                UpdatePackageId = Guid.NewGuid(),
-                Component = "agent-service",
-                Version = "1.2.3",
-                Channel = "stable",
-                ArtifactUri = "https://updates.afk4.net/agent-service-1.2.3.zip",
-                Sha256 = new string('a', 64),
-                Signature = "signature",
-                SignatureAlgorithm = "ecdsa-p256-sha256-ieee-p1363",
-                SizeBytes = 1024,
-                State = "validated",
-                ReleaseNotes = "notes",
-                CreatedByPlatformAdminUserId = Guid.NewGuid(),
-                CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-5)
-            };
+            var package = BuildValidatedPackage();
             dbContext.UpdatePackages.Add(package);
+            var rollout = BuildRollout(package, UpdateRolloutStateNames.RollbackRequested, "admin flagged for rollback");
+            dbContext.UpdateRollouts.Add(rollout);
+            dbContext.UpdateRolloutTargets.Add(BuildBranchTarget(rollout.UpdateRolloutId, branchId));
+            await dbContext.SaveChangesAsync();
+        }
 
-            var rollout = new UpdateRolloutEntity
+        var pulse = await client.GetFromJsonAsync<PlatformPulseDto>("/api/platform/pulse");
+
+        Assert.NotNull(pulse);
+        var organization = Assert.Single(pulse.Organizations);
+        var alert = Assert.Single(organization.Alerts, alert => alert.Kind == PulseAlertKindNames.RolloutFailed);
+        Assert.Null(alert.DetailValue);
+        Assert.Equal(PulseAlertLevelNames.Attention, organization.AlertLevel);
+    }
+
+    [Fact]
+    public async Task GetPulse_DeviceReportsFailedInstallUnderCompletedRollout_DoesNotRaiseAlert()
+    {
+        // A rollout that already finished must not keep alerting on stale failure reports.
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var (organizationId, branchId) = await CreateOrganizationAsync(client);
+        var deviceId = Guid.NewGuid();
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            dbContext.Devices.Add(new DeviceEntity
             {
-                UpdateRolloutId = Guid.NewGuid(),
+                DeviceId = deviceId,
+                OrganizationId = organizationId,
+                BranchId = branchId,
+                MachineName = "PC-01",
+                DisplayName = "PC-01",
+                IsOnline = true,
+                LastHeartbeatAtUtc = DateTimeOffset.UtcNow,
+                EnrolledAtUtc = DateTimeOffset.UtcNow.AddDays(-10)
+            });
+
+            var package = BuildValidatedPackage();
+            dbContext.UpdatePackages.Add(package);
+            var rollout = BuildRollout(package, UpdateRolloutStateNames.Completed, "completed successfully");
+            dbContext.UpdateRollouts.Add(rollout);
+            dbContext.UpdateRolloutTargets.Add(BuildBranchTarget(rollout.UpdateRolloutId, branchId));
+
+            dbContext.DeviceUpdateStatuses.Add(new DeviceUpdateStatusEntity
+            {
+                DeviceUpdateStatusId = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                BranchId = branchId,
+                DeviceId = deviceId,
+                UpdateRolloutId = rollout.UpdateRolloutId,
                 UpdatePackageId = package.UpdatePackageId,
                 Component = package.Component,
-                Version = package.Version,
-                Channel = package.Channel,
-                State = UpdateRolloutStateNames.Completed,
-                TargetKind = PlatformUpdateTargetKindNames.Branch,
-                BatchPercent = 100,
-                Reason = "completed successfully",
-                CreatedByPlatformAdminUserId = Guid.NewGuid(),
-                CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-1),
-                StartsAtUtc = DateTimeOffset.UtcNow.AddDays(-1),
-                CompletedAtUtc = DateTimeOffset.UtcNow
-            };
-            dbContext.UpdateRollouts.Add(rollout);
-            dbContext.UpdateRolloutTargets.Add(new UpdateRolloutTargetEntity
-            {
-                UpdateRolloutTargetId = Guid.NewGuid(),
-                UpdateRolloutId = rollout.UpdateRolloutId,
-                TargetKind = PlatformUpdateTargetKindNames.Branch,
-                BranchId = branchId,
-                CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-1)
+                InstalledVersion = "1.2.2",
+                TargetVersion = package.Version,
+                Status = UpdateStatusNames.Failed,
+                Message = "installer exited with code 1",
+                FirstReportedAtUtc = DateTimeOffset.UtcNow.AddDays(-3),
+                UpdatedAtUtc = DateTimeOffset.UtcNow.AddDays(-3)
             });
             await dbContext.SaveChangesAsync();
         }

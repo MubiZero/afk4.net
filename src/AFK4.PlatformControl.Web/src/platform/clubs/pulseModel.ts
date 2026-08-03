@@ -22,18 +22,22 @@ type Translate = (key: MessageKey, values?: Record<string, string | number>) => 
 
 /**
  * Localized, parameterized detail text for an alert's tooltip — built client-side from
- * `detailMinutes` and the alert kind, never from a raw backend string. Only `agent_silent`
- * and `shift_not_closed` carry an elapsed-time figure worth surfacing; other kinds have no
- * extra detail beyond their label.
+ * `detailValue` and the alert kind, never from a raw backend string. `detailValue`'s unit
+ * depends on the kind: elapsed minutes for `agent_silent`/`shift_not_closed`, a count of
+ * devices for `rollout_failed`. `payment_overdue` and a manually-flagged `rollout_failed`
+ * with no device reports yet carry no extra detail beyond their label.
  */
 export function alertDetailText(alert: PulseAlert, t: Translate): string | undefined {
   if (alert.kind === 'agent_silent') {
-    return alert.detailMinutes === null
+    return alert.detailValue === null
       ? t('platform.clubs.alert.detail.agentSilentNever')
-      : t('platform.clubs.alert.detail.agentSilentMinutesAgo', { minutes: alert.detailMinutes });
+      : t('platform.clubs.alert.detail.agentSilentMinutesAgo', { minutes: alert.detailValue });
   }
-  if (alert.kind === 'shift_not_closed' && alert.detailMinutes !== null) {
-    return t('platform.clubs.alert.detail.shiftOpenHours', { hours: Math.floor(alert.detailMinutes / 60) });
+  if (alert.kind === 'shift_not_closed' && alert.detailValue !== null) {
+    return t('platform.clubs.alert.detail.shiftOpenHours', { hours: Math.floor(alert.detailValue / 60) });
+  }
+  if (alert.kind === 'rollout_failed' && alert.detailValue !== null) {
+    return t('platform.clubs.alert.detail.rolloutFailedDeviceCount', { count: alert.detailValue });
   }
   return undefined;
 }

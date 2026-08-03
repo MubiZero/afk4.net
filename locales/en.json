@@ -148,6 +148,7 @@
   "platform.clubs.alert.detail.agentSilentNever": "Devices have never checked in",
   "platform.clubs.alert.detail.agentSilentMinutesAgo": "Last signal {minutes, plural, one {# minute} other {# minutes}} ago",
   "platform.clubs.alert.detail.shiftOpenHours": "Shift open for {hours, plural, one {# hour} other {# hours}}",
+  "platform.clubs.alert.detail.rolloutFailedDeviceCount": "{count, plural, one {# device} other {# devices}} failed to update",
   "platform.clubs.club.devices": "{online} of {total} devices online",
   "platform.clubs.club.seats": "{occupied} of {total} seats occupied",
   "platform.clubs.club.shiftOpen": "Shift open",

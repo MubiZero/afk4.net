@@ -149,6 +149,7 @@ export const tg = {
   "platform.clubs.alert.detail.agentSilentNever": "Дастгоҳҳо то ҳол ба алоқа набаромадаанд",
   "platform.clubs.alert.detail.agentSilentMinutesAgo": "Сигнали охирин {minutes, plural, other {# дақиқа}} пеш буд",
   "platform.clubs.alert.detail.shiftOpenHours": "Навбат {hours, plural, other {# соат}} боз кушода аст",
+  "platform.clubs.alert.detail.rolloutFailedDeviceCount": "{count, plural, other {# дастгоҳ}} навсозӣ нашуд",
   "platform.clubs.club.devices": "{online} аз {total} дастгоҳ онлайн",
   "platform.clubs.club.seats": "{occupied} аз {total} ҷой банд",
   "platform.clubs.club.shiftOpen": "Навбат кушода",
