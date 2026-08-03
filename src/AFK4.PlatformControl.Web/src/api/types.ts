@@ -385,3 +385,43 @@ export interface PlatformBillingMetrics {
   overdueMinorUnits: number;
   overdueCount: number;
 }
+
+export type PulseAlertLevel = 'normal' | 'attention' | 'critical';
+
+export interface PulseAlert {
+  kind: string;
+  level: PulseAlertLevel;
+  detail: string | null;
+}
+
+export interface PulseClub {
+  branchId: string;
+  name: string;
+  city: string;
+  devicesOnline: number;
+  devicesTotal: number;
+  seatsOccupied: number;
+  seatsTotal: number;
+  shiftOpen: boolean;
+  shiftOpenedAtUtc: string | null;
+  lastHeartbeatAtUtc: string | null;
+  alerts: PulseAlert[];
+}
+
+export interface PulseOrganization {
+  organizationId: string;
+  name: string;
+  status: string;
+  planCode: string;
+  subscriptionStatus: string;
+  alertLevel: PulseAlertLevel;
+  outstandingMinorUnits: number;
+  currencyCode: string;
+  alerts: PulseAlert[];
+  clubs: PulseClub[];
+}
+
+export interface PlatformPulse {
+  generatedAtUtc: string;
+  organizations: PulseOrganization[];
+}
