@@ -28,6 +28,7 @@ using AFK4.Platform.Api.Platform.Idempotency;
 using AFK4.Platform.Api.Shop;
 using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Platform.Api.Platform.Support;
+using AFK4.Platform.Api.Platform.Pulse;
 using AFK4.Platform.Api.Platform.Tenancy;
 using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Receipts;
@@ -201,6 +202,9 @@ builder.Services.AddScoped<IPlatformOrganizationService, EfPlatformOrganizationS
 builder.Services.AddScoped<IPlatformSupportNoteService, EfPlatformSupportNoteService>();
 builder.Services.AddScoped<IPlatformIdempotencyStore, EfPlatformIdempotencyStore>();
 builder.Services.AddScoped<IPlatformOrganizationHealthService, EfPlatformOrganizationHealthService>();
+builder.Services.Configure<PlatformPulseOptions>(
+    builder.Configuration.GetSection(PlatformPulseOptions.SectionName));
+builder.Services.AddScoped<IPlatformPulseService, EfPlatformPulseService>();
 builder.Services.AddScoped<IPlanCatalogService, EfPlanCatalogService>();
 builder.Services.AddScoped<IOrganizationSubscriptionService, EfOrganizationSubscriptionService>();
 builder.Services.AddScoped<IOrganizationOwnerResolver, EfOrganizationOwnerResolver>();
@@ -447,6 +451,7 @@ app.MapPlatformSupportAccessEndpoints();
 app.MapPlatformUpdateEndpoints();
 app.MapPlatformAuditEndpoints();
 app.MapPlatformSearchEndpoints();
+app.MapPlatformPulseEndpoints();
 organizations.MapOrganizationAuditEndpoints();
 organizations.MapStaffEndpoints();
 organizations.MapBranchProfileLayoutEndpoints();
