@@ -6,8 +6,14 @@ Implementation plans for completed work are archived once their work lands on
 - `2026-07-29-platform-control-rebuild.md` — replaces Platform Control with an
   organization-centered internal application for Platform Owner and Platform
   Support, with canonical resource pages and permission-derived navigation.
-  Implementation and the local big-bang release gate are complete on its topic
-  branch; archive the plan and design spec only after the work lands on `main`.
+  Landed on `main` in `fe41963d`; its visual and screen-structure decisions are
+  superseded by the UI redesign plan below. Archive both this plan and its spec
+  once the redesign lands.
+- `2026-08-03-platform-control-ui-redesign.md` — rebuilds the Platform Control
+  screens around a fleet-pulse main view with signal rows, a passport-plus-tabs
+  client card, the shared `@afk4/tokens` language, and the operational levers
+  (client profile editing, full subscription terms, payment grace, per-client
+  update channel, owner transfer).
 - `2026-07-29-platform-update-release-control.md` — moves package publication
   and deterministic rollout into Platform Control and release automation.
 - `2026-07-29-organization-admin-maintenance-updates.md` — coordinates Agent and
