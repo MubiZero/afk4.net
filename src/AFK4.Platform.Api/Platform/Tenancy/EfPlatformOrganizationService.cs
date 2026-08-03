@@ -488,6 +488,9 @@ public sealed class EfPlatformOrganizationService(
             DisplayName = string.IsNullOrWhiteSpace(request.DisplayName)
                 ? DeriveDisplayNameFromLogin(requestedUserName)
                 : request.DisplayName.Trim(),
+            // Carries the invite's email forward so later flows (owner-transfer self-check, owner
+            // notifications) have a real address to compare against instead of guessing from UserName.
+            Email = string.IsNullOrWhiteSpace(invite.OwnerEmail) ? null : invite.OwnerEmail,
             IsActive = true,
             CreatedAtUtc = now
         };
@@ -812,9 +815,21 @@ public sealed class EfPlatformOrganizationService(
                 "Organization has no active owner to transfer.");
         }
 
+        // The login (UserName) is not guaranteed to be an email, and Email is only populated when the
+        // invite the owner accepted carried one (see AcceptOrganizationOwnerInviteAsync). To recognise a
+        // self-transfer reliably, check every address we actually have on record for this owner instead
+        // of guessing from a single field: the staff row's Email/UserName, and the email of the invite
+        // they originally accepted (covers rows created before Email started being persisted at accept).
+        var acceptedInviteEmail = await dbContext.OrganizationOwnerInvites
+            .AsNoTracking()
+            .Where(invite => invite.AcceptedByStaffUserId == currentOwner.Staff.StaffUserId)
+            .Select(invite => invite.OwnerEmail)
+            .FirstOrDefaultAsync(cancellationToken);
+
         var normalizedNewOwnerEmail = request.NewOwnerEmail.Trim();
-        var currentOwnerAddress = currentOwner.Staff.Email ?? currentOwner.Staff.UserName;
-        if (string.Equals(normalizedNewOwnerEmail, currentOwnerAddress, StringComparison.OrdinalIgnoreCase))
+        var knownCurrentOwnerAddresses = new[] { currentOwner.Staff.Email, currentOwner.Staff.UserName, acceptedInviteEmail }
+            .Where(address => !string.IsNullOrWhiteSpace(address));
+        if (knownCurrentOwnerAddresses.Any(address => string.Equals(normalizedNewOwnerEmail, address, StringComparison.OrdinalIgnoreCase)))
         {
             return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.BadRequest(
                 "NewOwnerEmail must differ from the current owner's address.");

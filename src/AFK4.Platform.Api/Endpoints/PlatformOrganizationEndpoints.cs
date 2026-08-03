@@ -1057,7 +1057,7 @@ internal static class PlatformOrganizationEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.UpdateOrganizationLimits);
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.UpdateOrganizationUpdateChannel);
             if (!authorization.IsAuthenticated)
             {
                 return Results.Unauthorized();

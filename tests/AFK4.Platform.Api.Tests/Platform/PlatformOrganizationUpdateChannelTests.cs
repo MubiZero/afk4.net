@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -122,6 +123,35 @@ public sealed class PlatformOrganizationUpdateChannelTests
             new UpdateOrganizationUpdateChannelRequest("beta", null));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task PatchUpdateChannel_WithoutPermission_Returns403AndAuditsDenied()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var adminClient = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, adminClient);
+
+        var organizationId = await CreateOrganizationAsync(adminClient);
+
+        using var supportClient = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(
+            factory,
+            supportClient,
+            userName: "support@platform.test",
+            roles: [PlatformAdminRoleNames.PlatformSupport]);
+
+        var response = await supportClient.PatchAsJsonAsync(
+            $"/api/platform/organizations/{organizationId:D}/update-channel",
+            new UpdateOrganizationUpdateChannelRequest("beta", null));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords
+            .SingleAsync(record => record.Action == "tenancy.organization.update_channel.update" && record.Outcome == "Denied");
+        Assert.Equal(organizationId, audit.OrganizationId);
     }
 
     [Fact]

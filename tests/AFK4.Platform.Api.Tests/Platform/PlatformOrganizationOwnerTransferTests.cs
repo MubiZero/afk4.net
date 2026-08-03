@@ -12,7 +12,11 @@ namespace AFK4.Platform.Api.Tests.Platform;
 
 public sealed class PlatformOrganizationOwnerTransferTests
 {
-    private const string CurrentOwnerUserName = "current-owner@demo-club.test";
+    // Deliberately NOT email-shaped: the login must not double as the owner's real address, otherwise
+    // a self-transfer check that (wrongly) compares against UserName would pass the test for the wrong
+    // reason. See PostOwnerTransfer_ToSameOwnerAddress_Returns400.
+    private const string CurrentOwnerLogin = "current.owner";
+    private const string CurrentOwnerEmail = "current-owner@demo-club.test";
 
     private static CreateOrganizationRequest BuildCreateOrganizationRequest(
         string orgSlug = "demo-club",
@@ -32,22 +36,40 @@ public sealed class PlatformOrganizationOwnerTransferTests
             OrganizationOwnerInviteLifetime: TimeSpan.FromDays(7));
     }
 
+    /// <summary>
+    /// Creates an org and accepts its owner invite with a login that does NOT look like an email, but
+    /// with a real email attached to the invite (via an admin-issued rotation) so the accepted staff
+    /// row ends up with a genuine <see cref="StaffUserEntity.Email"/> on file.
+    /// </summary>
     private static async Task<(Guid OrganizationId, Guid BranchId, Guid OwnerStaffUserId)> CreateOrganizationWithActiveOwnerAsync(
         PlatformApiFactory factory,
         HttpClient client,
-        string ownerUserName = CurrentOwnerUserName)
+        string ownerLogin = CurrentOwnerLogin,
+        string ownerEmail = CurrentOwnerEmail)
     {
         var createResponse = await client.PostAsJsonAsync("/api/platform/organizations", BuildCreateOrganizationRequest());
         Assert.Equal(HttpStatusCode.OK, createResponse.StatusCode);
         var created = await createResponse.Content.ReadFromJsonAsync<CreateOrganizationResponse>();
         Assert.NotNull(created);
 
+        var rotateResponse = await client.PostAsJsonAsync(
+            $"/api/platform/organizations/{created.Organization.OrganizationId:D}/organization-owner-invitations",
+            new CreateOrganizationOwnerInviteRequest(
+                BranchId: created.Organization.Branches[0].BranchId,
+                OwnerUserName: null,
+                OwnerDisplayName: null,
+                Lifetime: null,
+                OwnerEmail: ownerEmail));
+        Assert.Equal(HttpStatusCode.OK, rotateResponse.StatusCode);
+        var rotatedInvite = await rotateResponse.Content.ReadFromJsonAsync<OrganizationOwnerInviteDto>();
+        Assert.NotNull(rotatedInvite);
+
         using var publicClient = factory.CreateClient();
         var acceptResponse = await publicClient.PostAsJsonAsync(
             "/api/account-activation/organization-owner",
             new AcceptOrganizationOwnerInviteRequest(
-                Code: created.OrganizationOwnerInvite.Code,
-                UserName: ownerUserName,
+                Code: rotatedInvite.Code,
+                UserName: ownerLogin,
                 DisplayName: "Current Owner",
                 Password: "Passw0rd!Real"));
         Assert.Equal(HttpStatusCode.OK, acceptResponse.StatusCode);
@@ -55,6 +77,7 @@ public sealed class PlatformOrganizationOwnerTransferTests
         await using var scope = factory.Services.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var staff = await dbContext.StaffUsers.SingleAsync(candidate => candidate.OrganizationId == created.Organization.OrganizationId);
+        Assert.Equal(ownerEmail, staff.Email);
 
         return (created.Organization.OrganizationId, created.Organization.Branches[0].BranchId, staff.StaffUserId);
     }
@@ -103,9 +126,12 @@ public sealed class PlatformOrganizationOwnerTransferTests
 
         var (organizationId, _, previousOwnerStaffUserId) = await CreateOrganizationWithActiveOwnerAsync(factory, client);
 
+        // The submitted address is the owner's real EMAIL, not their (deliberately different) login.
+        // This is the scenario the earlier version of this check missed: it only compared against
+        // UserName, so a genuine self-transfer by email slipped through as if it were a new owner.
         var response = await client.PostAsJsonAsync(
             $"/api/platform/organizations/{organizationId:D}/owner-transfer",
-            new TransferOrganizationOwnerRequest(CurrentOwnerUserName, "Typo, meant someone else"));
+            new TransferOrganizationOwnerRequest(CurrentOwnerEmail, "Typo, meant someone else"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
@@ -115,8 +141,25 @@ public sealed class PlatformOrganizationOwnerTransferTests
         Assert.True(previousOwner.IsActive);
         Assert.Empty(await dbContext.OrganizationOwnerInvites
             .Where(invite => invite.OrganizationId == organizationId && invite.Status == OrganizationOwnerInviteStatusNames.Pending)
-            .Where(invite => invite.OwnerEmail != null)
+            .Where(invite => invite.OwnerEmail == "new-owner@demo-club.test")
             .ToListAsync());
+    }
+
+    [Fact]
+    public async Task PostOwnerTransfer_ToSameOwnerLogin_Returns400()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var (organizationId, _, _) = await CreateOrganizationWithActiveOwnerAsync(factory, client);
+
+        // Submitting the owner's LOGIN (not their email) must still be recognised as the same person.
+        var response = await client.PostAsJsonAsync(
+            $"/api/platform/organizations/{organizationId:D}/owner-transfer",
+            new TransferOrganizationOwnerRequest(CurrentOwnerLogin, "Typo, meant someone else"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
