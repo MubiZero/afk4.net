@@ -13,5 +13,14 @@ public sealed class PlatformAdminPermissionCatalogTests
         Assert.Contains(PlatformAdminPermissionNames.ViewPlatformAudit, permissions);
         Assert.DoesNotContain(PlatformAdminPermissionNames.ViewBilling, permissions);
         Assert.DoesNotContain(PlatformAdminPermissionNames.ViewUpdates, permissions);
+        Assert.DoesNotContain(PlatformAdminPermissionNames.UpdateOrganizationProfile, permissions);
+    }
+
+    [Fact]
+    public void PlatformAdmin_CanUpdateOrganizationProfile()
+    {
+        var permissions = PlatformAdminPermissionCatalog.GetPermissions([PlatformAdminRoleNames.PlatformAdmin]);
+
+        Assert.Contains(PlatformAdminPermissionNames.UpdateOrganizationProfile, permissions);
     }
 }

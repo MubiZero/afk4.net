@@ -30,6 +30,9 @@ public sealed class EfPlatformOrganizationService(
     private const int MaxPlanCodeLength = 64;
 
     private const int MaxStatusReasonLength = 500;
+    private const int MaxContactEmailLength = 256;
+    private const int MaxContactPhoneLength = 32;
+    private const int MaxLegalDetailsLength = 1024;
 
     private static readonly HashSet<string> AllowedSubscriptionStatuses = new(StringComparer.Ordinal)
     {
@@ -646,6 +649,71 @@ public sealed class EfPlatformOrganizationService(
         return PlatformOrganizationOperationResult<OrganizationDetailDto>.Success(detail!);
     }
 
+    public async Task<PlatformOrganizationOperationResult<OrganizationDetailDto>> UpdateProfileAsync(
+        Guid organizationId,
+        UpdateOrganizationProfileRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.BadRequest("OrganizationId is required.");
+        }
+
+        var nameError = ValidateRequiredText(request.Name, "Name", MaxOrganizationNameLength);
+        if (nameError is not null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.BadRequest(nameError);
+        }
+
+        var contactEmailError = ValidateOptionalText(request.ContactEmail, "ContactEmail", MaxContactEmailLength);
+        if (contactEmailError is not null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.BadRequest(contactEmailError);
+        }
+
+        var contactPhoneError = ValidateOptionalText(request.ContactPhone, "ContactPhone", MaxContactPhoneLength);
+        if (contactPhoneError is not null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.BadRequest(contactPhoneError);
+        }
+
+        var legalDetailsError = ValidateOptionalText(request.LegalDetails, "LegalDetails", MaxLegalDetailsLength);
+        if (legalDetailsError is not null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.BadRequest(legalDetailsError);
+        }
+
+        var organization = await dbContext.Organizations
+            .SingleOrDefaultAsync(org => org.OrganizationId == organizationId, cancellationToken);
+        if (organization is null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.NotFound("Organization was not found.");
+        }
+
+        var trimmedName = request.Name.Trim();
+        var trimmedContactEmail = string.IsNullOrWhiteSpace(request.ContactEmail) ? null : request.ContactEmail.Trim();
+        var trimmedContactPhone = string.IsNullOrWhiteSpace(request.ContactPhone) ? null : request.ContactPhone.Trim();
+        var trimmedLegalDetails = string.IsNullOrWhiteSpace(request.LegalDetails) ? null : request.LegalDetails.Trim();
+
+        var now = timeProvider.GetUtcNow();
+        if (organization.Name != trimmedName
+            || organization.ContactEmail != trimmedContactEmail
+            || organization.ContactPhone != trimmedContactPhone
+            || organization.LegalDetails != trimmedLegalDetails)
+        {
+            organization.Name = trimmedName;
+            organization.ContactEmail = trimmedContactEmail;
+            organization.ContactPhone = trimmedContactPhone;
+            organization.LegalDetails = trimmedLegalDetails;
+            organization.UpdatedAtUtc = now;
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        var detail = await BuildOrganizationDetailAsync(organizationId, cancellationToken);
+        return PlatformOrganizationOperationResult<OrganizationDetailDto>.Success(detail!);
+    }
+
     private static string? ValidateOrganizationStatus(string status)
     {
         if (string.IsNullOrWhiteSpace(status))
@@ -758,7 +826,10 @@ public sealed class EfPlatformOrganizationService(
                 City: branch.City,
                 CreatedAtUtc: branch.CreatedAtUtc)).ToList(),
             CreatedAtUtc: organization.CreatedAtUtc,
-            UpdatedAtUtc: organization.UpdatedAtUtc);
+            UpdatedAtUtc: organization.UpdatedAtUtc,
+            ContactEmail: organization.ContactEmail,
+            ContactPhone: organization.ContactPhone,
+            LegalDetails: organization.LegalDetails);
     }
 
     internal static string NormalizeInviteCode(string code) => code.Trim().ToLowerInvariant();
@@ -860,6 +931,18 @@ public sealed class EfPlatformOrganizationService(
         if (string.IsNullOrWhiteSpace(value))
         {
             return $"{fieldName} is required.";
+        }
+
+        return value.Trim().Length > maxLength
+            ? $"{fieldName} must contain {maxLength} characters or fewer."
+            : null;
+    }
+
+    private static string? ValidateOptionalText(string? value, string fieldName, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
         }
 
         return value.Trim().Length > maxLength

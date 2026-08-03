@@ -14,6 +14,7 @@ public static class PlatformAdminPermissionCatalog
                 PlatformAdminPermissionNames.CreateOrganization,
                 PlatformAdminPermissionNames.UpdateOrganizationStatus,
                 PlatformAdminPermissionNames.UpdateOrganizationLimits,
+                PlatformAdminPermissionNames.UpdateOrganizationProfile,
                 PlatformAdminPermissionNames.ViewOrganizationSupportNotes,
                 PlatformAdminPermissionNames.ManageOrganizationSupportNotes,
                 PlatformAdminPermissionNames.ManageOrganizationOwnerInvites,

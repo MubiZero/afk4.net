@@ -213,6 +213,8 @@ public static class AuditActionNames
 
     public const string UpdateOrganizationLimits = "tenancy.organization.limits.update";
 
+    public const string UpdateOrganizationProfile = "tenancy.organization.profile.update";
+
     public const string ViewOrganization = "tenancy.organization.view";
 
     public const string CreateOrganizationOwnerInvite = "tenancy.owner_invite.create";

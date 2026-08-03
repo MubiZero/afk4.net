@@ -12,6 +12,8 @@ public static class PlatformAdminPermissionNames
 
     public const string UpdateOrganizationLimits = "platform.organizations.limits.update";
 
+    public const string UpdateOrganizationProfile = "platform.organizations.profile.update";
+
     public const string ViewOrganizationSupportNotes = "platform.organizations.support_notes.view";
 
     public const string ManageOrganizationSupportNotes = "platform.organizations.support_notes.manage";

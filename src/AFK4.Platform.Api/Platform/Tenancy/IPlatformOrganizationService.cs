@@ -41,6 +41,12 @@ public interface IPlatformOrganizationService
         Guid platformAdminUserId,
         CancellationToken cancellationToken);
 
+    Task<PlatformOrganizationOperationResult<OrganizationDetailDto>> UpdateProfileAsync(
+        Guid organizationId,
+        UpdateOrganizationProfileRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken);
+
     Task<PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>> RevokeOrganizationOwnerInviteAsync(
         Guid organizationOwnerInviteId,
         RevokeOrganizationOwnerInviteRequest request,

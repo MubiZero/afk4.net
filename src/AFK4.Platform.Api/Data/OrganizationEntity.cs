@@ -8,6 +8,12 @@ public sealed class OrganizationEntity
 
     public string Name { get; set; } = string.Empty;
 
+    public string? ContactEmail { get; set; }
+
+    public string? ContactPhone { get; set; }
+
+    public string? LegalDetails { get; set; }
+
     public string? LogoUrl { get; set; }
 
     public string? AccentColor { get; set; }

@@ -890,6 +890,88 @@ internal static class PlatformOrganizationEndpoints
             return Results.Ok(detail);
         });
 
+        app.MapPatch("/api/platform/organizations/{organizationId:guid}", async (
+            Guid organizationId,
+            UpdateOrganizationProfileRequest request,
+            PlatformAdminAuthorizationService authorizationService,
+            IPlatformOrganizationService organizationService,
+            IAuditRecordWriter auditRecordWriter,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.UpdateOrganizationProfile);
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WritePlatformAuditAsync(
+                    auditRecordWriter,
+                    organizationId: organizationId,
+                    actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+                    action: AuditActionNames.UpdateOrganizationProfile,
+                    targetType: "Organization",
+                    targetId: organizationId.ToString("D"),
+                    outcome: AuditOutcome.Denied,
+                    details: new { authorization.DenialReason },
+                    cancellationToken);
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var previousName = await dbContext.Organizations
+                .AsNoTracking()
+                .Where(org => org.OrganizationId == organizationId)
+                .Select(org => org.Name)
+                .SingleOrDefaultAsync(cancellationToken);
+
+            var result = await organizationService.UpdateProfileAsync(
+                organizationId,
+                request,
+                authorization.PlatformAdminContext!.PlatformAdminUserId,
+                cancellationToken);
+
+            if (!result.Succeeded)
+            {
+                await WritePlatformAuditAsync(
+                    auditRecordWriter,
+                    organizationId: organizationId,
+                    actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+                    action: AuditActionNames.UpdateOrganizationProfile,
+                    targetType: "Organization",
+                    targetId: organizationId.ToString("D"),
+                    outcome: AuditOutcome.Denied,
+                    details: new { request.Name, Error = result.Error },
+                    cancellationToken);
+
+                return result.Status switch
+                {
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+                    _ => Results.BadRequest(new { Error = result.Error })
+                };
+            }
+
+            var detail = result.Value!;
+            await WritePlatformAuditAsync(
+                auditRecordWriter,
+                organizationId: organizationId,
+                actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+                action: AuditActionNames.UpdateOrganizationProfile,
+                targetType: "Organization",
+                targetId: organizationId.ToString("D"),
+                outcome: AuditOutcome.Succeeded,
+                details: new
+                {
+                    PreviousName = previousName,
+                    NewName = detail.Name
+                },
+                cancellationToken);
+
+            return Results.Ok(detail);
+        });
+
         app.MapPatch("/api/platform/organizations/{organizationId:guid}/limits", async (
             Guid organizationId,
             UpdateOrganizationLimitsRequest request,
