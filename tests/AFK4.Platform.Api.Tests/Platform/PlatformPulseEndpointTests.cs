@@ -176,6 +176,114 @@ public sealed class PlatformPulseEndpointTests
     }
 
     [Fact]
+    public async Task GetPulse_OneOfTwoClubsSilent_OrganizationEscalatesToCriticalOnlyForSilentClub()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var (organizationId, healthyBranchId) = await CreateOrganizationAsync(client);
+        var silentBranchId = Guid.NewGuid();
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            dbContext.Branches.Add(new BranchEntity
+            {
+                BranchId = silentBranchId,
+                OrganizationId = organizationId,
+                Slug = "second-branch",
+                Name = "Second Branch",
+                City = "Khujand",
+                CreatedAtUtc = DateTimeOffset.UtcNow
+            });
+            dbContext.Devices.Add(new DeviceEntity
+            {
+                DeviceId = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                BranchId = healthyBranchId,
+                MachineName = "PC-HEALTHY",
+                DisplayName = "PC-HEALTHY",
+                IsOnline = true,
+                LastHeartbeatAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1),
+                EnrolledAtUtc = DateTimeOffset.UtcNow.AddDays(-10)
+            });
+            dbContext.Devices.Add(new DeviceEntity
+            {
+                DeviceId = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                BranchId = silentBranchId,
+                MachineName = "PC-SILENT",
+                DisplayName = "PC-SILENT",
+                IsOnline = false,
+                LastHeartbeatAtUtc = DateTimeOffset.UtcNow.AddHours(-2),
+                EnrolledAtUtc = DateTimeOffset.UtcNow.AddDays(-10)
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var pulse = await client.GetFromJsonAsync<PlatformPulseDto>("/api/platform/pulse");
+
+        Assert.NotNull(pulse);
+        var organization = Assert.Single(pulse.Organizations);
+        Assert.Equal(2, organization.Clubs.Count);
+        Assert.Equal(PulseAlertLevelNames.Critical, organization.AlertLevel);
+
+        var healthyClub = organization.Clubs.Single(club => club.BranchId == healthyBranchId);
+        var silentClub = organization.Clubs.Single(club => club.BranchId == silentBranchId);
+        Assert.Empty(healthyClub.Alerts);
+        Assert.Contains(silentClub.Alerts, alert => alert.Kind == PulseAlertKindNames.AgentSilent);
+    }
+
+    [Fact]
+    public async Task GetPulse_WorstClubAlertIsAttention_OrganizationLevelIsAttentionNotCritical()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var (organizationId, healthyBranchId) = await CreateOrganizationAsync(client);
+        var staleShiftBranchId = Guid.NewGuid();
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            dbContext.Branches.Add(new BranchEntity
+            {
+                BranchId = staleShiftBranchId,
+                OrganizationId = organizationId,
+                Slug = "stale-shift-branch",
+                Name = "Stale Shift Branch",
+                City = "Khujand",
+                CreatedAtUtc = DateTimeOffset.UtcNow
+            });
+            dbContext.Shifts.Add(new ShiftEntity
+            {
+                ShiftId = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                BranchId = staleShiftBranchId,
+                OpenedByStaffUserId = Guid.NewGuid(),
+                State = "open",
+                CurrencyCode = "TJS",
+                OpenedAtUtc = DateTimeOffset.UtcNow.AddHours(-30)
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var pulse = await client.GetFromJsonAsync<PlatformPulseDto>("/api/platform/pulse");
+
+        Assert.NotNull(pulse);
+        var organization = Assert.Single(pulse.Organizations);
+        Assert.Equal(2, organization.Clubs.Count);
+        Assert.Equal(PulseAlertLevelNames.Attention, organization.AlertLevel);
+
+        var healthyClub = organization.Clubs.Single(club => club.BranchId == healthyBranchId);
+        var staleShiftClub = organization.Clubs.Single(club => club.BranchId == staleShiftBranchId);
+        Assert.Empty(healthyClub.Alerts);
+        Assert.Contains(staleShiftClub.Alerts, alert => alert.Kind == PulseAlertKindNames.ShiftNotClosed);
+    }
+
+    [Fact]
     public async Task GetPulse_WithoutAuth_Returns401()
     {
         await using var factory = new PlatformApiFactory();
