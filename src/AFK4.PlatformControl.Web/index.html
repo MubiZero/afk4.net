@@ -1,10 +1,26 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>Platform Control</title>
+    <script>
+      // No-flash theme init: set data-theme (and the .dark class Tailwind keys off of)
+      // before the first frame, so @afk4/tokens colours resolve immediately. Dark is the
+      // baseline; only an explicit stored choice overrides it. Key mirrors THEME_STORAGE_KEY.
+      (function () {
+        try {
+          var stored = localStorage.getItem('afk4.platform.theme');
+          var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
+          document.documentElement.setAttribute('data-theme', theme);
+          document.documentElement.classList.toggle('dark', theme === 'dark');
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

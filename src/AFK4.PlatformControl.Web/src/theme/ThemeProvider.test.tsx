@@ -9,20 +9,26 @@ function Probe() {
 }
 
 describe('ThemeProvider', () => {
-  beforeEach(() => { localStorage.clear(); document.documentElement.classList.remove('dark'); });
-
-  it('defaults to light and applies no dark class', () => {
-    render(<ThemeProvider><Probe /></ThemeProvider>);
-    expect(screen.getByText('theme:light')).toBeInTheDocument();
-    expect(document.documentElement.classList.contains('dark')).toBe(false);
+  beforeEach(() => {
+    localStorage.clear();
+    document.documentElement.classList.remove('dark');
+    document.documentElement.removeAttribute('data-theme');
   });
 
-  it('toggles to dark, applies the class, and persists', () => {
+  it('defaults to dark and applies the dark class and data-theme attribute', () => {
     render(<ThemeProvider><Probe /></ThemeProvider>);
-    fireEvent.click(screen.getByRole('button'));
     expect(screen.getByText('theme:dark')).toBeInTheDocument();
     expect(document.documentElement.classList.contains('dark')).toBe(true);
-    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+  });
+
+  it('toggles to light, applies the class and attribute, and persists', () => {
+    render(<ThemeProvider><Probe /></ThemeProvider>);
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByText('theme:light')).toBeInTheDocument();
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('light');
   });
 
   it('restores a persisted choice on mount', () => {
