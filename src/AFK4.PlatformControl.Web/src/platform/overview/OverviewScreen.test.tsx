@@ -29,7 +29,7 @@ describe('platform OverviewScreen', () => {
   it('links attention rows to the affected organization section', () => {
     wrap(ready);
     expect(screen.getByRole('link', { name: /Beta/i })).toHaveAttribute(
-      'href', '/admin/organizations/b?tab=summary'
+      'href', '/admin/organizations/b?tab=clubs'
     );
   });
 

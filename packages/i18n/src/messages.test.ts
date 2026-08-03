@@ -217,6 +217,9 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «Оператор» — the same established loanword as op.auth.operator above,
     // used as a report column label (Отчёты → История → Действия операторов).
     'op.reports.col.operator',
+    // «Журнал» — тот же устоявшийся заимствование, что op.network.dest.journal выше
+    // (карточка клиента Platform Control, вкладка «Журнал»).
+    'platform.organization.tab.history',
 ]);
 
 it('tg has no silent ru-copies (untranslated strings posing as Tajik)', () => {

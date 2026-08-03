@@ -3,6 +3,9 @@ import type { PlatformAdminSession } from './tokenStore';
 export type PlatformCapability =
   | 'organizations.read'
   | 'organizations.manage'
+  | 'organizations.profile.manage'
+  | 'organizations.update_channel.manage'
+  | 'organizations.owner_transfer.manage'
   | 'support.manage'
   | 'billing.read'
   | 'billing.manage'
@@ -18,6 +21,9 @@ const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
     'platform.organizations.status.update',
     'platform.organizations.limits.update'
   ],
+  'organizations.profile.manage': ['platform.organizations.profile.update'],
+  'organizations.update_channel.manage': ['platform.organizations.update_channel.update'],
+  'organizations.owner_transfer.manage': ['platform.organizations.owner.transfer'],
   'support.manage': [
     'platform.organizations.support_notes.manage',
     'platform.organizations.owner_invites.manage',

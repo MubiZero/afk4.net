@@ -66,6 +66,11 @@ export interface OrganizationDetail {
   branches: OrganizationBranch[];
   createdAtUtc: string;
   updatedAtUtc: string;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  legalDetails: string | null;
+  updateChannel: string;
+  pinnedClientVersion: string | null;
 }
 
 export interface CreateOrganizationRequest {
@@ -320,6 +325,7 @@ export interface OrganizationSubscription {
   cancelAtPeriodEnd: boolean;
   createdAtUtc: string;
   updatedAtUtc: string;
+  paymentGraceUntilUtc: string | null;
 }
 
 export interface UpdateSubscriptionRequest {
@@ -327,6 +333,10 @@ export interface UpdateSubscriptionRequest {
   billingInterval: string | null;
   status: string | null;
   cancelAtPeriodEnd: boolean | null;
+  amountMinorUnits: number | null;
+  currentPeriodEndUtc: string | null;
+  paymentGraceUntilUtc: string | null;
+  clearPaymentGrace: boolean | null;
 }
 
 export interface Invoice {

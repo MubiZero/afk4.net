@@ -95,12 +95,16 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
 }) {
   const { t } = useI18n();
   const openOrganization = (organizationId: string, initialInvite: OrganizationOwnerInvite | null = null) =>
-    navigate({ kind: 'organization', organizationId, tab: initialInvite === null ? 'summary' : 'access' }, { initialInvite });
+    navigate({ kind: 'organization', organizationId, tab: initialInvite === null ? 'clubs' : 'access' }, { initialInvite });
   const organizationAccess = {
     canManageOrganization: can(session, 'organizations.manage'),
     canManageAccess: session.permissions.includes('platform.organizations.owner_invites.manage'),
     canViewSupport: session.permissions.some(permission => permission === 'platform.organizations.support_notes.view' || permission === 'platform.organizations.support_notes.manage'),
     canViewBilling: can(session, 'billing.read'),
+    canManageBilling: can(session, 'billing.manage'),
+    canManageProfile: can(session, 'organizations.profile.manage'),
+    canManageUpdateChannel: can(session, 'organizations.update_channel.manage'),
+    canTransferOwner: can(session, 'organizations.owner_transfer.manage'),
     canViewAudit: can(session, 'audit.read')
   };
 

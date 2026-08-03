@@ -3,18 +3,18 @@ import { pathForPlatformRoute, resolvePlatformRoute } from './platformRoute';
 
 describe('platformRoute', () => {
   it('resolves a canonical organization tab', () => {
-    expect(resolvePlatformRoute('/admin/organizations/org-1', '?tab=support')).toEqual({
+    expect(resolvePlatformRoute('/admin/organizations/org-1', '?tab=access')).toEqual({
       kind: 'organization',
       organizationId: 'org-1',
-      tab: 'support'
+      tab: 'access'
     });
   });
 
-  it('falls back to summary for an unknown organization tab', () => {
+  it('falls back to clubs for an unknown organization tab', () => {
     expect(resolvePlatformRoute('/admin/organizations/org-1', '?tab=unknown')).toEqual({
       kind: 'organization',
       organizationId: 'org-1',
-      tab: 'summary'
+      tab: 'clubs'
     });
   });
 

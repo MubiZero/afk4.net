@@ -12,7 +12,7 @@ const LABEL: Record<AttentionRow['reason'], MessageKey> = {
 
 function attentionHref(row: AttentionRow): string {
   if (row.reason === 'rollout_attention') return '/admin/updates?tab=rollouts';
-  const tab = row.reason === 'past_due' ? 'invoices' : row.reason === 'expiring_invite' ? 'access' : 'summary';
+  const tab = row.reason === 'past_due' ? 'invoices' : row.reason === 'expiring_invite' ? 'access' : 'clubs';
   return `/admin/organizations/${encodeURIComponent(row.organizationId)}?tab=${tab}`;
 }
 

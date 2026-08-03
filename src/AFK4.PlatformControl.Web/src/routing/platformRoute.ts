@@ -1,10 +1,9 @@
 export type OrganizationTab =
-  | 'summary'
   | 'clubs'
-  | 'access'
-  | 'subscription'
   | 'invoices'
-  | 'support'
+  | 'limits'
+  | 'updates'
+  | 'access'
   | 'history';
 
 export type BillingTab = 'plans' | 'subscriptions' | 'invoices';
@@ -23,7 +22,7 @@ export type PlatformRoute =
   | { kind: 'notFound'; path: string };
 
 const ORGANIZATION_TABS = new Set<OrganizationTab>([
-  'summary', 'clubs', 'access', 'subscription', 'invoices', 'support', 'history'
+  'clubs', 'invoices', 'limits', 'updates', 'access', 'history'
 ]);
 const BILLING_TABS = new Set<BillingTab>(['plans', 'subscriptions', 'invoices']);
 
@@ -51,7 +50,7 @@ export function resolvePlatformRoute(pathname: string, search = ''): PlatformRou
       organizationId: decodeSegment(organizationMatch[1]),
       tab: requestedTab !== null && ORGANIZATION_TABS.has(requestedTab as OrganizationTab)
         ? requestedTab as OrganizationTab
-        : 'summary'
+        : 'clubs'
     };
   }
 
@@ -84,7 +83,7 @@ export function pathForPlatformRoute(route: PlatformRoute): string {
       return `/admin/organizations${suffix === '' ? '' : `?${suffix}`}`;
     }
     case 'organization':
-      return `/admin/organizations/${encodeURIComponent(route.organizationId)}${route.tab === 'summary' ? '' : `?tab=${route.tab}`}`;
+      return `/admin/organizations/${encodeURIComponent(route.organizationId)}${route.tab === 'clubs' ? '' : `?tab=${route.tab}`}`;
     case 'organizationNew': return '/admin/organizations/new';
     case 'billing': return `/admin/billing${route.tab === 'plans' ? '' : `?tab=${route.tab}`}`;
     case 'updates': return `/admin/updates${route.tab === 'packages' ? '' : '?tab=rollouts'}`;
