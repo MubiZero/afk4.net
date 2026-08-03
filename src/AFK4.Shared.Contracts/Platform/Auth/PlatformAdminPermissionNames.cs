@@ -12,11 +12,17 @@ public static class PlatformAdminPermissionNames
 
     public const string UpdateOrganizationLimits = "platform.organizations.limits.update";
 
+    public const string UpdateOrganizationProfile = "platform.organizations.profile.update";
+
+    public const string UpdateOrganizationUpdateChannel = "platform.organizations.update_channel.update";
+
     public const string ViewOrganizationSupportNotes = "platform.organizations.support_notes.view";
 
     public const string ManageOrganizationSupportNotes = "platform.organizations.support_notes.manage";
 
     public const string ManageOrganizationOwnerInvites = "platform.organizations.owner_invites.manage";
+
+    public const string TransferOrganizationOwner = "platform.organizations.owner.transfer";
 
     public const string ViewOrganizationHealth = "platform.organizations.health.view";
 

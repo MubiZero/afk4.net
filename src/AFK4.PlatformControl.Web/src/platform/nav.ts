@@ -10,11 +10,10 @@ const platformNav: GatedNavGroup[] = [
     key: 'controlPlane',
     labelKey: 'nav.group.controlPlane',
     items: [
-      { key: 'overview', labelKey: 'nav.platform.overview', path: '/admin', ownerOnly: false, soon: false },
-      { key: 'organizations', labelKey: 'nav.platform.organizations', path: '/admin/organizations', ownerOnly: false, soon: false, capability: 'organizations.read' },
-      { key: 'billing', labelKey: 'nav.platform.billing', path: '/admin/billing', ownerOnly: false, soon: false, capability: 'billing.read' },
+      { key: 'clubs', labelKey: 'nav.platform.clubs', path: '/admin', ownerOnly: false, soon: false, capability: 'organizations.read' },
+      { key: 'money', labelKey: 'nav.platform.money', path: '/admin/money', ownerOnly: false, soon: false, capability: 'billing.read' },
       { key: 'updates', labelKey: 'nav.platform.updates', path: '/admin/updates', ownerOnly: false, soon: false, capability: 'updates.read' },
-      { key: 'audit', labelKey: 'nav.platform.audit', path: '/admin/audit', ownerOnly: false, soon: false, capability: 'audit.read' },
+      { key: 'journal', labelKey: 'nav.platform.journal', path: '/admin/journal', ownerOnly: false, soon: false, capability: 'audit.read' },
       { key: 'settings', labelKey: 'nav.platform.settings', path: '/admin/settings', ownerOnly: false, soon: false, capability: 'settings.manage' }
     ]
   },

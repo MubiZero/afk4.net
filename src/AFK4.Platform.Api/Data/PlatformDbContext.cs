@@ -158,6 +158,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(organization => organization.OrganizationId);
             entity.Property(organization => organization.Slug).HasMaxLength(64).IsRequired();
             entity.Property(organization => organization.Name).HasMaxLength(160).IsRequired();
+            entity.Property(organization => organization.ContactEmail).HasMaxLength(256);
+            entity.Property(organization => organization.ContactPhone).HasMaxLength(32);
+            entity.Property(organization => organization.LegalDetails).HasMaxLength(1024);
             entity.Property(organization => organization.Status).HasMaxLength(32).IsRequired();
             entity.Property(organization => organization.StatusReason).HasMaxLength(512);
             entity.Property(organization => organization.PlanCode).HasMaxLength(64).IsRequired();

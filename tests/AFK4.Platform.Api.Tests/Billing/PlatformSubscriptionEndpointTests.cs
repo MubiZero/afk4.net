@@ -52,7 +52,7 @@ public sealed class PlatformSubscriptionEndpointTests
 
         var response = await client.PatchAsJsonAsync(
             $"/api/platform/organizations/{orgId}/subscription",
-            new UpdateSubscriptionRequest("scale", null, null, null));
+            new UpdateSubscriptionRequest("scale", null, null, null, null, null, null));
         var body = await response.Content.ReadFromJsonAsync<OrganizationSubscriptionDto>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -90,7 +90,7 @@ public sealed class PlatformSubscriptionEndpointTests
 
         var response = await client.PatchAsJsonAsync(
             $"/api/platform/organizations/{Guid.NewGuid()}/subscription",
-            new UpdateSubscriptionRequest("scale", null, null, null));
+            new UpdateSubscriptionRequest("scale", null, null, null, null, null, null));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

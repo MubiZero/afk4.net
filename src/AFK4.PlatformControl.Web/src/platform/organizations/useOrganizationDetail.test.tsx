@@ -8,7 +8,8 @@ function detail(over: Partial<OrganizationDetail>): OrganizationDetail {
     organizationId: 'o1', slug: 'acme', name: 'Acme', status: 'active', statusReason: null,
     statusChangedAtUtc: null, planCode: 'starter', subscriptionStatus: 'active',
     limits: { maxBranches: null, maxDevicesPerBranch: null, maxConcurrentSessions: null, maxStaffUsersPerBranch: null },
-    branches: [], createdAtUtc: '2026-01-01T00:00:00Z', updatedAtUtc: '2026-01-01T00:00:00Z', ...over
+    branches: [], createdAtUtc: '2026-01-01T00:00:00Z', updatedAtUtc: '2026-01-01T00:00:00Z',
+    contactEmail: null, contactPhone: null, legalDetails: null, updateChannel: 'stable', pinnedClientVersion: null, ...over
   };
 }
 function fakeClient(over: Partial<Record<'getOrganization', unknown>> = {}) {

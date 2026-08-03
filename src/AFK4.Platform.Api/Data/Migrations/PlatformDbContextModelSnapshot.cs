@@ -1151,8 +1151,20 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<string>("AccentColor")
                         .HasColumnType("text");
 
+                    b.Property<string>("ContactEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ContactPhone")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LegalDetails")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
 
                     b.Property<string>("LimitsJson")
                         .IsRequired()
@@ -1165,6 +1177,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)");
+
+                    b.Property<string>("PinnedClientVersion")
+                        .HasColumnType("text");
 
                     b.Property<string>("PlanCode")
                         .IsRequired()
@@ -1192,6 +1207,10 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
+
+                    b.Property<string>("UpdateChannel")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTimeOffset>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -1358,6 +1377,9 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("PaymentGraceUntilUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("PlanCode")
                         .IsRequired()

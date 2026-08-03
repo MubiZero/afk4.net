@@ -41,6 +41,12 @@ public interface IPlatformOrganizationService
         Guid platformAdminUserId,
         CancellationToken cancellationToken);
 
+    Task<PlatformOrganizationOperationResult<OrganizationDetailDto>> UpdateProfileAsync(
+        Guid organizationId,
+        UpdateOrganizationProfileRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken);
+
     Task<PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>> RevokeOrganizationOwnerInviteAsync(
         Guid organizationOwnerInviteId,
         RevokeOrganizationOwnerInviteRequest request,
@@ -49,5 +55,17 @@ public interface IPlatformOrganizationService
 
     Task<PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>> ResendOrganizationOwnerInviteAsync(
         Guid organizationOwnerInviteId,
+        CancellationToken cancellationToken);
+
+    Task<PlatformOrganizationOperationResult<OrganizationDetailDto>> UpdateUpdateChannelAsync(
+        Guid organizationId,
+        UpdateOrganizationUpdateChannelRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken);
+
+    Task<PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>> TransferOrganizationOwnerAsync(
+        Guid organizationId,
+        TransferOrganizationOwnerRequest request,
+        Guid platformAdminUserId,
         CancellationToken cancellationToken);
 }

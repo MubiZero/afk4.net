@@ -77,7 +77,7 @@ public sealed class EfOrganizationSubscriptionServiceTests
 
         time.Now = Now.AddDays(15);
         var result = await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
-            PlanCode: "scale", BillingInterval: null, Status: null, CancelAtPeriodEnd: null), CancellationToken.None);
+            PlanCode: "scale", BillingInterval: null, Status: null, CancelAtPeriodEnd: null, AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null), CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.Equal("scale", result.Value!.PlanCode);
@@ -105,7 +105,7 @@ public sealed class EfOrganizationSubscriptionServiceTests
 
         time.Now = Now.AddDays(15);
         var result = await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
-            PlanCode: "starter", BillingInterval: null, Status: null, CancelAtPeriodEnd: null), CancellationToken.None);
+            PlanCode: "starter", BillingInterval: null, Status: null, CancelAtPeriodEnd: null, AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null), CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.Equal(290000, result.Value!.AmountMinorUnits);
@@ -121,7 +121,7 @@ public sealed class EfOrganizationSubscriptionServiceTests
         await service.GetAsync(orgId, CancellationToken.None);
 
         var result = await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
-            PlanCode: null, BillingInterval: null, Status: SubscriptionStatusNames.PastDue, CancelAtPeriodEnd: true), CancellationToken.None);
+            PlanCode: null, BillingInterval: null, Status: SubscriptionStatusNames.PastDue, CancelAtPeriodEnd: true, AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null), CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.True(result.Value!.CancelAtPeriodEnd);
@@ -138,7 +138,7 @@ public sealed class EfOrganizationSubscriptionServiceTests
         await service.GetAsync(orgId, CancellationToken.None);
 
         var result = await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
-            PlanCode: "ghost", BillingInterval: null, Status: null, CancelAtPeriodEnd: null), CancellationToken.None);
+            PlanCode: "ghost", BillingInterval: null, Status: null, CancelAtPeriodEnd: null, AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null), CancellationToken.None);
 
         Assert.Equal(BillingOperationStatus.BadRequest, result.Status);
     }

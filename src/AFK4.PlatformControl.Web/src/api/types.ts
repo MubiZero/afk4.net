@@ -66,6 +66,11 @@ export interface OrganizationDetail {
   branches: OrganizationBranch[];
   createdAtUtc: string;
   updatedAtUtc: string;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  legalDetails: string | null;
+  updateChannel: string;
+  pinnedClientVersion: string | null;
 }
 
 export interface CreateOrganizationRequest {
@@ -320,6 +325,7 @@ export interface OrganizationSubscription {
   cancelAtPeriodEnd: boolean;
   createdAtUtc: string;
   updatedAtUtc: string;
+  paymentGraceUntilUtc: string | null;
 }
 
 export interface UpdateSubscriptionRequest {
@@ -327,6 +333,10 @@ export interface UpdateSubscriptionRequest {
   billingInterval: string | null;
   status: string | null;
   cancelAtPeriodEnd: boolean | null;
+  amountMinorUnits: number | null;
+  currentPeriodEndUtc: string | null;
+  paymentGraceUntilUtc: string | null;
+  clearPaymentGrace: boolean | null;
 }
 
 export interface Invoice {
@@ -384,4 +394,50 @@ export interface PlatformBillingMetrics {
   outstandingCount: number;
   overdueMinorUnits: number;
   overdueCount: number;
+}
+
+export type PulseAlertLevel = 'normal' | 'attention' | 'critical';
+
+export interface PulseAlert {
+  kind: string;
+  level: PulseAlertLevel;
+  /** The numeric figure behind an alert; meaning depends on `kind`: elapsed minutes since
+   * last agent heartbeat for `agent_silent`, elapsed minutes since shift opened for
+   * `shift_not_closed`, count of devices with a failed install for `rollout_failed`. Null
+   * when there's no such figure (`payment_overdue` always; `agent_silent` when the device
+   * has never reported; `rollout_failed` when manually flagged before any device report).
+   * Never a pre-rendered string — build user-facing text from this via `pulseModel`. */
+  detailValue: number | null;
+}
+
+export interface PulseClub {
+  branchId: string;
+  name: string;
+  city: string;
+  devicesOnline: number;
+  devicesTotal: number;
+  seatsOccupied: number;
+  seatsTotal: number;
+  shiftOpen: boolean;
+  shiftOpenedAtUtc: string | null;
+  lastHeartbeatAtUtc: string | null;
+  alerts: PulseAlert[];
+}
+
+export interface PulseOrganization {
+  organizationId: string;
+  name: string;
+  status: string;
+  planCode: string;
+  subscriptionStatus: string;
+  alertLevel: PulseAlertLevel;
+  outstandingMinorUnits: number;
+  currencyCode: string;
+  alerts: PulseAlert[];
+  clubs: PulseClub[];
+}
+
+export interface PlatformPulse {
+  generatedAtUtc: string;
+  organizations: PulseOrganization[];
 }

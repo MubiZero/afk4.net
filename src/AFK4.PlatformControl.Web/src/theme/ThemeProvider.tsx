@@ -1,15 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { applyThemeClass, resolveInitialTheme, systemPrefersDark, THEME_STORAGE_KEY, type Theme } from './theme';
+import { applyThemeClass, resolveInitialTheme, THEME_STORAGE_KEY, type Theme } from './theme';
 
 interface ThemeContextValue { theme: Theme; setTheme: (t: Theme) => void; toggle: () => void; }
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() =>
-    resolveInitialTheme(
-      typeof localStorage === 'undefined' ? null : localStorage.getItem(THEME_STORAGE_KEY),
-      systemPrefersDark()
-    )
+    resolveInitialTheme(typeof localStorage === 'undefined' ? null : localStorage.getItem(THEME_STORAGE_KEY))
   );
 
   useEffect(() => { applyThemeClass(theme); }, [theme]);
