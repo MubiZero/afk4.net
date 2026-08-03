@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PartialFailure } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
+import { alertDetailText, alertLabel } from '@/platform/clubs/pulseModel';
 import type { PulseApi } from '@/api/platformClients/pulse';
 import type { OrganizationBranch, PulseClub } from '@/api/types';
 
@@ -61,8 +62,11 @@ export function OrganizationClubsTab({ client, organizationId, branches }: { cli
                       <ul className="flex flex-col gap-1">
                         {club.alerts.map((alert, index) => (
                           <li key={`${alert.kind}-${index}`}>
-                            <Badge variant={alert.level === 'critical' ? 'destructive' : alert.level === 'attention' ? 'secondary' : 'outline'}>
-                              {alert.detail ?? alert.kind}
+                            <Badge
+                              variant={alert.level === 'critical' ? 'destructive' : alert.level === 'attention' ? 'secondary' : 'outline'}
+                              title={alertDetailText(alert, t)}
+                            >
+                              {t(alertLabel(alert))}
                             </Badge>
                           </li>
                         ))}

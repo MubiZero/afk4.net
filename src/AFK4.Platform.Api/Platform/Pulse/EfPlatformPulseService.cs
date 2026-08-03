@@ -1,6 +1,8 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Pulse;
+using AFK4.Shared.Contracts.Platform.Updates;
+using AFK4.Shared.Contracts.Updates;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -8,8 +10,8 @@ namespace AFK4.Platform.Api.Platform.Pulse;
 
 // Computes the whole-fleet pulse in a fixed, small number of queries (one per entity kind),
 // grouping in memory afterwards — never one query per club/organization. The alert rules
-// (silent agent / stale shift / overdue payment) live here, server-side, so every client renders
-// the same verdict instead of re-deriving alerts from raw counts.
+// (silent agent / stale shift / overdue payment / failed rollout) live here, server-side, so
+// every client renders the same verdict instead of re-deriving alerts from raw counts.
 public sealed class EfPlatformPulseService(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
@@ -52,6 +54,56 @@ public sealed class EfPlatformPulseService(
             .Where(invoice => invoice.Status == InvoiceStatusNames.Overdue)
             .Select(invoice => new { invoice.OrganizationId, invoice.AmountMinorUnits, invoice.CurrencyCode })
             .ToListAsync(cancellationToken);
+
+        // RollbackRequested is the real, existing rollout state that means "an active
+        // rollout hit an error and needs rollback" — Completed/RolledBack/Cancelled are
+        // resolved/terminal and must not keep flashing an alert once handled.
+        var failingRolloutIds = await dbContext.UpdateRollouts
+            .AsNoTracking()
+            .Where(rollout => rollout.State == UpdateRolloutStateNames.RollbackRequested)
+            .Select(rollout => rollout.UpdateRolloutId)
+            .ToListAsync(cancellationToken);
+        var organizationIdsWithFailedRollout = new HashSet<Guid>();
+        if (failingRolloutIds.Count > 0)
+        {
+            var failingTargets = await dbContext.UpdateRolloutTargets
+                .AsNoTracking()
+                .Where(target => failingRolloutIds.Contains(target.UpdateRolloutId))
+                .Select(target => new { target.TargetKind, target.OrganizationId, target.BranchId, target.DeviceId })
+                .ToListAsync(cancellationToken);
+
+            foreach (var target in failingTargets)
+            {
+                if (target.TargetKind == PlatformUpdateTargetKindNames.Organization && target.OrganizationId is { } organizationId)
+                    organizationIdsWithFailedRollout.Add(organizationId);
+            }
+
+            var failingBranchIds = failingTargets
+                .Where(target => target.TargetKind == PlatformUpdateTargetKindNames.Branch && target.BranchId.HasValue)
+                .Select(target => target.BranchId!.Value)
+                .ToHashSet();
+            var failingDeviceIds = failingTargets
+                .Where(target => target.TargetKind == PlatformUpdateTargetKindNames.Device && target.DeviceId.HasValue)
+                .Select(target => target.DeviceId!.Value)
+                .ToHashSet();
+
+            if (failingDeviceIds.Count > 0)
+            {
+                var deviceOrganizationIds = await dbContext.Devices
+                    .AsNoTracking()
+                    .Where(device => failingDeviceIds.Contains(device.DeviceId))
+                    .Select(device => device.OrganizationId)
+                    .ToListAsync(cancellationToken);
+                foreach (var organizationId in deviceOrganizationIds) organizationIdsWithFailedRollout.Add(organizationId);
+            }
+
+            if (failingBranchIds.Count > 0)
+            {
+                // Resolved from the branch roster already loaded below, no extra query needed.
+                foreach (var branch in branches.Where(branch => failingBranchIds.Contains(branch.BranchId)))
+                    organizationIdsWithFailedRollout.Add(branch.OrganizationId);
+            }
+        }
 
         var devicesByBranch = devices.GroupBy(device => device.BranchId)
             .ToDictionary(group => group.Key, group => group.ToList());
@@ -101,19 +153,16 @@ public sealed class EfPlatformPulseService(
                 // hasn't started operating, so it must not be flagged red on day one.
                 if (devicesTotal > 0 && devicesOnline == 0)
                 {
-                    var detail = lastHeartbeatAtUtc is null
-                        ? "Устройства ещё не выходили на связь"
-                        : $"Последний сигнал {(int)(now - lastHeartbeatAtUtc.Value).TotalMinutes} мин. назад";
-                    clubAlerts.Add(new PulseAlertDto(PulseAlertKindNames.AgentSilent, PulseAlertLevelNames.Critical, detail));
+                    var minutesSinceHeartbeat = lastHeartbeatAtUtc is null
+                        ? (int?)null
+                        : (int)(now - lastHeartbeatAtUtc.Value).TotalMinutes;
+                    clubAlerts.Add(new PulseAlertDto(PulseAlertKindNames.AgentSilent, PulseAlertLevelNames.Critical, minutesSinceHeartbeat));
                 }
 
                 if (hasOpenShift && openShift!.OpenedAtUtc <= staleShiftThreshold)
                 {
-                    var openHours = (int)(now - openShift.OpenedAtUtc).TotalHours;
-                    clubAlerts.Add(new PulseAlertDto(
-                        PulseAlertKindNames.ShiftNotClosed,
-                        PulseAlertLevelNames.Attention,
-                        $"Смена открыта {openHours} ч."));
+                    var minutesOpen = (int)(now - openShift.OpenedAtUtc).TotalMinutes;
+                    clubAlerts.Add(new PulseAlertDto(PulseAlertKindNames.ShiftNotClosed, PulseAlertLevelNames.Attention, minutesOpen));
                 }
 
                 clubDtos.Add(new PulseClubDto(
@@ -136,10 +185,12 @@ public sealed class EfPlatformPulseService(
             var currencyCode = overdue.CurrencyCode ?? "TJS";
             if (outstandingMinorUnits > 0)
             {
-                organizationAlerts.Add(new PulseAlertDto(
-                    PulseAlertKindNames.PaymentOverdue,
-                    PulseAlertLevelNames.Attention,
-                    $"Просрочено {outstandingMinorUnits / 100m:0.##} {currencyCode}"));
+                organizationAlerts.Add(new PulseAlertDto(PulseAlertKindNames.PaymentOverdue, PulseAlertLevelNames.Attention, DetailMinutes: null));
+            }
+
+            if (organizationIdsWithFailedRollout.Contains(organization.OrganizationId))
+            {
+                organizationAlerts.Add(new PulseAlertDto(PulseAlertKindNames.RolloutFailed, PulseAlertLevelNames.Attention, DetailMinutes: null));
             }
 
             var alertLevel = HighestAlertLevel(organizationAlerts, clubDtos);

@@ -401,7 +401,11 @@ export type PulseAlertLevel = 'normal' | 'attention' | 'critical';
 export interface PulseAlert {
   kind: string;
   level: PulseAlertLevel;
-  detail: string | null;
+  /** Elapsed-minutes figure behind a timing alert (minutes since last agent heartbeat for
+   * `agent_silent`, minutes since shift opened for `shift_not_closed`); null for kinds with
+   * no elapsed-time figure and for `agent_silent` when the device has never reported at all.
+   * Never a pre-rendered string — build user-facing text from this via `pulseModel`. */
+  detailMinutes: number | null;
 }
 
 export interface PulseClub {

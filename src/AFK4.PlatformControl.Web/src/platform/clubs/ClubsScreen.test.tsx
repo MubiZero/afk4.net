@@ -47,7 +47,7 @@ it('renders the loudest network first in the "now" view', async () => {
     generatedAtUtc: '2026-08-03T00:00:00Z',
     organizations: [
       org({ organizationId: 'quiet', name: 'Arena', alertLevel: 'normal' }),
-      org({ organizationId: 'loud', name: 'Zulu Zone', alertLevel: 'critical', alerts: [{ kind: 'agent_silent', level: 'critical', detail: null }] })
+      org({ organizationId: 'loud', name: 'Zulu Zone', alertLevel: 'critical', alerts: [{ kind: 'agent_silent', level: 'critical', detailMinutes: null }] })
     ]
   });
   setup({ client: client({ getPulse }) });

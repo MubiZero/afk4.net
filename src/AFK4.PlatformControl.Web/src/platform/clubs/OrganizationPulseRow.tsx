@@ -1,28 +1,17 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
+import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { PLAN_LABEL } from '@/platform/organizations/organizationsModel';
-import type { PulseAlert, PulseAlertLevel, PulseClub, PulseOrganization } from '@/api/types';
-import { aggregateOccupancy, summarizeClubAlerts } from './pulseModel';
+import type { PulseAlertLevel, PulseClub, PulseOrganization } from '@/api/types';
+import { aggregateOccupancy, alertDetailText, alertLabel, summarizeClubAlerts } from './pulseModel';
 
 const BORDER_CLASS: Record<PulseAlertLevel, string> = {
   normal: 'border-l-primary',
   attention: 'border-l-warning',
   critical: 'border-l-danger'
 };
-
-const ALERT_KIND_KEY: Record<string, MessageKey> = {
-  agent_silent: 'platform.clubs.alert.kind.agentSilent',
-  shift_not_closed: 'platform.clubs.alert.kind.shiftNotClosed',
-  payment_overdue: 'platform.clubs.alert.kind.paymentOverdue',
-  rollout_failed: 'platform.clubs.alert.kind.rolloutFailed'
-};
-
-function alertLabel(alert: PulseAlert): MessageKey {
-  return ALERT_KIND_KEY[alert.kind] ?? 'platform.clubs.alert.kind.other';
-}
 
 interface OrganizationPulseRowProps {
   organization: PulseOrganization;
@@ -83,7 +72,7 @@ export function OrganizationPulseRow({ organization, defaultExpanded, onOpen }: 
           <Badge
             key={alert.kind}
             variant={alert.level === 'critical' ? 'destructive' : 'secondary'}
-            title={alert.detail ?? undefined}
+            title={alertDetailText(alert, t)}
           >
             {t(alertLabel(alert))}
           </Badge>
@@ -114,7 +103,7 @@ function ClubRow({ club }: { club: PulseClub }) {
         {t(club.shiftOpen ? 'platform.clubs.club.shiftOpen' : 'platform.clubs.club.shiftClosed')}
       </Badge>
       {club.alerts.map(alert => (
-        <Badge key={alert.kind} variant={alert.level === 'critical' ? 'destructive' : 'secondary'} title={alert.detail ?? undefined}>
+        <Badge key={alert.kind} variant={alert.level === 'critical' ? 'destructive' : 'secondary'} title={alertDetailText(alert, t)}>
           {t(alertLabel(alert))}
         </Badge>
       ))}

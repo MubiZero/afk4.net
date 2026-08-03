@@ -4,6 +4,8 @@ using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Platform.Pulse;
+using AFK4.Shared.Contracts.Platform.Updates;
+using AFK4.Shared.Contracts.Updates;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -281,6 +283,137 @@ public sealed class PlatformPulseEndpointTests
         var staleShiftClub = organization.Clubs.Single(club => club.BranchId == staleShiftBranchId);
         Assert.Empty(healthyClub.Alerts);
         Assert.Contains(staleShiftClub.Alerts, alert => alert.Kind == PulseAlertKindNames.ShiftNotClosed);
+    }
+
+    [Fact]
+    public async Task GetPulse_RolloutInRollbackRequestedState_RaisesOrganizationLevelAlert()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var (organizationId, branchId) = await CreateOrganizationAsync(client);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var package = new UpdatePackageEntity
+            {
+                UpdatePackageId = Guid.NewGuid(),
+                Component = "agent-service",
+                Version = "1.2.3",
+                Channel = "stable",
+                ArtifactUri = "https://updates.afk4.net/agent-service-1.2.3.zip",
+                Sha256 = new string('a', 64),
+                Signature = "signature",
+                SignatureAlgorithm = "ecdsa-p256-sha256-ieee-p1363",
+                SizeBytes = 1024,
+                State = "validated",
+                ReleaseNotes = "notes",
+                CreatedByPlatformAdminUserId = Guid.NewGuid(),
+                CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-5)
+            };
+            dbContext.UpdatePackages.Add(package);
+
+            var rollout = new UpdateRolloutEntity
+            {
+                UpdateRolloutId = Guid.NewGuid(),
+                UpdatePackageId = package.UpdatePackageId,
+                Component = package.Component,
+                Version = package.Version,
+                Channel = package.Channel,
+                State = UpdateRolloutStateNames.RollbackRequested,
+                TargetKind = PlatformUpdateTargetKindNames.Branch,
+                BatchPercent = 100,
+                Reason = "rollout failed on canary devices",
+                CreatedByPlatformAdminUserId = Guid.NewGuid(),
+                CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-1),
+                StartsAtUtc = DateTimeOffset.UtcNow.AddDays(-1)
+            };
+            dbContext.UpdateRollouts.Add(rollout);
+            dbContext.UpdateRolloutTargets.Add(new UpdateRolloutTargetEntity
+            {
+                UpdateRolloutTargetId = Guid.NewGuid(),
+                UpdateRolloutId = rollout.UpdateRolloutId,
+                TargetKind = PlatformUpdateTargetKindNames.Branch,
+                BranchId = branchId,
+                CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-1)
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var pulse = await client.GetFromJsonAsync<PlatformPulseDto>("/api/platform/pulse");
+
+        Assert.NotNull(pulse);
+        var organization = Assert.Single(pulse.Organizations);
+        Assert.Contains(organization.Alerts, alert => alert.Kind == PulseAlertKindNames.RolloutFailed);
+        Assert.Equal(PulseAlertLevelNames.Attention, organization.AlertLevel);
+    }
+
+    [Fact]
+    public async Task GetPulse_RolloutCompleted_DoesNotRaiseRolloutFailedAlert()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var (organizationId, branchId) = await CreateOrganizationAsync(client);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var package = new UpdatePackageEntity
+            {
+                UpdatePackageId = Guid.NewGuid(),
+                Component = "agent-service",
+                Version = "1.2.3",
+                Channel = "stable",
+                ArtifactUri = "https://updates.afk4.net/agent-service-1.2.3.zip",
+                Sha256 = new string('a', 64),
+                Signature = "signature",
+                SignatureAlgorithm = "ecdsa-p256-sha256-ieee-p1363",
+                SizeBytes = 1024,
+                State = "validated",
+                ReleaseNotes = "notes",
+                CreatedByPlatformAdminUserId = Guid.NewGuid(),
+                CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-5)
+            };
+            dbContext.UpdatePackages.Add(package);
+
+            var rollout = new UpdateRolloutEntity
+            {
+                UpdateRolloutId = Guid.NewGuid(),
+                UpdatePackageId = package.UpdatePackageId,
+                Component = package.Component,
+                Version = package.Version,
+                Channel = package.Channel,
+                State = UpdateRolloutStateNames.Completed,
+                TargetKind = PlatformUpdateTargetKindNames.Branch,
+                BatchPercent = 100,
+                Reason = "completed successfully",
+                CreatedByPlatformAdminUserId = Guid.NewGuid(),
+                CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-1),
+                StartsAtUtc = DateTimeOffset.UtcNow.AddDays(-1),
+                CompletedAtUtc = DateTimeOffset.UtcNow
+            };
+            dbContext.UpdateRollouts.Add(rollout);
+            dbContext.UpdateRolloutTargets.Add(new UpdateRolloutTargetEntity
+            {
+                UpdateRolloutTargetId = Guid.NewGuid(),
+                UpdateRolloutId = rollout.UpdateRolloutId,
+                TargetKind = PlatformUpdateTargetKindNames.Branch,
+                BranchId = branchId,
+                CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-1)
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var pulse = await client.GetFromJsonAsync<PlatformPulseDto>("/api/platform/pulse");
+
+        Assert.NotNull(pulse);
+        var organization = Assert.Single(pulse.Organizations);
+        Assert.DoesNotContain(organization.Alerts, alert => alert.Kind == PulseAlertKindNames.RolloutFailed);
+        Assert.Equal(PulseAlertLevelNames.Normal, organization.AlertLevel);
     }
 
     [Fact]

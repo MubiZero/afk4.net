@@ -1,7 +1,42 @@
-import type { PulseAlertLevel, PulseClub, PulseOrganization } from '@/api/types';
+import type { MessageKey } from '@/i18n/I18nProvider';
+import type { PulseAlert, PulseAlertLevel, PulseClub, PulseOrganization } from '@/api/types';
 
 export type PulseView = 'now' | 'all' | 'debt';
 export type PulseDensity = 'roomy' | 'dense';
+
+const ALERT_KIND_KEY: Record<string, MessageKey> = {
+  agent_silent: 'platform.clubs.alert.kind.agentSilent',
+  shift_not_closed: 'platform.clubs.alert.kind.shiftNotClosed',
+  payment_overdue: 'platform.clubs.alert.kind.paymentOverdue',
+  rollout_failed: 'platform.clubs.alert.kind.rolloutFailed'
+};
+
+/** The translated label for an alert badge — the only alert text every screen must show;
+ * never the raw backend string. Shared by the network pulse row and the organization's
+ * clubs tab so both surfaces agree instead of one falling back to un-localized copy. */
+export function alertLabel(alert: PulseAlert): MessageKey {
+  return ALERT_KIND_KEY[alert.kind] ?? 'platform.clubs.alert.kind.other';
+}
+
+type Translate = (key: MessageKey, values?: Record<string, string | number>) => string;
+
+/**
+ * Localized, parameterized detail text for an alert's tooltip — built client-side from
+ * `detailMinutes` and the alert kind, never from a raw backend string. Only `agent_silent`
+ * and `shift_not_closed` carry an elapsed-time figure worth surfacing; other kinds have no
+ * extra detail beyond their label.
+ */
+export function alertDetailText(alert: PulseAlert, t: Translate): string | undefined {
+  if (alert.kind === 'agent_silent') {
+    return alert.detailMinutes === null
+      ? t('platform.clubs.alert.detail.agentSilentNever')
+      : t('platform.clubs.alert.detail.agentSilentMinutesAgo', { minutes: alert.detailMinutes });
+  }
+  if (alert.kind === 'shift_not_closed' && alert.detailMinutes !== null) {
+    return t('platform.clubs.alert.detail.shiftOpenHours', { hours: Math.floor(alert.detailMinutes / 60) });
+  }
+  return undefined;
+}
 
 const RANK: Record<PulseAlertLevel, number> = { normal: 0, attention: 1, critical: 2 };
 
