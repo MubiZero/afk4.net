@@ -1,9 +1,11 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { it, expect, mock } from 'bun:test';
+import { afterEach, it, expect, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
 import { OrganizationsScreen } from './OrganizationsScreen';
 import type { OrganizationSummary } from '@/api/types';
+
+afterEach(() => localStorage.removeItem('afk4.locale'));
 
 function summary(over: Partial<OrganizationSummary>): OrganizationSummary {
   return {
@@ -42,9 +44,11 @@ function client() {
 }
 
 function setup(props: Partial<Parameters<typeof OrganizationsScreen>[0]> = {}) {
+  const onQueryChange = mock();
   return render(
     <I18nProvider><ToastProvider>
       <OrganizationsScreen client={client()} selectedOrganizationId={null} initialInvite={null}
+        query="" statusFilter="all" planFilter="all" sort="attention" onQueryChange={onQueryChange}
         onOpenOrganization={() => {}} onCloseOrganization={() => {}} onCreateOrganization={() => {}} {...props} />
     </ToastProvider></I18nProvider>
   );
@@ -56,12 +60,18 @@ it('renders the organization rows', async () => {
   expect(screen.getByText('Globex')).toBeInTheDocument();
 });
 
-it('filters rows by the search box', async () => {
-  setup();
+it('reports search changes to the URL owner', async () => {
+  const onQueryChange = mock();
+  setup({ onQueryChange });
   await waitFor(() => expect(screen.getByText('Globex')).toBeInTheDocument());
   fireEvent.change(screen.getByLabelText('Поиск по названию или ключу'), { target: { value: 'globex' } });
+  expect(onQueryChange).toHaveBeenCalledWith({ query: 'globex' });
+});
+
+it('renders the filter state supplied by the URL', async () => {
+  setup({ query: 'globex' });
+  await waitFor(() => expect(screen.getByText('Globex')).toBeInTheDocument());
   expect(screen.queryByText('Acme')).not.toBeInTheDocument();
-  expect(screen.getByText('Globex')).toBeInTheDocument();
 });
 
 it('fires onOpenOrganization when a row is clicked', async () => {
@@ -72,7 +82,9 @@ it('fires onOpenOrganization when a row is clicked', async () => {
   expect(onOpenOrganization).toHaveBeenCalledWith('o1');
 });
 
-it('opens the drawer when selectedOrganizationId is set', async () => {
-  setup({ selectedOrganizationId: 'o1' });
-  await waitFor(() => expect(screen.getByText('Подписка')).toBeInTheDocument());
+it('localizes sorting controls in English', async () => {
+  localStorage.setItem('afk4.locale', 'en');
+  setup();
+  expect(await screen.findByRole('combobox', { name: 'Sort' })).toBeVisible();
+  expect(screen.getByText('Needs attention first')).toBeInTheDocument();
 });

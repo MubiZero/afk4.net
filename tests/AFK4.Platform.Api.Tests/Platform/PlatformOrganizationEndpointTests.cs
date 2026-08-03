@@ -3,10 +3,12 @@ using System.Text.Json;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Audit;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Organizations;
+using AFK4.Shared.Contracts.Updates;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -183,6 +185,52 @@ public sealed class PlatformOrganizationEndpointTests
         Assert.Equal("Alpha Club", body[0].Name);
         Assert.Equal("Zeta Club", body[1].Name);
         Assert.All(body, summary => Assert.Equal(1, summary.BranchCount));
+    }
+
+    [Fact]
+    public async Task GetOrganizations_ReturnsOperationalAttentionCountsWithoutPerOrganizationRequests()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+        var createdResponse = await client.PostAsJsonAsync(
+            "/api/platform/organizations", BuildCreateOrganizationRequest(ownerUserName: null));
+        var created = await createdResponse.Content.ReadFromJsonAsync<CreateOrganizationResponse>();
+        Assert.NotNull(created);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var now = DateTimeOffset.UtcNow;
+            db.AuditRecords.Add(new AuditRecordEntity
+            {
+                AuditRecordId = Guid.NewGuid(), OrganizationId = created.Organization.OrganizationId,
+                Action = "devices.command", TargetType = "Device", Outcome = AuditOutcome.Denied,
+                SourceApp = "Agent", DetailsJson = "{}", CreatedAtUtc = now
+            });
+            db.OrganizationOwnerInvites.Add(new OrganizationOwnerInviteEntity
+            {
+                OrganizationOwnerInviteId = Guid.NewGuid(), OrganizationId = created.Organization.OrganizationId,
+                BranchId = created.Organization.Branches.Single().BranchId, Code = "TEST", NormalizedCode = "TEST",
+                Status = OrganizationOwnerInviteStatusNames.Pending, ExpiresAtUtc = now.AddDays(2),
+                CreatedByPlatformAdminUserId = Guid.NewGuid(), CreatedAtUtc = now
+            });
+            db.DeviceUpdateStatuses.Add(new DeviceUpdateStatusEntity
+            {
+                DeviceUpdateStatusId = Guid.NewGuid(), OrganizationId = created.Organization.OrganizationId,
+                BranchId = created.Organization.Branches.Single().BranchId, DeviceId = Guid.NewGuid(),
+                UpdateRolloutId = Guid.NewGuid(), UpdatePackageId = Guid.NewGuid(), Component = "agent",
+                InstalledVersion = "1", TargetVersion = "2", Status = UpdateStatusNames.Failed,
+                Message = "failed", FirstReportedAtUtc = now, UpdatedAtUtc = now
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var summaries = await client.GetFromJsonAsync<List<OrganizationSummaryDto>>("/api/platform/organizations");
+        var summary = Assert.Single(summaries!);
+        Assert.Equal(1, summary.RecentErrorCount);
+        Assert.Equal(1, summary.ExpiringOwnerInviteCount);
+        Assert.Equal(1, summary.RolloutAttentionCount);
     }
 
     [Fact]

@@ -1,25 +1,39 @@
 import { describe, expect, it } from 'bun:test';
-import { platformNav } from './nav';
+import type { PlatformAdminSession } from '@/auth/tokenStore';
+import { buildPlatformNav } from './nav';
+
+function session(permissions: string[]): PlatformAdminSession {
+  return {
+    platformAdminId: 'admin-1', userName: 'admin', displayName: 'Admin', roles: [], permissions,
+    accessToken: 'access', accessTokenExpiresAtUtc: '2099-01-01T00:00:00Z',
+    refreshToken: 'refresh', refreshTokenExpiresAtUtc: '2099-01-02T00:00:00Z'
+  };
+}
 
 describe('platform nav', () => {
-  it('exposes overview, organizations, billing and profile', () => {
-    const keys = platformNav.flatMap(g => g.items.map(i => i.key));
+  it('exposes only destinations allowed by backend permissions', () => {
+    const keys = buildPlatformNav(session([
+      'platform.organizations.view',
+      'platform.billing.view',
+      'platform.audit.view'
+    ])).flatMap(g => g.items.map(i => i.key));
     expect(keys).toContain('overview');
     expect(keys).toContain('organizations');
     expect(keys).toContain('billing');
+    expect(keys).toContain('audit');
     expect(keys).toContain('profile');
+    expect(keys).not.toContain('updates');
+    expect(keys).not.toContain('settings');
   });
 
   it('marks every platform nav item live', () => {
-    const items = platformNav.flatMap(g => g.items);
-    expect(items.find(i => i.key === 'overview')?.soon).toBe(false);
-    expect(items.find(i => i.key === 'organizations')?.soon).toBe(false);
-    expect(items.find(i => i.key === 'billing')?.soon).toBe(false);
-    expect(items.find(i => i.key === 'profile')?.soon).toBe(false);
+    const items = buildPlatformNav(session(['platform.organizations.view'])).flatMap(g => g.items);
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.every(item => item.soon === false)).toBe(true);
   });
 
   it('every item has an /admin path and a nav. label key', () => {
-    for (const g of platformNav) for (const i of g.items) {
+    for (const g of buildPlatformNav(session(['platform.organizations.view']))) for (const i of g.items) {
       expect(i.path.startsWith('/admin')).toBe(true);
       expect(i.labelKey.startsWith('nav.')).toBe(true);
     }

@@ -23,7 +23,7 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent>
         <DialogTitle>{props.title}</DialogTitle>
-        {props.description && <DialogDescription>{props.description}</DialogDescription>}
+        <DialogDescription className={props.description ? undefined : 'sr-only'}>{props.description ?? props.title}</DialogDescription>
         {props.reasonLabel && (
           <label className="mt-3 block text-sm">
             <span className="mb-1 block text-muted-foreground">{props.reasonLabel}</span>
@@ -36,7 +36,7 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
           </Button>
           <Button
             variant={props.destructive ? 'destructive' : 'default'}
-            disabled={props.pending}
+            disabled={props.pending || (props.reasonLabel !== undefined && reason.trim().length === 0)}
             onClick={() => props.onConfirm(reason)}
           >
             {props.confirmLabel}

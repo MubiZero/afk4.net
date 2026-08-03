@@ -5,18 +5,18 @@ import { SubscriptionsTab } from './SubscriptionsTab';
 import { InvoicesTab } from './InvoicesTab';
 import { PlansTab } from './PlansTab';
 
-export function BillingScreen({ client }: { client: PlatformApiClient }) {
+export function BillingScreen({ client, tab, onTabChange, canManage }: { client: PlatformApiClient; tab: 'plans' | 'subscriptions' | 'invoices'; onTabChange: (tab: 'plans' | 'subscriptions' | 'invoices') => void; canManage: boolean }) {
   const { t } = useI18n();
   return (
-    <Tabs defaultValue="subscriptions" className="flex flex-col gap-4">
+    <Tabs value={tab} onValueChange={value => onTabChange(value as typeof tab)} className="flex flex-col gap-4">
       <TabsList>
         <TabsTrigger value="subscriptions">{t('platform.billing.tab.subscriptions')}</TabsTrigger>
         <TabsTrigger value="invoices">{t('platform.billing.tab.invoices')}</TabsTrigger>
         <TabsTrigger value="plans">{t('platform.billing.tab.plans')}</TabsTrigger>
       </TabsList>
       <TabsContent value="subscriptions"><SubscriptionsTab client={client.subscriptions} /></TabsContent>
-      <TabsContent value="invoices"><InvoicesTab client={client.invoices} /></TabsContent>
-      <TabsContent value="plans"><PlansTab client={client.plans} /></TabsContent>
+      <TabsContent value="invoices"><InvoicesTab client={client.invoices} canManage={canManage} /></TabsContent>
+      <TabsContent value="plans"><PlansTab client={client.plans} canManage={canManage} /></TabsContent>
     </Tabs>
   );
 }

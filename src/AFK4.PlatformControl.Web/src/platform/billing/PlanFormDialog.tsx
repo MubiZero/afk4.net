@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -36,6 +36,7 @@ export function PlanFormDialog({ open, mode, form, pending, onChange, onSubmit, 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogTitle>{mode === 'create' ? t('platform.billing.planForm.createTitle') : t('platform.billing.planForm.editTitle')}</DialogTitle>
+        <DialogDescription>{t('platform.billing.planForm.description')}</DialogDescription>
         <div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto">
           <label className="block text-sm">
             <span className="mb-1 block text-muted-foreground">{t('platform.billing.planForm.code')}</span>

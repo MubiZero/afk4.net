@@ -3,6 +3,9 @@ import type { AccountActivationApi } from './accountActivationApi';
 import { PlatformApiError } from '../api/platformApi';
 import { useI18n } from '../i18n/I18nProvider';
 import { ErrorBanner, Field } from '../components/ui';
+import { Button } from '../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Input } from '../components/ui/input';
 
 export interface AccountActivationProps {
   client: AccountActivationApi;
@@ -44,36 +47,32 @@ export function AccountActivation({ client, initialCode }: AccountActivationProp
 
   if (accepted) {
     return (
-      <div className="page page-narrow">
-        <h1>{t('auth.accept.success.title')}</h1>
-        <p className="muted">{t('auth.accept.success.body')}</p>
-      </div>
+      <main className="grid min-h-screen place-items-center bg-background p-5"><Card className="w-full max-w-md"><CardHeader><CardTitle><h1>{t('auth.accept.success.title')}</h1></CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">{t('auth.accept.success.body')}</p></CardContent></Card></main>
     );
   }
 
   return (
-    <div className="page page-narrow">
-      <h1>{t('auth.accept.title')}</h1>
-      <p className="muted">{t('auth.accept.subtitle')}</p>
-      <form className="form" onSubmit={handleSubmit}>
-        <ErrorBanner message={error} onDismiss={() => setError(null)} />
+    <main className="grid min-h-screen place-items-center bg-background p-5"><Card className="w-full max-w-md">
+      <CardHeader><CardTitle><h1>{t('auth.accept.title')}</h1></CardTitle><p className="text-sm text-muted-foreground">{t('auth.accept.subtitle')}</p></CardHeader>
+      <CardContent><form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+        <ErrorBanner message={error} dismissLabel={t('common.close')} onDismiss={() => setError(null)} />
         <Field label={t('auth.accept.field.code')} htmlFor="accept-code">
-          <input id="accept-code" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value)} disabled={isSubmitting} required />
+          <Input id="accept-code" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value)} disabled={isSubmitting} required />
         </Field>
         <Field label={t('auth.field.login')} htmlFor="accept-username">
-          <input id="accept-username" autoComplete="username" value={userName} onChange={event => setUserName(event.target.value)} disabled={isSubmitting} required />
+          <Input id="accept-username" autoComplete="username" value={userName} onChange={event => setUserName(event.target.value)} disabled={isSubmitting} required />
         </Field>
         <Field label={t('auth.field.password')} htmlFor="accept-password">
-          <input id="accept-password" type="password" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} disabled={isSubmitting} required />
+          <Input id="accept-password" type="password" autoComplete="new-password" value={password} onChange={event => setPassword(event.target.value)} disabled={isSubmitting} required />
         </Field>
         <Field label={t('auth.accept.field.confirmPassword')} htmlFor="accept-confirm-password">
-          <input id="accept-confirm-password" type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} disabled={isSubmitting} required />
+          <Input id="accept-confirm-password" type="password" autoComplete="new-password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} disabled={isSubmitting} required />
         </Field>
-        <button type="submit" className="primary" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? t('auth.accept.action.submitting') : t('auth.accept.action.submit')}
-        </button>
-      </form>
-    </div>
+        </Button>
+      </form></CardContent>
+    </Card></main>
   );
 }
 

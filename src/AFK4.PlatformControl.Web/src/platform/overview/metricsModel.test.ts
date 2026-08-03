@@ -59,4 +59,15 @@ describe('buildOrganizationMetrics', () => {
     expect(vm.attention.find(a => a.organizationId === 'b')?.reason).toBe('suspended');
     expect(vm.attention.find(a => a.organizationId === 'c')?.reason).toBe('past_due');
   });
+
+  it('lists health errors, expiring owner invites and rollout attention', () => {
+    const vm = buildOrganizationMetrics([organization({
+      organizationId: 'ops', name: 'Operational Club', recentErrorCount: 2,
+      expiringOwnerInviteCount: 1, rolloutAttentionCount: 1
+    })], NOW);
+
+    expect(vm.attention.map(item => item.reason)).toEqual([
+      'health_errors', 'expiring_invite', 'rollout_attention'
+    ]);
+  });
 });

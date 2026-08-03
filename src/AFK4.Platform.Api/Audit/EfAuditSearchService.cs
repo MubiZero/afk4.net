@@ -32,6 +32,19 @@ public sealed class EfAuditSearchService(PlatformDbContext dbContext) : IAuditSe
         return ExecuteAsync(records, query, cancellationToken);
     }
 
+    public Task<AuditSearchResultDto> SearchPlatformAsync(
+        Guid? organizationId,
+        AuditSearchQuery query,
+        CancellationToken cancellationToken)
+    {
+        var records = dbContext.AuditRecords.AsNoTracking();
+        if (organizationId.HasValue)
+        {
+            records = records.Where(record => record.OrganizationId == organizationId.Value);
+        }
+        return ExecuteAsync(records, query, cancellationToken);
+    }
+
     private static async Task<AuditSearchResultDto> ExecuteAsync(
         IQueryable<AuditRecordEntity> records,
         AuditSearchQuery query,

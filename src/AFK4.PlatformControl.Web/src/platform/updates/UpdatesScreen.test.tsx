@@ -12,7 +12,7 @@ const packageRow = {
   validatedByPlatformAdminUserId: null, validatedAtUtc: null, retiredAtUtc: null
 };
 
-function setup() {
+function setup(tab: 'packages' | 'rollouts' = 'packages') {
   const updates = {
     listPackages: mock().mockResolvedValue([packageRow]),
     listRollouts: mock().mockResolvedValue([]),
@@ -21,7 +21,7 @@ function setup() {
     createRollout: mock(),
     changeRolloutState: mock()
   };
-  render(<I18nProvider><ToastProvider><UpdatesScreen client={updates as never} /></ToastProvider></I18nProvider>);
+  render(<I18nProvider><ToastProvider><UpdatesScreen client={updates as never} tab={tab} /></ToastProvider></I18nProvider>);
   return updates;
 }
 
@@ -36,11 +36,7 @@ describe('UpdatesScreen', () => {
   });
 
   it('keeps rollouts separate from the package catalog', async () => {
-    setup();
-    await screen.findByText('Organization Admin');
-    const tab = screen.getByRole('tab', { name: 'Rollout' });
-    fireEvent.mouseDown(tab);
-    fireEvent.click(tab);
+    setup('rollouts');
     expect(await screen.findByText('Rollout ещё не запускались.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Запустить rollout' })).toBeInTheDocument();
   });

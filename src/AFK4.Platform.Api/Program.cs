@@ -445,6 +445,8 @@ app.MapPlatformOrganizationEndpoints();
 app.MapPlatformBillingEndpoints(organizations);
 app.MapPlatformSupportAccessEndpoints();
 app.MapPlatformUpdateEndpoints();
+app.MapPlatformAuditEndpoints();
+app.MapPlatformSearchEndpoints();
 organizations.MapOrganizationAuditEndpoints();
 organizations.MapStaffEndpoints();
 organizations.MapBranchProfileLayoutEndpoints();

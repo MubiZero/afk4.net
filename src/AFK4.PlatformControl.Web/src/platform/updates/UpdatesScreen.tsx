@@ -14,7 +14,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 
 type Client = Pick<UpdatesApi, 'listPackages' | 'registerPackage' | 'changePackageState' | 'listRollouts' | 'createRollout' | 'changeRolloutState'>;
 
-export function UpdatesScreen({ client }: { client: Client }) {
+export function UpdatesScreen({ client, tab = 'packages', onTabChange = () => {} }: { client: Client; tab?: 'packages' | 'rollouts'; onTabChange?: (tab: 'packages' | 'rollouts') => void }) {
   const { t } = useI18n();
   const { toast } = useToast();
   const [packages, setPackages] = useState<PlatformUpdatePackage[] | null>(null);
@@ -41,7 +41,7 @@ export function UpdatesScreen({ client }: { client: Client }) {
   if (packages === null || rollouts === null) return <LoadingCards count={3} />;
 
   return (
-    <Tabs defaultValue="packages" className="flex flex-col gap-4">
+    <Tabs value={tab} onValueChange={value => onTabChange(value as typeof tab)} className="flex flex-col gap-4">
       <TabsList>
         <TabsTrigger value="packages">{t('platform.updates.tab.packages')}</TabsTrigger>
         <TabsTrigger value="rollouts">{t('platform.updates.tab.rollouts')}</TabsTrigger>
@@ -130,7 +130,7 @@ function RolloutDialog({ open, onOpenChange, client, packages, onSaved }: { open
   async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const data = new FormData(event.currentTarget); const ids = value(data, 'targets').split(',').map(item => item.trim()).filter(Boolean); setBusy(true); try { const selected = packages.find(item => item.updatePackageId === value(data, 'packageId'))!; await client.createRollout({ updatePackageId: selected.updatePackageId, channel: selected.channel, targetKind: kind, organizationIds: kind === 'organization' ? ids : [], branchIds: kind === 'branch' ? ids : [], deviceIds: kind === 'device' ? ids : [], batchPercent: Number(value(data, 'batchPercent')), startsAtUtc: new Date(value(data, 'startsAtUtc')).toISOString(), reason: value(data, 'reason') }); onOpenChange(false); await onSaved(); toast({ title: t('platform.updates.rollout.created'), variant: 'success' }); } catch (cause) { toast({ title: cause instanceof Error ? cause.message : t('platform.updates.saveError'), variant: 'error' }); } finally { setBusy(false); } }
   return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent><DialogTitle>{t('platform.updates.rollouts.create')}</DialogTitle><DialogDescription>{t('platform.updates.rollouts.formHint')}</DialogDescription><form className="mt-4 flex flex-col gap-3" onSubmit={submit}>
     <NativeField label={t('platform.updates.field.package')} name="packageId"><select name="packageId" className="input" required>{packages.map(item => <option key={item.updatePackageId} value={item.updatePackageId}>{componentLabel(item.component)} {item.version} ({item.channel})</option>)}</select></NativeField>
-    <NativeField label={t('platform.updates.field.targetKind')} name="targetKind"><select name="targetKind" className="input" value={kind} onChange={event => setKind(event.target.value)}><option value="organization">organization</option><option value="branch">branch</option><option value="device">device</option></select></NativeField>
+    <NativeField label={t('platform.updates.field.targetKind')} name="targetKind"><select name="targetKind" className="input" value={kind} onChange={event => setKind(event.target.value)}><option value="organization">{t('platform.updates.target.organization')}</option><option value="branch">{t('platform.updates.target.branch')}</option><option value="device">{t('platform.updates.target.device')}</option></select></NativeField>
     <NativeField label={t('platform.updates.field.targets')} name="targets"><Textarea name="targets" required /></NativeField>
     <NativeField label={t('platform.updates.field.batch')} name="batchPercent"><Input name="batchPercent" type="number" min="1" max="100" defaultValue="10" required /></NativeField>
     <NativeField label={t('platform.updates.field.starts')} name="startsAtUtc"><Input name="startsAtUtc" type="datetime-local" required /></NativeField>

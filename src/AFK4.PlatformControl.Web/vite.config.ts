@@ -8,5 +8,15 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          const match = /packages\/i18n\/src\/messages\.(ru|en|tg)\.ts$/u.exec(id.replaceAll('\\', '/'));
+          return match === null ? undefined : `i18n-${match[1]}`;
+        }
+      }
+    }
   }
 });

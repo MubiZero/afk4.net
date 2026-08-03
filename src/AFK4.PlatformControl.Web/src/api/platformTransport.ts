@@ -84,12 +84,12 @@ export class PlatformTransport {
     }
   }
 
-  public async send<T>(method: string, path: string, body?: unknown): Promise<T> {
-    let response = await this.dispatch(method, path, body);
+  public async send<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+    let response = await this.dispatch(method, path, body, undefined, signal);
     if (response.status === 401 && this.session !== null) {
       const refreshed = await this.refreshTokenOnce();
       if (refreshed !== null) {
-        response = await this.dispatch(method, path, body);
+        response = await this.dispatch(method, path, body, undefined, signal);
       }
     }
     if (!response.ok) {
@@ -125,7 +125,8 @@ export class PlatformTransport {
     method: string,
     path: string,
     body: unknown | undefined,
-    extraHeaders?: Record<string, string>
+    extraHeaders?: Record<string, string>,
+    signal?: AbortSignal
   ): Promise<Response> {
     const headers = this.buildHeaders();
     if (extraHeaders !== undefined) {
@@ -133,7 +134,7 @@ export class PlatformTransport {
         headers[k] = v;
       }
     }
-    const init: RequestInit = { method, headers };
+    const init: RequestInit = { method, headers, signal };
     if (body !== undefined) {
       init.body = JSON.stringify(body);
     }

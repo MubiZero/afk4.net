@@ -11,10 +11,12 @@ export interface AppShellProps {
   activePath: string;
   subtitle: string;
   screenTitle: string;
+  menuLabel: string;
   userName: string;
   roleLabel: string;
   counts?: Record<string, number>;
   topbarRight?: ReactNode;
+  topbarSearch?: ReactNode;
   onNavigate: (path: string) => void;
   onSignOut: () => void;
   children: ReactNode;
@@ -44,7 +46,7 @@ export function AppShell(props: AppShellProps) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar subtitle={props.subtitle}
-          screenTitle={props.screenTitle} onOpenSidebar={() => setSidebarOpen(true)} right={props.topbarRight} />
+          screenTitle={props.screenTitle} menuLabel={props.menuLabel} onOpenSidebar={() => setSidebarOpen(true)} search={props.topbarSearch} right={props.topbarRight} />
         <main className="flex-1 overflow-auto p-5">{props.children}</main>
       </div>
     </div>

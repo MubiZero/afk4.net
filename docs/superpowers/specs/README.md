@@ -6,6 +6,9 @@ The active architecture source of truth is:
 - `2026-07-28-platform-organization-product-boundary-design.md` — defines the
   current Platform Control and Organization Admin product, identity, role,
   permission, route, and release boundaries.
+- `2026-07-29-platform-control-rebuild-design.md` — defines the approved
+  organization-centered big-bang rebuild of the internal Platform Control UI,
+  its platform roles, workflows, safety rules, and delivery slices.
 
 Approved backlog specs:
 

@@ -1,6 +1,6 @@
 import type { OrganizationSummary } from '@/api/types';
 
-export type AttentionReason = 'suspended' | 'past_due';
+export type AttentionReason = 'suspended' | 'past_due' | 'health_errors' | 'expiring_invite' | 'rollout_attention';
 export interface AttentionRow { organizationId: string; name: string; reason: AttentionReason; }
 export interface PlanCount { planCode: string; count: number; }
 
@@ -47,6 +47,9 @@ export function buildOrganizationMetrics(organizations: OrganizationSummary[], n
     } else if (t.subscriptionStatus === 'past_due') {
       attention.push({ organizationId: t.organizationId, name: t.name, reason: 'past_due' });
     }
+    if ((t.recentErrorCount ?? 0) > 0) attention.push({ organizationId: t.organizationId, name: t.name, reason: 'health_errors' });
+    if ((t.expiringOwnerInviteCount ?? 0) > 0) attention.push({ organizationId: t.organizationId, name: t.name, reason: 'expiring_invite' });
+    if ((t.rolloutAttentionCount ?? 0) > 0) attention.push({ organizationId: t.organizationId, name: t.name, reason: 'rollout_attention' });
   }
 
   const byPlan: PlanCount[] = PLAN_ORDER.map(planCode => ({ planCode, count: planCounts.get(planCode) ?? 0 }));

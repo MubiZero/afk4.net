@@ -3,6 +3,11 @@
 Implementation plans for completed work are archived once their work lands on
 `main`. The active plans are:
 
+- `2026-07-29-platform-control-rebuild.md` — replaces Platform Control with an
+  organization-centered internal application for Platform Owner and Platform
+  Support, with canonical resource pages and permission-derived navigation.
+  Implementation and the local big-bang release gate are complete on its topic
+  branch; archive the plan and design spec only after the work lands on `main`.
 - `2026-07-29-platform-update-release-control.md` — moves package publication
   and deterministic rollout into Platform Control and release automation.
 - `2026-07-29-organization-admin-maintenance-updates.md` — coordinates Agent and

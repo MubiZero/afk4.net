@@ -13,7 +13,7 @@ import { usePlans } from './usePlans';
 import { PlanFormDialog } from './PlanFormDialog';
 import { emptyPlanForm, planToForm, planFormToCreateRequest, planFormToUpdateRequest, INTERVAL_LABEL, type PlanForm } from './billingModel';
 
-export function PlansTab({ client }: { client: PlansApi }) {
+export function PlansTab({ client, canManage = true }: { client: PlansApi; canManage?: boolean }) {
   const { t, formatCurrency } = useI18n();
   const { toast } = useToast();
   const state = usePlans(client);
@@ -51,7 +51,7 @@ export function PlansTab({ client }: { client: PlansApi }) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>{t('platform.billing.tab.plans')}</CardTitle>
-        <Button onClick={openCreate}>{t('platform.billing.plans.create')}</Button>
+        {canManage ? <Button onClick={openCreate}>{t('platform.billing.plans.create')}</Button> : null}
       </CardHeader>
       <CardContent>
         {state.data.length === 0 ? (
@@ -74,7 +74,7 @@ export function PlansTab({ client }: { client: PlansApi }) {
                   <TableCell className="tabular-nums">{formatCurrency(minorToMajor(plan.priceMinorUnits), plan.currencyCode)}</TableCell>
                   <TableCell>{INTERVAL_LABEL[plan.billingInterval] ? t(INTERVAL_LABEL[plan.billingInterval]) : plan.billingInterval}</TableCell>
                   <TableCell>{plan.isActive ? <Badge variant="success">●</Badge> : <Badge variant="outline">—</Badge>}</TableCell>
-                  <TableCell><Button variant="outline" onClick={() => openEdit(plan)}>{t('platform.billing.plans.edit')}</Button></TableCell>
+                  <TableCell>{canManage ? <Button variant="outline" onClick={() => openEdit(plan)}>{t('platform.billing.plans.edit')}</Button> : null}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

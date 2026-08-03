@@ -9,7 +9,7 @@ function organization(over: Partial<OrganizationSummary>): OrganizationSummary {
     createdAtUtc: '2026-01-01T00:00:00Z', updatedAtUtc: '2026-01-01T00:00:00Z', ...over
   };
 }
-const ALL: OrganizationsFilter = { query: '', status: 'all', plan: 'all' };
+const ALL: OrganizationsFilter = { query: '', status: 'all', plan: 'all', sort: 'attention' };
 
 describe('buildOrganizationRows', () => {
   it('returns all organizations sorted by updatedAtUtc descending', () => {
@@ -37,6 +37,14 @@ describe('buildOrganizationRows', () => {
       { ...ALL, status: 'active', plan: 'scale' }
     );
     expect(rows.map(r => r.organizationId)).toEqual(['b']);
+  });
+
+  it('sorts organizations by name when requested', () => {
+    const rows = buildOrganizationRows([
+      organization({ organizationId: 'z', name: 'Zeta' }),
+      organization({ organizationId: 'a', name: 'Alpha' })
+    ], { ...ALL, sort: 'name' });
+    expect(rows.map(row => row.organizationId)).toEqual(['a', 'z']);
   });
 
   it('maps every invite status to a variant and label', () => {

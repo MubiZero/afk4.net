@@ -5,7 +5,6 @@ import { ThemeProvider } from './theme/ThemeProvider';
 import { I18nProvider } from './i18n/I18nProvider';
 import { ToastProvider } from './components/ui/toast';
 import './index.css';
-import './styles.css';
 
 const container = document.getElementById('root');
 if (container === null) {

@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-07-29
+Last updated: 2026-07-30
 
 ## Purpose
 
@@ -162,7 +162,25 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   Shared money conversion moved to `src/lib`, while backend branch endpoints
   and Operator contracts remain unchanged.
 
+- **Platform Control rebuild review hardening** — the operational overview now
+  receives fixed-query-count organization attention projections for recent
+  denied operations, owner invitations expiring within three days, and failed
+  device rollouts, alongside suspension and past-due billing signals. Optional
+  SaaS billing failure remains visible as a retryable partial state. Overview
+  data loads only on the overview route and only within the caller's billing
+  permission. Direct URLs to forbidden organization tabs now show an explicit
+  access boundary with a safe Summary action. Remaining organization sorting
+  and rollout-target labels are fully localized in ru/en/tg.
+
 ## Latest Verification
+
+- Platform Control rebuild review gate (2026-07-30): Platform Control passed
+  147/147 tests and its production build; i18n passed 39/39; Shared Contracts
+  passed 137/137; Platform API passed 1477 tests with 14 PostgreSQL-only skips;
+  and the sequential full solution build completed with 0 warnings and 0
+  errors. The attention projection integration test covers all three added
+  operational counts without per-organization requests. No push, merge,
+  deployment, or physical Windows smoke was performed.
 
 - Platform-managed client updates and Organization Admin reports reached
   staging at merge SHA `72dd2852` on 2026-07-29. Before the schema change,
@@ -274,6 +292,42 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
   warning remain non-failing.
 - Platform Control passed 381/381 Bun tests and its production build; its existing
   large-chunk warning remains.
+- Platform Control rebuild Tasks 1–4 are complete on the rebuild branch: canonical
+  `/admin` routing and permission-derived navigation, the operations design system,
+  attention-first organization overview/list, and the full organization workspace.
+  The workspace has permission-filtered Summary, Clubs, Owners/access, Subscription,
+  Invoices, Support, and real read-only audit History tabs; the obsolete organization
+  drawer is removed. Fresh gates: organization/App frontend 42/42, i18n 27/27,
+  Platform Organization API 53/53, and the production frontend build.
+- Platform Control rebuild Task 5 is complete: Plans/Subscriptions/Invoices and
+  Packages/Rollouts use bookmarkable URL tabs; mutation controls follow backend
+  manage permissions; Platform Support is limited to organization support and
+  read-only global audit rather than billing/update operations. Global audit now
+  has a permission-protected, server-filtered endpoint and browser workspace.
+  Settings remains intentionally absent because no persisted platform-wide
+  settings contract exists.
+- Platform Control rebuild Task 6 is complete: the top bar now searches
+  organizations, clubs, and organization owners through one bounded,
+  permission-protected backend query. Results expose canonical links, support
+  exact-ID lookup and keyboard navigation, and stale requests are cancelled and
+  ignored. Existing overview attention rows continue to link to the same
+  canonical organization sections. Fresh gates: Platform Control 145/145,
+  platform API 157/157, shared contracts 137/137, i18n 27/27, production
+  frontend build, and full solution build with 0 warnings/errors.
+- Platform Control rebuild Task 7 is complete on the rebuild branch. The final
+  route inventory rejects every removed compatibility URL, unreachable legacy
+  components/helpers are deleted, and `/account-activation` remains the single
+  current owner-invitation journey. Route-level lazy loading plus locale-specific
+  catalog chunks reduced the initial production JS chunk to 309.54 kB without
+  Vite's large-chunk warning. Fresh gates: Platform Control 143/143, i18n 39/39,
+  shared contracts 137/137, Platform API 1476 passed with 14 PostgreSQL-only
+  cases skipped, and the full solution build completed with 0 warnings/errors.
+  Production-bundle Chromium assertions passed for owner organization navigation,
+  global update rollouts, support permission boundaries, desktop/light and
+  narrow/dark layouts, keyboard-opened mobile navigation, 200% zoom, long
+  Unicode names, empty data, partial API failure, forbidden routes, and expired
+  sessions. The browser run used deterministic mocked API responses and therefore
+  does not claim staging deployment or live-backend integration.
 - Player Shell Web passed 51/51 Bun tests and its production build.
 - GitHub `Package Smoke` run `29326881732` and the migration-gated `Coolify
   Staging Deploy` run `29327547027` passed for merge commit `498b7b83`. The
@@ -321,9 +375,10 @@ enroll, session lifecycle + leases, ledger/POS/shifts/reports, update publishing
 
 ## Recommended Next Work
 
-1. Repeat the now-passing Operator day flow from a clean `manager_workstation`
-   install and record 100%/125% scaling plus keyboard-focus evidence.
-2. Run the physical gaming-PC Agent/Shell smoke, then add permission-aware entity
-   search to the command palette if it does not expose a higher-priority gap.
+1. Integrate the completed Platform Control rebuild after branch review; archive
+   its implementation plan and design spec only once it lands on `main`.
+2. Return to the production-readiness backlog: repeat the
+   Operator day flow from a clean `manager_workstation` install at 100%/125%,
+   then run the physical Windows 10/11 gaming-PC Agent/Shell smoke.
 3. Wire real per-environment SMTP settings and work through the remaining
    pre-production decisions in the production-readiness roadmap.

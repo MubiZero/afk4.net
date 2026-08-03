@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
-import { platformNav } from '@/platform/nav';
+import { buildPlatformNav } from '@/platform/nav';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { AppShell } from './AppShell';
 
@@ -9,11 +9,17 @@ function renderShell(onNavigate = mock()) {
   return render(
     <ThemeProvider><I18nProvider>
       <AppShell
-        navGroups={platformNav}
+        navGroups={buildPlatformNav({
+          platformAdminId: 'admin-1', userName: 'owner', displayName: 'Platform Owner', roles: ['platform_admin'],
+          permissions: ['platform.organizations.view', 'platform.billing.view'],
+          accessToken: 'access', accessTokenExpiresAtUtc: '2099-01-01T00:00:00Z',
+          refreshToken: 'refresh', refreshTokenExpiresAtUtc: '2099-01-02T00:00:00Z'
+        })}
         sidebarHeader={<div>Platform Control</div>}
         activePath="/admin"
         subtitle=""
         screenTitle="Обзор"
+        menuLabel="Открыть меню"
         userName="Platform Owner"
         roleLabel="Администратор"
         onNavigate={onNavigate}

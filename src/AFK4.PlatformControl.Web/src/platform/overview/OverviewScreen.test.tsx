@@ -26,6 +26,13 @@ describe('platform OverviewScreen', () => {
     expect(screen.getByText('Beta')).toBeInTheDocument();
   });
 
+  it('links attention rows to the affected organization section', () => {
+    wrap(ready);
+    expect(screen.getByRole('link', { name: /Beta/i })).toHaveAttribute(
+      'href', '/admin/organizations/b?tab=summary'
+    );
+  });
+
   it('shows a loading skeleton', () => {
     wrap({ status: 'loading', retry: mock() });
     expect(screen.getByTestId('platform-overview-loading')).toBeInTheDocument();
@@ -51,5 +58,15 @@ describe('platform OverviewScreen', () => {
     };
     wrap(ready, billing);
     expect(screen.getByText('MRR')).toBeInTheDocument();
+  });
+
+  it('keeps organization signals visible when billing metrics fail', () => {
+    const retry = mock();
+    wrap(ready, { status: 'error', message: 'billing failed', retry });
+
+    expect(screen.getByText('Beta')).toBeVisible();
+    expect(screen.getByRole('status')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }));
+    expect(retry).toHaveBeenCalled();
   });
 });

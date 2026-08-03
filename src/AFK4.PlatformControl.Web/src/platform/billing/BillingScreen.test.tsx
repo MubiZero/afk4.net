@@ -14,10 +14,16 @@ function fakeClient() {
 
 describe('BillingScreen', () => {
   it('renders the three tab triggers', async () => {
-    render(<I18nProvider><ToastProvider><BillingScreen client={fakeClient()} /></ToastProvider></I18nProvider>);
+    render(<I18nProvider><ToastProvider><BillingScreen client={fakeClient()} tab="subscriptions" onTabChange={() => {}} canManage /></ToastProvider></I18nProvider>);
     expect(screen.getByText('Подписки')).toBeInTheDocument();
     expect(screen.getByText('Инвойсы')).toBeInTheDocument();
     expect(screen.getByText('Тарифы')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('Подписок пока нет.')).toBeInTheDocument());
+  });
+
+  it('keeps plan mutations out of a read-only billing session', async () => {
+    render(<I18nProvider><ToastProvider><BillingScreen client={fakeClient()} tab="plans" onTabChange={() => {}} canManage={false} /></ToastProvider></I18nProvider>);
+    await waitFor(() => expect(screen.getByText('Тарифов пока нет.')).toBeVisible());
+    expect(screen.queryByRole('button', { name: 'Создать тариф' })).not.toBeInTheDocument();
   });
 });
