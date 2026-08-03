@@ -93,6 +93,12 @@ public sealed class EfOrganizationSubscriptionService(
                 "PaymentGraceUntilUtc must be in the future.");
         }
 
+        if (request.ClearPaymentGrace == true && request.PaymentGraceUntilUtc is not null)
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                "ClearPaymentGrace and PaymentGraceUntilUtc must not be set together.");
+        }
+
         if (request.PlanCode is not null && request.PlanCode.Trim() != subscription.PlanCode)
         {
             var newPlan = await dbContext.SubscriptionPlans
@@ -172,6 +178,10 @@ public sealed class EfOrganizationSubscriptionService(
         if (request.PaymentGraceUntilUtc is not null)
         {
             subscription.PaymentGraceUntilUtc = request.PaymentGraceUntilUtc.Value;
+        }
+        else if (request.ClearPaymentGrace == true)
+        {
+            subscription.PaymentGraceUntilUtc = null;
         }
 
         subscription.UpdatedAtUtc = now;

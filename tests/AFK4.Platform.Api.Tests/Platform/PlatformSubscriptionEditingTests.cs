@@ -127,7 +127,7 @@ public sealed class PlatformSubscriptionEditingTests
     }
 
     [Fact]
-    public async Task Patch_SetsAndClearsPaymentGrace()
+    public async Task Patch_SetsPaymentGrace()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
@@ -151,16 +151,85 @@ public sealed class PlatformSubscriptionEditingTests
         Assert.NotNull(setBody);
         Assert.Equal(graceUntil, setBody.PaymentGraceUntilUtc);
 
-        await using (var scope = factory.Services.CreateAsyncScope())
-        {
-            var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-            var subscription = await dbContext.OrganizationSubscriptions
-                .SingleAsync(s => s.OrganizationId == organizationId);
-            Assert.Equal(graceUntil, subscription.PaymentGraceUntilUtc);
-        }
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var subscription = await dbContext.OrganizationSubscriptions
+            .SingleAsync(s => s.OrganizationId == organizationId);
+        Assert.Equal(graceUntil, subscription.PaymentGraceUntilUtc);
+    }
 
-        // Clearing requires a partial-update-safe way to null it out; use an explicit past-guard
-        // by verifying non-null fields are left untouched on an unrelated patch.
+    [Fact]
+    public async Task Patch_ClearPaymentGrace_RemovesIt()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+        var organizationId = await CreateOrganizationAsync(client, "grace-clear-org");
+
+        var graceUntil = DateTimeOffset.UtcNow.AddDays(5);
+        var setResponse = await client.PatchAsJsonAsync(
+            $"/api/platform/organizations/{organizationId:D}/subscription",
+            new UpdateSubscriptionRequest(
+                PlanCode: null,
+                BillingInterval: null,
+                Status: null,
+                CancelAtPeriodEnd: null,
+                AmountMinorUnits: null,
+                CurrentPeriodEndUtc: null,
+                PaymentGraceUntilUtc: graceUntil));
+        Assert.Equal(HttpStatusCode.OK, setResponse.StatusCode);
+
+        var clearResponse = await client.PatchAsJsonAsync(
+            $"/api/platform/organizations/{organizationId:D}/subscription",
+            new UpdateSubscriptionRequest(
+                PlanCode: null,
+                BillingInterval: null,
+                Status: null,
+                CancelAtPeriodEnd: null,
+                AmountMinorUnits: null,
+                CurrentPeriodEndUtc: null,
+                PaymentGraceUntilUtc: null,
+                ClearPaymentGrace: true));
+        var clearBody = await clearResponse.Content.ReadFromJsonAsync<OrganizationSubscriptionDto>();
+
+        Assert.Equal(HttpStatusCode.OK, clearResponse.StatusCode);
+        Assert.NotNull(clearBody);
+        Assert.Null(clearBody.PaymentGraceUntilUtc);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var subscription = await dbContext.OrganizationSubscriptions
+            .SingleAsync(s => s.OrganizationId == organizationId);
+        Assert.Null(subscription.PaymentGraceUntilUtc);
+
+        var audit = await dbContext.AuditRecords
+            .Where(record => record.Action == "billing.subscription.update" && record.Outcome == "Succeeded")
+            .OrderByDescending(record => record.CreatedAtUtc)
+            .FirstAsync();
+        Assert.Contains("\"PaymentGraceUntilUtc\":null", audit.DetailsJson);
+    }
+
+    [Fact]
+    public async Task Patch_UnrelatedFields_DoNotClearExistingPaymentGrace()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+        var organizationId = await CreateOrganizationAsync(client, "grace-untouched-org");
+
+        var graceUntil = DateTimeOffset.UtcNow.AddDays(5);
+        var setResponse = await client.PatchAsJsonAsync(
+            $"/api/platform/organizations/{organizationId:D}/subscription",
+            new UpdateSubscriptionRequest(
+                PlanCode: null,
+                BillingInterval: null,
+                Status: null,
+                CancelAtPeriodEnd: null,
+                AmountMinorUnits: null,
+                CurrentPeriodEndUtc: null,
+                PaymentGraceUntilUtc: graceUntil));
+        Assert.Equal(HttpStatusCode.OK, setResponse.StatusCode);
+
         var unrelatedResponse = await client.PatchAsJsonAsync(
             $"/api/platform/organizations/{organizationId:D}/subscription",
             new UpdateSubscriptionRequest(
@@ -177,6 +246,29 @@ public sealed class PlatformSubscriptionEditingTests
         Assert.NotNull(unrelatedBody);
         Assert.True(unrelatedBody.CancelAtPeriodEnd);
         Assert.Equal(graceUntil, unrelatedBody.PaymentGraceUntilUtc);
+    }
+
+    [Fact]
+    public async Task Patch_ClearPaymentGraceWithNewValue_Returns400()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+        var organizationId = await CreateOrganizationAsync(client, "grace-conflict-org");
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/platform/organizations/{organizationId:D}/subscription",
+            new UpdateSubscriptionRequest(
+                PlanCode: null,
+                BillingInterval: null,
+                Status: null,
+                CancelAtPeriodEnd: null,
+                AmountMinorUnits: null,
+                CurrentPeriodEndUtc: null,
+                PaymentGraceUntilUtc: DateTimeOffset.UtcNow.AddDays(5),
+                ClearPaymentGrace: true));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]

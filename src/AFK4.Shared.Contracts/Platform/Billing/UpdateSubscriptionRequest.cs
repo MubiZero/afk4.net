@@ -7,4 +7,5 @@ public sealed record UpdateSubscriptionRequest(
     bool? CancelAtPeriodEnd,
     long? AmountMinorUnits,
     DateTimeOffset? CurrentPeriodEndUtc,
-    DateTimeOffset? PaymentGraceUntilUtc);
+    DateTimeOffset? PaymentGraceUntilUtc,
+    bool? ClearPaymentGrace = null);
