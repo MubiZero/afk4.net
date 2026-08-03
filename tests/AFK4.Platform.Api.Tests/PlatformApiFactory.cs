@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -175,7 +176,13 @@ internal sealed class PlatformApiFactory : IAsyncDisposable, IDisposable
                 // Scoped options so the InMemory database name is re-read from the AsyncLocal on every
                 // scope (each request and each direct seeding scope), giving per-test isolation.
                 services.AddDbContext<PlatformDbContext>(
-                    (_, options) => options.UseInMemoryDatabase(CurrentDatabaseName.Value ?? "uninitialized"),
+                    (_, options) => options
+                        .UseInMemoryDatabase(CurrentDatabaseName.Value ?? "uninitialized")
+                        // Several services (billing, POS, inventory, owner-transfer, ...) wrap multi-step
+                        // writes in an explicit transaction for atomicity. The in-memory provider doesn't
+                        // support real transactions but happily no-ops them; without this the no-op itself
+                        // throws instead of just being logged.
+                        .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning)),
                     contextLifetime: ServiceLifetime.Scoped,
                     optionsLifetime: ServiceLifetime.Scoped);
 

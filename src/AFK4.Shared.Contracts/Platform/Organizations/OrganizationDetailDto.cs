@@ -15,4 +15,6 @@ public sealed record OrganizationDetailDto(
     DateTimeOffset UpdatedAtUtc,
     string? ContactEmail = null,
     string? ContactPhone = null,
-    string? LegalDetails = null);
+    string? LegalDetails = null,
+    string UpdateChannel = "stable",
+    string? PinnedClientVersion = null);

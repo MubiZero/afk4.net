@@ -20,6 +20,8 @@ public static class PlatformAdminPermissionNames
 
     public const string ManageOrganizationOwnerInvites = "platform.organizations.owner_invites.manage";
 
+    public const string TransferOrganizationOwner = "platform.organizations.owner.transfer";
+
     public const string ViewOrganizationHealth = "platform.organizations.health.view";
 
     public const string ViewPlatformAudit = "platform.audit.view";

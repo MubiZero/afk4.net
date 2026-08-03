@@ -23,4 +23,14 @@ public sealed class PlatformAdminPermissionCatalogTests
 
         Assert.Contains(PlatformAdminPermissionNames.UpdateOrganizationProfile, permissions);
     }
+
+    [Fact]
+    public void PlatformAdmin_CanTransferOrganizationOwner_ButPlatformSupportCannot()
+    {
+        var adminPermissions = PlatformAdminPermissionCatalog.GetPermissions([PlatformAdminRoleNames.PlatformAdmin]);
+        var supportPermissions = PlatformAdminPermissionCatalog.GetPermissions([PlatformAdminRoleNames.PlatformSupport]);
+
+        Assert.Contains(PlatformAdminPermissionNames.TransferOrganizationOwner, adminPermissions);
+        Assert.DoesNotContain(PlatformAdminPermissionNames.TransferOrganizationOwner, supportPermissions);
+    }
 }

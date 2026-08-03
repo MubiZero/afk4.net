@@ -215,6 +215,10 @@ public static class AuditActionNames
 
     public const string UpdateOrganizationProfile = "tenancy.organization.profile.update";
 
+    public const string UpdateOrganizationUpdateChannel = "tenancy.organization.update_channel.update";
+
+    public const string TransferOrganizationOwner = "tenancy.organization.owner.transfer";
+
     public const string ViewOrganization = "tenancy.organization.view";
 
     public const string CreateOrganizationOwnerInvite = "tenancy.owner_invite.create";

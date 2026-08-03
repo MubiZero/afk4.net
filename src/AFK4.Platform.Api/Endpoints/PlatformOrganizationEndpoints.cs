@@ -1049,5 +1049,154 @@ internal static class PlatformOrganizationEndpoints
             return Results.Ok(detail);
         });
 
+        app.MapPatch("/api/platform/organizations/{organizationId:guid}/update-channel", async (
+            Guid organizationId,
+            UpdateOrganizationUpdateChannelRequest request,
+            PlatformAdminAuthorizationService authorizationService,
+            IPlatformOrganizationService organizationService,
+            IAuditRecordWriter auditRecordWriter,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.UpdateOrganizationLimits);
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WritePlatformAuditAsync(
+                    auditRecordWriter,
+                    organizationId: organizationId,
+                    actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+                    action: AuditActionNames.UpdateOrganizationUpdateChannel,
+                    targetType: "Organization",
+                    targetId: organizationId.ToString("D"),
+                    outcome: AuditOutcome.Denied,
+                    details: new { authorization.DenialReason },
+                    cancellationToken);
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var result = await organizationService.UpdateUpdateChannelAsync(
+                organizationId,
+                request,
+                authorization.PlatformAdminContext!.PlatformAdminUserId,
+                cancellationToken);
+
+            if (!result.Succeeded)
+            {
+                await WritePlatformAuditAsync(
+                    auditRecordWriter,
+                    organizationId: organizationId,
+                    actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+                    action: AuditActionNames.UpdateOrganizationUpdateChannel,
+                    targetType: "Organization",
+                    targetId: organizationId.ToString("D"),
+                    outcome: AuditOutcome.Denied,
+                    details: new { Error = result.Error },
+                    cancellationToken);
+
+                return result.Status switch
+                {
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+                    _ => Results.BadRequest(new { Error = result.Error })
+                };
+            }
+
+            var detail = result.Value!;
+            await WritePlatformAuditAsync(
+                auditRecordWriter,
+                organizationId: organizationId,
+                actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+                action: AuditActionNames.UpdateOrganizationUpdateChannel,
+                targetType: "Organization",
+                targetId: organizationId.ToString("D"),
+                outcome: AuditOutcome.Succeeded,
+                details: new
+                {
+                    detail.UpdateChannel,
+                    detail.PinnedClientVersion
+                },
+                cancellationToken);
+
+            return Results.Ok(detail);
+        });
+
+        app.MapPost("/api/platform/organizations/{organizationId:guid}/owner-transfer", async (
+            Guid organizationId,
+            TransferOrganizationOwnerRequest request,
+            PlatformAdminAuthorizationService authorizationService,
+            IPlatformOrganizationService organizationService,
+            IAuditRecordWriter auditRecordWriter,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.TransferOrganizationOwner);
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WritePlatformAuditAsync(
+                    auditRecordWriter,
+                    organizationId: organizationId,
+                    actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+                    action: AuditActionNames.TransferOrganizationOwner,
+                    targetType: "Organization",
+                    targetId: organizationId.ToString("D"),
+                    outcome: AuditOutcome.Denied,
+                    details: new { authorization.DenialReason },
+                    cancellationToken);
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var result = await organizationService.TransferOrganizationOwnerAsync(
+                organizationId,
+                request,
+                authorization.PlatformAdminContext!.PlatformAdminUserId,
+                cancellationToken);
+
+            if (!result.Succeeded)
+            {
+                await WritePlatformAuditAsync(
+                    auditRecordWriter,
+                    organizationId: organizationId,
+                    actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+                    action: AuditActionNames.TransferOrganizationOwner,
+                    targetType: "Organization",
+                    targetId: organizationId.ToString("D"),
+                    outcome: AuditOutcome.Denied,
+                    details: new { Error = result.Error },
+                    cancellationToken);
+
+                return result.Status switch
+                {
+                    PlatformOrganizationOperationStatus.NotFound => Results.NotFound(new { Error = result.Error }),
+                    PlatformOrganizationOperationStatus.Conflict => Results.Conflict(new { Error = result.Error }),
+                    _ => Results.BadRequest(new { Error = result.Error })
+                };
+            }
+
+            var invite = result.Value!;
+            await WritePlatformAuditAsync(
+                auditRecordWriter,
+                organizationId: organizationId,
+                actorPlatformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+                action: AuditActionNames.TransferOrganizationOwner,
+                targetType: "Organization",
+                targetId: organizationId.ToString("D"),
+                outcome: AuditOutcome.Succeeded,
+                details: new
+                {
+                    Reason = request.Reason,
+                    NewOwnerInviteId = invite.OrganizationOwnerInviteId
+                },
+                cancellationToken);
+
+            return Results.Ok(invite);
+        });
     }
 }

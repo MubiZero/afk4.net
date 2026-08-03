@@ -33,4 +33,10 @@ public sealed class OrganizationEntity
     public DateTimeOffset CreatedAtUtc { get; set; }
 
     public DateTimeOffset UpdatedAtUtc { get; set; }
+
+    /// <summary>Update channel this organization's clients pin to (see <see cref="AFK4.Shared.Contracts.Updates.UpdateChannelNames"/>).</summary>
+    public string UpdateChannel { get; set; } = "stable";
+
+    /// <summary>Optional client version this organization is pinned to; null = follow the channel's latest.</summary>
+    public string? PinnedClientVersion { get; set; }
 }

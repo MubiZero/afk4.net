@@ -18,6 +18,7 @@ public static class PlatformAdminPermissionCatalog
                 PlatformAdminPermissionNames.ViewOrganizationSupportNotes,
                 PlatformAdminPermissionNames.ManageOrganizationSupportNotes,
                 PlatformAdminPermissionNames.ManageOrganizationOwnerInvites,
+                PlatformAdminPermissionNames.TransferOrganizationOwner,
                 PlatformAdminPermissionNames.ViewOrganizationHealth,
                 PlatformAdminPermissionNames.ViewPlatformAudit,
                 PlatformAdminPermissionNames.ViewBilling,
