@@ -102,6 +102,7 @@ describe('Platform Control admin-only routing', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Деньги' }));
     await waitFor(() => expect(window.location.pathname).toBe('/admin/money'));
+    expect(await screen.findByRole('tab', { name: 'Тарифы' })).toBeInTheDocument();
   });
 
   it('blocks direct navigation when the session lacks the backend permission', () => {
