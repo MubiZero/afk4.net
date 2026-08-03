@@ -13,7 +13,12 @@ Implementation plans for completed work are archived once their work lands on
   screens around a fleet-pulse main view with signal rows, a passport-plus-tabs
   client card, the shared `@afk4/tokens` language, and the operational levers
   (client profile editing, full subscription terms, payment grace, per-client
-  update channel, owner transfer).
+  update channel, owner transfer). All nine tasks are implemented on its topic
+  branch and the local gate is green; three EF migrations
+  (`AddOrganizationContactFields`, `AddSubscriptionPaymentGrace`,
+  `AddOrganizationUpdateChannel`) must be applied to staging by hand before the
+  deploy workflow will run. Archive this plan and its spec once the work lands
+  on `main`.
 - `2026-07-29-platform-update-release-control.md` — moves package publication
   and deterministic rollout into Platform Control and release automation.
 - `2026-07-29-organization-admin-maintenance-updates.md` — coordinates Agent and
