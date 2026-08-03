@@ -4,4 +4,7 @@ public sealed record UpdateSubscriptionRequest(
     string? PlanCode,
     string? BillingInterval,
     string? Status,
-    bool? CancelAtPeriodEnd);
+    bool? CancelAtPeriodEnd,
+    long? AmountMinorUnits,
+    DateTimeOffset? CurrentPeriodEndUtc,
+    DateTimeOffset? PaymentGraceUntilUtc);

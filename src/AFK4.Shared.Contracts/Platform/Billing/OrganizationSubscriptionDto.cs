@@ -13,4 +13,5 @@ public sealed record OrganizationSubscriptionDto(
     string BillingInterval,
     bool CancelAtPeriodEnd,
     DateTimeOffset CreatedAtUtc,
-    DateTimeOffset UpdatedAtUtc);
+    DateTimeOffset UpdatedAtUtc,
+    DateTimeOffset? PaymentGraceUntilUtc);

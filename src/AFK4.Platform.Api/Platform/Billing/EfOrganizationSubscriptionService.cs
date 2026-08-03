@@ -63,8 +63,35 @@ public sealed class EfOrganizationSubscriptionService(
                 $"BillingInterval must be one of: {string.Join(", ", AllowedIntervals)}.");
         }
 
+        if (request.AmountMinorUnits is < 0)
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                "AmountMinorUnits must not be negative.");
+        }
+
+        if (request.Status is not null
+            && request.Status.Trim() == SubscriptionStatusNames.Trial
+            && request.CurrentPeriodEndUtc is null)
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                "CurrentPeriodEndUtc must be provided when moving a subscription to trial.");
+        }
+
         var subscription = await EnsureSubscriptionAsync(org, cancellationToken);
         var now = timeProvider.GetUtcNow();
+
+        var newPeriodEnd = request.CurrentPeriodEndUtc ?? subscription.CurrentPeriodEndUtc;
+        if (newPeriodEnd <= subscription.CurrentPeriodStartUtc)
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                "CurrentPeriodEndUtc must be later than CurrentPeriodStartUtc.");
+        }
+
+        if (request.PaymentGraceUntilUtc is not null && request.PaymentGraceUntilUtc <= now)
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                "PaymentGraceUntilUtc must be in the future.");
+        }
 
         if (request.PlanCode is not null && request.PlanCode.Trim() != subscription.PlanCode)
         {
@@ -130,6 +157,21 @@ public sealed class EfOrganizationSubscriptionService(
         if (request.CancelAtPeriodEnd is not null)
         {
             subscription.CancelAtPeriodEnd = request.CancelAtPeriodEnd.Value;
+        }
+
+        if (request.AmountMinorUnits is not null)
+        {
+            subscription.AmountMinorUnits = request.AmountMinorUnits.Value;
+        }
+
+        if (request.CurrentPeriodEndUtc is not null)
+        {
+            subscription.CurrentPeriodEndUtc = request.CurrentPeriodEndUtc.Value;
+        }
+
+        if (request.PaymentGraceUntilUtc is not null)
+        {
+            subscription.PaymentGraceUntilUtc = request.PaymentGraceUntilUtc.Value;
         }
 
         subscription.UpdatedAtUtc = now;
@@ -265,5 +307,6 @@ public sealed class EfOrganizationSubscriptionService(
             BillingInterval: entity.BillingInterval,
             CancelAtPeriodEnd: entity.CancelAtPeriodEnd,
             CreatedAtUtc: entity.CreatedAtUtc,
-            UpdatedAtUtc: entity.UpdatedAtUtc);
+            UpdatedAtUtc: entity.UpdatedAtUtc,
+            PaymentGraceUntilUtc: entity.PaymentGraceUntilUtc);
 }
