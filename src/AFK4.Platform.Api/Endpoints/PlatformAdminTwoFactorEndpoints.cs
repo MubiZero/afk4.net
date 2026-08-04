@@ -32,18 +32,22 @@ internal static class PlatformAdminTwoFactorEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var (session, recoveryCodes, error) = await twoFactorService.CompleteSetupAsync(
+            var (session, recoveryCodes, resolvedUserId, error) = await twoFactorService.CompleteSetupAsync(
                 request.ChallengeToken, request.Code, cancellationToken);
 
             if (error != TwoFactorError.None)
             {
+                // resolvedUserId is populated whenever the challenge itself resolved to a real
+                // account, even though the code check then failed — that is exactly the case the
+                // audit trail needs to distinguish "someone typo'd" from "this account is being
+                // brute-forced".
                 await WritePlatformAuditAsync(
                     auditRecordWriter,
                     organizationId: Guid.Empty,
-                    actorPlatformAdminUserId: null,
+                    actorPlatformAdminUserId: resolvedUserId,
                     action: AuditActionNames.PlatformAdminTwoFactorConfigured,
                     targetType: "PlatformAdminUser",
-                    targetId: null,
+                    targetId: resolvedUserId?.ToString("D"),
                     outcome: AuditOutcome.Denied,
                     details: new { Error = error.ToString() },
                     cancellationToken);
@@ -72,17 +76,20 @@ internal static class PlatformAdminTwoFactorEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
-            var (session, error) = await twoFactorService.VerifyAsync(request.ChallengeToken, request.Code, cancellationToken);
+            var (session, resolvedUserId, error) = await twoFactorService.VerifyAsync(request.ChallengeToken, request.Code, cancellationToken);
 
             if (error != TwoFactorError.None)
             {
+                // See the /2fa/setup/confirm handler above: resolvedUserId is set whenever the
+                // challenge resolved to a real account, so a wrong-code Denied entry still says
+                // which account was being probed, not just "someone, somewhere, failed".
                 await WritePlatformAuditAsync(
                     auditRecordWriter,
                     organizationId: Guid.Empty,
-                    actorPlatformAdminUserId: null,
+                    actorPlatformAdminUserId: resolvedUserId,
                     action: AuditActionNames.PlatformAdminTwoFactorVerified,
                     targetType: "PlatformAdminUser",
-                    targetId: null,
+                    targetId: resolvedUserId?.ToString("D"),
                     outcome: AuditOutcome.Denied,
                     details: new { Error = error.ToString() },
                     cancellationToken);

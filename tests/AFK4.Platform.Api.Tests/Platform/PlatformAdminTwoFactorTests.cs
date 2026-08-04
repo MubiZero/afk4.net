@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Platform.Identity;
+using AFK4.Shared.Contracts.Audit;
 using AFK4.Shared.Contracts.Platform.Auth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -97,6 +99,27 @@ public sealed class PlatformAdminTwoFactorTests
         var user = await db.PlatformAdminUsers.SingleAsync(x => x.PlatformAdminUserId == support.PlatformAdminId);
         Assert.Null(user.TotpSecretEncrypted);
         Assert.Null(user.TotpEnabledAtUtc);
+    }
+
+    [Fact]
+    public async Task FailedVerify_WritesDeniedAuditWithTargetUserId()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var admin = await PlatformAdminTestHelper.SeedPlatformAdminAsync(factory);
+        var challenge = await TwoFactorTestHelper.StartChallengeAsync(client);
+
+        var response = await TwoFactorTestHelper.VerifyAsync(client, challenge.ChallengeToken, "000000");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var auditRecord = await db.AuditRecords
+            .SingleAsync(record => record.Action == AuditActionNames.PlatformAdminTwoFactorVerified);
+
+        Assert.Equal(AuditOutcome.Denied, auditRecord.Outcome);
+        Assert.Equal(admin.PlatformAdminUserId, auditRecord.ActorPlatformAdminUserId);
+        Assert.Equal(admin.PlatformAdminUserId.ToString("D"), auditRecord.TargetId);
     }
 
     [Fact]

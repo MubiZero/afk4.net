@@ -77,7 +77,12 @@ public sealed class PlatformAdminTwoFactorService(
         return (base32Secret, BuildOtpAuthUri(user.UserName, base32Secret), TwoFactorError.None);
     }
 
-    public async Task<(PlatformAdminSignInResponse? Session, IReadOnlyList<string> RecoveryCodes, TwoFactorError Error)> CompleteSetupAsync(
+    // PlatformAdminUserId is returned separately from Session so the caller can attribute a Denied
+    // audit entry to the account being probed even when the code was wrong — the whole point of an
+    // auth audit trail is telling "someone typo'd" apart from "this specific account is being
+    // brute-forced". It is populated whenever the challenge resolved to a real user, regardless of
+    // whether the code check itself then succeeded.
+    public async Task<(PlatformAdminSignInResponse? Session, IReadOnlyList<string> RecoveryCodes, Guid? PlatformAdminUserId, TwoFactorError Error)> CompleteSetupAsync(
         string challengeToken,
         string code,
         CancellationToken cancellationToken)
@@ -85,25 +90,25 @@ public sealed class PlatformAdminTwoFactorService(
         var (challenge, user) = await FindActiveChallengeAsync(challengeToken, cancellationToken);
         if (challenge is null || user is null)
         {
-            return (null, [], TwoFactorError.InvalidChallenge);
+            return (null, [], null, TwoFactorError.InvalidChallenge);
         }
 
         if (user.TotpEnabledAtUtc is not null)
         {
-            return (null, [], TwoFactorError.AlreadyConfigured);
+            return (null, [], user.PlatformAdminUserId, TwoFactorError.AlreadyConfigured);
         }
 
         if (string.IsNullOrWhiteSpace(user.TotpSecretEncrypted))
         {
             // No prior call to BeginSetupAsync produced a pending secret to confirm.
-            return (null, [], TwoFactorError.InvalidChallenge);
+            return (null, [], user.PlatformAdminUserId, TwoFactorError.InvalidChallenge);
         }
 
         var now = timeProvider.GetUtcNow();
         var secretBytes = Convert.FromBase64String(secretProtector.Unprotect(user.TotpSecretEncrypted));
         if (!TotpCodeGenerator.Verify(secretBytes, code, now.ToUnixTimeSeconds()))
         {
-            return (null, [], TwoFactorError.InvalidCode);
+            return (null, [], user.PlatformAdminUserId, TwoFactorError.InvalidCode);
         }
 
         var recoveryCodes = GenerateRecoveryCodes();
@@ -118,10 +123,11 @@ public sealed class PlatformAdminTwoFactorService(
         // context, which also flushes the user/challenge mutations above in the same round trip.
         var session = await tokenService.IssueAsync(user, cancellationToken);
 
-        return (session, recoveryCodes, TwoFactorError.None);
+        return (session, recoveryCodes, user.PlatformAdminUserId, TwoFactorError.None);
     }
 
-    public async Task<(PlatformAdminSignInResponse? Session, TwoFactorError Error)> VerifyAsync(
+    // See CompleteSetupAsync above for why PlatformAdminUserId travels separately from Session.
+    public async Task<(PlatformAdminSignInResponse? Session, Guid? PlatformAdminUserId, TwoFactorError Error)> VerifyAsync(
         string challengeToken,
         string code,
         CancellationToken cancellationToken)
@@ -129,13 +135,13 @@ public sealed class PlatformAdminTwoFactorService(
         var (challenge, user) = await FindActiveChallengeAsync(challengeToken, cancellationToken);
         if (challenge is null || user is null)
         {
-            return (null, TwoFactorError.InvalidChallenge);
+            return (null, null, TwoFactorError.InvalidChallenge);
         }
 
         var now = timeProvider.GetUtcNow();
         if (user.TwoFactorLockedUntilUtc is { } lockedUntil && lockedUntil > now)
         {
-            return (null, TwoFactorError.LockedOut);
+            return (null, user.PlatformAdminUserId, TwoFactorError.LockedOut);
         }
 
         var succeeded = false;
@@ -165,7 +171,7 @@ public sealed class PlatformAdminTwoFactorService(
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);
-            return (null, TwoFactorError.InvalidCode);
+            return (null, user.PlatformAdminUserId, TwoFactorError.InvalidCode);
         }
 
         user.FailedTwoFactorAttempts = 0;
@@ -174,7 +180,7 @@ public sealed class PlatformAdminTwoFactorService(
         challenge.ConsumedAtUtc = now;
 
         var session = await tokenService.IssueAsync(user, cancellationToken);
-        return (session, TwoFactorError.None);
+        return (session, user.PlatformAdminUserId, TwoFactorError.None);
     }
 
     public async Task<TwoFactorError> ResetAsync(Guid targetPlatformAdminUserId, CancellationToken cancellationToken)
