@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -26,48 +25,55 @@ export function SubscriptionsTab({ client }: { client: SubscriptionsApi }) {
   const rows = filterSubscriptions(state.data, { query, status });
 
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-3 pt-6">
-        <div className="flex flex-wrap gap-2">
-          <Input className="max-w-xs" placeholder={t('platform.billing.search.placeholder')} aria-label={t('platform.billing.search.placeholder')} value={query} onChange={e => setQuery(e.target.value)} />
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="max-w-[200px]" aria-label={t('platform.billing.column.status')}><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {SUBSCRIPTION_STATUS_FILTERS.map(s => (
-                <SelectItem key={s} value={s}>{s === 'all' ? t('platform.billing.filter.allStatuses') : t(SUBSCRIPTION_STATUS_LABEL[s])}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {rows.length === 0 ? (
-          <EmptyState message={t('platform.billing.empty.subscriptions')} />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('platform.billing.column.organization')}</TableHead>
-                <TableHead>{t('platform.billing.column.plan')}</TableHead>
-                <TableHead>{t('platform.billing.column.status')}</TableHead>
-                <TableHead>{t('platform.billing.column.amount')}</TableHead>
-                <TableHead>{t('platform.billing.column.interval')}</TableHead>
-                <TableHead>{t('platform.billing.column.periodEnd')}</TableHead>
+    <>
+      <div className="pc-filters">
+        <Input
+          placeholder={t('platform.billing.search.placeholder')}
+          aria-label={t('platform.billing.search.placeholder')}
+          value={query}
+          onChange={event => setQuery(event.target.value)}
+        />
+        <Select aria-label={t('platform.billing.column.status')} value={status} onChange={event => setStatus(event.target.value)}>
+          {SUBSCRIPTION_STATUS_FILTERS.map(value => (
+            <option key={value} value={value}>
+              {value === 'all' ? t('platform.billing.filter.allStatuses') : t(SUBSCRIPTION_STATUS_LABEL[value])}
+            </option>
+          ))}
+        </Select>
+      </div>
+
+      {rows.length === 0 ? (
+        <EmptyState message={t('platform.billing.empty.subscriptions')} />
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t('platform.billing.column.organization')}</TableHead>
+              <TableHead>{t('platform.billing.column.plan')}</TableHead>
+              <TableHead>{t('platform.billing.column.status')}</TableHead>
+              <TableHead className="pc-num">{t('platform.billing.column.amount')}</TableHead>
+              <TableHead>{t('platform.billing.column.interval')}</TableHead>
+              <TableHead>{t('platform.billing.column.periodEnd')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map(subscription => (
+              <TableRow key={subscription.organizationSubscriptionId}>
+                <TableCell>{subscription.organizationName}</TableCell>
+                <TableCell>{subscription.planCode}</TableCell>
+                <TableCell>
+                  <Badge variant={SUBSCRIPTION_STATUS_VARIANT[subscription.status] ?? 'outline'}>
+                    {SUBSCRIPTION_STATUS_LABEL[subscription.status] !== undefined ? t(SUBSCRIPTION_STATUS_LABEL[subscription.status]) : subscription.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="pc-num">{formatCurrency(minorToMajor(subscription.amountMinorUnits), subscription.currencyCode)}</TableCell>
+                <TableCell>{INTERVAL_LABEL[subscription.billingInterval] !== undefined ? t(INTERVAL_LABEL[subscription.billingInterval]) : subscription.billingInterval}</TableCell>
+                <TableCell>{formatDate(subscription.currentPeriodEndUtc)}</TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map(r => (
-                <TableRow key={r.organizationSubscriptionId}>
-                  <TableCell><span className="font-medium">{r.organizationName}</span> <code className="text-xs text-muted-foreground">{r.organizationSlug}</code></TableCell>
-                  <TableCell>{r.planCode}</TableCell>
-                  <TableCell><Badge variant={SUBSCRIPTION_STATUS_VARIANT[r.status] ?? 'outline'}>{SUBSCRIPTION_STATUS_LABEL[r.status] ? t(SUBSCRIPTION_STATUS_LABEL[r.status]) : r.status}</Badge></TableCell>
-                  <TableCell className="tabular-nums">{formatCurrency(minorToMajor(r.amountMinorUnits), r.currencyCode)}</TableCell>
-                  <TableCell>{INTERVAL_LABEL[r.billingInterval] ? t(INTERVAL_LABEL[r.billingInterval]) : r.billingInterval}</TableCell>
-                  <TableCell>{formatDate(r.currentPeriodEndUtc)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </>
   );
 }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
@@ -46,20 +46,17 @@ export function OrganizationUpdateChannelSection({ client, organization, onUpdat
   return (
     <Card>
       <CardHeader><CardTitle>{t('platform.organization.updateChannelForm.title')}</CardTitle></CardHeader>
-      <CardContent className="flex flex-col gap-3 text-sm">
-        <label className="block">
-          <span className="mb-1 block text-muted-foreground">{t('platform.organization.updateChannelForm.channel')}</span>
-          <Select value={channel} onValueChange={setChannel}>
-            <SelectTrigger aria-label={t('platform.organization.updateChannelForm.channel')}><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {CHANNEL_OPTIONS.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
-            </SelectContent>
+      <CardContent>
+        <label className="ui-field">
+          <span>{t('platform.organization.updateChannelForm.channel')}</span>
+          <Select value={channel} onChange={event => setChannel(event.target.value)}>
+              {CHANNEL_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
           </Select>
         </label>
-        <label className="block">
-          <span className="mb-1 block text-muted-foreground">{t('platform.organization.updateChannelForm.pinnedVersion')}</span>
+        <label className="ui-field">
+          <span>{t('platform.organization.updateChannelForm.pinnedVersion')}</span>
           <Input aria-label={t('platform.organization.updateChannelForm.pinnedVersion')} value={pinnedClientVersion} onChange={e => setPinnedClientVersion(e.target.value)} />
-          <span className="mt-1 block text-xs text-muted-foreground">{t('platform.organization.updateChannelForm.pinnedVersionHint')}</span>
+          <span className="pc-field-hint">{t('platform.organization.updateChannelForm.pinnedVersionHint')}</span>
         </label>
         <div>
           <Button disabled={pending || !dirty} onClick={() => void submit()}>{t('platform.organization.updateChannelForm.apply')}</Button>

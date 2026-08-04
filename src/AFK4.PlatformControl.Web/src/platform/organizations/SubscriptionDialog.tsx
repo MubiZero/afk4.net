@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog } from '@/components/ui/dialog';
+import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor, majorToMinor } from '@/lib/money';
@@ -61,48 +62,51 @@ export function SubscriptionDialog({ client, organizationId, subscription, onClo
   }
 
   return (
-    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
-      <DialogContent>
-        <DialogTitle>{t('platform.organization.subscriptionDialog.title')}</DialogTitle>
-        <DialogDescription className="sr-only">{t('platform.organization.subscriptionDialog.title')}</DialogDescription>
-        <div className="flex flex-col gap-3">
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted-foreground">{t('platform.organization.subscriptionForm.interval')}</span>
-            <Select value={interval} onValueChange={setInterval}>
-              <SelectTrigger aria-label={t('platform.organization.subscriptionForm.interval')}><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {INTERVAL_OPTIONS.map(i => <SelectItem key={i} value={i}>{t(i === 'monthly' ? 'platform.billing.interval.monthly' : 'platform.billing.interval.yearly')}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted-foreground">{t('platform.organization.subscriptionForm.status')}</span>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger aria-label={t('platform.organization.subscriptionForm.status')}><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{t(SUBSCRIPTION_STATUS_LABEL[s])}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </label>
-          <label className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{t('platform.organization.subscriptionForm.cancelAtPeriodEnd')}</span>
-            <Switch checked={cancelAtPeriodEnd} onCheckedChange={setCancelAtPeriodEnd} />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted-foreground">{t('platform.organization.subscriptionDialog.amount')}</span>
-            <Input inputMode="decimal" aria-label={t('platform.organization.subscriptionDialog.amount')} value={amount} onChange={e => setAmount(e.target.value)} />
-            <span className="mt-1 block text-xs text-muted-foreground">{amountValid ? formatCurrency(amountValue, subscription.currencyCode) : ''}</span>
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted-foreground">{t('platform.organization.subscriptionDialog.currentPeriodEnd')}</span>
-            <Input type="date" aria-label={t('platform.organization.subscriptionDialog.currentPeriodEnd')} value={currentPeriodEnd} onChange={e => setCurrentPeriodEnd(e.target.value)} />
-          </label>
-        </div>
-        <DialogFooter>
+    <Dialog
+      open
+      title={t('platform.organization.subscriptionDialog.title')}
+      onClose={onClose}
+      footer={
+        <>
           <Button variant="outline" disabled={pending} onClick={onClose}>{t('platform.organization.subscriptionDialog.cancel')}</Button>
           <Button disabled={pending || !amountValid} onClick={() => void submit()}>{t('platform.organization.subscriptionDialog.save')}</Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className="pc-form">
+        <Field label={t('platform.organization.subscriptionForm.interval')} htmlFor="subscription-interval">
+          <Select id="subscription-interval" value={interval} onChange={event => setInterval(event.target.value)}>
+            {INTERVAL_OPTIONS.map(option => (
+              <option key={option} value={option}>
+                {t(option === 'monthly' ? 'platform.billing.interval.monthly' : 'platform.billing.interval.yearly')}
+              </option>
+            ))}
+          </Select>
+        </Field>
+
+        <Field label={t('platform.organization.subscriptionForm.status')} htmlFor="subscription-status">
+          <Select id="subscription-status" value={status} onChange={event => setStatus(event.target.value)}>
+            {STATUS_OPTIONS.map(option => <option key={option} value={option}>{t(SUBSCRIPTION_STATUS_LABEL[option])}</option>)}
+          </Select>
+        </Field>
+
+        <label className="pc-check-row">
+          <Switch checked={cancelAtPeriodEnd} onCheckedChange={setCancelAtPeriodEnd} />
+          {t('platform.organization.subscriptionForm.cancelAtPeriodEnd')}
+        </label>
+
+        <Field
+          label={t('platform.organization.subscriptionDialog.amount')}
+          htmlFor="subscription-amount"
+          hint={amountValid ? formatCurrency(amountValue, subscription.currencyCode) : undefined}
+        >
+          <Input id="subscription-amount" inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} />
+        </Field>
+
+        <Field label={t('platform.organization.subscriptionDialog.currentPeriodEnd')} htmlFor="subscription-period-end">
+          <Input id="subscription-period-end" type="date" value={currentPeriodEnd} onChange={event => setCurrentPeriodEnd(event.target.value)} />
+        </Field>
+      </div>
     </Dialog>
   );
 }

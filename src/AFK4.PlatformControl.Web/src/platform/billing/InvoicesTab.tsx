@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -52,60 +51,68 @@ export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi;
   if (state.status === 'error') return <ErrorState message={t('state.error')} retryLabel={t('state.retry')} onRetry={state.retry} />;
 
   const rows = filterInvoices(state.data, { query, status });
-  const actionable = (s: string) => s === 'issued' || s === 'overdue';
+  const actionable = (value: string) => value === 'issued' || value === 'overdue';
 
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-3 pt-6">
-        <div className="flex flex-wrap gap-2">
-          <Input className="max-w-xs" placeholder={t('platform.billing.search.placeholder')} aria-label={t('platform.billing.search.placeholder')} value={query} onChange={e => setQuery(e.target.value)} />
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="max-w-[200px]" aria-label={t('platform.billing.column.status')}><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {INVOICE_STATUS_FILTERS.map(s => (
-                <SelectItem key={s} value={s}>{s === 'all' ? t('platform.billing.filter.allStatuses') : t(INVOICE_STATUS_LABEL[s])}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {rows.length === 0 ? (
-          <EmptyState message={t('platform.billing.empty.invoices')} />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('platform.billing.column.number')}</TableHead>
-                <TableHead>{t('platform.billing.column.organization')}</TableHead>
-                <TableHead>{t('platform.billing.column.kind')}</TableHead>
-                <TableHead>{t('platform.billing.column.amount')}</TableHead>
-                <TableHead>{t('platform.billing.column.status')}</TableHead>
-                <TableHead>{t('platform.billing.column.due')}</TableHead>
-                <TableHead>{t('platform.billing.column.actions')}</TableHead>
+    <>
+      <div className="pc-filters">
+        <Input
+          placeholder={t('platform.billing.search.placeholder')}
+          aria-label={t('platform.billing.search.placeholder')}
+          value={query}
+          onChange={event => setQuery(event.target.value)}
+        />
+        <Select aria-label={t('platform.billing.column.status')} value={status} onChange={event => setStatus(event.target.value)}>
+          {INVOICE_STATUS_FILTERS.map(value => (
+            <option key={value} value={value}>
+              {value === 'all' ? t('platform.billing.filter.allStatuses') : t(INVOICE_STATUS_LABEL[value])}
+            </option>
+          ))}
+        </Select>
+      </div>
+
+      {rows.length === 0 ? (
+        <EmptyState message={t('platform.billing.empty.invoices')} />
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t('platform.billing.column.number')}</TableHead>
+              <TableHead>{t('platform.billing.column.organization')}</TableHead>
+              <TableHead>{t('platform.billing.column.kind')}</TableHead>
+              <TableHead className="pc-num">{t('platform.billing.column.amount')}</TableHead>
+              <TableHead>{t('platform.billing.column.status')}</TableHead>
+              <TableHead>{t('platform.billing.column.due')}</TableHead>
+              <TableHead>{t('platform.billing.column.actions')}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map(invoice => (
+              <TableRow key={invoice.invoiceId}>
+                <TableCell className="pc-num">#{invoice.number}</TableCell>
+                <TableCell>{invoice.organizationName}</TableCell>
+                <TableCell>{INVOICE_KIND_LABEL[invoice.kind] !== undefined ? t(INVOICE_KIND_LABEL[invoice.kind]) : invoice.kind}</TableCell>
+                <TableCell className="pc-num">{formatCurrency(minorToMajor(invoice.amountMinorUnits), invoice.currencyCode)}</TableCell>
+                <TableCell>
+                  <Badge variant={INVOICE_STATUS_VARIANT[invoice.status] ?? 'outline'}>
+                    {INVOICE_STATUS_LABEL[invoice.status] !== undefined ? t(INVOICE_STATUS_LABEL[invoice.status]) : invoice.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>{formatDate(invoice.dueAtUtc)}</TableCell>
+                <TableCell>
+                  {canManage && actionable(invoice.status) ? (
+                    <span className="pc-cell-actions">
+                      <Button variant="outline" size="sm" onClick={() => setAction({ kind: 'markPaid', invoice })}>{t('platform.billing.action.markPaid')}</Button>
+                      <Button variant="destructive" size="sm" onClick={() => setAction({ kind: 'void', invoice })}>{t('platform.billing.action.void')}</Button>
+                    </span>
+                  ) : null}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map(r => (
-                <TableRow key={r.invoiceId}>
-                  <TableCell className="tabular-nums">#{r.number}</TableCell>
-                  <TableCell><span className="font-medium">{r.organizationName}</span> <code className="text-xs text-muted-foreground">{r.organizationSlug}</code></TableCell>
-                  <TableCell>{INVOICE_KIND_LABEL[r.kind] ? t(INVOICE_KIND_LABEL[r.kind]) : r.kind}</TableCell>
-                  <TableCell className="tabular-nums">{formatCurrency(minorToMajor(r.amountMinorUnits), r.currencyCode)}</TableCell>
-                  <TableCell><Badge variant={INVOICE_STATUS_VARIANT[r.status] ?? 'outline'}>{INVOICE_STATUS_LABEL[r.status] ? t(INVOICE_STATUS_LABEL[r.status]) : r.status}</Badge></TableCell>
-                  <TableCell>{formatDate(r.dueAtUtc)}</TableCell>
-                  <TableCell className="flex gap-2">
-                    {canManage && actionable(r.status) && (
-                      <>
-                        <Button variant="outline" onClick={() => setAction({ kind: 'markPaid', invoice: r })}>{t('platform.billing.action.markPaid')}</Button>
-                        <Button variant="destructive" onClick={() => setAction({ kind: 'void', invoice: r })}>{t('platform.billing.action.void')}</Button>
-                      </>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+
       <ConfirmDialog
         open={action !== null}
         title={action?.kind === 'void' ? t('platform.billing.void.title') : t('platform.billing.markPaid.title')}
@@ -117,6 +124,6 @@ export function InvoicesTab({ client, canManage = true }: { client: InvoicesApi;
         onConfirm={reason => void confirm(reason)}
         onOpenChange={open => { if (!open) setAction(null); }}
       />
-    </Card>
+    </>
   );
 }

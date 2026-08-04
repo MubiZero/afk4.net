@@ -1,26 +1,36 @@
-import type { ComponentProps } from 'react';
-import { Tabs as TabsPrimitive } from 'radix-ui';
-import { cn } from '@/lib/utils';
+import type { ReactNode } from 'react';
 
-export const Tabs = TabsPrimitive.Root;
-
-export function TabsList({ className, ...props }: ComponentProps<typeof TabsPrimitive.List>) {
-  return <TabsPrimitive.List className={cn('flex gap-1 border-b border-border', className)} {...props} />;
+// Сегментный переключатель разделов (.mgmt-tabs) — тот же контрол, что во «Управлении»
+// Organization Admin. Управляется снаружи: активная вкладка живёт в URL, а не внутри виджета.
+export interface TabItem<T extends string> {
+  value: T;
+  label: string;
 }
 
-export function TabsTrigger({ className, ...props }: ComponentProps<typeof TabsPrimitive.Trigger>) {
+export function Tabs<T extends string>({ items, value, onChange, label }: {
+  items: TabItem<T>[];
+  value: T;
+  onChange: (next: T) => void;
+  label: string;
+}) {
   return (
-    <TabsPrimitive.Trigger
-      className={cn(
-        '-mb-px border-b-2 border-transparent px-3 py-2 text-sm font-medium text-muted-foreground transition-colors outline-none',
-        'hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground',
-        className
-      )}
-      {...props}
-    />
+    <div className="mgmt-tabs" role="tablist" aria-label={label}>
+      {items.map(item => (
+        <button
+          key={item.value}
+          type="button"
+          role="tab"
+          aria-selected={item.value === value}
+          className={item.value === value ? 'mgmt-tab is-active' : 'mgmt-tab'}
+          onClick={() => onChange(item.value)}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
-export function TabsContent({ className, ...props }: ComponentProps<typeof TabsPrimitive.Content>) {
-  return <TabsPrimitive.Content className={cn('pt-4 outline-none', className)} {...props} />;
+export function TabPanel({ children }: { children: ReactNode }) {
+  return <div role="tabpanel">{children}</div>;
 }

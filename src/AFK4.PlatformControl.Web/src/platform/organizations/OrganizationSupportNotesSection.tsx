@@ -69,13 +69,13 @@ export function OrganizationSupportNotesSection({ client, organizationId }: { cl
   return (
     <Card>
       <CardHeader><CardTitle>{t('platform.organization.section.notes')}</CardTitle></CardHeader>
-      <CardContent className="flex flex-col gap-4 text-sm">
-        <div className="flex flex-col gap-2">
-          <label className="block">
-            <span className="mb-1 block text-muted-foreground">{t('platform.organization.notes.newNote')}</span>
+      <CardContent>
+        <div>
+          <label className="ui-field">
+            <span>{t('platform.organization.notes.newNote')}</span>
             <Textarea aria-label={t('platform.organization.notes.newNote')} rows={3} maxLength={4000} value={draft} onChange={e => setDraft(e.target.value)} />
           </label>
-          <p className="text-xs text-muted-foreground">{t('platform.organization.notes.hint')}</p>
+          <p className="pc-field-hint">{t('platform.organization.notes.hint')}</p>
           <div>
             <Button onClick={() => void create()} disabled={creating || draft.trim().length === 0}>{t('platform.organization.notes.add')}</Button>
           </div>
@@ -88,24 +88,24 @@ export function OrganizationSupportNotesSection({ client, organizationId }: { cl
         ) : notes.length === 0 ? (
           <EmptyState message={t('platform.organization.notes.empty')} />
         ) : (
-          <ul className="flex flex-col gap-3">
+          <ul>
             {notes.map(n => (
-              <li key={n.organizationSupportNoteId} className="rounded-md border border-border p-3">
-                <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+              <li key={n.organizationSupportNoteId} className="pc-note">
+                <div className="pc-note-head">
                   <span>{n.authorDisplayName.length === 0 ? n.authorPlatformAdminId : n.authorDisplayName}</span>
-                  <span className="tabular-nums">{formatDate(n.createdAtUtc)}</span>
+                  <span className="pc-num">{formatDate(n.createdAtUtc)}</span>
                 </div>
                 {editingId === n.organizationSupportNoteId ? (
-                  <div className="flex flex-col gap-2">
+                  <div>
                     <Textarea aria-label={t('platform.organization.notes.editNote')} rows={4} maxLength={4000} value={editingBody} onChange={e => setEditingBody(e.target.value)} />
-                    <div className="flex gap-2">
+                    <div className="pc-cell-actions">
                       <Button variant="outline" size="sm" disabled={savingEdit} onClick={() => setEditingId(null)}>{t('platform.organization.notes.cancel')}</Button>
                       <Button size="sm" disabled={savingEdit || editingBody.trim().length === 0} onClick={() => void saveEdit()}>{t('platform.organization.notes.save')}</Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-2">
-                    <p className="whitespace-pre-wrap">{n.body}</p>
+                  <div>
+                    <p className="pc-note-body">{n.body}</p>
                     <div>
                       <Button variant="ghost" size="sm" onClick={() => startEdit(n)}>{t('platform.organization.notes.edit')}</Button>
                     </div>

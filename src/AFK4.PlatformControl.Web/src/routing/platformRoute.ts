@@ -9,17 +9,15 @@ export type OrganizationTab =
   | 'history';
 
 export type BillingTab = 'plans' | 'subscriptions' | 'invoices';
-export type UpdatesTab = 'packages' | 'rollouts';
 
 export type PlatformRoute =
   | { kind: 'overview'; view: PulseView }
   | { kind: 'organization'; organizationId: string; tab: OrganizationTab }
   | { kind: 'organizationNew' }
   | { kind: 'billing'; tab: BillingTab }
-  | { kind: 'updates'; tab: UpdatesTab }
+  | { kind: 'updates' }
   | { kind: 'audit'; organizationId: string; action: string; outcome: string; from: string; to: string }
   | { kind: 'settings' }
-  | { kind: 'profile' }
   | { kind: 'notFound'; path: string };
 
 const ORGANIZATION_TABS = new Set<OrganizationTab>([
@@ -64,10 +62,12 @@ export function resolvePlatformRoute(pathname: string, search = ''): PlatformRou
         : 'plans'
     };
   }
-  if (path === '/admin/updates') return { kind: 'updates', tab: query.get('tab') === 'rollouts' ? 'rollouts' : 'packages' };
+  if (path === '/admin/updates') return { kind: 'updates' };
   if (path === '/admin/journal') return { kind: 'audit', organizationId: query.get('organizationId') ?? '', action: query.get('action') ?? '', outcome: query.get('outcome') ?? '', from: query.get('from') ?? '', to: query.get('to') ?? '' };
   if (path === '/admin/settings') return { kind: 'settings' };
-  if (path === '/admin/profile') return { kind: 'profile' };
+  // '/admin/profile' — закладка на удалённый экран профиля: учётная запись переехала в меню
+  // аккаунта в подвале рейла, поэтому старая ссылка ведёт на главный экран, а не в 404.
+  if (path === '/admin/profile') return { kind: 'overview', view: 'now' };
   return { kind: 'notFound', path };
 }
 
@@ -78,7 +78,7 @@ export function pathForPlatformRoute(route: PlatformRoute): string {
       return `/admin/organizations/${encodeURIComponent(route.organizationId)}${route.tab === 'clubs' ? '' : `?tab=${route.tab}`}`;
     case 'organizationNew': return '/admin/organizations/new';
     case 'billing': return `/admin/money${route.tab === 'plans' ? '' : `?tab=${route.tab}`}`;
-    case 'updates': return `/admin/updates${route.tab === 'packages' ? '' : '?tab=rollouts'}`;
+    case 'updates': return '/admin/updates';
     case 'audit': {
       const query = new URLSearchParams();
       if (route.organizationId) query.set('organizationId', route.organizationId);
@@ -89,7 +89,6 @@ export function pathForPlatformRoute(route: PlatformRoute): string {
       return `/admin/journal${query.size === 0 ? '' : `?${query}`}`;
     }
     case 'settings': return '/admin/settings';
-    case 'profile': return '/admin/profile';
     case 'notFound': return route.path;
   }
 }

@@ -79,7 +79,9 @@ it('shows an error state, not an empty state, when the pulse fetch fails', async
   expect(screen.queryByTestId('pulse-row')).not.toBeInTheDocument();
 });
 
-it('opens the client card when a network name is clicked', async () => {
+// Строка сети целиком ведёт в карточку клиента. Раньше сюда же был подмешан второй смысл:
+// клик по имени уводил внутрь, а клик рядом раскрывал клубы — две реакции на одну мишень.
+it('opens the client card when the network row is clicked', async () => {
   const getPulse = mock().mockResolvedValue({
     generatedAtUtc: '2026-08-03T00:00:00Z',
     organizations: [org({ organizationId: 'o1', name: 'Arena' })]
@@ -87,7 +89,23 @@ it('opens the client card when a network name is clicked', async () => {
   const onOpenOrganization = mock();
   setup({ client: client({ getPulse }), onOpenOrganization });
 
-  const nameLink = await screen.findByRole('link', { name: 'Arena' });
-  fireEvent.click(nameLink);
+  const row = await screen.findByRole('button', { name: /^Arena/u });
+  fireEvent.click(row);
   expect(onOpenOrganization).toHaveBeenCalledWith('o1');
+});
+
+// Раскрытие — отдельная мишень: шеврон не должен уводить с экрана.
+it('expands clubs from the chevron without leaving the screen', async () => {
+  const getPulse = mock().mockResolvedValue({
+    generatedAtUtc: '2026-08-03T00:00:00Z',
+    organizations: Array.from({ length: 6 }, (_, index) => org({ organizationId: `o${index}`, name: `Arena ${index}` }))
+  });
+  const onOpenOrganization = mock();
+  setup({ client: client({ getPulse }), onOpenOrganization });
+
+  const chevron = await screen.findByRole('button', { name: 'Показать клубы сети Arena 0' });
+  expect(chevron).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(chevron);
+  expect(chevron).toHaveAttribute('aria-expanded', 'true');
+  expect(onOpenOrganization).not.toHaveBeenCalled();
 });

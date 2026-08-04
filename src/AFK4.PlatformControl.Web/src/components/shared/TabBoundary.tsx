@@ -43,8 +43,8 @@ export class TabBoundary extends Component<Props, State> {
     if (this.state.failed) {
       return (
         <Card role="alert">
-          <CardContent className="flex flex-col items-start gap-3 py-10">
-            <p className="text-muted-foreground">{this.props.message}</p>
+          <CardContent>
+            <p>{this.props.message}</p>
             <Button onClick={() => this.setState({ failed: false })}>{this.props.retryLabel}</Button>
           </CardContent>
         </Card>

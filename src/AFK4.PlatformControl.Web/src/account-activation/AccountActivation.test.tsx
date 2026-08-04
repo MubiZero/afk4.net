@@ -1,11 +1,12 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { expect, it, mock } from 'bun:test';
+import { ThemeProvider } from '@/theme/ThemeProvider';
 import { I18nProvider } from '../i18n/I18nProvider';
 import { AccountActivation } from './AccountActivation';
 
 it('activates the owner and directs them to Organization Admin without exposing a staff session', async () => {
   const accept = mock(async () => {});
-  render(<I18nProvider><AccountActivation client={{ accept } as never} initialCode=" invite-1 " /></I18nProvider>);
+  render(<ThemeProvider><I18nProvider><AccountActivation client={{ accept } as never} initialCode=" invite-1 " /></I18nProvider></ThemeProvider>);
 
   fireEvent.change(screen.getByLabelText('Логин или email'), { target: { value: ' owner@example.test ' } });
   fireEvent.change(screen.getByLabelText('Пароль'), { target: { value: 'Passw0rd!' } });

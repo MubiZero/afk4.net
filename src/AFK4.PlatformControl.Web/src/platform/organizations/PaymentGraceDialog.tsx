@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog } from '@/components/ui/dialog';
+import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
@@ -17,6 +18,15 @@ interface Props {
   onUpdated: (next: OrganizationSubscription) => void;
 }
 
+const EMPTY_PATCH = {
+  planCode: null,
+  billingInterval: null,
+  status: null,
+  cancelAtPeriodEnd: null,
+  amountMinorUnits: null,
+  currentPeriodEndUtc: null
+} as const;
+
 export function PaymentGraceDialog({ client, organizationId, currentGraceUntilUtc, onClose, onUpdated }: Props) {
   const { t, formatDate } = useI18n();
   const { toast } = useToast();
@@ -28,12 +38,7 @@ export function PaymentGraceDialog({ client, organizationId, currentGraceUntilUt
     setPending(true);
     try {
       const next = await client.updateSubscription(organizationId, {
-        planCode: null,
-        billingInterval: null,
-        status: null,
-        cancelAtPeriodEnd: null,
-        amountMinorUnits: null,
-        currentPeriodEndUtc: null,
+        ...EMPTY_PATCH,
         paymentGraceUntilUtc: new Date(`${until}T23:59:59Z`).toISOString(),
         clearPaymentGrace: null
       });
@@ -50,12 +55,7 @@ export function PaymentGraceDialog({ client, organizationId, currentGraceUntilUt
     setPending(true);
     try {
       const next = await client.updateSubscription(organizationId, {
-        planCode: null,
-        billingInterval: null,
-        status: null,
-        cancelAtPeriodEnd: null,
-        amountMinorUnits: null,
-        currentPeriodEndUtc: null,
+        ...EMPTY_PATCH,
         paymentGraceUntilUtc: null,
         clearPaymentGrace: true
       });
@@ -69,32 +69,34 @@ export function PaymentGraceDialog({ client, organizationId, currentGraceUntilUt
   }
 
   return (
-    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
-      <DialogContent>
-        <DialogTitle>{t('platform.organization.paymentGraceDialog.title')}</DialogTitle>
-        <DialogDescription>{t('platform.organization.paymentGraceDialog.description')}</DialogDescription>
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{t('platform.organization.paymentGraceDialog.current')}</span>
-            <span className="font-medium">{currentGraceUntilUtc !== null ? formatDate(currentGraceUntilUtc) : t('platform.organization.paymentGraceDialog.none')}</span>
-          </div>
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted-foreground">{t('platform.organization.paymentGraceDialog.until')}</span>
-            <Input type="date" aria-label={t('platform.organization.paymentGraceDialog.until')} value={until} onChange={e => setUntil(e.target.value)} />
-          </label>
-          {currentGraceUntilUtc !== null ? (
-            <div>
-              <Button variant="outline" size="sm" disabled={pending} onClick={() => void clear()}>
-                {t('platform.organization.paymentGraceDialog.clear')}
-              </Button>
-            </div>
-          ) : null}
-        </div>
-        <DialogFooter>
+    <Dialog
+      open
+      title={t('platform.organization.paymentGraceDialog.title')}
+      description={t('platform.organization.paymentGraceDialog.description')}
+      onClose={onClose}
+      footer={
+        <>
           <Button variant="outline" disabled={pending} onClick={onClose}>{t('platform.organization.paymentGraceDialog.cancel')}</Button>
           <Button disabled={pending || until === ''} onClick={() => void save()}>{t('platform.organization.paymentGraceDialog.save')}</Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className="pc-form">
+        <div className="pc-passport-row">
+          <dt>{t('platform.organization.paymentGraceDialog.current')}</dt>
+          <dd>{currentGraceUntilUtc !== null ? formatDate(currentGraceUntilUtc) : t('platform.organization.paymentGraceDialog.none')}</dd>
+        </div>
+        <Field label={t('platform.organization.paymentGraceDialog.until')} htmlFor="grace-until">
+          <Input id="grace-until" type="date" value={until} onChange={event => setUntil(event.target.value)} />
+        </Field>
+        {currentGraceUntilUtc !== null ? (
+          <div>
+            <Button variant="outline" size="sm" disabled={pending} onClick={() => void clear()}>
+              {t('platform.organization.paymentGraceDialog.clear')}
+            </Button>
+          </div>
+        ) : null}
+      </div>
     </Dialog>
   );
 }

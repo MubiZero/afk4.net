@@ -16,6 +16,7 @@
 @import './styles/05-workspace-frame.css';
 @import './styles/06-map-grid.css';
 @import './styles/07-map-sidepanel.css';
+@import '@afk4/ui/overlays.css';
 @import './styles/08-map-modals.css';
 @import './styles/09-dashboard.css';
 @import './styles/10-booking.css';

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -43,14 +43,11 @@ export function OrganizationStatusSection({ client, organization, onUpdated }: P
   return (
     <Card>
       <CardHeader><CardTitle>{t('platform.organization.section.status')}</CardTitle></CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <label className="block text-sm">
-          <span className="mb-1 block text-muted-foreground">{t('platform.organization.statusForm.newStatus')}</span>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger aria-label={t('platform.organization.statusForm.newStatus')}><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{t(STATUS_LABEL[s])}</SelectItem>)}
-            </SelectContent>
+      <CardContent>
+        <label className="ui-field">
+          <span>{t('platform.organization.statusForm.newStatus')}</span>
+          <Select value={status} onChange={event => setStatus(event.target.value)}>
+              {STATUS_OPTIONS.map(s => <option key={s} value={s}>{t(STATUS_LABEL[s])}</option>)}
           </Select>
         </label>
         <div>

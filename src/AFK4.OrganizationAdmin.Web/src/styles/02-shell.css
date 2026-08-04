@@ -13,6 +13,11 @@
   --map-toolbar-h: 38px;
 }
 
+/* Командная панель растянута на все три колонки оболочки оператора. */
+.top-command {
+  grid-column: 1 / 4;
+}
+
 .window-resize-handles {
   position: fixed;
   inset: 0;

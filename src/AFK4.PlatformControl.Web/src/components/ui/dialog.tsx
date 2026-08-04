@@ -1,34 +1,57 @@
-import type { ComponentProps } from 'react';
-import { Dialog as DialogPrimitive } from 'radix-ui';
-import { cn } from '@/lib/utils';
+import { useEffect, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
+import { useI18n } from '@/i18n/I18nProvider';
 
-export const Dialog = DialogPrimitive.Root;
-export const DialogTrigger = DialogPrimitive.Trigger;
-export const DialogClose = DialogPrimitive.Close;
+// Модальное окно панели — та же .panel-modal из @afk4/ui, что и в Organization Admin: портал в
+// body, закрытие по Escape и по клику вне окна.
+//
+// Обёртка написана здесь, а не в @afk4/ui: пакет сознательно оставлен CSS-только (общий ВИД),
+// иначе он тянет React в сборку обоих приложений. Если появится третье приложение — обёртки
+// пора выносить в @afk4/ui/react, пока цена дублирования ниже цены общей React-зависимости.
+export function Dialog({ open, title, description, tone, onClose, children, footer }: {
+  open: boolean;
+  title: string;
+  description?: string;
+  tone?: 'warning' | 'danger';
+  onClose: () => void;
+  children?: ReactNode;
+  footer?: ReactNode;
+}) {
+  const { t } = useI18n();
 
-export function DialogContent({ className, children, ...props }: ComponentProps<typeof DialogPrimitive.Content>) {
-  return (
-    <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40" />
-      <DialogPrimitive.Content
-        className={cn(
-          'fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-card p-5 shadow-lg outline-none',
-          className
-        )}
-        {...props}
-      >
-        {children}
-      </DialogPrimitive.Content>
-    </DialogPrimitive.Portal>
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div
+      className="panel-modal-backdrop"
+      onPointerDown={event => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className={tone === undefined ? 'panel-modal' : `panel-modal ${tone}`} role="dialog" aria-modal="true" aria-label={title}>
+        <header className="panel-modal-head">
+          <div className="panel-modal-title">
+            <strong>{title}</strong>
+            {description !== undefined ? <span>{description}</span> : null}
+          </div>
+          <button type="button" className="panel-modal-close" aria-label={t('common.close')} onClick={onClose}>
+            <X size={16} aria-hidden="true" />
+          </button>
+        </header>
+        <div className="panel-modal-body">{children}</div>
+        {footer !== undefined ? <div className="panel-modal-foot">{footer}</div> : null}
+      </div>
+    </div>,
+    document.body
   );
-}
-
-export function DialogTitle({ className, ...props }: ComponentProps<typeof DialogPrimitive.Title>) {
-  return <DialogPrimitive.Title className={cn('text-base font-semibold', className)} {...props} />;
-}
-export function DialogDescription({ className, ...props }: ComponentProps<typeof DialogPrimitive.Description>) {
-  return <DialogPrimitive.Description className={cn('mt-1 text-sm text-muted-foreground', className)} {...props} />;
-}
-export function DialogFooter({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={cn('mt-5 flex justify-end gap-2', className)} {...props} />;
 }

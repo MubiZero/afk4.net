@@ -1,0 +1,362 @@
+/* Композиты панели поверх атомов кита: секция-карточка, таблица, формы, мелочи оболочки. */
+
+/* ── Экран входа ─────────────────────────────────────────────────────────────────────── */
+/* Оператор живёт в окне 100vh с фиксированным тайтлбаром; в браузере экран входа должен
+   пережить и низкое окно, и зум — поэтому строка контента растягивается, а не фиксируется. */
+.pc-auth-shell {
+  display: grid;
+  grid-template-rows: 46px minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--surface-canvas);
+}
+
+/* ── Секция-карточка ─────────────────────────────────────────────────────────────────── */
+/* Глубина = подъём поверхности и тень, НЕ обводка. Ободок на каждом блоке — ровно то, что
+   делало прошлый экран рябым. */
+.pc-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+
+.pc-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.pc-card-title {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pc-card-desc {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.pc-card-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.pc-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+}
+
+.pc-card-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-soft);
+}
+
+/* Вложенная карточка внутри карточки не поднимается второй раз — иначе получается
+   «коробка в коробке». Внутри достаточно тихой линии-разделителя. */
+.pc-card .pc-card {
+  border-radius: 8px;
+  box-shadow: none;
+  background: var(--surface-card);
+}
+
+/* ── Таблица ─────────────────────────────────────────────────────────────────────────── */
+.pc-table-panel {
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+  overflow-x: auto;
+}
+
+.pc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.pc-table th {
+  padding: 0 16px;
+  height: 34px;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pc-table td {
+  padding: 0 16px;
+  height: 52px;
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.pc-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.pc-table tbody tr:hover td {
+  background: var(--surface-hover);
+}
+
+/* Числовая колонка: моноширинные цифры выравниваются по разрядам, иначе суммы «пляшут». */
+.pc-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pc-cell-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* ── Формы и мелочи ──────────────────────────────────────────────────────────────────── */
+.pc-form {
+  display: grid;
+  gap: 14px;
+}
+
+.pc-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.pc-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pc-field-hint {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.pc-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.pc-filters .ui-input,
+.pc-filters .ui-select {
+  width: auto;
+  min-width: 180px;
+}
+
+.pc-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  cursor: pointer;
+}
+
+.pc-checkbox:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.pc-checkbox:checked::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 5px;
+  width: 4px;
+  height: 9px;
+  border: solid var(--text-on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.pc-checkbox:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.pc-check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+/* Частичный отказ: блок не загрузился, остальной экран жив. */
+.pc-partial {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--warning-soft-border);
+  border-left: 3px solid var(--warning);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  background: var(--warning-soft-bg);
+  color: var(--warning-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pc-banner-dismiss {
+  margin-left: auto;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.panel-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 22px 20px;
+}
+
+/* ── Меню аккаунта ───────────────────────────────────────────────────────────────────── */
+/* У оператора меню открывается вверх от подвала рейла и позиционируется скриптом; здесь
+   рейл короткий и меню всегда помещается — привязываем к самому подвалу. */
+.pc-account-menu {
+  position: absolute;
+  bottom: 0;
+  left: calc(100% + 8px);
+}
+
+.pc-account-id {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pc-account-id span {
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.pc-account-perms {
+  padding: 4px 8px 8px;
+}
+
+.pc-account-perms summary {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pc-account-perms ul {
+  display: grid;
+  gap: 2px;
+  max-height: 180px;
+  margin: 8px 0 0;
+  padding: 0 0 0 2px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.pc-account-perms li {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+/* ── Мелкие композиты экранов ────────────────────────────────────────────────────────── */
+.pc-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+/* Пара «метка → значение» в строку: используется в карточках клубов и сводках. */
+.pc-kv {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.pc-kv > span:first-child {
+  color: var(--text-secondary);
+}
+
+.pc-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-soft);
+  font-size: 13px;
+}
+
+.pc-list-row:last-child {
+  border-bottom: 0;
+}
+
+.pc-note {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.pc-note-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.pc-note-body {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+.pc-error-text {
+  color: var(--danger-text);
+  font-size: 13px;
+}
+
+.pc-mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}

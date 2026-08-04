@@ -150,3 +150,32 @@ export function planFormToUpdateRequest(form: PlanForm): UpdatePlanRequest {
     sortOrder: form.sortOrder
   };
 }
+
+/**
+ * Очередь работы экрана «Деньги»: счета, которые ждут действия платформенного админа —
+ * просроченные первыми, затем выставленные, внутри группы — по сроку оплаты.
+ *
+ * Экран открывается ЭТИМ, а не реестром: реестр отвечает на вопрос «что вообще есть»,
+ * а рабочий вопрос всегда «кто не заплатил и что мне с этим делать».
+ */
+export function selectPayableQueue(invoices: InvoiceListItem[]): InvoiceListItem[] {
+  const rank = (status: string) => (status === 'overdue' ? 0 : status === 'issued' ? 1 : 2);
+  return invoices
+    .filter(invoice => invoice.status === 'overdue' || invoice.status === 'issued')
+    .sort((left, right) => {
+      const byStatus = rank(left.status) - rank(right.status);
+      if (byStatus !== 0) return byStatus;
+      return left.dueAtUtc.localeCompare(right.dueAtUtc);
+    });
+}
+
+/** Итог очереди по валютам: смешивать рубли с сомони в одну сумму нельзя. */
+export function queueTotals(invoices: InvoiceListItem[]): { currencyCode: string; amountMinorUnits: number }[] {
+  const byCurrency = new Map<string, number>();
+  for (const invoice of invoices) {
+    byCurrency.set(invoice.currencyCode, (byCurrency.get(invoice.currencyCode) ?? 0) + invoice.amountMinorUnits);
+  }
+  return [...byCurrency.entries()]
+    .map(([currencyCode, amountMinorUnits]) => ({ currencyCode, amountMinorUnits }))
+    .sort((left, right) => left.currencyCode.localeCompare(right.currencyCode));
+}

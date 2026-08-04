@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -57,7 +56,7 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
     setSubscription(null);
     client.subscriptions.getSubscription(organization.organizationId)
       .then(value => { if (!cancelled) setSubscription(value); })
-      .catch(() => { /* passport stays useful without price/next-invoice details */ });
+      .catch(() => { /* паспорт остаётся полезным и без цены со сроком счёта */ });
     return () => { cancelled = true; };
   }, [client, organization.organizationId, tick]);
 
@@ -70,14 +69,14 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
         if (cancelled) return;
         const accepted = invites
           .filter(invite => invite.status === 'accepted')
-          .sort((a, b) => b.createdAtUtc.localeCompare(a.createdAtUtc))[0];
-        setOwner(accepted ? (accepted.ownerDisplayName ?? accepted.ownerUserName ?? null) : null);
+          .sort((left, right) => right.createdAtUtc.localeCompare(left.createdAtUtc))[0];
+        setOwner(accepted !== undefined ? (accepted.ownerDisplayName ?? accepted.ownerUserName ?? null) : null);
       })
-      .catch(() => { /* passport stays useful without the owner row */ });
+      .catch(() => { /* паспорт остаётся полезным и без строки владельца */ });
     return () => { cancelled = true; };
   }, [client, organization.organizationId, access.canManageAccess, tick]);
 
-  const cities = Array.from(new Set(organization.branches.map(b => b.city)));
+  const cities = Array.from(new Set(organization.branches.map(branch => branch.city)));
   const nextStatus = organization.status === 'active' ? 'suspended' : 'active';
   const isPastDue = organization.subscriptionStatus === 'past_due';
 
@@ -107,78 +106,77 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
     }
   }
 
-  function refresh() {
-    setTick(n => n + 1);
-  }
-
   return (
-    <Card className="h-fit">
-      <CardContent className="flex flex-col gap-4 text-sm">
-        <div>
-          <h1 className="text-lg font-bold">{organization.name}</h1>
-          <p className="text-xs text-muted-foreground">
-            {organization.branches.length} · {cities.join(', ') || '—'}
-          </p>
-        </div>
+    <aside className="pc-passport">
+      <div className="pc-passport-id">
+        <strong>{organization.name}</strong>
+        <span>{t('platform.organization.passport.branchCount', { count: organization.branches.length })}{cities.length > 0 ? ` · ${cities.join(', ')}` : ''}</span>
+      </div>
 
-        <div className="flex flex-wrap gap-1.5">
-          <Badge variant={STATUS_VARIANT[organization.status] ?? 'outline'}>
-            {STATUS_LABEL[organization.status] ? t(STATUS_LABEL[organization.status]) : organization.status}
-          </Badge>
-          {isPastDue ? <Badge variant="destructive">{t('platform.organization.passport.debtChip')}</Badge> : null}
-        </div>
+      <div className="pc-passport-chips">
+        <Badge variant={STATUS_VARIANT[organization.status] ?? 'outline'}>
+          {STATUS_LABEL[organization.status] !== undefined ? t(STATUS_LABEL[organization.status]) : organization.status}
+        </Badge>
+        {isPastDue ? <Badge variant="destructive">{t('platform.organization.passport.debtChip')}</Badge> : null}
+      </div>
 
-        <dl className="flex flex-col gap-2">
-          <Row label={t('platform.organization.subscriptionForm.plan')}>
-            {PLAN_LABEL[organization.planCode] ? t(PLAN_LABEL[organization.planCode]) : organization.planCode}
-          </Row>
-          <Row label={t('platform.organization.passport.price')}>
-            {subscription === null ? <Skeleton className="h-4 w-16" /> : formatCurrency(minorToMajor(subscription.amountMinorUnits), subscription.currencyCode)}
-          </Row>
-          <Row label={t('platform.organization.passport.nextInvoice')}>
-            {subscription === null ? <Skeleton className="h-4 w-20" /> : subscription.nextInvoiceUtc !== null ? formatDate(subscription.nextInvoiceUtc) : '—'}
-          </Row>
-          <Row label={t('platform.organization.invites.colOwner')}>
-            {access.canManageAccess ? (owner ?? '—') : '—'}
-          </Row>
-          <Row label={t('platform.organization.passport.updateChannel')}>
-            {organization.updateChannel}{organization.pinnedClientVersion !== null ? ` · ${organization.pinnedClientVersion}` : ''}
-          </Row>
-        </dl>
+      <dl className="pc-passport-facts">
+        <Row label={t('platform.organization.subscriptionForm.plan')}>
+          {PLAN_LABEL[organization.planCode] !== undefined ? t(PLAN_LABEL[organization.planCode]) : organization.planCode}
+        </Row>
+        <Row label={t('platform.organization.passport.price')}>
+          {subscription === null ? <Skeleton className="pc-skel-value" /> : formatCurrency(minorToMajor(subscription.amountMinorUnits), subscription.currencyCode)}
+        </Row>
+        <Row label={t('platform.organization.passport.nextInvoice')}>
+          {subscription === null ? <Skeleton className="pc-skel-value" /> : subscription.nextInvoiceUtc !== null ? formatDate(subscription.nextInvoiceUtc) : '—'}
+        </Row>
+        <Row label={t('platform.organization.invites.colOwner')}>
+          {access.canManageAccess ? (owner ?? '—') : '—'}
+        </Row>
+        <Row label={t('platform.organization.passport.updateChannel')}>
+          {organization.updateChannel}{organization.pinnedClientVersion !== null ? ` · ${organization.pinnedClientVersion}` : ''}
+        </Row>
+      </dl>
 
-        <div className="flex flex-col gap-2">
-          {access.canManageBilling ? (
-            <Button variant="outline" size="sm" onClick={() => setOpenDialog('subscription')}>
-              {t('platform.organization.passport.action.editSubscription')}
-            </Button>
-          ) : null}
-          {access.canManageBilling ? (
-            <Button variant="outline" size="sm" disabled={invoicePending} onClick={() => void generateInvoice()}>
-              {t('platform.organization.passport.action.generateInvoice')}
-            </Button>
-          ) : null}
-          {access.canManageBilling ? (
-            <Button variant="outline" size="sm" onClick={() => setOpenDialog('grace')}>
-              {t('platform.organization.passport.action.paymentGrace')}
-            </Button>
-          ) : null}
-          {access.canManageProfile ? (
-            <Button variant="outline" size="sm" onClick={() => setOpenDialog('profile')}>
-              {t('platform.organization.passport.action.editProfile')}
-            </Button>
-          ) : null}
-          {access.canTransferOwner ? (
-            <Button variant="outline" size="sm" onClick={() => setOpenDialog('ownerTransfer')}>
-              {t('platform.organization.passport.action.transferOwner')}
-            </Button>
-          ) : null}
-          {access.canManageOrganization ? (
-            <Button variant={nextStatus === 'suspended' ? 'destructive' : 'default'} size="sm" onClick={() => setStatusConfirmOpen(true)}>
-              {nextStatus === 'suspended' ? t('platform.organization.passport.action.suspend') : t('platform.organization.passport.action.activate')}
-            </Button>
-          ) : null}
-        </div>
-      </CardContent>
+      {/* Иерархия действий явная: главный рычаг — условия обслуживания, остальное вторично,
+          приостановка отдельно и красным. Прошлая версия давала шесть одинаковых серых кнопок. */}
+      <div className="pc-passport-actions">
+        {access.canManageBilling ? (
+          <Button size="sm" onClick={() => setOpenDialog('subscription')}>
+            {t('platform.organization.passport.action.editSubscription')}
+          </Button>
+        ) : null}
+        {access.canManageBilling ? (
+          <Button variant="outline" size="sm" disabled={invoicePending} onClick={() => void generateInvoice()}>
+            {t('platform.organization.passport.action.generateInvoice')}
+          </Button>
+        ) : null}
+        {access.canManageBilling ? (
+          <Button variant="outline" size="sm" onClick={() => setOpenDialog('grace')}>
+            {t('platform.organization.passport.action.paymentGrace')}
+          </Button>
+        ) : null}
+        {access.canManageProfile ? (
+          <Button variant="outline" size="sm" onClick={() => setOpenDialog('profile')}>
+            {t('platform.organization.passport.action.editProfile')}
+          </Button>
+        ) : null}
+        {access.canTransferOwner ? (
+          <Button variant="outline" size="sm" onClick={() => setOpenDialog('ownerTransfer')}>
+            {t('platform.organization.passport.action.transferOwner')}
+          </Button>
+        ) : null}
+        {access.canManageOrganization ? (
+          <Button
+            variant={nextStatus === 'suspended' ? 'destructive' : 'default'}
+            size="sm"
+            className="pc-passport-danger"
+            onClick={() => setStatusConfirmOpen(true)}
+          >
+            {nextStatus === 'suspended' ? t('platform.organization.passport.action.suspend') : t('platform.organization.passport.action.activate')}
+          </Button>
+        ) : null}
+      </div>
 
       <ConfirmDialog
         open={statusConfirmOpen}
@@ -206,7 +204,7 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
           organizationId={organization.organizationId}
           subscription={subscription}
           onClose={() => setOpenDialog(null)}
-          onUpdated={next => { setSubscription(next); setOpenDialog(null); refresh(); }}
+          onUpdated={next => { setSubscription(next); setOpenDialog(null); setTick(value => value + 1); }}
         />
       ) : null}
       {openDialog === 'grace' ? (
@@ -223,18 +221,18 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
           client={client.organizations}
           organizationId={organization.organizationId}
           onClose={() => setOpenDialog(null)}
-          onTransferred={() => { setOpenDialog(null); refresh(); }}
+          onTransferred={() => { setOpenDialog(null); setTick(value => value + 1); }}
         />
       ) : null}
-    </Card>
+    </aside>
   );
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="text-right font-medium">{children}</dd>
+    <div className="pc-passport-row">
+      <dt>{label}</dt>
+      <dd>{children}</dd>
     </div>
   );
 }

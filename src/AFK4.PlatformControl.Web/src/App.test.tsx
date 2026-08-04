@@ -70,7 +70,7 @@ describe('Platform Control admin-only routing', () => {
   it('resolves only canonical admin routes', () => {
     expect(resolvePlatformRoute('/')).toEqual({ kind: 'overview', view: 'now' });
     expect(resolvePlatformRoute('/admin/organizations')).toMatchObject({ kind: 'overview' });
-    expect(resolvePlatformRoute('/admin/updates')).toEqual({ kind: 'updates', tab: 'packages' });
+    expect(resolvePlatformRoute('/admin/updates')).toEqual({ kind: 'updates' });
     expect(resolvePlatformRoute('/organizations/org-1')).toEqual({ kind: 'notFound', path: '/organizations/org-1' });
   });
 
@@ -91,8 +91,9 @@ describe('Platform Control admin-only routing', () => {
     renderApp();
 
     await waitFor(() => expect(window.location.pathname).toBe('/admin'));
-    expect(screen.getByText('Platform Control')).toBeInTheDocument();
-    expect(screen.getByText('Platform Owner')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Клубы' })).toBeInTheDocument();
+    // Учётная запись живёт в подвале рейла — отдельного экрана «Профиль» больше нет.
+    expect(screen.getByRole('button', { name: 'Учётная запись' })).toBeInTheDocument();
   });
 
   it('pushes the admin money URL from navigation', async () => {
@@ -113,8 +114,8 @@ describe('Platform Control admin-only routing', () => {
   });
 
   it('does not load overview data outside the overview route', async () => {
-    window.history.replaceState(null, '', '/admin/profile');
-    writeSession(buildSession());
+    window.history.replaceState(null, '', '/admin/journal');
+    writeSession({ ...buildSession(), permissions: ['platform.organizations.view', 'platform.audit.view'] });
     const requests: string[] = [];
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
       requests.push(new URL(String(input)).pathname);
@@ -126,7 +127,7 @@ describe('Platform Control admin-only routing', () => {
       await Promise.resolve();
     });
 
-    await screen.findByText('admin@platform.test');
-    expect(requests).toEqual([]);
+    await screen.findByRole('button', { name: 'Учётная запись' });
+    expect(requests.filter(path => path.includes('/pulse'))).toEqual([]);
   });
 });

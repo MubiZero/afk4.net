@@ -33,17 +33,17 @@ export function OrganizationClubsTab({ client, organizationId, branches }: { cli
     return () => { cancelled = true; };
   }, [client, organizationId, tick]);
 
-  if (branches.length === 0) return <p className="text-sm text-muted-foreground">{t('platform.organization.clubsTab.empty')}</p>;
+  if (branches.length === 0) return <p>{t('platform.organization.clubsTab.empty')}</p>;
 
   return (
-    <div className="flex flex-col gap-3">
+    <div>
       {error ? <PartialFailure title={t('platform.organization.clubsTab.error')} retryLabel={t('state.retry')} onRetry={() => setTick(n => n + 1)} /> : null}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="pc-card-grid">
         {branches.map(branch => {
           const club = pulseByBranch?.get(branch.branchId);
           return (
             <Card key={branch.branchId}>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader>
                 <CardTitle>{branch.name}</CardTitle>
                 {club !== undefined ? (
                   <Badge variant={club.shiftOpen ? 'success' : 'outline'}>
@@ -51,15 +51,15 @@ export function OrganizationClubsTab({ client, organizationId, branches }: { cli
                   </Badge>
                 ) : null}
               </CardHeader>
-              <CardContent className="flex flex-col gap-2 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">{branch.city}</span><code className="text-xs">{branch.slug}</code></div>
+              <CardContent>
+                <div className="pc-kv"><span>{branch.city}</span><code>{branch.slug}</code></div>
                 {club !== undefined ? (
                   <>
-                    <div className="flex justify-between"><span className="text-muted-foreground">{t('platform.organization.clubsTab.devices')}</span><span className="tabular-nums">{club.devicesOnline}/{club.devicesTotal}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">{t('platform.organization.clubsTab.seats')}</span><span className="tabular-nums">{club.seatsOccupied}/{club.seatsTotal}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">{t('platform.organization.clubsTab.lastHeartbeat')}</span><span>{club.lastHeartbeatAtUtc !== null ? formatDate(club.lastHeartbeatAtUtc) : '—'}</span></div>
+                    <div className="pc-kv"><span>{t('platform.organization.clubsTab.devices')}</span><span className="pc-num">{club.devicesOnline}/{club.devicesTotal}</span></div>
+                    <div className="pc-kv"><span>{t('platform.organization.clubsTab.seats')}</span><span className="pc-num">{club.seatsOccupied}/{club.seatsTotal}</span></div>
+                    <div className="pc-kv"><span>{t('platform.organization.clubsTab.lastHeartbeat')}</span><span>{club.lastHeartbeatAtUtc !== null ? formatDate(club.lastHeartbeatAtUtc) : '—'}</span></div>
                     {club.alerts.length > 0 ? (
-                      <ul className="flex flex-col gap-1">
+                      <ul>
                         {club.alerts.map((alert, index) => (
                           <li key={`${alert.kind}-${index}`}>
                             <Badge

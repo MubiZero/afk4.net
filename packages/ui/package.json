@@ -12,7 +12,8 @@
     "./rail.css": "./rail.css",
     "./workspace.css": "./workspace.css",
     "./table.css": "./table.css",
-    "./mgmt.css": "./mgmt.css"
+    "./mgmt.css": "./mgmt.css",
+    "./overlays.css": "./overlays.css"
   },
   "scripts": {
     "test": "bun test"

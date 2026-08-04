@@ -29,7 +29,7 @@ export function OrganizationHistoryTab({ client, organizationId }: {
   if (result === null) return <LoadingCards count={3} />;
   if (result.records.length === 0) return <EmptyState message={t('platform.organization.history.empty')} />;
 
-  return <div className="overflow-hidden rounded-lg border border-border bg-card"><Table>
+  return <div className="pc-table-panel"><Table>
     <TableHeader><TableRow>
       <TableHead>{t('platform.organization.history.time')}</TableHead>
       <TableHead>{t('platform.organization.history.action')}</TableHead>
@@ -38,8 +38,8 @@ export function OrganizationHistoryTab({ client, organizationId }: {
       <TableHead>{t('platform.organization.history.source')}</TableHead>
     </TableRow></TableHeader>
     <TableBody>{result.records.map(record => <TableRow key={record.auditRecordId}>
-      <TableCell className="whitespace-nowrap tabular-nums">{formatDate(record.createdAtUtc)}</TableCell>
-      <TableCell><code className="text-xs">{record.action}</code></TableCell>
+      <TableCell className="pc-num">{formatDate(record.createdAtUtc)}</TableCell>
+      <TableCell><code>{record.action}</code></TableCell>
       <TableCell>{record.targetType}{record.targetId !== null ? ` · ${record.targetId}` : ''}</TableCell>
       <TableCell><Badge variant="secondary">{record.outcome}</Badge></TableCell>
       <TableCell>{record.sourceApp}</TableCell>

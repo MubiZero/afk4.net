@@ -34,7 +34,7 @@ const allAccess = {
 };
 
 function setup(tab: Parameters<typeof OrganizationPage>[0]['tab'] = 'clubs', onTabChange = mock(), access = allAccess) {
-  render(<I18nProvider><ToastProvider><OrganizationPage client={client()} organizationId="o1" tab={tab} access={access} initialInvite={null} onTabChange={onTabChange} onChanged={() => {}} /></ToastProvider></I18nProvider>);
+  render(<I18nProvider><ToastProvider><OrganizationPage client={client()} organizationId="o1" tab={tab} access={access} initialInvite={null} onTabChange={onTabChange} onBack={() => {}} onChanged={() => {}} /></ToastProvider></I18nProvider>);
   return onTabChange;
 }
 

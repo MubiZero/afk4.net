@@ -12,32 +12,57 @@ const packageRow = {
   validatedByPlatformAdminUserId: null, validatedAtUtc: null, retiredAtUtc: null
 };
 
-function setup(tab: 'packages' | 'rollouts' = 'packages') {
+function setup(state: string = 'registered') {
   const updates = {
-    listPackages: mock().mockResolvedValue([packageRow]),
+    listPackages: mock().mockResolvedValue([{ ...packageRow, state }]),
     listRollouts: mock().mockResolvedValue([]),
     registerPackage: mock(),
     changePackageState: mock().mockResolvedValue({ ...packageRow, state: 'validated' }),
-    createRollout: mock(),
-    changeRolloutState: mock()
+    createRollout: mock().mockResolvedValue({})
   };
-  render(<I18nProvider><ToastProvider><UpdatesScreen client={updates as never} tab={tab} /></ToastProvider></I18nProvider>);
-  return updates;
+  const organizations = {
+    listOrganizations: mock().mockResolvedValue([
+      { organizationId: 'org-1' },
+      { organizationId: 'org-2' }
+    ])
+  };
+  render(
+    <I18nProvider><ToastProvider>
+      <UpdatesScreen client={updates as never} organizationsClient={organizations as never} />
+    </ToastProvider></I18nProvider>
+  );
+  return { updates, organizations };
 }
 
 describe('UpdatesScreen', () => {
   it('shows the global package catalog and validates a registered package with a reason', async () => {
-    const client = setup();
+    const { updates } = setup();
     await screen.findByText('Organization Admin');
     fireEvent.click(screen.getByRole('button', { name: 'Проверить пакет' }));
     fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Подпись и хеш проверены.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Подтвердить проверку' }));
-    await waitFor(() => expect(client.changePackageState).toHaveBeenCalledWith('p1', 'validated', 'Подпись и хеш проверены.'));
+    await waitFor(() => expect(updates.changePackageState).toHaveBeenCalledWith('p1', 'validated', 'Подпись и хеш проверены.'));
   });
 
-  it('keeps rollouts separate from the package catalog', async () => {
-    setup('rollouts');
-    expect(await screen.findByText('Rollout ещё не запускались.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Запустить rollout' })).toBeInTheDocument();
+  // Публикация обязана дойти до КАЖДОГО клиента: если этот тест ослабить до «вызвали
+  // createRollout», обратно вернётся поэтапная выкатка на часть парка, а половина клубов
+  // молча останется на старой версии.
+  it('publishes a validated package to every organization at once', async () => {
+    const { updates } = setup('validated');
+    await screen.findByText('Organization Admin');
+    fireEvent.click(screen.getByRole('button', { name: 'Опубликовать' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Опубликовать' })[1]);
+    await waitFor(() => expect(updates.createRollout).toHaveBeenCalled());
+    const request = updates.createRollout.mock.calls[0][0];
+    expect(request.targetKind).toBe('organization');
+    expect(request.organizationIds).toEqual(['org-1', 'org-2']);
+    expect(request.batchPercent).toBe(100);
+  });
+
+  it('offers no staged rollout controls', async () => {
+    setup('validated');
+    await screen.findByText('Organization Admin');
+    expect(screen.queryByRole('button', { name: 'Запустить rollout' })).toBeNull();
+    expect(screen.queryByLabelText('Размер партии, %')).toBeNull();
   });
 });

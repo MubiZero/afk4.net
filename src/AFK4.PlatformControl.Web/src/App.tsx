@@ -8,8 +8,8 @@ import { readSession, type PlatformAdminSession } from './auth/tokenStore';
 import { SignIn } from './components/SignIn';
 import { AppShell } from './components/shell/AppShell';
 import { ForbiddenState, LoadingCards } from './components/ui/states';
-import { Workspace } from './components/layout/Workspace';
-import { useI18n, type MessageKey } from './i18n/I18nProvider';
+import { Page } from './components/layout/Page';
+import { useI18n } from './i18n/I18nProvider';
 import { buildPlatformNav } from './platform/nav';
 import { GlobalSearch } from './platform/search/GlobalSearch';
 import {
@@ -22,7 +22,6 @@ const BillingScreen = lazy(() => import('./platform/billing/BillingScreen').then
 const ClubsScreen = lazy(() => import('./platform/clubs/ClubsScreen').then(module => ({ default: module.ClubsScreen })));
 const NewOrganizationScreen = lazy(() => import('./platform/organizations/NewOrganizationScreen').then(module => ({ default: module.NewOrganizationScreen })));
 const OrganizationPage = lazy(() => import('./platform/organizations/OrganizationPage').then(module => ({ default: module.OrganizationPage })));
-const ProfileScreen = lazy(() => import('./platform/profile/ProfileScreen').then(module => ({ default: module.ProfileScreen })));
 const UpdatesScreen = lazy(() => import('./platform/updates/UpdatesScreen').then(module => ({ default: module.UpdatesScreen })));
 const AuditScreen = lazy(() => import('./platform/audit/AuditScreen').then(module => ({ default: module.AuditScreen })));
 
@@ -71,17 +70,6 @@ export default function App({ apiBaseUrl }: AppProps) {
   return <PlatformArea client={client} route={route} session={session} navigate={navigate} onSignOut={() => void client.signOut()} />;
 }
 
-const TITLE_KEYS: Record<Exclude<PlatformRoute['kind'], 'notFound'>, MessageKey> = {
-  overview: 'nav.platform.clubs',
-  organization: 'platform.organization.title',
-  organizationNew: 'platform.organizations.new',
-  billing: 'nav.platform.money',
-  updates: 'nav.platform.updates',
-  audit: 'nav.platform.journal',
-  settings: 'nav.platform.settings',
-  profile: 'nav.platform.profile'
-};
-
 function PlatformArea({ client, route, session, navigate, onSignOut }: {
   client: PlatformApiClient;
   route: Exclude<PlatformRoute, { kind: 'notFound' }>;
@@ -106,25 +94,21 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
 
   return (
     <AppShell
-      navGroups={buildPlatformNav(session)}
-      sidebarHeader={<div className="m-3 flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2"><img src="/favicon.svg" alt="" className="size-7 rounded-md" /><span className="min-w-0"><span className="block truncate text-sm font-bold">Platform Control</span><span className="block truncate text-[11px] text-muted">{session.userName}</span></span></div>}
+      navItems={buildPlatformNav(session)}
       activePath={activePath(route)}
-      subtitle=""
-      screenTitle={t(TITLE_KEYS[route.kind])}
-      menuLabel={t('platform.shell.menu.open')}
       userName={session.displayName}
       roleLabel={t('platform.profile.roleLabel')}
-      topbarSearch={can(session, 'organizations.read') ? <GlobalSearch client={client.search} onNavigate={path => { const url = new URL(path, window.location.origin); navigate(resolvePlatformRoute(url.pathname, url.search)); }} /> : null}
+      permissions={session.permissions}
+      search={can(session, 'organizations.read') ? <GlobalSearch client={client.search} onNavigate={path => { const url = new URL(path, window.location.origin); navigate(resolvePlatformRoute(url.pathname, url.search)); }} /> : null}
       onNavigate={path => navigate(resolvePlatformRoute(new URL(path, window.location.origin).pathname, new URL(path, window.location.origin).search))}
       onSignOut={onSignOut}
     >
       <Suspense fallback={<LoadingCards count={3} />}>{route.kind === 'overview' ? <ClubsScreen client={client} view={route.view} onViewChange={view => navigate({ kind: 'overview', view })} onOpenOrganization={id => openOrganization(id)} />
         : route.kind === 'billing' ? <BillingScreen client={client} tab={route.tab} onTabChange={tab => navigate({ ...route, tab })} canManage={can(session, 'billing.manage')} />
-        : route.kind === 'updates' ? <UpdatesScreen client={client.updates} tab={route.tab} onTabChange={tab => navigate({ ...route, tab })} />
+        : route.kind === 'updates' ? <UpdatesScreen client={client.updates} organizationsClient={client.organizations} />
         : route.kind === 'audit' ? <AuditScreen client={client.audit} filters={route} onFiltersChange={filters => navigate({ kind: 'audit', ...filters })} />
-        : route.kind === 'profile' ? <ProfileScreen session={session} onSignOut={onSignOut} />
         : route.kind === 'organizationNew' ? <NewOrganizationScreen client={client.organizations} onCreated={(response: CreateOrganizationResponse) => openOrganization(response.organization.organizationId, response.organizationOwnerInvite)} onCancel={() => navigate({ kind: 'overview', view: 'now' })} />
-        : route.kind === 'organization' ? <OrganizationPage client={client} organizationId={route.organizationId} tab={route.tab} access={organizationAccess} initialInvite={readInitialInvite()} onTabChange={tab => navigate({ ...route, tab })} onChanged={() => {}} />
+        : route.kind === 'organization' ? <OrganizationPage client={client} organizationId={route.organizationId} tab={route.tab} access={organizationAccess} initialInvite={readInitialInvite()} onTabChange={tab => navigate({ ...route, tab })} onBack={() => navigate({ kind: 'overview', view: 'now' })} onChanged={() => {}} />
         : <UnavailableScreen />}</Suspense>
     </AppShell>
   );
@@ -138,7 +122,7 @@ function capabilityForRoute(route: Exclude<PlatformRoute, { kind: 'notFound' }>)
     case 'updates': return 'updates.read';
     case 'audit': return 'audit.read';
     case 'settings': return 'settings.manage';
-    case 'overview': case 'profile': return null;
+    case 'overview': return null;
   }
 }
 
@@ -161,15 +145,15 @@ function readInitialInvite(): OrganizationOwnerInvite | null {
 
 function NotFound({ path: _path, onHome }: { path: string; onHome: () => void }) {
   const { t } = useI18n();
-  return <main className="min-h-screen p-5"><Workspace width="narrow"><ForbiddenState title={t('state.notFound.title')} message={t('state.notFound.message')} actionLabel={t('state.openOverview')} onAction={onHome} /></Workspace></main>;
+  return <main className="pc-workspace"><Page width="narrow"><ForbiddenState title={t('state.notFound.title')} message={t('state.notFound.message')} actionLabel={t('state.openOverview')} onAction={onHome} /></Page></main>;
 }
 
 function Forbidden({ onHome }: { onHome: () => void }) {
   const { t } = useI18n();
-  return <main className="min-h-screen p-5"><Workspace width="narrow"><ForbiddenState title={t('state.forbidden.title')} message={t('state.forbidden.message')} actionLabel={t('state.openOverview')} onAction={onHome} /></Workspace></main>;
+  return <main className="pc-workspace"><Page width="narrow"><ForbiddenState title={t('state.forbidden.title')} message={t('state.forbidden.message')} actionLabel={t('state.openOverview')} onAction={onHome} /></Page></main>;
 }
 
 function UnavailableScreen() {
   const { t } = useI18n();
-  return <p className="text-sm text-muted-foreground">{t('state.unavailable')}</p>;
+  return <p className="pc-field-hint">{t('state.unavailable')}</p>;
 }

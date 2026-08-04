@@ -44,11 +44,11 @@ export function OrganizationInvoicesSection({ client, organizationId }: { client
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader>
         <CardTitle>{t('platform.organization.section.invoices')}</CardTitle>
         <Button variant="outline" disabled={pending} onClick={() => void generate()}>{t('platform.organization.invoices.generate')}</Button>
       </CardHeader>
-      <CardContent className="flex flex-col gap-2 text-sm">
+      <CardContent>
         {error ? (
           <ErrorState message={t('state.error')} retryLabel={t('state.retry')} onRetry={() => setTick(n => n + 1)} />
         ) : invoices === null ? (
@@ -57,10 +57,10 @@ export function OrganizationInvoicesSection({ client, organizationId }: { client
           <EmptyState message={t('platform.organization.invoices.empty')} />
         ) : (
           invoices.map(inv => (
-            <div key={inv.invoiceId} className="flex items-center justify-between border-b border-border py-2 last:border-0">
-              <span className="tabular-nums">#{inv.number} · {formatDate(inv.issuedAtUtc)}</span>
-              <span className="flex items-center gap-2">
-                <span className="tabular-nums">{formatCurrency(minorToMajor(inv.amountMinorUnits), inv.currencyCode)}</span>
+            <div key={inv.invoiceId} className="pc-list-row">
+              <span className="pc-num">#{inv.number} · {formatDate(inv.issuedAtUtc)}</span>
+              <span className="pc-cell-actions">
+                <span className="pc-num">{formatCurrency(minorToMajor(inv.amountMinorUnits), inv.currencyCode)}</span>
                 <Badge variant={INVOICE_STATUS_VARIANT[inv.status] ?? 'outline'}>{INVOICE_STATUS_LABEL[inv.status] ? t(INVOICE_STATUS_LABEL[inv.status]) : inv.status}</Badge>
               </span>
             </div>

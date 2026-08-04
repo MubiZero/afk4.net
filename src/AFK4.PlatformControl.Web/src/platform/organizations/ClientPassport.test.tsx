@@ -77,7 +77,8 @@ function setup(access: OrganizationPageAccess = fullAccess, orgOverrides: Partia
 
 it('shows the name, plan, price, next invoice, owner and update channel', async () => {
   setup();
-  expect(screen.getByRole('heading', { name: 'Orion Gaming' })).toBeVisible();
+  // Заголовок h1 принадлежит экрану, паспорт повторяет имя как якорь личности, а не как второй заголовок.
+  expect(screen.getByText('Orion Gaming')).toBeVisible();
   expect(screen.getByText('Growth')).toBeVisible();
   expect(screen.getByText('stable')).toBeVisible();
   await waitFor(() => expect(screen.getByText(/1.?500/u)).toBeVisible());

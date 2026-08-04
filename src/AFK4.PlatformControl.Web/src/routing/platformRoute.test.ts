@@ -44,7 +44,6 @@ describe('platformRoute', () => {
 
   it('round-trips global workspace tabs and audit filters', () => {
     expect(resolvePlatformRoute('/admin/money', '?tab=invoices')).toEqual({ kind: 'billing', tab: 'invoices' });
-    expect(resolvePlatformRoute('/admin/updates', '?tab=rollouts')).toEqual({ kind: 'updates', tab: 'rollouts' });
     const audit = { kind: 'audit', organizationId: 'org-1', action: 'updates.rollout.create', outcome: 'succeeded', from: '2026-07-01', to: '2026-07-30' } as const;
     expect(resolvePlatformRoute('/admin/journal', pathForPlatformRoute(audit).split('?')[1])).toEqual(audit);
   });
@@ -57,9 +56,10 @@ describe('platformRoute', () => {
       resolvePlatformRoute('/admin/money').kind,
       resolvePlatformRoute('/admin/updates').kind,
       resolvePlatformRoute('/admin/journal').kind,
-      resolvePlatformRoute('/admin/settings').kind,
-      resolvePlatformRoute('/admin/profile').kind
-    ]).toEqual(['overview', 'organizationNew', 'organization', 'billing', 'updates', 'audit', 'settings', 'profile']);
+      resolvePlatformRoute('/admin/settings').kind
+    ]).toEqual(['overview', 'organizationNew', 'organization', 'billing', 'updates', 'audit', 'settings']);
+    // Закладка на удалённый экран профиля ведёт на главный, а не в 404.
+    expect(resolvePlatformRoute('/admin/profile')).toEqual({ kind: 'overview', view: 'now' });
     expect(resolvePlatformRoute('/organizations').kind).toBe('notFound');
     expect(resolvePlatformRoute('/club').kind).toBe('notFound');
     expect(resolvePlatformRoute('/auth/sign-in').kind).toBe('notFound');

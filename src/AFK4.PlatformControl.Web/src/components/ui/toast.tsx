@@ -1,5 +1,4 @@
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
-import { cn } from '@/lib/utils';
 import { useI18n } from '@/i18n/I18nProvider';
 
 export type ToastVariant = 'success' | 'error';
@@ -17,25 +16,16 @@ export function ToastProvider({ children, autoDismissMs = 4000 }: { children: Re
   const toast = useCallback((options: ToastOptions) => {
     const id = nextId.current++;
     setToasts(prev => [...prev, { id, variant: 'success', ...options }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), autoDismissMs);
+    setTimeout(() => setToasts(prev => prev.filter(item => item.id !== id)), autoDismissMs);
   }, [autoDismissMs]);
 
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-[60] flex flex-col gap-2" role="region" aria-label={t('toast.region')}>
-        {toasts.map(t => (
-          <div
-            key={t.id}
-            role="status"
-            className={cn(
-              'pointer-events-auto rounded-md border px-4 py-3 text-sm shadow-md',
-              t.variant === 'error'
-                ? 'border-destructive/30 bg-destructive text-destructive-foreground'
-                : 'border-border bg-card text-card-foreground'
-            )}
-          >
-            {t.title}
+      <div className="toast-viewport" role="region" aria-label={t('toast.region')}>
+        {toasts.map(item => (
+          <div key={item.id} role="status" className={item.variant === 'error' ? 'toast toast-error' : 'toast toast-success'}>
+            <span className="toast-message">{item.title}</span>
           </div>
         ))}
       </div>

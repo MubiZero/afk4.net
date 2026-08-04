@@ -1,8 +1,8 @@
 import type { PlatformApiClient } from '@/api/platformApi';
 import type { OrganizationOwnerInvite } from '@/api/types';
-import { PageHeader } from '@/components/layout/PageHeader';
-import { Workspace } from '@/components/layout/Workspace';
+import { Page } from '@/components/layout/Page';
 import { TabBoundary } from '@/components/shared/TabBoundary';
+import { Tabs } from '@/components/ui/tabs';
 import { ErrorState, ForbiddenState, LoadingCards } from '@/components/ui/states';
 import { useI18n, type MessageKey } from '@/i18n/I18nProvider';
 import type { OrganizationTab } from '@/routing/platformRoute';
@@ -39,71 +39,94 @@ export interface OrganizationPageAccess {
   canViewAudit: boolean;
 }
 
-export function OrganizationPage({ client, organizationId, tab, access, initialInvite, onTabChange, onChanged }: {
+export function OrganizationPage({ client, organizationId, tab, access, initialInvite, onTabChange, onBack, onChanged }: {
   client: PlatformApiClient;
   organizationId: string;
   tab: OrganizationTab;
   access: OrganizationPageAccess;
   initialInvite: OrganizationOwnerInvite | null;
   onTabChange: (tab: OrganizationTab) => void;
+  onBack: () => void;
   onChanged: () => void;
 }) {
   const { t } = useI18n();
   const state = useOrganizationDetail(client.organizations, organizationId);
-  if (state.status === 'loading') return <LoadingCards count={3} />;
-  if (state.status === 'error') return <ErrorState message={t('platform.organization.drawer.error')} retryLabel={t('state.retry')} onRetry={state.retry} />;
+  // Возврат к списку доступен на ЛЮБОМ состоянии экрана, включая ошибку загрузки: раньше выйти
+  // из карточки можно было только уходом в другой раздел рейла.
+  const back = { label: t('platform.organization.backToClubs'), onBack };
+
+  if (state.status === 'loading') return <Page back={back}><LoadingCards count={3} /></Page>;
+  if (state.status === 'error') {
+    return <Page back={back}><ErrorState message={t('platform.organization.drawer.error')} retryLabel={t('state.retry')} onRetry={state.retry} /></Page>;
+  }
+
   const organization = state.data;
   const apply = (next: typeof organization) => { state.apply(next); onChanged(); };
   const visibleTabs = TABS.filter(item => item.allowed(access));
   if (!visibleTabs.some(item => item.value === tab)) {
-    return <Workspace width="narrow"><ForbiddenState title={t('state.forbidden.title')} message={t('state.forbidden.message')} actionLabel={t('platform.organization.tab.clubs')} onAction={() => onTabChange('clubs')} /></Workspace>;
+    return (
+      <Page back={back} width="narrow">
+        <ForbiddenState title={t('state.forbidden.title')} message={t('state.forbidden.message')} actionLabel={t('platform.organization.tab.clubs')} onAction={() => onTabChange('clubs')} />
+      </Page>
+    );
   }
-  const activeTab = tab;
+
   const boundaryProps = { message: t('platform.organization.tabBoundary.error'), retryLabel: t('platform.organization.tabBoundary.retry') };
-  // Tab-content boundaries unmount/remount on every tab switch anyway (each
-  // panel is a conditional branch), but the passport boundary stays mounted
-  // across the whole page — its resetKey must track the organization, not the
-  // JSX identity of its children, or a stale failure could linger across
-  // organizations (or, with the old children-identity check, clear itself on
-  // the very next unrelated re-render).
-  const tabResetKey = `${organizationId}:${activeTab}`;
+  // Панели вкладок и так размонтируются при переключении (каждая — условная ветка), но граница
+  // паспорта живёт всё время жизни экрана: её resetKey обязан следить за организацией, иначе
+  // застрявшая ошибка переедет на следующего клиента.
+  const tabResetKey = `${organizationId}:${tab}`;
 
-  return <Workspace>
-    <PageHeader title={organization.name} description={`${organization.slug} · ${organization.status}`} />
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[280px_1fr] lg:items-start">
-      <TabBoundary {...boundaryProps} resetKey={organizationId}>
-        <ClientPassport
-          client={{
-            organizations: client.organizations,
-            subscriptions: client.subscriptions,
-            invoices: client.invoices,
-            organizationOwnerInvites: client.organizationOwnerInvites
-          }}
-          organization={organization}
-          access={access}
-          onUpdated={apply}
-        />
-      </TabBoundary>
+  return (
+    <Page back={back} title={organization.name} description={organization.slug}>
+      <div className="pc-client">
+        <TabBoundary {...boundaryProps} resetKey={organizationId}>
+          <ClientPassport
+            client={{
+              organizations: client.organizations,
+              subscriptions: client.subscriptions,
+              invoices: client.invoices,
+              organizationOwnerInvites: client.organizationOwnerInvites
+            }}
+            organization={organization}
+            access={access}
+            onUpdated={apply}
+          />
+        </TabBoundary>
 
-      <div className="flex min-w-0 flex-col gap-4">
-        <div role="tablist" aria-label={t('platform.organization.tabs.label')} className="flex gap-1 overflow-x-auto border-b border-border">{visibleTabs.map(item => <button key={item.value} type="button" role="tab" aria-selected={activeTab === item.value} onClick={() => onTabChange(item.value)} className="min-h-10 shrink-0 border-b-2 border-transparent px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground aria-selected:border-primary aria-selected:text-foreground">{t(item.labelKey)}</button>)}</div>
+        <div className="pc-client-main">
+          <Tabs
+            label={t('platform.organization.tabs.label')}
+            value={tab}
+            onChange={onTabChange}
+            items={visibleTabs.map(item => ({ value: item.value, label: t(item.labelKey) }))}
+          />
 
-        {activeTab === 'clubs' ? <div role="tabpanel" className="flex flex-col gap-4">
-            <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationHealthSection client={client.organizations} organizationId={organizationId} /></TabBoundary>
-            <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationClubsTab client={client.pulse} organizationId={organizationId} branches={organization.branches} /></TabBoundary>
-          </div> : null}
-        {activeTab === 'invoices' ? <div role="tabpanel"><TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationInvoicesSection client={client.invoices} organizationId={organizationId} /></TabBoundary></div> : null}
-        {activeTab === 'limits' ? <div role="tabpanel" className="flex flex-col gap-4">
-            <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationStatusSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary>
-            <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationLimitsSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary>
-          </div> : null}
-        {activeTab === 'updates' ? <div role="tabpanel"><TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationUpdateChannelSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary></div> : null}
-        {activeTab === 'access' ? <div role="tabpanel" className="flex flex-col gap-4">
-            {access.canManageAccess ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationOwnerInvitesSection client={client.organizationOwnerInvites} organizationId={organizationId} branches={organization.branches} initialInvite={initialInvite} /></TabBoundary> : null}
-            {access.canViewSupport ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationSupportNotesSection client={client.supportNotes} organizationId={organizationId} /></TabBoundary> : null}
-          </div> : null}
-        {activeTab === 'history' ? <div role="tabpanel"><TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationHistoryTab client={client.audit} organizationId={organizationId} /></TabBoundary></div> : null}
+          <div role="tabpanel" className="pc-client-panel">
+            {tab === 'clubs' ? (
+              <>
+                <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationHealthSection client={client.organizations} organizationId={organizationId} /></TabBoundary>
+                <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationClubsTab client={client.pulse} organizationId={organizationId} branches={organization.branches} /></TabBoundary>
+              </>
+            ) : null}
+            {tab === 'invoices' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationInvoicesSection client={client.invoices} organizationId={organizationId} /></TabBoundary> : null}
+            {tab === 'limits' ? (
+              <>
+                <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationStatusSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary>
+                <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationLimitsSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary>
+              </>
+            ) : null}
+            {tab === 'updates' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationUpdateChannelSection client={client.organizations} organization={organization} onUpdated={apply} /></TabBoundary> : null}
+            {tab === 'access' ? (
+              <>
+                {access.canManageAccess ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationOwnerInvitesSection client={client.organizationOwnerInvites} organizationId={organizationId} branches={organization.branches} initialInvite={initialInvite} /></TabBoundary> : null}
+                {access.canViewSupport ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationSupportNotesSection client={client.supportNotes} organizationId={organizationId} /></TabBoundary> : null}
+              </>
+            ) : null}
+            {tab === 'history' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationHistoryTab client={client.audit} organizationId={organizationId} /></TabBoundary> : null}
+          </div>
+        </div>
       </div>
-    </div>
-  </Workspace>;
+    </Page>
+  );
 }

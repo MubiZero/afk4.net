@@ -1,0 +1,151 @@
+/* Оболочка панели: командная панель сверху, рейл слева, рабочая область справа.
+
+   У оператора три колонки (рейл + рабочая область + контекст-панель) и оконные контролы
+   десктопного хоста. Здесь колонок две и нет оконных контролов — сетка своя, а всё остальное
+   (сам рейл, командная панель, каркас области) приходит из @afk4/ui без изменений. */
+.pc-shell {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  grid-template-rows: 46px minmax(0, 1fr);
+  width: 100%;
+  height: 100vh;
+  background: var(--surface-canvas);
+}
+
+.pc-shell .top-command {
+  grid-column: 1 / 3;
+}
+
+/* Поиск в командной панели — не «палитра по Ctrl+K», как у оператора, а живое поле ввода
+   с выпадающим списком, поэтому под ним нужна точка привязки для абсолютного результата. */
+.pc-search {
+  position: relative;
+  justify-self: center;
+  width: min(460px, 36vw);
+  min-width: 180px;
+}
+
+.pc-search .ui-search-field {
+  height: 30px;
+}
+
+.pc-search-results {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  z-index: 40;
+  display: grid;
+  gap: 2px;
+  max-height: 60vh;
+  padding: 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-elevated);
+  overflow-y: auto;
+}
+
+.pc-search-option {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pc-search-option:hover,
+.pc-search-option:focus-visible {
+  outline: none;
+  background: var(--surface-accent-soft);
+}
+
+.pc-search-option span {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.pc-search-empty {
+  padding: 10px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+/* Рабочая область панели скроллится сама: экраны здесь длинные (списки счетов, журнал),
+   а браузерное окно по высоте не резиновое, как у десктопного шелла. */
+.pc-workspace {
+  grid-column: 2;
+  min-width: 0;
+  min-height: 0;
+  padding: 16px 20px 28px;
+  overflow-y: auto;
+}
+
+.pc-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1280px;
+}
+
+.pc-page--narrow {
+  max-width: 720px;
+}
+
+.pc-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pc-page-head h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.pc-page-head p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.pc-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Хлебная крошка «назад к списку» — в панели вглубь ведут только карточки клиентов, и
+   выйти из них раньше было нечем: рейл подсвечивал «Клубы», но возврата не давал. */
+.pc-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  border: 0;
+  padding: 2px 0;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pc-back:hover {
+  color: var(--text-primary);
+}
+
+.pc-back:focus-visible {
+  outline: none;
+  border-radius: 4px;
+  box-shadow: var(--focus-ring);
+}

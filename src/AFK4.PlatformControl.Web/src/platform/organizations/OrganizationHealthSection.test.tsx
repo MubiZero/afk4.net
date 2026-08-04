@@ -14,8 +14,12 @@ const health: OrganizationHealth = {
 it('renders health metrics and the recent-errors row', async () => {
   const client = { getHealth: mock().mockResolvedValue(health) };
   render(<I18nProvider><OrganizationHealthSection client={client} organizationId="o1" /></I18nProvider>);
-  expect(await screen.findByText('active')).toBeInTheDocument();
-  expect(screen.getByText('bad creds')).toBeInTheDocument();
+  expect(await screen.findByText('bad creds')).toBeInTheDocument();
+
+  // Внутренняя телеметрия не место на бизнес-экране: имя миграции БД и сырой статус читаются
+  // как случайный мусор и подрывают доверие к остальным цифрам.
+  expect(screen.queryByText('20260501_Init')).toBeNull();
+  expect(screen.queryByText('active')).toBeNull();
 });
 
 it('shows an error state with a retry button', async () => {

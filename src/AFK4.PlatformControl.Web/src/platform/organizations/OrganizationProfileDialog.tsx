@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog } from '@/components/ui/dialog';
+import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -51,33 +52,31 @@ export function OrganizationProfileDialog({ client, organization, onClose, onUpd
   }
 
   return (
-    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
-      <DialogContent>
-        <DialogTitle>{t('platform.organization.profileDialog.title')}</DialogTitle>
-        <DialogDescription className="sr-only">{t('platform.organization.profileDialog.title')}</DialogDescription>
-        <div className="flex flex-col gap-3">
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted-foreground">{t('platform.organization.profileDialog.name')}</span>
-            <Input aria-label={t('platform.organization.profileDialog.name')} value={name} onChange={e => setName(e.target.value)} />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted-foreground">{t('platform.organization.profileDialog.contactEmail')}</span>
-            <Input type="email" aria-label={t('platform.organization.profileDialog.contactEmail')} value={contactEmail} onChange={e => setContactEmail(e.target.value)} />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted-foreground">{t('platform.organization.profileDialog.contactPhone')}</span>
-            <Input type="tel" aria-label={t('platform.organization.profileDialog.contactPhone')} value={contactPhone} onChange={e => setContactPhone(e.target.value)} />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted-foreground">{t('platform.organization.profileDialog.legalDetails')}</span>
-            <Textarea aria-label={t('platform.organization.profileDialog.legalDetails')} rows={3} value={legalDetails} onChange={e => setLegalDetails(e.target.value)} />
-          </label>
-        </div>
-        <DialogFooter>
+    <Dialog
+      open
+      title={t('platform.organization.profileDialog.title')}
+      onClose={onClose}
+      footer={
+        <>
           <Button variant="outline" disabled={pending} onClick={onClose}>{t('platform.organization.profileDialog.cancel')}</Button>
           <Button disabled={pending || name.trim() === ''} onClick={() => void submit()}>{t('platform.organization.profileDialog.save')}</Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className="pc-form">
+        <Field label={t('platform.organization.profileDialog.name')} htmlFor="profile-name">
+          <Input id="profile-name" value={name} onChange={event => setName(event.target.value)} />
+        </Field>
+        <Field label={t('platform.organization.profileDialog.contactEmail')} htmlFor="profile-email">
+          <Input id="profile-email" type="email" value={contactEmail} onChange={event => setContactEmail(event.target.value)} />
+        </Field>
+        <Field label={t('platform.organization.profileDialog.contactPhone')} htmlFor="profile-phone">
+          <Input id="profile-phone" type="tel" value={contactPhone} onChange={event => setContactPhone(event.target.value)} />
+        </Field>
+        <Field label={t('platform.organization.profileDialog.legalDetails')} htmlFor="profile-legal">
+          <Textarea id="profile-legal" rows={3} value={legalDetails} onChange={event => setLegalDetails(event.target.value)} />
+        </Field>
+      </div>
     </Dialog>
   );
 }
