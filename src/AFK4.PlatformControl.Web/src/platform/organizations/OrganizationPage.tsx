@@ -80,20 +80,6 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
   return (
     <Page back={back} title={organization.name} description={organization.slug}>
       <div className="pc-client">
-        <TabBoundary {...boundaryProps} resetKey={organizationId}>
-          <ClientPassport
-            client={{
-              organizations: client.organizations,
-              subscriptions: client.subscriptions,
-              invoices: client.invoices,
-              organizationOwnerInvites: client.organizationOwnerInvites
-            }}
-            organization={organization}
-            access={access}
-            onUpdated={apply}
-          />
-        </TabBoundary>
-
         <div className="pc-client-main">
           <Tabs
             label={t('platform.organization.tabs.label')}
@@ -126,6 +112,20 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
             {tab === 'history' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationHistoryTab client={client.audit} organizationId={organizationId} /></TabBoundary> : null}
           </div>
         </div>
+
+        <TabBoundary {...boundaryProps} resetKey={organizationId}>
+          <ClientPassport
+            client={{
+              organizations: client.organizations,
+              subscriptions: client.subscriptions,
+              invoices: client.invoices,
+              organizationOwnerInvites: client.organizationOwnerInvites
+            }}
+            organization={organization}
+            access={access}
+            onUpdated={apply}
+          />
+        </TabBoundary>
       </div>
     </Page>
   );
