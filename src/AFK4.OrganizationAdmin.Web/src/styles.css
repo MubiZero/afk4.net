@@ -1,11 +1,18 @@
-/* Барелл стилей оболочки оператора. Монолит (~8100 строк) разрезан по фичам на styles/*.
+/* Барелл стилей оболочки оператора. Общий визуальный слой (атомы, рейл, командная панель,
+ * экран входа, каркас, таблица, mgmt-кит) вынесен в @afk4/ui. Слои пакета стоят РОВНО на своих
+ * исторических местах, а не скопом сверху: порядок задаёт исход при равной специфичности, и
+ * сдвиг общего слоя выше секционных правил молча переворачивал бы часть переопределений.
  * Порядок @import сохраняет исходный каскад — менять очерёдность нельзя. main.tsx по-прежнему
  * импортирует только этот файл. */
+@import '@afk4/ui/base.css';
 @import './styles/01-base.css';
-@import './styles/02-ui-kit.css';
+@import '@afk4/ui/kit.css';
+@import '@afk4/ui/chrome.css';
 @import './styles/02-shell.css';
-@import './styles/03-auth.css';
+@import '@afk4/ui/auth.css';
+@import '@afk4/ui/rail.css';
 @import './styles/04-rail.css';
+@import '@afk4/ui/workspace.css';
 @import './styles/05-workspace-frame.css';
 @import './styles/06-map-grid.css';
 @import './styles/07-map-sidepanel.css';
@@ -13,6 +20,7 @@
 @import './styles/09-dashboard.css';
 @import './styles/10-booking.css';
 @import './styles/11-pos.css';
+@import '@afk4/ui/table.css';
 @import './styles/12-players.css';
 @import './styles/13-payments.css';
 @import './styles/15-settings.css';
@@ -23,6 +31,7 @@
 @import './styles/20-overlays.css';
 @import './styles/21-cash.css';
 @import './styles/22-stock.css';
+@import '@afk4/ui/mgmt.css';
 @import './styles/23-management-crud.css';
 @import './styles/24-payments-setup.css';
 @import './styles/25-network.css';

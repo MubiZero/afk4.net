@@ -1,0 +1,137 @@
+/* Колонка контента (грид-ребёнок 2-й колонки оболочки). Держит опциональную полоску вкладок
+   сверху и активный экран под ней; экран тянется на остаток высоты. Высоту вкладок экраны
+   учитывают через --shell-tabstrip в своих calc(100vh - …), поэтому контент не уезжает вниз. */
+.workspace-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace-content > .floor-workspace,
+.workspace-content > .workspace-screen,
+.workspace-content > .workspace-crash {
+  flex: 1;
+  min-height: 0;
+}
+
+.workspace-crash {
+  display: grid;
+  place-content: center;
+  padding: 24px;
+  background: var(--surface-canvas);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Вкладки внутри слитых разделов (Касса / Отчёты / Управление). Тихая полоска с подчёркиванием
+   активной — это под-навигация раздела, а не вторая CTA, поэтому без фона-пилюль и веса кнопок. */
+.workspace-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 40px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--border-default);
+  background: var(--surface-elevated);
+}
+
+.workspace-tabs button {
+  position: relative;
+  padding: 0 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.workspace-tabs button:hover:not(.active) {
+  color: var(--text-secondary);
+}
+
+.workspace-tabs button.active {
+  color: var(--text-primary);
+}
+
+.workspace-tabs button.active::after {
+  content: '';
+  position: absolute;
+  right: 10px;
+  bottom: -1px;
+  left: 10px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px 2px 0 0;
+}
+
+.workspace-tabs button:focus-visible {
+  outline: none;
+  border-radius: 5px;
+  box-shadow: var(--focus-ring);
+}
+
+.floor-workspace {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 10px;
+  background: var(--surface-canvas);
+}
+
+.workspace-screen {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 10px;
+  background: var(--surface-canvas);
+}
+
+/* Shared loading / error states for the lighter workspace screens. */
+.workspace-loading {
+  margin: 0;
+  padding: 12px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.workspace-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  border: 1px solid var(--danger-soft-border);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  background: var(--danger-soft-bg);
+  color: var(--danger-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Skeleton placeholders — mirror the final layout so content swaps in without a shift. The pulse is
+   killed by the global prefers-reduced-motion rule, leaving a static block. */
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    background-color: var(--surface-sunken);
+  }
+
+  50% {
+    background-color: var(--border-soft);
+  }
+}
+
+.skeleton-block {
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
