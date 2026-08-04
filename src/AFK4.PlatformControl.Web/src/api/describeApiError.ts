@@ -1,4 +1,4 @@
-import { PlatformApiError } from './platformApi';
+import { PlatformApiError, PlatformStaleClientError } from './platformApi';
 import type { MessageKey } from '@/i18n/messages';
 
 type Translate = (key: MessageKey, values?: Record<string, string | number>) => string;
@@ -18,6 +18,10 @@ export function describeApiError(
   t: Translate,
   overrides: Partial<Record<number, MessageKey>> = {}
 ): string {
+  // Checked ahead of PlatformApiError: this isn't an HTTP-status failure, it's the client and
+  // server disagreeing about the response contract (see PlatformStaleClientError). No override can
+  // apply here — the fix is the same regardless of which route hit the mismatch.
+  if (cause instanceof PlatformStaleClientError) return t('auth.error.staleClient');
   if (cause instanceof PlatformApiError) {
     const override = overrides[cause.status];
     if (override !== undefined) return t(override);

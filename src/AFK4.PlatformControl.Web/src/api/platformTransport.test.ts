@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from 'bun:test';
-import { PlatformTransport } from './platformTransport';
+import { PlatformStaleClientError, PlatformTransport } from './platformTransport';
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -105,6 +105,57 @@ describe('PlatformTransport — two-step sign-in', () => {
 
     expect(session.accessToken).toBe('verified-access');
     expect(transport.getSession()?.accessToken).toBe('verified-access');
+  });
+
+  // Regression for the platform-admin-directory-2fa review, point 3: the Platform API and the
+  // panel bundle deploy as two independent Coolify apps with no shared artifact, so there's always
+  // a window where a stale cached bundle can hit a new API. Before this response is validated, an
+  // old-shaped 200 (the pre-2FA full session, no challengeToken) would silently produce a
+  // "challenge" with `challengeToken: undefined` instead of failing loudly.
+  it('signIn rejects with PlatformStaleClientError when the response is the old pre-2FA session shape', async () => {
+    const fetchImpl = mock(async () => jsonResponse(200, sessionBody()));
+    const onSessionChanged = mock();
+    const transport = new PlatformTransport({
+      baseUrl: 'http://localhost',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      session: null,
+      onSessionChanged
+    });
+
+    await expect(transport.signIn('u', 'p')).rejects.toBeInstanceOf(PlatformStaleClientError);
+    expect(transport.getSession()).toBeNull();
+    expect(onSessionChanged).not.toHaveBeenCalled();
+  });
+
+  // Mirror case for step 2: an old API that never grew the challenge/2FA routes could answer
+  // /2fa/verify or /2fa/setup/confirm with a body that has no working tokens. That must not be
+  // assembled into a session with undefined accessToken/refreshToken.
+  it('completeTwoFactor rejects with PlatformStaleClientError when the response carries no working tokens', async () => {
+    const fetchImpl = mock(async () => jsonResponse(200, { ...sessionBody(), accessToken: '', refreshToken: '' }));
+    const transport = new PlatformTransport({
+      baseUrl: 'http://localhost',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      session: null,
+      onSessionChanged: () => {}
+    });
+
+    await expect(transport.completeTwoFactor('chal-1', '123456')).rejects.toBeInstanceOf(PlatformStaleClientError);
+    expect(transport.getSession()).toBeNull();
+  });
+
+  it('completeTwoFactorSetup rejects with PlatformStaleClientError when the response carries no working tokens', async () => {
+    const fetchImpl = mock(async () =>
+      jsonResponse(200, { session: { ...sessionBody(), accessToken: '', refreshToken: '' }, recoveryCodes: ['code-1'] })
+    );
+    const transport = new PlatformTransport({
+      baseUrl: 'http://localhost',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      session: null,
+      onSessionChanged: () => {}
+    });
+
+    await expect(transport.completeTwoFactorSetup('chal-1', '123456')).rejects.toBeInstanceOf(PlatformStaleClientError);
+    expect(transport.getSession()).toBeNull();
   });
 
   it('rejects with PlatformApiError(429) on lockout and does not apply a session', async () => {

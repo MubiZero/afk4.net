@@ -13,7 +13,7 @@ import { PulseApi } from './platformClients/pulse';
 import { AdminsApi } from './platformClients/admins';
 import { TwoFactorApi } from './platformClients/twoFactor';
 
-export { PlatformApiError } from './platformTransport';
+export { PlatformApiError, PlatformStaleClientError } from './platformTransport';
 export type { SignInOutcome } from './platformTransport';
 
 export type PlatformApiClientOptions = PlatformTransportOptions;

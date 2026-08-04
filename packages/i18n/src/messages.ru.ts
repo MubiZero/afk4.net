@@ -60,6 +60,7 @@ export const ru = {
   "auth.error.generic": "Не удалось войти.",
   "auth.error.invalid": "Неверный логин или пароль.",
   "auth.error.required": "Введите логин и пароль.",
+  "auth.error.staleClient": "Версия панели устарела. Обновите страницу и попробуйте снова.",
   "auth.field.login": "Логин или email",
   "auth.field.password": "Пароль",
   "auth.forgot.back": "Вернуться ко входу",

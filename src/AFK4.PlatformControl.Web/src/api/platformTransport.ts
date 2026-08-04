@@ -41,6 +41,38 @@ export class PlatformApiError extends Error {
   }
 }
 
+// Thrown when a 200 sign-in response doesn't match the shape the current bundle expects. Deploys
+// of the Platform API and the panel bundle are two independent Coolify apps with no shared release
+// artifact, so there is always a window where one is ahead of the other: an old cached bundle can
+// hit a new API that answers step 1 with a two-factor challenge instead of a session, or a new
+// bundle can hit an old API that never issued a challenge/step-2 tokens at all. Either way the
+// wrong shape must not be quietly assembled into a session with undefined fields — see
+// describeApiError, which turns this into the localized "reload the page" message instead of a
+// generic transport error.
+export class PlatformStaleClientError extends Error {
+  public constructor() {
+    super('Platform API response shape did not match this panel build — client/server version mismatch.');
+    this.name = 'PlatformStaleClientError';
+  }
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+function isValidChallengeResponse(body: PlatformAdminSignInChallengeResponse): boolean {
+  return isNonEmptyString(body.challengeToken)
+    && typeof body.twoFactorConfigured === 'boolean'
+    && isNonEmptyString(body.expiresAtUtc);
+}
+
+// A session response is only trustworthy once it actually carries working tokens — an old API
+// answering step 2 with (what used to be) the whole session on step 1, or any other shape that
+// isn't this panel's current contract, must not be handed to sessionFromSignInResponse() as-is.
+function isValidSessionResponse(body: PlatformAdminSignInResponse): boolean {
+  return isNonEmptyString(body.accessToken) && isNonEmptyString(body.refreshToken);
+}
+
 export interface PlatformTransportOptions {
   baseUrl: string;
   fetchImpl?: FetchLike;
@@ -84,6 +116,9 @@ export class PlatformTransport {
       throw await PlatformTransport.toError(response, 'Sign-in failed.');
     }
     const body = (await response.json()) as PlatformAdminSignInChallengeResponse;
+    if (!isValidChallengeResponse(body)) {
+      throw new PlatformStaleClientError();
+    }
     return {
       kind: 'challenge',
       challengeToken: body.challengeToken,
@@ -118,6 +153,9 @@ export class PlatformTransport {
       throw await PlatformTransport.toError(response, 'Two-factor setup confirmation failed.');
     }
     const body = (await response.json()) as TwoFactorSetupConfirmResponse;
+    if (body.session === undefined || !isValidSessionResponse(body.session)) {
+      throw new PlatformStaleClientError();
+    }
     this.applySession(sessionFromSignInResponse(body.session));
     return body;
   }
@@ -134,6 +172,9 @@ export class PlatformTransport {
       throw await PlatformTransport.toError(response, 'Two-factor verification failed.');
     }
     const body = (await response.json()) as PlatformAdminSignInResponse;
+    if (!isValidSessionResponse(body)) {
+      throw new PlatformStaleClientError();
+    }
     const session = sessionFromSignInResponse(body);
     this.applySession(session);
     return session;

@@ -60,6 +60,7 @@ export const tg = {
   "auth.error.generic": "Ворид шуда нашуд.",
   "auth.error.invalid": "Логин ё парол нодуруст аст.",
   "auth.error.required": "Логин ва паролро ворид кунед.",
+  "auth.error.staleClient": "Версияи панел кӯҳна шудааст. Саҳифаро аз нав бор кунед ва бори дигар кӯшиш кунед.",
   "auth.field.login": "Логин ё email",
   "auth.field.password": "Парол",
   "auth.forgot.back": "Бозгашт ба воридшавӣ",

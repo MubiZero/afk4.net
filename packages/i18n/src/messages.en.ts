@@ -60,6 +60,7 @@ export const en = {
   "auth.error.generic": "Sign-in failed.",
   "auth.error.invalid": "Wrong login or password.",
   "auth.error.required": "Login and password are required.",
+  "auth.error.staleClient": "The panel version is outdated. Reload the page and try again.",
   "auth.field.login": "Login or email",
   "auth.field.password": "Password",
   "auth.forgot.back": "Back to sign in",
