@@ -1881,7 +1881,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasColumnType("character varying(160)");
 
                     b.Property<int>("FailedTwoFactorAttempts")
-                        .HasColumnType("integer");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -1900,7 +1902,9 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.Property<string>("RecoveryCodeHashesJson")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("[]");
 
                     b.Property<string>("RolesJson")
                         .IsRequired()

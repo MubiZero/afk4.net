@@ -957,6 +957,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(admin => admin.DisplayName).HasMaxLength(160).IsRequired();
             entity.Property(admin => admin.PasswordHash).IsRequired();
             entity.Property(admin => admin.RolesJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(admin => admin.RecoveryCodeHashesJson).HasDefaultValue("[]").IsRequired();
+            entity.Property(admin => admin.FailedTwoFactorAttempts).HasDefaultValue(0);
             entity.HasIndex(admin => admin.NormalizedUserName).IsUnique();
         });
 

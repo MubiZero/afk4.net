@@ -29,7 +29,7 @@ namespace AFK4.Platform.Api.Data.Migrations
                 table: "platform_admin_users",
                 type: "text",
                 nullable: false,
-                defaultValue: "");
+                defaultValue: "[]");
 
             migrationBuilder.AddColumn<DateTimeOffset>(
                 name: "TotpEnabledAtUtc",
