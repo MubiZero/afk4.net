@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import { OrganizationPlanCode, SubscriptionStatus, type CreateOrganizationResponse, type OrganizationLimits } from '@/api/types';
@@ -82,7 +83,9 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
       toast({ title: t('platform.newOrganization.created'), variant: 'success' });
       onCreated(response);
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : t('platform.newOrganization.error');
+      // 409 здесь — это всегда занятый ключ, и это ровно та конкретика, которая помогает
+      // исправить форму. Остальные коды не несут для пользователя ничего сверх «не вышло».
+      const message = describeApiError(cause, t, { 409: 'platform.newOrganization.error.slugTaken' });
       setError(message);
       toast({ title: t('platform.newOrganization.error'), variant: 'error' });
     } finally {

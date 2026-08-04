@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { AlertTriangle, ArrowRight, Eye, EyeOff, Loader2 } from 'lucide-react';
-import { PlatformApiClient, PlatformApiError } from '../api/platformApi';
+import { PlatformApiClient } from '../api/platformApi';
+import { describeApiError } from '../api/describeApiError';
 import { useI18n } from '../i18n/I18nProvider';
 import { BrandLogo } from './shell/BrandLogo';
 
@@ -28,13 +29,7 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
       await client.signIn(userName.trim(), password);
       onSignedIn();
     } catch (cause) {
-      if (cause instanceof PlatformApiError) {
-        setError(cause.status === 401 ? t('auth.error.invalid') : cause.message);
-      } else if (cause instanceof Error) {
-        setError(cause.message);
-      } else {
-        setError(t('auth.error.generic'));
-      }
+      setError(describeApiError(cause, t, { 401: 'auth.error.invalid' }));
     } finally {
       setSubmitting(false);
     }

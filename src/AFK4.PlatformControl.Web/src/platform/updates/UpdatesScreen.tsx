@@ -11,6 +11,7 @@ import { EmptyState, ErrorState, LoadingCards } from '@/components/ui/states';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 
 export type UpdatesClient = Pick<UpdatesApi, 'listPackages' | 'registerPackage' | 'changePackageState' | 'listRollouts' | 'createRollout'>;
@@ -45,7 +46,7 @@ export function UpdatesScreen({ client, organizationsClient }: {
       setPackages(nextPackages);
       setRollouts(nextRollouts);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t('platform.updates.loadError'));
+      setError(describeApiError(cause, t));
     }
   }, [client, t]);
 
@@ -74,7 +75,7 @@ export function UpdatesScreen({ client, organizationsClient }: {
       await load();
       toast({ title: t('platform.updates.publish.done'), variant: 'success' });
     } catch (cause) {
-      toast({ title: cause instanceof Error ? cause.message : t('platform.updates.saveError'), variant: 'error' });
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setPublishing(false);
     }
@@ -188,7 +189,7 @@ function PackageDialog({ open, onOpenChange, client, onSaved }: {
       await onSaved();
       toast({ title: t('platform.updates.package.registered'), variant: 'success' });
     } catch (cause) {
-      toast({ title: cause instanceof Error ? cause.message : t('platform.updates.saveError'), variant: 'error' });
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setBusy(false);
     }
@@ -250,7 +251,7 @@ function StateDialog({ target, onOpenChange, client, onSaved }: {
       await onSaved();
       toast({ title: t('platform.updates.state.changed'), variant: 'success' });
     } catch (cause) {
-      toast({ title: cause instanceof Error ? cause.message : t('platform.updates.saveError'), variant: 'error' });
+      toast({ title: describeApiError(cause, t), variant: 'error' });
     } finally {
       setBusy(false);
     }

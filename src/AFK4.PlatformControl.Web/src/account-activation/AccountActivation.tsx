@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import type { AccountActivationApi } from './accountActivationApi';
-import { PlatformApiError } from '../api/platformApi';
+import { describeApiError } from '../api/describeApiError';
 import { useI18n } from '../i18n/I18nProvider';
 import { ErrorBanner, Field } from '../components/ui/field';
 import { Button } from '../components/ui/button';
@@ -39,7 +39,7 @@ export function AccountActivation({ client, initialCode }: AccountActivationProp
       await client.accept({ code: normalizedCode, userName: normalizedUserName, displayName: '', password });
       setAccepted(true);
     } catch (cause) {
-      setError(projectError(cause, t));
+      setError(describeApiError(cause, t, { 404: 'auth.accept.error.codeNotFound', 409: 'auth.accept.error.loginTaken' }));
     } finally {
       setSubmitting(false);
     }
@@ -101,11 +101,3 @@ function Frame({ title, subtitle, children }: { title: string; subtitle: string;
   );
 }
 
-function projectError(cause: unknown, t: ReturnType<typeof useI18n>['t']): string {
-  if (cause instanceof PlatformApiError) {
-    if (cause.status === 404) return t('auth.accept.error.codeNotFound');
-    if (cause.status === 409) return t('auth.accept.error.loginTaken');
-    return cause.message;
-  }
-  return cause instanceof Error ? cause.message : t('auth.accept.error.generic');
-}
