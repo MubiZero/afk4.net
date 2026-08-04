@@ -371,10 +371,12 @@ Expected: ошибка компиляции — службы и контракт
 Правила, которые обязана соблюдать `UpdateAsync`, в этом порядке:
 
 1. цель не найдена → `NotFound`;
-2. `actorId == targetId` и запрошено понижение роли или `IsActive == false` → `SelfDemotion`;
-3. роль неизвестна `PlatformAdminPermissionCatalog.IsKnownRole` → `UnknownRole`;
-4. цель — активный `platform_admin`, и после изменения число активных `platform_admin` станет нулём → `LastFullAdmin`;
+2. роль неизвестна `PlatformAdminPermissionCatalog.IsKnownRole` → `UnknownRole`;
+3. цель — активный `platform_admin`, и после изменения число активных `platform_admin` станет нулём → `LastFullAdmin`;
+4. `actorId == targetId` и запрошено понижение роли или `IsActive == false` → `SelfDemotion`;
 5. иначе применить, обновить `UpdatedAtUtc`.
+
+`LastFullAdmin` проверяется **раньше** `SelfDemotion` намеренно. Когда единственный полный админ отключает сам себя, истинны обе причины, но «вы последний полный администратор» объясняет запрет полнее, чем «нельзя отключить себя»: второе оставляет ложную надежду, что кто-то другой это сделает. Тест `DisablingLastFullAdmin_IsRejected` фиксирует именно этот порядок.
 
 Код приглашения — 32 случайных символа из `RandomNumberGenerator`, алфавит без похожих знаков (`0`, `O`, `1`, `l`), в базе только `SHA256` от него. Регистрация в `Program.cs`: `builder.Services.AddScoped<PlatformAdminDirectoryService>();`
 
