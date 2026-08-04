@@ -9,8 +9,10 @@ namespace AFK4.Platform.Api.Platform.Identity;
 public static class TotpCodeGenerator
 {
     private const string Base32Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    private const int DefaultStep = 30;
+    private const int DefaultDigits = 6;
 
-    public static string Generate(byte[] secret, long unixTimeSeconds, int step = 30, int digits = 6)
+    public static string Generate(byte[] secret, long unixTimeSeconds, int step = DefaultStep, int digits = DefaultDigits)
     {
         var counter = unixTimeSeconds / step;
 
@@ -35,13 +37,13 @@ public static class TotpCodeGenerator
         return otp.ToString().PadLeft(digits, '0');
     }
 
-    public static bool Verify(byte[] secret, string code, long unixTimeSeconds, int allowedDriftSteps = 1, int step = 30, int digits = 6)
+    public static bool Verify(byte[] secret, string code, long unixTimeSeconds, int allowedDriftSteps = 1)
     {
         var codeBytes = System.Text.Encoding.ASCII.GetBytes(code);
 
         for (var drift = -allowedDriftSteps; drift <= allowedDriftSteps; drift++)
         {
-            var candidate = Generate(secret, unixTimeSeconds + drift * step, step, digits);
+            var candidate = Generate(secret, unixTimeSeconds + drift * DefaultStep, DefaultStep, DefaultDigits);
             var candidateBytes = System.Text.Encoding.ASCII.GetBytes(candidate);
 
             if (candidateBytes.Length == codeBytes.Length &&
