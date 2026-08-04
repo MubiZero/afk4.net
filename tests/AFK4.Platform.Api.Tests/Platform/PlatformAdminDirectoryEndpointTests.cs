@@ -1,6 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
+using AFK4.Platform.Api.Audit;
+using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Auth;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests.Platform;
 
@@ -16,6 +20,25 @@ public sealed class PlatformAdminDirectoryEndpointTests
         var response = await client.GetAsync("/api/platform/admins");
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SupportRole_CannotSeeDirectory_WritesDeniedAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformSupport]);
+
+        var response = await client.GetAsync("/api/platform/admins");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords
+            .Where(record => record.Action == AuditActionNames.ViewPlatformAdmins && record.Outcome == AuditOutcome.Denied)
+            .SingleAsync();
+
+        Assert.Equal(AuditOutcome.Denied, audit.Outcome);
     }
 
     [Fact]

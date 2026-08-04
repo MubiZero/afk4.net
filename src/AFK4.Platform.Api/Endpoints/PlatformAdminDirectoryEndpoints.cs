@@ -13,6 +13,7 @@ internal static class PlatformAdminDirectoryEndpoints
         app.MapGet("/api/platform/admins", async (
             PlatformAdminAuthorizationService authorizationService,
             PlatformAdminDirectoryService directoryService,
+            IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManagePlatformAdmins);
@@ -23,10 +24,34 @@ internal static class PlatformAdminDirectoryEndpoints
 
             if (!authorization.IsAllowed)
             {
+                await WritePlatformAuditAsync(
+                    auditRecordWriter,
+                    organizationId: Guid.Empty,
+                    actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+                    action: AuditActionNames.ViewPlatformAdmins,
+                    targetType: "PlatformAdminUser",
+                    targetId: null,
+                    outcome: AuditOutcome.Denied,
+                    details: new { authorization.DenialReason },
+                    cancellationToken);
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
             var items = await directoryService.ListAsync(cancellationToken);
+
+            // Details deliberately hold only a count — the list itself carries roles, activity and
+            // 2FA status per admin, and none of that belongs in the audit trail's details payload.
+            await WritePlatformAuditAsync(
+                auditRecordWriter,
+                organizationId: Guid.Empty,
+                actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+                action: AuditActionNames.ViewPlatformAdmins,
+                targetType: "PlatformAdminUser",
+                targetId: null,
+                outcome: AuditOutcome.Succeeded,
+                details: new { Count = items.Count },
+                cancellationToken);
+
             return Results.Ok(items);
         });
 

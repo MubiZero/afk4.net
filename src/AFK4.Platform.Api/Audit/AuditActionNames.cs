@@ -293,6 +293,8 @@ public static class AuditActionNames
 
     public const string RevokePlatformSupportAccess = "platform.support_access.revoke";
 
+    public const string ViewPlatformAdmins = "platform.admins.view";
+
     public const string PlatformAdminInvited = "platform.admins.invited";
 
     public const string PlatformAdminUpdated = "platform.admins.updated";
