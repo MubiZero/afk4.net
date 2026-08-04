@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Platform.Auth;
 using Microsoft.EntityFrameworkCore;
@@ -11,6 +12,33 @@ namespace AFK4.Platform.Api.Tests.Platform;
 
 public sealed class PlatformAdminAuthenticationEndpointTests
 {
+    // Sign-in is now two steps: password proves identity and returns a challenge, the challenge
+    // is redeemed at /2fa/verify for the working session. Tests below that only care about what
+    // happens AFTER a session exists (refresh, sign-out, cross-boundary checks) go through both
+    // steps via this helper; PostPlatformAdminSignIn_WithValidCredentials_... exercises the two
+    // steps directly since it is testing that exact contract.
+    private static async Task<PlatformAdminSignInResponse> SignInAndVerifyAsync(
+        HttpClient client,
+        string userName = PlatformAdminTestHelper.DefaultUserName,
+        string password = PlatformAdminTestHelper.DefaultPassword)
+    {
+        var signInResponse = await client.PostAsJsonAsync(
+            "/api/platform/auth/sign-in",
+            new PlatformAdminSignInRequest(userName, password));
+        var challenge = await signInResponse.Content.ReadFromJsonAsync<PlatformAdminSignInChallengeResponse>();
+        Assert.Equal(HttpStatusCode.OK, signInResponse.StatusCode);
+        Assert.NotNull(challenge);
+
+        var code = TotpCodeGenerator.Generate(PlatformAdminTestHelper.DefaultTotpSecret, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        var verifyResponse = await client.PostAsJsonAsync(
+            "/api/platform/auth/2fa/verify",
+            new { ChallengeToken = challenge!.ChallengeToken, Code = code });
+        var body = await verifyResponse.Content.ReadFromJsonAsync<PlatformAdminSignInResponse>();
+        Assert.Equal(HttpStatusCode.OK, verifyResponse.StatusCode);
+        Assert.NotNull(body);
+        return body!;
+    }
+
     [Fact]
     public async Task PostPlatformAdminSignIn_WithValidCredentials_ReturnsAccessTokenAndPermissions()
     {
@@ -18,13 +46,7 @@ public sealed class PlatformAdminAuthenticationEndpointTests
         var admin = await PlatformAdminTestHelper.SeedPlatformAdminAsync(factory);
         using var client = factory.CreateClient();
 
-        var response = await client.PostAsJsonAsync(
-            "/api/platform/auth/sign-in",
-            new PlatformAdminSignInRequest(PlatformAdminTestHelper.DefaultUserName, PlatformAdminTestHelper.DefaultPassword));
-        var body = await response.Content.ReadFromJsonAsync<PlatformAdminSignInResponse>();
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.NotNull(body);
+        var body = await SignInAndVerifyAsync(client);
         Assert.Equal(admin.PlatformAdminUserId, body.PlatformAdminId);
         Assert.Equal(admin.UserName, body.UserName);
         Assert.Equal(admin.DisplayName, body.DisplayName);
@@ -101,12 +123,7 @@ public sealed class PlatformAdminAuthenticationEndpointTests
         await PlatformAdminTestHelper.SeedPlatformAdminAsync(factory);
         using var client = factory.CreateClient();
 
-        var signInResponse = await client.PostAsJsonAsync(
-            "/api/platform/auth/sign-in",
-            new PlatformAdminSignInRequest(PlatformAdminTestHelper.DefaultUserName, PlatformAdminTestHelper.DefaultPassword));
-        var signInBody = await signInResponse.Content.ReadFromJsonAsync<PlatformAdminSignInResponse>();
-        Assert.Equal(HttpStatusCode.OK, signInResponse.StatusCode);
-        Assert.NotNull(signInBody);
+        var signInBody = await SignInAndVerifyAsync(client);
 
         var refreshResponse = await client.PostAsJsonAsync(
             "/api/platform/auth/refresh",
@@ -134,11 +151,7 @@ public sealed class PlatformAdminAuthenticationEndpointTests
         var admin = await PlatformAdminTestHelper.SeedPlatformAdminAsync(factory);
         using var client = factory.CreateClient();
 
-        var signInResponse = await client.PostAsJsonAsync(
-            "/api/platform/auth/sign-in",
-            new PlatformAdminSignInRequest(PlatformAdminTestHelper.DefaultUserName, PlatformAdminTestHelper.DefaultPassword));
-        var signInBody = await signInResponse.Content.ReadFromJsonAsync<PlatformAdminSignInResponse>();
-        Assert.NotNull(signInBody);
+        var signInBody = await SignInAndVerifyAsync(client);
 
         await using (var scope = factory.Services.CreateAsyncScope())
         {
@@ -163,11 +176,7 @@ public sealed class PlatformAdminAuthenticationEndpointTests
         await PlatformAdminTestHelper.SeedPlatformAdminAsync(factory);
         using var client = factory.CreateClient();
 
-        var signInResponse = await client.PostAsJsonAsync(
-            "/api/platform/auth/sign-in",
-            new PlatformAdminSignInRequest(PlatformAdminTestHelper.DefaultUserName, PlatformAdminTestHelper.DefaultPassword));
-        var signInBody = await signInResponse.Content.ReadFromJsonAsync<PlatformAdminSignInResponse>();
-        Assert.NotNull(signInBody);
+        var signInBody = await SignInAndVerifyAsync(client);
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", signInBody.AccessToken);
 
@@ -227,11 +236,7 @@ public sealed class PlatformAdminAuthenticationEndpointTests
         await PlatformAdminTestHelper.SeedPlatformAdminAsync(factory);
         using var client = factory.CreateClient();
 
-        var signInResponse = await client.PostAsJsonAsync(
-            "/api/platform/auth/sign-in",
-            new PlatformAdminSignInRequest(PlatformAdminTestHelper.DefaultUserName, PlatformAdminTestHelper.DefaultPassword));
-        var signInBody = await signInResponse.Content.ReadFromJsonAsync<PlatformAdminSignInResponse>();
-        Assert.NotNull(signInBody);
+        var signInBody = await SignInAndVerifyAsync(client);
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", signInBody.AccessToken);
 

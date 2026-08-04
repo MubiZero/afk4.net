@@ -14,7 +14,15 @@ public sealed class AesGcmSecretProtector : ISecretProtector, IDisposable
 
     private readonly byte[] key;
     private readonly AesGcm aes;
+    private readonly object gate = new();
 
+    // AesGcm (backed by an OpenSSL EVP cipher context on Linux) is not safe for concurrent
+    // Encrypt/Decrypt calls on the same instance — this is a Singleton, and once 2FA setup started
+    // encrypting a TOTP secret on every seeded test admin, xunit's parallel test execution began
+    // hitting it from many threads at once and corrupting the shared cipher context
+    // ("cipher operation failed"). A single instance is still cheap to serialize through; the
+    // alternative (a fresh AesGcm per call) would just move the cost to re-deriving expensive AES
+    // key schedules on every Protect/Unprotect instead.
     public AesGcmSecretProtector(IOptions<SecretProtectionOptions> options)
     {
         var keyBase64 = options.Value.EncryptionKeyBase64;
@@ -42,7 +50,10 @@ public sealed class AesGcmSecretProtector : ISecretProtector, IDisposable
         var ciphertext = new byte[plaintextBytes.Length];
         var tag = new byte[TagSize];
 
-        aes.Encrypt(nonce, plaintextBytes, ciphertext, tag);
+        lock (gate)
+        {
+            aes.Encrypt(nonce, plaintextBytes, ciphertext, tag);
+        }
 
         return string.Join('.',
             Version,
@@ -70,7 +81,10 @@ public sealed class AesGcmSecretProtector : ISecretProtector, IDisposable
 
         var plaintextBytes = new byte[ciphertext.Length];
 
-        aes.Decrypt(nonce, ciphertext, tag, plaintextBytes); // throws CryptographicException on tamper/wrong key
+        lock (gate)
+        {
+            aes.Decrypt(nonce, ciphertext, tag, plaintextBytes); // throws CryptographicException on tamper/wrong key
+        }
 
         return Encoding.UTF8.GetString(plaintextBytes);
     }

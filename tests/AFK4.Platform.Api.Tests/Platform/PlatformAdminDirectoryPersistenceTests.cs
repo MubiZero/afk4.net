@@ -38,8 +38,11 @@ public sealed class PlatformAdminDirectoryPersistenceTests
     public async Task AdminUser_HasTwoFactorColumnsWithSafeDefaults()
     {
         await using var factory = new PlatformApiFactory();
-        using var client = factory.CreateClient();
-        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        // AuthorizeAsAsync now walks a fully-configured 2FA flow (needed to actually authenticate),
+        // so it is not the right seed here — this test wants an admin as freshly created, before
+        // 2FA is ever touched, to prove the new columns' safe defaults.
+        await PlatformAdminTestHelper.SeedPlatformAdminAsync(
+            factory, roles: [PlatformAdminRoleNames.PlatformAdmin], totpSecret: []);
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
 
