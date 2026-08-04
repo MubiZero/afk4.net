@@ -292,4 +292,10 @@ public static class AuditActionNames
     public const string UsePlatformSupportAccess = "platform.support_access.use";
 
     public const string RevokePlatformSupportAccess = "platform.support_access.revoke";
+
+    public const string PlatformAdminInvited = "platform.admins.invited";
+
+    public const string PlatformAdminUpdated = "platform.admins.updated";
+
+    public const string PlatformAdminInvitationRevoked = "platform.admins.invitation_revoked";
 }

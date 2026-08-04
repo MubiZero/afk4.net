@@ -447,6 +447,7 @@ organizations.MapWalletEndpoints();
 app.MapStaffOnboardingEndpoints(organizations);
 organizations.MapReportScheduleEndpoints();
 app.MapPlatformOrganizationEndpoints();
+app.MapPlatformAdminDirectoryEndpoints();
 app.MapPlatformBillingEndpoints(organizations);
 app.MapPlatformSupportAccessEndpoints();
 app.MapPlatformUpdateEndpoints();
