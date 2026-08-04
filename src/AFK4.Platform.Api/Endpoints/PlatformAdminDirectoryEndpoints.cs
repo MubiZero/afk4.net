@@ -237,6 +237,62 @@ internal static class PlatformAdminDirectoryEndpoints
 
             return Results.Ok(item);
         });
+
+        // Anonymous by design: the caller has just received an invitation code and has no account
+        // yet, so nothing here requires authorizationService.RequirePermission — see the
+        // organization-owner activation endpoint for the same pattern. Sign-in happens afterwards
+        // through the normal path so 2FA enrollment kicks in there, not here.
+        app.MapPost("/api/account-activation/platform-admin", async (
+            AcceptPlatformAdminInvitationRequest request,
+            PlatformAdminDirectoryService directoryService,
+            IAuditRecordWriter auditRecordWriter,
+            CancellationToken cancellationToken) =>
+        {
+            var (user, error) = await directoryService.AcceptInvitationAsync(request, cancellationToken);
+
+            if (error != PlatformAdminDirectoryError.None)
+            {
+                // The invitation code and password must never reach the audit trail. Every lookup
+                // failure (unknown / expired / revoked / already accepted code) is reported here as
+                // the same InvalidInvitationCode value and returns the same 400 below — telling them
+                // apart would let a caller enumerate valid codes by probing response differences.
+                await WritePlatformAuditAsync(
+                    auditRecordWriter,
+                    organizationId: Guid.Empty,
+                    actorPlatformAdminUserId: null,
+                    action: AuditActionNames.PlatformAdminInvitationAccepted,
+                    targetType: "PlatformAdminInvitation",
+                    targetId: null,
+                    outcome: AuditOutcome.Denied,
+                    details: new { Error = error.ToString() },
+                    cancellationToken);
+
+                return error == PlatformAdminDirectoryError.UserNameTaken
+                    ? Results.Conflict(new
+                    {
+                        Error = "username_taken",
+                        Message = "This username is already in use."
+                    })
+                    : Results.BadRequest(new
+                    {
+                        Error = "invalid_invitation",
+                        Message = "The invitation code is invalid, expired, or already used."
+                    });
+            }
+
+            await WritePlatformAuditAsync(
+                auditRecordWriter,
+                organizationId: Guid.Empty,
+                actorPlatformAdminUserId: null,
+                action: AuditActionNames.PlatformAdminInvitationAccepted,
+                targetType: "PlatformAdminUser",
+                targetId: user!.PlatformAdminUserId.ToString("D"),
+                outcome: AuditOutcome.Succeeded,
+                details: new { user.UserName, user.DisplayName },
+                cancellationToken);
+
+            return Results.NoContent();
+        });
     }
 
     // Maps a PlatformAdminDirectoryError to an HTTP result. Conflict is a generic "a concurrent

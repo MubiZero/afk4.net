@@ -300,4 +300,6 @@ public static class AuditActionNames
     public const string PlatformAdminUpdated = "platform.admins.updated";
 
     public const string PlatformAdminInvitationRevoked = "platform.admins.invitation_revoked";
+
+    public const string PlatformAdminInvitationAccepted = "platform.admins.invitation_accepted";
 }

@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Auth;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Platform.Identity;
@@ -201,6 +202,62 @@ public sealed class PlatformAdminDirectoryService(PlatformDbContext dbContext, T
         }
 
         return PlatformAdminDirectoryError.None;
+    }
+
+    // Finds the invitation by hashed code among pending, non-expired, non-revoked candidates and,
+    // on success, creates the admin account and marks the invitation accepted. Any lookup failure
+    // (code unknown / expired / revoked / already accepted) collapses to the same
+    // InvalidInvitationCode error — the caller must not be able to tell those apart, or invitation
+    // codes become guessable by probing response differences.
+    public async Task<(PlatformAdminUserEntity? User, PlatformAdminDirectoryError Error)> AcceptInvitationAsync(
+        AcceptPlatformAdminInvitationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
+        var codeHash = HashCode(request.Code);
+
+        var candidates = await dbContext.PlatformAdminInvitations
+            .Where(invitation => invitation.Status == "pending"
+                && invitation.RevokedAtUtc == null
+                && invitation.ExpiresAtUtc > now)
+            .ToListAsync(cancellationToken);
+        var invitation = candidates.SingleOrDefault(candidate => candidate.CodeHash.SequenceEqual(codeHash));
+
+        if (invitation is null)
+        {
+            return (null, PlatformAdminDirectoryError.InvalidInvitationCode);
+        }
+
+        var normalizedUserName = request.UserName.Trim().ToUpperInvariant();
+        var userNameTaken = await dbContext.PlatformAdminUsers
+            .AnyAsync(admin => admin.NormalizedUserName == normalizedUserName, cancellationToken);
+        if (userNameTaken)
+        {
+            return (null, PlatformAdminDirectoryError.UserNameTaken);
+        }
+
+        var admin = new PlatformAdminUserEntity
+        {
+            PlatformAdminUserId = Guid.NewGuid(),
+            UserName = request.UserName.Trim(),
+            NormalizedUserName = normalizedUserName,
+            DisplayName = request.DisplayName.Trim(),
+            RolesJson = OpaquePlatformAdminTokenService.SerializeRoles([invitation.Role]),
+            IsActive = true,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        admin.PasswordHash = new PasswordHasher<PlatformAdminUserEntity>().HashPassword(admin, request.Password);
+
+        dbContext.PlatformAdminUsers.Add(admin);
+
+        invitation.Status = "accepted";
+        invitation.AcceptedAtUtc = now;
+        invitation.AcceptedPlatformAdminUserId = admin.PlatformAdminUserId;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return (admin, PlatformAdminDirectoryError.None);
     }
 
     private static bool IsFullAdminRole(string role)
