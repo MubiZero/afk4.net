@@ -72,8 +72,10 @@ public sealed class PlatformAdminDirectoryService(PlatformDbContext dbContext, T
         // every other admin's IsActive/role, then writes the target row. Two concurrent UpdateAsync
         // calls demoting/disabling two DIFFERENT full admins would each see the other as still active
         // under Read Committed and both pass, leaving zero full admins. Serializable closes that gap —
-        // Postgres aborts the loser with a serialization failure, which we turn back into LastFullAdmin
-        // (the safe, invariant-preserving answer) instead of letting it surface as a raw 500.
+        // Postgres aborts (at least) one side with a serialization failure, which we turn into the
+        // generic Conflict error instead of letting it surface as a raw 500. It is deliberately NOT
+        // reported as LastFullAdmin: SSI can abort the "innocent" side of the race too, and that side's
+        // change may have nothing to do with the LastFullAdmin rule at all.
         return ExecuteInSerializableTransactionAsync(
             () => UpdateCoreAsync(actorId, targetId, request, cancellationToken),
             cancellationToken);
@@ -170,9 +172,14 @@ public sealed class PlatformAdminDirectoryService(PlatformDbContext dbContext, T
         }
         catch (Exception exception) when (RelationalFailureClassifier.IsSerializationFailure(exception))
         {
+            // Postgres's serializable snapshot isolation can abort either side of a race, including
+            // one whose own change had nothing to do with the LastFullAdmin rule (e.g. it lost only
+            // because it shared a read/write set with the other transaction). Reporting it as
+            // LastFullAdmin would be a false claim about the cause — the caller would go looking for
+            // a lockout problem that doesn't exist. Report the generic, honest outcome instead: retry.
             await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
             dbContext.ChangeTracker.Clear();
-            return (null, PlatformAdminDirectoryError.LastFullAdmin);
+            return (null, PlatformAdminDirectoryError.Conflict);
         }
     }
 

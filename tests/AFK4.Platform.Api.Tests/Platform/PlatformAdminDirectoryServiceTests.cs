@@ -152,7 +152,17 @@ public sealed class PlatformAdminDirectoryServiceTests
                 serviceForC.UpdateAsync(actorId, adminCId, new UpdatePlatformAdminRequest(null, false), CancellationToken.None))
                 .WaitAsync(TimeSpan.FromSeconds(30));
 
-            Assert.Contains(results, result => result.Error == PlatformAdminDirectoryError.LastFullAdmin);
+            // Exactly one side must win (None) and the other must be denied. The loser's error is
+            // deliberately not pinned to one specific value: under the gate both transactions read
+            // the other admin as still active before either writes, so in practice Postgres's
+            // serializable isolation aborts the loser as a write-skew conflict (Conflict) rather than
+            // the app-level headcount check ever seeing a false count (LastFullAdmin) — but asserting
+            // either would be an honest, invariant-preserving outcome, and pinning to the DB-internal
+            // mechanics here would make the test fragile to something that isn't the actual contract.
+            // What must NOT happen, and is asserted below, is both sides succeeding.
+            Assert.Single(results, result => result.Error == PlatformAdminDirectoryError.None);
+            Assert.Single(results, result =>
+                result.Error is PlatformAdminDirectoryError.Conflict or PlatformAdminDirectoryError.LastFullAdmin);
 
             await using var verifyDb = new PlatformDbContext(options);
             var admins = await verifyDb.PlatformAdminUsers.AsNoTracking().ToArrayAsync();
