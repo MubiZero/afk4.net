@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { I18nProvider } from '../i18n/I18nProvider';
 import { PlatformApiError } from '../api/platformApi';
 import { TwoFactorSetup, type TwoFactorSetupClient } from './TwoFactorSetup';
+import { CLOCK_SKEW_TOLERANCE_MS } from './useChallengeExpiry';
 import type { PlatformAdminSession } from '../auth/tokenStore';
 
 afterEach(cleanup);
@@ -132,7 +133,8 @@ describe('TwoFactorSetup', () => {
         <TwoFactorSetup
           client={client}
           challengeToken="chal-1"
-          expiresAtUtc={new Date(Date.now() + 5).toISOString()}
+          // Deep in the past, well beyond the clock-skew tolerance — fires almost immediately.
+          expiresAtUtc={new Date(Date.now() - CLOCK_SKEW_TOLERANCE_MS - 60_000).toISOString()}
           onExpired={() => { expiredCalls += 1; }}
           onComplete={() => {}}
           onCancel={() => {}}

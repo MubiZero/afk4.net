@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { I18nProvider } from '../i18n/I18nProvider';
 import { PlatformApiError } from '../api/platformApi';
 import { TwoFactorChallenge } from './TwoFactorChallenge';
+import { CLOCK_SKEW_TOLERANCE_MS } from './useChallengeExpiry';
 
 describe('TwoFactorChallenge', () => {
   it('отправляет введённый код и сообщает об успехе', async () => {
@@ -49,7 +50,8 @@ describe('TwoFactorChallenge', () => {
         <TwoFactorChallenge
           onSubmit={async () => { submitCalls += 1; }}
           onCancel={() => {}}
-          expiresAtUtc={new Date(Date.now() + 5).toISOString()}
+          // Deep in the past, well beyond the clock-skew tolerance — fires almost immediately.
+          expiresAtUtc={new Date(Date.now() - CLOCK_SKEW_TOLERANCE_MS - 60_000).toISOString()}
           onExpired={() => { expiredCalls += 1; }}
         />
       </I18nProvider>
