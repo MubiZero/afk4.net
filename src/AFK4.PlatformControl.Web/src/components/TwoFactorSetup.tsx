@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowRight, Check, Copy, Loader2 } from 'lucide-react';
 import type { PlatformAdminSession } from '../auth/tokenStore';
 import { describeApiError } from '../api/describeApiError';
 import { useI18n } from '../i18n/I18nProvider';
+import { useChallengeExpiry } from './useChallengeExpiry';
 
 export interface TwoFactorSetupClient {
   beginSetup(challengeToken: string): Promise<{ secret: string; otpAuthUri: string }>;
@@ -20,9 +21,13 @@ type Step =
 // configured yet (SignIn.tsx routes here on `twoFactorConfigured === false`). Two stages: scan +
 // confirm a code, then a one-time, unmissable display of recovery codes — there is no endpoint to
 // fetch them again, so `onComplete` only fires once the admin explicitly acknowledges saving them.
-export function TwoFactorSetup({ client, challengeToken, onComplete, onCancel }: {
+export function TwoFactorSetup({ client, challengeToken, expiresAtUtc, onExpired, onComplete, onCancel }: {
   client: TwoFactorSetupClient;
   challengeToken: string;
+  // Optional so the component keeps working without a real challenge window (e.g. in tests that
+  // don't care about expiry); SignIn.tsx always supplies both in practice.
+  expiresAtUtc?: string;
+  onExpired?: () => void;
   onComplete: (session: PlatformAdminSession) => void;
   onCancel: () => void;
 }) {
@@ -33,6 +38,27 @@ export function TwoFactorSetup({ client, challengeToken, onComplete, onCancel }:
   const [isConfirming, setConfirming] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
+
+  // Once recovery codes are showing, the session has already been issued — the original challenge
+  // no longer matters, so the countdown stops (the real session's own TTL takes over from there).
+  useChallengeExpiry(
+    expiresAtUtc ?? '',
+    () => onExpired?.(),
+    expiresAtUtc !== undefined && onExpired !== undefined && step.kind !== 'recoveryCodes'
+  );
+
+  // The recovery codes are shown exactly once and can never be fetched again — closing or
+  // reloading the tab at this point silently throws them away. Warn before either happens.
+  useEffect(() => {
+    if (step.kind !== 'recoveryCodes') return undefined;
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [step.kind]);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,10 +101,23 @@ export function TwoFactorSetup({ client, challengeToken, onComplete, onCancel }:
     }
   }
 
-  function copyCodes(codes: string[]) {
-    void navigator.clipboard?.writeText(codes.join('\n'));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  // Clipboard access can fail silently for reasons the person never sees — no HTTPS, denied
+  // permission, no clipboard API at all. Claiming "Copied" regardless would be a false all-clear:
+  // they'd close this screen believing the codes are saved when they aren't. Only report success
+  // once the promise actually resolves; otherwise say so and point at manual selection instead.
+  async function copyCodes(codes: string[]) {
+    try {
+      if (navigator.clipboard === undefined) {
+        throw new Error('Clipboard API unavailable');
+      }
+      await navigator.clipboard.writeText(codes.join('\n'));
+      setCopyFailed(false);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+      setCopyFailed(true);
+    }
   }
 
   if (step.kind === 'loading') {
@@ -119,10 +158,17 @@ export function TwoFactorSetup({ client, challengeToken, onComplete, onCancel }:
           {step.codes.map(recoveryCode => <li key={recoveryCode}>{recoveryCode}</li>)}
         </ul>
 
-        <button type="button" className="auth-password-toggle" onClick={() => copyCodes(step.codes)}>
+        <button type="button" className="auth-password-toggle" onClick={() => void copyCodes(step.codes)}>
           {copied ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
           {copied ? t('auth.twoFactor.recovery.copied') : t('auth.twoFactor.recovery.copy')}
         </button>
+
+        {copyFailed ? (
+          <div className="auth-error" role="alert">
+            <AlertTriangle size={16} aria-hidden="true" />
+            <span>{t('auth.twoFactor.recovery.copyFailed')}</span>
+          </div>
+        ) : null}
 
         <label className="auth-field">
           <span>

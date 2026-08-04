@@ -14,10 +14,13 @@ import type {
 
 // Result of step 1 of sign-in: password alone never yields a working session anymore, only a
 // short-lived challenge token that must be redeemed via completeTwoFactorSetup/completeTwoFactor.
+// `expiresAtUtc` is carried through so the UI can tell "the window ran out" apart from "the code
+// was wrong" — the server answers both with a bare 401, and only the client knows the clock.
 export type SignInOutcome = {
   kind: 'challenge';
   challengeToken: string;
   twoFactorConfigured: boolean;
+  expiresAtUtc: string;
 };
 
 export class PlatformApiError extends Error {
@@ -81,7 +84,12 @@ export class PlatformTransport {
       throw await PlatformTransport.toError(response, 'Sign-in failed.');
     }
     const body = (await response.json()) as PlatformAdminSignInChallengeResponse;
-    return { kind: 'challenge', challengeToken: body.challengeToken, twoFactorConfigured: body.twoFactorConfigured };
+    return {
+      kind: 'challenge',
+      challengeToken: body.challengeToken,
+      twoFactorConfigured: body.twoFactorConfigured,
+      expiresAtUtc: body.expiresAtUtc
+    };
   }
 
   // Step 2a (first-time setup): returns the TOTP secret/QR link for a challenge that hasn't

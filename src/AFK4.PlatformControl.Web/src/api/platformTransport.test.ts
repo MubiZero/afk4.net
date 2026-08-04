@@ -45,7 +45,12 @@ describe('PlatformTransport — two-step sign-in', () => {
 
     const outcome = await transport.signIn('u', 'p');
 
-    expect(outcome).toEqual({ kind: 'challenge', challengeToken: 'chal-1', twoFactorConfigured: true });
+    expect(outcome).toEqual({
+      kind: 'challenge',
+      challengeToken: 'chal-1',
+      twoFactorConfigured: true,
+      expiresAtUtc: '2030-01-01T00:02:00Z'
+    });
     expect(transport.getSession()).toBeNull();
     expect(onSessionChanged).not.toHaveBeenCalled();
   });

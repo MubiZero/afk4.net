@@ -14,11 +14,13 @@ export interface SignInProps {
 
 // Password alone never opens the panel anymore (see PlatformTransport.signIn): it only earns a
 // short-lived challenge token, and the next step depends on whether the account already has an
-// authenticator configured.
+// authenticator configured. `expiresAtUtc` rides along so the 2FA screens can bounce back here on
+// their own once the window runs out (see useChallengeExpiry) instead of surfacing a misleading
+// "invalid code" for a challenge that simply died of old age.
 type Step =
   | { kind: 'password' }
-  | { kind: 'challenge'; challengeToken: string }
-  | { kind: 'setup'; challengeToken: string };
+  | { kind: 'challenge'; challengeToken: string; expiresAtUtc: string }
+  | { kind: 'setup'; challengeToken: string; expiresAtUtc: string };
 
 // Тот же экран входа, что в Organization Admin и мастере установки: знак над заголовком,
 // панель .auth-panel, показ пароля, ошибка полосой с красной кромкой. Раньше панель рисовала
@@ -39,8 +41,8 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
     try {
       const outcome = await client.signIn(userName.trim(), password);
       setStep(outcome.twoFactorConfigured
-        ? { kind: 'challenge', challengeToken: outcome.challengeToken }
-        : { kind: 'setup', challengeToken: outcome.challengeToken });
+        ? { kind: 'challenge', challengeToken: outcome.challengeToken, expiresAtUtc: outcome.expiresAtUtc }
+        : { kind: 'setup', challengeToken: outcome.challengeToken, expiresAtUtc: outcome.expiresAtUtc });
     } catch (cause) {
       setError(describeApiError(cause, t, { 401: 'auth.error.invalid' }));
     } finally {
@@ -51,6 +53,15 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
   function backToPassword() {
     setPassword('');
     setStep({ kind: 'password' });
+  }
+
+  // The 2-minute challenge window ran out while the person was still on a 2FA screen. Their code
+  // may well be correct — the window is just dead — so this is deliberately a different message
+  // from "invalid code", with a clear instruction (sign in again) rather than a dead-end retry.
+  function handleChallengeExpired() {
+    setPassword('');
+    setStep({ kind: 'password' });
+    setError(t('auth.twoFactor.error.expired'));
   }
 
   if (step.kind === 'challenge') {
@@ -66,6 +77,8 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
           <TwoFactorChallenge
             onSubmit={async code => { await client.twoFactor.verify(step.challengeToken, code); onSignedIn(); }}
             onCancel={backToPassword}
+            expiresAtUtc={step.expiresAtUtc}
+            onExpired={handleChallengeExpired}
           />
         </main>
       </div>
@@ -85,6 +98,8 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
           <TwoFactorSetup
             client={client.twoFactor}
             challengeToken={step.challengeToken}
+            expiresAtUtc={step.expiresAtUtc}
+            onExpired={handleChallengeExpired}
             onComplete={() => onSignedIn()}
             onCancel={backToPassword}
           />

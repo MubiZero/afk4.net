@@ -2,18 +2,30 @@ import { useState, type FormEvent } from 'react';
 import { AlertTriangle, ArrowRight, Loader2 } from 'lucide-react';
 import { describeApiError } from '../api/describeApiError';
 import { useI18n } from '../i18n/I18nProvider';
+import { useChallengeExpiry } from './useChallengeExpiry';
 
 // The second step of sign-in for an admin who already has 2FA configured (see SignIn.tsx). The
 // same field accepts a TOTP code from an authenticator app or a one-time recovery code — the
 // server's /2fa/verify route tells them apart, this form doesn't need to.
-export function TwoFactorChallenge({ onSubmit, onCancel }: {
+//
+// `expiresAtUtc`/`onExpired` are optional so the component keeps working standalone (and in the
+// brief's own test) without a real challenge window; SignIn.tsx always supplies both in practice.
+export function TwoFactorChallenge({ onSubmit, onCancel, expiresAtUtc, onExpired }: {
   onSubmit: (code: string) => Promise<void>;
   onCancel: () => void;
+  expiresAtUtc?: string;
+  onExpired?: () => void;
 }) {
   const { t } = useI18n();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
+
+  useChallengeExpiry(
+    expiresAtUtc ?? '',
+    () => onExpired?.(),
+    expiresAtUtc !== undefined && onExpired !== undefined
+  );
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

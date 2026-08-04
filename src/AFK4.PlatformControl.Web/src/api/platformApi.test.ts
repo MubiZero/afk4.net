@@ -55,7 +55,12 @@ describe('PlatformApiClient', () => {
 
     const outcome = await client.signIn('u', 'p');
 
-    expect(outcome).toEqual({ kind: 'challenge', challengeToken: 'challenge-1', twoFactorConfigured: true });
+    expect(outcome).toEqual({
+      kind: 'challenge',
+      challengeToken: 'challenge-1',
+      twoFactorConfigured: true,
+      expiresAtUtc: '2030-01-01T00:02:00Z'
+    });
     expect(observed).toBeNull();
     expect(client.getSession()).toBeNull();
     expect(fetchImpl).toHaveBeenCalledWith(
