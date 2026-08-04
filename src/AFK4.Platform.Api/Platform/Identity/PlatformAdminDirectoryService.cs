@@ -1,3 +1,4 @@
+using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 using AFK4.Platform.Api.Data;
@@ -61,7 +62,24 @@ public sealed class PlatformAdminDirectoryService(PlatformDbContext dbContext, T
         return (new CreatePlatformAdminInvitationResponse(ToInvitationDto(entity), code), PlatformAdminDirectoryError.None);
     }
 
-    public async Task<(PlatformAdminListItem? Item, PlatformAdminDirectoryError Error)> UpdateAsync(
+    public Task<(PlatformAdminListItem? Item, PlatformAdminDirectoryError Error)> UpdateAsync(
+        Guid actorId,
+        Guid targetId,
+        UpdatePlatformAdminRequest request,
+        CancellationToken cancellationToken)
+    {
+        // The "at least one active platform_admin survives" check below is read-then-write: it reads
+        // every other admin's IsActive/role, then writes the target row. Two concurrent UpdateAsync
+        // calls demoting/disabling two DIFFERENT full admins would each see the other as still active
+        // under Read Committed and both pass, leaving zero full admins. Serializable closes that gap —
+        // Postgres aborts the loser with a serialization failure, which we turn back into LastFullAdmin
+        // (the safe, invariant-preserving answer) instead of letting it surface as a raw 500.
+        return ExecuteInSerializableTransactionAsync(
+            () => UpdateCoreAsync(actorId, targetId, request, cancellationToken),
+            cancellationToken);
+    }
+
+    private async Task<(PlatformAdminListItem? Item, PlatformAdminDirectoryError Error)> UpdateCoreAsync(
         Guid actorId,
         Guid targetId,
         UpdatePlatformAdminRequest request,
@@ -128,6 +146,34 @@ public sealed class PlatformAdminDirectoryService(PlatformDbContext dbContext, T
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return (ToListItem(target), PlatformAdminDirectoryError.None);
+    }
+
+    private async Task<(PlatformAdminListItem? Item, PlatformAdminDirectoryError Error)> ExecuteInSerializableTransactionAsync(
+        Func<Task<(PlatformAdminListItem? Item, PlatformAdminDirectoryError Error)>> action,
+        CancellationToken cancellationToken)
+    {
+        if (!dbContext.Database.IsRelational())
+        {
+            // The InMemory provider used by tests doesn't support transactions or snapshot
+            // isolation at all, so there's nothing to wrap — and nothing that can race, since
+            // InMemory queries never observe another in-flight save anyway.
+            return await action();
+        }
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        try
+        {
+            var result = await action();
+            await transaction.CommitAsync(cancellationToken);
+
+            return result;
+        }
+        catch (Exception exception) when (RelationalFailureClassifier.IsSerializationFailure(exception))
+        {
+            await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
+            dbContext.ChangeTracker.Clear();
+            return (null, PlatformAdminDirectoryError.LastFullAdmin);
+        }
     }
 
     public async Task<PlatformAdminDirectoryError> RevokeInvitationAsync(Guid invitationId, CancellationToken cancellationToken)
