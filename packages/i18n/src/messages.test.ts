@@ -212,6 +212,9 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «Журнал» — тот же устоявшийся заимствование, что op.network.dest.journal выше
     // (карточка клиента Platform Control, вкладка «Журнал»).
     'platform.organization.tab.history',
+    // «2FA» — technical abbreviation, not a translatable word; identical in every locale
+    // (Platform Control → Settings, staff table column).
+    'platform.settings.column.twoFactor',
 ]);
 
 it('tg has no silent ru-copies (untranslated strings posing as Tajik)', () => {

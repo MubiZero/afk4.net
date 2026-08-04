@@ -12,7 +12,7 @@ export type PlatformCapability =
   | 'updates.read'
   | 'updates.manage'
   | 'audit.read'
-  | 'settings.manage';
+  | 'admins.manage';
 
 const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
   'organizations.read': ['platform.organizations.view'],
@@ -41,7 +41,7 @@ const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
     'platform.updates.rollouts.manage'
   ],
   'audit.read': ['platform.audit.view'],
-  'settings.manage': []
+  'admins.manage': ['platform.admins.manage']
 };
 
 export function can(session: PlatformAdminSession, capability: PlatformCapability): boolean {
