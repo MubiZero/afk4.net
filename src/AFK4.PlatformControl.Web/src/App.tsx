@@ -145,15 +145,15 @@ function readInitialInvite(): OrganizationOwnerInvite | null {
 
 function NotFound({ path: _path, onHome }: { path: string; onHome: () => void }) {
   const { t } = useI18n();
-  return <main className="pc-workspace"><Page width="narrow"><ForbiddenState title={t('state.notFound.title')} message={t('state.notFound.message')} actionLabel={t('state.openOverview')} onAction={onHome} /></Page></main>;
+  return <main className="pc-workspace"><Page width="form"><ForbiddenState title={t('state.notFound.title')} message={t('state.notFound.message')} actionLabel={t('state.openOverview')} onAction={onHome} /></Page></main>;
 }
 
 function Forbidden({ onHome }: { onHome: () => void }) {
   const { t } = useI18n();
-  return <main className="pc-workspace"><Page width="narrow"><ForbiddenState title={t('state.forbidden.title')} message={t('state.forbidden.message')} actionLabel={t('state.openOverview')} onAction={onHome} /></Page></main>;
+  return <main className="pc-workspace"><Page width="form"><ForbiddenState title={t('state.forbidden.title')} message={t('state.forbidden.message')} actionLabel={t('state.openOverview')} onAction={onHome} /></Page></main>;
 }
 
 function UnavailableScreen() {
   const { t } = useI18n();
-  return <p className="pc-field-hint">{t('state.unavailable')}</p>;
+  return <p className="mgmt-drawer-hint">{t('state.unavailable')}</p>;
 }

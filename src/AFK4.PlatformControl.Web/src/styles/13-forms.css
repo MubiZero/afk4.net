@@ -10,79 +10,7 @@
   background: var(--surface-canvas);
 }
 
-/* ── Секция-карточка ─────────────────────────────────────────────────────────────────── */
-/* Глубина = подъём поверхности и тень, НЕ обводка. Ободок на каждом блоке — ровно то, что
-   делало прошлый экран рябым. */
-.pc-card {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--border-soft);
-  border-radius: 10px;
-  background: var(--surface-elevated);
-  box-shadow: var(--shadow-card);
-}
-
-.pc-card-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.pc-card-title {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.pc-card-desc {
-  margin: 4px 0 0;
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.pc-card-action {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: none;
-}
-
-.pc-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 16px;
-}
-
-.pc-card-foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 16px;
-  border-top: 1px solid var(--border-soft);
-}
-
-/* Вложенная карточка внутри карточки не поднимается второй раз — иначе получается
-   «коробка в коробке». Внутри достаточно тихой линии-разделителя. */
-.pc-card .pc-card {
-  border-radius: 8px;
-  box-shadow: none;
-  background: var(--surface-card);
-}
-
 /* ── Таблица ─────────────────────────────────────────────────────────────────────────── */
-.pc-table-panel {
-  border: 1px solid var(--border-soft);
-  border-radius: 10px;
-  background: var(--surface-elevated);
-  box-shadow: var(--shadow-card);
-  overflow-x: auto;
-}
-
 .pc-table {
   width: 100%;
   border-collapse: collapse;
@@ -132,29 +60,7 @@
   gap: 6px;
 }
 
-/* ── Формы и мелочи ──────────────────────────────────────────────────────────────────── */
-.pc-form {
-  display: grid;
-  gap: 14px;
-}
-
-.pc-form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
-}
-
-.pc-form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.pc-field-hint {
-  color: var(--text-tertiary);
-  font-size: 12px;
-}
-
+/* ── Мелочи форм ─────────────────────────────────────────────────────────────────────── */
 .pc-filters {
   display: flex;
   flex-wrap: wrap;
@@ -359,4 +265,42 @@
 .pc-mono {
   font-family: var(--font-mono);
   font-size: 12px;
+}
+
+/* Тело секции внутри .management-panel: вертикальный ритм, как у форм оператора. */
+.pc-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Шапка экрана: подзаголовок над заголовком (общий .management-screen-head) плюс место
+   под действия справа — у оператора кнопка экрана живёт в save-баре, здесь её носит шапка. */
+.pc-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.pc-screen-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.pc-screen-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+/* Фильтры списка — тулбар панели (.table-toolbar) стоит внутри рамки списка; здесь строка
+   фильтров живёт над таблицей, поэтому у неё свой контейнер с теми же метриками. */
+.pc-filters .ui-input,
+.pc-filters .ui-select {
+  height: 34px;
 }

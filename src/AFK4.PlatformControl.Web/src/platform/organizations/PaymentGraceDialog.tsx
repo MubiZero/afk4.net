@@ -81,7 +81,7 @@ export function PaymentGraceDialog({ client, organizationId, currentGraceUntilUt
         </>
       }
     >
-      <div className="pc-form">
+      <div className="mgmt-form">
         <div className="pc-passport-row">
           <dt>{t('platform.organization.paymentGraceDialog.current')}</dt>
           <dd>{currentGraceUntilUtc !== null ? formatDate(currentGraceUntilUtc) : t('platform.organization.paymentGraceDialog.none')}</dd>

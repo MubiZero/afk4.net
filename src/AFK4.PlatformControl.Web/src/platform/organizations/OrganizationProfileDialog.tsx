@@ -63,7 +63,7 @@ export function OrganizationProfileDialog({ client, organization, onClose, onUpd
         </>
       }
     >
-      <div className="pc-form">
+      <div className="mgmt-form">
         <Field label={t('platform.organization.profileDialog.name')} htmlFor="profile-name">
           <Input id="profile-name" value={name} onChange={event => setName(event.target.value)} />
         </Field>

@@ -56,7 +56,7 @@ export function OrganizationUpdateChannelSection({ client, organization, onUpdat
         <label className="ui-field">
           <span>{t('platform.organization.updateChannelForm.pinnedVersion')}</span>
           <Input aria-label={t('platform.organization.updateChannelForm.pinnedVersion')} value={pinnedClientVersion} onChange={e => setPinnedClientVersion(e.target.value)} />
-          <span className="pc-field-hint">{t('platform.organization.updateChannelForm.pinnedVersionHint')}</span>
+          <span className="mgmt-drawer-hint">{t('platform.organization.updateChannelForm.pinnedVersionHint')}</span>
         </label>
         <div>
           <Button disabled={pending || !dirty} onClick={() => void submit()}>{t('platform.organization.updateChannelForm.apply')}</Button>

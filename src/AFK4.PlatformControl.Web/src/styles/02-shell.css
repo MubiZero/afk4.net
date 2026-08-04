@@ -86,44 +86,6 @@
   overflow-y: auto;
 }
 
-.pc-page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-width: 1280px;
-}
-
-.pc-page--narrow {
-  max-width: 720px;
-}
-
-.pc-page-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.pc-page-head h1 {
-  margin: 0;
-  color: var(--text-primary);
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.pc-page-head p {
-  margin: 4px 0 0;
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
-.pc-page-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 /* Хлебная крошка «назад к списку» — в панели вглубь ведут только карточки клиентов, и
    выйти из них раньше было нечем: рейл подсвечивал «Клубы», но возврата не давал. */
 .pc-back {

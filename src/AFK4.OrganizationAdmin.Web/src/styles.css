@@ -22,6 +22,7 @@
 @import './styles/10-booking.css';
 @import './styles/11-pos.css';
 @import '@afk4/ui/table.css';
+@import '@afk4/ui/screen.css';
 @import './styles/12-players.css';
 @import './styles/13-payments.css';
 @import './styles/15-settings.css';

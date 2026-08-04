@@ -197,8 +197,8 @@ function PackageDialog({ open, onOpenChange, client, onSaved }: {
 
   return (
     <Dialog open={open} title={t('platform.updates.packages.register')} description={t('platform.updates.packages.formHint')} onClose={() => onOpenChange(false)}>
-      <form className="pc-form" onSubmit={submit}>
-        <div className="pc-form-grid">
+      <form className="mgmt-form" onSubmit={submit}>
+        <div className="mgmt-form-grid">
           <NativeField label={t('platform.updates.field.component')} name="component">
             <select name="component" className="ui-select" defaultValue="organization_admin">
               <option value="organization_admin">Organization Admin</option>
@@ -220,7 +220,7 @@ function PackageDialog({ open, onOpenChange, client, onSaved }: {
         <NativeField label="SHA-256" name="sha256"><Input name="sha256" minLength={64} maxLength={64} required /></NativeField>
         <NativeField label={t('platform.updates.field.signature')} name="signature"><Textarea name="signature" required /></NativeField>
         <NativeField label={t('platform.updates.field.notes')} name="releaseNotes"><Textarea name="releaseNotes" required /></NativeField>
-        <div className="pc-form-actions">
+        <div className="mgmt-form-actions">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
           <Button type="submit" disabled={busy}>{busy ? t('common.saving') : t('platform.updates.packages.register')}</Button>
         </div>
@@ -264,11 +264,11 @@ function StateDialog({ target, onOpenChange, client, onSaved }: {
       description={t('platform.updates.state.reasonHint')}
       onClose={() => onOpenChange(false)}
     >
-      <form className="pc-form" onSubmit={submit}>
+      <form className="mgmt-form" onSubmit={submit}>
         <NativeField label={t('platform.updates.field.reason')} name="reason">
           <Textarea aria-label={t('platform.updates.field.reason')} value={reason} onChange={event => setReason(event.target.value)} required />
         </NativeField>
-        <div className="pc-form-actions">
+        <div className="mgmt-form-actions">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
           <Button type="submit" disabled={busy}>
             {target?.state === 'validated' ? t('platform.updates.package.confirmValidation') : t('platform.updates.state.confirm')}

@@ -94,7 +94,7 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
   }
 
   return (
-    <form className="pc-form" onSubmit={handleSubmit}>
+    <form className="mgmt-form" onSubmit={handleSubmit}>
       {error !== null && (
         <Card><CardContent className="pc-error-text">{error}</CardContent></Card>
       )}
@@ -187,7 +187,7 @@ function LabeledInput({ label, hint, value, onChange, type, required }: {
     <label className="ui-field">
       <span>{label}</span>
       <Input aria-label={label} type={type} value={value} required={required} onChange={e => onChange(e.target.value)} />
-      {hint !== undefined && <span className="pc-field-hint">{hint}</span>}
+      {hint !== undefined && <span className="mgmt-drawer-hint">{hint}</span>}
     </label>
   );
 }

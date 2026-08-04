@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
-// Поле с подписью = атом .ui-field кита: подпись сверху, контрол под ней, подсказка ниже.
+// Поле формы — та же разметка, что в CRUD-формах Organization Admin: подпись сверху, контрол
+// под ней, подсказка ниже. Внешний вид даёт .mgmt-form из общего кита, поэтому поля панели и
+// оператора совпадают по высоте, отступам и фокус-кольцу.
 export function Field({ label, htmlFor, hint, children }: {
   label: string;
   htmlFor: string;
@@ -9,16 +11,15 @@ export function Field({ label, htmlFor, hint, children }: {
   children: ReactNode;
 }) {
   return (
-    <div className="ui-field">
-      <label htmlFor={htmlFor}>{label}</label>
+    <label htmlFor={htmlFor}>
+      {label}
       {children}
-      {hint !== undefined ? <span className="pc-field-hint">{hint}</span> : null}
-    </div>
+      {hint !== undefined ? <span className="mgmt-drawer-hint">{hint}</span> : null}
+    </label>
   );
 }
 
-// Ошибка формы — та же полоса с красной кромкой, что у оператора (.workspace-error), а не
-// собственный вариант «красная рамка вокруг всего».
+// Ошибка формы — полоса с красной кромкой (.workspace-error), общая для обеих админок.
 export function ErrorBanner({ message, dismissLabel, onDismiss }: {
   message: string | null;
   dismissLabel: string;

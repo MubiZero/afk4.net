@@ -73,7 +73,7 @@ export function SubscriptionDialog({ client, organizationId, subscription, onClo
         </>
       }
     >
-      <div className="pc-form">
+      <div className="mgmt-form">
         <Field label={t('platform.organization.subscriptionForm.interval')} htmlFor="subscription-interval">
           <Select id="subscription-interval" value={interval} onChange={event => setInterval(event.target.value)}>
             {INTERVAL_OPTIONS.map(option => (

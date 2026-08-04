@@ -75,7 +75,7 @@ export function OrganizationSupportNotesSection({ client, organizationId }: { cl
             <span>{t('platform.organization.notes.newNote')}</span>
             <Textarea aria-label={t('platform.organization.notes.newNote')} rows={3} maxLength={4000} value={draft} onChange={e => setDraft(e.target.value)} />
           </label>
-          <p className="pc-field-hint">{t('platform.organization.notes.hint')}</p>
+          <p className="mgmt-drawer-hint">{t('platform.organization.notes.hint')}</p>
           <div>
             <Button onClick={() => void create()} disabled={creating || draft.trim().length === 0}>{t('platform.organization.notes.add')}</Button>
           </div>

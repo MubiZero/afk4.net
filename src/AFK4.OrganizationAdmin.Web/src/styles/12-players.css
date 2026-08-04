@@ -450,58 +450,6 @@
    (debt/selected/inactive) скоуплены к .ctable-row — в проекте есть голые .debt/.selected
    в другом контексте (06-map-grid/11-pos), голый селектор их перебил бы. ──────── */
 
-.table-toolbar {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 16px;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.tt-search {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 8px;
-  max-width: 360px;
-  height: 34px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 0 12px;
-  background: var(--surface-sunken);
-  color: var(--text-quaternary);
-  font-size: 13px;
-}
-
-.tt-search:focus-within {
-  outline: none;
-  box-shadow: var(--focus-ring);
-}
-
-.tt-search input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 13px;
-}
-
-.tt-search input::placeholder {
-  color: var(--text-quaternary);
-}
-
-.tt-segs {
-  display: flex;
-  gap: 8px;
-}
-
-.tt-spacer {
-  flex: 1;
-}
-
 .ctable-grid {
   grid-template-columns: minmax(200px, 2fr) 96px 84px minmax(140px, 1.25fr) 96px;
 }

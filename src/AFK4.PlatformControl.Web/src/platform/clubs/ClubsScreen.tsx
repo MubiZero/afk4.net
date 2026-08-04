@@ -35,7 +35,7 @@ export function ClubsScreen({ client, view, onViewChange, onOpenOrganization }: 
   const state = usePulse(client.pulse);
 
   return (
-    <Page title={t('platform.clubs.title')} description={t('platform.clubs.subtitle')}>
+    <Page width="full" title={t('platform.clubs.title')} description={t('platform.clubs.subtitle')}>
       <Tabs
         label={t('platform.clubs.view.label')}
         value={view}

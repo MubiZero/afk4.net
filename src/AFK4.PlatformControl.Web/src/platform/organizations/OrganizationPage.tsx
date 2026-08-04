@@ -65,7 +65,7 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
   const visibleTabs = TABS.filter(item => item.allowed(access));
   if (!visibleTabs.some(item => item.value === tab)) {
     return (
-      <Page back={back} width="narrow">
+      <Page back={back} width="form">
         <ForbiddenState title={t('state.forbidden.title')} message={t('state.forbidden.message')} actionLabel={t('platform.organization.tab.clubs')} onAction={() => onTabChange('clubs')} />
       </Page>
     );
@@ -78,7 +78,7 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
   const tabResetKey = `${organizationId}:${tab}`;
 
   return (
-    <Page back={back} title={organization.name} description={organization.slug}>
+    <Page back={back} width="full" title={organization.name} description={organization.slug}>
       <div className="pc-client">
         <div className="pc-client-main">
           <Tabs

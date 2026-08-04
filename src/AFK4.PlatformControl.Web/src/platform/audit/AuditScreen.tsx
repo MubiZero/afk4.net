@@ -48,7 +48,7 @@ export function AuditScreen({ client, filters, onFiltersChange }: {
     {failed ? <ErrorState message={t('platform.audit.error')} retryLabel={t('state.retry')} onRetry={() => setRevision(value => value + 1)} />
       : result === null ? <LoadingCards count={3} />
       : (result.records ?? []).length === 0 ? <EmptyState message={t('platform.audit.empty')} />
-      : <div className="pc-table-panel"><Table><TableHeader><TableRow>
+      : <div className="table-panel"><Table><TableHeader><TableRow>
           <TableHead>{t('platform.audit.time')}</TableHead><TableHead>{t('platform.audit.organization')}</TableHead><TableHead>{t('platform.audit.action')}</TableHead><TableHead>{t('platform.audit.target')}</TableHead><TableHead>{t('platform.audit.outcome')}</TableHead><TableHead>{t('platform.audit.source')}</TableHead>
         </TableRow></TableHeader><TableBody>{(result.records ?? []).map(record => <TableRow key={record.auditRecordId}>
           <TableCell className="pc-num">{formatDate(record.createdAtUtc)}</TableCell><TableCell><code>{record.organizationId}</code></TableCell><TableCell><code>{record.action}</code></TableCell><TableCell>{record.targetType}{record.targetId ? ` · ${record.targetId}` : ''}</TableCell><TableCell><Badge variant="secondary">{record.outcome}</Badge></TableCell><TableCell>{record.sourceApp}</TableCell>

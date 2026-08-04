@@ -46,7 +46,7 @@ export function PlanFormDialog({ open, mode, form, pending, onChange, onSubmit, 
         </>
       }
     >
-      <div className="pc-form">
+      <div className="mgmt-form">
         <Field label={t('platform.billing.planForm.code')} htmlFor="plan-code">
           <Input id="plan-code" value={form.planCode} disabled={mode === 'edit'} onChange={event => onChange({ ...form, planCode: event.target.value })} />
         </Field>
@@ -54,7 +54,7 @@ export function PlanFormDialog({ open, mode, form, pending, onChange, onSubmit, 
           <Input id="plan-name" value={form.name} onChange={event => onChange({ ...form, name: event.target.value })} />
         </Field>
 
-        <div className="pc-form-grid">
+        <div className="mgmt-form-grid">
           <Field label={t('platform.billing.planForm.price')} htmlFor="plan-price">
             <Input
               id="plan-price"
@@ -74,7 +74,7 @@ export function PlanFormDialog({ open, mode, form, pending, onChange, onSubmit, 
           </Field>
         </div>
 
-        <div className="pc-form-grid">
+        <div className="mgmt-form-grid">
           {numberField('plan-max-branches', t('platform.billing.planForm.maxBranches'), form.maxBranches, next => onChange({ ...form, maxBranches: next }))}
           {numberField('plan-max-devices', t('platform.billing.planForm.maxDevices'), form.maxDevicesPerBranch, next => onChange({ ...form, maxDevicesPerBranch: next }))}
           {numberField('plan-max-sessions', t('platform.billing.planForm.maxSessions'), form.maxConcurrentSessions, next => onChange({ ...form, maxConcurrentSessions: next }))}

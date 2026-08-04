@@ -13,7 +13,8 @@
     "./workspace.css": "./workspace.css",
     "./table.css": "./table.css",
     "./mgmt.css": "./mgmt.css",
-    "./overlays.css": "./overlays.css"
+    "./overlays.css": "./overlays.css",
+    "./screen.css": "./screen.css"
   },
   "scripts": {
     "test": "bun test"

@@ -6,7 +6,7 @@ const join = (...parts: (string | undefined)[]) => parts.filter(part => part !==
 
 export function Table({ className, ...props }: ComponentProps<'table'>) {
   return (
-    <div className="pc-table-panel">
+    <div className="table-panel">
       <table className={join('pc-table', className)} {...props} />
     </div>
   );

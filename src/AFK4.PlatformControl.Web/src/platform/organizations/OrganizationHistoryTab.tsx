@@ -29,7 +29,7 @@ export function OrganizationHistoryTab({ client, organizationId }: {
   if (result === null) return <LoadingCards count={3} />;
   if (result.records.length === 0) return <EmptyState message={t('platform.organization.history.empty')} />;
 
-  return <div className="pc-table-panel"><Table>
+  return <div className="table-panel"><Table>
     <TableHeader><TableRow>
       <TableHead>{t('platform.organization.history.time')}</TableHead>
       <TableHead>{t('platform.organization.history.action')}</TableHead>

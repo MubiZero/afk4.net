@@ -7,7 +7,7 @@ import { Skeleton } from './skeleton';
 // содержимое подменялось без прыжка раскладки.
 export function LoadingCards({ count = 4 }: { count?: number }) {
   return (
-    <div className="pc-table-panel">
+    <div className="table-panel">
       <div className="ctable-skeleton">
         {Array.from({ length: count }, (_, index) => (
           <Skeleton key={index} data-testid="loading-skeleton" className="ctable-row-skel" />

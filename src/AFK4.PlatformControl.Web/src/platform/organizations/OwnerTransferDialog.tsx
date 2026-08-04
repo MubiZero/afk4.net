@@ -56,7 +56,7 @@ export function OwnerTransferDialog({ client, organizationId, onClose, onTransfe
         </>
       }
     >
-      <div className="pc-form">
+      <div className="mgmt-form">
         <Field label={t('platform.organization.ownerTransferDialog.newOwnerEmail')} htmlFor="owner-email">
           <Input id="owner-email" type="email" value={newOwnerEmail} onChange={event => setNewOwnerEmail(event.target.value)} />
         </Field>
