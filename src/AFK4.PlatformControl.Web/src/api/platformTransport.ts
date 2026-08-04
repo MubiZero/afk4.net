@@ -4,7 +4,21 @@ import {
   writeSession,
   type PlatformAdminSession
 } from '../auth/tokenStore';
-import type { FetchLike, PlatformAdminSignInResponse } from './types';
+import type {
+  FetchLike,
+  PlatformAdminSignInChallengeResponse,
+  PlatformAdminSignInResponse,
+  TwoFactorSetupConfirmResponse,
+  TwoFactorSetupResponse
+} from './types';
+
+// Result of step 1 of sign-in: password alone never yields a working session anymore, only a
+// short-lived challenge token that must be redeemed via completeTwoFactorSetup/completeTwoFactor.
+export type SignInOutcome = {
+  kind: 'challenge';
+  challengeToken: string;
+  twoFactorConfigured: boolean;
+};
 
 export class PlatformApiError extends Error {
   public readonly status: number;
@@ -54,7 +68,10 @@ export class PlatformTransport {
     return this.session;
   }
 
-  public async signIn(userName: string, password: string): Promise<PlatformAdminSession> {
+  // Step 1: password only ever earns a challenge token now — no session is applied here. The
+  // caller decides where to go next from `twoFactorConfigured`: an already-configured admin goes
+  // to completeTwoFactor (verify), a first-timer goes to beginTwoFactorSetup.
+  public async signIn(userName: string, password: string): Promise<SignInOutcome> {
     const response = await this.fetchImpl(`${this.baseUrl}/api/platform/auth/sign-in`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -62,6 +79,51 @@ export class PlatformTransport {
     });
     if (!response.ok) {
       throw await PlatformTransport.toError(response, 'Sign-in failed.');
+    }
+    const body = (await response.json()) as PlatformAdminSignInChallengeResponse;
+    return { kind: 'challenge', challengeToken: body.challengeToken, twoFactorConfigured: body.twoFactorConfigured };
+  }
+
+  // Step 2a (first-time setup): returns the TOTP secret/QR link for a challenge that hasn't
+  // configured 2FA yet. No session change — the admin hasn't proven a code yet.
+  public async beginTwoFactorSetup(challengeToken: string): Promise<TwoFactorSetupResponse> {
+    const response = await this.fetchImpl(`${this.baseUrl}/api/platform/auth/2fa/setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challengeToken })
+    });
+    if (!response.ok) {
+      throw await PlatformTransport.toError(response, 'Two-factor setup failed.');
+    }
+    return (await response.json()) as TwoFactorSetupResponse;
+  }
+
+  // Step 2a confirm: proves the first TOTP code and issues the real session plus one-time
+  // recovery codes. This is the only place a first-time setup applies a session.
+  public async completeTwoFactorSetup(challengeToken: string, code: string): Promise<TwoFactorSetupConfirmResponse> {
+    const response = await this.fetchImpl(`${this.baseUrl}/api/platform/auth/2fa/setup/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challengeToken, code })
+    });
+    if (!response.ok) {
+      throw await PlatformTransport.toError(response, 'Two-factor setup confirmation failed.');
+    }
+    const body = (await response.json()) as TwoFactorSetupConfirmResponse;
+    this.applySession(sessionFromSignInResponse(body.session));
+    return body;
+  }
+
+  // Step 2b: for an already-configured admin, verifies either a TOTP code or a recovery code and
+  // issues the working session.
+  public async completeTwoFactor(challengeToken: string, code: string): Promise<PlatformAdminSession> {
+    const response = await this.fetchImpl(`${this.baseUrl}/api/platform/auth/2fa/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challengeToken, code })
+    });
+    if (!response.ok) {
+      throw await PlatformTransport.toError(response, 'Two-factor verification failed.');
     }
     const body = (await response.json()) as PlatformAdminSignInResponse;
     const session = sessionFromSignInResponse(body);

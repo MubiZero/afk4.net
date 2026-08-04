@@ -4,11 +4,21 @@ import { PlatformApiClient } from '../api/platformApi';
 import { describeApiError } from '../api/describeApiError';
 import { useI18n } from '../i18n/I18nProvider';
 import { BrandLogo } from './shell/BrandLogo';
+import { TwoFactorChallenge } from './TwoFactorChallenge';
+import { TwoFactorSetup } from './TwoFactorSetup';
 
 export interface SignInProps {
   client: PlatformApiClient;
   onSignedIn: () => void;
 }
+
+// Password alone never opens the panel anymore (see PlatformTransport.signIn): it only earns a
+// short-lived challenge token, and the next step depends on whether the account already has an
+// authenticator configured.
+type Step =
+  | { kind: 'password' }
+  | { kind: 'challenge'; challengeToken: string }
+  | { kind: 'setup'; challengeToken: string };
 
 // Тот же экран входа, что в Organization Admin и мастере установки: знак над заголовком,
 // панель .auth-panel, показ пароля, ошибка полосой с красной кромкой. Раньше панель рисовала
@@ -20,19 +30,67 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
+  const [step, setStep] = useState<Step>({ kind: 'password' });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
     try {
-      await client.signIn(userName.trim(), password);
-      onSignedIn();
+      const outcome = await client.signIn(userName.trim(), password);
+      setStep(outcome.twoFactorConfigured
+        ? { kind: 'challenge', challengeToken: outcome.challengeToken }
+        : { kind: 'setup', challengeToken: outcome.challengeToken });
     } catch (cause) {
       setError(describeApiError(cause, t, { 401: 'auth.error.invalid' }));
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function backToPassword() {
+    setPassword('');
+    setStep({ kind: 'password' });
+  }
+
+  if (step.kind === 'challenge') {
+    return (
+      <div className="pc-auth-shell">
+        <header className="top-command auth-top-command">
+          <div className="brand-block">
+            <BrandLogo className="brand-logo" />
+            <span>{t('shell.brand.section')}</span>
+          </div>
+        </header>
+        <main className="auth-workspace">
+          <TwoFactorChallenge
+            onSubmit={async code => { await client.twoFactor.verify(step.challengeToken, code); onSignedIn(); }}
+            onCancel={backToPassword}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (step.kind === 'setup') {
+    return (
+      <div className="pc-auth-shell">
+        <header className="top-command auth-top-command">
+          <div className="brand-block">
+            <BrandLogo className="brand-logo" />
+            <span>{t('shell.brand.section')}</span>
+          </div>
+        </header>
+        <main className="auth-workspace">
+          <TwoFactorSetup
+            client={client.twoFactor}
+            challengeToken={step.challengeToken}
+            onComplete={() => onSignedIn()}
+            onCancel={backToPassword}
+          />
+        </main>
+      </div>
+    );
   }
 
   return (

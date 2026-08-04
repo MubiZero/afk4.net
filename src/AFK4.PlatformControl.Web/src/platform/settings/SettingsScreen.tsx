@@ -5,9 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { Dialog } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { AdminsApi } from '@/api/platformClients/admins';
+import type { TwoFactorApi } from '@/api/platformClients/twoFactor';
 import type { PlatformAdminSession } from '@/auth/tokenStore';
 import type { PlatformAdminInvitation, PlatformAdminListItem } from '@/api/types';
 import { useAdmins } from './useAdmins';
@@ -21,12 +23,20 @@ import {
   roleLabelKey
 } from './adminsModel';
 
-export function SettingsScreen({ client, session }: { client: AdminsApi; session: PlatformAdminSession }) {
+type TwoFactorResetClient = Pick<TwoFactorApi, 'reset'>;
+
+export function SettingsScreen({ client, twoFactorClient, session }: {
+  client: AdminsApi;
+  twoFactorClient: TwoFactorResetClient;
+  session: PlatformAdminSession;
+}) {
   const { t, formatDate } = useI18n();
   const { toast } = useToast();
   const state = useAdmins(client);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<PlatformAdminInvitation | null>(null);
+  const [resetTarget, setResetTarget] = useState<PlatformAdminListItem | null>(null);
+  const [resetting, setResetting] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   function refresh() {
@@ -57,6 +67,21 @@ export function SettingsScreen({ client, session }: { client: AdminsApi; session
       toast({ title: describeAdminActionError(cause, t), variant: 'error' });
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function resetTwoFactor() {
+    if (resetTarget === null) return;
+    setResetting(true);
+    try {
+      await twoFactorClient.reset(resetTarget.platformAdminUserId);
+      toast({ title: t('platform.settings.resetTwoFactor.done'), variant: 'success' });
+      setResetTarget(null);
+      refresh();
+    } catch (cause) {
+      toast({ title: describeAdminActionError(cause, t), variant: 'error' });
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -145,6 +170,16 @@ export function SettingsScreen({ client, session }: { client: AdminsApi; session
                         >
                           {item.isActive ? t('platform.settings.action.disable') : t('platform.settings.action.enable')}
                         </Button>
+                        {item.twoFactorEnabled ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={busy}
+                            onClick={() => setResetTarget(item)}
+                          >
+                            {t('platform.settings.action.resetTwoFactor')}
+                          </Button>
+                        ) : null}
                       </span>
                     </TableCell>
                   </TableRow>
@@ -175,6 +210,18 @@ export function SettingsScreen({ client, session }: { client: AdminsApi; session
       </CardContent>
 
       <AdminInviteDialog open={inviteOpen} client={client} onOpenChange={setInviteOpen} onCreated={refresh} />
+
+      <ConfirmDialog
+        open={resetTarget !== null}
+        title={t('platform.settings.resetTwoFactor.title')}
+        description={t('platform.settings.resetTwoFactor.body')}
+        confirmLabel={t('platform.settings.resetTwoFactor.confirm')}
+        cancelLabel={t('common.cancel')}
+        destructive
+        pending={resetting}
+        onConfirm={() => void resetTwoFactor()}
+        onOpenChange={open => { if (!open) setResetTarget(null); }}
+      />
 
       <Dialog
         open={revokeTarget !== null}

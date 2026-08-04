@@ -14,10 +14,11 @@ describe('SettingsScreen', () => {
       }],
       listInvitations: async () => []
     };
+    const twoFactorClient = { reset: async () => {} };
 
     render(
       <I18nProvider><ToastProvider>
-        <SettingsScreen client={client as never} session={{ platformAdminId: 'me' } as never} />
+        <SettingsScreen client={client as never} twoFactorClient={twoFactorClient} session={{ platformAdminId: 'me' } as never} />
       </ToastProvider></I18nProvider>
     );
 
