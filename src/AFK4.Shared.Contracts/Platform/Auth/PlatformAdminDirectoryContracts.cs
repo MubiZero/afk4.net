@@ -46,7 +46,11 @@ public enum PlatformAdminDirectoryError
     // Generic "another concurrent change won the race, retry" outcome — NOT a claim about which
     // business rule was violated. A serializable-transaction conflict can abort either side of a
     // race, including one whose own change had nothing to do with LastFullAdmin, so it must not be
-    // reported as that specific business error. Add new values after this one; keep this last so
-    // this comment stays true.
-    Conflict
+    // reported as that specific business error.
+    Conflict,
+
+    // Requested invitation lifetime falls outside the allowed range (see
+    // PlatformAdminDirectoryService.MinInvitationLifetimeHours / MaxInvitationLifetimeHours).
+    // Add new values after this one; keep this last so the ordering comments above stay true.
+    InvalidInvitationLifetime
 }

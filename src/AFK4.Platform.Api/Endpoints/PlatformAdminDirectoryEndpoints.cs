@@ -311,6 +311,11 @@ internal static class PlatformAdminDirectoryEndpoints
             Error = "unknown_role",
             Message = "Requested role is not recognized."
         }),
+        PlatformAdminDirectoryError.InvalidInvitationLifetime => Results.BadRequest(new
+        {
+            Error = "invalid_invitation_lifetime",
+            Message = $"Invitation lifetime must be between {PlatformAdminDirectoryService.MinInvitationLifetimeHours} and {PlatformAdminDirectoryService.MaxInvitationLifetimeHours} hours."
+        }),
         PlatformAdminDirectoryError.LastFullAdmin => Results.Conflict(new
         {
             Error = "last_full_admin",

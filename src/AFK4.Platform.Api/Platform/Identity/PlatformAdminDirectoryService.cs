@@ -14,6 +14,12 @@ public sealed class PlatformAdminDirectoryService(PlatformDbContext dbContext, T
     private const string InvitationCodeAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
     private const int InvitationCodeLength = 32;
 
+    // Keeps invitation lifetimes sane: below the minimum an invitation could expire before it is
+    // even delivered, and above the maximum a large LifetimeHours value could overflow
+    // DateTimeOffset arithmetic and turn into an unhandled 500 instead of a clear validation error.
+    public const int MinInvitationLifetimeHours = 1;
+    public const int MaxInvitationLifetimeHours = 30 * 24;
+
     public async Task<IReadOnlyList<PlatformAdminListItem>> ListAsync(CancellationToken cancellationToken)
     {
         var admins = await dbContext.PlatformAdminUsers
@@ -42,6 +48,11 @@ public sealed class PlatformAdminDirectoryService(PlatformDbContext dbContext, T
         if (!PlatformAdminPermissionCatalog.IsKnownRole(request.Role))
         {
             return (null, PlatformAdminDirectoryError.UnknownRole);
+        }
+
+        if (request.LifetimeHours < MinInvitationLifetimeHours || request.LifetimeHours > MaxInvitationLifetimeHours)
+        {
+            return (null, PlatformAdminDirectoryError.InvalidInvitationLifetime);
         }
 
         var now = timeProvider.GetUtcNow();

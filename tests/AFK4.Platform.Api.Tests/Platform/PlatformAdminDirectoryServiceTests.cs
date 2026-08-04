@@ -74,6 +74,43 @@ public sealed class PlatformAdminDirectoryServiceTests
         Assert.DoesNotContain(response.Code, System.Text.Encoding.UTF8.GetString(stored.CodeHash));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(int.MaxValue)]
+    public async Task InvitationLifetime_OutOfRange_IsRejected(int lifetimeHours)
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var admin = await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var service = scope.ServiceProvider.GetRequiredService<PlatformAdminDirectoryService>();
+
+        var (response, error) = await service.InviteAsync(admin.PlatformAdminId,
+            new CreatePlatformAdminInvitationRequest(PlatformAdminRoleNames.PlatformSupport, lifetimeHours), CancellationToken.None);
+
+        Assert.Null(response);
+        Assert.Equal(PlatformAdminDirectoryError.InvalidInvitationLifetime, error);
+    }
+
+    [Theory]
+    [InlineData(PlatformAdminDirectoryService.MinInvitationLifetimeHours)]
+    [InlineData(PlatformAdminDirectoryService.MaxInvitationLifetimeHours)]
+    public async Task InvitationLifetime_AtBoundary_IsAccepted(int lifetimeHours)
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var admin = await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var service = scope.ServiceProvider.GetRequiredService<PlatformAdminDirectoryService>();
+
+        var (response, error) = await service.InviteAsync(admin.PlatformAdminId,
+            new CreatePlatformAdminInvitationRequest(PlatformAdminRoleNames.PlatformSupport, lifetimeHours), CancellationToken.None);
+
+        Assert.Equal(PlatformAdminDirectoryError.None, error);
+        Assert.NotNull(response);
+    }
+
     [Fact]
     public async Task UnknownRole_IsRejected()
     {
