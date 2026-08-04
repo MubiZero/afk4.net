@@ -153,16 +153,19 @@ public sealed class PlatformAdminDirectoryServiceTests
                 .WaitAsync(TimeSpan.FromSeconds(30));
 
             // Exactly one side must win (None) and the other must be denied. The loser's error is
-            // deliberately not pinned to one specific value: under the gate both transactions read
-            // the other admin as still active before either writes, so in practice Postgres's
-            // serializable isolation aborts the loser as a write-skew conflict (Conflict) rather than
-            // the app-level headcount check ever seeing a false count (LastFullAdmin) — but asserting
-            // either would be an honest, invariant-preserving outcome, and pinning to the DB-internal
-            // mechanics here would make the test fragile to something that isn't the actual contract.
-            // What must NOT happen, and is asserted below, is both sides succeeding.
+            // pinned to Conflict specifically, not a Conflict-or-LastFullAdmin disjunction: under the
+            // gate, both transactions read the other admin as still active before either writes, so
+            // the app-level headcount check (stillHasFullAdmin) sees true in BOTH and never blocks
+            // anything by itself — the only thing that can deny either side here is Postgres's
+            // serializable isolation aborting the write-skew at commit time, which the service maps
+            // to Conflict. The LastFullAdmin branch is unreachable in this specific, deterministic
+            // race, so asserting the disjunction would let a regression that maps serialization
+            // failures back to LastFullAdmin (the exact bug fixed in the previous round) slip through
+            // as a false green. If this assertion ever starts failing with LastFullAdmin, the race is
+            // not as deterministic as documented here — do not silently widen this back to a
+            // disjunction; investigate why the app-level check is winning the race instead.
             Assert.Single(results, result => result.Error == PlatformAdminDirectoryError.None);
-            Assert.Single(results, result =>
-                result.Error is PlatformAdminDirectoryError.Conflict or PlatformAdminDirectoryError.LastFullAdmin);
+            Assert.Single(results, result => result.Error == PlatformAdminDirectoryError.Conflict);
 
             await using var verifyDb = new PlatformDbContext(options);
             var admins = await verifyDb.PlatformAdminUsers.AsNoTracking().ToArrayAsync();
