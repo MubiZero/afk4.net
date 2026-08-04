@@ -77,8 +77,7 @@ namespace AFK4.Platform.Api.Data.Migrations
                     PlatformAdminUserId = table.Column<Guid>(type: "uuid", nullable: false),
                     TokenHash = table.Column<byte[]>(type: "bytea", nullable: false),
                     ExpiresAtUtc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    ConsumedAtUtc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    FailedAttempts = table.Column<int>(type: "integer", nullable: false)
+                    ConsumedAtUtc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {

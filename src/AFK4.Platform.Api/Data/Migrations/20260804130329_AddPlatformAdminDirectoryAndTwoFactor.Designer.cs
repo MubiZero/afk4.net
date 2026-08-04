@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AFK4.Platform.Api.Data.Migrations
 {
     [DbContext(typeof(PlatformDbContext))]
-    [Migration("20260804095547_AddPlatformAdminDirectoryAndTwoFactor")]
+    [Migration("20260804130329_AddPlatformAdminDirectoryAndTwoFactor")]
     partial class AddPlatformAdminDirectoryAndTwoFactor
     {
         /// <inheritdoc />
@@ -1848,9 +1848,6 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.Property<DateTimeOffset>("ExpiresAtUtc")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("FailedAttempts")
-                        .HasColumnType("integer");
 
                     b.Property<Guid>("PlatformAdminUserId")
                         .HasColumnType("uuid");

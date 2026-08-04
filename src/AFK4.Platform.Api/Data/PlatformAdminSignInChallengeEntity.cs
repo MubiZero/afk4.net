@@ -11,6 +11,4 @@ public sealed class PlatformAdminSignInChallengeEntity
     public DateTimeOffset ExpiresAtUtc { get; set; }
 
     public DateTimeOffset? ConsumedAtUtc { get; set; }
-
-    public int FailedAttempts { get; set; }
 }
