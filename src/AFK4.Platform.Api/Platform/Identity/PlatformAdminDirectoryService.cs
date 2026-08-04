@@ -255,7 +255,20 @@ public sealed class PlatformAdminDirectoryService(PlatformDbContext dbContext, T
         invitation.AcceptedAtUtc = now;
         invitation.AcceptedPlatformAdminUserId = admin.PlatformAdminUserId;
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (RelationalFailureClassifier.IsUniqueViolation(exception))
+        {
+            // The AnyAsync check above is read-then-write: two concurrent accepts requesting the
+            // same username can both pass it before either commits. The unique index on
+            // NormalizedUserName is what actually protects the data, so the loser must not surface
+            // as a raw 500 — map it to the exact same UserNameTaken outcome the read-time check
+            // would have produced, so the caller sees "pick another login", not "internal error".
+            dbContext.ChangeTracker.Clear();
+            return (null, PlatformAdminDirectoryError.UserNameTaken);
+        }
 
         return (admin, PlatformAdminDirectoryError.None);
     }

@@ -18,6 +18,19 @@ internal static class RelationalFailureClassifier
         return false;
     }
 
+    public static bool IsUniqueViolation(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static async Task RollbackIfActiveAsync(
         IDbContextTransaction transaction,
         CancellationToken cancellationToken)
