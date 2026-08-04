@@ -396,6 +396,30 @@ export interface PlatformBillingMetrics {
   overdueCount: number;
 }
 
+export interface PlatformAdminListItem {
+  platformAdminUserId: string;
+  userName: string;
+  displayName: string;
+  role: string;
+  isActive: boolean;
+  twoFactorEnabled: boolean;
+  lastSignInAtUtc: string | null;
+  createdAtUtc: string;
+}
+
+export interface PlatformAdminInvitation {
+  invitationId: string;
+  role: string;
+  status: string;
+  expiresAtUtc: string;
+  createdAtUtc: string;
+}
+
+export interface CreateInvitationResponse {
+  invitation: PlatformAdminInvitation;
+  code: string;
+}
+
 export type PulseAlertLevel = 'normal' | 'attention' | 'critical';
 
 export interface PulseAlert {
