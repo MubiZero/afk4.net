@@ -185,6 +185,7 @@ builder.Services.AddScoped<IPlatformAdminTokenService, OpaquePlatformAdminTokenS
 builder.Services.AddScoped<IPlatformAdminCredentialService, PasswordHashingPlatformAdminCredentialService>();
 builder.Services.AddScoped<IPlatformAdminContextAccessor, PlatformAdminContextAccessor>();
 builder.Services.AddScoped<PlatformAdminAuthorizationService>();
+builder.Services.AddScoped<PlatformAdminDirectoryService>();
 builder.Services.AddScoped<PlatformSupportAccessGrantService>();
 builder.Services.Configure<PlatformAdminBootstrapOptions>(
     builder.Configuration.GetSection(PlatformAdminBootstrapOptions.ConfigurationSection));
