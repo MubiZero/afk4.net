@@ -1,5 +1,23 @@
 import { it, expect, beforeEach } from 'bun:test';
-import { readSupportSession, writeSupportSession, clearSupportSession, redeemSupportTicket } from './supportSession';
+import {
+  readSupportSession,
+  writeSupportSession,
+  clearSupportSession,
+  redeemSupportTicket,
+  isSupportSessionExpired,
+  type SupportSession
+} from './supportSession';
+
+function sessionExpiringAt(expiresAtUtc: string): SupportSession {
+  return {
+    sessionToken: 's1',
+    organizationId: 'o1',
+    organizationName: 'Клуб',
+    reason: 'Смена не открывается',
+    expiresAtUtc,
+    writableAreas: []
+  };
+}
 
 beforeEach(() => sessionStorage.clear());
 
@@ -64,4 +82,13 @@ it('бросает понятную ошибку, когда билет уже �
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+it('считает сессию истёкшей строго по времени и при битом expiresAtUtc (fail-safe)', () => {
+  const now = Date.parse('2026-08-06T12:00:00Z');
+
+  expect(isSupportSessionExpired(sessionExpiringAt('2026-08-06T12:00:01Z'), now)).toBe(false);
+  expect(isSupportSessionExpired(sessionExpiringAt('2026-08-06T12:00:00Z'), now)).toBe(true);
+  expect(isSupportSessionExpired(sessionExpiringAt('2026-08-06T11:59:59Z'), now)).toBe(true);
+  expect(isSupportSessionExpired(sessionExpiringAt('not-a-date'), now)).toBe(true);
 });

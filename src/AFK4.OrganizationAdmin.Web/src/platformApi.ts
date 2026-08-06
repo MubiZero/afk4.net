@@ -1,5 +1,5 @@
 import { organizationAdminHeaders } from './organizationAdminCompatibility';
-import { readSupportSession } from './support/supportSession';
+import { readSupportSession, type SupportSession } from './support/supportSession';
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -154,21 +154,10 @@ export class PlatformApiClient {
     extraHeaders?: Record<string, string>
   ): Promise<Response> {
     const headers = new Headers(organizationAdminHeaders());
-    // A support session (platform staff impersonating the organization for a fixed window) has no
-    // staff access token at all — that's expected, not an error. It authenticates with its own grant
-    // header instead of `Authorization: Bearer`. Outside support mode, a missing token is still
-    // fatal: it means the caller is signed out and the request would otherwise reach the API
-    // unauthenticated.
     const supportSession = readSupportSession();
-    if (supportSession) {
-      headers.set('X-AFK4-Support-Access-Grant', supportSession.sessionToken);
-    } else {
-      const accessToken = await this.getAccessToken();
-      if (!accessToken) {
-        throw new Error('Operator access token is missing.');
-      }
-      headers.set('Authorization', `Bearer ${accessToken}`);
-    }
+    const accessToken = supportSession ? null : await this.getAccessToken();
+    const [headerName, headerValue] = resolveAuthHeader(supportSession, accessToken);
+    headers.set(headerName, headerValue);
     if (extraHeaders) {
       for (const [name, value] of Object.entries(extraHeaders)) {
         headers.set(name, value);
@@ -192,15 +181,9 @@ export class PlatformApiClient {
     // dictates it, and forcing one here would drop the multipart boundary.
     const headers = new Headers(organizationAdminHeaders());
     const supportSession = readSupportSession();
-    if (supportSession) {
-      headers.set('X-AFK4-Support-Access-Grant', supportSession.sessionToken);
-    } else {
-      const accessToken = await this.getAccessToken();
-      if (!accessToken) {
-        throw new Error('Operator access token is missing.');
-      }
-      headers.set('Authorization', `Bearer ${accessToken}`);
-    }
+    const accessToken = supportSession ? null : await this.getAccessToken();
+    const [headerName, headerValue] = resolveAuthHeader(supportSession, accessToken);
+    headers.set(headerName, headerValue);
 
     return await this.fetchImpl(this.buildUrl(path), {
       method,
@@ -208,6 +191,28 @@ export class PlatformApiClient {
       body
     });
   }
+}
+
+// Shared by fetchAuthorized/fetchAuthorizedRaw. Deliberately synchronous — both callers already
+// resolve `accessToken` (or skip resolving it) via their own single `await this.getAccessToken()`
+// before calling this, so wrapping the decision itself in an `async` method would add a second,
+// unnecessary microtask tick on every call and has previously broken timing-sensitive callers.
+//
+// A support session (platform staff impersonating the organization for a fixed window) has no
+// staff access token at all — that's expected, not an error. It authenticates with its own grant
+// header instead of `Authorization: Bearer`. Outside support mode, a missing token is still fatal:
+// it means the caller is signed out and the request would otherwise reach the API unauthenticated.
+function resolveAuthHeader(
+  supportSession: SupportSession | null,
+  accessToken: string | null
+): [name: string, value: string] {
+  if (supportSession) {
+    return ['X-AFK4-Support-Access-Grant', supportSession.sessionToken];
+  }
+  if (!accessToken) {
+    throw new Error('Operator access token is missing.');
+  }
+  return ['Authorization', `Bearer ${accessToken}`];
 }
 
 async function ensureSuccess(response: Response): Promise<void> {

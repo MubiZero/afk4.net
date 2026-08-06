@@ -6,6 +6,7 @@ import { OperatorThemeProvider } from './operatorTheme';
 import { getOperatorConfig } from './operatorConfig';
 import { redeemSupportTicket, writeSupportSession } from './support/supportSession';
 import { SupportAccessErrorScreen } from './support/SupportAccessErrorScreen';
+import { clearStoredSession } from './auth/staffSessionStore';
 import '@afk4/tokens/tokens.css';
 import './styles.css';
 
@@ -43,6 +44,11 @@ async function acceptSupportTicketIfPresent(): Promise<boolean> {
 
   try {
     const session = await redeemSupportTicket(getOperatorConfig().platformBaseUrl, ticket);
+    // A support session replaces a staff login in this tab, not layers on top of it — the
+    // transport already prefers the support grant header unconditionally, but leaving a stale
+    // staff session in storage would let it silently take over again the moment the support
+    // session is cleared/expires, well past whatever the support visit was scoped for.
+    clearStoredSession();
     writeSupportSession(session);
     return true;
   } catch {

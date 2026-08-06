@@ -16,6 +16,8 @@ import { ForgotPassword } from './ForgotPassword';
 import { WindowResizeHandles } from './WindowChrome';
 import { SignInScreen } from './SignInScreen';
 import { BlockedOrganizationScreen } from './BlockedOrganizationScreen';
+import { isSupportSessionExpired, readSupportSession } from './support/supportSession';
+import { SupportHomeScreen } from './support/SupportHomeScreen';
 import { PostAuthShiftGate } from './PostAuthShiftGate';
 import { ShellHeader } from './ShellHeader';
 import { WorkspaceRail } from './WorkspaceRail';
@@ -248,6 +250,16 @@ function AppInner() {
     setWorkspace('map');
     setStartSeatToken((value) => value + 1);
   };
+
+  // Support mode (platform staff impersonating this organization via a time-boxed grant, see
+  // support/supportSession.ts) is a self-contained app state, independent of the staff sign-in
+  // flow above — checked first and short-circuits everything else, staff auth included. Scoping
+  // which sections/branches/actions it can reach is deliberately not done here (follow-up task);
+  // this only needs to land the person somewhere real instead of stuck on the sign-in form.
+  const supportSession = readSupportSession();
+  if (supportSession !== null && !isSupportSessionExpired(supportSession)) {
+    return <SupportHomeScreen session={supportSession} />;
+  }
 
   if (blockedResolution !== null) {
     return (

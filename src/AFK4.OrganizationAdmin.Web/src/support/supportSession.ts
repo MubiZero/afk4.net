@@ -29,6 +29,13 @@ export function clearSupportSession(): void {
   sessionStorage.removeItem(KEY);
 }
 
+// Garbage/unparseable expiry is treated as already-expired (fail-safe) — same convention as
+// isAccessTokenExpired for the staff session.
+export function isSupportSessionExpired(session: SupportSession, nowMs: number = Date.now()): boolean {
+  const expiresAt = Date.parse(session.expiresAtUtc);
+  return Number.isNaN(expiresAt) || expiresAt <= nowMs;
+}
+
 // Публичный обмен: у клиента ещё нет ни staff-токена, ни сессии поддержки, поэтому это простой
 // fetch без PlatformApiClient (который требует токен на каждый вызов). Билет — секрет одноразового
 // действия: не логируем его и не кладём в сообщение об ошибке.
