@@ -25,6 +25,8 @@ Database snapshot identifier:
 Last successful restore rehearsal:
 Maintenance start / owner:
 Previous release SHA and image digests:
+Smoke account 2FA: PlatformAdmin and PlatformSupport TOTP already enrolled,
+  recovery codes saved outside the repository:
 ```
 
 Record immutable artifact identities, not mutable tags. Calculate the MSI hash
@@ -126,10 +128,12 @@ smoke organization:
 1. Complete Account Activation through `/account-activation` and
    `/api/account-activation/organization-owner`; verify it returns no browser
    staff session.
-2. Sign in a `PlatformAdmin` to Platform Control and verify organization
-   lifecycle access.
-3. Sign in a `PlatformSupport` and verify bounded support access plus denial of
-   platform-admin-only mutations.
+2. Sign in a `PlatformAdmin` to Platform Control, completing password sign-in
+   followed by TOTP verification (`POST /api/platform/auth/2fa/verify`) with
+   the pre-enrolled smoke account, and verify organization lifecycle access.
+3. Sign in a `PlatformSupport`, completing password sign-in followed by TOTP
+   verification with the pre-enrolled smoke account, and verify bounded
+   support access plus denial of platform-admin-only mutations.
 4. Sign in an `OrganizationOwner` to Organization Admin and verify
    organization-wide areas and one backend-confirmed safe action.
 5. Sign in an `Operator` and verify the floor-map day flow is available while

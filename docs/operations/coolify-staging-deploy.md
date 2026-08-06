@@ -102,7 +102,15 @@ Install__UpdatePackageSigningPublicKeyPem=<public PEM from deploy/coolify/stagin
 Cors__PlatformWebOrigins__0=https://platform.afk4.staging.mubi.dev
 ConnectionStrings__PlatformDatabase=<Coolify PostgreSQL connection string>
 Sessions__SigningPrivateKeyPem=<Coolify secret PEM>
+SupportAccess__OrganizationAdminBaseUrl=<Organization Admin base URL for this environment>
 ```
+
+`SupportAccess__OrganizationAdminBaseUrl` is required in every environment; the
+API builds the support-mode sign-in link from it. The `appsettings.json`
+default is empty, and an empty value makes the API build a relative link that
+opens inside the Platform Control origin instead of Organization Admin, so
+support sign-in silently fails. See `docs/runbooks/support-mode.md` for
+details.
 
 The `Install__*` entries are returned by `/api/install/enroll` and then written
 by the Setup Wizard into Agent machine environment variables. If
