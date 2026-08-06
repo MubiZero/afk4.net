@@ -841,6 +841,10 @@ git commit -m "feat(platform): аудит под поддержкой указы
         var offenders = dataSource.Endpoints
             .OfType<RouteEndpoint>()
             .Where(endpoint => endpoint.Metadata.GetMetadata<PlatformSupportAccessMetadata>() is not null)
+            // Только эндпоинты клуба: управление самой сессией поддержки живёт вне домена
+            // организации и белым списком областей клуба не описывается.
+            .Where(endpoint => endpoint.Metadata.GetMetadata<AuthenticationDomainMetadata>()?.Domain
+                == AuthenticationDomain.Organization)
             .Where(endpoint => endpoint.Metadata.GetMetadata<HttpMethodMetadata>() is { } methods
                 && !methods.HttpMethods.Contains(HttpMethods.Get))
             .Where(endpoint => !WritableRoutePrefixes.Any(prefix =>
@@ -871,6 +875,8 @@ git commit -m "feat(platform): аудит под поддержкой указы
         var offenders = dataSource.Endpoints
             .OfType<RouteEndpoint>()
             .Where(endpoint => endpoint.Metadata.GetMetadata<PlatformSupportAccessMetadata>() is not null)
+            .Where(endpoint => endpoint.Metadata.GetMetadata<AuthenticationDomainMetadata>()?.Domain
+                == AuthenticationDomain.Organization)
             .Select(endpoint => endpoint.RoutePattern.RawText!)
             .Where(route => forbidden.Any(fragment => route.Contains(fragment, StringComparison.OrdinalIgnoreCase)))
             .ToList();
