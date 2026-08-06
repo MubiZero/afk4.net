@@ -149,7 +149,8 @@ internal static class StaffEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchStaff);
 
         app.MapPatch("branches/{branchId:guid}/staff/{staffUserId:guid}/roles", async (
             Guid branchId,

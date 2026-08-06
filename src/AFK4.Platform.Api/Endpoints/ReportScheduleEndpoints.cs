@@ -171,7 +171,8 @@ internal static class ReportScheduleEndpoints
                 cancellationToken);
 
             return Results.Ok(schedules);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
         app.MapDelete("branches/{branchId:guid}/report-schedules/{scheduleId:guid}", async (
             Guid branchId,

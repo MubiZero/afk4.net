@@ -135,7 +135,8 @@ internal static class BranchProfileLayoutEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchSettings);
 
         app.MapPatch("branches/{branchId:guid}/profile", async (
             Guid branchId,
@@ -295,7 +296,8 @@ internal static class BranchProfileLayoutEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageLayout);
 
         app.MapPost("branches/{branchId:guid}/layout/zones", async (
             Guid branchId,

@@ -139,6 +139,9 @@ internal static class ReportEndpoints
 
             return Results.Ok(result);
         });
+        // Не помечено AllowPlatformSupportAccess: маршрут содержит "/shifts" и ловится
+        // денежным guard-тестом (PlatformSupportAllowlist_NeverCoversMoneyEndpoints) как
+        // совпадение с фрагментом запрета для смен/кассы.
 
         app.MapGet("branches/{branchId:guid}/reports/sales", async (
             Guid branchId,
@@ -203,7 +206,8 @@ internal static class ReportEndpoints
                 cancellationToken);
 
             return Results.Ok(result);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
         app.MapGet("branches/{branchId:guid}/reports/gameplay-time", async (
             Guid branchId,
@@ -268,7 +272,8 @@ internal static class ReportEndpoints
                 cancellationToken);
 
             return Results.Ok(result);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
         app.MapGet("branches/{branchId:guid}/reports/cash-operations", async (
             Guid branchId,
@@ -333,7 +338,8 @@ internal static class ReportEndpoints
                 cancellationToken);
 
             return Results.Ok(result);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
         app.MapGet("branches/{branchId:guid}/reports/operator-actions", async (
             Guid branchId,
@@ -404,7 +410,8 @@ internal static class ReportEndpoints
                 cancellationToken);
 
             return Results.Ok(result);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
         // Anti-fraud §5.6: on-demand owner daily summary (the report-endpoint fallback to the notification
         // digest). Defaults to the most recently ended UTC day when no date is given.
@@ -468,7 +475,8 @@ internal static class ReportEndpoints
                 cancellationToken);
 
             return Results.Ok(result);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
         app.MapGet("branches/{branchId:guid}/reports/shifts/export.csv", async (
             Guid branchId,
@@ -496,6 +504,8 @@ internal static class ReportEndpoints
                 ReportCsvExporter.ExportShiftReport,
                 cancellationToken);
         });
+        // Не помечено AllowPlatformSupportAccess: маршрут содержит "/shifts" и ловится
+        // денежным guard-тестом как совпадение с фрагментом запрета для смен/кассы.
 
         app.MapGet("branches/{branchId:guid}/reports/sales/export.csv", async (
             Guid branchId,
@@ -522,7 +532,8 @@ internal static class ReportEndpoints
                     service.GetSalesReportAsync(organizationId, scopedBranchId, query, token),
                 ReportCsvExporter.ExportSalesReport,
                 cancellationToken);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
         app.MapGet("branches/{branchId:guid}/reports/gameplay-time/export.csv", async (
             Guid branchId,
@@ -549,7 +560,8 @@ internal static class ReportEndpoints
                     service.GetGameplayTimeReportAsync(organizationId, scopedBranchId, query, token),
                 ReportCsvExporter.ExportGameplayTimeReport,
                 cancellationToken);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
         app.MapGet("branches/{branchId:guid}/reports/cash-operations/export.csv", async (
             Guid branchId,
@@ -576,7 +588,8 @@ internal static class ReportEndpoints
                     service.GetCashOperationReportAsync(organizationId, scopedBranchId, query, token),
                 ReportCsvExporter.ExportCashOperationReport,
                 cancellationToken);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
         app.MapGet("branches/{branchId:guid}/reports/operator-actions/export.csv", async (
             Guid branchId,
@@ -609,7 +622,8 @@ internal static class ReportEndpoints
                 actorStaffUserId,
                 minAmountMinorUnits,
                 maxAmountMinorUnits);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
     }
 }

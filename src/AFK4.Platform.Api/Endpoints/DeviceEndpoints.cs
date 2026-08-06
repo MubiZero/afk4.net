@@ -611,7 +611,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(devices);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDeviceDetail);
 
         organizations.MapGet("branches/{branchId:guid}/devices/pending", async (
             Guid branchId,
@@ -643,7 +644,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(devices);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDeviceDetail);
 
         organizations.MapGet("devices/{deviceId:guid}", async (
             Guid deviceId,
@@ -742,7 +744,8 @@ internal static class DeviceEndpoints
                 DisplayName: string.IsNullOrWhiteSpace(device.DisplayName) ? device.MachineName : device.DisplayName,
                 Role: device.Role,
                 EnrollmentState: device.EnrollmentState));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDeviceDetail);
 
         organizations.MapPost("devices/{deviceId:guid}/approve", async (
             Guid deviceId,
@@ -1489,7 +1492,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(commands);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDeviceCommandStatus);
 
         organizations.MapGet("branches/{branchId:guid}/device-commands", async (
             Guid branchId,
@@ -1570,7 +1574,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(commands);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDeviceCommandStatus);
 
         organizations.MapGet("devices/{deviceId:guid}/commands/{commandId:guid}/status", async (
             Guid deviceId,
@@ -1646,7 +1651,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(status);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDeviceCommandStatus);
 
         organizations.MapPost("devices/{deviceId:guid}/credentials/rotate", async (
             Guid deviceId,

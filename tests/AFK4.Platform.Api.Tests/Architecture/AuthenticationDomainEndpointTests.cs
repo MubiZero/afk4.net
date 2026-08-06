@@ -28,24 +28,74 @@ public sealed class AuthenticationDomainEndpointTests
                 StringComparison.Ordinal));
     }
 
-    [Fact]
-    public async Task PlatformSupportAllowlist_ContainsOnlyReadOnlyOrganizationEndpoints()
+    // Запись под режимом поддержки разрешена ровно в этих областях. Список намеренно
+    // дублирует спеку: если кто-то пометит денежный эндпоинт «за компанию», тест назовёт его
+    // поимённо, а не промолчит.
+    private static readonly HashSet<string> WritableRoutePrefixes = new(StringComparer.OrdinalIgnoreCase)
     {
-        await using var factory = new PlatformApiFactory();
-        _ = factory.CreateClient();
-        var endpoints = factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
+        "/api/organizations/{organizationId:guid}/branches/{branchId:guid}/settings",
+        "/api/organizations/{organizationId:guid}/branches/{branchId:guid}/floor-map",
+        "/api/organizations/{organizationId:guid}/branches/{branchId:guid}/profile",
+        "/api/organizations/{organizationId:guid}/branches/{branchId:guid}/layout",
+        "/api/organizations/{organizationId:guid}/branches/{branchId:guid}/staff",
+        "/api/organizations/{organizationId:guid}/branches/{branchId:guid}/devices",
+        "/api/organizations/{organizationId:guid}/devices",
+        "/api/organizations/{organizationId:guid}/branches/{branchId:guid}/device-enrollment-codes"
+    };
+
+    [Fact]
+    public void PlatformSupportAllowlist_AllowsWritesOnlyInDeclaredAreas()
+    {
+        using var factory = new PlatformApiFactory();
+        using var _ = factory.CreateClient();
+        var dataSource = factory.Services.GetRequiredService<EndpointDataSource>();
+
+        var offenders = dataSource.Endpoints
             .OfType<RouteEndpoint>()
             .Where(endpoint => endpoint.Metadata.GetMetadata<PlatformSupportAccessMetadata>() is not null)
-            .ToArray();
+            // Только эндпоинты клуба: управление самой сессией поддержки живёт вне домена
+            // организации и белым списком областей клуба не описывается.
+            .Where(endpoint => endpoint.Metadata.GetMetadata<AuthenticationDomainMetadata>()?.Domain
+                == AuthenticationDomain.Organization)
+            .Where(endpoint => endpoint.Metadata.GetMetadata<HttpMethodMetadata>() is { } methods
+                && !methods.HttpMethods.Contains(HttpMethods.Get))
+            .Where(endpoint => !WritableRoutePrefixes.Any(prefix =>
+                endpoint.RoutePattern.RawText!.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)))
+            .Select(endpoint => endpoint.RoutePattern.RawText!)
+            .ToList();
 
-        Assert.NotEmpty(endpoints);
-        Assert.All(endpoints, endpoint =>
-        {
-            Assert.Equal(AuthenticationDomain.Organization,
-                endpoint.Metadata.GetMetadata<AuthenticationDomainMetadata>()?.Domain);
-            Assert.Contains("GET", endpoint.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods);
-            Assert.StartsWith("/api/", endpoint.RoutePattern.RawText);
-        });
+        Assert.True(
+            offenders.Count == 0,
+            "Запись под режимом поддержки разрешена только в объявленных областях, "
+                + $"а помечены ещё и эти: {string.Join(", ", offenders)}");
+    }
+
+    [Fact]
+    public void PlatformSupportAllowlist_NeverCoversMoneyEndpoints()
+    {
+        using var factory = new PlatformApiFactory();
+        using var _ = factory.CreateClient();
+        var dataSource = factory.Services.GetRequiredService<EndpointDataSource>();
+
+        string[] forbidden =
+        [
+            "/pos/", "/wallet/", "/money-actions", "/shifts", "/packages",
+            "/dc-topups", "/payments/eskhata", "/shop/orders", "/loyalty",
+            "/sessions", "/reservations", "/tariffs"
+        ];
+
+        var offenders = dataSource.Endpoints
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<PlatformSupportAccessMetadata>() is not null)
+            .Where(endpoint => endpoint.Metadata.GetMetadata<AuthenticationDomainMetadata>()?.Domain
+                == AuthenticationDomain.Organization)
+            .Select(endpoint => endpoint.RoutePattern.RawText!)
+            .Where(route => forbidden.Any(fragment => route.Contains(fragment, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        Assert.True(
+            offenders.Count == 0,
+            $"Денежные эндпоинты не открываются поддержке ни на чтение, ни на запись: {string.Join(", ", offenders)}");
     }
 
     [Fact]

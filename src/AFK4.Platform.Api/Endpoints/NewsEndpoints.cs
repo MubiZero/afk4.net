@@ -24,7 +24,8 @@ internal static class NewsEndpoints
 
             var items = await news.ListForOwnerAsync(authorization.StaffContext!.OrganizationId, ct);
             return Results.Ok(items);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageNews);
 
         app.MapGet("branches", async (
             StaffAuthorizationService authorizationService,
@@ -41,7 +42,8 @@ internal static class NewsEndpoints
                 .Select(branch => new OwnerBranchSummaryDto(branch.BranchId, branch.Name))
                 .ToListAsync(ct);
             return Results.Ok(branches);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewBranches);
 
         app.MapPost("news", async (
             CreateNewsItemRequest request,

@@ -37,6 +37,9 @@ internal static class EskhataConfigEndpoints
                     !string.IsNullOrEmpty(row.HashKeyEncrypted),
                     row.Status));
         });
+        // Не помечено AllowPlatformSupportAccess: маршрут содержит "/payments/eskhata" и
+        // ловится денежным guard-тестом (PlatformSupportAllowlist_NeverCoversMoneyEndpoints)
+        // как совпадение с фрагментом запрета для Eskhata-платежей.
 
         app.MapPost("payments/eskhata-config", async (
             UpdateEskhataMerchantConfigRequest request,

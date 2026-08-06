@@ -34,7 +34,8 @@ internal static class DcConfigEndpoints
                     row.CardLast4,
                     row.CommentTemplate,
                     row.IsActive));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManagePaymentGateways);
 
         app.MapPost("payments/dc-config", async (
             UpdateDcPayLinkConfigRequest request,
