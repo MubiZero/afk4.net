@@ -1,3 +1,4 @@
+using System.Data;
 using System.Security.Cryptography;
 using AFK4.Platform.Api.Configuration;
 using AFK4.Platform.Api.Data;
@@ -135,8 +136,42 @@ public sealed class PlatformSupportAccessGrantService(
             return null;
         }
 
-        var now = timeProvider.GetUtcNow();
         var ticketHash = Hash(ticket);
+        var sessionToken = GenerateSecret();
+
+        var grant = await ExecuteInSerializableTransactionAsync(
+            () => TryClaimTicketAsync(ticketHash, sessionToken, cancellationToken),
+            cancellationToken);
+
+        if (grant is null)
+        {
+            return null;
+        }
+
+        var organization = await dbContext.Organizations
+            .AsNoTracking()
+            .SingleAsync(candidate => candidate.OrganizationId == grant.OrganizationId, cancellationToken);
+
+        return new PlatformSupportSessionDto(
+            sessionToken,
+            grant.OrganizationId,
+            organization.Name,
+            grant.Reason,
+            grant.ExpiresAtUtc,
+            PlatformSupportWritableAreas.All);
+    }
+
+    // Read-then-write on the SAME row two concurrent redemptions target. Under Postgres SERIALIZABLE
+    // (see ExecuteInSerializableTransactionAsync), the second transaction to attempt the UPDATE blocks
+    // on the first's row lock and, once the first commits, is aborted with a serialization failure
+    // instead of silently overwriting TicketUsedAtUtc/SessionTokenHash — so exactly one caller ever
+    // gets a non-null grant back for a given ticket.
+    private async Task<PlatformSupportAccessGrantEntity?> TryClaimTicketAsync(
+        byte[] ticketHash,
+        string sessionToken,
+        CancellationToken cancellationToken)
+    {
+        var now = timeProvider.GetUtcNow();
         var grant = await dbContext.PlatformSupportAccessGrants
             .SingleOrDefaultAsync(
                 candidate => candidate.TicketHash == ticketHash
@@ -150,22 +185,39 @@ public sealed class PlatformSupportAccessGrantService(
             return null;
         }
 
-        var sessionToken = GenerateSecret();
         grant.TicketUsedAtUtc = now;
         grant.SessionTokenHash = Hash(sessionToken);
         await dbContext.SaveChangesAsync(cancellationToken);
+        return grant;
+    }
 
-        var organization = await dbContext.Organizations
-            .AsNoTracking()
-            .SingleAsync(candidate => candidate.OrganizationId == grant.OrganizationId, cancellationToken);
+    // Same shape as PlatformAdminDirectoryService.ExecuteInSerializableTransactionAsync: the InMemory
+    // provider used by most tests has no transactions or snapshot isolation and never observes a
+    // concurrent save, so there's nothing to wrap there. Against real Postgres, a losing concurrent
+    // transaction surfaces as a serialization failure, which is mapped to "ticket already used" (null)
+    // rather than an unhandled exception.
+    private async Task<PlatformSupportAccessGrantEntity?> ExecuteInSerializableTransactionAsync(
+        Func<Task<PlatformSupportAccessGrantEntity?>> action,
+        CancellationToken cancellationToken)
+    {
+        if (!dbContext.Database.IsRelational())
+        {
+            return await action();
+        }
 
-        return new PlatformSupportSessionDto(
-            sessionToken,
-            grant.OrganizationId,
-            organization.Name,
-            grant.Reason,
-            grant.ExpiresAtUtc,
-            PlatformSupportWritableAreas.All);
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
+        try
+        {
+            var result = await action();
+            await transaction.CommitAsync(cancellationToken);
+            return result;
+        }
+        catch (Exception exception) when (RelationalFailureClassifier.IsSerializationFailure(exception))
+        {
+            await RelationalFailureClassifier.RollbackIfActiveAsync(transaction, cancellationToken);
+            dbContext.ChangeTracker.Clear();
+            return null;
+        }
     }
 
     public async Task<PlatformSupportContext?> AuthenticateSessionAsync(
