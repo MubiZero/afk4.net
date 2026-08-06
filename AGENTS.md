@@ -94,6 +94,12 @@ Use the narrowest fresh verification that proves the change.
 - Full solution build/test is required before push/merge/release validation or
   when shared infrastructure, migrations, packaging, or cross-application
   contracts changed.
+- CI (`pr-verification.yml`) runs a dedicated `test-postgres` job against a
+  real PostgreSQL service container on every relevant PR, with
+  `AFK4_REQUIRE_POSTGRES_TESTS=1` set so a silently skipped Postgres-backed
+  test fails the build instead of passing quietly. Do not rely on a local run
+  where those tests skipped for lack of a connection string as proof of a
+  passing PR.
 
 ## Progress And Docs Hygiene
 

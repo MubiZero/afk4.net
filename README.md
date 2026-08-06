@@ -64,8 +64,18 @@ reconciliation. PostgreSQL persistence is implemented with EF Core migrations.
 The platform-owner surface is the internal browser-based Platform Control for
 organization provisioning, first branch setup, owner invites,
 subscription/status controls, organization health, support notes, and
-suspend/reactivate actions. Its backend endpoints should live behind a
-separate platform-admin authorization boundary, not branch staff tokens.
+suspend/reactivate actions. Its backend endpoints live behind a separate
+platform-admin authorization boundary, not branch staff tokens. Sign-in is a
+two-step flow: password, then a TOTP code from an authenticator app, with
+one-time recovery codes for lost devices. A Settings section lets a full
+platform admin manage other platform staff: invite by code, change role,
+disable access, and reset a colleague's two-factor setup; self-demotion and
+disabling the last active full admin are both blocked. Support mode lets
+platform staff open a time-boxed, reason-required session inside an
+organization's admin app to help with configuration, with read access almost
+everywhere but write access limited to a handful of non-money areas and every
+action logged to the organization's own audit trail; see
+[Support Mode](docs/runbooks/support-mode.md).
 
 ### Organization Admin
 
@@ -113,6 +123,8 @@ trusted authority for sessions, billing, or authorization.
   and Shell.
 - `src/AFK4.Update.Publisher` - CLI for publishing update artifacts and signed
   package metadata.
+- `packages/ui` (`@afk4/ui`) - shared web UI layer (styles, layout primitives)
+  used by both Platform Control and Organization Admin's React frontends.
 
 ## Local Requirements
 

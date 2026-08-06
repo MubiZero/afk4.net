@@ -1,6 +1,6 @@
 # AFK4 Production Readiness Roadmap
 
-Last updated: 2026-07-14
+Last updated: 2026-08-06
 
 ## Purpose
 
@@ -9,7 +9,7 @@ It is intentionally operational: infrastructure, release gates, security,
 backups, device validation, and pilot readiness. Keep it gate-level; detailed
 run history belongs in the progress snapshot or archive notes.
 
-> **Status note (2026-07-14):** the product/feature side has moved far beyond
+> **Status note (2026-08-06):** the product/feature side has moved far beyond
 > the pilot bar — the full Platform Control redesign, SP3 platform administration +
 > SaaS billing, the entire SP4 wave (counter-loop, anti-fraud, offline,
 > customer portal/shell, notifications, localization, realtime), the dcgate
@@ -20,8 +20,20 @@ run history belongs in the progress snapshot or archive notes.
 > (shop, loyalty/cashback, news/banners) — together with multi-tenant dcgate
 > payments (now on a shared AFK4 Telegram app: owners supply phone + OTP only),
 > shift-revenue reporting, branch-timezone-aware business-day rollup, and real
-> PNG PWA icons. What remains for production is mostly the operational gates
-> below (backups ownership, Authenticode/signing custody, production
+> PNG PWA icons. Since then, wave A of the platform-admin gap closure also
+> landed: Platform Control was rebuilt around a fleet-pulse home screen
+> (network → clubs → signal rows, replacing the old registry-style screens)
+> with the shared visual layer split out into `@afk4/ui`; a platform staff
+> directory now lets a full platform admin invite, re-role, disable, and
+> reset the two-factor setup of other platform staff; sign-in for every
+> platform role now requires TOTP two-factor with recovery codes; and support
+> mode lets platform staff open a time-boxed, reason-required, read-mostly
+> session inside an organization's admin app, with money surfaces fully
+> excluded and every action journaled to the organization's own audit log.
+> CI now also runs a dedicated PostgreSQL-backed test job on every PR (not
+> just against main), and a silent skip of those tests fails the build instead
+> of passing quietly. What remains for production is mostly the operational
+> gates below (backups ownership, Authenticode/signing custody, production
 > object-store/CDN, physical Windows smoke, secret hygiene) plus, for the
 > payments money-path, an external blocker: the DC bank bot stopped delivering
 > deposit notifications, so the real payment → webhook → wallet-credit step is
@@ -84,6 +96,10 @@ Minimum bar:
 - Internal Platform Control exists for platform-owner organization onboarding,
   subscription/status controls, owner invites, organization health, support notes,
   and suspend/reactivate.
+- Platform Control sign-in requires two-factor authentication for every
+  platform role, platform staff access (invites, roles, disable, 2FA reset) is
+  itself managed and audited, and cross-organization support access is
+  time-boxed, reason-required, and excluded from money surfaces.
 - Operational monitoring and support diagnostics are actionable.
 
 ## Critical Path To Pilot Production
@@ -132,7 +148,15 @@ Minimum bar:
    the six HTTP PUT artifact URI inputs with one JSON input; `actionlint` and
    focused release-automation tests passed locally. Later `Package Smoke` runs
    are green, but a successful remote manual `Client Packages` dispatch is not
-   yet recorded.
+   yet recorded. `pr-verification.yml` now runs on every pull request
+   regardless of target branch, not only PRs into `main`, so work landing on a
+   long-lived branch first is still checked. It also runs a dedicated
+   `test-postgres` job on `ubuntu-latest` against a `postgres:16` service
+   container, since the Windows job cannot host Postgres-backed tests and GitHub
+   service containers are Linux-only. That job sets
+   `AFK4_REQUIRE_POSTGRES_TESTS=1`, which turns a silent skip of
+   Postgres-dependent tests (for example from a missing connection string) into
+   a failed build instead of a quietly green one.
 
 4. **Windows Endpoint Smoke**
 
@@ -238,14 +262,19 @@ Minimum bar:
 - Production hosting provider and deployment topology are not selected for
   commercial production.
 - Production environments are not codified.
-- Internal Platform Control and no-DB-edit organization provisioning are partially
-  implemented and smoke-tested in staging for platform-admin organization creation,
-  owner invites, organization status, support notes, and health. The customer SPA
-  host is deployed, and the Windows SetupWizard/single Agent MSI path has
-  Windows 11 VM evidence through Agent `0.1.29`. The legacy bootstrap/
-  coordinated gaming-PC MSI path is retired from the default publishing flow;
-  remaining onboarding evidence is any strict `manager_workstation` role smoke
-  not yet captured.
+- Internal Platform Control and no-DB-edit organization provisioning are
+  implemented and smoke-tested in staging for platform-admin organization
+  creation, owner invites, organization status, support notes, and health.
+  Platform Control now also covers mandatory TOTP two-factor sign-in for every
+  platform role (with recovery codes and admin-driven reset), a platform staff
+  directory (invite, re-role, disable) restricted to full admins, and
+  time-boxed reason-required support-mode access into an organization's admin
+  app with money surfaces excluded and actions journaled to the organization's
+  audit log. The customer SPA host is deployed, and the Windows
+  SetupWizard/single Agent MSI path has Windows 11 VM evidence through Agent
+  `0.1.29`. The legacy bootstrap/coordinated gaming-PC MSI path is retired
+  from the default publishing flow; remaining onboarding evidence is any
+  strict `manager_workstation` role smoke not yet captured.
 - Coolify-first staging is deployed and smoke-tested on
   `afk4.staging.mubi.dev`; staging API/database/session secrets were rotated
   after the rehearsal. A GitHub Actions workflow now automates ordinary staging
@@ -281,6 +310,9 @@ Minimum bar:
   upload automation are undecided.
 - Update package registration currently supports short-lived staff tokens;
   service credential policy is still open.
+- `SupportAccess:OrganizationAdminBaseUrl` (the Organization Admin origin
+  support-mode links are built against) must be set per environment; it
+  defaults to empty in `appsettings.json`.
 
 ### Agent And Windows Runtime
 

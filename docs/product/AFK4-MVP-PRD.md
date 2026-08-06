@@ -59,7 +59,10 @@ Primary needs:
 - set plan, subscription status, and operational limits;
 - suspend or reactivate organizations safely;
 - inspect organization health, deployment state, and recent support-relevant errors;
-- perform and review audited support actions.
+- perform and review audited support actions;
+- manage fellow platform staff — invite, assign role, disable access — without
+  editing the database directly;
+- reset a colleague's second factor when they lose their authenticator device.
 
 ### Organization Owner
 
@@ -211,7 +214,9 @@ The first MVP intentionally excludes:
 
 ### Journey 1: Provision A New Organization
 
-1. Platform Admin signs in to Platform Control.
+1. Platform Admin signs in to Platform Control with a password, then confirms
+   a time-based one-time code from an authenticator app before reaching the
+   platform workspace.
 2. Platform Admin creates an organization and first branch with stable slugs.
 3. Platform Admin selects plan/subscription status and initial operational
    limits.
@@ -436,6 +441,22 @@ Success criteria:
 - Suspended organizations must be blocked from new money, POS, session, device
   enrollment, and rollout mutations while preserving support/report reads.
 - Customer day-to-day operational work remains in the native Organization Admin.
+- Platform Control sign-in must require a second factor (authenticator-app
+  code) after password for every platform role, with one-time recovery codes
+  issued at setup and an admin-driven reset path for a colleague who loses
+  their device.
+- Platform Control must let an authorized full admin manage platform staff
+  access: invite by code, assign role, and disable access, without direct
+  database edits. A platform admin must not be able to demote or disable their
+  own account, and the last active full admin must not be demotable or
+  disableable.
+- Platform Control must support a time-boxed, reason-required support mode
+  that lets platform staff open a session inside a specific organization's
+  admin app to help with configuration. Support-mode sessions must default to
+  read access, allow writes only in a narrow, explicitly allowed set of
+  operational areas, exclude money-related areas entirely, and record every
+  action to the organization's own audit trail with the acting platform admin,
+  grant, and reason attached.
 
 ### Club Layout And Device Management
 
@@ -717,7 +738,17 @@ must be covered by architecture, tests, and review.
 Platform-admin capability crosses organization boundaries by design. Platform
 Control must keep platform-admin identity, staff identity, support actions,
 organization status changes, and support notes separated and audited so AFK4 can
-manage customers without creating hidden database-side operations.
+manage customers without creating hidden database-side operations. The
+implemented boundary for cross-organization access is support mode: a
+platform admin requests a grant against one organization with a required
+reason and a capped duration, redeems a one-time, short-lived access ticket to
+open a session inside that organization's admin app, gets read access across
+the app but write access limited to a small allowed set of operational areas
+(branch settings, devices, staff, floor map, branch profile), is excluded from
+every money-related area, and has each action in the session written to the
+organization's own audit log alongside the platform admin's identity, the
+grant, and the stated reason — rather than platform admins holding standing
+credentials inside customer organizations.
 
 ### Update Safety
 
