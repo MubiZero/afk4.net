@@ -151,6 +151,21 @@ export interface OrganizationSupportNote {
   createdAtUtc: string;
 }
 
+export interface SupportAccessGrant {
+  grantId: string;
+  organizationId: string;
+  reason: string;
+  issuedAtUtc: string;
+  expiresAtUtc: string;
+  revokedAtUtc: string | null;
+}
+
+export interface SupportAccessGrantIssue {
+  grant: SupportAccessGrant;
+  ticket: string;
+  adminUrl: string;
+}
+
 export interface PlatformUpdatePackage {
   updatePackageId: string;
   component: string;

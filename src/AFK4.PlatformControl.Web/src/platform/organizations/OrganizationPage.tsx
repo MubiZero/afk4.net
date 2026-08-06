@@ -15,6 +15,7 @@ import { OrganizationLimitsSection } from './OrganizationLimitsSection';
 import { OrganizationOwnerInvitesSection } from './OrganizationOwnerInvitesSection';
 import { OrganizationStatusSection } from './OrganizationStatusSection';
 import { OrganizationSupportNotesSection } from './OrganizationSupportNotesSection';
+import { SupportAccessSection } from './SupportAccessSection';
 import { OrganizationUpdateChannelSection } from './OrganizationUpdateChannelSection';
 import { OrganizationHistoryTab } from './OrganizationHistoryTab';
 
@@ -107,6 +108,7 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
               <>
                 {access.canManageAccess ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationOwnerInvitesSection client={client.organizationOwnerInvites} organizationId={organizationId} branches={organization.branches} initialInvite={initialInvite} /></TabBoundary> : null}
                 {access.canViewSupport ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationSupportNotesSection client={client.supportNotes} organizationId={organizationId} /></TabBoundary> : null}
+                {access.canViewSupport ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><SupportAccessSection client={client.supportAccess} organizationId={organizationId} /></TabBoundary> : null}
               </>
             ) : null}
             {tab === 'history' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationHistoryTab client={client.audit} organizationId={organizationId} /></TabBoundary> : null}
