@@ -127,18 +127,6 @@ internal static class BranchSettingsEndpoints
                 branch.RequireManualDeviceApproval,
                 branch.PreferredLocale);
 
-            await WriteAuditAsync(
-                auditRecordWriter,
-                organizationId,
-                branchId,
-                authorization.StaffContext.StaffUserId,
-                AuditActionNames.ViewBranchSettings,
-                "BranchSettings",
-                branchId.ToString("D"),
-                AuditOutcome.Succeeded,
-                new { },
-                cancellationToken);
-
             return Results.Ok(response);
         })
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchSettings);
