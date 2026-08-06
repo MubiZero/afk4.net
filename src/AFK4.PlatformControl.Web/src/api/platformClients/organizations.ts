@@ -4,6 +4,7 @@ import type {
   CreateOrganizationResponse,
   OrganizationDetail,
   OrganizationHealth,
+  OrganizationOwnerInvite,
   OrganizationSummary
 } from '../types';
 
@@ -40,5 +41,38 @@ export class OrganizationsApi {
 
   public getHealth(organizationId: string): Promise<OrganizationHealth> {
     return this.transport.send<OrganizationHealth>('GET', `/api/platform/organizations/${organizationId}/health`);
+  }
+
+  public updateProfile(
+    organizationId: string,
+    request: { name: string; contactEmail: string | null; contactPhone: string | null; legalDetails: string | null }
+  ): Promise<OrganizationDetail> {
+    return this.transport.send<OrganizationDetail>(
+      'PATCH',
+      `/api/platform/organizations/${organizationId}`,
+      request
+    );
+  }
+
+  public updateUpdateChannel(
+    organizationId: string,
+    request: { channel: string; pinnedClientVersion: string | null }
+  ): Promise<OrganizationDetail> {
+    return this.transport.send<OrganizationDetail>(
+      'PATCH',
+      `/api/platform/organizations/${organizationId}/update-channel`,
+      request
+    );
+  }
+
+  public transferOwner(
+    organizationId: string,
+    request: { newOwnerEmail: string; reason: string }
+  ): Promise<OrganizationOwnerInvite> {
+    return this.transport.send<OrganizationOwnerInvite>(
+      'POST',
+      `/api/platform/organizations/${organizationId}/owner-transfer`,
+      request
+    );
   }
 }

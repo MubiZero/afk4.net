@@ -16,6 +16,26 @@ export interface PlatformAdminSignInResponse {
   permissions: string[];
 }
 
+// First step of sign-in: password alone no longer issues a working session. The caller must
+// present `challengeToken` to one of the /auth/2fa/* routes (setup or verify) to receive a real
+// PlatformAdminSignInResponse. The token is short-lived (2 minutes) and opaque.
+export interface PlatformAdminSignInChallengeResponse {
+  challengeToken: string;
+  expiresAtUtc: string;
+  twoFactorConfigured: boolean;
+}
+
+export interface TwoFactorSetupResponse {
+  secret: string;
+  otpAuthUri: string;
+}
+
+export interface TwoFactorSetupConfirmResponse {
+  session: PlatformAdminSignInResponse;
+  // Shown to the admin exactly once — the server never returns them again after this response.
+  recoveryCodes: string[];
+}
+
 export interface AccountActivationRequest {
   code: string;
   userName: string;
@@ -66,6 +86,11 @@ export interface OrganizationDetail {
   branches: OrganizationBranch[];
   createdAtUtc: string;
   updatedAtUtc: string;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  legalDetails: string | null;
+  updateChannel: string;
+  pinnedClientVersion: string | null;
 }
 
 export interface CreateOrganizationRequest {
@@ -320,6 +345,7 @@ export interface OrganizationSubscription {
   cancelAtPeriodEnd: boolean;
   createdAtUtc: string;
   updatedAtUtc: string;
+  paymentGraceUntilUtc: string | null;
 }
 
 export interface UpdateSubscriptionRequest {
@@ -327,6 +353,10 @@ export interface UpdateSubscriptionRequest {
   billingInterval: string | null;
   status: string | null;
   cancelAtPeriodEnd: boolean | null;
+  amountMinorUnits: number | null;
+  currentPeriodEndUtc: string | null;
+  paymentGraceUntilUtc: string | null;
+  clearPaymentGrace: boolean | null;
 }
 
 export interface Invoice {
@@ -384,4 +414,74 @@ export interface PlatformBillingMetrics {
   outstandingCount: number;
   overdueMinorUnits: number;
   overdueCount: number;
+}
+
+export interface PlatformAdminListItem {
+  platformAdminUserId: string;
+  userName: string;
+  displayName: string;
+  role: string;
+  isActive: boolean;
+  twoFactorEnabled: boolean;
+  lastSignInAtUtc: string | null;
+  createdAtUtc: string;
+}
+
+export interface PlatformAdminInvitation {
+  invitationId: string;
+  role: string;
+  status: string;
+  expiresAtUtc: string;
+  createdAtUtc: string;
+}
+
+export interface CreateInvitationResponse {
+  invitation: PlatformAdminInvitation;
+  code: string;
+}
+
+export type PulseAlertLevel = 'normal' | 'attention' | 'critical';
+
+export interface PulseAlert {
+  kind: string;
+  level: PulseAlertLevel;
+  /** The numeric figure behind an alert; meaning depends on `kind`: elapsed minutes since
+   * last agent heartbeat for `agent_silent`, elapsed minutes since shift opened for
+   * `shift_not_closed`, count of devices with a failed install for `rollout_failed`. Null
+   * when there's no such figure (`payment_overdue` always; `agent_silent` when the device
+   * has never reported; `rollout_failed` when manually flagged before any device report).
+   * Never a pre-rendered string — build user-facing text from this via `pulseModel`. */
+  detailValue: number | null;
+}
+
+export interface PulseClub {
+  branchId: string;
+  name: string;
+  city: string;
+  devicesOnline: number;
+  devicesTotal: number;
+  seatsOccupied: number;
+  seatsTotal: number;
+  shiftOpen: boolean;
+  shiftOpenedAtUtc: string | null;
+  lastHeartbeatAtUtc: string | null;
+  alerts: PulseAlert[];
+}
+
+export interface PulseOrganization {
+  organizationId: string;
+  name: string;
+  status: string;
+  planCode: string;
+  subscriptionStatus: string;
+  alertLevel: PulseAlertLevel;
+  outstandingMinorUnits: number;
+  currencyCode: string;
+  alerts: PulseAlert[];
+  clubs: PulseClub[];
+}
+
+export interface PlatformPulse {
+  generatedAtUtc: string;
+  organizations: PulseOrganization[];
 }

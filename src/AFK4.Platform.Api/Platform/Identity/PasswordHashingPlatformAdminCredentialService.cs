@@ -7,11 +7,11 @@ namespace AFK4.Platform.Api.Platform.Identity;
 
 public sealed class PasswordHashingPlatformAdminCredentialService(
     PlatformDbContext dbContext,
-    IPlatformAdminTokenService tokenService) : IPlatformAdminCredentialService
+    PlatformAdminTwoFactorService twoFactorService) : IPlatformAdminCredentialService
 {
     private readonly PasswordHasher<PlatformAdminUserEntity> passwordHasher = new();
 
-    public async Task<PlatformAdminSignInResponse?> SignInAsync(
+    public async Task<PlatformAdminSignInChallengeResponse?> SignInAsync(
         PlatformAdminSignInRequest request,
         CancellationToken cancellationToken)
     {
@@ -36,6 +36,6 @@ public sealed class PasswordHashingPlatformAdminCredentialService(
             return null;
         }
 
-        return await tokenService.IssueAsync(user, cancellationToken);
+        return await twoFactorService.StartChallengeAsync(user, cancellationToken);
     }
 }

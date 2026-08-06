@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { it, expect, beforeAll, mock } from 'bun:test';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { ToastProvider } from '@/components/ui/toast';
+import { PlatformApiError } from '@/api/platformTransport';
 import { NewOrganizationScreen } from './NewOrganizationScreen';
 
 beforeAll(() => {
@@ -49,12 +50,22 @@ it('submits trimmed values with the default plan/status and calls onCreated', as
   await waitFor(() => expect(onCreated).toHaveBeenCalledWith(response));
 });
 
-it('shows an inline error when creation fails', async () => {
-  const client = { createOrganization: mock().mockRejectedValue(new Error('slug taken')) };
+it('names the taken key instead of a generic failure', async () => {
+  const client = { createOrganization: mock().mockRejectedValue(new PlatformApiError(409, 'slug taken')) };
   renderScreen(client);
   fillRequired();
   fireEvent.click(screen.getByRole('button', { name: 'Создать организацию' }));
-  expect(await screen.findByText('slug taken')).toBeInTheDocument();
+  expect(await screen.findByText(/ключ организации или филиала уже занят/iu)).toBeInTheDocument();
+});
+
+// Технические англоязычные строки транспорта не должны доезжать до пользователя.
+it('shows a human error for a server failure without leaking the transport message', async () => {
+  const client = { createOrganization: mock().mockRejectedValue(new PlatformApiError(500, 'Platform API call failed.')) };
+  renderScreen(client);
+  fillRequired();
+  fireEvent.click(screen.getByRole('button', { name: 'Создать организацию' }));
+  expect(await screen.findByText(/Сервер платформы вернул ошибку/iu)).toBeInTheDocument();
+  expect(screen.queryByText(/Platform API call failed/iu)).toBeNull();
 });
 
 it('cancels without submitting', () => {

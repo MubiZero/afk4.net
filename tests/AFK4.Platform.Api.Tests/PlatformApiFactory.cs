@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -33,6 +34,7 @@ internal sealed class PlatformApiFactory : IAsyncDisposable, IDisposable
 {
     private static readonly AsyncLocal<string?> CurrentDatabaseName = new();
     private static readonly AsyncLocal<IPAddress?> CurrentClientIp = new();
+    private static readonly AsyncLocal<SharedAppHost?> CurrentHost = new();
     private static readonly SharedAppHost DefaultHost = new(useRealSessionBilling: false, extraServices: null);
     private static int clientIpCounter;
 
@@ -96,12 +98,23 @@ internal sealed class PlatformApiFactory : IAsyncDisposable, IDisposable
     {
         CurrentDatabaseName.Value = databaseName;
         CurrentClientIp.Value = clientIp;
+        CurrentHost.Value = host;
         host.EnsureStarted();
         if (Interlocked.Exchange(ref seeded, 1) == 0)
         {
             host.SeedBaseline();
         }
     }
+
+    // Lets test helpers that only receive an HttpClient (because they mirror an HTTP route under
+    // test, e.g. TwoFactorTestHelper) still reach the database of whichever PlatformApiFactory is
+    // active in the calling test's async context — no separate `factory` parameter to thread
+    // through. Valid only while called from within that test's own async call chain (same rule the
+    // per-test database/IP AsyncLocals above already rely on).
+    internal static IServiceProvider CurrentAmbientServices =>
+        CurrentHost.Value?.Services
+        ?? throw new InvalidOperationException(
+            "No PlatformApiFactory is active in the current async context — call factory.CreateClient() first.");
 
     public async ValueTask DisposeAsync()
     {
@@ -175,7 +188,13 @@ internal sealed class PlatformApiFactory : IAsyncDisposable, IDisposable
                 // Scoped options so the InMemory database name is re-read from the AsyncLocal on every
                 // scope (each request and each direct seeding scope), giving per-test isolation.
                 services.AddDbContext<PlatformDbContext>(
-                    (_, options) => options.UseInMemoryDatabase(CurrentDatabaseName.Value ?? "uninitialized"),
+                    (_, options) => options
+                        .UseInMemoryDatabase(CurrentDatabaseName.Value ?? "uninitialized")
+                        // Several services (billing, POS, inventory, owner-transfer, ...) wrap multi-step
+                        // writes in an explicit transaction for atomicity. The in-memory provider doesn't
+                        // support real transactions but happily no-ops them; without this the no-op itself
+                        // throws instead of just being logged.
+                        .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning)),
                     contextLifetime: ServiceLifetime.Scoped,
                     optionsLifetime: ServiceLifetime.Scoped);
 

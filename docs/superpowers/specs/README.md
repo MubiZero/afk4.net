@@ -9,6 +9,12 @@ The active architecture source of truth is:
 - `2026-07-29-platform-control-rebuild-design.md` — defines the approved
   organization-centered big-bang rebuild of the internal Platform Control UI,
   its platform roles, workflows, safety rules, and delivery slices.
+- `2026-08-03-platform-control-ui-redesign-design.md` — supersedes the rebuild's
+  visual and screen-structure decisions: fleet-pulse main screen with signal
+  rows, passport-plus-tabs client card, shared `@afk4/tokens` language, and the
+  operational levers (subscription editing, payment grace, per-client update
+  channel, owner transfer). Route, permission, and contract boundaries from the
+  rebuild spec stay in force.
 
 Approved backlog specs:
 

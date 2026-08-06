@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -15,6 +15,11 @@ interface Props {
   organizationId: string;
 }
 
+// Состояние клиента: размер парка, живость персонала и недавние отказы.
+//
+// Внутренней телеметрии здесь намеренно нет: имя последней применённой миграции БД и дубль
+// статуса из паспорта — данные для дежурного инженера, а не характеристика клиента. На
+// бизнес-экране они читаются как случайный мусор и подрывают доверие ко всему остальному.
 export function OrganizationHealthSection({ client, organizationId }: Props) {
   const { t, formatNumber, formatDate } = useI18n();
   const [tick, setTick] = useState(0);
@@ -32,26 +37,25 @@ export function OrganizationHealthSection({ client, organizationId }: Props) {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader>
         <CardTitle>{t('platform.organization.section.health')}</CardTitle>
-        <Button variant="ghost" size="sm" onClick={() => setTick(n => n + 1)}>{t('platform.organization.health.refresh')}</Button>
+        <Button variant="ghost" size="icon-sm" aria-label={t('platform.organization.health.refresh')} onClick={() => setTick(value => value + 1)}>
+          <RefreshCw size={14} aria-hidden="true" />
+        </Button>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4 text-sm">
+      <CardContent>
         {error ? (
-          <ErrorState message={t('platform.organization.health.error')} retryLabel={t('state.retry')} onRetry={() => setTick(n => n + 1)} />
+          <ErrorState message={t('platform.organization.health.error')} retryLabel={t('state.retry')} onRetry={() => setTick(value => value + 1)} />
         ) : health === null ? (
           <LoadingCards count={1} />
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <Row label={t('platform.organization.health.status')}><Badge variant="secondary">{health.status}</Badge></Row>
-              <Row label={t('platform.organization.health.branches')}>{formatNumber(health.branchCount)}</Row>
-              <Row label={t('platform.organization.health.devices')}>{formatNumber(health.deviceCount)}</Row>
-              <Row label={t('platform.organization.health.activeStaff')}>{formatNumber(health.activeStaffUserCount)}</Row>
-              <Row label={t('platform.organization.health.lastSignIn')}>{health.latestStaffSignInAtUtc !== null ? formatDate(health.latestStaffSignInAtUtc) : '—'}</Row>
-              <Row label={t('platform.organization.health.latestMigration')}>{health.latestMigration ?? '—'}</Row>
-              <Row label={t('platform.organization.health.recentErrors')}>{formatNumber(health.recentErrorCount)}</Row>
-            </div>
+            <dl className="pc-facts">
+              <Fact label={t('platform.organization.health.branches')} value={formatNumber(health.branchCount)} />
+              <Fact label={t('platform.organization.health.devices')} value={formatNumber(health.deviceCount)} />
+              <Fact label={t('platform.organization.health.activeStaff')} value={formatNumber(health.activeStaffUserCount)} />
+              <Fact label={t('platform.organization.health.lastSignIn')} value={health.latestStaffSignInAtUtc !== null ? formatDate(health.latestStaffSignInAtUtc) : '—'} />
+            </dl>
 
             {health.recentErrors.length === 0 ? (
               <EmptyState message={t('platform.organization.health.recentErrorsEmpty')} />
@@ -69,11 +73,11 @@ export function OrganizationHealthSection({ client, organizationId }: Props) {
                 <TableBody>
                   {health.recentErrors.map((entry, index) => (
                     <TableRow key={`${entry.createdAtUtc}-${index}`}>
-                      <TableCell className="tabular-nums">{formatDate(entry.createdAtUtc)}</TableCell>
+                      <TableCell className="pc-num">{formatDate(entry.createdAtUtc)}</TableCell>
                       <TableCell>{entry.source}</TableCell>
                       <TableCell>{entry.action}</TableCell>
                       <TableCell>{entry.outcome}</TableCell>
-                      <TableCell><code className="font-mono text-xs">{entry.message ?? ''}</code></TableCell>
+                      <TableCell>{entry.message ?? ''}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -86,11 +90,11 @@ export function OrganizationHealthSection({ client, organizationId }: Props) {
   );
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-3">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right">{children}</span>
+    <div className="pc-fact">
+      <dt>{label}</dt>
+      <dd>{value}</dd>
     </div>
   );
 }

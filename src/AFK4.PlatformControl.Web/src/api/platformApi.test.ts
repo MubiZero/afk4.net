@@ -35,18 +35,12 @@ describe('PlatformApiClient', () => {
     }
   });
 
-  it('signs in and stores the returned session', async () => {
+  it('signs in and returns a two-factor challenge without applying a session', async () => {
     const fetchImpl = mock(async () =>
       jsonResponse(200, {
-        platformAdminId: 'a',
-        userName: 'u',
-        displayName: 'd',
-        accessToken: 't',
-        accessTokenExpiresAtUtc: '2030-01-01T00:00:00Z',
-        refreshToken: 'r',
-        refreshTokenExpiresAtUtc: '2030-02-01T00:00:00Z',
-        roles: [],
-        permissions: []
+        challengeToken: 'challenge-1',
+        expiresAtUtc: '2030-01-01T00:02:00Z',
+        twoFactorConfigured: true
       })
     );
     let observed: PlatformAdminSession | null = null;
@@ -59,10 +53,16 @@ describe('PlatformApiClient', () => {
       }
     });
 
-    const session = await client.signIn('u', 'p');
+    const outcome = await client.signIn('u', 'p');
 
-    expect(session.accessToken).toBe('t');
-    expect(observed).not.toBeNull();
+    expect(outcome).toEqual({
+      kind: 'challenge',
+      challengeToken: 'challenge-1',
+      twoFactorConfigured: true,
+      expiresAtUtc: '2030-01-01T00:02:00Z'
+    });
+    expect(observed).toBeNull();
+    expect(client.getSession()).toBeNull();
     expect(fetchImpl).toHaveBeenCalledWith(
       'http://localhost:5000/api/platform/auth/sign-in',
       expect.objectContaining({ method: 'POST' })

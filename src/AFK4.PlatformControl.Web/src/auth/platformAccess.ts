@@ -3,13 +3,16 @@ import type { PlatformAdminSession } from './tokenStore';
 export type PlatformCapability =
   | 'organizations.read'
   | 'organizations.manage'
+  | 'organizations.profile.manage'
+  | 'organizations.update_channel.manage'
+  | 'organizations.owner_transfer.manage'
   | 'support.manage'
   | 'billing.read'
   | 'billing.manage'
   | 'updates.read'
   | 'updates.manage'
   | 'audit.read'
-  | 'settings.manage';
+  | 'admins.manage';
 
 const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
   'organizations.read': ['platform.organizations.view'],
@@ -18,6 +21,9 @@ const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
     'platform.organizations.status.update',
     'platform.organizations.limits.update'
   ],
+  'organizations.profile.manage': ['platform.organizations.profile.update'],
+  'organizations.update_channel.manage': ['platform.organizations.update_channel.update'],
+  'organizations.owner_transfer.manage': ['platform.organizations.owner.transfer'],
   'support.manage': [
     'platform.organizations.support_notes.manage',
     'platform.organizations.owner_invites.manage',
@@ -35,7 +41,7 @@ const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
     'platform.updates.rollouts.manage'
   ],
   'audit.read': ['platform.audit.view'],
-  'settings.manage': []
+  'admins.manage': ['platform.admins.manage']
 };
 
 export function can(session: PlatformAdminSession, capability: PlatformCapability): boolean {

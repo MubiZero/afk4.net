@@ -258,7 +258,15 @@ internal static class PlatformBillingEndpoints
                 targetType: "OrganizationSubscription",
                 targetId: organizationId.ToString("D"),
                 outcome: AuditOutcome.Succeeded,
-                details: new { result.Value!.PlanCode, result.Value.Status, result.Value.CancelAtPeriodEnd },
+                details: new
+                {
+                    result.Value!.PlanCode,
+                    result.Value.Status,
+                    result.Value.CancelAtPeriodEnd,
+                    result.Value.AmountMinorUnits,
+                    result.Value.CurrentPeriodEndUtc,
+                    result.Value.PaymentGraceUntilUtc
+                },
                 cancellationToken);
             return Results.Ok(result.Value);
         });

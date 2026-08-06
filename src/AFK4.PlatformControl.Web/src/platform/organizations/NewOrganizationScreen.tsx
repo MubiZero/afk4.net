@@ -3,8 +3,9 @@ import { slugify } from '@/lib/slugify';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
+import { describeApiError } from '@/api/describeApiError';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import { OrganizationPlanCode, SubscriptionStatus, type CreateOrganizationResponse, type OrganizationLimits } from '@/api/types';
@@ -82,7 +83,9 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
       toast({ title: t('platform.newOrganization.created'), variant: 'success' });
       onCreated(response);
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : t('platform.newOrganization.error');
+      // 409 здесь — это всегда занятый ключ, и это ровно та конкретика, которая помогает
+      // исправить форму. Остальные коды не несут для пользователя ничего сверх «не вышло».
+      const message = describeApiError(cause, t, { 409: 'platform.newOrganization.error.slugTaken' });
       setError(message);
       toast({ title: t('platform.newOrganization.error'), variant: 'error' });
     } finally {
@@ -91,14 +94,14 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
   }
 
   return (
-    <form className="flex max-w-3xl flex-col gap-4" onSubmit={handleSubmit}>
+    <form className="mgmt-form" onSubmit={handleSubmit}>
       {error !== null && (
-        <Card><CardContent className="py-3 text-sm text-destructive">{error}</CardContent></Card>
+        <Card><CardContent className="pc-error-text">{error}</CardContent></Card>
       )}
 
       <Card>
         <CardHeader><CardTitle>{t('platform.newOrganization.section.organization')}</CardTitle></CardHeader>
-        <CardContent className="flex flex-col gap-3">
+        <CardContent>
           <LabeledInput label={t('platform.newOrganization.field.orgSlug')} hint={t('platform.newOrganization.field.orgSlugHint')}
             value={form.organizationSlug} onChange={v => { setSlugTouched(true); update('organizationSlug', v); }} required />
           <LabeledInput label={t('platform.newOrganization.field.orgName')}
@@ -112,7 +115,7 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
 
       <Card>
         <CardHeader><CardTitle>{t('platform.newOrganization.section.branch')}</CardTitle></CardHeader>
-        <CardContent className="flex flex-col gap-3">
+        <CardContent>
           <LabeledInput label={t('platform.newOrganization.field.branchSlug')} value={form.branchSlug} onChange={v => update('branchSlug', v)} required />
           <LabeledInput label={t('platform.newOrganization.field.branchName')} value={form.branchName} onChange={v => update('branchName', v)} required />
           <LabeledInput label={t('platform.newOrganization.field.branchCity')} value={form.branchCity} onChange={v => update('branchCity', v)} required />
@@ -121,28 +124,22 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
 
       <Card>
         <CardHeader><CardTitle>{t('platform.newOrganization.section.plan')}</CardTitle></CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <label className="block">
-            <span className="mb-1 block text-sm text-muted-foreground">{t('platform.newOrganization.field.planCode')}</span>
-            <Select value={form.planCode} onValueChange={v => update('planCode', v)}>
-              <SelectTrigger aria-label={t('platform.newOrganization.field.planCode')}><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={OrganizationPlanCode.Starter}>{t('platform.plan.starter')}</SelectItem>
-                <SelectItem value={OrganizationPlanCode.Growth}>{t('platform.plan.growth')}</SelectItem>
-                <SelectItem value={OrganizationPlanCode.Scale}>{t('platform.plan.scale')}</SelectItem>
-              </SelectContent>
+        <CardContent>
+          <label className="ui-field">
+            <span>{t('platform.newOrganization.field.planCode')}</span>
+            <Select value={form.planCode} onChange={event => update('planCode', event.target.value)}>
+                <option value={OrganizationPlanCode.Starter}>{t('platform.plan.starter')}</option>
+                <option value={OrganizationPlanCode.Growth}>{t('platform.plan.growth')}</option>
+                <option value={OrganizationPlanCode.Scale}>{t('platform.plan.scale')}</option>
             </Select>
           </label>
-          <label className="block">
-            <span className="mb-1 block text-sm text-muted-foreground">{t('platform.newOrganization.field.subscriptionStatus')}</span>
-            <Select value={form.subscriptionStatus} onValueChange={v => update('subscriptionStatus', v)}>
-              <SelectTrigger aria-label={t('platform.newOrganization.field.subscriptionStatus')}><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={SubscriptionStatus.Trial}>{t('platform.newOrganization.sub.trial')}</SelectItem>
-                <SelectItem value={SubscriptionStatus.Active}>{t('platform.newOrganization.sub.active')}</SelectItem>
-                <SelectItem value={SubscriptionStatus.PastDue}>{t('platform.newOrganization.sub.pastDue')}</SelectItem>
-                <SelectItem value={SubscriptionStatus.Cancelled}>{t('platform.newOrganization.sub.cancelled')}</SelectItem>
-              </SelectContent>
+          <label className="ui-field">
+            <span>{t('platform.newOrganization.field.subscriptionStatus')}</span>
+            <Select value={form.subscriptionStatus} onChange={event => update('subscriptionStatus', event.target.value)}>
+                <option value={SubscriptionStatus.Trial}>{t('platform.newOrganization.sub.trial')}</option>
+                <option value={SubscriptionStatus.Active}>{t('platform.newOrganization.sub.active')}</option>
+                <option value={SubscriptionStatus.PastDue}>{t('platform.newOrganization.sub.pastDue')}</option>
+                <option value={SubscriptionStatus.Cancelled}>{t('platform.newOrganization.sub.cancelled')}</option>
             </Select>
           </label>
         </CardContent>
@@ -150,7 +147,7 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
 
       <Card>
         <CardHeader><CardTitle>{t('platform.newOrganization.section.limits')}</CardTitle></CardHeader>
-        <CardContent className="flex flex-col gap-3">
+        <CardContent>
           <LabeledInput label={t('platform.newOrganization.field.maxBranches')} type="number" value={form.maxBranches} onChange={v => update('maxBranches', v)} />
           <LabeledInput label={t('platform.newOrganization.field.maxDevices')} type="number" value={form.maxDevicesPerBranch} onChange={v => update('maxDevicesPerBranch', v)} />
           <LabeledInput label={t('platform.newOrganization.field.maxSessions')} type="number" value={form.maxConcurrentSessions} onChange={v => update('maxConcurrentSessions', v)} />
@@ -160,13 +157,13 @@ export function NewOrganizationScreen({ client, onCreated, onCancel }: NewOrgani
 
       <Card>
         <CardHeader><CardTitle>{t('platform.newOrganization.section.owner')}</CardTitle></CardHeader>
-        <CardContent className="flex flex-col gap-3">
+        <CardContent>
           <LabeledInput label={t('platform.newOrganization.field.ownerUserName')} value={form.ownerUserName} onChange={v => update('ownerUserName', v)} />
           <LabeledInput label={t('platform.newOrganization.field.ownerDisplayName')} value={form.ownerDisplayName} onChange={v => update('ownerDisplayName', v)} />
         </CardContent>
       </Card>
 
-      <div className="flex gap-2">
+      <div className="pc-cell-actions">
         <Button type="submit" disabled={submitting}>
           {submitting ? t('platform.newOrganization.submitting') : t('platform.newOrganization.submit')}
         </Button>
@@ -187,10 +184,10 @@ function LabeledInput({ label, hint, value, onChange, type, required }: {
   required?: boolean;
 }) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-sm text-muted-foreground">{label}</span>
+    <label className="ui-field">
+      <span>{label}</span>
       <Input aria-label={label} type={type} value={value} required={required} onChange={e => onChange(e.target.value)} />
-      {hint !== undefined && <span className="mt-1 block text-xs text-muted-foreground">{hint}</span>}
+      {hint !== undefined && <span className="mgmt-drawer-hint">{hint}</span>}
     </label>
   );
 }

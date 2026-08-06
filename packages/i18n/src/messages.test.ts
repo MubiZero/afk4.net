@@ -79,7 +79,6 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'nav.group.account',
     'nav.group.branch',
     'nav.group.platformAccount',
-    'nav.platform.billing',
     'op.auth.operator',
     'op.booking.fallback.zeroSeats',
     'op.booking.seatsOne',
@@ -137,16 +136,13 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.map.panel.tariffLabel',
     'op.news.col.branch',
     'op.news.fieldBranch',
-    'op.players.actions.packageBonus',
     'op.players.editProfile.phoneLabel',
     'op.players.profile.packageFallback',
-    'op.players.profile.platformSource',
     'op.players.strip.platform',
     'op.pos.catalog.categoryFallback',
     'op.pos.catalog.title',
     'op.pos.fixture.cola',
     'op.pos.fixture.hotdog',
-    'op.pos.quick.writeOffLabel',
     'op.pos.receipts.emptyPlatform',
     'op.pos.receipts.receiptFallback',
     'op.settings.devices.detail.agent',
@@ -181,21 +177,17 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'operators.field.email',
     'operators.field.userName',
     'overview.attention.offline',
-    'payments_cards.scope.branch',
     'platform.billing.column.number',
     'platform.billing.column.plan',
     'platform.billing.column.organization',
     'platform.newOrganization.field.planCode',
     'platform.newOrganization.section.plan',
-    'platform.overview.kpi.mrr',
     'platform.plan.growth',
     'platform.plan.scale',
     'platform.plan.starter',
     'platform.profile.field.userName',
     'platform.organization.planForm.plan',
     'platform.organization.subscriptionForm.plan',
-    'platform.organizations.col.plan',
-    'platform.organizations.filter.plan',
     // Organization Admin is the canonical product name in every locale.
     'op.helper.update.component.organizationAdmin',
     'products.categoryUnknown',
@@ -217,6 +209,12 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «Оператор» — the same established loanword as op.auth.operator above,
     // used as a report column label (Отчёты → История → Действия операторов).
     'op.reports.col.operator',
+    // «Журнал» — тот же устоявшийся заимствование, что op.network.dest.journal выше
+    // (карточка клиента Platform Control, вкладка «Журнал»).
+    'platform.organization.tab.history',
+    // «2FA» — technical abbreviation, not a translatable word; identical in every locale
+    // (Platform Control → Settings, staff table column).
+    'platform.settings.column.twoFactor',
 ]);
 
 it('tg has no silent ru-copies (untranslated strings posing as Tajik)', () => {
@@ -228,10 +226,12 @@ it('tg has no silent ru-copies (untranslated strings posing as Tajik)', () => {
   expect(offenders).toEqual([]);
 });
 
-it('TG_IDENTICAL_TO_RU_ALLOWED has no stale entries (every listed key is actually tg===ru)', () => {
+it('TG_IDENTICAL_TO_RU_ALLOWED has no stale entries (every listed key exists and is actually tg===ru)', () => {
   const ru = messages.ru as Record<string, string>;
   const tg = messages.tg as Record<string, string>;
-  const stale = [...TG_IDENTICAL_TO_RU_ALLOWED].filter((k) => tg[k] !== ru[k]);
+  const stale = [...TG_IDENTICAL_TO_RU_ALLOWED].filter(
+    (k) => !(k in ru) || !(k in tg) || tg[k] !== ru[k]
+  );
   expect(stale).toEqual([]);
 });
 
@@ -432,11 +432,10 @@ it('includes the profile + install keys', () => {
 it('includes the platform admin keys', () => {
   for (const key of [
     'nav.group.controlPlane', 'nav.group.platformAccount',
-    'nav.platform.overview', 'nav.platform.organizations', 'nav.platform.billing', 'nav.platform.profile',
-    'platform.overview.kpi.organizations', 'platform.overview.kpi.active', 'platform.overview.kpi.suspended',
-    'platform.overview.kpi.trial', 'platform.overview.kpi.branches', 'platform.overview.kpi.new30d',
-    'platform.overview.byPlan.title', 'platform.overview.attention.title', 'platform.overview.attention.empty',
-    'platform.overview.attention.suspended', 'platform.overview.attention.pastDue',
+    'nav.platform.clubs', 'nav.platform.money', 'nav.platform.journal', 'nav.platform.profile',
+    'platform.clubs.title', 'platform.clubs.view.label', 'platform.clubs.view.now',
+    'platform.clubs.view.all', 'platform.clubs.view.debt',
+    'platform.clubs.empty.now', 'platform.clubs.empty.all', 'platform.clubs.empty.debt',
     'platform.plan.starter', 'platform.plan.growth', 'platform.plan.scale'
   ] as const) {
     expect(messages.ru[key]).toBeTruthy();
@@ -444,10 +443,8 @@ it('includes the platform admin keys', () => {
   }
 });
 
-it('includes the organizations admin keys', () => {
+it('includes the organization card keys', () => {
   for (const key of [
-    'platform.organizations.search',
-    'platform.organizations.col.name',
     'platform.organization.status.suspended',
     'platform.organization.subscription.pastDue',
     'platform.organization.section.status',

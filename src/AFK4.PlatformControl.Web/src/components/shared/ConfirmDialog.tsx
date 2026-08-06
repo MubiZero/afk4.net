@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 
@@ -19,30 +19,35 @@ export interface ConfirmDialogProps {
 export function ConfirmDialog(props: ConfirmDialogProps) {
   const [reason, setReason] = useState('');
   useEffect(() => { if (props.open) setReason(''); }, [props.open]);
+
   return (
-    <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent>
-        <DialogTitle>{props.title}</DialogTitle>
-        <DialogDescription className={props.description ? undefined : 'sr-only'}>{props.description ?? props.title}</DialogDescription>
-        {props.reasonLabel && (
-          <label className="mt-3 block text-sm">
-            <span className="mb-1 block text-muted-foreground">{props.reasonLabel}</span>
-            <Input aria-label={props.reasonLabel} value={reason} onChange={e => setReason(e.target.value)} />
-          </label>
-        )}
-        <DialogFooter>
+    <Dialog
+      open={props.open}
+      title={props.title}
+      description={props.description}
+      tone={props.destructive === true ? 'danger' : undefined}
+      onClose={() => props.onOpenChange(false)}
+      footer={
+        <>
           <Button variant="outline" disabled={props.pending} onClick={() => props.onOpenChange(false)}>
             {props.cancelLabel}
           </Button>
           <Button
-            variant={props.destructive ? 'destructive' : 'default'}
+            variant={props.destructive === true ? 'destructive' : 'default'}
             disabled={props.pending || (props.reasonLabel !== undefined && reason.trim().length === 0)}
             onClick={() => props.onConfirm(reason)}
           >
             {props.confirmLabel}
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      {props.reasonLabel !== undefined ? (
+        <div className="ui-field">
+          <label htmlFor="confirm-reason">{props.reasonLabel}</label>
+          <Input id="confirm-reason" aria-label={props.reasonLabel} value={reason} onChange={event => setReason(event.target.value)} />
+        </div>
+      ) : null}
     </Dialog>
   );
 }

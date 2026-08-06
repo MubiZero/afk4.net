@@ -30,6 +30,10 @@ public sealed class EfPlatformOrganizationService(
     private const int MaxPlanCodeLength = 64;
 
     private const int MaxStatusReasonLength = 500;
+    private const int MaxContactEmailLength = 256;
+    private const int MaxContactPhoneLength = 32;
+    private const int MaxLegalDetailsLength = 1024;
+    private const int MaxPinnedVersionLength = 32;
 
     private static readonly HashSet<string> AllowedSubscriptionStatuses = new(StringComparer.Ordinal)
     {
@@ -44,6 +48,13 @@ public sealed class EfPlatformOrganizationService(
         OrganizationStatusNames.Active,
         OrganizationStatusNames.Suspended,
         OrganizationStatusNames.DeletionPending
+    };
+
+    private static readonly HashSet<string> AllowedUpdateChannels = new(StringComparer.Ordinal)
+    {
+        UpdateChannelNames.Stable,
+        UpdateChannelNames.Beta,
+        UpdateChannelNames.Internal
     };
 
     private readonly PasswordHasher<StaffUserEntity> staffPasswordHasher = new();
@@ -477,6 +488,9 @@ public sealed class EfPlatformOrganizationService(
             DisplayName = string.IsNullOrWhiteSpace(request.DisplayName)
                 ? DeriveDisplayNameFromLogin(requestedUserName)
                 : request.DisplayName.Trim(),
+            // Carries the invite's email forward so later flows (owner-transfer self-check, owner
+            // notifications) have a real address to compare against instead of guessing from UserName.
+            Email = string.IsNullOrWhiteSpace(invite.OwnerEmail) ? null : invite.OwnerEmail,
             IsActive = true,
             CreatedAtUtc = now
         };
@@ -646,6 +660,222 @@ public sealed class EfPlatformOrganizationService(
         return PlatformOrganizationOperationResult<OrganizationDetailDto>.Success(detail!);
     }
 
+    public async Task<PlatformOrganizationOperationResult<OrganizationDetailDto>> UpdateProfileAsync(
+        Guid organizationId,
+        UpdateOrganizationProfileRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.BadRequest("OrganizationId is required.");
+        }
+
+        var nameError = ValidateRequiredText(request.Name, "Name", MaxOrganizationNameLength);
+        if (nameError is not null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.BadRequest(nameError);
+        }
+
+        var contactEmailError = ValidateOptionalText(request.ContactEmail, "ContactEmail", MaxContactEmailLength);
+        if (contactEmailError is not null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.BadRequest(contactEmailError);
+        }
+
+        var contactPhoneError = ValidateOptionalText(request.ContactPhone, "ContactPhone", MaxContactPhoneLength);
+        if (contactPhoneError is not null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.BadRequest(contactPhoneError);
+        }
+
+        var legalDetailsError = ValidateOptionalText(request.LegalDetails, "LegalDetails", MaxLegalDetailsLength);
+        if (legalDetailsError is not null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.BadRequest(legalDetailsError);
+        }
+
+        var organization = await dbContext.Organizations
+            .SingleOrDefaultAsync(org => org.OrganizationId == organizationId, cancellationToken);
+        if (organization is null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.NotFound("Organization was not found.");
+        }
+
+        var trimmedName = request.Name.Trim();
+        var trimmedContactEmail = string.IsNullOrWhiteSpace(request.ContactEmail) ? null : request.ContactEmail.Trim();
+        var trimmedContactPhone = string.IsNullOrWhiteSpace(request.ContactPhone) ? null : request.ContactPhone.Trim();
+        var trimmedLegalDetails = string.IsNullOrWhiteSpace(request.LegalDetails) ? null : request.LegalDetails.Trim();
+
+        var now = timeProvider.GetUtcNow();
+        if (organization.Name != trimmedName
+            || organization.ContactEmail != trimmedContactEmail
+            || organization.ContactPhone != trimmedContactPhone
+            || organization.LegalDetails != trimmedLegalDetails)
+        {
+            organization.Name = trimmedName;
+            organization.ContactEmail = trimmedContactEmail;
+            organization.ContactPhone = trimmedContactPhone;
+            organization.LegalDetails = trimmedLegalDetails;
+            organization.UpdatedAtUtc = now;
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        var detail = await BuildOrganizationDetailAsync(organizationId, cancellationToken);
+        return PlatformOrganizationOperationResult<OrganizationDetailDto>.Success(detail!);
+    }
+
+    public async Task<PlatformOrganizationOperationResult<OrganizationDetailDto>> UpdateUpdateChannelAsync(
+        Guid organizationId,
+        UpdateOrganizationUpdateChannelRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.BadRequest("OrganizationId is required.");
+        }
+
+        var channelError = ValidateUpdateChannel(request.Channel);
+        if (channelError is not null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.BadRequest(channelError);
+        }
+
+        var pinnedVersionError = ValidateOptionalText(request.PinnedClientVersion, "PinnedClientVersion", MaxPinnedVersionLength);
+        if (pinnedVersionError is not null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.BadRequest(pinnedVersionError);
+        }
+
+        var organization = await dbContext.Organizations
+            .SingleOrDefaultAsync(org => org.OrganizationId == organizationId, cancellationToken);
+        if (organization is null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.NotFound("Organization was not found.");
+        }
+
+        var normalizedChannel = request.Channel.Trim();
+        var trimmedPinnedVersion = string.IsNullOrWhiteSpace(request.PinnedClientVersion) ? null : request.PinnedClientVersion.Trim();
+        var now = timeProvider.GetUtcNow();
+        if (organization.UpdateChannel != normalizedChannel || organization.PinnedClientVersion != trimmedPinnedVersion)
+        {
+            organization.UpdateChannel = normalizedChannel;
+            organization.PinnedClientVersion = trimmedPinnedVersion;
+            organization.UpdatedAtUtc = now;
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        var detail = await BuildOrganizationDetailAsync(organizationId, cancellationToken);
+        return PlatformOrganizationOperationResult<OrganizationDetailDto>.Success(detail!);
+    }
+
+    public async Task<PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>> TransferOrganizationOwnerAsync(
+        Guid organizationId,
+        TransferOrganizationOwnerRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.BadRequest("OrganizationId is required.");
+        }
+
+        var newOwnerEmailError = ValidateRequiredText(request.NewOwnerEmail, "NewOwnerEmail", MaxContactEmailLength);
+        if (newOwnerEmailError is not null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.BadRequest(newOwnerEmailError);
+        }
+
+        var reasonError = ValidateRequiredText(request.Reason, "Reason", MaxStatusReasonLength);
+        if (reasonError is not null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.BadRequest(reasonError);
+        }
+
+        var organizationExists = await dbContext.Organizations
+            .AsNoTracking()
+            .AnyAsync(org => org.OrganizationId == organizationId, cancellationToken);
+        if (!organizationExists)
+        {
+            return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.NotFound("Organization was not found.");
+        }
+
+        var currentOwner = await (
+            from assignment in dbContext.StaffRoleAssignments
+            join staff in dbContext.StaffUsers on assignment.StaffUserId equals staff.StaffUserId
+            where assignment.OrganizationId == organizationId
+                && assignment.RoleName == OrganizationRoleNames.OrganizationOwner
+                && staff.IsActive
+            select new { Staff = staff, assignment.BranchId })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (currentOwner is null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.NotFound(
+                "Organization has no active owner to transfer.");
+        }
+
+        // The login (UserName) is not guaranteed to be an email, and Email is only populated when the
+        // invite the owner accepted carried one (see AcceptOrganizationOwnerInviteAsync). To recognise a
+        // self-transfer reliably, check every address we actually have on record for this owner instead
+        // of guessing from a single field: the staff row's Email/UserName, and the email of the invite
+        // they originally accepted (covers rows created before Email started being persisted at accept).
+        var acceptedInviteEmail = await dbContext.OrganizationOwnerInvites
+            .AsNoTracking()
+            .Where(invite => invite.AcceptedByStaffUserId == currentOwner.Staff.StaffUserId)
+            .Select(invite => invite.OwnerEmail)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var normalizedNewOwnerEmail = request.NewOwnerEmail.Trim();
+        var knownCurrentOwnerAddresses = new[] { currentOwner.Staff.Email, currentOwner.Staff.UserName, acceptedInviteEmail }
+            .Where(address => !string.IsNullOrWhiteSpace(address));
+        if (knownCurrentOwnerAddresses.Any(address => string.Equals(normalizedNewOwnerEmail, address, StringComparison.OrdinalIgnoreCase)))
+        {
+            return PlatformOrganizationOperationResult<OrganizationOwnerInviteDto>.BadRequest(
+                "NewOwnerEmail must differ from the current owner's address.");
+        }
+
+        // Issuing the new owner's invite and revoking the previous owner's access must be atomic:
+        // if only one side lands, the organization is either left ownerless or double-owned.
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var inviteResult = await CreateOrRotateOrganizationOwnerInviteAsync(
+            organizationId,
+            new CreateOrganizationOwnerInviteRequest(
+                BranchId: currentOwner.BranchId,
+                OwnerUserName: null,
+                OwnerDisplayName: null,
+                Lifetime: null,
+                OwnerEmail: normalizedNewOwnerEmail),
+            platformAdminUserId,
+            cancellationToken);
+
+        if (!inviteResult.Succeeded)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            return inviteResult;
+        }
+
+        currentOwner.Staff.IsActive = false;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return inviteResult;
+    }
+
+    private static string? ValidateUpdateChannel(string channel)
+    {
+        if (string.IsNullOrWhiteSpace(channel))
+        {
+            return "Channel is required.";
+        }
+
+        return AllowedUpdateChannels.Contains(channel.Trim())
+            ? null
+            : $"Channel must be one of: {string.Join(", ", AllowedUpdateChannels)}.";
+    }
+
     private static string? ValidateOrganizationStatus(string status)
     {
         if (string.IsNullOrWhiteSpace(status))
@@ -758,7 +988,12 @@ public sealed class EfPlatformOrganizationService(
                 City: branch.City,
                 CreatedAtUtc: branch.CreatedAtUtc)).ToList(),
             CreatedAtUtc: organization.CreatedAtUtc,
-            UpdatedAtUtc: organization.UpdatedAtUtc);
+            UpdatedAtUtc: organization.UpdatedAtUtc,
+            ContactEmail: organization.ContactEmail,
+            ContactPhone: organization.ContactPhone,
+            LegalDetails: organization.LegalDetails,
+            UpdateChannel: organization.UpdateChannel,
+            PinnedClientVersion: organization.PinnedClientVersion);
     }
 
     internal static string NormalizeInviteCode(string code) => code.Trim().ToLowerInvariant();
@@ -860,6 +1095,18 @@ public sealed class EfPlatformOrganizationService(
         if (string.IsNullOrWhiteSpace(value))
         {
             return $"{fieldName} is required.";
+        }
+
+        return value.Trim().Length > maxLength
+            ? $"{fieldName} must contain {maxLength} characters or fewer."
+            : null;
+    }
+
+    private static string? ValidateOptionalText(string? value, string fieldName, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
         }
 
         return value.Trim().Length > maxLength

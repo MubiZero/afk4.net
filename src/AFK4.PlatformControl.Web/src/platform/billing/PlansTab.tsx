@@ -49,7 +49,7 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader>
         <CardTitle>{t('platform.billing.tab.plans')}</CardTitle>
         {canManage ? <Button onClick={openCreate}>{t('platform.billing.plans.create')}</Button> : null}
       </CardHeader>
@@ -70,8 +70,8 @@ export function PlansTab({ client, canManage = true }: { client: PlansApi; canMa
             <TableBody>
               {state.data.map(plan => (
                 <TableRow key={plan.planCode}>
-                  <TableCell><span className="font-medium">{plan.name}</span> <code className="text-xs text-muted-foreground">{plan.planCode}</code></TableCell>
-                  <TableCell className="tabular-nums">{formatCurrency(minorToMajor(plan.priceMinorUnits), plan.currencyCode)}</TableCell>
+                  <TableCell><span className="font-medium">{plan.name}</span> <code className="mgmt-drawer-hint">{plan.planCode}</code></TableCell>
+                  <TableCell className="pc-num">{formatCurrency(minorToMajor(plan.priceMinorUnits), plan.currencyCode)}</TableCell>
                   <TableCell>{INTERVAL_LABEL[plan.billingInterval] ? t(INTERVAL_LABEL[plan.billingInterval]) : plan.billingInterval}</TableCell>
                   <TableCell>{plan.isActive ? <Badge variant="success">●</Badge> : <Badge variant="outline">—</Badge>}</TableCell>
                   <TableCell>{canManage ? <Button variant="outline" onClick={() => openEdit(plan)}>{t('platform.billing.plans.edit')}</Button> : null}</TableCell>

@@ -1,44 +1,42 @@
+import type { PulseView } from '@/platform/clubs/pulseModel';
+
 export type OrganizationTab =
-  | 'summary'
   | 'clubs'
-  | 'access'
-  | 'subscription'
   | 'invoices'
-  | 'support'
+  | 'limits'
+  | 'updates'
+  | 'access'
   | 'history';
 
 export type BillingTab = 'plans' | 'subscriptions' | 'invoices';
-export type UpdatesTab = 'packages' | 'rollouts';
 
 export type PlatformRoute =
-  | { kind: 'overview' }
-  | { kind: 'organizations'; query: string; status: string; plan: string; sort: string }
+  | { kind: 'overview'; view: PulseView }
   | { kind: 'organization'; organizationId: string; tab: OrganizationTab }
   | { kind: 'organizationNew' }
   | { kind: 'billing'; tab: BillingTab }
-  | { kind: 'updates'; tab: UpdatesTab }
+  | { kind: 'updates' }
   | { kind: 'audit'; organizationId: string; action: string; outcome: string; from: string; to: string }
   | { kind: 'settings' }
-  | { kind: 'profile' }
   | { kind: 'notFound'; path: string };
 
 const ORGANIZATION_TABS = new Set<OrganizationTab>([
-  'summary', 'clubs', 'access', 'subscription', 'invoices', 'support', 'history'
+  'clubs', 'invoices', 'limits', 'updates', 'access', 'history'
 ]);
 const BILLING_TABS = new Set<BillingTab>(['plans', 'subscriptions', 'invoices']);
+const PULSE_VIEWS = new Set<PulseView>(['now', 'all', 'debt']);
 
 export function resolvePlatformRoute(pathname: string, search = ''): PlatformRoute {
   const path = normalizePath(pathname);
   const query = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
 
-  if (path === '/' || path === '/admin') return { kind: 'overview' };
-  if (path === '/admin/organizations') {
+  // '/admin/organizations' is a retired registry-list bookmark; it now opens
+  // the same fleet pulse screen as the root, defaulting to the "now" view.
+  if (path === '/' || path === '/admin' || path === '/admin/organizations') {
+    const requestedView = query.get('view');
     return {
-      kind: 'organizations',
-      query: query.get('q') ?? '',
-      status: query.get('status') ?? 'all',
-      plan: query.get('plan') ?? 'all',
-      sort: query.get('sort') ?? 'attention'
+      kind: 'overview',
+      view: requestedView !== null && PULSE_VIEWS.has(requestedView as PulseView) ? requestedView as PulseView : 'now'
     };
   }
   if (path === '/admin/organizations/new') return { kind: 'organizationNew' };
@@ -51,11 +49,11 @@ export function resolvePlatformRoute(pathname: string, search = ''): PlatformRou
       organizationId: decodeSegment(organizationMatch[1]),
       tab: requestedTab !== null && ORGANIZATION_TABS.has(requestedTab as OrganizationTab)
         ? requestedTab as OrganizationTab
-        : 'summary'
+        : 'clubs'
     };
   }
 
-  if (path === '/admin/billing') {
+  if (path === '/admin/money') {
     const requestedTab = query.get('tab');
     return {
       kind: 'billing',
@@ -64,30 +62,23 @@ export function resolvePlatformRoute(pathname: string, search = ''): PlatformRou
         : 'plans'
     };
   }
-  if (path === '/admin/updates') return { kind: 'updates', tab: query.get('tab') === 'rollouts' ? 'rollouts' : 'packages' };
-  if (path === '/admin/audit') return { kind: 'audit', organizationId: query.get('organizationId') ?? '', action: query.get('action') ?? '', outcome: query.get('outcome') ?? '', from: query.get('from') ?? '', to: query.get('to') ?? '' };
+  if (path === '/admin/updates') return { kind: 'updates' };
+  if (path === '/admin/journal') return { kind: 'audit', organizationId: query.get('organizationId') ?? '', action: query.get('action') ?? '', outcome: query.get('outcome') ?? '', from: query.get('from') ?? '', to: query.get('to') ?? '' };
   if (path === '/admin/settings') return { kind: 'settings' };
-  if (path === '/admin/profile') return { kind: 'profile' };
+  // '/admin/profile' — закладка на удалённый экран профиля: учётная запись переехала в меню
+  // аккаунта в подвале рейла, поэтому старая ссылка ведёт на главный экран, а не в 404.
+  if (path === '/admin/profile') return { kind: 'overview', view: 'now' };
   return { kind: 'notFound', path };
 }
 
 export function pathForPlatformRoute(route: PlatformRoute): string {
   switch (route.kind) {
-    case 'overview': return '/admin';
-    case 'organizations': {
-      const query = new URLSearchParams();
-      if (route.query !== '') query.set('q', route.query);
-      if (route.status !== 'all') query.set('status', route.status);
-      if (route.plan !== 'all') query.set('plan', route.plan);
-      if (route.sort !== 'attention') query.set('sort', route.sort);
-      const suffix = query.toString();
-      return `/admin/organizations${suffix === '' ? '' : `?${suffix}`}`;
-    }
+    case 'overview': return `/admin${route.view === 'now' ? '' : `?view=${route.view}`}`;
     case 'organization':
-      return `/admin/organizations/${encodeURIComponent(route.organizationId)}${route.tab === 'summary' ? '' : `?tab=${route.tab}`}`;
+      return `/admin/organizations/${encodeURIComponent(route.organizationId)}${route.tab === 'clubs' ? '' : `?tab=${route.tab}`}`;
     case 'organizationNew': return '/admin/organizations/new';
-    case 'billing': return `/admin/billing${route.tab === 'plans' ? '' : `?tab=${route.tab}`}`;
-    case 'updates': return `/admin/updates${route.tab === 'packages' ? '' : '?tab=rollouts'}`;
+    case 'billing': return `/admin/money${route.tab === 'plans' ? '' : `?tab=${route.tab}`}`;
+    case 'updates': return '/admin/updates';
     case 'audit': {
       const query = new URLSearchParams();
       if (route.organizationId) query.set('organizationId', route.organizationId);
@@ -95,10 +86,9 @@ export function pathForPlatformRoute(route: PlatformRoute): string {
       if (route.outcome) query.set('outcome', route.outcome);
       if (route.from) query.set('from', route.from);
       if (route.to) query.set('to', route.to);
-      return `/admin/audit${query.size === 0 ? '' : `?${query}`}`;
+      return `/admin/journal${query.size === 0 ? '' : `?${query}`}`;
     }
     case 'settings': return '/admin/settings';
-    case 'profile': return '/admin/profile';
     case 'notFound': return route.path;
   }
 }

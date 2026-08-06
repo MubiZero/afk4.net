@@ -54,8 +54,8 @@ export function OrganizationLimitsSection({ client, organization, onUpdated }: P
   }
 
   const field = (label: string, value: string, set: (v: string) => void) => (
-    <label className="block text-sm">
-      <span className="mb-1 block text-muted-foreground">{label}</span>
+    <label className="ui-field">
+      <span>{label}</span>
       <Input type="number" inputMode="numeric" min="0" step="1" aria-label={label} value={value} onChange={e => set(e.target.value)} />
     </label>
   );
@@ -63,7 +63,7 @@ export function OrganizationLimitsSection({ client, organization, onUpdated }: P
   return (
     <Card>
       <CardHeader><CardTitle>{t('platform.organization.section.limits')}</CardTitle></CardHeader>
-      <CardContent className="flex flex-col gap-3">
+      <CardContent>
         {field(t('platform.organization.limitsForm.maxBranches'), maxBranches, setMaxBranches)}
         {field(t('platform.organization.limitsForm.maxDevices'), maxDevices, setMaxDevices)}
         {field(t('platform.organization.limitsForm.maxSessions'), maxSessions, setMaxSessions)}

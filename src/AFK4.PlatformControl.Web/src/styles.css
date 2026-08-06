@@ -1,0 +1,22 @@
+/* Барелл стилей Platform Control. Внешний вид целиком приходит из @afk4/ui — те же атомы,
+ * рейл, командная панель, экран входа, таблица и mgmt-кит, что у Organization Admin. Локальные
+ * слои ниже описывают только то, чего у оператора нет: браузерную оболочку и экраны платформы.
+ *
+ * Слои пакета стоят на тех же позициях, что и у оператора: порядок решает исход при равной
+ * специфичности, и общий слой обязан идти ДО экранных правил, которые его уточняют. */
+@import '@afk4/ui/base.css';
+@import './styles/01-base.css';
+@import '@afk4/ui/kit.css';
+@import '@afk4/ui/chrome.css';
+@import './styles/02-shell.css';
+@import '@afk4/ui/auth.css';
+@import '@afk4/ui/rail.css';
+@import '@afk4/ui/workspace.css';
+@import '@afk4/ui/overlays.css';
+@import '@afk4/ui/table.css';
+@import '@afk4/ui/screen.css';
+@import '@afk4/ui/mgmt.css';
+@import './styles/10-clubs.css';
+@import './styles/11-organization.css';
+@import './styles/12-money.css';
+@import './styles/13-forms.css';

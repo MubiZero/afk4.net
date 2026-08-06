@@ -42,7 +42,8 @@ describe('Platform Control admin-only routing', () => {
     window.history.replaceState(null, '', '/');
     sessionStorage.clear();
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
-      if (new URL(String(input)).pathname === '/api/platform/metrics') {
+      const pathname = new URL(String(input)).pathname;
+      if (pathname === '/api/platform/metrics') {
         return jsonResponse(200, {
           mrrMinorUnits: 0,
           currencyCode: 'RUB',
@@ -52,6 +53,9 @@ describe('Platform Control admin-only routing', () => {
           overdueMinorUnits: 0,
           overdueCount: 0
         });
+      }
+      if (pathname === '/api/platform/pulse') {
+        return jsonResponse(200, { generatedAtUtc: '2026-08-03T00:00:00Z', organizations: [] });
       }
       return jsonResponse(200, []);
     }) as unknown as typeof fetch;
@@ -64,9 +68,9 @@ describe('Platform Control admin-only routing', () => {
   });
 
   it('resolves only canonical admin routes', () => {
-    expect(resolvePlatformRoute('/')).toEqual({ kind: 'overview' });
-    expect(resolvePlatformRoute('/admin/organizations')).toMatchObject({ kind: 'organizations' });
-    expect(resolvePlatformRoute('/admin/updates')).toEqual({ kind: 'updates', tab: 'packages' });
+    expect(resolvePlatformRoute('/')).toEqual({ kind: 'overview', view: 'now' });
+    expect(resolvePlatformRoute('/admin/organizations')).toMatchObject({ kind: 'overview' });
+    expect(resolvePlatformRoute('/admin/updates')).toEqual({ kind: 'updates' });
     expect(resolvePlatformRoute('/organizations/org-1')).toEqual({ kind: 'notFound', path: '/organizations/org-1' });
   });
 
@@ -87,30 +91,31 @@ describe('Platform Control admin-only routing', () => {
     renderApp();
 
     await waitFor(() => expect(window.location.pathname).toBe('/admin'));
-    expect(screen.getByText('Platform Control')).toBeInTheDocument();
-    expect(screen.getByText('Platform Owner')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Клубы' })).toBeInTheDocument();
+    // Учётная запись живёт в подвале рейла — отдельного экрана «Профиль» больше нет.
+    expect(screen.getByRole('button', { name: 'Учётная запись' })).toBeInTheDocument();
   });
 
-  it('pushes the admin organization-list URL from navigation', async () => {
+  it('pushes the admin money URL from navigation', async () => {
     window.history.replaceState(null, '', '/admin');
-    writeSession(buildSession());
+    writeSession({ ...buildSession(), permissions: ['platform.organizations.view', 'platform.billing.view'] });
     renderApp();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Организации' }));
-    await waitFor(() => expect(window.location.pathname).toBe('/admin/organizations'));
-    await screen.findByText('Организации не найдены.');
+    fireEvent.click(await screen.findByRole('button', { name: 'Деньги' }));
+    await waitFor(() => expect(window.location.pathname).toBe('/admin/money'));
+    expect(await screen.findByRole('tab', { name: 'Тарифы' })).toBeInTheDocument();
   });
 
   it('blocks direct navigation when the session lacks the backend permission', () => {
-    window.history.replaceState(null, '', '/admin/billing');
+    window.history.replaceState(null, '', '/admin/money');
     writeSession(buildSession());
     renderApp();
     expect(screen.getByRole('heading', { name: 'Нет доступа' })).toBeInTheDocument();
   });
 
   it('does not load overview data outside the overview route', async () => {
-    window.history.replaceState(null, '', '/admin/profile');
-    writeSession(buildSession());
+    window.history.replaceState(null, '', '/admin/journal');
+    writeSession({ ...buildSession(), permissions: ['platform.organizations.view', 'platform.audit.view'] });
     const requests: string[] = [];
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
       requests.push(new URL(String(input)).pathname);
@@ -122,7 +127,7 @@ describe('Platform Control admin-only routing', () => {
       await Promise.resolve();
     });
 
-    await screen.findByText('admin@platform.test');
-    expect(requests).toEqual([]);
+    await screen.findByRole('button', { name: 'Учётная запись' });
+    expect(requests.filter(path => path.includes('/pulse'))).toEqual([]);
   });
 });

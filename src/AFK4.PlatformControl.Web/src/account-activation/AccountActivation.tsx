@@ -1,11 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import type { AccountActivationApi } from './accountActivationApi';
-import { PlatformApiError } from '../api/platformApi';
+import { describeApiError } from '../api/describeApiError';
 import { useI18n } from '../i18n/I18nProvider';
-import { ErrorBanner, Field } from '../components/ui';
+import { ErrorBanner, Field } from '../components/ui/field';
 import { Button } from '../components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Input } from '../components/ui/input';
+import { BrandLogo } from '../components/shell/BrandLogo';
 
 export interface AccountActivationProps {
   client: AccountActivationApi;
@@ -39,7 +39,7 @@ export function AccountActivation({ client, initialCode }: AccountActivationProp
       await client.accept({ code: normalizedCode, userName: normalizedUserName, displayName: '', password });
       setAccepted(true);
     } catch (cause) {
-      setError(projectError(cause, t));
+      setError(describeApiError(cause, t, { 404: 'auth.accept.error.codeNotFound', 409: 'auth.accept.error.loginTaken' }));
     } finally {
       setSubmitting(false);
     }
@@ -47,14 +47,13 @@ export function AccountActivation({ client, initialCode }: AccountActivationProp
 
   if (accepted) {
     return (
-      <main className="grid min-h-screen place-items-center bg-background p-5"><Card className="w-full max-w-md"><CardHeader><CardTitle><h1>{t('auth.accept.success.title')}</h1></CardTitle></CardHeader><CardContent><p className="text-sm text-muted-foreground">{t('auth.accept.success.body')}</p></CardContent></Card></main>
+      <Frame title={t('auth.accept.success.title')} subtitle={t('auth.accept.success.body')} />
     );
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-background p-5"><Card className="w-full max-w-md">
-      <CardHeader><CardTitle><h1>{t('auth.accept.title')}</h1></CardTitle><p className="text-sm text-muted-foreground">{t('auth.accept.subtitle')}</p></CardHeader>
-      <CardContent><form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+    <Frame title={t('auth.accept.title')} subtitle={t('auth.accept.subtitle')}>
+      <form className="auth-form" onSubmit={handleSubmit}>
         <ErrorBanner message={error} dismissLabel={t('common.close')} onDismiss={() => setError(null)} />
         <Field label={t('auth.accept.field.code')} htmlFor="accept-code">
           <Input id="accept-code" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value)} disabled={isSubmitting} required />
@@ -71,16 +70,34 @@ export function AccountActivation({ client, initialCode }: AccountActivationProp
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? t('auth.accept.action.submitting') : t('auth.accept.action.submit')}
         </Button>
-      </form></CardContent>
-    </Card></main>
+      </form>
+    </Frame>
   );
 }
 
-function projectError(cause: unknown, t: ReturnType<typeof useI18n>['t']): string {
-  if (cause instanceof PlatformApiError) {
-    if (cause.status === 404) return t('auth.accept.error.codeNotFound');
-    if (cause.status === 409) return t('auth.accept.error.loginTaken');
-    return cause.message;
-  }
-  return cause instanceof Error ? cause.message : t('auth.accept.error.generic');
+// Активация владельца — тот же экран-панель, что и вход: знак над заголовком, форма в
+// приподнятой карточке. Раньше это была третья по счёту непохожая обёртка в одном приложении.
+function Frame({ title, subtitle, children }: { title: string; subtitle: string; children?: ReactNode }) {
+  const { t } = useI18n();
+  return (
+    <div className="pc-auth-shell">
+      <header className="top-command auth-top-command">
+        <div className="brand-block">
+          <BrandLogo className="brand-logo" />
+          <span>{t('shell.brand.section')}</span>
+        </div>
+      </header>
+      <main className="auth-workspace">
+        <section className="auth-panel">
+          <header className="auth-panel-head">
+            <img className="auth-brand-mark" src="/favicon.svg" alt="" aria-hidden="true" />
+            <h1>{title}</h1>
+            <p>{subtitle}</p>
+          </header>
+          {children}
+        </section>
+      </main>
+    </div>
+  );
 }
+

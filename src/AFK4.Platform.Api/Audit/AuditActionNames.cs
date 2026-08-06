@@ -213,6 +213,12 @@ public static class AuditActionNames
 
     public const string UpdateOrganizationLimits = "tenancy.organization.limits.update";
 
+    public const string UpdateOrganizationProfile = "tenancy.organization.profile.update";
+
+    public const string UpdateOrganizationUpdateChannel = "tenancy.organization.update_channel.update";
+
+    public const string TransferOrganizationOwner = "tenancy.organization.owner.transfer";
+
     public const string ViewOrganization = "tenancy.organization.view";
 
     public const string CreateOrganizationOwnerInvite = "tenancy.owner_invite.create";
@@ -286,4 +292,20 @@ public static class AuditActionNames
     public const string UsePlatformSupportAccess = "platform.support_access.use";
 
     public const string RevokePlatformSupportAccess = "platform.support_access.revoke";
+
+    public const string ViewPlatformAdmins = "platform.admins.view";
+
+    public const string PlatformAdminInvited = "platform.admins.invited";
+
+    public const string PlatformAdminUpdated = "platform.admins.updated";
+
+    public const string PlatformAdminInvitationRevoked = "platform.admins.invitation_revoked";
+
+    public const string PlatformAdminInvitationAccepted = "platform.admins.invitation_accepted";
+
+    public const string PlatformAdminTwoFactorConfigured = "platform.admins.two_factor.configured";
+
+    public const string PlatformAdminTwoFactorVerified = "platform.admins.two_factor.verified";
+
+    public const string PlatformAdminTwoFactorReset = "platform.admins.two_factor.reset";
 }

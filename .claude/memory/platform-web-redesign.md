@@ -1,11 +1,17 @@
 ---
 name: platform-web-redesign
-description: "Full non-MVP redesign of both admins — DONE and merged to origin/main. File now kept for durable engineering patterns (money 100× pitfall, feature shape, bun toolchain, backend/test conventions)."
+description: "Историческая память по редизайну обеих админок. ВНИМАНИЕ: Platform.Web переименован в PlatformControl.Web, club-воркспейс снесён — файл держим ради durable-паттернов (money 100×, форма фичи, bun, бэкенд/тест-конвенции)."
 metadata:
   node_type: memory
   type: project
   originSessionId: e1eb7edc-21e1-4bb7-bc17-823ddeafd946
+  modified: 2026-08-03T12:36:15.558Z
 ---
+
+> **Устарело по именам и структуре (2026-08-03):** `AFK4.Platform.Web` переименован в
+> `AFK4.PlatformControl.Web`, `Operator.App(.Web)` — в `OrganizationAdmin.App(.Web)`, club-воркспейс из
+> платформенной панели удалён, экраны переделаны — см. [[platform-control-fleet-redesign]]. Ниже — исходный
+> текст; ценность файла теперь в разделе «Durable patterns», который остаётся верным.
 
 Full (non-MVP) redesign of **AFK4.Platform.Web** — platform admin (`/admin/*`, `platform.afk4.staging.mubi.dev`) and club console (`/club/*`, `app.afk4.staging.mubi.dev`). One SPA, `VITE_AUDIENCE` builds (`all|admin|club`). "Calm SaaS" (indigo), light default + dark toggle, i18n RU primary / EN fallback. Module roots `src/club/*` and `src/platform/*` mirror each other (platform must NOT import `@/club`).
 

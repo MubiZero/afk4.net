@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { LoadingCards, ErrorState, EmptyState } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
@@ -90,23 +90,20 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
   return (
     <Card>
       <CardHeader><CardTitle>{t('platform.organization.section.invites')}</CardTitle></CardHeader>
-      <CardContent className="flex flex-col gap-4 text-sm">
-        <div className="flex flex-col gap-3">
-          <label className="block">
-            <span className="mb-1 block text-muted-foreground">{t('platform.organization.invites.branch')}</span>
-            <Select value={branchId} onValueChange={setBranchId}>
-              <SelectTrigger aria-label={t('platform.organization.invites.branch')}><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {branches.map(b => <SelectItem key={b.branchId} value={b.branchId}>{b.name} ({b.city})</SelectItem>)}
-              </SelectContent>
+      <CardContent>
+        <div>
+          <label className="ui-field">
+            <span>{t('platform.organization.invites.branch')}</span>
+            <Select value={branchId} onChange={event => setBranchId(event.target.value)}>
+                {branches.map(b => <option key={b.branchId} value={b.branchId}>{b.name} ({b.city})</option>)}
             </Select>
           </label>
-          <label className="block">
-            <span className="mb-1 block text-muted-foreground">{t('platform.organization.invites.ownerUserName')}</span>
+          <label className="ui-field">
+            <span>{t('platform.organization.invites.ownerUserName')}</span>
             <Input aria-label={t('platform.organization.invites.ownerUserName')} value={ownerUserName} onChange={e => setOwnerUserName(e.target.value)} />
           </label>
-          <label className="block">
-            <span className="mb-1 block text-muted-foreground">{t('platform.organization.invites.ownerDisplayName')}</span>
+          <label className="ui-field">
+            <span>{t('platform.organization.invites.ownerDisplayName')}</span>
             <Input aria-label={t('platform.organization.invites.ownerDisplayName')} value={ownerDisplayName} onChange={e => setOwnerDisplayName(e.target.value)} />
           </label>
           <div>
@@ -141,10 +138,10 @@ export function OrganizationOwnerInvitesSection({ client, organizationId, branch
                         {INVITE_STATUS_LABEL[inv.status] ? t(INVITE_STATUS_LABEL[inv.status]) : inv.status}
                       </Badge>
                     </TableCell>
-                    <TableCell><code className="font-mono text-xs">{code !== undefined ? code : `•••• ${inv.codeSuffix}`}</code></TableCell>
+                    <TableCell><code className="pc-mono">{code !== undefined ? code : `•••• ${inv.codeSuffix}`}</code></TableCell>
                     <TableCell>{inv.ownerUserName ?? '—'}</TableCell>
-                    <TableCell className="tabular-nums">{formatDate(inv.expiresAtUtc)}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="pc-num">{formatDate(inv.expiresAtUtc)}</TableCell>
+                    <TableCell className="pc-num">
                       {inv.status === 'pending' && (
                         <Button variant="ghost" size="sm" onClick={() => setRevokeId(inv.organizationOwnerInviteId)}>
                           {t('platform.organization.invites.revoke')}

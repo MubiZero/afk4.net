@@ -4,7 +4,24 @@ import {
   writeSession,
   type PlatformAdminSession
 } from '../auth/tokenStore';
-import type { FetchLike, PlatformAdminSignInResponse } from './types';
+import type {
+  FetchLike,
+  PlatformAdminSignInChallengeResponse,
+  PlatformAdminSignInResponse,
+  TwoFactorSetupConfirmResponse,
+  TwoFactorSetupResponse
+} from './types';
+
+// Result of step 1 of sign-in: password alone never yields a working session anymore, only a
+// short-lived challenge token that must be redeemed via completeTwoFactorSetup/completeTwoFactor.
+// `expiresAtUtc` is carried through so the UI can tell "the window ran out" apart from "the code
+// was wrong" — the server answers both with a bare 401, and only the client knows the clock.
+export type SignInOutcome = {
+  kind: 'challenge';
+  challengeToken: string;
+  twoFactorConfigured: boolean;
+  expiresAtUtc: string;
+};
 
 export class PlatformApiError extends Error {
   public readonly status: number;
@@ -22,6 +39,38 @@ export class PlatformApiError extends Error {
     this.errorCode = errorCode;
     this.remainingAttempts = remainingAttempts;
   }
+}
+
+// Thrown when a 200 sign-in response doesn't match the shape the current bundle expects. Deploys
+// of the Platform API and the panel bundle are two independent Coolify apps with no shared release
+// artifact, so there is always a window where one is ahead of the other: an old cached bundle can
+// hit a new API that answers step 1 with a two-factor challenge instead of a session, or a new
+// bundle can hit an old API that never issued a challenge/step-2 tokens at all. Either way the
+// wrong shape must not be quietly assembled into a session with undefined fields — see
+// describeApiError, which turns this into the localized "reload the page" message instead of a
+// generic transport error.
+export class PlatformStaleClientError extends Error {
+  public constructor() {
+    super('Platform API response shape did not match this panel build — client/server version mismatch.');
+    this.name = 'PlatformStaleClientError';
+  }
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+function isValidChallengeResponse(body: PlatformAdminSignInChallengeResponse): boolean {
+  return isNonEmptyString(body.challengeToken)
+    && typeof body.twoFactorConfigured === 'boolean'
+    && isNonEmptyString(body.expiresAtUtc);
+}
+
+// A session response is only trustworthy once it actually carries working tokens — an old API
+// answering step 2 with (what used to be) the whole session on step 1, or any other shape that
+// isn't this panel's current contract, must not be handed to sessionFromSignInResponse() as-is.
+function isValidSessionResponse(body: PlatformAdminSignInResponse): boolean {
+  return isNonEmptyString(body.accessToken) && isNonEmptyString(body.refreshToken);
 }
 
 export interface PlatformTransportOptions {
@@ -54,7 +103,10 @@ export class PlatformTransport {
     return this.session;
   }
 
-  public async signIn(userName: string, password: string): Promise<PlatformAdminSession> {
+  // Step 1: password only ever earns a challenge token now — no session is applied here. The
+  // caller decides where to go next from `twoFactorConfigured`: an already-configured admin goes
+  // to completeTwoFactor (verify), a first-timer goes to beginTwoFactorSetup.
+  public async signIn(userName: string, password: string): Promise<SignInOutcome> {
     const response = await this.fetchImpl(`${this.baseUrl}/api/platform/auth/sign-in`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -63,7 +115,66 @@ export class PlatformTransport {
     if (!response.ok) {
       throw await PlatformTransport.toError(response, 'Sign-in failed.');
     }
+    const body = (await response.json()) as PlatformAdminSignInChallengeResponse;
+    if (!isValidChallengeResponse(body)) {
+      throw new PlatformStaleClientError();
+    }
+    return {
+      kind: 'challenge',
+      challengeToken: body.challengeToken,
+      twoFactorConfigured: body.twoFactorConfigured,
+      expiresAtUtc: body.expiresAtUtc
+    };
+  }
+
+  // Step 2a (first-time setup): returns the TOTP secret/QR link for a challenge that hasn't
+  // configured 2FA yet. No session change — the admin hasn't proven a code yet.
+  public async beginTwoFactorSetup(challengeToken: string): Promise<TwoFactorSetupResponse> {
+    const response = await this.fetchImpl(`${this.baseUrl}/api/platform/auth/2fa/setup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challengeToken })
+    });
+    if (!response.ok) {
+      throw await PlatformTransport.toError(response, 'Two-factor setup failed.');
+    }
+    return (await response.json()) as TwoFactorSetupResponse;
+  }
+
+  // Step 2a confirm: proves the first TOTP code and issues the real session plus one-time
+  // recovery codes. This is the only place a first-time setup applies a session.
+  public async completeTwoFactorSetup(challengeToken: string, code: string): Promise<TwoFactorSetupConfirmResponse> {
+    const response = await this.fetchImpl(`${this.baseUrl}/api/platform/auth/2fa/setup/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challengeToken, code })
+    });
+    if (!response.ok) {
+      throw await PlatformTransport.toError(response, 'Two-factor setup confirmation failed.');
+    }
+    const body = (await response.json()) as TwoFactorSetupConfirmResponse;
+    if (body.session === undefined || !isValidSessionResponse(body.session)) {
+      throw new PlatformStaleClientError();
+    }
+    this.applySession(sessionFromSignInResponse(body.session));
+    return body;
+  }
+
+  // Step 2b: for an already-configured admin, verifies either a TOTP code or a recovery code and
+  // issues the working session.
+  public async completeTwoFactor(challengeToken: string, code: string): Promise<PlatformAdminSession> {
+    const response = await this.fetchImpl(`${this.baseUrl}/api/platform/auth/2fa/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challengeToken, code })
+    });
+    if (!response.ok) {
+      throw await PlatformTransport.toError(response, 'Two-factor verification failed.');
+    }
     const body = (await response.json()) as PlatformAdminSignInResponse;
+    if (!isValidSessionResponse(body)) {
+      throw new PlatformStaleClientError();
+    }
     const session = sessionFromSignInResponse(body);
     this.applySession(session);
     return session;

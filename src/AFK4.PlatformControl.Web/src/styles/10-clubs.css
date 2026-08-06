@@ -1,0 +1,167 @@
+/* Экран «Клубы» — сигнальные строки сетей с раскрытием в клубы.
+
+   Мишени клика разведены физически: шеврон слева раскрывает список клубов, вся остальная
+   строка открывает карточку клиента. В прошлой версии на одной строке жили две разные реакции
+   без единого намёка — клик по имени уводил внутрь, клик рядом раскрывал. */
+.pulse-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pulse-net {
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.pulse-net-head {
+  display: flex;
+  align-items: stretch;
+}
+
+.pulse-chevron {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  border: 0;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+}
+
+.pulse-chevron:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.pulse-chevron:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.pulse-chevron svg {
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.pulse-chevron[aria-expanded='true'] svg {
+  transform: rotate(90deg);
+}
+
+/* Строка сети наследует .ctable-row из кита: та же геометрия, hover и цветная левая кромка,
+   что у строк списков в Organization Admin. */
+.pulse-row {
+  flex: 1;
+  min-width: 0;
+  gap: 12px;
+  border: 0;
+  border-left: 3px solid var(--border-soft);
+  border-radius: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.pulse-row:hover {
+  transform: none;
+  border-color: transparent;
+  border-left-color: var(--edge, var(--border-soft));
+}
+
+.pulse-net[data-alert-level='attention'] .pulse-row { --edge: var(--warning); border-left-color: var(--warning); }
+.pulse-net[data-alert-level='critical'] .pulse-row { --edge: var(--danger); border-left-color: var(--danger); }
+.pulse-net[data-alert-level='normal'] .pulse-row { --edge: var(--success); border-left-color: var(--success); }
+
+/* Аварийная сеть подсвечена целиком: она стоит первой и обязана читаться как «сюда смотреть». */
+.pulse-net[data-alert-level='critical'] {
+  background: var(--danger-soft-bg);
+}
+
+.pulse-name {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 220px;
+  text-align: left;
+}
+
+.pulse-name strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pulse-name span {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.pulse-summary {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.pulse-chips {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Клубы сети — вложенный уровень: приглушённая подложка и отступ слева, чтобы читались как
+   содержимое строки, а не как соседние строки того же ранга. */
+.pulse-clubs {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0 0 0 34px;
+  list-style: none;
+  background: var(--surface-sunken);
+}
+
+.pulse-club {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 13px;
+}
+
+.pulse-club-name {
+  flex: 1 1 200px;
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+.pulse-club-name span {
+  color: var(--text-tertiary);
+}
+
+.pulse-metric {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.pulse-empty {
+  padding: 12px 16px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+/* Плотный режим: клиентов много, строки сжимаются, клубы по умолчанию свёрнуты. */
+.pulse-list.is-dense .pulse-row {
+  min-height: 46px;
+}
+
+.pulse-list.is-dense .pulse-name strong {
+  font-size: 13px;
+}

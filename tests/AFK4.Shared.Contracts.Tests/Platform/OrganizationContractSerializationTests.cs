@@ -63,7 +63,10 @@ public sealed class OrganizationContractSerializationTests
                     CreatedAtUtc: DateTimeOffset.Parse("2026-05-23T08:00:00Z"))
             ],
             CreatedAtUtc: DateTimeOffset.Parse("2026-05-23T08:00:00Z"),
-            UpdatedAtUtc: DateTimeOffset.Parse("2026-05-23T08:30:00Z"));
+            UpdatedAtUtc: DateTimeOffset.Parse("2026-05-23T08:30:00Z"),
+            ContactEmail: "billing@demo-org.test",
+            ContactPhone: "+992000000000",
+            LegalDetails: "OOO Demo Org, TIN 000000000");
 
         var json = JsonSerializer.Serialize(detail);
         var copy = JsonSerializer.Deserialize<OrganizationDetailDto>(json);
@@ -77,6 +80,28 @@ public sealed class OrganizationContractSerializationTests
         Assert.Equal(detail.Limits.MaxStaffUsersPerBranch, copy.Limits.MaxStaffUsersPerBranch);
         Assert.Single(copy.Branches);
         Assert.Equal("demo-branch", copy.Branches[0].Slug);
+        Assert.Equal(detail.ContactEmail, copy.ContactEmail);
+        Assert.Equal(detail.ContactPhone, copy.ContactPhone);
+        Assert.Equal(detail.LegalDetails, copy.LegalDetails);
+    }
+
+    [Fact]
+    public void UpdateOrganizationProfileRequest_RoundTripsThroughJson()
+    {
+        var request = new UpdateOrganizationProfileRequest(
+            Name: "Renamed Org",
+            ContactEmail: "billing@renamed-org.test",
+            ContactPhone: "+992000000000",
+            LegalDetails: "OOO Renamed Org, TIN 111111111");
+
+        var json = JsonSerializer.Serialize(request);
+        var copy = JsonSerializer.Deserialize<UpdateOrganizationProfileRequest>(json);
+
+        Assert.NotNull(copy);
+        Assert.Equal(request.Name, copy.Name);
+        Assert.Equal(request.ContactEmail, copy.ContactEmail);
+        Assert.Equal(request.ContactPhone, copy.ContactPhone);
+        Assert.Equal(request.LegalDetails, copy.LegalDetails);
     }
 
     [Fact]

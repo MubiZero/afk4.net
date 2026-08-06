@@ -12,4 +12,9 @@ public sealed record OrganizationDetailDto(
     OrganizationLimitsDto Limits,
     IReadOnlyList<OrganizationBranchDto> Branches,
     DateTimeOffset CreatedAtUtc,
-    DateTimeOffset UpdatedAtUtc);
+    DateTimeOffset UpdatedAtUtc,
+    string? ContactEmail = null,
+    string? ContactPhone = null,
+    string? LegalDetails = null,
+    string UpdateChannel = "stable",
+    string? PinnedClientVersion = null);

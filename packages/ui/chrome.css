@@ -1,0 +1,128 @@
+/* Верхняя командная панель: бренд, поиск-палитра, разделитель. Оконные контролы и
+   resize-хендлы остаются в десктопном хосте — в браузере их нет. */
+
+.top-command {
+  /* Размещение в сетке оболочки задаёт приложение: у оператора три колонки, у панели две.
+     Три зоны: бренд слева, поиск строго по центру панели, оконные контролы справа.
+     Боковые колонки равны (1fr), поэтому поиск центрируется по всей ширине навбара. */
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+}
+
+/* Левая зона тайтлбара (бренд + опциональный свитчер филиала) — теперь общий grid-item колонки 1,
+   а не сам .brand-block: свитчеру нужно место рядом с брендом, без перестройки трёх колонок
+   top-command. min-width:0 обязателен — иначе grid-item не сожмётся и свитчер вытолкнет поиск. */
+.top-command-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  justify-self: start;
+}
+
+.top-command .top-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  justify-self: end;
+}
+
+.brand-block {
+  display: flex;
+  align-items: center;
+  /* Лого обрезан по глифу (viewBox), поэтому небольшой gap делает расстояние лого→разделитель
+     равным разделитель→«Оператор» (12px у span). */
+  gap: 8px;
+  flex-shrink: 0;
+  width: max-content;
+  line-height: 1;
+}
+
+.brand-block .brand-logo {
+  display: block;
+  height: 34px;
+  width: auto;
+}
+
+/* «Оператор» сидит справа от лого как ярлык секции, отделён тонкой вертикальной чертой,
+   чтобы не сливаться с wordmark «AFK4.NET» в самом логотипе. */
+.brand-block span {
+  position: relative;
+  padding-left: 12px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* One hairline separator, reused in both titlebar corners: the brand wordmark divider (here) and the
+   app-controls / window-controls divider on the right (.titlebar-separator) share this line spec —
+   change it once, both corners follow. */
+.brand-block span::before,
+.titlebar-separator {
+  width: 1px;
+  height: 16px;
+  background: var(--border-strong);
+}
+
+.brand-block span::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.command-search {
+  display: flex;
+  justify-self: center;
+  align-items: center;
+  gap: 7px;
+  width: min(460px, 36vw);
+  min-width: 180px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface-sunken);
+  color: var(--text-tertiary);
+}
+
+.command-search {
+  cursor: text;
+  font: inherit;
+  text-align: left;
+}
+
+.command-search:hover {
+  border-color: var(--accent-hover);
+}
+
+.command-search:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 2px;
+}
+
+.command-search span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+/* Divides the app controls (language/theme) from the OS window controls (min/max/close). Line spec
+   (1px hairline) is shared with the brand divider above; here we only add flex behaviour + a small
+   left nudge toward the window controls (whose icons are inset in wider hit-targets). */
+.titlebar-separator {
+  flex: none;
+  margin-left: 8px;
+}

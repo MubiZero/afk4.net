@@ -1,8 +1,9 @@
-import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog } from '@/components/ui/dialog';
+import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { Select } from '@/components/ui/select';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor, majorToMinor } from '@/lib/money';
 import { validatePlanForm, type PlanForm } from './billingModel';
@@ -21,66 +22,73 @@ export function PlanFormDialog({ open, mode, form, pending, onChange, onSubmit, 
   const { t } = useI18n();
   const valid = validatePlanForm(form);
 
-  const numberField = (label: string, value: number | null, set: (n: number | null) => void) => (
-    <label className="block text-sm">
-      <span className="mb-1 block text-muted-foreground">{label}</span>
+  const numberField = (id: string, label: string, value: number | null, set: (next: number | null) => void) => (
+    <Field key={id} label={label} htmlFor={id}>
       <Input
+        id={id}
         type="number"
         value={value === null ? '' : String(value)}
-        onChange={e => set(e.target.value === '' ? null : Math.max(0, Math.trunc(Number(e.target.value))))}
+        onChange={event => set(event.target.value === '' ? null : Math.max(0, Math.trunc(Number(event.target.value))))}
       />
-    </label>
+    </Field>
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogTitle>{mode === 'create' ? t('platform.billing.planForm.createTitle') : t('platform.billing.planForm.editTitle')}</DialogTitle>
-        <DialogDescription>{t('platform.billing.planForm.description')}</DialogDescription>
-        <div className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto">
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted-foreground">{t('platform.billing.planForm.code')}</span>
-            <Input value={form.planCode} disabled={mode === 'edit'} onChange={e => onChange({ ...form, planCode: e.target.value })} />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted-foreground">{t('platform.billing.planForm.name')}</span>
-            <Input value={form.name} onChange={e => onChange({ ...form, name: e.target.value })} />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted-foreground">{t('platform.billing.planForm.price')}</span>
-            <Input type="number" value={String(minorToMajor(form.priceMinorUnits))} onChange={e => { const major = Math.max(0, Number(e.target.value) || 0); onChange({ ...form, priceMinorUnits: majorToMinor(major) }); }} />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted-foreground">{t('platform.billing.planForm.currency')}</span>
-            <Input value={form.currencyCode} onChange={e => onChange({ ...form, currencyCode: e.target.value.toUpperCase() })} />
-          </label>
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted-foreground">{t('platform.billing.planForm.interval')}</span>
-            <Select value={form.billingInterval} onValueChange={v => onChange({ ...form, billingInterval: v })}>
-              <SelectTrigger aria-label={t('platform.billing.planForm.interval')}><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="monthly">{t('platform.billing.interval.monthly')}</SelectItem>
-                <SelectItem value="yearly">{t('platform.billing.interval.yearly')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </label>
-          {numberField(t('platform.billing.planForm.maxBranches'), form.maxBranches, n => onChange({ ...form, maxBranches: n }))}
-          {numberField(t('platform.billing.planForm.maxDevices'), form.maxDevicesPerBranch, n => onChange({ ...form, maxDevicesPerBranch: n }))}
-          {numberField(t('platform.billing.planForm.maxSessions'), form.maxConcurrentSessions, n => onChange({ ...form, maxConcurrentSessions: n }))}
-          {numberField(t('platform.billing.planForm.maxStaff'), form.maxStaffUsersPerBranch, n => onChange({ ...form, maxStaffUsersPerBranch: n }))}
-          {numberField(t('platform.billing.planForm.sortOrder'), form.sortOrder, n => onChange({ ...form, sortOrder: n ?? 0 }))}
-          {mode === 'edit' && (
-            <label className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{t('platform.billing.planForm.active')}</span>
-              <Switch checked={form.isActive} onCheckedChange={c => onChange({ ...form, isActive: c })} />
-            </label>
-          )}
-        </div>
-        <DialogFooter>
+    <Dialog
+      open={open}
+      title={mode === 'create' ? t('platform.billing.planForm.createTitle') : t('platform.billing.planForm.editTitle')}
+      description={t('platform.billing.planForm.description')}
+      onClose={() => onOpenChange(false)}
+      footer={
+        <>
           <Button variant="outline" disabled={pending} onClick={() => onOpenChange(false)}>{t('platform.billing.action.cancel')}</Button>
           <Button disabled={pending || !valid} onClick={onSubmit}>{t('platform.billing.planForm.save')}</Button>
-        </DialogFooter>
-      </DialogContent>
+        </>
+      }
+    >
+      <div className="mgmt-form">
+        <Field label={t('platform.billing.planForm.code')} htmlFor="plan-code">
+          <Input id="plan-code" value={form.planCode} disabled={mode === 'edit'} onChange={event => onChange({ ...form, planCode: event.target.value })} />
+        </Field>
+        <Field label={t('platform.billing.planForm.name')} htmlFor="plan-name">
+          <Input id="plan-name" value={form.name} onChange={event => onChange({ ...form, name: event.target.value })} />
+        </Field>
+
+        <div className="mgmt-form-grid">
+          <Field label={t('platform.billing.planForm.price')} htmlFor="plan-price">
+            <Input
+              id="plan-price"
+              type="number"
+              value={String(minorToMajor(form.priceMinorUnits))}
+              onChange={event => onChange({ ...form, priceMinorUnits: majorToMinor(Math.max(0, Number(event.target.value) || 0)) })}
+            />
+          </Field>
+          <Field label={t('platform.billing.planForm.currency')} htmlFor="plan-currency">
+            <Input id="plan-currency" value={form.currencyCode} onChange={event => onChange({ ...form, currencyCode: event.target.value.toUpperCase() })} />
+          </Field>
+          <Field label={t('platform.billing.planForm.interval')} htmlFor="plan-interval">
+            <Select id="plan-interval" value={form.billingInterval} onChange={event => onChange({ ...form, billingInterval: event.target.value })}>
+              <option value="monthly">{t('platform.billing.interval.monthly')}</option>
+              <option value="yearly">{t('platform.billing.interval.yearly')}</option>
+            </Select>
+          </Field>
+        </div>
+
+        <div className="mgmt-form-grid">
+          {numberField('plan-max-branches', t('platform.billing.planForm.maxBranches'), form.maxBranches, next => onChange({ ...form, maxBranches: next }))}
+          {numberField('plan-max-devices', t('platform.billing.planForm.maxDevices'), form.maxDevicesPerBranch, next => onChange({ ...form, maxDevicesPerBranch: next }))}
+          {numberField('plan-max-sessions', t('platform.billing.planForm.maxSessions'), form.maxConcurrentSessions, next => onChange({ ...form, maxConcurrentSessions: next }))}
+          {numberField('plan-max-staff', t('platform.billing.planForm.maxStaff'), form.maxStaffUsersPerBranch, next => onChange({ ...form, maxStaffUsersPerBranch: next }))}
+          {numberField('plan-sort-order', t('platform.billing.planForm.sortOrder'), form.sortOrder, next => onChange({ ...form, sortOrder: next ?? 0 }))}
+        </div>
+
+        {mode === 'edit' ? (
+          <label className="pc-check-row">
+            <Switch checked={form.isActive} onCheckedChange={checked => onChange({ ...form, isActive: checked })} />
+            {t('platform.billing.planForm.active')}
+          </label>
+        ) : null}
+      </div>
     </Dialog>
   );
 }

@@ -15,4 +15,5 @@ public sealed class OrganizationSubscriptionEntity
     public bool CancelAtPeriodEnd { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset UpdatedAtUtc { get; set; }
+    public DateTimeOffset? PaymentGraceUntilUtc { get; set; }
 }

@@ -14,9 +14,12 @@ public static class PlatformAdminPermissionCatalog
                 PlatformAdminPermissionNames.CreateOrganization,
                 PlatformAdminPermissionNames.UpdateOrganizationStatus,
                 PlatformAdminPermissionNames.UpdateOrganizationLimits,
+                PlatformAdminPermissionNames.UpdateOrganizationProfile,
+                PlatformAdminPermissionNames.UpdateOrganizationUpdateChannel,
                 PlatformAdminPermissionNames.ViewOrganizationSupportNotes,
                 PlatformAdminPermissionNames.ManageOrganizationSupportNotes,
                 PlatformAdminPermissionNames.ManageOrganizationOwnerInvites,
+                PlatformAdminPermissionNames.TransferOrganizationOwner,
                 PlatformAdminPermissionNames.ViewOrganizationHealth,
                 PlatformAdminPermissionNames.ViewPlatformAudit,
                 PlatformAdminPermissionNames.ViewBilling,
@@ -25,7 +28,8 @@ public static class PlatformAdminPermissionCatalog
                 PlatformAdminPermissionNames.ManageInvoices,
                 PlatformAdminPermissionNames.ViewUpdates,
                 PlatformAdminPermissionNames.ManageUpdatePackages,
-                PlatformAdminPermissionNames.ManageUpdateRollouts
+                PlatformAdminPermissionNames.ManageUpdateRollouts,
+                PlatformAdminPermissionNames.ManagePlatformAdmins
             },
             [PlatformAdminRoleNames.PlatformSupport] = new HashSet<string>
             {

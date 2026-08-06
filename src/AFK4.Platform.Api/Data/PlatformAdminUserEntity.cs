@@ -19,4 +19,16 @@ public sealed class PlatformAdminUserEntity
     public DateTimeOffset CreatedAtUtc { get; set; }
 
     public DateTimeOffset UpdatedAtUtc { get; set; }
+
+    public string? TotpSecretEncrypted { get; set; }
+
+    public DateTimeOffset? TotpEnabledAtUtc { get; set; }
+
+    public string RecoveryCodeHashesJson { get; set; } = "[]";
+
+    public int FailedTwoFactorAttempts { get; set; }
+
+    public DateTimeOffset? TwoFactorLockedUntilUtc { get; set; }
+
+    public DateTimeOffset? LastSignInAtUtc { get; set; }
 }

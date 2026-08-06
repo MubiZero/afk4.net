@@ -1,0 +1,160 @@
+/* Карточка клиента: содержимое вкладок слева, панель клиента с рычагами справа — та же
+   раскладка «мастер + деталь», что в «Управлении» Organization Admin. Панель прилипает к
+   верху: статус и деньги обязаны быть на виду в момент, когда дёргаешь рычаги. */
+.pc-client {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  align-items: start;
+  gap: 12px;
+}
+
+@media (max-width: 1100px) {
+  .pc-client {
+    grid-template-columns: 1fr;
+  }
+
+  /* В одноколоночной раскладке панель клиента поднимается НАД вкладками: рычаги и статус
+     важнее содержимого вкладки, листать до них вниз неправильно. */
+  .pc-passport {
+    order: -1;
+  }
+}
+
+.pc-passport {
+  position: sticky;
+  top: 0;
+  border: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-card);
+}
+
+@media (max-width: 1100px) {
+  .pc-passport {
+    position: static;
+  }
+}
+
+.pc-passport-id {
+  display: grid;
+  gap: 2px;
+}
+
+.pc-passport-id strong {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.pc-passport-id span {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.pc-passport-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pc-passport-facts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.pc-passport-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pc-passport-row dt {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.pc-passport-row dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.pc-skel-value {
+  width: 72px;
+  height: 14px;
+}
+
+.pc-passport-actions {
+  display: grid;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+}
+
+/* Приостановка отделена от остальных рычагов: это не «ещё одно действие в списке». */
+.pc-passport-danger {
+  margin-top: 6px;
+}
+
+.pc-client-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.pc-client-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Сводка «состояния»: пары метка→значение в ряд, без таблицы ради четырёх чисел. */
+.pc-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.pc-fact {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+.pc-fact dt {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.pc-fact dd {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Клубы сети внутри карточки клиента. */
+.pc-club-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

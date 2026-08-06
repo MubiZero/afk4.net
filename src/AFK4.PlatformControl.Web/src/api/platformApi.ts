@@ -1,5 +1,5 @@
 import { isAccessTokenExpired, type PlatformAdminSession } from '../auth/tokenStore';
-import { PlatformTransport, type PlatformTransportOptions } from './platformTransport';
+import { PlatformTransport, type PlatformTransportOptions, type SignInOutcome } from './platformTransport';
 import { OrganizationsApi } from './platformClients/organizations';
 import { OrganizationOwnerInvitesApi } from './platformClients/organizationOwnerInvites';
 import { SupportNotesApi } from './platformClients/supportNotes';
@@ -9,8 +9,12 @@ import { InvoicesApi } from './platformClients/invoices';
 import { UpdatesApi } from './platformClients/updates';
 import { AuditApi } from './platformClients/audit';
 import { SearchApi } from './platformClients/search';
+import { PulseApi } from './platformClients/pulse';
+import { AdminsApi } from './platformClients/admins';
+import { TwoFactorApi } from './platformClients/twoFactor';
 
-export { PlatformApiError } from './platformTransport';
+export { PlatformApiError, PlatformStaleClientError } from './platformTransport';
+export type { SignInOutcome } from './platformTransport';
 
 export type PlatformApiClientOptions = PlatformTransportOptions;
 
@@ -31,6 +35,9 @@ export class PlatformApiClient {
   public readonly updates: UpdatesApi;
   public readonly audit: AuditApi;
   public readonly search: SearchApi;
+  public readonly pulse: PulseApi;
+  public readonly admins: AdminsApi;
+  public readonly twoFactor: TwoFactorApi;
 
   public constructor(options: PlatformApiClientOptions) {
     this.transport = new PlatformTransport(options);
@@ -43,13 +50,17 @@ export class PlatformApiClient {
     this.updates = new UpdatesApi(this.transport);
     this.audit = new AuditApi(this.transport);
     this.search = new SearchApi(this.transport);
+    this.pulse = new PulseApi(this.transport);
+    this.admins = new AdminsApi(this.transport);
+    this.twoFactor = new TwoFactorApi(this.transport);
   }
 
   public getSession(): PlatformAdminSession | null {
     return this.transport.getSession();
   }
 
-  public signIn(userName: string, password: string): Promise<PlatformAdminSession> {
+  // Step 1 only — see PlatformTransport.signIn. Never returns a working session by itself.
+  public signIn(userName: string, password: string): Promise<SignInOutcome> {
     return this.transport.signIn(userName, password);
   }
 

@@ -1,54 +1,59 @@
-import { useState, type ReactNode } from 'react';
-import { cn } from '@/lib/utils';
-import { NavList } from './NavList';
-import { UserMenu } from './UserMenu';
-import { Topbar } from './Topbar';
-import type { NavGroup } from './navModel';
+import type { ReactNode } from 'react';
+import { useI18n } from '@/i18n/I18nProvider';
+import { AccountMenu } from './AccountMenu';
+import { BrandLogo } from './BrandLogo';
+import type { NavItem } from './navModel';
 
 export interface AppShellProps {
-  navGroups: NavGroup[];
-  sidebarHeader: ReactNode;
+  navItems: NavItem[];
   activePath: string;
-  subtitle: string;
-  screenTitle: string;
-  menuLabel: string;
   userName: string;
   roleLabel: string;
-  counts?: Record<string, number>;
-  topbarRight?: ReactNode;
-  topbarSearch?: ReactNode;
+  permissions: string[];
+  search?: ReactNode;
   onNavigate: (path: string) => void;
   onSignOut: () => void;
   children: ReactNode;
 }
 
-export function AppShell(props: AppShellProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+// Оболочка панели: командная панель сверху, иконочный рейл слева, рабочая область справа —
+// та же геометрия, что у Organization Admin, минус оконные контролы десктопного хоста.
+export function AppShell({ navItems, activePath, userName, roleLabel, permissions, search, onNavigate, onSignOut, children }: AppShellProps) {
+  const { t } = useI18n();
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
-      <aside
-        className={cn(
-          'fixed inset-y-0 left-0 z-40 flex w-60 flex-col border-r border-border bg-card transition-transform md:static md:translate-x-0',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        )}
-      >
-        {props.sidebarHeader}
-        <div className="flex-1 overflow-auto">
-          <NavList groups={props.navGroups} activePath={props.activePath} counts={props.counts}
-            onNavigate={(p) => { setSidebarOpen(false); props.onNavigate(p); }} />
+    <div className="pc-shell">
+      <header className="top-command">
+        <div className="top-command-left">
+          <div className="brand-block">
+            <BrandLogo className="brand-logo" />
+            <span>{t('shell.brand.section')}</span>
+          </div>
         </div>
-        <UserMenu displayName={props.userName} roleLabel={props.roleLabel} onSignOut={props.onSignOut} />
-      </aside>
+        {search ?? <span />}
+        <div className="top-right" />
+      </header>
 
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={() => setSidebarOpen(false)} aria-hidden />
-      )}
+      <nav className="workspace-rail" aria-label={t('shell.nav.label')}>
+        {navItems.map(item => {
+          const Icon = item.icon;
+          const active = item.path === activePath;
+          return (
+            <button
+              key={item.key}
+              type="button"
+              className={active ? 'active' : undefined}
+              aria-current={active ? 'page' : undefined}
+              onClick={() => onNavigate(item.path)}
+            >
+              <Icon size={18} aria-hidden="true" />
+              <span>{t(item.labelKey)}</span>
+            </button>
+          );
+        })}
+        <AccountMenu displayName={userName} roleLabel={roleLabel} permissions={permissions} onSignOut={onSignOut} />
+      </nav>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar subtitle={props.subtitle}
-          screenTitle={props.screenTitle} menuLabel={props.menuLabel} onOpenSidebar={() => setSidebarOpen(true)} search={props.topbarSearch} right={props.topbarRight} />
-        <main className="flex-1 overflow-auto p-5">{props.children}</main>
-      </div>
+      <main className="pc-workspace">{children}</main>
     </div>
   );
 }

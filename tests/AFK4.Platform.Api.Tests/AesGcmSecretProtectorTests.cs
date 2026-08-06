@@ -70,4 +70,39 @@ public class AesGcmSecretProtectorTests
                 EncryptionKeyBase64 = Convert.ToBase64String(new byte[16]) // 16 bytes, not 32
             })));
     }
+
+    // Fixed vector: key=all-zero 32 bytes, nonce=all-zero 12 bytes, plaintext="golden-vector-secret",
+    // produced with the all-zero test key above. AES-GCM is stateless per Encrypt/Decrypt call — the
+    // envelope format and ciphertext for a given key/nonce/plaintext do not depend on whether the
+    // AesGcm instance is reused or freshly constructed, so this pins the wire format itself and
+    // guards against a future change (e.g. instance lifetime, tag size, nonce size) silently breaking
+    // decryption of values persisted before that change.
+    private const string GoldenVector = "v1.AAAAAAAAAAAAAAAA.qcgsWSgORhhiLbG8yN7ufRESZr4=.5L5rMpx+z9hUWuRSeshf8w==";
+
+    [Fact]
+    public void Unprotect_GoldenVector_DecryptsToKnownPlaintext()
+    {
+        var protector = Create();
+
+        Assert.Equal("golden-vector-secret", protector.Unprotect(GoldenVector));
+    }
+
+    // The regression this guards: AesGcm's OpenSSL-backed cipher context is not safe for concurrent
+    // Encrypt/Decrypt on one shared instance. This used to be a Singleton reusing one AesGcm — under
+    // enough concurrent traffic that corrupted the shared context ("cipher operation failed"). Protect
+    // now constructs a fresh AesGcm per call, so this must stay clean under real concurrency.
+    [Fact]
+    public async Task ConcurrentProtectAndUnprotect_DoesNotThrow()
+    {
+        var protector = Create();
+
+        var tasks = Enumerable.Range(0, 64).Select(i => Task.Run(() =>
+        {
+            var plaintext = $"concurrent-secret-{i}";
+            var protectedValue = protector.Protect(plaintext);
+            Assert.Equal(plaintext, protector.Unprotect(protectedValue));
+        }));
+
+        await Task.WhenAll(tasks);
+    }
 }

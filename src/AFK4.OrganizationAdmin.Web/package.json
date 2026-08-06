@@ -14,6 +14,7 @@
     "@afk4/i18n": "workspace:*",
     "@afk4/money": "workspace:*",
     "@afk4/tokens": "workspace:*",
+    "@afk4/ui": "workspace:*",
     "@microsoft/signalr": "^10.0.0",
     "lucide-react": "^1.16.0",
     "qrcode": "^1.5.4",

@@ -1,0 +1,56 @@
+/* Раздел «Деньги»: очередь работы наверху, реестры под ней. */
+.pc-queue {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pc-queue-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--surface-card);
+}
+
+/* Просроченный счёт помечен кромкой и подложкой: в очереди он должен отличаться от просто
+   выставленного, иначе список читается как однородный и глазу не за что зацепиться. */
+.pc-queue-row[data-status='overdue'] {
+  border-left-color: var(--danger);
+  background: var(--danger-soft-bg);
+}
+
+.pc-queue-row[data-status='issued'] {
+  border-left-color: var(--warning);
+}
+
+.pc-queue-id {
+  display: grid;
+  gap: 2px;
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.pc-queue-id strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pc-queue-id span {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.pc-queue-amount {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}

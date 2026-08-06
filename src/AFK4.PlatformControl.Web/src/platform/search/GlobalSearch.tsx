@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState, type MouseEvent } from 'react';
 import { Search } from 'lucide-react';
 import type { SearchApi, PlatformSearchResult } from '@/api/platformClients/search';
-import { Input } from '@/components/ui/input';
 import { useI18n } from '@/i18n/I18nProvider';
 import { nextSearchIndex, SEARCH_KIND_LABEL } from './searchModel';
 
@@ -28,7 +27,7 @@ export function GlobalSearch({ client, onNavigate }: {
       client.search(normalized, controller.signal).then(value => {
         if (currentRequest !== requestId.current) return;
         setResults(value); setStatus('ready'); setActiveIndex(-1);
-      }).catch(error => {
+      }).catch(() => {
         if (controller.signal.aborted || currentRequest !== requestId.current) return;
         setResults([]); setStatus('error'); setActiveIndex(-1);
       });
@@ -45,24 +44,61 @@ export function GlobalSearch({ client, onNavigate }: {
     event.preventDefault(); choose(result);
   }
 
-  return <div className="relative w-full max-w-md">
-    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-    <Input type="search" role="combobox" aria-label={t('platform.search.label')} aria-expanded={open} aria-controls={listboxId} aria-activedescendant={activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined} placeholder={t('platform.search.placeholder')} className="pl-9" value={query}
-      onChange={event => setQuery(event.target.value)}
-      onKeyDown={event => {
-        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') { event.preventDefault(); setActiveIndex(index => nextSearchIndex(index, event.key === 'ArrowDown' ? 1 : -1, results.length)); }
-        else if (event.key === 'Enter' && activeIndex >= 0) { event.preventDefault(); choose(results[activeIndex]); }
-        else if (event.key === 'Escape') { setQuery(''); setResults([]); setStatus('idle'); }
-      }} />
-    <span className="sr-only" aria-live="polite">{status === 'ready' ? t('platform.search.resultCount', { count: formatNumber(results.length) }) : ''}</span>
-    {open ? <div id={listboxId} role="listbox" className="absolute right-0 top-[calc(100%+0.5rem)] z-50 max-h-80 w-full min-w-80 overflow-auto rounded-lg border border-border bg-popover p-1 shadow-lg">
-      {status === 'loading' ? <p className="px-3 py-4 text-sm text-muted-foreground">{t('platform.search.loading')}</p>
-        : status === 'error' ? <p className="px-3 py-4 text-sm text-destructive">{t('platform.search.error')}</p>
-        : results.length === 0 ? <p className="px-3 py-4 text-sm text-muted-foreground">{t('platform.search.empty')}</p>
-        : results.map((result, index) => <a id={`${listboxId}-${index}`} key={`${result.kind}-${result.id}`} role="option" aria-selected={activeIndex === index} data-href={result.href} href={result.href} onMouseDown={() => setActiveIndex(index)} onClick={event => clickResult(event, result)} className="block rounded-md px-3 py-2 hover:bg-accent focus:bg-accent aria-selected:bg-accent">
-          <span className="flex items-center justify-between gap-3"><strong className="text-sm">{result.title}</strong><span className="text-xs text-muted-foreground">{t(SEARCH_KIND_LABEL[result.kind])}</span></span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">{result.context}</span>
-        </a>)}
-    </div> : null}
-  </div>;
+  return (
+    <div className="pc-search">
+      <div className="ui-search-field">
+        <Search size={15} aria-hidden="true" />
+        <input
+          type="search"
+          role="combobox"
+          aria-label={t('platform.search.label')}
+          aria-expanded={open}
+          aria-controls={listboxId}
+          aria-activedescendant={activeIndex >= 0 ? `${listboxId}-${activeIndex}` : undefined}
+          placeholder={t('platform.search.placeholder')}
+          value={query}
+          onChange={event => setQuery(event.target.value)}
+          onKeyDown={event => {
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+              event.preventDefault();
+              setActiveIndex(index => nextSearchIndex(index, event.key === 'ArrowDown' ? 1 : -1, results.length));
+            } else if (event.key === 'Enter' && activeIndex >= 0) {
+              event.preventDefault();
+              choose(results[activeIndex]);
+            } else if (event.key === 'Escape') {
+              setQuery(''); setResults([]); setStatus('idle');
+            }
+          }}
+        />
+      </div>
+
+      <span className="sr-only" aria-live="polite">
+        {status === 'ready' ? t('platform.search.resultCount', { count: formatNumber(results.length) }) : ''}
+      </span>
+
+      {open ? (
+        <div id={listboxId} role="listbox" className="pc-search-results">
+          {status === 'loading' ? <p className="pc-search-empty">{t('platform.search.loading')}</p>
+            : status === 'error' ? <p className="pc-search-empty">{t('platform.search.error')}</p>
+            : results.length === 0 ? <p className="pc-search-empty">{t('platform.search.empty')}</p>
+            : results.map((result, index) => (
+              <a
+                id={`${listboxId}-${index}`}
+                key={`${result.kind}-${result.id}`}
+                role="option"
+                aria-selected={activeIndex === index}
+                data-href={result.href}
+                href={result.href}
+                className="pc-search-option"
+                onMouseDown={() => setActiveIndex(index)}
+                onClick={event => clickResult(event, result)}
+              >
+                <strong>{result.title}</strong>
+                <span>{t(SEARCH_KIND_LABEL[result.kind])} · {result.context}</span>
+              </a>
+            ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
