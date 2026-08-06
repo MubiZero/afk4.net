@@ -1,9 +1,9 @@
 name: PR Verification
 
+# Every pull request is verified, not only those targeting main: work that lands on a long-lived
+# design branch first would otherwise reach main having never been checked.
 on:
   pull_request:
-    branches:
-      - main
 
 permissions:
   contents: read
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      run_windows: ${{ steps.filter.outputs.run_windows }}
+      run_dotnet: ${{ steps.filter.outputs.run_dotnet }}
       run_web: ${{ steps.filter.outputs.run_web }}
     steps:
       - name: Checkout
@@ -64,16 +64,16 @@ jobs:
             "bun.lock",
             "bunfig.toml"
           )
-          $runWindows = $false
+          $runDotnet = $false
           $runWeb = $false
 
           foreach ($path in $changed) {
             if ($relevantFiles -contains $path) {
-              $runWindows = $true
+              $runDotnet = $true
             }
             foreach ($prefix in $relevantPrefixes) {
               if ($path.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-                $runWindows = $true
+                $runDotnet = $true
               }
             }
 
@@ -86,22 +86,22 @@ jobs:
               }
             }
 
-            if ($runWindows -and $runWeb) {
+            if ($runDotnet -and $runWeb) {
               break
             }
           }
 
           Write-Host "Changed paths:"
           $changed | ForEach-Object { Write-Host " - $_" }
-          Write-Host "Run Windows build/test: $runWindows"
+          Write-Host "Run .NET build/test: $runDotnet"
           Write-Host "Run web build/test: $runWeb"
-          "run_windows=$($runWindows.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "run_dotnet=$($runDotnet.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "run_web=$($runWeb.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
   build-test-windows:
     name: Build And Test Windows
     needs: changes
-    if: ${{ needs.changes.outputs.run_windows == 'true' }}
+    if: ${{ needs.changes.outputs.run_dotnet == 'true' }}
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
@@ -124,6 +124,54 @@ jobs:
 
       - name: Test
         run: dotnet test AFK4.sln --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal
+
+  # The Windows job above cannot host this: GitHub service containers are Linux-only, so the
+  # Postgres-backed tests would skip themselves there — which is exactly what used to happen.
+  # Linux is also where the API actually runs in production.
+  test-postgres:
+    name: Test Against PostgreSQL
+    needs: changes
+    if: ${{ needs.changes.outputs.run_dotnet == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        # Throwaway credentials for a container reachable only from this runner; the production
+        # database is configured elsewhere and shares nothing with it.
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: afk4_ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # Every suite isolates itself in its own generated schema, so one database serves them all.
+      # The name must end in _test: each attribute refuses to touch a database that is not marked
+      # disposable.
+      AFK4_POS_POSTGRES_TEST_CONNECTION_STRING: Host=127.0.0.1;Port=5432;Database=afk4_ci_test;Username=postgres;Password=postgres
+      AFK4_RESERVATION_POSTGRES_TEST_CONNECTION_STRING: Host=127.0.0.1;Port=5432;Database=afk4_ci_test;Username=postgres;Password=postgres
+      AFK4_COMMERCE_TEST_POSTGRES: Host=127.0.0.1;Port=5432;Database=afk4_ci_test;Username=postgres;Password=postgres
+      AFK4_PLATFORM_ADMIN_POSTGRES_TEST_CONNECTION_STRING: Host=127.0.0.1;Port=5432;Database=afk4_ci_test;Username=postgres;Password=postgres
+      # Turns a broken database configuration into a red build instead of a green one full of
+      # skipped tests. See PostgresTestAvailabilityTests.
+      AFK4_REQUIRE_POSTGRES_TESTS: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # Only the API test project: the solution also carries WPF projects, which do not build off Windows.
+      - name: Test
+        run: dotnet test tests/AFK4.Platform.Api.Tests -p:NuGetAudit=false -v minimal
 
   build-test-web:
     name: Build And Test Web
@@ -177,6 +225,7 @@ jobs:
     needs:
       - changes
       - build-test-windows
+      - test-postgres
       - build-test-web
     if: ${{ always() }}
     runs-on: ubuntu-latest
@@ -186,8 +235,9 @@ jobs:
         shell: pwsh
         run: |
           $changesResult = "${{ needs.changes.result }}"
-          $runWindows = "${{ needs.changes.outputs.run_windows }}"
+          $runDotnet = "${{ needs.changes.outputs.run_dotnet }}"
           $windowsResult = "${{ needs.build-test-windows.result }}"
+          $postgresResult = "${{ needs.test-postgres.result }}"
           $runWeb = "${{ needs.changes.outputs.run_web }}"
           $webResult = "${{ needs.build-test-web.result }}"
 
@@ -195,19 +245,23 @@ jobs:
             throw "Change detection failed. Result: $changesResult"
           }
 
-          if ($runWindows -eq "true" -and $windowsResult -ne "success") {
+          if ($runDotnet -eq "true" -and $windowsResult -ne "success") {
             throw "Windows build/test gate did not pass. Result: $windowsResult"
+          }
+
+          if ($runDotnet -eq "true" -and $postgresResult -ne "success") {
+            throw "PostgreSQL test gate did not pass. Result: $postgresResult"
           }
 
           if ($runWeb -eq "true" -and $webResult -ne "success") {
             throw "Web build/test gate did not pass. Result: $webResult"
           }
 
-          if ($runWindows -ne "true") {
-            Write-Host "No Windows-relevant changes detected; skipping paid Windows runner."
+          if ($runDotnet -ne "true") {
+            Write-Host "No .NET-relevant changes detected; skipping the paid Windows runner and the PostgreSQL job."
           }
           else {
-            Write-Host "Windows build/test gate passed."
+            Write-Host "Windows build/test and PostgreSQL gates passed."
           }
 
           if ($runWeb -ne "true") {

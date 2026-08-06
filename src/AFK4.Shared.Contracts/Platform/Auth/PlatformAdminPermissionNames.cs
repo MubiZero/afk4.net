@@ -41,4 +41,6 @@ public static class PlatformAdminPermissionNames
     public const string ManageUpdatePackages = "platform.updates.packages.manage";
 
     public const string ManageUpdateRollouts = "platform.updates.rollouts.manage";
+
+    public const string ManagePlatformAdmins = "platform.admins.manage";
 }

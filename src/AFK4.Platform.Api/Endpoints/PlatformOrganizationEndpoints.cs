@@ -81,6 +81,8 @@ internal static class PlatformOrganizationEndpoints
             IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
+            // Password check only: on success this issues a short-lived sign-in challenge, not a
+            // working session — the caller still has to clear /auth/2fa/setup or /auth/2fa/verify.
             var response = await credentialService.SignInAsync(request, cancellationToken);
 
             await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
@@ -89,7 +91,7 @@ internal static class PlatformOrganizationEndpoints
                 ActorStaffUserId: null,
                 Action: AuditActionNames.PlatformAdminSignIn,
                 TargetType: "PlatformAdminUser",
-                TargetId: response?.PlatformAdminId.ToString("D") ?? request.UserName,
+                TargetId: request.UserName,
                 Outcome: response is null ? AuditOutcome.Denied : AuditOutcome.Succeeded,
                 SourceApp: "PlatformApi",
                 DetailsJson: JsonSerializer.Serialize(new { request.UserName })),

@@ -16,6 +16,26 @@ export interface PlatformAdminSignInResponse {
   permissions: string[];
 }
 
+// First step of sign-in: password alone no longer issues a working session. The caller must
+// present `challengeToken` to one of the /auth/2fa/* routes (setup or verify) to receive a real
+// PlatformAdminSignInResponse. The token is short-lived (2 minutes) and opaque.
+export interface PlatformAdminSignInChallengeResponse {
+  challengeToken: string;
+  expiresAtUtc: string;
+  twoFactorConfigured: boolean;
+}
+
+export interface TwoFactorSetupResponse {
+  secret: string;
+  otpAuthUri: string;
+}
+
+export interface TwoFactorSetupConfirmResponse {
+  session: PlatformAdminSignInResponse;
+  // Shown to the admin exactly once — the server never returns them again after this response.
+  recoveryCodes: string[];
+}
+
 export interface AccountActivationRequest {
   code: string;
   userName: string;
@@ -394,6 +414,30 @@ export interface PlatformBillingMetrics {
   outstandingCount: number;
   overdueMinorUnits: number;
   overdueCount: number;
+}
+
+export interface PlatformAdminListItem {
+  platformAdminUserId: string;
+  userName: string;
+  displayName: string;
+  role: string;
+  isActive: boolean;
+  twoFactorEnabled: boolean;
+  lastSignInAtUtc: string | null;
+  createdAtUtc: string;
+}
+
+export interface PlatformAdminInvitation {
+  invitationId: string;
+  role: string;
+  status: string;
+  expiresAtUtc: string;
+  createdAtUtc: string;
+}
+
+export interface CreateInvitationResponse {
+  invitation: PlatformAdminInvitation;
+  code: string;
 }
 
 export type PulseAlertLevel = 'normal' | 'attention' | 'critical';

@@ -34,6 +34,7 @@ internal sealed class PlatformApiFactory : IAsyncDisposable, IDisposable
 {
     private static readonly AsyncLocal<string?> CurrentDatabaseName = new();
     private static readonly AsyncLocal<IPAddress?> CurrentClientIp = new();
+    private static readonly AsyncLocal<SharedAppHost?> CurrentHost = new();
     private static readonly SharedAppHost DefaultHost = new(useRealSessionBilling: false, extraServices: null);
     private static int clientIpCounter;
 
@@ -97,12 +98,23 @@ internal sealed class PlatformApiFactory : IAsyncDisposable, IDisposable
     {
         CurrentDatabaseName.Value = databaseName;
         CurrentClientIp.Value = clientIp;
+        CurrentHost.Value = host;
         host.EnsureStarted();
         if (Interlocked.Exchange(ref seeded, 1) == 0)
         {
             host.SeedBaseline();
         }
     }
+
+    // Lets test helpers that only receive an HttpClient (because they mirror an HTTP route under
+    // test, e.g. TwoFactorTestHelper) still reach the database of whichever PlatformApiFactory is
+    // active in the calling test's async context — no separate `factory` parameter to thread
+    // through. Valid only while called from within that test's own async call chain (same rule the
+    // per-test database/IP AsyncLocals above already rely on).
+    internal static IServiceProvider CurrentAmbientServices =>
+        CurrentHost.Value?.Services
+        ?? throw new InvalidOperationException(
+            "No PlatformApiFactory is active in the current async context — call factory.CreateClient() first.");
 
     public async ValueTask DisposeAsync()
     {

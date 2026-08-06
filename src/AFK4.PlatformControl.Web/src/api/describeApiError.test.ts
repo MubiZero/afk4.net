@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describeApiError } from './describeApiError';
-import { PlatformApiError } from './platformTransport';
+import { PlatformApiError, PlatformStaleClientError } from './platformTransport';
 import { messages } from '@/i18n/messages';
 
 const t = ((key: string, values?: Record<string, string | number>) => {
@@ -33,6 +33,15 @@ describe('describeApiError', () => {
   it('falls back to the access wording for 401 and 403 without an override', () => {
     expect(describeApiError(new PlatformApiError(401, 'x'), t)).toBe(messages.ru['state.error.forbidden']);
     expect(describeApiError(new PlatformApiError(403, 'x'), t)).toBe(messages.ru['state.error.forbidden']);
+  });
+
+  // The API and the panel bundle deploy as two independent Coolify apps with no shared release
+  // step (see the platform-admin-directory-2fa review), so a version-mismatched response is a real
+  // window, not a hypothetical. It must read as "reload the page", not a generic server error, and
+  // no per-status override can redirect it — the fix is the same no matter which route hit it.
+  it('reports a client/server version mismatch as "reload the page", ignoring overrides', () => {
+    const text = describeApiError(new PlatformStaleClientError(), t, { 401: 'auth.error.invalid' });
+    expect(text).toBe(messages.ru['auth.error.staleClient']);
   });
 });
 

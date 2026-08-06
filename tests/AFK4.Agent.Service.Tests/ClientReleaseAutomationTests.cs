@@ -583,7 +583,9 @@ public sealed class ClientReleaseAutomationTests : IDisposable
 
         Assert.Contains("name: PR Verification", workflow, StringComparison.Ordinal);
         Assert.Contains("pull_request:", workflow, StringComparison.Ordinal);
-        Assert.Contains("- main", workflow, StringComparison.Ordinal);
+        // No branch filter anywhere: work that reaches main through a design branch has to be
+        // verified on the way in, and a filter here is what used to let it through unchecked.
+        Assert.DoesNotContain("branches:", workflow, StringComparison.Ordinal);
         Assert.Contains("permissions:\n  contents: read", workflow, StringComparison.Ordinal);
         Assert.Contains("concurrency:", workflow, StringComparison.Ordinal);
         Assert.Contains("group: pr-verification-${{ github.workflow }}-${{ github.event.pull_request.number }}", workflow, StringComparison.Ordinal);
@@ -593,14 +595,14 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("changes:", workflow, StringComparison.Ordinal);
         Assert.Contains("runs-on: ubuntu-latest", workflow, StringComparison.Ordinal);
         Assert.Contains("timeout-minutes: 5", workflow, StringComparison.Ordinal);
-        Assert.Contains("run_windows: ${{ steps.filter.outputs.run_windows }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("run_dotnet: ${{ steps.filter.outputs.run_dotnet }}", workflow, StringComparison.Ordinal);
         Assert.Contains("git diff --name-only \"$base...$head\"", workflow, StringComparison.Ordinal);
         Assert.Contains(".config/dotnet-tools.json", workflow, StringComparison.Ordinal);
-        Assert.Contains("run_windows=$($runWindows.ToString().ToLowerInvariant())", workflow, StringComparison.Ordinal);
+        Assert.Contains("run_dotnet=$($runDotnet.ToString().ToLowerInvariant())", workflow, StringComparison.Ordinal);
         Assert.Contains("$env:GITHUB_OUTPUT", workflow, StringComparison.Ordinal);
 
         Assert.Contains("build-test-windows:", workflow, StringComparison.Ordinal);
-        Assert.Contains("if: ${{ needs.changes.outputs.run_windows == 'true' }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("if: ${{ needs.changes.outputs.run_dotnet == 'true' }}", workflow, StringComparison.Ordinal);
         Assert.Contains("runs-on: windows-latest", workflow, StringComparison.Ordinal);
         Assert.Contains("timeout-minutes: 45", workflow, StringComparison.Ordinal);
         Assert.Contains("uses: actions/setup-dotnet@v4", workflow, StringComparison.Ordinal);
@@ -610,10 +612,30 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("dotnet build AFK4.sln --no-restore -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal", workflow, StringComparison.Ordinal);
         Assert.Contains("dotnet test AFK4.sln --no-build -p:NuGetAudit=false -p:UseSharedCompilation=false -v minimal", workflow, StringComparison.Ordinal);
 
+        // Postgres-backed tests skip themselves without a database, and GitHub service containers
+        // are Linux-only — so this job is the only place they actually run.
+        Assert.Contains("test-postgres:", workflow, StringComparison.Ordinal);
+        Assert.Contains("image: postgres:16", workflow, StringComparison.Ordinal);
+        Assert.Contains("--health-cmd pg_isready", workflow, StringComparison.Ordinal);
+        Assert.Contains("AFK4_REQUIRE_POSTGRES_TESTS: '1'", workflow, StringComparison.Ordinal);
+        Assert.Contains("dotnet test tests/AFK4.Platform.Api.Tests -p:NuGetAudit=false -v minimal", workflow, StringComparison.Ordinal);
+        foreach (var variable in new[]
+                 {
+                     "AFK4_POS_POSTGRES_TEST_CONNECTION_STRING",
+                     "AFK4_RESERVATION_POSTGRES_TEST_CONNECTION_STRING",
+                     "AFK4_COMMERCE_TEST_POSTGRES",
+                     "AFK4_PLATFORM_ADMIN_POSTGRES_TEST_CONNECTION_STRING"
+                 })
+        {
+            // The database name has to end in _test; every attribute refuses anything else.
+            Assert.Contains($"{variable}: Host=127.0.0.1;Port=5432;Database=afk4_ci_test;", workflow, StringComparison.Ordinal);
+        }
+
         Assert.Contains("pr-verification-result:", workflow, StringComparison.Ordinal);
         Assert.Contains("if: ${{ always() }}", workflow, StringComparison.Ordinal);
         Assert.Contains("Windows build/test gate did not pass.", workflow, StringComparison.Ordinal);
-        Assert.Contains("No Windows-relevant changes detected; skipping paid Windows runner.", workflow, StringComparison.Ordinal);
+        Assert.Contains("PostgreSQL test gate did not pass.", workflow, StringComparison.Ordinal);
+        Assert.Contains("No .NET-relevant changes detected; skipping the paid Windows runner and the PostgreSQL job.", workflow, StringComparison.Ordinal);
     }
 
     [Fact]

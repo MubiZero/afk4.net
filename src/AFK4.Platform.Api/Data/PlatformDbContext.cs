@@ -150,6 +150,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<StaffPhoneOtpEntity> StaffPhoneOtps => Set<StaffPhoneOtpEntity>();
 
+    public DbSet<PlatformAdminInvitationEntity> PlatformAdminInvitations => Set<PlatformAdminInvitationEntity>();
+
+    public DbSet<PlatformAdminSignInChallengeEntity> PlatformAdminSignInChallenges => Set<PlatformAdminSignInChallengeEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -953,6 +957,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(admin => admin.DisplayName).HasMaxLength(160).IsRequired();
             entity.Property(admin => admin.PasswordHash).IsRequired();
             entity.Property(admin => admin.RolesJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(admin => admin.RecoveryCodeHashesJson).HasDefaultValue("[]").IsRequired();
+            entity.Property(admin => admin.FailedTwoFactorAttempts).HasDefaultValue(0);
             entity.HasIndex(admin => admin.NormalizedUserName).IsUnique();
         });
 
@@ -1137,6 +1143,26 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(otp => otp.Phone).HasMaxLength(20).IsRequired();
             entity.Property(otp => otp.CodeHash).HasMaxLength(64).IsRequired();
             entity.HasIndex(otp => new { otp.StaffUserId, otp.Purpose, otp.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<PlatformAdminInvitationEntity>(entity =>
+        {
+            entity.ToTable("platform_admin_invitations");
+            entity.HasKey(invitation => invitation.InvitationId);
+            entity.Property(invitation => invitation.CodeHash).IsRequired();
+            entity.Property(invitation => invitation.Role).HasMaxLength(64).IsRequired();
+            entity.Property(invitation => invitation.Status).HasMaxLength(32).IsRequired();
+            entity.HasIndex(invitation => invitation.CodeHash).IsUnique();
+            entity.HasIndex(invitation => new { invitation.Status, invitation.ExpiresAtUtc });
+        });
+
+        modelBuilder.Entity<PlatformAdminSignInChallengeEntity>(entity =>
+        {
+            entity.ToTable("platform_admin_sign_in_challenges");
+            entity.HasKey(challenge => challenge.ChallengeId);
+            entity.Property(challenge => challenge.TokenHash).IsRequired();
+            entity.HasIndex(challenge => challenge.TokenHash).IsUnique();
+            entity.HasIndex(challenge => new { challenge.PlatformAdminUserId, challenge.ExpiresAtUtc });
         });
     }
 }

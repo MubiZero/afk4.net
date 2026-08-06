@@ -13,7 +13,7 @@ const platformNav: GatedNavItem[] = [
   { key: 'money', labelKey: 'nav.platform.money', path: '/admin/money', icon: Wallet, capability: 'billing.read' },
   { key: 'updates', labelKey: 'nav.platform.updates', path: '/admin/updates', icon: DownloadCloud, capability: 'updates.read' },
   { key: 'journal', labelKey: 'nav.platform.journal', path: '/admin/journal', icon: ScrollText, capability: 'audit.read' },
-  { key: 'settings', labelKey: 'nav.platform.settings', path: '/admin/settings', icon: Settings, capability: 'settings.manage' }
+  { key: 'settings', labelKey: 'nav.platform.settings', path: '/admin/settings', icon: Settings, capability: 'admins.manage' }
 ];
 
 export function buildPlatformNav(session: PlatformAdminSession): NavItem[] {

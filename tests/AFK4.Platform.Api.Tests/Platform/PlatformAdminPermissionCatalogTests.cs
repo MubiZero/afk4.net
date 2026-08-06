@@ -43,4 +43,14 @@ public sealed class PlatformAdminPermissionCatalogTests
         Assert.Contains(PlatformAdminPermissionNames.TransferOrganizationOwner, adminPermissions);
         Assert.DoesNotContain(PlatformAdminPermissionNames.TransferOrganizationOwner, supportPermissions);
     }
+
+    [Fact]
+    public void ManagePlatformAdmins_BelongsToFullAdminRoleOnly()
+    {
+        var adminPermissions = PlatformAdminPermissionCatalog.GetPermissions([PlatformAdminRoleNames.PlatformAdmin]);
+        var supportPermissions = PlatformAdminPermissionCatalog.GetPermissions([PlatformAdminRoleNames.PlatformSupport]);
+
+        Assert.Contains(PlatformAdminPermissionNames.ManagePlatformAdmins, adminPermissions);
+        Assert.DoesNotContain(PlatformAdminPermissionNames.ManagePlatformAdmins, supportPermissions);
+    }
 }

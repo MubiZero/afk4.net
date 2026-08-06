@@ -1755,6 +1755,54 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("platform_admin_access_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformAdminInvitationEntity", b =>
+                {
+                    b.Property<Guid>("InvitationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AcceptedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("AcceptedPlatformAdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<byte[]>("CodeHash")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByPlatformAdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("InvitationId");
+
+                    b.HasIndex("CodeHash")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "ExpiresAtUtc");
+
+                    b.ToTable("platform_admin_invitations", (string)null);
+                });
+
             modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformAdminRefreshTokenEntity", b =>
                 {
                     b.Property<Guid>("PlatformAdminRefreshTokenId")
@@ -1786,6 +1834,35 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("platform_admin_refresh_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformAdminSignInChallengeEntity", b =>
+                {
+                    b.Property<Guid>("ChallengeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ConsumedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PlatformAdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<byte[]>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.HasKey("ChallengeId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("PlatformAdminUserId", "ExpiresAtUtc");
+
+                    b.ToTable("platform_admin_sign_in_challenges", (string)null);
+                });
+
             modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformAdminUserEntity", b =>
                 {
                     b.Property<Guid>("PlatformAdminUserId")
@@ -1800,8 +1877,16 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)");
 
+                    b.Property<int>("FailedTwoFactorAttempts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastSignInAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("NormalizedUserName")
                         .IsRequired()
@@ -1812,9 +1897,24 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("RecoveryCodeHashesJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("[]");
+
                     b.Property<string>("RolesJson")
                         .IsRequired()
                         .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset?>("TotpEnabledAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TotpSecretEncrypted")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset?>("TwoFactorLockedUntilUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");

@@ -13,8 +13,15 @@ public sealed class AesGcmSecretProtector : ISecretProtector, IDisposable
     private const int TagSize = 16;   // 128-bit auth tag
 
     private readonly byte[] key;
-    private readonly AesGcm aes;
 
+    // This is a process-wide Singleton, and it is on the hot path for both TOTP secrets (every
+    // 2FA setup/reset) and payment credentials (EskhataMerchantClientFactory decrypts on every
+    // payment). AesGcm's OpenSSL-backed EVP context is not safe for concurrent Encrypt/Decrypt on
+    // one instance, but serializing every call through a single shared instance+lock would queue
+    // the payment path behind 2FA traffic (and vice versa) for the lifetime of the process. A
+    // fresh AesGcm per call sidesteps that: it holds no state between calls, and constructing one
+    // (an AES key schedule) costs low-single-digit microseconds — negligible next to a full
+    // Encrypt/Decrypt call, and nowhere near what a global lock would cost under concurrent load.
     public AesGcmSecretProtector(IOptions<SecretProtectionOptions> options)
     {
         var keyBase64 = options.Value.EncryptionKeyBase64;
@@ -30,8 +37,6 @@ public sealed class AesGcmSecretProtector : ISecretProtector, IDisposable
             throw new InvalidOperationException(
                 $"Secrets:EncryptionKeyBase64 must decode to 32 bytes, got {key.Length}.");
         }
-
-        aes = new AesGcm(key, TagSize);
     }
 
     public string Protect(string plaintext)
@@ -42,7 +47,10 @@ public sealed class AesGcmSecretProtector : ISecretProtector, IDisposable
         var ciphertext = new byte[plaintextBytes.Length];
         var tag = new byte[TagSize];
 
-        aes.Encrypt(nonce, plaintextBytes, ciphertext, tag);
+        using (var aes = new AesGcm(key, TagSize))
+        {
+            aes.Encrypt(nonce, plaintextBytes, ciphertext, tag);
+        }
 
         return string.Join('.',
             Version,
@@ -70,14 +78,16 @@ public sealed class AesGcmSecretProtector : ISecretProtector, IDisposable
 
         var plaintextBytes = new byte[ciphertext.Length];
 
-        aes.Decrypt(nonce, ciphertext, tag, plaintextBytes); // throws CryptographicException on tamper/wrong key
+        using (var aes = new AesGcm(key, TagSize))
+        {
+            aes.Decrypt(nonce, ciphertext, tag, plaintextBytes); // throws CryptographicException on tamper/wrong key
+        }
 
         return Encoding.UTF8.GetString(plaintextBytes);
     }
 
     public void Dispose()
     {
-        aes.Dispose();
         CryptographicOperations.ZeroMemory(key);
     }
 }

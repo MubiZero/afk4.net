@@ -4,11 +4,23 @@ import { PlatformApiClient } from '../api/platformApi';
 import { describeApiError } from '../api/describeApiError';
 import { useI18n } from '../i18n/I18nProvider';
 import { BrandLogo } from './shell/BrandLogo';
+import { TwoFactorChallenge } from './TwoFactorChallenge';
+import { TwoFactorSetup } from './TwoFactorSetup';
 
 export interface SignInProps {
   client: PlatformApiClient;
   onSignedIn: () => void;
 }
+
+// Password alone never opens the panel anymore (see PlatformTransport.signIn): it only earns a
+// short-lived challenge token, and the next step depends on whether the account already has an
+// authenticator configured. `expiresAtUtc` rides along so the 2FA screens can bounce back here on
+// their own once the window runs out (see useChallengeExpiry) instead of surfacing a misleading
+// "invalid code" for a challenge that simply died of old age.
+type Step =
+  | { kind: 'password' }
+  | { kind: 'challenge'; challengeToken: string; expiresAtUtc: string }
+  | { kind: 'setup'; challengeToken: string; expiresAtUtc: string };
 
 // Тот же экран входа, что в Organization Admin и мастере установки: знак над заголовком,
 // панель .auth-panel, показ пароля, ошибка полосой с красной кромкой. Раньше панель рисовала
@@ -20,19 +32,80 @@ export function SignIn({ client, onSignedIn }: SignInProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
+  const [step, setStep] = useState<Step>({ kind: 'password' });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
     try {
-      await client.signIn(userName.trim(), password);
-      onSignedIn();
+      const outcome = await client.signIn(userName.trim(), password);
+      setStep(outcome.twoFactorConfigured
+        ? { kind: 'challenge', challengeToken: outcome.challengeToken, expiresAtUtc: outcome.expiresAtUtc }
+        : { kind: 'setup', challengeToken: outcome.challengeToken, expiresAtUtc: outcome.expiresAtUtc });
     } catch (cause) {
       setError(describeApiError(cause, t, { 401: 'auth.error.invalid' }));
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function backToPassword() {
+    setPassword('');
+    setStep({ kind: 'password' });
+  }
+
+  // The 2-minute challenge window ran out while the person was still on a 2FA screen. Their code
+  // may well be correct — the window is just dead — so this is deliberately a different message
+  // from "invalid code", with a clear instruction (sign in again) rather than a dead-end retry.
+  function handleChallengeExpired() {
+    setPassword('');
+    setStep({ kind: 'password' });
+    setError(t('auth.twoFactor.error.expired'));
+  }
+
+  if (step.kind === 'challenge') {
+    return (
+      <div className="pc-auth-shell">
+        <header className="top-command auth-top-command">
+          <div className="brand-block">
+            <BrandLogo className="brand-logo" />
+            <span>{t('shell.brand.section')}</span>
+          </div>
+        </header>
+        <main className="auth-workspace">
+          <TwoFactorChallenge
+            onSubmit={async code => { await client.twoFactor.verify(step.challengeToken, code); onSignedIn(); }}
+            onCancel={backToPassword}
+            expiresAtUtc={step.expiresAtUtc}
+            onExpired={handleChallengeExpired}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (step.kind === 'setup') {
+    return (
+      <div className="pc-auth-shell">
+        <header className="top-command auth-top-command">
+          <div className="brand-block">
+            <BrandLogo className="brand-logo" />
+            <span>{t('shell.brand.section')}</span>
+          </div>
+        </header>
+        <main className="auth-workspace">
+          <TwoFactorSetup
+            client={client.twoFactor}
+            challengeToken={step.challengeToken}
+            expiresAtUtc={step.expiresAtUtc}
+            onExpired={handleChallengeExpired}
+            onComplete={() => onSignedIn()}
+            onCancel={backToPassword}
+          />
+        </main>
+      </div>
+    );
   }
 
   return (

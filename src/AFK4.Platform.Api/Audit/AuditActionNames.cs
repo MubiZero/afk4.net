@@ -292,4 +292,20 @@ public static class AuditActionNames
     public const string UsePlatformSupportAccess = "platform.support_access.use";
 
     public const string RevokePlatformSupportAccess = "platform.support_access.revoke";
+
+    public const string ViewPlatformAdmins = "platform.admins.view";
+
+    public const string PlatformAdminInvited = "platform.admins.invited";
+
+    public const string PlatformAdminUpdated = "platform.admins.updated";
+
+    public const string PlatformAdminInvitationRevoked = "platform.admins.invitation_revoked";
+
+    public const string PlatformAdminInvitationAccepted = "platform.admins.invitation_accepted";
+
+    public const string PlatformAdminTwoFactorConfigured = "platform.admins.two_factor.configured";
+
+    public const string PlatformAdminTwoFactorVerified = "platform.admins.two_factor.verified";
+
+    public const string PlatformAdminTwoFactorReset = "platform.admins.two_factor.reset";
 }
