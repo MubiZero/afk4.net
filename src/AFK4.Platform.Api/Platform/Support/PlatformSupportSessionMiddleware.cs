@@ -32,9 +32,10 @@ public sealed class PlatformSupportSessionMiddleware(RequestDelegate next)
 
         if (support is null)
         {
-            // A header that doesn't resolve to a live session is a rejected credential, not a missing
-            // one — this is the only mechanism that reads this header now, so silently falling through
-            // would let a stale/forged/expired token reach the endpoint unauthenticated instead of denied.
+            // Заголовок, который не резолвится в живую сессию, — это отклонённый credential, а не
+            // отсутствующий: теперь это единственный механизм, читающий данный заголовок, так что
+            // тихий пропуск дальше позволил бы протухшему/поддельному/просроченному токену дойти до
+            // эндпоинта как до неаутентифицированного запроса вместо явного отказа.
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return;
         }
