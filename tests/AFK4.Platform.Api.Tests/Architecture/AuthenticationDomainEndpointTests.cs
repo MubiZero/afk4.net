@@ -70,6 +70,16 @@ public sealed class AuthenticationDomainEndpointTests
                 + $"а помечены ещё и эти: {string.Join(", ", offenders)}");
     }
 
+    // Денежные файлы эндпоинтов — поимённо, ровно из спеки. Проверяем принадлежность обработчика
+    // классу, а не подстроку в пути: путь может случайно содержать слово из имени денежного файла
+    // (например "отчёт по сменам" reports/shifts vs ShiftEndpoints), а класс — нет.
+    private static readonly string[] MoneyEndpointClassNames =
+    [
+        "PosEndpoints", "WalletEndpoints", "MoneyActionEndpoints", "ShiftEndpoints",
+        "PackageEndpoints", "DcTopUpEndpoints", "EskhataPaymentEndpoints", "ShopOrderEndpoints",
+        "PlayerLoyaltyEndpoints", "SessionEndpoints", "ReservationEndpoints", "TariffEndpoints"
+    ];
+
     [Fact]
     public void PlatformSupportAllowlist_NeverCoversMoneyEndpoints()
     {
@@ -77,20 +87,23 @@ public sealed class AuthenticationDomainEndpointTests
         using var _ = factory.CreateClient();
         var dataSource = factory.Services.GetRequiredService<EndpointDataSource>();
 
-        string[] forbidden =
-        [
-            "/pos/", "/wallet/", "/money-actions", "/shifts", "/packages",
-            "/dc-topups", "/payments/eskhata", "/shop/orders", "/loyalty",
-            "/sessions", "/reservations", "/tariffs"
-        ];
+        var moneyClassPrefixes = MoneyEndpointClassNames
+            .Select(className => $"AFK4.Platform.Api.Endpoints.{className}")
+            .ToArray();
 
         var offenders = dataSource.Endpoints
             .OfType<RouteEndpoint>()
             .Where(endpoint => endpoint.Metadata.GetMetadata<PlatformSupportAccessMetadata>() is not null)
             .Where(endpoint => endpoint.Metadata.GetMetadata<AuthenticationDomainMetadata>()?.Domain
                 == AuthenticationDomain.Organization)
+            .Where(endpoint =>
+            {
+                var declaringTypeName = endpoint.Metadata.GetMetadata<MethodInfo>()?.DeclaringType?.FullName;
+                return declaringTypeName is not null
+                    && moneyClassPrefixes.Any(prefix =>
+                        declaringTypeName.StartsWith(prefix, StringComparison.Ordinal));
+            })
             .Select(endpoint => endpoint.RoutePattern.RawText!)
-            .Where(route => forbidden.Any(fragment => route.Contains(fragment, StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
         Assert.True(

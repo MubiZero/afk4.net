@@ -138,10 +138,8 @@ internal static class ReportEndpoints
                 cancellationToken);
 
             return Results.Ok(result);
-        });
-        // Не помечено AllowPlatformSupportAccess: маршрут содержит "/shifts" и ловится
-        // денежным guard-тестом (PlatformSupportAllowlist_NeverCoversMoneyEndpoints) как
-        // совпадение с фрагментом запрета для смен/кассы.
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
         app.MapGet("branches/{branchId:guid}/reports/sales", async (
             Guid branchId,
@@ -503,9 +501,8 @@ internal static class ReportEndpoints
                     service.GetShiftReportAsync(organizationId, scopedBranchId, query, token),
                 ReportCsvExporter.ExportShiftReport,
                 cancellationToken);
-        });
-        // Не помечено AllowPlatformSupportAccess: маршрут содержит "/shifts" и ловится
-        // денежным guard-тестом как совпадение с фрагментом запрета для смен/кассы.
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
         app.MapGet("branches/{branchId:guid}/reports/sales/export.csv", async (
             Guid branchId,

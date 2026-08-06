@@ -31,10 +31,8 @@ internal static class LoyaltySettingsEndpoints
                     row.ShopEnabled, row.ShopPercentBasisPoints,
                     row.SessionEnabled, row.SessionPercentBasisPoints,
                     row.CashbackCapMinorUnits, row.MinimumSourceMinorUnits));
-        });
-        // Не помечено AllowPlatformSupportAccess: маршрут содержит "/loyalty" и ловится
-        // денежным guard-тестом (PlatformSupportAllowlist_NeverCoversMoneyEndpoints) как
-        // совпадение с фрагментом запрета для лояльности/кэшбэка.
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageLoyaltySettings);
 
         app.MapPost("loyalty-settings", async (
             UpdateLoyaltySettingsRequest request,
