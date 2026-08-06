@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
+using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Reservations;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Tests.Sessions;
@@ -268,7 +269,7 @@ public sealed class PostgresReservationStartConcurrencyTests
         new(
             db,
             workflow,
-            new AuditRecordStager(db, new FixedTimeProvider(now)),
+            new AuditRecordStager(db, new FixedTimeProvider(now), new StaffContextAccessor()),
             new FixedTimeProvider(now));
 
     private static ISessionStartWorkflow CreateWorkflow(
