@@ -118,29 +118,6 @@ public sealed class PlatformSupportAccessGrantService(
             branches);
     }
 
-    // GET /api/support-access/session (session self-lookup, e.g. after a tab reload) needs the exact
-    // same shape RedeemTicketAsync returns — otherwise a reload under an active support session lands
-    // somewhere the shell can't render (no branches). Shares the branch/organization lookup with
-    // RedeemTicketAsync rather than re-deriving it.
-    public async Task<PlatformSupportSessionDto> DescribeSessionAsync(
-        PlatformSupportContext support,
-        CancellationToken cancellationToken)
-    {
-        var organization = await dbContext.Organizations
-            .AsNoTracking()
-            .SingleAsync(candidate => candidate.OrganizationId == support.OrganizationId, cancellationToken);
-        var branches = await LoadBranchesAsync(support.OrganizationId, cancellationToken);
-
-        return new PlatformSupportSessionDto(
-            support.SessionToken,
-            support.OrganizationId,
-            organization.Name,
-            support.Reason,
-            support.ExpiresAtUtc,
-            PlatformSupportWritableAreas.All,
-            branches);
-    }
-
     private async Task<List<PlatformSupportSessionBranchDto>> LoadBranchesAsync(
         Guid organizationId,
         CancellationToken cancellationToken) =>

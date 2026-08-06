@@ -31,27 +31,6 @@ public sealed class SupportAccessSessionEndpointTests
         Assert.Contains(PlatformSupportWritableAreas.BranchSettings, session!.WritableAreas);
     }
 
-    // A page reload under an active support session re-fetches its own session state — it must land
-    // in the same shape the initial redeem returned (branches included), not a thinner one the shell
-    // doesn't know how to render.
-    [Fact]
-    public async Task GetSession_ReturnsTheSameShapeAsRedeem_IncludingBranches()
-    {
-        await using var factory = new PlatformApiFactory();
-        var client = factory.CreateClient();
-        var (sessionToken, organizationId, branchId, _) = await SupportAccessTestHelper.OpenSessionAsync(factory);
-        client.DefaultRequestHeaders.Add(PlatformSupportAccessGrantService.GrantHeaderName, sessionToken);
-
-        var response = await client.GetAsync("/api/support-access/session");
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        var session = await response.Content.ReadFromJsonAsync<PlatformSupportSessionDto>();
-        Assert.NotNull(session);
-        Assert.Equal(organizationId, session!.OrganizationId);
-        Assert.Equal(sessionToken, session.SessionToken);
-        Assert.Contains(session.Branches, branch => branch.BranchId == branchId);
-    }
-
     [Fact]
     public async Task SignOut_EndsTheSession()
     {

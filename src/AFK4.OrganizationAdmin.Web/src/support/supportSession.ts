@@ -51,7 +51,8 @@ export function supportOperatorSession(session: SupportSession): OperatorAuthSes
     refreshTokenExpiresAtUtc: session.expiresAtUtc,
     branchIds: session.branches.map((branch) => branch.branchId),
     permissions: supportPermissions(session.writableAreas),
-    roleNames: ['Поддержка платформы']
+    roleNames: ['Поддержка платформы'],
+    isSupportSession: true
   };
 }
 

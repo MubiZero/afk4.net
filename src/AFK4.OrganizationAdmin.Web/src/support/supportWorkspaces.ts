@@ -34,20 +34,22 @@ export function supportVisibleWorkspaces(writableAreas: readonly string[]): Read
 // Which WRITE permission(s) a writable area unlocks. Server-side, a support grant reaches a write
 // endpoint only if that exact endpoint carries `.AllowPlatformSupportAccess(permission)` (see
 // PlatformSupportSessionMiddleware.cs — the middleware trusts the endpoint's own tag, never
-// anything the client claims to have). This list is the client-side mirror of exactly those tags,
-// cross-checked against the server source (grep for `AllowPlatformSupportAccess` — as of this
-// writing, only BranchSettingsEndpoints.cs/BranchProfileLayoutEndpoints.cs (ManageBranchSettings),
-// FloorMapEndpoints.cs/BranchProfileLayoutEndpoints.cs (ManageLayout), StaffEndpoints.cs
-// (ManageBranchStaff/ManageRoles) and DeviceEndpoints.cs (CreateDeviceEnrollmentCode/
-// AssignDeviceSeat/RotateDeviceCredential/RevokeDeviceCredential/DispatchDeviceCommand) tag a
-// WRITE endpoint at all). A write permission with no area here (manageTariffs, managePosCatalog,
-// manageInventoryStock, managePaymentGateways, manageLoyaltySettings, manageNews, installDevice,
-// openShift, ...) has no tagged write endpoint under support at all — granting it client-side would
-// only dress up a button that's guaranteed to 403, which is the exact bug this map exists to avoid.
+// anything the client claims to have). This list is the client-side mirror of exactly those tags.
+// The two sides can't be cross-checked across languages by a single test, so treat
+// AuthenticationDomainEndpointTests.PlatformSupportAllowlist_MatchesDeclaredAreas (in
+// AFK4.Platform.Api.Tests) as the source of truth for what's actually tagged on the server, and
+// update this map whenever that test's declared areas change. Notably, StaffEndpoints.cs tags
+// only ManageBranchStaff (profile/state) — `roles` and `password-reset` are deliberately NOT
+// tagged: either one is a route to money permissions (e.g. BranchManager) that a support grant's
+// expiry wouldn't revoke, so `manageRoles` must never appear below. A write permission with no
+// area here (manageRoles, manageTariffs, managePosCatalog, manageInventoryStock,
+// managePaymentGateways, manageLoyaltySettings, manageNews, installDevice, openShift, ...) has no
+// tagged write endpoint under support at all — granting it client-side would only dress up a
+// button that's guaranteed to 403, which is the exact bug this map exists to avoid.
 const AREA_TO_WRITE_PERMISSIONS: Record<string, readonly string[]> = {
   'branch-settings': [permissionNames.manageBranchSettings],
   'branch-profile': [permissionNames.manageBranchSettings],
-  staff: [permissionNames.manageBranchStaff, permissionNames.manageRoles],
+  staff: [permissionNames.manageBranchStaff],
   'floor-map': [permissionNames.manageLayout],
   devices: [
     permissionNames.createDeviceEnrollmentCode,

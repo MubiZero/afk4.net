@@ -22,6 +22,13 @@ export interface OperatorAuthSession {
   activeBranchId?: string;
   permissions: string[];
   roleNames?: string[];
+  // True only for the adapted session support/supportSession.ts builds for a platform support
+  // grant (see App.tsx). A few actions carry the same permission name as an area support IS
+  // granted (e.g. password-reset shares ManageBranchStaff with profile/state edits) but are
+  // deliberately NOT tagged with .AllowPlatformSupportAccess on the server — this flag lets those
+  // screens gate on "is this actually a support session", not just the permission name, so the
+  // button doesn't sit there enabled and then 403.
+  isSupportSession?: boolean;
 }
 
 function api(): StaffAuthApi {

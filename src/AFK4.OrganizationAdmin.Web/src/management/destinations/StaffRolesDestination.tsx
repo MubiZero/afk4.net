@@ -100,6 +100,12 @@ export function StaffRolesDestination({
 
   const canManageBranchStaff = backend !== null && hasPermission(session, permissionNames.manageBranchStaff);
   const canManageRoles = backend !== null && hasPermission(session, permissionNames.manageRoles);
+  // Password reset shares the ManageBranchStaff permission name with profile/state edits, but the
+  // server deliberately does NOT tag the password-reset endpoint for platform support (resetting a
+  // password would let support sign in as club staff past the grant's expiry). A support session's
+  // ManageBranchStaff is still true (profile/state stay allowed), so this needs its own gate — a
+  // visible, enabled button that always 403s is worse than one that's disabled outright.
+  const canResetStaffPassword = canManageBranchStaff && !session?.isSupportSession;
 
   const mergeStaffUser = (staffUser: StaffUser) => {
     const staffUserId = readString(staffUser, 'staffUserId');
@@ -460,13 +466,13 @@ export function StaffRolesDestination({
                     <input
                       type="password"
                       value={newPassword}
-                      disabled={!canManageBranchStaff || busy}
+                      disabled={!canResetStaffPassword || busy}
                       onChange={(event) => setNewPassword(event.currentTarget.value)}
                     />
                   </label>
                 </div>
                 <div className="mgmt-form-actions">
-                  <button type="button" className="ui-btn" disabled={!canManageBranchStaff || busy} onClick={requestResetPassword}>
+                  <button type="button" className="ui-btn" disabled={!canResetStaffPassword || busy} onClick={requestResetPassword}>
                     {t('op.settings.action.resetPassword')}
                   </button>
                 </div>

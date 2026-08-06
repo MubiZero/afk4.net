@@ -38,9 +38,13 @@ it('supportPermissions: a write permission only appears once its area is in the 
   expect(supportPermissions(['floor-map'])).toContain(permissionNames.manageLayout);
 
   expect(supportPermissions([])).not.toContain(permissionNames.manageBranchStaff);
-  expect(supportPermissions([])).not.toContain(permissionNames.manageRoles);
   expect(supportPermissions(['staff'])).toContain(permissionNames.manageBranchStaff);
-  expect(supportPermissions(['staff'])).toContain(permissionNames.manageRoles);
+  // manageRoles never appears, even with 'staff' granted: the server deliberately does not tag
+  // the roles/password-reset endpoints for support (see AuthenticationDomainEndpointTests.
+  // PlatformSupportAllowlist_NeverGrantsRoleOrPasswordChanges) — assigning a money-bearing role
+  // (e.g. BranchManager) would outlive the grant's expiry.
+  expect(supportPermissions([])).not.toContain(permissionNames.manageRoles);
+  expect(supportPermissions(['staff'])).not.toContain(permissionNames.manageRoles);
 
   expect(supportPermissions([])).not.toContain(permissionNames.assignDeviceSeat);
   expect(supportPermissions(['devices'])).toContain(permissionNames.assignDeviceSeat);
