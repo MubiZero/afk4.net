@@ -188,6 +188,7 @@ builder.Services.AddScoped<IPlatformAdminContextAccessor, PlatformAdminContextAc
 builder.Services.AddScoped<PlatformAdminAuthorizationService>();
 builder.Services.AddScoped<PlatformAdminDirectoryService>();
 builder.Services.AddScoped<PlatformSupportAccessGrantService>();
+builder.Services.AddScoped<IPlatformSupportContextAccessor, PlatformSupportContextAccessor>();
 builder.Services.Configure<SupportAccessOptions>(
     builder.Configuration.GetSection(SupportAccessOptions.SectionName));
 builder.Services.Configure<PlatformAdminBootstrapOptions>(
@@ -421,6 +422,7 @@ app.UseRateLimiter();
 app.UseMiddleware<StaffAuthenticationMiddleware>();
 app.UseMiddleware<PlatformAdminAuthenticationMiddleware>();
 app.UseMiddleware<PlayerAuthenticationMiddleware>();
+app.UseMiddleware<PlatformSupportSessionMiddleware>();
 app.UseMiddleware<OrganizationAdminCompatibilityMiddleware>();
 app.UseMiddleware<AuthenticationDomainEnforcementMiddleware>();
 app.UseMiddleware<OrganizationSuspensionMiddleware>();

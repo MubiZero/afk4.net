@@ -1,3 +1,5 @@
+using AFK4.Platform.Api.Platform.Support;
+
 namespace AFK4.Platform.Api.Identity;
 
 public sealed record StaffContext(
@@ -15,6 +17,10 @@ public sealed record StaffContext(
     // для контекстов, собранных не через CreateContextAsync).
     public IReadOnlyDictionary<Guid, IReadOnlySet<string>> PermissionsByBranch { get; init; }
         = new Dictionary<Guid, IReadOnlySet<string>>();
+
+    // Заполнено, когда за сотрудника клуба действует платформенная поддержка под грантом.
+    // Аудит по этому полю пишет платформенного администратора вместо сотрудника.
+    public PlatformSupportContext? SupportAccess { get; init; }
 
     public bool HasBranchPermission(Guid branchId, string permission)
     {
