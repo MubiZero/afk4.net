@@ -111,6 +111,36 @@ public sealed class AuthenticationDomainEndpointTests
             $"Денежные эндпоинты не открываются поддержке ни на чтение, ни на запись: {string.Join(", ", offenders)}");
     }
 
+    // Маршруты вне домена Organization, которым намеренно разрешено носить
+    // PlatformSupportAccessMetadata. Сюда попадают только эндпоинты управления самой сессией
+    // поддержки (она живёт вне домена организации). Пополнение этого списка — осознанное решение
+    // по конкретному маршруту, а не способ погасить упавший тест.
+    private static readonly HashSet<string> ExpectedNonOrganizationSupportRoutes =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    [Fact]
+    public void PlatformSupportAccessMetadata_OnlyOnOrganizationDomainOrExplicitException()
+    {
+        using var factory = new PlatformApiFactory();
+        using var _ = factory.CreateClient();
+        var dataSource = factory.Services.GetRequiredService<EndpointDataSource>();
+
+        var offenders = dataSource.Endpoints
+            .OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.Metadata.GetMetadata<PlatformSupportAccessMetadata>() is not null)
+            .Where(endpoint => endpoint.Metadata.GetMetadata<AuthenticationDomainMetadata>()?.Domain
+                != AuthenticationDomain.Organization)
+            .Select(endpoint => endpoint.RoutePattern.RawText!)
+            .Where(route => !ExpectedNonOrganizationSupportRoutes.Contains(route))
+            .ToList();
+
+        Assert.True(
+            offenders.Count == 0,
+            "PlatformSupportAccessMetadata разрешена только на эндпоинтах домена Organization "
+                + "или в явном списке исключений (ExpectedNonOrganizationSupportRoutes), а "
+                + $"помечены ещё и эти вне домена: {string.Join(", ", offenders)}");
+    }
+
     [Fact]
     public void ApiAssembly_ExposesExplicitAuthenticationDomainContract()
     {
