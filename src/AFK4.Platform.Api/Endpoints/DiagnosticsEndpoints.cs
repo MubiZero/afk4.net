@@ -78,10 +78,7 @@ internal static class DiagnosticsEndpoints
     {
         app.MapGet("branches/{branchId:guid}/diagnostics", async (
             Guid branchId,
-            HttpContext httpContext,
             StaffAuthorizationService authorizationService,
-            IPlatformAdminContextAccessor platformContextAccessor,
-            PlatformSupportAccessGrantService supportAccessService,
             IAuditRecordWriter auditRecordWriter,
             IBranchDiagnosticsService diagnosticsService,
             CancellationToken cancellationToken) =>
@@ -90,18 +87,8 @@ internal static class DiagnosticsEndpoints
                 branchId,
                 OrganizationPermissionNames.ViewDiagnostics,
                 cancellationToken);
-
-            PlatformSupportContext? support = null;
-            if (!authorization.IsAuthenticated)
-            {
-                support = await supportAccessService.ValidateBranchAsync(
-                    httpContext, branchId, OrganizationPermissionNames.ViewDiagnostics,
-                    platformContextAccessor, cancellationToken);
-                if (platformContextAccessor.Current is null) return Results.Unauthorized();
-                if (support is null) return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            if (authorization.IsAuthenticated && !authorization.IsAllowed)
+            if (!authorization.IsAuthenticated) return Results.Unauthorized();
+            if (!authorization.IsAllowed)
             {
                 await WriteAuditAsync(
                     auditRecordWriter,
@@ -119,7 +106,7 @@ internal static class DiagnosticsEndpoints
             }
 
             var result = await diagnosticsService.GetAsync(
-                support?.OrganizationId ?? authorization.StaffContext!.OrganizationId,
+                authorization.StaffContext!.OrganizationId,
                 branchId,
                 cancellationToken);
 
@@ -132,16 +119,9 @@ internal static class DiagnosticsEndpoints
                 result.UpdateSummary.ActiveRollouts,
                 result.UpdateSummary.FailedDevices
             };
-            if (support is null)
-                await WriteAuditAsync(auditRecordWriter, authorization.StaffContext!.OrganizationId,
-                    branchId, authorization.StaffContext.StaffUserId, AuditActionNames.ViewDiagnostics,
-                    "Diagnostics", null, AuditOutcome.Succeeded, details, cancellationToken);
-            else
-                await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
-                    support.OrganizationId, branchId, null, AuditActionNames.UsePlatformSupportAccess, "Diagnostics", null,
-                    AuditOutcome.Succeeded, "PlatformApi",
-                    JsonSerializer.Serialize(new { support.GrantId, support.Reason, Permission = support.Permission, details }))
-                { ActorPlatformAdminUserId = support.PlatformAdminUserId }, cancellationToken);
+            await WriteAuditAsync(auditRecordWriter, authorization.StaffContext.OrganizationId,
+                branchId, authorization.StaffContext.StaffUserId, AuditActionNames.ViewDiagnostics,
+                "Diagnostics", null, AuditOutcome.Succeeded, details, cancellationToken);
 
             return Results.Ok(result);
         }).RequireOrganizationDomain()

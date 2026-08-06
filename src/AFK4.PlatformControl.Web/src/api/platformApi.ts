@@ -3,6 +3,7 @@ import { PlatformTransport, type PlatformTransportOptions, type SignInOutcome } 
 import { OrganizationsApi } from './platformClients/organizations';
 import { OrganizationOwnerInvitesApi } from './platformClients/organizationOwnerInvites';
 import { SupportNotesApi } from './platformClients/supportNotes';
+import { SupportAccessApi } from './platformClients/supportAccess';
 import { PlansApi } from './platformClients/plans';
 import { SubscriptionsApi } from './platformClients/subscriptions';
 import { InvoicesApi } from './platformClients/invoices';
@@ -29,6 +30,7 @@ export class PlatformApiClient {
   public readonly organizations: OrganizationsApi;
   public readonly organizationOwnerInvites: OrganizationOwnerInvitesApi;
   public readonly supportNotes: SupportNotesApi;
+  public readonly supportAccess: SupportAccessApi;
   public readonly plans: PlansApi;
   public readonly subscriptions: SubscriptionsApi;
   public readonly invoices: InvoicesApi;
@@ -44,6 +46,7 @@ export class PlatformApiClient {
     this.organizations = new OrganizationsApi(this.transport);
     this.organizationOwnerInvites = new OrganizationOwnerInvitesApi(this.transport);
     this.supportNotes = new SupportNotesApi(this.transport);
+    this.supportAccess = new SupportAccessApi(this.transport);
     this.plans = new PlansApi(this.transport);
     this.subscriptions = new SubscriptionsApi(this.transport);
     this.invoices = new InvoicesApi(this.transport);

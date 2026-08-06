@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Shared.Contracts.Platform.Auth;
 using Microsoft.AspNetCore.Identity;
@@ -145,6 +146,7 @@ public sealed class PlatformAdminBootstrapHostedServiceTests
         var databaseName = Guid.NewGuid().ToString("N");
         services.AddDbContext<PlatformDbContext>(options => options.UseInMemoryDatabase(databaseName));
         services.AddSingleton<TimeProvider>(TimeProvider.System);
+        services.AddScoped<IStaffContextAccessor, StaffContextAccessor>();
         services.AddScoped<IAuditRecordStager, AuditRecordStager>();
         services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
         return services.BuildServiceProvider();

@@ -41,9 +41,14 @@ function toLocalInput(iso: string | null): string {
 
 export function NewsWorkspace({
   backend,
+  canManage = true,
   client: injectedClient
 }: {
   backend: OperatorBackendContext | null;
+  // Client-side write gate — see NewsDestination.tsx for why this exists (support sessions can see
+  // this screen's data without being able to write it). Defaults to true so every other caller
+  // (currently just NewsDestination) keeps today's behaviour without having to think about it.
+  canManage?: boolean;
   client?: NewsClient;
 }) {
   const { t, formatDate } = useI18n();
@@ -178,13 +183,13 @@ export function NewsWorkspace({
         onSelectRow={(n) => edit(n)}
         toolbar={{
           title: t('op.management.dest.news'),
-          primary: { label: t('op.news.addCta'), onClick: openCreate }
+          primary: canManage ? { label: t('op.news.addCta'), onClick: openCreate } : undefined
         }}
         empty={{
           icon: <Newspaper size={22} aria-hidden="true" />,
           title: t('op.news.empty'),
           description: t('op.news.emptyDescription'),
-          action: { label: t('op.news.addCta'), onClick: openCreate }
+          action: canManage ? { label: t('op.news.addCta'), onClick: openCreate } : undefined
         }}
       />
 
@@ -194,30 +199,32 @@ export function NewsWorkspace({
           subtitle={isCreate ? undefined : (form.isPublished ? t('op.news.statusPublished') : t('op.news.draftTag'))}
           onClose={() => { setSelectedId(null); setForm({ ...EMPTY }); setError(null); }}
           footer={
-            <div className="mgmt-form-actions">
-              {!isCreate && (
-                <button
-                  type="button"
-                  className="ui-btn ui-btn--danger"
-                  onClick={() => setDeleteTarget(items.find((n) => n.id === form.id) ?? null)}
-                >
-                  {t('op.news.delete')}
+            canManage ? (
+              <div className="mgmt-form-actions">
+                {!isCreate && (
+                  <button
+                    type="button"
+                    className="ui-btn ui-btn--danger"
+                    onClick={() => setDeleteTarget(items.find((n) => n.id === form.id) ?? null)}
+                  >
+                    {t('op.news.delete')}
+                  </button>
+                )}
+                <button type="button" className="ui-btn ui-btn--primary" onClick={() => void save()}>
+                  {t('op.news.save')}
                 </button>
-              )}
-              <button type="button" className="ui-btn ui-btn--primary" onClick={() => void save()}>
-                {t('op.news.save')}
-              </button>
-            </div>
+              </div>
+            ) : undefined
           }
         >
-          <form className="mgmt-form" onSubmit={(event) => { event.preventDefault(); void save(); }}>
+          <form className="mgmt-form" onSubmit={(event) => { event.preventDefault(); if (canManage) void save(); }}>
             <label>
               {t('op.news.fieldTitle')}
-              <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
+              <input value={form.title} disabled={!canManage} onChange={(event) => setForm({ ...form, title: event.target.value })} />
             </label>
             <label>
               {t('op.news.fieldBranch')}
-              <select value={form.branchId} onChange={(event) => setForm({ ...form, branchId: event.target.value })}>
+              <select value={form.branchId} disabled={!canManage} onChange={(event) => setForm({ ...form, branchId: event.target.value })}>
                 <option value="">{t('op.news.allBranches')}</option>
                 {branches.map((branch) => (
                   <option key={branch.branchId} value={branch.branchId}>{branch.name}</option>
@@ -226,27 +233,28 @@ export function NewsWorkspace({
             </label>
             <label>
               {t('op.news.fieldBody')}
-              <textarea value={form.body} onChange={(event) => setForm({ ...form, body: event.target.value })} rows={5} />
+              <textarea value={form.body} disabled={!canManage} onChange={(event) => setForm({ ...form, body: event.target.value })} rows={5} />
             </label>
             <label>
               {t('op.news.fieldImage')}
-              <input value={form.imageUrl} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} />
+              <input value={form.imageUrl} disabled={!canManage} onChange={(event) => setForm({ ...form, imageUrl: event.target.value })} />
             </label>
             <label className="mgmt-check">
               <input
                 type="checkbox"
                 checked={form.isPublished}
+                disabled={!canManage}
                 onChange={(event) => setForm({ ...form, isPublished: event.target.checked })}
               />
               {t('op.news.published')}
             </label>
             <label>
               {t('op.news.publishAt')}
-              <input type="datetime-local" value={form.publishAt} onChange={(event) => setForm({ ...form, publishAt: event.target.value })} />
+              <input type="datetime-local" value={form.publishAt} disabled={!canManage} onChange={(event) => setForm({ ...form, publishAt: event.target.value })} />
             </label>
             <label>
               {t('op.news.expiresAt')}
-              <input type="datetime-local" value={form.expiresAt} onChange={(event) => setForm({ ...form, expiresAt: event.target.value })} />
+              <input type="datetime-local" value={form.expiresAt} disabled={!canManage} onChange={(event) => setForm({ ...form, expiresAt: event.target.value })} />
             </label>
             {error && <p className="ui-inline-error" role="alert">{error}</p>}
           </form>

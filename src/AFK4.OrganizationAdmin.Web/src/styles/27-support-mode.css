@@ -1,0 +1,74 @@
+/* Плашка режима поддержки: несъёмная полоса поверх шелла оператора. Высота фиксирована и
+ * прокинута в `--shell-banner-h` (App.tsx), которую 02-shell.css вычитает из высоты
+ * `.operator-shell` — тот же паттерн, что `--shell-tabstrip`/`--shell-context-col`, чтобы шелл
+ * оставался ровно во viewport, а не выезжал за нижний край на высоту плашки. */
+.support-mode-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 40px;
+  padding: 0 var(--space-4);
+  background: var(--warning-soft-bg);
+  border-bottom: 1px solid var(--warning-soft-border);
+  color: var(--warning-text);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+.support-mode-banner-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--warning);
+  color: var(--surface-canvas);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.support-mode-banner-club {
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+.support-mode-banner-reason {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+}
+
+.support-mode-banner-time {
+  flex-shrink: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.support-mode-banner-audit {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.support-mode-banner-exit {
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--warning-soft-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--warning-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.support-mode-banner-exit:hover {
+  background: var(--warning-soft-border);
+}

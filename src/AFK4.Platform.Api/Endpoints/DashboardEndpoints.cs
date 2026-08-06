@@ -140,7 +140,8 @@ internal static class DashboardEndpoints
                 cancellationToken);
 
             return Results.Ok(result);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewReports);
 
     }
 }

@@ -1,6 +1,7 @@
-import { describe, expect, it, mock } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
 const originalFetch = globalThis.fetch;
 import { PlatformApiClient, PlatformApiError } from './platformApi';
+import { clearSupportSession, writeSupportSession } from './support/supportSession';
 
 describe('PlatformApiClient', () => {
   it('builds organization-scoped URLs from domain-relative paths', async () => {
@@ -189,6 +190,86 @@ describe('PlatformApiClient layout save support', () => {
     expect(body.eTag).toBe('W/"v2"');
     expect(seen!.method).toBe('PUT');
     expect(seen!.headers.get('If-Match')).toBe('W/"v1"');
+  });
+});
+
+describe('PlatformApiClient under a support session', () => {
+  beforeEach(() => sessionStorage.clear());
+  afterEach(() => sessionStorage.clear());
+
+  function activateSupportSession() {
+    writeSupportSession({
+      sessionToken: 'support-token-1',
+      organizationId: 'o1',
+      organizationName: 'Клуб',
+      reason: 'Смена не открывается',
+      expiresAtUtc: '2099-01-01T00:00:00Z',
+      writableAreas: [],
+      branches: []
+    });
+  }
+
+  it('sends the support grant header instead of Authorization, without a staff token', async () => {
+    activateSupportSession();
+    const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
+    const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push([input, init]);
+      return jsonResponse({ ok: true });
+    };
+    const api = new PlatformApiClient({
+      baseUrl: 'https://api.test/',
+      // No staff token available in support mode — must not be treated as an error.
+      getAccessToken: () => null,
+      fetchImpl
+    });
+
+    await expect(api.get('/api/branches/branch-1/floor-map')).resolves.toEqual({ ok: true });
+
+    const headers = calls[0][1]?.headers as Headers;
+    expect(headers.get('X-AFK4-Support-Access-Grant')).toBe('support-token-1');
+    expect(headers.has('Authorization')).toBe(false);
+  });
+
+  it('sends the support grant header on multipart (postForm) requests too', async () => {
+    activateSupportSession();
+    let seen: Request | null = null;
+    const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {
+      seen = new Request(input, init);
+      return new Response(JSON.stringify({ mediaId: 'm1' }), { status: 200 });
+    };
+    const api = new PlatformApiClient({
+      baseUrl: 'https://api.test/',
+      getAccessToken: () => null,
+      fetchImpl
+    });
+    const form = new FormData();
+    form.append('file', new File(['x'], 'a.png', { type: 'image/png' }));
+
+    await expect(api.postForm<{ mediaId: string }>('/x', form)).resolves.toEqual({ mediaId: 'm1' });
+
+    expect(seen!.headers.get('X-AFK4-Support-Access-Grant')).toBe('support-token-1');
+    expect(seen!.headers.has('Authorization')).toBe(false);
+  });
+
+  it('falls back to Authorization once the support session is cleared', async () => {
+    activateSupportSession();
+    clearSupportSession();
+    const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
+    const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push([input, init]);
+      return jsonResponse({ ok: true });
+    };
+    const api = new PlatformApiClient({
+      baseUrl: 'https://api.test/',
+      getAccessToken: () => 'staff-token',
+      fetchImpl
+    });
+
+    await api.get('/api/branches/branch-1/floor-map');
+
+    const headers = calls[0][1]?.headers as Headers;
+    expect(headers.get('Authorization')).toBe('Bearer staff-token');
+    expect(headers.has('X-AFK4-Support-Access-Grant')).toBe(false);
   });
 });
 

@@ -31,7 +31,8 @@ internal static class LoyaltySettingsEndpoints
                     row.ShopEnabled, row.ShopPercentBasisPoints,
                     row.SessionEnabled, row.SessionPercentBasisPoints,
                     row.CashbackCapMinorUnits, row.MinimumSourceMinorUnits));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageLoyaltySettings);
 
         app.MapPost("loyalty-settings", async (
             UpdateLoyaltySettingsRequest request,

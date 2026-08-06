@@ -3,12 +3,14 @@ import type { OperatorAuthSession } from './authClient';
 import type { ShellShiftBadgeData } from './operatorHelpers';
 import { navSections, type NavSection } from './operatorData';
 import { canOpenWorkspace } from './operatorPermissions';
+import type { WorkspaceId } from './operatorTypes';
 import { RailAccount } from './RailAccount';
 
 // Левая навигационная рельса: кнопки секций (подсветка активной, замок на недоступных) + аккаунт
 // оператора в подвале. Переходы и личность приходят пропсами.
 export function WorkspaceRail({
   session,
+  visibleWorkspaceIds,
   activeSectionKey,
   displayName,
   shift,
@@ -17,6 +19,9 @@ export function WorkspaceRail({
   onSignOut
 }: {
   session: OperatorAuthSession | null;
+  // Extra restriction on top of ordinary permission checks — a support session's writableAreas
+  // (see support/supportWorkspaces.ts). `null`/omitted outside support mode: permissions alone decide.
+  visibleWorkspaceIds?: ReadonlySet<WorkspaceId> | null;
   activeSectionKey: string;
   displayName: string;
   shift: ShellShiftBadgeData;
@@ -26,7 +31,9 @@ export function WorkspaceRail({
 }) {
   const { t } = useI18n();
   const visibleSections = navSections.filter((section) =>
-    section.items.some((item) => canOpenWorkspace(session, item.id))
+    section.items.some((item) =>
+      canOpenWorkspace(session, item.id) && (visibleWorkspaceIds == null || visibleWorkspaceIds.has(item.id))
+    )
   );
 
   return (

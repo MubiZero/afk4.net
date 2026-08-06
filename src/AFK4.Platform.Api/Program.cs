@@ -188,6 +188,9 @@ builder.Services.AddScoped<IPlatformAdminContextAccessor, PlatformAdminContextAc
 builder.Services.AddScoped<PlatformAdminAuthorizationService>();
 builder.Services.AddScoped<PlatformAdminDirectoryService>();
 builder.Services.AddScoped<PlatformSupportAccessGrantService>();
+builder.Services.AddScoped<IPlatformSupportContextAccessor, PlatformSupportContextAccessor>();
+builder.Services.Configure<SupportAccessOptions>(
+    builder.Configuration.GetSection(SupportAccessOptions.SectionName));
 builder.Services.Configure<PlatformAdminBootstrapOptions>(
     builder.Configuration.GetSection(PlatformAdminBootstrapOptions.ConfigurationSection));
 builder.Services.AddHostedService<PlatformAdminBootstrapHostedService>();
@@ -419,6 +422,7 @@ app.UseRateLimiter();
 app.UseMiddleware<StaffAuthenticationMiddleware>();
 app.UseMiddleware<PlatformAdminAuthenticationMiddleware>();
 app.UseMiddleware<PlayerAuthenticationMiddleware>();
+app.UseMiddleware<PlatformSupportSessionMiddleware>();
 app.UseMiddleware<OrganizationAdminCompatibilityMiddleware>();
 app.UseMiddleware<AuthenticationDomainEnforcementMiddleware>();
 app.UseMiddleware<OrganizationSuspensionMiddleware>();
@@ -452,6 +456,7 @@ app.MapPlatformAdminDirectoryEndpoints();
 app.MapPlatformAdminTwoFactorEndpoints();
 app.MapPlatformBillingEndpoints(organizations);
 app.MapPlatformSupportAccessEndpoints();
+app.MapSupportAccessSessionEndpoints();
 app.MapPlatformUpdateEndpoints();
 app.MapPlatformAuditEndpoints();
 app.MapPlatformSearchEndpoints();

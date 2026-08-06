@@ -16,6 +16,15 @@ import { ForgotPassword } from './ForgotPassword';
 import { WindowResizeHandles } from './WindowChrome';
 import { SignInScreen } from './SignInScreen';
 import { BlockedOrganizationScreen } from './BlockedOrganizationScreen';
+import {
+  clearSupportSession,
+  endSupportSession,
+  isSupportSessionExpired,
+  readSupportSession,
+  supportOperatorSession
+} from './support/supportSession';
+import { supportVisibleWorkspaces } from './support/supportWorkspaces';
+import { SupportModeBanner } from './support/SupportModeBanner';
 import { PostAuthShiftGate } from './PostAuthShiftGate';
 import { ShellHeader } from './ShellHeader';
 import { WorkspaceRail } from './WorkspaceRail';
@@ -31,6 +40,7 @@ import { useFloorMap } from './useFloorMap';
 import { ToastProvider } from './operatorToast';
 import { useHotkeys } from './useHotkeys';
 import type {
+  AuthStatus,
   WorkspaceId,
   MapFilterId,
   OperatorBackendContext
@@ -39,7 +49,7 @@ import {
   permissionNames,
   hasPermission,
   canOpenWorkspace,
-  firstAllowedWorkspace
+  workspaceIds
 } from './operatorPermissions';
 import {
   operatorDisplayNameLabel,
@@ -75,8 +85,8 @@ function AppInner() {
   const [mapFilter, setMapFilter] = useState<MapFilterId>('all');
   const [workspaceFeedback, setWorkspaceFeedback] = useState<string | null>(null);
   const {
-    authStatus,
-    authSession,
+    authStatus: staffAuthStatus,
+    authSession: staffAuthSession,
     authError,
     authView,
     setAuthView,
@@ -92,6 +102,64 @@ function AppInner() {
     onSignedIn: () => setWorkspaceFeedback(null),
     onSignedOut: () => setWorkspaceFeedback(null)
   });
+  // Support mode (platform staff impersonating this organization via a time-boxed grant, see
+  // support/supportSession.ts) adapts to the SAME rendering path a staff sign-in takes — not a
+  // parallel shell — by overriding what `authStatus`/`authSession` resolve to for the rest of this
+  // component. `supportOperatorSession` is the one place that builds the adapted session; everything
+  // below (floor map, realtime, shift gate, permission checks, the shell itself) stays unaware that
+  // this isn't an ordinary staff login. The grant's `writableAreas` DO further restrict which rail
+  // workspaces show up (`supportVisibleWorkspaceIds`/`isWorkspaceOpen` below, mapped in
+  // support/supportWorkspaces.ts) — that's on top of, not instead of, permission checks: the server
+  // still enforces the real boundary per endpoint regardless of what this client shows.
+  //
+  // Read once via a lazy initializer, not on every render: sessionStorage doesn't change under us
+  // during this component's lifetime (nothing in this task writes to it after mount), and reading —
+  // then adapting — it fresh on every render would hand every downstream effect a brand-new
+  // `authSession` object each time, which several of them key their dependency arrays on. That's an
+  // infinite render loop, not a style nitpick — floor map/realtime/shell-data effects would re-fire
+  // every render forever.
+  // A setter (not just the lazy-initialized value) so exiting support mode can drop the override
+  // and fall back to `staffAuthStatus`/`staffAuthSession` in place, without a full page reload.
+  const [activeSupportSession, setActiveSupportSession] = useState(() => {
+    const session = readSupportSession();
+    return session !== null && !isSupportSessionExpired(session) ? session : null;
+  });
+  const supportAuthSession = useMemo(
+    () => activeSupportSession !== null ? supportOperatorSession(activeSupportSession) : null,
+    [activeSupportSession]
+  );
+  const authStatus: AuthStatus = activeSupportSession !== null ? 'signed-in' : staffAuthStatus;
+  const authSession = supportAuthSession ?? staffAuthSession;
+  // Which rail workspaces the support grant's writableAreas actually unlock (see
+  // support/supportWorkspaces.ts) — `null` outside support mode means "no extra restriction",
+  // ordinary permission-based visibility keeps deciding on its own.
+  const supportVisibleWorkspaceIds = useMemo(
+    () => activeSupportSession !== null ? supportVisibleWorkspaces(activeSupportSession.writableAreas) : null,
+    [activeSupportSession]
+  );
+  const isWorkspaceOpen = useCallback(
+    (workspaceId: WorkspaceId) =>
+      canOpenWorkspace(authSession, workspaceId)
+      && (supportVisibleWorkspaceIds === null || supportVisibleWorkspaceIds.has(workspaceId)),
+    [authSession, supportVisibleWorkspaceIds]
+  );
+  // Ends the support session: best-effort revoke on the server (see supportSession.ts), then
+  // always clear the local grant and drop the override regardless of whether the network call
+  // succeeded — a failed DELETE must never strand someone inside a support-mode tab they can't
+  // leave. Also the countdown's onExpired: a grant that ran out gets the exact same treatment.
+  const handleExitSupportMode = useCallback(() => {
+    const session = activeSupportSession;
+    if (session === null) {
+      return;
+    }
+    void endSupportSession(config.platformBaseUrl, session.sessionToken).catch(() => {
+      // Revoke failed (network hiccup, already-expired grant, ...) — the finally below still gets
+      // the person out of support mode locally, which is what matters from here.
+    }).finally(() => {
+      clearSupportSession();
+      setActiveSupportSession(null);
+    });
+  }, [activeSupportSession, config.platformBaseUrl]);
   const [accountPanelOpen, setAccountPanelOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   // Токен «открыть запуск сессии» — растёт по клику на «+» свободной плитки; боковая панель
@@ -192,12 +260,12 @@ function AppInner() {
       return;
     }
 
-    if (!canOpenWorkspace(authSession, workspace)) {
-      setWorkspace(firstAllowedWorkspace(authSession));
+    if (!isWorkspaceOpen(workspace)) {
+      setWorkspace(workspaceIds.find(isWorkspaceOpen) ?? 'map');
     }
     // activeBranchId: после смены филиала доступные разделы могут отличаться — увести с
     // недоступного воркспейса, а не оставить на разделе, к которому больше нет доступа.
-  }, [authStatus, authSession, workspace, activeBranchId]);
+  }, [authStatus, authSession, workspace, activeBranchId, isWorkspaceOpen]);
 
   const handleWorkspaceNavigation = async (
     workspaceId: WorkspaceId,
@@ -232,7 +300,7 @@ function AppInner() {
     if (section.items.some((item) => item.id === workspace)) {
       return;
     }
-    const allowedItem = section.items.find((item) => canOpenWorkspace(authSession, item.id));
+    const allowedItem = section.items.find((item) => isWorkspaceOpen(item.id));
     const target = allowedItem ?? section.items[0];
     void handleWorkspaceNavigation(target.id, t(target.labelKey), allowedItem != null);
   };
@@ -297,7 +365,7 @@ function AppInner() {
   }
 
   const activeSection = navSections.find((section) => section.items.some((item) => item.id === workspace)) ?? navSections[0];
-  const activeVisibleItems = activeSection.items.filter((item) => canOpenWorkspace(authSession, item.id));
+  const activeVisibleItems = activeSection.items.filter((item) => isWorkspaceOpen(item.id));
   const showWorkspaceTabs = activeVisibleItems.length > 1;
   const hasContextContent = workspace === 'map' && selectedSeat !== null;
   const contextCol = hasContextContent ? 'minmax(260px, 292px)' : '0px';
@@ -305,125 +373,133 @@ function AppInner() {
   const operatorDisplayName = operatorDisplayNameLabel(authSession.displayName, t);
 
   return (
-    <div
-      className="operator-shell"
-      style={{
-        '--shell-tabstrip': showWorkspaceTabs ? '41px' : '0px',
-        '--shell-context-col': contextCol
-      } as CSSProperties}
-    >
-      <WindowResizeHandles />
-      <ShellHeader
-        onOpenPalette={() => setPaletteOpen(true)}
-        branchSwitcher={authSession.branchIds.length > 1 ? (
-          <BranchSwitcher
-            branches={authSession.branchIds.map((branchId) => ({
-              branchId,
-              name: branchDirectory[branchId]?.name ?? ''
-            }))}
-            activeBranchId={activeBranchId}
-            onSelect={selectBranch}
+    <>
+      {activeSupportSession !== null && (
+        <SupportModeBanner session={activeSupportSession} onExit={handleExitSupportMode} />
+      )}
+      <div
+        className="operator-shell"
+        style={{
+          '--shell-tabstrip': showWorkspaceTabs ? '41px' : '0px',
+          '--shell-context-col': contextCol,
+          '--shell-banner-h': activeSupportSession !== null ? '40px' : '0px'
+        } as CSSProperties}
+      >
+        <WindowResizeHandles />
+        <ShellHeader
+          onOpenPalette={() => setPaletteOpen(true)}
+          branchSwitcher={authSession.branchIds.length > 1 ? (
+            <BranchSwitcher
+              branches={authSession.branchIds.map((branchId) => ({
+                branchId,
+                name: branchDirectory[branchId]?.name ?? ''
+              }))}
+              activeBranchId={activeBranchId}
+              onSelect={selectBranch}
+            />
+          ) : undefined}
+        />
+
+        {accountPanelOpen && backendContext !== null && (
+          <AccountPanel
+            backend={backendContext}
+            displayName={operatorDisplayName}
+            onClose={() => setAccountPanelOpen(false)}
           />
-        ) : undefined}
-      />
-
-      {accountPanelOpen && backendContext !== null && (
-        <AccountPanel
-          backend={backendContext}
-          displayName={operatorDisplayName}
-          onClose={() => setAccountPanelOpen(false)}
-        />
-      )}
-
-      {paletteOpen && (
-        <CommandPalette
-          session={authSession}
-          onNavigate={(id) => {
-            setWorkspace(id);
-            setPaletteOpen(false);
-          }}
-          onClose={() => setPaletteOpen(false)}
-        />
-      )}
-
-      <WorkspaceRail
-        session={authSession}
-        activeSectionKey={activeSection.key}
-        displayName={operatorDisplayName}
-        shift={shellShift}
-        onNavigateSection={handleSectionNavigation}
-        onOpenAccount={() => setAccountPanelOpen(true)}
-        onSignOut={handleSignOut}
-      />
-
-      <div className="workspace-content">
-        {showWorkspaceTabs && (
-          <div className="workspace-tabs" role="tablist" aria-label={t(activeSection.labelKey)}>
-            {activeVisibleItems.map((item) => {
-              const tabLabel = t(item.labelKey);
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={workspace === item.id}
-                  className={workspace === item.id ? 'active' : undefined}
-                  title={tabLabel}
-                  onClick={() => setWorkspace(item.id)}
-                >
-                  {tabLabel}
-                </button>
-              );
-            })}
-          </div>
         )}
 
-        <WorkspaceRouter
-          workspace={workspace}
+        {paletteOpen && (
+          <CommandPalette
+            session={authSession}
+            visibleWorkspaceIds={supportVisibleWorkspaceIds}
+            onNavigate={(id) => {
+              setWorkspace(id);
+              setPaletteOpen(false);
+            }}
+            onClose={() => setPaletteOpen(false)}
+          />
+        )}
+
+        <WorkspaceRail
           session={authSession}
-          backend={backendContext}
-          currencyCode={config.currencyCode}
-          displayedFloorMap={displayedFloorMap}
-          actionsEnabled={actionsEnabled}
-          selectedSeatId={selectedSeat?.id ?? ''}
-          mapFilter={mapFilter}
-          offlineActionAudit={offlineActionAudit}
-          onSelectSeat={setSelectedSeatId}
-          onStartSeat={handleStartSeat}
-          onFilterChange={setMapFilter}
-          onPcControlAction={handlePcControlAction}
-          onSeatAction={handleSeatAction}
-          onNavigate={setWorkspace}
-          onOpenSeat={handleOpenSeat}
+          visibleWorkspaceIds={supportVisibleWorkspaceIds}
+          activeSectionKey={activeSection.key}
+          displayName={operatorDisplayName}
+          shift={shellShift}
+          onNavigateSection={handleSectionNavigation}
+          onOpenAccount={() => setAccountPanelOpen(true)}
+          onSignOut={handleSignOut}
+        />
+
+        <div className="workspace-content">
+          {showWorkspaceTabs && (
+            <div className="workspace-tabs" role="tablist" aria-label={t(activeSection.labelKey)}>
+              {activeVisibleItems.map((item) => {
+                const tabLabel = t(item.labelKey);
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={workspace === item.id}
+                    className={workspace === item.id ? 'active' : undefined}
+                    title={tabLabel}
+                    onClick={() => setWorkspace(item.id)}
+                  >
+                    {tabLabel}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <WorkspaceRouter
+            workspace={workspace}
+            session={authSession}
+            backend={backendContext}
+            currencyCode={config.currencyCode}
+            displayedFloorMap={displayedFloorMap}
+            actionsEnabled={actionsEnabled}
+            selectedSeatId={selectedSeat?.id ?? ''}
+            mapFilter={mapFilter}
+            offlineActionAudit={offlineActionAudit}
+            onSelectSeat={setSelectedSeatId}
+            onStartSeat={handleStartSeat}
+            onFilterChange={setMapFilter}
+            onPcControlAction={handlePcControlAction}
+            onSeatAction={handleSeatAction}
+            onNavigate={setWorkspace}
+            onOpenSeat={handleOpenSeat}
+          />
+        </div>
+
+        {workspace === 'map' && selectedSeat !== null && (
+          <ContextPanel>
+            <MapSidePanel
+              seat={selectedSeat}
+              seats={displayedFloorMap.seats}
+              currencyCode={config.currencyCode}
+              backend={backendContext}
+              actionsEnabled={actionsEnabled}
+              canUsePcControl={canUsePcControl}
+              startRequestToken={startSeatToken}
+              onSeatAction={handleSeatAction}
+              onPcControlAction={handlePcControlAction}
+            />
+          </ContextPanel>
+        )}
+
+        <ShellStatusBar
+          operatorName={authSession.displayName}
+          roleNames={authSession.roleNames ?? []}
+          clubName={displayedFloorMap.source === 'backend' ? displayedFloorMap.branchName : ''}
+          realtimeState={realtimeState}
+          realtimeError={realtimeError}
+          dataSource={floorMap.source}
+          appVersion={config.appVersion ?? ''}
+          workspaceFeedback={workspaceFeedback}
         />
       </div>
-
-      {workspace === 'map' && selectedSeat !== null && (
-        <ContextPanel>
-          <MapSidePanel
-            seat={selectedSeat}
-            seats={displayedFloorMap.seats}
-            currencyCode={config.currencyCode}
-            backend={backendContext}
-            actionsEnabled={actionsEnabled}
-            canUsePcControl={canUsePcControl}
-            startRequestToken={startSeatToken}
-            onSeatAction={handleSeatAction}
-            onPcControlAction={handlePcControlAction}
-          />
-        </ContextPanel>
-      )}
-
-      <ShellStatusBar
-        operatorName={authSession.displayName}
-        roleNames={authSession.roleNames ?? []}
-        clubName={displayedFloorMap.source === 'backend' ? displayedFloorMap.branchName : ''}
-        realtimeState={realtimeState}
-        realtimeError={realtimeError}
-        dataSource={floorMap.source}
-        appVersion={config.appVersion ?? ''}
-        workspaceFeedback={workspaceFeedback}
-      />
-    </div>
+    </>
   );
 }

@@ -36,7 +36,8 @@ internal static class EskhataConfigEndpoints
                     row.MerchantId,
                     !string.IsNullOrEmpty(row.HashKeyEncrypted),
                     row.Status));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManagePaymentGateways);
 
         app.MapPost("payments/eskhata-config", async (
             UpdateEskhataMerchantConfigRequest request,

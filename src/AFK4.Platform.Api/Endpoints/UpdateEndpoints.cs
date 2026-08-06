@@ -33,7 +33,8 @@ internal static class UpdateEndpoints
                 candidate => candidate.BranchId == branchId && candidate.OrganizationId == authorization.StaffContext!.OrganizationId,
                 cancellationToken);
             return Results.Ok(ToPreference(branch));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewUpdateStatus);
 
         organizations.MapPut("branches/{branchId:guid}/updates/preferences", async (
             Guid branchId,
@@ -84,7 +85,8 @@ internal static class UpdateEndpoints
                 authorization.StaffContext.StaffUserId, AuditActionNames.ViewUpdateRollout, "UpdateRollout",
                 null, AuditOutcome.Succeeded, new { Count = result.Response!.Count }, cancellationToken);
             return Results.Ok(result.Response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewUpdateStatus);
 
         organizations.MapGet("branches/{branchId:guid}/updates/rollouts/{rolloutId:guid}", async (
             Guid branchId,
@@ -105,7 +107,8 @@ internal static class UpdateEndpoints
                 authorization.StaffContext.StaffUserId, AuditActionNames.ViewUpdateRollout, "UpdateRollout",
                 rolloutId.ToString("D"), AuditOutcome.Succeeded, new { result.Response!.State }, cancellationToken);
             return Results.Ok(result.Response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewUpdateStatus);
 
         app.MapPost("/api/devices/{deviceId:guid}/updates/check", async (
             Guid deviceId,

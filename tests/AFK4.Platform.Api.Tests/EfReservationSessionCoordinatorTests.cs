@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
+using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Reservations;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Tests.Sessions;
@@ -586,7 +587,7 @@ public sealed class EfReservationSessionCoordinatorTests
         var coordinator = new EfReservationSessionCoordinator(
             db,
             failing,
-            new AuditRecordStager(db, new FixedTimeProvider(database.Now)),
+            new AuditRecordStager(db, new FixedTimeProvider(database.Now), new StaffContextAccessor()),
             new FixedTimeProvider(database.Now));
 
         var exception = await Assert.ThrowsAsync<ForcedCoordinatorFailureException>(() =>
@@ -638,7 +639,7 @@ public sealed class EfReservationSessionCoordinatorTests
             var coordinator = new EfReservationSessionCoordinator(
                 db,
                 workflow,
-                new AuditRecordStager(db, new FixedTimeProvider(database.Now)),
+                new AuditRecordStager(db, new FixedTimeProvider(database.Now), new StaffContextAccessor()),
                 new FixedTimeProvider(database.Now));
 
             var exception = await Record.ExceptionAsync(() => coordinator.StartAsync(
@@ -698,12 +699,12 @@ public sealed class EfReservationSessionCoordinatorTests
         var firstCoordinator = new EfReservationSessionCoordinator(
             firstDb,
             firstWorkflow,
-            new AuditRecordStager(firstDb, new FixedTimeProvider(database.Now)),
+            new AuditRecordStager(firstDb, new FixedTimeProvider(database.Now), new StaffContextAccessor()),
             new FixedTimeProvider(database.Now));
         var secondCoordinator = new EfReservationSessionCoordinator(
             secondDb,
             secondWorkflow,
-            new AuditRecordStager(secondDb, new FixedTimeProvider(database.Now)),
+            new AuditRecordStager(secondDb, new FixedTimeProvider(database.Now), new StaffContextAccessor()),
             new FixedTimeProvider(database.Now));
         var request = PostgresRequest(database.OrganizationId);
 
@@ -744,7 +745,7 @@ public sealed class EfReservationSessionCoordinatorTests
     private static EfReservationSessionCoordinator CreateCoordinator(
         PlatformDbContext db,
         ISessionStartWorkflow workflow) =>
-        new(db, workflow, new AuditRecordStager(db, new FixedTimeProvider(Now)), new FixedTimeProvider(Now));
+        new(db, workflow, new AuditRecordStager(db, new FixedTimeProvider(Now), new StaffContextAccessor()), new FixedTimeProvider(Now));
 
     private static ISessionStartWorkflow CreateRealWorkflow(
         PlatformDbContext db,

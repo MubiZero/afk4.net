@@ -149,7 +149,8 @@ internal static class StaffEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchStaff);
 
         app.MapPatch("branches/{branchId:guid}/staff/{staffUserId:guid}/roles", async (
             Guid branchId,
@@ -269,6 +270,9 @@ internal static class StaffEndpoints
 
             return Results.Ok(response);
         });
+        // Не AllowPlatformSupportAccess: смена ролей сотрудника может выдать денежные права
+        // (например BranchManager), а грант поддержки не отзывается вместе с этим доступом —
+        // это постоянный обход временной границы. См. docs/runbooks/support-mode.md.
 
         app.MapPatch("branches/{branchId:guid}/staff/{staffUserId:guid}/profile", async (
             Guid branchId,
@@ -382,7 +386,8 @@ internal static class StaffEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchStaff);
 
         app.MapPatch("branches/{branchId:guid}/staff/{staffUserId:guid}/state", async (
             Guid branchId,
@@ -482,7 +487,8 @@ internal static class StaffEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchStaff);
 
         app.MapPost("branches/{branchId:guid}/staff/{staffUserId:guid}/password-reset", async (
             Guid branchId,
@@ -580,6 +586,9 @@ internal static class StaffEndpoints
 
             return Results.Ok(response);
         });
+        // Не AllowPlatformSupportAccess: сброс пароля сотрудника открывает вход под его логином
+        // (у персонала клуба нет 2FA), а через него — тот же обход денежных прав, что и смена
+        // ролей выше. См. docs/runbooks/support-mode.md.
 
     }
 }

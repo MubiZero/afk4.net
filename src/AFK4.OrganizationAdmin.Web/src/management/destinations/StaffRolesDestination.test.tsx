@@ -45,7 +45,7 @@ afterEach(() => {
 const wrap = (ui: React.ReactNode) =>
   render(<I18nProvider initialLocale="ru"><ToastProvider>{ui}</ToastProvider></I18nProvider>);
 
-const session = (perms: string[], staffUserId?: string) => ({ permissions: perms, organizationId: 'org', displayName: 'x', staffUserId }) as never;
+const session = (perms: string[], staffUserId?: string, isSupportSession?: boolean) => ({ permissions: perms, organizationId: 'org', displayName: 'x', staffUserId, isSupportSession }) as never;
 
 const backend = {
   config: { platformBaseUrl: 'http://test' },
@@ -119,6 +119,30 @@ describe('StaffRolesDestination', () => {
     wrap(<StaffRolesDestination backend={null} session={session([])} currencyCode="TJS" staffUsers={staffUsers} />);
     expect(screen.queryByRole('button', { name: '+ Сотрудник' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Действия' })).toBeNull();
+  });
+
+  it('hides the "+ Сотрудник" button during a support session, even with canManageBranchStaff', () => {
+    wrap(
+      <StaffRolesDestination
+        backend={backend as never}
+        session={session([permissionNames.manageBranchStaff], undefined, true)}
+        currencyCode="TJS"
+        staffUsers={staffUsers}
+      />
+    );
+    expect(screen.queryByRole('button', { name: '+ Сотрудник' })).toBeNull();
+  });
+
+  it('shows the "+ Сотрудник" button for a regular staff member with canManageBranchStaff', () => {
+    wrap(
+      <StaffRolesDestination
+        backend={backend as never}
+        session={session([permissionNames.manageBranchStaff], undefined, false)}
+        currencyCode="TJS"
+        staffUsers={staffUsers}
+      />
+    );
+    expect(screen.getByRole('button', { name: '+ Сотрудник' })).toBeTruthy();
   });
 
   it('clicking a row opens the drawer with profile, role and access sections', () => {

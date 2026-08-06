@@ -150,7 +150,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(code);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.CreateDeviceEnrollmentCode);
 
         organizations.MapPost("install/auth/discover", async (
             StaffAuthorizationService authorizationService,
@@ -611,7 +612,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(devices);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDeviceDetail);
 
         organizations.MapGet("branches/{branchId:guid}/devices/pending", async (
             Guid branchId,
@@ -643,7 +645,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(devices);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDeviceDetail);
 
         organizations.MapGet("devices/{deviceId:guid}", async (
             Guid deviceId,
@@ -742,7 +745,8 @@ internal static class DeviceEndpoints
                 DisplayName: string.IsNullOrWhiteSpace(device.DisplayName) ? device.MachineName : device.DisplayName,
                 Role: device.Role,
                 EnrollmentState: device.EnrollmentState));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDeviceDetail);
 
         organizations.MapPost("devices/{deviceId:guid}/approve", async (
             Guid deviceId,
@@ -817,7 +821,8 @@ internal static class DeviceEndpoints
             await NotifyDeviceChangesAsync(hubContext, dbContext, [device.DeviceId], observedAtUtc, cancellationToken);
 
             return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.AssignDeviceSeat);
 
         organizations.MapPost("devices/{deviceId:guid}/reject", async (
             Guid deviceId,
@@ -899,7 +904,8 @@ internal static class DeviceEndpoints
             await NotifyDeviceChangesAsync(hubContext, dbContext, changedDeviceIds, now, cancellationToken);
 
             return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.AssignDeviceSeat);
 
         organizations.MapPost("devices/{deviceId:guid}/rename", async (
             Guid deviceId,
@@ -975,7 +981,8 @@ internal static class DeviceEndpoints
             await NotifyDeviceChangesAsync(hubContext, dbContext, [device.DeviceId], observedAtUtc, cancellationToken);
 
             return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.AssignDeviceSeat);
 
         organizations.MapPost("devices/{deviceId:guid}/move-seat", async (
             Guid deviceId,
@@ -1065,7 +1072,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.AssignDeviceSeat);
 
         organizations.MapPost("devices/{deviceId:guid}/remove", async (
             Guid deviceId,
@@ -1143,7 +1151,8 @@ internal static class DeviceEndpoints
             await NotifyDeviceChangesAsync(hubContext, dbContext, changedDeviceIds, now, cancellationToken);
 
             return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.RevokeDeviceCredential);
 
         organizations.MapPost("branches/{branchId:guid}/devices/{deviceId:guid}/seat-assignment", async (
             Guid branchId,
@@ -1303,7 +1312,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(ToDeviceSeatAssignmentDto(currentAssignment));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.AssignDeviceSeat);
 
         organizations.MapPost("devices/{deviceId:guid}/commands", async (
             Guid deviceId,
@@ -1406,7 +1416,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(command);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.DispatchDeviceCommand);
 
         organizations.MapGet("devices/{deviceId:guid}/commands", async (
             Guid deviceId,
@@ -1489,7 +1500,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(commands);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDeviceCommandStatus);
 
         organizations.MapGet("branches/{branchId:guid}/device-commands", async (
             Guid branchId,
@@ -1570,7 +1582,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(commands);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDeviceCommandStatus);
 
         organizations.MapGet("devices/{deviceId:guid}/commands/{commandId:guid}/status", async (
             Guid deviceId,
@@ -1646,7 +1659,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(status);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewDeviceCommandStatus);
 
         organizations.MapPost("devices/{deviceId:guid}/credentials/rotate", async (
             Guid deviceId,
@@ -1719,7 +1733,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(rotated);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.RotateDeviceCredential);
 
         organizations.MapPost("devices/{deviceId:guid}/credentials/{credentialId:guid}/revoke", async (
             Guid deviceId,
@@ -1796,7 +1811,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(revoked);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.RevokeDeviceCredential);
 
     }
 }

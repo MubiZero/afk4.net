@@ -106,7 +106,8 @@ internal static class FloorMapEndpoints
 
             httpContext.Response.Headers.ETag = result.ETag;
             return Results.Ok(result.FloorMap);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewFloorMap);
 
         app.MapPut("branches/{branchId:guid}/floor-map", async (
             Guid branchId,
@@ -190,7 +191,8 @@ internal static class FloorMapEndpoints
                 default:
                     return Results.StatusCode(StatusCodes.Status500InternalServerError);
             }
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageLayout);
 
     }
 }

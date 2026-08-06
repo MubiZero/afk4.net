@@ -128,7 +128,8 @@ internal static class BranchSettingsEndpoints
                 branch.PreferredLocale);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchSettings);
 
         app.MapPut("branches/{branchId:guid}/settings", async (
             Guid branchId,
@@ -214,7 +215,8 @@ internal static class BranchSettingsEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchSettings);
 
     }
 }

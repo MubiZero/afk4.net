@@ -2005,7 +2005,24 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<DateTimeOffset?>("RevokedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<byte[]>("SessionTokenHash")
+                        .HasColumnType("bytea");
+
+                    b.Property<byte[]>("TicketHash")
+                        .HasColumnType("bytea");
+
+                    b.Property<DateTimeOffset?>("TicketUsedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("GrantId");
+
+                    b.HasIndex("SessionTokenHash")
+                        .IsUnique()
+                        .HasFilter("\"SessionTokenHash\" IS NOT NULL");
+
+                    b.HasIndex("TicketHash")
+                        .IsUnique()
+                        .HasFilter("\"TicketHash\" IS NOT NULL");
 
                     b.HasIndex("OrganizationId", "ExpiresAtUtc");
 

@@ -1,0 +1,79 @@
+import { useEffect, useRef, useState } from 'react';
+
+// Same slack and rationale as CLOCK_SKEW_TOLERANCE_MS in
+// AFK4.PlatformControl.Web/src/components/useChallengeExpiry.ts: the deadline is computed against
+// the SERVER's timestamp but the BROWSER's clock, and a fast local clock shouldn't end someone's
+// support session early just because their machine's clock lies. The two apps don't share a
+// package for this hook, so the constant and the NaN-guard are duplicated deliberately — same
+// approach, not reinvented.
+//
+// This tolerance governs ONLY the decision "has the grant actually run out" (when `onExpired`
+// fires) — it must NOT leak into the number shown on screen. A person watching the banner count
+// down to a round 00:00 and then keep ticking for another ~30s before anything happens reads as a
+// broken clock, not as clock-skew slack; the displayed value is computed separately, with zero
+// tolerance, so it always matches the real window the grant was issued for.
+export const CLOCK_SKEW_TOLERANCE_MS = 30_000;
+
+function remainingMsFor(expiresAtUtc: string, toleranceMs: number): number {
+  const expiresAtMs = Date.parse(expiresAtUtc);
+  // A garbage/unparsable timestamp must never arm a bogus countdown: treat it as already expired
+  // (0 remaining) rather than let `NaN - Date.now()` propagate into `Math.max`, which returns NaN,
+  // not 0 — the same trap useChallengeExpiry.ts guards against for its setTimeout delay. This
+  // mirrors isSupportSessionExpired's fail-safe convention (garbage => expired) rather than
+  // useChallengeExpiry's "disarm and do nothing" convention, because revoking access early is the
+  // safe direction to fail in here, not the risky one.
+  if (Number.isNaN(expiresAtMs)) {
+    return 0;
+  }
+  return Math.max(expiresAtMs - Date.now() + toleranceMs, 0);
+}
+
+// Ticking countdown (recomputed once a second, not just a single deadline timer) for the support
+// mode banner. Fires `onExpired` once, the instant the (tolerance-padded) remaining time reaches
+// zero, so the banner can end the session itself without waiting for the next API call to bounce
+// with a stale grant. The NUMBER RETURNED is the plain, un-padded remaining time — see the comment
+// on CLOCK_SKEW_TOLERANCE_MS above for why the two must stay separate.
+export function useSupportSessionCountdown(expiresAtUtc: string, onExpired: () => void): number {
+  const onExpiredRef = useRef(onExpired);
+  onExpiredRef.current = onExpired;
+
+  const [displayMs, setDisplayMs] = useState(() => remainingMsFor(expiresAtUtc, 0));
+
+  useEffect(() => {
+    setDisplayMs(remainingMsFor(expiresAtUtc, 0));
+    const initialTriggerMs = remainingMsFor(expiresAtUtc, CLOCK_SKEW_TOLERANCE_MS);
+    if (initialTriggerMs <= 0) {
+      // Already expired — even past the skew allowance — or an unparsable timestamp, fail-safe —
+      // by the time the banner mounts. Don't make someone wait out a full tick to be told the
+      // obvious.
+      onExpiredRef.current();
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      setDisplayMs(remainingMsFor(expiresAtUtc, 0));
+      const triggerMs = remainingMsFor(expiresAtUtc, CLOCK_SKEW_TOLERANCE_MS);
+      if (triggerMs <= 0) {
+        window.clearInterval(timer);
+        onExpiredRef.current();
+      }
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [expiresAtUtc]);
+
+  return displayMs;
+}
+
+// mm:ss for under an hour (the common case), h:mm:ss once a grant runs an hour or longer.
+export function formatSupportCountdown(remainingMs: number): string {
+  const totalSeconds = Math.floor(remainingMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (value: number) => String(value).padStart(2, '0');
+
+  return hours > 0
+    ? `${hours}:${pad(minutes)}:${pad(seconds)}`
+    : `${pad(minutes)}:${pad(seconds)}`;
+}

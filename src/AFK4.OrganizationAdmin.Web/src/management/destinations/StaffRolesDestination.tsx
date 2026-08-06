@@ -100,6 +100,12 @@ export function StaffRolesDestination({
 
   const canManageBranchStaff = backend !== null && hasPermission(session, permissionNames.manageBranchStaff);
   const canManageRoles = backend !== null && hasPermission(session, permissionNames.manageRoles);
+  // Staff invitation and password reset share the ManageBranchStaff permission name with profile/state edits, but the
+  // server deliberately does NOT tag these endpoints for platform support. A support session's
+  // ManageBranchStaff is still true (profile/state stay allowed), so these need their own gates — visible, enabled
+  // buttons that always 403 are worse than ones that are disabled outright.
+  const canInviteStaff = canManageBranchStaff && !session?.isSupportSession;
+  const canResetStaffPassword = canManageBranchStaff && !session?.isSupportSession;
 
   const mergeStaffUser = (staffUser: StaffUser) => {
     const staffUserId = readString(staffUser, 'staffUserId');
@@ -380,13 +386,13 @@ export function StaffRolesDestination({
           rowActions={rowActions}
           toolbar={{
             title: t('op.settings.staff.title'),
-            primary: canManageBranchStaff ? { label: t('op.management.staff.addStaffCta'), onClick: openInvite } : undefined
+            primary: canInviteStaff ? { label: t('op.management.staff.addStaffCta'), onClick: openInvite } : undefined
           }}
           empty={{
             icon: <Users size={22} aria-hidden="true" />,
             title: t('op.management.staff.staffEmpty.title'),
             description: t('op.management.staff.staffEmpty.description'),
-            action: canManageBranchStaff ? { label: t('op.management.staff.addStaffCta'), onClick: openInvite } : undefined
+            action: canInviteStaff ? { label: t('op.management.staff.addStaffCta'), onClick: openInvite } : undefined
           }}
         />
 
@@ -460,13 +466,13 @@ export function StaffRolesDestination({
                     <input
                       type="password"
                       value={newPassword}
-                      disabled={!canManageBranchStaff || busy}
+                      disabled={!canResetStaffPassword || busy}
                       onChange={(event) => setNewPassword(event.currentTarget.value)}
                     />
                   </label>
                 </div>
                 <div className="mgmt-form-actions">
-                  <button type="button" className="ui-btn" disabled={!canManageBranchStaff || busy} onClick={requestResetPassword}>
+                  <button type="button" className="ui-btn" disabled={!canResetStaffPassword || busy} onClick={requestResetPassword}>
                     {t('op.settings.action.resetPassword')}
                   </button>
                 </div>
