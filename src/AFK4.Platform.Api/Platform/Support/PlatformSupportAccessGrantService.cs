@@ -1,14 +1,23 @@
+using System.Security.Cryptography;
+using AFK4.Platform.Api.Configuration;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Shared.Contracts.Platform.Support;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Platform.Support;
 
-public sealed class PlatformSupportAccessGrantService(PlatformDbContext dbContext, TimeProvider timeProvider)
+public sealed class PlatformSupportAccessGrantService(
+    PlatformDbContext dbContext,
+    TimeProvider timeProvider,
+    IOptions<SupportAccessOptions> supportAccessOptions)
 {
     public const string GrantHeaderName = "X-AFK4-Support-Access-Grant";
+
+    // Билет живёт 60 секунд: он нужен ровно на переход между двумя вкладками.
+    private static readonly TimeSpan TicketLifetime = TimeSpan.FromSeconds(60);
 
     public async Task<PlatformSupportContext?> ValidateAsync(
         HttpContext httpContext,
@@ -95,4 +104,107 @@ public sealed class PlatformSupportAccessGrantService(PlatformDbContext dbContex
 
     private static PlatformSupportAccessGrantDto ToDto(PlatformSupportAccessGrantEntity entity) => new(
         entity.GrantId, entity.OrganizationId, entity.Reason, entity.IssuedAtUtc, entity.ExpiresAtUtc, entity.RevokedAtUtc);
+
+    public async Task<PlatformSupportAccessGrantIssue?> IssueAsync(
+        Guid platformAdminUserId,
+        CreatePlatformSupportAccessGrantRequest request,
+        CancellationToken cancellationToken)
+    {
+        var grant = await CreateAsync(platformAdminUserId, request, cancellationToken);
+        if (grant is null)
+        {
+            return null;
+        }
+
+        var ticket = GenerateSecret();
+        var entity = await dbContext.PlatformSupportAccessGrants
+            .SingleAsync(candidate => candidate.GrantId == grant.GrantId, cancellationToken);
+        entity.TicketHash = Hash(ticket);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var baseUrl = supportAccessOptions.Value.OrganizationAdminBaseUrl.TrimEnd('/');
+        return new PlatformSupportAccessGrantIssue(grant, ticket, $"{baseUrl}/support-access?ticket={ticket}");
+    }
+
+    public async Task<PlatformSupportSessionDto?> RedeemTicketAsync(
+        string ticket,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(ticket))
+        {
+            return null;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var ticketHash = Hash(ticket);
+        var grant = await dbContext.PlatformSupportAccessGrants
+            .SingleOrDefaultAsync(
+                candidate => candidate.TicketHash == ticketHash
+                    && candidate.TicketUsedAtUtc == null
+                    && candidate.RevokedAtUtc == null
+                    && candidate.ExpiresAtUtc > now,
+                cancellationToken);
+
+        if (grant is null || grant.IssuedAtUtc + TicketLifetime < now)
+        {
+            return null;
+        }
+
+        var sessionToken = GenerateSecret();
+        grant.TicketUsedAtUtc = now;
+        grant.SessionTokenHash = Hash(sessionToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var organization = await dbContext.Organizations
+            .AsNoTracking()
+            .SingleAsync(candidate => candidate.OrganizationId == grant.OrganizationId, cancellationToken);
+
+        return new PlatformSupportSessionDto(
+            sessionToken,
+            grant.OrganizationId,
+            organization.Name,
+            grant.Reason,
+            grant.ExpiresAtUtc,
+            PlatformSupportWritableAreas.All);
+    }
+
+    public async Task<PlatformSupportContext?> AuthenticateSessionAsync(
+        string sessionToken,
+        string requiredPermission,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(sessionToken))
+        {
+            return null;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var sessionHash = Hash(sessionToken);
+        var grant = await dbContext.PlatformSupportAccessGrants
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                candidate => candidate.SessionTokenHash == sessionHash
+                    && candidate.RevokedAtUtc == null
+                    && candidate.ExpiresAtUtc > now,
+                cancellationToken);
+
+        return grant is null
+            ? null
+            : new PlatformSupportContext(
+                grant.GrantId,
+                grant.PlatformAdminUserId,
+                grant.OrganizationId,
+                grant.Reason,
+                requiredPermission,
+                grant.ExpiresAtUtc);
+    }
+
+    private static string GenerateSecret() =>
+        Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .Replace('+', '-')
+            .Replace('/', '_')
+            .TrimEnd('=');
+
+    private static byte[] Hash(string secret) =>
+        SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(secret));
 }

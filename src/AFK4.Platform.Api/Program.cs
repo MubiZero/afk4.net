@@ -188,6 +188,8 @@ builder.Services.AddScoped<IPlatformAdminContextAccessor, PlatformAdminContextAc
 builder.Services.AddScoped<PlatformAdminAuthorizationService>();
 builder.Services.AddScoped<PlatformAdminDirectoryService>();
 builder.Services.AddScoped<PlatformSupportAccessGrantService>();
+builder.Services.Configure<SupportAccessOptions>(
+    builder.Configuration.GetSection(SupportAccessOptions.SectionName));
 builder.Services.Configure<PlatformAdminBootstrapOptions>(
     builder.Configuration.GetSection(PlatformAdminBootstrapOptions.ConfigurationSection));
 builder.Services.AddHostedService<PlatformAdminBootstrapHostedService>();
