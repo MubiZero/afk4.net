@@ -1,5 +1,10 @@
 # Operator cash shift and system footer design QA
 
+> Archived snapshot from 2026-07-15. Local `/tmp` and `~/.codex/generated_images`
+> paths referenced below no longer exist; this file does not reflect the
+> current state of the Operator App and is kept only for the deliberate
+> design differences it records.
+
 ## Source and state
 
 - Selected source: `/home/fedya/.codex/generated_images/019f5acc-9310-70a0-9fb4-610db9dfb1b0/exec-62f0089f-18fa-4dbb-89a9-015b12d1a884.png`

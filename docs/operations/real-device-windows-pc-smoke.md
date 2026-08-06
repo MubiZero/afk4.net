@@ -25,8 +25,8 @@ Included:
   preparation;
 - Windows 10/11 clean VM or gaming PC install through the single AFK4 Agent
   MSI and Setup Wizard;
-- owner-code enrollment, device credential issuance, and credential
-  authentication;
+- staff sign-in by phone or email/login and password, device credential
+  issuance, and credential authentication;
 - heartbeat and SignalR connectivity through `/hubs/devices`;
 - session start, lease refresh, session end, lease expiry behavior, and
   lock/unlock command handling;
@@ -84,9 +84,8 @@ The smoke exercises these API boundaries:
 | --- | --- |
 | Health | `GET /api/health` |
 | Staff auth | `POST /api/organizations/{organizationId}/auth/staff/sign-in` |
-| Owner code | `GET /api/organizations/{organizationId}/staff/me/owner-code` |
-| Owner code | `POST /api/organizations/{organizationId}/staff/me/owner-code/generate` |
-| Owner code | `POST /api/organizations/{organizationId}/staff/me/owner-code/rotate` |
+| Staff auth | `POST /api/organizations/{organizationId}/auth/staff/sign-in-by-phone` |
+| Staff auth | `POST /api/organizations/{organizationId}/auth/staff/sign-in-by-login` |
 | Install discover | `POST /api/organizations/{organizationId}/install/discover` |
 | Install seat create | `POST /api/organizations/{organizationId}/install/seats` |
 | Install enroll | `POST /api/organizations/{organizationId}/install/enroll` |
@@ -973,12 +972,12 @@ Evidence to collect:
 Overall pass requires:
 
 - staging `GET /api/health` returns `status = ok` without insecure TLS flags;
-- staging staff sign-in succeeds for the smoke staff user;
-- the customer dashboard displays/generates an owner code without direct
-  database edits;
+- staging staff sign-in succeeds for the smoke staff user by phone or
+  email/login and password;
 - the single `AFK4 Agent` MSI installs on one clean Windows 10/11 PC;
-- Setup Wizard discovers branches/floor-map data with the owner code and
-  enrolls the device into the selected branch, seat, and role;
+- Setup Wizard signs in the authorized staff account, discovers
+  branches/floor-map data, and enrolls the device into the selected branch,
+  seat, and role;
 - the Agent Service runs as `AFK4.Agent.Service`;
 - authenticated heartbeat succeeds repeatedly;
 - SignalR connects and registers the device, or the fallback heartbeat command
