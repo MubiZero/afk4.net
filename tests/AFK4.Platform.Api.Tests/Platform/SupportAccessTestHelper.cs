@@ -15,6 +15,30 @@ internal static class SupportAccessTestHelper
         PlatformApiFactory factory,
         string reason = "Проверка настроек филиала по обращению клиента")
     {
+        var (organizationId, branchId, platformAdminUserId, issue) = await IssueGrantAsync(factory, reason);
+
+        await using var issueScope = factory.Services.CreateAsyncScope();
+        var supportAccessService = issueScope.ServiceProvider.GetRequiredService<PlatformSupportAccessGrantService>();
+        var session = await supportAccessService.RedeemTicketAsync(issue.Ticket, CancellationToken.None);
+        Assert.NotNull(session);
+
+        return (session!.SessionToken, organizationId, branchId, platformAdminUserId);
+    }
+
+    // For tests exercising the redemption endpoint itself (POST /api/public/support-access/sessions):
+    // returns just the one-time ticket, unclaimed.
+    public static async Task<string> IssueTicketAsync(
+        PlatformApiFactory factory,
+        string reason = "Проверка настроек филиала по обращению клиента")
+    {
+        var (_, _, _, issue) = await IssueGrantAsync(factory, reason);
+        return issue.Ticket;
+    }
+
+    private static async Task<(Guid OrganizationId, Guid BranchId, Guid PlatformAdminUserId, PlatformSupportAccessGrantIssue Issue)> IssueGrantAsync(
+        PlatformApiFactory factory,
+        string reason)
+    {
         var organizationId = Guid.NewGuid();
         var branchId = Guid.NewGuid();
         var platformAdminUserId = Guid.NewGuid();
@@ -54,9 +78,6 @@ internal static class SupportAccessTestHelper
             CancellationToken.None);
         Assert.NotNull(issue);
 
-        var session = await supportAccessService.RedeemTicketAsync(issue!.Ticket, CancellationToken.None);
-        Assert.NotNull(session);
-
-        return (session!.SessionToken, organizationId, branchId, platformAdminUserId);
+        return (organizationId, branchId, platformAdminUserId, issue!);
     }
 }

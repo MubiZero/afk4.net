@@ -289,8 +289,6 @@ public static class AuditActionNames
 
     public const string GrantPlatformSupportAccess = "platform.support_access.grant";
 
-    public const string UsePlatformSupportAccess = "platform.support_access.use";
-
     public const string RevokePlatformSupportAccess = "platform.support_access.revoke";
 
     public const string ViewPlatformAdmins = "platform.admins.view";

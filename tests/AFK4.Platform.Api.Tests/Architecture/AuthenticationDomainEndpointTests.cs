@@ -116,7 +116,12 @@ public sealed class AuthenticationDomainEndpointTests
     // поддержки (она живёт вне домена организации). Пополнение этого списка — осознанное решение
     // по конкретному маршруту, а не способ погасить упавший тест.
     private static readonly HashSet<string> ExpectedNonOrganizationSupportRoutes =
-        new(StringComparer.OrdinalIgnoreCase);
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            // Управление самой сессией поддержки: ей ещё не/уже не назначен клуб, поэтому эти
+            // маршруты не могут жить под /api/organizations/{organizationId:guid}.
+            "/api/support-access/session"
+        };
 
     [Fact]
     public void PlatformSupportAccessMetadata_OnlyOnOrganizationDomainOrExplicitException()

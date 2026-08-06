@@ -23,13 +23,13 @@ internal static class PlatformSupportAccessEndpoints
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
             if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
 
-            var grant = await grantService.CreateAsync(
+            var issue = await grantService.IssueAsync(
                 authorization.PlatformAdminContext!.PlatformAdminUserId, request, cancellationToken);
-            if (grant is null) return Results.BadRequest();
+            if (issue is null) return Results.BadRequest();
 
-            await WriteAuditAsync(auditWriter, grant.OrganizationId, authorization.PlatformAdminContext.PlatformAdminUserId,
-                AuditActionNames.GrantPlatformSupportAccess, grant.GrantId, grant.Reason, cancellationToken);
-            return Results.Ok(grant);
+            await WriteAuditAsync(auditWriter, issue.Grant.OrganizationId, authorization.PlatformAdminContext.PlatformAdminUserId,
+                AuditActionNames.GrantPlatformSupportAccess, issue.Grant.GrantId, issue.Grant.Reason, cancellationToken);
+            return Results.Ok(issue);
         }).RequirePlatformDomain();
 
         app.MapDelete("/api/platform/support-access-grants/{grantId:guid}", async (

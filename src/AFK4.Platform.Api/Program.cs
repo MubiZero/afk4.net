@@ -456,6 +456,7 @@ app.MapPlatformAdminDirectoryEndpoints();
 app.MapPlatformAdminTwoFactorEndpoints();
 app.MapPlatformBillingEndpoints(organizations);
 app.MapPlatformSupportAccessEndpoints();
+app.MapSupportAccessSessionEndpoints();
 app.MapPlatformUpdateEndpoints();
 app.MapPlatformAuditEndpoints();
 app.MapPlatformSearchEndpoints();

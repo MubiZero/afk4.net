@@ -27,18 +27,15 @@ public sealed class PlatformSupportSessionMiddleware(RequestDelegate next)
 
         var metadata = context.GetEndpoint()?.Metadata.GetMetadata<PlatformSupportAccessMetadata>();
 
-        // The same header name is also read, with different semantics (a raw grant id rather than an
-        // opaque session token), by the older per-endpoint ValidateAsync/ValidateBranchAsync flow on
-        // OrganizationAuditEndpoints/DiagnosticsEndpoints — that flow authenticates itself (platform-admin
-        // bearer token + an explicit grant lookup) and must keep working unmodified. A header value that
-        // isn't a live support session here is therefore not this middleware's concern: fall through and
-        // let whatever the endpoint already does with it decide the outcome.
         var support = await supportAccessService.AuthenticateSessionAsync(
             header, metadata?.Permission ?? string.Empty, context.RequestAborted);
 
         if (support is null)
         {
-            await next(context);
+            // A header that doesn't resolve to a live session is a rejected credential, not a missing
+            // one — this is the only mechanism that reads this header now, so silently falling through
+            // would let a stale/forged/expired token reach the endpoint unauthenticated instead of denied.
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             return;
         }
 

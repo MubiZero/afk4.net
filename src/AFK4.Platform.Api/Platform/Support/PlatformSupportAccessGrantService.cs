@@ -2,8 +2,6 @@ using System.Data;
 using System.Security.Cryptography;
 using AFK4.Platform.Api.Configuration;
 using AFK4.Platform.Api.Data;
-using AFK4.Platform.Api.Identity;
-using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Shared.Contracts.Platform.Support;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -19,49 +17,6 @@ public sealed class PlatformSupportAccessGrantService(
 
     // Билет живёт 60 секунд: он нужен ровно на переход между двумя вкладками.
     private static readonly TimeSpan TicketLifetime = TimeSpan.FromSeconds(60);
-
-    public async Task<PlatformSupportContext?> ValidateAsync(
-        HttpContext httpContext,
-        Guid organizationId,
-        string requiredPermission,
-        IPlatformAdminContextAccessor platformContextAccessor,
-        CancellationToken cancellationToken)
-    {
-        var platform = platformContextAccessor.Current;
-        var metadata = httpContext.GetEndpoint()?.Metadata.GetMetadata<PlatformSupportAccessMetadata>();
-        if (platform is null || metadata?.Permission != requiredPermission
-            || !platform.Permissions.Contains(AFK4.Shared.Contracts.Platform.Auth.PlatformAdminPermissionNames.UseSupportAccess)
-            || !Guid.TryParse(httpContext.Request.Headers[GrantHeaderName].SingleOrDefault(), out var grantId))
-            return null;
-
-        var now = timeProvider.GetUtcNow();
-        var grant = await dbContext.PlatformSupportAccessGrants.AsNoTracking().SingleOrDefaultAsync(
-            x => x.GrantId == grantId
-                && x.PlatformAdminUserId == platform.PlatformAdminUserId
-                && x.OrganizationId == organizationId
-                && x.RevokedAtUtc == null
-                && x.ExpiresAtUtc > now,
-            cancellationToken);
-        return grant is null ? null : new PlatformSupportContext(
-            grant.GrantId, grant.PlatformAdminUserId, grant.OrganizationId,
-            grant.Reason, requiredPermission, grant.ExpiresAtUtc);
-    }
-
-    public async Task<PlatformSupportContext?> ValidateBranchAsync(
-        HttpContext httpContext,
-        Guid branchId,
-        string requiredPermission,
-        IPlatformAdminContextAccessor platformContextAccessor,
-        CancellationToken cancellationToken)
-    {
-        var organizationId = await dbContext.Branches.AsNoTracking()
-            .Where(branch => branch.BranchId == branchId)
-            .Select(branch => (Guid?)branch.OrganizationId)
-            .SingleOrDefaultAsync(cancellationToken);
-        return organizationId is null
-            ? null
-            : await ValidateAsync(httpContext, organizationId.Value, requiredPermission, platformContextAccessor, cancellationToken);
-    }
 
     public async Task<PlatformSupportAccessGrantDto?> CreateAsync(
         Guid platformAdminUserId,

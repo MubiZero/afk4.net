@@ -1,8 +1,5 @@
-using System.Text.Json;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Identity;
-using AFK4.Platform.Api.Platform.Identity;
-using AFK4.Platform.Api.Platform.Support;
 using AFK4.Shared.Contracts.Audit;
 using AFK4.Shared.Contracts.Identity;
 using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
@@ -62,47 +59,24 @@ internal static class OrganizationAuditEndpoints
             Guid? actorStaffUserId,
             long? minAmount,
             long? maxAmount,
-            HttpContext httpContext,
             StaffAuthorizationService authorizationService,
-            IPlatformAdminContextAccessor platformContextAccessor,
-            PlatformSupportAccessGrantService supportAccessService,
             IAuditRecordWriter auditRecordWriter,
             IAuditSearchService auditSearchService,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewOrganizationAudit);
-            PlatformSupportContext? support = null;
-            if (!authorization.IsAuthenticated)
-            {
-                support = await supportAccessService.ValidateAsync(
-                    httpContext, organizationId, OrganizationPermissionNames.ViewOrganizationAudit,
-                    platformContextAccessor, cancellationToken);
-                if (platformContextAccessor.Current is null) return Results.Unauthorized();
-                if (support is null) return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-            if (authorization.IsAuthenticated && !authorization.IsAllowed)
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            if (authorization.IsAuthenticated && organizationId != authorization.StaffContext!.OrganizationId)
+            if (!authorization.IsAuthenticated) return Results.Unauthorized();
+            if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            if (organizationId != authorization.StaffContext!.OrganizationId)
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
 
             var query = new AuditSearchQuery(action, outcome, targetType, fromUtc, toUtc, limit, actorStaffUserId, minAmount, maxAmount);
             var result = await auditSearchService.SearchOrganizationAsync(organizationId, query, cancellationToken);
-            if (support is null)
-            {
-                await WriteAuditAsync(auditRecordWriter, organizationId, Guid.Empty,
-                    authorization.StaffContext!.StaffUserId, AuditActionNames.ViewAudit, "AuditRecord", null,
-                    AuditOutcome.Succeeded,
-                    new { Scope = "organization", Count = result.Records.Count, result.Limit, action, outcome, targetType, fromUtc, toUtc },
-                    cancellationToken);
-            }
-            else
-            {
-                await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
-                    organizationId, null, null, AuditActionNames.UsePlatformSupportAccess, "AuditRecord", null,
-                    AuditOutcome.Succeeded, "PlatformApi",
-                    JsonSerializer.Serialize(new { support.GrantId, support.Reason, Permission = support.Permission, Count = result.Records.Count }))
-                { ActorPlatformAdminUserId = support.PlatformAdminUserId }, cancellationToken);
-            }
+            await WriteAuditAsync(auditRecordWriter, organizationId, Guid.Empty,
+                authorization.StaffContext.StaffUserId, AuditActionNames.ViewAudit, "AuditRecord", null,
+                AuditOutcome.Succeeded,
+                new { Scope = "organization", Count = result.Records.Count, result.Limit, action, outcome, targetType, fromUtc, toUtc },
+                cancellationToken);
             return Results.Ok(result);
         }).RequireOrganizationDomain()
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ViewOrganizationAudit);
