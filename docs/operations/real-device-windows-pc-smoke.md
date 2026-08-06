@@ -45,9 +45,11 @@ Not included:
 
 ## Current Caveats
 
-- The corrected single `AFK4 Agent` MSI path has current Windows 11 VM evidence
-  through internal version `0.1.29`: owner-code enrollment, Agent update,
-  service automatic start after reboot, and no Setup Wizard rerun after upgrade.
+- The corrected single `AFK4 Agent` MSI path has Windows 11 VM evidence through
+  internal version `0.1.29`, recorded before owner codes were removed: enrollment,
+  Agent update, service automatic start after reboot, and no Setup Wizard rerun
+  after upgrade. The enrollment step of that run no longer matches the product;
+  everything else still holds.
   It installs the Agent Service, Setup Wizard, update helpers, Start Menu
   shortcut, first-run marker, and HKLM `RunOnce`; Player Shell and Organization Admin
   are installed later by the Agent through role-aware update rollouts.
@@ -952,7 +954,6 @@ Evidence to collect:
 - staging health response time and status;
 - migration state if DB access is available;
 - staff sign-in success without recording token values;
-- owner-code generation/rotation timestamp and suffix, not the full code;
 - enrolled `deviceId`, not the credential secret;
 - service install log;
 - `sc.exe query` and `sc.exe qc` output, including `START_TYPE` automatic

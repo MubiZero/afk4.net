@@ -355,8 +355,8 @@ verifies the artifact SHA-256 and the ECDSA P-256 signature before invoking
 the configured installer adapter. If the public key is missing, the Agent
 reports the update as failed and does not install the package.
 
-The current owner-code Setup Wizard receives the staging update verification
-public key from the install enrollment response. The older staging Gaming PC
+The Setup Wizard receives the staging update verification public key from the
+install enrollment response. The older staging Gaming PC
 setup executable path is legacy fallback only and is not part of the default
 package smoke or onboarding flow. Keep the matching private key outside the
 repository and use it only from a release workstation or secret-injected

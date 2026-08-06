@@ -166,8 +166,8 @@ Minimum bar:
    manual staging runbook for physical hardware still exists at
    `docs/operations/real-device-windows-pc-smoke.md`, and the Agent host is
    wired for Windows Service runtime under service name `AFK4.Agent.Service`.
-   The current clean-machine path is the single `AFK4 Agent` MSI plus owner-code
-   Setup Wizard. The older one-click Gaming PC setup executable and coordinated
+   The current clean-machine path is the single `AFK4 Agent` MSI plus the Setup
+   Wizard, which enrolls the device against a staff phone sign-in. The older one-click Gaming PC setup executable and coordinated
    `afk4-gaming-pc` MSI have since been retired and removed from the codebase. Windows 11 VM
    smoke reached internal Agent `0.1.29`: VM2 applied the rollout, rebooted,
    kept `AFK4.Agent.Service` running, and did not reopen Setup Wizard. This is
@@ -218,8 +218,8 @@ Minimum bar:
    Agent Service, WPF Setup Wizard, update helpers, Start Menu shortcut,
    first-run marker, HKLM `RunOnce`, and an interactive postinstall wizard
    launch attempt. The service is registered for automatic startup but is not
-   started by the MSI before owner-code enrollment writes machine
-   configuration; the wizard starts it after successful enrollment. Slice 3.3
+   started by the MSI before enrollment writes machine configuration; the wizard
+   starts it after successful enrollment. Slice 3.3
    adds role-aware Agent component installation:
    `gaming_pc` devices pull a standalone Player Shell MSI, `manager_workstation`
    devices pull the Organization Admin MSI after a WebView2 runtime check/install,
@@ -322,8 +322,7 @@ Minimum bar:
   wiring and Windows 11 VM smoke evidence. Physical service startup validation
   remains hardening through the real-device smoke runbook.
 - The preferred onboarding path is now the single `afk4-agent` MSI with the
-  owner-code Setup Wizard plus role-aware Player Shell/Organization Admin
-  installation. The older release-workstation setup executable and coordinated
+  Setup Wizard plus role-aware Player Shell/Organization Admin installation. The older release-workstation setup executable and coordinated
   gaming-PC MSI remain in code behind explicit fallback switches only. The
   single Agent MSI path reached internal Agent `0.1.29` on VM2 with update,
   automatic service-start after reboot, and no Setup Wizard rerun after
