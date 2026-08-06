@@ -13,8 +13,11 @@ interface NavTarget {
 // Максимум строк в палитре — чтобы окно не переполнялось; остальное отсекаем с подсказкой.
 const MAX_VISIBLE = 8;
 
-export function CommandPalette({ session, onNavigate, onClose }: {
+export function CommandPalette({ session, visibleWorkspaceIds, onNavigate, onClose }: {
   session: OperatorAuthSession | null;
+  // Extra restriction on top of ordinary permission checks — a support session's writableAreas
+  // (see support/supportWorkspaces.ts). `null`/omitted outside support mode: permissions alone decide.
+  visibleWorkspaceIds?: ReadonlySet<WorkspaceId> | null;
   onNavigate: (id: WorkspaceId) => void;
   onClose: () => void;
 }) {
@@ -27,9 +30,9 @@ export function CommandPalette({ session, onNavigate, onClose }: {
   const allowed = useMemo<NavTarget[]>(() => {
     return navSections
       .flatMap((section) => section.items)
-      .filter((item) => canOpenWorkspace(session, item.id))
+      .filter((item) => canOpenWorkspace(session, item.id) && (visibleWorkspaceIds == null || visibleWorkspaceIds.has(item.id)))
       .map((item) => ({ id: item.id, label: t(item.labelKey) }));
-  }, [session, t]);
+  }, [session, visibleWorkspaceIds, t]);
 
   const filtered = useMemo<NavTarget[]>(() => {
     const needle = query.trim().toLowerCase();

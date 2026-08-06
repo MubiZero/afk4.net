@@ -1,5 +1,5 @@
 import { organizationAdminHeaders } from './organizationAdminCompatibility';
-import { readSupportSession, type SupportSession } from './support/supportSession';
+import { readSupportSession, SUPPORT_GRANT_HEADER_NAME, type SupportSession } from './support/supportSession';
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -207,7 +207,7 @@ function resolveAuthHeader(
   accessToken: string | null
 ): [name: string, value: string] {
   if (supportSession) {
-    return ['X-AFK4-Support-Access-Grant', supportSession.sessionToken];
+    return [SUPPORT_GRANT_HEADER_NAME, supportSession.sessionToken];
   }
   if (!accessToken) {
     throw new Error('Operator access token is missing.');

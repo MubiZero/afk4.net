@@ -3,6 +3,10 @@ import { permissionNames } from '../permissionNames';
 
 const KEY = 'afk4.support.session';
 
+// Shared with platformApi.ts (which sets this header on every request while a support session is
+// active) so the header name lives in exactly one place instead of two matching string literals.
+export const SUPPORT_GRANT_HEADER_NAME = 'X-AFK4-Support-Access-Grant';
+
 export interface SupportSessionBranch {
   branchId: string;
   name: string;
@@ -96,4 +100,20 @@ export async function redeemSupportTicket(baseUrl: string, ticket: string): Prom
   }
 
   return await response.json() as SupportSession;
+}
+
+// Best-effort revoke of the grant itself (DELETE /api/support-access/session, see
+// SupportAccessSessionEndpoints.cs) so the server closes the door immediately instead of waiting
+// out the grant's TTL. Callers must still clear the local session in a `finally` regardless of
+// whether this succeeds — a network hiccup here must never strand someone inside support mode.
+export async function endSupportSession(baseUrl: string, sessionToken: string): Promise<void> {
+  const url = new URL('/api/support-access/session', baseUrl).toString();
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: { [SUPPORT_GRANT_HEADER_NAME]: sessionToken }
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to revoke support session.');
+  }
 }

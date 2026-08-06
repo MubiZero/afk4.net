@@ -2,7 +2,10 @@
   position: relative;
   display: grid;
   width: 100vw;
-  height: 100vh;
+  /* --shell-banner-h: height of .support-mode-banner when a support session is active (0px
+     otherwise, see App.tsx and 27-support-mode.css) — kept out of 100vh so the shell's own rows
+     stay within the viewport instead of pushing the bottom status row off-screen. */
+  height: calc(100vh - var(--shell-banner-h, 0px));
   min-width: 960px;
   min-height: 600px;
   grid-template-columns: 74px minmax(0, 1fr) var(--shell-context-col, minmax(260px, 292px));
