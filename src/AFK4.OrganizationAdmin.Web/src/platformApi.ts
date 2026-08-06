@@ -1,4 +1,5 @@
 import { organizationAdminHeaders } from './organizationAdminCompatibility';
+import { readSupportSession } from './support/supportSession';
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -152,15 +153,22 @@ export class PlatformApiClient {
     query?: QueryParams,
     extraHeaders?: Record<string, string>
   ): Promise<Response> {
-    const accessToken = await this.getAccessToken();
-    if (!accessToken) {
-      throw new Error('Operator access token is missing.');
+    const headers = new Headers(organizationAdminHeaders());
+    // A support session (platform staff impersonating the organization for a fixed window) has no
+    // staff access token at all — that's expected, not an error. It authenticates with its own grant
+    // header instead of `Authorization: Bearer`. Outside support mode, a missing token is still
+    // fatal: it means the caller is signed out and the request would otherwise reach the API
+    // unauthenticated.
+    const supportSession = readSupportSession();
+    if (supportSession) {
+      headers.set('X-AFK4-Support-Access-Grant', supportSession.sessionToken);
+    } else {
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        throw new Error('Operator access token is missing.');
+      }
+      headers.set('Authorization', `Bearer ${accessToken}`);
     }
-
-    const headers = new Headers({
-      Authorization: `Bearer ${accessToken}`,
-      ...organizationAdminHeaders()
-    });
     if (extraHeaders) {
       for (const [name, value] of Object.entries(extraHeaders)) {
         headers.set(name, value);
@@ -180,17 +188,19 @@ export class PlatformApiClient {
   }
 
   private async fetchAuthorizedRaw(method: string, path: string, body: BodyInit): Promise<Response> {
-    const accessToken = await this.getAccessToken();
-    if (!accessToken) {
-      throw new Error('Operator access token is missing.');
-    }
-
     // No Content-Type set here on purpose — the caller's BodyInit (e.g. FormData)
     // dictates it, and forcing one here would drop the multipart boundary.
-    const headers = new Headers({
-      Authorization: `Bearer ${accessToken}`,
-      ...organizationAdminHeaders()
-    });
+    const headers = new Headers(organizationAdminHeaders());
+    const supportSession = readSupportSession();
+    if (supportSession) {
+      headers.set('X-AFK4-Support-Access-Grant', supportSession.sessionToken);
+    } else {
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        throw new Error('Operator access token is missing.');
+      }
+      headers.set('Authorization', `Bearer ${accessToken}`);
+    }
 
     return await this.fetchImpl(this.buildUrl(path), {
       method,

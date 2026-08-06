@@ -3254,6 +3254,8 @@ export const en = {
   "state.openOverview": "Open overview",
   "state.retry": "Retry",
   "state.unavailable": "This workspace is not available yet.",
+  "support.access.error.body": "This support access link is expired or already used. Ask the platform staff member for a new one.",
+  "support.access.error.title": "Link is no longer valid",
   "tariffs.activeOnlyNote": "Showing active tariffs only. Deactivated ones are not listed (the backend has no list-all endpoint).",
   "tariffs.col.effectiveFrom": "Effective from",
   "tariffs.col.minMinutes": "Min. minutes",

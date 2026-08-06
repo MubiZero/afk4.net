@@ -3254,6 +3254,8 @@ export const ru = {
   "state.openOverview": "Открыть обзор",
   "state.retry": "Повторить",
   "state.unavailable": "Этот раздел пока недоступен.",
+  "support.access.error.body": "Ссылка на доступ поддержки устарела или уже использована. Попросите сотрудника платформы прислать новую.",
+  "support.access.error.title": "Ссылка недействительна",
   "tariffs.activeOnlyNote": "Показаны только активные тарифы. Деактивированные не отображаются (на бэкенде нет отдельного списка).",
   "tariffs.col.effectiveFrom": "Действует с",
   "tariffs.col.minMinutes": "Мин. минут",
