@@ -4,8 +4,10 @@ import {
   writeSupportSession,
   clearSupportSession,
   redeemSupportTicket,
+  endSupportSession,
   isSupportSessionExpired,
   supportOperatorSession,
+  SUPPORT_GRANT_HEADER_NAME,
   type SupportSession
 } from './supportSession';
 import { permissionNames } from '../permissionNames';
@@ -95,6 +97,36 @@ it('бросает понятную ошибку, когда билет уже �
   }
 });
 
+it('endSupportSession зовёт DELETE с грант-заголовком', async () => {
+  const calls: Array<[RequestInfo | URL, RequestInit | undefined]> = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    calls.push([input, init]);
+    return new Response(null, { status: 204 });
+  }) as unknown as typeof fetch;
+
+  try {
+    await endSupportSession('https://api.test/', 'sess-1');
+    expect(calls.length).toBe(1);
+    expect(calls[0][0]).toBe('https://api.test/api/support-access/session');
+    expect(calls[0][1]?.method).toBe('DELETE');
+    expect(new Headers(calls[0][1]?.headers).get(SUPPORT_GRANT_HEADER_NAME)).toBe('sess-1');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+it('endSupportSession бросает на не-2xx ответ', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(null, { status: 500 })) as unknown as typeof fetch;
+
+  try {
+    await expect(endSupportSession('https://api.test/', 'sess-1')).rejects.toThrow();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 it('считает сессию истёкшей строго по времени и при битом expiresAtUtc (fail-safe)', () => {
   const now = Date.parse('2026-08-06T12:00:00Z');
 
@@ -112,12 +144,20 @@ it('supportOperatorSession adapts a support grant into the shell session shape, 
   expect(operatorSession.displayName).toBe('Поддержка платформы');
 });
 
-it('supportOperatorSession grants every permission except openShift (unsupported by the grant endpoint)', () => {
-  const operatorSession = supportOperatorSession(twoBranchSession);
+it('supportOperatorSession grants read permissions plus only the write permissions its writableAreas cover', () => {
+  const operatorSession = supportOperatorSession(twoBranchSession); // writableAreas: ['branch-settings']
 
-  const allPermissionsExceptOpenShift = Object.values(permissionNames).filter(
-    (permission) => permission !== permissionNames.openShift
-  );
-  expect(new Set(operatorSession.permissions)).toEqual(new Set(allPermissionsExceptOpenShift));
+  // Read stays broad — the server opens read access regardless of writableAreas.
+  expect(operatorSession.permissions).toContain(permissionNames.viewFloorMap);
+  expect(operatorSession.permissions).toContain(permissionNames.viewReports);
+  // branch-settings is granted — its write permission is present.
+  expect(operatorSession.permissions).toContain(permissionNames.manageBranchSettings);
+  // No other area was granted — their write permissions must be absent, not just unused.
+  expect(operatorSession.permissions).not.toContain(permissionNames.manageLayout);
+  expect(operatorSession.permissions).not.toContain(permissionNames.manageBranchStaff);
+  expect(operatorSession.permissions).not.toContain(permissionNames.assignDeviceSeat);
+  // Permissions with no writable-area equivalent at all (money, or simply unsupported) never appear.
+  expect(operatorSession.permissions).not.toContain(permissionNames.manageNews);
+  expect(operatorSession.permissions).not.toContain(permissionNames.managePosCatalog);
   expect(operatorSession.permissions).not.toContain(permissionNames.openShift);
 });

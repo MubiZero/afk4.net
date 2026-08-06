@@ -32,8 +32,8 @@ function client(initial: NewsItemDto[] = []) {
   };
 }
 
-function renderWorkspace(c: ReturnType<typeof client>) {
-  render(<I18nProvider><NewsWorkspace backend={null} client={c as never} /></I18nProvider>);
+function renderWorkspace(c: ReturnType<typeof client>, canManage?: boolean) {
+  render(<I18nProvider><NewsWorkspace backend={null} canManage={canManage} client={c as never} /></I18nProvider>);
 }
 
 describe('NewsWorkspace', () => {
@@ -72,5 +72,22 @@ describe('NewsWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /удалить/i })); // футер drawer
     fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: /удалить/i }));
     await waitFor(() => expect(c.removed).toEqual(['x1']));
+  });
+
+  it('hides create/save/delete entirely when canManage is false — read-only view, not a 403 trap', async () => {
+    const c = client([{
+      id: 'x1', branchId: null, title: 'Старая', body: 'B', imageUrl: null,
+      isPublished: true, publishAtUtc: null, expiresAtUtc: null,
+      createdAtUtc: '2026-06-01T00:00:00Z', updatedAtUtc: '2026-06-01T00:00:00Z'
+    }]);
+    renderWorkspace(c, false);
+
+    await screen.findByText('Старая');
+    expect(screen.queryByRole('button', { name: /создать новость/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Старая'));
+    expect(screen.queryByRole('button', { name: /сохранить/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /удалить/i })).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/заголовок/i)).toBeDisabled();
   });
 });

@@ -3,6 +3,7 @@ import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../operatorToast';
 import { permissionNames } from '../operatorPermissions';
+import { supportPermissions } from '../support/supportWorkspaces';
 
 // Task 2.1: ManagementWorkspace now loads the settings-domain data (zones/staff/catalog/
 // tariffs/packages/device lists) that the halls/tariffs/staff/goods destinations need, via
@@ -75,6 +76,25 @@ describe('ManagementWorkspace', () => {
     expect(screen.getByRole('button', { name: 'Новости' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Платежи и лояльность' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Клуб' })).toBeNull();
+  });
+
+  it('under a support session, hides Тарифы/Товары/Платежи/Новости — no tab that would 403 on save — and keeps Клуб', () => {
+    // The exact permission set supportOperatorSession would build for a grant covering all five
+    // writable areas: read everywhere, write only where the grant maps to a real server-tagged
+    // write endpoint (see support/supportWorkspaces.ts). None of manageTariffs/managePackages/
+    // managePosCatalog/manageInventoryStock/managePaymentGateways/manageLoyaltySettings/manageNews
+    // ever appear in that set — they don't correspond to any writable area — so those four
+    // destinations must never render as clickable tabs.
+    const allAreas = ['branch-settings', 'devices', 'staff', 'floor-map', 'branch-profile'];
+    wrap(<ManagementWorkspace backend={null} session={session(supportPermissions(allAreas))} currencyCode="TJS" />);
+
+    expect(screen.getByRole('button', { name: 'Клуб' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Залы и ПК' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Сотрудники и роли' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Тарифы и пакеты' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Товары' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Платежи и лояльность' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Новости' })).toBeNull();
   });
 
   it('shows a no-access message when nothing is permitted', () => {

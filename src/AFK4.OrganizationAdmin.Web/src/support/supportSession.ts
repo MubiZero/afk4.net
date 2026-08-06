@@ -1,5 +1,5 @@
 import type { OperatorAuthSession } from '../authClient';
-import { permissionNames } from '../permissionNames';
+import { supportPermissions } from './supportWorkspaces';
 
 const KEY = 'afk4.support.session';
 
@@ -27,17 +27,15 @@ export interface SupportSession {
 // shell shouldn't grow a second parallel rendering path just to accommodate it: this is the one
 // place that adapts a support grant into the same shape the shell already knows how to render.
 //
-// Every permission is granted (support sees what club staff sees — scoping to `writableAreas` is a
-// follow-up task; the server already enforces the real boundary per endpoint regardless of what this
-// client-side list says) with ONE deliberate exception: `openShift`. usePostAuthShiftGate uses it to
-// decide whether to call GET .../shifts/current before letting the shell render at all, and that
-// endpoint isn't tagged AllowPlatformSupportAccess server-side (see ShiftEndpoints.cs) — granting the
-// permission would make the gate call it, get a 403, and permanently strand the tab on a "couldn't
-// open shift" retry screen instead of the shell. Omitting it keeps the gate at 'not-required'.
-const SUPPORT_PERMISSIONS = Object.values(permissionNames).filter(
-  (permission) => permission !== permissionNames.openShift
-);
-
+// Permissions are derived from `writableAreas` via `supportPermissions` (support/supportWorkspaces.ts),
+// not "everything minus openShift": granting a write permission whose area isn't in the grant used
+// to leave client-side gates (hasPermission checks, Management destination tabs) believing a Save
+// button would work when the server would 403 it every time — exactly the "button that reads as
+// working but isn't" antipattern this whole feature exists to avoid. `openShift` needed no special
+// case even before this: it isn't a `.view` permission and 'shifts' isn't a writable area, so the
+// same two rules `supportPermissions` already applies exclude it — usePostAuthShiftGate still reads
+// its absence as "gate not required" and lets the shell render instead of calling the (untagged)
+// GET .../shifts/current and stranding the tab on a retry screen.
 export function supportOperatorSession(session: SupportSession): OperatorAuthSession {
   return {
     // Mirrors the platform admin's own StaffContext under a support grant (PlatformSupportSessionMiddleware
@@ -52,7 +50,7 @@ export function supportOperatorSession(session: SupportSession): OperatorAuthSes
     refreshToken: '',
     refreshTokenExpiresAtUtc: session.expiresAtUtc,
     branchIds: session.branches.map((branch) => branch.branchId),
-    permissions: SUPPORT_PERMISSIONS,
+    permissions: supportPermissions(session.writableAreas),
     roleNames: ['Поддержка платформы']
   };
 }
