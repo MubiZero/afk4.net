@@ -37,6 +37,52 @@ public sealed class PlatformSupportAccessTicketTests
         Assert.Null(second);
     }
 
+    // The organization-admin shell is built around branches — support seeing an organization without
+    // its branch list can't render the shell at all. Also proves scoping: a branch belonging to a
+    // different organization must never leak into this grant's session.
+    [Fact]
+    public async Task RedeemTicket_ReturnsOnlyTheGrantOrganizationsBranches()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var _ = factory.CreateClient();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var service = scope.ServiceProvider.GetRequiredService<PlatformSupportAccessGrantService>();
+
+        var organizationId = await SeedOrganizationAsync(db);
+        var otherOrganizationId = await SeedOrganizationAsync(db);
+        var now = DateTimeOffset.UtcNow;
+        var branchOne = new BranchEntity
+        {
+            BranchId = Guid.NewGuid(), OrganizationId = organizationId, Slug = "branch-one",
+            Name = "Филиал на Рудаки", City = "Душанбе", CreatedAtUtc = now
+        };
+        var branchTwo = new BranchEntity
+        {
+            BranchId = Guid.NewGuid(), OrganizationId = organizationId, Slug = "branch-two",
+            Name = "Филиал на Айни", City = "Душанбе", CreatedAtUtc = now
+        };
+        var otherOrgBranch = new BranchEntity
+        {
+            BranchId = Guid.NewGuid(), OrganizationId = otherOrganizationId, Slug = "other-branch",
+            Name = "Чужой филиал", City = "Худжанд", CreatedAtUtc = now
+        };
+        db.Branches.AddRange(branchOne, branchTwo, otherOrgBranch);
+        await db.SaveChangesAsync();
+
+        var issue = await service.IssueAsync(
+            Guid.NewGuid(),
+            new CreatePlatformSupportAccessGrantRequest(organizationId, "Смена не открывается у клуба", 30),
+            CancellationToken.None);
+        var session = await service.RedeemTicketAsync(issue!.Ticket, CancellationToken.None);
+
+        Assert.NotNull(session);
+        Assert.Equal(
+            new[] { branchTwo.BranchId, branchOne.BranchId }.OrderBy(id => id),
+            session!.Branches.Select(branch => branch.BranchId).OrderBy(id => id));
+        Assert.DoesNotContain(session.Branches, branch => branch.BranchId == otherOrgBranch.BranchId);
+    }
+
     [Fact]
     public async Task AuthenticateSession_AfterRevocation_Fails()
     {

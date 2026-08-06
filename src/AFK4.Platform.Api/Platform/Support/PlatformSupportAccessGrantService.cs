@@ -106,6 +106,7 @@ public sealed class PlatformSupportAccessGrantService(
         var organization = await dbContext.Organizations
             .AsNoTracking()
             .SingleAsync(candidate => candidate.OrganizationId == grant.OrganizationId, cancellationToken);
+        var branches = await LoadBranchesAsync(grant.OrganizationId, cancellationToken);
 
         return new PlatformSupportSessionDto(
             sessionToken,
@@ -113,8 +114,42 @@ public sealed class PlatformSupportAccessGrantService(
             organization.Name,
             grant.Reason,
             grant.ExpiresAtUtc,
-            PlatformSupportWritableAreas.All);
+            PlatformSupportWritableAreas.All,
+            branches);
     }
+
+    // GET /api/support-access/session (session self-lookup, e.g. after a tab reload) needs the exact
+    // same shape RedeemTicketAsync returns — otherwise a reload under an active support session lands
+    // somewhere the shell can't render (no branches). Shares the branch/organization lookup with
+    // RedeemTicketAsync rather than re-deriving it.
+    public async Task<PlatformSupportSessionDto> DescribeSessionAsync(
+        PlatformSupportContext support,
+        CancellationToken cancellationToken)
+    {
+        var organization = await dbContext.Organizations
+            .AsNoTracking()
+            .SingleAsync(candidate => candidate.OrganizationId == support.OrganizationId, cancellationToken);
+        var branches = await LoadBranchesAsync(support.OrganizationId, cancellationToken);
+
+        return new PlatformSupportSessionDto(
+            support.SessionToken,
+            support.OrganizationId,
+            organization.Name,
+            support.Reason,
+            support.ExpiresAtUtc,
+            PlatformSupportWritableAreas.All,
+            branches);
+    }
+
+    private async Task<List<PlatformSupportSessionBranchDto>> LoadBranchesAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken) =>
+        await dbContext.Branches
+            .AsNoTracking()
+            .Where(branch => branch.OrganizationId == organizationId)
+            .OrderBy(branch => branch.Name)
+            .Select(branch => new PlatformSupportSessionBranchDto(branch.BranchId, branch.Name))
+            .ToListAsync(cancellationToken);
 
     // Read-then-write on the SAME row two concurrent redemptions target. Under Postgres SERIALIZABLE
     // (see ExecuteInSerializableTransactionAsync), the second transaction to attempt the UPDATE blocks
@@ -203,7 +238,8 @@ public sealed class PlatformSupportAccessGrantService(
                 grant.OrganizationId,
                 grant.Reason,
                 requiredPermission,
-                grant.ExpiresAtUtc);
+                grant.ExpiresAtUtc,
+                sessionToken);
     }
 
     private static string GenerateSecret() =>

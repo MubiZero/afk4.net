@@ -16,8 +16,7 @@ import { ForgotPassword } from './ForgotPassword';
 import { WindowResizeHandles } from './WindowChrome';
 import { SignInScreen } from './SignInScreen';
 import { BlockedOrganizationScreen } from './BlockedOrganizationScreen';
-import { isSupportSessionExpired, readSupportSession } from './support/supportSession';
-import { SupportHomeScreen } from './support/SupportHomeScreen';
+import { isSupportSessionExpired, readSupportSession, supportOperatorSession } from './support/supportSession';
 import { PostAuthShiftGate } from './PostAuthShiftGate';
 import { ShellHeader } from './ShellHeader';
 import { WorkspaceRail } from './WorkspaceRail';
@@ -33,6 +32,7 @@ import { useFloorMap } from './useFloorMap';
 import { ToastProvider } from './operatorToast';
 import { useHotkeys } from './useHotkeys';
 import type {
+  AuthStatus,
   WorkspaceId,
   MapFilterId,
   OperatorBackendContext
@@ -77,8 +77,8 @@ function AppInner() {
   const [mapFilter, setMapFilter] = useState<MapFilterId>('all');
   const [workspaceFeedback, setWorkspaceFeedback] = useState<string | null>(null);
   const {
-    authStatus,
-    authSession,
+    authStatus: staffAuthStatus,
+    authSession: staffAuthSession,
     authError,
     authView,
     setAuthView,
@@ -94,6 +94,31 @@ function AppInner() {
     onSignedIn: () => setWorkspaceFeedback(null),
     onSignedOut: () => setWorkspaceFeedback(null)
   });
+  // Support mode (platform staff impersonating this organization via a time-boxed grant, see
+  // support/supportSession.ts) adapts to the SAME rendering path a staff sign-in takes — not a
+  // parallel shell — by overriding what `authStatus`/`authSession` resolve to for the rest of this
+  // component. `supportOperatorSession` is the one place that builds the adapted session; everything
+  // below (floor map, realtime, shift gate, permission checks, the shell itself) stays unaware that
+  // this isn't an ordinary staff login. Scoping sections/branches/actions to the grant's
+  // `writableAreas` is deliberately not done here (follow-up task) — the server already enforces the
+  // real boundary per endpoint regardless of what this client shows.
+  //
+  // Read once via a lazy initializer, not on every render: sessionStorage doesn't change under us
+  // during this component's lifetime (nothing in this task writes to it after mount), and reading —
+  // then adapting — it fresh on every render would hand every downstream effect a brand-new
+  // `authSession` object each time, which several of them key their dependency arrays on. That's an
+  // infinite render loop, not a style nitpick — floor map/realtime/shell-data effects would re-fire
+  // every render forever.
+  const [activeSupportSession] = useState(() => {
+    const session = readSupportSession();
+    return session !== null && !isSupportSessionExpired(session) ? session : null;
+  });
+  const supportAuthSession = useMemo(
+    () => activeSupportSession !== null ? supportOperatorSession(activeSupportSession) : null,
+    [activeSupportSession]
+  );
+  const authStatus: AuthStatus = activeSupportSession !== null ? 'signed-in' : staffAuthStatus;
+  const authSession = supportAuthSession ?? staffAuthSession;
   const [accountPanelOpen, setAccountPanelOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   // Токен «открыть запуск сессии» — растёт по клику на «+» свободной плитки; боковая панель
@@ -250,16 +275,6 @@ function AppInner() {
     setWorkspace('map');
     setStartSeatToken((value) => value + 1);
   };
-
-  // Support mode (platform staff impersonating this organization via a time-boxed grant, see
-  // support/supportSession.ts) is a self-contained app state, independent of the staff sign-in
-  // flow above — checked first and short-circuits everything else, staff auth included. Scoping
-  // which sections/branches/actions it can reach is deliberately not done here (follow-up task);
-  // this only needs to land the person somewhere real instead of stuck on the sign-in form.
-  const supportSession = readSupportSession();
-  if (supportSession !== null && !isSupportSessionExpired(supportSession)) {
-    return <SupportHomeScreen session={supportSession} />;
-  }
 
   if (blockedResolution !== null) {
     return (

@@ -204,7 +204,8 @@ describe('PlatformApiClient under a support session', () => {
       organizationName: 'Клуб',
       reason: 'Смена не открывается',
       expiresAtUtc: '2099-01-01T00:00:00Z',
-      writableAreas: []
+      writableAreas: [],
+      branches: []
     });
   }
 

@@ -31,7 +31,8 @@ public sealed class SupportAccessAuditTests
                 OrganizationId: organizationId,
                 Reason: "Проверка настроек филиала по обращению клиента",
                 Permission: "branch-settings.manage",
-                ExpiresAtUtc: DateTimeOffset.UtcNow.AddMinutes(30))
+                ExpiresAtUtc: DateTimeOffset.UtcNow.AddMinutes(30),
+                SessionToken: "test-session-token")
         };
 
         var auditRecordWriter = scope.ServiceProvider.GetRequiredService<IAuditRecordWriter>();

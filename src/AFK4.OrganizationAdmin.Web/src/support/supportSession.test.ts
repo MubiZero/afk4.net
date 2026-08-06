@@ -5,8 +5,10 @@ import {
   clearSupportSession,
   redeemSupportTicket,
   isSupportSessionExpired,
+  supportOperatorSession,
   type SupportSession
 } from './supportSession';
+import { permissionNames } from '../permissionNames';
 
 function sessionExpiringAt(expiresAtUtc: string): SupportSession {
   return {
@@ -15,23 +17,30 @@ function sessionExpiringAt(expiresAtUtc: string): SupportSession {
     organizationName: 'Клуб',
     reason: 'Смена не открывается',
     expiresAtUtc,
-    writableAreas: []
+    writableAreas: [],
+    branches: []
   };
 }
+
+const twoBranchSession: SupportSession = {
+  sessionToken: 's1',
+  organizationId: 'o1',
+  organizationName: 'Клуб',
+  reason: 'Смена не открывается',
+  expiresAtUtc: '2026-08-06T12:00:00Z',
+  writableAreas: ['branch-settings'],
+  branches: [
+    { branchId: 'b1', name: 'Филиал на Рудаки' },
+    { branchId: 'b2', name: 'Филиал на Айни' }
+  ]
+};
 
 beforeEach(() => sessionStorage.clear());
 
 it('хранит и очищает сессию поддержки', () => {
   expect(readSupportSession()).toBeNull();
 
-  writeSupportSession({
-    sessionToken: 's1',
-    organizationId: 'o1',
-    organizationName: 'Клуб',
-    reason: 'Смена не открывается',
-    expiresAtUtc: '2026-08-06T12:00:00Z',
-    writableAreas: ['branch-settings']
-  });
+  writeSupportSession(twoBranchSession);
 
   expect(readSupportSession()?.organizationName).toBe('Клуб');
 
@@ -56,7 +65,8 @@ it('обменивает билет на сессию поддержки чер�
         organizationName: 'Клуб',
         reason: 'Смена не открывается',
         expiresAtUtc: '2026-08-06T12:00:00Z',
-        writableAreas: ['branch-settings']
+        writableAreas: ['branch-settings'],
+        branches: [{ branchId: 'b1', name: 'Филиал на Рудаки' }]
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
@@ -65,6 +75,7 @@ it('обменивает билет на сессию поддержки чер�
   try {
     const session = await redeemSupportTicket('https://api.test/', 'ticket-1');
     expect(session.sessionToken).toBe('sess-1');
+    expect(session.branches).toEqual([{ branchId: 'b1', name: 'Филиал на Рудаки' }]);
     expect(calls[0][0]).toBe('https://api.test/api/public/support-access/sessions');
     expect(calls[0][1]?.method).toBe('POST');
     expect(JSON.parse(String(calls[0][1]?.body))).toEqual({ ticket: 'ticket-1' });
@@ -91,4 +102,22 @@ it('считает сессию истёкшей строго по времен�
   expect(isSupportSessionExpired(sessionExpiringAt('2026-08-06T12:00:00Z'), now)).toBe(true);
   expect(isSupportSessionExpired(sessionExpiringAt('2026-08-06T11:59:59Z'), now)).toBe(true);
   expect(isSupportSessionExpired(sessionExpiringAt('not-a-date'), now)).toBe(true);
+});
+
+it('supportOperatorSession adapts a support grant into the shell session shape, branches and all', () => {
+  const operatorSession = supportOperatorSession(twoBranchSession);
+
+  expect(operatorSession.organizationId).toBe('o1');
+  expect(operatorSession.branchIds).toEqual(['b1', 'b2']);
+  expect(operatorSession.displayName).toBe('Поддержка платформы');
+});
+
+it('supportOperatorSession grants every permission except openShift (unsupported by the grant endpoint)', () => {
+  const operatorSession = supportOperatorSession(twoBranchSession);
+
+  const allPermissionsExceptOpenShift = Object.values(permissionNames).filter(
+    (permission) => permission !== permissionNames.openShift
+  );
+  expect(new Set(operatorSession.permissions)).toEqual(new Set(allPermissionsExceptOpenShift));
+  expect(operatorSession.permissions).not.toContain(permissionNames.openShift);
 });

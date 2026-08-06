@@ -1,4 +1,12 @@
+import type { OperatorAuthSession } from '../authClient';
+import { permissionNames } from '../permissionNames';
+
 const KEY = 'afk4.support.session';
+
+export interface SupportSessionBranch {
+  branchId: string;
+  name: string;
+}
 
 export interface SupportSession {
   sessionToken: string;
@@ -7,6 +15,42 @@ export interface SupportSession {
   reason: string;
   expiresAtUtc: string;
   writableAreas: string[];
+  branches: SupportSessionBranch[];
+}
+
+// The organization-admin shell (App.tsx) is built entirely around OperatorAuthSession — floor map,
+// realtime, shifts, permissions all key off it. A support session isn't a staff login, but the
+// shell shouldn't grow a second parallel rendering path just to accommodate it: this is the one
+// place that adapts a support grant into the same shape the shell already knows how to render.
+//
+// Every permission is granted (support sees what club staff sees — scoping to `writableAreas` is a
+// follow-up task; the server already enforces the real boundary per endpoint regardless of what this
+// client-side list says) with ONE deliberate exception: `openShift`. usePostAuthShiftGate uses it to
+// decide whether to call GET .../shifts/current before letting the shell render at all, and that
+// endpoint isn't tagged AllowPlatformSupportAccess server-side (see ShiftEndpoints.cs) — granting the
+// permission would make the gate call it, get a 403, and permanently strand the tab on a "couldn't
+// open shift" retry screen instead of the shell. Omitting it keeps the gate at 'not-required'.
+const SUPPORT_PERMISSIONS = Object.values(permissionNames).filter(
+  (permission) => permission !== permissionNames.openShift
+);
+
+export function supportOperatorSession(session: SupportSession): OperatorAuthSession {
+  return {
+    // Mirrors the platform admin's own StaffContext under a support grant (PlatformSupportSessionMiddleware
+    // sets StaffUserId = Guid.Empty, DisplayName = "Поддержка платформы") — same identity, same string.
+    staffUserId: '00000000-0000-0000-0000-000000000000',
+    organizationId: session.organizationId,
+    displayName: 'Поддержка платформы',
+    // Never read: platformApi.ts prefers the support grant header unconditionally over Authorization
+    // whenever a support session exists, so these never reach a real request.
+    accessToken: '',
+    accessTokenExpiresAtUtc: session.expiresAtUtc,
+    refreshToken: '',
+    refreshTokenExpiresAtUtc: session.expiresAtUtc,
+    branchIds: session.branches.map((branch) => branch.branchId),
+    permissions: SUPPORT_PERMISSIONS,
+    roleNames: ['Поддержка платформы']
+  };
 }
 
 export function readSupportSession(): SupportSession | null {

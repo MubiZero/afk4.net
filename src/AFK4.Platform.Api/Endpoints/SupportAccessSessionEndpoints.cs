@@ -40,11 +40,21 @@ internal static class SupportAccessSessionEndpoints
             return Results.NoContent();
         }).AllowPlatformSupportAccess(PlatformSupportSelfPermission);
 
-        app.MapGet("/api/support-access/session", (
-            IPlatformSupportContextAccessor supportContextAccessor) =>
+        app.MapGet("/api/support-access/session", async (
+            IPlatformSupportContextAccessor supportContextAccessor,
+            PlatformSupportAccessGrantService supportAccessService,
+            CancellationToken cancellationToken) =>
         {
             var support = supportContextAccessor.Current;
-            return support is null ? Results.Unauthorized() : Results.Ok(support);
+            if (support is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            // Same PlatformSupportSessionDto shape RedeemTicketAsync returns (branches included) —
+            // a tab reload under an active support session needs to land back in a working shell,
+            // not a shape the client doesn't know how to render.
+            return Results.Ok(await supportAccessService.DescribeSessionAsync(support, cancellationToken));
         }).AllowPlatformSupportAccess(PlatformSupportSelfPermission);
     }
 

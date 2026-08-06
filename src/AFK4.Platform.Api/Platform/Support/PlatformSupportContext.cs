@@ -6,4 +6,8 @@ public sealed record PlatformSupportContext(
     Guid OrganizationId,
     string Reason,
     string Permission,
-    DateTimeOffset ExpiresAtUtc);
+    DateTimeOffset ExpiresAtUtc,
+    // The grant header value that authenticated this request — not a new secret, the caller already
+    // holds it (they sent it). Carried so GET /api/support-access/session can echo the same
+    // PlatformSupportSessionDto shape RedeemTicketAsync returns, without minting a second token.
+    string SessionToken);
