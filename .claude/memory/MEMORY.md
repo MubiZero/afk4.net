@@ -10,6 +10,7 @@
 ## Окружение / тулчейн
 - [Env quirks](afk4-env-quirks.md) — bun полный путь, bun test+build гейты, rtk→/tmp/x.sh, dotnet ef на Linux traps, Coolify runbook, WPF-мост через D:\ clone, agent-test WSL baseline.
 - [Frontends on bun test](frontends-on-bun-test.md) — все фронты на `bun test` (не vitest, happy-dom+jest-dom), `mock.module` течёт process-wide; build=`tsc -b && vite` И тайпчекает тест-файлы (зелёный `bun test` ≠ зелёная сборка → типизировать bun-моки; финал слайса обязан включать `bun run build`).
+- [CI: Postgres-тесты и охват PR](ci-postgres-and-pr-coverage.md) — job `test-postgres` на ubuntu; `AFK4_REQUIRE_POSTGRES_TESTS=1` = skip→падение; PR во ВСЕ ветки; workflow охраняется построчным тестом.
 - [Coolify reference](coolify-reference.md) — staging cool.mubi.dev, API /api/v1 Bearer; токен в `~/.config/afk4/coolify.token`.
 - [Memory in git](memory-in-git-setup.md) — память версионируется в гите через симлинк/junction на `<repo>/.claude/memory`; новое устройство = clone + пересоздать линк ДО работы (WSL и Windows).
 - [Setup Wizard preview launch](setup-wizard-preview-launch.md) — Vite 5175 + env URL + `--preview`; devDeps → `bun install --force`; WSL-WPF-запуск теперь скиллом `operator-wpf-preview` (Оператор+Мастер, не параллельно).
@@ -33,6 +34,7 @@
 - [Tajik i18n honesty](tg-i18n-honesty.md) — guard-тест против `tg===ru` (whitelist loanwords); добавляешь tg-ключ → реально таджикский; переводы НЕ native-reviewed.
 
 ## Активный бэклог / эпики
+- [Пробелы платформенной админки — волна A](platform-admin-directory-2fa.md) — каталог сотрудников + обязательный TOTP реализованы (ветка `feat/platform-admin-directory-2fa`); режим поддержки (план 2) не написан; волны B/C/D не начаты; Postgres-тесты в CI всегда skip.
 - [Online booking auto-confirm + hold](afk4-online-booking-autoconfirm-epic.md) — авто-confirm онлайн-броней при балансе (Slice 1 в main); холд денег — бэклог, решения зафиксированы, гейт на мобилку. Канон-док `docs/superpowers/specs/2026-06-18-online-booking-autoconfirm-hold.md`.
 - [Multi-tenant payments](afk4-multitenant-payments-state.md) — dcgate per-branch; money-path FROZEN внешним bank-bot; `Secrets:EncryptionKeyBase64` критичен (потеря = недешифруемые creds); prod afk4 не задеплоен.
 - [Time handling audit](afk4-time-handling-audit.md) — деньги server-authoritative/безопасны; реальный риск = skew/implicit-tz; рискованный lease/grace rewrite отложен до drift-логов; tz-multiregion YAGNI.
