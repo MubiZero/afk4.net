@@ -987,6 +987,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(grant => grant.Reason).HasMaxLength(500).IsRequired();
             entity.HasIndex(grant => new { grant.PlatformAdminUserId, grant.ExpiresAtUtc });
             entity.HasIndex(grant => new { grant.OrganizationId, grant.ExpiresAtUtc });
+            entity.HasIndex(grant => grant.TicketHash).IsUnique().HasFilter("\"TicketHash\" IS NOT NULL");
+            entity.HasIndex(grant => grant.SessionTokenHash).IsUnique().HasFilter("\"SessionTokenHash\" IS NOT NULL");
         });
 
         modelBuilder.Entity<OrganizationOwnerInviteEntity>(entity =>
