@@ -623,7 +623,8 @@ public sealed class ClientReleaseAutomationTests : IDisposable
                  {
                      "AFK4_POS_POSTGRES_TEST_CONNECTION_STRING",
                      "AFK4_RESERVATION_POSTGRES_TEST_CONNECTION_STRING",
-                     "AFK4_COMMERCE_TEST_POSTGRES"
+                     "AFK4_COMMERCE_TEST_POSTGRES",
+                     "AFK4_PLATFORM_ADMIN_POSTGRES_TEST_CONNECTION_STRING"
                  })
         {
             // The database name has to end in _test; every attribute refuses anything else.

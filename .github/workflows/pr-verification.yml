@@ -156,6 +156,7 @@ jobs:
       AFK4_POS_POSTGRES_TEST_CONNECTION_STRING: Host=127.0.0.1;Port=5432;Database=afk4_ci_test;Username=postgres;Password=postgres
       AFK4_RESERVATION_POSTGRES_TEST_CONNECTION_STRING: Host=127.0.0.1;Port=5432;Database=afk4_ci_test;Username=postgres;Password=postgres
       AFK4_COMMERCE_TEST_POSTGRES: Host=127.0.0.1;Port=5432;Database=afk4_ci_test;Username=postgres;Password=postgres
+      AFK4_PLATFORM_ADMIN_POSTGRES_TEST_CONNECTION_STRING: Host=127.0.0.1;Port=5432;Database=afk4_ci_test;Username=postgres;Password=postgres
       # Turns a broken database configuration into a red build instead of a green one full of
       # skipped tests. See PostgresTestAvailabilityTests.
       AFK4_REQUIRE_POSTGRES_TESTS: '1'
