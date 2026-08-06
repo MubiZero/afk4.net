@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 5cc09261-f4ea-4bf1-a26f-2ca49d85c51e
-  modified: 2026-08-06T04:32:44.722Z
+  modified: 2026-08-06T11:10:00.395Z
 ---
 
 Эпик «чего нет у нас против типовой b2b SaaS-админки» разбит на 4 волны: **A — доступ и поддержка**,
@@ -18,11 +18,8 @@ B — деньги (dunning, гибкая цена), C — наблюдение 
 Спека `docs/superpowers/specs/2026-08-04-platform-access-and-support-mode-design.md`,
 план `docs/superpowers/plans/2026-08-04-platform-admin-directory-and-2fa.md`.
 
-**План 2 (слайсы 3-4, режим поддержки) НЕ написан** — договорились писать после первого.
-Решения по нему из спеки: impersonation = чтение везде + белый список записей
-(BranchSettings/Device/Staff/FloorMap/BranchProfileLayout), деньги никогда; передача доступа
-одноразовым билетом через существующий `PlatformSupportAccessGrantService`; страж-тест против
-пометки денежных эндпоинтов.
+**План 2 (слайсы 3-4, режим поддержки) реализован** — см. [[platform-support-mode]].
+Волна A закрыта целиком; волны B/C/D не начаты.
 
 ## Durable-инварианты волны A
 

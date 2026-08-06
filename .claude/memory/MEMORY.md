@@ -34,7 +34,8 @@
 - [Tajik i18n honesty](tg-i18n-honesty.md) — guard-тест против `tg===ru` (whitelist loanwords); добавляешь tg-ключ → реально таджикский; переводы НЕ native-reviewed.
 
 ## Активный бэклог / эпики
-- [Пробелы платформенной админки — волна A](platform-admin-directory-2fa.md) — каталог сотрудников + обязательный TOTP реализованы (ветка `feat/platform-admin-directory-2fa`); режим поддержки (план 2) не написан; волны B/C/D не начаты; Postgres-тесты в CI всегда skip.
+- [Режим поддержки — вход платформы под клиента](platform-support-mode.md) — граница = метка на эндпоинте; урок: белый список файлов ≠ белый список полномочий (эскалация через роли/пароли переживала грант).
+- [Пробелы платформенной админки — волна A](platform-admin-directory-2fa.md) — каталог сотрудников + обязательный TOTP в PR #135 (design-ветка); волна A закрыта целиком, волны B/C/D не начаты.
 - [Online booking auto-confirm + hold](afk4-online-booking-autoconfirm-epic.md) — авто-confirm онлайн-броней при балансе (Slice 1 в main); холд денег — бэклог, решения зафиксированы, гейт на мобилку. Канон-док `docs/superpowers/specs/2026-06-18-online-booking-autoconfirm-hold.md`.
 - [Multi-tenant payments](afk4-multitenant-payments-state.md) — dcgate per-branch; money-path FROZEN внешним bank-bot; `Secrets:EncryptionKeyBase64` критичен (потеря = недешифруемые creds); prod afk4 не задеплоен.
 - [Time handling audit](afk4-time-handling-audit.md) — деньги server-authoritative/безопасны; реальный риск = skew/implicit-tz; рискованный lease/grace rewrite отложен до drift-логов; tz-multiregion YAGNI.
