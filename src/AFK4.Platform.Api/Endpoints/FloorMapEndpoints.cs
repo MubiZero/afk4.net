@@ -191,7 +191,8 @@ internal static class FloorMapEndpoints
                 default:
                     return Results.StatusCode(StatusCodes.Status500InternalServerError);
             }
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageLayout);
 
     }
 }

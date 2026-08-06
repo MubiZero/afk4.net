@@ -215,7 +215,8 @@ internal static class BranchSettingsEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchSettings);
 
     }
 }

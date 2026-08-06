@@ -12,7 +12,7 @@ public sealed class PlatformSupportSessionMiddlewareTests
     {
         await using var factory = new PlatformApiFactory();
         var client = factory.CreateClient();
-        var (sessionToken, organizationId, branchId) = await SupportAccessTestHelper.OpenSessionAsync(factory);
+        var (sessionToken, organizationId, branchId, _) = await SupportAccessTestHelper.OpenSessionAsync(factory);
 
         client.DefaultRequestHeaders.Add(
             PlatformSupportAccessGrantService.GrantHeaderName, sessionToken);
@@ -29,7 +29,7 @@ public sealed class PlatformSupportSessionMiddlewareTests
     {
         await using var factory = new PlatformApiFactory();
         var client = factory.CreateClient();
-        var (sessionToken, organizationId, branchId) = await SupportAccessTestHelper.OpenSessionAsync(factory);
+        var (sessionToken, organizationId, branchId, _) = await SupportAccessTestHelper.OpenSessionAsync(factory);
 
         client.DefaultRequestHeaders.Add(
             PlatformSupportAccessGrantService.GrantHeaderName, sessionToken);
@@ -45,7 +45,7 @@ public sealed class PlatformSupportSessionMiddlewareTests
     {
         await using var factory = new PlatformApiFactory();
         var client = factory.CreateClient();
-        var (_, organizationId, branchId) = await SupportAccessTestHelper.OpenSessionAsync(factory);
+        var (_, organizationId, branchId, _) = await SupportAccessTestHelper.OpenSessionAsync(factory);
 
         client.DefaultRequestHeaders.Add(
             PlatformSupportAccessGrantService.GrantHeaderName, "не-существующий-токен");
@@ -65,8 +65,8 @@ public sealed class PlatformSupportSessionMiddlewareTests
     {
         await using var factory = new PlatformApiFactory();
         var client = factory.CreateClient();
-        var (sessionToken, _, branchId) = await SupportAccessTestHelper.OpenSessionAsync(factory);
-        var (_, foreignOrganizationId, _) = await SupportAccessTestHelper.OpenSessionAsync(factory);
+        var (sessionToken, _, branchId, _) = await SupportAccessTestHelper.OpenSessionAsync(factory);
+        var (_, foreignOrganizationId, _, _) = await SupportAccessTestHelper.OpenSessionAsync(factory);
 
         client.DefaultRequestHeaders.Add(
             PlatformSupportAccessGrantService.GrantHeaderName, sessionToken);

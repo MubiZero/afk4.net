@@ -11,12 +11,13 @@ namespace AFK4.Platform.Api.Tests.Platform;
 // real support agent switching tabs.
 internal static class SupportAccessTestHelper
 {
-    public static async Task<(string SessionToken, Guid OrganizationId, Guid BranchId)> OpenSessionAsync(
+    public static async Task<(string SessionToken, Guid OrganizationId, Guid BranchId, Guid PlatformAdminUserId)> OpenSessionAsync(
         PlatformApiFactory factory,
         string reason = "Проверка настроек филиала по обращению клиента")
     {
         var organizationId = Guid.NewGuid();
         var branchId = Guid.NewGuid();
+        var platformAdminUserId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
 
         await using (var scope = factory.Services.CreateAsyncScope())
@@ -48,7 +49,7 @@ internal static class SupportAccessTestHelper
         var supportAccessService = issueScope.ServiceProvider.GetRequiredService<PlatformSupportAccessGrantService>();
 
         var issue = await supportAccessService.IssueAsync(
-            Guid.NewGuid(),
+            platformAdminUserId,
             new CreatePlatformSupportAccessGrantRequest(organizationId, reason, 30),
             CancellationToken.None);
         Assert.NotNull(issue);
@@ -56,6 +57,6 @@ internal static class SupportAccessTestHelper
         var session = await supportAccessService.RedeemTicketAsync(issue!.Ticket, CancellationToken.None);
         Assert.NotNull(session);
 
-        return (session!.SessionToken, organizationId, branchId);
+        return (session!.SessionToken, organizationId, branchId, platformAdminUserId);
     }
 }

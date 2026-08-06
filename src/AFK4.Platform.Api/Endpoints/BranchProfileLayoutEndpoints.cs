@@ -223,7 +223,8 @@ internal static class BranchProfileLayoutEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchSettings);
 
         app.MapGet("branches/{branchId:guid}/layout/zones", async (
             Guid branchId,
@@ -382,7 +383,8 @@ internal static class BranchProfileLayoutEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageLayout);
 
         app.MapPatch("branches/{branchId:guid}/layout/zones/{zoneId:guid}", async (
             Guid branchId,
@@ -485,7 +487,8 @@ internal static class BranchProfileLayoutEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageLayout);
 
         app.MapDelete("branches/{branchId:guid}/layout/zones/{zoneId:guid}", async (
             Guid branchId,
@@ -570,7 +573,8 @@ internal static class BranchProfileLayoutEndpoints
                 cancellationToken);
 
             return Results.NoContent();
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageLayout);
 
         app.MapPost("branches/{branchId:guid}/layout/seats", async (
             Guid branchId,
@@ -673,7 +677,8 @@ internal static class BranchProfileLayoutEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageLayout);
 
         app.MapPatch("branches/{branchId:guid}/layout/seats/{seatId:guid}", async (
             Guid branchId,
@@ -784,7 +789,8 @@ internal static class BranchProfileLayoutEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageLayout);
 
         app.MapDelete("branches/{branchId:guid}/layout/seats/{seatId:guid}", async (
             Guid branchId,
@@ -883,7 +889,8 @@ internal static class BranchProfileLayoutEndpoints
                 cancellationToken);
 
             return Results.NoContent();
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageLayout);
 
     }
 }

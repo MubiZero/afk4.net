@@ -150,7 +150,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(code);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.CreateDeviceEnrollmentCode);
 
         organizations.MapPost("install/auth/discover", async (
             StaffAuthorizationService authorizationService,
@@ -820,7 +821,8 @@ internal static class DeviceEndpoints
             await NotifyDeviceChangesAsync(hubContext, dbContext, [device.DeviceId], observedAtUtc, cancellationToken);
 
             return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.AssignDeviceSeat);
 
         organizations.MapPost("devices/{deviceId:guid}/reject", async (
             Guid deviceId,
@@ -902,7 +904,8 @@ internal static class DeviceEndpoints
             await NotifyDeviceChangesAsync(hubContext, dbContext, changedDeviceIds, now, cancellationToken);
 
             return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.AssignDeviceSeat);
 
         organizations.MapPost("devices/{deviceId:guid}/rename", async (
             Guid deviceId,
@@ -978,7 +981,8 @@ internal static class DeviceEndpoints
             await NotifyDeviceChangesAsync(hubContext, dbContext, [device.DeviceId], observedAtUtc, cancellationToken);
 
             return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.AssignDeviceSeat);
 
         organizations.MapPost("devices/{deviceId:guid}/move-seat", async (
             Guid deviceId,
@@ -1068,7 +1072,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.AssignDeviceSeat);
 
         organizations.MapPost("devices/{deviceId:guid}/remove", async (
             Guid deviceId,
@@ -1146,7 +1151,8 @@ internal static class DeviceEndpoints
             await NotifyDeviceChangesAsync(hubContext, dbContext, changedDeviceIds, now, cancellationToken);
 
             return Results.Ok(await LoadDeviceInventoryItemAsync(dbContext, device.DeviceId, cancellationToken));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.RevokeDeviceCredential);
 
         organizations.MapPost("branches/{branchId:guid}/devices/{deviceId:guid}/seat-assignment", async (
             Guid branchId,
@@ -1306,7 +1312,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(ToDeviceSeatAssignmentDto(currentAssignment));
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.AssignDeviceSeat);
 
         organizations.MapPost("devices/{deviceId:guid}/commands", async (
             Guid deviceId,
@@ -1409,7 +1416,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(command);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.DispatchDeviceCommand);
 
         organizations.MapGet("devices/{deviceId:guid}/commands", async (
             Guid deviceId,
@@ -1725,7 +1733,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(rotated);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.RotateDeviceCredential);
 
         organizations.MapPost("devices/{deviceId:guid}/credentials/{credentialId:guid}/revoke", async (
             Guid deviceId,
@@ -1802,7 +1811,8 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(revoked);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.RevokeDeviceCredential);
 
     }
 }

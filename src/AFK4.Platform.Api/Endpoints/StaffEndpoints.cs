@@ -269,7 +269,8 @@ internal static class StaffEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageRoles);
 
         app.MapPatch("branches/{branchId:guid}/staff/{staffUserId:guid}/profile", async (
             Guid branchId,
@@ -383,7 +384,8 @@ internal static class StaffEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchStaff);
 
         app.MapPatch("branches/{branchId:guid}/staff/{staffUserId:guid}/state", async (
             Guid branchId,
@@ -483,7 +485,8 @@ internal static class StaffEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchStaff);
 
         app.MapPost("branches/{branchId:guid}/staff/{staffUserId:guid}/password-reset", async (
             Guid branchId,
@@ -580,7 +583,8 @@ internal static class StaffEndpoints
                 cancellationToken);
 
             return Results.Ok(response);
-        });
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchStaff);
 
     }
 }
