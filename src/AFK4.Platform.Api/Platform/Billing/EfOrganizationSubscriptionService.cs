@@ -152,12 +152,26 @@ public sealed class EfOrganizationSubscriptionService(
             }
 
             var newInterval = request.BillingInterval?.Trim() ?? newPlan.BillingInterval;
-            var proration = ComputeProration(
+            var grossProration = ComputeProration(
                 subscription.AmountMinorUnits,
                 newPlan.PriceMinorUnits,
                 subscription.CurrentPeriodStartUtc,
                 subscription.CurrentPeriodEndUtc,
                 now);
+
+            // The upgrade charge is the gap between what the club actually pays on each plan, so the
+            // discount is applied to both sides rather than to the gap. A percentage shrinks the gap;
+            // a flat monthly discount cancels out, because it is owed on either plan.
+            var discountApplies = subscription.DiscountUntilUtc is null || subscription.DiscountUntilUtc > now;
+            var proration = discountApplies
+                ? ComputeProration(
+                    DiscountedAmount(subscription, subscription.AmountMinorUnits),
+                    DiscountedAmount(subscription, newPlan.PriceMinorUnits),
+                    subscription.CurrentPeriodStartUtc,
+                    subscription.CurrentPeriodEndUtc,
+                    now)
+                : grossProration;
+            var prorationDiscount = Math.Max(0, grossProration - proration);
             if (proration > 0)
             {
                 prorationInvoice = new InvoiceEntity
@@ -171,7 +185,8 @@ public sealed class EfOrganizationSubscriptionService(
                     IssuedAtUtc = now,
                     DueAtUtc = now.AddDays(7),
                     AmountMinorUnits = proration,
-                    GrossAmountMinorUnits = proration,
+                    GrossAmountMinorUnits = grossProration,
+                    DiscountMinorUnits = prorationDiscount,
                     CurrencyCode = newPlan.CurrencyCode,
                     Status = InvoiceStatusNames.Issued,
                     Description = $"Proration: {subscription.PlanCode} → {newPlan.PlanCode}",
@@ -368,6 +383,14 @@ public sealed class EfOrganizationSubscriptionService(
         await dbContext.SaveChangesAsync(cancellationToken);
         return subscription;
     }
+
+    /// <summary>Plan price minus the subscription's discount — what the club actually pays on that plan.
+    /// Callers decide whether the discount is still in force; this only applies it.</summary>
+    private static long DiscountedAmount(OrganizationSubscriptionEntity subscription, long planAmountMinorUnits) =>
+        planAmountMinorUnits - SubscriptionDiscount.Apply(
+            planAmountMinorUnits,
+            subscription.DiscountPercent,
+            subscription.DiscountAmountMinorUnits);
 
     internal static long ComputeProration(
         long oldAmount,

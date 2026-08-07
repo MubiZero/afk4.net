@@ -99,6 +99,82 @@ public sealed class EfOrganizationSubscriptionServiceTests
     }
 
     [Fact]
+    public async Task UpdateAsync_UpgradeWithPercentDiscount_ChargesTheDiscountedGap()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrgAndPlansAsync(db, "starter");
+        var time = new FixedTimeProvider(Now);
+        var service = new EfOrganizationSubscriptionService(db, time);
+        await service.GetAsync(orgId, CancellationToken.None);
+        await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
+            PlanCode: null, BillingInterval: null, Status: null, CancelAtPeriodEnd: null,
+            AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null,
+            DiscountPercent: 30, DiscountReason: "Договорённость на запуск"), CancellationToken.None);
+
+        time.Now = Now.AddDays(15);
+        var result = await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
+            PlanCode: "scale", BillingInterval: null, Status: null, CancelAtPeriodEnd: null,
+            AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var invoice = await db.Invoices.SingleAsync();
+        // Discounted prices: 203000 and 1393000; 15 of 30 days remaining → (1393000-203000)/30*15 = 595000.
+        Assert.Equal(850000, invoice.GrossAmountMinorUnits);
+        Assert.Equal(255000, invoice.DiscountMinorUnits);
+        Assert.Equal(595000, invoice.AmountMinorUnits);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_UpgradeWithFixedDiscount_ChargesTheFullGap()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrgAndPlansAsync(db, "starter");
+        var time = new FixedTimeProvider(Now);
+        var service = new EfOrganizationSubscriptionService(db, time);
+        await service.GetAsync(orgId, CancellationToken.None);
+        await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
+            PlanCode: null, BillingInterval: null, Status: null, CancelAtPeriodEnd: null,
+            AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null,
+            DiscountAmountMinorUnits: 50000, DiscountReason: "Скидка за рекомендацию"), CancellationToken.None);
+
+        time.Now = Now.AddDays(15);
+        var result = await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
+            PlanCode: "scale", BillingInterval: null, Status: null, CancelAtPeriodEnd: null,
+            AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var invoice = await db.Invoices.SingleAsync();
+        // A flat monthly discount is owed on either plan, so it does not change the gap between them.
+        Assert.Equal(850000, invoice.GrossAmountMinorUnits);
+        Assert.Equal(0, invoice.DiscountMinorUnits);
+        Assert.Equal(850000, invoice.AmountMinorUnits);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_UpgradeWithExpiredDiscount_ChargesTheFullGap()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrgAndPlansAsync(db, "starter");
+        var time = new FixedTimeProvider(Now);
+        var service = new EfOrganizationSubscriptionService(db, time);
+        await service.GetAsync(orgId, CancellationToken.None);
+        await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
+            PlanCode: null, BillingInterval: null, Status: null, CancelAtPeriodEnd: null,
+            AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null,
+            DiscountPercent: 30, DiscountUntilUtc: Now.AddDays(5)), CancellationToken.None);
+
+        time.Now = Now.AddDays(15);
+        var result = await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
+            PlanCode: "scale", BillingInterval: null, Status: null, CancelAtPeriodEnd: null,
+            AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var invoice = await db.Invoices.SingleAsync();
+        Assert.Equal(0, invoice.DiscountMinorUnits);
+        Assert.Equal(850000, invoice.AmountMinorUnits);
+    }
+
+    [Fact]
     public async Task UpdateAsync_Downgrade_DoesNotIssueInvoice()
     {
         await using var db = NewContext();
