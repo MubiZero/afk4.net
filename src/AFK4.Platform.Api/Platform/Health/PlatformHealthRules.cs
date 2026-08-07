@@ -26,6 +26,14 @@ public static class PlatformHealthRules
 
     private const int FailureStreakThreshold = 3;
 
+    /// <summary>
+    /// Окно, после которого задание считается просроченным. Публичный, чтобы сторож мог выбрать
+    /// глубину истории прогонов от него же — единый источник правды на оба потребителя, иначе
+    /// заданию с интервалом больше, чем зашитая глубина выборки, окно просрочки молча перестанет
+    /// работать (последний успешный прогон просто не попадёт в выборку).
+    /// </summary>
+    public static TimeSpan OverdueWindow(TimeSpan interval) => Max(interval * 3, MinimumOverdueWindow);
+
     /// <summary>Виды инцидентов, которые умеет обнаруживать этот набор правил — ровно их и закрывает сторож.</summary>
     public static readonly IReadOnlyList<string> EvaluatedKinds =
     [
@@ -50,7 +58,7 @@ public static class PlatformHealthRules
 
         foreach (var job in snapshot.Jobs)
         {
-            var window = Max(job.Interval * 3, MinimumOverdueWindow);
+            var window = OverdueWindow(job.Interval);
             var overdueSince = job.LastSuccessAtUtc;
             if (overdueSince is null || now - overdueSince.Value > window)
             {

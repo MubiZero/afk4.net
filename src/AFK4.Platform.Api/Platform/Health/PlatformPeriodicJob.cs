@@ -22,6 +22,11 @@ public abstract class PlatformPeriodicJob(
     // alongside the base(...) call.
     protected DateTimeOffset GetUtcNow() => timeProvider.GetUtcNow();
 
+    // Same double-capture problem as timeProvider above, but for logger: a subclass that both
+    // passes its own ILogger<T> to base(...) and logs from its own method body would be captured
+    // twice. Route through this instead of touching the constructor parameter directly.
+    protected ILogger Log => logger;
+
     /// <summary>Одна итерация. Возвращает число обработанных единиц (для строки прогона).</summary>
     protected abstract Task<int> TickAsync(IServiceProvider scopedServices, CancellationToken cancellationToken);
 

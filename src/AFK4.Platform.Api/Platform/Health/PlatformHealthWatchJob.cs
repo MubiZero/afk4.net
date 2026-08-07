@@ -83,9 +83,21 @@ public sealed class PlatformHealthWatchJob(
         return opened + resolved.Count;
     }
 
+    /// <summary>
+    /// Запас сверх самого широкого окна просрочки: без него серия провалов задания с интервалом
+    /// у самой границы окна теряла бы старые попытки из выборки и недосчитывала бы серию.
+    /// </summary>
+    private static readonly TimeSpan RunHistoryMargin = TimeSpan.FromHours(6);
+
     private async Task<HealthSnapshot> BuildSnapshotAsync(PlatformDbContext db, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        var since = now - TimeSpan.FromDays(2);
+        var jobIntervals = JobIntervals;
+
+        // Глубина выборки производна от окон просрочки наблюдаемых заданий (те же правила,
+        // что применяет PlatformHealthRules), а не зашитая константа — иначе задание с интервалом
+        // больше жёстко заданной глубины молча выпадало бы из-под наблюдения при смене конфигурации.
+        var maxOverdueWindow = jobIntervals.Values.Select(PlatformHealthRules.OverdueWindow).Max();
+        var since = now - maxOverdueWindow - RunHistoryMargin;
         // Один запрос на всю историю прогонов за окно; группировка в памяти — как в пульсе.
         var runs = await db.PlatformJobRuns
             .AsNoTracking()
@@ -98,7 +110,7 @@ public sealed class PlatformHealthWatchJob(
             .ToDictionary(group => group.Key, group => group.OrderByDescending(run => run.StartedAtUtc).ToList(), StringComparer.Ordinal);
 
         var jobs = new List<JobState>();
-        foreach (var (jobName, interval) in JobIntervals)
+        foreach (var (jobName, interval) in jobIntervals)
         {
             runsByJob.TryGetValue(jobName, out var jobRuns);
             var lastSuccess = jobRuns?
@@ -125,7 +137,18 @@ public sealed class PlatformHealthWatchJob(
         if (now - lastPruneAtUtc < TimeSpan.FromDays(1)) return;
         lastPruneAtUtc = now;
 
-        var cutoff = now - healthOptions.JobRunRetention;
-        await db.PlatformJobRuns.Where(run => run.StartedAtUtc < cutoff).ExecuteDeleteAsync(cancellationToken);
+        // Retention — обслуживание, а не детектирование. Собственный try/catch не даёт постороннему
+        // сбою чистки (обрыв соединения, взаимоблокировка) пометить успешно отработавший тик как
+        // Failed: три таких тика подряд завели бы job_failing про сам сторож — ложный сигнал
+        // ровно там, где системе нужна достоверность.
+        try
+        {
+            var cutoff = now - healthOptions.JobRunRetention;
+            await db.PlatformJobRuns.Where(run => run.StartedAtUtc < cutoff).ExecuteDeleteAsync(cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            Log.LogError(exception, "Failed to prune old rows of {JobName} runs.", JobName);
+        }
     }
 }

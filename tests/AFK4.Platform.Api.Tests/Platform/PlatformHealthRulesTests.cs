@@ -69,6 +69,16 @@ public sealed class PlatformHealthRulesTests
     }
 
     [Fact]
+    public void TwoConsecutiveFailures_ProduceNoProblem()
+    {
+        // Порог именно порог (>=3), а не «любой провал» — иначе единичный сбой уже будил бы дежурного.
+        var problems = PlatformHealthRules.Evaluate(
+            Snapshot(new JobState(PlatformJobNames.DailySummary, TimeSpan.FromHours(1), Now.AddMinutes(-5), 2)), Now);
+
+        Assert.Empty(problems);
+    }
+
+    [Fact]
     public void StuckNotificationQueue_IsCritical()
     {
         var problems = PlatformHealthRules.Evaluate(new HealthSnapshot([], 2, 0, 0, 0), Now);
