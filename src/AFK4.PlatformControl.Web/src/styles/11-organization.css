@@ -94,6 +94,26 @@
   height: 14px;
 }
 
+.pc-passport-debt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.pc-passport-debt-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pc-passport-debt-invoice,
+.pc-passport-debt-note {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
 .pc-passport-actions {
   display: grid;
   gap: 6px;

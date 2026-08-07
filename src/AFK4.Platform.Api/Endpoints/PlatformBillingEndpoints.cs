@@ -338,6 +338,24 @@ internal static class PlatformBillingEndpoints
             return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
         });
 
+        organizations.MapGet("billing/status", async (
+            Guid organizationId,
+            StaffAuthorizationService authorizationService,
+            IInvoiceService invoiceService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = authorizationService.RequireOrganizationPermission(OrganizationPermissionNames.ViewSubscription);
+            if (!authorization.IsAuthenticated)
+                return Results.Unauthorized();
+            if (!authorization.IsAllowed)
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            if (organizationId != authorization.StaffContext!.OrganizationId)
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+
+            var result = await invoiceService.GetBillingStatusAsync(authorization.StaffContext!.OrganizationId, cancellationToken);
+            return result.Succeeded ? Results.Ok(result.Value) : BillingResults.From(result);
+        });
+
         app.MapGet("/api/platform/subscriptions", async (
             string? status,
             string? planCode,

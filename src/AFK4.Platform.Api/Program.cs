@@ -218,6 +218,7 @@ builder.Services.AddScoped<IInvoiceGenerationRunner, EfInvoiceGenerationRunner>(
 builder.Services.AddScoped<IDunningRunner, EfDunningRunner>();
 builder.Services.AddScoped<IInvoiceService, EfInvoiceService>();
 builder.Services.AddScoped<IBillingMetricsService, EfBillingMetricsService>();
+builder.Services.AddScoped<IDebtOverviewService, EfDebtOverviewService>();
 builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.ConfigurationSection));
 builder.Services.AddHostedService<BillingPlanSeedHostedService>();
 builder.Services.AddHostedService<InvoiceGenerationHostedService>();
@@ -456,6 +457,7 @@ app.MapPlatformOrganizationEndpoints();
 app.MapPlatformAdminDirectoryEndpoints();
 app.MapPlatformAdminTwoFactorEndpoints();
 app.MapPlatformBillingEndpoints(organizations);
+app.MapPlatformDebtEndpoints();
 app.MapPlatformSupportAccessEndpoints();
 app.MapSupportAccessSessionEndpoints();
 app.MapPlatformUpdateEndpoints();

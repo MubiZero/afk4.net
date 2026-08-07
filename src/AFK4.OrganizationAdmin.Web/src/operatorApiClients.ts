@@ -13,6 +13,7 @@ export * from './api/clients/shifts';
 export * from './api/clients/shiftRevenue';
 export * from './api/clients/settings';
 export * from './api/clients/inventory';
+export * from './api/clients/orgBilling';
 export * from './api/clients/devices';
 export * from './api/clients/diagnostics';
 export * from './api/clients/updates';

@@ -34,4 +34,11 @@ public interface IInvoiceService
     Task<BillingOperationResult<IReadOnlyList<InvoiceListItemDto>>> ListAllAsync(
         string? status,
         CancellationToken cancellationToken);
+
+    /// <summary>Compact arrears summary for the club's own admin banner — computed from the same
+    /// <see cref="BillingBalance.Compute"/> the platform side uses, over this organization's unpaid
+    /// invoices only.</summary>
+    Task<BillingOperationResult<OrganizationBillingStatusDto>> GetBillingStatusAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken);
 }

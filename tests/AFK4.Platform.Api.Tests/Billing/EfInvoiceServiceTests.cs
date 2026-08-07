@@ -233,6 +233,50 @@ public sealed class EfInvoiceServiceTests
         Assert.Equal(BillingOperationStatus.NotFound, result.Status);
     }
 
+    [Fact]
+    public async Task GetBillingStatusAsync_NoDebt_ReportsNotInArrears()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
+        var service = NewService(db, new FixedTimeProvider(Now));
+
+        var result = await service.GetBillingStatusAsync(orgId, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.False(result.Value!.InArrears);
+        Assert.Equal(0, result.Value.OutstandingMinorUnits);
+        Assert.Null(result.Value.OldestOverdueInvoiceNumber);
+    }
+
+    [Fact]
+    public async Task GetBillingStatusAsync_OverdueInvoice_ReportsAmountNumberAndAge()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
+        await AddOverdueInvoiceAsync(db, orgId, number: 7);
+        var service = NewService(db, new FixedTimeProvider(Now));
+
+        var result = await service.GetBillingStatusAsync(orgId, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.True(result.Value!.InArrears);
+        Assert.Equal(290000, result.Value.OutstandingMinorUnits);
+        Assert.Equal("TJS", result.Value.CurrencyCode);
+        Assert.Equal(7, result.Value.OldestOverdueInvoiceNumber);
+        Assert.Equal(3, result.Value.DaysOverdue); // AddOverdueInvoiceAsync ставит срок на Now-3 дня
+    }
+
+    [Fact]
+    public async Task GetBillingStatusAsync_UnknownOrganization_ReturnsNotFound()
+    {
+        await using var db = NewContext();
+        var service = NewService(db, new FixedTimeProvider(Now));
+
+        var result = await service.GetBillingStatusAsync(Guid.NewGuid(), CancellationToken.None);
+
+        Assert.Equal(BillingOperationStatus.NotFound, result.Status);
+    }
+
     private static async Task<InvoiceEntity> AddOverdueInvoiceAsync(PlatformDbContext db, Guid orgId, int number)
     {
         var invoice = new InvoiceEntity

@@ -121,7 +121,8 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
               organizations: client.organizations,
               subscriptions: client.subscriptions,
               invoices: client.invoices,
-              organizationOwnerInvites: client.organizationOwnerInvites
+              organizationOwnerInvites: client.organizationOwnerInvites,
+              debt: client.debt
             }}
             organization={organization}
             access={access}

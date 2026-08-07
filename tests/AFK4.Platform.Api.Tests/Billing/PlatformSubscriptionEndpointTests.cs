@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Tests.Platform;
 using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Organizations;
@@ -91,6 +92,58 @@ public sealed class PlatformSubscriptionEndpointTests
         var response = await client.PatchAsJsonAsync(
             $"/api/platform/organizations/{Guid.NewGuid()}/subscription",
             new UpdateSubscriptionRequest("scale", null, null, null, null, null, null));
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetBillingStatus_AsOwner_ReturnsStatus()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/billing/status");
+        var body = await response.Content.ReadFromJsonAsync<OrganizationBillingStatusDto>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(body);
+        Assert.False(body!.InArrears);
+    }
+
+    [Fact]
+    public async Task GetBillingStatus_WithoutViewSubscriptionPermission_ReturnsForbidden()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Operator);
+
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/billing/status");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    // IDOR guard: a staff member of one organization must not be able to read another
+    // organization's billing status by swapping the route's organizationId.
+    [Fact]
+    public async Task GetBillingStatus_ForAnotherOrganization_ReturnsForbidden()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.OrganizationOwner);
+
+        var response = await client.GetAsync($"/api/organizations/{Guid.NewGuid():D}/billing/status");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetBillingStatus_WithoutAuth_ReturnsUnauthorized()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/billing/status");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

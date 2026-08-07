@@ -26,6 +26,18 @@ export interface InvoiceDto {
   status: string;
 }
 
+// AFK4.Shared.Contracts/Platform/Billing/OrganizationBillingStatusDto.cs — compact arrears summary
+// for the shell banner (BillingStatusBanner), deliberately smaller than the invoice list above so
+// every page load doesn't pull the whole billing history just to know whether to warn the club.
+export interface OrganizationBillingStatusDto {
+  inArrears: boolean;
+  outstandingMinorUnits: number;
+  currencyCode: string;
+  oldestOverdueInvoiceNumber: number | null;
+  daysOverdue: number;
+  graceUntilUtc: string | null;
+}
+
 // Read-only org billing screen (Сеть → Подписка) — no plan-management actions by design.
 export function createOrgBillingClient(api: PlatformApiClient) {
   return {
@@ -34,6 +46,9 @@ export function createOrgBillingClient(api: PlatformApiClient) {
     },
     listInvoices(organizationId: Guid): Promise<InvoiceDto[]> {
       return api.get<InvoiceDto[]>('invoices');
+    },
+    getBillingStatus(organizationId: Guid): Promise<OrganizationBillingStatusDto> {
+      return api.get<OrganizationBillingStatusDto>('billing/status');
     }
   };
 }
