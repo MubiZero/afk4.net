@@ -487,7 +487,7 @@ dotnet ef migrations add AddInvoiceDunningTracking --project src/AFK4.Platform.A
 Проверить, что в `Up` пять колонок и что числовые получают `defaultValue: 0`. Дописать заполнение суммы до скидки у существующих счетов:
 
 ```csharp
-            migrationBuilder.Sql("""UPDATE "Invoices" SET "GrossAmountMinorUnits" = "AmountMinorUnits";""");
+            migrationBuilder.Sql("""UPDATE "invoices" SET "GrossAmountMinorUnits" = "AmountMinorUnits";""");
 ```
 
 - [ ] **Step 7: Прогнать биллинговые тесты**
