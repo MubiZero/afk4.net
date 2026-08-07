@@ -421,6 +421,25 @@ export interface InvoiceListItem {
   status: string;
 }
 
+/** One club that needs a money decision: either it owes money, or it settled but is still
+ * suspended. Mirrors `DebtRowDto` — nothing auto-reactivates a suspended club, so this row is
+ * the reminder that a human still owes the club a decision. */
+export interface DebtRow {
+  organizationId: string;
+  organizationName: string;
+  organizationSlug: string;
+  organizationStatus: string;
+  subscriptionStatus: string;
+  outstandingMinorUnits: number;
+  currencyCode: string;
+  oldestOverdueInvoiceNumber: number | null;
+  oldestOverdueInvoiceId: string | null;
+  daysOverdue: number;
+  dunningStage: number;
+  graceUntilUtc: string | null;
+  settledButSuspended: boolean;
+}
+
 export interface PlatformBillingMetrics {
   mrrMinorUnits: number;
   currencyCode: string;

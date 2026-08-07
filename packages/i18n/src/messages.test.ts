@@ -180,6 +180,9 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'platform.billing.column.number',
     'platform.billing.column.plan',
     'platform.billing.column.organization',
+    // «клуб» — то же устоявшееся заимствование, что platform.clubs.row.debtLabel/title
+    // («клубҳо» = мн. число этого же слова); в единственном числе форма совпадает с русской.
+    'platform.debt.column.organization',
     'platform.newOrganization.field.planCode',
     'platform.newOrganization.section.plan',
     'platform.plan.growth',

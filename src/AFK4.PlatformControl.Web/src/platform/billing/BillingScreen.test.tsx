@@ -6,8 +6,11 @@ import { BillingScreen } from './BillingScreen';
 
 function fakeClient() {
   return {
-    subscriptions: { listSubscriptions: mock().mockResolvedValue([]) },
-    invoices: { listInvoices: mock().mockResolvedValue([]), getBillingMetrics: mock().mockResolvedValue({}) },
+    debt: { listDebt: mock().mockResolvedValue([]) },
+    organizations: { updateStatus: mock().mockResolvedValue({}) },
+    supportNotes: { createSupportNote: mock().mockResolvedValue({}) },
+    subscriptions: { listSubscriptions: mock().mockResolvedValue([]), updateSubscription: mock().mockResolvedValue({}) },
+    invoices: { listInvoices: mock().mockResolvedValue([]), getBillingMetrics: mock().mockResolvedValue({}), markInvoicePaid: mock().mockResolvedValue({}) },
     plans: { listPlans: mock().mockResolvedValue([]) }
   } as never;
 }

@@ -7,6 +7,7 @@ import { SupportAccessApi } from './platformClients/supportAccess';
 import { PlansApi } from './platformClients/plans';
 import { SubscriptionsApi } from './platformClients/subscriptions';
 import { InvoicesApi } from './platformClients/invoices';
+import { DebtApi } from './platformClients/debt';
 import { UpdatesApi } from './platformClients/updates';
 import { AuditApi } from './platformClients/audit';
 import { SearchApi } from './platformClients/search';
@@ -34,6 +35,7 @@ export class PlatformApiClient {
   public readonly plans: PlansApi;
   public readonly subscriptions: SubscriptionsApi;
   public readonly invoices: InvoicesApi;
+  public readonly debt: DebtApi;
   public readonly updates: UpdatesApi;
   public readonly audit: AuditApi;
   public readonly search: SearchApi;
@@ -50,6 +52,7 @@ export class PlatformApiClient {
     this.plans = new PlansApi(this.transport);
     this.subscriptions = new SubscriptionsApi(this.transport);
     this.invoices = new InvoicesApi(this.transport);
+    this.debt = new DebtApi(this.transport);
     this.updates = new UpdatesApi(this.transport);
     this.audit = new AuditApi(this.transport);
     this.search = new SearchApi(this.transport);

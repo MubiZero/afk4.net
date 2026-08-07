@@ -43,7 +43,9 @@ export const INVOICE_STATUS_LABEL: Record<string, MessageKey> = {
 
 export const INVOICE_KIND_LABEL: Record<string, MessageKey> = {
   subscription: 'platform.billing.invoiceKind.subscription',
-  proration: 'platform.billing.invoiceKind.proration'
+  proration: 'platform.billing.invoiceKind.proration',
+  one_off: 'platform.billing.invoiceKind.oneOff',
+  credit: 'platform.billing.invoiceKind.credit'
 };
 
 export const SUBSCRIPTION_STATUS_VARIANT: Record<string, BadgeVariant> = {
