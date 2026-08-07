@@ -215,6 +215,7 @@ builder.Services.AddScoped<IOrganizationSubscriptionService, EfOrganizationSubsc
 builder.Services.AddScoped<IOrganizationOwnerResolver, EfOrganizationOwnerResolver>();
 builder.Services.AddScoped<IInvoiceNotifier, EfInvoiceNotifier>();
 builder.Services.AddScoped<IInvoiceGenerationRunner, EfInvoiceGenerationRunner>();
+builder.Services.AddScoped<IDunningRunner, EfDunningRunner>();
 builder.Services.AddScoped<IInvoiceService, EfInvoiceService>();
 builder.Services.AddScoped<IBillingMetricsService, EfBillingMetricsService>();
 builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.ConfigurationSection));

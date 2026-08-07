@@ -5,8 +5,8 @@ namespace AFK4.Platform.Api.Platform.Billing;
 public interface IInvoiceGenerationRunner
 {
     /// <summary>
-    /// Issues invoices for every active subscription whose NextInvoiceUtc is due, advances those
-    /// subscriptions, and flips overdue invoices. Returns the number of invoices issued.
+    /// Issues invoices for every active subscription whose NextInvoiceUtc is due and advances those
+    /// subscriptions. Returns the number of invoices issued.
     /// </summary>
     Task<int> RunAsync(DateTimeOffset now, CancellationToken cancellationToken);
 

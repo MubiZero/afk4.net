@@ -8,7 +8,8 @@ internal sealed class RecordingInvoiceNotifier : IInvoiceNotifier
 {
     public List<InvoiceEntity> Issued { get; } = [];
     public List<InvoiceEntity> Paid { get; } = [];
-    public List<InvoiceEntity> Overdue { get; } = [];
+    public List<(InvoiceEntity Invoice, int Stage)> Overdue { get; } = [];
+    public List<InvoiceEntity> DueSoon { get; } = [];
 
     public Task NotifyIssuedAsync(InvoiceEntity invoice, CancellationToken cancellationToken)
     {
@@ -22,9 +23,15 @@ internal sealed class RecordingInvoiceNotifier : IInvoiceNotifier
         return Task.CompletedTask;
     }
 
-    public Task NotifyOverdueAsync(InvoiceEntity invoice, CancellationToken cancellationToken)
+    public Task NotifyDueSoonAsync(InvoiceEntity invoice, DateTimeOffset now, CancellationToken cancellationToken)
     {
-        Overdue.Add(invoice);
+        DueSoon.Add(invoice);
+        return Task.CompletedTask;
+    }
+
+    public Task NotifyOverdueAsync(InvoiceEntity invoice, int stage, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        Overdue.Add((invoice, stage));
         return Task.CompletedTask;
     }
 }

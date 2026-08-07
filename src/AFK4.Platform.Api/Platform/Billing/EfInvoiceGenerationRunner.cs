@@ -34,24 +34,6 @@ public sealed class EfInvoiceGenerationRunner(
             }
         }
 
-        var overdue = await dbContext.Invoices
-            .Where(invoice => invoice.Status == InvoiceStatusNames.Issued && invoice.DueAtUtc < now)
-            .ToListAsync(cancellationToken);
-        foreach (var invoice in overdue)
-        {
-            invoice.Status = InvoiceStatusNames.Overdue;
-            invoice.UpdatedAtUtc = now;
-        }
-
-        if (overdue.Count > 0)
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-            foreach (var invoice in overdue)
-            {
-                await invoiceNotifier.NotifyOverdueAsync(invoice, cancellationToken);
-            }
-        }
-
         return issued;
     }
 

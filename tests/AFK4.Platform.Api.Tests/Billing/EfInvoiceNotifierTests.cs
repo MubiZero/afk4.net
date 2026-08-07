@@ -118,13 +118,34 @@ public sealed class EfInvoiceNotifierTests
         var invoice = NewInvoice(orgId);
         invoice.Status = InvoiceStatusNames.Overdue;
 
-        await notifier.NotifyOverdueAsync(invoice, CancellationToken.None);
+        await notifier.NotifyOverdueAsync(invoice, stage: 1, Now.AddDays(9), CancellationToken.None);
 
         var request = Assert.Single(recorder.Requests);
         Assert.Equal(NotificationTemplateKeys.InvoiceOverdue, request.TemplateKey);
         Assert.Equal(NotificationCategory.Transactional, request.Category);
         Assert.Equal("owner@club.test", request.Recipient.EmailAddress);
         Assert.Equal($"invoice-overdue:{invoice.InvoiceId:N}:1", request.IdempotencyKey);
+        Assert.Equal("2900.00", request.Tokens["amount"]);
+        Assert.Equal("2026-05-08", request.Tokens["dueDate"]);
+        Assert.Equal("2", request.Tokens["daysOverdue"]);
+    }
+
+    [Fact]
+    public async Task NotifyDueSoonAsync_OrgHasOwnerEmail_EnqueuesTransactionalDueSoonToOwner()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrgWithOwnerAsync(db, "owner@club.test");
+        var recorder = new RecordingNotificationService();
+        var notifier = new EfInvoiceNotifier(new EfOrganizationOwnerResolver(db), recorder);
+        var invoice = NewInvoice(orgId);
+
+        await notifier.NotifyDueSoonAsync(invoice, Now.AddDays(4), CancellationToken.None);
+
+        var request = Assert.Single(recorder.Requests);
+        Assert.Equal(NotificationTemplateKeys.InvoiceDueSoon, request.TemplateKey);
+        Assert.Equal(NotificationCategory.Transactional, request.Category);
+        Assert.Equal("owner@club.test", request.Recipient.EmailAddress);
+        Assert.Equal($"invoice-due-soon:{invoice.InvoiceId:N}", request.IdempotencyKey);
         Assert.Equal("2900.00", request.Tokens["amount"]);
         Assert.Equal("2026-05-08", request.Tokens["dueDate"]);
     }
