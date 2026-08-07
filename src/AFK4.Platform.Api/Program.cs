@@ -223,6 +223,7 @@ builder.Services.AddScoped<IDebtOverviewService, EfDebtOverviewService>();
 builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.ConfigurationSection));
 builder.Services.AddHostedService<BillingPlanSeedHostedService>();
 builder.Services.AddScoped<IJobRunRecorder, EfJobRunRecorder>();
+builder.Services.AddScoped<IPlatformIncidentService, EfPlatformIncidentService>();
 builder.Services.AddHostedService<InvoiceGenerationHostedService>();
 builder.Services.Configure<NotificationOptions>(
     builder.Configuration.GetSection(NotificationOptions.ConfigurationSection));
