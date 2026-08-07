@@ -1349,6 +1349,7 @@ platform.analytics.month.12          дек.
 `analyticsModel.ts` — чистые функции без React:
 
 ```typescript
+import { minorToMajor } from '@/lib/money';
 import type { AnalyticsMonth, AnalyticsOverview } from '@/api/types';
 
 export interface RevenuePoint {
@@ -1365,8 +1366,10 @@ export function toRevenueSeries(
 ): RevenuePoint[] {
   return months.map(month => ({
     label: monthLabel(month.month),
-    recurring: month.recurringMinorUnits / 100,
-    oneOff: month.oneOffMinorUnits / 100
+    // Конвертация только через minorToMajor: своё деление рядом с готовым форматтером
+    // разойдётся с ним молча при первом же изменении точности.
+    recurring: minorToMajor(month.recurringMinorUnits),
+    oneOff: minorToMajor(month.oneOffMinorUnits)
   }));
 }
 
