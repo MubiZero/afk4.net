@@ -20,6 +20,11 @@ public static class InvoiceNumbering
 {
     private const int MaxAttempts = 5;
 
+    /// <summary>Matches PlatformDbContext's <c>entity.HasIndex(invoice => invoice.Number).IsUnique()</c>.
+    /// Scoping the retry to this specific index keeps an unrelated unique-constraint violation on the
+    /// same insert from being misreported as a numbering conflict after burning every retry.</summary>
+    private const string NumberUniqueIndexName = "IX_invoices_Number";
+
     public static Task<int> NextNumberAsync(PlatformDbContext dbContext, CancellationToken cancellationToken) =>
         NextNumberCoreAsync(dbContext, cancellationToken);
 
@@ -42,7 +47,8 @@ public static class InvoiceNumbering
                 await dbContext.SaveChangesAsync(cancellationToken);
                 return;
             }
-            catch (DbUpdateException exception) when (RelationalFailureClassifier.IsUniqueViolation(exception))
+            catch (DbUpdateException exception)
+                when (RelationalFailureClassifier.IsUniqueViolation(exception, NumberUniqueIndexName))
             {
                 if (attempt == MaxAttempts)
                 {
