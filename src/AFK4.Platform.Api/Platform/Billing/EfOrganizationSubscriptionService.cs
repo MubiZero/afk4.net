@@ -79,6 +79,7 @@ public sealed class EfOrganizationSubscriptionService(
 
         var subscription = await EnsureSubscriptionAsync(org, cancellationToken);
         var now = timeProvider.GetUtcNow();
+        InvoiceEntity? prorationInvoice = null;
 
         var newPeriodEnd = request.CurrentPeriodEndUtc ?? subscription.CurrentPeriodEndUtc;
         if (newPeriodEnd <= subscription.CurrentPeriodStartUtc)
@@ -143,11 +144,11 @@ public sealed class EfOrganizationSubscriptionService(
                 now);
             if (proration > 0)
             {
-                dbContext.Invoices.Add(new InvoiceEntity
+                prorationInvoice = new InvoiceEntity
                 {
                     InvoiceId = Guid.NewGuid(),
                     OrganizationId = org.OrganizationId,
-                    Number = await NextInvoiceNumberAsync(cancellationToken),
+                    Number = await InvoiceNumbering.NextNumberAsync(dbContext, cancellationToken),
                     Kind = InvoiceKindNames.Proration,
                     PeriodStartUtc = now,
                     PeriodEndUtc = subscription.CurrentPeriodEndUtc,
@@ -160,7 +161,8 @@ public sealed class EfOrganizationSubscriptionService(
                     Description = $"Proration: {subscription.PlanCode} → {newPlan.PlanCode}",
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now
-                });
+                };
+                dbContext.Invoices.Add(prorationInvoice);
             }
 
             subscription.PlanCode = newPlan.PlanCode;
@@ -244,7 +246,24 @@ public sealed class EfOrganizationSubscriptionService(
 
         subscription.UpdatedAtUtc = now;
         org.UpdatedAtUtc = now;
-        await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (prorationInvoice is not null)
+        {
+            try
+            {
+                await InvoiceNumbering.SaveAsync(dbContext, prorationInvoice, cancellationToken);
+            }
+            catch (InvoiceNumberAllocationException)
+            {
+                return BillingOperationResult<OrganizationSubscriptionDto>.Conflict(
+                    "Could not issue the proration invoice because of a numbering conflict with another concurrent request. Please retry.");
+            }
+        }
+        else
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
         return BillingOperationResult<OrganizationSubscriptionDto>.Success(ToDto(subscription));
     }
 
@@ -332,14 +351,6 @@ public sealed class EfOrganizationSubscriptionService(
         dbContext.OrganizationSubscriptions.Add(subscription);
         await dbContext.SaveChangesAsync(cancellationToken);
         return subscription;
-    }
-
-    private async Task<int> NextInvoiceNumberAsync(CancellationToken cancellationToken)
-    {
-        var max = await dbContext.Invoices
-            .Select(invoice => (int?)invoice.Number)
-            .MaxAsync(cancellationToken);
-        return (max ?? 0) + 1;
     }
 
     internal static long ComputeProration(
