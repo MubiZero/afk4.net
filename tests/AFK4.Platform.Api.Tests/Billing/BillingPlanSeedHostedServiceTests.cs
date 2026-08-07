@@ -74,10 +74,11 @@ public sealed class BillingPlanSeedHostedServiceTests
     // Regression for a review finding: StartAsync used to bail out on AnyAsync() — a staging/prod
     // database that already had the three pre-existing monthly plans (from before yearly plans were
     // introduced) would never gain the three yearly plans, since the catalog was never truly empty.
-    // Design spec §6: "The plan seeder rewrites the three known plan codes; custom plans are left
-    // alone."
+    // It also used to rewrite the three known monthly codes on every restart, which silently reverted
+    // any price/name/limit the platform panel had edited. The panel is authoritative: the seeder must
+    // only add codes that are missing and must never touch a row that already exists (design spec §6).
     [Fact]
-    public async Task StartAsync_CatalogHasOnlyMonthlyPlans_AddsMissingYearlyPlans()
+    public async Task StartAsync_CatalogHasOnlyMonthlyPlans_AddsMissingYearlyPlansAndPreservesExistingEdits()
     {
         var dbName = Guid.NewGuid().ToString("N");
         await using var provider = BuildProvider(dbName);
@@ -88,22 +89,25 @@ public sealed class BillingPlanSeedHostedServiceTests
             db.SubscriptionPlans.AddRange(
                 new SubscriptionPlanEntity
                 {
-                    PlanCode = OrganizationPlanCodeNames.Starter, Name = "Starter (старое)", PriceMinorUnits = 1,
-                    CurrencyCode = "RUB", BillingInterval = BillingIntervalNames.Monthly, MaxBranches = 1,
+                    PlanCode = OrganizationPlanCodeNames.Starter, Name = "Starter (изменён из панели)",
+                    PriceMinorUnits = 350000,
+                    CurrencyCode = "TJS", BillingInterval = BillingIntervalNames.Monthly, MaxBranches = 1,
                     MaxDevicesPerBranch = 1, MaxConcurrentSessions = 1, MaxStaffUsersPerBranch = 1,
-                    IsActive = true, SortOrder = 1, CreatedAtUtc = now, UpdatedAtUtc = now
+                    IsActive = false, SortOrder = 1, CreatedAtUtc = now, UpdatedAtUtc = now
                 },
                 new SubscriptionPlanEntity
                 {
-                    PlanCode = OrganizationPlanCodeNames.Growth, Name = "Growth (старое)", PriceMinorUnits = 1,
-                    CurrencyCode = "RUB", BillingInterval = BillingIntervalNames.Monthly, MaxBranches = 1,
+                    PlanCode = OrganizationPlanCodeNames.Growth, Name = "Growth (изменён из панели)",
+                    PriceMinorUnits = 850000,
+                    CurrencyCode = "TJS", BillingInterval = BillingIntervalNames.Monthly, MaxBranches = 1,
                     MaxDevicesPerBranch = 1, MaxConcurrentSessions = 1, MaxStaffUsersPerBranch = 1,
                     IsActive = true, SortOrder = 2, CreatedAtUtc = now, UpdatedAtUtc = now
                 },
                 new SubscriptionPlanEntity
                 {
-                    PlanCode = OrganizationPlanCodeNames.Scale, Name = "Scale (старое)", PriceMinorUnits = 1,
-                    CurrencyCode = "RUB", BillingInterval = BillingIntervalNames.Monthly, MaxBranches = 1,
+                    PlanCode = OrganizationPlanCodeNames.Scale, Name = "Scale (изменён из панели)",
+                    PriceMinorUnits = 2100000,
+                    CurrencyCode = "TJS", BillingInterval = BillingIntervalNames.Monthly, MaxBranches = 1,
                     MaxDevicesPerBranch = 1, MaxConcurrentSessions = 1, MaxStaffUsersPerBranch = 1,
                     IsActive = true, SortOrder = 3, CreatedAtUtc = now, UpdatedAtUtc = now
                 },
@@ -129,12 +133,15 @@ public sealed class BillingPlanSeedHostedServiceTests
         Assert.True(plans.ContainsKey("growth_yearly"));
         Assert.True(plans.ContainsKey("scale_yearly"));
 
-        // The three known monthly codes are rewritten to the canonical TJS pricing, not left at
-        // their stale RUB values.
-        Assert.Equal("TJS", plans[OrganizationPlanCodeNames.Starter].CurrencyCode);
-        Assert.Equal(290000, plans[OrganizationPlanCodeNames.Starter].PriceMinorUnits);
-        Assert.Equal("TJS", plans[OrganizationPlanCodeNames.Growth].CurrencyCode);
-        Assert.Equal("TJS", plans[OrganizationPlanCodeNames.Scale].CurrencyCode);
+        // The three known monthly codes already existed — the panel's edits (price, name,
+        // IsActive) must survive the seed untouched, not get reverted to the hardcoded defaults.
+        Assert.Equal("Starter (изменён из панели)", plans[OrganizationPlanCodeNames.Starter].Name);
+        Assert.Equal(350000, plans[OrganizationPlanCodeNames.Starter].PriceMinorUnits);
+        Assert.False(plans[OrganizationPlanCodeNames.Starter].IsActive);
+        Assert.Equal("Growth (изменён из панели)", plans[OrganizationPlanCodeNames.Growth].Name);
+        Assert.Equal(850000, plans[OrganizationPlanCodeNames.Growth].PriceMinorUnits);
+        Assert.Equal("Scale (изменён из панели)", plans[OrganizationPlanCodeNames.Scale].Name);
+        Assert.Equal(2100000, plans[OrganizationPlanCodeNames.Scale].PriceMinorUnits);
 
         // A custom, hand-negotiated plan code is not one of the three known codes and must survive
         // untouched.

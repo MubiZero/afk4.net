@@ -168,8 +168,9 @@ Existing data: production is not deployed. On staging, a migration rewrites the
 currency code `RUB` → `TJS` on plans, subscriptions and invoices **without
 converting amounts** — 2 900 rubles becomes 2 900 somoni. This is acceptable for a
 test environment and must be stated in the runbook so nobody reads it as a
-conversion. The plan seeder rewrites the three known plan codes; custom plans are
-left alone.
+conversion. The plan seeder only adds known plan codes that are missing; it never
+touches a code that already exists (custom plans included) — the currency rebase
+for existing rows is the migration's job, not the seeder's.
 
 ## 7. Platform panel
 
