@@ -2610,6 +2610,7 @@ export const en = {
   "platform.analytics.revenue.title": "Revenue by month",
   "platform.analytics.summary.average": "Average revenue per club",
   "platform.analytics.summary.clubs": "{count, plural, one {# paying club} other {# paying clubs}}",
+  "platform.analytics.summary.clubsLabel": "Paying clubs",
   "platform.analytics.summary.mrr": "Monthly recurring revenue",
   "platform.analytics.summary.outstanding": "Outstanding",
   "platform.audit.action": "Action",

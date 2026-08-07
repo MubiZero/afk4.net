@@ -2610,6 +2610,7 @@ export const ru = {
   "platform.analytics.revenue.title": "Выручка по месяцам",
   "platform.analytics.summary.average": "Средний чек на клуб",
   "platform.analytics.summary.clubs": "{count, plural, one {# платящий клуб} few {# платящих клуба} other {# платящих клубов}}",
+  "platform.analytics.summary.clubsLabel": "Платящие клубы",
   "platform.analytics.summary.mrr": "Выручка в месяц",
   "platform.analytics.summary.outstanding": "Не оплачено",
   "platform.audit.action": "Действие",

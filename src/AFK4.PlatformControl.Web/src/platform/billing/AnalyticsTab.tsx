@@ -54,7 +54,7 @@ export function AnalyticsTab({ client }: { client: Pick<AnalyticsApi, 'getOvervi
           value={formatCurrency(minorToMajor(overview.currentMrrMinorUnits), overview.currencyCode)}
         />
         <SummaryTile
-          label={t('platform.analytics.summary.clubs')}
+          label={t('platform.analytics.summary.clubsLabel')}
           value={t('platform.analytics.summary.clubs', { count: overview.currentPayingClubs })}
         />
         <SummaryTile

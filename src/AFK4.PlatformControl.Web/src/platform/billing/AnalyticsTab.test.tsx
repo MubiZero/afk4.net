@@ -64,6 +64,20 @@ describe('AnalyticsTab', () => {
     )).toBeInTheDocument());
   });
 
+  it('renders the paying-clubs tile label as static text, not a raw ICU plural template', async () => {
+    const client = {
+      getOverview: mock().mockResolvedValue(overview({ currentPayingClubs: 12 }))
+    };
+    render(<I18nProvider><AnalyticsTab client={client} /></I18nProvider>);
+
+    // The label calls t() without `count`; if it reused the plural message key,
+    // IntlMessageFormat.format({}) throws and createTranslator's catch falls back to the
+    // raw "{count, plural, ...}" source string instead of a formatted label.
+    const label = await screen.findByText('Платящие клубы');
+    expect(label.textContent).not.toContain('{');
+    expect(label.textContent).not.toContain('plural');
+  });
+
   it('shows the empty-data message when every month is zero', async () => {
     const client = { getOverview: mock().mockResolvedValue(overview()) };
     render(<I18nProvider><AnalyticsTab client={client} /></I18nProvider>);

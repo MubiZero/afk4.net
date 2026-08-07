@@ -2610,6 +2610,7 @@ export const tg = {
   "platform.analytics.revenue.title": "Даромад аз рӯи моҳҳо",
   "platform.analytics.summary.average": "Даромади миёна барои як клуб",
   "platform.analytics.summary.clubs": "{count, plural, other {# клуби пардохткунанда}}",
+  "platform.analytics.summary.clubsLabel": "Клубҳои пардохткунанда",
   "platform.analytics.summary.mrr": "Даромад дар як моҳ",
   "platform.analytics.summary.outstanding": "Пардохтнашуда",
   "platform.audit.action": "Амал",
