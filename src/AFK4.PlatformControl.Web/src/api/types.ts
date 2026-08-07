@@ -440,6 +440,28 @@ export interface DebtRow {
   settledButSuspended: boolean;
 }
 
+/** One month of the analytics window. Mirrors `AnalyticsMonthDto`: year/month are numbers
+ * because the month name depends on the viewer's language, which the server doesn't know. */
+export interface AnalyticsMonth {
+  year: number;
+  month: number;
+  recurringMinorUnits: number;
+  oneOffMinorUnits: number;
+  joined: number;
+  left: number;
+  payingAtMonthEnd: number;
+}
+
+export interface AnalyticsOverview {
+  generatedAtUtc: string;
+  currencyCode: string;
+  months: AnalyticsMonth[];
+  currentMrrMinorUnits: number;
+  currentPayingClubs: number;
+  averageRevenuePerClubMinorUnits: number;
+  outstandingMinorUnits: number;
+}
+
 export interface PlatformBillingMetrics {
   mrrMinorUnits: number;
   currencyCode: string;

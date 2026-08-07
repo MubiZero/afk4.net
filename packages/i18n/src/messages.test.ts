@@ -54,6 +54,12 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.network.branches.kpi.devices',
     'floor.seatDefault',
     'floor.zoneDefault',
+    // Названия месяцев «март» и «май» — то же слово в таджикском и русском (оба заимствовали
+    // григорианские названия месяцев без изменений там, где в русском нет мягкого знака для
+    // усечения); остальные 10 месяцев в platform.analytics.month.* реально отличаются
+    // (январ/феврал/апрел/июн/июл/август/сентябр/октябр/ноябр/декабр — без «ь»).
+    'platform.analytics.month.3',
+    'platform.analytics.month.5',
     'journal.actor.system',
     'journal.col.target',
     // «журнал» — устоявшееся заимствование (как journal.actor.system/journal.col.target выше);

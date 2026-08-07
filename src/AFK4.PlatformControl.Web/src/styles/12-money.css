@@ -66,3 +66,53 @@
   font-size: 13px;
   font-weight: 700;
 }
+
+/* Вкладка «Аналитика»: сводные плитки сверху, графики ниже. */
+.pc-analytics {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pc-analytics-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.pc-analytics-tile {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-card);
+  border: 1px solid var(--border-soft);
+}
+
+.pc-analytics-tile-label {
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.pc-analytics-tile-value {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* Ширина графика ограничена контейнером карточки: recharts ResponsiveContainer сам не
+   ужимается в узком окне без явной ширины родителя. */
+.pc-analytics-chart {
+  width: 100%;
+}
+
+.pc-analytics-empty {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.pc-analytics-footnote {
+  margin: 8px 0 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}

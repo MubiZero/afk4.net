@@ -8,6 +8,7 @@ import { PayableQueue } from './PayableQueue';
 import { SubscriptionsTab } from './SubscriptionsTab';
 import { InvoicesTab } from './InvoicesTab';
 import { PlansTab } from './PlansTab';
+import { AnalyticsTab } from './AnalyticsTab';
 
 export function BillingScreen({ client, tab, onTabChange, canManage, debtAccess }: {
   client: PlatformApiClient;
@@ -29,7 +30,8 @@ export function BillingScreen({ client, tab, onTabChange, canManage, debtAccess 
         items={[
           { value: 'subscriptions', label: t('platform.billing.tab.subscriptions') },
           { value: 'invoices', label: t('platform.billing.tab.invoices') },
-          { value: 'plans', label: t('platform.billing.tab.plans') }
+          { value: 'plans', label: t('platform.billing.tab.plans') },
+          { value: 'analytics', label: t('platform.billing.tab.analytics') }
         ]}
       />
 
@@ -37,6 +39,7 @@ export function BillingScreen({ client, tab, onTabChange, canManage, debtAccess 
         {tab === 'subscriptions' ? <SubscriptionsTab client={client.subscriptions} /> : null}
         {tab === 'invoices' ? <InvoicesTab client={client.invoices} canManage={canManage} /> : null}
         {tab === 'plans' ? <PlansTab client={client.plans} canManage={canManage} /> : null}
+        {tab === 'analytics' ? <AnalyticsTab client={client.analytics} /> : null}
       </div>
     </Page>
   );
