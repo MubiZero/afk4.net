@@ -15,15 +15,30 @@ public sealed class EfDunningRunner(
 
     public async Task<int> RunAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
-        var unpaid = await dbContext.Invoices
-            .Where(invoice => invoice.Status == InvoiceStatusNames.Issued || invoice.Status == InvoiceStatusNames.Overdue)
+        // Credit notes never age into "overdue" and are never chased — they are the thing that
+        // settles debt, not a debt of their own (design spec §3, §5).
+        var ladderInvoices = await dbContext.Invoices
+            .Where(invoice => (invoice.Status == InvoiceStatusNames.Issued || invoice.Status == InvoiceStatusNames.Overdue)
+                && invoice.Kind != InvoiceKindNames.Credit)
             .ToListAsync(cancellationToken);
-        if (unpaid.Count == 0)
+        if (ladderInvoices.Count == 0)
         {
             return 0;
         }
 
-        var organizationIds = unpaid.Select(invoice => invoice.OrganizationId).Distinct().ToList();
+        var organizationIds = ladderInvoices.Select(invoice => invoice.OrganizationId).Distinct().ToList();
+
+        // Credit notes are excluded from the ladder above but still offset debt, so the balance used
+        // to gate letters and to sync subscription status must include them — otherwise a fully
+        // credited club keeps receiving demand letters and stays past_due forever.
+        var balanceInvoices = await dbContext.Invoices
+            .Where(invoice => organizationIds.Contains(invoice.OrganizationId)
+                && (invoice.Status == InvoiceStatusNames.Issued || invoice.Status == InvoiceStatusNames.Overdue))
+            .ToListAsync(cancellationToken);
+        var balanceInvoicesByOrganization = balanceInvoices
+            .GroupBy(invoice => invoice.OrganizationId)
+            .ToDictionary(group => group.Key, group => (IReadOnlyCollection<InvoiceEntity>)group.ToList());
+
         var graceByOrganization = await dbContext.OrganizationSubscriptions
             .Where(subscription => organizationIds.Contains(subscription.OrganizationId))
             .ToDictionaryAsync(
@@ -40,7 +55,7 @@ public sealed class EfDunningRunner(
         // crash right after would strand those invoices exactly like the single-invoice race this
         // was meant to close. Saving right after each invoice's own notifier call keeps that flush
         // scoped to the invoice it actually belongs to.
-        foreach (var invoice in unpaid)
+        foreach (var invoice in ladderInvoices)
         {
             // <= matches the stage-1 rung boundary (offset 0 fires at now >= DueAtUtc) so the flip
             // and the first dunning notice land on the same tick instead of racing by one run.
@@ -75,6 +90,22 @@ public sealed class EfDunningRunner(
             var stage = DueStage(invoice.DueAtUtc, now);
             if (stage > invoice.DunningStage)
             {
+                // A credit note can zero out the organization's balance without touching this
+                // invoice's own status: the club stopped owing money, so the ladder must stop
+                // chasing it even though this specific invoice is still individually unpaid past
+                // its due date. Stage is deliberately left unadvanced (like under grace) so that if
+                // the balance swings back into arrears, the next tick recomputes the age-appropriate
+                // stage instead of silently having "used up" a rung nobody was told about.
+                var organizationBalance = BillingBalance.Compute(
+                    balanceInvoicesByOrganization.TryGetValue(invoice.OrganizationId, out var organizationInvoices)
+                        ? organizationInvoices
+                        : []);
+                if (!organizationBalance.InArrears)
+                {
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                    continue;
+                }
+
                 invoice.DunningStage = stage;
                 invoice.LastDunningAtUtc = now;
                 invoice.UpdatedAtUtc = now;
@@ -87,7 +118,7 @@ public sealed class EfDunningRunner(
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        await SyncSubscriptionStatusesAsync(organizationIds, unpaid, graceByOrganization, now, cancellationToken);
+        await SyncSubscriptionStatusesAsync(organizationIds, balanceInvoices, graceByOrganization, now, cancellationToken);
 
         return notified;
     }

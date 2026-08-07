@@ -335,8 +335,9 @@ public sealed class EfDunningRunnerTests
     {
         await using var db = NewContext();
         var invoice = await SeedAsync(db);
-        var runner = NewRunner(db, new RecordingInvoiceNotifier());
-        await runner.RunAsync(Due.AddDays(1), CancellationToken.None);
+        var notifier = new RecordingInvoiceNotifier();
+        var runner = NewRunner(db, notifier);
+        await runner.RunAsync(Due.AddDays(1), CancellationToken.None); // real arrears: legitimate stage-1 letter
 
         db.Invoices.Add(new InvoiceEntity
         {
@@ -358,9 +359,58 @@ public sealed class EfDunningRunnerTests
         });
         await db.SaveChangesAsync();
 
-        await runner.RunAsync(Due.AddDays(2), CancellationToken.None);
+        // Crosses the stage-2 threshold (+3 days) so the ladder would demand a second letter for
+        // debt that the credit note already zeroed out, were it not for the balance gate.
+        await runner.RunAsync(Due.AddDays(4), CancellationToken.None);
 
         Assert.Equal(SubscriptionStatusNames.Active, (await db.OrganizationSubscriptions.SingleAsync()).Status);
+
+        // Regression for a review finding: this test used to pass a RecordingInvoiceNotifier and
+        // never inspect it, so it could not catch the dunning ladder still demanding money on a
+        // credited, settled balance. Only the legitimate stage-1 letter (sent before the credit note
+        // existed) may have gone out — nothing after the balance settled.
+        var sent = Assert.Single(notifier.Overdue);
+        Assert.Equal(1, sent.Stage);
+        var originalInvoice = await db.Invoices.SingleAsync(candidate => candidate.InvoiceId == invoice.InvoiceId);
+        Assert.Equal(1, originalInvoice.DunningStage);
+    }
+
+    [Fact]
+    public async Task RunAsync_CreditNoteInvoice_IsNeverDunned()
+    {
+        await using var db = NewContext();
+        var invoice = await SeedAsync(db, status: InvoiceStatusNames.Void); // keep the seeded invoice out of the picture
+        var creditNote = new InvoiceEntity
+        {
+            InvoiceId = Guid.NewGuid(),
+            OrganizationId = invoice.OrganizationId,
+            Number = 2,
+            Kind = InvoiceKindNames.Credit,
+            PeriodStartUtc = Due,
+            PeriodEndUtc = Due,
+            IssuedAtUtc = Due.AddDays(-20),
+            DueAtUtc = Due.AddDays(-20), // long past "due" if it were treated like a regular invoice
+            AmountMinorUnits = -290000,
+            GrossAmountMinorUnits = -290000,
+            CurrencyCode = "TJS",
+            Status = InvoiceStatusNames.Issued,
+            Description = "Компенсация простоя",
+            CreatedAtUtc = Due.AddDays(-20),
+            UpdatedAtUtc = Due.AddDays(-20)
+        };
+        db.Invoices.Add(creditNote);
+        await db.SaveChangesAsync();
+
+        var notifier = new RecordingInvoiceNotifier();
+        var runner = NewRunner(db, notifier);
+
+        await runner.RunAsync(Due.AddDays(10), CancellationToken.None);
+
+        Assert.Empty(notifier.Overdue);
+        Assert.Empty(notifier.DueSoon);
+        var reloaded = await db.Invoices.SingleAsync(candidate => candidate.InvoiceId == creditNote.InvoiceId);
+        Assert.Equal(InvoiceStatusNames.Issued, reloaded.Status); // never flips to overdue
+        Assert.Equal(0, reloaded.DunningStage);
     }
 
     [Fact]
