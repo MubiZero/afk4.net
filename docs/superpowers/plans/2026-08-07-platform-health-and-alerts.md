@@ -1108,6 +1108,9 @@ public sealed class PlatformAlertNotifier(
 
     private async Task SendAsync(PlatformIncidentEntity incident, bool isResolved, CancellationToken cancellationToken)
     {
+        // ВАЖНО: почта и SMS доставляются НЕЗАВИСИМО, и отказ одному получателю не отменяет
+        // остальных. SMS — резервный канал на случай проблем с доставкой писем; если она уходит
+        // только после успешной рассылки почты, она бесполезна ровно в своём сценарии.
         var startedAt = timeProvider.GetUtcNow();
         var delivered = 0;
         string? error = null;
