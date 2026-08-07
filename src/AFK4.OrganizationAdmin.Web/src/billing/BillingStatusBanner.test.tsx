@@ -28,6 +28,17 @@ it('показывает номер счёта, сумму и дни проср�
   expect(screen.getByText(/5 дней/)).toBeDefined();
 });
 
+it('не группирует разряды большого номера счёта', () => {
+  render(
+    <I18nProvider>
+      <BillingStatusBanner status={status({ oldestOverdueInvoiceNumber: 12345 })} />
+    </I18nProvider>
+  );
+
+  expect(screen.getByText(/№12345/)).toBeDefined();
+  expect(screen.queryByText(/№12 345/)).toBeNull();
+});
+
 it('при действующей отсрочке показывает спокойный текст с датой вместо тревоги', () => {
   render(
     <I18nProvider>

@@ -33,7 +33,9 @@ export function BillingStatusBanner({ status }: { status: OrganizationBillingSta
         {inGrace
           ? t('op.billing.banner.grace', { date: formatDate(status.graceUntilUtc!) })
           : t('op.billing.banner.overdue', {
-              number: status.oldestOverdueInvoiceNumber ?? '',
+              // String, not number: a numeric arg gets locale digit-grouping from
+              // IntlMessageFormat, so invoice #1234 would render "Счёт №1 234".
+              number: status.oldestOverdueInvoiceNumber !== null ? String(status.oldestOverdueInvoiceNumber) : '',
               days: status.daysOverdue,
               amount: formatMinorUnits(status.outstandingMinorUnits, status.currencyCode)
             })}
