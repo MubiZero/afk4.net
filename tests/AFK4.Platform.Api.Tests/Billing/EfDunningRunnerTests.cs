@@ -302,6 +302,82 @@ public sealed class EfDunningRunnerTests
         Assert.Equal(0, unsentInvoice.DunningStage);
     }
 
+    [Fact]
+    public async Task RunAsync_ArrearsWithoutGrace_MovesSubscriptionToPastDue()
+    {
+        await using var db = NewContext();
+        await SeedAsync(db);
+        var runner = NewRunner(db, new RecordingInvoiceNotifier());
+
+        await runner.RunAsync(Due.AddDays(1), CancellationToken.None);
+
+        var subscription = await db.OrganizationSubscriptions.SingleAsync();
+        Assert.Equal(SubscriptionStatusNames.PastDue, subscription.Status);
+        var organization = await db.Organizations.SingleAsync();
+        Assert.Equal(SubscriptionStatusNames.PastDue, organization.SubscriptionStatus);
+        Assert.Equal(OrganizationStatusNames.Active, organization.Status);
+    }
+
+    [Fact]
+    public async Task RunAsync_ArrearsUnderGrace_LeavesSubscriptionActive()
+    {
+        await using var db = NewContext();
+        await SeedAsync(db, graceUntil: Due.AddDays(30));
+        var runner = NewRunner(db, new RecordingInvoiceNotifier());
+
+        await runner.RunAsync(Due.AddDays(1), CancellationToken.None);
+
+        Assert.Equal(SubscriptionStatusNames.Active, (await db.OrganizationSubscriptions.SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task RunAsync_CreditNoteCoversDebt_ReturnsSubscriptionToActive()
+    {
+        await using var db = NewContext();
+        var invoice = await SeedAsync(db);
+        var runner = NewRunner(db, new RecordingInvoiceNotifier());
+        await runner.RunAsync(Due.AddDays(1), CancellationToken.None);
+
+        db.Invoices.Add(new InvoiceEntity
+        {
+            InvoiceId = Guid.NewGuid(),
+            OrganizationId = invoice.OrganizationId,
+            Number = 2,
+            Kind = InvoiceKindNames.Credit,
+            PeriodStartUtc = Due,
+            PeriodEndUtc = Due,
+            IssuedAtUtc = Due,
+            DueAtUtc = Due,
+            AmountMinorUnits = -290000,
+            GrossAmountMinorUnits = -290000,
+            CurrencyCode = "TJS",
+            Status = InvoiceStatusNames.Issued,
+            Description = "Компенсация простоя",
+            CreatedAtUtc = Due,
+            UpdatedAtUtc = Due
+        });
+        await db.SaveChangesAsync();
+
+        await runner.RunAsync(Due.AddDays(2), CancellationToken.None);
+
+        Assert.Equal(SubscriptionStatusNames.Active, (await db.OrganizationSubscriptions.SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task RunAsync_TrialSubscription_IsNotMovedToPastDue()
+    {
+        await using var db = NewContext();
+        await SeedAsync(db);
+        var subscription = await db.OrganizationSubscriptions.SingleAsync();
+        subscription.Status = SubscriptionStatusNames.Trial;
+        await db.SaveChangesAsync();
+        var runner = NewRunner(db, new RecordingInvoiceNotifier());
+
+        await runner.RunAsync(Due.AddDays(1), CancellationToken.None);
+
+        Assert.Equal(SubscriptionStatusNames.Trial, (await db.OrganizationSubscriptions.SingleAsync()).Status);
+    }
+
     private sealed class ThrowsOnSecondCallInvoiceNotifier : IInvoiceNotifier
     {
         private int callCount;

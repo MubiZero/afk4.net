@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Billing;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Platform.Billing;
@@ -107,8 +108,45 @@ public sealed class EfInvoiceService(
         invoice.PaidAtUtc = now;
         invoice.UpdatedAtUtc = now;
         await dbContext.SaveChangesAsync(cancellationToken);
+        await RestoreSubscriptionIfSettledAsync(invoice.OrganizationId, now, cancellationToken);
         await invoiceNotifier.NotifyPaidAsync(invoice, cancellationToken);
         return BillingOperationResult<InvoiceDto>.Success(ToDto(invoice));
+    }
+
+    /// <summary>Payment is a restoration, so it applies immediately rather than waiting for the next
+    /// scheduler tick — the club should not stay flagged after it has paid.</summary>
+    private async Task RestoreSubscriptionIfSettledAsync(
+        Guid organizationId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var subscription = await dbContext.OrganizationSubscriptions
+            .SingleOrDefaultAsync(candidate => candidate.OrganizationId == organizationId, cancellationToken);
+        if (subscription is null || subscription.Status != SubscriptionStatusNames.PastDue)
+        {
+            return;
+        }
+
+        var unpaid = await dbContext.Invoices
+            .Where(candidate => candidate.OrganizationId == organizationId
+                && (candidate.Status == InvoiceStatusNames.Issued || candidate.Status == InvoiceStatusNames.Overdue))
+            .ToListAsync(cancellationToken);
+        if (BillingBalance.Compute(unpaid).InArrears)
+        {
+            return;
+        }
+
+        subscription.Status = SubscriptionStatusNames.Active;
+        subscription.UpdatedAtUtc = now;
+        var organization = await dbContext.Organizations
+            .SingleOrDefaultAsync(candidate => candidate.OrganizationId == organizationId, cancellationToken);
+        if (organization is not null)
+        {
+            organization.SubscriptionStatus = SubscriptionStatusNames.Active;
+            organization.UpdatedAtUtc = now;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<BillingOperationResult<InvoiceDto>> VoidAsync(

@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Billing;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -86,7 +87,72 @@ public sealed class EfDunningRunner(
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
+        await SyncSubscriptionStatusesAsync(organizationIds, unpaid, graceByOrganization, now, cancellationToken);
+
         return notified;
+    }
+
+    /// <summary>Keeps "subscription is past_due" equivalent to "the club owes overdue money and has no
+    /// live grace". Organization status is never touched here: suspension stays a human decision.</summary>
+    private async Task SyncSubscriptionStatusesAsync(
+        IReadOnlyCollection<Guid> organizationIds,
+        IReadOnlyCollection<InvoiceEntity> unpaid,
+        IReadOnlyDictionary<Guid, DateTimeOffset?> graceByOrganization,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var subscriptions = await dbContext.OrganizationSubscriptions
+            .Where(subscription => organizationIds.Contains(subscription.OrganizationId))
+            .ToListAsync(cancellationToken);
+        var organizations = await dbContext.Organizations
+            .Where(organization => organizationIds.Contains(organization.OrganizationId))
+            .ToDictionaryAsync(organization => organization.OrganizationId, cancellationToken);
+
+        var changed = false;
+        foreach (var subscription in subscriptions)
+        {
+            if (subscription.Status is not (SubscriptionStatusNames.Active or SubscriptionStatusNames.PastDue))
+            {
+                continue; // trial and cancelled subscriptions are not part of the dunning cycle
+            }
+
+            var balance = BillingBalance.Compute(
+                unpaid.Where(invoice => invoice.OrganizationId == subscription.OrganizationId).ToList());
+            var underGrace = graceByOrganization.TryGetValue(subscription.OrganizationId, out var graceUntil)
+                && graceUntil is not null
+                && graceUntil > now;
+
+            var target = balance.InArrears && !underGrace
+                ? SubscriptionStatusNames.PastDue
+                : SubscriptionStatusNames.Active;
+
+            // Grace suppresses new transitions but does not settle debt: a subscription that was
+            // already past_due when grace was granted stays past_due until the money arrives.
+            if (underGrace && subscription.Status == SubscriptionStatusNames.PastDue && balance.InArrears)
+            {
+                continue;
+            }
+
+            if (subscription.Status == target)
+            {
+                continue;
+            }
+
+            subscription.Status = target;
+            subscription.UpdatedAtUtc = now;
+            if (organizations.TryGetValue(subscription.OrganizationId, out var organization))
+            {
+                organization.SubscriptionStatus = target;
+                organization.UpdatedAtUtc = now;
+            }
+
+            changed = true;
+        }
+
+        if (changed)
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
     }
 
     /// <summary>Highest ladder rung the invoice's age has reached; 0 when it is not overdue yet.

@@ -11,9 +11,11 @@ public sealed class EfBillingMetricsService(PlatformDbContext dbContext) : IBill
 
     public async Task<PlatformBillingMetricsDto> GetAsync(CancellationToken cancellationToken)
     {
-        // MRR counts active subscriptions only (locked plan definition); trial/past_due/cancelled are excluded.
+        // MRR counts active and past_due subscriptions: a club chasing payment is still a paying
+        // customer until dunning is settled or the subscription is cancelled. trial and cancelled
+        // are excluded.
         var activeSubscriptions = await dbContext.OrganizationSubscriptions.AsNoTracking()
-            .Where(s => s.Status == SubscriptionStatusNames.Active)
+            .Where(s => s.Status == SubscriptionStatusNames.Active || s.Status == SubscriptionStatusNames.PastDue)
             .Select(s => new { s.AmountMinorUnits, s.BillingInterval, s.CurrencyCode })
             .ToListAsync(cancellationToken);
 

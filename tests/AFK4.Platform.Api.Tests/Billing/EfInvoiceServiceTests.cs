@@ -228,4 +228,63 @@ public sealed class EfInvoiceServiceTests
 
         Assert.Equal(BillingOperationStatus.NotFound, result.Status);
     }
+
+    private static async Task<InvoiceEntity> AddOverdueInvoiceAsync(PlatformDbContext db, Guid orgId, int number)
+    {
+        var invoice = new InvoiceEntity
+        {
+            InvoiceId = Guid.NewGuid(),
+            OrganizationId = orgId,
+            Number = number,
+            Kind = InvoiceKindNames.Subscription,
+            PeriodStartUtc = Now.AddMonths(-1),
+            PeriodEndUtc = Now,
+            IssuedAtUtc = Now.AddDays(-10),
+            DueAtUtc = Now.AddDays(-3),
+            AmountMinorUnits = 290000,
+            GrossAmountMinorUnits = 290000,
+            CurrencyCode = "TJS",
+            Status = InvoiceStatusNames.Overdue,
+            Description = "d",
+            CreatedAtUtc = Now.AddDays(-10),
+            UpdatedAtUtc = Now.AddDays(-10)
+        };
+        db.Invoices.Add(invoice);
+
+        var subscription = await db.OrganizationSubscriptions.SingleAsync();
+        subscription.Status = SubscriptionStatusNames.PastDue;
+        var organization = await db.Organizations.SingleAsync();
+        organization.SubscriptionStatus = SubscriptionStatusNames.PastDue;
+        await db.SaveChangesAsync();
+        return invoice;
+    }
+
+    [Fact]
+    public async Task MarkPaidAsync_LastOverdueInvoicePaid_ReturnsSubscriptionToActive()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
+        var invoice = await AddOverdueInvoiceAsync(db, orgId, number: 1);
+        var service = NewService(db, new FixedTimeProvider(Now));
+
+        var result = await service.MarkPaidAsync(invoice.InvoiceId, new MarkInvoicePaidRequest(Reference: "cash"), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(SubscriptionStatusNames.Active, (await db.OrganizationSubscriptions.SingleAsync()).Status);
+        Assert.Equal(SubscriptionStatusNames.Active, (await db.Organizations.SingleAsync()).SubscriptionStatus);
+    }
+
+    [Fact]
+    public async Task MarkPaidAsync_AnotherOverdueInvoiceRemains_KeepsPastDue()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
+        var first = await AddOverdueInvoiceAsync(db, orgId, number: 1);
+        await AddOverdueInvoiceAsync(db, orgId, number: 2);
+        var service = NewService(db, new FixedTimeProvider(Now));
+
+        await service.MarkPaidAsync(first.InvoiceId, new MarkInvoicePaidRequest(Reference: "cash"), CancellationToken.None);
+
+        Assert.Equal(SubscriptionStatusNames.PastDue, (await db.OrganizationSubscriptions.SingleAsync()).Status);
+    }
 }
