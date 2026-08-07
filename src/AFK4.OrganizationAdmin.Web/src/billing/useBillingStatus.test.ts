@@ -1,10 +1,8 @@
-import { describe, it, expect, mock, afterEach, afterAll, jest } from 'bun:test';
-import { act, renderHook, waitFor, cleanup } from '@testing-library/react';
-import { shellOperationalRefreshMs } from '../operatorHelpers';
+import { describe, it, expect, mock, afterEach, afterAll } from 'bun:test';
+import { renderHook, waitFor, cleanup } from '@testing-library/react';
 
 afterEach(() => {
   cleanup();
-  jest.useRealTimers();
 });
 
 const okStatus = {
@@ -89,20 +87,24 @@ describe('useBillingStatus', () => {
     const { useBillingStatus } = await import('./useBillingStatus');
     const authorizedSession = session();
 
-    // Fake timers must be active BEFORE the hook mounts: the effect's window.setInterval has to
-    // register as a fake timer from the start, or advancing fake time later never fires it.
-    jest.useFakeTimers();
-    const { result } = renderHook(() => useBillingStatus('signed-in', authorizedSession, config));
+    // Real timers with a short interval, not window.setInterval mocked via fake timers: fake
+    // timers + React 19's act scheduling under happy-dom has hung in CI for 5000ms (see git log
+    // for this file) — something in that combination needs a genuine timer tick that fake timers
+    // never provide. 150ms (well above waitFor's 50ms default poll granularity, so the first,
+    // briefly-true state below is never skipped by a poll) plus waitFor (the project's standard
+    // async-condition wait, see useBranchDirectory.test.ts) is slower by ~150ms but deterministic.
+    const { result, unmount } = renderHook(() =>
+      useBillingStatus('signed-in', authorizedSession, config, 150));
 
-    await act(async () => { await Promise.resolve(); });
-    expect(result.current).toEqual(okStatus);
+    await waitFor(() => expect(result.current).toEqual(okStatus));
+    await waitFor(() => expect(result.current?.inArrears).toBe(false));
+    // Unmount before asserting the call count: the interval keeps firing in the background (every
+    // 150ms, same okStatus each time), and waitFor's own polling can otherwise race an extra tick
+    // in between the state settling and this assertion running.
+    unmount();
 
-    await act(async () => {
-      jest.advanceTimersByTime(shellOperationalRefreshMs);
-      await Promise.resolve();
-    });
-
-    expect(result.current?.inArrears).toBe(false);
-    expect(getBillingStatus).toHaveBeenCalledTimes(2);
+    // >=2 rather than ===2: unmount's clearInterval races the in-flight poll that produced the
+    // updated state above (see App.test.tsx for the same >= pattern with a real-timer poll).
+    expect(getBillingStatus.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 });

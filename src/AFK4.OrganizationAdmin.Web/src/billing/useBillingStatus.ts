@@ -19,7 +19,11 @@ import { createAuthenticatedOperatorClients, shellOperationalRefreshMs } from '.
 export function useBillingStatus(
   authStatus: AuthStatus,
   authSession: OperatorAuthSession | null,
-  config: OperatorConfig
+  config: OperatorConfig,
+  // Overridable only for tests — real timers with a small interval beat mocking window.setInterval
+  // under fake timers, which has repeatedly hung in CI (see useBillingStatus.test.ts). Production
+  // always gets the default, since App.tsx never passes this argument.
+  refreshMs: number = shellOperationalRefreshMs
 ): OrganizationBillingStatusDto | null {
   const [status, setStatus] = useState<OrganizationBillingStatusDto | null>(null);
 
@@ -45,14 +49,14 @@ export function useBillingStatus(
     };
 
     loadStatus();
-    const intervalId = window.setInterval(loadStatus, shellOperationalRefreshMs);
+    const intervalId = window.setInterval(loadStatus, refreshMs);
 
     return () => {
       disposed = true;
       window.clearInterval(intervalId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authStatus, authSession, config.platformBaseUrl]);
+  }, [authStatus, authSession, config.platformBaseUrl, refreshMs]);
 
   return status;
 }
