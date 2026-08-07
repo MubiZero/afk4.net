@@ -105,7 +105,18 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
       onSignOut={onSignOut}
     >
       <Suspense fallback={<LoadingCards count={3} />}>{route.kind === 'overview' ? <ClubsScreen client={client} view={route.view} onViewChange={view => navigate({ kind: 'overview', view })} onOpenOrganization={id => openOrganization(id)} />
-        : route.kind === 'billing' ? <BillingScreen client={client} tab={route.tab} onTabChange={tab => navigate({ ...route, tab })} canManage={can(session, 'billing.manage')} />
+        : route.kind === 'billing' ? <BillingScreen
+            client={client}
+            tab={route.tab}
+            onTabChange={tab => navigate({ ...route, tab })}
+            canManage={can(session, 'billing.manage')}
+            debtAccess={{
+              canMarkPaid: can(session, 'billing.invoices.manage'),
+              canGrantGrace: can(session, 'billing.subscriptions.manage'),
+              canToggleStatus: can(session, 'organizations.status.manage'),
+              canAddNote: can(session, 'organizations.support_notes.manage')
+            }}
+          />
         : route.kind === 'updates' ? <UpdatesScreen client={client.updates} organizationsClient={client.organizations} />
         : route.kind === 'audit' ? <AuditScreen client={client.audit} filters={route} onFiltersChange={filters => navigate({ kind: 'audit', ...filters })} />
         : route.kind === 'organizationNew' ? <NewOrganizationScreen client={client.organizations} onCreated={(response: CreateOrganizationResponse) => openOrganization(response.organization.organizationId, response.organizationOwnerInvite)} onCancel={() => navigate({ kind: 'overview', view: 'now' })} />

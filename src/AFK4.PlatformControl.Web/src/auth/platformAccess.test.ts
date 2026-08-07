@@ -31,4 +31,28 @@ describe('platformAccess', () => {
     expect(can(session(['platform.updates.view']), 'updates.manage')).toBe(false);
     expect(can(session(['platform.updates.rollouts.manage']), 'updates.manage')).toBe(true);
   });
+
+  // Раздел «Задолженность» (DebtSection) вызывает четыре разных бэкенд-права под четырьмя
+  // разными кнопками — эти капабилити не должны совпадать с более широкими группами
+  // (organizations.manage / billing.manage / support.manage), иначе право на одно действие
+  // покажет активной кнопку для другого.
+  it('scopes organizations.status.manage to exactly the status-update permission', () => {
+    expect(can(session(['platform.organizations.status.update']), 'organizations.status.manage')).toBe(true);
+    expect(can(session(['platform.organizations.create']), 'organizations.status.manage')).toBe(false);
+  });
+
+  it('scopes organizations.support_notes.manage to exactly the support-notes permission', () => {
+    expect(can(session(['platform.organizations.support_notes.manage']), 'organizations.support_notes.manage')).toBe(true);
+    expect(can(session(['platform.support.access']), 'organizations.support_notes.manage')).toBe(false);
+  });
+
+  it('scopes billing.invoices.manage to exactly the invoices permission', () => {
+    expect(can(session(['platform.billing.invoices.manage']), 'billing.invoices.manage')).toBe(true);
+    expect(can(session(['platform.billing.plans.manage']), 'billing.invoices.manage')).toBe(false);
+  });
+
+  it('scopes billing.subscriptions.manage to exactly the subscriptions permission', () => {
+    expect(can(session(['platform.billing.subscriptions.manage']), 'billing.subscriptions.manage')).toBe(true);
+    expect(can(session(['platform.billing.invoices.manage']), 'billing.subscriptions.manage')).toBe(false);
+  });
 });

@@ -54,3 +54,15 @@
   font-size: 14px;
   font-weight: 700;
 }
+
+.pc-debt-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pc-debt-summary-amount {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}

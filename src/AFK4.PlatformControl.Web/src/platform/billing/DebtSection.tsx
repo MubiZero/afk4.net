@@ -27,11 +27,25 @@ export interface DebtSectionClients {
 
 type Action = { kind: 'markPaid' | 'toggleStatus' | 'note'; row: DebtRow };
 
+// Четыре действия строки проверяются бэкендом четырьмя РАЗНЫМИ правами (см. platformAccess.ts):
+// «Отметить оплаченным» — platform.billing.invoices.manage, «Отсрочка» —
+// platform.billing.subscriptions.manage, «Приостановить»/«Активировать» —
+// platform.organizations.status.update, «Заметка» — platform.organizations.support_notes.manage.
+// Один общий булев здесь показывал бы кнопку админу, у которого есть только одно из четырёх
+// прав, и он получал бы 403 на остальных трёх — тот же паттерн разведения флагов, что уже
+// применён в ClientPassport.tsx.
+export interface DebtSectionAccess {
+  canMarkPaid: boolean;
+  canGrantGrace: boolean;
+  canToggleStatus: boolean;
+  canAddNote: boolean;
+}
+
 // Раздел «Задолженность» — первый блок экрана «Деньги», выше очереди неоплаченных счетов.
 // Очередь отвечает на «какие счета не оплачены», этот раздел — на более крупный вопрос
 // «какие клубы вообще требуют решения», включая тех, кто уже расплатился, но остался
 // отключён: приостановку никто не снимает автоматически.
-export function DebtSection({ client, canManage }: { client: DebtSectionClients; canManage: boolean }) {
+export function DebtSection({ client, access }: { client: DebtSectionClients; access: DebtSectionAccess }) {
   const { t, formatCurrency, formatDate } = useI18n();
   const { toast } = useToast();
   const state = useDebt(client.debt);
@@ -69,6 +83,7 @@ export function DebtSection({ client, canManage }: { client: DebtSectionClients;
 
   const rows = sortDebtRows(state.data);
   const totals = debtTotals(rows);
+  const canManageAny = access.canMarkPaid || access.canGrantGrace || access.canToggleStatus || access.canAddNote;
 
   const nextStatus = action?.kind === 'toggleStatus' ? (action.row.organizationStatus === 'active' ? 'suspended' : 'active') : null;
 
@@ -77,13 +92,21 @@ export function DebtSection({ client, canManage }: { client: DebtSectionClients;
       <CardHeader>
         <div>
           <CardTitle>{t('platform.debt.title')}</CardTitle>
-          <CardDescription>
-            {rows.length === 0
-              ? t('platform.debt.empty')
-              : totals.map(total => formatCurrency(minorToMajor(total.amountMinorUnits), total.currencyCode)).join(' · ')}
-          </CardDescription>
+          {/* Постоянная подпись раздела: строка totals пуста, когда в очереди только клубы,
+              которые уже расплатились, но остались отключены (нечего суммировать), а
+              «platform.debt.empty» подходит только пустой очереди целиком. */}
+          <CardDescription>{rows.length === 0 ? t('platform.debt.empty') : t('platform.debt.subtitle')}</CardDescription>
         </div>
-        {rows.length > 0 ? <Badge variant="warning">{t('platform.debt.count', { count: rows.length })}</Badge> : null}
+        {rows.length > 0 ? (
+          <div className="pc-debt-summary">
+            <Badge variant="warning">{t('platform.debt.count', { count: rows.length })}</Badge>
+            {totals.length > 0 ? (
+              <span className="pc-debt-summary-amount ui-money">
+                {totals.map(total => formatCurrency(minorToMajor(total.amountMinorUnits), total.currencyCode)).join(' · ')}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </CardHeader>
 
       {rows.length > 0 ? (
@@ -107,33 +130,40 @@ export function DebtSection({ client, canManage }: { client: DebtSectionClients;
                 >
                   {t(dunningStageLabelKey(row.dunningStage))}
                 </Badge>
-                <span className="pc-queue-amount ui-money">
-                  {formatCurrency(minorToMajor(row.outstandingMinorUnits), row.currencyCode)}
-                </span>
-                {canManage ? (
+                {/* Погашенный долг у отключённого клуба — сумма к оплате 0, показывать «0 с.» нечего. */}
+                {row.outstandingMinorUnits > 0 ? (
+                  <span className="pc-queue-amount ui-money">
+                    {formatCurrency(minorToMajor(row.outstandingMinorUnits), row.currencyCode)}
+                  </span>
+                ) : null}
+                {canManageAny ? (
                   <span className="pc-cell-actions">
-                    {row.oldestOverdueInvoiceId !== null ? (
+                    {access.canMarkPaid && row.oldestOverdueInvoiceId !== null ? (
                       <Button size="sm" onClick={() => setAction({ kind: 'markPaid', row })}>
-                        {t('platform.debt.action.markPaid')}
+                        {t('platform.billing.action.markPaid')}
                       </Button>
                     ) : null}
-                    {!row.settledButSuspended ? (
+                    {access.canGrantGrace && !row.settledButSuspended ? (
                       <Button variant="outline" size="sm" onClick={() => setGraceRow(row)}>
                         {t('platform.debt.action.grace')}
                       </Button>
                     ) : null}
-                    <Button
-                      variant={row.organizationStatus === 'active' ? 'destructive' : 'default'}
-                      size="sm"
-                      onClick={() => setAction({ kind: 'toggleStatus', row })}
-                    >
-                      {row.organizationStatus === 'active'
-                        ? t('platform.organization.passport.action.suspend')
-                        : t('platform.organization.passport.action.activate')}
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={() => setAction({ kind: 'note', row })}>
-                      {t('platform.debt.action.note')}
-                    </Button>
+                    {access.canToggleStatus ? (
+                      <Button
+                        variant={row.organizationStatus === 'active' ? 'destructive' : 'default'}
+                        size="sm"
+                        onClick={() => setAction({ kind: 'toggleStatus', row })}
+                      >
+                        {row.organizationStatus === 'active'
+                          ? t('platform.organization.passport.action.suspend')
+                          : t('platform.organization.passport.action.activate')}
+                      </Button>
+                    ) : null}
+                    {access.canAddNote ? (
+                      <Button variant="outline" size="sm" onClick={() => setAction({ kind: 'note', row })}>
+                        {t('platform.debt.action.note')}
+                      </Button>
+                    ) : null}
                   </span>
                 ) : null}
               </li>
