@@ -78,7 +78,16 @@ public sealed class EfInvoiceService(
                 "An invoice already exists for the current period.");
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await InvoiceNumbering.SaveAsync(dbContext, invoice, cancellationToken);
+        }
+        catch (InvoiceNumberAllocationException)
+        {
+            return BillingOperationResult<InvoiceDto>.Conflict(
+                "Could not issue the invoice because of a numbering conflict with another concurrent request. Please retry.");
+        }
+
         await invoiceNotifier.NotifyIssuedAsync(invoice, cancellationToken);
         return BillingOperationResult<InvoiceDto>.Success(ToDto(invoice));
     }
@@ -133,8 +142,7 @@ public sealed class EfInvoiceService(
         {
             InvoiceId = Guid.NewGuid(),
             OrganizationId = organizationId,
-            Number = ((await dbContext.Invoices.Select(candidate => (int?)candidate.Number)
-                .MaxAsync(cancellationToken)) ?? 0) + 1,
+            Number = await InvoiceNumbering.NextNumberAsync(dbContext, cancellationToken),
             Kind = kind,
             PeriodStartUtc = now,
             PeriodEndUtc = now,
@@ -150,7 +158,15 @@ public sealed class EfInvoiceService(
             UpdatedAtUtc = now
         };
         dbContext.Invoices.Add(invoice);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await InvoiceNumbering.SaveAsync(dbContext, invoice, cancellationToken);
+        }
+        catch (InvoiceNumberAllocationException)
+        {
+            return BillingOperationResult<InvoiceDto>.Conflict(
+                "Could not issue the invoice because of a numbering conflict with another concurrent request. Please retry.");
+        }
 
         // A credit note can clear the debt outright, so the club should stop being flagged at once
         // rather than at the next scheduler tick.

@@ -28,7 +28,7 @@ public sealed class EfInvoiceGenerationRunner(
             var invoice = await GenerateForSubscriptionAsync(subscription, now, cancellationToken);
             if (invoice is not null)
             {
-                await dbContext.SaveChangesAsync(cancellationToken);
+                await InvoiceNumbering.SaveAsync(dbContext, invoice, cancellationToken);
                 await invoiceNotifier.NotifyIssuedAsync(invoice, cancellationToken);
                 issued++;
             }
@@ -53,9 +53,7 @@ public sealed class EfInvoiceGenerationRunner(
             return null;
         }
 
-        var number = ((await dbContext.Invoices
-            .Select(invoice => (int?)invoice.Number)
-            .MaxAsync(cancellationToken)) ?? 0) + 1;
+        var number = await InvoiceNumbering.NextNumberAsync(dbContext, cancellationToken);
 
         var gross = subscription.AmountMinorUnits;
         var discountApplies = subscription.DiscountUntilUtc is null || subscription.DiscountUntilUtc > now;

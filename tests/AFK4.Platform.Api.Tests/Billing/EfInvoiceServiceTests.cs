@@ -1,9 +1,12 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Platform.Billing;
+using AFK4.Platform.Api.Tests.Platform;
 using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Options;
+using Npgsql;
 
 namespace AFK4.Platform.Api.Tests.Billing;
 
@@ -418,5 +421,143 @@ public sealed class EfInvoiceServiceTests
             CancellationToken.None);
 
         Assert.Equal(BillingOperationStatus.NotFound, result.Status);
+    }
+
+    // Regression for a code-review finding on task 7: EfInvoiceService.CreateAsync and
+    // EfInvoiceGenerationRunner.GenerateForSubscriptionAsync both number the next invoice as
+    // MAX(Number)+1 with no lock, while Invoices.Number carries a global unique index. A scheduler
+    // tick generating a subscription invoice and an admin issuing a one-off/credit invoice at the
+    // same moment can both read the same max and race to insert it — one must lose to the unique
+    // index. Before the fix that loss surfaced as a raw DbUpdateException (500). The InMemory
+    // provider every other test in this file uses does not enforce unique indexes at all, so it
+    // cannot exercise this race — it needs a real PostgreSQL instance with a deterministic overlap
+    // (a SaveChangesInterceptor gate, same pattern as
+    // PlatformSupportAccessTicketTests.RedeemTicket_TwoConcurrentRedemptions_ExactlyOneSucceeds).
+    [PlatformAdminPostgresFact]
+    public async Task CreateAsync_TwoConcurrentOneOffInvoices_BothSucceedWithDistinctNumbers()
+    {
+        var connectionString = Environment.GetEnvironmentVariable(PlatformAdminPostgresFactAttribute.EnvironmentVariable)!;
+        var rootBuilder = new NpgsqlConnectionStringBuilder(connectionString);
+        var schema = $"invoice_numbering_race_{Guid.NewGuid():N}";
+        await using var root = new NpgsqlConnection(rootBuilder.ConnectionString);
+        await root.OpenAsync();
+        await using (var create = root.CreateCommand())
+        {
+            create.CommandText = $"CREATE SCHEMA \"{schema}\"";
+            await create.ExecuteNonQueryAsync();
+        }
+
+        try
+        {
+            var scopedBuilder = new NpgsqlConnectionStringBuilder(connectionString) { SearchPath = schema };
+            var gate = new SaveOverlapGate();
+            var options = new DbContextOptionsBuilder<PlatformDbContext>()
+                .UseNpgsql(scopedBuilder.ConnectionString)
+                .AddInterceptors(gate)
+                .Options;
+
+            await using (var migrationDb = new PlatformDbContext(options))
+            {
+                await migrationDb.Database.MigrateAsync();
+            }
+
+            Guid orgOneId, orgTwoId;
+            await using (var seedDb = new PlatformDbContext(options))
+            {
+                orgOneId = Guid.NewGuid();
+                orgTwoId = Guid.NewGuid();
+                seedDb.Organizations.AddRange(
+                    new OrganizationEntity
+                    {
+                        OrganizationId = orgOneId, Slug = $"club-{orgOneId:N}", Name = "O1",
+                        Status = OrganizationStatusNames.Active, PlanCode = "starter", LimitsJson = "{}",
+                        CreatedAtUtc = Now, UpdatedAtUtc = Now
+                    },
+                    new OrganizationEntity
+                    {
+                        OrganizationId = orgTwoId, Slug = $"club-{orgTwoId:N}", Name = "O2",
+                        Status = OrganizationStatusNames.Active, PlanCode = "starter", LimitsJson = "{}",
+                        CreatedAtUtc = Now, UpdatedAtUtc = Now
+                    });
+                await seedDb.SaveChangesAsync();
+            }
+
+            // Two independent DbContexts (independent connections/transactions) each issuing a
+            // one-off invoice at once — mirrors the nightly scheduler tick and a manual admin action
+            // landing in the same instant.
+            gate.Arm();
+            await using var dbForFirst = new PlatformDbContext(options);
+            await using var dbForSecond = new PlatformDbContext(options);
+            var notifierOne = new RecordingInvoiceNotifier();
+            var notifierTwo = new RecordingInvoiceNotifier();
+            var billingOptions = Options.Create(new BillingOptions());
+            var serviceForFirst = new EfInvoiceService(
+                dbForFirst, new EfInvoiceGenerationRunner(dbForFirst, billingOptions, notifierOne),
+                notifierOne, new FixedTimeProvider(Now), billingOptions);
+            var serviceForSecond = new EfInvoiceService(
+                dbForSecond, new EfInvoiceGenerationRunner(dbForSecond, billingOptions, notifierTwo),
+                notifierTwo, new FixedTimeProvider(Now), billingOptions);
+
+            var results = await Task.WhenAll(
+                serviceForFirst.CreateAsync(orgOneId, new CreateInvoiceRequest(
+                    InvoiceKindNames.OneOff, 150000, "Настройка A", null), CancellationToken.None),
+                serviceForSecond.CreateAsync(orgTwoId, new CreateInvoiceRequest(
+                    InvoiceKindNames.OneOff, 150000, "Настройка B", null), CancellationToken.None))
+                .WaitAsync(TimeSpan.FromSeconds(30));
+
+            Assert.All(results, result => Assert.True(result.Succeeded));
+            var numbers = results.Select(result => result.Value!.Number).ToList();
+            Assert.Equal(2, numbers.Distinct().Count());
+
+            await using var verifyDb = new PlatformDbContext(options);
+            var storedNumbers = await verifyDb.Invoices.AsNoTracking()
+                .Select(invoice => invoice.Number).ToListAsync();
+            Assert.Equal(2, storedNumbers.Distinct().Count());
+        }
+        finally
+        {
+            await using var drop = root.CreateCommand();
+            drop.CommandText = $"DROP SCHEMA IF EXISTS \"{schema}\" CASCADE";
+            await drop.ExecuteNonQueryAsync();
+        }
+    }
+
+    // Blocks each SavingChangesAsync call until exactly two concurrent saves have arrived, then
+    // releases both together — forces both transactions to have already read the same MAX(Number)
+    // before either is allowed to flush its insert. Same pattern as
+    // PlatformSupportAccessTicketTests.SaveOverlapGate / PlatformAdminDirectoryServiceTests.
+    private sealed class SaveOverlapGate : SaveChangesInterceptor
+    {
+        private TaskCompletionSource? bothSavesReached;
+        private int saveCount;
+        private int armed;
+
+        public void Arm()
+        {
+            bothSavesReached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Volatile.Write(ref saveCount, 0);
+            Volatile.Write(ref armed, 1);
+        }
+
+        public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            if (Volatile.Read(ref armed) == 0)
+            {
+                return result;
+            }
+
+            var reached = Interlocked.Increment(ref saveCount);
+            if (reached == 2)
+            {
+                Volatile.Write(ref armed, 0);
+                bothSavesReached!.TrySetResult();
+            }
+
+            await bothSavesReached!.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+            return result;
+        }
     }
 }
