@@ -11,9 +11,9 @@ namespace AFK4.Platform.Api.Data.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.Sql("""
-                UPDATE "SubscriptionPlans" SET "CurrencyCode" = 'TJS' WHERE "CurrencyCode" = 'RUB';
-                UPDATE "OrganizationSubscriptions" SET "CurrencyCode" = 'TJS' WHERE "CurrencyCode" = 'RUB';
-                UPDATE "Invoices" SET "CurrencyCode" = 'TJS' WHERE "CurrencyCode" = 'RUB';
+                UPDATE "subscription_plans" SET "CurrencyCode" = 'TJS' WHERE "CurrencyCode" = 'RUB';
+                UPDATE "tenant_subscriptions" SET "CurrencyCode" = 'TJS' WHERE "CurrencyCode" = 'RUB';
+                UPDATE "invoices" SET "CurrencyCode" = 'TJS' WHERE "CurrencyCode" = 'RUB';
                 """);
         }
 
