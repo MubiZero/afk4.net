@@ -1248,6 +1248,7 @@ namespace AFK4.Platform.Api.Platform.Health;
 public sealed record JobState(string JobName, TimeSpan Interval, DateTimeOffset? LastSuccessAtUtc, int ConsecutiveFailures);
 
 public sealed record HealthSnapshot(
+    DateTimeOffset ProcessStartedAtUtc,
     IReadOnlyList<JobState> Jobs,
     int NotificationFailed,
     int NotificationStuck,
@@ -1294,7 +1295,13 @@ public static class PlatformHealthRules
         {
             var window = Max(job.Interval * 3, MinimumOverdueWindow);
             var overdueSince = job.LastSuccessAtUtc;
-            if (overdueSince is null || now - overdueSince.Value > window)
+            // Задание без истории прогонов отсчитывает окно от старта процесса, а не считается
+            // просроченным немедленно: иначе первый же деплой поднимает критику по всем заданиям
+            // сразу, включая денежные, и аварийный канал врёт на собственном включении.
+            var isOverdue = overdueSince is null
+                ? now - snapshot.ProcessStartedAtUtc > window
+                : now - overdueSince.Value > window;
+            if (isOverdue)
             {
                 var minutes = overdueSince is null ? -1 : (int)(now - overdueSince.Value).TotalMinutes;
                 problems.Add(new DetectedProblem(
@@ -1405,11 +1412,24 @@ public sealed class PlatformHealthRulesTests
         Assert.Empty(problems);
     }
 
+    // Задание без истории прогонов НЕ просрочено сразу: на старте процесса таблица прогонов
+    // пуста у всех, и сторож, тикнув первым, разослал бы SMS «счета не выставляются» про
+    // исправную систему. Окно отсчитывается от момента запуска процесса — но по его истечении
+    // молчание задания обязано поднять тревогу, иначе отключённое задание не заметит никто.
     [Fact]
-    public void NeverRanJob_IsOverdue()
+    public void NeverRanJob_JustAfterProcessStart_ProducesNoProblem()
     {
         var problems = PlatformHealthRules.Evaluate(
-            Snapshot(new JobState(PlatformJobNames.ScheduledReports, TimeSpan.FromHours(1), null, 0)), Now);
+            Snapshot(Now.AddSeconds(-1), new JobState(PlatformJobNames.ScheduledReports, TimeSpan.FromHours(1), null, 0)), Now);
+
+        Assert.Empty(problems);
+    }
+
+    [Fact]
+    public void NeverRanJob_PastOwnWindowSinceProcessStart_IsOverdue()
+    {
+        var problems = PlatformHealthRules.Evaluate(
+            Snapshot(Now.AddHours(-5), new JobState(PlatformJobNames.ScheduledReports, TimeSpan.FromHours(1), null, 0)), Now);
 
         Assert.Equal(PlatformIncidentKindNames.JobOverdue, Assert.Single(problems).Kind);
     }
