@@ -17,6 +17,7 @@ function client() {
     organizationOwnerInvites: { listOrganizationOwnerInvites: mock().mockResolvedValue([]) },
     supportNotes: { listSupportNotes: mock().mockResolvedValue([]) },
     audit: { listOrganizationHistory: mock().mockResolvedValue({ records: [], limit: 100 }) },
+    debt: { listDebt: mock().mockResolvedValue([]) },
     pulse: { getPulse: mock().mockResolvedValue({ generatedAtUtc: '2026-01-01T00:00:00Z', organizations: [{ organizationId: 'o1', name: 'Orion Gaming', status: 'active', planCode: 'growth', subscriptionStatus: 'active', alertLevel: 'normal', outstandingMinorUnits: 0, currencyCode: 'RUB', alerts: [], clubs: [] }] }) }
   } as never;
 }

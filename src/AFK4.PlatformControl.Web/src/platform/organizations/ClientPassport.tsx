@@ -6,13 +6,15 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';
+import type { DebtApi } from '@/api/platformClients/debt';
 import type { InvoicesApi } from '@/api/platformClients/invoices';
 import type { OrganizationOwnerInvitesApi } from '@/api/platformClients/organizationOwnerInvites';
 import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import type { SubscriptionsApi } from '@/api/platformClients/subscriptions';
-import type { OrganizationDetail, OrganizationSubscription } from '@/api/types';
+import type { DebtRow, OrganizationDetail, OrganizationSubscription } from '@/api/types';
 import { PLAN_LABEL, STATUS_LABEL, STATUS_VARIANT } from './organizationsModel';
 import type { OrganizationPageAccess } from './OrganizationPage';
+import { OrganizationDebtBlock } from './OrganizationDebtBlock';
 import { OrganizationProfileDialog } from './OrganizationProfileDialog';
 import { SubscriptionDialog } from './SubscriptionDialog';
 import { PaymentGraceDialog } from './PaymentGraceDialog';
@@ -22,12 +24,14 @@ type OrganizationsClient = Pick<OrganizationsApi, 'updateProfile' | 'updateStatu
 type SubscriptionsClient = Pick<SubscriptionsApi, 'getSubscription' | 'updateSubscription'>;
 type InvoicesClient = Pick<InvoicesApi, 'generateInvoice'>;
 type OwnerInvitesClient = Pick<OrganizationOwnerInvitesApi, 'listOrganizationOwnerInvites'>;
+type DebtClient = Pick<DebtApi, 'listDebt'>;
 
 export interface ClientPassportClients {
   organizations: OrganizationsClient;
   subscriptions: SubscriptionsClient;
   invoices: InvoicesClient;
   organizationOwnerInvites: OwnerInvitesClient;
+  debt: DebtClient;
 }
 
 interface Props {
@@ -45,6 +49,7 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
 
   const [subscription, setSubscription] = useState<OrganizationSubscription | null>(null);
   const [owner, setOwner] = useState<string | null>(null);
+  const [debtRow, setDebtRow] = useState<DebtRow | null>(null);
   const [openDialog, setOpenDialog] = useState<DialogKind>(null);
   const [statusConfirmOpen, setStatusConfirmOpen] = useState(false);
   const [statusPending, setStatusPending] = useState(false);
@@ -75,6 +80,18 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
       .catch(() => { /* паспорт остаётся полезным и без строки владельца */ });
     return () => { cancelled = true; };
   }, [client, organization.organizationId, access.canManageAccess, tick]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDebtRow(null);
+    client.debt.listDebt()
+      .then(rows => {
+        if (cancelled) return;
+        setDebtRow(rows.find(row => row.organizationId === organization.organizationId) ?? null);
+      })
+      .catch(() => { /* паспорт остаётся полезным и без суммы долга */ });
+    return () => { cancelled = true; };
+  }, [client, organization.organizationId, tick]);
 
   const cities = Array.from(new Set(organization.branches.map(branch => branch.city)));
   const nextStatus = organization.status === 'active' ? 'suspended' : 'active';
@@ -129,6 +146,9 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
         </Row>
         <Row label={t('platform.organization.passport.nextInvoice')}>
           {subscription === null ? <Skeleton className="pc-skel-value" /> : subscription.nextInvoiceUtc !== null ? formatDate(subscription.nextInvoiceUtc) : '—'}
+        </Row>
+        <Row label={t('platform.organization.passport.debt.label')}>
+          <OrganizationDebtBlock row={debtRow} />
         </Row>
         <Row label={t('platform.organization.invites.colOwner')}>
           {access.canManageAccess ? (owner ?? '—') : '—'}
