@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Platform.Health;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -7,54 +8,31 @@ public sealed class InvoiceGenerationHostedService(
     IServiceProvider serviceProvider,
     TimeProvider timeProvider,
     IOptions<BillingOptions> options,
-    ILogger<InvoiceGenerationHostedService> logger) : BackgroundService
+    ILogger<InvoiceGenerationHostedService> logger)
+    : PlatformPeriodicJob(serviceProvider, timeProvider, logger)
 {
     private readonly BillingOptions options = options.Value;
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await TickAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Invoice generation tick failed.");
-            }
+    protected override string JobName => PlatformJobNames.InvoiceGeneration;
 
-            try
-            {
-                await Task.Delay(options.GenerationInterval, timeProvider, stoppingToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-        }
-    }
+    protected override TimeSpan Interval => options.GenerationInterval;
 
-    private async Task TickAsync(CancellationToken cancellationToken)
+    protected override async Task<int> TickAsync(IServiceProvider scopedServices, CancellationToken cancellationToken)
     {
-        await using var scope = serviceProvider.CreateAsyncScope();
-        var runner = scope.ServiceProvider.GetRequiredService<IInvoiceGenerationRunner>();
-        var now = timeProvider.GetUtcNow();
-        var issued = await runner.RunAsync(now, cancellationToken);
+        var now = GetUtcNow();
+
+        var issued = await scopedServices.GetRequiredService<IInvoiceGenerationRunner>().RunAsync(now, cancellationToken);
         if (issued > 0)
         {
             logger.LogInformation("Invoice generation tick issued {Count} invoice(s).", issued);
         }
 
-        var dunning = scope.ServiceProvider.GetRequiredService<IDunningRunner>();
-        var notified = await dunning.RunAsync(now, cancellationToken);
+        var notified = await scopedServices.GetRequiredService<IDunningRunner>().RunAsync(now, cancellationToken);
         if (notified > 0)
         {
             logger.LogInformation("Dunning tick sent {Count} notice(s).", notified);
         }
+
+        return issued + notified;
     }
 }

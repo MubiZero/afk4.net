@@ -24,6 +24,7 @@ using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Platform.Billing;
+using AFK4.Platform.Api.Platform.Health;
 using AFK4.Platform.Api.Platform.Idempotency;
 using AFK4.Platform.Api.Shop;
 using AFK4.Platform.Api.Platform.Identity;
@@ -221,6 +222,7 @@ builder.Services.AddScoped<IBillingMetricsService, EfBillingMetricsService>();
 builder.Services.AddScoped<IDebtOverviewService, EfDebtOverviewService>();
 builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.ConfigurationSection));
 builder.Services.AddHostedService<BillingPlanSeedHostedService>();
+builder.Services.AddScoped<IJobRunRecorder, EfJobRunRecorder>();
 builder.Services.AddHostedService<InvoiceGenerationHostedService>();
 builder.Services.Configure<NotificationOptions>(
     builder.Configuration.GetSection(NotificationOptions.ConfigurationSection));

@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Platform.Health;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -13,46 +14,24 @@ public sealed class OutboxDispatcher(
     IServiceProvider serviceProvider,
     TimeProvider timeProvider,
     IOptions<OutboxOptions> options,
-    ILogger<OutboxDispatcher> logger) : BackgroundService
+    ILogger<OutboxDispatcher> logger)
+    : PlatformPeriodicJob(serviceProvider, timeProvider, logger)
 {
     private readonly OutboxOptions options = options.Value;
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await TickAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception exception)
-            {
-                logger.LogError(exception, "Billing outbox dispatch tick failed.");
-            }
+    protected override string JobName => PlatformJobNames.BillingOutbox;
 
-            try
-            {
-                await Task.Delay(options.PollInterval, timeProvider, stoppingToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-        }
-    }
+    protected override TimeSpan Interval => options.PollInterval;
 
-    private async Task TickAsync(CancellationToken cancellationToken)
+    protected override async Task<int> TickAsync(IServiceProvider scopedServices, CancellationToken cancellationToken)
     {
-        await using var scope = serviceProvider.CreateAsyncScope();
-        var runner = scope.ServiceProvider.GetRequiredService<OutboxDispatchRunner>();
+        var runner = scopedServices.GetRequiredService<OutboxDispatchRunner>();
         var dispatched = await runner.RunAsync(options.DispatchBatchSize, cancellationToken);
         if (dispatched > 0)
         {
             logger.LogInformation("Billing outbox dispatch tick processed {Count} row(s).", dispatched);
         }
+
+        return dispatched;
     }
 }

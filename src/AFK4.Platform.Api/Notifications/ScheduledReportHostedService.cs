@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Platform.Health;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -12,47 +13,25 @@ public sealed class ScheduledReportHostedService(
     IServiceProvider serviceProvider,
     TimeProvider timeProvider,
     IOptions<NotificationOptions> options,
-    ILogger<ScheduledReportHostedService> logger) : BackgroundService
+    ILogger<ScheduledReportHostedService> logger)
+    : PlatformPeriodicJob(serviceProvider, timeProvider, logger)
 {
     private readonly NotificationOptions options = options.Value;
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await TickAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Scheduled-report tick failed.");
-            }
+    protected override string JobName => PlatformJobNames.ScheduledReports;
 
-            try
-            {
-                await Task.Delay(options.ScheduledReportInterval, timeProvider, stoppingToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-        }
-    }
+    protected override TimeSpan Interval => options.ScheduledReportInterval;
 
-    private async Task TickAsync(CancellationToken cancellationToken)
+    protected override async Task<int> TickAsync(IServiceProvider scopedServices, CancellationToken cancellationToken)
     {
-        await using var scope = serviceProvider.CreateAsyncScope();
-        var runner = scope.ServiceProvider.GetRequiredService<IScheduledReportRunner>();
-        var now = timeProvider.GetUtcNow();
+        var runner = scopedServices.GetRequiredService<IScheduledReportRunner>();
+        var now = GetUtcNow();
         var sent = await runner.RunAsync(now, cancellationToken);
         if (sent > 0)
         {
             logger.LogInformation("Scheduled-report tick enqueued {Count} report(s).", sent);
         }
+
+        return sent;
     }
 }
