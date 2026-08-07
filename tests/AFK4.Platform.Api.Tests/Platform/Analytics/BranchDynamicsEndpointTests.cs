@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Platform.Analytics;
 using AFK4.Platform.Api.Tests.Platform;
 using AFK4.Shared.Contracts.Platform.Analytics;
 using AFK4.Shared.Contracts.Platform.Billing;
@@ -194,10 +195,53 @@ public sealed class BranchDynamicsEndpointTests
             $"/api/platform/organizations/{organizationId}/branches/{branchId}/dynamics?days=1000");
         var zeroWindow = await client.GetFromJsonAsync<BranchDynamicsDto>(
             $"/api/platform/organizations/{organizationId}/branches/{branchId}/dynamics?days=0");
+        var narrowWindow = await client.GetFromJsonAsync<BranchDynamicsDto>(
+            $"/api/platform/organizations/{organizationId}/branches/{branchId}/dynamics?days=3");
 
         Assert.NotNull(wideWindow);
         Assert.NotNull(zeroWindow);
+        Assert.NotNull(narrowWindow);
         Assert.Equal(90, wideWindow.ToDate.DayNumber - wideWindow.FromDate.DayNumber + 1);
         Assert.True(zeroWindow.ToDate.DayNumber - zeroWindow.FromDate.DayNumber + 1 >= 7);
+        Assert.Equal(7, narrowWindow.ToDate.DayNumber - narrowWindow.FromDate.DayNumber + 1);
     }
+
+    // Branches default to Asia/Dushanbe (UTC+5, see BranchEntity.PreferredTimeZone), and
+    // BranchDailySnapshotEntity.SnapshotDate is written in that local calendar. `now` below is
+    // 20:00 UTC — locally it is already the next calendar day. A UTC-based window would compute
+    // yesterday's date as one day too early and silently drop the club's most recent snapshot;
+    // it must instead show up in the response. Exercised against the service directly (not the
+    // HTTP endpoint) so the fixed "now" doesn't also have to satisfy the 2FA TOTP window used by
+    // PlatformAdminTestHelper.AuthorizeAsAsync, which is generated against real wall-clock time.
+    [Fact]
+    public async Task Get_ComputesWindowInBranchLocalTime_NotUtc()
+    {
+        var nowUtc = new DateTimeOffset(2026, 8, 8, 20, 0, 0, TimeSpan.Zero);
+        var dushanbeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Dushanbe");
+        var localToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(nowUtc, dushanbeZone).DateTime);
+        var localYesterday = localToday.AddDays(-1);
+
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var (organizationId, branchId) = await CreateOrganizationAsync(client);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        dbContext.BranchDailySnapshots.Add(BuildSnapshot(organizationId, branchId, localYesterday));
+        await dbContext.SaveChangesAsync();
+
+        var service = new EfBranchDynamicsService(dbContext, new FixedTimeProvider(nowUtc));
+        var dynamics = await service.GetAsync(organizationId, branchId, 30, CancellationToken.None);
+
+        Assert.NotNull(dynamics);
+        Assert.Equal(localYesterday, dynamics.ToDate);
+        Assert.Contains(dynamics.Days, day => day.Date == localYesterday);
+    }
+}
+
+file sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
+{
+    public override DateTimeOffset GetUtcNow() => now;
 }

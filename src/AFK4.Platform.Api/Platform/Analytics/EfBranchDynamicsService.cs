@@ -18,13 +18,20 @@ public sealed class EfBranchDynamicsService(PlatformDbContext dbContext, TimePro
         int days,
         CancellationToken cancellationToken)
     {
-        var branchExists = await dbContext.Branches
+        var branch = await dbContext.Branches
             .AsNoTracking()
-            .AnyAsync(branch => branch.BranchId == branchId && branch.OrganizationId == organizationId, cancellationToken);
-        if (!branchExists) return null;
+            .Where(branch => branch.BranchId == branchId && branch.OrganizationId == organizationId)
+            .Select(branch => new { branch.PreferredTimeZone })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (branch is null) return null;
 
+        // Снимки хранятся в местных сутках филиала (см. BranchDailySnapshotEntity.SnapshotDate) —
+        // окно отчёта обязано считаться в том же поясе, иначе свежий день клуба восточнее UTC
+        // молча выпадает из ответа, а ещё не наступивший день клуба западнее UTC ложно попадает
+        // в MissingDayCount.
+        var zone = BranchLocalTime.ResolveZone(branch.PreferredTimeZone);
         var window = days <= 0 ? DefaultDays : Math.Clamp(days, MinDays, MaxDays);
-        var toDate = DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime).AddDays(-1);
+        var toDate = BranchLocalTime.LocalDate(timeProvider.GetUtcNow(), zone).AddDays(-1);
         var fromDate = toDate.AddDays(-(window - 1));
 
         var snapshots = await dbContext.BranchDailySnapshots

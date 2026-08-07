@@ -61,8 +61,8 @@ public static class BranchDailySnapshotBuilder
 
         foreach (var branch in input.Branches)
         {
-            var zone = ResolveZone(branch.TimeZoneId);
-            var localToday = LocalDate(input.Now, zone);
+            var zone = BranchLocalTime.ResolveZone(branch.TimeZoneId);
+            var localToday = BranchLocalTime.LocalDate(input.Now, zone);
             var lastCompleteDay = localToday.AddDays(-1);
 
             var startDay = input.LastSnapshotDates.TryGetValue(branch.BranchId, out var lastDate)
@@ -76,7 +76,7 @@ public static class BranchDailySnapshotBuilder
 
             // И не раньше, чем филиал появился: сутки до его создания — не «ноль выручки»,
             // а отсутствие клуба.
-            var born = LocalDate(branch.CreatedAtUtc, zone);
+            var born = BranchLocalTime.LocalDate(branch.CreatedAtUtc, zone);
             if (startDay < born) startDay = born;
 
             if (startDay > lastCompleteDay) continue;
@@ -128,30 +128,13 @@ public static class BranchDailySnapshotBuilder
 
     private static Dictionary<DateOnly, int> GroupEvents(IEnumerable<BranchSnapshotEvent> events, TimeZoneInfo zone) =>
         events
-            .GroupBy(item => LocalDate(item.AtUtc, zone))
+            .GroupBy(item => BranchLocalTime.LocalDate(item.AtUtc, zone))
             .ToDictionary(group => group.Key, group => group.Count());
 
     private static Dictionary<DateOnly, IReadOnlyList<BranchSnapshotMoney>> GroupMoney(
         IEnumerable<BranchSnapshotMoney> rows,
         TimeZoneInfo zone) =>
         rows
-            .GroupBy(item => LocalDate(item.AtUtc, zone))
+            .GroupBy(item => BranchLocalTime.LocalDate(item.AtUtc, zone))
             .ToDictionary(group => group.Key, group => (IReadOnlyList<BranchSnapshotMoney>)group.ToList());
-
-    private static DateOnly LocalDate(DateTimeOffset instant, TimeZoneInfo zone) =>
-        DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(instant, zone).DateTime);
-
-    private static TimeZoneInfo ResolveZone(string timeZoneId)
-    {
-        // Кривой идентификатор не должен ронять задание для ВСЕХ филиалов: считаем такой клуб
-        // живущим по UTC и идём дальше.
-        try
-        {
-            return TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
-        }
-        catch (Exception exception) when (exception is TimeZoneNotFoundException or InvalidTimeZoneException)
-        {
-            return TimeZoneInfo.Utc;
-        }
-    }
 }
