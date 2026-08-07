@@ -256,4 +256,77 @@ public sealed class EfDunningRunnerTests
         public Task NotifyOverdueAsync(InvoiceEntity invoice, int stage, DateTimeOffset now, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Simulated notifier failure.");
     }
+
+    [Fact]
+    public async Task RunAsync_NotifierThrowsOnSecondInvoiceInBatch_KeepsFirstInvoiceProgressAndLeavesSecondUnadvanced()
+    {
+        var databaseName = Guid.NewGuid().ToString("N");
+        Guid firstSeededId;
+        Guid secondSeededId;
+        var notifier = new ThrowsOnSecondCallInvoiceNotifier();
+
+        await using (var db = NewContext(databaseName))
+        {
+            var first = await SeedAsync(db);
+            var second = await SeedAsync(db);
+            firstSeededId = first.InvoiceId;
+            secondSeededId = second.InvoiceId;
+
+            var runner = NewRunner(db, notifier);
+
+            // Two overdue invoices in one pass, processed one at a time: the notifier succeeds for
+            // whichever invoice it sees first, then throws on the second. This is the exact shape
+            // of the bug fixed twice already — a batched "mutate everyone, notify everyone, save
+            // once" runner would have advanced both invoices' state before the exception, silently
+            // losing the second invoice's notice.
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => runner.RunAsync(Due.AddHours(1), CancellationToken.None));
+        }
+
+        var sentInvoiceId = Assert.Single(notifier.SentOverdueInvoiceIds);
+        var unsentInvoiceId = sentInvoiceId == firstSeededId ? secondSeededId : firstSeededId;
+
+        // Fresh context against the same in-memory database — same reasoning as the single-invoice
+        // throw test above: reading through the still-tracking context would show the in-memory,
+        // never-saved mutation as if it had been persisted.
+        await using var verify = NewContext(databaseName);
+        var sentInvoice = await verify.Invoices.SingleAsync(invoice => invoice.InvoiceId == sentInvoiceId);
+        var unsentInvoice = await verify.Invoices.SingleAsync(invoice => invoice.InvoiceId == unsentInvoiceId);
+
+        Assert.Equal(InvoiceStatusNames.Overdue, sentInvoice.Status);
+        Assert.Equal(1, sentInvoice.DunningStage);
+
+        // Unadvanced means the next run recomputes the same stage for this invoice and notifies it
+        // — the notice is delayed by one tick, not lost.
+        Assert.Equal(InvoiceStatusNames.Issued, unsentInvoice.Status);
+        Assert.Equal(0, unsentInvoice.DunningStage);
+    }
+
+    private sealed class ThrowsOnSecondCallInvoiceNotifier : IInvoiceNotifier
+    {
+        private int callCount;
+
+        public List<Guid> SentOverdueInvoiceIds { get; } = [];
+
+        public Task NotifyIssuedAsync(InvoiceEntity invoice, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Not expected to be called.");
+
+        public Task NotifyPaidAsync(InvoiceEntity invoice, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Not expected to be called.");
+
+        public Task NotifyDueSoonAsync(InvoiceEntity invoice, DateTimeOffset now, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Not expected to be called.");
+
+        public Task NotifyOverdueAsync(InvoiceEntity invoice, int stage, DateTimeOffset now, CancellationToken cancellationToken)
+        {
+            callCount++;
+            if (callCount == 2)
+            {
+                throw new InvalidOperationException("Simulated failure on the second invoice in the batch.");
+            }
+
+            SentOverdueInvoiceIds.Add(invoice.InvoiceId);
+            return Task.CompletedTask;
+        }
+    }
 }
