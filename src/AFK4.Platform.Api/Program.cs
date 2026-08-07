@@ -291,6 +291,7 @@ builder.Services.Configure<PlatformAnalyticsOptions>(
 builder.Services.AddScoped<ISubscriptionSnapshotRunner, EfSubscriptionSnapshotRunner>();
 builder.Services.AddHostedService<SubscriptionSnapshotJob>();
 builder.Services.AddScoped<IPlatformHealthOverviewService, EfPlatformHealthOverviewService>();
+builder.Services.AddScoped<IPlatformAnalyticsService, EfPlatformAnalyticsService>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
 builder.Services.AddScoped<IOrganizationStatusGuard, EfOrganizationStatusGuard>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
@@ -481,6 +482,7 @@ app.MapPlatformAuditEndpoints();
 app.MapPlatformSearchEndpoints();
 app.MapPlatformPulseEndpoints();
 app.MapPlatformHealthEndpoints();
+app.MapPlatformAnalyticsEndpoints();
 organizations.MapOrganizationAuditEndpoints();
 organizations.MapStaffEndpoints();
 organizations.MapBranchProfileLayoutEndpoints();
