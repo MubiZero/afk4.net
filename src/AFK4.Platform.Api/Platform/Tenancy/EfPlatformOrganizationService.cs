@@ -205,7 +205,7 @@ public sealed class EfPlatformOrganizationService(
             CurrentPeriodEndUtc = subscriptionInterval == "yearly" ? now.AddYears(1) : now.AddMonths(1),
             NextInvoiceUtc = subscriptionInterval == "yearly" ? now.AddYears(1) : now.AddMonths(1),
             AmountMinorUnits = catalogPlan?.PriceMinorUnits ?? 0,
-            CurrencyCode = catalogPlan?.CurrencyCode ?? "RUB",
+            CurrencyCode = catalogPlan?.CurrencyCode ?? "TJS",
             BillingInterval = subscriptionInterval,
             CancelAtPeriodEnd = false,
             CreatedAtUtc = now,

@@ -38,7 +38,7 @@ public sealed class EfInvoiceGenerationRunnerTests
             CurrentPeriodEndUtc = Start.AddMonths(1),
             NextInvoiceUtc = Start.AddMonths(1),
             AmountMinorUnits = 290000,
-            CurrencyCode = "RUB",
+            CurrencyCode = "TJS",
             BillingInterval = BillingIntervalNames.Monthly,
             CreatedAtUtc = Start,
             UpdatedAtUtc = Start

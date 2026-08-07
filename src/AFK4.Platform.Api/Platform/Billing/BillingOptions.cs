@@ -8,5 +8,5 @@ public sealed class BillingOptions
 
     public TimeSpan GenerationInterval { get; set; } = TimeSpan.FromHours(1);
 
-    public string DefaultCurrencyCode { get; set; } = "RUB";
+    public string DefaultCurrencyCode { get; set; } = "TJS";
 }

@@ -193,6 +193,11 @@ For staging:
 6. Record the applied commit, migration command, and smoke evidence in the
    progress snapshot when this is run for real.
 
+Миграция `RebaseBillingCurrencyToTjs` меняет код валюты существующих тарифов,
+подписок и счетов с `RUB` на `TJS` **без пересчёта сумм**: 2 900 рублей становятся
+2 900 сомони. Для staging это осознанное решение — продакшн ещё не развёрнут.
+Никакой конвертации по курсу не происходит, и читать её как конвертацию нельзя.
+
 If staging PostgreSQL is not externally reachable, use Coolify's terminal,
 private network tooling, or a temporary SSH tunnel approved for the VPS. Close
 temporary access immediately after migrations and smoke checks.

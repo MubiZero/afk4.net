@@ -20,7 +20,7 @@ public sealed class BillingPlanSeedHostedService(
             PlanCode = OrganizationPlanCodeNames.Starter,
             Name = "Starter",
             PriceMinorUnits = 290000,
-            CurrencyCode = "RUB",
+            CurrencyCode = "TJS",
             BillingInterval = BillingIntervalNames.Monthly,
             MaxBranches = 1,
             MaxDevicesPerBranch = 30,
@@ -34,7 +34,7 @@ public sealed class BillingPlanSeedHostedService(
             PlanCode = OrganizationPlanCodeNames.Growth,
             Name = "Growth",
             PriceMinorUnits = 790000,
-            CurrencyCode = "RUB",
+            CurrencyCode = "TJS",
             BillingInterval = BillingIntervalNames.Monthly,
             MaxBranches = 3,
             MaxDevicesPerBranch = 60,
@@ -48,7 +48,7 @@ public sealed class BillingPlanSeedHostedService(
             PlanCode = OrganizationPlanCodeNames.Scale,
             Name = "Scale",
             PriceMinorUnits = 1990000,
-            CurrencyCode = "RUB",
+            CurrencyCode = "TJS",
             BillingInterval = BillingIntervalNames.Monthly,
             MaxBranches = 10,
             MaxDevicesPerBranch = 120,
@@ -56,6 +56,48 @@ public sealed class BillingPlanSeedHostedService(
             MaxStaffUsersPerBranch = 50,
             IsActive = true,
             SortOrder = 3
+        },
+        new()
+        {
+            PlanCode = "starter_yearly",
+            Name = "Starter, год",
+            PriceMinorUnits = 2900000,
+            CurrencyCode = "TJS",
+            BillingInterval = BillingIntervalNames.Yearly,
+            MaxBranches = 1,
+            MaxDevicesPerBranch = 30,
+            MaxConcurrentSessions = 40,
+            MaxStaffUsersPerBranch = 10,
+            IsActive = true,
+            SortOrder = 4
+        },
+        new()
+        {
+            PlanCode = "growth_yearly",
+            Name = "Growth, год",
+            PriceMinorUnits = 7900000,
+            CurrencyCode = "TJS",
+            BillingInterval = BillingIntervalNames.Yearly,
+            MaxBranches = 3,
+            MaxDevicesPerBranch = 60,
+            MaxConcurrentSessions = 80,
+            MaxStaffUsersPerBranch = 20,
+            IsActive = true,
+            SortOrder = 5
+        },
+        new()
+        {
+            PlanCode = "scale_yearly",
+            Name = "Scale, год",
+            PriceMinorUnits = 19900000,
+            CurrencyCode = "TJS",
+            BillingInterval = BillingIntervalNames.Yearly,
+            MaxBranches = 10,
+            MaxDevicesPerBranch = 120,
+            MaxConcurrentSessions = 200,
+            MaxStaffUsersPerBranch = 50,
+            IsActive = true,
+            SortOrder = 6
         }
     ];
 

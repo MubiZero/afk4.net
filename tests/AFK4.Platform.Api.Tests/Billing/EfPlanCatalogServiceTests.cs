@@ -17,7 +17,7 @@ public sealed class EfPlanCatalogServiceTests
             PlanCode: planCode,
             Name: "Team",
             PriceMinorUnits: 500000,
-            CurrencyCode: "RUB",
+            CurrencyCode: "TJS",
             BillingInterval: BillingIntervalNames.Monthly,
             MaxBranches: 2,
             MaxDevicesPerBranch: 40,
@@ -76,7 +76,7 @@ public sealed class EfPlanCatalogServiceTests
         var result = await service.UpdateAsync("team", new UpdatePlanRequest(
             Name: "Team Plus",
             PriceMinorUnits: 600000,
-            CurrencyCode: "RUB",
+            CurrencyCode: "TJS",
             BillingInterval: BillingIntervalNames.Monthly,
             MaxBranches: 3,
             MaxDevicesPerBranch: 40,
@@ -99,7 +99,7 @@ public sealed class EfPlanCatalogServiceTests
         var service = new EfPlanCatalogService(db, new FixedTimeProvider(DateTimeOffset.Parse("2026-05-31T10:00:00Z")));
 
         var result = await service.UpdateAsync("ghost", new UpdatePlanRequest(
-            "X", 1, "RUB", BillingIntervalNames.Monthly, null, null, null, null, true, 1), CancellationToken.None);
+            "X", 1, "TJS", BillingIntervalNames.Monthly, null, null, null, null, true, 1), CancellationToken.None);
 
         Assert.Equal(BillingOperationStatus.NotFound, result.Status);
     }
@@ -112,7 +112,7 @@ public sealed class EfPlanCatalogServiceTests
         await service.CreateAsync(BuildCreate("a"), CancellationToken.None);
         await service.CreateAsync(BuildCreate("b"), CancellationToken.None);
         await service.UpdateAsync("b", new UpdatePlanRequest(
-            "B", 1, "RUB", BillingIntervalNames.Monthly, null, null, null, null, false, 9), CancellationToken.None);
+            "B", 1, "TJS", BillingIntervalNames.Monthly, null, null, null, null, false, 9), CancellationToken.None);
 
         var active = await service.ListAsync(includeInactive: false, CancellationToken.None);
         var all = await service.ListAsync(includeInactive: true, CancellationToken.None);

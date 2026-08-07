@@ -19,8 +19,8 @@ public sealed class EfOrganizationSubscriptionServiceTests
     private static async Task<Guid> SeedOrgAndPlansAsync(PlatformDbContext db, string planCode = "starter")
     {
         db.SubscriptionPlans.AddRange(
-            new SubscriptionPlanEntity { PlanCode = "starter", Name = "Starter", PriceMinorUnits = 290000, CurrencyCode = "RUB", BillingInterval = "monthly", MaxBranches = 1, MaxDevicesPerBranch = 30, MaxConcurrentSessions = 40, MaxStaffUsersPerBranch = 10, IsActive = true, SortOrder = 1, CreatedAtUtc = Now, UpdatedAtUtc = Now },
-            new SubscriptionPlanEntity { PlanCode = "scale", Name = "Scale", PriceMinorUnits = 1990000, CurrencyCode = "RUB", BillingInterval = "monthly", MaxBranches = 10, MaxDevicesPerBranch = 120, MaxConcurrentSessions = 200, MaxStaffUsersPerBranch = 50, IsActive = true, SortOrder = 3, CreatedAtUtc = Now, UpdatedAtUtc = Now });
+            new SubscriptionPlanEntity { PlanCode = "starter", Name = "Starter", PriceMinorUnits = 290000, CurrencyCode = "TJS", BillingInterval = "monthly", MaxBranches = 1, MaxDevicesPerBranch = 30, MaxConcurrentSessions = 40, MaxStaffUsersPerBranch = 10, IsActive = true, SortOrder = 1, CreatedAtUtc = Now, UpdatedAtUtc = Now },
+            new SubscriptionPlanEntity { PlanCode = "scale", Name = "Scale", PriceMinorUnits = 1990000, CurrencyCode = "TJS", BillingInterval = "monthly", MaxBranches = 10, MaxDevicesPerBranch = 120, MaxConcurrentSessions = 200, MaxStaffUsersPerBranch = 50, IsActive = true, SortOrder = 3, CreatedAtUtc = Now, UpdatedAtUtc = Now });
         var orgId = Guid.NewGuid();
         db.Organizations.Add(new OrganizationEntity
         {

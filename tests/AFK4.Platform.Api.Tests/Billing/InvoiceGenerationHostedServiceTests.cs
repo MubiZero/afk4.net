@@ -38,7 +38,7 @@ public sealed class InvoiceGenerationHostedServiceTests
             {
                 OrganizationSubscriptionId = Guid.NewGuid(), OrganizationId = orgId, PlanCode = "starter",
                 Status = SubscriptionStatusNames.Active, CurrentPeriodStartUtc = start, CurrentPeriodEndUtc = start.AddMonths(1),
-                NextInvoiceUtc = start.AddMonths(1), AmountMinorUnits = 290000, CurrencyCode = "RUB",
+                NextInvoiceUtc = start.AddMonths(1), AmountMinorUnits = 290000, CurrencyCode = "TJS",
                 BillingInterval = BillingIntervalNames.Monthly, CreatedAtUtc = start, UpdatedAtUtc = start
             });
             await db.SaveChangesAsync();

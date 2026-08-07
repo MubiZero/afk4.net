@@ -11,7 +11,7 @@ public sealed class InvoiceEntity
     public DateTimeOffset IssuedAtUtc { get; set; }
     public DateTimeOffset DueAtUtc { get; set; }
     public long AmountMinorUnits { get; set; }
-    public string CurrencyCode { get; set; } = "RUB";
+    public string CurrencyCode { get; set; } = "TJS";
     public string Status { get; set; } = "issued";
     public DateTimeOffset? PaidAtUtc { get; set; }
     public DateTimeOffset? VoidedAtUtc { get; set; }

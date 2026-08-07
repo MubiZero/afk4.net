@@ -31,7 +31,7 @@ public sealed class BillingMetricsTests
         var metrics = await service.GetAsync(CancellationToken.None);
 
         Assert.Equal(290000L, metrics.MrrMinorUnits);
-        Assert.Equal("RUB", metrics.CurrencyCode);
+        Assert.Equal("TJS", metrics.CurrencyCode);
         Assert.Equal(1, metrics.ActiveSubscriptions);
         Assert.Equal(290000L + 150000L, metrics.OutstandingMinorUnits);
         Assert.Equal(2, metrics.OutstandingCount);
@@ -51,7 +51,7 @@ public sealed class BillingMetricsTests
             IssuedAtUtc = now,
             DueAtUtc = now.AddDays(7),
             AmountMinorUnits = amount,
-            CurrencyCode = "RUB",
+            CurrencyCode = "TJS",
             Status = status,
             Description = "metrics test",
             CreatedAtUtc = now,

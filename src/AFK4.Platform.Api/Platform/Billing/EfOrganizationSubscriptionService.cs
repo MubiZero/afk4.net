@@ -265,7 +265,7 @@ public sealed class EfOrganizationSubscriptionService(
             CurrentPeriodEndUtc = BillingPeriod.Advance(now, interval),
             NextInvoiceUtc = BillingPeriod.Advance(now, interval),
             AmountMinorUnits = plan?.PriceMinorUnits ?? 0,
-            CurrencyCode = plan?.CurrencyCode ?? "RUB",
+            CurrencyCode = plan?.CurrencyCode ?? "TJS",
             BillingInterval = interval,
             CancelAtPeriodEnd = false,
             CreatedAtUtc = now,

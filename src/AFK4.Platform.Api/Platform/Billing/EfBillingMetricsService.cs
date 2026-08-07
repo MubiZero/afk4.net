@@ -7,7 +7,7 @@ namespace AFK4.Platform.Api.Platform.Billing;
 
 public sealed class EfBillingMetricsService(PlatformDbContext dbContext) : IBillingMetricsService
 {
-    private const string DefaultCurrency = "RUB";
+    private const string DefaultCurrency = "TJS";
 
     public async Task<PlatformBillingMetricsDto> GetAsync(CancellationToken cancellationToken)
     {
