@@ -112,6 +112,12 @@ public sealed class BranchDynamicsEndpointTests
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            // This test is about the "gap" case (branch existed the whole window, some days have
+            // no snapshot), not about a young branch — back-date creation well clear of the 30-day
+            // window so MissingDayCount isn't also clamped by branch age (see
+            // Get_ExcludesDaysBeforeBranchCreation_FromMissingDayCount for that case).
+            var branchEntity = await dbContext.Branches.SingleAsync(branch => branch.BranchId == branchId);
+            branchEntity.CreatedAtUtc = DateTimeOffset.UtcNow.AddDays(-90);
             dbContext.BranchDailySnapshots.Add(BuildSnapshot(organizationId, branchId, Today.AddDays(-1)));
             dbContext.BranchDailySnapshots.Add(BuildSnapshot(organizationId, branchId, Today.AddDays(-2)));
             await dbContext.SaveChangesAsync();
@@ -123,6 +129,45 @@ public sealed class BranchDynamicsEndpointTests
         Assert.NotNull(dynamics);
         Assert.Equal(2, dynamics.Days.Count);
         Assert.Equal(28, dynamics.MissingDayCount);
+    }
+
+    // BranchDailySnapshotBuilder never writes a snapshot before the branch's local birth date —
+    // those days were never observable, not "missing". A branch created 3 local days ago has only
+    // 3 observable days in its window regardless of how wide the requested window is; reporting
+    // window(30) - 2 = 28 would read as "almost a month with no data" for a club that is 3 days old.
+    [Fact]
+    public async Task Get_ExcludesDaysBeforeBranchCreation_FromMissingDayCount()
+    {
+        var nowUtc = new DateTimeOffset(2026, 8, 8, 8, 0, 0, TimeSpan.Zero); // 13:00 in Dushanbe, clear of any day boundary
+        var dushanbeZone = TimeZoneInfo.FindSystemTimeZoneById("Asia/Dushanbe");
+        var localToday = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(nowUtc, dushanbeZone).DateTime);
+        var toDate = localToday.AddDays(-1);
+        var createdLocalDate = localToday.AddDays(-3); // branch is 3 local days old
+        var createdAtUtc = new DateTimeOffset(
+            TimeZoneInfo.ConvertTimeToUtc(createdLocalDate.ToDateTime(new TimeOnly(12, 0)), dushanbeZone),
+            TimeSpan.Zero);
+
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
+
+        var (organizationId, branchId) = await CreateOrganizationAsync(client);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var branchEntity = await dbContext.Branches.SingleAsync(branch => branch.BranchId == branchId);
+        branchEntity.CreatedAtUtc = createdAtUtc;
+        // Observable days are createdLocalDate, createdLocalDate+1, toDate (=createdLocalDate+2) — 3
+        // days total. Two of them have a snapshot, so 1 should be missing, not window(30) - 2 = 28.
+        dbContext.BranchDailySnapshots.Add(BuildSnapshot(organizationId, branchId, createdLocalDate));
+        dbContext.BranchDailySnapshots.Add(BuildSnapshot(organizationId, branchId, toDate));
+        await dbContext.SaveChangesAsync();
+
+        var service = new EfBranchDynamicsService(dbContext, new FixedTimeProvider(nowUtc));
+        var dynamics = await service.GetAsync(organizationId, branchId, 30, CancellationToken.None);
+
+        Assert.NotNull(dynamics);
+        Assert.Equal(1, dynamics.MissingDayCount);
     }
 
     [Fact]

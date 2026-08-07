@@ -21,7 +21,7 @@ public sealed class EfBranchDynamicsService(PlatformDbContext dbContext, TimePro
         var branch = await dbContext.Branches
             .AsNoTracking()
             .Where(branch => branch.BranchId == branchId && branch.OrganizationId == organizationId)
-            .Select(branch => new { branch.PreferredTimeZone })
+            .Select(branch => new { branch.PreferredTimeZone, branch.CreatedAtUtc })
             .FirstOrDefaultAsync(cancellationToken);
         if (branch is null) return null;
 
@@ -45,6 +45,15 @@ public sealed class EfBranchDynamicsService(PlatformDbContext dbContext, TimePro
 
         var currencyCode = snapshots.FirstOrDefault()?.CurrencyCode ?? BranchRevenue.DefaultCurrencyCode;
 
+        // BranchDailySnapshotBuilder никогда не создаёт снимки раньше рождения филиала (в его же
+        // местных сутках) — сутки окна до этой даты не «пропущены», их не было вовсе. Считать их
+        // пробелом наблюдения было бы тем же подлогом, против которого разделён AgentAlive на
+        // false/null, только уровнем выше: fromDate остаётся честной границей ЗАПРОШЕННОГО окна,
+        // а вот MissingDayCount считает пробел только там, где филиал уже существовал.
+        var createdLocalDate = BranchLocalTime.LocalDate(branch.CreatedAtUtc, zone);
+        var observableFromDate = createdLocalDate > fromDate ? createdLocalDate : fromDate;
+        var observableDayCount = observableFromDate > toDate ? 0 : toDate.DayNumber - observableFromDate.DayNumber + 1;
+
         return new BranchDynamicsDto(
             organizationId,
             branchId,
@@ -54,7 +63,7 @@ public sealed class EfBranchDynamicsService(PlatformDbContext dbContext, TimePro
             snapshots.Sum(snapshot => snapshot.SessionCount),
             snapshots.Count(snapshot => snapshot.AgentAlive == false),
             snapshots.Count(snapshot => snapshot.AgentAlive is null),
-            window - snapshots.Count,
+            observableDayCount - snapshots.Count,
             snapshots.Select(snapshot => new BranchDynamicsDayDto(
                 snapshot.SnapshotDate,
                 snapshot.SessionCount,
