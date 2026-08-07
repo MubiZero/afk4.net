@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { I18nProvider } from '@/i18n/I18nProvider';
 import { OrganizationDynamicsTab } from './OrganizationDynamicsTab';
 import type { BranchDynamics, BranchDynamicsDay, OrganizationBranch } from '@/api/types';
@@ -95,5 +95,54 @@ describe('OrganizationDynamicsTab', () => {
 
     await waitFor(() => expect(screen.getByText('Выручка по дням')).toBeInTheDocument());
     expect(container.textContent).not.toContain('{');
+  });
+
+  it('переключение клуба перезапрашивает данные и не даёт устаревшему ответу перетереть новый', async () => {
+    const branchA = branch({ branchId: 'branch-a', name: 'Клуб А' });
+    const branchB = branch({ branchId: 'branch-b', name: 'Клуб Б' });
+
+    let resolveA: (value: BranchDynamics) => void = () => {};
+    let resolveB: (value: BranchDynamics) => void = () => {};
+    const getBranchDynamics = mock((_organizationId: string, branchId: string) => {
+      if (branchId === 'branch-a') return new Promise<BranchDynamics>(resolve => { resolveA = resolve; });
+      return new Promise<BranchDynamics>(resolve => { resolveB = resolve; });
+    });
+    const client = { getBranchDynamics };
+
+    render(<I18nProvider><OrganizationDynamicsTab client={client} organizationId="org-1" branches={[branchA, branchB]} /></I18nProvider>);
+
+    await waitFor(() => expect(getBranchDynamics).toHaveBeenCalledWith('org-1', 'branch-a', 30));
+
+    // Переключаемся на клуб Б до того, как первый запрос успел ответить.
+    fireEvent.change(screen.getByLabelText('Клуб'), { target: { value: 'branch-b' } });
+    await waitFor(() => expect(getBranchDynamics).toHaveBeenCalledWith('org-1', 'branch-b', 30));
+
+    // Устаревший ответ по клубу А приходит ПОСЛЕ переключения — он не должен попасть на экран.
+    resolveB(dynamics({ branchId: 'branch-b', totalSessionCount: 7 }));
+    resolveA(dynamics({ branchId: 'branch-a', totalSessionCount: 999 }));
+
+    await waitFor(() => expect(screen.getByText('7')).toBeInTheDocument());
+    expect(screen.queryByText('999')).not.toBeInTheDocument();
+  });
+
+  it('смена организации на смонтированном компоненте не оставляет чужой branchId', async () => {
+    const branchA = branch({ branchId: 'branch-a', name: 'Клуб А' });
+    const branchC = branch({ branchId: 'branch-c', name: 'Клуб В' });
+    const getBranchDynamics = mock().mockResolvedValue(dynamics());
+    const client = { getBranchDynamics };
+
+    const { rerender } = render(
+      <I18nProvider><OrganizationDynamicsTab client={client} organizationId="org-1" branches={[branchA]} /></I18nProvider>
+    );
+    await waitFor(() => expect(getBranchDynamics).toHaveBeenCalledWith('org-1', 'branch-a', 30));
+
+    // Та же смонтированная вкладка получает другую организацию с другим набором филиалов —
+    // TabBoundary.resetKey не размонтирует детей, поэтому это обычный сценарий переключения.
+    rerender(
+      <I18nProvider><OrganizationDynamicsTab client={client} organizationId="org-2" branches={[branchC]} /></I18nProvider>
+    );
+
+    await waitFor(() => expect(getBranchDynamics).toHaveBeenCalledWith('org-2', 'branch-c', 30));
+    expect(getBranchDynamics).not.toHaveBeenCalledWith('org-2', 'branch-a', 30);
   });
 });

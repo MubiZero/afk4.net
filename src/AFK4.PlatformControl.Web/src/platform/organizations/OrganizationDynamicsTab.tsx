@@ -15,7 +15,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { minorToMajor } from '@/lib/money';
 import type { BranchDynamicsApi } from '@/api/platformClients/branchDynamics';
 import type { BranchDynamics, OrganizationBranch } from '@/api/types';
-import { summarizeAgentDays, toDynamicsSeries } from './dynamicsModel';
+import { countAliveDays, toDynamicsSeries } from './dynamicsModel';
 import { useBranchDynamics } from './useBranchDynamics';
 
 type Client = Pick<BranchDynamicsApi, 'getBranchDynamics'>;
@@ -26,7 +26,15 @@ export function OrganizationDynamicsTab({ client, organizationId, branches }: {
   branches: OrganizationBranch[];
 }) {
   const i18n = useI18n();
-  const [branchId, setBranchId] = useState(branches[0]?.branchId ?? '');
+  const [selectedBranchId, setSelectedBranchId] = useState(branches[0]?.branchId ?? '');
+  // TabBoundary.resetKey сбрасывает только собственное состояние границы ошибок, а не
+  // пересоздаёт детей — значит, при переходе на другую организацию (или просто при смене набора
+  // филиалов) этот компонент не размонтируется и selectedBranchId может пережить организацию,
+  // которой он принадлежал. Состояние выбора не должно пережить смену организации: если
+  // сохранённый id не встречается в актуальном списке филиалов, откатываемся на первый.
+  const branchId = branches.some(branch => branch.branchId === selectedBranchId)
+    ? selectedBranchId
+    : (branches[0]?.branchId ?? '');
   const state = useBranchDynamics(client, organizationId, branchId);
 
   if (branches.length === 0) return <EmptyState message={i18n.t('platform.dynamics.empty')} />;
@@ -36,7 +44,7 @@ export function OrganizationDynamicsTab({ client, organizationId, branches }: {
       {branches.length > 1 ? (
         <label className="ui-field">
           <span>{i18n.t('platform.dynamics.branch.label')}</span>
-          <Select value={branchId} onChange={event => setBranchId(event.target.value)}>
+          <Select value={branchId} onChange={event => setSelectedBranchId(event.target.value)}>
             {branches.map(branch => (
               <option key={branch.branchId} value={branch.branchId}>{branch.name}</option>
             ))}
@@ -61,7 +69,11 @@ function DynamicsContent({ i18n, data }: { i18n: ReturnType<typeof useI18n>; dat
   if (data.days.length === 0) return <EmptyState message={t('platform.dynamics.empty')} />;
 
   const series = toDynamicsSeries(data.days);
-  const agentSummary = summarizeAgentDays(data.days);
+  // Сервер уже посчитал «не выходил на связь» и «нет данных» (daysWithoutAgent/daysWithUnknownAgent
+  // в ответе) — эти цифры берём оттуда, а не пересчитываем заново по `days` на клиенте (два места,
+  // считающие одно и то же число, расходятся). «Выходил на связь» сервер отдельно не отдаёт —
+  // единственная величина здесь, которую действительно неоткуда взять, кроме клиента.
+  const aliveDays = countAliveDays(data.days);
 
   return (
     <>
@@ -85,11 +97,12 @@ function DynamicsContent({ i18n, data }: { i18n: ReturnType<typeof useI18n>; dat
         </p>
       ) : null}
 
-      {/* Явные три величины связи рядом: не выходил на связь (agentSummary.dead) и нет данных
-          (agentSummary.unknown) — разные факты, которые нельзя схлопывать в один «плохой» бакет. */}
-      <div className="pc-kv"><span>{t('platform.dynamics.agent.alive')}</span><span className="pc-num">{formatNumber(agentSummary.alive)}</span></div>
-      <div className="pc-kv"><span>{t('platform.dynamics.agent.dead')}</span><span className="pc-num">{formatNumber(agentSummary.dead)}</span></div>
-      <div className="pc-kv"><span>{t('platform.dynamics.agent.unknown')}</span><span className="pc-num">{formatNumber(agentSummary.unknown)}</span></div>
+      {/* Явные три величины связи рядом: не выходил на связь (data.daysWithoutAgent) и нет данных
+          (data.daysWithUnknownAgent) — разные факты, которые нельзя схлопывать в один «плохой»
+          бакет. Оба берутся из ответа сервера, а не пересчитываются заново. */}
+      <div className="pc-kv"><span>{t('platform.dynamics.agent.alive')}</span><span className="pc-num">{formatNumber(aliveDays)}</span></div>
+      <div className="pc-kv"><span>{t('platform.dynamics.agent.dead')}</span><span className="pc-num">{formatNumber(data.daysWithoutAgent)}</span></div>
+      <div className="pc-kv"><span>{t('platform.dynamics.agent.unknown')}</span><span className="pc-num">{formatNumber(data.daysWithUnknownAgent)}</span></div>
 
       <Card>
         <CardHeader>

@@ -11,13 +11,12 @@ export function toDynamicsSeries(days: BranchDynamicsDay[]): DynamicsPoint[] {
   }));
 }
 
-// Три состояния связи держатся раздельно: `false` — клуб реально не выходил на связь,
-// `null`/`undefined` — данных о связи нет (обычно наш собственный простой), не вина клуба.
-// Смешивать их в один "плохой" бакет нельзя — это разные факты с разными формулировками.
-export function summarizeAgentDays(days: BranchDynamicsDay[]) {
-  return {
-    alive: days.filter(day => day.agentAlive === true).length,
-    dead: days.filter(day => day.agentAlive === false).length,
-    unknown: days.filter(day => day.agentAlive === null || day.agentAlive === undefined).length
-  };
+// «Не выходил на связь» (false) и «нет данных о связи» (null/undefined) сервер уже считает
+// сам (`daysWithoutAgent`/`daysWithUnknownAgent` в BranchDynamicsDto) — эти цифры нужно брать
+// оттуда, а не пересчитывать заново на клиенте по тем же `days`: два независимых куска кода,
+// считающих одно и то же число, рано или поздно разойдутся, и разницу поймает глаз пользователя,
+// а не тест. «Выходил на связь» (true) сервер отдельным полем не отдаёт — это единственная из
+// трёх величин, для которой клиентский пересчёт законен, потому что альтернативы нет.
+export function countAliveDays(days: BranchDynamicsDay[]): number {
+  return days.filter(day => day.agentAlive === true).length;
 }

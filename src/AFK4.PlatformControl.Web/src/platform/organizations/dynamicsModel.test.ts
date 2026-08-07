@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { toDynamicsSeries, summarizeAgentDays } from './dynamicsModel';
+import { toDynamicsSeries, countAliveDays } from './dynamicsModel';
 
 const day = (date: string, sessions: number, minorUnits: number, agentAlive: boolean | null) => ({
   date,
@@ -22,13 +22,13 @@ describe('toDynamicsSeries', () => {
   });
 });
 
-describe('summarizeAgentDays', () => {
-  test('не смешивает «не выходил на связь» с «нет данных»', () => {
-    const summary = summarizeAgentDays([
+describe('countAliveDays', () => {
+  test('считает только дни с agentAlive === true, не смешивая с «не выходил на связь» и «нет данных»', () => {
+    const count = countAliveDays([
       day('2026-08-01', 0, 0, false),
       day('2026-08-02', 0, 0, null),
       day('2026-08-03', 0, 0, true)
     ]);
-    expect(summary).toEqual({ alive: 1, dead: 1, unknown: 1 });
+    expect(count).toBe(1);
   });
 });
