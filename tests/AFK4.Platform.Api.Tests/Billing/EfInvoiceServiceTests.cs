@@ -287,4 +287,33 @@ public sealed class EfInvoiceServiceTests
 
         Assert.Equal(SubscriptionStatusNames.PastDue, (await db.OrganizationSubscriptions.SingleAsync()).Status);
     }
+
+    [Fact]
+    public async Task VoidAsync_LastOverdueInvoiceVoided_ReturnsSubscriptionToActive()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
+        var invoice = await AddOverdueInvoiceAsync(db, orgId, number: 1);
+        var service = NewService(db, new FixedTimeProvider(Now));
+
+        var result = await service.VoidAsync(invoice.InvoiceId, new VoidInvoiceRequest("issued by mistake"), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(SubscriptionStatusNames.Active, (await db.OrganizationSubscriptions.SingleAsync()).Status);
+        Assert.Equal(SubscriptionStatusNames.Active, (await db.Organizations.SingleAsync()).SubscriptionStatus);
+    }
+
+    [Fact]
+    public async Task VoidAsync_AnotherOverdueInvoiceRemains_KeepsPastDue()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
+        var first = await AddOverdueInvoiceAsync(db, orgId, number: 1);
+        await AddOverdueInvoiceAsync(db, orgId, number: 2);
+        var service = NewService(db, new FixedTimeProvider(Now));
+
+        await service.VoidAsync(first.InvoiceId, new VoidInvoiceRequest("issued by mistake"), CancellationToken.None);
+
+        Assert.Equal(SubscriptionStatusNames.PastDue, (await db.OrganizationSubscriptions.SingleAsync()).Status);
+    }
 }

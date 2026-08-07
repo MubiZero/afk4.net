@@ -188,6 +188,7 @@ public sealed class EfInvoiceService(
         invoice.VoidReason = request.Reason.Trim();
         invoice.UpdatedAtUtc = now;
         await dbContext.SaveChangesAsync(cancellationToken);
+        await RestoreSubscriptionIfSettledAsync(invoice.OrganizationId, now, cancellationToken);
         return BillingOperationResult<InvoiceDto>.Success(ToDto(invoice));
     }
 
