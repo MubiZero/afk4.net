@@ -25,6 +25,8 @@ import {
 } from './support/supportSession';
 import { supportVisibleWorkspaces } from './support/supportWorkspaces';
 import { SupportModeBanner } from './support/SupportModeBanner';
+import { BillingStatusBanner } from './billing/BillingStatusBanner';
+import { useBillingStatus } from './billing/useBillingStatus';
 import { PostAuthShiftGate } from './PostAuthShiftGate';
 import { ShellHeader } from './ShellHeader';
 import { WorkspaceRail } from './WorkspaceRail';
@@ -250,6 +252,13 @@ function AppInner() {
   );
   // Прогрев кэша клиентов при входе → первый заход в «Клиенты» мгновенный (как заранее загруженный зал).
   usePlayersPreload(operationalAuthStatus, authSession, config, t, activeBranchId);
+  // Задолженность перед платформой — привязана к РЕАЛЬНОМУ логину сотрудника клуба
+  // (staffAuthSession/staffAuthStatus), не к адаптированной под саппорт-сессию `authSession`: под
+  // саппортом тот же долг уже виден платформенному сотруднику в его собственной панели, и лишний
+  // запрос отсюда никому не нужен (даже если бы саппорт-сессия формально несла `viewSubscription`
+  // среди read-прав — supportPermissions включает все `.view`-права).
+  const billingStatus = useBillingStatus(staffAuthStatus, staffAuthSession, config);
+  const showBillingBanner = activeSupportSession === null && billingStatus !== null && billingStatus.inArrears;
   const canUsePcControl = (hasPermission(authSession, permissionNames.viewDiagnostics)
     && hasPermission(authSession, permissionNames.viewDeviceDetail))
     || hasPermission(authSession, permissionNames.dispatchDeviceCommand);
@@ -374,15 +383,17 @@ function AppInner() {
 
   return (
     <>
-      {activeSupportSession !== null && (
+      {activeSupportSession !== null ? (
         <SupportModeBanner session={activeSupportSession} onExit={handleExitSupportMode} />
-      )}
+      ) : billingStatus !== null && showBillingBanner ? (
+        <BillingStatusBanner status={billingStatus} />
+      ) : null}
       <div
         className="operator-shell"
         style={{
           '--shell-tabstrip': showWorkspaceTabs ? '41px' : '0px',
           '--shell-context-col': contextCol,
-          '--shell-banner-h': activeSupportSession !== null ? '40px' : '0px'
+          '--shell-banner-h': activeSupportSession !== null || showBillingBanner ? '40px' : '0px'
         } as CSSProperties}
       >
         <WindowResizeHandles />
