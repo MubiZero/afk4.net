@@ -28,7 +28,8 @@ public sealed class AutoProtectionRunner(
         PosSaleStateNames.PendingPayment
     ];
 
-    public async Task RunOnceAsync(CancellationToken cancellationToken)
+    /// <summary>Runs one pass and returns the number of sessions warned or locked.</summary>
+    public async Task<int> RunOnceAsync(CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
         var sessions = await dbContext.Sessions
@@ -36,7 +37,7 @@ public sealed class AutoProtectionRunner(
             .ToListAsync(cancellationToken);
         if (sessions.Count == 0)
         {
-            return;
+            return 0;
         }
 
         var branchIds = sessions.Select(session => session.BranchId).Distinct().ToList();
@@ -57,23 +58,26 @@ public sealed class AutoProtectionRunner(
                 .Where(player => playerIds.Contains(player.PlayerAccountId))
                 .ToDictionaryAsync(player => player.PlayerAccountId, player => player.PostpaidCreditLimitMinorUnits, cancellationToken);
 
-        var changed = false;
+        var changedCount = 0;
         foreach (var session in sessions)
         {
-            if (session.EndsAtUtc is { } endsAtUtc)
+            var changed = session.EndsAtUtc is { } endsAtUtc
+                ? await EvaluateFixedAsync(session, endsAtUtc, now, cancellationToken)
+                : session.PlayerAccountId is { } playerId
+                    && await EvaluateOpenTabAsync(session, playerId, branchLimits, playerLimits, now, cancellationToken);
+
+            if (changed)
             {
-                changed |= await EvaluateFixedAsync(session, endsAtUtc, now, cancellationToken);
-            }
-            else if (session.PlayerAccountId is { } playerId)
-            {
-                changed |= await EvaluateOpenTabAsync(session, playerId, branchLimits, playerLimits, now, cancellationToken);
+                changedCount++;
             }
         }
 
-        if (changed)
+        if (changedCount > 0)
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
+
+        return changedCount;
     }
 
     private async Task<bool> EvaluateFixedAsync(

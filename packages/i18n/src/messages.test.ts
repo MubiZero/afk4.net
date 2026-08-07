@@ -41,6 +41,9 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «тариф» — то же устоявшееся заимствование, что club.billing.subscription.plan выше,
     // тот же смысл (подпись тарифного плана), другой namespace (Сеть → Оплата, org-audit fix).
     'op.network.billing.plan',
+    // «биллинг» — то же устоявшееся заимствование, что club.billing.title выше; подпись
+    // очереди биллинга на экране «Здоровье платформы» (Task 7 волны C).
+    'platform.health.queue.billing_outbox',
     'customer.profile.langEn',
     'customer.receipt.openLink',
     'customer.signin.phone',

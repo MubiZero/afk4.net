@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Platform.Health;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -12,35 +13,16 @@ public sealed class AutoProtectionHostedService(
     IServiceProvider serviceProvider,
     AutoProtectionOptions options,
     TimeProvider timeProvider,
-    ILogger<AutoProtectionHostedService> logger) : BackgroundService
+    ILogger<AutoProtectionHostedService> logger)
+    : PlatformPeriodicJob(serviceProvider, timeProvider, logger)
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                using var scope = serviceProvider.CreateScope();
-                var runner = scope.ServiceProvider.GetRequiredService<AutoProtectionRunner>();
-                await runner.RunOnceAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Auto-protection tick failed.");
-            }
+    protected override string JobName => PlatformJobNames.AutoProtection;
 
-            try
-            {
-                await Task.Delay(options.TickInterval, timeProvider, stoppingToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-        }
+    protected override TimeSpan Interval => options.TickInterval;
+
+    protected override Task<int> TickAsync(IServiceProvider scopedServices, CancellationToken cancellationToken)
+    {
+        var runner = scopedServices.GetRequiredService<AutoProtectionRunner>();
+        return runner.RunOnceAsync(cancellationToken);
     }
 }

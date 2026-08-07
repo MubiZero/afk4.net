@@ -1,3 +1,4 @@
+using AFK4.Platform.Api.Platform.Health;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -12,47 +13,25 @@ public sealed class DailySummaryHostedService(
     IServiceProvider serviceProvider,
     TimeProvider timeProvider,
     IOptions<NotificationOptions> options,
-    ILogger<DailySummaryHostedService> logger) : BackgroundService
+    ILogger<DailySummaryHostedService> logger)
+    : PlatformPeriodicJob(serviceProvider, timeProvider, logger)
 {
     private readonly NotificationOptions options = options.Value;
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await TickAsync(stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Daily owner-summary tick failed.");
-            }
+    protected override string JobName => PlatformJobNames.DailySummary;
 
-            try
-            {
-                await Task.Delay(options.DailySummaryInterval, timeProvider, stoppingToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-        }
-    }
+    protected override TimeSpan Interval => options.DailySummaryInterval;
 
-    private async Task TickAsync(CancellationToken cancellationToken)
+    protected override async Task<int> TickAsync(IServiceProvider scopedServices, CancellationToken cancellationToken)
     {
-        await using var scope = serviceProvider.CreateAsyncScope();
-        var runner = scope.ServiceProvider.GetRequiredService<IDailySummaryRunner>();
-        var now = timeProvider.GetUtcNow();
+        var runner = scopedServices.GetRequiredService<IDailySummaryRunner>();
+        var now = GetUtcNow();
         var sent = await runner.RunAsync(now, cancellationToken);
         if (sent > 0)
         {
             logger.LogInformation("Daily owner-summary tick enqueued {Count} summary(ies).", sent);
         }
+
+        return sent;
     }
 }

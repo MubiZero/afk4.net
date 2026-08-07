@@ -2007,6 +2007,91 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("platform_idempotency_records", (string)null);
                 });
 
+            modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformIncidentEntity", b =>
+                {
+                    b.Property<Guid>("PlatformIncidentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DedupKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("DetailsJson")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("LastNotifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("LastSeenAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("OpenedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("ResolvedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("PlatformIncidentId");
+
+                    b.HasIndex("DedupKey")
+                        .IsUnique()
+                        .HasFilter("\"ResolvedAtUtc\" IS NULL");
+
+                    b.HasIndex("OpenedAtUtc");
+
+                    b.ToTable("platform_incidents", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformJobRunEntity", b =>
+                {
+                    b.Property<Guid>("PlatformJobRunId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTimeOffset>("FinishedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ItemsProcessed")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("JobName")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("PlatformJobRunId");
+
+                    b.HasIndex("JobName", "StartedAtUtc");
+
+                    b.ToTable("platform_job_runs", (string)null);
+                });
+
             modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformSupportAccessGrantEntity", b =>
                 {
                     b.Property<Guid>("GrantId")
