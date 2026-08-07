@@ -35,7 +35,8 @@
 
 ## Активный бэклог / эпики
 - [Режим поддержки — вход платформы под клиента](platform-support-mode.md) — граница = метка на эндпоинте; урок: белый список файлов ≠ белый список полномочий (эскалация через роли/пароли переживала грант).
-- [Пробелы платформенной админки — волна A](platform-admin-directory-2fa.md) — каталог сотрудников + обязательный TOTP в PR #135 (design-ветка); волна A закрыта целиком, волны B/C/D не начаты.
+- [Пробелы платформенной админки — волна A](platform-admin-directory-2fa.md) — каталог сотрудников + обязательный TOTP в PR #135 (design-ветка); волна A закрыта целиком.
+- [Волна B — цикл неплатежа и гибкая цена](platform-billing-dunning-wave-b.md) — бэкенд в PR #137 (лестница писем, авто-`past_due`, скидки, кредит-ноты, TJS); план 2 (панель + полоса в админке клуба) не начат; волны C/D не начаты.
 - [Online booking auto-confirm + hold](afk4-online-booking-autoconfirm-epic.md) — авто-confirm онлайн-броней при балансе (Slice 1 в main); холд денег — бэклог, решения зафиксированы, гейт на мобилку. Канон-док `docs/superpowers/specs/2026-06-18-online-booking-autoconfirm-hold.md`.
 - [Multi-tenant payments](afk4-multitenant-payments-state.md) — dcgate per-branch; money-path FROZEN внешним bank-bot; `Secrets:EncryptionKeyBase64` критичен (потеря = недешифруемые creds); prod afk4 не задеплоен.
 - [Time handling audit](afk4-time-handling-audit.md) — деньги server-authoritative/безопасны; реальный риск = skew/implicit-tz; рискованный lease/grace rewrite отложен до drift-логов; tz-multiregion YAGNI.
