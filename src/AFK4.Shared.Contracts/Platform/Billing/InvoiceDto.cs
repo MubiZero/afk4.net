@@ -15,4 +15,6 @@ public sealed record InvoiceDto(
     DateTimeOffset? PaidAtUtc,
     DateTimeOffset? VoidedAtUtc,
     string? VoidReason,
-    string Description);
+    string Description,
+    long GrossAmountMinorUnits,
+    long DiscountMinorUnits);

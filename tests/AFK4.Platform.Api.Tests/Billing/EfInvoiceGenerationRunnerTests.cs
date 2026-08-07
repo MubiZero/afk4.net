@@ -138,4 +138,39 @@ public sealed class EfInvoiceGenerationRunnerTests
 
         Assert.Equal(0, issued);
     }
+
+    [Fact]
+    public async Task RunAsync_ActiveDiscount_SplitsInvoiceIntoGrossDiscountAndTotal()
+    {
+        await using var db = NewContext();
+        var subscription = await SeedActiveDueSubscriptionAsync(db);
+        subscription.DiscountPercent = 30;
+        subscription.DiscountUntilUtc = Start.AddMonths(6);
+        await db.SaveChangesAsync();
+        var runner = NewRunner(db);
+
+        await runner.RunAsync(Start.AddMonths(1), CancellationToken.None);
+
+        var invoice = await db.Invoices.SingleAsync();
+        Assert.Equal(290000, invoice.GrossAmountMinorUnits);
+        Assert.Equal(87000, invoice.DiscountMinorUnits);
+        Assert.Equal(203000, invoice.AmountMinorUnits);
+    }
+
+    [Fact]
+    public async Task RunAsync_ExpiredDiscount_ChargesFullPrice()
+    {
+        await using var db = NewContext();
+        var subscription = await SeedActiveDueSubscriptionAsync(db);
+        subscription.DiscountPercent = 30;
+        subscription.DiscountUntilUtc = Start.AddDays(1);
+        await db.SaveChangesAsync();
+        var runner = NewRunner(db);
+
+        await runner.RunAsync(Start.AddMonths(1), CancellationToken.None);
+
+        var invoice = await db.Invoices.SingleAsync();
+        Assert.Equal(0, invoice.DiscountMinorUnits);
+        Assert.Equal(290000, invoice.AmountMinorUnits);
+    }
 }

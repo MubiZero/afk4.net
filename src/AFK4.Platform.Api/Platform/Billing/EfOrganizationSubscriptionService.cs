@@ -99,6 +99,31 @@ public sealed class EfOrganizationSubscriptionService(
                 "ClearPaymentGrace and PaymentGraceUntilUtc must not be set together.");
         }
 
+        if (request.DiscountPercent is not null && request.DiscountAmountMinorUnits is not null)
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                "Set either DiscountPercent or DiscountAmountMinorUnits, not both.");
+        }
+
+        if (request.DiscountPercent is not null and (< 1 or > 100))
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                "DiscountPercent must be between 1 and 100.");
+        }
+
+        if (request.DiscountAmountMinorUnits is not null and < 1)
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                "DiscountAmountMinorUnits must be positive.");
+        }
+
+        if (request.ClearDiscount == true
+            && (request.DiscountPercent is not null || request.DiscountAmountMinorUnits is not null))
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                "ClearDiscount and discount values must not be set together.");
+        }
+
         if (request.PlanCode is not null && request.PlanCode.Trim() != subscription.PlanCode)
         {
             var newPlan = await dbContext.SubscriptionPlans
@@ -183,6 +208,38 @@ public sealed class EfOrganizationSubscriptionService(
         else if (request.ClearPaymentGrace == true)
         {
             subscription.PaymentGraceUntilUtc = null;
+        }
+
+        if (request.ClearDiscount == true)
+        {
+            subscription.DiscountPercent = null;
+            subscription.DiscountAmountMinorUnits = null;
+            subscription.DiscountUntilUtc = null;
+            subscription.DiscountReason = null;
+        }
+        else
+        {
+            if (request.DiscountPercent is not null)
+            {
+                subscription.DiscountPercent = request.DiscountPercent;
+                subscription.DiscountAmountMinorUnits = null;
+            }
+
+            if (request.DiscountAmountMinorUnits is not null)
+            {
+                subscription.DiscountAmountMinorUnits = request.DiscountAmountMinorUnits;
+                subscription.DiscountPercent = null;
+            }
+
+            if (request.DiscountUntilUtc is not null)
+            {
+                subscription.DiscountUntilUtc = request.DiscountUntilUtc;
+            }
+
+            if (request.DiscountReason is not null)
+            {
+                subscription.DiscountReason = request.DiscountReason;
+            }
         }
 
         subscription.UpdatedAtUtc = now;
@@ -319,5 +376,9 @@ public sealed class EfOrganizationSubscriptionService(
             CancelAtPeriodEnd: entity.CancelAtPeriodEnd,
             CreatedAtUtc: entity.CreatedAtUtc,
             UpdatedAtUtc: entity.UpdatedAtUtc,
-            PaymentGraceUntilUtc: entity.PaymentGraceUntilUtc);
+            PaymentGraceUntilUtc: entity.PaymentGraceUntilUtc,
+            DiscountPercent: entity.DiscountPercent,
+            DiscountAmountMinorUnits: entity.DiscountAmountMinorUnits,
+            DiscountUntilUtc: entity.DiscountUntilUtc,
+            DiscountReason: entity.DiscountReason);
 }

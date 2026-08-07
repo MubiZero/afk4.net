@@ -142,4 +142,83 @@ public sealed class EfOrganizationSubscriptionServiceTests
 
         Assert.Equal(BillingOperationStatus.BadRequest, result.Status);
     }
+
+    [Fact]
+    public async Task UpdateAsync_BothDiscountFormsSet_IsRejected()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrgAndPlansAsync(db, "starter");
+        var service = new EfOrganizationSubscriptionService(db, new FixedTimeProvider(Now));
+        await service.GetAsync(orgId, CancellationToken.None);
+
+        var result = await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
+            PlanCode: null, BillingInterval: null, Status: null, CancelAtPeriodEnd: null,
+            AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null,
+            DiscountPercent: 30, DiscountAmountMinorUnits: 50000), CancellationToken.None);
+
+        Assert.Equal(BillingOperationStatus.BadRequest, result.Status);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(101)]
+    public async Task UpdateAsync_PercentOutOfRange_IsRejected(int percent)
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrgAndPlansAsync(db, "starter");
+        var service = new EfOrganizationSubscriptionService(db, new FixedTimeProvider(Now));
+        await service.GetAsync(orgId, CancellationToken.None);
+
+        var result = await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
+            PlanCode: null, BillingInterval: null, Status: null, CancelAtPeriodEnd: null,
+            AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null,
+            DiscountPercent: percent), CancellationToken.None);
+
+        Assert.Equal(BillingOperationStatus.BadRequest, result.Status);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_PlanChange_KeepsDiscount()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrgAndPlansAsync(db, "starter");
+        var service = new EfOrganizationSubscriptionService(db, new FixedTimeProvider(Now));
+        await service.GetAsync(orgId, CancellationToken.None);
+        await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
+            PlanCode: null, BillingInterval: null, Status: null, CancelAtPeriodEnd: null,
+            AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null,
+            DiscountPercent: 30, DiscountReason: "Договорённость на запуск"), CancellationToken.None);
+
+        var result = await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
+            PlanCode: "scale", BillingInterval: null, Status: null, CancelAtPeriodEnd: null,
+            AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(30, result.Value!.DiscountPercent);
+        Assert.Equal(1990000, result.Value.AmountMinorUnits);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ClearDiscount_RemovesAllDiscountFields()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrgAndPlansAsync(db, "starter");
+        var service = new EfOrganizationSubscriptionService(db, new FixedTimeProvider(Now));
+        await service.GetAsync(orgId, CancellationToken.None);
+        await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
+            PlanCode: null, BillingInterval: null, Status: null, CancelAtPeriodEnd: null,
+            AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null,
+            DiscountPercent: 30, DiscountUntilUtc: Now.AddMonths(3), DiscountReason: "Запуск"), CancellationToken.None);
+
+        var result = await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
+            PlanCode: null, BillingInterval: null, Status: null, CancelAtPeriodEnd: null,
+            AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null,
+            ClearDiscount: true), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Null(result.Value!.DiscountPercent);
+        Assert.Null(result.Value.DiscountAmountMinorUnits);
+        Assert.Null(result.Value.DiscountUntilUtc);
+        Assert.Null(result.Value.DiscountReason);
+    }
 }

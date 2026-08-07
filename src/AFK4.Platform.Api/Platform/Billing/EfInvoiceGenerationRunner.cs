@@ -57,6 +57,12 @@ public sealed class EfInvoiceGenerationRunner(
             .Select(invoice => (int?)invoice.Number)
             .MaxAsync(cancellationToken)) ?? 0) + 1;
 
+        var gross = subscription.AmountMinorUnits;
+        var discountApplies = subscription.DiscountUntilUtc is null || subscription.DiscountUntilUtc > now;
+        var discount = discountApplies
+            ? SubscriptionDiscount.Apply(gross, subscription.DiscountPercent, subscription.DiscountAmountMinorUnits)
+            : 0;
+
         var invoice = new InvoiceEntity
         {
             InvoiceId = Guid.NewGuid(),
@@ -67,8 +73,9 @@ public sealed class EfInvoiceGenerationRunner(
             PeriodEndUtc = subscription.CurrentPeriodEndUtc,
             IssuedAtUtc = now,
             DueAtUtc = now.Add(options.InvoiceDueAfter),
-            AmountMinorUnits = subscription.AmountMinorUnits,
-            GrossAmountMinorUnits = subscription.AmountMinorUnits,
+            AmountMinorUnits = gross - discount,
+            GrossAmountMinorUnits = gross,
+            DiscountMinorUnits = discount,
             CurrencyCode = subscription.CurrencyCode,
             Status = InvoiceStatusNames.Issued,
             Description = $"Subscription {subscription.PlanCode} " +

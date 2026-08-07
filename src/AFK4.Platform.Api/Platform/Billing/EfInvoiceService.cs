@@ -254,5 +254,7 @@ public sealed class EfInvoiceService(
             PaidAtUtc: entity.PaidAtUtc,
             VoidedAtUtc: entity.VoidedAtUtc,
             VoidReason: entity.VoidReason,
-            Description: entity.Description);
+            Description: entity.Description,
+            GrossAmountMinorUnits: entity.GrossAmountMinorUnits,
+            DiscountMinorUnits: entity.DiscountMinorUnits);
 }
