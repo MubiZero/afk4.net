@@ -1265,6 +1265,15 @@ public static class PlatformHealthRules
 
     private const int FailureStreakThreshold = 3;
 
+    /// <summary>Виды инцидентов, которые умеет обнаруживать этот набор правил — ровно их и закрывает сторож.</summary>
+    public static readonly IReadOnlyList<string> EvaluatedKinds =
+    [
+        PlatformIncidentKindNames.JobOverdue,
+        PlatformIncidentKindNames.JobFailing,
+        PlatformIncidentKindNames.NotificationQueueStuck,
+        PlatformIncidentKindNames.BillingOutboxStuck
+    ];
+
     /// <summary>Задания, чья остановка стоит денег: счета не выставляются, письма не уходят.</summary>
     private static readonly HashSet<string> CriticalJobs = new(StringComparer.Ordinal)
     {
@@ -1524,8 +1533,12 @@ public sealed class PlatformHealthWatchJob(
             }
         }
 
+        // Первый аргумент — виды, которые этот проход РЕАЛЬНО проверял. Без него служба
+        // закрывала бы и чужие открытые инциденты просто потому, что их ключей нет в наборе.
         var resolved = await incidents.ResolveMissingAsync(
-            problems.Select(problem => problem.DedupKey).ToHashSet(StringComparer.Ordinal), cancellationToken);
+            PlatformHealthRules.EvaluatedKinds,
+            problems.Select(problem => problem.DedupKey).ToHashSet(StringComparer.Ordinal),
+            cancellationToken);
         foreach (var incident in resolved)
         {
             await notifier.NotifyResolvedAsync(incident, cancellationToken);
