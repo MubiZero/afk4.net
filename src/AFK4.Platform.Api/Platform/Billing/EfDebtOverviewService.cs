@@ -2,10 +2,13 @@ using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Platform.Billing;
 
-public sealed class EfDebtOverviewService(PlatformDbContext dbContext) : IDebtOverviewService
+public sealed class EfDebtOverviewService(
+    PlatformDbContext dbContext,
+    IOptions<BillingOptions> options) : IDebtOverviewService
 {
     public async Task<IReadOnlyList<DebtRowDto>> GetAsync(DateTimeOffset now, CancellationToken cancellationToken)
     {
@@ -48,7 +51,7 @@ public sealed class EfDebtOverviewService(PlatformDbContext dbContext) : IDebtOv
                 OrganizationStatus: organization.Status,
                 SubscriptionStatus: organization.SubscriptionStatus,
                 OutstandingMinorUnits: balance.InArrears ? balance.OutstandingMinorUnits : 0,
-                CurrencyCode: oldest?.CurrencyCode ?? subscription?.CurrencyCode ?? "TJS",
+                CurrencyCode: oldest?.CurrencyCode ?? subscription?.CurrencyCode ?? options.Value.DefaultCurrencyCode,
                 OldestOverdueInvoiceNumber: oldest?.Number,
                 OldestOverdueInvoiceId: oldest?.InvoiceId,
                 DaysOverdue: oldest is null ? 0 : Math.Max(0, (int)Math.Floor((now - oldest.DueAtUtc).TotalDays)),

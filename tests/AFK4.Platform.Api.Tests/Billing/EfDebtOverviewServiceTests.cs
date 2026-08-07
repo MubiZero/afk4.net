@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Tests.Billing;
 
@@ -14,6 +15,9 @@ public sealed class EfDebtOverviewServiceTests
         new(new DbContextOptionsBuilder<PlatformDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
             .Options);
+
+    private static EfDebtOverviewService NewService(PlatformDbContext db, BillingOptions? options = null) =>
+        new(db, Options.Create(options ?? new BillingOptions()));
 
     private static Guid SeedClub(
         PlatformDbContext db,
@@ -66,7 +70,7 @@ public sealed class EfDebtOverviewServiceTests
             dueAtUtc: Now.AddDays(-10), dunningStage: 3);
         await db.SaveChangesAsync();
 
-        var rows = await new EfDebtOverviewService(db).GetAsync(Now, CancellationToken.None);
+        var rows = await NewService(db).GetAsync(Now, CancellationToken.None);
 
         var row = Assert.Single(rows);
         Assert.Equal("Арена", row.OrganizationName);
@@ -89,7 +93,7 @@ public sealed class EfDebtOverviewServiceTests
             dueAtUtc: Now, kind: InvoiceKindNames.Credit);
         await db.SaveChangesAsync();
 
-        var rows = await new EfDebtOverviewService(db).GetAsync(Now, CancellationToken.None);
+        var rows = await NewService(db).GetAsync(Now, CancellationToken.None);
 
         Assert.Empty(rows);
     }
@@ -104,7 +108,7 @@ public sealed class EfDebtOverviewServiceTests
             dueAtUtc: Now.AddDays(-10));
         await db.SaveChangesAsync();
 
-        var row = Assert.Single(await new EfDebtOverviewService(db).GetAsync(Now, CancellationToken.None));
+        var row = Assert.Single(await NewService(db).GetAsync(Now, CancellationToken.None));
 
         Assert.Equal(Now.AddDays(20), row.GraceUntilUtc);
     }
@@ -119,7 +123,7 @@ public sealed class EfDebtOverviewServiceTests
             dueAtUtc: Now.AddDays(-10));
         await db.SaveChangesAsync();
 
-        var row = Assert.Single(await new EfDebtOverviewService(db).GetAsync(Now, CancellationToken.None));
+        var row = Assert.Single(await NewService(db).GetAsync(Now, CancellationToken.None));
 
         Assert.True(row.SettledButSuspended);
         Assert.Equal(0, row.OutstandingMinorUnits);
@@ -134,7 +138,7 @@ public sealed class EfDebtOverviewServiceTests
             dueAtUtc: Now.AddDays(-10));
         await db.SaveChangesAsync();
 
-        Assert.Empty(await new EfDebtOverviewService(db).GetAsync(Now, CancellationToken.None));
+        Assert.Empty(await NewService(db).GetAsync(Now, CancellationToken.None));
     }
 
     [Fact]
@@ -149,7 +153,7 @@ public sealed class EfDebtOverviewServiceTests
             dueAtUtc: Now.AddDays(10));
         await db.SaveChangesAsync();
 
-        Assert.Empty(await new EfDebtOverviewService(db).GetAsync(Now, CancellationToken.None));
+        Assert.Empty(await NewService(db).GetAsync(Now, CancellationToken.None));
     }
 
     [Fact]
@@ -164,7 +168,7 @@ public sealed class EfDebtOverviewServiceTests
             dueAtUtc: Now.AddDays(-30));
         await db.SaveChangesAsync();
 
-        var rows = await new EfDebtOverviewService(db).GetAsync(Now, CancellationToken.None);
+        var rows = await NewService(db).GetAsync(Now, CancellationToken.None);
 
         Assert.Equal(["Старый", "Свежий"], rows.Select(row => row.OrganizationName).ToArray());
     }
