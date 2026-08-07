@@ -283,7 +283,9 @@ builder.Services.AddHostedService<AutoProtectionHostedService>();
 builder.Services.AddHostedService<ScheduledReportHostedService>();
 builder.Services.Configure<PlatformHealthOptions>(
     builder.Configuration.GetSection(PlatformHealthOptions.ConfigurationSection));
+builder.Services.AddSingleton<PlatformJobIntervalCatalog>();
 builder.Services.AddHostedService<PlatformHealthWatchJob>();
+builder.Services.AddScoped<IPlatformHealthOverviewService, EfPlatformHealthOverviewService>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
 builder.Services.AddScoped<IOrganizationStatusGuard, EfOrganizationStatusGuard>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
@@ -473,6 +475,7 @@ app.MapPlatformUpdateEndpoints();
 app.MapPlatformAuditEndpoints();
 app.MapPlatformSearchEndpoints();
 app.MapPlatformPulseEndpoints();
+app.MapPlatformHealthEndpoints();
 organizations.MapOrganizationAuditEndpoints();
 organizations.MapStaffEndpoints();
 organizations.MapBranchProfileLayoutEndpoints();

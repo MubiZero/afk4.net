@@ -43,4 +43,6 @@ public static class PlatformAdminPermissionNames
     public const string ManageUpdateRollouts = "platform.updates.rollouts.manage";
 
     public const string ManagePlatformAdmins = "platform.admins.manage";
+
+    public const string ViewPlatformHealth = "platform.health.view";
 }

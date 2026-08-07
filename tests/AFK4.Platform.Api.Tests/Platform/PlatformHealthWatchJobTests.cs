@@ -1,9 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Notifications;
-using AFK4.Platform.Api.Outbox;
-using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Platform.Api.Platform.Health;
-using AFK4.Platform.Api.Sessions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -34,10 +31,7 @@ public sealed class PlatformHealthWatchJobTests
         factory.Services,
         time,
         factory.Services.GetRequiredService<IOptions<PlatformHealthOptions>>(),
-        factory.Services.GetRequiredService<IOptions<BillingOptions>>(),
-        factory.Services.GetRequiredService<IOptions<NotificationOptions>>(),
-        factory.Services.GetRequiredService<IOptions<OutboxOptions>>(),
-        factory.Services.GetRequiredService<AutoProtectionOptions>(),
+        factory.Services.GetRequiredService<PlatformJobIntervalCatalog>(),
         NullLogger<PlatformHealthWatchJob>.Instance);
 
     private static async Task SeedFailedNotificationAsync(IServiceProvider services)

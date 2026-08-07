@@ -1,8 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Outbox;
-using AFK4.Platform.Api.Platform.Billing;
-using AFK4.Platform.Api.Sessions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -18,10 +16,7 @@ public sealed class PlatformHealthWatchJob(
     IServiceProvider serviceProvider,
     TimeProvider timeProvider,
     IOptions<PlatformHealthOptions> healthOptions,
-    IOptions<BillingOptions> billingOptions,
-    IOptions<NotificationOptions> notificationOptions,
-    IOptions<OutboxOptions> outboxOptions,
-    AutoProtectionOptions autoProtectionOptions,
+    PlatformJobIntervalCatalog jobIntervalCatalog,
     ILogger<PlatformHealthWatchJob> logger)
     : PlatformPeriodicJob(serviceProvider, timeProvider, logger)
 {
@@ -32,19 +27,11 @@ public sealed class PlatformHealthWatchJob(
 
     protected override TimeSpan Interval => healthOptions.WatchInterval;
 
-    // Словарь покрывает ВЕСЬ PlatformJobNames.Watched. Задание, забытое здесь, молча выпадает
-    // из наблюдения — ровно та дыра, которую закрывает этот план. internal (не private), чтобы
+    // Словарь покрывает ВЕСЬ PlatformJobNames.Watched — источник единственный, PlatformJobIntervalCatalog,
+    // общий со службой обзора здоровья. Задание, забытое там, молча выпадает из наблюдения ОБОИХ
+    // потребителей сразу — ровно та дыра, которую закрывает этот план. internal (не private), чтобы
     // тест на полноту мог проверить содержимое напрямую, а не через наблюдаемый побочный эффект.
-    internal IReadOnlyDictionary<string, TimeSpan> JobIntervals => new Dictionary<string, TimeSpan>(StringComparer.Ordinal)
-    {
-        [PlatformJobNames.InvoiceGeneration] = billingOptions.Value.GenerationInterval,
-        [PlatformJobNames.BillingOutbox] = outboxOptions.Value.PollInterval,
-        [PlatformJobNames.NotificationDispatch] = notificationOptions.Value.PollInterval,
-        [PlatformJobNames.DailySummary] = notificationOptions.Value.DailySummaryInterval,
-        [PlatformJobNames.ScheduledReports] = notificationOptions.Value.ScheduledReportInterval,
-        [PlatformJobNames.AutoProtection] = autoProtectionOptions.TickInterval,
-        [PlatformJobNames.HealthWatch] = healthOptions.WatchInterval
-    };
+    internal IReadOnlyDictionary<string, TimeSpan> JobIntervals => jobIntervalCatalog.Build();
 
     protected override async Task<int> TickAsync(IServiceProvider scopedServices, CancellationToken cancellationToken)
     {
