@@ -106,15 +106,36 @@ public sealed class BillingPlanSeedHostedService(
         await using var scope = serviceProvider.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
 
-        if (await dbContext.SubscriptionPlans.AnyAsync(cancellationToken))
-        {
-            logger.LogInformation("Subscription plan catalog already populated; skipping seed.");
-            return;
-        }
+        // Rewrites the three known monthly codes and adds the three known yearly codes when
+        // missing — it never bails out just because the catalog is non-empty. A production-like
+        // database that already has the pre-TJS monthly plans must still gain the yearly plans on
+        // the next deploy; an AnyAsync() early return would leave them missing forever (design spec
+        // §6: "The plan seeder rewrites the three known plan codes; custom plans are left alone.").
+        var existingByCode = await dbContext.SubscriptionPlans
+            .ToDictionaryAsync(plan => plan.PlanCode, cancellationToken);
 
         var now = timeProvider.GetUtcNow();
+        var added = 0;
+        var updated = 0;
         foreach (var template in DefaultPlans)
         {
+            if (existingByCode.TryGetValue(template.PlanCode, out var existing))
+            {
+                existing.Name = template.Name;
+                existing.PriceMinorUnits = template.PriceMinorUnits;
+                existing.CurrencyCode = template.CurrencyCode;
+                existing.BillingInterval = template.BillingInterval;
+                existing.MaxBranches = template.MaxBranches;
+                existing.MaxDevicesPerBranch = template.MaxDevicesPerBranch;
+                existing.MaxConcurrentSessions = template.MaxConcurrentSessions;
+                existing.MaxStaffUsersPerBranch = template.MaxStaffUsersPerBranch;
+                existing.IsActive = template.IsActive;
+                existing.SortOrder = template.SortOrder;
+                existing.UpdatedAtUtc = now;
+                updated++;
+                continue;
+            }
+
             dbContext.SubscriptionPlans.Add(new SubscriptionPlanEntity
             {
                 PlanCode = template.PlanCode,
@@ -131,10 +152,16 @@ public sealed class BillingPlanSeedHostedService(
                 CreatedAtUtc = now,
                 UpdatedAtUtc = now
             });
+            added++;
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-        logger.LogInformation("Seeded {Count} default subscription plans.", DefaultPlans.Length);
+        if (added > 0 || updated > 0)
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        logger.LogInformation(
+            "Subscription plan catalog seed: added {Added}, updated {Updated} known plans.", added, updated);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
