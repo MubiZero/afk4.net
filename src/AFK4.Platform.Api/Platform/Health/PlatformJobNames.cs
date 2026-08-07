@@ -11,6 +11,7 @@ public static class PlatformJobNames
     public const string AutoProtection = "auto_protection";
     public const string HealthWatch = "health_watch";
     public const string SubscriptionSnapshots = "subscription_snapshots";
+    public const string BranchSnapshots = "branch_snapshots";
 
     /// <summary>Доставка оповещений мимо очереди — результат тоже записывается как прогон.</summary>
     public const string AlertDelivery = "alert_delivery";
@@ -29,6 +30,7 @@ public static class PlatformJobNames
         ScheduledReports,
         AutoProtection,
         HealthWatch,
-        SubscriptionSnapshots
+        SubscriptionSnapshots,
+        BranchSnapshots
     ];
 }

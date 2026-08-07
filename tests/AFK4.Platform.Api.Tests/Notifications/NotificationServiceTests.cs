@@ -263,7 +263,7 @@ public sealed class NotificationServiceTests
     {
         public NotificationChannel Channel => channel;
 
-        public Task<ChannelResult> SendAsync(Data.NotificationOutboxEntity row, CancellationToken cancellationToken) =>
+        public Task<ChannelResult> SendAsync(AFK4.Platform.Api.Data.NotificationOutboxEntity row, CancellationToken cancellationToken) =>
             Task.FromResult(result);
     }
 }

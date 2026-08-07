@@ -76,6 +76,8 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     // «клуб» — общеупотребимое заимствование в тадж. разговорной речи (нет отдельного нативного слова),
     // уже встречается нетранслируемым внутри op.settings.heading/tg
     'op.management.dest.club',
+    // тот же loanword «клуб», использован как одинокая подпись селектора клуба на вкладке динамики
+    'platform.dynamics.branch.label',
     // Eskhata Merchant — бренд и технические ярлыки реквизитов; одинаковы во всех языках.
     'op.eskhata.title',
     'op.eskhata.baseUrl',

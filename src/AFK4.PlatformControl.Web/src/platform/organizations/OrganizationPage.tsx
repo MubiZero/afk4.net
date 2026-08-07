@@ -18,9 +18,11 @@ import { OrganizationSupportNotesSection } from './OrganizationSupportNotesSecti
 import { SupportAccessSection } from './SupportAccessSection';
 import { OrganizationUpdateChannelSection } from './OrganizationUpdateChannelSection';
 import { OrganizationHistoryTab } from './OrganizationHistoryTab';
+import { OrganizationDynamicsTab } from './OrganizationDynamicsTab';
 
 const TABS: { value: OrganizationTab; labelKey: MessageKey; allowed: (access: OrganizationPageAccess) => boolean }[] = [
   { value: 'clubs', labelKey: 'platform.organization.tab.clubs', allowed: () => true },
+  { value: 'dynamics', labelKey: 'platform.organization.tab.dynamics', allowed: () => true },
   { value: 'invoices', labelKey: 'platform.organization.tab.invoices', allowed: access => access.canViewBilling },
   { value: 'limits', labelKey: 'platform.organization.tab.limits', allowed: access => access.canManageOrganization },
   { value: 'updates', labelKey: 'platform.organization.tab.updates', allowed: access => access.canManageUpdateChannel },
@@ -112,6 +114,7 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
               </>
             ) : null}
             {tab === 'history' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationHistoryTab client={client.audit} organizationId={organizationId} /></TabBoundary> : null}
+            {tab === 'dynamics' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationDynamicsTab client={client.branchDynamics} organizationId={organizationId} branches={organization.branches} /></TabBoundary> : null}
           </div>
         </div>
 

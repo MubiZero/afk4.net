@@ -124,6 +124,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<SubscriptionDailySnapshotEntity> SubscriptionDailySnapshots => Set<SubscriptionDailySnapshotEntity>();
 
+    public DbSet<BranchDailySnapshotEntity> BranchDailySnapshots => Set<BranchDailySnapshotEntity>();
+
     public DbSet<OrganizationOwnerInviteEntity> OrganizationOwnerInvites => Set<OrganizationOwnerInviteEntity>();
 
     public DbSet<OrganizationSupportNoteEntity> OrganizationSupportNotes => Set<OrganizationSupportNoteEntity>();
@@ -1027,6 +1029,17 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 .IsUnique()
                 .HasDatabaseName("IX_subscription_daily_snapshots_Organization_Date");
             entity.HasIndex(snapshot => snapshot.SnapshotDate);
+        });
+
+        modelBuilder.Entity<BranchDailySnapshotEntity>(entity =>
+        {
+            entity.ToTable("branch_daily_snapshots");
+            entity.HasKey(snapshot => snapshot.BranchDailySnapshotId);
+            entity.Property(snapshot => snapshot.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.HasIndex(snapshot => new { snapshot.BranchId, snapshot.SnapshotDate })
+                .IsUnique()
+                .HasDatabaseName("IX_branch_daily_snapshots_Branch_Date");
+            entity.HasIndex(snapshot => new { snapshot.OrganizationId, snapshot.SnapshotDate });
         });
 
         modelBuilder.Entity<PlatformJobRunEntity>(entity =>

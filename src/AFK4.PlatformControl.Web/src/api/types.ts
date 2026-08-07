@@ -462,6 +462,36 @@ export interface AnalyticsOverview {
   outstandingMinorUnits: number;
 }
 
+export interface Money {
+  currencyCode: string;
+  minorUnits: number;
+}
+
+/** One snapshotted day for a branch. Mirrors `BranchDynamicsDayDto`: `agentAlive === null`
+ * means "no data" (usually our own outage), `false` means the club genuinely never checked
+ * in — the two must never be collapsed into one "bad" bucket on screen. */
+export interface BranchDynamicsDay {
+  date: string;
+  sessionCount: number;
+  revenue: Money;
+  shiftOpenedCount: number;
+  agentAlive: boolean | null;
+}
+
+export interface BranchDynamics {
+  organizationId: string;
+  branchId: string;
+  fromDate: string;
+  toDate: string;
+  totalRevenue: Money;
+  totalSessionCount: number;
+  daysWithoutAgent: number;
+  daysWithUnknownAgent: number;
+  /** Days in the window with no snapshot at all. Never backfilled with zeros. */
+  missingDayCount: number;
+  days: BranchDynamicsDay[];
+}
+
 export interface PlatformBillingMetrics {
   mrrMinorUnits: number;
   currencyCode: string;
