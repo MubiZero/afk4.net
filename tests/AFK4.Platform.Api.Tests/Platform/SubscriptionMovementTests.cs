@@ -90,6 +90,20 @@ public sealed class SubscriptionMovementTests
     }
 
     [Fact]
+    public void ClubAlreadyPayingBeforeTheWindow_IsNotCountedAsJoinedInTheFirstMonth()
+    {
+        // Буферный снимок за месяц ДО окна — единственный источник «платил ли клуб раньше».
+        // Без него первый месяц окна ошибочно посчитает уже платящий клуб «пришедшим».
+        var points = SubscriptionMovement.Compute(
+        [
+            new SnapshotRow(Club, new DateOnly(2025, 12, 31), SubscriptionStatusNames.Active), // буфер перед First
+            Row(Club, 1, 31, SubscriptionStatusNames.Active)
+        ], First, Last);
+
+        Assert.Equal(0, points.Single(point => point.Month == 1).Joined);
+    }
+
+    [Fact]
     public void EveryMonthOfTheWindow_IsPresent_EvenWithoutSnapshots()
     {
         var points = SubscriptionMovement.Compute([], First, Last);

@@ -16,6 +16,15 @@ public static class SubscriptionMovement
     private static bool IsPaying(string status) =>
         status == SubscriptionStatusNames.Active || status == SubscriptionStatusNames.PastDue;
 
+    /// <param name="snapshots">
+    /// Must include snapshots for at least one calendar month before <paramref name="firstMonth"/>:
+    /// that buffer month is the only source for "was this club paying before the window", so
+    /// without it every club already paying at the start of the window is wrongly counted as
+    /// having just joined. Note that this is a caller contract, not something this function can
+    /// verify from its inputs alone. Separately, and unfixable here: the very first time this
+    /// feature runs, no snapshot history exists at all, so the first month of the window will show
+    /// every paying club as "joined" regardless of buffer — that spike is structural, not a bug.
+    /// </param>
     /// <param name="firstMonth">First day of the first calendar month in the window (inclusive).</param>
     /// <param name="lastMonth">First day of the last calendar month in the window (inclusive).</param>
     public static IReadOnlyList<MovementPoint> Compute(
