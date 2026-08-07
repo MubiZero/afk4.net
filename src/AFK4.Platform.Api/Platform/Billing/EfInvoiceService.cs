@@ -2,6 +2,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Platform.Billing;
 using AFK4.Shared.Contracts.Platform.Organizations;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AFK4.Platform.Api.Platform.Billing;
 
@@ -9,9 +10,12 @@ public sealed class EfInvoiceService(
     PlatformDbContext dbContext,
     IInvoiceGenerationRunner generationRunner,
     IInvoiceNotifier invoiceNotifier,
-    TimeProvider timeProvider) : IInvoiceService
+    TimeProvider timeProvider,
+    IOptions<BillingOptions> options) : IInvoiceService
 {
     private const int MaxVoidReasonLength = 512;
+
+    private const int MaxDescriptionLength = 400;
 
     private static readonly HashSet<string> AllowedStatusFilters = new(StringComparer.Ordinal)
     {
@@ -76,6 +80,85 @@ public sealed class EfInvoiceService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await invoiceNotifier.NotifyIssuedAsync(invoice, cancellationToken);
+        return BillingOperationResult<InvoiceDto>.Success(ToDto(invoice));
+    }
+
+    public async Task<BillingOperationResult<InvoiceDto>> CreateAsync(
+        Guid organizationId,
+        CreateInvoiceRequest request,
+        CancellationToken cancellationToken)
+    {
+        var kind = request.Kind?.Trim() ?? string.Empty;
+        if (kind is not (InvoiceKindNames.OneOff or InvoiceKindNames.Credit))
+        {
+            return BillingOperationResult<InvoiceDto>.BadRequest(
+                "Kind must be 'one_off' or 'credit'; subscription and proration invoices are issued automatically.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Description))
+        {
+            return BillingOperationResult<InvoiceDto>.BadRequest("Description is required.");
+        }
+
+        if (request.Description.Trim().Length > MaxDescriptionLength)
+        {
+            return BillingOperationResult<InvoiceDto>.BadRequest(
+                $"Description must be at most {MaxDescriptionLength} characters.");
+        }
+
+        // A negative amount is what makes a credit note subtract from the balance; allowing it
+        // anywhere else would let a typo silently erase real debt.
+        if (kind == InvoiceKindNames.Credit && request.AmountMinorUnits >= 0)
+        {
+            return BillingOperationResult<InvoiceDto>.BadRequest("A credit note must carry a negative amount.");
+        }
+
+        if (kind == InvoiceKindNames.OneOff && request.AmountMinorUnits <= 0)
+        {
+            return BillingOperationResult<InvoiceDto>.BadRequest("A one-off charge must carry a positive amount.");
+        }
+
+        var organization = await dbContext.Organizations
+            .SingleOrDefaultAsync(candidate => candidate.OrganizationId == organizationId, cancellationToken);
+        if (organization is null)
+        {
+            return BillingOperationResult<InvoiceDto>.NotFound("Organization was not found.");
+        }
+
+        var subscription = await dbContext.OrganizationSubscriptions
+            .SingleOrDefaultAsync(candidate => candidate.OrganizationId == organizationId, cancellationToken);
+
+        var now = timeProvider.GetUtcNow();
+        var invoice = new InvoiceEntity
+        {
+            InvoiceId = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            Number = ((await dbContext.Invoices.Select(candidate => (int?)candidate.Number)
+                .MaxAsync(cancellationToken)) ?? 0) + 1,
+            Kind = kind,
+            PeriodStartUtc = now,
+            PeriodEndUtc = now,
+            IssuedAtUtc = now,
+            DueAtUtc = request.DueAtUtc ?? now.Add(options.Value.InvoiceDueAfter),
+            AmountMinorUnits = request.AmountMinorUnits,
+            GrossAmountMinorUnits = request.AmountMinorUnits,
+            DiscountMinorUnits = 0,
+            CurrencyCode = subscription?.CurrencyCode ?? options.Value.DefaultCurrencyCode,
+            Status = InvoiceStatusNames.Issued,
+            Description = request.Description.Trim(),
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+        dbContext.Invoices.Add(invoice);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        // A credit note can clear the debt outright, so the club should stop being flagged at once
+        // rather than at the next scheduler tick.
+        if (kind == InvoiceKindNames.Credit)
+        {
+            await RestoreSubscriptionIfSettledAsync(organizationId, now, cancellationToken);
+        }
+
         return BillingOperationResult<InvoiceDto>.Success(ToDto(invoice));
     }
 

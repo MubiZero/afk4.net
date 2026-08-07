@@ -19,7 +19,8 @@ public sealed class EfInvoiceServiceTests
     private static EfInvoiceService NewService(PlatformDbContext db, TimeProvider time, IInvoiceNotifier? notifier = null)
     {
         notifier ??= new RecordingInvoiceNotifier();
-        return new(db, new EfInvoiceGenerationRunner(db, Options.Create(new BillingOptions()), notifier), notifier, time);
+        return new(db, new EfInvoiceGenerationRunner(db, Options.Create(new BillingOptions()), notifier), notifier, time,
+            Options.Create(new BillingOptions()));
     }
 
     private static async Task<Guid> SeedOrganizationWithSubscriptionAsync(PlatformDbContext db)
@@ -315,5 +316,107 @@ public sealed class EfInvoiceServiceTests
         await service.VoidAsync(first.InvoiceId, new VoidInvoiceRequest("issued by mistake"), CancellationToken.None);
 
         Assert.Equal(SubscriptionStatusNames.PastDue, (await db.OrganizationSubscriptions.SingleAsync()).Status);
+    }
+
+    [Fact]
+    public async Task CreateAsync_OneOff_IssuesPositiveInvoiceWithNextNumber()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
+        var service = NewService(db, new FixedTimeProvider(Now));
+
+        var result = await service.CreateAsync(orgId, new CreateInvoiceRequest(
+            Kind: InvoiceKindNames.OneOff,
+            AmountMinorUnits: 150000,
+            Description: "Настройка оборудования",
+            DueAtUtc: null), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(InvoiceKindNames.OneOff, result.Value!.Kind);
+        Assert.Equal(InvoiceStatusNames.Issued, result.Value.Status);
+        Assert.Equal(1, result.Value.Number);
+        var invoice = await db.Invoices.SingleAsync();
+        Assert.Equal(150000, invoice.GrossAmountMinorUnits);
+        Assert.Equal(0, invoice.DiscountMinorUnits);
+        Assert.Equal(Now.AddDays(7), invoice.DueAtUtc);
+    }
+
+    [Fact]
+    public async Task CreateAsync_Credit_AllowsNegativeAmountAndClearsArrears()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
+        await AddOverdueInvoiceAsync(db, orgId, number: 1);
+        var service = NewService(db, new FixedTimeProvider(Now));
+
+        var result = await service.CreateAsync(orgId, new CreateInvoiceRequest(
+            Kind: InvoiceKindNames.Credit,
+            AmountMinorUnits: -290000,
+            Description: "Компенсация простоя",
+            DueAtUtc: null), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(-290000, result.Value!.AmountMinorUnits);
+        Assert.Equal(SubscriptionStatusNames.Active, (await db.OrganizationSubscriptions.SingleAsync()).Status);
+    }
+
+    [Theory]
+    [InlineData(InvoiceKindNames.OneOff, -1)]
+    [InlineData(InvoiceKindNames.OneOff, 0)]
+    [InlineData(InvoiceKindNames.Credit, 1)]
+    [InlineData(InvoiceKindNames.Credit, 0)]
+    public async Task CreateAsync_AmountSignDoesNotMatchKind_IsRejected(string kind, long amount)
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
+        var service = NewService(db, new FixedTimeProvider(Now));
+
+        var result = await service.CreateAsync(orgId, new CreateInvoiceRequest(
+            Kind: kind, AmountMinorUnits: amount, Description: "d", DueAtUtc: null), CancellationToken.None);
+
+        Assert.Equal(BillingOperationStatus.BadRequest, result.Status);
+        Assert.Equal(0, await db.Invoices.CountAsync());
+    }
+
+    [Theory]
+    [InlineData(InvoiceKindNames.Subscription)]
+    [InlineData(InvoiceKindNames.Proration)]
+    public async Task CreateAsync_AutomaticKind_IsRejected(string kind)
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
+        var service = NewService(db, new FixedTimeProvider(Now));
+
+        var result = await service.CreateAsync(orgId, new CreateInvoiceRequest(
+            Kind: kind, AmountMinorUnits: 150000, Description: "d", DueAtUtc: null), CancellationToken.None);
+
+        Assert.Equal(BillingOperationStatus.BadRequest, result.Status);
+    }
+
+    [Fact]
+    public async Task CreateAsync_BlankDescription_IsRejected()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
+        var service = NewService(db, new FixedTimeProvider(Now));
+
+        var result = await service.CreateAsync(orgId, new CreateInvoiceRequest(
+            Kind: InvoiceKindNames.OneOff, AmountMinorUnits: 150000, Description: "   ", DueAtUtc: null),
+            CancellationToken.None);
+
+        Assert.Equal(BillingOperationStatus.BadRequest, result.Status);
+    }
+
+    [Fact]
+    public async Task CreateAsync_UnknownOrganization_ReturnsNotFound()
+    {
+        await using var db = NewContext();
+        var service = NewService(db, new FixedTimeProvider(Now));
+
+        var result = await service.CreateAsync(Guid.NewGuid(), new CreateInvoiceRequest(
+            Kind: InvoiceKindNames.OneOff, AmountMinorUnits: 150000, Description: "d", DueAtUtc: null),
+            CancellationToken.None);
+
+        Assert.Equal(BillingOperationStatus.NotFound, result.Status);
     }
 }

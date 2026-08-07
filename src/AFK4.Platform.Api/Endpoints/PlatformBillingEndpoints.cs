@@ -507,6 +507,89 @@ internal static class PlatformBillingEndpoints
             return Results.Ok(result.Value);
         });
 
+        app.MapPost("/api/platform/organizations/{organizationId:guid}/invoices", async (
+            Guid organizationId,
+            HttpContext httpContext,
+            PlatformAdminAuthorizationService authorizationService,
+            IInvoiceService invoiceService,
+            IPlatformIdempotencyStore idempotencyStore,
+            IAuditRecordWriter auditRecordWriter,
+            CreateInvoiceRequest request,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageInvoices);
+            if (!authorization.IsAuthenticated)
+                return Results.Unauthorized();
+            if (!authorization.IsAllowed)
+            {
+                await WritePlatformAuditAsync(
+                    auditRecordWriter,
+                    organizationId: organizationId,
+                    actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+                    action: AuditActionNames.CreateInvoice,
+                    targetType: "Invoice",
+                    targetId: organizationId.ToString("D"),
+                    outcome: AuditOutcome.Denied,
+                    details: new { authorization.DenialReason },
+                    cancellationToken);
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var idempotencyKey = httpContext.Request.Headers["Idempotency-Key"].FirstOrDefault();
+            var requestHash = IdempotencyKeyHelper.HashRequest(new { organizationId, request });
+            if (!string.IsNullOrWhiteSpace(idempotencyKey))
+            {
+                if (idempotencyKey.Length > 128)
+                {
+                    return Results.BadRequest(new { Error = "Idempotency-Key must be at most 128 characters." });
+                }
+
+                var prior = await idempotencyStore.TryReadAsync(
+                    scope: "platform.invoices.create",
+                    idempotencyKey: idempotencyKey,
+                    requestHash: requestHash,
+                    cancellationToken);
+                if (prior.RequestHashMismatch)
+                    return Results.Json(new { Error = "Idempotency-Key was reused with a different request body." }, statusCode: StatusCodes.Status422UnprocessableEntity);
+                if (prior.Stored is not null)
+                {
+                    httpContext.Response.Headers["Idempotency-Replayed"] = "true";
+                    return Results.Content(prior.Stored.ResponseBody, "application/json", statusCode: prior.Stored.StatusCode);
+                }
+            }
+
+            var result = await invoiceService.CreateAsync(organizationId, request, cancellationToken);
+            if (!result.Succeeded)
+                return BillingResults.From(result);
+
+            await WritePlatformAuditAsync(
+                auditRecordWriter,
+                organizationId: organizationId,
+                actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+                action: AuditActionNames.CreateInvoice,
+                targetType: "Invoice",
+                targetId: result.Value!.InvoiceId.ToString("D"),
+                outcome: AuditOutcome.Succeeded,
+                details: new { result.Value.Kind, result.Value.Number, result.Value.AmountMinorUnits },
+                cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(idempotencyKey))
+            {
+                var responseBody = JsonSerializer.Serialize(result.Value, IdempotencyKeyHelper.JsonOptions);
+                await idempotencyStore.WriteAsync(
+                    scope: "platform.invoices.create",
+                    idempotencyKey: idempotencyKey,
+                    requestHash: requestHash,
+                    platformAdminUserId: authorization.PlatformAdminContext.PlatformAdminUserId,
+                    statusCode: StatusCodes.Status200OK,
+                    responseBody: responseBody,
+                    retention: TimeSpan.FromHours(24),
+                    cancellationToken);
+            }
+
+            return Results.Ok(result.Value);
+        });
+
         app.MapPost("/api/platform/invoices/{invoiceId:guid}/mark-paid", async (
             Guid invoiceId,
             HttpContext httpContext,

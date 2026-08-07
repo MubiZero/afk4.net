@@ -6,8 +6,9 @@ public static class InvoiceKindNames
 
     public const string Proration = "proration";
 
-    // Full credit-note issuance ships in a later task; the constant exists now because
-    // BillingBalance.Compute already treats "credit" invoices as negative-amount debt relief,
-    // and this task's dunning test seeds one by hand to exercise that path.
+    /// <summary>Manually issued charge outside the subscription: setup, hardware, extra service.</summary>
+    public const string OneOff = "one_off";
+
+    /// <summary>Money owed back to the club. Carries a negative amount so the balance is arithmetic.</summary>
     public const string Credit = "credit";
 }
