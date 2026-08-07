@@ -3334,6 +3334,7 @@ export const en = {
   "platform.health.job.auto_protection": "Session auto-protection",
   "platform.health.job.health_watch": "Health watch",
   "platform.health.job.alert_delivery": "Alert delivery",
+  "platform.health.job.subscription_snapshots": "Subscription snapshots",
   "platform.health.incident.job_overdue": "Job overdue",
   "platform.health.incident.job_failing": "Job failing",
   "platform.health.incident.notification_queue_stuck": "Notification queue stuck",

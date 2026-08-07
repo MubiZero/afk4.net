@@ -3334,6 +3334,7 @@ export const tg = {
   "platform.health.job.auto_protection": "Ҳифзи худкори сеанс",
   "platform.health.job.health_watch": "Назорати саломатӣ",
   "platform.health.job.alert_delivery": "Расонидани огоҳиҳо",
+  "platform.health.job.subscription_snapshots": "Суратҳои ҳолати обуна",
   "platform.health.incident.job_overdue": "Вазифа иҷро намешавад",
   "platform.health.incident.job_failing": "Вазифа хато медиҳад",
   "platform.health.incident.notification_queue_stuck": "Ирсоли огоҳиномаҳо истод",

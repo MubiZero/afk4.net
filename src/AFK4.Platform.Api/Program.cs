@@ -23,6 +23,7 @@ using AFK4.Platform.Api.Media;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Payments;
+using AFK4.Platform.Api.Platform.Analytics;
 using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Platform.Api.Platform.Health;
 using AFK4.Platform.Api.Platform.Idempotency;
@@ -285,6 +286,10 @@ builder.Services.Configure<PlatformHealthOptions>(
     builder.Configuration.GetSection(PlatformHealthOptions.ConfigurationSection));
 builder.Services.AddSingleton<PlatformJobIntervalCatalog>();
 builder.Services.AddHostedService<PlatformHealthWatchJob>();
+builder.Services.Configure<PlatformAnalyticsOptions>(
+    builder.Configuration.GetSection(PlatformAnalyticsOptions.ConfigurationSection));
+builder.Services.AddScoped<ISubscriptionSnapshotRunner, EfSubscriptionSnapshotRunner>();
+builder.Services.AddHostedService<SubscriptionSnapshotJob>();
 builder.Services.AddScoped<IPlatformHealthOverviewService, EfPlatformHealthOverviewService>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
 builder.Services.AddScoped<IOrganizationStatusGuard, EfOrganizationStatusGuard>();

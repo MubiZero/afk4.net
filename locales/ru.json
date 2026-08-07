@@ -3333,6 +3333,7 @@
   "platform.health.job.auto_protection": "Автозащита сессий",
   "platform.health.job.health_watch": "Сторож здоровья",
   "platform.health.job.alert_delivery": "Доставка оповещений",
+  "platform.health.job.subscription_snapshots": "Снимки подписок",
   "platform.health.incident.job_overdue": "Задание не отрабатывает",
   "platform.health.incident.job_failing": "Задание падает",
   "platform.health.incident.notification_queue_stuck": "Рассылка встала",
