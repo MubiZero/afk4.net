@@ -48,4 +48,21 @@ describe('OrganizationDebtBlock', () => {
     expect(block.textContent).toContain('Отсрочка до');
     expect(screen.getByTestId('passport-debt-stage').className).not.toContain('is-danger');
   });
+
+  // A staffer without platform.billing.view (or a request that failed over a flaky network) must
+  // never see the confident "Долгов нет" — that reads as a verified fact, but we simply never
+  // asked. `status="unknown"` renders a distinct calm-but-honest state instead.
+  it('shows an unknown state instead of claiming there is no debt when the caller never asked', () => {
+    render(<I18nProvider><OrganizationDebtBlock row={null} status="unknown" /></I18nProvider>);
+    const block = screen.getByTestId('passport-debt');
+    expect(block.textContent).toContain('Неизвестно');
+    expect(block.textContent).not.toContain('Долгов нет');
+  });
+
+  it('renders a large invoice number as plain text, not grouped by thousands', () => {
+    render(<I18nProvider><OrganizationDebtBlock row={row({ oldestOverdueInvoiceNumber: 12345 })} /></I18nProvider>);
+    const block = screen.getByTestId('passport-debt');
+    expect(block.textContent).toContain('№12345');
+    expect(block.textContent).not.toContain('12 345');
+  });
 });

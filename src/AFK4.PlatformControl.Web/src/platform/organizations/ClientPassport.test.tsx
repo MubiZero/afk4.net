@@ -96,6 +96,65 @@ it('does not show a debt chip for an active subscription', () => {
   expect(screen.queryByText('Просрочен платёж')).not.toBeInTheDocument();
 });
 
+it('does not claim the club has no debt when the staffer lacks billing.view (the endpoint would 403)', async () => {
+  const c = client();
+  // /api/platform/debt requires platform.billing.view; the endpoint would reject the request,
+  // so the effect must not even call it — a support staffer without billing access must see an
+  // honest "unknown", never the confident "Долгов нет" the passport used to show by swallowing
+  // the 403.
+  c.debt.listDebt = mock().mockResolvedValue([]);
+  render(
+    <I18nProvider>
+      <ToastProvider>
+        <ClientPassport client={c} organization={organization()} access={{ ...fullAccess, canViewBilling: false }} onUpdated={() => {}} />
+      </ToastProvider>
+    </I18nProvider>
+  );
+  const block = await screen.findByTestId('passport-debt');
+  expect(block.textContent).toContain('Неизвестно');
+  expect(block.textContent).not.toContain('Долгов нет');
+  expect(c.debt.listDebt).not.toHaveBeenCalled();
+});
+
+it('does not claim the club has no debt when the debt request fails over a flaky network', async () => {
+  const c = client();
+  c.debt.listDebt = mock().mockRejectedValue(new Error('network blip'));
+  render(
+    <I18nProvider>
+      <ToastProvider>
+        <ClientPassport client={c} organization={organization()} access={fullAccess} onUpdated={() => {}} />
+      </ToastProvider>
+    </I18nProvider>
+  );
+  const block = await screen.findByTestId('passport-debt');
+  await waitFor(() => expect(c.debt.listDebt).toHaveBeenCalled());
+  expect(block.textContent).toContain('Неизвестно');
+  expect(block.textContent).not.toContain('Долгов нет');
+});
+
+it('hides the alarming past-due chip once an active payment grace is confirmed', async () => {
+  const c = client();
+  c.debt.listDebt = mock().mockResolvedValue([
+    {
+      organizationId: 'o1', organizationName: 'Orion Gaming', organizationSlug: 'orion', organizationStatus: 'active',
+      subscriptionStatus: 'past_due', outstandingMinorUnits: 290000, currencyCode: 'TJS',
+      oldestOverdueInvoiceNumber: 42, oldestOverdueInvoiceId: 'i1', daysOverdue: 10, dunningStage: 3,
+      graceUntilUtc: '2026-09-01T00:00:00Z', settledButSuspended: false
+    }
+  ]);
+  render(
+    <I18nProvider>
+      <ToastProvider>
+        <ClientPassport client={c} organization={organization({ subscriptionStatus: 'past_due' })} access={fullAccess} onUpdated={() => {}} />
+      </ToastProvider>
+    </I18nProvider>
+  );
+  await screen.findByTestId('passport-debt-stage');
+  // Отсрочка не откатывает past_due (§7/§8): чип должен погаснуть, только когда мы точно знаем
+  // про активную отсрочку, а не одновременно с ней противоречить.
+  expect(screen.queryByText('Просрочен платёж')).not.toBeInTheDocument();
+});
+
 it('shows the outstanding debt amount from the debt queue without leaving the passport', async () => {
   const c = client();
   c.debt.listDebt = mock().mockResolvedValue([

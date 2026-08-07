@@ -50,6 +50,7 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
   const [subscription, setSubscription] = useState<OrganizationSubscription | null>(null);
   const [owner, setOwner] = useState<string | null>(null);
   const [debtRow, setDebtRow] = useState<DebtRow | null>(null);
+  const [debtStatus, setDebtStatus] = useState<'unknown' | 'ready'>('unknown');
   const [openDialog, setOpenDialog] = useState<DialogKind>(null);
   const [statusConfirmOpen, setStatusConfirmOpen] = useState(false);
   const [statusPending, setStatusPending] = useState(false);
@@ -84,18 +85,30 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
   useEffect(() => {
     let cancelled = false;
     setDebtRow(null);
+    setDebtStatus('unknown');
+    // `/api/platform/debt` требует platform.billing.view — сотрудник без этого права получит 403,
+    // а гасить ошибку и рисовать «Долгов нет» нельзя: это выглядит как утверждение, что долга
+    // нет, хотя на деле мы просто не спрашивали. Без права запрос не уходит вовсе, и блок остаётся
+    // в состоянии «неизвестно» — так же, как при сетевом сбое ниже.
+    if (!access.canViewBilling) return;
     client.debt.listDebt()
       .then(rows => {
         if (cancelled) return;
         setDebtRow(rows.find(row => row.organizationId === organization.organizationId) ?? null);
+        setDebtStatus('ready');
       })
-      .catch(() => { /* паспорт остаётся полезным и без суммы долга */ });
+      .catch(() => { /* паспорт остаётся полезным без суммы долга; статус остаётся «неизвестно» */ });
     return () => { cancelled = true; };
-  }, [client, organization.organizationId, tick]);
+  }, [client, organization.organizationId, access.canViewBilling, tick]);
 
   const cities = Array.from(new Set(organization.branches.map(branch => branch.city)));
   const nextStatus = organization.status === 'active' ? 'suspended' : 'active';
   const isPastDue = organization.subscriptionStatus === 'past_due';
+  // Отсрочка не откатывает уже случившийся past_due (§7/§8) — это законное состояние, а не сбой,
+  // и держать тревожный чип рядом со спокойным «Отсрочка до …» ломает инвариант «клуб под
+  // отсрочкой — спокойное состояние». Гасим чип, только когда точно знаем про активную отсрочку;
+  // при неизвестном статусе долга безопаснее оставить чип как есть.
+  const isUnderActiveGrace = debtStatus === 'ready' && debtRow !== null && debtRow.graceUntilUtc !== null;
 
   async function applyStatus(reason: string) {
     setStatusPending(true);
@@ -134,7 +147,7 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
         <Badge variant={STATUS_VARIANT[organization.status] ?? 'outline'}>
           {STATUS_LABEL[organization.status] !== undefined ? t(STATUS_LABEL[organization.status]) : organization.status}
         </Badge>
-        {isPastDue ? <Badge variant="destructive">{t('platform.organization.passport.debtChip')}</Badge> : null}
+        {isPastDue && !isUnderActiveGrace ? <Badge variant="destructive">{t('platform.organization.passport.debtChip')}</Badge> : null}
       </div>
 
       <dl className="pc-passport-facts">
@@ -148,7 +161,7 @@ export function ClientPassport({ client, organization, access, onUpdated }: Prop
           {subscription === null ? <Skeleton className="pc-skel-value" /> : subscription.nextInvoiceUtc !== null ? formatDate(subscription.nextInvoiceUtc) : '—'}
         </Row>
         <Row label={t('platform.organization.passport.debt.label')}>
-          <OrganizationDebtBlock row={debtRow} />
+          <OrganizationDebtBlock row={debtRow} status={debtStatus} />
         </Row>
         <Row label={t('platform.organization.invites.colOwner')}>
           {access.canManageAccess ? (owner ?? '—') : '—'}
