@@ -55,7 +55,7 @@ public sealed class EfInvoiceNotifier(
             ["displayName"] = recipient.DisplayName,
             ["organizationName"] = recipient.OrganizationName,
             ["invoiceNumber"] = invoice.Number.ToString(CultureInfo.InvariantCulture),
-            ["amount"] = (invoice.AmountMinorUnits / 100m).ToString("0.00", CultureInfo.InvariantCulture),
+            ["amount"] = MoneyFormatting.ToMajorString(invoice.AmountMinorUnits, invoice.CurrencyCode),
             ["currency"] = invoice.CurrencyCode,
             ["dueDate"] = invoice.DueAtUtc.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             ["paidDate"] = (invoice.PaidAtUtc ?? invoice.UpdatedAtUtc).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
