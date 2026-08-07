@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 5cc09261-f4ea-4bf1-a26f-2ca49d85c51e
-  modified: 2026-08-07T06:39:24.037Z
+  modified: 2026-08-07T13:13:27.430Z
 ---
 
 Эпик «чего нет у нас против типовой b2b SaaS-админки» разбит на 4 волны: **A — доступ и поддержка**,
@@ -19,8 +19,9 @@ B — деньги (dunning, гибкая цена), C — наблюдение 
 план `docs/superpowers/plans/2026-08-04-platform-admin-directory-and-2fa.md`.
 
 **План 2 (слайсы 3-4, режим поддержки) реализован** — см. [[platform-support-mode]].
-Волна A закрыта целиком. **Волна B в работе** — см. [[platform-billing-dunning-wave-b]];
-волны C (наблюдение) и D (продуктовые операции) не начаты.
+Волна A закрыта целиком. **Волна B закрыта** — см. [[platform-billing-dunning-wave-b]].
+**Волна C (наблюдение) — план 1 в main**, планы 2-3 не начаты: см. [[platform-observability-wave-c]].
+Волна D (продуктовые операции) не начата и не проектировалась.
 
 ## Durable-инварианты волны A
 
