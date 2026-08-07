@@ -281,6 +281,9 @@ builder.Services.AddHostedService<NotificationDispatcher>();
 builder.Services.AddHostedService<DailySummaryHostedService>();
 builder.Services.AddHostedService<AutoProtectionHostedService>();
 builder.Services.AddHostedService<ScheduledReportHostedService>();
+builder.Services.Configure<PlatformHealthOptions>(
+    builder.Configuration.GetSection(PlatformHealthOptions.ConfigurationSection));
+builder.Services.AddHostedService<PlatformHealthWatchJob>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
 builder.Services.AddScoped<IOrganizationStatusGuard, EfOrganizationStatusGuard>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
