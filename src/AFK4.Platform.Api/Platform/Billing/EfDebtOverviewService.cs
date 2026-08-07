@@ -60,6 +60,10 @@ public sealed class EfDebtOverviewService(PlatformDbContext dbContext) : IDebtOv
         return rows
             .OrderByDescending(row => row.DaysOverdue)
             .ThenBy(row => row.OrganizationName, StringComparer.OrdinalIgnoreCase)
+            // Name has no unique index (only Slug does) — two clubs sharing a name and the same
+            // days-overdue would otherwise swap places between page reloads because a query without
+            // ORDER BY makes no ordering guarantee. OrganizationId is unique, so it settles ties for good.
+            .ThenBy(row => row.OrganizationId)
             .ToList();
     }
 }

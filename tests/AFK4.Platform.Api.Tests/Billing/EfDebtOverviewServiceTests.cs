@@ -138,6 +138,21 @@ public sealed class EfDebtOverviewServiceTests
     }
 
     [Fact]
+    public async Task GetAsync_IssuedInvoiceNotYetDue_ClubIsNotListed()
+    {
+        // Due date is in the future and the dunning sweep hasn't flipped the status to Overdue yet —
+        // the invoice's own status stays authoritative, so the debt queue must show the same picture
+        // as the dunning ladder. A mismatch here would be worse than an hour's delay.
+        await using var db = NewContext();
+        var orgId = SeedClub(db, "Арена");
+        SeedInvoice(db, orgId, number: 1, amountMinorUnits: 290000, status: InvoiceStatusNames.Issued,
+            dueAtUtc: Now.AddDays(10));
+        await db.SaveChangesAsync();
+
+        Assert.Empty(await new EfDebtOverviewService(db).GetAsync(Now, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task GetAsync_SeveralClubs_OldestDebtComesFirst()
     {
         await using var db = NewContext();
