@@ -35,7 +35,9 @@ public sealed class EfDunningRunner(
 
         foreach (var invoice in unpaid)
         {
-            if (invoice.Status == InvoiceStatusNames.Issued && invoice.DueAtUtc < now)
+            // <= matches the stage-1 rung boundary (offset 0 fires at now >= DueAtUtc) so the flip
+            // and the first dunning notice land on the same tick instead of racing by one run.
+            if (invoice.Status == InvoiceStatusNames.Issued && invoice.DueAtUtc <= now)
             {
                 invoice.Status = InvoiceStatusNames.Overdue;
                 invoice.UpdatedAtUtc = now;
@@ -76,8 +78,13 @@ public sealed class EfDunningRunner(
             return 0;
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
-
+        // The stage/status bump is only persisted after every notifier call below has returned
+        // successfully. Notifying first (which writes an idempotent outbox row keyed by
+        // invoice+stage) and saving invoice state second means a crash between the two leaves the
+        // outbox row as the source of truth: the next run recomputes the same stage, calls the
+        // notifier again, and AddIfAbsentAsync collapses it into the existing row instead of
+        // sending twice. Saving state first — the previous order — could advance DunningStage past
+        // a notice that was never actually queued, losing it for good.
         foreach (var invoice in pendingDueSoon)
         {
             await invoiceNotifier.NotifyDueSoonAsync(invoice, now, cancellationToken);
@@ -87,6 +94,8 @@ public sealed class EfDunningRunner(
         {
             await invoiceNotifier.NotifyOverdueAsync(invoice, stage, now, cancellationToken);
         }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
 
         return pendingDueSoon.Count + pendingOverdue.Count;
     }

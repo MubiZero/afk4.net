@@ -11,12 +11,12 @@ public sealed class EfDunningRunnerTests
 {
     private static readonly DateTimeOffset Due = DateTimeOffset.Parse("2026-05-10T00:00:00Z");
 
-    private static PlatformDbContext NewContext() =>
+    private static PlatformDbContext NewContext(string? databaseName = null) =>
         new(new DbContextOptionsBuilder<PlatformDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .UseInMemoryDatabase(databaseName ?? Guid.NewGuid().ToString("N"))
             .Options);
 
-    private static EfDunningRunner NewRunner(PlatformDbContext db, RecordingInvoiceNotifier notifier) =>
+    private static EfDunningRunner NewRunner(PlatformDbContext db, IInvoiceNotifier notifier) =>
         new(db, Options.Create(new BillingOptions()), notifier);
 
     private static async Task<InvoiceEntity> SeedAsync(
@@ -201,5 +201,59 @@ public sealed class EfDunningRunnerTests
 
         var overdue = Assert.Single(notifier.Overdue);
         Assert.Equal(InvoiceStatusNames.Overdue, overdue.Invoice.Status);
+    }
+
+    [Fact]
+    public async Task RunAsync_ExactlyAtDueDate_FlipsToOverdueAndSendsStageOne()
+    {
+        await using var db = NewContext();
+        await SeedAsync(db);
+        var notifier = new RecordingInvoiceNotifier();
+        var runner = NewRunner(db, notifier);
+
+        await runner.RunAsync(Due, CancellationToken.None);
+
+        var invoice = await db.Invoices.SingleAsync();
+        Assert.Equal(InvoiceStatusNames.Overdue, invoice.Status);
+        Assert.Equal(1, invoice.DunningStage);
+        Assert.Equal(1, Assert.Single(notifier.Overdue).Stage);
+    }
+
+    [Fact]
+    public async Task RunAsync_NotifierThrows_DoesNotAdvanceStageOrPersistFlip()
+    {
+        var databaseName = Guid.NewGuid().ToString("N");
+        await using (var db = NewContext(databaseName))
+        {
+            await SeedAsync(db);
+            var notifier = new ThrowingInvoiceNotifier();
+            var runner = NewRunner(db, notifier);
+
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                () => runner.RunAsync(Due.AddHours(1), CancellationToken.None));
+        }
+
+        // A fresh context against the same in-memory database sees only what was actually saved —
+        // the entity mutated in the throwing run above was never flushed, so this must read the
+        // original, unadvanced state.
+        await using var verify = NewContext(databaseName);
+        var invoice = await verify.Invoices.SingleAsync();
+        Assert.Equal(InvoiceStatusNames.Issued, invoice.Status);
+        Assert.Equal(0, invoice.DunningStage);
+    }
+
+    private sealed class ThrowingInvoiceNotifier : IInvoiceNotifier
+    {
+        public Task NotifyIssuedAsync(InvoiceEntity invoice, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Not expected to be called.");
+
+        public Task NotifyPaidAsync(InvoiceEntity invoice, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Not expected to be called.");
+
+        public Task NotifyDueSoonAsync(InvoiceEntity invoice, DateTimeOffset now, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Simulated notifier failure.");
+
+        public Task NotifyOverdueAsync(InvoiceEntity invoice, int stage, DateTimeOffset now, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Simulated notifier failure.");
     }
 }
