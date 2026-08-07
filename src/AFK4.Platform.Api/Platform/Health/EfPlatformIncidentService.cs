@@ -9,6 +9,12 @@ public sealed class EfPlatformIncidentService(PlatformDbContext dbContext, TimeP
     /// <summary>Пока инцидент открыт, напоминание уходит не чаще раза в сутки.</summary>
     private static readonly TimeSpan ReminderInterval = TimeSpan.FromDays(1);
 
+    /// <summary>Matches the migration's partial unique index on DedupKey (open incidents only).
+    /// Scoping the race-recovery catch to this exact index keeps an unrelated SaveChangesAsync
+    /// failure (dropped connection, deadlock, DetailsJson over its 1000-char column limit) from
+    /// being misreported as "another writer already opened this incident".</summary>
+    private const string DedupKeyUniqueIndexName = "IX_platform_incidents_DedupKey";
+
     public async Task<IncidentTransition> OpenOrTouchAsync(
         string kind, string dedupKey, string severity, string detailsJson, CancellationToken cancellationToken)
     {
@@ -51,7 +57,7 @@ public sealed class EfPlatformIncidentService(PlatformDbContext dbContext, TimeP
             await dbContext.SaveChangesAsync(cancellationToken);
             return new IncidentTransition(incident, IsNew: true, ShouldRemind: true);
         }
-        catch (DbUpdateException) when (IsDuplicateOpenIncident(dbContext, incident))
+        catch (DbUpdateException exception) when (RelationalFailureClassifier.IsUniqueViolation(exception, DedupKeyUniqueIndexName))
         {
             // Гонка двух наблюдателей: частичный уникальный индекс отклонил вторую вставку.
             // Это НЕ ошибка вызывающего — инцидент уже заведён, письмо уже ушло.
@@ -62,15 +68,14 @@ public sealed class EfPlatformIncidentService(PlatformDbContext dbContext, TimeP
         }
     }
 
-    private static bool IsDuplicateOpenIncident(PlatformDbContext dbContext, PlatformIncidentEntity incident) =>
-        dbContext.Entry(incident).State == EntityState.Added;
-
     public async Task<IReadOnlyList<PlatformIncidentEntity>> ResolveMissingAsync(
-        IReadOnlyCollection<string> stillOpenKeys, CancellationToken cancellationToken)
+        IReadOnlyCollection<string> evaluatedKinds,
+        IReadOnlyCollection<string> stillOpenKeys,
+        CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
         var open = await dbContext.PlatformIncidents
-            .Where(incident => incident.ResolvedAtUtc == null)
+            .Where(incident => incident.ResolvedAtUtc == null && evaluatedKinds.Contains(incident.Kind))
             .ToListAsync(cancellationToken);
 
         var resolved = open.Where(incident => !stillOpenKeys.Contains(incident.DedupKey)).ToList();
