@@ -118,6 +118,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PlatformSupportAccessGrantEntity> PlatformSupportAccessGrants => Set<PlatformSupportAccessGrantEntity>();
 
+    public DbSet<PlatformIncidentEntity> PlatformIncidents => Set<PlatformIncidentEntity>();
+
+    public DbSet<PlatformJobRunEntity> PlatformJobRuns => Set<PlatformJobRunEntity>();
+
     public DbSet<OrganizationOwnerInviteEntity> OrganizationOwnerInvites => Set<OrganizationOwnerInviteEntity>();
 
     public DbSet<OrganizationSupportNoteEntity> OrganizationSupportNotes => Set<OrganizationSupportNoteEntity>();
@@ -990,6 +994,32 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasIndex(grant => new { grant.OrganizationId, grant.ExpiresAtUtc });
             entity.HasIndex(grant => grant.TicketHash).IsUnique().HasFilter("\"TicketHash\" IS NOT NULL");
             entity.HasIndex(grant => grant.SessionTokenHash).IsUnique().HasFilter("\"SessionTokenHash\" IS NOT NULL");
+        });
+
+        modelBuilder.Entity<PlatformIncidentEntity>(entity =>
+        {
+            entity.ToTable("platform_incidents");
+            entity.HasKey(incident => incident.PlatformIncidentId);
+            entity.Property(incident => incident.Kind).HasMaxLength(64).IsRequired();
+            entity.Property(incident => incident.DedupKey).HasMaxLength(200).IsRequired();
+            entity.Property(incident => incident.Severity).HasMaxLength(16).IsRequired();
+            entity.Property(incident => incident.DetailsJson).HasMaxLength(1000).IsRequired();
+            // Инвариант «один ОТКРЫТЫЙ инцидент на ключ» держит база: без частичного индекса
+            // два тика сторожа, наложившись, завели бы две строки и два письма про одно и то же.
+            entity.HasIndex(incident => incident.DedupKey)
+                .IsUnique()
+                .HasFilter("\"ResolvedAtUtc\" IS NULL");
+            entity.HasIndex(incident => incident.OpenedAtUtc);
+        });
+
+        modelBuilder.Entity<PlatformJobRunEntity>(entity =>
+        {
+            entity.ToTable("platform_job_runs");
+            entity.HasKey(run => run.PlatformJobRunId);
+            entity.Property(run => run.JobName).HasMaxLength(64).IsRequired();
+            entity.Property(run => run.Outcome).HasMaxLength(16).IsRequired();
+            entity.Property(run => run.Error).HasMaxLength(2000);
+            entity.HasIndex(run => new { run.JobName, run.StartedAtUtc });
         });
 
         modelBuilder.Entity<OrganizationOwnerInviteEntity>(entity =>
