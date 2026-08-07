@@ -353,6 +353,39 @@ public sealed class EfInvoiceService(
         return BillingOperationResult<IReadOnlyList<InvoiceListItemDto>>.Success(dtos);
     }
 
+    public async Task<BillingOperationResult<OrganizationBillingStatusDto>> GetBillingStatusAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken)
+    {
+        var orgExists = await dbContext.Organizations.AsNoTracking()
+            .AnyAsync(org => org.OrganizationId == organizationId, cancellationToken);
+        if (!orgExists)
+        {
+            return BillingOperationResult<OrganizationBillingStatusDto>.NotFound("Organization was not found.");
+        }
+
+        var unpaid = await dbContext.Invoices.AsNoTracking()
+            .Where(invoice => invoice.OrganizationId == organizationId
+                && (invoice.Status == InvoiceStatusNames.Issued || invoice.Status == InvoiceStatusNames.Overdue))
+            .ToListAsync(cancellationToken);
+        var balance = BillingBalance.Compute(unpaid);
+
+        var subscription = await dbContext.OrganizationSubscriptions.AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.OrganizationId == organizationId, cancellationToken);
+
+        var now = timeProvider.GetUtcNow();
+        var oldest = balance.OldestOverdue;
+        var status = new OrganizationBillingStatusDto(
+            InArrears: balance.InArrears,
+            OutstandingMinorUnits: balance.InArrears ? balance.OutstandingMinorUnits : 0,
+            CurrencyCode: oldest?.CurrencyCode ?? subscription?.CurrencyCode ?? options.Value.DefaultCurrencyCode,
+            OldestOverdueInvoiceNumber: oldest?.Number,
+            DaysOverdue: oldest is null ? 0 : Math.Max(0, (int)Math.Floor((now - oldest.DueAtUtc).TotalDays)),
+            GraceUntilUtc: subscription?.PaymentGraceUntilUtc > now ? subscription.PaymentGraceUntilUtc : null);
+
+        return BillingOperationResult<OrganizationBillingStatusDto>.Success(status);
+    }
+
     private static InvoiceDto ToDto(InvoiceEntity entity) =>
         new(
             InvoiceId: entity.InvoiceId,
