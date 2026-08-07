@@ -66,6 +66,11 @@ public sealed class EfBranchSnapshotRunner(PlatformDbContext dbContext, TimeProv
             .Select(shift => new BranchSnapshotEvent(shift.BranchId, shift.OpenedAtUtc))
             .ToListAsync(cancellationToken);
 
+        // Deliberately NOT windowed by time, unlike the sources above: filtering out old heartbeats
+        // would drop a long-silent branch out of this dictionary entirely, and the builder reads
+        // "absent" as AgentAlive=null ("no data") rather than false ("checked in, but not recently") —
+        // collapsing exactly the distinction the nullable column exists to keep. One row per branch
+        // (the aggregate MAX), not per device.
         var heartbeats = await dbContext.Devices
             .AsNoTracking()
             .Where(device => device.LastHeartbeatAtUtc != null)

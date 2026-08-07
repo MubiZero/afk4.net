@@ -98,8 +98,13 @@ public sealed class BranchSnapshotRunnerTests
     }
 
     [Fact]
-    public async Task Run_IsIdempotent_SecondRunWritesNothing()
+    public async Task Run_WritesNothing_WhenEveryBranchIsAlreadySnapshotted()
     {
+        // Это НЕ тест защиты от гонки: InMemory-провайдер не знает уникальных индексов вовсе, так что
+        // столкновение двух одновременных сохранений здесь физически не может произойти. Второй прогон
+        // пишет 0 строк потому, что BranchDailySnapshotBuilder сам не переснимает уже снятые сутки
+        // (см. BranchDailySnapshotBuilderTests) — гонку на настоящем уникальном индексе проверяет
+        // Run_ConcurrentRunsForSameBranchAndDay_WriteExactlyOneRow (Postgres).
         await using var factory = new PlatformApiFactory();
         _ = factory.CreateClient();
         await using var scope = factory.Services.CreateAsyncScope();
