@@ -13,6 +13,14 @@ public interface IInvoiceService
         Guid organizationId,
         CancellationToken cancellationToken);
 
+    /// <summary>Manually issues a one-off charge or credit note for an organization.
+    /// Automatic kinds (subscription, proration) are rejected here — they are only ever issued
+    /// by <see cref="GenerateAsync"/>.</summary>
+    Task<BillingOperationResult<InvoiceDto>> CreateAsync(
+        Guid organizationId,
+        CreateInvoiceRequest request,
+        CancellationToken cancellationToken);
+
     Task<BillingOperationResult<InvoiceDto>> MarkPaidAsync(
         Guid invoiceId,
         MarkInvoicePaidRequest request,

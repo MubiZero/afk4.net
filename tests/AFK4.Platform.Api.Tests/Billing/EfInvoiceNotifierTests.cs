@@ -118,13 +118,68 @@ public sealed class EfInvoiceNotifierTests
         var invoice = NewInvoice(orgId);
         invoice.Status = InvoiceStatusNames.Overdue;
 
-        await notifier.NotifyOverdueAsync(invoice, CancellationToken.None);
+        await notifier.NotifyOverdueAsync(invoice, stage: 1, Now.AddDays(9), CancellationToken.None);
 
         var request = Assert.Single(recorder.Requests);
         Assert.Equal(NotificationTemplateKeys.InvoiceOverdue, request.TemplateKey);
         Assert.Equal(NotificationCategory.Transactional, request.Category);
         Assert.Equal("owner@club.test", request.Recipient.EmailAddress);
         Assert.Equal($"invoice-overdue:{invoice.InvoiceId:N}:1", request.IdempotencyKey);
+        Assert.Equal("2900.00", request.Tokens["amount"]);
+        Assert.Equal("2026-05-08", request.Tokens["dueDate"]);
+        Assert.Equal("2", request.Tokens["daysOverdue"]);
+    }
+
+    [Fact]
+    public async Task NotifyOverdueAsync_StageOneOnDueDate_DaysOverdueFloorsToOne()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrgWithOwnerAsync(db, "owner@club.test");
+        var recorder = new RecordingNotificationService();
+        var notifier = new EfInvoiceNotifier(new EfOrganizationOwnerResolver(db), recorder);
+        var invoice = NewInvoice(orgId);
+        invoice.Status = InvoiceStatusNames.Overdue;
+
+        // Stage 1 fires at offset 0, i.e. exactly on the due date — daysOverdue must read "1", not
+        // "0", or the reminder looks like a system bug instead of a nudge to pay.
+        await notifier.NotifyOverdueAsync(invoice, stage: 1, invoice.DueAtUtc, CancellationToken.None);
+
+        var request = Assert.Single(recorder.Requests);
+        Assert.Equal("1", request.Tokens["daysOverdue"]);
+    }
+
+    [Fact]
+    public async Task NotifyOverdueAsync_StageAtOffsetSeven_DaysOverdueStaysExactlySeven()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrgWithOwnerAsync(db, "owner@club.test");
+        var recorder = new RecordingNotificationService();
+        var notifier = new EfInvoiceNotifier(new EfOrganizationOwnerResolver(db), recorder);
+        var invoice = NewInvoice(orgId);
+        invoice.Status = InvoiceStatusNames.Overdue;
+
+        await notifier.NotifyOverdueAsync(invoice, stage: 3, invoice.DueAtUtc.AddDays(7), CancellationToken.None);
+
+        var request = Assert.Single(recorder.Requests);
+        Assert.Equal("7", request.Tokens["daysOverdue"]);
+    }
+
+    [Fact]
+    public async Task NotifyDueSoonAsync_OrgHasOwnerEmail_EnqueuesTransactionalDueSoonToOwner()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrgWithOwnerAsync(db, "owner@club.test");
+        var recorder = new RecordingNotificationService();
+        var notifier = new EfInvoiceNotifier(new EfOrganizationOwnerResolver(db), recorder);
+        var invoice = NewInvoice(orgId);
+
+        await notifier.NotifyDueSoonAsync(invoice, Now.AddDays(4), CancellationToken.None);
+
+        var request = Assert.Single(recorder.Requests);
+        Assert.Equal(NotificationTemplateKeys.InvoiceDueSoon, request.TemplateKey);
+        Assert.Equal(NotificationCategory.Transactional, request.Category);
+        Assert.Equal("owner@club.test", request.Recipient.EmailAddress);
+        Assert.Equal($"invoice-due-soon:{invoice.InvoiceId:N}", request.IdempotencyKey);
         Assert.Equal("2900.00", request.Tokens["amount"]);
         Assert.Equal("2026-05-08", request.Tokens["dueDate"]);
     }

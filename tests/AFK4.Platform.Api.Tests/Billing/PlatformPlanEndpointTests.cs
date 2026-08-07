@@ -18,7 +18,7 @@ public sealed class PlatformPlanEndpointTests
         var plans = await response.Content.ReadFromJsonAsync<List<SubscriptionPlanDto>>();
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal(3, plans!.Count);
+        Assert.Equal(6, plans!.Count);
         Assert.Contains(plans, plan => plan.PlanCode == "starter");
     }
 
@@ -44,7 +44,7 @@ public sealed class PlatformPlanEndpointTests
             PlanCode: "enterprise",
             Name: "Enterprise",
             PriceMinorUnits: 4990000,
-            CurrencyCode: "RUB",
+            CurrencyCode: "TJS",
             BillingInterval: BillingIntervalNames.Monthly,
             MaxBranches: 50,
             MaxDevicesPerBranch: 300,
@@ -67,7 +67,7 @@ public sealed class PlatformPlanEndpointTests
         await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client);
 
         var request = new CreatePlanRequest(
-            "starter", "Dup", 1, "RUB", BillingIntervalNames.Monthly, null, null, null, null, 9);
+            "starter", "Dup", 1, "TJS", BillingIntervalNames.Monthly, null, null, null, null, 9);
 
         var response = await client.PostAsJsonAsync("/api/platform/plans", request);
 
@@ -84,7 +84,7 @@ public sealed class PlatformPlanEndpointTests
         var request = new UpdatePlanRequest(
             Name: "Starter",
             PriceMinorUnits: 350000,
-            CurrencyCode: "RUB",
+            CurrencyCode: "TJS",
             BillingInterval: BillingIntervalNames.Monthly,
             MaxBranches: 1,
             MaxDevicesPerBranch: 30,

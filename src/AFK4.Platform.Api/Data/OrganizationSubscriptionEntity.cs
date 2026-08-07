@@ -10,10 +10,14 @@ public sealed class OrganizationSubscriptionEntity
     public DateTimeOffset CurrentPeriodEndUtc { get; set; }
     public DateTimeOffset? NextInvoiceUtc { get; set; }
     public long AmountMinorUnits { get; set; }
-    public string CurrencyCode { get; set; } = "RUB";
+    public string CurrencyCode { get; set; } = "TJS";
     public string BillingInterval { get; set; } = "monthly";
     public bool CancelAtPeriodEnd { get; set; }
     public DateTimeOffset CreatedAtUtc { get; set; }
     public DateTimeOffset UpdatedAtUtc { get; set; }
     public DateTimeOffset? PaymentGraceUntilUtc { get; set; }
+    public int? DiscountPercent { get; set; }
+    public long? DiscountAmountMinorUnits { get; set; }
+    public DateTimeOffset? DiscountUntilUtc { get; set; }
+    public string? DiscountReason { get; set; }
 }

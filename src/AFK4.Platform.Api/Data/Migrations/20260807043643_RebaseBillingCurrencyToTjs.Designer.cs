@@ -3,6 +3,7 @@ using System;
 using AFK4.Platform.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AFK4.Platform.Api.Data.Migrations
 {
     [DbContext(typeof(PlatformDbContext))]
-    partial class PlatformDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260807043643_RebaseBillingCurrencyToTjs")]
+    partial class RebaseBillingCurrencyToTjs
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -729,20 +732,8 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(240)
                         .HasColumnType("character varying(240)");
 
-                    b.Property<long>("DiscountMinorUnits")
-                        .HasColumnType("bigint");
-
                     b.Property<DateTimeOffset>("DueAtUtc")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("DueSoonNotifiedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("DunningStage")
-                        .HasColumnType("integer");
-
-                    b.Property<long>("GrossAmountMinorUnits")
-                        .HasColumnType("bigint");
 
                     b.Property<DateTimeOffset>("IssuedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -751,9 +742,6 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
-
-                    b.Property<DateTimeOffset?>("LastDunningAtUtc")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Number")
                         .HasColumnType("integer");
@@ -1385,19 +1373,6 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("CurrentPeriodStartUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("DiscountAmountMinorUnits")
-                        .HasColumnType("bigint");
-
-                    b.Property<int?>("DiscountPercent")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("DiscountReason")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<DateTimeOffset?>("DiscountUntilUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset?>("NextInvoiceUtc")

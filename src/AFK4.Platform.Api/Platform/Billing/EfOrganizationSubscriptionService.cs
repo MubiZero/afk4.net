@@ -18,6 +18,10 @@ public sealed class EfOrganizationSubscriptionService(
         SubscriptionStatusNames.Cancelled
     };
 
+    // Matches OrganizationSubscriptionEntity.VoidReason-style siblings (InvoiceEntity.VoidReason is
+    // 512); DiscountReason had no cap at all before this fix.
+    private const int MaxDiscountReasonLength = 512;
+
     private static readonly HashSet<string> AllowedIntervals = new(StringComparer.Ordinal)
     {
         BillingIntervalNames.Monthly,
@@ -79,6 +83,7 @@ public sealed class EfOrganizationSubscriptionService(
 
         var subscription = await EnsureSubscriptionAsync(org, cancellationToken);
         var now = timeProvider.GetUtcNow();
+        InvoiceEntity? prorationInvoice = null;
 
         var newPeriodEnd = request.CurrentPeriodEndUtc ?? subscription.CurrentPeriodEndUtc;
         if (newPeriodEnd <= subscription.CurrentPeriodStartUtc)
@@ -97,6 +102,43 @@ public sealed class EfOrganizationSubscriptionService(
         {
             return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
                 "ClearPaymentGrace and PaymentGraceUntilUtc must not be set together.");
+        }
+
+        if (request.DiscountPercent is not null && request.DiscountAmountMinorUnits is not null)
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                "Set either DiscountPercent or DiscountAmountMinorUnits, not both.");
+        }
+
+        if (request.DiscountPercent is not null and (< 1 or > 100))
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                "DiscountPercent must be between 1 and 100.");
+        }
+
+        if (request.DiscountAmountMinorUnits is not null and < 1)
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                "DiscountAmountMinorUnits must be positive.");
+        }
+
+        if (request.ClearDiscount == true
+            && (request.DiscountPercent is not null || request.DiscountAmountMinorUnits is not null))
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                "ClearDiscount and discount values must not be set together.");
+        }
+
+        if (request.ClearDiscount == true && !string.IsNullOrWhiteSpace(request.DiscountReason))
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                "ClearDiscount and DiscountReason must not be set together.");
+        }
+
+        if (request.DiscountReason is not null && request.DiscountReason.Trim().Length > MaxDiscountReasonLength)
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                $"DiscountReason must be at most {MaxDiscountReasonLength} characters.");
         }
 
         if (request.PlanCode is not null && request.PlanCode.Trim() != subscription.PlanCode)
@@ -118,23 +160,25 @@ public sealed class EfOrganizationSubscriptionService(
                 now);
             if (proration > 0)
             {
-                dbContext.Invoices.Add(new InvoiceEntity
+                prorationInvoice = new InvoiceEntity
                 {
                     InvoiceId = Guid.NewGuid(),
                     OrganizationId = org.OrganizationId,
-                    Number = await NextInvoiceNumberAsync(cancellationToken),
+                    Number = await InvoiceNumbering.NextNumberAsync(dbContext, cancellationToken),
                     Kind = InvoiceKindNames.Proration,
                     PeriodStartUtc = now,
                     PeriodEndUtc = subscription.CurrentPeriodEndUtc,
                     IssuedAtUtc = now,
                     DueAtUtc = now.AddDays(7),
                     AmountMinorUnits = proration,
+                    GrossAmountMinorUnits = proration,
                     CurrencyCode = newPlan.CurrencyCode,
                     Status = InvoiceStatusNames.Issued,
                     Description = $"Proration: {subscription.PlanCode} → {newPlan.PlanCode}",
                     CreatedAtUtc = now,
                     UpdatedAtUtc = now
-                });
+                };
+                dbContext.Invoices.Add(prorationInvoice);
             }
 
             subscription.PlanCode = newPlan.PlanCode;
@@ -184,9 +228,58 @@ public sealed class EfOrganizationSubscriptionService(
             subscription.PaymentGraceUntilUtc = null;
         }
 
+        if (request.ClearDiscount == true)
+        {
+            subscription.DiscountPercent = null;
+            subscription.DiscountAmountMinorUnits = null;
+            subscription.DiscountUntilUtc = null;
+            subscription.DiscountReason = null;
+        }
+        else
+        {
+            if (request.DiscountPercent is not null)
+            {
+                subscription.DiscountPercent = request.DiscountPercent;
+                subscription.DiscountAmountMinorUnits = null;
+            }
+
+            if (request.DiscountAmountMinorUnits is not null)
+            {
+                subscription.DiscountAmountMinorUnits = request.DiscountAmountMinorUnits;
+                subscription.DiscountPercent = null;
+            }
+
+            if (request.DiscountUntilUtc is not null)
+            {
+                subscription.DiscountUntilUtc = request.DiscountUntilUtc;
+            }
+
+            if (request.DiscountReason is not null)
+            {
+                subscription.DiscountReason = request.DiscountReason.Trim();
+            }
+        }
+
         subscription.UpdatedAtUtc = now;
         org.UpdatedAtUtc = now;
-        await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (prorationInvoice is not null)
+        {
+            try
+            {
+                await InvoiceNumbering.SaveAsync(dbContext, prorationInvoice, cancellationToken);
+            }
+            catch (InvoiceNumberAllocationException)
+            {
+                return BillingOperationResult<OrganizationSubscriptionDto>.Conflict(
+                    "Could not issue the proration invoice because of a numbering conflict with another concurrent request. Please retry.");
+            }
+        }
+        else
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
         return BillingOperationResult<OrganizationSubscriptionDto>.Success(ToDto(subscription));
     }
 
@@ -265,7 +358,7 @@ public sealed class EfOrganizationSubscriptionService(
             CurrentPeriodEndUtc = BillingPeriod.Advance(now, interval),
             NextInvoiceUtc = BillingPeriod.Advance(now, interval),
             AmountMinorUnits = plan?.PriceMinorUnits ?? 0,
-            CurrencyCode = plan?.CurrencyCode ?? "RUB",
+            CurrencyCode = plan?.CurrencyCode ?? "TJS",
             BillingInterval = interval,
             CancelAtPeriodEnd = false,
             CreatedAtUtc = now,
@@ -274,14 +367,6 @@ public sealed class EfOrganizationSubscriptionService(
         dbContext.OrganizationSubscriptions.Add(subscription);
         await dbContext.SaveChangesAsync(cancellationToken);
         return subscription;
-    }
-
-    private async Task<int> NextInvoiceNumberAsync(CancellationToken cancellationToken)
-    {
-        var max = await dbContext.Invoices
-            .Select(invoice => (int?)invoice.Number)
-            .MaxAsync(cancellationToken);
-        return (max ?? 0) + 1;
     }
 
     internal static long ComputeProration(
@@ -318,5 +403,9 @@ public sealed class EfOrganizationSubscriptionService(
             CancelAtPeriodEnd: entity.CancelAtPeriodEnd,
             CreatedAtUtc: entity.CreatedAtUtc,
             UpdatedAtUtc: entity.UpdatedAtUtc,
-            PaymentGraceUntilUtc: entity.PaymentGraceUntilUtc);
+            PaymentGraceUntilUtc: entity.PaymentGraceUntilUtc,
+            DiscountPercent: entity.DiscountPercent,
+            DiscountAmountMinorUnits: entity.DiscountAmountMinorUnits,
+            DiscountUntilUtc: entity.DiscountUntilUtc,
+            DiscountReason: entity.DiscountReason);
 }

@@ -12,5 +12,7 @@ public interface IInvoiceNotifier
 
     Task NotifyPaidAsync(InvoiceEntity invoice, CancellationToken cancellationToken);
 
-    Task NotifyOverdueAsync(InvoiceEntity invoice, CancellationToken cancellationToken);
+    Task NotifyDueSoonAsync(InvoiceEntity invoice, DateTimeOffset now, CancellationToken cancellationToken);
+
+    Task NotifyOverdueAsync(InvoiceEntity invoice, int stage, DateTimeOffset now, CancellationToken cancellationToken);
 }

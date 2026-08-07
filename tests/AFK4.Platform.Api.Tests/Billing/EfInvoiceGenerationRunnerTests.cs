@@ -38,7 +38,7 @@ public sealed class EfInvoiceGenerationRunnerTests
             CurrentPeriodEndUtc = Start.AddMonths(1),
             NextInvoiceUtc = Start.AddMonths(1),
             AmountMinorUnits = 290000,
-            CurrencyCode = "RUB",
+            CurrencyCode = "TJS",
             BillingInterval = BillingIntervalNames.Monthly,
             CreatedAtUtc = Start,
             UpdatedAtUtc = Start
@@ -97,7 +97,7 @@ public sealed class EfInvoiceGenerationRunnerTests
     }
 
     [Fact]
-    public async Task RunAsync_FlipsIssuedInvoicesToOverdueAfterDueDate()
+    public async Task RunAsync_DoesNotFlipInvoicesToOverdue()
     {
         await using var db = NewContext();
         var subscription = await SeedActiveDueSubscriptionAsync(db);
@@ -107,8 +107,7 @@ public sealed class EfInvoiceGenerationRunnerTests
         await runner.RunAsync(Start.AddMonths(1).AddDays(8), CancellationToken.None);
 
         var invoice = await db.Invoices.SingleAsync();
-        Assert.Equal(InvoiceStatusNames.Overdue, invoice.Status);
-        Assert.Equal(Start.AddMonths(1).AddDays(8), invoice.UpdatedAtUtc);
+        Assert.Equal(InvoiceStatusNames.Issued, invoice.Status);
     }
 
     [Fact]
@@ -127,22 +126,6 @@ public sealed class EfInvoiceGenerationRunnerTests
     }
 
     [Fact]
-    public async Task RunAsync_FlippingInvoiceToOverdue_NotifiesOverdueOncePerInvoice()
-    {
-        await using var db = NewContext();
-        await SeedActiveDueSubscriptionAsync(db);
-        var notifier = new RecordingInvoiceNotifier();
-        var runner = NewRunner(db, notifier);
-        await runner.RunAsync(Start.AddMonths(1), CancellationToken.None); // issues invoice due +7 days
-
-        await runner.RunAsync(Start.AddMonths(1).AddDays(8), CancellationToken.None); // flips to overdue
-        await runner.RunAsync(Start.AddMonths(1).AddDays(9), CancellationToken.None); // already overdue, no re-flip
-
-        var overdue = Assert.Single(notifier.Overdue);
-        Assert.Equal(InvoiceStatusNames.Overdue, overdue.Status);
-    }
-
-    [Fact]
     public async Task RunAsync_CancelledSubscription_IsSkipped()
     {
         await using var db = NewContext();
@@ -154,5 +137,40 @@ public sealed class EfInvoiceGenerationRunnerTests
         var issued = await runner.RunAsync(Start.AddMonths(2), CancellationToken.None);
 
         Assert.Equal(0, issued);
+    }
+
+    [Fact]
+    public async Task RunAsync_ActiveDiscount_SplitsInvoiceIntoGrossDiscountAndTotal()
+    {
+        await using var db = NewContext();
+        var subscription = await SeedActiveDueSubscriptionAsync(db);
+        subscription.DiscountPercent = 30;
+        subscription.DiscountUntilUtc = Start.AddMonths(6);
+        await db.SaveChangesAsync();
+        var runner = NewRunner(db);
+
+        await runner.RunAsync(Start.AddMonths(1), CancellationToken.None);
+
+        var invoice = await db.Invoices.SingleAsync();
+        Assert.Equal(290000, invoice.GrossAmountMinorUnits);
+        Assert.Equal(87000, invoice.DiscountMinorUnits);
+        Assert.Equal(203000, invoice.AmountMinorUnits);
+    }
+
+    [Fact]
+    public async Task RunAsync_ExpiredDiscount_ChargesFullPrice()
+    {
+        await using var db = NewContext();
+        var subscription = await SeedActiveDueSubscriptionAsync(db);
+        subscription.DiscountPercent = 30;
+        subscription.DiscountUntilUtc = Start.AddDays(1);
+        await db.SaveChangesAsync();
+        var runner = NewRunner(db);
+
+        await runner.RunAsync(Start.AddMonths(1), CancellationToken.None);
+
+        var invoice = await db.Invoices.SingleAsync();
+        Assert.Equal(0, invoice.DiscountMinorUnits);
+        Assert.Equal(290000, invoice.AmountMinorUnits);
     }
 }

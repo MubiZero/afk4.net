@@ -5,7 +5,7 @@ public sealed class SubscriptionPlanEntity
     public string PlanCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public long PriceMinorUnits { get; set; }
-    public string CurrencyCode { get; set; } = "RUB";
+    public string CurrencyCode { get; set; } = "TJS";
     public string BillingInterval { get; set; } = "monthly";
     public int? MaxBranches { get; set; }
     public int? MaxDevicesPerBranch { get; set; }

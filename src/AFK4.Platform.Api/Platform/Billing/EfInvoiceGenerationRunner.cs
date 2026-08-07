@@ -28,27 +28,9 @@ public sealed class EfInvoiceGenerationRunner(
             var invoice = await GenerateForSubscriptionAsync(subscription, now, cancellationToken);
             if (invoice is not null)
             {
-                await dbContext.SaveChangesAsync(cancellationToken);
+                await InvoiceNumbering.SaveAsync(dbContext, invoice, cancellationToken);
                 await invoiceNotifier.NotifyIssuedAsync(invoice, cancellationToken);
                 issued++;
-            }
-        }
-
-        var overdue = await dbContext.Invoices
-            .Where(invoice => invoice.Status == InvoiceStatusNames.Issued && invoice.DueAtUtc < now)
-            .ToListAsync(cancellationToken);
-        foreach (var invoice in overdue)
-        {
-            invoice.Status = InvoiceStatusNames.Overdue;
-            invoice.UpdatedAtUtc = now;
-        }
-
-        if (overdue.Count > 0)
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-            foreach (var invoice in overdue)
-            {
-                await invoiceNotifier.NotifyOverdueAsync(invoice, cancellationToken);
             }
         }
 
@@ -71,9 +53,13 @@ public sealed class EfInvoiceGenerationRunner(
             return null;
         }
 
-        var number = ((await dbContext.Invoices
-            .Select(invoice => (int?)invoice.Number)
-            .MaxAsync(cancellationToken)) ?? 0) + 1;
+        var number = await InvoiceNumbering.NextNumberAsync(dbContext, cancellationToken);
+
+        var gross = subscription.AmountMinorUnits;
+        var discountApplies = subscription.DiscountUntilUtc is null || subscription.DiscountUntilUtc > now;
+        var discount = discountApplies
+            ? SubscriptionDiscount.Apply(gross, subscription.DiscountPercent, subscription.DiscountAmountMinorUnits)
+            : 0;
 
         var invoice = new InvoiceEntity
         {
@@ -85,7 +71,9 @@ public sealed class EfInvoiceGenerationRunner(
             PeriodEndUtc = subscription.CurrentPeriodEndUtc,
             IssuedAtUtc = now,
             DueAtUtc = now.Add(options.InvoiceDueAfter),
-            AmountMinorUnits = subscription.AmountMinorUnits,
+            AmountMinorUnits = gross - discount,
+            GrossAmountMinorUnits = gross,
+            DiscountMinorUnits = discount,
             CurrencyCode = subscription.CurrencyCode,
             Status = InvoiceStatusNames.Issued,
             Description = $"Subscription {subscription.PlanCode} " +

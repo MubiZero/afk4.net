@@ -35,6 +35,9 @@ public static class NotificationTemplateKeys
     /// <summary>Invoice overdue dunning notice to the organization owner (Stage 4 billing trigger).</summary>
     public const string InvoiceOverdue = "invoice.overdue";
 
+    /// <summary>Pre-due reminder sent ahead of the invoice due date (Stage 4 billing trigger).</summary>
+    public const string InvoiceDueSoon = "invoice.due_soon";
+
     /// <summary>Shift cash-variance alert to the organization owner (Stage 5 operational trigger).</summary>
     public const string ShiftDiscrepancy = "shift.discrepancy";
 
@@ -48,5 +51,5 @@ public static class NotificationTemplateKeys
     public const string ScheduledReport = "report.scheduled";
 
     public static readonly IReadOnlyList<string> All =
-        [Test, StaffPasswordReset, StaffPhoneVerification, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport];
+        [Test, StaffPasswordReset, StaffPhoneVerification, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport];
 }

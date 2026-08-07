@@ -10,23 +10,22 @@ public sealed class EfInvoiceNotifier(
     INotificationService notifications) : IInvoiceNotifier
 {
     public Task NotifyIssuedAsync(InvoiceEntity invoice, CancellationToken cancellationToken) =>
-        SendAsync(invoice, NotificationTemplateKeys.InvoiceIssued, $"invoice-issued:{invoice.InvoiceId:N}", cancellationToken);
+        SendAsync(invoice, NotificationTemplateKeys.InvoiceIssued, $"invoice-issued:{invoice.InvoiceId:N}", invoice.IssuedAtUtc, cancellationToken);
 
     public Task NotifyPaidAsync(InvoiceEntity invoice, CancellationToken cancellationToken) =>
-        SendAsync(invoice, NotificationTemplateKeys.InvoicePaid, $"invoice-paid:{invoice.InvoiceId:N}", cancellationToken);
+        SendAsync(invoice, NotificationTemplateKeys.InvoicePaid, $"invoice-paid:{invoice.InvoiceId:N}", invoice.PaidAtUtc ?? invoice.UpdatedAtUtc, cancellationToken);
 
-    // Single dunning notice on the issued→overdue transition (stage 1). A multi-step reminder ladder
-    // (stage 2+, idempotent per (invoiceId, stage)) is deferred to a later scheduling pass; the key
-    // already carries the stage so adding stages does not collide with this one.
-    private const int FirstDunningStage = 1;
+    public Task NotifyDueSoonAsync(InvoiceEntity invoice, DateTimeOffset now, CancellationToken cancellationToken) =>
+        SendAsync(invoice, NotificationTemplateKeys.InvoiceDueSoon, $"invoice-due-soon:{invoice.InvoiceId:N}", now, cancellationToken);
 
-    public Task NotifyOverdueAsync(InvoiceEntity invoice, CancellationToken cancellationToken) =>
-        SendAsync(invoice, NotificationTemplateKeys.InvoiceOverdue, $"invoice-overdue:{invoice.InvoiceId:N}:{FirstDunningStage}", cancellationToken);
+    public Task NotifyOverdueAsync(InvoiceEntity invoice, int stage, DateTimeOffset now, CancellationToken cancellationToken) =>
+        SendAsync(invoice, NotificationTemplateKeys.InvoiceOverdue, $"invoice-overdue:{invoice.InvoiceId:N}:{stage}", now, cancellationToken);
 
     private async Task SendAsync(
         InvoiceEntity invoice,
         string templateKey,
         string idempotencyKey,
+        DateTimeOffset now,
         CancellationToken cancellationToken)
     {
         var recipient = await ownerResolver.ResolveAsync(invoice.OrganizationId, cancellationToken);
@@ -42,22 +41,27 @@ public sealed class EfInvoiceNotifier(
                 Locale: string.Empty,
                 EmailAddress: recipient.Email,
                 StaffUserId: recipient.StaffUserId),
-            Tokens: BuildTokens(invoice, recipient),
+            Tokens: BuildTokens(invoice, recipient, now),
             IdempotencyKey: idempotencyKey,
             OrganizationId: invoice.OrganizationId);
 
         await notifications.SendAsync(request, cancellationToken);
     }
 
-    private static IReadOnlyDictionary<string, string> BuildTokens(InvoiceEntity invoice, OwnerRecipient recipient) =>
+    private static IReadOnlyDictionary<string, string> BuildTokens(InvoiceEntity invoice, OwnerRecipient recipient, DateTimeOffset now) =>
         new Dictionary<string, string>
         {
             ["displayName"] = recipient.DisplayName,
             ["organizationName"] = recipient.OrganizationName,
             ["invoiceNumber"] = invoice.Number.ToString(CultureInfo.InvariantCulture),
-            ["amount"] = (invoice.AmountMinorUnits / 100m).ToString("0.00", CultureInfo.InvariantCulture),
+            ["amount"] = MoneyFormatting.ToMajorString(invoice.AmountMinorUnits, invoice.CurrencyCode),
             ["currency"] = invoice.CurrencyCode,
             ["dueDate"] = invoice.DueAtUtc.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             ["paidDate"] = (invoice.PaidAtUtc ?? invoice.UpdatedAtUtc).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            // The overdue notice by definition never fires before the due date, so the token floors
+            // at 1 day rather than 0 — a stage-1 notice on the due date itself is "1 day overdue",
+            // not "0 days overdue" (which reads as a bug, not a reminder).
+            ["daysOverdue"] = Math.Max(1, (int)Math.Floor((now - invoice.DueAtUtc).TotalDays))
+                .ToString(CultureInfo.InvariantCulture),
         };
 }

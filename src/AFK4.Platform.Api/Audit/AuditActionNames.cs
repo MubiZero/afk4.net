@@ -263,6 +263,8 @@ public static class AuditActionNames
 
     public const string GenerateInvoice = "billing.invoice.generate";
 
+    public const string CreateInvoice = "billing.invoice.create";
+
     public const string MarkInvoicePaid = "billing.invoice.mark_paid";
 
     public const string VoidInvoice = "billing.invoice.void";

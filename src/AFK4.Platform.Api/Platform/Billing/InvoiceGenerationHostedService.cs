@@ -49,5 +49,12 @@ public sealed class InvoiceGenerationHostedService(
         {
             logger.LogInformation("Invoice generation tick issued {Count} invoice(s).", issued);
         }
+
+        var dunning = scope.ServiceProvider.GetRequiredService<IDunningRunner>();
+        var notified = await dunning.RunAsync(now, cancellationToken);
+        if (notified > 0)
+        {
+            logger.LogInformation("Dunning tick sent {Count} notice(s).", notified);
+        }
     }
 }

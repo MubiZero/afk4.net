@@ -14,4 +14,8 @@ public sealed record OrganizationSubscriptionDto(
     bool CancelAtPeriodEnd,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc,
-    DateTimeOffset? PaymentGraceUntilUtc);
+    DateTimeOffset? PaymentGraceUntilUtc,
+    int? DiscountPercent,
+    long? DiscountAmountMinorUnits,
+    DateTimeOffset? DiscountUntilUtc,
+    string? DiscountReason);
