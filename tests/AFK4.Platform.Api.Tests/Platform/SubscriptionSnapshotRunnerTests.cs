@@ -131,4 +131,107 @@ public sealed class SubscriptionSnapshotRunnerTests
         var dates = await db.SubscriptionDailySnapshots.Select(s => s.SnapshotDate).OrderBy(d => d).ToListAsync();
         Assert.Equal([new DateOnly(2026, 8, 5), new DateOnly(2026, 8, 6)], dates);
     }
+
+    [Fact]
+    public async Task Run_CapsBackfillDepthAfterLongOutage()
+    {
+        await using var factory = new PlatformApiFactory();
+        _ = factory.CreateClient();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var organizationId = await SeedSubscriptionAsync(db, SubscriptionStatusNames.Active, 290000, BillingIntervalNames.Monthly);
+
+        var lastCompleteDay = DateOnly.FromDateTime(Now.UtcDateTime).AddDays(-1);
+        // Последний снимок — 40 суток назад: дольше, чем задание готово досниять честно.
+        db.SubscriptionDailySnapshots.Add(new SubscriptionDailySnapshotEntity
+        {
+            SubscriptionDailySnapshotId = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            SnapshotDate = lastCompleteDay.AddDays(-40),
+            Status = SubscriptionStatusNames.Active,
+            PlanCode = "pro",
+            MonthlyAmountMinorUnits = 290000,
+            CurrencyCode = "TJS",
+            CreatedAtUtc = Now.AddDays(-40)
+        });
+        await db.SaveChangesAsync();
+        var runner = scope.ServiceProvider.GetRequiredService<ISubscriptionSnapshotRunner>();
+
+        var written = await runner.RunAsync(Now, CancellationToken.None);
+
+        // Глубина простоя капается: не «сколько реально пропущено», а фиксированный потолок
+        // задания — иначе первая же долгая пауза потащила бы историю, которой всё равно нет.
+        var expectedEarliest = lastCompleteDay.AddDays(-30);
+        var dates = await db.SubscriptionDailySnapshots
+            .Where(s => s.SnapshotDate != lastCompleteDay.AddDays(-40))
+            .Select(s => s.SnapshotDate)
+            .OrderBy(d => d)
+            .ToListAsync();
+
+        Assert.Equal(31, written);
+        Assert.Equal(31, dates.Count);
+        Assert.Equal(expectedEarliest, dates[0]);
+        Assert.Equal(lastCompleteDay, dates[^1]);
+    }
+
+    [Fact]
+    public async Task Run_HandlesMultipleOrganizationsIndependentlyInOneTick()
+    {
+        await using var factory = new PlatformApiFactory();
+        _ = factory.CreateClient();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var lastCompleteDay = DateOnly.FromDateTime(Now.UtcDateTime).AddDays(-1);
+
+        // Организация без истории — снимаем только вчера.
+        var freshOrgId = await SeedSubscriptionAsync(db, SubscriptionStatusNames.Active, 290000, BillingIntervalNames.Monthly);
+
+        // Организация уже снята за вчера — новых записей не требуется.
+        var upToDateOrgId = await SeedSubscriptionAsync(db, SubscriptionStatusNames.Active, 290000, BillingIntervalNames.Monthly);
+        db.SubscriptionDailySnapshots.Add(new SubscriptionDailySnapshotEntity
+        {
+            SubscriptionDailySnapshotId = Guid.NewGuid(),
+            OrganizationId = upToDateOrgId,
+            SnapshotDate = lastCompleteDay,
+            Status = SubscriptionStatusNames.Active,
+            PlanCode = "pro",
+            MonthlyAmountMinorUnits = 290000,
+            CurrencyCode = "TJS",
+            CreatedAtUtc = Now.AddDays(-1)
+        });
+
+        // Организация с разрывом в 3 дня — доснимаем только дыру.
+        var gapOrgId = await SeedSubscriptionAsync(db, SubscriptionStatusNames.Active, 290000, BillingIntervalNames.Monthly);
+        db.SubscriptionDailySnapshots.Add(new SubscriptionDailySnapshotEntity
+        {
+            SubscriptionDailySnapshotId = Guid.NewGuid(),
+            OrganizationId = gapOrgId,
+            SnapshotDate = lastCompleteDay.AddDays(-3),
+            Status = SubscriptionStatusNames.Active,
+            PlanCode = "pro",
+            MonthlyAmountMinorUnits = 290000,
+            CurrencyCode = "TJS",
+            CreatedAtUtc = Now.AddDays(-3)
+        });
+        await db.SaveChangesAsync();
+        var runner = scope.ServiceProvider.GetRequiredService<ISubscriptionSnapshotRunner>();
+
+        var written = await runner.RunAsync(Now, CancellationToken.None);
+
+        Assert.Equal(4, written); // 1 (fresh) + 0 (up to date) + 3 (gap: -2, -1, вчера)
+
+        var freshDates = await db.SubscriptionDailySnapshots
+            .Where(s => s.OrganizationId == freshOrgId).Select(s => s.SnapshotDate).ToListAsync();
+        Assert.Equal([lastCompleteDay], freshDates);
+
+        var upToDateDates = await db.SubscriptionDailySnapshots
+            .Where(s => s.OrganizationId == upToDateOrgId).Select(s => s.SnapshotDate).ToListAsync();
+        Assert.Equal([lastCompleteDay], upToDateDates);
+
+        var gapDates = await db.SubscriptionDailySnapshots
+            .Where(s => s.OrganizationId == gapOrgId).Select(s => s.SnapshotDate).OrderBy(d => d).ToListAsync();
+        Assert.Equal(
+            [lastCompleteDay.AddDays(-3), lastCompleteDay.AddDays(-2), lastCompleteDay.AddDays(-1), lastCompleteDay],
+            gapDates);
+    }
 }
