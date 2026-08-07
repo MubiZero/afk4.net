@@ -23,6 +23,11 @@ public sealed class PlatformHealthWatchJob(
     private readonly PlatformHealthOptions healthOptions = healthOptions.Value;
     private DateTimeOffset lastPruneAtUtc = DateTimeOffset.MinValue;
 
+    // Момент создания сторожа — прокси на момент старта процесса: все периодические задания,
+    // включая этот, создаются и запускаются вместе при старте хоста. Правила используют его,
+    // чтобы отличить "задание ещё не успело отработать" от "задание сломано".
+    private readonly DateTimeOffset processStartedAtUtc = timeProvider.GetUtcNow();
+
     protected override string JobName => PlatformJobNames.HealthWatch;
 
     protected override TimeSpan Interval => healthOptions.WatchInterval;
@@ -116,7 +121,7 @@ public sealed class PlatformHealthWatchJob(
         var outboxStuck = await db.OutboxMessages
             .CountAsync(row => row.Status == OutboxMessageStatus.Pending && row.CreatedAtUtc < stuckBefore, cancellationToken);
 
-        return new HealthSnapshot(jobs, notificationFailed, notificationStuck, outboxFailed, outboxStuck);
+        return new HealthSnapshot(jobs, notificationFailed, notificationStuck, outboxFailed, outboxStuck, processStartedAtUtc);
     }
 
     private async Task PruneJobRunsAsync(PlatformDbContext db, DateTimeOffset now, CancellationToken cancellationToken)

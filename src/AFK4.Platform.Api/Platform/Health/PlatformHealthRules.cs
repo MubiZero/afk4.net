@@ -10,7 +10,8 @@ public sealed record HealthSnapshot(
     int NotificationFailed,
     int NotificationStuck,
     int BillingOutboxFailed,
-    int BillingOutboxStuck);
+    int BillingOutboxStuck,
+    DateTimeOffset ProcessStartedAtUtc);
 
 public sealed record DetectedProblem(string Kind, string DedupKey, string Severity, string DetailsJson);
 
@@ -60,7 +61,18 @@ public static class PlatformHealthRules
         {
             var window = OverdueWindow(job.Interval);
             var overdueSince = job.LastSuccessAtUtc;
-            if (overdueSince is null || now - overdueSince.Value > window)
+
+            // Задание без единого успешного прогона: все семь заданий стартуют одновременно
+            // как независимые фоновые задачи при старте процесса, и на пустой таблице прогонов
+            // "никогда не запускалось" означает "ещё прогревается", а не "сломано". Считаем окно
+            // просрочки от момента старта процесса, а не от несуществующего последнего успеха —
+            // иначе первый же снимок здоровья (сторож тоже стартует сразу) кричит критикой про
+            // счета, которые просто ещё не успели выставиться.
+            var isOverdue = overdueSince is null
+                ? now - snapshot.ProcessStartedAtUtc > window
+                : now - overdueSince.Value > window;
+
+            if (isOverdue)
             {
                 var minutes = overdueSince is null ? -1 : (int)(now - overdueSince.Value).TotalMinutes;
                 problems.Add(new DetectedProblem(
