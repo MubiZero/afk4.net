@@ -18,10 +18,18 @@ public sealed record MonthlyRevenuePoint(int Year, int Month, long RecurringMino
 /// </summary>
 public static class MonthlyRevenue
 {
+    /// <param name="firstMonth">First day of the first calendar month in the window (inclusive).</param>
+    /// <param name="lastMonth">First day of the last calendar month in the window (inclusive).</param>
     public static IReadOnlyList<MonthlyRevenuePoint> Spread(
         IReadOnlyCollection<InvoiceRevenueRow> invoices, DateOnly firstMonth, DateOnly lastMonth)
     {
         ArgumentNullException.ThrowIfNull(invoices);
+        // Both bounds must be the first of the month: the loop below walks whole months, so a
+        // mid-month value would silently shift the window without any visible symptom.
+        if (firstMonth.Day != 1)
+            throw new ArgumentOutOfRangeException(nameof(firstMonth), firstMonth, "Must be the first day of a month.");
+        if (lastMonth.Day != 1)
+            throw new ArgumentOutOfRangeException(nameof(lastMonth), lastMonth, "Must be the first day of a month.");
 
         var recurring = new Dictionary<(int Year, int Month), long>();
         var oneOff = new Dictionary<(int Year, int Month), long>();

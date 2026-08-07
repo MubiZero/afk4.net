@@ -62,7 +62,7 @@ public sealed class MonthlyRevenueTests
     }
 
     [Fact]
-    public void OneOffAndProration_CountSeparatelyFromRecurring()
+    public void OneOff_CountsSeparatelyFromRecurring()
     {
         var oneOff = new InvoiceRevenueRow(
             InvoiceKindNames.OneOff, InvoiceStatusNames.Issued,
@@ -78,6 +78,25 @@ public sealed class MonthlyRevenueTests
     }
 
     [Fact]
+    public void Proration_CountsAsOneOff_NotSpreadAcrossItsPeriod()
+    {
+        // Proration тоже несёт Period-поля (как subscription), но это разовая доплата за уже
+        // прошедший кусок месяца — она должна лечь ЦЕЛИКОМ в месяц выставления, а не размазаться.
+        var proration = new InvoiceRevenueRow(
+            InvoiceKindNames.Proration, InvoiceStatusNames.Issued,
+            new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero).AddMonths(3),
+            15000);
+
+        var points = MonthlyRevenue.Spread([proration], First, Last);
+
+        var july = points.Single(point => point.Month == 7);
+        Assert.Equal(0, july.RecurringMinorUnits);
+        Assert.Equal(15000, july.OneOffMinorUnits);
+        Assert.All(points.Where(point => point.Month != 7), point => Assert.Equal(0, point.OneOffMinorUnits));
+    }
+
+    [Fact]
     public void CreditNote_ReducesTheMonthItBelongsTo()
     {
         // Кредит-нота — отрицательная сумма, а не отдельный флаг: выручка месяца должна уменьшиться.
@@ -90,6 +109,25 @@ public sealed class MonthlyRevenueTests
         var points = MonthlyRevenue.Spread([credit], First, Last);
 
         Assert.Equal(-20000, points.Single(point => point.Month == 6).OneOffMinorUnits);
+    }
+
+    [Fact]
+    public void CreditKind_ReducesTheMonthItBelongsTo()
+    {
+        // Реальные кредит-ноты в базе идут с Kind = Credit (см. InvoiceKindNames.Credit), а не OneOff.
+        // Сегодня это работает через ту же нерекуррентную ветку, что proration/one_off — этот тест
+        // ловит регрессию, если Credit когда-нибудь получит собственную обработку.
+        var credit = new InvoiceRevenueRow(
+            InvoiceKindNames.Credit, InvoiceStatusNames.Issued,
+            new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.Zero),
+            -20000);
+
+        var points = MonthlyRevenue.Spread([credit], First, Last);
+
+        var august = points.Single(point => point.Month == 8);
+        Assert.Equal(0, august.RecurringMinorUnits);
+        Assert.Equal(-20000, august.OneOffMinorUnits);
     }
 
     [Fact]
