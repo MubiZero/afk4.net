@@ -30,6 +30,7 @@ public sealed class PlatformJobIntervalCatalog(
         [PlatformJobNames.ScheduledReports] = notificationOptions.Value.ScheduledReportInterval,
         [PlatformJobNames.AutoProtection] = autoProtectionOptions.TickInterval,
         [PlatformJobNames.HealthWatch] = healthOptions.Value.WatchInterval,
-        [PlatformJobNames.SubscriptionSnapshots] = analyticsOptions.Value.SnapshotInterval
+        [PlatformJobNames.SubscriptionSnapshots] = analyticsOptions.Value.SnapshotInterval,
+        [PlatformJobNames.BranchSnapshots] = analyticsOptions.Value.SnapshotInterval
     };
 }

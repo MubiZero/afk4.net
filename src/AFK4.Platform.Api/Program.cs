@@ -290,6 +290,8 @@ builder.Services.Configure<PlatformAnalyticsOptions>(
     builder.Configuration.GetSection(PlatformAnalyticsOptions.ConfigurationSection));
 builder.Services.AddScoped<ISubscriptionSnapshotRunner, EfSubscriptionSnapshotRunner>();
 builder.Services.AddHostedService<SubscriptionSnapshotJob>();
+builder.Services.AddScoped<IBranchSnapshotRunner, EfBranchSnapshotRunner>();
+builder.Services.AddHostedService<BranchSnapshotJob>();
 builder.Services.AddScoped<IPlatformHealthOverviewService, EfPlatformHealthOverviewService>();
 builder.Services.AddScoped<IPlatformAnalyticsService, EfPlatformAnalyticsService>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
