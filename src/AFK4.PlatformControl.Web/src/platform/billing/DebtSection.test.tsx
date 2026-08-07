@@ -65,6 +65,8 @@ describe('DebtSection', () => {
     );
     await waitFor(() => expect(screen.getByTestId('debt-row')).toBeInTheDocument());
     expect(screen.getByTestId('debt-row').textContent).toContain('Отсрочка до');
+    // A club under grace isn't overdue — the stage badge must not use the alarming (destructive) variant.
+    expect(screen.getByTestId('debt-stage-badge').className).not.toContain('is-danger');
   });
 
   it('marks a club that settled its debt but is still disabled', async () => {
@@ -75,6 +77,8 @@ describe('DebtSection', () => {
     );
     await waitFor(() => expect(screen.getByTestId('debt-row')).toBeInTheDocument());
     expect(screen.getByTestId('debt-row').textContent).toContain('Долг погашен, клуб отключён');
+    // Debt is already settled — a reminder to reactivate isn't an alarm either.
+    expect(screen.getByTestId('debt-stage-badge').className).not.toContain('is-danger');
   });
 
   it('hides row actions when canManage is false', async () => {
@@ -84,7 +88,15 @@ describe('DebtSection', () => {
     await waitFor(() => expect(screen.getByTestId('debt-row')).toBeInTheDocument());
     expect(screen.queryByRole('button', { name: 'Отметить оплаченным' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Дать отсрочку' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Отключить' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Приостановить' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Заметка' })).not.toBeInTheDocument();
+  });
+
+  it('shows the singular count form for a single debtor', async () => {
+    render(
+      <I18nProvider><ToastProvider><DebtSection client={fakeClient([row()])} canManage /></ToastProvider></I18nProvider>
+    );
+    await waitFor(() => expect(screen.getByTestId('debt-row')).toBeInTheDocument());
+    expect(screen.getByText('1 клуб')).toBeInTheDocument();
   });
 });

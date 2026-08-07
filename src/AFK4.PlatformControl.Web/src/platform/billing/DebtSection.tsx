@@ -98,10 +98,13 @@ export function DebtSection({ client, canManage }: { client: DebtSectionClients;
                       ? t('platform.debt.settledButSuspended')
                       : row.graceUntilUtc !== null
                         ? t('platform.debt.grace.until', { date: formatDate(row.graceUntilUtc) })
-                        : t('platform.debt.column.daysOverdue') + ': ' + row.daysOverdue}
+                        : t('platform.debt.row.daysOverdue', { days: row.daysOverdue })}
                   </span>
                 </span>
-                <Badge variant={row.settledButSuspended ? 'outline' : row.graceUntilUtc !== null ? 'secondary' : 'destructive'}>
+                <Badge
+                  data-testid="debt-stage-badge"
+                  variant={row.settledButSuspended ? 'outline' : row.graceUntilUtc !== null ? 'secondary' : 'destructive'}
+                >
                   {t(dunningStageLabelKey(row.dunningStage))}
                 </Badge>
                 <span className="pc-queue-amount ui-money">
@@ -125,7 +128,7 @@ export function DebtSection({ client, canManage }: { client: DebtSectionClients;
                       onClick={() => setAction({ kind: 'toggleStatus', row })}
                     >
                       {row.organizationStatus === 'active'
-                        ? t('platform.debt.action.disable')
+                        ? t('platform.organization.passport.action.suspend')
                         : t('platform.organization.passport.action.activate')}
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => setAction({ kind: 'note', row })}>
