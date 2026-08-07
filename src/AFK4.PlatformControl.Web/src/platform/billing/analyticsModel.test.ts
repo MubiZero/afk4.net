@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { AnalyticsMonth, AnalyticsOverview } from '@/api/types';
-import { isEmpty, toRevenueSeries, totalRevenue } from './analyticsModel';
+import { isEmpty, toRevenueSeries } from './analyticsModel';
 
 function month(overrides: Partial<AnalyticsMonth> = {}): AnalyticsMonth {
   return {
@@ -34,16 +34,6 @@ describe('toRevenueSeries', () => {
       (m) => `label-${m}`
     );
     expect(series).toEqual([{ label: 'label-3', recurring: 1500, oneOff: 25 }]);
-  });
-});
-
-describe('totalRevenue', () => {
-  it('складывает подписки и разовые начисления по всем месяцам', () => {
-    const total = totalRevenue([
-      month({ recurringMinorUnits: 100000, oneOffMinorUnits: 5000 }),
-      month({ recurringMinorUnits: 200000, oneOffMinorUnits: 0 })
-    ]);
-    expect(total).toBe(305000);
   });
 });
 

@@ -51,6 +51,19 @@ describe('AnalyticsTab', () => {
     expect(digits).not.toContain('450000');
   });
 
+  it('shows the history-since-launch footnote next to the joins/churn chart', async () => {
+    const client = {
+      getOverview: mock().mockResolvedValue(overview({
+        months: [month({ recurringMinorUnits: 100000, payingAtMonthEnd: 5, joined: 5 })]
+      }))
+    };
+    render(<I18nProvider><AnalyticsTab client={client} /></I18nProvider>);
+
+    await waitFor(() => expect(screen.getByText(
+      'История клубов ведётся с момента включения этой аналитики: в первом месяце окна все платящие клубы показаны как «пришедшие» — это не всплеск роста, а старт учёта.'
+    )).toBeInTheDocument());
+  });
+
   it('shows the empty-data message when every month is zero', async () => {
     const client = { getOverview: mock().mockResolvedValue(overview()) };
     render(<I18nProvider><AnalyticsTab client={client} /></I18nProvider>);
