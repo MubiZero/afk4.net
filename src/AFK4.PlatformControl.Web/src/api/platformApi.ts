@@ -14,6 +14,7 @@ import { SearchApi } from './platformClients/search';
 import { PulseApi } from './platformClients/pulse';
 import { AdminsApi } from './platformClients/admins';
 import { TwoFactorApi } from './platformClients/twoFactor';
+import { HealthApi } from './platformClients/health';
 
 export { PlatformApiError, PlatformStaleClientError } from './platformTransport';
 export type { SignInOutcome } from './platformTransport';
@@ -42,6 +43,7 @@ export class PlatformApiClient {
   public readonly pulse: PulseApi;
   public readonly admins: AdminsApi;
   public readonly twoFactor: TwoFactorApi;
+  public readonly health: HealthApi;
 
   public constructor(options: PlatformApiClientOptions) {
     this.transport = new PlatformTransport(options);
@@ -59,6 +61,7 @@ export class PlatformApiClient {
     this.pulse = new PulseApi(this.transport);
     this.admins = new AdminsApi(this.transport);
     this.twoFactor = new TwoFactorApi(this.transport);
+    this.health = new HealthApi(this.transport);
   }
 
   public getSession(): PlatformAdminSession | null {

@@ -1,4 +1,4 @@
-import { Building2, DownloadCloud, ScrollText, Settings, Wallet } from 'lucide-react';
+import { Activity, Building2, DownloadCloud, ScrollText, Settings, Wallet } from 'lucide-react';
 import type { NavItem } from '@/components/shell/navModel';
 import type { PlatformAdminSession } from '@/auth/tokenStore';
 import { can, type PlatformCapability } from '@/auth/platformAccess';
@@ -13,6 +13,7 @@ const platformNav: GatedNavItem[] = [
   { key: 'money', labelKey: 'nav.platform.money', path: '/admin/money', icon: Wallet, capability: 'billing.read' },
   { key: 'updates', labelKey: 'nav.platform.updates', path: '/admin/updates', icon: DownloadCloud, capability: 'updates.read' },
   { key: 'journal', labelKey: 'nav.platform.journal', path: '/admin/journal', icon: ScrollText, capability: 'audit.read' },
+  { key: 'health', labelKey: 'nav.platform.health', path: '/admin/health', icon: Activity, capability: 'health.read' },
   { key: 'settings', labelKey: 'nav.platform.settings', path: '/admin/settings', icon: Settings, capability: 'admins.manage' }
 ];
 

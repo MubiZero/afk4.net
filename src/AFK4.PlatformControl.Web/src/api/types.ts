@@ -519,3 +519,39 @@ export interface PlatformPulse {
   generatedAtUtc: string;
   organizations: PulseOrganization[];
 }
+
+export interface JobHealth {
+  jobName: string;
+  lastRunAtUtc: string | null;
+  lastSuccessAtUtc: string | null;
+  lastOutcome: string | null;
+  lastItemsProcessed: number | null;
+  lastError: string | null;
+  consecutiveFailures: number;
+}
+
+export interface QueueHealth {
+  queueName: string;
+  pendingCount: number;
+  failedCount: number;
+  stuckCount: number;
+}
+
+export type IncidentSeverity = 'warning' | 'critical';
+
+export interface Incident {
+  incidentId: string;
+  kind: string;
+  dedupKey: string;
+  severity: IncidentSeverity;
+  detailsJson: string | null;
+  openedAtUtc: string;
+  lastSeenAtUtc: string;
+}
+
+export interface HealthOverview {
+  generatedAtUtc: string;
+  jobs: JobHealth[];
+  queues: QueueHealth[];
+  openIncidents: Incident[];
+}
