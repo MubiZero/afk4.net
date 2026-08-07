@@ -26,7 +26,8 @@ namespace AFK4.Platform.Api.Data.Migrations
             migrationBuilder.AddColumn<string>(
                 name: "DiscountReason",
                 table: "tenant_subscriptions",
-                type: "text",
+                type: "character varying(512)",
+                maxLength: 512,
                 nullable: true);
 
             migrationBuilder.AddColumn<DateTimeOffset>(

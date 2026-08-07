@@ -18,6 +18,10 @@ public sealed class EfOrganizationSubscriptionService(
         SubscriptionStatusNames.Cancelled
     };
 
+    // Matches OrganizationSubscriptionEntity.VoidReason-style siblings (InvoiceEntity.VoidReason is
+    // 512); DiscountReason had no cap at all before this fix.
+    private const int MaxDiscountReasonLength = 512;
+
     private static readonly HashSet<string> AllowedIntervals = new(StringComparer.Ordinal)
     {
         BillingIntervalNames.Monthly,
@@ -123,6 +127,18 @@ public sealed class EfOrganizationSubscriptionService(
         {
             return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
                 "ClearDiscount and discount values must not be set together.");
+        }
+
+        if (request.ClearDiscount == true && !string.IsNullOrWhiteSpace(request.DiscountReason))
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                "ClearDiscount and DiscountReason must not be set together.");
+        }
+
+        if (request.DiscountReason is not null && request.DiscountReason.Trim().Length > MaxDiscountReasonLength)
+        {
+            return BillingOperationResult<OrganizationSubscriptionDto>.BadRequest(
+                $"DiscountReason must be at most {MaxDiscountReasonLength} characters.");
         }
 
         if (request.PlanCode is not null && request.PlanCode.Trim() != subscription.PlanCode)
@@ -240,7 +256,7 @@ public sealed class EfOrganizationSubscriptionService(
 
             if (request.DiscountReason is not null)
             {
-                subscription.DiscountReason = request.DiscountReason;
+                subscription.DiscountReason = request.DiscountReason.Trim();
             }
         }
 

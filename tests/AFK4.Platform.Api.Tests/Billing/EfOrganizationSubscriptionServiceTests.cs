@@ -226,6 +226,50 @@ public sealed class EfOrganizationSubscriptionServiceTests
         Assert.Null(result.Value.DiscountReason);
     }
 
+    // Regression: DiscountReason had no length cap, unlike its siblings (InvoiceEntity.VoidReason is
+    // 512, InvoiceEntity.Description is 240). Matches the new column HasMaxLength(512).
+    [Fact]
+    public async Task UpdateAsync_DiscountReasonTooLong_IsRejected()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrgAndPlansAsync(db, "starter");
+        var service = new EfOrganizationSubscriptionService(db, new FixedTimeProvider(Now));
+        await service.GetAsync(orgId, CancellationToken.None);
+
+        var result = await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
+            PlanCode: null, BillingInterval: null, Status: null, CancelAtPeriodEnd: null,
+            AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null,
+            DiscountPercent: 30, DiscountReason: new string('r', 513)), CancellationToken.None);
+
+        Assert.Equal(BillingOperationStatus.BadRequest, result.Status);
+    }
+
+    // Regression: ClearDiscount: true silently dropped a non-empty DiscountReason sent alongside it,
+    // even though the sibling combination (ClearDiscount + an amount/percent) is an explicit
+    // BadRequest. A caller who fat-fingers both in the same request should get the same treatment.
+    [Fact]
+    public async Task UpdateAsync_ClearDiscountWithReason_IsRejected()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrgAndPlansAsync(db, "starter");
+        var service = new EfOrganizationSubscriptionService(db, new FixedTimeProvider(Now));
+        await service.GetAsync(orgId, CancellationToken.None);
+        await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
+            PlanCode: null, BillingInterval: null, Status: null, CancelAtPeriodEnd: null,
+            AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null,
+            DiscountPercent: 30, DiscountReason: "Запуск"), CancellationToken.None);
+
+        var result = await service.UpdateAsync(orgId, new UpdateSubscriptionRequest(
+            PlanCode: null, BillingInterval: null, Status: null, CancelAtPeriodEnd: null,
+            AmountMinorUnits: null, CurrentPeriodEndUtc: null, PaymentGraceUntilUtc: null,
+            ClearDiscount: true, DiscountReason: "should not be silently ignored"), CancellationToken.None);
+
+        Assert.Equal(BillingOperationStatus.BadRequest, result.Status);
+        // Nothing should have been cleared by the rejected call.
+        var afterRejection = await service.GetAsync(orgId, CancellationToken.None);
+        Assert.Equal(30, afterRejection.Value!.DiscountPercent);
+    }
+
     // Regression for round 2 of a code-review finding on task 7: EfOrganizationSubscriptionService.
     // UpdateAsync had its own private NextInvoiceNumberAsync — a third copy of MAX(Number)+1 — for the
     // proration invoice it issues on a plan change, saved with a plain SaveChangesAsync and no retry.

@@ -1394,7 +1394,8 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("DiscountReason")
-                        .HasColumnType("text");
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
 
                     b.Property<DateTimeOffset?>("DiscountUntilUtc")
                         .HasColumnType("timestamp with time zone");

@@ -222,6 +222,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(subscription => subscription.Status).HasMaxLength(32).IsRequired();
             entity.Property(subscription => subscription.CurrencyCode).HasMaxLength(3).IsRequired();
             entity.Property(subscription => subscription.BillingInterval).HasMaxLength(16).IsRequired();
+            entity.Property(subscription => subscription.DiscountReason).HasMaxLength(512);
             entity.HasIndex(subscription => subscription.OrganizationId).IsUnique();
             entity.HasIndex(subscription => new { subscription.Status, subscription.NextInvoiceUtc });
         });
