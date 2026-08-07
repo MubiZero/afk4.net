@@ -224,6 +224,9 @@ builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(Bill
 builder.Services.AddHostedService<BillingPlanSeedHostedService>();
 builder.Services.AddScoped<IJobRunRecorder, EfJobRunRecorder>();
 builder.Services.AddScoped<IPlatformIncidentService, EfPlatformIncidentService>();
+builder.Services.Configure<PlatformAlertOptions>(
+    builder.Configuration.GetSection(PlatformAlertOptions.ConfigurationSection));
+builder.Services.AddScoped<IPlatformAlertNotifier, PlatformAlertNotifier>();
 builder.Services.AddHostedService<InvoiceGenerationHostedService>();
 builder.Services.Configure<NotificationOptions>(
     builder.Configuration.GetSection(NotificationOptions.ConfigurationSection));
