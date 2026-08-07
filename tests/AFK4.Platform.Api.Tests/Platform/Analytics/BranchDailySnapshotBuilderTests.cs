@@ -197,4 +197,69 @@ public sealed class BranchDailySnapshotBuilderTests
 
         Assert.Equal(2, Assert.Single(BranchDailySnapshotBuilder.Build(input)).ShiftOpenedCount);
     }
+
+    [Fact]
+    public void AgentAlive_IsUnknown_WhenBranchHasNoHeartbeatAtAll()
+    {
+        var now = new DateTimeOffset(2026, 8, 8, 3, 0, 0, TimeSpan.Zero);
+        var input = Input(now, Dushanbe(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)));
+
+        // Устройств не заводили — «мёртв» здесь было бы неправдой про клуб, который просто
+        // ещё не разворачивали.
+        Assert.Null(Assert.Single(BranchDailySnapshotBuilder.Build(input)).AgentAlive);
+    }
+
+    [Fact]
+    public void Run_WritesNothing_WhenBranchIsAlreadySnapshottedThroughYesterday()
+    {
+        var now = new DateTimeOffset(2026, 8, 8, 3, 0, 0, TimeSpan.Zero);
+        var branch = Dushanbe(new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+
+        var throughYesterday = Input(now, branch, lastSnapshotDate: new DateOnly(2026, 8, 7));
+        Assert.Empty(BranchDailySnapshotBuilder.Build(throughYesterday));
+
+        var throughToday = Input(now, branch, lastSnapshotDate: new DateOnly(2026, 8, 8));
+        Assert.Empty(BranchDailySnapshotBuilder.Build(throughToday));
+    }
+
+    [Fact]
+    public void Build_ProcessesBranchesIndependently()
+    {
+        var now = new DateTimeOffset(2026, 8, 8, 3, 0, 0, TimeSpan.Zero);
+        var otherBranch = Guid.Parse("33333333-3333-3333-3333-333333333333");
+        var atNoon = new DateTimeOffset(2026, 8, 7, 7, 0, 0, TimeSpan.Zero); // 12:00 в Душанбе
+
+        var branchWithHistory = Dushanbe(new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero));
+        var branchWithoutHistory = new BranchSnapshotBranch(
+            otherBranch, Organization, "Asia/Dushanbe", new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
+
+        var input = new BranchSnapshotInput(
+            now,
+            [branchWithHistory, branchWithoutHistory],
+            new Dictionary<Guid, DateOnly> { [Branch] = new DateOnly(2026, 8, 5) },
+            [new BranchSnapshotEvent(Branch, atNoon), new BranchSnapshotEvent(otherBranch, atNoon)],
+            [new BranchSnapshotMoney(Branch, atNoon, "payment", 1_000L, "TJS")],
+            [],
+            [],
+            new Dictionary<Guid, DateTimeOffset>());
+
+        var facts = BranchDailySnapshotBuilder.Build(input);
+
+        var branchDays = facts.Where(fact => fact.BranchId == Branch).ToArray();
+        var otherDays = facts.Where(fact => fact.BranchId == otherBranch).ToArray();
+
+        Assert.Equal(
+            new[] { new DateOnly(2026, 8, 6), new DateOnly(2026, 8, 7) },
+            branchDays.Select(fact => fact.Date).ToArray());
+        Assert.Equal(new DateOnly(2026, 8, 7), Assert.Single(otherDays).Date);
+
+        var branchOnNoonDay = branchDays.Single(fact => fact.Date == new DateOnly(2026, 8, 7));
+        Assert.Equal(1, branchOnNoonDay.SessionCount);
+        Assert.Equal(1_000L, branchOnNoonDay.RevenueMinorUnits);
+
+        // Событие и деньги первого филиала не должны утечь во второй.
+        var otherOnNoonDay = Assert.Single(otherDays);
+        Assert.Equal(1, otherOnNoonDay.SessionCount);
+        Assert.Equal(0L, otherOnNoonDay.RevenueMinorUnits);
+    }
 }
