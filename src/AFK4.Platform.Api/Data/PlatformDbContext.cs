@@ -122,6 +122,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PlatformJobRunEntity> PlatformJobRuns => Set<PlatformJobRunEntity>();
 
+    public DbSet<SubscriptionDailySnapshotEntity> SubscriptionDailySnapshots => Set<SubscriptionDailySnapshotEntity>();
+
     public DbSet<OrganizationOwnerInviteEntity> OrganizationOwnerInvites => Set<OrganizationOwnerInviteEntity>();
 
     public DbSet<OrganizationSupportNoteEntity> OrganizationSupportNotes => Set<OrganizationSupportNoteEntity>();
@@ -1010,6 +1012,21 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 .IsUnique()
                 .HasFilter("\"ResolvedAtUtc\" IS NULL");
             entity.HasIndex(incident => incident.OpenedAtUtc);
+        });
+
+        modelBuilder.Entity<SubscriptionDailySnapshotEntity>(entity =>
+        {
+            entity.ToTable("subscription_daily_snapshots");
+            entity.HasKey(snapshot => snapshot.SubscriptionDailySnapshotId);
+            entity.Property(snapshot => snapshot.Status).HasMaxLength(32).IsRequired();
+            entity.Property(snapshot => snapshot.PlanCode).HasMaxLength(64).IsRequired();
+            entity.Property(snapshot => snapshot.CurrencyCode).HasMaxLength(3).IsRequired();
+            // Идемпотентность суточного задания держит база: повторный запуск за те же сутки
+            // не заведёт вторую строку, а двойной запуск и повтор после падения — норма.
+            entity.HasIndex(snapshot => new { snapshot.OrganizationId, snapshot.SnapshotDate })
+                .IsUnique()
+                .HasDatabaseName("IX_subscription_daily_snapshots_Organization_Date");
+            entity.HasIndex(snapshot => snapshot.SnapshotDate);
         });
 
         modelBuilder.Entity<PlatformJobRunEntity>(entity =>
