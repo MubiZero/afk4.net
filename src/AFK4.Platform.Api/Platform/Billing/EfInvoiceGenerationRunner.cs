@@ -86,6 +86,7 @@ public sealed class EfInvoiceGenerationRunner(
             IssuedAtUtc = now,
             DueAtUtc = now.Add(options.InvoiceDueAfter),
             AmountMinorUnits = subscription.AmountMinorUnits,
+            GrossAmountMinorUnits = subscription.AmountMinorUnits,
             CurrencyCode = subscription.CurrencyCode,
             Status = InvoiceStatusNames.Issued,
             Description = $"Subscription {subscription.PlanCode} " +

@@ -129,6 +129,7 @@ public sealed class EfOrganizationSubscriptionService(
                     IssuedAtUtc = now,
                     DueAtUtc = now.AddDays(7),
                     AmountMinorUnits = proration,
+                    GrossAmountMinorUnits = proration,
                     CurrencyCode = newPlan.CurrencyCode,
                     Status = InvoiceStatusNames.Issued,
                     Description = $"Proration: {subscription.PlanCode} → {newPlan.PlanCode}",
