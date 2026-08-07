@@ -1,4 +1,5 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Platform.Analytics;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Dashboard;
 using AFK4.Shared.Contracts.Payments;
@@ -15,8 +16,6 @@ public sealed class EfOperatorDashboardService(
     TimeProvider timeProvider) : IOperatorDashboardService
 {
     private const string DefaultCurrencyCode = "TJS";
-    private const string PaymentKindPayment = "payment";
-    private const string PaymentKindRefund = "refund";
     private const int DefaultLimit = 8;
     private const int MaxLimit = 20;
 
@@ -114,16 +113,10 @@ public sealed class EfOperatorDashboardService(
         var failedCommands = commands.Count(command => IsStatus(command.Status, "Failed") || IsStatus(command.Status, "Rejected"));
         var totalAlerts = pendingCommands + failedCommands + offlineDevices + endingSessionCount;
         var currencyCode = ResolveCurrencyCode(currentShift, payments, ledgerEntries);
-        var posNetSalesMinorUnits = payments.Sum(payment => IsKind(payment.PaymentKind, PaymentKindPayment) || IsKind(payment.PaymentKind, PaymentKindRefund)
-            ? payment.AmountMinorUnits
-            : 0);
-        var gameplayRevenueMinorUnits = ledgerEntries.Sum(entry => entry.EntryType switch
-        {
-            LedgerEntryTypeNames.GameplayCharge => Math.Abs(entry.AmountMinorUnits),
-            LedgerEntryTypeNames.PostpaidDebt => Math.Max(0, entry.AmountMinorUnits),
-            LedgerEntryTypeNames.Refund => -Math.Abs(entry.AmountMinorUnits),
-            _ => 0
-        });
+        var posNetSalesMinorUnits = BranchRevenue.PosNet(
+            payments.Select(payment => (Kind: payment.PaymentKind, payment.AmountMinorUnits)));
+        var gameplayRevenueMinorUnits = BranchRevenue.Gameplay(
+            ledgerEntries.Select(entry => (Kind: entry.EntryType, entry.AmountMinorUnits)));
         var paidSaleCount = await dbContext.PosSales
             .AsNoTracking()
             .CountAsync(sale =>
@@ -319,11 +312,6 @@ public sealed class EfOperatorDashboardService(
     }
 
     private static bool IsStatus(string actual, string expected)
-    {
-        return string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsKind(string actual, string expected)
     {
         return string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
     }
