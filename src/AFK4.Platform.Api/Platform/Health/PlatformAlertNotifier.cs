@@ -42,8 +42,12 @@ public sealed class PlatformAlertNotifier(
     {
         var startedAt = timeProvider.GetUtcNow();
         var delivered = 0;
-        string? error = null;
+        var errors = new List<string>();
 
+        // Почта и SMS — независимые каналы. SMS — это именно резерв на случай, если почта
+        // отказала (мёртвый SMTP, битый адрес одного из админов), поэтому отказ одного канала
+        // не должен ни прерывать, ни отменять другой: каждый обёрнут в свой try, и внутри
+        // почтового цикла отказ одному получателю не останавливает рассылку остальным.
         try
         {
             var recipients = await dbContext.PlatformAdminUsers
@@ -67,16 +71,24 @@ public sealed class PlatformAlertNotifier(
 
             foreach (var address in recipients)
             {
-                await smtpTransport.SendAsync(
-                    new SmtpMessage(
-                        notificationOptions.FromAddress,
-                        notificationOptions.FromName,
-                        address,
-                        subject,
-                        body,
-                        $"<pre>{System.Net.WebUtility.HtmlEncode(body)}</pre>"),
-                    cancellationToken);
-                delivered++;
+                try
+                {
+                    await smtpTransport.SendAsync(
+                        new SmtpMessage(
+                            notificationOptions.FromAddress,
+                            notificationOptions.FromName,
+                            address,
+                            subject,
+                            body,
+                            $"<pre>{System.Net.WebUtility.HtmlEncode(body)}</pre>"),
+                        cancellationToken);
+                    delivered++;
+                }
+                catch (Exception exception)
+                {
+                    errors.Add($"email {address}: {exception.Message}");
+                    logger.LogError(exception, "Failed to email platform alert to {Address} for incident {DedupKey}.", address, incident.DedupKey);
+                }
             }
 
             // Отбой по SMS не шлём: разбудить человека ради «всё снова хорошо» — верный способ
@@ -89,16 +101,28 @@ public sealed class PlatformAlertNotifier(
             {
                 foreach (var phone in alertOptions.SmsRecipients)
                 {
-                    await smsTransport.SendAsync(new SmsMessage(phone, subject), cancellationToken);
-                    delivered++;
+                    try
+                    {
+                        await smsTransport.SendAsync(new SmsMessage(phone, subject), cancellationToken);
+                        delivered++;
+                    }
+                    catch (Exception exception)
+                    {
+                        errors.Add($"sms {phone}: {exception.Message}");
+                        logger.LogError(exception, "Failed to SMS platform alert to {Phone} for incident {DedupKey}.", phone, incident.DedupKey);
+                    }
                 }
             }
         }
         catch (Exception exception)
         {
-            error = exception.Message;
+            // Сбой до/между каналами (например, запрос получателей): SMS-блок выше уже не
+            // выполнится, но сама запись прогона всё равно должна отразить, что случилось.
+            errors.Add(exception.Message);
             logger.LogError(exception, "Failed to deliver platform alert for incident {DedupKey}.", incident.DedupKey);
         }
+
+        var error = errors.Count == 0 ? null : string.Join(" | ", errors);
 
         await jobRunRecorder.RecordAsync(
             PlatformJobNames.AlertDelivery,
