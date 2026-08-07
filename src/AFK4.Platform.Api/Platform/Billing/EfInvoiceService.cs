@@ -15,7 +15,10 @@ public sealed class EfInvoiceService(
 {
     private const int MaxVoidReasonLength = 512;
 
-    private const int MaxDescriptionLength = 400;
+    // Must match the "invoices"."Description" column (PlatformDbContext: HasMaxLength(240)) — a
+    // longer description passes this check but fails at the database with Postgres 22001, which the
+    // InMemory provider used by most tests here never enforces.
+    private const int MaxDescriptionLength = 240;
 
     private static readonly HashSet<string> AllowedStatusFilters = new(StringComparer.Ordinal)
     {
@@ -84,6 +87,13 @@ public sealed class EfInvoiceService(
         }
         catch (InvoiceNumberAllocationException)
         {
+            // GenerateForSubscriptionAsync already added the invoice and advanced the subscription's
+            // period on this same tracked DbContext. Leaving that dirty state behind would let an
+            // unrelated later SaveChangesAsync on this context flush the never-issued invoice and the
+            // shifted period anyway — clean the tracker explicitly rather than rely on the request
+            // ending before anyone saves again.
+            dbContext.Entry(invoice).State = EntityState.Detached;
+            await dbContext.Entry(subscription).ReloadAsync(cancellationToken);
             return BillingOperationResult<InvoiceDto>.Conflict(
                 "Could not issue the invoice because of a numbering conflict with another concurrent request. Please retry.");
         }
@@ -200,6 +210,12 @@ public sealed class EfInvoiceService(
         if (invoice.Status == InvoiceStatusNames.Void)
         {
             return BillingOperationResult<InvoiceDto>.Conflict("A voided invoice cannot be marked paid.");
+        }
+
+        if (invoice.Kind == InvoiceKindNames.Credit)
+        {
+            return BillingOperationResult<InvoiceDto>.Conflict(
+                "A credit note is never paid — it is issued and counted in the balance.");
         }
 
         var now = timeProvider.GetUtcNow();

@@ -396,6 +396,69 @@ public sealed class EfInvoiceServiceTests
         Assert.Equal(BillingOperationStatus.BadRequest, result.Status);
     }
 
+    // Regression for a review finding: MaxDescriptionLength (400) used to be looser than
+    // PlatformDbContext's "invoices"."Description" column (HasMaxLength(240)). A 300-character
+    // description passed this check but would fail at Postgres with 22001 ("value too long") — a
+    // failure the InMemory provider used here cannot reproduce, so this test only proves the service
+    // rejects it client-side at the same 240 limit as the column, not that Postgres would accept it.
+    [Fact]
+    public async Task CreateAsync_DescriptionLongerThanColumn_IsRejected()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
+        var service = NewService(db, new FixedTimeProvider(Now));
+
+        var result = await service.CreateAsync(orgId, new CreateInvoiceRequest(
+            Kind: InvoiceKindNames.OneOff,
+            AmountMinorUnits: 150000,
+            Description: new string('d', 300),
+            DueAtUtc: null), CancellationToken.None);
+
+        Assert.Equal(BillingOperationStatus.BadRequest, result.Status);
+        Assert.Equal(0, await db.Invoices.CountAsync());
+    }
+
+    [Fact]
+    public async Task CreateAsync_DescriptionAtColumnLimit_IsAccepted()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
+        var service = NewService(db, new FixedTimeProvider(Now));
+
+        var result = await service.CreateAsync(orgId, new CreateInvoiceRequest(
+            Kind: InvoiceKindNames.OneOff,
+            AmountMinorUnits: 150000,
+            Description: new string('d', 240),
+            DueAtUtc: null), CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+    }
+
+    // Regression: MarkPaidAsync did not look at Kind, so a credit note could be "marked paid" and
+    // fall out of the balance calculation — turning a settled club back into arrears and resuming
+    // the dunning ladder. Design spec §5: credit notes are issued and counted in the balance, never
+    // paid.
+    [Fact]
+    public async Task MarkPaidAsync_CreditNote_ReturnsConflict()
+    {
+        await using var db = NewContext();
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
+        var service = NewService(db, new FixedTimeProvider(Now));
+        var credit = await service.CreateAsync(orgId, new CreateInvoiceRequest(
+            Kind: InvoiceKindNames.Credit,
+            AmountMinorUnits: -150000,
+            Description: "Компенсация простоя",
+            DueAtUtc: null), CancellationToken.None);
+
+        var result = await service.MarkPaidAsync(
+            credit.Value!.InvoiceId, new MarkInvoicePaidRequest(null), CancellationToken.None);
+
+        Assert.Equal(BillingOperationStatus.Conflict, result.Status);
+        var stored = await db.Invoices.SingleAsync(invoice => invoice.InvoiceId == credit.Value.InvoiceId);
+        Assert.Equal(InvoiceStatusNames.Issued, stored.Status);
+        Assert.Null(stored.PaidAtUtc);
+    }
+
     [Fact]
     public async Task CreateAsync_BlankDescription_IsRejected()
     {
@@ -558,6 +621,86 @@ public sealed class EfInvoiceServiceTests
 
             await bothSavesReached!.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
             return result;
+        }
+    }
+
+    // Regression for a review finding: when InvoiceNumbering.SaveAsync exhausts its retries,
+    // GenerateAsync used to return Conflict without cleaning up — the invoice it had just Add()-ed
+    // and the subscription's already-shifted CurrentPeriodStartUtc/CurrentPeriodEndUtc stayed dirty
+    // on the tracked DbContext. Nothing forced that state to flush in these tests (each test disposes
+    // its own DbContext), which is exactly why the bug shipped unnoticed — a later, unrelated
+    // SaveChangesAsync on the same scoped DbContext would have persisted the never-issued invoice and
+    // the shifted period anyway. This interceptor simulates the always-colliding-on-Number case
+    // without needing a real Postgres unique index: SaveChangesInterceptor.SavingChangesAsync runs
+    // before the provider-specific save regardless of provider, so it fires for InMemory too.
+    [Fact]
+    public async Task GenerateAsync_NumberingExhausted_CleansUpTrackedInvoiceAndSubscription()
+    {
+        var interceptor = new AlwaysCollidingOnNumberInterceptor();
+        await using var db = new PlatformDbContext(new DbContextOptionsBuilder<PlatformDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .AddInterceptors(interceptor)
+            .Options);
+        var orgId = await SeedOrganizationWithSubscriptionAsync(db);
+        var subscriptionBefore = await db.OrganizationSubscriptions.AsNoTracking().SingleAsync();
+        var service = NewService(db, new FixedTimeProvider(Now.AddDays(2)));
+
+        var result = await service.GenerateAsync(orgId, CancellationToken.None);
+
+        Assert.Equal(BillingOperationStatus.Conflict, result.Status);
+        Assert.Empty(db.ChangeTracker.Entries<InvoiceEntity>());
+        var subscriptionAfter = await db.OrganizationSubscriptions.AsNoTracking().SingleAsync();
+        Assert.Equal(subscriptionBefore.CurrentPeriodStartUtc, subscriptionAfter.CurrentPeriodStartUtc);
+        Assert.Equal(subscriptionBefore.CurrentPeriodEndUtc, subscriptionAfter.CurrentPeriodEndUtc);
+
+        // Proves the tracker is actually clean, not just that this particular call returned early:
+        // a follow-up save on the very same DbContext must not resurrect the abandoned invoice.
+        interceptor.StopColliding();
+        var retry = await service.GenerateAsync(orgId, CancellationToken.None);
+        Assert.True(retry.Succeeded);
+        Assert.Equal(1, retry.Value!.Number);
+        Assert.Equal(1, await db.Invoices.CountAsync());
+    }
+
+    /// <summary>Throws a DbUpdateException wrapping a unique-violation PostgresException on the
+    /// invoices-number index for every SaveChangesAsync call until <see cref="StopColliding"/> is
+    /// called — deterministic stand-in for concurrent writers racing MAX(Number)+1 on real Postgres.</summary>
+    private sealed class AlwaysCollidingOnNumberInterceptor : SaveChangesInterceptor
+    {
+        private bool colliding = true;
+
+        public void StopColliding() => colliding = false;
+
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            if (colliding && eventData.Context?.ChangeTracker.Entries<InvoiceEntity>()
+                    .Any(entry => entry.State == EntityState.Added) == true)
+            {
+                throw new DbUpdateException("simulated numbering collision", new PostgresException(
+                    messageText: "duplicate key value violates unique constraint \"IX_invoices_Number\"",
+                    severity: "ERROR",
+                    invariantSeverity: "ERROR",
+                    sqlState: PostgresErrorCodes.UniqueViolation,
+                    detail: null,
+                    hint: null,
+                    position: 0,
+                    internalPosition: 0,
+                    internalQuery: null,
+                    where: null,
+                    schemaName: null,
+                    tableName: "invoices",
+                    columnName: null,
+                    dataTypeName: null,
+                    constraintName: "IX_invoices_Number",
+                    file: null,
+                    line: null,
+                    routine: null));
+            }
+
+            return new ValueTask<InterceptionResult<int>>(result);
         }
     }
 }
