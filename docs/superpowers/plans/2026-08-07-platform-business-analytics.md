@@ -404,35 +404,33 @@ public sealed class EfSubscriptionSnapshotRunner(PlatformDbContext dbContext, Ti
         var lastCompleteDay = DateOnly.FromDateTime(now.UtcDateTime).AddDays(-1);
         var earliest = lastCompleteDay.AddDays(-MaxBackfillDays);
 
-        var existingDates = await dbContext.SubscriptionDailySnapshots
+        // Отталкиваемся от ПОСЛЕДНЕЙ известной даты каждой организации, а не от фиксированного окна:
+        // иначе организация без единого снимка получила бы при первом запуске сразу весь диапазон
+        // выдуманной истории вместо одного вчерашнего дня.
+        var lastSnapshotDates = await dbContext.SubscriptionDailySnapshots
             .AsNoTracking()
-            .Where(snapshot => snapshot.SnapshotDate >= earliest)
-            .Select(snapshot => new { snapshot.OrganizationId, snapshot.SnapshotDate })
-            .ToListAsync(cancellationToken);
-
-        var covered = existingDates
-            .GroupBy(row => row.OrganizationId)
-            .ToDictionary(group => group.Key, group => group.Select(row => row.SnapshotDate).ToHashSet());
+            .GroupBy(snapshot => snapshot.OrganizationId)
+            .Select(group => new { OrganizationId = group.Key, LastDate = group.Max(snapshot => snapshot.SnapshotDate) })
+            .ToDictionaryAsync(row => row.OrganizationId, row => row.LastDate, cancellationToken);
 
         var subscriptions = await dbContext.OrganizationSubscriptions
             .AsNoTracking()
             .ToListAsync(cancellationToken);
-
-        // Один день, который заведомо надо покрыть, плюс пропущенные: доснимаем от самой ранней
-        // непокрытой даты, но не глубже MaxBackfillDays — иначе первый запуск на живой базе
-        // потащил бы историю за всё время, которой всё равно нет.
-        var days = new List<DateOnly>();
-        for (var day = earliest; day <= lastCompleteDay; day = day.AddDays(1)) days.Add(day);
 
         var written = 0;
         var createdAt = timeProvider.GetUtcNow();
 
         foreach (var subscription in subscriptions)
         {
-            covered.TryGetValue(subscription.OrganizationId, out var coveredDays);
-            foreach (var day in days)
+            // Нет истории — пишем только вчера. Есть история — закрываем разрыв от следующего дня
+            // после последнего снимка, но не глубже MaxBackfillDays.
+            var startDay = lastSnapshotDates.TryGetValue(subscription.OrganizationId, out var lastDate)
+                ? lastDate.AddDays(1)
+                : lastCompleteDay;
+            if (startDay < earliest) startDay = earliest;
+
+            for (var day = startDay; day <= lastCompleteDay; day = day.AddDays(1))
             {
-                if (coveredDays is not null && coveredDays.Contains(day)) continue;
                 // Досняли пропущенный день — но состояние берём СЕГОДНЯШНЕЕ: восстановить, каким
                 // оно было позавчера, нечем. Это честная цена простоя, а не точная реконструкция.
                 dbContext.SubscriptionDailySnapshots.Add(new SubscriptionDailySnapshotEntity
