@@ -30,9 +30,15 @@ public sealed class EfDunningRunner(
                 subscription => subscription.PaymentGraceUntilUtc,
                 cancellationToken);
 
-        var pendingDueSoon = new List<InvoiceEntity>();
-        var pendingOverdue = new List<(InvoiceEntity Invoice, int Stage)>();
+        var notified = 0;
 
+        // Processed one invoice at a time — mark, notify, save — rather than as a batch. The
+        // notifier's outbox write (AddIfAbsentAsync) does its own SaveChangesAsync on this same
+        // PlatformDbContext, so a batched "mutate everyone, then notify everyone" pass would let
+        // the first notify call flush every other invoice's still-unsent-notice state early: a
+        // crash right after would strand those invoices exactly like the single-invoice race this
+        // was meant to close. Saving right after each invoice's own notifier call keeps that flush
+        // scoped to the invoice it actually belongs to.
         foreach (var invoice in unpaid)
         {
             // <= matches the stage-1 rung boundary (offset 0 fires at now >= DueAtUtc) so the flip
@@ -49,6 +55,7 @@ public sealed class EfDunningRunner(
                 && graceUntil is not null
                 && graceUntil > now)
             {
+                await dbContext.SaveChangesAsync(cancellationToken);
                 continue;
             }
 
@@ -58,7 +65,9 @@ public sealed class EfDunningRunner(
             {
                 invoice.DueSoonNotifiedAtUtc = now;
                 invoice.UpdatedAtUtc = now;
-                pendingDueSoon.Add(invoice);
+                await invoiceNotifier.NotifyDueSoonAsync(invoice, now, cancellationToken);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                notified++;
                 continue;
             }
 
@@ -68,36 +77,16 @@ public sealed class EfDunningRunner(
                 invoice.DunningStage = stage;
                 invoice.LastDunningAtUtc = now;
                 invoice.UpdatedAtUtc = now;
-                pendingOverdue.Add((invoice, stage));
+                await invoiceNotifier.NotifyOverdueAsync(invoice, stage, now, cancellationToken);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                notified++;
+                continue;
             }
-        }
 
-        if (pendingDueSoon.Count == 0 && pendingOverdue.Count == 0)
-        {
             await dbContext.SaveChangesAsync(cancellationToken);
-            return 0;
         }
 
-        // The stage/status bump is only persisted after every notifier call below has returned
-        // successfully. Notifying first (which writes an idempotent outbox row keyed by
-        // invoice+stage) and saving invoice state second means a crash between the two leaves the
-        // outbox row as the source of truth: the next run recomputes the same stage, calls the
-        // notifier again, and AddIfAbsentAsync collapses it into the existing row instead of
-        // sending twice. Saving state first — the previous order — could advance DunningStage past
-        // a notice that was never actually queued, losing it for good.
-        foreach (var invoice in pendingDueSoon)
-        {
-            await invoiceNotifier.NotifyDueSoonAsync(invoice, now, cancellationToken);
-        }
-
-        foreach (var (invoice, stage) in pendingOverdue)
-        {
-            await invoiceNotifier.NotifyOverdueAsync(invoice, stage, now, cancellationToken);
-        }
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return pendingDueSoon.Count + pendingOverdue.Count;
+        return notified;
     }
 
     /// <summary>Highest ladder rung the invoice's age has reached; 0 when it is not overdue yet.

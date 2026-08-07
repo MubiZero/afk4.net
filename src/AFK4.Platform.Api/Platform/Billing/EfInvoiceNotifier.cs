@@ -58,7 +58,10 @@ public sealed class EfInvoiceNotifier(
             ["currency"] = invoice.CurrencyCode,
             ["dueDate"] = invoice.DueAtUtc.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             ["paidDate"] = (invoice.PaidAtUtc ?? invoice.UpdatedAtUtc).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            ["daysOverdue"] = Math.Max(0, (int)Math.Floor((now - invoice.DueAtUtc).TotalDays))
+            // The overdue notice by definition never fires before the due date, so the token floors
+            // at 1 day rather than 0 — a stage-1 notice on the due date itself is "1 day overdue",
+            // not "0 days overdue" (which reads as a bug, not a reminder).
+            ["daysOverdue"] = Math.Max(1, (int)Math.Floor((now - invoice.DueAtUtc).TotalDays))
                 .ToString(CultureInfo.InvariantCulture),
         };
 }
