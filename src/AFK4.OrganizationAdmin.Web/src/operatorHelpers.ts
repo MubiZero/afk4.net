@@ -3,7 +3,7 @@ import { formatDateParts } from '@afk4/formatting';
 import { formatMinorUnits } from './currencyFormat';
 import { getOperatorConfig } from './operatorConfig';
 import { projectOperatorError } from './apiErrors';
-import { createOperatorApiClients, type BranchDiagnosticsDto, type OperatorDashboardSummaryDto, type PlayerPackageDto, type PosSaleDto, type ShiftDto } from './operatorApiClients';
+import { createOperatorApiClients, type BranchDiagnosticsDto, type OperatorDashboardSummaryDto, type OrganizationBillingStatusDto, type PlayerPackageDto, type PosSaleDto, type ShiftDto } from './operatorApiClients';
 import { PlatformApiClient, PlatformApiError } from './platformApi';
 import { refreshOperatorSession, signOutOperator, StaffAuthApiError, type OperatorAuthSession } from './authClient';
 import { isAccessTokenExpired } from './auth/staffSessionStore';
@@ -622,6 +622,13 @@ export function shellShiftBadge(
   }
 
   return { tone: 'idle', value: status === 'loading' ? '…' : '—', full };
+}
+
+// A support-mode staffer already sees this same club's arrears in the platform's own panel (§8) —
+// stacking BillingStatusBanner on top of SupportModeBanner would double the strip height for
+// nothing, so support mode wins whenever both would otherwise apply.
+export function shouldShowBillingBanner(hasActiveSupportSession: boolean, billingStatus: OrganizationBillingStatusDto | null): boolean {
+  return !hasActiveSupportSession && billingStatus !== null && billingStatus.inArrears;
 }
 
 export function shellPosLabel(summary: OperatorDashboardSummaryDto | null, status: LoadStatus, t: TFunc): string {

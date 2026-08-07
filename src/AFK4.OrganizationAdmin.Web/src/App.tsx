@@ -56,6 +56,7 @@ import {
 import {
   operatorDisplayNameLabel,
   shellShiftBadge,
+  shouldShowBillingBanner,
   resolveActiveBranchId,
   createAuthenticatedOperatorClients
 } from './operatorHelpers';
@@ -258,7 +259,7 @@ function AppInner() {
   // запрос отсюда никому не нужен (даже если бы саппорт-сессия формально несла `viewSubscription`
   // среди read-прав — supportPermissions включает все `.view`-права).
   const billingStatus = useBillingStatus(staffAuthStatus, staffAuthSession, config);
-  const showBillingBanner = activeSupportSession === null && billingStatus !== null && billingStatus.inArrears;
+  const showBillingBanner = shouldShowBillingBanner(activeSupportSession !== null, billingStatus);
   const canUsePcControl = (hasPermission(authSession, permissionNames.viewDiagnostics)
     && hasPermission(authSession, permissionNames.viewDeviceDetail))
     || hasPermission(authSession, permissionNames.dispatchDeviceCommand);

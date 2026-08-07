@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { createTranslator } from '@afk4/i18n';
-import { billingLabel, matchesLifecycleScope, matchesMapFilter, resolveReasonInput } from './operatorHelpers';
+import { billingLabel, matchesLifecycleScope, matchesMapFilter, resolveReasonInput, shouldShowBillingBanner } from './operatorHelpers';
+import type { OrganizationBillingStatusDto } from './operatorApiClients';
 import type { OperatorAuthSession } from './authClient';
 import type { SeatSummary } from './operatorData';
 import type { SessionLifecycleChangedDto } from './operatorRealtime';
@@ -18,6 +19,35 @@ describe('resolveReasonInput', () => {
 
   it('keeps and trims an operator-entered reason', () => {
     expect(resolveReasonInput('  наличными в кассу  ', 'пополнение через кассу')).toBe('наличными в кассу');
+  });
+});
+
+describe('shouldShowBillingBanner', () => {
+  const inArrears: OrganizationBillingStatusDto = {
+    inArrears: true,
+    outstandingMinorUnits: 450000,
+    currencyCode: 'TJS',
+    oldestOverdueInvoiceNumber: 42,
+    daysOverdue: 5,
+    graceUntilUtc: null
+  };
+
+  // §8: a support-mode staffer already sees this club's arrears in their own platform panel —
+  // stacking BillingStatusBanner on SupportModeBanner would double the strip for nothing.
+  it('hides the banner during a support session even when the club is in arrears', () => {
+    expect(shouldShowBillingBanner(true, inArrears)).toBe(false);
+  });
+
+  it('shows the banner outside a support session when the club is in arrears', () => {
+    expect(shouldShowBillingBanner(false, inArrears)).toBe(true);
+  });
+
+  it('hides the banner when the club is not in arrears', () => {
+    expect(shouldShowBillingBanner(false, { ...inArrears, inArrears: false })).toBe(false);
+  });
+
+  it('hides the banner while the status has not loaded yet', () => {
+    expect(shouldShowBillingBanner(false, null)).toBe(false);
   });
 });
 
