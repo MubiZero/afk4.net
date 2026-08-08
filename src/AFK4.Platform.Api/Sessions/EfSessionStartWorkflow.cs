@@ -3,6 +3,7 @@ using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Install;
@@ -17,7 +18,8 @@ public sealed class EfSessionStartWorkflow(
     ISessionLeaseSigner leaseSigner,
     TimeProvider timeProvider,
     ISessionBillingService sessionBillingService,
-    ISessionLifecycleNotifier lifecycleNotifier) : ISessionStartWorkflow
+    ISessionLifecycleNotifier lifecycleNotifier,
+    IPlanLimitGuard planLimitGuard) : ISessionStartWorkflow
 {
     private const int LeaseMinutes = 15;
     private const int CompReasonMinLength = 8;
@@ -127,6 +129,17 @@ public sealed class EfSessionStartWorkflow(
             cancellationToken))
         {
             return Invalid("Seat or device already has an active session.");
+        }
+
+        var planLimit = await planLimitGuard.CheckConcurrentSessionAsync(
+            request.OrganizationId,
+            cancellationToken);
+        if (planLimit is not null)
+        {
+            return new SessionStartStage(
+                SessionCommandServiceResult.PlanLimitReached(planLimit),
+                DeviceId: null,
+                Command: null);
         }
 
         var billingValidation = await sessionBillingService.ValidateStartAsync(

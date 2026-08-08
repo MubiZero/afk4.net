@@ -874,6 +874,7 @@
   "op.error.code.openShiftRequired": "Чтобы принять оплату, сначала откройте смену.",
   "op.error.code.organizationMismatch": "Запрос относится к другой организации. Обновите подключение к клубу.",
   "op.error.code.outOfStock": "Товара недостаточно на складе. Обновите остатки.",
+  "op.error.code.planLimitReached": "Тариф исчерпан: занято {current} из {limit}. Повысьте тариф или освободите место.",
   "op.error.code.playerRequiredForWallet": "Для выбранного способа оплаты нужен клиент клуба.",
   "op.error.code.reservationAlreadyStarted": "Для этой брони сессия уже запущена.",
   "op.error.code.reservationConfirmationRequired": "Сначала подтвердите бронь, затем запускайте сессию.",

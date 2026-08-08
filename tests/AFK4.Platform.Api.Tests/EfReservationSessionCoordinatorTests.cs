@@ -6,6 +6,7 @@ using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Reservations;
 using AFK4.Platform.Api.Sessions;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Tests.Sessions;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
@@ -266,7 +267,8 @@ public sealed class EfReservationSessionCoordinatorTests
             new FakeLeaseSigner(),
             new FixedTimeProvider(Now),
             billing,
-            lifecycle);
+            lifecycle,
+            new EfPlanLimitGuard(db));
         var coordinator = CreateCoordinator(db, workflow);
 
         var result = await coordinator.StartAsync(
@@ -317,7 +319,8 @@ public sealed class EfReservationSessionCoordinatorTests
             new FakeLeaseSigner(),
             new FixedTimeProvider(Now),
             billing,
-            lifecycle);
+            lifecycle,
+            new EfPlanLimitGuard(db));
         var coordinator = CreateCoordinator(db, workflow);
         var request = Request(expectedVersion: 1) with
         {
@@ -361,7 +364,8 @@ public sealed class EfReservationSessionCoordinatorTests
             new FakeLeaseSigner(),
             new FixedTimeProvider(Now),
             billing,
-            lifecycle);
+            lifecycle,
+            new EfPlanLimitGuard(db));
         var coordinator = CreateCoordinator(db, workflow);
 
         var result = await coordinator.StartAsync(
@@ -401,7 +405,8 @@ public sealed class EfReservationSessionCoordinatorTests
             new FakeLeaseSigner(),
             new FixedTimeProvider(Now),
             billing,
-            lifecycle);
+            lifecycle,
+            new EfPlanLimitGuard(db));
         var coordinator = CreateCoordinator(db, workflow);
         var request = Request(expectedVersion: 1);
 
@@ -447,7 +452,8 @@ public sealed class EfReservationSessionCoordinatorTests
             new FakeLeaseSigner(),
             new FixedTimeProvider(Now),
             new TrackingBillingService(db),
-            lifecycle);
+            lifecycle,
+            new EfPlanLimitGuard(db));
         var coordinator = CreateCoordinator(db, workflow);
 
         var exception = await Record.ExceptionAsync(() => coordinator.StartAsync(
@@ -582,7 +588,8 @@ public sealed class EfReservationSessionCoordinatorTests
             new FakeLeaseSigner(),
             new FixedTimeProvider(database.Now),
             billing,
-            lifecycle);
+            lifecycle,
+            new EfPlanLimitGuard(db));
         var failing = new FailAfterDependencySaveWorkflow(inner, db);
         var coordinator = new EfReservationSessionCoordinator(
             db,
@@ -635,7 +642,8 @@ public sealed class EfReservationSessionCoordinatorTests
                 new FakeLeaseSigner(),
                 new FixedTimeProvider(database.Now),
                 new TrackingBillingService(db, database.OrganizationId, database.BranchId),
-                lifecycle);
+                lifecycle,
+            new EfPlanLimitGuard(db));
             var coordinator = new EfReservationSessionCoordinator(
                 db,
                 workflow,
@@ -688,14 +696,16 @@ public sealed class EfReservationSessionCoordinatorTests
             new FakeLeaseSigner(),
             new FixedTimeProvider(database.Now),
             new TrackingBillingService(firstDb, database.OrganizationId, database.BranchId),
-            firstLifecycle));
+            firstLifecycle,
+            new EfPlanLimitGuard(firstDb)));
         var secondWorkflow = gate.Wrap(new EfSessionStartWorkflow(
             secondDb,
             secondDispatcher,
             new FakeLeaseSigner(),
             new FixedTimeProvider(database.Now),
             new TrackingBillingService(secondDb, database.OrganizationId, database.BranchId),
-            secondLifecycle));
+            secondLifecycle,
+            new EfPlanLimitGuard(secondDb)));
         var firstCoordinator = new EfReservationSessionCoordinator(
             firstDb,
             firstWorkflow,
@@ -756,7 +766,8 @@ public sealed class EfReservationSessionCoordinatorTests
             new FakeLeaseSigner(),
             new FixedTimeProvider(Now),
             new TrackingBillingService(db),
-            new RecordingSessionLifecycleNotifier());
+            new RecordingSessionLifecycleNotifier(),
+            new EfPlanLimitGuard(db));
 
     private static StartReservationSessionRequest Request(
         int expectedVersion,

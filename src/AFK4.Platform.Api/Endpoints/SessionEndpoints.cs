@@ -190,7 +190,7 @@ internal static class SessionEndpoints
 
             if (result.Conflict)
             {
-                return Results.Conflict(new { Error = result.Error, result.Code, result.CurrentVersion });
+                return Results.Conflict(new { Error = result.Error, result.Code, result.CurrentVersion, result.PlanLimit });
             }
 
             if (result.NotFound)

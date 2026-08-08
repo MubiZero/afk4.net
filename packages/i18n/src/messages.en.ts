@@ -875,6 +875,7 @@ export const en = {
   "op.error.code.openShiftRequired": "Open a shift before accepting payment.",
   "op.error.code.organizationMismatch": "This request belongs to another organization. Refresh the club connection.",
   "op.error.code.outOfStock": "There is not enough stock. Refresh inventory levels.",
+  "op.error.code.planLimitReached": "Plan limit reached: {current} of {limit} in use. Upgrade the plan or free up a slot.",
   "op.error.code.playerRequiredForWallet": "The selected payment method requires a club client.",
   "op.error.code.reservationAlreadyStarted": "A session has already been started for this reservation.",
   "op.error.code.reservationConfirmationRequired": "Confirm the reservation before starting its session.",

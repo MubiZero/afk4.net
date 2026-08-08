@@ -25,8 +25,25 @@ const codeMessageKeys = {
   idempotency_key_required: 'op.error.code.idempotencyKeyRequired',
   idempotency_conflict: 'op.error.code.idempotencyConflict',
   session_start_invalid: 'op.error.code.sessionStartInvalid',
-  session_start_conflict: 'op.error.code.sessionStartConflict'
+  session_start_conflict: 'op.error.code.sessionStartConflict',
+  plan_limit_reached: 'op.error.code.planLimitReached'
 } as const satisfies Record<string, MessageKey>;
+
+interface PlanLimitBody extends Record<string, number> {
+  limit: number;
+  current: number;
+}
+
+function readPlanLimit(body: string): PlanLimitBody | null {
+  try {
+    const parsed = JSON.parse(body) as { planLimit?: { limit?: unknown; current?: unknown } };
+    const limit = parsed.planLimit?.limit;
+    const current = parsed.planLimit?.current;
+    return typeof limit === 'number' && typeof current === 'number' ? { limit, current } : null;
+  } catch {
+    return null;
+  }
+}
 
 export function projectOperatorError(error: unknown, t: TFn): OperatorErrorProjection {
   const title = t('op.error.actionFailed.title');
@@ -34,7 +51,11 @@ export function projectOperatorError(error: unknown, t: TFn): OperatorErrorProje
   if (error instanceof PlatformApiError) {
     const code = readErrorCode(error.body);
     if (code !== null && code in codeMessageKeys) {
-      return { title, detail: t(codeMessageKeys[code as keyof typeof codeMessageKeys]) };
+      const planLimit = code === 'plan_limit_reached' ? readPlanLimit(error.body) : null;
+      return {
+        title,
+        detail: t(codeMessageKeys[code as keyof typeof codeMessageKeys], planLimit ?? undefined)
+      };
     }
   }
 

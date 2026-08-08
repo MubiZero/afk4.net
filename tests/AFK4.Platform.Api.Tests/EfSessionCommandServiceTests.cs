@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Sessions;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
@@ -681,7 +682,8 @@ public sealed class EfSessionCommandServiceTests
             timeProvider,
             billingService,
             notifier,
-            new EfSessionStartWorkflow(db, dispatcher, leaseSigner, timeProvider, billingService, notifier));
+            new EfSessionStartWorkflow(db, dispatcher, leaseSigner, timeProvider, billingService, notifier,
+            new EfPlanLimitGuard(db)));
     }
 
     private static async Task SeedLayoutAsync(PlatformDbContext db, bool includeTargetSeat)

@@ -875,6 +875,7 @@ export const tg = {
   "op.error.code.openShiftRequired": "Пеш аз қабули пардохт бастро кушоед.",
   "op.error.code.organizationMismatch": "Ин дархост ба ташкилоти дигар тааллуқ дорад. Пайвасти клубро нав кунед.",
   "op.error.code.outOfStock": "Мол дар анбор кофӣ нест. Бақияҳоро нав кунед.",
+  "op.error.code.planLimitReached": "Маҳдудияти таъриф пур шуд: аз {limit} ҷой {current} банд аст. Тарифро баланд кунед ё ҷой холӣ кунед.",
   "op.error.code.playerRequiredForWallet": "Барои усули интихобшудаи пардохт муштарии клуб лозим аст.",
   "op.error.code.reservationAlreadyStarted": "Барои ин брон сессия аллакай оғоз шудааст.",
   "op.error.code.reservationConfirmationRequired": "Аввал бронро тасдиқ кунед, баъд сессияро оғоз намоед.",
