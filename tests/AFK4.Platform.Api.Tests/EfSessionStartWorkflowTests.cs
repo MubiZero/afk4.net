@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Sessions;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
@@ -36,7 +37,8 @@ public sealed class EfSessionStartWorkflowTests
             new FakeSessionLeaseSigner(),
             new FixedTimeProvider(Now),
             billing,
-            lifecycle);
+            lifecycle,
+            new EfPlanLimitGuard(db));
         var request = new StartGuestSessionRequest(
             TestIds.OrganizationId,
             SeatId,
@@ -91,7 +93,8 @@ public sealed class EfSessionStartWorkflowTests
             new FakeSessionLeaseSigner(),
             new FixedTimeProvider(Now),
             billing,
-            lifecycle);
+            lifecycle,
+            new EfPlanLimitGuard(db));
         var request = new StartGuestSessionRequest(
             TestIds.OrganizationId,
             SeatId,

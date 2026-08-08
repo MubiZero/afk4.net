@@ -27,17 +27,23 @@ export class PlatformApiError extends Error {
   public readonly status: number;
   public readonly errorCode: string | null;
   public readonly remainingAttempts: number | null;
+  // Raw response text, kept alongside the derived fields above. Most call sites only need
+  // `status`/`errorCode`, but some endpoints (e.g. plan-limit rejections) carry extra structured
+  // data in the body that no shared field captures — callers that need it parse this themselves.
+  public readonly body: string;
 
   public constructor(
     status: number,
     message: string,
     errorCode: string | null = null,
-    remainingAttempts: number | null = null
+    remainingAttempts: number | null = null,
+    body = ''
   ) {
     super(message);
     this.status = status;
     this.errorCode = errorCode;
     this.remainingAttempts = remainingAttempts;
+    this.body = body;
   }
 }
 
@@ -303,8 +309,10 @@ export class PlatformTransport {
     let message = fallbackMessage;
     let code: string | null = null;
     let remainingAttempts: number | null = null;
+    let body = '';
     try {
       const text = await response.text();
+      body = text;
       if (text.length > 0) {
         const parsed = JSON.parse(text) as { error?: string; status?: string; remainingAttempts?: number };
         if (typeof parsed.error === 'string' && parsed.error.length > 0) {
@@ -321,6 +329,6 @@ export class PlatformTransport {
     } catch {
       // Body wasn't JSON or wasn't readable; fall back to status text.
     }
-    return new PlatformApiError(response.status, message, code, remainingAttempts);
+    return new PlatformApiError(response.status, message, code, remainingAttempts, body);
   }
 }

@@ -1,4 +1,5 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Install;
 using Microsoft.EntityFrameworkCore;
@@ -7,7 +8,8 @@ namespace AFK4.Platform.Api.Devices;
 
 public sealed class EfDeviceEnrollmentService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IDeviceEnrollmentService, IDeviceCredentialValidator
+    TimeProvider timeProvider,
+    IPlanLimitGuard planLimitGuard) : IDeviceEnrollmentService, IDeviceCredentialValidator
 {
     public async Task<DeviceEnrollmentCodeDto> CreateEnrollmentCodeAsync(
         Guid branchId,
@@ -71,6 +73,15 @@ public sealed class EfDeviceEnrollmentService(
         if (code.OrganizationId != request.OrganizationId || code.BranchId != request.BranchId)
         {
             return DeviceEnrollmentResult.Failure("Enrollment code does not match the requested branch.");
+        }
+
+        var planLimit = await planLimitGuard.CheckDeviceAsync(
+            request.OrganizationId,
+            request.BranchId,
+            cancellationToken);
+        if (planLimit is not null)
+        {
+            return DeviceEnrollmentResult.PlanLimitReached(planLimit);
         }
 
         var deviceId = Guid.NewGuid();

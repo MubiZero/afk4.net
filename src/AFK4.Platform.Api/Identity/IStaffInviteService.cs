@@ -1,3 +1,5 @@
+using AFK4.Shared.Contracts.Platform.Organizations;
+
 namespace AFK4.Platform.Api.Identity;
 
 /// <summary>
@@ -24,24 +26,32 @@ public sealed record StaffInviteCreateResult(
     string? Error,
     Guid StaffInviteId,
     string Code,
-    DateTimeOffset ExpiresAtUtc)
+    DateTimeOffset ExpiresAtUtc,
+    PlanLimitExceededDto? PlanLimit = null)
 {
     public static StaffInviteCreateResult Failed(string error) =>
         new(false, error, Guid.Empty, string.Empty, default);
 
     public static StaffInviteCreateResult Success(Guid staffInviteId, string code, DateTimeOffset expiresAtUtc) =>
         new(true, null, staffInviteId, code, expiresAtUtc);
+
+    public static StaffInviteCreateResult PlanLimitReached(PlanLimitExceededDto planLimit) =>
+        new(false, "Plan staff limit for this branch has been reached.", Guid.Empty, string.Empty, default, planLimit);
 }
 
 public sealed record StaffInviteAcceptResult(
     bool Succeeded,
     string? Error,
     Guid OrganizationId,
-    string UserName)
+    string UserName,
+    PlanLimitExceededDto? PlanLimit = null)
 {
     public static StaffInviteAcceptResult Failed(string error) =>
         new(false, error, Guid.Empty, string.Empty);
 
     public static StaffInviteAcceptResult Success(Guid organizationId, string userName) =>
         new(true, null, organizationId, userName);
+
+    public static StaffInviteAcceptResult PlanLimitReached(PlanLimitExceededDto planLimit) =>
+        new(false, "Plan staff limit for this branch has been reached.", Guid.Empty, string.Empty, planLimit);
 }

@@ -57,4 +57,16 @@ describe('projectOperatorError', () => {
       'Бронь начинается в 18:30. При раннем запуске оплата начнётся сейчас.'
     );
   });
+
+  it('превращает отказ по лимиту тарифа во фразу с числами', () => {
+    const t = createTranslator('ru');
+    const error = new PlatformApiError('conflict', 409, 'Conflict', JSON.stringify({
+      code: 'plan_limit_reached',
+      planLimit: { code: 'plan_limit_reached', limitName: 'concurrent_sessions', limit: 40, current: 40, planCode: 'growth' }
+    }));
+
+    const projection = projectOperatorError(error, t);
+
+    expect(projection.detail).toContain('40');
+  });
 });

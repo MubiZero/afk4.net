@@ -1,24 +1,36 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { PartialFailure } from '@/components/ui/states';
 import { useI18n } from '@/i18n/I18nProvider';
 import { alertDetailText, alertLabel } from '@/platform/clubs/pulseModel';
+import { NewBranchDialog } from './NewBranchDialog';
+import type { OrganizationsApi } from '@/api/platformClients/organizations';
 import type { PulseApi } from '@/api/platformClients/pulse';
-import type { OrganizationBranch, PulseClub } from '@/api/types';
+import type { OrganizationBranch, OrganizationLimits, PulseClub } from '@/api/types';
 
-type Client = Pick<PulseApi, 'getPulse'>;
+type PulseClient = Pick<PulseApi, 'getPulse'>;
+type OrganizationsClient = Pick<OrganizationsApi, 'createBranch'>;
 
 /**
  * The branch roster is structural truth (organization detail); the pulse only
  * adds a live overlay (devices/seats/shift) when a branch has reported in.
  * A pulse outage must not hide the roster itself.
  */
-export function OrganizationClubsTab({ client, organizationId, branches }: { client: Client; organizationId: string; branches: OrganizationBranch[] }) {
+export function OrganizationClubsTab({ client, organizationsClient, organizationId, branches, limits, onBranchCreated }: {
+  client: PulseClient;
+  organizationsClient: OrganizationsClient;
+  organizationId: string;
+  branches: OrganizationBranch[];
+  limits: OrganizationLimits;
+  onBranchCreated: (branch: OrganizationBranch) => void;
+}) {
   const { t, formatDate } = useI18n();
   const [tick, setTick] = useState(0);
   const [pulseByBranch, setPulseByBranch] = useState<Map<string, PulseClub> | null>(null);
   const [error, setError] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,10 +45,37 @@ export function OrganizationClubsTab({ client, organizationId, branches }: { cli
     return () => { cancelled = true; };
   }, [client, organizationId, tick]);
 
-  if (branches.length === 0) return <p>{t('platform.organization.clubsTab.empty')}</p>;
+  const header = (
+    <div className="pc-cell-actions">
+      <Button size="sm" onClick={() => setAddOpen(true)}>{t('platform.organization.branches.add')}</Button>
+      {limits.maxBranches !== null ? (
+        <span>{t('platform.organization.branches.usage', { current: branches.length, limit: limits.maxBranches })}</span>
+      ) : null}
+    </div>
+  );
+
+  const dialog = addOpen ? (
+    <NewBranchDialog
+      client={organizationsClient}
+      organizationId={organizationId}
+      onClose={() => setAddOpen(false)}
+      onCreated={branch => { onBranchCreated(branch); setAddOpen(false); }}
+    />
+  ) : null;
+
+  if (branches.length === 0) {
+    return (
+      <div>
+        {header}
+        <p>{t('platform.organization.clubsTab.empty')}</p>
+        {dialog}
+      </div>
+    );
+  }
 
   return (
     <div>
+      {header}
       {error ? <PartialFailure title={t('platform.organization.clubsTab.error')} retryLabel={t('state.retry')} onRetry={() => setTick(n => n + 1)} /> : null}
       <div className="pc-card-grid">
         {branches.map(branch => {
@@ -79,6 +118,7 @@ export function OrganizationClubsTab({ client, organizationId, branches }: { cli
           );
         })}
       </div>
+      {dialog}
     </div>
   );
 }

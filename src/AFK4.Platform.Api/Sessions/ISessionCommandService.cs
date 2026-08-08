@@ -1,3 +1,4 @@
+using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Sessions;
 
 namespace AFK4.Platform.Api.Sessions;
@@ -11,7 +12,10 @@ public sealed record SessionCommandServiceResult(
     // Machine-readable conflict reason ("stale_version", "seat_occupied") and, for a stale
     // version, the authoritative current version so the client can refresh and retry.
     string? Code = null,
-    int? CurrentVersion = null)
+    int? CurrentVersion = null,
+    // Заполняется только при отказе по лимиту тарифа: клиент собирает из этих чисел фразу
+    // «сеансов 40 из 40», а не показывает голое «нельзя».
+    PlanLimitExceededDto? PlanLimit = null)
 {
     public static SessionCommandServiceResult Ok(SessionCommandResponse response) => new(true, false, false, null, response);
 
@@ -24,6 +28,10 @@ public sealed record SessionCommandServiceResult(
     public static SessionCommandServiceResult Missing(string error) => new(false, false, true, error, null);
 
     public static SessionCommandServiceResult Invalid(string error) => new(false, false, false, error, null);
+
+    public static SessionCommandServiceResult PlanLimitReached(PlanLimitExceededDto planLimit) =>
+        new(false, true, false, "Plan concurrent-session limit has been reached.", null,
+            PlanLimitNames.ReachedCode, null, planLimit);
 }
 
 public interface ISessionCommandService

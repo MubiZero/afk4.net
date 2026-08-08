@@ -1,3 +1,4 @@
+using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Reservations;
 
 namespace AFK4.Platform.Api.Reservations;
@@ -9,7 +10,10 @@ public sealed record ReservationSessionStartResult(
     string? Code,
     string? Error,
     int? CurrentVersion,
-    StartReservationSessionResponse? Response)
+    StartReservationSessionResponse? Response,
+    // Заполняется только при отказе по лимиту тарифа: клиент собирает из этих чисел фразу
+    // «сеансов 40 из 40», а не показывает голое «нельзя».
+    PlanLimitExceededDto? PlanLimit = null)
 {
     public static ReservationSessionStartResult Ok(StartReservationSessionResponse response) =>
         new(true, false, false, null, null, null, response);
@@ -17,8 +21,9 @@ public sealed record ReservationSessionStartResult(
     public static ReservationSessionStartResult RequestConflict(
         string code,
         string error,
-        int? currentVersion = null) =>
-        new(false, true, false, code, error, currentVersion, null);
+        int? currentVersion = null,
+        PlanLimitExceededDto? planLimit = null) =>
+        new(false, true, false, code, error, currentVersion, null, planLimit);
 
     public static ReservationSessionStartResult Missing(string code, string error) =>
         new(false, false, true, code, error, null, null);

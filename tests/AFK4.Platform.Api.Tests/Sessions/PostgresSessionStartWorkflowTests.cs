@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Sessions;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
 using AFK4.Shared.Contracts.Sessions;
@@ -31,7 +32,8 @@ public sealed class PostgresSessionStartWorkflowTests
             new FakeSessionLeaseSigner(),
             timeProvider,
             billing,
-            lifecycle);
+            lifecycle,
+            new EfPlanLimitGuard(db));
         var failingWorkflow = new FailAfterStageWorkflow(innerWorkflow, db);
         var service = new EfSessionCommandService(
             db,

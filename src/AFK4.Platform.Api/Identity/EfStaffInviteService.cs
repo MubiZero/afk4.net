@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Notifications;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Notifications;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +20,8 @@ public sealed class EfStaffInviteService(
     PlatformDbContext db,
     INotificationService notifications,
     TimeProvider timeProvider,
-    IOptions<NotificationOptions> options) : IStaffInviteService
+    IOptions<NotificationOptions> options,
+    IPlanLimitGuard planLimitGuard) : IStaffInviteService
 {
     private static readonly TimeSpan TokenLifetime = TimeSpan.FromDays(7);
 
@@ -44,6 +46,12 @@ public sealed class EfStaffInviteService(
         if (alreadyExists)
         {
             return StaffInviteCreateResult.Failed("A staff user with this username already exists in the organization.");
+        }
+
+        var planLimit = await planLimitGuard.CheckStaffUserAsync(organizationId, branchId, cancellationToken);
+        if (planLimit is not null)
+        {
+            return StaffInviteCreateResult.PlanLimitReached(planLimit);
         }
 
         var roles = NormalizeRoles(roleNames);
@@ -107,6 +115,13 @@ public sealed class EfStaffInviteService(
         if (alreadyExists)
         {
             return StaffInviteAcceptResult.Failed("A staff user with this username already exists in the organization.");
+        }
+
+        var planLimit = await planLimitGuard.CheckStaffUserAsync(
+            invite.OrganizationId, invite.BranchId, cancellationToken, excludingInviteId: invite.StaffInviteId);
+        if (planLimit is not null)
+        {
+            return StaffInviteAcceptResult.PlanLimitReached(planLimit);
         }
 
         var staffUser = new StaffUserEntity

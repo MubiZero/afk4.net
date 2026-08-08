@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Notifications;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Notifications;
@@ -19,7 +20,8 @@ public sealed class EfPlatformOrganizationService(
     TimeProvider timeProvider,
     IOrganizationOwnerInviteCodeGenerator inviteCodeGenerator,
     INotificationService notifications,
-    IOptions<PlatformOrganizationOptions> organizationOptions) : IPlatformOrganizationService
+    IOptions<PlatformOrganizationOptions> organizationOptions,
+    IPlanLimitGuard planLimitGuard) : IPlatformOrganizationService
 {
     private const int MinPasswordLength = 8;
     private const int MaxUserNameLength = 256;
@@ -153,7 +155,7 @@ public sealed class EfPlatformOrganizationService(
             StatusChangedAtUtc = now,
             PlanCode = request.PlanCode.Trim(),
             SubscriptionStatus = request.SubscriptionStatus.Trim(),
-            LimitsJson = SerializeLimits(request.Limits),
+            LimitsJson = OrganizationLimitsJson.Serialize(request.Limits),
             CreatedAtUtc = now,
             UpdatedAtUtc = now
         };
@@ -647,7 +649,7 @@ public sealed class EfPlatformOrganizationService(
             return PlatformOrganizationOperationResult<OrganizationDetailDto>.NotFound("Organization was not found.");
         }
 
-        var serializedLimits = SerializeLimits(request.Limits);
+        var serializedLimits = OrganizationLimitsJson.Serialize(request.Limits);
         var now = timeProvider.GetUtcNow();
         if (organization.LimitsJson != serializedLimits)
         {
@@ -980,13 +982,8 @@ public sealed class EfPlatformOrganizationService(
             StatusChangedAtUtc: organization.StatusChangedAtUtc,
             PlanCode: organization.PlanCode,
             SubscriptionStatus: organization.SubscriptionStatus,
-            Limits: DeserializeLimits(organization.LimitsJson),
-            Branches: branches.Select(branch => new OrganizationBranchDto(
-                BranchId: branch.BranchId,
-                Slug: branch.Slug,
-                Name: branch.Name,
-                City: branch.City,
-                CreatedAtUtc: branch.CreatedAtUtc)).ToList(),
+            Limits: OrganizationLimitsJson.Deserialize(organization.LimitsJson),
+            Branches: branches.Select(ToBranchDto).ToList(),
             CreatedAtUtc: organization.CreatedAtUtc,
             UpdatedAtUtc: organization.UpdatedAtUtc,
             ContactEmail: organization.ContactEmail,
@@ -994,6 +991,92 @@ public sealed class EfPlatformOrganizationService(
             LegalDetails: organization.LegalDetails,
             UpdateChannel: organization.UpdateChannel,
             PinnedClientVersion: organization.PinnedClientVersion);
+    }
+
+    private static OrganizationBranchDto ToBranchDto(BranchEntity branch) =>
+        new(
+            BranchId: branch.BranchId,
+            Slug: branch.Slug,
+            Name: branch.Name,
+            City: branch.City,
+            CreatedAtUtc: branch.CreatedAtUtc);
+
+    public async Task<PlatformOrganizationOperationResult<OrganizationBranchDto>> CreateBranchAsync(
+        Guid organizationId,
+        CreateBranchRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken)
+    {
+        var organization = await dbContext.Organizations
+            .SingleOrDefaultAsync(candidate => candidate.OrganizationId == organizationId, cancellationToken);
+        if (organization is null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationBranchDto>.NotFound("Organization was not found.");
+        }
+
+        var slug = SlugValidator.Normalize(request.Slug);
+        var slugError = SlugValidator.Validate(slug, "Slug");
+        if (slugError is not null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationBranchDto>.BadRequest(slugError);
+        }
+
+        var nameError = ValidateRequiredText(request.Name, "Name", MaxBranchNameLength);
+        if (nameError is not null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationBranchDto>.BadRequest(nameError);
+        }
+
+        var cityError = ValidateRequiredText(request.City, "City", MaxBranchCityLength);
+        if (cityError is not null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationBranchDto>.BadRequest(cityError);
+        }
+
+        var slugTaken = await dbContext.Branches.AnyAsync(
+            candidate => candidate.OrganizationId == organizationId && candidate.Slug == slug,
+            cancellationToken);
+        if (slugTaken)
+        {
+            return PlatformOrganizationOperationResult<OrganizationBranchDto>.Conflict(
+                $"Branch slug '{slug}' is already in use in this organization.");
+        }
+
+        var planLimit = await planLimitGuard.CheckBranchAsync(organizationId, cancellationToken);
+        if (planLimit is not null)
+        {
+            return PlatformOrganizationOperationResult<OrganizationBranchDto>.PlanLimitReached(planLimit);
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var branch = new BranchEntity
+        {
+            BranchId = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            Slug = slug,
+            Name = request.Name.Trim(),
+            City = request.City.Trim(),
+            CreatedAtUtc = now
+        };
+        if (!string.IsNullOrWhiteSpace(request.PreferredTimeZone))
+        {
+            branch.PreferredTimeZone = request.PreferredTimeZone.Trim();
+        }
+
+        dbContext.Branches.Add(branch);
+        dbContext.Zones.Add(new ZoneEntity
+        {
+            ZoneId = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            BranchId = branch.BranchId,
+            Name = "Общий зал",
+            SortOrder = 1,
+            CreatedAtUtc = now
+        });
+        organization.UpdatedAtUtc = now;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return PlatformOrganizationOperationResult<OrganizationBranchDto>.Success(ToBranchDto(branch));
     }
 
     internal static string NormalizeInviteCode(string code) => code.Trim().ToLowerInvariant();
@@ -1064,30 +1147,6 @@ public sealed class EfPlatformOrganizationService(
             return string.Empty;
         }
         return code.Length <= 4 ? code : code[^4..];
-    }
-
-    private static string SerializeLimits(OrganizationLimitsDto? limits)
-    {
-        var safe = limits ?? new OrganizationLimitsDto(null, null, null, null);
-        return JsonSerializer.Serialize(safe);
-    }
-
-    private static OrganizationLimitsDto DeserializeLimits(string limitsJson)
-    {
-        if (string.IsNullOrWhiteSpace(limitsJson) || limitsJson == "{}")
-        {
-            return new OrganizationLimitsDto(null, null, null, null);
-        }
-
-        try
-        {
-            return JsonSerializer.Deserialize<OrganizationLimitsDto>(limitsJson)
-                ?? new OrganizationLimitsDto(null, null, null, null);
-        }
-        catch (JsonException)
-        {
-            return new OrganizationLimitsDto(null, null, null, null);
-        }
     }
 
     private static string? ValidateRequiredText(string? value, string fieldName, int maxLength)

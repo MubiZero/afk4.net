@@ -6,6 +6,7 @@ using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Reservations;
 using AFK4.Platform.Api.Sessions;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Tests.Sessions;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
@@ -283,7 +284,8 @@ public sealed class PostgresReservationStartConcurrencyTests
             new FakeSessionLeaseSigner(),
             new FixedTimeProvider(database.Now),
             new TrackingSessionBillingService(db, database.OrganizationId, database.BranchId),
-            lifecycle);
+            lifecycle,
+            new EfPlanLimitGuard(db));
 
     private static StartReservationSessionRequest ReservationRequest(
         SessionStartPostgresFixture database,

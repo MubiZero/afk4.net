@@ -6,9 +6,11 @@ using AFK4.Platform.Api.Devices;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Reservations;
 using AFK4.Platform.Api.Sessions;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Tests.Sessions;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
@@ -252,6 +254,33 @@ public sealed class EfReservationSessionCoordinatorTests
         Assert.Equal(expectedCode, result.Code);
     }
 
+    // Ревью нашло: числа лимита терялись между EfSessionStartWorkflow и HTTP-ответом брони
+    // (ReservationSessionStartResult не нёс PlanLimit), поэтому «Тариф исчерпан: занято {current}
+    // из {limit}» рендерился с пустыми плейсхолдерами на пути старта из брони. Проверяем, что
+    // теперь числа доезжают до result.PlanLimit так же, как для команды Оператора.
+    [Fact]
+    public async Task StartAsync_CarriesPlanLimitNumbers_WhenSessionStartRefusedByLimit()
+    {
+        await using var db = CreateDbContext();
+        await SeedReservationAsync(db);
+        var planLimit = new PlanLimitExceededDto(PlanLimitNames.ReachedCode, PlanLimitNames.ConcurrentSessions, 40, 40, "growth");
+        var coordinator = CreateCoordinator(db, new PlanLimitWorkflow(planLimit));
+
+        var result = await coordinator.StartAsync(
+            ReservationId,
+            ActorStaffUserId,
+            actorCanApproveComp: false,
+            Request(expectedVersion: 1),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.True(result.Conflict);
+        Assert.Equal(PlanLimitNames.ReachedCode, result.Code);
+        Assert.NotNull(result.PlanLimit);
+        Assert.Equal(40, result.PlanLimit!.Limit);
+        Assert.Equal(40, result.PlanLimit.Current);
+    }
+
     [Fact]
     public async Task StartAsync_SuccessStagesEveryEffectLinksReservationAndNotifiesAfterCommit()
     {
@@ -266,7 +295,8 @@ public sealed class EfReservationSessionCoordinatorTests
             new FakeLeaseSigner(),
             new FixedTimeProvider(Now),
             billing,
-            lifecycle);
+            lifecycle,
+            new EfPlanLimitGuard(db));
         var coordinator = CreateCoordinator(db, workflow);
 
         var result = await coordinator.StartAsync(
@@ -317,7 +347,8 @@ public sealed class EfReservationSessionCoordinatorTests
             new FakeLeaseSigner(),
             new FixedTimeProvider(Now),
             billing,
-            lifecycle);
+            lifecycle,
+            new EfPlanLimitGuard(db));
         var coordinator = CreateCoordinator(db, workflow);
         var request = Request(expectedVersion: 1) with
         {
@@ -361,7 +392,8 @@ public sealed class EfReservationSessionCoordinatorTests
             new FakeLeaseSigner(),
             new FixedTimeProvider(Now),
             billing,
-            lifecycle);
+            lifecycle,
+            new EfPlanLimitGuard(db));
         var coordinator = CreateCoordinator(db, workflow);
 
         var result = await coordinator.StartAsync(
@@ -401,7 +433,8 @@ public sealed class EfReservationSessionCoordinatorTests
             new FakeLeaseSigner(),
             new FixedTimeProvider(Now),
             billing,
-            lifecycle);
+            lifecycle,
+            new EfPlanLimitGuard(db));
         var coordinator = CreateCoordinator(db, workflow);
         var request = Request(expectedVersion: 1);
 
@@ -447,7 +480,8 @@ public sealed class EfReservationSessionCoordinatorTests
             new FakeLeaseSigner(),
             new FixedTimeProvider(Now),
             new TrackingBillingService(db),
-            lifecycle);
+            lifecycle,
+            new EfPlanLimitGuard(db));
         var coordinator = CreateCoordinator(db, workflow);
 
         var exception = await Record.ExceptionAsync(() => coordinator.StartAsync(
@@ -582,7 +616,8 @@ public sealed class EfReservationSessionCoordinatorTests
             new FakeLeaseSigner(),
             new FixedTimeProvider(database.Now),
             billing,
-            lifecycle);
+            lifecycle,
+            new EfPlanLimitGuard(db));
         var failing = new FailAfterDependencySaveWorkflow(inner, db);
         var coordinator = new EfReservationSessionCoordinator(
             db,
@@ -635,7 +670,8 @@ public sealed class EfReservationSessionCoordinatorTests
                 new FakeLeaseSigner(),
                 new FixedTimeProvider(database.Now),
                 new TrackingBillingService(db, database.OrganizationId, database.BranchId),
-                lifecycle);
+                lifecycle,
+            new EfPlanLimitGuard(db));
             var coordinator = new EfReservationSessionCoordinator(
                 db,
                 workflow,
@@ -688,14 +724,16 @@ public sealed class EfReservationSessionCoordinatorTests
             new FakeLeaseSigner(),
             new FixedTimeProvider(database.Now),
             new TrackingBillingService(firstDb, database.OrganizationId, database.BranchId),
-            firstLifecycle));
+            firstLifecycle,
+            new EfPlanLimitGuard(firstDb)));
         var secondWorkflow = gate.Wrap(new EfSessionStartWorkflow(
             secondDb,
             secondDispatcher,
             new FakeLeaseSigner(),
             new FixedTimeProvider(database.Now),
             new TrackingBillingService(secondDb, database.OrganizationId, database.BranchId),
-            secondLifecycle));
+            secondLifecycle,
+            new EfPlanLimitGuard(secondDb)));
         var firstCoordinator = new EfReservationSessionCoordinator(
             firstDb,
             firstWorkflow,
@@ -756,7 +794,8 @@ public sealed class EfReservationSessionCoordinatorTests
             new FakeLeaseSigner(),
             new FixedTimeProvider(Now),
             new TrackingBillingService(db),
-            new RecordingSessionLifecycleNotifier());
+            new RecordingSessionLifecycleNotifier(),
+            new EfPlanLimitGuard(db));
 
     private static StartReservationSessionRequest Request(
         int expectedVersion,
@@ -991,6 +1030,23 @@ public sealed class EfReservationSessionCoordinatorTests
 
         public Task NotifyCommittedAsync(SessionStartStage stage, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Invalid start must not notify.");
+    }
+
+    private sealed class PlanLimitWorkflow(PlanLimitExceededDto planLimit) : ISessionStartWorkflow
+    {
+        public Task<SessionStartStage> StageAsync(
+            Guid branchId,
+            Guid actorStaffUserId,
+            StartGuestSessionRequest request,
+            bool actorCanApproveComp,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new SessionStartStage(
+                SessionCommandServiceResult.PlanLimitReached(planLimit),
+                null,
+                null));
+
+        public Task NotifyCommittedAsync(SessionStartStage stage, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Plan-limit refusal must not notify.");
     }
 
     private sealed class TrackingCommandDispatchService(PlatformDbContext db) : IDeviceCommandDispatchService

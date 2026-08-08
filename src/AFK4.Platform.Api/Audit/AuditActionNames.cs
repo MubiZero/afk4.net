@@ -209,6 +209,8 @@ public static class AuditActionNames
 
     public const string CreateOrganization = "tenancy.organization.create";
 
+    public const string CreateBranch = "tenancy.branch.create";
+
     public const string UpdateOrganizationStatus = "tenancy.organization.status.update";
 
     public const string UpdateOrganizationLimits = "tenancy.organization.limits.update";

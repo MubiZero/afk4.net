@@ -8,6 +8,7 @@ using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Reports;
 using AFK4.Platform.Api.Sessions;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Shop;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
@@ -250,7 +251,8 @@ public sealed class BillingShiftIntegrationTests
             timeProvider,
             billing,
             lifecycleNotifier,
-            new EfSessionStartWorkflow(db, dispatcher, leaseSigner, timeProvider, billing, lifecycleNotifier));
+            new EfSessionStartWorkflow(db, dispatcher, leaseSigner, timeProvider, billing, lifecycleNotifier,
+            new EfPlanLimitGuard(db)));
     }
 
     private static EfShopCommerceCoordinator CreateCommerceCoordinator(PlatformDbContext db)
