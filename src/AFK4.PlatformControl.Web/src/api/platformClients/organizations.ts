@@ -1,7 +1,9 @@
 import type { PlatformTransport } from '../platformTransport';
 import type {
+  CreateBranchRequest,
   CreateOrganizationRequest,
   CreateOrganizationResponse,
+  OrganizationBranch,
   OrganizationDetail,
   OrganizationHealth,
   OrganizationOwnerInvite,
@@ -61,6 +63,14 @@ export class OrganizationsApi {
     return this.transport.send<OrganizationDetail>(
       'PATCH',
       `/api/platform/organizations/${organizationId}/update-channel`,
+      request
+    );
+  }
+
+  public createBranch(organizationId: string, request: CreateBranchRequest): Promise<OrganizationBranch> {
+    return this.transport.send<OrganizationBranch>(
+      'POST',
+      `/api/platform/organizations/${organizationId}/branches`,
       request
     );
   }

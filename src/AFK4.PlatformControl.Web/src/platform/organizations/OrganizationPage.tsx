@@ -95,7 +95,16 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
             {tab === 'clubs' ? (
               <>
                 <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationHealthSection client={client.organizations} organizationId={organizationId} /></TabBoundary>
-                <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationClubsTab client={client.pulse} organizationId={organizationId} branches={organization.branches} /></TabBoundary>
+                <TabBoundary {...boundaryProps} resetKey={tabResetKey}>
+                  <OrganizationClubsTab
+                    client={client.pulse}
+                    organizationsClient={client.organizations}
+                    organizationId={organizationId}
+                    branches={organization.branches}
+                    limits={organization.limits}
+                    onBranchCreated={branch => apply({ ...organization, branches: [...organization.branches, branch] })}
+                  />
+                </TabBoundary>
               </>
             ) : null}
             {tab === 'invoices' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationInvoicesSection client={client.invoices} organizationId={organizationId} /></TabBoundary> : null}

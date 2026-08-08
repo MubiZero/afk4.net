@@ -93,6 +93,21 @@ export interface OrganizationDetail {
   pinnedClientVersion: string | null;
 }
 
+export interface CreateBranchRequest {
+  slug: string;
+  name: string;
+  city: string;
+  preferredTimeZone: string | null;
+}
+
+export interface PlanLimitExceeded {
+  code: string;
+  limitName: string;
+  limit: number;
+  current: number;
+  planCode: string;
+}
+
 export interface CreateOrganizationRequest {
   organizationSlug: string;
   organizationName: string;
