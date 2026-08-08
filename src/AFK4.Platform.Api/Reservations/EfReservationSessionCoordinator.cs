@@ -411,7 +411,8 @@ public sealed class EfReservationSessionCoordinator(
             ? ReservationSessionStartResult.RequestConflict(
                 failure.Code ?? "session_start_conflict",
                 error,
-                failure.CurrentVersion ?? currentVersion)
+                failure.CurrentVersion ?? currentVersion,
+                failure.PlanLimit)
             : ReservationSessionStartResult.Invalid(
                 failure.Code ?? "session_start_invalid",
                 error);

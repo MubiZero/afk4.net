@@ -640,7 +640,7 @@ internal static class ReservationEndpoints
 
             if (result.Conflict)
             {
-                return Results.Conflict(new { result.Error, result.Code, result.CurrentVersion });
+                return Results.Conflict(new { result.Error, result.Code, result.CurrentVersion, result.PlanLimit });
             }
 
             if (result.NotFound)

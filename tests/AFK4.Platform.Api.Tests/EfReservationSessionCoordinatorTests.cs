@@ -10,6 +10,7 @@ using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Tests.Sessions;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
@@ -251,6 +252,33 @@ public sealed class EfReservationSessionCoordinatorTests
 
         Assert.False(result.Succeeded);
         Assert.Equal(expectedCode, result.Code);
+    }
+
+    // Ревью нашло: числа лимита терялись между EfSessionStartWorkflow и HTTP-ответом брони
+    // (ReservationSessionStartResult не нёс PlanLimit), поэтому «Тариф исчерпан: занято {current}
+    // из {limit}» рендерился с пустыми плейсхолдерами на пути старта из брони. Проверяем, что
+    // теперь числа доезжают до result.PlanLimit так же, как для команды Оператора.
+    [Fact]
+    public async Task StartAsync_CarriesPlanLimitNumbers_WhenSessionStartRefusedByLimit()
+    {
+        await using var db = CreateDbContext();
+        await SeedReservationAsync(db);
+        var planLimit = new PlanLimitExceededDto(PlanLimitNames.ReachedCode, PlanLimitNames.ConcurrentSessions, 40, 40, "growth");
+        var coordinator = CreateCoordinator(db, new PlanLimitWorkflow(planLimit));
+
+        var result = await coordinator.StartAsync(
+            ReservationId,
+            ActorStaffUserId,
+            actorCanApproveComp: false,
+            Request(expectedVersion: 1),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.True(result.Conflict);
+        Assert.Equal(PlanLimitNames.ReachedCode, result.Code);
+        Assert.NotNull(result.PlanLimit);
+        Assert.Equal(40, result.PlanLimit!.Limit);
+        Assert.Equal(40, result.PlanLimit.Current);
     }
 
     [Fact]
@@ -1002,6 +1030,23 @@ public sealed class EfReservationSessionCoordinatorTests
 
         public Task NotifyCommittedAsync(SessionStartStage stage, CancellationToken cancellationToken) =>
             throw new InvalidOperationException("Invalid start must not notify.");
+    }
+
+    private sealed class PlanLimitWorkflow(PlanLimitExceededDto planLimit) : ISessionStartWorkflow
+    {
+        public Task<SessionStartStage> StageAsync(
+            Guid branchId,
+            Guid actorStaffUserId,
+            StartGuestSessionRequest request,
+            bool actorCanApproveComp,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new SessionStartStage(
+                SessionCommandServiceResult.PlanLimitReached(planLimit),
+                null,
+                null));
+
+        public Task NotifyCommittedAsync(SessionStartStage stage, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("Plan-limit refusal must not notify.");
     }
 
     private sealed class TrackingCommandDispatchService(PlatformDbContext db) : IDeviceCommandDispatchService
