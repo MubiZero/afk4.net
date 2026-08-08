@@ -68,4 +68,10 @@ public interface IPlatformOrganizationService
         TransferOrganizationOwnerRequest request,
         Guid platformAdminUserId,
         CancellationToken cancellationToken);
+
+    Task<PlatformOrganizationOperationResult<OrganizationBranchDto>> CreateBranchAsync(
+        Guid organizationId,
+        CreateBranchRequest request,
+        Guid platformAdminUserId,
+        CancellationToken cancellationToken);
 }
