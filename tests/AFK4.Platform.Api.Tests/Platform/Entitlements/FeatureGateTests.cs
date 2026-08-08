@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Loyalty;
+using AFK4.Platform.Api.Payments.Eskhata;
 using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Players;
@@ -14,6 +15,7 @@ using AFK4.Platform.Api.Tests.Shop;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
 
 namespace AFK4.Platform.Api.Tests.Platform.Entitlements;
@@ -226,6 +228,88 @@ public sealed class FeatureGateTests
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         Assert.False(await db.PaymentIntents.AnyAsync());
+    }
+
+    // ---- POST /api/me/wallet/top-up-intents/{id}/eskhata-status: deliberately NOT gated ----
+
+    private sealed class AlwaysCompletedEskhataClient : IEskhataMerchantClient
+    {
+        public Task<EskhataCreateOrderResult> CreateOrderAsync(string invoiceId, long amountMinor,
+            string currencyCode, string description, int merchantId, CancellationToken ct) =>
+            throw new NotSupportedException("This test polls status for an already-created intent.");
+
+        public Task<string?> GetOrderStatusAsync(string invoiceId, string orderId, long amountMinor,
+            string currencyCode, int posId, CancellationToken ct) => Task.FromResult<string?>("COMPLETED");
+    }
+
+    private sealed class FixedEskhataClientFactory(IEskhataMerchantClient client) : IEskhataMerchantClientFactory
+    {
+        public Task<IEskhataMerchantClient?> CreateForOrganizationAsync(Guid organizationId, CancellationToken ct) =>
+            Task.FromResult<IEskhataMerchantClient?>(client);
+    }
+
+    private static async Task<Guid> SeedPendingEskhataIntentAsync(PlatformApiFactory factory, SeededPlayer p)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var intentId = Guid.NewGuid();
+        db.PaymentIntents.Add(new PaymentIntentEntity
+        {
+            PaymentIntentId = intentId,
+            PlayerAccountId = p.PlayerId,
+            OrganizationId = p.OrgId,
+            BranchId = p.BranchId,
+            AmountMinorUnits = 5_000,
+            CurrencyCode = "TJS",
+            Purpose = "wallet_topup",
+            State = "pending",
+            Method = "eskhata",
+            GatewayPaymentId = "order-in-flight",
+            GatewayPosId = 1,
+            CreatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+        return intentId;
+    }
+
+    /// <summary>
+    /// This is the flip side of <c>TopUp_Refused_WhenOnlineTopUpDisabled</c>: creating a NEW intent
+    /// while the feature is off is refused (asserted above), but polling the status of an intent
+    /// that was legally created while the feature was ON must still credit the wallet, even if the
+    /// feature got disabled in between. See the comment on the eskhata-status route in
+    /// PlayerSelfServiceEndpoints.cs — this test fails on purpose if that route grows a feature gate.
+    /// </summary>
+    [Fact]
+    public async Task TopUp_StillCreditsInFlightPayment_WhenDisabledAfterIntentCreated()
+    {
+        await using var factory = new PlatformApiFactory(extraServices: services =>
+        {
+            services.RemoveAll<IEskhataMerchantClientFactory>();
+            services.AddSingleton<IEskhataMerchantClientFactory>(
+                new FixedEskhataClientFactory(new AlwaysCompletedEskhataClient()));
+        });
+        var p = await SeedPlayerAsync(factory, "1234");
+        var intentId = await SeedPendingEskhataIntentAsync(factory, p);
+        // The intent above stands in for one created while online_topup was enabled (that creation
+        // path is gated and tested separately); the feature is switched off only afterwards, while
+        // the payment is already in flight at the bank.
+        await DisableFeatureAsync(factory, p.OrgId, PlatformFeatureNames.OnlineTopUp);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, p.Phone, "1234");
+
+        var response = await client.PostAsync(
+            $"/api/me/wallet/top-up-intents/{intentId}/eskhata-status", content: null);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var dto = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        Assert.Equal("paid", dto.GetProperty("payment").GetString());
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var intent = await db.PaymentIntents.SingleAsync(i => i.PaymentIntentId == intentId);
+        Assert.Equal("fulfilled", intent.State);
+        Assert.True(await db.LedgerEntries.AnyAsync(
+            e => e.PlayerAccountId == p.PlayerId && e.EntryType == LedgerEntryTypeNames.TopUp));
     }
 
     // ---- POST /api/me/shop/orders + GET /api/me/shop/catalog (player_shop) ----

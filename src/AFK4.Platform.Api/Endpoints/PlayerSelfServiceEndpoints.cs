@@ -374,6 +374,14 @@ internal static class PlayerSelfServiceEndpoints
             return Results.Ok(dtos);
         }).RequireRateLimiting("player-me");
 
+        // Intentionally no online_topup feature gate on this route. The intent behind it was
+        // already legally created while the feature was on (that creation path IS gated, at
+        // POST .../top-up-intent) — the player may already have paid the bank by the time this
+        // polls the gateway. Gating here would mean the club's card charge succeeds but the wallet
+        // credit doesn't: the player paid into a switch flipped between their tap and their bank
+        // confirmation. Disabling the feature stops new intents, not payments already in flight.
+        // See FeatureGateTests.TopUp_StillCreditsInFlightPayment_WhenDisabledAfterIntentCreated —
+        // that test fails on purpose if this route grows a gate later.
         app.MapPost("/api/me/wallet/top-up-intents/{intentId:guid}/eskhata-status", async (
             Guid intentId,
             IPlayerContextAccessor playerContextAccessor,
