@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Devices;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,7 +17,7 @@ public sealed class EfDeviceCredentialLifecycleServiceTests
         await using var db = new PlatformDbContext(options);
         var lifecycle = new EfDeviceCredentialLifecycleService(db, TimeProvider.System);
         var rotated = await lifecycle.RotateAsync(enrollment.DeviceId, CancellationToken.None);
-        var validator = new EfDeviceEnrollmentService(db, TimeProvider.System);
+        var validator = new EfDeviceEnrollmentService(db, TimeProvider.System, new EfPlanLimitGuard(db));
 
         Assert.NotNull(rotated);
         Assert.Equal(enrollment.DeviceId, rotated.DeviceId);
@@ -34,7 +35,7 @@ public sealed class EfDeviceCredentialLifecycleServiceTests
         await using var db = new PlatformDbContext(options);
         var lifecycle = new EfDeviceCredentialLifecycleService(db, TimeProvider.System);
         var revoked = await lifecycle.RevokeAsync(enrollment.DeviceId, enrollment.CredentialId, CancellationToken.None);
-        var validator = new EfDeviceEnrollmentService(db, TimeProvider.System);
+        var validator = new EfDeviceEnrollmentService(db, TimeProvider.System, new EfPlanLimitGuard(db));
 
         Assert.NotNull(revoked);
         Assert.Equal(enrollment.CredentialId, revoked.CredentialId);
@@ -44,14 +45,14 @@ public sealed class EfDeviceCredentialLifecycleServiceTests
     private static async Task<DeviceEnrollmentResponse> EnrollDeviceAsync(DbContextOptions<PlatformDbContext> options)
     {
         await using var createCodeDb = new PlatformDbContext(options);
-        var enrollmentService = new EfDeviceEnrollmentService(createCodeDb, TimeProvider.System);
+        var enrollmentService = new EfDeviceEnrollmentService(createCodeDb, TimeProvider.System, new EfPlanLimitGuard(createCodeDb));
         var code = await enrollmentService.CreateEnrollmentCodeAsync(
             TestIds.BranchId,
             new CreateDeviceEnrollmentCodeRequest(TestIds.OrganizationId, ExpiresInSeconds: 300),
             CancellationToken.None);
 
         await using var enrollDb = new PlatformDbContext(options);
-        enrollmentService = new EfDeviceEnrollmentService(enrollDb, TimeProvider.System);
+        enrollmentService = new EfDeviceEnrollmentService(enrollDb, TimeProvider.System, new EfPlanLimitGuard(enrollDb));
         var result = await enrollmentService.EnrollAsync(
             new DeviceEnrollmentRequest(
                 OrganizationId: TestIds.OrganizationId,

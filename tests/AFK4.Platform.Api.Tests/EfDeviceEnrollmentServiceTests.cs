@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Devices;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Devices;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,7 +19,7 @@ public sealed class EfDeviceEnrollmentServiceTests
 
         await using (var db = new PlatformDbContext(options))
         {
-            var service = new EfDeviceEnrollmentService(db, TimeProvider.System);
+            var service = new EfDeviceEnrollmentService(db, TimeProvider.System, new EfPlanLimitGuard(db));
             code = await service.CreateEnrollmentCodeAsync(
                 branchId,
                 new CreateDeviceEnrollmentCodeRequest(organizationId, ExpiresInSeconds: 300),
@@ -27,7 +28,7 @@ public sealed class EfDeviceEnrollmentServiceTests
 
         await using (var db = new PlatformDbContext(options))
         {
-            var service = new EfDeviceEnrollmentService(db, TimeProvider.System);
+            var service = new EfDeviceEnrollmentService(db, TimeProvider.System, new EfPlanLimitGuard(db));
             var result = await service.EnrollAsync(
                 new DeviceEnrollmentRequest(
                     OrganizationId: organizationId,
@@ -45,7 +46,7 @@ public sealed class EfDeviceEnrollmentServiceTests
 
         await using (var db = new PlatformDbContext(options))
         {
-            var validator = new EfDeviceEnrollmentService(db, TimeProvider.System);
+            var validator = new EfDeviceEnrollmentService(db, TimeProvider.System, new EfPlanLimitGuard(db));
 
             Assert.True(validator.Validate(organizationId, branchId, enrollment.DeviceId, enrollment.CredentialSecret));
             Assert.False(validator.Validate(organizationId, branchId, enrollment.DeviceId, "wrong-secret"));
