@@ -20,6 +20,7 @@ public static class PlatformFeatureEndpoints
             PlatformAdminAuthorizationService authorizationService,
             PlatformDbContext dbContext,
             IOrganizationEntitlements entitlements,
+            IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ViewOrganizations);
@@ -30,6 +31,16 @@ public static class PlatformFeatureEndpoints
 
             if (!authorization.IsAllowed)
             {
+                await WritePlatformAuditAsync(
+                    auditRecordWriter,
+                    organizationId,
+                    actorPlatformAdminUserId: authorization.PlatformAdminContext!.PlatformAdminUserId,
+                    action: AuditActionNames.ViewOrganizationFeatures,
+                    targetType: "Organization",
+                    targetId: organizationId.ToString("D"),
+                    outcome: AuditOutcome.Denied,
+                    details: new { authorization.DenialReason },
+                    cancellationToken);
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 

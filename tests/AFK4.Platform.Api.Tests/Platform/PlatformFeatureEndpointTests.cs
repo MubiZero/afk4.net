@@ -50,6 +50,28 @@ public sealed class PlatformFeatureEndpointTests
     }
 
     [Fact]
+    public async Task Get_WithoutViewOrganizationsPermission_WritesDeniedAudit()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var admin = await PlatformAdminTestHelper.AuthorizeAsAsync(
+            factory, client, roles: ["someone_without_platform_permissions"]);
+        var organizationId = await SeedOrganizationAsync(factory);
+
+        var response = await client.GetAsync($"/api/platform/organizations/{organizationId}/features");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var audit = await dbContext.AuditRecords.SingleAsync(
+            record => record.Action == "platform.organizations.features.view");
+        Assert.Equal("Denied", audit.Outcome);
+        Assert.Equal(organizationId, audit.OrganizationId);
+        Assert.Equal(admin.PlatformAdminId, audit.ActorPlatformAdminUserId);
+    }
+
+    [Fact]
     public async Task Get_ReturnsEveryFeatureWithDecisionLevel()
     {
         await using var factory = new PlatformApiFactory();
