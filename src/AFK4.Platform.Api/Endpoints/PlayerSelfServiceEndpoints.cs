@@ -20,6 +20,7 @@ using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Platform.Billing;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Platform.Idempotency;
 using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Platform.Api.Platform.Tenancy;
@@ -50,6 +51,7 @@ using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Branding;
 using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Platform.Billing;
+using AFK4.Shared.Contracts.Platform.Features;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Operator;
 using AFK4.Shared.Contracts.Platform.SupportNotes;
@@ -220,6 +222,7 @@ internal static class PlayerSelfServiceEndpoints
             PlayerTopUpIntentRequest request,
             IPlayerContextAccessor playerContextAccessor,
             AFK4.Platform.Api.Payments.Eskhata.IEskhataMerchantClientFactory eskhataClientFactory,
+            IOrganizationEntitlements entitlements,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -228,6 +231,13 @@ internal static class PlayerSelfServiceEndpoints
             if (player is null)
             {
                 return Results.Unauthorized();
+            }
+
+            var featureDenial = await entitlements.RequireAsync(
+                player.OrganizationId, PlatformFeatureNames.OnlineTopUp, cancellationToken);
+            if (featureDenial is not null)
+            {
+                return featureDenial;
             }
 
             if (request.AmountMinorUnits <= 0)
@@ -442,6 +452,7 @@ internal static class PlayerSelfServiceEndpoints
             CreatePlayerReservationRequest request,
             IPlayerContextAccessor playerContextAccessor,
             IReservationService reservationService,
+            IOrganizationEntitlements entitlements,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -450,6 +461,13 @@ internal static class PlayerSelfServiceEndpoints
             if (player is null)
             {
                 return Results.Unauthorized();
+            }
+
+            var featureDenial = await entitlements.RequireAsync(
+                player.OrganizationId, PlatformFeatureNames.OnlineBooking, cancellationToken);
+            if (featureDenial is not null)
+            {
+                return featureDenial;
             }
 
             // D8 gate: verified phone required for booking actions.

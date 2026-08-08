@@ -8,6 +8,7 @@ using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests.Shop;
@@ -36,6 +37,15 @@ internal static class ShopTestSeed
         var hiddenProduct = Guid.NewGuid();
         const string pin = "1234";
         var phone = $"+99291{player.ToString("N")[..7]}";
+
+        // IOrganizationEntitlements.IsEnabledAsync anchors on the Organizations row: without it,
+        // the org is "unknown" and every feature (including player_shop) resolves to disabled.
+        db.Organizations.Add(new OrganizationEntity
+        {
+            OrganizationId = org,
+            Name = "Shop Org",
+            CreatedAtUtc = DateTimeOffset.UtcNow
+        });
 
         db.Branches.Add(new BranchEntity
         {
@@ -191,12 +201,17 @@ internal static class ShopTestSeed
             var staffUserId = Guid.NewGuid();
 
             // The player branch already exists; the staff sign-in route resolves the org row.
-            db.Organizations.Add(new OrganizationEntity
+            // SeedActivePlayerWithProductsAsync already seeds this org, so only add it if missing
+            // (e.g. callers that authorize staff without seeding a player first).
+            if (!await db.Organizations.AnyAsync(o => o.OrganizationId == organizationId))
             {
-                OrganizationId = organizationId,
-                Name = "Shop Org",
-                CreatedAtUtc = createdAt
-            });
+                db.Organizations.Add(new OrganizationEntity
+                {
+                    OrganizationId = organizationId,
+                    Name = "Shop Org",
+                    CreatedAtUtc = createdAt
+                });
+            }
 
             var user = new StaffUserEntity
             {

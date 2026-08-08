@@ -686,7 +686,7 @@ public sealed class EfSessionBillingIntegrationTests
             db,
             new EfTariffService(db, timeProvider),
             new EfShiftService(db, timeProvider),
-            new LoyaltyAccrualService(db),
+            new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance),
             timeProvider);
     }
 
@@ -728,7 +728,7 @@ public sealed class EfSessionBillingIntegrationTests
         var timeProvider = new FixedTimeProvider(Now);
         var shiftService = new EfShiftService(db, timeProvider);
         var leaseSigner = new FakeSessionLeaseSigner();
-        var billing = new SessionBillingService(db, new EfTariffService(db, timeProvider), shiftService, new LoyaltyAccrualService(db), timeProvider);
+        var billing = new SessionBillingService(db, new EfTariffService(db, timeProvider), shiftService, new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance), timeProvider);
         var lifecycleNotifier = new RecordingSessionLifecycleNotifier();
         return new EfSessionCommandService(
             db,

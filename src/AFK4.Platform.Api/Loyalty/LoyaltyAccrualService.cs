@@ -1,11 +1,15 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Platform.Features;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Loyalty;
 
-public sealed class LoyaltyAccrualService(PlatformDbContext dbContext) : ILoyaltyAccrualService
+public sealed class LoyaltyAccrualService(
+    PlatformDbContext dbContext,
+    IOrganizationEntitlements entitlements) : ILoyaltyAccrualService
 {
     public async Task<LedgerEntryEntity?> BuildCashbackEntryAsync(
         LoyaltyAccrualSource source,
@@ -20,6 +24,14 @@ public sealed class LoyaltyAccrualService(PlatformDbContext dbContext) : ILoyalt
         CancellationToken cancellationToken)
     {
         if (sourceMinorUnits <= 0)
+        {
+            return null;
+        }
+
+        // Master switch: an org with loyalty disabled earns nothing, regardless of its settings
+        // row. Without this check, disabling the feature would hide the /api/me/loyalty screen
+        // while accrual kept silently paying out — the flag would be a lie.
+        if (!await entitlements.IsEnabledAsync(organizationId, PlatformFeatureNames.Loyalty, cancellationToken))
         {
             return null;
         }

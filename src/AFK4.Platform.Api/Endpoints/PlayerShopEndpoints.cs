@@ -1,8 +1,10 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Commerce;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Shop;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Platform.Features;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shop;
 using Microsoft.EntityFrameworkCore;
@@ -15,11 +17,16 @@ internal static class PlayerShopEndpoints
     {
         app.MapGet("/api/me/shop/catalog", async (
             IPlayerContextAccessor playerContextAccessor,
+            IOrganizationEntitlements entitlements,
             PlatformDbContext db,
             CancellationToken ct) =>
         {
             var player = playerContextAccessor.Current;
             if (player is null) return Results.Unauthorized();
+
+            var featureDenial = await entitlements.RequireAsync(
+                player.OrganizationId, PlatformFeatureNames.PlayerShop, ct);
+            if (featureDenial is not null) return featureDenial;
 
             var session = await db.Sessions.AsNoTracking()
                 .Where(s => s.PlayerAccountId == player.PlayerAccountId
@@ -53,10 +60,16 @@ internal static class PlayerShopEndpoints
             PlaceShopOrderRequest request,
             IPlayerContextAccessor playerContextAccessor,
             IShopCommerceCoordinator commerceCoordinator,
+            IOrganizationEntitlements entitlements,
             CancellationToken ct) =>
         {
             var player = playerContextAccessor.Current;
             if (player is null) return Results.Unauthorized();
+
+            var featureDenial = await entitlements.RequireAsync(
+                player.OrganizationId, PlatformFeatureNames.PlayerShop, ct);
+            if (featureDenial is not null) return featureDenial;
+
             var result = await commerceCoordinator.PlaceAsync(player.PlayerAccountId, request, ct);
             return ToHttpResult(result);
         }).RequireRateLimiting("player-me");

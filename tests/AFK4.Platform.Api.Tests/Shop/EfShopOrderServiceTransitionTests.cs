@@ -39,7 +39,7 @@ public sealed class EfShopOrderServiceTransitionTests
     private static EfShopOrderService NewService(PlatformDbContext db, IShopOrderNotifier? notifierOverride = null)
     {
         var notifier = notifierOverride ?? new NoopShopOrderNotifier();
-        var workflow = new EfShopOrderWorkflow(db, TimeProvider.System, notifier, new LoyaltyAccrualService(db));
+        var workflow = new EfShopOrderWorkflow(db, TimeProvider.System, notifier, new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance));
         var settlement = new EfShopPosSettlementService(
             db, new EfWalletSettlementService(db), new EfInventoryCostService(db), new ReceiptNumberGenerator(db));
         var coordinator = new EfShopCommerceCoordinator(

@@ -472,6 +472,7 @@ app.MapPlayerSelfServiceEndpoints();
 app.MapPlayerCatalogEndpoints();
 app.MapPlayerShopEndpoints();
 app.MapPlayerLoyaltyEndpoints();
+app.MapPlayerFeatureEndpoints();
 app.MapPlayerNewsEndpoints();
 organizations.MapShopOrderEndpoints();
 organizations.MapWalletEndpoints();

@@ -547,8 +547,8 @@ public sealed class EfSessionCheckoutServiceTests
         var shiftService = new EfShiftService(db, timeProvider);
         return new EfSessionCheckoutService(
             db,
-            new SessionBillingService(db, new EfTariffService(db, timeProvider), shiftService, new LoyaltyAccrualService(db), timeProvider),
-            new LoyaltyAccrualService(db),
+            new SessionBillingService(db, new EfTariffService(db, timeProvider), shiftService, new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance), timeProvider),
+            new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance),
             new ReceiptNumberGenerator(db),
             dispatcher,
             shiftService,

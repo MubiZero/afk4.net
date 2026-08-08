@@ -384,7 +384,7 @@ public sealed class EfShopCommerceCoordinatorTests
             db,
             timeProvider ?? TimeProvider.System,
             notifier ?? new RecordingNotifier(db),
-            new LoyaltyAccrualService(db));
+            new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance));
 
     private static PlatformDbContext NewDb() =>
         new(new DbContextOptionsBuilder<PlatformDbContext>()

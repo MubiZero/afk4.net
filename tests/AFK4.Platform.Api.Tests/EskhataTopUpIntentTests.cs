@@ -84,6 +84,16 @@ public class EskhataTopUpIntentTests
         var branch = Guid.NewGuid();
         var player = Guid.NewGuid();
         var phone = $"+99290000{player.ToString("N")[..4]}";
+
+        // IOrganizationEntitlements.IsEnabledAsync anchors on the Organizations row: without it,
+        // the org is "unknown" and every feature (including online_topup) resolves to disabled.
+        db.Organizations.Add(new OrganizationEntity
+        {
+            OrganizationId = org,
+            Name = "Eskhata Test Org",
+            CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+
         db.PlayerAccounts.Add(new PlayerAccountEntity
         {
             PlayerAccountId = player,

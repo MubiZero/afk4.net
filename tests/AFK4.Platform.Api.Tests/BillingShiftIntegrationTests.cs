@@ -37,7 +37,7 @@ public sealed class BillingShiftIntegrationTests
         await using var db = CreateDbContext();
         await SeedPlayerAsync(db);
         var shiftService = CreateShiftService(db);
-        var billing = new EfBillingCommandService(db, shiftService, new FixedTimeProvider(Now), new LoyaltyAccrualService(db));
+        var billing = new EfBillingCommandService(db, shiftService, new FixedTimeProvider(Now), new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance));
 
         var result = await billing.TopUpWalletAsync(
             PlayerAccountId,
@@ -63,7 +63,7 @@ public sealed class BillingShiftIntegrationTests
         await SeedPlayerAsync(db);
         var shiftService = CreateShiftService(db);
         var shift = await OpenShiftAsync(shiftService);
-        var billing = new EfBillingCommandService(db, shiftService, new FixedTimeProvider(Now), new LoyaltyAccrualService(db));
+        var billing = new EfBillingCommandService(db, shiftService, new FixedTimeProvider(Now), new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance));
 
         var result = await billing.TopUpWalletAsync(
             PlayerAccountId,
@@ -242,7 +242,7 @@ public sealed class BillingShiftIntegrationTests
     {
         var timeProvider = new FixedTimeProvider(Now);
         var leaseSigner = new FakeSessionLeaseSigner();
-        var billing = new SessionBillingService(db, new EfTariffService(db, timeProvider), openShiftResolver, new LoyaltyAccrualService(db), timeProvider);
+        var billing = new SessionBillingService(db, new EfTariffService(db, timeProvider), openShiftResolver, new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance), timeProvider);
         var lifecycleNotifier = new RecordingSessionLifecycleNotifier();
         return new EfSessionCommandService(
             db,
@@ -267,7 +267,7 @@ public sealed class BillingShiftIntegrationTests
             db,
             new FixedTimeProvider(Now),
             notifier,
-            new LoyaltyAccrualService(db));
+            new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance));
         return new EfShopCommerceCoordinator(
             db,
             workflow,

@@ -1,7 +1,9 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Loyalty;
+using AFK4.Shared.Contracts.Platform.Features;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Endpoints;
@@ -12,11 +14,16 @@ internal static class PlayerLoyaltyEndpoints
     {
         app.MapGet("/api/me/loyalty", async (
             IPlayerContextAccessor playerContextAccessor,
+            IOrganizationEntitlements entitlements,
             PlatformDbContext db,
             CancellationToken ct) =>
         {
             var player = playerContextAccessor.Current;
             if (player is null) return Results.Unauthorized();
+
+            var featureDenial = await entitlements.RequireAsync(
+                player.OrganizationId, PlatformFeatureNames.Loyalty, ct);
+            if (featureDenial is not null) return featureDenial;
 
             var settings = await db.OrganizationLoyaltySettings.AsNoTracking()
                 .SingleOrDefaultAsync(s => s.OrganizationId == player.OrganizationId, ct);
