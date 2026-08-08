@@ -126,6 +126,12 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<BranchDailySnapshotEntity> BranchDailySnapshots => Set<BranchDailySnapshotEntity>();
 
+    public DbSet<PlatformFeatureEntity> PlatformFeatures => Set<PlatformFeatureEntity>();
+
+    public DbSet<PlanFeatureEntity> PlanFeatures => Set<PlanFeatureEntity>();
+
+    public DbSet<OrganizationFeatureOverrideEntity> OrganizationFeatureOverrides => Set<OrganizationFeatureOverrideEntity>();
+
     public DbSet<OrganizationOwnerInviteEntity> OrganizationOwnerInvites => Set<OrganizationOwnerInviteEntity>();
 
     public DbSet<OrganizationSupportNoteEntity> OrganizationSupportNotes => Set<OrganizationSupportNoteEntity>();
@@ -1040,6 +1046,37 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 .IsUnique()
                 .HasDatabaseName("IX_branch_daily_snapshots_Branch_Date");
             entity.HasIndex(snapshot => new { snapshot.OrganizationId, snapshot.SnapshotDate });
+        });
+
+        modelBuilder.Entity<PlatformFeatureEntity>(entity =>
+        {
+            entity.ToTable("platform_features");
+            entity.HasKey(feature => feature.FeatureKey);
+            entity.Property(feature => feature.FeatureKey).HasMaxLength(64);
+            entity.Property(feature => feature.Name).HasMaxLength(128).IsRequired();
+            entity.Property(feature => feature.Description).HasMaxLength(500).IsRequired();
+        });
+
+        modelBuilder.Entity<PlanFeatureEntity>(entity =>
+        {
+            entity.ToTable("plan_features");
+            entity.HasKey(planFeature => planFeature.PlanFeatureId);
+            entity.Property(planFeature => planFeature.PlanCode).HasMaxLength(64).IsRequired();
+            entity.Property(planFeature => planFeature.FeatureKey).HasMaxLength(64).IsRequired();
+            entity.HasIndex(planFeature => new { planFeature.PlanCode, planFeature.FeatureKey })
+                .IsUnique()
+                .HasDatabaseName("IX_plan_features_Plan_Feature");
+        });
+
+        modelBuilder.Entity<OrganizationFeatureOverrideEntity>(entity =>
+        {
+            entity.ToTable("organization_feature_overrides");
+            entity.HasKey(featureOverride => featureOverride.OrganizationFeatureOverrideId);
+            entity.Property(featureOverride => featureOverride.FeatureKey).HasMaxLength(64).IsRequired();
+            entity.Property(featureOverride => featureOverride.Reason).HasMaxLength(500).IsRequired();
+            entity.HasIndex(featureOverride => new { featureOverride.OrganizationId, featureOverride.FeatureKey })
+                .IsUnique()
+                .HasDatabaseName("IX_organization_feature_overrides_Organization_Feature");
         });
 
         modelBuilder.Entity<PlatformJobRunEntity>(entity =>
