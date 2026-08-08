@@ -13,17 +13,22 @@ export interface SelfServiceMenuProps {
   api: ShellApi;
   sessionId: string | null;
   branchId: string;
+  // null = list unavailable (not loaded yet, or failed) — every feature is treated as enabled;
+  // see the fail-open comment in App.tsx.
+  features: string[] | null;
   onReloadState: () => void;
 }
 
 type View = 'menu' | 'extend' | 'topup' | 'shop' | 'loyalty' | 'news';
 
-export function SelfServiceMenu({ authenticated, onSignIn, api, sessionId, branchId, onReloadState }: SelfServiceMenuProps) {
+export function SelfServiceMenu({ authenticated, onSignIn, api, sessionId, branchId, features, onReloadState }: SelfServiceMenuProps) {
   const [view, setView] = useState<View>('menu');
 
   if (!authenticated) {
     return <LoginScreen onSubmit={onSignIn} />;
   }
+
+  const hasFeature = (key: string) => features === null || features.includes(key);
 
   if (view === 'extend' && sessionId) {
     return <ExtendScreen api={api} branchId={branchId} sessionId={sessionId}
@@ -31,17 +36,21 @@ export function SelfServiceMenu({ authenticated, onSignIn, api, sessionId, branc
       onConflict={() => { setView('menu'); onReloadState(); }} />;
   }
 
-  if (view === 'topup') {
+  // The `hasFeature` guard here — not just on the menu button below — closes the direct entrance
+  // too: a disabled feature's screen never renders regardless of how `view` got set (e.g. Shop's
+  // "insufficient funds" redirect into top-up). When the guard fails, none of the branches below
+  // match either, so the component falls through to the menu.
+  if (view === 'topup' && hasFeature('online_topup')) {
     return <TopUpScreen api={api} amountMinorUnits={5000} />;
   }
 
-  if (view === 'shop') {
+  if (view === 'shop' && hasFeature('player_shop')) {
     return <ShopScreen api={api}
-      onNeedTopUp={() => setView('topup')}
+      onNeedTopUp={() => { if (hasFeature('online_topup')) setView('topup'); }}
       onDone={() => { setView('menu'); onReloadState(); }} />;
   }
 
-  if (view === 'loyalty') {
+  if (view === 'loyalty' && hasFeature('loyalty')) {
     return <LoyaltyScreen api={api} onDone={() => { setView('menu'); onReloadState(); }} />;
   }
 
@@ -52,9 +61,9 @@ export function SelfServiceMenu({ authenticated, onSignIn, api, sessionId, branc
   return (
     <nav aria-label="self-service">
       <button type="button" onClick={() => setView('extend')} disabled={!sessionId}>Продлить</button>
-      <button type="button" onClick={() => setView('topup')}>Пополнить</button>
-      <button type="button" onClick={() => setView('shop')} disabled={!sessionId}>Магазин</button>
-      <button type="button" onClick={() => setView('loyalty')}>Кэшбэк</button>
+      {hasFeature('online_topup') && <button type="button" onClick={() => setView('topup')}>Пополнить</button>}
+      {hasFeature('player_shop') && <button type="button" onClick={() => setView('shop')} disabled={!sessionId}>Магазин</button>}
+      {hasFeature('loyalty') && <button type="button" onClick={() => setView('loyalty')}>Кэшбэк</button>}
       <button type="button" onClick={() => setView('news')}>Новости</button>
     </nav>
   );

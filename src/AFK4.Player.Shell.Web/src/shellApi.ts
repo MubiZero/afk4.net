@@ -59,7 +59,17 @@ export function createShellApi(baseUrl: string, fetchImpl: FetchLike = fetch) {
     cancelShopOrder: (orderId: string) =>
       call<ShopOrderDto>(`/api/me/shop/orders/${orderId}/cancel`, { method: 'POST' }),
     getLoyalty: () => call<PlayerLoyaltyDto>('/api/me/loyalty'),
-    getNews: () => call<PlayerNewsItemDto[]>('/api/me/news')
+    getNews: () => call<PlayerNewsItemDto[]>('/api/me/news'),
+    getFeatures: async (): Promise<string[]> => {
+      const response = await call<{ features: string[] }>('/api/me/features');
+      // A malformed body (missing/null/non-array `features` — version skew, a caching proxy, a
+      // backend bug) must be treated the same as a failed request: throw so callers route it into
+      // their "list unavailable, assume enabled" fallback instead of getting `undefined` downstream.
+      if (!Array.isArray(response.features)) {
+        throw new Error('Malformed /api/me/features response: features is not an array');
+      }
+      return response.features;
+    }
   };
 }
 
