@@ -495,6 +495,7 @@ app.MapPlatformHealthEndpoints();
 app.MapPlatformAnalyticsEndpoints();
 app.MapPlatformBranchDynamicsEndpoints();
 organizations.MapOrganizationAuditEndpoints();
+organizations.MapOrganizationFeatureEndpoints();
 organizations.MapStaffEndpoints();
 organizations.MapBranchProfileLayoutEndpoints();
 organizations.MapSessionEndpoints();

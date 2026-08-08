@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Payments.Eskhata;
 using AFK4.Platform.Api.Platform.Entitlements;
@@ -452,5 +453,54 @@ public sealed class FeatureGateTests
         var response = await client.GetAsync("/api/me/features");
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    // ---- GET /api/organizations/{organizationId}/features (staff — the Operator app) ----
+
+    [Fact]
+    public async Task StaffFeatures_ReturnsEnabledKeys()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        // Technician deliberately: this route has no permission gate, just authentication, so a
+        // low-privilege role must be enough to see the list.
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+        await DisableFeatureAsync(factory, TestIds.OrganizationId, PlatformFeatureNames.PlayerShop);
+
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/features");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var dto = await response.Content.ReadFromJsonAsync<EnabledFeaturesDto>();
+        Assert.NotNull(dto);
+        Assert.DoesNotContain(PlatformFeatureNames.PlayerShop, dto!.Features);
+        Assert.Contains(PlatformFeatureNames.OnlineBooking, dto.Features);
+        Assert.Contains(PlatformFeatureNames.OnlineTopUp, dto.Features);
+        Assert.Contains(PlatformFeatureNames.Loyalty, dto.Features);
+        Assert.Equal(PlatformFeatureNames.All.Count - 1, dto.Features.Count);
+    }
+
+    [Fact]
+    public async Task StaffFeatures_RequiresAuthentication()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OrganizationId:D}/features");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task StaffFeatures_RefusesAnotherOrganization()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.Technician);
+
+        // The signed-in staff member belongs to TestIds.OrganizationId; asking for a different
+        // organization's features must be refused, not served (IDOR).
+        var response = await client.GetAsync($"/api/organizations/{TestIds.OtherOrganizationId:D}/features");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 }
