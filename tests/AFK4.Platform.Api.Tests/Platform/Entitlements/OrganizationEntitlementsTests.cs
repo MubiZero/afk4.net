@@ -230,4 +230,60 @@ public sealed class OrganizationEntitlementsTests
         Assert.Empty(enabled);
         Assert.False(isEnabled);
     }
+
+    /// <summary>
+    /// Страж против расхождения: точечный путь (IsEnabledAsync, один round-trip) и путь полного
+    /// обхода (DescribeAsync) обязаны проходить одну и ту же лестницу и давать один ответ на всех
+    /// сочетаниях ступеней.
+    /// </summary>
+    [Theory]
+    [InlineData(false, false, null)] // только умолчание (тариф без мнения, исключения нет)
+    [InlineData(false, true, false)] // тариф поверх умолчания
+    [InlineData(true, true, false)] // исключение поверх тарифа
+    [InlineData(true, true, true)] // исключение включает то, что тариф выключил
+    public async Task IsEnabledAsync_AgreesWithDescribeAsync_OnEveryLadderCombination(
+        bool hasOverride,
+        bool hasPlanOpinion,
+        bool? planIncludes)
+    {
+        await using var factory = new PlatformApiFactory();
+        _ = factory.CreateClient();
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var organizationId = await SeedAsync(db, "starter");
+
+        if (hasPlanOpinion)
+        {
+            db.PlanFeatures.Add(new PlanFeatureEntity
+            {
+                PlanFeatureId = Guid.NewGuid(),
+                PlanCode = "starter",
+                FeatureKey = PlatformFeatureNames.Loyalty,
+                IsIncluded = planIncludes!.Value
+            });
+        }
+
+        if (hasOverride)
+        {
+            db.OrganizationFeatureOverrides.Add(new OrganizationFeatureOverrideEntity
+            {
+                OrganizationFeatureOverrideId = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                FeatureKey = PlatformFeatureNames.Loyalty,
+                IsEnabled = true,
+                Reason = "Пилот для этого клуба",
+                SetByPlatformAdminUserId = Guid.NewGuid(),
+                SetAtUtc = Now
+            });
+        }
+
+        await db.SaveChangesAsync();
+        var entitlements = scope.ServiceProvider.GetRequiredService<IOrganizationEntitlements>();
+
+        var isEnabled = await entitlements.IsEnabledAsync(organizationId, PlatformFeatureNames.Loyalty, CancellationToken.None);
+        var states = await entitlements.DescribeAsync(organizationId, CancellationToken.None);
+        var described = states.Single(state => state.FeatureKey == PlatformFeatureNames.Loyalty);
+
+        Assert.Equal(described.IsEnabled, isEnabled);
+    }
 }

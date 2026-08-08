@@ -8,10 +8,36 @@ public sealed class EfOrganizationEntitlements(PlatformDbContext dbContext) : IO
 {
     public async Task<bool> IsEnabledAsync(Guid organizationId, string featureKey, CancellationToken cancellationToken)
     {
-        var states = await DescribeAsync(organizationId, cancellationToken);
-        var state = states.SingleOrDefault(candidate => candidate.FeatureKey == featureKey);
-        // Незнакомый ключ — выключено: молчание каталога не должно открывать доступ.
-        return state?.IsEnabled ?? false;
+        // Один round-trip вместо всей DescribeAsync: этот путь стоит на старте брони, заказа
+        // в магазине и начисления кэшбэка на каждое списание за игровое время.
+        var stages = await dbContext.Organizations
+            .AsNoTracking()
+            .Where(organization => organization.OrganizationId == organizationId)
+            .Select(organization => new
+            {
+                DefaultValue = dbContext.PlatformFeatures
+                    .Where(feature => feature.FeatureKey == featureKey)
+                    .Select(feature => (bool?)feature.EnabledByDefault)
+                    .FirstOrDefault(),
+                PlanValue = dbContext.PlanFeatures
+                    .Where(planFeature => planFeature.PlanCode == organization.PlanCode && planFeature.FeatureKey == featureKey)
+                    .Select(planFeature => (bool?)planFeature.IsIncluded)
+                    .FirstOrDefault(),
+                OverrideValue = dbContext.OrganizationFeatureOverrides
+                    .Where(featureOverride => featureOverride.OrganizationId == organizationId && featureOverride.FeatureKey == featureKey)
+                    .Select(featureOverride => (bool?)featureOverride.IsEnabled)
+                    .FirstOrDefault()
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (stages is null)
+        {
+            // Несуществующий клуб не получает ничего: здесь молчание значит «нет».
+            return false;
+        }
+
+        var (isEnabled, _) = FeatureLadder.Resolve(stages.OverrideValue, stages.PlanValue, stages.DefaultValue);
+        return isEnabled;
     }
 
     public async Task<IReadOnlyList<string>> ListEnabledAsync(Guid organizationId, CancellationToken cancellationToken)
@@ -54,11 +80,7 @@ public sealed class EfOrganizationEntitlements(PlatformDbContext dbContext) : IO
                     ? included
                     : (bool?)null;
 
-                var (isEnabled, level) = featureOverride is not null
-                    ? (featureOverride.IsEnabled, FeatureDecisionLevels.Override)
-                    : planValue is { } fromPlan
-                        ? (fromPlan, FeatureDecisionLevels.Plan)
-                        : (feature.EnabledByDefault, FeatureDecisionLevels.Default);
+                var (isEnabled, level) = FeatureLadder.Resolve(featureOverride?.IsEnabled, planValue, feature.EnabledByDefault);
 
                 return new OrganizationFeatureStateDto(
                     feature.FeatureKey,
