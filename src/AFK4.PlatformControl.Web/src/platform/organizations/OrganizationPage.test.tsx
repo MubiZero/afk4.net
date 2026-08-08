@@ -31,7 +31,8 @@ const allAccess = {
   canManageProfile: true,
   canManageUpdateChannel: true,
   canTransferOwner: true,
-  canViewAudit: true
+  canViewAudit: true,
+  canManageFeatures: true
 };
 
 function setup(tab: Parameters<typeof OrganizationPage>[0]['tab'] = 'clubs', onTabChange = mock(), access = allAccess) {
@@ -77,7 +78,8 @@ it('shows a forbidden state for a forbidden direct tab URL', async () => {
     canManageProfile: false,
     canManageUpdateChannel: false,
     canTransferOwner: false,
-    canViewAudit: false
+    canViewAudit: false,
+    canManageFeatures: false
   });
   await waitFor(() => expect(screen.getByRole('heading', { name: 'Нет доступа' })).toBeVisible());
   expect(screen.queryByRole('heading', { name: 'Orion Gaming' })).not.toBeInTheDocument();

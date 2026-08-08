@@ -61,7 +61,8 @@ const fullAccess: OrganizationPageAccess = {
   canManageProfile: true,
   canManageUpdateChannel: true,
   canTransferOwner: true,
-  canViewAudit: true
+  canViewAudit: true,
+  canManageFeatures: true
 };
 
 function setup(access: OrganizationPageAccess = fullAccess, orgOverrides: Partial<OrganizationDetail> = {}) {
@@ -187,7 +188,8 @@ it('hides billing and organization-management levers without the matching rights
     canManageProfile: false,
     canManageUpdateChannel: false,
     canTransferOwner: false,
-    canViewAudit: false
+    canViewAudit: false,
+    canManageFeatures: false
   });
   expect(screen.queryByRole('button', { name: 'Изменить подписку' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Выставить счёт' })).not.toBeInTheDocument();

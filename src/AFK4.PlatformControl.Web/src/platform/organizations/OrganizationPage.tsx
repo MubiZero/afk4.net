@@ -42,6 +42,7 @@ export interface OrganizationPageAccess {
   canManageUpdateChannel: boolean;
   canTransferOwner: boolean;
   canViewAudit: boolean;
+  canManageFeatures: boolean;
 }
 
 export function OrganizationPage({ client, organizationId, tab, access, initialInvite, onTabChange, onBack, onChanged }: {
@@ -126,7 +127,7 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
             ) : null}
             {tab === 'history' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationHistoryTab client={client.audit} organizationId={organizationId} /></TabBoundary> : null}
             {tab === 'dynamics' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationDynamicsTab client={client.branchDynamics} organizationId={organizationId} branches={organization.branches} /></TabBoundary> : null}
-            {tab === 'features' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationFeaturesTab client={client.features} organizationId={organizationId} planCode={organization.planCode} /></TabBoundary> : null}
+            {tab === 'features' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationFeaturesTab client={client.features} organizationId={organizationId} planCode={organization.planCode} canManage={access.canManageFeatures} /></TabBoundary> : null}
           </div>
         </div>
 

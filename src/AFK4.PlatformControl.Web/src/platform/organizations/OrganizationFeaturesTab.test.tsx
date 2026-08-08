@@ -21,12 +21,12 @@ function feature(overrides: Partial<OrganizationFeatureState> = {}): Organizatio
   };
 }
 
-function renderTab(client: any, features: OrganizationFeatureState[] = [feature()], planCode = 'growth') {
+function renderTab(client: any, features: OrganizationFeatureState[] = [feature()], planCode = 'growth', canManage = true) {
   const listFeatures = client.listFeatures ?? mock().mockResolvedValue(features);
   const fullClient = { listFeatures, setOverride: mock(), clearOverride: mock(), ...client };
   render(
     <I18nProvider><ToastProvider>
-      <OrganizationFeaturesTab client={fullClient} organizationId="org-1" planCode={planCode} />
+      <OrganizationFeaturesTab client={fullClient} organizationId="org-1" planCode={planCode} canManage={canManage} />
     </ToastProvider></I18nProvider>
   );
   return fullClient;
@@ -101,5 +101,74 @@ describe('OrganizationFeaturesTab', () => {
 
     await waitFor(() => expect(client.clearOverride).toHaveBeenCalledWith('org-1', 'shop'));
     await waitFor(() => expect(screen.getByText('по умолчанию')).toBeInTheDocument());
+  });
+
+  it('без права на управление показывает состояние и решение, но не рычаги', async () => {
+    const overridden = feature({
+      decisionLevel: 'override',
+      isEnabled: true,
+      overrideValue: true,
+      overrideReason: 'Пилот',
+      overrideSetAtUtc: '2026-08-01T10:00:00Z'
+    });
+    renderTab({ listFeatures: mock().mockResolvedValue([overridden]) }, undefined, 'growth', false);
+
+    await waitFor(() => expect(screen.getByText('Магазин')).toBeInTheDocument());
+
+    // Состояние и «чем решено» видны поддержке — это ей полезно и разрешено.
+    expect(screen.getByText('Включена')).toBeInTheDocument();
+    expect(screen.getByText('вручную')).toBeInTheDocument();
+    expect(screen.getByText(/Пилот/)).toBeInTheDocument();
+
+    // Но ни один рычаг управления не отрисован: увидеть «настоящую» кнопку, которая тут же
+    // ответит 403, хуже, чем не увидеть кнопку вовсе.
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Причина')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Применить' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Вернуть как у тарифа' })).not.toBeInTheDocument();
+  });
+
+  it('сбрасывает черновик причины после успешного применения', async () => {
+    const client = renderTab({
+      listFeatures: mock().mockResolvedValue([feature({ isEnabled: false })]),
+      setOverride: mock().mockResolvedValue([feature({ isEnabled: true, decisionLevel: 'override', overrideValue: true, overrideReason: 'Пилот' })])
+    });
+
+    await waitFor(() => expect(screen.getByText('Магазин')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Магазин' }));
+    const reasonField = screen.getByLabelText('Причина') as HTMLTextAreaElement;
+    fireEvent.change(reasonField, { target: { value: 'Пилот' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Применить' }));
+
+    await waitFor(() => expect(client.setOverride).toHaveBeenCalled());
+    // Успешное применение подтягивает свежий ответ сервера — старый текст причины не должен
+    // пережить собственное действие и переехать на следующую попытку.
+    await waitFor(() => expect((screen.getByLabelText('Причина') as HTMLTextAreaElement).value).toBe(''));
+  });
+
+  it('блокирует повторную отправку, пока запрос не завершился', async () => {
+    let resolveSetOverride: (value: OrganizationFeatureState[]) => void = () => {};
+    const setOverride = mock(() => new Promise<OrganizationFeatureState[]>(resolve => { resolveSetOverride = resolve; }));
+    renderTab({
+      listFeatures: mock().mockResolvedValue([feature({ isEnabled: false })]),
+      setOverride
+    });
+
+    await waitFor(() => expect(screen.getByText('Магазин')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Магазин' }));
+    fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Пилот' } });
+    const applyButton = screen.getByRole('button', { name: 'Применить' });
+
+    fireEvent.click(applyButton);
+    await waitFor(() => expect(applyButton).toBeDisabled());
+    // Второй клик, пока первый запрос ещё в полёте, не должен завести второй PUT.
+    fireEvent.click(applyButton);
+
+    resolveSetOverride([feature({ isEnabled: true, decisionLevel: 'override', overrideValue: true, overrideReason: 'Пилот' })]);
+    await waitFor(() => expect(applyButton).not.toBeDisabled());
+
+    expect(setOverride).toHaveBeenCalledTimes(1);
   });
 });

@@ -13,10 +13,14 @@ import type { OrganizationFeatureState } from '@/api/types';
 
 type Client = Pick<FeaturesApi, 'listFeatures' | 'setOverride' | 'clearOverride'>;
 
-export function OrganizationFeaturesTab({ client, organizationId, planCode }: {
+export function OrganizationFeaturesTab({ client, organizationId, planCode, canManage }: {
   client: Client;
   organizationId: string;
   planCode: string;
+  // Право на мутацию (`platform.organizations.features.manage`) отдельно от права на просмотр:
+  // поддержка видит вкладку и то, чем решена фича, но не рычаги — иначе кнопка «Применить» будет
+  // выглядеть рабочей, а сервер молча ответит 403.
+  canManage: boolean;
 }) {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -49,6 +53,7 @@ export function OrganizationFeaturesTab({ client, organizationId, planCode }: {
       toast({ title: t('platform.organization.features.updated'), variant: 'success' });
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
+      throw cause;
     }
   }
 
@@ -59,6 +64,7 @@ export function OrganizationFeaturesTab({ client, organizationId, planCode }: {
       toast({ title: t('platform.organization.features.updated'), variant: 'success' });
     } catch (cause) {
       toast({ title: describeApiError(cause, t), variant: 'error' });
+      throw cause;
     }
   }
 
@@ -69,6 +75,7 @@ export function OrganizationFeaturesTab({ client, organizationId, planCode }: {
           key={feature.featureKey}
           feature={feature}
           planCode={planCode}
+          canManage={canManage}
           onSetOverride={request => applyOverride(feature.featureKey, request)}
           onClearOverride={() => clearOverride(feature.featureKey)}
         />
@@ -80,22 +87,56 @@ export function OrganizationFeaturesTab({ client, organizationId, planCode }: {
 // Верхнеуровневая функция, а не компонент, вложенный в рендер OrganizationFeaturesTab: у строки
 // собственный черновик (переключатель + причина), который не должен пересоздаваться на каждый
 // рендер списка.
-function FeatureRow({ feature, planCode, onSetOverride, onClearOverride }: {
+function FeatureRow({ feature, planCode, canManage, onSetOverride, onClearOverride }: {
   feature: OrganizationFeatureState;
   planCode: string;
-  onSetOverride: (request: { isEnabled: boolean; reason: string }) => void;
-  onClearOverride: () => void;
+  canManage: boolean;
+  onSetOverride: (request: { isEnabled: boolean; reason: string }) => Promise<void>;
+  onClearOverride: () => Promise<void>;
 }) {
   const { t, formatDate } = useI18n();
   const [draftEnabled, setDraftEnabled] = useState(feature.isEnabled);
   const [reason, setReason] = useState('');
+  const [pending, setPending] = useState(false);
   const trimmedReason = reason.trim();
+
+  // Синхронизирует черновик с фактическим состоянием фичи: срабатывает и на первом рендере
+  // строки, и после того, как список обновился ответом сервера на «Применить»/«Вернуть как у
+  // тарифа» — так переключатель и поле причины не переживают собственное успешное действие.
+  useEffect(() => {
+    setDraftEnabled(feature.isEnabled);
+    setReason('');
+  }, [feature.isEnabled, feature.decisionLevel, feature.overrideReason]);
 
   const decisionLabel = feature.decisionLevel === 'override'
     ? t('platform.organization.features.byOverride')
     : feature.decisionLevel === 'plan'
       ? t('platform.organization.features.byPlan', { planCode })
       : t('platform.organization.features.byDefault');
+
+  async function submit() {
+    if (trimmedReason === '' || pending) return;
+    setPending(true);
+    try {
+      await onSetOverride({ isEnabled: draftEnabled, reason: trimmedReason });
+    } catch {
+      // Тост об ошибке уже показан в OrganizationFeaturesTab — здесь только снимаем pending.
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function clear() {
+    if (pending) return;
+    setPending(true);
+    try {
+      await onClearOverride();
+    } catch {
+      // см. submit()
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
     <Card>
@@ -118,33 +159,34 @@ function FeatureRow({ feature, planCode, onSetOverride, onClearOverride }: {
           </p>
         ) : null}
 
-        <label className="ui-field">
-          <span>{draftEnabled ? t('platform.organization.features.enabled') : t('platform.organization.features.disabled')}</span>
-          <Switch checked={draftEnabled} onCheckedChange={setDraftEnabled} aria-label={feature.name} />
-        </label>
+        {canManage ? (
+          <>
+            <label className="ui-field">
+              <span>{draftEnabled ? t('platform.organization.features.enabled') : t('platform.organization.features.disabled')}</span>
+              <Switch checked={draftEnabled} onCheckedChange={setDraftEnabled} aria-label={feature.name} />
+            </label>
 
-        <label className="ui-field">
-          <span>{t('platform.organization.features.reason')}</span>
-          <Textarea
-            aria-label={t('platform.organization.features.reason')}
-            rows={2}
-            value={reason}
-            onChange={event => setReason(event.target.value)}
-          />
-          {trimmedReason === '' ? <span className="mgmt-drawer-hint">{t('platform.organization.features.reasonRequired')}</span> : null}
-        </label>
+            <label className="ui-field">
+              <span>{t('platform.organization.features.reason')}</span>
+              <Textarea
+                aria-label={t('platform.organization.features.reason')}
+                rows={2}
+                value={reason}
+                onChange={event => setReason(event.target.value)}
+              />
+              {trimmedReason === '' ? <span className="mgmt-drawer-hint">{t('platform.organization.features.reasonRequired')}</span> : null}
+            </label>
 
-        <div>
-          <Button
-            disabled={trimmedReason === ''}
-            onClick={() => onSetOverride({ isEnabled: draftEnabled, reason: trimmedReason })}
-          >
-            {t('platform.organization.features.set')}
-          </Button>
-          {feature.decisionLevel === 'override' ? (
-            <Button variant="outline" onClick={onClearOverride}>{t('platform.organization.features.clear')}</Button>
-          ) : null}
-        </div>
+            <div>
+              <Button disabled={trimmedReason === '' || pending} onClick={() => void submit()}>
+                {t('platform.organization.features.set')}
+              </Button>
+              {feature.decisionLevel === 'override' ? (
+                <Button variant="outline" disabled={pending} onClick={() => void clear()}>{t('platform.organization.features.clear')}</Button>
+              ) : null}
+            </div>
+          </>
+        ) : null}
       </CardContent>
     </Card>
   );

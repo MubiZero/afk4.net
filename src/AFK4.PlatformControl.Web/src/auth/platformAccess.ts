@@ -7,6 +7,7 @@ export type PlatformCapability =
   | 'organizations.profile.manage'
   | 'organizations.update_channel.manage'
   | 'organizations.owner_transfer.manage'
+  | 'organizations.features.manage'
   | 'organizations.support_notes.manage'
   | 'support.manage'
   | 'billing.read'
@@ -33,6 +34,7 @@ const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
   'organizations.profile.manage': ['platform.organizations.profile.update'],
   'organizations.update_channel.manage': ['platform.organizations.update_channel.update'],
   'organizations.owner_transfer.manage': ['platform.organizations.owner.transfer'],
+  'organizations.features.manage': ['platform.organizations.features.manage'],
   // Отдельно от `support.manage`: заметка в разделе «Задолженность» проверяется бэкендом
   // ровно по `platform.organizations.support_notes.manage`, а не по любому из
   // support_notes/owner_invites/support.access.
