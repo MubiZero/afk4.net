@@ -200,6 +200,11 @@ internal static class StaffOnboardingEndpoints
                     new { request.UserName, Error = result.Error },
                     cancellationToken);
 
+                if (result.PlanLimit is not null)
+                {
+                    return Results.Conflict(new { Error = result.Error, result.PlanLimit.Code, PlanLimit = result.PlanLimit });
+                }
+
                 return Results.BadRequest(new { Error = result.Error });
             }
 
@@ -235,9 +240,17 @@ internal static class StaffOnboardingEndpoints
             }
 
             var result = await staffInviteService.AcceptInviteAsync(request.Token, request.Password, cancellationToken);
-            return result.Succeeded
-                ? Results.Ok(new AcceptStaffInviteResponse(result.OrganizationId, result.UserName))
-                : Results.BadRequest(new { error = result.Error });
+            if (result.Succeeded)
+            {
+                return Results.Ok(new AcceptStaffInviteResponse(result.OrganizationId, result.UserName));
+            }
+
+            if (result.PlanLimit is not null)
+            {
+                return Results.Conflict(new { Error = result.Error, result.PlanLimit.Code, PlanLimit = result.PlanLimit });
+            }
+
+            return Results.BadRequest(new { error = result.Error });
         });
 
     }

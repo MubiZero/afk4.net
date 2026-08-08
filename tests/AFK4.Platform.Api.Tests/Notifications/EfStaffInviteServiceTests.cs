@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Notifications;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Tests.Billing;
 using AFK4.Shared.Contracts.Notifications;
 using Microsoft.AspNetCore.Identity;
@@ -24,7 +25,8 @@ public sealed class EfStaffInviteServiceTests
     {
         var notifications = new RecordingNotificationService();
         var time = new FixedTimeProvider(Now);
-        var service = new EfStaffInviteService(db, notifications, time, Options.Create(new NotificationOptions { DefaultLocale = "ru" }));
+        var service = new EfStaffInviteService(
+            db, notifications, time, Options.Create(new NotificationOptions { DefaultLocale = "ru" }), new EfPlanLimitGuard(db));
         return (service, notifications, time);
     }
 
