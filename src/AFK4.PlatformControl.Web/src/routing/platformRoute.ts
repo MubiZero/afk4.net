@@ -7,7 +7,8 @@ export type OrganizationTab =
   | 'updates'
   | 'access'
   | 'history'
-  | 'dynamics';
+  | 'dynamics'
+  | 'features';
 
 export type BillingTab = 'plans' | 'subscriptions' | 'invoices' | 'analytics';
 
@@ -23,7 +24,7 @@ export type PlatformRoute =
   | { kind: 'notFound'; path: string };
 
 const ORGANIZATION_TABS = new Set<OrganizationTab>([
-  'clubs', 'invoices', 'limits', 'updates', 'access', 'history', 'dynamics'
+  'clubs', 'invoices', 'limits', 'updates', 'access', 'history', 'dynamics', 'features'
 ]);
 const BILLING_TABS = new Set<BillingTab>(['plans', 'subscriptions', 'invoices', 'analytics']);
 const PULSE_VIEWS = new Set<PulseView>(['now', 'all', 'debt']);

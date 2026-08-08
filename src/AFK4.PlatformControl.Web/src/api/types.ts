@@ -93,6 +93,22 @@ export interface OrganizationDetail {
   pinnedClientVersion: string | null;
 }
 
+/** Mirrors `OrganizationFeatureStateDto`: state of one feature for a club plus WHAT decided
+ * it — an override, the plan, or the default. The panel must show the decision, not just the
+ * value: "off" alone can't answer "why doesn't this club have the shop". */
+export interface OrganizationFeatureState {
+  featureKey: string;
+  name: string;
+  description: string;
+  isEnabled: boolean;
+  decisionLevel: 'override' | 'plan' | 'default';
+  overrideValue: boolean | null;
+  overrideReason: string | null;
+  overrideSetAtUtc: string | null;
+  planValue: boolean | null;
+  defaultValue: boolean;
+}
+
 export interface CreateBranchRequest {
   slug: string;
   name: string;

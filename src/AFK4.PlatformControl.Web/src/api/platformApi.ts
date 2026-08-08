@@ -10,6 +10,7 @@ import { InvoicesApi } from './platformClients/invoices';
 import { DebtApi } from './platformClients/debt';
 import { AnalyticsApi } from './platformClients/analytics';
 import { BranchDynamicsApi } from './platformClients/branchDynamics';
+import { FeaturesApi } from './platformClients/features';
 import { UpdatesApi } from './platformClients/updates';
 import { AuditApi } from './platformClients/audit';
 import { SearchApi } from './platformClients/search';
@@ -41,6 +42,7 @@ export class PlatformApiClient {
   public readonly debt: DebtApi;
   public readonly analytics: AnalyticsApi;
   public readonly branchDynamics: BranchDynamicsApi;
+  public readonly features: FeaturesApi;
   public readonly updates: UpdatesApi;
   public readonly audit: AuditApi;
   public readonly search: SearchApi;
@@ -61,6 +63,7 @@ export class PlatformApiClient {
     this.debt = new DebtApi(this.transport);
     this.analytics = new AnalyticsApi(this.transport);
     this.branchDynamics = new BranchDynamicsApi(this.transport);
+    this.features = new FeaturesApi(this.transport);
     this.updates = new UpdatesApi(this.transport);
     this.audit = new AuditApi(this.transport);
     this.search = new SearchApi(this.transport);
