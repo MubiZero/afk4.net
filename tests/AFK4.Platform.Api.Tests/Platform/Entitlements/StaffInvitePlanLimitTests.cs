@@ -143,7 +143,7 @@ public sealed class StaffInvitePlanLimitTests
         Assert.NotNull(result.PlanLimit);
         Assert.Equal(PlanLimitNames.StaffUsersPerBranch, result.PlanLimit!.LimitName);
         Assert.Equal(1, result.PlanLimit.Limit);
-        Assert.Equal(2, result.PlanLimit.Current);
+        Assert.Equal(1, result.PlanLimit.Current);
         Assert.False(await db.StaffUsers.AnyAsync(user => user.NormalizedUserName == "NEWCASHIER"));
         var invite = await db.StaffInvites.SingleAsync();
         Assert.Null(invite.AcceptedAtUtc);
@@ -167,6 +167,33 @@ public sealed class StaffInvitePlanLimitTests
         Assert.Null(result.PlanLimit);
         var staff = await db.StaffUsers.SingleAsync(user => user.NormalizedUserName == "NEWCASHIER");
         Assert.True(staff.IsActive);
+        var invite = await db.StaffInvites.SingleAsync();
+        Assert.NotNull(invite.AcceptedAtUtc);
+    }
+
+    [Fact]
+    public async Task AcceptInvite_Succeeds_WhenAcceptingTheLastSlot_BecauseTheInviteBeingAcceptedDoesNotAddASeat()
+    {
+        // Лимит 2, один активный сотрудник, одно живое приглашение: приём превращает само это
+        // приглашение в сотрудника, а не занимает место сверх уже посчитанного — после приёма
+        // ровно 2 сотрудника и 0 приглашений, то есть точно в лимите. Раньше приглашение считало
+        // само себя как «непринятое» и отказывало последнему месту навсегда.
+        await using var db = CreateDb();
+        var (organizationId, branchId) = await SeedOrganizationAsync(db, maxStaffUsersPerBranch: 2);
+        await SeedActiveStaffUserAsync(db, organizationId, branchId);
+        var service = CreateService(db);
+
+        var created = await service.CreateInviteAsync(
+            organizationId, branchId, "newcashier", "New Cashier", "cashier@club.example", Roles, CancellationToken.None);
+        Assert.True(created.Succeeded);
+
+        var result = await service.AcceptInviteAsync(created.Code, "FreshPass123", CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.Null(result.PlanLimit);
+        var staff = await db.StaffUsers.SingleAsync(user => user.NormalizedUserName == "NEWCASHIER");
+        Assert.True(staff.IsActive);
+        Assert.Equal(2, await db.StaffUsers.CountAsync());
         var invite = await db.StaffInvites.SingleAsync();
         Assert.NotNull(invite.AcceptedAtUtc);
     }

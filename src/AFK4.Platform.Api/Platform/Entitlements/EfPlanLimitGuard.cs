@@ -66,7 +66,8 @@ public sealed class EfPlanLimitGuard(PlatformDbContext dbContext) : IPlanLimitGu
         return Verdict(PlanLimitNames.ConcurrentSessions, limit, current, plan.PlanCode);
     }
 
-    public async Task<PlanLimitExceededDto?> CheckStaffUserAsync(Guid organizationId, Guid branchId, CancellationToken cancellationToken)
+    public async Task<PlanLimitExceededDto?> CheckStaffUserAsync(
+        Guid organizationId, Guid branchId, CancellationToken cancellationToken, Guid? excludingInviteId = null)
     {
         var plan = await LoadPlanAsync(organizationId, cancellationToken);
         if (plan?.Limits.MaxStaffUsersPerBranch is not { } limit)
@@ -84,11 +85,14 @@ public sealed class EfPlanLimitGuard(PlatformDbContext dbContext) : IPlanLimitGu
 
         // Непринятое живое приглашение занимает место заранее: иначе три приглашения на филиал
         // с лимитом два пройдут проверку по очереди и перепрыгнут границу в момент приёма.
+        // Само принимаемое приглашение (excludingInviteId) — исключение: приём не добавляет
+        // место сверх занятого, он превращает это же приглашение в сотрудника.
         var pendingInvites = await dbContext.StaffInvites
             .CountAsync(
                 invite => invite.OrganizationId == organizationId
                     && invite.BranchId == branchId
-                    && invite.AcceptedAtUtc == null,
+                    && invite.AcceptedAtUtc == null
+                    && invite.StaffInviteId != excludingInviteId,
                 cancellationToken);
 
         return Verdict(PlanLimitNames.StaffUsersPerBranch, limit, activeUsers + pendingInvites, plan.PlanCode);

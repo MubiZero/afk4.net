@@ -117,7 +117,8 @@ public sealed class EfStaffInviteService(
             return StaffInviteAcceptResult.Failed("A staff user with this username already exists in the organization.");
         }
 
-        var planLimit = await planLimitGuard.CheckStaffUserAsync(invite.OrganizationId, invite.BranchId, cancellationToken);
+        var planLimit = await planLimitGuard.CheckStaffUserAsync(
+            invite.OrganizationId, invite.BranchId, cancellationToken, excludingInviteId: invite.StaffInviteId);
         if (planLimit is not null)
         {
             return StaffInviteAcceptResult.PlanLimitReached(planLimit);

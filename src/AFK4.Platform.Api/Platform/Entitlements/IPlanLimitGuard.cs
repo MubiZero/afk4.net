@@ -14,5 +14,10 @@ public interface IPlanLimitGuard
 
     Task<PlanLimitExceededDto?> CheckConcurrentSessionAsync(Guid organizationId, CancellationToken cancellationToken);
 
-    Task<PlanLimitExceededDto?> CheckStaffUserAsync(Guid organizationId, Guid branchId, CancellationToken cancellationToken);
+    /// <param name="excludingInviteId">
+    /// Приглашение, которое не считать «непринятым» — при приёме именно оно превращается в
+    /// сотрудника, а не добавляет место сверх уже занятого.
+    /// </param>
+    Task<PlanLimitExceededDto?> CheckStaffUserAsync(
+        Guid organizationId, Guid branchId, CancellationToken cancellationToken, Guid? excludingInviteId = null);
 }
