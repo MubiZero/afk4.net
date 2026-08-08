@@ -300,6 +300,7 @@ builder.Services.AddScoped<IBranchDynamicsService, EfBranchDynamicsService>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
 builder.Services.AddScoped<IOrganizationStatusGuard, EfOrganizationStatusGuard>();
 builder.Services.AddScoped<IPlanLimitGuard, EfPlanLimitGuard>();
+builder.Services.AddScoped<IOrganizationEntitlements, EfOrganizationEntitlements>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
 builder.Services.AddScoped<IAuditRecordStager, AuditRecordStager>();
 builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
