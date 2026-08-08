@@ -30,7 +30,8 @@ public static class PlatformAdminPermissionCatalog
                 PlatformAdminPermissionNames.ManageUpdatePackages,
                 PlatformAdminPermissionNames.ManageUpdateRollouts,
                 PlatformAdminPermissionNames.ManagePlatformAdmins,
-                PlatformAdminPermissionNames.ViewPlatformHealth
+                PlatformAdminPermissionNames.ViewPlatformHealth,
+                PlatformAdminPermissionNames.ManageOrganizationFeatures
             },
             [PlatformAdminRoleNames.PlatformSupport] = new HashSet<string>
             {

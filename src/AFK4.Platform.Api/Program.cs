@@ -479,6 +479,7 @@ app.MapStaffOnboardingEndpoints(organizations);
 organizations.MapReportScheduleEndpoints();
 app.MapPlatformOrganizationEndpoints();
 app.MapPlatformBranchEndpoints();
+app.MapPlatformFeatureEndpoints();
 app.MapPlatformAdminDirectoryEndpoints();
 app.MapPlatformAdminTwoFactorEndpoints();
 app.MapPlatformBillingEndpoints(organizations);

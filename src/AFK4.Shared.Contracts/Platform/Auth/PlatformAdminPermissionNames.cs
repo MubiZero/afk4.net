@@ -45,4 +45,6 @@ public static class PlatformAdminPermissionNames
     public const string ManagePlatformAdmins = "platform.admins.manage";
 
     public const string ViewPlatformHealth = "platform.health.view";
+
+    public const string ManageOrganizationFeatures = "platform.organizations.features.manage";
 }
