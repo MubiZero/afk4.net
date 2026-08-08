@@ -17,9 +17,12 @@ function intentStateKey(intent: PlayerTopUpIntentDto): MessageKey {
   return 'customer.wallet.statePending';
 }
 
-export function WalletPanel({ api, phoneVerified }: { api: PlayerApiClient; phoneVerified: boolean }) {
+export function WalletPanel({ api, phoneVerified, features = null }: { api: PlayerApiClient; phoneVerified: boolean; features?: string[] | null }) {
   const { t } = useI18n();
   const { toast } = useToast();
+  // features === null means "not loaded yet / failed to load" — treat online_topup as enabled,
+  // same reasoning as BottomNav: this hides UI for convenience, the server still gates the write.
+  const topUpEnabled = features === null || features.includes('online_topup');
   const [intents, setIntents] = useState<PlayerTopUpIntentDto[]>([]);
   const [amount, setAmount] = useState('');
   const [pending, setPending] = useState(false);
@@ -58,7 +61,7 @@ export function WalletPanel({ api, phoneVerified }: { api: PlayerApiClient; phon
     <section className="rounded-2xl bg-[var(--color-surface)] p-4">
       <h2 className="text-xs uppercase tracking-wide text-[var(--text-3)]">{t('customer.wallet.title')}</h2>
 
-      {phoneVerified ? (
+      {topUpEnabled && (phoneVerified ? (
         <form className="mt-3 flex gap-2" onSubmit={handleSubmit}>
           <label htmlFor="topup-amount" className="sr-only">{t('customer.wallet.amount')}</label>
           <input
@@ -82,7 +85,7 @@ export function WalletPanel({ api, phoneVerified }: { api: PlayerApiClient; phon
         <p className="mt-3 rounded-xl border border-dashed border-[var(--color-border)] p-3 text-sm text-[var(--text-2)]">
           {t('customer.wallet.gate')}
         </p>
-      )}
+      ))}
 
       {intents.length > 0 && (
         <ul className="mt-4 space-y-2">

@@ -11,7 +11,7 @@ type Load =
   | { state: 'error' }
   | { state: 'ready'; data: PlayerDashboardDto; fetchedAt: Date };
 
-export function DashboardScreen({ api, displayName, phoneVerified }: { api: PlayerApiClient; displayName: string; phoneVerified: boolean }) {
+export function DashboardScreen({ api, displayName, phoneVerified, features = null }: { api: PlayerApiClient; displayName: string; phoneVerified: boolean; features?: string[] | null }) {
   const { t } = useI18n();
   const [load, setLoad] = useState<Load>({ state: 'loading' });
 
@@ -61,7 +61,7 @@ export function DashboardScreen({ api, displayName, phoneVerified }: { api: Play
             )}
           </section>
 
-          <WalletPanel api={api} phoneVerified={phoneVerified} />
+          <WalletPanel api={api} phoneVerified={phoneVerified} features={features} />
 
           {load.data.activeSession
             ? <LiveSessionCard session={load.data.activeSession} fetchedAt={load.fetchedAt} />
