@@ -25,6 +25,7 @@ using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Platform.Analytics;
 using AFK4.Platform.Api.Platform.Billing;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Platform.Health;
 using AFK4.Platform.Api.Platform.Idempotency;
 using AFK4.Platform.Api.Shop;
@@ -297,6 +298,7 @@ builder.Services.AddScoped<IPlatformAnalyticsService, EfPlatformAnalyticsService
 builder.Services.AddScoped<IBranchDynamicsService, EfBranchDynamicsService>();
 builder.Services.AddScoped<IOperatorConnectionResolver, EfOperatorConnectionResolver>();
 builder.Services.AddScoped<IOrganizationStatusGuard, EfOrganizationStatusGuard>();
+builder.Services.AddScoped<IPlanLimitGuard, EfPlanLimitGuard>();
 builder.Services.AddScoped<IBranchResolver, BranchResolver>();
 builder.Services.AddScoped<IAuditRecordStager, AuditRecordStager>();
 builder.Services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
