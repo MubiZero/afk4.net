@@ -24,6 +24,15 @@ public sealed class PlayerLoyaltyEndpointsTests
         var player = Guid.NewGuid();
         var phone = $"+99291{player.ToString("N")[..7]}";
 
+        // IOrganizationEntitlements.IsEnabledAsync anchors on the Organizations row: without it,
+        // the org is "unknown" and every feature (including loyalty) resolves to disabled.
+        db.Organizations.Add(new OrganizationEntity
+        {
+            OrganizationId = org,
+            Name = "Loyalty Test Org",
+            CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+
         db.Branches.Add(new BranchEntity
         {
             BranchId = branch,

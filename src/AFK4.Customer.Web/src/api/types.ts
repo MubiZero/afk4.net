@@ -13,6 +13,9 @@ export interface PlayerSignInResponse {
 
 export interface MoneyDto { currencyCode: string; minorUnits: number; }
 
+// Keys returned by GET /api/me/features — only the ones currently enabled for the org.
+export type PlayerFeatureKey = 'online_booking' | 'loyalty' | 'online_topup' | 'player_shop';
+
 export interface ActiveSessionDto {
   sessionId: string;
   seatId: string;

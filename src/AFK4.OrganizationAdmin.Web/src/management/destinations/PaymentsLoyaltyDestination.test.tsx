@@ -15,6 +15,9 @@ const loyaltyGet = mock(async (): Promise<LoyaltySettingsDto> => loyaltyDefaults
 const loyaltyUpdate = mock(async (req: LoyaltySettingsDto): Promise<LoyaltySettingsDto> => req);
 const eskhataGet = mock(async (): Promise<EskhataConfigDto> => ({ baseUrl: '', companyId: '', merchantId: 0, hashKeySet: false, status: 'inactive' }));
 const dcConfigGet = mock(async (): Promise<DcPayLinkConfigDto> => ({ cardSet: false, cardLast4: '', commentTemplate: 'AFK4-{ref}', isActive: false }));
+// Default: loyalty feature enabled, so the existing zone-visibility tests above keep seeing the
+// loyalty zone unless a test below overrides this with `featuresList.mockResolvedValueOnce(...)`.
+const featuresList = mock(async (): Promise<string[]> => ['loyalty']);
 
 const actual = (globalThis as Record<string, unknown>).__afk4RealOperatorHelpers as Record<string, unknown>;
 mock.module('../../operatorHelpers', () => ({
@@ -22,7 +25,8 @@ mock.module('../../operatorHelpers', () => ({
   createAuthenticatedOperatorClients: () => ({
     loyaltySettings: { get: loyaltyGet, update: loyaltyUpdate },
     eskhataConfig: { get: eskhataGet, update: mock(async () => ({})) },
-    dcConfig: { get: dcConfigGet, update: mock(async () => ({})) }
+    dcConfig: { get: dcConfigGet, update: mock(async () => ({})) },
+    features: { list: featuresList }
   })
 }));
 
@@ -45,6 +49,7 @@ afterEach(() => {
   loyaltyUpdate.mockClear();
   eskhataGet.mockClear();
   dcConfigGet.mockClear();
+  featuresList.mockClear();
   cleanup();
 });
 afterAll(() => mock.restore());
@@ -111,5 +116,23 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
     // Percent has a value but the rule stays off → example must not render.
     fireEvent.change(screen.getByLabelText(/процент с пополнений/i), { target: { value: '10' } });
     expect(screen.queryByText(/\+10/)).toBeNull();
+  });
+
+  it('прячет раздел «Лояльность», когда фича выключена', async () => {
+    featuresList.mockResolvedValueOnce([]);
+    view([permissionNames.managePaymentGateways, permissionNames.manageLoyaltySettings]);
+
+    // The payments zone (unrelated to the loyalty feature flag) stays visible...
+    await screen.findByText(/eskhata merchant/i);
+    // ...but the loyalty zone disappears entirely, not just its settings.
+    await waitFor(() => expect(screen.queryByLabelText(/кэшбэк с пополнений/i)).toBeNull());
+    expect(screen.queryByText(/как вы возвращаете/i)).toBeNull();
+  });
+
+  it('показывает раздел «Лояльность», когда фича включена', async () => {
+    featuresList.mockResolvedValueOnce(['loyalty']);
+    view([permissionNames.managePaymentGateways, permissionNames.manageLoyaltySettings]);
+
+    expect(await screen.findByLabelText(/кэшбэк с пополнений/i)).toBeInTheDocument();
   });
 });

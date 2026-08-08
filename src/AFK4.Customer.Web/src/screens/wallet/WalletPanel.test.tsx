@@ -5,11 +5,11 @@ import { ToastProvider } from '@/components/ui/toast';
 import { WalletPanel } from './WalletPanel';
 import type { PlayerApiClient } from '@/api/playerApi';
 
-function renderPanel(api: PlayerApiClient, phoneVerified: boolean) {
+function renderPanel(api: PlayerApiClient, phoneVerified: boolean, features: string[] | null = null) {
   return render(
     <I18nProvider>
       <ToastProvider autoDismissMs={1000}>
-        <WalletPanel api={api} phoneVerified={phoneVerified} />
+        <WalletPanel api={api} phoneVerified={phoneVerified} features={features} />
       </ToastProvider>
     </I18nProvider>
   );
@@ -35,4 +35,12 @@ it('submits a top-up request and shows it in the intent list', async () => {
   fireEvent.click(screen.getByRole('button', { name: /запросить/i }));
   await waitFor(() => expect(api.createTopUpIntent).toHaveBeenCalledWith({ amountMinorUnits: 5000, currencyCode: 'TJS' }));
   expect(await screen.findByText('Ожидает')).toBeInTheDocument();
+});
+
+it('прячет пополнение кошелька, когда онлайн-пополнение выключено', async () => {
+  const api = { getTopUpIntents: mock().mockResolvedValue([]) } as unknown as PlayerApiClient;
+  renderPanel(api, true, ['loyalty']);
+  await screen.findByText('Пополнить кошелёк');
+  expect(screen.queryByLabelText('Сумма')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /запросить/i })).not.toBeInTheDocument();
 });

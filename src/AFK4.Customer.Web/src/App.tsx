@@ -49,6 +49,19 @@ export function App() {
   }
   const api = apiRef.current;
 
+  // null means "not loaded yet, or failed to load" — every feature is treated as enabled in that
+  // state. This list only drives what the UI shows: it's convenience, not a security boundary,
+  // since the server rejects a disabled feature (403 feature_disabled) regardless of what the
+  // client renders. Hiding a working section because of a network hiccup would be worse than
+  // briefly showing one that then 403s, so we fail open here.
+  const [features, setFeatures] = useState<string[] | null>(null);
+  const featuresFetchedRef = useRef(false);
+  useEffect(() => {
+    if (!session || featuresFetchedRef.current) return;
+    featuresFetchedRef.current = true;
+    api.getFeatures().then(setFeatures).catch(() => { /* fail open, see comment above */ });
+  }, [session, api]);
+
   const branding = useBranding({
     hostname: typeof window === 'undefined' ? '' : window.location.hostname,
     search: typeof window === 'undefined' ? '' : window.location.search,
@@ -76,6 +89,15 @@ export function App() {
     if (typeof window !== 'undefined') window.history.pushState(null, '', routePath(next));
   }, []);
 
+  // A tab that just got hidden by a feature toggle must not strand the player on a dead screen —
+  // fall back to the dashboard, which is always available.
+  useEffect(() => {
+    if (features === null) return;
+    if (route.kind === 'reservations' && !features.includes('online_booking')) {
+      navigate('dashboard');
+    }
+  }, [features, route.kind, navigate]);
+
   const handleLocaleChange = useCallback((locale: 'ru' | 'en') => {
     setLocale(locale);
     globalThis.localStorage?.setItem('afk4.player.locale', locale);
@@ -86,6 +108,8 @@ export function App() {
     // club PC the next player can't be served the previous one's cached data.
     void clearPlayerCaches().finally(() => {
       onSessionChanged(null);
+      featuresFetchedRef.current = false;
+      setFeatures(null);
       if (typeof window !== 'undefined') window.history.pushState(null, '', '/');
       setRoute({ kind: 'dashboard' });
     });
@@ -115,9 +139,9 @@ export function App() {
 
   return (
     <ToastProvider>
-      <AppShell active={tabForRoute(route)} onNavigate={navigate}>
+      <AppShell active={tabForRoute(route)} onNavigate={navigate} features={features}>
         <OfflineBanner />
-        {route.kind === 'dashboard' && <DashboardScreen api={api} displayName={session.displayName} phoneVerified={session.phoneVerified} />}
+        {route.kind === 'dashboard' && <DashboardScreen api={api} displayName={session.displayName} phoneVerified={session.phoneVerified} features={features} />}
         {route.kind === 'history' && (
           <>
             <HistoryTabs active="visits" onChange={(view) => navigateTo({ kind: view === 'purchases' ? 'purchases' : 'history' })} />

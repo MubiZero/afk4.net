@@ -3,6 +3,7 @@ import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../ManagementScreen';
 import { hasPermission, permissionNames } from '../../operatorPermissions';
 import { EmptyState } from '../../operatorPrimitives';
+import { useOrganizationFeatures } from '../../useOrganizationFeatures';
 import { PaymentMethodsSection } from './payments/PaymentMethodsSection';
 import { LoyaltySection } from './payments/LoyaltySection';
 import { PaymentsSetupSection } from './payments/PaymentsSetupSection';
@@ -18,7 +19,14 @@ export function PaymentsLoyaltyDestination({ backend, session, currencyCode, onD
   const canGateways = hasPermission(session, permissionNames.managePaymentGateways);
   const canLoyalty = hasPermission(session, permissionNames.manageLoyaltySettings);
 
-  const loyalty = useLoyaltySettings(backend, canLoyalty);
+  // Configuring a disabled feature is pointless — hide the whole loyalty zone when the
+  // organization's `loyalty` feature is off, not just the settings within it. The payments zone
+  // stays: it's unrelated to the loyalty feature flag.
+  const features = useOrganizationFeatures(backend);
+  const loyaltyFeatureEnabled = features === null || features.includes('loyalty');
+  const showLoyalty = canLoyalty && loyaltyFeatureEnabled;
+
+  const loyalty = useLoyaltySettings(backend, showLoyalty);
 
   useEffect(() => {
     onDirtyChange?.(loyalty.dirty);
@@ -50,7 +58,7 @@ export function PaymentsLoyaltyDestination({ backend, session, currencyCode, onD
           </PaymentsSetupSection>
         )}
 
-        {canLoyalty && (
+        {showLoyalty && (
           <PaymentsSetupSection
             direction="out"
             title={t('op.payments.zone.loyalty')}

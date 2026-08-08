@@ -55,4 +55,13 @@ describe('platformAccess', () => {
     expect(can(session(['platform.billing.subscriptions.manage']), 'billing.subscriptions.manage')).toBe(true);
     expect(can(session(['platform.billing.invoices.manage']), 'billing.subscriptions.manage')).toBe(false);
   });
+
+  // Вкладка «Фичи» держит на виду переключатель, поле причины и «Применить»/«Вернуть как у
+  // тарифа» под этим капабилити — без него поддержка видит вкладку целиком (чтение), но не эти
+  // рычаги, потому что сервер режет мутацию ровно по этому праву и молча вернёт 403.
+  it('scopes organizations.features.manage to exactly the feature-override permission', () => {
+    expect(can(session(['platform.organizations.features.manage']), 'organizations.features.manage')).toBe(true);
+    expect(can(session(['platform.organizations.manage']), 'organizations.features.manage')).toBe(false);
+    expect(can(session([]), 'organizations.features.manage')).toBe(false);
+  });
 });

@@ -310,4 +310,7 @@ public static class AuditActionNames
     public const string PlatformAdminTwoFactorVerified = "platform.admins.two_factor.verified";
 
     public const string PlatformAdminTwoFactorReset = "platform.admins.two_factor.reset";
+    public const string ViewOrganizationFeatures = "platform.organizations.features.view";
+    public const string SetOrganizationFeatureOverride = "platform.organizations.features.override.set";
+    public const string ClearOrganizationFeatureOverride = "platform.organizations.features.override.clear";
 }

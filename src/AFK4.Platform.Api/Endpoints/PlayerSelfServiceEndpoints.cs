@@ -20,6 +20,7 @@ using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Payments;
 using AFK4.Platform.Api.Platform.Billing;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Platform.Idempotency;
 using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Platform.Api.Platform.Tenancy;
@@ -50,6 +51,7 @@ using AFK4.Shared.Contracts.Payments;
 using AFK4.Shared.Contracts.Branding;
 using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Platform.Billing;
+using AFK4.Shared.Contracts.Platform.Features;
 using AFK4.Shared.Contracts.Identity.AccountActivation;
 using AFK4.Shared.Contracts.Platform.Operator;
 using AFK4.Shared.Contracts.Platform.SupportNotes;
@@ -220,6 +222,7 @@ internal static class PlayerSelfServiceEndpoints
             PlayerTopUpIntentRequest request,
             IPlayerContextAccessor playerContextAccessor,
             AFK4.Platform.Api.Payments.Eskhata.IEskhataMerchantClientFactory eskhataClientFactory,
+            IOrganizationEntitlements entitlements,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -228,6 +231,13 @@ internal static class PlayerSelfServiceEndpoints
             if (player is null)
             {
                 return Results.Unauthorized();
+            }
+
+            var featureDenial = await entitlements.RequireAsync(
+                player.OrganizationId, PlatformFeatureNames.OnlineTopUp, cancellationToken);
+            if (featureDenial is not null)
+            {
+                return featureDenial;
             }
 
             if (request.AmountMinorUnits <= 0)
@@ -364,6 +374,14 @@ internal static class PlayerSelfServiceEndpoints
             return Results.Ok(dtos);
         }).RequireRateLimiting("player-me");
 
+        // Intentionally no online_topup feature gate on this route. The intent behind it was
+        // already legally created while the feature was on (that creation path IS gated, at
+        // POST .../top-up-intent) — the player may already have paid the bank by the time this
+        // polls the gateway. Gating here would mean the club's card charge succeeds but the wallet
+        // credit doesn't: the player paid into a switch flipped between their tap and their bank
+        // confirmation. Disabling the feature stops new intents, not payments already in flight.
+        // See FeatureGateTests.TopUp_StillCreditsInFlightPayment_WhenDisabledAfterIntentCreated —
+        // that test fails on purpose if this route grows a gate later.
         app.MapPost("/api/me/wallet/top-up-intents/{intentId:guid}/eskhata-status", async (
             Guid intentId,
             IPlayerContextAccessor playerContextAccessor,
@@ -442,6 +460,7 @@ internal static class PlayerSelfServiceEndpoints
             CreatePlayerReservationRequest request,
             IPlayerContextAccessor playerContextAccessor,
             IReservationService reservationService,
+            IOrganizationEntitlements entitlements,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -450,6 +469,13 @@ internal static class PlayerSelfServiceEndpoints
             if (player is null)
             {
                 return Results.Unauthorized();
+            }
+
+            var featureDenial = await entitlements.RequireAsync(
+                player.OrganizationId, PlatformFeatureNames.OnlineBooking, cancellationToken);
+            if (featureDenial is not null)
+            {
+                return featureDenial;
             }
 
             // D8 gate: verified phone required for booking actions.

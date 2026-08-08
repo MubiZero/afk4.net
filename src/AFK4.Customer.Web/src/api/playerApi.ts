@@ -8,6 +8,8 @@ import type {
   CreatePlayerReservationRequest, PlayerReservationDto
 } from './types';
 
+interface PlayerFeaturesResponse { features: string[]; }
+
 export class PlayerApiError extends Error {
   constructor(public readonly status: number, message: string) {
     super(message);
@@ -41,6 +43,17 @@ export class PlayerApiClient {
 
   getDashboard(): Promise<PlayerDashboardDto> {
     return this.authedGet<PlayerDashboardDto>('/api/me/dashboard');
+  }
+
+  async getFeatures(): Promise<string[]> {
+    const response = await this.authedGet<PlayerFeaturesResponse>('/api/me/features');
+    // A malformed body (missing/null/non-array `features` — version skew, a caching proxy, a
+    // backend bug) must be treated the same as a failed request: throw so callers route it into
+    // their "list unavailable, assume enabled" fallback instead of getting `undefined` downstream.
+    if (!Array.isArray(response.features)) {
+      throw new Error('Malformed /api/me/features response: features is not an array');
+    }
+    return response.features;
   }
 
   getVisits(cursor?: string): Promise<CursorPage<PlayerVisitDto>> {

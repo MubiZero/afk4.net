@@ -97,6 +97,12 @@ it('cancelReservation issues a DELETE with no body', async () => {
   expect(init.body).toBeUndefined();
 });
 
+it('getFeatures rejects when the 200 body has no proper features array', async () => {
+  const fetchImpl = mock().mockResolvedValue(okJson({}));
+  const client = new PlayerApiClient({ baseUrl: 'https://api.test', fetchImpl: fetchImpl as unknown as typeof fetch, session, onSessionChanged: () => {} });
+  await expect(client.getFeatures()).rejects.toThrow();
+});
+
 it('surfaces the 403 D8 gate as a PlayerApiError with status 403', async () => {
   const fetchImpl = mock().mockResolvedValue(status(403));
   const client = new PlayerApiClient({ baseUrl: 'https://api.test', fetchImpl: fetchImpl as unknown as typeof fetch, session, onSessionChanged: () => {} });

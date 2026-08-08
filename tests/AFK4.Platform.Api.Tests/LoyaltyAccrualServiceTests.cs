@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Loyalty;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Billing;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +12,10 @@ public sealed class LoyaltyAccrualServiceTests
     private static readonly Guid BranchId = Guid.Parse("22222222-2222-4222-8222-222222222222");
     private static readonly Guid PlayerId = Guid.Parse("33333333-3333-4333-8333-333333333333");
     private static readonly DateTimeOffset Now = DateTimeOffset.Parse("2026-06-09T10:00:00Z");
+
+    // These tests exercise the cashback math in isolation from the feature-entitlements ladder
+    // (covered separately by FeatureGateTests), so the loyalty feature is always "on" here.
+    private static readonly IOrganizationEntitlements Entitlements = AlwaysEnabledOrganizationEntitlements.Instance;
 
     private static PlatformDbContext Db() =>
         new(new DbContextOptionsBuilder<PlatformDbContext>()
@@ -37,7 +42,7 @@ public sealed class LoyaltyAccrualServiceTests
         await using var db = Db();
         await SeedSettingsAsync(db, topUpEnabled: false, topUpBps: 0, shopEnabled: false, shopBps: 0,
             sessionEnabled: true, sessionBps: 1000);
-        var service = new LoyaltyAccrualService(db);
+        var service = new LoyaltyAccrualService(db, Entitlements);
 
         var entry = await service.BuildCashbackEntryAsync(
             LoyaltyAccrualSource.Session, OrgId, BranchId, PlayerId, sessionId: Guid.NewGuid(),
@@ -54,7 +59,7 @@ public sealed class LoyaltyAccrualServiceTests
         await using var db = Db();
         await SeedSettingsAsync(db, topUpEnabled: true, topUpBps: 1000, shopEnabled: false, shopBps: 0,
             capMinorUnits: 150);
-        var service = new LoyaltyAccrualService(db);
+        var service = new LoyaltyAccrualService(db, Entitlements);
 
         var entry = await service.BuildCashbackEntryAsync(
             LoyaltyAccrualSource.TopUp, OrgId, BranchId, PlayerId, null,
@@ -70,7 +75,7 @@ public sealed class LoyaltyAccrualServiceTests
         await using var db = Db();
         await SeedSettingsAsync(db, topUpEnabled: true, topUpBps: 1000, shopEnabled: false, shopBps: 0,
             minimumSourceMinorUnits: 1000);
-        var service = new LoyaltyAccrualService(db);
+        var service = new LoyaltyAccrualService(db, Entitlements);
 
         var entry = await service.BuildCashbackEntryAsync(
             LoyaltyAccrualSource.TopUp, OrgId, BranchId, PlayerId, null,
@@ -84,7 +89,7 @@ public sealed class LoyaltyAccrualServiceTests
     {
         await using var db = Db();
         await SeedSettingsAsync(db, topUpEnabled: true, topUpBps: 500, shopEnabled: false, shopBps: 0);
-        var service = new LoyaltyAccrualService(db);
+        var service = new LoyaltyAccrualService(db, Entitlements);
 
         var entry = await service.BuildCashbackEntryAsync(
             LoyaltyAccrualSource.TopUp, OrgId, BranchId, PlayerId, sessionId: null,
@@ -103,7 +108,7 @@ public sealed class LoyaltyAccrualServiceTests
     {
         await using var db = Db();
         await SeedSettingsAsync(db, topUpEnabled: false, topUpBps: 500, shopEnabled: true, shopBps: 300);
-        var service = new LoyaltyAccrualService(db);
+        var service = new LoyaltyAccrualService(db, Entitlements);
 
         var entry = await service.BuildCashbackEntryAsync(
             LoyaltyAccrualSource.TopUp, OrgId, BranchId, PlayerId, null, 10000, "TJS", "cashback:topup", Now, CancellationToken.None);
@@ -115,7 +120,7 @@ public sealed class LoyaltyAccrualServiceTests
     public async Task ReturnsNullWhenNoSettingsRow()
     {
         await using var db = Db();
-        var service = new LoyaltyAccrualService(db);
+        var service = new LoyaltyAccrualService(db, Entitlements);
 
         var entry = await service.BuildCashbackEntryAsync(
             LoyaltyAccrualSource.Shop, OrgId, BranchId, PlayerId, null, 10000, "TJS", "cashback:shop", Now, CancellationToken.None);
@@ -128,7 +133,7 @@ public sealed class LoyaltyAccrualServiceTests
     {
         await using var db = Db();
         await SeedSettingsAsync(db, topUpEnabled: false, topUpBps: 0, shopEnabled: true, shopBps: 100);
-        var service = new LoyaltyAccrualService(db);
+        var service = new LoyaltyAccrualService(db, Entitlements);
 
         var entry = await service.BuildCashbackEntryAsync(
             LoyaltyAccrualSource.Shop, OrgId, BranchId, PlayerId, null, 50, "TJS", "cashback:shop", Now, CancellationToken.None);

@@ -1286,6 +1286,43 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("organizations", (string)null);
                 });
 
+            modelBuilder.Entity("AFK4.Platform.Api.Data.OrganizationFeatureOverrideEntity", b =>
+                {
+                    b.Property<Guid>("OrganizationFeatureOverrideId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FeatureKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("SetAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SetByPlatformAdminUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("OrganizationFeatureOverrideId");
+
+                    b.HasIndex("OrganizationId", "FeatureKey")
+                        .IsUnique()
+                        .HasDatabaseName("IX_organization_feature_overrides_Organization_Feature");
+
+                    b.ToTable("organization_feature_overrides", (string)null);
+                });
+
             modelBuilder.Entity("AFK4.Platform.Api.Data.OrganizationLoyaltySettingsEntity", b =>
                 {
                     b.Property<Guid>("OrganizationId")
@@ -1798,6 +1835,34 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("payment_intents", (string)null);
                 });
 
+            modelBuilder.Entity("AFK4.Platform.Api.Data.PlanFeatureEntity", b =>
+                {
+                    b.Property<Guid>("PlanFeatureId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FeatureKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<bool>("IsIncluded")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PlanCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("PlanFeatureId");
+
+                    b.HasIndex("PlanCode", "FeatureKey")
+                        .IsUnique()
+                        .HasDatabaseName("IX_plan_features_Plan_Feature");
+
+                    b.ToTable("plan_features", (string)null);
+                });
+
             modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformAdminAccessTokenEntity", b =>
                 {
                     b.Property<Guid>("PlatformAdminAccessTokenId")
@@ -2004,6 +2069,36 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("platform_admin_users", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformFeatureEntity", b =>
+                {
+                    b.Property<string>("FeatureKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("EnabledByDefault")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("FeatureKey");
+
+                    b.ToTable("platform_features", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformIdempotencyRecordEntity", b =>

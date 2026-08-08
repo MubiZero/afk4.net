@@ -4,6 +4,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Inventory;
 using AFK4.Platform.Api.Loyalty;
 using AFK4.Platform.Api.Payments;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Pos;
 using AFK4.Platform.Api.Receipts;
 using AFK4.Platform.Api.Shop;
@@ -97,6 +98,10 @@ public sealed class ShopCommercePostgresFixture : IAsyncDisposable
             new OverlappingShopPosSettlementService(
                 provider.GetRequiredService<EfShopPosSettlementService>(),
                 overlapGate));
+        // LoyaltyAccrualService depends on IOrganizationEntitlements (feature gate on cashback
+        // accrual); this hand-rolled container doesn't inherit Program.cs's registrations, so it
+        // needs its own — the real implementation, same as production, not a test stub.
+        collection.AddScoped<IOrganizationEntitlements, EfOrganizationEntitlements>();
         collection.AddScoped<ILoyaltyAccrualService, LoyaltyAccrualService>();
         collection.AddScoped<IShopOrderWorkflow, EfShopOrderWorkflow>();
         collection.AddScoped<IShopCommerceCoordinator, EfShopCommerceCoordinator>();

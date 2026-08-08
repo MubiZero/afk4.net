@@ -90,6 +90,7 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
     canManageBilling: can(session, 'billing.manage'),
     canManageProfile: can(session, 'organizations.profile.manage'),
     canManageUpdateChannel: can(session, 'organizations.update_channel.manage'),
+    canManageFeatures: can(session, 'organizations.features.manage'),
     canTransferOwner: can(session, 'organizations.owner_transfer.manage'),
     canViewAudit: can(session, 'audit.read')
   };

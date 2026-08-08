@@ -155,7 +155,7 @@ public sealed class EfSessionStartWorkflowTests
             db,
             new EfTariffService(db, timeProvider),
             new AlwaysOpenShiftResolver(),
-            new LoyaltyAccrualService(db),
+            new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance),
             timeProvider);
         var validation = new SessionBillingValidationResult(
             true,

@@ -6,6 +6,7 @@ using AFK4.Platform.Api.Install;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Media;
 using AFK4.Platform.Api.Platform.Billing;
+using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Platform.Api.Tests.Fakes;
@@ -168,6 +169,12 @@ internal sealed class PlatformApiFactory : IAsyncDisposable, IDisposable
                 Services.GetRequiredService<TimeProvider>(),
                 Services.GetRequiredService<ILogger<BillingPlanSeedHostedService>>());
             seeder.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
+
+            var featureSeeder = new FeatureCatalogSeedHostedService(
+                Services,
+                Services.GetRequiredService<TimeProvider>(),
+                Services.GetRequiredService<ILogger<FeatureCatalogSeedHostedService>>());
+            featureSeeder.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)

@@ -140,7 +140,7 @@ public sealed class EfAutoProtectionRunnerTests
         var timeProvider = new FixedTimeProvider(Now);
         return new AutoProtectionRunner(
             db,
-            new SessionBillingService(db, new EfTariffService(db, timeProvider), new EfShiftService(db, timeProvider), new LoyaltyAccrualService(db), timeProvider),
+            new SessionBillingService(db, new EfTariffService(db, timeProvider), new EfShiftService(db, timeProvider), new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance), timeProvider),
             dispatcher,
             new AutoProtectionOptions(),
             timeProvider);
