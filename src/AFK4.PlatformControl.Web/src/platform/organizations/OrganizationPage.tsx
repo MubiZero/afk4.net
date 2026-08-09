@@ -20,6 +20,7 @@ import { OrganizationUpdateChannelSection } from './OrganizationUpdateChannelSec
 import { OrganizationHistoryTab } from './OrganizationHistoryTab';
 import { OrganizationDynamicsTab } from './OrganizationDynamicsTab';
 import { OrganizationFeaturesTab } from './OrganizationFeaturesTab';
+import { OffboardingTab } from './OffboardingTab';
 
 const TABS: { value: OrganizationTab; labelKey: MessageKey; allowed: (access: OrganizationPageAccess) => boolean }[] = [
   { value: 'clubs', labelKey: 'platform.organization.tab.clubs', allowed: () => true },
@@ -29,7 +30,8 @@ const TABS: { value: OrganizationTab; labelKey: MessageKey; allowed: (access: Or
   { value: 'limits', labelKey: 'platform.organization.tab.limits', allowed: access => access.canManageOrganization },
   { value: 'updates', labelKey: 'platform.organization.tab.updates', allowed: access => access.canManageUpdateChannel },
   { value: 'access', labelKey: 'platform.organization.tab.access', allowed: access => access.canManageAccess || access.canViewSupport },
-  { value: 'history', labelKey: 'platform.organization.tab.history', allowed: access => access.canViewAudit }
+  { value: 'history', labelKey: 'platform.organization.tab.history', allowed: access => access.canViewAudit },
+  { value: 'offboarding', labelKey: 'platform.organization.tab.offboarding', allowed: access => access.canManageOffboarding }
 ];
 
 export interface OrganizationPageAccess {
@@ -42,6 +44,7 @@ export interface OrganizationPageAccess {
   canManageUpdateChannel: boolean;
   canTransferOwner: boolean;
   canViewAudit: boolean;
+  canManageOffboarding: boolean;
   canManageFeatures: boolean;
 }
 
@@ -127,6 +130,7 @@ export function OrganizationPage({ client, organizationId, tab, access, initialI
             ) : null}
             {tab === 'history' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationHistoryTab client={client.audit} organizationId={organizationId} /></TabBoundary> : null}
             {tab === 'dynamics' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationDynamicsTab client={client.branchDynamics} organizationId={organizationId} branches={organization.branches} /></TabBoundary> : null}
+            {tab === 'offboarding' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OffboardingTab client={client.offboarding} organizationId={organizationId} onPurged={onChanged} /></TabBoundary> : null}
             {tab === 'features' ? <TabBoundary {...boundaryProps} resetKey={tabResetKey}><OrganizationFeaturesTab client={client.features} organizationId={organizationId} planCode={organization.planCode} canManage={access.canManageFeatures} /></TabBoundary> : null}
           </div>
         </div>

@@ -215,6 +215,24 @@ export class PlatformTransport {
     return PlatformTransport.readBody<T>(response);
   }
 
+  /**
+   * Скачивание файла. Отдельно от `send`, потому что тело здесь не JSON, а байты: собрать ссылку
+   * и отдать её браузеру нельзя — запрос обязан нести токен, а `<a href>` его не несёт.
+   */
+  public async download(path: string): Promise<Blob> {
+    let response = await this.dispatch('GET', path, undefined, undefined, undefined);
+    if (response.status === 401 && this.session !== null) {
+      const refreshed = await this.refreshTokenOnce();
+      if (refreshed !== null) {
+        response = await this.dispatch('GET', path, undefined, undefined, undefined);
+      }
+    }
+    if (!response.ok) {
+      throw await PlatformTransport.toError(response);
+    }
+    return response.blob();
+  }
+
   public async sendIdempotent<T>(method: string, path: string, body: unknown | undefined): Promise<T> {
     const idempotencyKey = crypto.randomUUID();
     let response = await this.dispatch(method, path, body, { 'Idempotency-Key': idempotencyKey });

@@ -19,6 +19,7 @@ export type PlatformCapability =
   | 'audit.read'
   | 'admins.manage'
   | 'announcements.manage'
+  | 'offboarding.manage'
   | 'health.read';
 
 const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
@@ -65,6 +66,7 @@ const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
   'audit.read': ['platform.audit.view'],
   'admins.manage': ['platform.admins.manage'],
   'announcements.manage': ['platform.announcements.manage'],
+  'offboarding.manage': ['platform.organizations.offboarding.manage'],
   'health.read': ['platform.health.view']
 };
 

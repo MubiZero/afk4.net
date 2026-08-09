@@ -20,7 +20,10 @@ public sealed class EfDebtOverviewService(
             .ToDictionary(group => group.Key, group => (IReadOnlyCollection<InvoiceEntity>)group.ToList());
 
         var organizations = await dbContext.Organizations.AsNoTracking()
-            .Where(organization => organization.Status != OrganizationStatusNames.DeletionPending)
+            // Уходящий клуб не тревожат письмами о долге, а стёртый — тем более: за ним уже нет
+            // ни данных, ни людей, только архивная строка для отчётности.
+            .Where(organization => organization.Status != OrganizationStatusNames.DeletionPending
+                && organization.Status != OrganizationStatusNames.Purged)
             .ToListAsync(cancellationToken);
         var subscriptions = await dbContext.OrganizationSubscriptions.AsNoTracking()
             .ToDictionaryAsync(subscription => subscription.OrganizationId, cancellationToken);

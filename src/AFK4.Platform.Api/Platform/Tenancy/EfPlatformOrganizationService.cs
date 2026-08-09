@@ -59,6 +59,9 @@ public sealed class EfPlatformOrganizationService(
         UpdateChannelNames.Internal
     };
 
+    /// <summary>Сколько времени данные клуба живут после заявки на уход, прежде чем их можно стереть.</summary>
+    private const int PurgeGraceDays = 30;
+
     private readonly PasswordHasher<StaffUserEntity> staffPasswordHasher = new();
     private readonly PlatformOrganizationOptions options = organizationOptions.Value;
 
@@ -559,6 +562,14 @@ public sealed class EfPlatformOrganizationService(
             return PlatformOrganizationOperationResult<OrganizationDetailDto>.NotFound("Organization was not found.");
         }
 
+        // Стёртый клуб — архивная строка, а не участник жизненного цикла: данных за ней уже нет,
+        // и «вернуть в работу» значило бы сделать вид, что они есть.
+        if (organization.Status == OrganizationStatusNames.Purged)
+        {
+            return PlatformOrganizationOperationResult<OrganizationDetailDto>.BadRequest(
+                "Organization data has been purged; its status is final.");
+        }
+
         var trimmedReason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim();
         var now = timeProvider.GetUtcNow();
         if (organization.Status != normalizedStatus || organization.StatusReason != trimmedReason)
@@ -567,6 +578,19 @@ public sealed class EfPlatformOrganizationService(
             organization.StatusReason = trimmedReason;
             organization.StatusChangedAtUtc = now;
             organization.UpdatedAtUtc = now;
+
+            if (normalizedStatus == OrganizationStatusNames.DeletionPending)
+            {
+                // Срок ставится ОДИН раз. Продлевать его при повторном переводе значило бы дать
+                // способ отодвигать стирание бесконечно, просто потыкав статус туда-обратно.
+                organization.PurgeEligibleAtUtc ??= now.AddDays(PurgeGraceDays);
+            }
+            else
+            {
+                // Передумали — следа от несостоявшегося ухода оставаться не должно.
+                organization.PurgeEligibleAtUtc = null;
+            }
+
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
