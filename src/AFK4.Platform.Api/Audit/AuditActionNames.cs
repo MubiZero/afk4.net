@@ -322,4 +322,7 @@ public static class AuditActionNames
     public const string UpdatePlatformAnnouncement = "platform.announcements.update";
     public const string PublishPlatformAnnouncement = "platform.announcements.publish";
     public const string WithdrawPlatformAnnouncement = "platform.announcements.withdraw";
+    public const string ExportOrganizationData = "platform.organizations.data.export";
+    public const string PurgeOrganizationRequested = "platform.organizations.purge.requested";
+    public const string PurgeOrganizationCompleted = "platform.organizations.purge.completed";
 }

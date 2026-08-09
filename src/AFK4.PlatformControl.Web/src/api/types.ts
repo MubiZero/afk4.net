@@ -543,6 +543,25 @@ export interface PlatformRole {
   adminCount: number;
 }
 
+export interface OrganizationOffboarding {
+  organizationId: string;
+  slug: string;
+  status: string;
+  purgeEligibleAtUtc: string | null;
+  purgedAtUtc: string | null;
+  canPurge: boolean;
+}
+
+export interface PurgeOrganizationResult {
+  players: number;
+  staffUsers: number;
+  sessions: number;
+  sales: number;
+  devices: number;
+  branches: number;
+  clubAuditRecords: number;
+}
+
 export interface PlatformAnnouncement {
   announcementId: string;
   title: string;

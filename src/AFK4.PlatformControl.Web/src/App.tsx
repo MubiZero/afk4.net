@@ -93,7 +93,8 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
     canManageUpdateChannel: can(session, 'organizations.update_channel.manage'),
     canManageFeatures: can(session, 'organizations.features.manage'),
     canTransferOwner: can(session, 'organizations.owner_transfer.manage'),
-    canViewAudit: can(session, 'audit.read')
+    canViewAudit: can(session, 'audit.read'),
+    canManageOffboarding: can(session, 'offboarding.manage')
   };
 
   return (

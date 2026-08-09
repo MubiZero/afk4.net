@@ -55,6 +55,13 @@ public static class PlatformAdminPermissionNames
     public const string ManageAnnouncements = "platform.announcements.manage";
 
     /// <summary>
+    /// Уход клуба: выгрузка его данных и стирание. Отдельно от правки лимитов и статуса — это
+    /// вынос персональных данных наружу и необратимое удаление, а не настройка. Одалживать чужое
+    /// право здесь значит раздать необратимое тем, кому дали настраивать.
+    /// </summary>
+    public const string ManageOffboarding = "platform.organizations.offboarding.manage";
+
+    /// <summary>
     /// Все права платформы. Роль с полным доступом получает этот список целиком, панель
     /// показывает его как набор переключателей. Полнота стережётся тестом.
     /// </summary>
@@ -74,6 +81,7 @@ public static class PlatformAdminPermissionNames
         ViewOrganizationHealth,
         ManageOrganizationFeatures,
         ManageAnnouncements,
+        ManageOffboarding,
         ViewPlatformAudit,
         ViewBilling,
         ManagePlans,

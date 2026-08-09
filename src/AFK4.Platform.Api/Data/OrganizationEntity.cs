@@ -30,6 +30,16 @@ public sealed class OrganizationEntity
 
     public string LimitsJson { get; set; } = "{}";
 
+    /// <summary>
+    /// Раньше этой даты стирать нельзя. Ставится при переводе в «уходит», по умолчанию через
+    /// месяц: всё это время данные целы и клуб возвращается в работу сменой статуса. Передумать —
+    /// нормальный сценарий, а не исключение.
+    /// </summary>
+    public DateTimeOffset? PurgeEligibleAtUtc { get; set; }
+
+    /// <summary>Когда клуб стёрли. Вместе со статусом отличает «ушёл и стёрт» от «собирается уйти».</summary>
+    public DateTimeOffset? PurgedAtUtc { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 
     public DateTimeOffset UpdatedAtUtc { get; set; }

@@ -19,6 +19,7 @@ import { AdminsApi } from './platformClients/admins';
 import { TwoFactorApi } from './platformClients/twoFactor';
 import { RolesApi } from './platformClients/roles';
 import { AnnouncementsApi } from './platformClients/announcements';
+import { OffboardingApi } from './platformClients/offboarding';
 import { HealthApi } from './platformClients/health';
 
 export { PlatformApiError, PlatformStaleClientError } from './platformTransport';
@@ -54,6 +55,8 @@ export class PlatformApiClient {
   public readonly roles: RolesApi;
 
   public readonly announcements: AnnouncementsApi;
+
+  public readonly offboarding: OffboardingApi;
   public readonly health: HealthApi;
 
   public constructor(options: PlatformApiClientOptions) {
@@ -77,6 +80,7 @@ export class PlatformApiClient {
     this.twoFactor = new TwoFactorApi(this.transport);
     this.roles = new RolesApi(this.transport);
     this.announcements = new AnnouncementsApi(this.transport);
+    this.offboarding = new OffboardingApi(this.transport);
     this.health = new HealthApi(this.transport);
   }
 
