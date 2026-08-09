@@ -120,6 +120,15 @@ public sealed class PlatformAdminDirectoryService(
         // иначе инвариант «последний полный администратор» опирался бы на снимок ролей, снятый
         // до транзакции, и перестал бы держаться под гонкой.
         var fullAccessRoles = await rolePermissionResolver.ListFullAccessRoleNamesAsync(cancellationToken);
+        if (fullAccessRoles.Count == 0)
+        {
+            // Пустая таблица ролей — сломанное состояние (сидер заводит встроенные роли при старте).
+            // Но именно в сломанном состоянии предохранитель обязан становиться строже, а не
+            // исчезать: иначе «ролей с полным доступом не нашлось» читается как «полных
+            // администраторов нет, отключать можно кого угодно», и панель молча остаётся без
+            // единого администратора.
+            fullAccessRoles = new HashSet<string>([PlatformAdminRoleNames.PlatformAdmin], StringComparer.OrdinalIgnoreCase);
+        }
 
         var currentRoles = OpaquePlatformAdminTokenService.ParseRoles(target.RolesJson);
         var currentRole = PrimaryRole(currentRoles, fullAccessRoles);

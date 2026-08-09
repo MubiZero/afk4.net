@@ -221,6 +221,28 @@ public sealed class PlatformAdminDirectoryServiceTests
         Assert.Equal("left_plus", widened!.Role);
     }
 
+    [Fact]
+    public async Task Update_KeepsProtectingTheLastAdmin_WhenTheRoleTableIsEmpty()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var admin = await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+
+        // Сломанное состояние: ролей в базе нет вовсе. Предохранитель обязан стать строже, а не
+        // исчезнуть — иначе «полных администраторов не нашлось» означало бы «отключать можно всех».
+        db.PlatformRoles.RemoveRange(await db.PlatformRoles.ToArrayAsync());
+        await db.SaveChangesAsync();
+        var service = scope.ServiceProvider.GetRequiredService<PlatformAdminDirectoryService>();
+
+        var (item, error) = await service.UpdateAsync(admin.PlatformAdminId, admin.PlatformAdminId,
+            new UpdatePlatformAdminRequest(null, false), CancellationToken.None);
+
+        Assert.Null(item);
+        Assert.Equal(PlatformAdminDirectoryError.LastFullAdmin, error);
+    }
+
     private static async Task SeedRoleAsync(
         PlatformDbContext db,
         string roleName,
@@ -314,6 +336,18 @@ public sealed class PlatformAdminDirectoryServiceTests
             var adminCId = Guid.NewGuid();
             await using (var seedDb = new PlatformDbContext(options))
             {
+                // Роль с полным доступом заводится явно: в проде её создаёт сидер при старте, и
+                // без неё тест проверял бы аварийный запасной путь, а не настоящий.
+                seedDb.PlatformRoles.Add(new PlatformRoleEntity
+                {
+                    RoleName = PlatformAdminRoleNames.PlatformAdmin,
+                    DisplayName = "Администратор",
+                    Description = string.Empty,
+                    IsBuiltIn = true,
+                    GrantsAllPermissions = true,
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now
+                });
                 seedDb.PlatformAdminUsers.AddRange(
                     NewFullAdmin(adminBId, "b", now),
                     NewFullAdmin(adminCId, "c", now));

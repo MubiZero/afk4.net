@@ -191,6 +191,7 @@ builder.Services.AddScoped<PlatformAdminTwoFactorService>();
 builder.Services.AddScoped<IPlatformAdminContextAccessor, PlatformAdminContextAccessor>();
 builder.Services.AddScoped<PlatformAdminAuthorizationService>();
 builder.Services.AddScoped<PlatformAdminDirectoryService>();
+builder.Services.AddScoped<PlatformRoleService>();
 builder.Services.AddScoped<PlatformSupportAccessGrantService>();
 builder.Services.AddScoped<IPlatformSupportContextAccessor, PlatformSupportContextAccessor>();
 builder.Services.Configure<SupportAccessOptions>(
@@ -486,6 +487,7 @@ organizations.MapReportScheduleEndpoints();
 app.MapPlatformOrganizationEndpoints();
 app.MapPlatformBranchEndpoints();
 app.MapPlatformFeatureEndpoints();
+app.MapPlatformRoleEndpoints();
 app.MapPlatformAdminDirectoryEndpoints();
 app.MapPlatformAdminTwoFactorEndpoints();
 app.MapPlatformBillingEndpoints(organizations);
