@@ -123,7 +123,35 @@ public sealed class PlatformAdminInvitationActivationTests
             string codeForSecond;
             await using (var seedDb = new PlatformDbContext(options))
             {
-                var seedService = new PlatformAdminDirectoryService(seedDb, new FixedTimeProvider(now));
+                // InviteAsync validates the role against the database now, not a static catalog —
+                // this raw-context test bypasses PlatformApiFactory's seeding, so seed the declared
+                // roles here the same way PlatformRoleSeedHostedService would on a real startup.
+                foreach (var declaration in PlatformRoleCatalog.Declared)
+                {
+                    seedDb.PlatformRoles.Add(new PlatformRoleEntity
+                    {
+                        RoleName = declaration.RoleName,
+                        DisplayName = declaration.DisplayName,
+                        Description = declaration.Description,
+                        IsBuiltIn = true,
+                        GrantsAllPermissions = declaration.GrantsAllPermissions,
+                        CreatedAtUtc = now,
+                        UpdatedAtUtc = now
+                    });
+                    foreach (var permissionName in declaration.Permissions)
+                    {
+                        seedDb.PlatformRolePermissions.Add(new PlatformRolePermissionEntity
+                        {
+                            PlatformRolePermissionId = Guid.NewGuid(),
+                            RoleName = declaration.RoleName,
+                            PermissionName = permissionName
+                        });
+                    }
+                }
+                await seedDb.SaveChangesAsync();
+
+                var seedService = new PlatformAdminDirectoryService(
+                    seedDb, new FixedTimeProvider(now), new EfPlatformRolePermissionResolver(seedDb));
                 var (first, firstError) = await seedService.InviteAsync(creatorId,
                     new CreatePlatformAdminInvitationRequest(PlatformAdminRoleNames.PlatformSupport, 72), CancellationToken.None);
                 var (second, secondError) = await seedService.InviteAsync(creatorId,
@@ -137,8 +165,10 @@ public sealed class PlatformAdminInvitationActivationTests
             gate.Arm();
             await using var dbForFirst = new PlatformDbContext(options);
             await using var dbForSecond = new PlatformDbContext(options);
-            var serviceForFirst = new PlatformAdminDirectoryService(dbForFirst, new FixedTimeProvider(now));
-            var serviceForSecond = new PlatformAdminDirectoryService(dbForSecond, new FixedTimeProvider(now));
+            var serviceForFirst = new PlatformAdminDirectoryService(
+                dbForFirst, new FixedTimeProvider(now), new EfPlatformRolePermissionResolver(dbForFirst));
+            var serviceForSecond = new PlatformAdminDirectoryService(
+                dbForSecond, new FixedTimeProvider(now), new EfPlatformRolePermissionResolver(dbForSecond));
 
             var results = await Task.WhenAll(
                 serviceForFirst.AcceptInvitationAsync(

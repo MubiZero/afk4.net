@@ -128,6 +128,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PlatformFeatureEntity> PlatformFeatures => Set<PlatformFeatureEntity>();
 
+    public DbSet<PlatformRoleEntity> PlatformRoles => Set<PlatformRoleEntity>();
+
+    public DbSet<PlatformRolePermissionEntity> PlatformRolePermissions => Set<PlatformRolePermissionEntity>();
+
     public DbSet<PlanFeatureEntity> PlanFeatures => Set<PlanFeatureEntity>();
 
     public DbSet<OrganizationFeatureOverrideEntity> OrganizationFeatureOverrides => Set<OrganizationFeatureOverrideEntity>();
@@ -1055,6 +1059,27 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(feature => feature.FeatureKey).HasMaxLength(64);
             entity.Property(feature => feature.Name).HasMaxLength(128).IsRequired();
             entity.Property(feature => feature.Description).HasMaxLength(500).IsRequired();
+        });
+
+        modelBuilder.Entity<PlatformRoleEntity>(entity =>
+        {
+            entity.ToTable("platform_roles");
+            entity.HasKey(role => role.RoleName);
+            entity.Property(role => role.RoleName).HasMaxLength(64);
+            entity.Property(role => role.DisplayName).HasMaxLength(128).IsRequired();
+            entity.Property(role => role.Description).HasMaxLength(500).IsRequired();
+        });
+
+        modelBuilder.Entity<PlatformRolePermissionEntity>(entity =>
+        {
+            entity.ToTable("platform_role_permissions");
+            entity.HasKey(rolePermission => rolePermission.PlatformRolePermissionId);
+            entity.Property(rolePermission => rolePermission.RoleName).HasMaxLength(64).IsRequired();
+            entity.Property(rolePermission => rolePermission.PermissionName).HasMaxLength(128).IsRequired();
+            entity.HasIndex(rolePermission => new { rolePermission.RoleName, rolePermission.PermissionName })
+                .IsUnique()
+                .HasDatabaseName("IX_platform_role_permissions_Role_Permission");
+            entity.HasIndex(rolePermission => rolePermission.RoleName);
         });
 
         modelBuilder.Entity<PlanFeatureEntity>(entity =>

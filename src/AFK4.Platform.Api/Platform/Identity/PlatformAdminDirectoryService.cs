@@ -8,7 +8,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Platform.Identity;
 
-public sealed class PlatformAdminDirectoryService(PlatformDbContext dbContext, TimeProvider timeProvider)
+public sealed class PlatformAdminDirectoryService(
+    PlatformDbContext dbContext,
+    TimeProvider timeProvider,
+    IPlatformRolePermissionResolver rolePermissionResolver)
 {
     // Excludes visually similar characters (0, O, 1, l) so the code stays readable when typed by hand.
     private const string InvitationCodeAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -45,7 +48,7 @@ public sealed class PlatformAdminDirectoryService(PlatformDbContext dbContext, T
         CreatePlatformAdminInvitationRequest request,
         CancellationToken cancellationToken)
     {
-        if (!PlatformAdminPermissionCatalog.IsKnownRole(request.Role))
+        if (!await rolePermissionResolver.IsKnownRoleAsync(request.Role, cancellationToken))
         {
             return (null, PlatformAdminDirectoryError.UnknownRole);
         }
@@ -107,7 +110,7 @@ public sealed class PlatformAdminDirectoryService(PlatformDbContext dbContext, T
             return (null, PlatformAdminDirectoryError.NotFound);
         }
 
-        if (request.Role is not null && !PlatformAdminPermissionCatalog.IsKnownRole(request.Role))
+        if (request.Role is not null && !await rolePermissionResolver.IsKnownRoleAsync(request.Role, cancellationToken))
         {
             return (null, PlatformAdminDirectoryError.UnknownRole);
         }
@@ -145,7 +148,7 @@ public sealed class PlatformAdminDirectoryService(PlatformDbContext dbContext, T
         {
             var isRoleDowngrade = request.Role is not null
                 && !string.Equals(request.Role, currentRole, StringComparison.OrdinalIgnoreCase)
-                && IsRoleDowngrade(currentRole, request.Role);
+                && await IsRoleDowngradeAsync(currentRole, request.Role, cancellationToken);
 
             if (isRoleDowngrade || request.IsActive == false)
             {
@@ -289,10 +292,10 @@ public sealed class PlatformAdminDirectoryService(PlatformDbContext dbContext, T
         return string.Equals(role, PlatformAdminRoleNames.PlatformAdmin, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsRoleDowngrade(string fromRole, string toRole)
+    private async Task<bool> IsRoleDowngradeAsync(string fromRole, string toRole, CancellationToken cancellationToken)
     {
-        var fromPermissionCount = PlatformAdminPermissionCatalog.GetPermissions([fromRole]).Count;
-        var toPermissionCount = PlatformAdminPermissionCatalog.GetPermissions([toRole]).Count;
+        var fromPermissionCount = (await rolePermissionResolver.ResolveAsync([fromRole], cancellationToken)).Count;
+        var toPermissionCount = (await rolePermissionResolver.ResolveAsync([toRole], cancellationToken)).Count;
         return toPermissionCount < fromPermissionCount;
     }
 

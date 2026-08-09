@@ -9,7 +9,8 @@ namespace AFK4.Platform.Api.Platform.Identity;
 
 public sealed class OpaquePlatformAdminTokenService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IPlatformAdminTokenService
+    TimeProvider timeProvider,
+    IPlatformRolePermissionResolver rolePermissionResolver) : IPlatformAdminTokenService
 {
     private static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromHours(8);
     private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
@@ -84,7 +85,7 @@ public sealed class OpaquePlatformAdminTokenService(
 
         return user is null
             ? null
-            : CreateContext(user);
+            : await CreateContextAsync(user, cancellationToken);
     }
 
     public async Task<bool> RevokeAsync(PlatformAdminSignOutRequest request, CancellationToken cancellationToken)
@@ -154,7 +155,7 @@ public sealed class OpaquePlatformAdminTokenService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var context = CreateContext(user);
+        var context = await CreateContextAsync(user, cancellationToken);
 
         return new PlatformAdminSignInResponse(
             PlatformAdminId: user.PlatformAdminUserId,
@@ -168,15 +169,18 @@ public sealed class OpaquePlatformAdminTokenService(
             Permissions: context.Permissions.Order(StringComparer.OrdinalIgnoreCase).ToArray());
     }
 
-    private static PlatformAdminContext CreateContext(PlatformAdminUserEntity user)
+    private async Task<PlatformAdminContext> CreateContextAsync(
+        PlatformAdminUserEntity user,
+        CancellationToken cancellationToken)
     {
         var roles = ParseRoles(user.RolesJson);
+        var permissions = await rolePermissionResolver.ResolveAsync(roles, cancellationToken);
         return new PlatformAdminContext(
             PlatformAdminUserId: user.PlatformAdminUserId,
             UserName: user.UserName,
             DisplayName: user.DisplayName,
             Roles: roles,
-            Permissions: PlatformAdminPermissionCatalog.GetPermissions(roles));
+            Permissions: permissions);
     }
 
     internal static IReadOnlySet<string> ParseRoles(string rolesJson)

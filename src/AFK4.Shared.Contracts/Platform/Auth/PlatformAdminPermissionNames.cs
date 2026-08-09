@@ -47,4 +47,35 @@ public static class PlatformAdminPermissionNames
     public const string ViewPlatformHealth = "platform.health.view";
 
     public const string ManageOrganizationFeatures = "platform.organizations.features.manage";
+
+    /// <summary>
+    /// Все права платформы. Роль с полным доступом получает этот список целиком, панель
+    /// показывает его как набор переключателей. Полнота стережётся тестом.
+    /// </summary>
+    public static readonly IReadOnlyList<string> All =
+    [
+        UseSupportAccess,
+        ViewOrganizations,
+        CreateOrganization,
+        UpdateOrganizationStatus,
+        UpdateOrganizationLimits,
+        UpdateOrganizationProfile,
+        UpdateOrganizationUpdateChannel,
+        ViewOrganizationSupportNotes,
+        ManageOrganizationSupportNotes,
+        ManageOrganizationOwnerInvites,
+        TransferOrganizationOwner,
+        ViewOrganizationHealth,
+        ManageOrganizationFeatures,
+        ViewPlatformAudit,
+        ViewBilling,
+        ManagePlans,
+        ManageSubscriptions,
+        ManageInvoices,
+        ViewUpdates,
+        ManageUpdatePackages,
+        ManageUpdateRollouts,
+        ManagePlatformAdmins,
+        ViewPlatformHealth
+    ];
 }
