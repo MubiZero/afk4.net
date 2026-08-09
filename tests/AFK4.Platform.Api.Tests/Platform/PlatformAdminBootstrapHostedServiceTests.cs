@@ -140,6 +140,40 @@ public sealed class PlatformAdminBootstrapHostedServiceTests
         Assert.DoesNotContain("ghost_role", admin.RolesJson);
     }
 
+    // Regression for a review finding on task 2: with an unseeded PlatformRoles table,
+    // IsKnownRoleAsync answers false for EVERY role name, including real ones, so a configured
+    // known role and a configured unknown role were indistinguishable — both fell through to the
+    // same platform_admin default and StartAsync_WithBootstrapConfigAndEmptyTable_... passed only
+    // because platform_admin happens to be that default too. This test configures a real,
+    // non-default role (platform_support) and asserts the bootstrap keeps it as-is instead of
+    // silently substituting platform_admin — it fails if IsKnownRoleAsync is broken or the seed
+    // above is missing.
+    [Fact]
+    public async Task StartAsync_WithKnownNonDefaultRole_KeepsTheConfiguredRole()
+    {
+        await using var serviceProvider = BuildServiceProvider();
+        var options = Options.Create(new PlatformAdminBootstrapOptions
+        {
+            UserName = "boot-support@afk4.local",
+            DisplayName = "Boot Support",
+            Password = "BootPassw0rd!",
+            Roles = [PlatformAdminRoleNames.PlatformSupport]
+        });
+        var hostedService = new PlatformAdminBootstrapHostedService(
+            serviceProvider,
+            options,
+            TimeProvider.System,
+            NullLogger<PlatformAdminBootstrapHostedService>.Instance);
+
+        await hostedService.StartAsync(CancellationToken.None);
+
+        await using var verificationScope = serviceProvider.CreateAsyncScope();
+        var dbContext = verificationScope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var admin = await dbContext.PlatformAdminUsers.SingleAsync();
+        Assert.Contains(PlatformAdminRoleNames.PlatformSupport, admin.RolesJson);
+        Assert.DoesNotContain(PlatformAdminRoleNames.PlatformAdmin, admin.RolesJson);
+    }
+
     private static ServiceProvider BuildServiceProvider()
     {
         var services = new ServiceCollection();
@@ -150,6 +184,42 @@ public sealed class PlatformAdminBootstrapHostedServiceTests
         services.AddScoped<IAuditRecordStager, AuditRecordStager>();
         services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
         services.AddScoped<IPlatformRolePermissionResolver, EfPlatformRolePermissionResolver>();
-        return services.BuildServiceProvider();
+        var serviceProvider = services.BuildServiceProvider();
+
+        // Seed PlatformRoles/PlatformRolePermissions the same way PlatformRoleSeedHostedService
+        // would on a real startup, so IsKnownRoleAsync here answers from real data instead of an
+        // always-empty table that would make every role name look unknown.
+        using (var seedScope = serviceProvider.CreateScope())
+        {
+            var dbContext = seedScope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var now = DateTimeOffset.UtcNow;
+            foreach (var declaration in PlatformRoleCatalog.Declared)
+            {
+                dbContext.PlatformRoles.Add(new PlatformRoleEntity
+                {
+                    RoleName = declaration.RoleName,
+                    DisplayName = declaration.DisplayName,
+                    Description = declaration.Description,
+                    IsBuiltIn = true,
+                    GrantsAllPermissions = declaration.GrantsAllPermissions,
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now
+                });
+
+                foreach (var permissionName in declaration.Permissions)
+                {
+                    dbContext.PlatformRolePermissions.Add(new PlatformRolePermissionEntity
+                    {
+                        PlatformRolePermissionId = Guid.NewGuid(),
+                        RoleName = declaration.RoleName,
+                        PermissionName = permissionName
+                    });
+                }
+            }
+
+            dbContext.SaveChanges();
+        }
+
+        return serviceProvider;
     }
 }
