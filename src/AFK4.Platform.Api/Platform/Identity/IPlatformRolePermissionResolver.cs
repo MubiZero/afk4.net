@@ -10,4 +10,11 @@ public interface IPlatformRolePermissionResolver
     Task<IReadOnlySet<string>> ResolveAsync(IEnumerable<string> roleNames, CancellationToken cancellationToken);
 
     Task<bool> IsKnownRoleAsync(string roleName, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Роли, несущие полный доступ. Отдаётся набором, а не проверкой по одному имени: инвариант
+    /// «последний полный администратор не исчезает» перебирает всех администраторов сразу, и
+    /// проверка на каждого превратилась бы в запрос на строку.
+    /// </summary>
+    Task<IReadOnlySet<string>> ListFullAccessRoleNamesAsync(CancellationToken cancellationToken);
 }

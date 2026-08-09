@@ -126,6 +126,152 @@ public sealed class PlatformAdminDirectoryServiceTests
         Assert.Equal(PlatformAdminDirectoryError.UnknownRole, error);
     }
 
+    [Fact]
+    public async Task Update_AcceptsARoleCreatedInThePanel()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var admin = await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        await SeedRoleAsync(db, "billing_clerk", grantsAllPermissions: false,
+            [PlatformAdminPermissionNames.ViewOrganizations, PlatformAdminPermissionNames.ViewBilling]);
+        var targetId = await SeedAdminAsync(db, "clerk", PlatformAdminRoleNames.PlatformSupport);
+        var service = scope.ServiceProvider.GetRequiredService<PlatformAdminDirectoryService>();
+
+        var (item, error) = await service.UpdateAsync(admin.PlatformAdminId, targetId,
+            new UpdatePlatformAdminRequest("billing_clerk", null), CancellationToken.None);
+
+        // Роль, заведённая в панели, обязана приниматься наравне со встроенной: проверка по
+        // захардкоженному списку имён отвергла бы её.
+        Assert.Equal(PlatformAdminDirectoryError.None, error);
+        Assert.Equal("billing_clerk", item!.Role);
+    }
+
+    [Fact]
+    public async Task Update_TreatsAnyRoleWithFullAccessAsFullAdmin()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var admin = await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        await SeedRoleAsync(db, "owner", grantsAllPermissions: true, []);
+        var ownerId = await SeedAdminAsync(db, "owner-user", "owner");
+        var service = scope.ServiceProvider.GetRequiredService<PlatformAdminDirectoryService>();
+
+        // Второй носитель полного доступа существует — значит отключение первого допустимо.
+        var (item, error) = await service.UpdateAsync(admin.PlatformAdminId, admin.PlatformAdminId,
+            new UpdatePlatformAdminRequest("owner", null), CancellationToken.None);
+        Assert.Equal(PlatformAdminDirectoryError.None, error);
+        Assert.NotNull(item);
+
+        // А теперь отключаем носителя роли owner, когда сам актор тоже owner: полный доступ
+        // остаётся у актора, поэтому это разрешено.
+        var (_, disableError) = await service.UpdateAsync(admin.PlatformAdminId, ownerId,
+            new UpdatePlatformAdminRequest(null, false), CancellationToken.None);
+        Assert.Equal(PlatformAdminDirectoryError.None, disableError);
+
+        // Последний носитель полного доступа — теперь только актор; отключить его нельзя,
+        // хотя его роль называется «owner», а не platform_admin.
+        var (_, lastError) = await service.UpdateAsync(admin.PlatformAdminId, admin.PlatformAdminId,
+            new UpdatePlatformAdminRequest(null, false), CancellationToken.None);
+        Assert.Equal(PlatformAdminDirectoryError.LastFullAdmin, lastError);
+    }
+
+    [Fact]
+    public async Task Update_DetectsSelfDemotionByLostPermissions_NotByCount()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var admin = await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+
+        // Две роли с ОДИНАКОВЫМ числом прав и разными наборами. Проверка по количеству прав
+        // не увидит здесь понижения вовсе, хотя человек теряет управление администраторами.
+        await SeedRoleAsync(db, "left", grantsAllPermissions: false,
+            [PlatformAdminPermissionNames.ManagePlatformAdmins, PlatformAdminPermissionNames.ViewOrganizations]);
+        await SeedRoleAsync(db, "right", grantsAllPermissions: false,
+            [PlatformAdminPermissionNames.ViewBilling, PlatformAdminPermissionNames.ViewOrganizations]);
+        await SeedRoleAsync(db, "left_plus", grantsAllPermissions: false,
+            [
+                PlatformAdminPermissionNames.ManagePlatformAdmins,
+                PlatformAdminPermissionNames.ViewOrganizations,
+                PlatformAdminPermissionNames.ViewBilling
+            ]);
+        // Второй полный админ, чтобы инвариант LastFullAdmin не срабатывал раньше самопонижения.
+        await SeedAdminAsync(db, "spare", PlatformAdminRoleNames.PlatformAdmin);
+
+        // Ставим актору роль «left» напрямую: перевести себя туда через UpdateAsync нельзя —
+        // это и есть самопонижение с полного доступа, а нам нужна стартовая точка внутри
+        // двух равных по размеру ролей.
+        var actor = await db.PlatformAdminUsers.SingleAsync(row => row.PlatformAdminUserId == admin.PlatformAdminId);
+        actor.RolesJson = OpaquePlatformAdminTokenService.SerializeRoles(["left"]);
+        await db.SaveChangesAsync();
+        var service = scope.ServiceProvider.GetRequiredService<PlatformAdminDirectoryService>();
+
+        var (_, sidewaysError) = await service.UpdateAsync(admin.PlatformAdminId, admin.PlatformAdminId,
+            new UpdatePlatformAdminRequest("right", null), CancellationToken.None);
+        Assert.Equal(PlatformAdminDirectoryError.SelfDemotion, sidewaysError);
+
+        var (widened, widenError) = await service.UpdateAsync(admin.PlatformAdminId, admin.PlatformAdminId,
+            new UpdatePlatformAdminRequest("left_plus", null), CancellationToken.None);
+        Assert.Equal(PlatformAdminDirectoryError.None, widenError);
+        Assert.Equal("left_plus", widened!.Role);
+    }
+
+    private static async Task SeedRoleAsync(
+        PlatformDbContext db,
+        string roleName,
+        bool grantsAllPermissions,
+        IReadOnlyList<string> permissions)
+    {
+        var now = DateTimeOffset.Parse("2026-08-09T08:00:00Z");
+        db.PlatformRoles.Add(new PlatformRoleEntity
+        {
+            RoleName = roleName,
+            DisplayName = roleName,
+            Description = roleName,
+            IsBuiltIn = false,
+            GrantsAllPermissions = grantsAllPermissions,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        });
+
+        foreach (var permission in permissions)
+        {
+            db.PlatformRolePermissions.Add(new PlatformRolePermissionEntity
+            {
+                PlatformRolePermissionId = Guid.NewGuid(),
+                RoleName = roleName,
+                PermissionName = permission
+            });
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task<Guid> SeedAdminAsync(PlatformDbContext db, string userName, string roleName)
+    {
+        var now = DateTimeOffset.Parse("2026-08-09T08:00:00Z");
+        var id = Guid.NewGuid();
+        db.PlatformAdminUsers.Add(new PlatformAdminUserEntity
+        {
+            PlatformAdminUserId = id,
+            UserName = userName,
+            NormalizedUserName = userName.ToUpperInvariant(),
+            DisplayName = userName,
+            PasswordHash = "x",
+            RolesJson = OpaquePlatformAdminTokenService.SerializeRoles([roleName]),
+            IsActive = true,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        });
+        await db.SaveChangesAsync();
+        return id;
+    }
+
     // Regression for a code-review finding: the LastFullAdmin check is read-then-write (read every
     // other admin's IsActive/role, then write the target row). Two concurrent UpdateAsync calls
     // disabling two DIFFERENT full admins could each read the other as still active before either
