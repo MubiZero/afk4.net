@@ -29,6 +29,12 @@ import { BillingStatusBanner } from './billing/BillingStatusBanner';
 import { useBillingStatus } from './billing/useBillingStatus';
 import { PostAuthShiftGate } from './PostAuthShiftGate';
 import { ShellHeader } from './ShellHeader';
+import {
+  PlatformMessageBanner,
+  PlatformMessagesButton,
+  PlatformMessagesHistory,
+  usePlatformMessages
+} from './PlatformMessageBanner';
 import { WorkspaceRail } from './WorkspaceRail';
 import { WorkspaceRouter } from './WorkspaceRouter';
 import { ShellStatusBar } from './ShellStatusBar';
@@ -260,6 +266,8 @@ function AppInner() {
   // среди read-прав — supportPermissions включает все `.view`-права).
   const billingStatus = useBillingStatus(staffAuthStatus, staffAuthSession, config);
   const showBillingBanner = shouldShowBillingBanner(activeSupportSession !== null, billingStatus);
+  const platformMessages = usePlatformMessages(backendContext);
+  const [messagesHistoryOpen, setMessagesHistoryOpen] = useState(false);
   const canUsePcControl = (hasPermission(authSession, permissionNames.viewDiagnostics)
     && hasPermission(authSession, permissionNames.viewDeviceDetail))
     || hasPermission(authSession, permissionNames.dispatchDeviceCommand);
@@ -388,18 +396,26 @@ function AppInner() {
         <SupportModeBanner session={activeSupportSession} onExit={handleExitSupportMode} />
       ) : billingStatus !== null && showBillingBanner ? (
         <BillingStatusBanner status={billingStatus} />
-      ) : null}
+      ) : (
+        // Третьей в том же слоте и с наименьшим приоритетом: саппорт-сессия и долг перед
+        // платформой важнее объявления. Постоянный вход в сообщения — кнопка в шапке, поэтому
+        // уступленный слот ничего не прячет насовсем.
+        <PlatformMessageBanner state={platformMessages} onOpenHistory={() => setMessagesHistoryOpen(true)} />
+      )}
       <div
         className="operator-shell"
         style={{
           '--shell-tabstrip': showWorkspaceTabs ? '41px' : '0px',
           '--shell-context-col': contextCol,
-          '--shell-banner-h': activeSupportSession !== null || showBillingBanner ? '40px' : '0px'
+          '--shell-banner-h': activeSupportSession !== null || showBillingBanner || platformMessages.unread.length > 0
+            ? '40px'
+            : '0px'
         } as CSSProperties}
       >
         <WindowResizeHandles />
         <ShellHeader
           onOpenPalette={() => setPaletteOpen(true)}
+          messagesButton={<PlatformMessagesButton state={platformMessages} onOpen={() => setMessagesHistoryOpen(true)} />}
           branchSwitcher={authSession.branchIds.length > 1 ? (
             <BranchSwitcher
               branches={authSession.branchIds.map((branchId) => ({
@@ -411,6 +427,10 @@ function AppInner() {
             />
           ) : undefined}
         />
+
+        {messagesHistoryOpen && (
+          <PlatformMessagesHistory state={platformMessages} onClose={() => setMessagesHistoryOpen(false)} />
+        )}
 
         {accountPanelOpen && backendContext !== null && (
           <AccountPanel

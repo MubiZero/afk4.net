@@ -1,0 +1,5 @@
+{
+  "subject": "AFK4.NET: {{title}}",
+  "bodyText": "Здравствуйте, {{displayName}}. Сообщение платформы для клуба «{{organizationName}}».\n\n{{title}}\n\n{{body}}",
+  "bodyHtml": "<p>Здравствуйте, {{displayName}}.</p><p>Сообщение платформы для клуба «{{organizationName}}».</p><h3>{{title}}</h3><p>{{body}}</p>"
+}

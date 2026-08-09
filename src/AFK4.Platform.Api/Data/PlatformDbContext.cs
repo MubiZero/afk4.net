@@ -132,6 +132,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PlatformRolePermissionEntity> PlatformRolePermissions => Set<PlatformRolePermissionEntity>();
 
+    public DbSet<PlatformAnnouncementEntity> PlatformAnnouncements => Set<PlatformAnnouncementEntity>();
+
+    public DbSet<AnnouncementReadEntity> AnnouncementReads => Set<AnnouncementReadEntity>();
+
     public DbSet<PlanFeatureEntity> PlanFeatures => Set<PlanFeatureEntity>();
 
     public DbSet<OrganizationFeatureOverrideEntity> OrganizationFeatureOverrides => Set<OrganizationFeatureOverrideEntity>();
@@ -1080,6 +1084,28 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
                 .IsUnique()
                 .HasDatabaseName("IX_platform_role_permissions_Role_Permission");
             entity.HasIndex(rolePermission => rolePermission.RoleName);
+        });
+
+        modelBuilder.Entity<PlatformAnnouncementEntity>(entity =>
+        {
+            entity.ToTable("platform_announcements");
+            entity.HasKey(announcement => announcement.PlatformAnnouncementId);
+            entity.Property(announcement => announcement.Title).HasMaxLength(200).IsRequired();
+            entity.Property(announcement => announcement.Body).HasMaxLength(4000).IsRequired();
+            entity.Property(announcement => announcement.Severity).HasMaxLength(16).IsRequired();
+            entity.Property(announcement => announcement.AudienceKind).HasMaxLength(16).IsRequired();
+            entity.Property(announcement => announcement.AudiencePlanCodesJson).IsRequired();
+            entity.Property(announcement => announcement.AudienceOrganizationIdsJson).IsRequired();
+            entity.Property(announcement => announcement.Status).HasMaxLength(16).IsRequired();
+            // Выдача клубу всегда фильтрует по статусу и окну показа — индекс под этот путь.
+            entity.HasIndex(announcement => new { announcement.Status, announcement.ShowUntilUtc });
+        });
+
+        modelBuilder.Entity<AnnouncementReadEntity>(entity =>
+        {
+            entity.ToTable("announcement_reads");
+            entity.HasKey(read => new { read.PlatformAnnouncementId, read.StaffUserId });
+            entity.HasIndex(read => read.StaffUserId);
         });
 
         modelBuilder.Entity<PlanFeatureEntity>(entity =>

@@ -47,9 +47,12 @@ public static class NotificationTemplateKeys
     /// <summary>Daily owner summary digest — revenue, shifts and cash discrepancies for the prior day (Stage 5 digest trigger).</summary>
     public const string OwnerDailySummary = "owner.daily_summary";
 
+    /// <summary>Platform announcement (severity warning or above) delivered to the organization owner (Wave D §3).</summary>
+    public const string PlatformAnnouncement = "platform.announcement";
+
     /// <summary>Scheduled report digest — a recurring CSV report delivered to the owner as an attachment (Stage 5 digest trigger).</summary>
     public const string ScheduledReport = "report.scheduled";
 
     public static readonly IReadOnlyList<string> All =
-        [Test, StaffPasswordReset, StaffPhoneVerification, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport];
+        [Test, StaffPasswordReset, StaffPhoneVerification, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement];
 }

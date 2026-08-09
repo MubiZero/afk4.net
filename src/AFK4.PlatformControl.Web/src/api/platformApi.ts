@@ -18,6 +18,7 @@ import { PulseApi } from './platformClients/pulse';
 import { AdminsApi } from './platformClients/admins';
 import { TwoFactorApi } from './platformClients/twoFactor';
 import { RolesApi } from './platformClients/roles';
+import { AnnouncementsApi } from './platformClients/announcements';
 import { HealthApi } from './platformClients/health';
 
 export { PlatformApiError, PlatformStaleClientError } from './platformTransport';
@@ -51,6 +52,8 @@ export class PlatformApiClient {
   public readonly admins: AdminsApi;
   public readonly twoFactor: TwoFactorApi;
   public readonly roles: RolesApi;
+
+  public readonly announcements: AnnouncementsApi;
   public readonly health: HealthApi;
 
   public constructor(options: PlatformApiClientOptions) {
@@ -73,6 +76,7 @@ export class PlatformApiClient {
     this.admins = new AdminsApi(this.transport);
     this.twoFactor = new TwoFactorApi(this.transport);
     this.roles = new RolesApi(this.transport);
+    this.announcements = new AnnouncementsApi(this.transport);
     this.health = new HealthApi(this.transport);
   }
 

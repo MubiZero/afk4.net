@@ -24,6 +24,7 @@ export * from './api/clients/shopOrders';
 export * from './api/clients/loyaltySettings';
 export * from './api/clients/eskhataConfig';
 export * from './api/clients/news';
+export * from './api/clients/platformMessages';
 export * from './api/clients/media';
 export * from './api/clients/dcTopUps';
 export * from './api/clients/dcConfig';
