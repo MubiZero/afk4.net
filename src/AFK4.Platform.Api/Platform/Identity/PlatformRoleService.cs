@@ -79,7 +79,7 @@ public sealed class PlatformRoleService(
         CreatePlatformRoleRequest request,
         CancellationToken cancellationToken)
     {
-        var roleName = (request.RoleName ?? string.Empty).Trim().ToLowerInvariant();
+        var roleName = NormalizeRoleName(request.RoleName ?? string.Empty);
         var displayName = (request.DisplayName ?? string.Empty).Trim();
         if (roleName.Length is 0 or > MaxRoleNameLength
             || displayName.Length is 0 or > MaxDisplayNameLength
@@ -153,10 +153,11 @@ public sealed class PlatformRoleService(
 
     private async Task<PlatformRoleResult> UpdateCoreAsync(
         Guid actorId,
-        string roleName,
+        string requestedRoleName,
         UpdatePlatformRoleRequest request,
         CancellationToken cancellationToken)
     {
+        var roleName = NormalizeRoleName(requestedRoleName);
         var role = await dbContext.PlatformRoles
             .SingleOrDefaultAsync(candidate => candidate.RoleName == roleName, cancellationToken);
         if (role is null)
@@ -240,8 +241,9 @@ public sealed class PlatformRoleService(
         return PlatformRoleResult.Ok(await LoadDtoAsync(roleName, cancellationToken));
     }
 
-    private async Task<PlatformRoleResult> DeleteCoreAsync(string roleName, CancellationToken cancellationToken)
+    private async Task<PlatformRoleResult> DeleteCoreAsync(string requestedRoleName, CancellationToken cancellationToken)
     {
+        var roleName = NormalizeRoleName(requestedRoleName);
         var role = await dbContext.PlatformRoles
             .SingleOrDefaultAsync(candidate => candidate.RoleName == roleName, cancellationToken);
         if (role is null)
@@ -337,12 +339,27 @@ public sealed class PlatformRoleService(
             cancellationToken);
     }
 
-    private static List<string> Normalize(IReadOnlyList<string>? permissions) =>
+    private static readonly IReadOnlyDictionary<string, string> CanonicalPermissions =
+        PlatformAdminPermissionNames.All.ToDictionary(permission => permission, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Право приводится к написанию из кода, а не сохраняется как пришло. Иначе
+    /// <c>PLATFORM.ADMINS.MANAGE</c> ложится в базу рядом с каноническим ключом: проверки
+    /// сравнивают без учёта регистра и право действует, а любое посимвольное сравнение считает
+    /// их разными строками — при следующей правке роли право пропадает, и предохранитель
+    /// самоблокировки этого не замечает. Неизвестные ключи остаются как есть, чтобы
+    /// <see cref="CheckKnownPermissions"/> их отклонил, а не молча пропустил.
+    /// </summary>
+    private static HashSet<string> Normalize(IReadOnlyList<string>? permissions) =>
         (permissions ?? [])
             .Where(permission => !string.IsNullOrWhiteSpace(permission))
             .Select(permission => permission.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            .Select(permission => CanonicalPermissions.GetValueOrDefault(permission, permission))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    // Имя роли хранится в нижнем регистре (так его пишет создание), а из адреса приходит как
+    // набрал вызывающий: без приведения `PUT /roles/Support` не нашёл бы роль `support`.
+    private static string NormalizeRoleName(string roleName) => roleName.Trim().ToLowerInvariant();
 
     private async Task<PlatformRoleDto> LoadDtoAsync(string roleName, CancellationToken cancellationToken)
     {

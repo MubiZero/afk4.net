@@ -13,11 +13,21 @@ public static class PlatformRoleEndpoints
 {
     public static void MapPlatformRoleEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/platform/permissions", (PlatformAdminAuthorizationService authorizationService) =>
+        app.MapGet("/api/platform/permissions", async (
+            PlatformAdminAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            CancellationToken cancellationToken) =>
         {
             var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManagePlatformAdmins);
             if (!authorization.IsAuthenticated) return Results.Unauthorized();
-            if (!authorization.IsAllowed) return Results.StatusCode(StatusCodes.Status403Forbidden);
+            if (!authorization.IsAllowed)
+            {
+                // Справочник прав — часть той же поверхности управления ролями, и отказ по нему
+                // ложится в тот же след: иначе один из пяти входов остаётся неподнадзорным.
+                await WriteRoleAuditAsync(auditRecordWriter, authorization, AuditActionNames.ViewPlatformRoles,
+                    targetId: null, AuditOutcome.Denied, new { authorization.DenialReason }, cancellationToken);
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
 
             return Results.Ok(PlatformAdminPermissionNames.All);
         });
@@ -65,6 +75,11 @@ public static class PlatformRoleEndpoints
                     result.Value!.RoleName, AuditOutcome.Succeeded,
                     new { result.Value.Permissions }, cancellationToken);
             }
+            else
+            {
+                await WriteRefusalAuditAsync(auditRecordWriter, authorization, AuditActionNames.CreatePlatformRole,
+                    request.RoleName, result.ErrorCode!, cancellationToken);
+            }
 
             return MapResult(result);
         });
@@ -94,6 +109,11 @@ public static class PlatformRoleEndpoints
                 await WriteRoleAuditAsync(auditRecordWriter, authorization, AuditActionNames.UpdatePlatformRole,
                     roleName, AuditOutcome.Succeeded, new { result.Value!.Permissions }, cancellationToken);
             }
+            else
+            {
+                await WriteRefusalAuditAsync(auditRecordWriter, authorization, AuditActionNames.UpdatePlatformRole,
+                    roleName, result.ErrorCode!, cancellationToken);
+            }
 
             return MapResult(result);
         });
@@ -121,6 +141,11 @@ public static class PlatformRoleEndpoints
                 await WriteRoleAuditAsync(auditRecordWriter, authorization, AuditActionNames.DeletePlatformRole,
                     roleName, AuditOutcome.Succeeded, new { }, cancellationToken);
             }
+            else
+            {
+                await WriteRefusalAuditAsync(auditRecordWriter, authorization, AuditActionNames.DeletePlatformRole,
+                    roleName, result.ErrorCode!, cancellationToken);
+            }
 
             return MapResult(result);
         });
@@ -141,6 +166,21 @@ public static class PlatformRoleEndpoints
         };
 
     private static object Body(string code) => new { Error = code, Code = code };
+
+    /// <summary>
+    /// Отказ по существу — тоже событие для следа, а не «просто неудачный запрос». Попытка выдать
+    /// роли право, которого нет у самого вызывающего, — это попытка расширить себе доступ; если её
+    /// не записать, в аудите не останется ничего, а в панели она выглядит как одна красная плашка.
+    /// </summary>
+    private static Task WriteRefusalAuditAsync(
+        IAuditRecordWriter auditRecordWriter,
+        PlatformAdminAuthorizationResult authorization,
+        string action,
+        string? targetId,
+        string errorCode,
+        CancellationToken cancellationToken) =>
+        WriteRoleAuditAsync(auditRecordWriter, authorization, action, targetId, AuditOutcome.Denied,
+            new { Reason = errorCode }, cancellationToken);
 
     private static Task WriteRoleAuditAsync(
         IAuditRecordWriter auditRecordWriter,

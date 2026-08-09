@@ -315,6 +315,108 @@ public sealed class PlatformRoleEndpointTests
         Assert.Equal(HttpStatusCode.Forbidden, after.StatusCode);
     }
 
+    [Fact]
+    public async Task Post_StoresPermissionsInTheSpellingUsedByTheCode()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+
+        var response = await client.PostAsJsonAsync("/api/platform/roles", new CreatePlatformRoleRequest(
+            "loud", "Крикун", "", [PlatformAdminPermissionNames.ViewBilling.ToUpperInvariant()]));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var stored = await db.PlatformRolePermissions.SingleAsync(rolePermission => rolePermission.RoleName == "loud");
+        // Регистр приводится к коду: иначе строка живёт как «почти» право и любое посимвольное
+        // сравнение считает её другой.
+        Assert.Equal(PlatformAdminPermissionNames.ViewBilling, stored.PermissionName);
+    }
+
+    [Fact]
+    public async Task Put_KeepsAPermissionWhoseStoredSpellingDiffersInCase()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var actor = await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            await SeedRoleAsync(db, "keeper",
+                [
+                    PlatformAdminPermissionNames.ManagePlatformAdmins.ToUpperInvariant(),
+                    PlatformAdminPermissionNames.ViewOrganizations
+                ]);
+            var row = await db.PlatformAdminUsers.SingleAsync(admin => admin.PlatformAdminUserId == actor.PlatformAdminId);
+            row.RolesJson = OpaquePlatformAdminTokenService.SerializeRoles(["keeper"]);
+            await db.SaveChangesAsync();
+        }
+
+        var response = await client.PutAsJsonAsync("/api/platform/roles/keeper", new UpdatePlatformRoleRequest(
+            "Хранитель", "",
+            [PlatformAdminPermissionNames.ManagePlatformAdmins, PlatformAdminPermissionNames.ViewOrganizations]));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using var verifyScope = factory.Services.CreateAsyncScope();
+        var verifyDb = verifyScope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var stored = await verifyDb.PlatformRolePermissions
+            .Where(rolePermission => rolePermission.RoleName == "keeper")
+            .Select(rolePermission => rolePermission.PermissionName)
+            .ToArrayAsync();
+
+        // Ключ от платформы был в списке, который прислали, — значит он обязан остаться. Сравнение
+        // по буквам вместо сравнения без учёта регистра тихо снимало бы его мимо предохранителя
+        // самоблокировки.
+        Assert.Contains(stored, permission => string.Equals(
+            permission, PlatformAdminPermissionNames.ManagePlatformAdmins, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Put_FindsTheRoleWhateverCaseTheUrlUses()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            await SeedRoleAsync(db, "clerk", [PlatformAdminPermissionNames.ViewOrganizations]);
+        }
+
+        var response = await client.PutAsJsonAsync("/api/platform/roles/CLERK", new UpdatePlatformRoleRequest(
+            "Клерк", "", [PlatformAdminPermissionNames.ViewOrganizations]));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Post_WritesAuditWhenTheActorTriesToGrantAPermissionTheyLack()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        var actor = await PlatformAdminTestHelper.AuthorizeAsAsync(factory, client, roles: [PlatformAdminRoleNames.PlatformAdmin]);
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            await SeedRoleAsync(db, "narrow", [PlatformAdminPermissionNames.ManagePlatformAdmins]);
+            var row = await db.PlatformAdminUsers.SingleAsync(admin => admin.PlatformAdminUserId == actor.PlatformAdminId);
+            row.RolesJson = OpaquePlatformAdminTokenService.SerializeRoles(["narrow"]);
+            await db.SaveChangesAsync();
+        }
+
+        var response = await client.PostAsJsonAsync("/api/platform/roles", new CreatePlatformRoleRequest(
+            "wide", "Широкая", "", [PlatformAdminPermissionNames.ManageInvoices]));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        await using var scope2 = factory.Services.CreateAsyncScope();
+        var verifyDb = scope2.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        // Попытка расширить себе доступ обязана остаться в следе, а не только в красной плашке.
+        var record = await verifyDb.AuditRecords.SingleAsync(entry => entry.Action == "platform.roles.create");
+        Assert.Equal("Denied", record.Outcome);
+        Assert.Contains(PlatformRoleErrorCodes.PermissionNotHeldByActor, record.DetailsJson);
+    }
+
     private static async Task<string?> ReadCodeAsync(HttpResponseMessage response)
     {
         var body = await response.Content.ReadAsStringAsync();

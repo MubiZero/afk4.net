@@ -4,11 +4,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { LoadingCards, ErrorState } from '@/components/ui/states';
+import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { RolesApi } from '@/api/platformClients/roles';
 import type { PlatformRole } from '@/api/types';
-import { describeRoleActionError, groupPermissions } from './rolesModel';
+import {
+  describePermission,
+  describePermissionGroup,
+  describeRoleActionError,
+  groupPermissions
+} from './rolesModel';
 
 type Client = Pick<RolesApi, 'listRoles' | 'listPermissions' | 'createRole' | 'updateRole' | 'deleteRole'>;
 
@@ -36,6 +42,7 @@ export function RolesSection({ client }: { client: Client }) {
   const [failed, setFailed] = useState(false);
   const [tick, setTick] = useState(0);
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PlatformRole | null>(null);
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
@@ -53,6 +60,7 @@ export function RolesSection({ client }: { client: Client }) {
 
   function reload() {
     setDraft(null);
+    setDeleteTarget(null);
     setTick(value => value + 1);
   }
 
@@ -80,11 +88,11 @@ export function RolesSection({ client }: { client: Client }) {
     }
   }
 
-  async function remove(role: PlatformRole) {
-    if (pending) return;
+  async function remove() {
+    if (deleteTarget === null || pending) return;
     setPending(true);
     try {
-      await client.deleteRole(role.roleName);
+      await client.deleteRole(deleteTarget.roleName);
       toast({ title: t('platform.settings.roles.deleted'), variant: 'success' });
       reload();
     } catch (cause) {
@@ -131,7 +139,7 @@ export function RolesSection({ client }: { client: Client }) {
               {/* Удаление показывается только у не встроенной роли: рычаг, который заведомо
                   ответит отказом, хуже отсутствующего. */}
               {role.isBuiltIn ? null : (
-                <Button variant="outline" disabled={pending} onClick={() => remove(role)}>
+                <Button variant="outline" disabled={pending} onClick={() => setDeleteTarget(role)}>
                   {t('platform.settings.roles.delete')}
                 </Button>
               )}
@@ -172,9 +180,10 @@ export function RolesSection({ client }: { client: Client }) {
               : (
                 <fieldset>
                   <legend>{t('platform.settings.roles.permissions')}</legend>
+                  <p className="mgmt-drawer-hint">{t('platform.settings.roles.permissionsHint')}</p>
                   {groupPermissions(permissions).map(([group, groupPermissionNames]) => (
                     <div key={group}>
-                      <strong>{group}</strong>
+                      <strong>{describePermissionGroup(group, t)}</strong>
                       {groupPermissionNames.map(permission => (
                         <label key={permission}>
                           <input
@@ -186,7 +195,7 @@ export function RolesSection({ client }: { client: Client }) {
                               setDraft({ ...draft, permissions: next });
                             }}
                           />
-                          {permission}
+                          {describePermission(permission, t)}
                         </label>
                       ))}
                     </div>
@@ -205,6 +214,20 @@ export function RolesSection({ client }: { client: Client }) {
             </Button>
           </div>
         )}
+
+        <ConfirmDialog
+          open={deleteTarget !== null}
+          title={t('platform.settings.roles.deleteConfirm.title')}
+          description={deleteTarget === null
+            ? undefined
+            : t('platform.settings.roles.deleteConfirm.body', { name: deleteTarget.displayName })}
+          confirmLabel={t('platform.settings.roles.deleteConfirm.confirm')}
+          cancelLabel={t('common.cancel')}
+          destructive
+          pending={pending}
+          onConfirm={() => void remove()}
+          onOpenChange={open => { if (!open) setDeleteTarget(null); }}
+        />
       </CardContent>
     </Card>
   );
