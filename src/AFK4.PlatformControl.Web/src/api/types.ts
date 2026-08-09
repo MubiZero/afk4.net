@@ -533,6 +533,16 @@ export interface PlatformBillingMetrics {
   overdueCount: number;
 }
 
+export interface PlatformRole {
+  roleName: string;
+  displayName: string;
+  description: string;
+  isBuiltIn: boolean;
+  grantsAllPermissions: boolean;
+  permissions: string[];
+  adminCount: number;
+}
+
 export interface PlatformAdminListItem {
   platformAdminUserId: string;
   userName: string;

@@ -313,4 +313,8 @@ public static class AuditActionNames
     public const string ViewOrganizationFeatures = "platform.organizations.features.view";
     public const string SetOrganizationFeatureOverride = "platform.organizations.features.override.set";
     public const string ClearOrganizationFeatureOverride = "platform.organizations.features.override.clear";
+    public const string ViewPlatformRoles = "platform.roles.view";
+    public const string CreatePlatformRole = "platform.roles.create";
+    public const string UpdatePlatformRole = "platform.roles.update";
+    public const string DeletePlatformRole = "platform.roles.delete";
 }

@@ -123,7 +123,7 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
         : route.kind === 'audit' ? <AuditScreen client={client.audit} filters={route} onFiltersChange={filters => navigate({ kind: 'audit', ...filters })} />
         : route.kind === 'organizationNew' ? <NewOrganizationScreen client={client.organizations} onCreated={(response: CreateOrganizationResponse) => openOrganization(response.organization.organizationId, response.organizationOwnerInvite)} onCancel={() => navigate({ kind: 'overview', view: 'now' })} />
         : route.kind === 'organization' ? <OrganizationPage client={client} organizationId={route.organizationId} tab={route.tab} access={organizationAccess} initialInvite={readInitialInvite()} onTabChange={tab => navigate({ ...route, tab })} onBack={() => navigate({ kind: 'overview', view: 'now' })} onChanged={() => {}} />
-        : route.kind === 'settings' ? <SettingsScreen client={client.admins} twoFactorClient={client.twoFactor} session={session} />
+        : route.kind === 'settings' ? <SettingsScreen client={client.admins} twoFactorClient={client.twoFactor} rolesClient={client.roles} session={session} />
         : route.kind === 'health' ? <HealthScreen client={client.health} />
         : <UnavailableScreen />}</Suspense>
     </AppShell>

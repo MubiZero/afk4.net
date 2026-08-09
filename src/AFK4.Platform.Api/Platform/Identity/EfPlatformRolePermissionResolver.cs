@@ -44,6 +44,17 @@ public sealed class EfPlatformRolePermissionResolver(PlatformDbContext dbContext
         return permissions;
     }
 
+    public async Task<IReadOnlySet<string>> ListFullAccessRoleNamesAsync(CancellationToken cancellationToken)
+    {
+        var names = await dbContext.PlatformRoles
+            .AsNoTracking()
+            .Where(role => role.GrantsAllPermissions)
+            .Select(role => role.RoleName)
+            .ToArrayAsync(cancellationToken);
+
+        return new HashSet<string>(names, StringComparer.OrdinalIgnoreCase);
+    }
+
     public Task<bool> IsKnownRoleAsync(string roleName, CancellationToken cancellationToken) =>
         dbContext.PlatformRoles.AnyAsync(role => role.RoleName == roleName, cancellationToken);
 }

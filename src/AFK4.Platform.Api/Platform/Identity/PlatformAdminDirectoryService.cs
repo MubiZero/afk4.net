@@ -30,7 +30,8 @@ public sealed class PlatformAdminDirectoryService(
             .OrderBy(admin => admin.CreatedAtUtc)
             .ToArrayAsync(cancellationToken);
 
-        return admins.Select(ToListItem).ToArray();
+        var fullAccessRoles = await rolePermissionResolver.ListFullAccessRoleNamesAsync(cancellationToken);
+        return admins.Select(admin => ToListItem(admin, fullAccessRoles)).ToArray();
     }
 
     public async Task<IReadOnlyList<PlatformAdminInvitationDto>> ListInvitationsAsync(CancellationToken cancellationToken)
@@ -115,13 +116,27 @@ public sealed class PlatformAdminDirectoryService(
             return (null, PlatformAdminDirectoryError.UnknownRole);
         }
 
+        // Читается внутри той же serializable-транзакции, что и всё остальное в UpdateCoreAsync:
+        // иначе инвариант «последний полный администратор» опирался бы на снимок ролей, снятый
+        // до транзакции, и перестал бы держаться под гонкой.
+        var fullAccessRoles = await rolePermissionResolver.ListFullAccessRoleNamesAsync(cancellationToken);
+        if (fullAccessRoles.Count == 0)
+        {
+            // Пустая таблица ролей — сломанное состояние (сидер заводит встроенные роли при старте).
+            // Но именно в сломанном состоянии предохранитель обязан становиться строже, а не
+            // исчезать: иначе «ролей с полным доступом не нашлось» читается как «полных
+            // администраторов нет, отключать можно кого угодно», и панель молча остаётся без
+            // единого администратора.
+            fullAccessRoles = new HashSet<string>([PlatformAdminRoleNames.PlatformAdmin], StringComparer.OrdinalIgnoreCase);
+        }
+
         var currentRoles = OpaquePlatformAdminTokenService.ParseRoles(target.RolesJson);
-        var currentRole = PrimaryRole(currentRoles);
+        var currentRole = PrimaryRole(currentRoles, fullAccessRoles);
         var resultingRole = request.Role ?? currentRole;
         var resultingIsActive = request.IsActive ?? target.IsActive;
 
-        var wasActiveFullAdmin = target.IsActive && IsFullAdminRole(currentRole);
-        var staysActiveFullAdmin = resultingIsActive && IsFullAdminRole(resultingRole);
+        var wasActiveFullAdmin = target.IsActive && fullAccessRoles.Contains(currentRole);
+        var staysActiveFullAdmin = resultingIsActive && fullAccessRoles.Contains(resultingRole);
 
         // A full-admin losing that status (via role change or deactivation) must leave at least
         // one other active platform_admin behind — otherwise nobody could manage the panel anymore.
@@ -136,7 +151,7 @@ public sealed class PlatformAdminDirectoryService(
                 .ToArrayAsync(cancellationToken);
 
             var stillHasFullAdmin = anotherFullAdminExists.Any(
-                admin => IsFullAdminRole(PrimaryRole(OpaquePlatformAdminTokenService.ParseRoles(admin.RolesJson))));
+                admin => OpaquePlatformAdminTokenService.ParseRoles(admin.RolesJson).Any(fullAccessRoles.Contains));
 
             if (!stillHasFullAdmin)
             {
@@ -162,7 +177,7 @@ public sealed class PlatformAdminDirectoryService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return (ToListItem(target), PlatformAdminDirectoryError.None);
+        return (ToListItem(target, fullAccessRoles), PlatformAdminDirectoryError.None);
     }
 
     private async Task<(PlatformAdminListItem? Item, PlatformAdminDirectoryError Error)> ExecuteInSerializableTransactionAsync(
@@ -287,31 +302,33 @@ public sealed class PlatformAdminDirectoryService(
         return (admin, PlatformAdminDirectoryError.None);
     }
 
-    private static bool IsFullAdminRole(string role)
-    {
-        return string.Equals(role, PlatformAdminRoleNames.PlatformAdmin, StringComparison.OrdinalIgnoreCase);
-    }
-
     private async Task<bool> IsRoleDowngradeAsync(string fromRole, string toRole, CancellationToken cancellationToken)
     {
-        var fromPermissionCount = (await rolePermissionResolver.ResolveAsync([fromRole], cancellationToken)).Count;
-        var toPermissionCount = (await rolePermissionResolver.ResolveAsync([toRole], cancellationToken)).Count;
-        return toPermissionCount < fromPermissionCount;
+        var from = await rolePermissionResolver.ResolveAsync([fromRole], cancellationToken);
+        var to = await rolePermissionResolver.ResolveAsync([toRole], cancellationToken);
+
+        // Сравниваются НАБОРЫ, а не их размеры: при редактируемых ролях счёт прав не значит ничего —
+        // две роли по десять прав могут не пересекаться вовсе, и переход между ними по количеству
+        // выглядел бы равноценным, отбирая при этом всё, чем человек пользовался.
+        return !to.IsSupersetOf(from);
     }
 
-    private static string PrimaryRole(IReadOnlySet<string> roles)
+    private static string PrimaryRole(IReadOnlySet<string> roles, IReadOnlySet<string> fullAccessRoles)
     {
-        if (roles.Contains(PlatformAdminRoleNames.PlatformAdmin))
+        // «Главной» считается роль с полным доступом, а не роль с определённым именем: полный
+        // доступ — это свойство роли в базе, и его может нести роль, заведённая в панели.
+        var fullAccess = roles.FirstOrDefault(fullAccessRoles.Contains);
+        if (fullAccess is not null)
         {
-            return PlatformAdminRoleNames.PlatformAdmin;
+            return fullAccess;
         }
 
         return roles.OrderBy(role => role, StringComparer.Ordinal).FirstOrDefault() ?? string.Empty;
     }
 
-    private static PlatformAdminListItem ToListItem(PlatformAdminUserEntity admin)
+    private static PlatformAdminListItem ToListItem(PlatformAdminUserEntity admin, IReadOnlySet<string> fullAccessRoles)
     {
-        var role = PrimaryRole(OpaquePlatformAdminTokenService.ParseRoles(admin.RolesJson));
+        var role = PrimaryRole(OpaquePlatformAdminTokenService.ParseRoles(admin.RolesJson), fullAccessRoles);
         return new PlatformAdminListItem(
             admin.PlatformAdminUserId,
             admin.UserName,
