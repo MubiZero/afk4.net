@@ -175,6 +175,12 @@ internal sealed class PlatformApiFactory : IAsyncDisposable, IDisposable
                 Services.GetRequiredService<TimeProvider>(),
                 Services.GetRequiredService<ILogger<FeatureCatalogSeedHostedService>>());
             featureSeeder.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
+
+            var roleSeeder = new PlatformRoleSeedHostedService(
+                Services,
+                Services.GetRequiredService<TimeProvider>(),
+                Services.GetRequiredService<ILogger<PlatformRoleSeedHostedService>>());
+            roleSeeder.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
