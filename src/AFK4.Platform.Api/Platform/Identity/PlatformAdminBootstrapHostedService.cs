@@ -30,22 +30,31 @@ public sealed class PlatformAdminBootstrapHostedService(
             return;
         }
 
-        var roleNames = (bootstrap.Roles ?? [PlatformAdminRoleNames.PlatformAdmin])
+        await using var scope = serviceProvider.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var auditRecordWriter = scope.ServiceProvider.GetRequiredService<IAuditRecordWriter>();
+        var rolePermissionResolver = scope.ServiceProvider.GetRequiredService<IPlatformRolePermissionResolver>();
+
+        var configuredRoleNames = (bootstrap.Roles ?? [PlatformAdminRoleNames.PlatformAdmin])
             .Where(role => !string.IsNullOrWhiteSpace(role))
             .Select(role => role.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Where(PlatformAdminPermissionCatalog.IsKnownRole)
             .ToArray();
-        if (roleNames.Length == 0)
+        var roleNames = new List<string>();
+        foreach (var roleName in configuredRoleNames)
+        {
+            if (await rolePermissionResolver.IsKnownRoleAsync(roleName, cancellationToken))
+            {
+                roleNames.Add(roleName);
+            }
+        }
+
+        if (roleNames.Count == 0)
         {
             logger.LogWarning(
                 "Platform admin bootstrap configuration listed no known roles; defaulting to platform_admin.");
             roleNames = [PlatformAdminRoleNames.PlatformAdmin];
         }
-
-        await using var scope = serviceProvider.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var auditRecordWriter = scope.ServiceProvider.GetRequiredService<IAuditRecordWriter>();
 
         var hasAnyAdmin = await dbContext.PlatformAdminUsers.AnyAsync(cancellationToken);
         if (hasAnyAdmin)

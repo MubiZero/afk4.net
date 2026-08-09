@@ -149,6 +149,7 @@ public sealed class PlatformAdminBootstrapHostedServiceTests
         services.AddScoped<IStaffContextAccessor, StaffContextAccessor>();
         services.AddScoped<IAuditRecordStager, AuditRecordStager>();
         services.AddScoped<IAuditRecordWriter, AuditRecordWriter>();
+        services.AddScoped<IPlatformRolePermissionResolver, EfPlatformRolePermissionResolver>();
         return services.BuildServiceProvider();
     }
 }

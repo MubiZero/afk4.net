@@ -181,8 +181,10 @@ public sealed class PlatformAdminDirectoryServiceTests
             gate.Arm();
             await using var dbForB = new PlatformDbContext(options);
             await using var dbForC = new PlatformDbContext(options);
-            var serviceForB = new PlatformAdminDirectoryService(dbForB, new FixedTimeProvider(now));
-            var serviceForC = new PlatformAdminDirectoryService(dbForC, new FixedTimeProvider(now));
+            var serviceForB = new PlatformAdminDirectoryService(
+                dbForB, new FixedTimeProvider(now), new EfPlatformRolePermissionResolver(dbForB));
+            var serviceForC = new PlatformAdminDirectoryService(
+                dbForC, new FixedTimeProvider(now), new EfPlatformRolePermissionResolver(dbForC));
 
             var results = await Task.WhenAll(
                 serviceForB.UpdateAsync(actorId, adminBId, new UpdatePlatformAdminRequest(null, false), CancellationToken.None),

@@ -184,6 +184,7 @@ builder.Services.AddScoped<IPlayerContextAccessor, PlayerContextAccessor>();
 builder.Services.AddScoped<IStaffCredentialService, PasswordHashingStaffCredentialService>();
 builder.Services.AddScoped<IStaffContextAccessor, StaffContextAccessor>();
 builder.Services.AddScoped<StaffAuthorizationService>();
+builder.Services.AddScoped<IPlatformRolePermissionResolver, EfPlatformRolePermissionResolver>();
 builder.Services.AddScoped<IPlatformAdminTokenService, OpaquePlatformAdminTokenService>();
 builder.Services.AddScoped<IPlatformAdminCredentialService, PasswordHashingPlatformAdminCredentialService>();
 builder.Services.AddScoped<PlatformAdminTwoFactorService>();
@@ -196,6 +197,10 @@ builder.Services.Configure<SupportAccessOptions>(
     builder.Configuration.GetSection(SupportAccessOptions.SectionName));
 builder.Services.Configure<PlatformAdminBootstrapOptions>(
     builder.Configuration.GetSection(PlatformAdminBootstrapOptions.ConfigurationSection));
+// Must run before PlatformAdminBootstrapHostedService: hosted services start in registration
+// order, and bootstrap now validates configured roles against this seed's rows via
+// IPlatformRolePermissionResolver instead of the removed static catalog.
+builder.Services.AddHostedService<PlatformRoleSeedHostedService>();
 builder.Services.AddHostedService<PlatformAdminBootstrapHostedService>();
 builder.Services.Configure<PlatformOrganizationOptions>(
     builder.Configuration.GetSection(PlatformOrganizationOptions.ConfigurationSection));
@@ -225,7 +230,6 @@ builder.Services.AddScoped<IDebtOverviewService, EfDebtOverviewService>();
 builder.Services.Configure<BillingOptions>(builder.Configuration.GetSection(BillingOptions.ConfigurationSection));
 builder.Services.AddHostedService<BillingPlanSeedHostedService>();
 builder.Services.AddHostedService<FeatureCatalogSeedHostedService>();
-builder.Services.AddHostedService<PlatformRoleSeedHostedService>();
 builder.Services.AddScoped<IJobRunRecorder, EfJobRunRecorder>();
 builder.Services.AddScoped<IPlatformIncidentService, EfPlatformIncidentService>();
 builder.Services.Configure<PlatformAlertOptions>(
