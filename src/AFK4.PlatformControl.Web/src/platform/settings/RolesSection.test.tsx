@@ -68,7 +68,7 @@ describe('RolesSection', () => {
     expect(screen.queryByRole('button', { name: 'Удалить' })).not.toBeInTheDocument();
   });
 
-  it('показывает удаление у роли, заведённой в панели', async () => {
+  it('удаляет роль, заведённую в панели, после подтверждения', async () => {
     const client = makeClient({
       listRoles: mock(async () => [role({ roleName: 'clerk', displayName: 'Клерк', isBuiltIn: false, adminCount: 0 })])
     });
@@ -76,8 +76,36 @@ describe('RolesSection', () => {
     await screen.findByText('Клерк');
 
     await userEvent.click(screen.getByRole('button', { name: 'Удалить' }));
+    expect(client.deleteRole).not.toHaveBeenCalled();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Удалить роль' }));
 
     await waitFor(() => expect(client.deleteRole).toHaveBeenCalledWith('clerk'));
+  });
+
+  it('не удаляет роль, если подтверждение отменено', async () => {
+    const client = makeClient({
+      listRoles: mock(async () => [role({ roleName: 'clerk', displayName: 'Клерк', isBuiltIn: false, adminCount: 0 })])
+    });
+    renderSection(client);
+    await screen.findByText('Клерк');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Удалить' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Отмена' }));
+
+    expect(client.deleteRole).not.toHaveBeenCalled();
+  });
+
+  it('называет права по-человечески, а не машинным ключом', async () => {
+    renderSection(makeClient());
+    await screen.findByText('Поддержка');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Новая роль' }));
+
+    // Человек, раздающий доступы, читает назначение права, а не адрес проверки в коде.
+    expect(screen.getByLabelText('Видеть счета, платежи и долги клубов')).toBeInTheDocument();
+    expect(screen.getByText('Оплаты')).toBeInTheDocument();
+    expect(screen.queryByLabelText('platform.billing.view')).not.toBeInTheDocument();
   });
 
   it('создаёт роль с выбранными правами', async () => {
@@ -88,7 +116,7 @@ describe('RolesSection', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Новая роль' }));
     await userEvent.type(screen.getByLabelText('Короткое имя'), 'clerk');
     await userEvent.type(screen.getByLabelText('Название'), 'Клерк');
-    await userEvent.click(screen.getByLabelText('platform.billing.view'));
+    await userEvent.click(screen.getByLabelText('Видеть счета, платежи и долги клубов'));
     await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() => expect(client.createRole).toHaveBeenCalledWith('clerk', {
@@ -123,7 +151,7 @@ describe('RolesSection', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Новая роль' }));
     await userEvent.type(screen.getByLabelText('Короткое имя'), 'wide');
     await userEvent.type(screen.getByLabelText('Название'), 'Широкая');
-    await userEvent.click(screen.getByLabelText('platform.admins.manage'));
+    await userEvent.click(screen.getByLabelText('Управлять администраторами платформы и ролями'));
     await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
     // Конкретная причина, пришедшая с сервера, обязана доехать до человека.

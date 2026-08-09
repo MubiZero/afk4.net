@@ -26,20 +26,52 @@ export function describeRoleActionError(cause: unknown, t: Translate): string {
 }
 
 /**
- * Раздел права — первые два сегмента ключа (`platform.billing.plans.manage` → `platform.billing`).
+ * Раздел права — второй сегмент ключа (`platform.billing.plans.manage` → `billing`).
  * Двух десятков переключателей в один список читать невозможно; группировка по разделу — это то,
  * как о правах думает человек, который их выдаёт.
  */
 export function permissionGroup(permission: string): string {
   const parts = permission.split('.');
-  return parts.length >= 2 ? `${parts[0]}.${parts[1]}` : permission;
+  return parts.length >= 2 ? parts[1] : permission;
 }
 
+/**
+ * Ключ человеческого названия права. Машинный ключ (`platform.billing.plans.manage`) — это адрес
+ * проверки в коде, а не то, что должен читать человек, раздающий доступы; общий префикс
+ * `platform.` в ключе каталога не повторяется.
+ */
+export function permissionLabelKey(permission: string): MessageKey {
+  return `platform.permission.${permission.replace(/^platform\./, '')}` as MessageKey;
+}
+
+export function permissionGroupLabelKey(group: string): MessageKey {
+  return `platform.permission.group.${group}` as MessageKey;
+}
+
+/**
+ * Право, появившееся на сервере раньше своего перевода, показывается машинным ключом: увидеть
+ * непереведённый ключ неприятно, но это честнее, чем спрятать существующее право из списка или
+ * нарисовать пустой переключатель.
+ */
+export function describePermission(permission: string, t: Translate): string {
+  const key = permissionLabelKey(permission);
+  const label = t(key);
+  return label === key ? permission : label;
+}
+
+export function describePermissionGroup(group: string, t: Translate): string {
+  const key = permissionGroupLabelKey(group);
+  const label = t(key);
+  return label === key ? group : label;
+}
+
+// Порядок групп и прав внутри них — тот, в котором их отдаёт сервер: он идёт от доступа к клубам
+// к деньгам и администраторам. Алфавит по машинному ключу перемешал бы их без всякого смысла.
 export function groupPermissions(permissions: readonly string[]): [string, string[]][] {
   const groups = new Map<string, string[]>();
   for (const permission of permissions) {
     const group = permissionGroup(permission);
     groups.set(group, [...(groups.get(group) ?? []), permission]);
   }
-  return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
+  return [...groups.entries()];
 }
