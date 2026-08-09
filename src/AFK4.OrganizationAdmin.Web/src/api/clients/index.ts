@@ -23,6 +23,7 @@ import { createLoyaltySettingsClient } from './loyaltySettings';
 import { createFeaturesClient } from './features';
 import { createEskhataConfigClient } from './eskhataConfig';
 import { createNewsClient } from './news';
+import { createPlatformMessagesClient } from './platformMessages';
 import { createMediaClient } from './media';
 import { createDcTopUpClient } from './dcTopUps';
 import { createDcConfigClient } from './dcConfig';
@@ -56,6 +57,7 @@ export function createOperatorApiClients(api: PlatformApiClient, organizationId:
     features: createFeaturesClient(organizationApi),
     eskhataConfig: createEskhataConfigClient(organizationApi),
     news: createNewsClient(organizationApi),
+    platformMessages: createPlatformMessagesClient(organizationApi),
     media: createMediaClient(organizationApi),
     dcTopUps: createDcTopUpClient(organizationApi),
     dcConfig: createDcConfigClient(organizationApi),

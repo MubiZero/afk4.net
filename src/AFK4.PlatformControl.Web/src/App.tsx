@@ -25,6 +25,7 @@ const OrganizationPage = lazy(() => import('./platform/organizations/Organizatio
 const UpdatesScreen = lazy(() => import('./platform/updates/UpdatesScreen').then(module => ({ default: module.UpdatesScreen })));
 const AuditScreen = lazy(() => import('./platform/audit/AuditScreen').then(module => ({ default: module.AuditScreen })));
 const SettingsScreen = lazy(() => import('./platform/settings/SettingsScreen').then(module => ({ default: module.SettingsScreen })));
+const AnnouncementsScreen = lazy(() => import('./platform/announcements/AnnouncementsScreen').then(module => ({ default: module.AnnouncementsScreen })));
 const HealthScreen = lazy(() => import('./platform/health/HealthScreen').then(module => ({ default: module.HealthScreen })));
 
 type AppRoute = PlatformRoute | { kind: 'accountActivation'; code: string | null };
@@ -124,6 +125,7 @@ function PlatformArea({ client, route, session, navigate, onSignOut }: {
         : route.kind === 'organizationNew' ? <NewOrganizationScreen client={client.organizations} onCreated={(response: CreateOrganizationResponse) => openOrganization(response.organization.organizationId, response.organizationOwnerInvite)} onCancel={() => navigate({ kind: 'overview', view: 'now' })} />
         : route.kind === 'organization' ? <OrganizationPage client={client} organizationId={route.organizationId} tab={route.tab} access={organizationAccess} initialInvite={readInitialInvite()} onTabChange={tab => navigate({ ...route, tab })} onBack={() => navigate({ kind: 'overview', view: 'now' })} onChanged={() => {}} />
         : route.kind === 'settings' ? <SettingsScreen client={client.admins} twoFactorClient={client.twoFactor} rolesClient={client.roles} session={session} />
+        : route.kind === 'announcements' ? <AnnouncementsScreen client={client.announcements} />
         : route.kind === 'health' ? <HealthScreen client={client.health} />
         : <UnavailableScreen />}</Suspense>
     </AppShell>
@@ -138,6 +140,7 @@ function capabilityForRoute(route: Exclude<PlatformRoute, { kind: 'notFound' }>)
     case 'updates': return 'updates.read';
     case 'audit': return 'audit.read';
     case 'settings': return 'admins.manage';
+    case 'announcements': return 'announcements.manage';
     case 'health': return 'health.read';
     case 'overview': return null;
   }

@@ -543,6 +543,22 @@ export interface PlatformRole {
   adminCount: number;
 }
 
+export interface PlatformAnnouncement {
+  announcementId: string;
+  title: string;
+  body: string;
+  severity: string;
+  showFromUtc: string;
+  showUntilUtc: string;
+  audienceKind: string;
+  audiencePlanCodes: string[];
+  audienceOrganizationIds: string[];
+  status: string;
+  publishedAtUtc: string | null;
+  emailDispatched: boolean;
+  readCount: number;
+}
+
 export interface PlatformAdminListItem {
   platformAdminUserId: string;
   userName: string;

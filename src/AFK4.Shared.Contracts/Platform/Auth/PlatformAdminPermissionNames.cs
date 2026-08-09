@@ -49,6 +49,12 @@ public static class PlatformAdminPermissionNames
     public const string ManageOrganizationFeatures = "platform.organizations.features.manage";
 
     /// <summary>
+    /// Ведение анонсов платформы. Отдельного «смотреть анонсы» нет: как и у ролей, кто их ведёт,
+    /// тот их и читает — лишнее право усложнило бы модель, ничего не добавив.
+    /// </summary>
+    public const string ManageAnnouncements = "platform.announcements.manage";
+
+    /// <summary>
     /// Все права платформы. Роль с полным доступом получает этот список целиком, панель
     /// показывает его как набор переключателей. Полнота стережётся тестом.
     /// </summary>
@@ -67,6 +73,7 @@ public static class PlatformAdminPermissionNames
         TransferOrganizationOwner,
         ViewOrganizationHealth,
         ManageOrganizationFeatures,
+        ManageAnnouncements,
         ViewPlatformAudit,
         ViewBilling,
         ManagePlans,

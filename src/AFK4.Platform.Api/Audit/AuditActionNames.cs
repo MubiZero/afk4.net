@@ -317,4 +317,9 @@ public static class AuditActionNames
     public const string CreatePlatformRole = "platform.roles.create";
     public const string UpdatePlatformRole = "platform.roles.update";
     public const string DeletePlatformRole = "platform.roles.delete";
+    public const string ViewPlatformAnnouncements = "platform.announcements.view";
+    public const string CreatePlatformAnnouncement = "platform.announcements.create";
+    public const string UpdatePlatformAnnouncement = "platform.announcements.update";
+    public const string PublishPlatformAnnouncement = "platform.announcements.publish";
+    public const string WithdrawPlatformAnnouncement = "platform.announcements.withdraw";
 }

@@ -1,0 +1,130 @@
+/* Сообщения платформы клубу: та же несъёмная полоса и та же высота 40px, что у режима поддержки
+ * (27-support-mode.css) и плашки задолженности (28-billing-banner.css) — App.tsx показывает ровно
+ * одну из трёх, поэтому `--shell-banner-h` в 02-shell.css не знает разницы между ними.
+ * Тон по важности: срочное — тревожный, предупреждение — янтарный, к сведению — нейтральный. */
+.platform-message {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 40px;
+  padding: 0 var(--space-4);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow-x: auto;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.platform-message-critical {
+  background: var(--danger-soft-bg);
+  border-bottom-color: var(--danger-soft-border);
+  color: var(--danger-text);
+}
+
+.platform-message-warning {
+  background: var(--warning-soft-bg);
+  border-bottom-color: var(--warning-soft-border);
+  color: var(--warning-text);
+}
+
+.platform-message-title {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.platform-message-body {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Действия прижаты вправо: текст читают слева направо, а «прочитано» нажимают последним. */
+.platform-message-link {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0 var(--space-2);
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.platform-message-link:first-of-type {
+  margin-left: auto;
+}
+
+.platform-message-link:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.command-messages {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.command-messages:hover,
+.command-messages:focus-visible {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.command-messages-count {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: var(--danger);
+  color: var(--surface-canvas);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+.platform-message-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.platform-message-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+/* Прочитанное приглушено, но остаётся читаемым: это история, а не мусор. */
+.platform-message-item.read {
+  color: var(--text-secondary);
+}
+
+.platform-message-item p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.platform-message-badge {
+  align-self: flex-start;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}

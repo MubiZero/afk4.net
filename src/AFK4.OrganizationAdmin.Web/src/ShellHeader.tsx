@@ -8,7 +8,11 @@ import { WindowControls, handleWindowDragStart, handleWindowTitleDoubleClick } f
 // Верхняя командная панель оболочки: бренд, (опционально) свитчер филиала, поиск (палитра) и
 // оконные контролы. Презентационная. Быстрые действия открываются палитрой (Ctrl+K / клик по
 // поиску), статус смены живёт в подвале рейла рядом с аккаунтом.
-export function ShellHeader({ onOpenPalette, branchSwitcher }: { onOpenPalette: () => void; branchSwitcher?: ReactNode }) {
+export function ShellHeader({ onOpenPalette, branchSwitcher, messagesButton }: {
+  onOpenPalette: () => void;
+  branchSwitcher?: ReactNode;
+  messagesButton?: ReactNode;
+}) {
   const { t } = useI18n();
   return (
     <header className="top-command" onMouseDown={handleWindowDragStart} onDoubleClick={handleWindowTitleDoubleClick}>
@@ -29,6 +33,7 @@ export function ShellHeader({ onOpenPalette, branchSwitcher }: { onOpenPalette: 
         <span>{t('op.shell.searchPlaceholder')}</span>
       </button>
       <div className="top-right">
+        {messagesButton}
         <TitlebarControls />
         <span className="titlebar-separator" aria-hidden="true" />
         <WindowControls />
