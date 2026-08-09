@@ -10,6 +10,8 @@ import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
 import type { AdminsApi } from '@/api/platformClients/admins';
 import type { TwoFactorApi } from '@/api/platformClients/twoFactor';
+import type { RolesApi } from '@/api/platformClients/roles';
+import { RolesSection } from './RolesSection';
 import type { PlatformAdminSession } from '@/auth/tokenStore';
 import type { PlatformAdminInvitation, PlatformAdminListItem } from '@/api/types';
 import { useAdmins } from './useAdmins';
@@ -24,10 +26,12 @@ import {
 } from './adminsModel';
 
 type TwoFactorResetClient = Pick<TwoFactorApi, 'reset'>;
+type RolesClient = Pick<RolesApi, 'listRoles' | 'listPermissions' | 'createRole' | 'updateRole' | 'deleteRole'>;
 
-export function SettingsScreen({ client, twoFactorClient, session }: {
+export function SettingsScreen({ client, twoFactorClient, rolesClient, session }: {
   client: AdminsApi;
   twoFactorClient: TwoFactorResetClient;
+  rolesClient: RolesClient;
   session: PlatformAdminSession;
 }) {
   const { t, formatDate } = useI18n();
@@ -107,6 +111,7 @@ export function SettingsScreen({ client, twoFactorClient, session }: {
   const isEmpty = admins.length === 0 && pendingInvitations.length === 0;
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle>{t('platform.settings.title')}</CardTitle>
@@ -243,5 +248,7 @@ export function SettingsScreen({ client, twoFactorClient, session }: {
         }
       />
     </Card>
+    <RolesSection client={rolesClient} />
+    </>
   );
 }

@@ -126,16 +126,21 @@ public static class PlatformRoleEndpoints
         });
     }
 
+    // Тело отказа несёт код и в поле Error, и в поле Code: транспорт панели читает машинный код
+    // именно из Error (см. PlatformTransport.toError), а Code оставлен для читаемости тела.
+    // Прозы здесь нет — фразу для человека собирает панель.
     private static IResult MapResult(PlatformRoleResult result) =>
         result.ErrorCode switch
         {
             null => Results.Ok(result.Value),
-            PlatformRoleErrorCodes.InvalidRole => Results.BadRequest(new { Code = result.ErrorCode }),
-            PlatformRoleErrorCodes.UnknownPermission => Results.BadRequest(new { Code = result.ErrorCode }),
+            PlatformRoleErrorCodes.InvalidRole or PlatformRoleErrorCodes.UnknownPermission =>
+                Results.BadRequest(Body(result.ErrorCode)),
             PlatformRoleErrorCodes.PermissionNotHeldByActor =>
-                Results.Json(new { Code = result.ErrorCode }, statusCode: StatusCodes.Status403Forbidden),
-            _ => Results.Conflict(new { Code = result.ErrorCode })
+                Results.Json(Body(result.ErrorCode), statusCode: StatusCodes.Status403Forbidden),
+            _ => Results.Conflict(Body(result.ErrorCode))
         };
+
+    private static object Body(string code) => new { Error = code, Code = code };
 
     private static Task WriteRoleAuditAsync(
         IAuditRecordWriter auditRecordWriter,

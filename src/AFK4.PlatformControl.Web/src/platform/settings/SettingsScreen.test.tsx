@@ -15,10 +15,17 @@ describe('SettingsScreen', () => {
       listInvitations: async () => []
     };
     const twoFactorClient = { reset: async () => {} };
+    const rolesClient = {
+      listRoles: async () => [],
+      listPermissions: async () => [],
+      createRole: async () => { throw new Error('not used'); },
+      updateRole: async () => { throw new Error('not used'); },
+      deleteRole: async () => {}
+    };
 
     render(
       <I18nProvider><ToastProvider>
-        <SettingsScreen client={client as never} twoFactorClient={twoFactorClient} session={{ platformAdminId: 'me' } as never} />
+        <SettingsScreen client={client as never} twoFactorClient={twoFactorClient} rolesClient={rolesClient as never} session={{ platformAdminId: 'me' } as never} />
       </ToastProvider></I18nProvider>
     );
 
