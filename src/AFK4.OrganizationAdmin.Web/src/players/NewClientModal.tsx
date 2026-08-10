@@ -43,7 +43,7 @@ export function NewClientModal({
           inputMode="tel"
           onChange={(event) => onChangePhone(event.currentTarget.value)}
         />
-        <button type="submit" className="clients-primary-action">
+        <button type="submit" className="ui-btn ui-btn--primary">
           <UserRoundPlus size={15} aria-hidden="true" />
           {t('op.players.newClient.submit')}
         </button>

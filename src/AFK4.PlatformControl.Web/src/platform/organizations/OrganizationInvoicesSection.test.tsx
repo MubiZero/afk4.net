@@ -14,6 +14,6 @@ function fakeClient() {
 describe('OrganizationInvoicesSection', () => {
   it('shows empty state after load', async () => {
     render(<I18nProvider><ToastProvider><OrganizationInvoicesSection client={fakeClient()} organizationId="o" /></ToastProvider></I18nProvider>);
-    await waitFor(() => expect(screen.getByText('Инвойсов пока нет.')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Счетов пока нет.')).toBeInTheDocument());
   });
 });

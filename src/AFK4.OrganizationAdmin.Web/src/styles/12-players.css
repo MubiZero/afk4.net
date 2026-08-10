@@ -143,43 +143,6 @@
   cursor: not-allowed;
 }
 
-.clients-primary-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 36px;
-  margin-top: 2px;
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  background: var(--accent);
-  color: var(--text-on-accent);
-  font-size: 12px;
-  font-weight: 700;
-  transition: background 100ms ease, transform 100ms ease;
-}
-
-.clients-primary-action:hover:not(:disabled) {
-  background: var(--accent-hover);
-  transform: translateY(-1px);
-}
-
-.clients-primary-action:focus-visible {
-  outline: 2px solid rgba(var(--accent-rgb), 0.82);
-  outline-offset: 2px;
-}
-
-.clients-primary-action:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.clients-primary-action:disabled {
-  cursor: not-allowed;
-  border-color: var(--border-default);
-  background: var(--surface-muted);
-  color: var(--text-quaternary);
-}
-
 /* ── Модалка нового клиента (поверх .panel-modal) ───────────────────────────── */
 .clients-new-form {
   display: grid;
@@ -189,8 +152,7 @@
 
 /* ── Reduced motion ───────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .clients-segment button,
-  .clients-primary-action {
+  .clients-segment button {
     transition: none;
   }
 }
@@ -320,27 +282,6 @@
 .clients-pin-hint {
   color: var(--text-tertiary);
   font-size: 11px;
-}
-
-/* Кнопка подтверждения возврата — опасный акцент по образцу .critical-confirmation-actions button.danger */
-.clients-danger-action {
-  border-color: var(--danger-soft-border);
-  background: var(--danger-soft-bg);
-  color: var(--danger-text);
-}
-
-.clients-danger-action:hover:not(:disabled) {
-  border-color: var(--danger);
-  background: var(--danger-soft-bg);
-  color: var(--danger-text);
-}
-
-.clients-danger-action:focus-visible {
-  border-color: var(--danger);
-  background: var(--danger-soft-bg);
-  color: var(--danger-text);
-  outline: 2px solid var(--danger);
-  outline-offset: 2px;
 }
 
 /* S3 — меню «⋯», модалки правки/деактивации, баннер, неактивная строка */

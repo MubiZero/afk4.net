@@ -65,7 +65,7 @@ export function RefundModal({
           onChange={(event) => onChangeReason(event.currentTarget.value)}
         />
 
-        <button type="submit" className="clients-primary-action clients-danger-action" disabled={busy || !amountValid}>
+        <button type="submit" className="ui-btn ui-btn--danger" disabled={busy || !amountValid}>
           <Undo2 size={15} aria-hidden="true" />
           {t('op.players.refund.confirm')}
         </button>

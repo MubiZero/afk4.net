@@ -105,7 +105,7 @@ export function CorrectionModal({
           onChange={(event) => onChangeReason(event.currentTarget.value)}
         />
 
-        <button type="submit" className="clients-primary-action" disabled={busy}>
+        <button type="submit" className="ui-btn ui-btn--primary" disabled={busy}>
           <SlidersHorizontal size={15} aria-hidden="true" />
           {t('op.players.correction.submit')}
         </button>

@@ -53,7 +53,7 @@ export function EditProfileModal({
           disabled={busy}
           onChange={(event) => onChangePhone(event.currentTarget.value)}
         />
-        <button type="submit" className="clients-primary-action" disabled={busy || nameEmpty}>
+        <button type="submit" className="ui-btn ui-btn--primary" disabled={busy || nameEmpty}>
           <Save size={15} aria-hidden="true" />
           {t('op.players.editProfile.submit')}
         </button>
