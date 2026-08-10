@@ -20,6 +20,10 @@ public sealed class EfSessionCommandService(
     ISessionStartWorkflow sessionStartWorkflow) : ISessionCommandService
 {
     private const int LeaseMinutes = 15;
+
+    // Столько же попыток, сколько у старта по брони: гонка за место разрешается за один-два
+    // повтора, а больше значило бы держать кассира в ожидании вместо честного «место занято».
+    private const int MaxStartAttempts = 3;
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly string[] BlockingStates =
     [
@@ -48,36 +52,64 @@ public sealed class EfSessionCommandService(
             return idempotency;
         }
 
-        SessionStartStage? stage = null;
-        SessionCommandServiceResult result;
-        try
+        // Два одновременных старта на одно место сталкиваются двумя разными способами, и оба надо
+        // довести до типизированного 409, а не до 500. Первый — уникальный частичный индекс на
+        // активное место: проигравший получает DbUpdateException. Второй — Serializable-транзакция
+        // отменяет проигравшего раньше вставки (40001, read/write dependency); это транзиентно,
+        // поэтому попытку повторяем — как это давно делает старт по брони
+        // (EfReservationSessionCoordinator). Исчерпали попытки — отвечаем тем же «место занято»:
+        // раз соперник продолжает выигрывать гонку, место за ним.
+        for (var attempt = 1; attempt <= MaxStartAttempts; attempt++)
         {
-            result = await ExecuteInTransactionAsync(async () =>
+            SessionStartStage? stage = null;
+            SessionCommandServiceResult result;
+            try
             {
-                stage = await sessionStartWorkflow.StageAsync(
-                branchId,
-                    actorStaffUserId,
-                    request,
-                    actorCanApproveComp,
-                    cancellationToken);
-                await dbContext.SaveChangesAsync(cancellationToken);
-                return stage.Result;
-            }, IsolationLevel.Serializable, cancellationToken);
-        }
-        catch (DbUpdateException)
-        {
-            // The unique partial index on an active seat fired: another start won the race between
-            // our occupancy pre-check and our insert. The database, not timing, decides the winner.
-            return SessionCommandServiceResult.RequestConflict(
-                "Seat already has an active session.", "seat_occupied");
+                result = await ExecuteInTransactionAsync(async () =>
+                {
+                    stage = await sessionStartWorkflow.StageAsync(
+                    branchId,
+                        actorStaffUserId,
+                        request,
+                        actorCanApproveComp,
+                        cancellationToken);
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                    return stage.Result;
+                }, IsolationLevel.Serializable, cancellationToken);
+            }
+            catch (Exception exception)
+                when (RelationalFailureClassifier.IsSerializationFailure(exception) && attempt < MaxStartAttempts)
+            {
+                dbContext.ChangeTracker.Clear();
+                continue;
+            }
+            catch (Exception exception) when (RelationalFailureClassifier.IsSerializationFailure(exception))
+            {
+                dbContext.ChangeTracker.Clear();
+                return SeatOccupied();
+            }
+            catch (DbUpdateException)
+            {
+                // The unique partial index on an active seat fired: another start won the race between
+                // our occupancy pre-check and our insert. The database, not timing, decides the winner.
+                return SeatOccupied();
+            }
+
+            if (stage is not null && result.Succeeded)
+            {
+                await sessionStartWorkflow.NotifyCommittedAsync(stage, cancellationToken);
+            }
+
+            return result;
         }
 
-        if (stage is not null && result.Succeeded)
-        {
-            await sessionStartWorkflow.NotifyCommittedAsync(stage, cancellationToken);
-        }
+        throw new InvalidOperationException("Guest session start retry loop terminated unexpectedly.");
+    }
 
-        return result;
+    private static SessionCommandServiceResult SeatOccupied()
+    {
+        return SessionCommandServiceResult.RequestConflict(
+            "Seat already has an active session.", "seat_occupied");
     }
 
     // A mutating command may carry the version the caller last saw. If it no longer matches the
