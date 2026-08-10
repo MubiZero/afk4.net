@@ -1180,6 +1180,7 @@ export const ru = {
   "op.network.journal.col.source": "Источник",
   "op.network.journal.col.target": "Объект",
   "op.network.journal.empty": "Записей нет",
+  "op.network.journal.export": "Выгрузить для поддержки",
   "op.network.journal.filter.action": "Действие",
   "op.network.journal.filter.apply": "Применить",
   "op.network.journal.filter.outcome": "Итог",

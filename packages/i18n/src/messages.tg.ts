@@ -1180,6 +1180,7 @@ export const tg = {
   "op.network.journal.col.source": "Манбаъ",
   "op.network.journal.col.target": "Объект",
   "op.network.journal.empty": "Сабтҳо нестанд",
+  "op.network.journal.export": "Барои дастгирӣ содир кардан",
   "op.network.journal.filter.action": "Амал",
   "op.network.journal.filter.apply": "Татбиқ",
   "op.network.journal.filter.outcome": "Натиҷа",

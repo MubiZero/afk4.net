@@ -1179,6 +1179,7 @@
   "op.network.journal.col.source": "Source",
   "op.network.journal.col.target": "Target",
   "op.network.journal.empty": "No records",
+  "op.network.journal.export": "Export for support",
   "op.network.journal.filter.action": "Action",
   "op.network.journal.filter.apply": "Apply",
   "op.network.journal.filter.outcome": "Outcome",
