@@ -1077,11 +1077,9 @@ describe('App', () => {
     // flush pending microtasks чтобы .then() callbacks от fetch-промисов успели выполниться
     await act(async () => { await Promise.resolve(); });
 
-    // Логи/Настройки content assertions used to continue here, exercised via separate rail
-    // buttons. Task 1.5 (Управление redesign) collapsed those into a single 'management' rail
-    // item with no WorkspaceRouter case yet (Task 1.6); dedicated Logs/Settings-personnel/
-    // layout/POS/tariffs content coverage lives in the `it.skip(...)` tests below, tracked to be
-    // un-skipped once 1.6 wires real content behind 'management'.
+    // Здесь проверяется только сам рейл. Содержимое «Управления» и «Сети» покрыто тестами
+    // своих экранов (management/destinations/*, network/*) — они рендерят destination напрямую
+    // и не зависят от порядка кликов по рейлу.
   });
 
   it('opens the loyalty settings workspace from the rail', async () => {
@@ -1141,214 +1139,22 @@ describe('App', () => {
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('runs backend audit search filters from Logs', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Логи');
-    expect(await screen.findByText('\u0416\u0443\u0440\u043d\u0430\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Событие'), { target: { value: 'sessions.start' } });
-    fireEvent.change(screen.getByLabelText('Результат'), { target: { value: 'succeeded' } });
-    fireEvent.change(screen.getByLabelText('Раздел'), { target: { value: 'Session' } });
-    fireEvent.change(screen.getByLabelText('С'), { target: { value: '2026-05-21T00:00:00Z' } });
-    fireEvent.change(screen.getByLabelText('До'), { target: { value: '2026-05-21T23:59:59Z' } });
-    fireEvent.change(screen.getByLabelText('Записей'), { target: { value: '12' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Применить фильтр' }));
-
-    expect(await screen.findByText('Применить фильтр: подтверждено')).toBeInTheDocument();
-    const auditCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/audit'));
-    const auditCall = auditCalls[auditCalls.length - 1];
-    expect(auditCall).toBeDefined();
-    const url = new URL(String(auditCall[0]));
-    expect(url.searchParams.get('action')).toBe('sessions.start');
-    expect(url.searchParams.get('outcome')).toBe('succeeded');
-    expect(url.searchParams.get('targetType')).toBe('Session');
-    expect(url.searchParams.get('fromUtc')).toBe('2026-05-21T00:00:00Z');
-    expect(url.searchParams.get('toUtc')).toBe('2026-05-21T23:59:59Z');
-    expect(url.searchParams.get('limit')).toBe('12');
-
-    const beforePreset = new Date();
-    fireEvent.click(screen.getByRole('button', { name: 'Сегодня' }));
-
-    expect(await screen.findByText('Сегодня: подтверждено')).toBeInTheDocument();
-    const presetCalls = fetchMock.mock.calls.filter(([input]) => String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/audit'));
-    const presetUrl = new URL(String(presetCalls[presetCalls.length - 1][0]));
-    const expectedFromUtc = new Date(Date.UTC(beforePreset.getUTCFullYear(), beforePreset.getUTCMonth(), beforePreset.getUTCDate())).toISOString();
-    expect(presetUrl.searchParams.get('fromUtc')).toBe(expectedFromUtc);
-    expect(Date.parse(presetUrl.searchParams.get('toUtc') ?? '')).toBeGreaterThanOrEqual(beforePreset.getTime());
-    expect(presetUrl.searchParams.get('limit')).toBe('50');
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('shows backend audit record detail in Logs', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Логи');
-    expect(await screen.findByText('\u0416\u0443\u0440\u043d\u0430\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d')).toBeInTheDocument();
-
-    const detailPanel = document.querySelector('.logs-detail-panel') as HTMLElement;
-    expect(detailPanel).toHaveTextContent('Продажа создана');
-    expect(detailPanel).toHaveTextContent('Чек');
-    expect(detailPanel).toHaveTextContent('успешно');
-    expect(detailPanel).toHaveTextContent('Оператор смены');
-    expect(detailPanel).toHaveTextContent('Сервер');
-    expect(detailPanel).not.toHaveTextContent('ID аудита');
-    expect(detailPanel).not.toHaveTextContent('18181818');
-    expect(detailPanel).not.toHaveTextContent('pos.sale.create');
-    expect(detailPanel).not.toHaveTextContent('PosSale');
-    expect(detailPanel).not.toHaveTextContent('99999999');
-    expect(detailPanel).not.toHaveTextContent('PlatformApi');
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('shows backend diagnostics failure detail in Logs', async () => {
-    installSessionBridge();
-    fetchMock.mockImplementation((input, init) => {
-      const pathname = new URL(String(input)).pathname;
-      if (pathname.endsWith('/diagnostics')) {
-        return Promise.resolve(jsonResponse(createDiagnostics({
-          commandSummary: {
-            pendingCommands: 0,
-            failedCommands: 1,
-            recentFailures: [
-              {
-                deviceId: '33333333-3333-3333-3333-333333333333',
-                machineName: 'PC-03',
-                commandId: '44444444-4444-4444-4444-444444444444',
-                type: 'unlock',
-                status: 'Failed',
-                message: 'timeout waiting for Agent',
-                updatedAtUtc: '2026-05-21T10:10:00Z'
-              }
-            ]
-          }
-        })));
-      }
-
-      return mockPlatformFetch(input, init);
-    });
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Логи');
-    expect(await screen.findByText('\u0416\u0443\u0440\u043d\u0430\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d')).toBeInTheDocument();
-    expect(screen.getAllByText('PC-03 Разблокировка').length).toBeGreaterThan(0);
-
-    const detailPanel = document.querySelector('.logs-detail-panel') as HTMLElement;
-    expect(detailPanel).toHaveTextContent('Устройство');
-    expect(detailPanel).toHaveTextContent('PC-03');
-    expect(detailPanel).toHaveTextContent('Разблокировка');
-    expect(detailPanel).toHaveTextContent('не выполнена');
-    expect(detailPanel).toHaveTextContent('Агент не ответил вовремя');
-    expect(detailPanel).not.toHaveTextContent('33333333');
-    expect(detailPanel).not.toHaveTextContent('44444444');
-
-    const sourcePanel = document.querySelector('.logs-sources-panel') as HTMLElement;
-    fireEvent.click(within(sourcePanel).getByRole('button', { name: /Касса/ }));
-    expect(screen.queryByText('PC-03 Разблокировка')).not.toBeInTheDocument();
-    expect(screen.getAllByText('Продажа создана').length).toBeGreaterThan(0);
-    expect(screen.queryByText('pos.sale.create')).not.toBeInTheDocument();
-
-    fireEvent.click(within(sourcePanel).getByRole('button', { name: /Агент/ }));
-    expect(screen.getAllByText('PC-03 Разблокировка').length).toBeGreaterThan(0);
-    expect(detailPanel).not.toHaveTextContent('pos.sale.create');
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('downloads Logs support exports without technical labels', async () => {
-    installSessionBridge();
-    const exportedBlobs: Blob[] = [];
-    const createObjectUrl = mock((blob: Blob) => {
-      exportedBlobs.push(blob);
-      return 'blob:logs';
-    });
-    const revokeObjectUrl = mock();
-    Object.defineProperty(window.URL, 'createObjectURL', { value: createObjectUrl, configurable: true });
-    Object.defineProperty(window.URL, 'revokeObjectURL', { value: revokeObjectUrl, configurable: true });
-    const downloads: string[] = [];
-    const createElement = document.createElement.bind(document);
-    const createElementSpy = spyOn(document, 'createElement').mockImplementation((tagName: string) => {
-      const element = createElement(tagName);
-      if (tagName.toLowerCase() === 'a') {
-        Object.defineProperty(element, 'click', {
-          value: () => downloads.push((element as HTMLAnchorElement).download),
-          configurable: true
-        });
-      }
-
-      return element;
-    });
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Логи');
-    expect(await screen.findByText('\u0416\u0443\u0440\u043d\u0430\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Таблица' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Полный журнал/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Список действий' }));
-
-    expect(await screen.findByText('Список действий: подтверждено')).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([input]) => String(input).includes('/reports/operator-actions/export.csv'))).toBe(true);
-    expect(downloads.some((download) => download.startsWith('afk4-operator-action-list-') && download.endsWith('.csv'))).toBe(true);
-
-    fireEvent.click(screen.getByRole('button', { name: /Пакет для поддержки/ }));
-    expect(await screen.findByText('Пакет для поддержки: подтверждено')).toBeInTheDocument();
-    expect(createObjectUrl).toHaveBeenCalledTimes(2);
-    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:logs');
-    expect(downloads.some((download) => download.startsWith('afk4-support-journal-') && download.endsWith('.json'))).toBe(true);
-    const supportBlob = exportedBlobs.at(-1);
-    expect(supportBlob).toBeDefined();
-    const supportText = await supportBlob!.text();
-    expect(supportText).toContain('"summary"');
-    expect(supportText).toContain('"events"');
-    expect(supportText).not.toContain('branchId');
-    expect(supportText).not.toContain('auditRecordId');
-    expect(supportText).not.toContain('18181818-1818-1818-1818-181818181818');
-    expect(supportText).not.toContain('99999999-9999-9999-9999-999999999999');
-    createElementSpy.mockRestore();
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('shows successful empty Logs results without backend-empty copy', async () => {
-    installSessionBridge();
-    fetchMock.mockImplementation((input, init) => {
-      const pathname = new URL(String(input)).pathname;
-      if (pathname.endsWith('/audit')) {
-        return Promise.resolve(jsonResponse({ records: [], limit: 30 }));
-      }
-
-      return mockPlatformFetch(input, init);
-    });
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Логи');
-    expect(await screen.findByText('\u0416\u0443\u0440\u043d\u0430\u043b \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d')).toBeInTheDocument();
-
-    expect((await screen.findAllByText('Событий за период нет')).length).toBeGreaterThan(0);
-    expect(screen.queryByText('Нет backend событий')).not.toBeInTheDocument();
-  });
-
   it('confirms POS payment only after backend sale and settlement calls resolve', async () => {
     installSessionBridge();
 
@@ -1979,174 +1785,26 @@ describe('App', () => {
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('invites a staff member from the Settings personnel form and shows the code', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
-    fireEvent.change(screen.getByLabelText('Логин для входа'), { target: { value: 'manager2' } });
-    fireEvent.change(screen.getByLabelText('Имя в смене'), { target: { value: 'Manager Two' } });
-    fireEvent.change(screen.getByLabelText('Email для приглашения'), { target: { value: 'manager2@club.example' } });
-    fireEvent.change(screen.getByLabelText('Роль доступа'), { target: { value: 'branch_manager' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Пригласить сотрудника' }));
-
-    expect(await screen.findByText('Пригласить сотрудника: подтверждено')).toBeInTheDocument();
-    const inviteCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/invites') &&
-      init?.method === 'POST');
-    expect(inviteCall).toBeDefined();
-    const body = JSON.parse(String(inviteCall?.[1]?.body));
-    expect(body).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      userName: 'manager2',
-      displayName: 'Manager Two',
-      email: 'manager2@club.example',
-      roleNames: ['branch_manager']
-    });
-    expect(await screen.findByLabelText('Код приглашения')).toHaveValue('a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4.deadbeef');
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('updates the selected staff user role from Settings personnel', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Оператор смены/ }));
-    fireEvent.change(screen.getByLabelText('Новая роль'), { target: { value: 'technician' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Обновить роль' }));
-
-    expect(await screen.findByText('Обновить роль: подтверждено')).toBeInTheDocument();
-    const roleCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/roles') &&
-      init?.method === 'PATCH');
-    expect(roleCall).toBeDefined();
-    const body = JSON.parse(String(roleCall?.[1]?.body));
-    expect(body).toEqual({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      roleNames: ['technician']
-    });
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('updates the selected staff profile from Settings personnel', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Оператор смены/ }));
-    fireEvent.change(screen.getByLabelText('Логин профиля'), { target: { value: 'cashier.renamed' } });
-    fireEvent.change(screen.getByLabelText('Имя профиля'), { target: { value: 'Кассир смены' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Обновить профиль' }));
-
-    expect(await screen.findByText('Обновить профиль сотрудника: подтверждено')).toBeInTheDocument();
-    expect(await screen.findByRole('button', { name: /Кассир смены/ })).toBeInTheDocument();
-    const profileCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/profile') &&
-      init?.method === 'PATCH');
-    expect(profileCall).toBeDefined();
-    const body = JSON.parse(String(profileCall?.[1]?.body));
-    expect(body).toEqual({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      userName: 'cashier.renamed',
-      displayName: 'Кассир смены'
-    });
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('deactivates the selected staff user from Settings personnel', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Оператор смены/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Отключить сотрудника' }));
-
-    expect(await screen.findByText('Отключить сотрудника: подтверждено')).toBeInTheDocument();
-    const stateCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/state') &&
-      init?.method === 'PATCH');
-    expect(stateCall).toBeDefined();
-    const body = JSON.parse(String(stateCall?.[1]?.body));
-    expect(body).toEqual({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      isActive: false
-    });
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('resets the selected staff password from Settings personnel', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Оператор смены/ }));
-    fireEvent.change(screen.getByLabelText('Новый пароль для входа'), { target: { value: 'Reset123!' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Сбросить пароль' }));
-
-    expect(await screen.findByText('Сбросить пароль: подтверждено')).toBeInTheDocument();
-    const resetCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/staff/3db1367b-88c6-4b1c-99c3-bcbb5f4d5134/password-reset') &&
-      init?.method === 'POST');
-    expect(resetCall).toBeDefined();
-    const body = JSON.parse(String(resetCall?.[1]?.body));
-    expect(body).toEqual({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      newPassword: 'Reset123!'
-    });
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('keeps staff role update disabled without role management permission', async () => {
-    installSessionBridge(createSession({
-      permissions: allOperatorPermissions.filter((permission) => permission !== 'organization.identity.roles.manage')
-    }));
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Персонал/ }));
-
-    expect(screen.getByRole('button', { name: 'Обновить роль' })).toBeDisabled();
-  });
-
   it('saves the Club branch profile through the backend', async () => {
     installSessionBridge();
 
@@ -2181,747 +1839,62 @@ describe('App', () => {
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('creates layout zones and seats from Settings layout form', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
-    fireEvent.change(screen.getByLabelText('Название зала'), { target: { value: 'VIP Hall' } });
-    fireEvent.change(screen.getByLabelText('Порядок зала'), { target: { value: '30' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Создать зал' }));
-
-    expect(await screen.findByText('Добавить зал: подтверждено')).toBeInTheDocument();
-    const zoneCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/zones') &&
-      init?.method === 'POST');
-    expect(zoneCall).toBeDefined();
-    expect(JSON.parse(String(zoneCall?.[1]?.body))).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      name: 'VIP Hall',
-      sortOrder: 30
-    });
-
-    fireEvent.change(screen.getByLabelText('Название ПК'), { target: { value: 'VIP-01' } });
-    fireEvent.change(screen.getByLabelText('Порядок ПК'), { target: { value: '40' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Создать ПК' }));
-
-    expect(await screen.findByText('Добавить ПК: подтверждено')).toBeInTheDocument();
-    const seatCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats') &&
-      init?.method === 'POST');
-    expect(seatCall).toBeDefined();
-    expect(JSON.parse(String(seatCall?.[1]?.body))).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-      name: 'VIP-01',
-      sortOrder: 40
-    });
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('updates selected layout zones and seats from Settings layout form', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
-    fireEvent.click(screen.getAllByRole('button', { name: /Зал A/ })[0]);
-    fireEvent.change(screen.getByLabelText('Название зала'), { target: { value: 'VIP Hall' } });
-    fireEvent.change(screen.getByLabelText('Порядок зала'), { target: { value: '30' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Обновить зал' }));
-
-    expect(await screen.findByText('Обновить зал: подтверждено')).toBeInTheDocument();
-    const zoneCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb') &&
-      init?.method === 'PATCH');
-    expect(zoneCall).toBeDefined();
-    expect(JSON.parse(String(zoneCall?.[1]?.body))).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      name: 'VIP Hall',
-      sortOrder: 30
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: /PC-01/ }));
-    fireEvent.change(screen.getByLabelText('Название ПК'), { target: { value: 'VIP-01' } });
-    fireEvent.change(screen.getByLabelText('Порядок ПК'), { target: { value: '40' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Обновить ПК' }));
-
-    expect(await screen.findByText('Обновить ПК: подтверждено')).toBeInTheDocument();
-    const seatCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') &&
-      init?.method === 'PATCH');
-    expect(seatCall).toBeDefined();
-    expect(JSON.parse(String(seatCall?.[1]?.body))).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      zoneId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-      name: 'VIP-01',
-      sortOrder: 40
-    });
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('deletes selected layout seats and empty zones from Settings layout form', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
-    fireEvent.click(screen.getByRole('button', { name: /PC-01/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Удалить ПК' }));
-
-    const seatDeleteDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите удаление ПК' });
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa') &&
-      init?.method === 'DELETE')).toBe(false);
-    fireEvent.click(within(seatDeleteDialog).getByRole('button', { name: 'Подтвердить удаление ПК' }));
-
-    expect(await screen.findByText('Удалить ПК: подтверждено')).toBeInTheDocument();
-    const seatDeleteCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/seats/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa?organizationId=0c04d6c0-bfa8-4e26-9263-fc0d307d0f08') &&
-      init?.method === 'DELETE');
-    expect(seatDeleteCall).toBeDefined();
-
-    fireEvent.click(screen.getAllByRole('button', { name: /Зал A/ })[0]);
-    fireEvent.click(screen.getByRole('button', { name: 'Удалить зал' }));
-
-    const zoneDeleteDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите удаление зала' });
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb') &&
-      init?.method === 'DELETE')).toBe(false);
-    fireEvent.click(within(zoneDeleteDialog).getByRole('button', { name: 'Подтвердить удаление зала' }));
-
-    expect(await screen.findByText('Удалить зал: подтверждено')).toBeInTheDocument();
-    const zoneDeleteCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/layout/zones/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb?organizationId=0c04d6c0-bfa8-4e26-9263-fc0d307d0f08') &&
-      init?.method === 'DELETE');
-    expect(zoneDeleteCall).toBeDefined();
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('creates device enrollment codes and assigns devices to seats from Settings', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
-    expect(screen.queryByLabelText('Срок кода, сек')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Секрет ключа')).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Срок действия кода, минут'), { target: { value: '10' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Создать код подключения' }));
-
-    expect(await screen.findByText('Создать код подключения: подтверждено')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('AFK4-DEVICE-1234')).toBeInTheDocument();
-    const enrollmentCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/device-enrollment-codes') &&
-      init?.method === 'POST');
-    expect(enrollmentCall).toBeDefined();
-    expect(JSON.parse(String(enrollmentCall?.[1]?.body))).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      expiresInSeconds: 600
-    });
-
-    fireEvent.change(screen.getByLabelText('Устройство'), { target: { value: '33333333-3333-3333-3333-333333333333' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Назначить устройство' }));
-
-    expect(await screen.findByText('Назначить устройство: подтверждено')).toBeInTheDocument();
-    const assignmentCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/devices/33333333-3333-3333-3333-333333333333/seat-assignment') &&
-      init?.method === 'POST');
-    expect(assignmentCall).toBeDefined();
-    expect(JSON.parse(String(assignmentCall?.[1]?.body))).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      seatId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
-    });
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/33333333-3333-3333-3333-333333333333') &&
-      init?.method === 'GET')).toBe(true);
-    expect(screen.getByDisplayValue('PC-02 · PC-01')).toBeInTheDocument();
-    expect(screen.getByText('Агент')).toBeInTheDocument();
-    expect(screen.getAllByText('0.1.14').length).toBeGreaterThan(0);
-    expect(screen.getByText('не выполнена')).toBeInTheDocument();
-    expect(screen.getAllByText('Агент не ответил').length).toBeGreaterThan(0);
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/33333333-3333-3333-3333-333333333333/commands?limit=25') &&
-      init?.method === 'GET')).toBe(true);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Выдать новый ключ' }));
-    expect(await screen.findByText('Выдать новый ключ: подтверждено')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('готов к отзыву для PC-02')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('создан')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('device-secret-after-rotation')).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/33333333-3333-3333-3333-333333333333/credentials/rotate') &&
-      init?.method === 'POST')).toBe(true);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Отозвать ключ' }));
-    const revokeDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите отзыв ключа' });
-    expect(revokeDialog).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/33333333-3333-3333-3333-333333333333/credentials/23232323-2323-2323-2323-232323232323/revoke') &&
-      init?.method === 'POST')).toBe(false);
-    fireEvent.click(within(revokeDialog).getByRole('button', { name: 'Отозвать ключ' }));
-    expect(await screen.findByText('Отозвать ключ: подтверждено')).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/33333333-3333-3333-3333-333333333333/credentials/23232323-2323-2323-2323-232323232323/revoke') &&
-      init?.method === 'POST')).toBe(true);
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('loads branch device inventory in Settings and opens a selected device card', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
-
-    const branchHistory = await screen.findByLabelText('История команд филиала');
-    expect(branchHistory).toBeInTheDocument();
-    expect(within(branchHistory).getByText('PC-03')).toBeInTheDocument();
-    expect(within(branchHistory).getByText(/Обновление сессии/)).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/device-commands?limit=50') &&
-      init?.method === 'GET')).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Обновить историю команд' }));
-    expect(await screen.findByText('Обновить историю команд: подтверждено')).toBeInTheDocument();
-
-    expect(await screen.findByRole('button', { name: /PC-03/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /PC-03/ }));
-    expect(screen.getByLabelText('Устройство')).toHaveValue('44444444-4444-4444-8444-444444444444');
-    expect(screen.getByText(/в работе 1/)).toBeInTheDocument();
-    expect(screen.getByText(/ошибок 1/)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Открыть карточку устройства' }));
-
-    expect(await screen.findByText('Открыть карточку устройства: подтверждено')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('PC-03 · PC-01')).toBeInTheDocument();
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/devices') &&
-      init?.method === 'GET')).toBe(true);
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/44444444-4444-4444-8444-444444444444') &&
-      init?.method === 'GET')).toBe(true);
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/44444444-4444-4444-8444-444444444444/commands?limit=25') &&
-      init?.method === 'GET')).toBe(true);
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('dispatches device commands from Settings device tools', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Залы и ПК/ }));
-    fireEvent.change(screen.getByLabelText('Устройство'), { target: { value: '33333333-3333-3333-3333-333333333333' } });
-    fireEvent.change(screen.getByLabelText('Команда'), { target: { value: 'unlock' } });
-    fireEvent.change(screen.getByLabelText('Причина команды'), { target: { value: 'manual unlock check' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Отправить команду' }));
-
-    expect(await screen.findByText('Отправить команду: подтверждено')).toBeInTheDocument();
-    const commandCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/devices/33333333-3333-3333-3333-333333333333/commands') &&
-      init?.method === 'POST');
-    expect(commandCall).toBeDefined();
-    expect(JSON.parse(String(commandCall?.[1]?.body))).toMatchObject({
-      type: 'unlock',
-      payload: { reason: 'manual unlock check', source: 'operator-settings' }
-    });
-    expect(screen.getByDisplayValue('Разблокировка · отправлена')).toBeInTheDocument();
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('creates a POS category and product from Settings', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Товары и склад/ }));
-    expect(screen.queryByDisplayValue('POS item 1')).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Категория'), { target: { value: 'Snacks' } });
-    fireEvent.change(screen.getByLabelText('Товар'), { target: { value: 'Energy Bar' } });
-    fireEvent.change(screen.getByLabelText('Артикул'), { target: { value: 'BAR-01' } });
-    fireEvent.change(screen.getByLabelText('Цена'), { target: { value: '35.50' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Создать товар' }));
-
-    expect(await screen.findByText('Создать товар: подтверждено')).toBeInTheDocument();
-    const categoryCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/categories') &&
-      init?.method === 'POST');
-    expect(categoryCall).toBeDefined();
-    const categoryBody = JSON.parse(String(categoryCall?.[1]?.body));
-    expect(categoryBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      name: 'Snacks'
-    });
-    expect(categoryBody.idempotencyKey).toMatch(/^pos-category-create-/);
-
-    const productCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/products') &&
-      init?.method === 'POST');
-    expect(productCall).toBeDefined();
-    const productBody = JSON.parse(String(productCall?.[1]?.body));
-    expect(productBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      categoryId: '88888888-8888-8888-8888-888888888888',
-      name: 'Energy Bar',
-      sku: 'BAR-01',
-      price: { currencyCode: 'TJS', minorUnits: 3550 },
-      trackStock: true,
-      allowNegativeStock: false
-    });
-    expect(productBody.idempotencyKey).toMatch(/^pos-product-create-/);
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('updates and deactivates a POS product from Settings', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^Товары и склад/ }));
-    fireEvent.click(screen.getAllByRole('button', { name: /Cola 0.5/ })[0]);
-    fireEvent.change(screen.getByLabelText('Товар'), { target: { value: 'Cola Zero 0.5' } });
-    fireEvent.change(screen.getByLabelText('Артикул'), { target: { value: 'COLA-ZERO-05' } });
-    fireEvent.change(screen.getByLabelText('Цена'), { target: { value: '13.00' } });
-    fireEvent.change(screen.getByLabelText('Минусовой остаток'), { target: { value: 'yes' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Обновить товар' }));
-
-    expect(await screen.findByText('Обновить товар: подтверждено')).toBeInTheDocument();
-    const updateCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/products/77777777-7777-7777-7777-777777777777') &&
-      init?.method === 'PATCH');
-    expect(updateCall).toBeDefined();
-    const updateBody = JSON.parse(String(updateCall?.[1]?.body));
-    expect(updateBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      categoryId: '88888888-8888-8888-8888-888888888888',
-      name: 'Cola Zero 0.5',
-      sku: 'COLA-ZERO-05',
-      price: { currencyCode: 'TJS', minorUnits: 1300 },
-      trackStock: true,
-      allowNegativeStock: true,
-      isActive: true
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Снять с продажи' }));
-    expect(await screen.findByText('Снять с продажи: подтверждено')).toBeInTheDocument();
-    const deactivateCall = fetchMock.mock.calls.filter(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/pos/products/77777777-7777-7777-7777-777777777777') &&
-      init?.method === 'PATCH').at(-1);
-    expect(deactivateCall).toBeDefined();
-    const deactivateBody = JSON.parse(String(deactivateCall?.[1]?.body));
-    expect(deactivateBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      name: 'Cola Zero 0.5',
-      sku: 'COLA-ZERO-05',
-      isActive: false
-    });
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('records an inventory stock movement from Settings POS and stock', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^Товары и склад/ }));
-    // История движений переехала в раздел «Склад → Журнал»; в настройках осталась только форма записи.
-    expect(await screen.findByRole('button', { name: 'Записать движение' })).toBeInTheDocument();
-    expect(screen.queryByText(/\bstock\b/i)).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Тип'), { target: { value: 'adjustment' } });
-    fireEvent.change(screen.getByLabelText('Кол-во'), { target: { value: '-3' } });
-    fireEvent.change(screen.getByLabelText('Себестоимость'), { target: { value: '0.00' } });
-    fireEvent.change(screen.getByLabelText('Причина'), { target: { value: 'Коррекция остатков после пересчёта' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Записать движение' }));
-
-    expect(await screen.findByText('Записать движение: подтверждено')).toBeInTheDocument();
-    const stockCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/inventory/stock-movements') &&
-      init?.method === 'POST');
-    expect(stockCall).toBeDefined();
-    const body = JSON.parse(String(stockCall?.[1]?.body));
-    expect(body).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      productId: '77777777-7777-7777-7777-777777777777',
-      movementType: 'adjustment',
-      quantityDelta: -3,
-      unitCost: { currencyCode: 'TJS', minorUnits: 0 },
-      reason: 'Коррекция остатков после пересчёта'
-    });
-    expect(body.idempotencyKey).toMatch(/^stock-movement-create-/);
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('creates a package definition from Settings tariffs', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^Тарифы/ }));
-    fireEvent.change(screen.getByLabelText('Название пакета'), { target: { value: 'Weekend 10h' } });
-    fireEvent.change(screen.getByLabelText('Цена'), { target: { value: '320.00' } });
-    fireEvent.change(screen.getByLabelText('Включено, мин'), { target: { value: '600' } });
-    fireEvent.change(screen.getByLabelText('Бонус, мин'), { target: { value: '60' } });
-    fireEvent.change(screen.getByLabelText('Срок, дней'), { target: { value: '45' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Создать пакет' }));
-
-    expect(await screen.findByText('Создать пакет: подтверждено')).toBeInTheDocument();
-    const packageCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/packages') &&
-      init?.method === 'POST');
-    expect(packageCall).toBeDefined();
-    const body = JSON.parse(String(packageCall?.[1]?.body));
-    expect(body).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      name: 'Weekend 10h',
-      price: { currencyCode: 'TJS', minorUnits: 32000 },
-      includedSeconds: 36000,
-      bonusSeconds: 3600,
-      expiresAfterDays: 45
-    });
-    expect(body.idempotencyKey).toMatch(/^package-definition-create-/);
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('updates and deactivates a package definition from Settings tariffs', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^Тарифы/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Night 5h/ }));
-    fireEvent.change(screen.getByLabelText('Название пакета'), { target: { value: 'Night 6h' } });
-    fireEvent.change(screen.getByLabelText('Цена'), { target: { value: '300.00' } });
-    fireEvent.change(screen.getByLabelText('Включено, мин'), { target: { value: '360' } });
-    fireEvent.change(screen.getByLabelText('Бонус, мин'), { target: { value: '40' } });
-    fireEvent.change(screen.getByLabelText('Срок, дней'), { target: { value: '45' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Обновить пакет' }));
-
-    expect(await screen.findByText('Обновить пакет: подтверждено')).toBeInTheDocument();
-    const updateCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/packages/abababab-abab-abab-abab-abababababab') &&
-      init?.method === 'PATCH');
-    expect(updateCall).toBeDefined();
-    const updateBody = JSON.parse(String(updateCall?.[1]?.body));
-    expect(updateBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      name: 'Night 6h',
-      price: { currencyCode: 'TJS', minorUnits: 30000 },
-      includedSeconds: 21600,
-      bonusSeconds: 2400,
-      expiresAfterDays: 45,
-      isActive: true
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Снять пакет' }));
-    expect(await screen.findByText('Снять пакет: подтверждено')).toBeInTheDocument();
-    const deactivateCall = fetchMock.mock.calls.filter(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/packages/abababab-abab-abab-abab-abababababab') &&
-      init?.method === 'PATCH').at(-1);
-    expect(deactivateCall).toBeDefined();
-    const deactivateBody = JSON.parse(String(deactivateCall?.[1]?.body));
-    expect(deactivateBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      name: 'Night 6h',
-      isActive: false
-    });
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('creates a tariff and rule version from Settings tariffs', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^Тарифы/ }));
-    fireEvent.change(screen.getByLabelText('Название тарифа'), { target: { value: 'Morning Hour' } });
-    expect(screen.queryByText(/standard-v1|rule|версия 1/i)).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Цена за час'), { target: { value: '96.00' } });
-    fireEvent.change(screen.getByLabelText('Минимум, мин'), { target: { value: '20' } });
-    fireEvent.change(screen.getByLabelText('Шаг округления, мин'), { target: { value: '10' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Создать тариф' }));
-
-    expect(await screen.findByText('Создать тариф: подтверждено')).toBeInTheDocument();
-    const tariffCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).endsWith('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs') &&
-      init?.method === 'POST');
-    expect(tariffCall).toBeDefined();
-    const tariffBody = JSON.parse(String(tariffCall?.[1]?.body));
-    expect(tariffBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      name: 'Morning Hour'
-    });
-    expect(tariffBody.idempotencyKey).toMatch(/^tariff-create-/);
-
-    const versionCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs/25252525-2525-2525-2525-252525252525/versions') &&
-      init?.method === 'POST');
-    expect(versionCall).toBeDefined();
-    const versionBody = JSON.parse(String(versionCall?.[1]?.body));
-    expect(versionBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      tariffId: '25252525-2525-2525-2525-252525252525',
-      currencyCode: 'TJS',
-      pricePerMinuteMinorUnits: 160,
-      minimumBillableMinutes: 20,
-      roundingIncrementMinutes: 10
-    });
-    expect(versionBody.effectiveFromUtc).toEqual(expect.any(String));
-    expect(versionBody.idempotencyKey).toMatch(/^tariff-version-create-/);
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('updates and deactivates a selected tariff from Settings tariffs', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^Тарифы/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Standard/ }));
-    fireEvent.change(screen.getByLabelText('Название тарифа'), { target: { value: 'Standard Plus' } });
-    fireEvent.change(screen.getByLabelText('Цена за час'), { target: { value: '120.00' } });
-    fireEvent.change(screen.getByLabelText('Минимум, мин'), { target: { value: '20' } });
-    fireEvent.change(screen.getByLabelText('Шаг округления, мин'), { target: { value: '10' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Обновить тариф' }));
-
-    expect(await screen.findByText('Обновить тариф: подтверждено')).toBeInTheDocument();
-    const tariffCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs/16161616-1616-1616-1616-161616161616') &&
-      !String(input).includes('/versions/') &&
-      init?.method === 'PATCH');
-    expect(tariffCall).toBeDefined();
-    const tariffBody = JSON.parse(String(tariffCall?.[1]?.body));
-    expect(tariffBody).toEqual({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      name: 'Standard Plus',
-      isActive: true
-    });
-
-    const versionCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs/16161616-1616-1616-1616-161616161616/versions/17171717-1717-1717-1717-171717171717') &&
-      init?.method === 'PATCH');
-    expect(versionCall).toBeDefined();
-    const versionBody = JSON.parse(String(versionCall?.[1]?.body));
-    expect(versionBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      currencyCode: 'TJS',
-      pricePerMinuteMinorUnits: 200,
-      minimumBillableMinutes: 20,
-      roundingIncrementMinutes: 10,
-      isActive: true
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Снять тариф' }));
-    expect(await screen.findByText('Снять тариф: подтверждено')).toBeInTheDocument();
-    const deactivateCall = fetchMock.mock.calls.filter(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/tariffs/16161616-1616-1616-1616-161616161616/versions/17171717-1717-1717-1717-171717171717') &&
-      init?.method === 'PATCH').at(-1);
-    expect(deactivateCall).toBeDefined();
-    const deactivateBody = JSON.parse(String(deactivateCall?.[1]?.body));
-    expect(deactivateBody).toMatchObject({ isActive: false });
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('registers update packages and creates update publications from Settings integrations', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^Интеграции/ }));
-    expect(screen.getByText('ручное подтверждение')).toBeInTheDocument();
-    expect(screen.queryByText(/manual provider|API · staging|URL артефакта|Старт UTC|Ссылка на MSI|Контрольная сумма|Алгоритм подписи|Размер файла, байты/)).not.toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Версия'), { target: { value: '0.2.0' } });
-    fireEvent.change(screen.getByLabelText('Файл установщика'), { target: { value: 'https://updates.afk4.test/organization-admin/0.2.0/organization-admin.msi' } });
-    fireEvent.change(screen.getByLabelText('Подпись пакета'), { target: { value: 'operator-package-signature' } });
-    fireEvent.change(screen.getByLabelText('Размер файла, КБ'), { target: { value: '4' } });
-    fireEvent.change(screen.getByLabelText('Описание релиза'), { target: { value: 'Пакет оператора 0.2.0.' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Добавить пакет' }));
-
-    expect(await screen.findByText('Добавить пакет обновления: подтверждено')).toBeInTheDocument();
-    const packageCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages') &&
-      init?.method === 'POST');
-    expect(packageCall).toBeDefined();
-    const packageBody = JSON.parse(String(packageCall?.[1]?.body));
-    expect(packageBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      component: 'organization-admin',
-      version: '0.2.0',
-      channel: 'internal',
-      artifactUri: 'https://updates.afk4.test/organization-admin/0.2.0/organization-admin.msi',
-      signature: 'operator-package-signature',
-      signatureAlgorithm: 'ECDSA-P256-SHA256-IEEE-P1363',
-      sizeBytes: 4096,
-      releaseNotes: 'Пакет оператора 0.2.0.'
-    });
-
-    fireEvent.change(screen.getByLabelText('Доля %'), { target: { value: '25' } });
-    await waitFor(() => expect(screen.getByLabelText('Пакет для публикации')).toHaveValue('19191919-1919-1919-1919-191919191919'));
-    fireEvent.change(screen.getByLabelText('Начало публикации'), { target: { value: '2026-05-21T10:00:00Z' } });
-    fireEvent.change(screen.getAllByLabelText('Причина публикации')[0], { target: { value: 'Пилотная публикация.' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Создать публикацию' }));
-
-    expect(await screen.findByText('Создать публикацию обновления: подтверждено')).toBeInTheDocument();
-    const rolloutCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts') &&
-      init?.method === 'POST');
-    expect(rolloutCall).toBeDefined();
-    const rolloutBody = JSON.parse(String(rolloutCall?.[1]?.body));
-    expect(rolloutBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      updatePackageId: '19191919-1919-1919-1919-191919191919',
-      channel: 'internal',
-      targetKind: 'branch',
-      targetDeviceIds: [],
-      batchPercent: 25,
-      startsAtUtc: '2026-05-21T10:00:00.000Z',
-      reason: 'Пилотная публикация.'
-    });
-  });
-
     // TODO(task 1.6, Управление redesign): WorkspaceRouter has no 'management' case yet — this
   // exercised the old settings/logs/loyalty rail buttons, which collapsed into a single
   // 'Управление' entry in Task 1.5 (see docs/superpowers/specs/2026-07-16-operator-management-
   // redesign-design.md). Un-skip once the Управление scaffold routes to real content.
-  it.skip('changes update package and rollout states from Settings integrations', async () => {
-    installSessionBridge();
-
-    render(<App />);
-
-    expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
-    gotoWorkspace('Настройки');
-    expect(await screen.findByText('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043d\u044b')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^Интеграции/ }));
-    expect(screen.getByText('цель достигнута')).toBeInTheDocument();
-    expect(screen.getByText('Установлено')).toBeInTheDocument();
-    expect(screen.getByText('PC-02')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Состояние пакета'), { target: { value: 'validated' } });
-    fireEvent.change(screen.getByLabelText('Причина пакета'), { target: { value: 'Подпись проверена.' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Изменить состояние пакета' }));
-
-    const packageStateDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите состояние пакета' });
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages/15151515-1515-1515-1515-151515151515/state') &&
-      init?.method === 'POST')).toBe(false);
-    fireEvent.click(within(packageStateDialog).getByRole('button', { name: 'Подтвердить состояние пакета' }));
-
-    expect(await screen.findByText('Изменить состояние пакета: подтверждено')).toBeInTheDocument();
-    const packageStateCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/packages/15151515-1515-1515-1515-151515151515/state') &&
-      init?.method === 'POST');
-    expect(packageStateCall).toBeDefined();
-    const packageStateBody = JSON.parse(String(packageStateCall?.[1]?.body));
-    expect(packageStateBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      state: 'validated',
-      reason: 'Подпись проверена.'
-    });
-
-    fireEvent.change(screen.getByLabelText('Состояние публикации'), { target: { value: 'paused' } });
-    fireEvent.change(screen.getAllByLabelText('Причина публикации')[1], { target: { value: 'Пауза для проверки ошибок.' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Изменить состояние публикации' }));
-
-    const rolloutStateDialog = await screen.findByRole('alertdialog', { name: 'Подтвердите состояние публикации' });
-    expect(fetchMock.mock.calls.some(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts/14141414-1414-1414-1414-141414141414/state') &&
-      init?.method === 'POST')).toBe(false);
-    fireEvent.click(within(rolloutStateDialog).getByRole('button', { name: 'Подтвердить состояние публикации' }));
-
-    expect(await screen.findByText('Изменить состояние публикации: подтверждено')).toBeInTheDocument();
-    const rolloutStateCall = fetchMock.mock.calls.find(([input, init]) =>
-      String(input).includes('/api/organizations/0c04d6c0-bfa8-4e26-9263-fc0d307d0f08/branches/acfc0212-967f-4d84-94be-9003387b09c2/updates/rollouts/14141414-1414-1414-1414-141414141414/state') &&
-      init?.method === 'POST');
-    expect(rolloutStateCall).toBeDefined();
-    const rolloutStateBody = JSON.parse(String(rolloutStateCall?.[1]?.body));
-    expect(rolloutStateBody).toMatchObject({
-      organizationId: '0c04d6c0-bfa8-4e26-9263-fc0d307d0f08',
-      state: 'paused',
-      reason: 'Пауза для проверки ошибок.'
-    });
-  });
-
   it('hides the cash journal tab without cash/review permissions', async () => {
     installSessionBridge(createSession({ permissions: ['organization.pos.sales.create', 'organization.pos.sales.pay'] }));
     render(<App />);
