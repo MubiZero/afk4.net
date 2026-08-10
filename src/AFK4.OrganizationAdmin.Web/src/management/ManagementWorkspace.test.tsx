@@ -8,7 +8,7 @@ import { supportPermissions } from '../support/supportWorkspaces';
 // Task 2.1: ManagementWorkspace now loads the settings-domain data (zones/staff/catalog/
 // tariffs/packages/device lists) that the halls/tariffs/staff/goods destinations need, via
 // createAuthenticatedOperatorClients — so this file mocks that module the same way
-// settingsSectionsSmoke.test.tsx does for BackendSettingsWorkspace. mock.module leaks
+// прежний дымовой тест делал для монолита настроек. mock.module leaks
 // process-wide, hence the real-module snapshot + afterAll restore.
 const getBranchProfile = mock(async () => ({}));
 const getLayoutZones = mock(async () => []);

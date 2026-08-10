@@ -32,7 +32,7 @@ import { TariffsPackagesDestination } from './destinations/TariffsPackagesDestin
 //
 // Task 2.1: settings-domain data (zones/staff/catalog/tariffs/packages/device lists) is loaded
 // once here — via createAuthenticatedOperatorClients, same contract as the retired
-// BackendSettingsWorkspace.loadSettings minus diagnostics/rollouts/updates (Integrations was
+// Прежний монолит настроек грузил то же самое минус diagnostics/rollouts/updates (Integrations was
 // dropped from this redesign) — so it's ready to hand to the halls/tariffs/staff/goods
 // destination wrappers landing in Task 2.2-2.6. Club/Loyalty/News load/save independently and
 // ignore all of it.

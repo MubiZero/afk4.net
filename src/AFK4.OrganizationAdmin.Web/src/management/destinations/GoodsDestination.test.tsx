@@ -157,6 +157,41 @@ describe('GoodsDestination', () => {
     expect(await screen.findByText('Штрих-коды')).toBeTruthy();
   });
 
+  // «Доступно в оболочке игрока» решает, увидит ли товар игрок на своём ПК — флаг обязан
+  // доезжать до сервера и подниматься из карточки товара (покрытие перенесено сюда с мёртвого
+  // экрана настроек, который этот же редактор когда-то хостил).
+  it('поднимает флаг «доступно в оболочке игрока» из товара и шлёт его при сохранении', async () => {
+    const inShell = { ...cola, availableInShell: true } as PosProductDto;
+    wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[inShell]} />);
+    fireEvent.click(screen.getByText('Cola 0.5'));
+
+    const checkbox = await screen.findByLabelText('Доступно в оболочке игрока');
+    expect((checkbox as HTMLInputElement).checked).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(
+      'b1',
+      productId,
+      expect.objectContaining({ availableInShell: true })
+    ));
+  });
+
+  it('снятый флаг «доступно в оболочке игрока» тоже доезжает до сервера', async () => {
+    const inShell = { ...cola, availableInShell: true } as PosProductDto;
+    wrap(<GoodsDestination backend={backend} session={session([permissionNames.managePosCatalog])} currencyCode="TJS" catalog={[inShell]} />);
+    fireEvent.click(screen.getByText('Cola 0.5'));
+
+    fireEvent.click(await screen.findByLabelText('Доступно в оболочке игрока'));
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(updateProduct).toHaveBeenCalledWith(
+      'b1',
+      productId,
+      expect.objectContaining({ availableInShell: false })
+    ));
+  });
+
   it('hides the "+ Товар" primary action and row menu without canManagePosCatalog', () => {
     wrap(<GoodsDestination backend={null} session={session([])} currencyCode="TJS" catalog={[cola]} />);
     expect(screen.queryByRole('button', { name: '+ Товар' })).toBeNull();
