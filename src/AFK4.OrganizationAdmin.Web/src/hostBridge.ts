@@ -48,6 +48,14 @@ export function isHostBridgeUnavailableError(error: unknown): boolean {
     || (error instanceof Error && error.message === hostBridgeUnavailableMessage);
 }
 
+// Тот же набор проверок, что делает postHostRequest перед отправкой. Нужен экранам, которые
+// предлагают действие самого приложения (перезапуск ради обновления): в браузере хоста нет, и
+// показывать кнопку, которая гарантированно откажет, — обещание, которое нечем выполнить.
+export function isHostBridgeAvailable(): boolean {
+  const webview = window.chrome?.webview;
+  return Boolean(webview?.postMessage && webview?.addEventListener && webview?.removeEventListener);
+}
+
 export function postHostWindowCommand(command: HostWindowCommand): void {
   window.chrome?.webview?.postMessage({ type: `window:${command}` });
 }

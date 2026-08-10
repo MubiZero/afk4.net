@@ -154,6 +154,12 @@ function renderBackendPos(nextBackend = backend) {
   );
 }
 
+// Чек начинается пустым (см. тест ниже), поэтому денежные сценарии сначала кладут товар руками —
+// кликом по карточке каталога, ровно как кассир.
+function addColaToCart() {
+  fireEvent.click(screen.getByRole('button', { name: /Cola/ }));
+}
+
 describe('BackendPosWorkspace', () => {
   it('standalone: рендерит шапку «Продажи» и панели каталог + продажа (корзина+оплата)', () => {
     renderPos(false);
@@ -174,6 +180,16 @@ describe('BackendPosWorkspace', () => {
     expect(document.querySelector('section.pos-embed')).not.toBeNull();
     expect(screen.getByText('Каталог')).toBeInTheDocument();
     expect(document.querySelector('.pos-sale-panel')).not.toBeNull();
+  });
+
+  // Смена начинается с пустого чека. Каталог, приехавший с бэкенда, ничего в корзину не кладёт:
+  // иначе кассир открывает Кассу с уже пробитым случайным товаром и рискует продать лишнее.
+  it('оставляет чек пустым после загрузки каталога с бэкенда', async () => {
+    renderBackendPos();
+    await screen.findAllByText('Cola');
+
+    expect(screen.getByText('Корзина пуста')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Оплатить' })).toBeNull();
   });
 
   it('labels backend product price and selected client balance', async () => {
@@ -222,6 +238,7 @@ describe('BackendPosWorkspace', () => {
     settlementFailuresRemaining = 1;
     renderBackendPos();
     await screen.findAllByText('Cola');
+    addColaToCart();
 
     fireEvent.click(screen.getByRole('button', { name: 'Выбрать' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Клиент' }), { target: { value: 'Амир' } });
@@ -261,6 +278,7 @@ describe('BackendPosWorkspace', () => {
     settlementNetworkFailuresRemaining = 1;
     renderBackendPos();
     await screen.findAllByText('Cola');
+    addColaToCart();
 
     fireEvent.click(screen.getByRole('button', { name: 'Выбрать' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Клиент' }), { target: { value: 'Амир' } });
@@ -295,6 +313,7 @@ describe('BackendPosWorkspace', () => {
     saleReadState = 'paid';
     renderBackendPos();
     await screen.findAllByText('Cola');
+    addColaToCart();
 
     fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
     fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));
@@ -327,6 +346,7 @@ describe('BackendPosWorkspace', () => {
     removeProductAfterSettlement = true;
     renderBackendPos();
     await screen.findAllByText('Cola');
+    addColaToCart();
 
     fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
     fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));
@@ -342,6 +362,7 @@ describe('BackendPosWorkspace', () => {
     settlementNetworkFailuresRemaining = 2;
     renderBackendPos();
     await screen.findAllByText('Cola');
+    addColaToCart();
 
     fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
     fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));
@@ -382,6 +403,7 @@ describe('BackendPosWorkspace', () => {
       saleReadState = terminalState;
       renderBackendPos();
       await screen.findAllByText('Cola');
+      addColaToCart();
 
       fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
       fireEvent.click(screen.getByRole('button', { name: /Принять 100/ }));

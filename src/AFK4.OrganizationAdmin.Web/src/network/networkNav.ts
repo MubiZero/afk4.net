@@ -1,11 +1,11 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, CreditCard, MonitorDown, ScrollText } from 'lucide-react';
+import { Building2, CreditCard, MonitorDown, RefreshCw, ScrollText } from 'lucide-react';
 import type { MessageKey } from '@afk4/i18n';
 import type { OperatorAuthSession } from '../authClient';
 import { hasAnyPermission } from '../operatorPermissions';
 import { permissionNames } from '../permissionNames';
 
-export type NetworkDestinationId = 'branches' | 'billing' | 'install' | 'journal';
+export type NetworkDestinationId = 'branches' | 'billing' | 'install' | 'updates' | 'journal';
 
 export interface NetworkDestination {
   id: NetworkDestinationId;
@@ -36,6 +36,17 @@ export const networkDestinations: readonly NetworkDestination[] = [
     subtitleKey: 'op.network.dest.install.subtitle',
     Icon: MonitorDown,
     permissions: [permissionNames.installDevice]
+  },
+  {
+    id: 'updates',
+    labelKey: 'op.network.dest.updates',
+    subtitleKey: 'op.network.dest.updates.subtitle',
+    Icon: RefreshCw,
+    // Гейт по праву НАСТРОЙКИ филиала, а не по «видеть статус обновления»: последнее есть почти у
+    // всех сменных ролей, и раздел «Сеть» (владельческий) открылся бы кассовым ролям целиком.
+    // Обе роли с этим правом — владелец и управляющий филиалом — держат и viewUpdateStatus,
+    // которого требует чтение на сервере.
+    permissions: [permissionNames.manageBranchSettings]
   },
   {
     id: 'journal',
