@@ -5,14 +5,14 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 5821be94-92d6-4025-9110-d29b28e7c3be
-  modified: 2026-07-20T10:43:18.640Z
+  modified: 2026-08-10T02:35:09.398Z
 ---
 
 Четыре «отставших» экрана раздела «Управление» оператора переведены на общий дизайн-kit
 (были на легаси-разметке мимо `MgmtTable`/`MgmtDrawer`/`mgmt-form`/`ui-chip`/`EmptyState`/
 `CriticalActionConfirmation`). Спека `docs/superpowers/specs/2026-07-20-operator-management-laggard-screens-kit-migration-design.md`,
-план `docs/.../plans/2026-07-20-...md`. Ветка `feat/operator-management-redesign`, коммиты
-`4376e8cb`..`fa6d2905` (5 шт).
+план `docs/.../plans/2026-07-20-...md`. **В MAIN** (`4376e8cb`..`fa6d2905`, 5 коммитов — предки
+main, проверено 2026-08-10; ранее файл ошибочно числил их «готово, но не влито»).
 
 Сделано (только разметка/классы, логика/API/валидация 1:1):
 - **Клуб**: `SettingsProfileSection` → `mgmt-form`; Валюта/Филиал = `.mgmt-meta-value` read-only
