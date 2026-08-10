@@ -83,7 +83,15 @@ metadata:
 - Из строки долга нет перехода в паспорт клуба.
 - Третий литерал `"TJS"` в `EfOrganizationSubscriptionService` при создании подписки — тот же класс,
   что закрывал тест-паритет валюты, но вне объёма планов волны B.
-- **Неподтверждённый одиночный сбой:** один полный прогон упал внутри записи в БД
-  (`ReaderModificationCommandBatch`), вывод не сохранён, имя теста неизвестно. Не воспроизвёлся за
-  5 полных прогонов + 12 прогонов конкурентного подмножества + CI. Повторится — начинать с
-  конкурентных тестов нумерации счетов.
+- **Тот «неподтверждённый одиночный сбой» ОПОЗНАН (2026-08-10, CI PR #152).** Это НЕ нумерация
+  счетов. Падает `PostgresReservationStartConcurrencyTests.
+  ReservationAndNormalStartForSameSeat_CommitExactlyOneFinancialEffectSet` с
+  `Npgsql.PostgresException 40001: could not serialize access due to read/write dependencies`.
+  Корень: `EfSessionCommandService.ExecuteInTransactionAsync` (строка ~765) **не ловит
+  serialization failure** — открывает Serializable-транзакцию, коммитит и всё; 40001 летит
+  наружу. Асимметрия с соседом: `EfSessionCheckoutService` (закрытие сессии) ловит через
+  `RelationalFailureClassifier.IsSerializationFailure` → rollback + `ChangeTracker.Clear()` →
+  409 `version_conflict`. Значит в проде одновременный старт сессии на одно место (бронь + ручной
+  старт, два кассира) отдаёт 500 вместо аккуратного конфликта. Флак в CI — лишь симптом.
+  **Починка не сделана** (нашлось при фронтовом PR, чинить отдельным слайсом): повторить приём
+  checkout-сервиса в `EfSessionCommandService`.
