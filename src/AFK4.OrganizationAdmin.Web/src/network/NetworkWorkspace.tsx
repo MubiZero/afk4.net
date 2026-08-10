@@ -7,10 +7,11 @@ import { allowedNetworkDestinations, type NetworkDestinationId } from './network
 import { BranchesDestination } from './branches/BranchesDestination';
 import { BillingDestination } from './billing/BillingDestination';
 import { InstallDestination } from './install/InstallDestination';
+import { UpdatesDestination } from './updates/UpdatesDestination';
 import { JournalDestination } from './journal/JournalDestination';
 
 // Каркас раздела «Сеть»: левый рейл разделов, доступных сессии (Филиалы/Подписка/Установка/
-// Журнал), + активный экран раздела справа — тот же паттерн, что ManagementWorkspace. В отличие
+// Обновления/Журнал), + активный экран раздела справа — тот же паттерн, что ManagementWorkspace. В отличие
 // от Управления здесь нет общей settings-domain загрузки на уровне хоста: каждый экран сам себе
 // хозяин (наполняется в Task 5-8), поэтому lift-состояние (dirty/settingsLoadStatus) сюда не
 // перенесено — эти данные никак не пересекаются между Филиалами/Подпиской/Установкой/Журналом.
@@ -42,6 +43,8 @@ export function NetworkWorkspace({ backend }: { backend: OperatorBackendContext 
         return <BillingDestination backend={backend} />;
       case 'install':
         return <InstallDestination backend={backend} />;
+      case 'updates':
+        return <UpdatesDestination backend={backend} />;
       case 'journal':
         return <JournalDestination backend={backend} />;
     }

@@ -1357,6 +1357,8 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /AFK4 Dushanbe/ })).toBeInTheDocument();
     gotoWorkspace('Продажи');
     expect(await screen.findByTitle(/Сервер на связи/)).toBeInTheDocument();
+    // Чек стартует пустым — кладём товар кликом по карточке каталога, как это делает кассир.
+    fireEvent.click(await screen.findByRole('button', { name: /Cola 0\.5/ }));
     await waitFor(() => expect(screen.getByRole('button', { name: /Принять оплату/ })).toBeEnabled());
     fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
 
@@ -1400,6 +1402,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Выбрать' }));
     fireEvent.change(screen.getByLabelText('Клиент'), { target: { value: 'Madina' } });
     fireEvent.click(await screen.findByRole('button', { name: /Madina S\./ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Cola 0\.5/ }));
     await waitFor(() => expect(screen.getByRole('button', { name: /Принять оплату/ })).toBeEnabled());
     fireEvent.click(screen.getByRole('button', { name: /Принять оплату/ }));
 

@@ -199,19 +199,17 @@ export function BackendPosWorkspace({ currencyCode, backend, embedded = false }:
       setCatalog(products);
       setCurrentShift(nextShift);
       if (!preserveCartSnapshot) {
+        // Пересобираем чек из свежего каталога: позиции, пропавшие из каталога, отваливаются.
+        // Пустой результат так и остаётся пустым — класть сюда «первый попавшийся товар» нельзя,
+        // кассир получит пробитую позицию, которую не выбирал.
         setCartItems((items) => {
           const productById = new Map(backendProducts.map((product) => [product.productId, product]));
-          const validBackendItems = items
+          return items
             .filter((item) => item.source === 'backend' && item.productId && productById.has(item.productId))
             .map((item) => ({
               ...productById.get(item.productId!)!,
               quantity: item.quantity
             }));
-          if (validBackendItems.length > 0) {
-            return validBackendItems;
-          }
-
-          return backendProducts[0] ? [{ ...backendProducts[0], quantity: 1 }] : [];
         });
       }
       setLoadStatus('backend');

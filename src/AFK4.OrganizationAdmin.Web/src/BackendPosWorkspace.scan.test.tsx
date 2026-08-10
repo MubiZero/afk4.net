@@ -117,13 +117,12 @@ describe('BackendPosWorkspace — barcode scanner', () => {
     // Ждём каталога: Cola должна быть в каталоге
     await waitFor(() => expect(screen.getAllByText('Cola').length).toBeGreaterThan(0));
 
-    // После загрузки каталога Cola уже в корзине с qty=1 (loadBackendPos инициализирует первым товаром).
-    // Первый скан → qty=2
+    // Чек после загрузки каталога пуст, так что счёт идёт с нуля: первый скан кладёт позицию,
+    // второй наращивает количество той же строки, а не добавляет вторую.
+    scan('111');
+    await waitFor(() => screen.getByText('1 шт.'));
+
     scan('111');
     await waitFor(() => screen.getByText('2 шт.'));
-
-    // Второй скан → qty=3
-    scan('111');
-    await waitFor(() => screen.getByText('3 шт.'));
   });
 });
