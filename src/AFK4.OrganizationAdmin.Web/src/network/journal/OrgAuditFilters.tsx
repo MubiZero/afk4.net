@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { JSX } from 'react';
+import { Download } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { presetRange, isoToDateInput, dateInputToFromUtc, dateInputToToUtc, type DateRange, type RangePreset } from './dateRange';
 
@@ -15,11 +16,13 @@ const PRESETS: { preset: RangePreset; labelKey: 'op.network.journal.range.today'
   { preset: '30d', labelKey: 'op.network.journal.range.30d' }
 ];
 
-export function OrgAuditFilters({ range, onRangeChange, onApply, onReset }: {
+export function OrgAuditFilters({ range, onRangeChange, onApply, onReset, onExport, exportDisabled }: {
   range: DateRange;
   onRangeChange: (range: DateRange) => void;
   onApply: (draft: AuditDraft) => void;
   onReset: () => void;
+  onExport: () => void;
+  exportDisabled: boolean;
 }): JSX.Element {
   const { t } = useI18n();
   const [action, setAction] = useState('');
@@ -82,6 +85,10 @@ export function OrgAuditFilters({ range, onRangeChange, onApply, onReset }: {
         </button>
         <button type="button" className="ui-btn" onClick={reset}>
           {t('op.network.journal.filter.reset')}
+        </button>
+        <button type="button" className="ui-btn" onClick={onExport} disabled={exportDisabled}>
+          <Download size={14} aria-hidden="true" />
+          {t('op.network.journal.export')}
         </button>
       </div>
     </div>

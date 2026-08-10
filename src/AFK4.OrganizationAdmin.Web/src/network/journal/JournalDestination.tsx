@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
 import type { JSX } from 'react';
+import { Download } from 'lucide-react';
 import { useI18n } from '@afk4/i18n';
 import { ManagementScreen } from '../../management/ManagementScreen';
 import { EmptyState } from '../../operatorPrimitives';
-import { createAuthenticatedOperatorClients } from '../../operatorHelpers';
+import { createAuthenticatedOperatorClients, downloadTextFile } from '../../operatorHelpers';
+import { toAuditCsv } from './orgAuditCsv';
 import type { OperatorBackendContext } from '../../operatorTypes';
 import { presetRange, type DateRange } from './dateRange';
 import { OrgAuditFilters, type AuditDraft } from './OrgAuditFilters';
@@ -45,7 +47,15 @@ export function JournalDestination({ backend }: { backend: OperatorBackendContex
     query
   );
 
-  const rows = state.status === 'ready' ? toAuditRows(state.records, { formatDate }, t('op.network.journal.actor.system')) : [];
+  const records = state.status === 'ready' ? state.records : [];
+  const rows = state.status === 'ready' ? toAuditRows(records, { formatDate }, t('op.network.journal.actor.system')) : [];
+
+  // Выгружается ровно то, что на экране: тот же фильтр, тот же лимит. Отдельного серверного
+  // экспорта у org-аудита нет, а поддержке нужен файл, а не скриншот.
+  function exportCsv() {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    downloadTextFile(`afk4-audit-journal-${stamp}.csv`, toAuditCsv(records), 'text/csv;charset=utf-8');
+  }
 
   function handleRange(next: DateRange) {
     setRange(next);
@@ -68,6 +78,8 @@ export function JournalDestination({ backend }: { backend: OperatorBackendContex
           onRangeChange={handleRange}
           onApply={(draft) => setQuery(buildQuery(range, draft))}
           onReset={() => setQuery(buildQuery(range, { action: '', outcome: 'all', targetType: '' }))}
+          onExport={exportCsv}
+          exportDisabled={records.length === 0}
         />
 
         {state.status === 'loading' ? (

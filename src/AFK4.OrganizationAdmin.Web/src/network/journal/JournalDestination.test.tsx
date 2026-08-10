@@ -5,6 +5,7 @@ import { I18nProvider } from '@afk4/i18n';
 afterEach(() => {
   cleanup();
   searchOrganizationAudit.mockClear();
+  downloadTextFile.mockClear();
   auditRecords = [{
     auditRecordId: 'r1', branchId: null, actorStaffUserId: null, actorPlatformAdminUserId: null,
     action: 'news.published', targetType: 'News', targetId: 'n1', outcome: 'Succeeded',
@@ -25,10 +26,13 @@ const searchOrganizationAudit = mock(async () => {
   return { records: auditRecords, limit: 100 };
 });
 
+const downloadTextFile = mock((_name: string, _contents: string, _mime?: string) => undefined);
+
 mock.module('../../operatorHelpers', () => ({
   createAuthenticatedOperatorClients: () => ({
     orgAudit: { searchOrganizationAudit }
-  })
+  }),
+  downloadTextFile
 }));
 
 const backend = { config: { platformBaseUrl: 'x', currencyCode: 'TJS' }, session: { organizationId: 'org', accessToken: 't' }, branchId: 'b1' };
@@ -92,6 +96,31 @@ describe('JournalDestination', () => {
     render(<I18nProvider initialLocale="ru"><JournalDestination backend={backend as never} /></I18nProvider>);
 
     expect(await screen.findByText('Записей нет')).toBeInTheDocument();
+  });
+
+  // Выгрузка — единственный способ отдать журнал поддержке файлом; она обязана нести сырые
+  // идентификаторы, которых на экране не видно (branchId у org-записи, actor).
+  it('выгружает показанные записи в CSV с сырыми полями', async () => {
+    const { JournalDestination } = await import('./JournalDestination');
+    render(<I18nProvider initialLocale="ru"><JournalDestination backend={backend as never} /></I18nProvider>);
+    await waitFor(() => expect(screen.getByText('news.published')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Выгрузить для поддержки' }));
+
+    const [name, contents, mime] = downloadTextFile.mock.calls.at(-1) as unknown as [string, string, string];
+    expect(name).toMatch(/^afk4-audit-journal-.*\.csv$/);
+    expect(mime).toBe('text/csv;charset=utf-8');
+    expect(contents).toContain('audit_record_id,created_at_utc,branch_id');
+    expect(contents).toContain('r1,2026-07-20T10:00:00Z');
+  });
+
+  it('без записей выгружать нечего — кнопка заблокирована', async () => {
+    auditRecords = [];
+    const { JournalDestination } = await import('./JournalDestination');
+    render(<I18nProvider initialLocale="ru"><JournalDestination backend={backend as never} /></I18nProvider>);
+
+    await waitFor(() => expect(screen.getByText('Записей нет')).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Выгрузить для поддержки' })).toBeDisabled();
   });
 
   it('сбой загрузки предлагает повтор, а не выглядит как пустой журнал', async () => {
