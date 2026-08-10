@@ -39,7 +39,7 @@ export function PinModal({
         />
         <span className="clients-pin-hint">{t('op.players.pin.hint')}</span>
 
-        <button type="submit" className="clients-primary-action" disabled={busy || tooShort}>
+        <button type="submit" className="ui-btn ui-btn--primary" disabled={busy || tooShort}>
           <KeyRound size={15} aria-hidden="true" />
           {t('op.players.pin.submit')}
         </button>

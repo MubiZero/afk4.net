@@ -19,7 +19,7 @@ describe('BillingScreen', () => {
   it('renders the three tab triggers', async () => {
     render(<I18nProvider><ToastProvider><BillingScreen client={fakeClient()} tab="subscriptions" onTabChange={() => {}} canManage debtAccess={{ canMarkPaid: true, canGrantGrace: true, canToggleStatus: true, canAddNote: true }} /></ToastProvider></I18nProvider>);
     expect(screen.getByText('Подписки')).toBeInTheDocument();
-    expect(screen.getByText('Инвойсы')).toBeInTheDocument();
+    expect(screen.getByText('Счета')).toBeInTheDocument();
     expect(screen.getByText('Тарифы')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('Подписок пока нет.')).toBeInTheDocument());
   });

@@ -31,7 +31,7 @@ export function ActiveStateConfirmModal({
         </p>
         <button
           type="button"
-          className={isDeactivate ? 'clients-danger-action' : 'clients-primary-action'}
+          className={`ui-btn ${isDeactivate ? 'ui-btn--danger' : 'ui-btn--primary'}`}
           disabled={busy}
           onClick={onConfirm}
         >
