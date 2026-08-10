@@ -1,6 +1,12 @@
 # Memory Index
 
+> Статусы работы («в main», «не начат») проверены по репозиторию 2026-08-10. Опираешься на статус
+> или советуешь следующий шаг — **перепроверь командой**, см. [Гигиена памяти](memory-hygiene-verify-status.md).
+> Единственная непомерженная работа в проекте: [SecondaryApproval](operator-secondary-approval-orphan-branch.md).
+> Имя `AFK4.OrganizationAdmin.Web` мертво с `a6257364` — теперь `AFK4.OrganizationAdmin.Web`.
+
 ## Поведение / процесс
+- [Гигиена памяти — статус ≠ факт](memory-hygiene-verify-status.md) — статусные пометки протухают молча; проверять `git merge-base --is-ancestor`, не оставлять файл памяти в feature-ветке.
 - [Working style — bias to action](feedback_working_style.md) — внутри утверждённого плана выполнять задача-за-задачей без чек-инов; паузить только на блокерах/изменении объёма/деструктиве.
 - [Auto-merge authorized](afk4-auto-merge-authorized.md) — мержить слайс-PR самому после зелёного CI (PR #109 и последующие); полный цикл слайса автономен.
 - [«Открой превью» = дай ссылку](afk4-preview-means-give-link.md) — `bun run dev` → отдать URL (http://127.0.0.1:5174/), НЕ headless-скриншоты.
@@ -16,7 +22,7 @@
 - [Setup Wizard preview launch](setup-wizard-preview-launch.md) — Vite 5175 + env URL + `--preview`; devDeps → `bun install --force`; WSL-WPF-запуск теперь скиллом `operator-wpf-preview` (Оператор+Мастер, не параллельно).
 
 ## Архитектура (инварианты)
-- [Operator app = WebView2+React](afk4-operator-app-webview2.md) — Operator.App = тонкий WPF-хост + React (`AFK4.Operator.App.Web`), Linux-buildable.
+- [Operator app = WebView2+React](afk4-operator-app-webview2.md) — Operator.App = тонкий WPF-хост + React (`AFK4.OrganizationAdmin.Web`), Linux-buildable.
 - [Customer shell pivot](afk4-customer-shell-pivot.md) — Player.Shell = WebView2+React, enforcement (lock/lease/kiosk) в Agent.Service; shell не-авторитетен; осталось G5 hardware-smoke + Phase 2 (vault/privacy-wipe).
 - [Platform.Web redesign](platform-web-redesign.md) — ИСТОРИЯ (имена устарели): money 100×: DTO minor units, `formatCurrency` ждёт MAJOR → `minorToMajor` на UI-границе; org-эндпоинты IDOR-guard через `StaffContext.OrganizationId`; feature-shape (`*Model.ts`+`use*`).
 - [Platform Control = пульс парка](platform-control-fleet-redesign.md) — панель платформы переделана в NOC-наблюдение (сеть→клубы, сигнальные строки, паспорт+вкладки), в main `d0248eb8`; tokens через `[data-theme]`, `packages/i18n` имеет свой `bun test`, три ложно-зелёных теста за проект.
@@ -43,14 +49,15 @@
 - [Multi-tenant payments](afk4-multitenant-payments-state.md) — dcgate per-branch; money-path FROZEN внешним bank-bot; `Secrets:EncryptionKeyBase64` критичен (потеря = недешифруемые creds); prod afk4 не задеплоен.
 - [Time handling audit](afk4-time-handling-audit.md) — деньги server-authoritative/безопасны; реальный риск = skew/implicit-tz; рискованный lease/grace rewrite отложен до drift-логов; tz-multiregion YAGNI.
 - [SP4 backlog](afk4-sp4-shipped.md) — SP4 в main; deferred: Player OTP, per-tenant PWA icons, SignalR Redis backplane, G5 hardware-smoke.
-- [Operator UI-полировка Склад/Клиенты](operator-ui-polish-stock-clients.md) — нравятся Карта/Брони/Касса, НЕ нравятся Клиенты+Склад; полировка+раскладка на эталонном UI-kit; **Склад Блок A+B сделаны (не смержены)** + фикс мигания вкладок (keep-alive); затем Клиенты; хотелка: вкладки Кассы «Смена»/«Журнал» сырые.
+- [Operator UI-полировка Склад/Клиенты](operator-ui-polish-stock-clients.md) — нравятся Карта/Брони/Касса, НЕ нравятся Клиенты+Склад; полировка+раскладка на эталонном UI-kit. **ВСЁ В MAIN** (Склад блоки A+B, keep-alive вкладок, полировка «Смена»/«Журнал кассы» — проверено 2026-08-10). Ценность файла теперь — durable-уроки UI, не статус.
 - [POS «Последние чеки» + упрощение Кассы](operator-pos-receipts-panel.md) — **ВЕТКА ПРОТУХЛА, НЕ МЕРЖИТЬ** (проверено 2026-08-10): коммиты `bc42e2dd…499c9809` вне веток, база 30.06, main +562 коммита, 28 конфликтов. Живая идея ровно одна — **панель «Последние чеки» в POS** (в main её нет), делать заново поверх нынешней `CashReceiptsLedger` (вынести общий хук). Остальное мертво: «Журнал → единый экран» противоречит июльскому редизайну одобрений/чеков, усыпление анти-фрода отменено ходом main.
-- [Operator UI-kit эпик](operator-ui-kit-epic.md) — единый слой атомов `.ui-*`; **S1 Клиенты + S2 Склад в main**; **S3 Касса паритетом (реконсиляция атома) в работе**; далее S4 Карта / S5 Брони.
-- [Клиенты редизайн → таблица+drawer](operator-clients-redesign-tabledrawer.md) — **РЕАЛИЗОВАН**, все 8 задач плана в `feat/operator-clients-center-redesign`; build+тесты зелёные. Открытый пункт: стиль строк таблицы (постфактум).
+- [Operator UI-kit эпик](operator-ui-kit-epic.md) — единый слой атомов `.ui-*`. **S0+S1 Клиенты, S2 Склад, S3 Касса и кросс-секционная уборка — в main**; Карта осознанно НЕ мигрируется (штучный seat-grid); остался только S5 Брони, и то опционально. Эпик фактически исчерпан.
+- [Клиенты редизайн → таблица+drawer](operator-clients-redesign-tabledrawer.md) — **В MAIN** (`players/ClientsTable.tsx`+`ClientDrawer.tsx`, ветка удалена; проверено 2026-08-10); стиль строк таблицы тоже закрыт (карточный язык).
+- [SecondaryApproval — осиротевшая ветка](operator-secondary-approval-orphan-branch.md) — ЕДИНСТВЕННАЯ непомерженная работа: подтверждение денежного действия вторым сотрудником на месте (`feat/operator-reports-workspace-consolidation`); в main вместо неё живёт очередь одобрений. Развилка не решена, мержить нельзя (пути мертвы).
 - [Статусы клиентов (эпик, бэклог)](operator-client-statuses-epic.md) — хотелка: система кастомных статусов с преференциями (скидки/бонусы/минуты), ручное+авто присвоение, применяется в Кассе/сессиях. Делается ПОСЛЕ редизайна Клиентов; база почти нулевая (только org-wide кэшбэк). НЕ начат.
 - [Отставшие экраны Управления → kit](operator-laggard-screens-kit-migration.md) — Клуб/Лояльность/Шлюзы/Новости переведены на общий kit (табл+drawer, mgmt-form, чипы, confirm); **В MAIN** (`4376e8cb..fa6d2905` — предки main, проверено 2026-08-10). Клуб+Платежи/Лояльность идут на ПЕРЕОСМЫСЛЕНИЕ (см. ниже), Новости/Лояльность-карточки остаются.
-- [Оператор = единая админка (эпик)](operator-as-unified-admin-epic.md) — стратегия: оператор абсорбирует owner-панель, доступ по роли, мобильная обёртка. device-approval отменён; owner-веб на полную переделку (не эталон). НЕ начат; первый кирпич = рефокус Клуб+Платежи.
-- [Рефокус Клуб + Платежи/Лояльность](operator-club-payments-rethink.md) — Клуб = полный профиль (лицо игрока+адрес/контакты+часы+настройки, гейт manageBranchSettings, +поля на бэке); Платежи/Лояльность = один связный экран «деньги↔игрок». В работе (brainstorming).
+- [Оператор = единая админка (эпик)](operator-as-unified-admin-epic.md) — стратегия: оператор абсорбирует owner-панель, доступ по роли, мобильная обёртка. device-approval отменён; owner-веб на полную переделку (не эталон). **Первый кирпич (рефокус Клуб+Платежи) СДЕЛАН и в main**; сама абсорбция owner-панели и мобильная обёртка не начаты — это и есть следующий крупный кусок по Оператору.
+- [Рефокус Клуб + Платежи/Лояльность](operator-club-payments-rethink.md) — Клуб = полный профиль (лицо игрока+адрес/контакты+часы+настройки, гейт manageBranchSettings, +поля на бэке); Платежи/Лояльность = один связный экран «деньги↔игрок». **РЕАЛИЗОВАНО, в main** (`management/destinations/ClubDestination.tsx` + `PaymentsLoyaltyDestination.tsx`, проверено 2026-08-10); там же durable по Eskhata (Phase 1 в main, Phase 2/3 не начаты) и DC pay-link.
 
 ## Закрытые эпики (durable-уроки)
 - [Operator «Склад» эпик](afk4-operator-stock-epic.md) — **ЗАКРЫТ ПОЛНОСТЬЮ** (S0 #116 · S1 Приёмка #117 · S2 Журнал #118 · S3 Штрихи #120 · S4 Инвентаризация #121, merge `1c91bf4c`). Durable: lookup штриха КЛИЕНТСКИЙ (нет серверного by-barcode); себест средневзвешенная (пересчёт ТОЛЬКО на purchase, НЕ на adjustment); on-hand=SUM(delta); money price=nested DTO vs avgCost=плоское; useBarcodeScanner=чистый редьюсер+timeMs БЕЗ inline-opts; **инвентаризация: скан=найти+фокус строки (НЕ +1), проведение=идемпотентные adjustment на разницу, markPosted анти-двойное-проведение**; POS-порог per-product `isLowStock` (0=без алертинга); `tsc -b` тайпчекает И тесты И сужения (зелёный bun test ≠ зелёная сборка). Остался POS-долг: авто-кладёт первый товар в чек. Следующий зум-аут: Отчёты / Управление.

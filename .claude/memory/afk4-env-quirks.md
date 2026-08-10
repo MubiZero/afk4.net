@@ -28,7 +28,7 @@ Coolify at **cool.mubi.dev** (v4.1.2; bearer token, server `207.180.237.97`) man
 
 ## Windows bridge (for WPF — net10.0-windows builds/tests)
 
-WSL distro is `FedoraLinux-42`. WPF projects (`AFK4.Operator.App`, `AFK4.Player.Shell`) only build on Windows. Bridge via WSL→Windows interop:
+WSL distro is `FedoraLinux-42`. WPF projects (`AFK4.OrganizationAdmin.App`, `AFK4.Player.Shell`) only build on Windows. Bridge via WSL→Windows interop:
 
 1. **Interop binfmt is missing on boot** (despite `/etc/wsl.conf` `[interop] enabled=true`) — `cmd.exe` gives `exec format error`. Re-register it (passwordless sudo IS available):
    `echo ':WSLInterop:M::MZ::/init:PF' | sudo tee /proc/sys/fs/binfmt_misc/register`

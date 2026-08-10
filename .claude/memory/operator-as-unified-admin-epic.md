@@ -14,7 +14,7 @@ metadata:
 (десктоп), потенциально мобильная обёртка → админить с ПК И с мобилы.
 
 **Независимые куски (декомпозиция):**
-1. **Ролевая модель/доступ** — УЖЕ есть: `permissionNames` (`src/AFK4.Operator.App.Web/src/permissionNames.ts`)
+1. **Ролевая модель/доступ** — УЖЕ есть: `permissionNames` (`src/AFK4.OrganizationAdmin.Web/src/permissionNames.ts`)
    + серверные роли. Строить не нужно; нужно решать «какая роль что видит». Owner/доверенный-админ
    гейт для настроек филиала = `manageBranchSettings` (`branches.settings.manage`).
 2. **Консолидация owner-панели → оператор** — большой эпик. owner-веб (Platform.Web) ВСЁ РАВНО

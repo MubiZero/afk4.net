@@ -5,6 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: aeb816ad-08cb-40cb-a0b7-18a2f35d7402
+  modified: 2026-08-10T02:51:10.075Z
 ---
 
 Полная пересборка раздела **«Клиенты»** оператор-аппа. Пользователь забраковал прошлый редизайн
@@ -49,7 +50,9 @@ metadata:
 - «Сейчас/пакет»: играет на PC = фронт (`sessions.timeline` join по playerAccountId для всех строк); активный пакет когда не играет = нужны имя+остаток минут в списке (сейчас только `activePackageCount`) — решить в спеке: обогатить DTO ИЛИ упростить колонку до счётчика пакетов.
 - НЕ нужно: агрегат трат, isVip.
 
-**Статус: РЕАЛИЗОВАН.** План `docs/superpowers/plans/2026-07-06-operator-clients-table-drawer-redesign.md` — все 8 задач сделаны (коммиты `dc39ba3c`…`43f54555` на ветке `feat/operator-clients-center-redesign`): бэк (createdAtUtc/lastActivityAtUtc/активный пакет, batch без N+1) → фронт-контракт/проекции/i18n → `ClientsTable` → `ClientDrawer` → снос продажи пакетов из Клиентов → интеграция layout, снос старых `ClientList`/`ClientDetail`. Сверху постфактум-фикс `2f5f9375` (лимит броней 40→100 для live-context, серверный max). Build (`tsc -b && vite build`) и `bun test src/players/` (121/121) зелёные.
+**Статус: В MAIN** (проверено 2026-08-10 — `players/ClientsTable.tsx` + `ClientDrawer.tsx` живут в
+`src/AFK4.OrganizationAdmin.Web/src/`; ветка `feat/operator-clients-center-redesign` удалена после
+мержа). План `docs/superpowers/plans/2026-07-06-operator-clients-table-drawer-redesign.md` — все 8 задач сделаны (коммиты `dc39ba3c`…`43f54555` на ветке `feat/operator-clients-center-redesign`): бэк (createdAtUtc/lastActivityAtUtc/активный пакет, batch без N+1) → фронт-контракт/проекции/i18n → `ClientsTable` → `ClientDrawer` → снос продажи пакетов из Клиентов → интеграция layout, снос старых `ClientList`/`ClientDetail`. Сверху постфактум-фикс `2f5f9375` (лимит броней 40→100 для live-context, серверный max). Build (`tsc -b && vite build`) и `bun test src/players/` (121/121) зелёные.
 
 **Стиль строк таблицы — ЗАКРЫТ (2026-07-08).** Строки переведены на карточный стиль (рамка+радиус+фон+зазор между карточками вместо `border-bottom`), высота снята с 58px на 56px (4px-сетка); долг (`border-left`) и выбор (`box-shadow`-кольцо) разведены по разным CSS-свойствам, чтобы не гасили друг друга при совпадении. Тот же карточный язык раскатан и на Склад ([[operator-ui-polish-stock-clients]]). Заодно в этой же сессии: убраны пресеты пополнения `+50/+100/+200/+500` из drawer (пользователь попробовал скрыть — не понравилось, снесли совсем); починен баг «Х не закрывает drawer» (фолбэк `?? clients[0]` в вычислении `selectedClient` в `BackendPlayersWorkspace.tsx` откатывал закрытие обратно на первого клиента); баннер-пилюля действия заменена на тост ([[operator-feedback-toast]]).
 

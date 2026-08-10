@@ -8,7 +8,7 @@ metadata:
   modified: 2026-07-21T11:15:27.850Z
 ---
 
-Each club owner takes player top-up payments on their **own bank card** (possibly a different card per branch). In dcgate **one project = one card**, and dcgate confirms a payment by reading the bank's deposit message in a **Telegram account** tied to that card's bank phone. Payment matching is by a unique `comment` (afk4 `PaymentIntentId`), card is secondary. Repos: afk4 = THIS repo (`AFK4.Platform.Api` + `AFK4.Operator.App.Web`); dcgate = `/home/fedya/projects/dcgate` (MubiZero/dcgate, NestJS+Prisma+gramjs).
+Each club owner takes player top-up payments on their **own bank card** (possibly a different card per branch). In dcgate **one project = one card**, and dcgate confirms a payment by reading the bank's deposit message in a **Telegram account** tied to that card's bank phone. Payment matching is by a unique `comment` (afk4 `PaymentIntentId`), card is secondary. Repos: afk4 = THIS repo (`AFK4.Platform.Api` + `AFK4.OrganizationAdmin.Web`); dcgate = `/home/fedya/projects/dcgate` (MubiZero/dcgate, NestJS+Prisma+gramjs).
 
 **ARCHITECTURE (all 3 subsystems built & merged to main):**
 - **A — AFK4 routing core:** `branch_payment_gateways` table (`BranchPaymentGatewayEntity`, BranchId nullable → org-level fallback; ApiKey/WebhookSecret AES-256-GCM encrypted via `ISecretProtector`, key `Secrets:EncryptionKeyBase64`; CardLast4; Status `pending_telegram|active|disabled`). `IBranchPaymentGatewayResolver` (branch-active → org-null-active → null; webhook resolves by `x-dcgate-project-id` header, **fail-closed 401**). Outbound `/api/me/wallet/top-up-intent` → 409 `online_payment_unavailable` if no gateway. Top-up hot-path gate is `Status=active` (live Telegram health shown only in the owner cabinet).

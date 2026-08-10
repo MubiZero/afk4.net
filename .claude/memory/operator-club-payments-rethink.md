@@ -5,7 +5,7 @@ metadata:
   node_type: memory
   type: project
   originSessionId: 5821be94-92d6-4025-9110-d29b28e7c3be
-  modified: 2026-07-22T11:29:58.540Z
+  modified: 2026-08-10T02:51:00.796Z
 ---
 
 Первый кирпич эпика [[operator-as-unified-admin-epic]]. Пользователь потребовал не полировку, а
@@ -60,5 +60,14 @@ SDD, 8 задач + money-фикс + чистка, per-task + финальное
    Флейта: `bun test` оператора флакает 1 тест (process-wide моки), повторный прогон чист.
 
 Решения-док: `docs/superpowers/specs/2026-07-20-operator-club-payments-rethink-decisions.md`.
-Статус: спека под-проекта 1 написана, ждёт ревью пользователя → writing-plans. Экраны (2/3) —
-детальная спека перед их очередью. Всё адаптивно (тач ≥44px) под будущую мобильную обёртку.
+**СТАТУС НА 2026-08-10 (проверено по коду main): РЕФОКУС РЕАЛИЗОВАН, все три под-проекта в main.**
+Концовка ниже устарела и снята — она осталась от момента, когда была написана только спека.
+В main живут `management/destinations/ClubDestination.tsx` (полный профиль филиала: лицо игрока,
+контакты, часы, tz/locale, гейт `manageBranchSettings`) и `management/destinations/
+PaymentsLoyaltyDestination.tsx` (спокойный setup-экран, секции «как игрок платит» / «как вы
+возвращаете», гейт по правам + feature-флагу лояльности). Медиа-загрузка, DC pay-link и Eskhata
+Phase 1 — тоже в main (см. выше по файлу).
+
+Открыто по теме: Eskhata Phase 2 (Customer.Web PWA deeplink) и Phase 3 (Player.Shell киоск QR) —
+не начаты, ждут отдельных планов; inbound-webhook Eskhata не настроен (polling-путь работает).
+Всё адаптивно (тач ≥44px) под будущую мобильную обёртку.
