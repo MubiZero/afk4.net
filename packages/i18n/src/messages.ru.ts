@@ -198,6 +198,7 @@ export const ru = {
   "customer.reservations.timeError": "Укажите начало и конец",
   "customer.reservations.title": "Брони",
   "customer.signin.error": "Неверный номер или пароль",
+  "customer.signin.networkError": "Нет связи с сервером. Проверьте интернет.",
   "customer.signin.otpSoon": "Войти по SMS-коду · скоро",
   "customer.signin.password": "PIN или пароль",
   "customer.signin.phone": "Телефон",

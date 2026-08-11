@@ -63,6 +63,7 @@
   "customerReservationsTimeError": "Set a start and end time",
   "customerReservationsTitle": "Bookings",
   "customerSigninError": "Wrong number or password",
+  "customerSigninNetworkError": "No connection to the server. Check your internet.",
   "customerSigninOtpSoon": "Sign in by SMS code · soon",
   "customerSigninPassword": "PIN or password",
   "customerSigninPhone": "Phone",

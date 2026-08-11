@@ -63,6 +63,7 @@
   "customerReservationsTimeError": "Оғоз ва анҷомро нишон диҳед",
   "customerReservationsTitle": "Бронҳо",
   "customerSigninError": "Рақам ё парол нодуруст аст",
+  "customerSigninNetworkError": "Алоқа бо сервер нест. Интернетро санҷед.",
   "customerSigninOtpSoon": "Ворид бо рамзи SMS · ба зудӣ",
   "customerSigninPassword": "PIN ё парол",
   "customerSigninPhone": "Телефон",
