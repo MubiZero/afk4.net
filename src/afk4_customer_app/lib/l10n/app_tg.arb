@@ -1,5 +1,11 @@
 {
   "@@locale": "tg",
+  "customerClubPickerChange": "Иваз кардани клуб",
+  "customerClubPickerEmpty": "Клуб ёфт нашуд",
+  "customerClubPickerError": "Рӯйхати клубҳоро бор кардан нашуд",
+  "customerClubPickerSearch": "Ҷустуҷӯ аз рӯи ном",
+  "customerClubPickerSubtitle": "Шумо дар кадом клуб бозӣ мекунед",
+  "customerClubPickerTitle": "Клубро интихоб кунед",
   "customerCommonBack": "← Бозгашт",
   "customerCommonLoadMore": "Боз нишон додан",
   "customerCommonLoading": "Боркунӣ…",

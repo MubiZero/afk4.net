@@ -1,5 +1,11 @@
 {
   "@@locale": "ru",
+  "customerClubPickerChange": "Сменить клуб",
+  "customerClubPickerEmpty": "Клуб не найден",
+  "customerClubPickerError": "Не удалось загрузить список клубов",
+  "customerClubPickerSearch": "Поиск по названию",
+  "customerClubPickerSubtitle": "В каком клубе вы играете",
+  "customerClubPickerTitle": "Выберите клуб",
   "customerCommonBack": "← Назад",
   "customerCommonLoadMore": "Показать ещё",
   "customerCommonLoading": "Загрузка…",
