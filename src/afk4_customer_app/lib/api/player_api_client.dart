@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../auth/player_session.dart';
+import 'dto.dart';
 
 /// Ошибка запроса к API. Несёт код состояния: 401 на входе — «неверный пароль», 403 на
 /// действии — «возможность выключена», и на экране это разные тексты.
@@ -67,6 +68,68 @@ class PlayerApiClient {
     return _decode(response);
   }
 
+  /// Главный экран: кошелёк, долг и текущая сессия.
+  Future<PlayerDashboard> getDashboard() async =>
+      _parse(await getJson('/api/me/dashboard'), PlayerDashboard.fromJson);
+
+  /// Разбор ответа. Недостающее или чужого типа поле — такая же неудача запроса, как сетевой
+  /// сбой: экран покажет ошибку загрузки вместо падения.
+  static T _parse<T>(Map<String, dynamic> body, T Function(Map<String, dynamic>) fromJson) {
+    try {
+      return fromJson(body);
+    } catch (_) {
+      throw const PlayerApiException(null, 'malformed-body');
+    }
+  }
+
+  /// Возможности, включённые клубу. Список неполный или недоступный — не повод прятать
+  /// кнопку: право на запись всё равно проверяет сервер, а спрятанная кнопка выглядит как
+  /// «сломалось». Отсюда fail-open: ошибка поднимается наверх, экран трактует её как
+  /// «считаем включённым». Кривой ответ (нет массива) считается ошибкой, а не пустым списком —
+  /// иначе рассинхрон версий тихо выключил бы половину приложения.
+  Future<List<String>> getFeatures() async {
+    final body = await getJson('/api/me/features');
+    final features = body['features'];
+    if (features is! List) {
+      throw const PlayerApiException(null, 'malformed-features');
+    }
+    return features.cast<String>();
+  }
+
+  Future<List<TopUpIntent>> getTopUpIntents() async {
+    final list = await getJsonList('/api/me/wallet/top-up-intents');
+    return list.map((item) => _parse(item, TopUpIntent.fromJson)).toList();
+  }
+
+  Future<TopUpIntent> createTopUpIntent({
+    required int amountMinorUnits,
+    required String currencyCode,
+  }) async {
+    final body = await sendJson('POST', '/api/me/wallet/top-up-intent', {
+      'amountMinorUnits': amountMinorUnits,
+      'currencyCode': currencyCode,
+    });
+    return _parse(body, TopUpIntent.fromJson);
+  }
+
+  Future<List<Map<String, dynamic>>> getJsonList(String path) async {
+    var response = await _send('GET', path);
+    if (response.statusCode == 401 && await _refreshOnce()) {
+      response = await _send('GET', path);
+    }
+    return _decodeList(response);
+  }
+
+  /// Запрос с телом под сессией. Как и чтение, продлевает токен один раз и повторяет —
+  /// с тем же телом.
+  Future<Map<String, dynamic>> sendJson(String method, String path, Object body) async {
+    var response = await _send(method, path, body: body);
+    if (response.statusCode == 401 && await _refreshOnce()) {
+      response = await _send(method, path, body: body);
+    }
+    return _decode(response);
+  }
+
   Future<Map<String, dynamic>> _post(String path, Object body) async {
     final response = await _send('POST', path, body: body);
     return _decode(response);
@@ -113,10 +176,28 @@ class PlayerApiClient {
   }
 
   Map<String, dynamic> _decode(http.Response response) {
+    final body = _body(response);
+    if (body is! Map<String, dynamic>) throw const PlayerApiException(null, 'malformed-body');
+    return body;
+  }
+
+  List<Map<String, dynamic>> _decodeList(http.Response response) {
+    final body = _body(response);
+    if (body is! List) throw const PlayerApiException(null, 'malformed-body');
+    return body.cast<Map<String, dynamic>>();
+  }
+
+  /// Ответ не той формы — такая же неудача запроса, как сетевой сбой: рассинхрон версий или
+  /// прокси-заглушка не должны прилетать в экран необработанной ошибкой типа.
+  Object? _body(http.Response response) {
     if (response.statusCode != 200) {
       throw PlayerApiException(response.statusCode, _errorMessage(response));
     }
-    return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+    try {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } catch (_) {
+      throw const PlayerApiException(null, 'malformed-body');
+    }
   }
 
   static String _errorMessage(http.Response response) {

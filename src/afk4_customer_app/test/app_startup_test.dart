@@ -21,13 +21,23 @@ class _StubDirectory extends OrganizationDirectory {
   Future<List<Organization>> search({String? query}) async => clubs;
 }
 
+/// Отвечает как настоящий сервер: сессия на вход, деньги и сессия на главную, пустые
+/// списки на всё остальное.
 class _FakeHttp extends http.BaseClient {
   @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async => http.StreamedResponse(
-        Stream.value(utf8.encode(_sessionJson)),
-        200,
-        headers: const {'content-type': 'application/json; charset=utf-8'},
-      );
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final body = switch (request.url.path) {
+      '/api/me/dashboard' => _dashboardJson,
+      '/api/me/features' => '{"features":["online_topup"]}',
+      '/api/me/wallet/top-up-intents' => '[]',
+      _ => _sessionJson,
+    };
+    return http.StreamedResponse(
+      Stream.value(utf8.encode(body)),
+      200,
+      headers: const {'content-type': 'application/json; charset=utf-8'},
+    );
+  }
 }
 
 const _cyberx = Organization(
@@ -42,6 +52,11 @@ const _sessionJson = '''
  "accessToken":"access-1","accessTokenExpiresAtUtc":"2026-08-11T12:00:00Z",
  "refreshToken":"refresh-1","refreshTokenExpiresAtUtc":"2026-09-11T12:00:00Z"}''';
 
+const _dashboardJson = '''
+{"walletBalance":{"currencyCode":"TJS","minorUnits":120050},
+ "debtBalance":{"currencyCode":"TJS","minorUnits":0},
+ "activeSession":null}''';
+
 /// Штатный мок пакета пишет сюда же — заглядываем внутрь, чтобы проверить, что выход
 /// действительно стирает сессию с устройства, а не только убирает её с экрана.
 late Map<String, String> secureValues;
@@ -52,6 +67,16 @@ Widget buildApp() => CustomerApp(
       api: PlayerApiClient(baseUrl: 'https://api', httpClient: _FakeHttp()),
       sessionStore: const PlayerSessionStore(),
     );
+
+/// Снимает дерево: у главной экрана есть опрос раз в 30 секунд, и оставленный таймер
+/// валит тест как «pending timer».
+Future<void> unmount(WidgetTester tester) => tester.pumpWidget(const SizedBox.shrink());
+
+/// Выход живёт в шапке главной кнопкой-иконкой; свой экран профиля появится позже.
+Future<void> signOut(WidgetTester tester) async {
+  await tester.tap(find.byIcon(Icons.logout));
+  await tester.pumpAndSettle();
+}
 
 Future<void> signIn(WidgetTester tester) async {
   await tester.tap(find.text('CyberX'));
@@ -100,6 +125,7 @@ void main() {
 
     expect(find.text('Иван'), findsOneWidget);
     expect(find.text('Выберите клуб'), findsNothing);
+    await unmount(tester);
   });
 
   // Устройство бывает общим: после выхода следующий вошедший не должен видеть чужие данные.
@@ -108,8 +134,7 @@ void main() {
     await tester.pumpAndSettle();
     await signIn(tester);
 
-    await tester.tap(find.text('Выйти'));
-    await tester.pumpAndSettle();
+    await signOut(tester);
 
     expect(find.text('Вход в портал'), findsOneWidget);
     expect(secureValues, isEmpty);
@@ -121,8 +146,7 @@ void main() {
     await tester.pumpAndSettle();
     await signIn(tester);
 
-    await tester.tap(find.text('Выйти'));
-    await tester.pumpAndSettle();
+    await signOut(tester);
 
     expect(find.text('Выберите клуб'), findsNothing);
     expect(find.text('CyberX'), findsOneWidget);
@@ -132,8 +156,7 @@ void main() {
     await tester.pumpWidget(buildApp());
     await tester.pumpAndSettle();
     await signIn(tester);
-    await tester.tap(find.text('Выйти'));
-    await tester.pumpAndSettle();
+    await signOut(tester);
 
     await tester.tap(find.text('Сменить клуб'));
     await tester.pumpAndSettle();

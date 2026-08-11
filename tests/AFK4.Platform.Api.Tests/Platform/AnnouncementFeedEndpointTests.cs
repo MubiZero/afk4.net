@@ -10,7 +10,10 @@ namespace AFK4.Platform.Api.Tests.Platform;
 
 public sealed class AnnouncementFeedEndpointTests
 {
-    private static readonly DateTimeOffset Now = new(2026, 8, 10, 10, 0, 0, TimeSpan.Zero);
+    // Лента отбирает анонсы по НАСТОЯЩИМ часам, поэтому и окна показа задаются от них.
+    // Замороженная дата здесь была миной: 11 августа реальное время въехало в окно анонса,
+    // засеянного как «ещё не начался», и тест начал падать сам по себе.
+    private static readonly DateTimeOffset Now = DateTimeOffset.UtcNow;
     private static readonly string FeedUrl = $"/api/organizations/{TestIds.OrganizationId:D}/announcements";
 
     [Fact]
