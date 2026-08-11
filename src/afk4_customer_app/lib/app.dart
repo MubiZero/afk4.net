@@ -4,7 +4,7 @@ import 'api/player_api_client.dart';
 import 'auth/player_session.dart';
 import 'auth/player_session_store.dart';
 import 'auth/sign_in_screen.dart';
-import 'l10n/app_localizations.dart';
+import 'dashboard/dashboard_screen.dart';
 import 'l10n/localization_setup.dart';
 import 'organization/club_picker_screen.dart';
 import 'organization/organization.dart';
@@ -155,33 +155,11 @@ class _RootState extends State<_Root> {
       );
     }
 
-    return _PlaceholderHome(session: session, onSignOut: _signOut);
-  }
-}
-
-/// Временная заглушка вместо главного экрана: он появится следующим шагом.
-/// Здесь она подтверждает, что вход прошёл и сессия сохранилась.
-class _PlaceholderHome extends StatelessWidget {
-  const _PlaceholderHome({required this.session, required this.onSignOut});
-
-  final PlayerSession session;
-  final VoidCallback onSignOut;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = L.of(context);
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(l.customerDashboardWelcome, style: Theme.of(context).textTheme.bodyMedium),
-            Text(session.displayName, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 16),
-            OutlinedButton(onPressed: onSignOut, child: Text(l.customerProfileSignOut)),
-          ],
-        ),
-      ),
+    return DashboardScreen(
+      api: widget.api,
+      displayName: session.displayName,
+      phoneVerified: session.phoneVerified,
+      onSignOut: _signOut,
     );
   }
 }

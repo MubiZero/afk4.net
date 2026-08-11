@@ -16,10 +16,11 @@ const sourceDir = join(scriptDir, '..', 'src');
 const outFile = join(sourceDir, 'messages.ts');
 const repoRoot = join(scriptDir, '..', '..', '..');
 
-/** Flutter-приложение получает свою часть каталога по префиксу ключа. По мере переезда
- *  остальных приложений сюда добавляются строки — например `op.` для админского. */
+/** Flutter-приложение получает свою часть каталога по префиксам ключей. `a11y.` — общие
+ *  подписи для экранных читалок, они нужны каждому приложению. По мере переезда остальных
+ *  приложений сюда добавляются свои префиксы — например `op.` для админского. */
 const ARB_TARGETS = [
-  { prefix: 'customer.', dir: join(repoRoot, 'src', 'afk4_customer_app', 'lib', 'l10n') }
+  { prefixes: ['customer.', 'a11y.'], dir: join(repoRoot, 'src', 'afk4_customer_app', 'lib', 'l10n') }
 ] as const;
 
 /** `customer.common.back` → `customerCommonBack`: точка не годится в идентификатор Dart. */
@@ -59,10 +60,11 @@ for (const target of ARB_TARGETS) {
   for (const loc of LOCALES) {
     const catalog = JSON.parse(readFileSync(join(localesDir, `${loc}.json`), 'utf8')) as Record<string, string>;
     const arb: Record<string, string> = { '@@locale': loc };
-    for (const key of Object.keys(catalog).filter((k) => k.startsWith(target.prefix)).sort()) {
+    const keys = Object.keys(catalog).filter((k) => target.prefixes.some((p) => k.startsWith(p)));
+    for (const key of keys.sort()) {
       arb[toArbName(key)] = catalog[key];
     }
     writeFileSync(join(target.dir, `app_${loc}.arb`), `${JSON.stringify(arb, null, 2)}\n`);
   }
-  console.log(`generated ARB for "${target.prefix}" in ${target.dir}`);
+  console.log(`generated ARB for ${target.prefixes.join(', ')} in ${target.dir}`);
 }
