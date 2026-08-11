@@ -61,3 +61,12 @@ WSL distro is `FedoraLinux-42`. WPF projects (`AFK4.OrganizationAdmin.App`, `AFK
 - **Вес Flutter Web** (замерено на пустом проекте): 1.8 МБ `main.dart.js` + движок рендеринга
   3.4–6.9 МБ wasm. Для сравнения, весь нынешний Platform Control = 1.4 МБ JS. Пользователь принял
   этот проигрыш сознательно (см. [[flutter-migration-decision]]) — не переоткрывать вопрос.
+
+## Известный флак CI (не мой регресс, чинить отдельно)
+
+`NamedPipeOrganizationAdminUpdateCoordinatorClientTests.QueryState_WritesAuthenticatedFramedRequestAndReadsResponse`
+падает на Windows-раннере с `EndOfStreamException` в `ServeOnceAsync`. Причина: клиент ждёт
+ответа 5 с (`OrganizationAdminUpdateCoordinationTimeoutMilliseconds`), на загруженном раннере
+сдаётся и закрывает пайп, а серверная половина теста читает из оборванного потока. Тест при
+этом длится ~8 с вместо долей секунды — верный признак. Наблюдался 2026-08-11 (PR #157),
+перезапуск job прошёл. **Лечится не перезапуском, а устойчивостью теста к медленному раннеру.**
