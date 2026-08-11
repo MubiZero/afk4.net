@@ -165,6 +165,42 @@ internal static class AuthEndpoints
             return response is null ? Results.Unauthorized() : Results.Ok(response);
         }).RequireRateLimiting("player-public");
 
+        // Каталог клубов для мобильного приложения: у него нет поддомена, из которого веб-сборка
+        // берёт организацию, а вход без неё невозможен (игрок опознаётся парой организация+телефон).
+        // Отдаём витрину и только её: статус, подписка, долги и лимиты сюда не попадают.
+        app.MapGet("/api/public/organizations", async (
+            string? query,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            const int maxResults = 50;
+
+            var organizations = dbContext.Organizations
+                .AsNoTracking()
+                .Where(o => o.Status == "active");
+
+            var trimmed = query?.Trim();
+            if (!string.IsNullOrEmpty(trimmed))
+            {
+                // ToLower().Contains(), а не EF.Functions.ILike: ILike — расширение Npgsql, и на
+                // InMemory (где идут эти тесты) оно роняет запрос в 500. Каталог отдаёт максимум
+                // 50 строк, так что отсутствие индексного поиска здесь ничего не стоит.
+                var needle = trimmed.ToLowerInvariant();
+                organizations = organizations.Where(o =>
+                    o.Name.ToLower().Contains(needle) || o.Slug.ToLower().Contains(needle));
+            }
+
+            // Порядок по имени, а не по времени создания: список должен выглядеть одинаково при
+            // каждом открытии, иначе выбранный глазом клуб уезжает под пальцем.
+            var entries = await organizations
+                .OrderBy(o => o.Name)
+                .Take(maxResults)
+                .Select(o => new OrganizationDirectoryEntryDto(o.OrganizationId, o.Slug, o.Name, o.LogoUrl, o.AccentColor))
+                .ToListAsync(cancellationToken);
+
+            return Results.Ok(entries);
+        }).RequireRateLimiting("player-public");
+
         app.MapGet("/api/public/organization/{organizationKey}/branding", async (
             string organizationKey,
             PlatformDbContext dbContext,

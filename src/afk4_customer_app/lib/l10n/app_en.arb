@@ -1,5 +1,11 @@
 {
   "@@locale": "en",
+  "customerClubPickerChange": "Change club",
+  "customerClubPickerEmpty": "No clubs found",
+  "customerClubPickerError": "Could not load the club list",
+  "customerClubPickerSearch": "Search by name",
+  "customerClubPickerSubtitle": "Which club do you play at",
+  "customerClubPickerTitle": "Choose your club",
   "customerCommonBack": "← Back",
   "customerCommonLoadMore": "Show more",
   "customerCommonLoading": "Loading…",
