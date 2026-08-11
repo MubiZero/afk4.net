@@ -63,6 +63,7 @@
   "customerReservationsTimeError": "Укажите начало и конец",
   "customerReservationsTitle": "Брони",
   "customerSigninError": "Неверный номер или пароль",
+  "customerSigninNetworkError": "Нет связи с сервером. Проверьте интернет.",
   "customerSigninOtpSoon": "Войти по SMS-коду · скоро",
   "customerSigninPassword": "PIN или пароль",
   "customerSigninPhone": "Телефон",

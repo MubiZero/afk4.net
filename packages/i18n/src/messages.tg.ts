@@ -198,6 +198,7 @@ export const tg = {
   "customer.reservations.timeError": "Оғоз ва анҷомро нишон диҳед",
   "customer.reservations.title": "Бронҳо",
   "customer.signin.error": "Рақам ё парол нодуруст аст",
+  "customer.signin.networkError": "Алоқа бо сервер нест. Интернетро санҷед.",
   "customer.signin.otpSoon": "Ворид бо рамзи SMS · ба зудӣ",
   "customer.signin.password": "PIN ё парол",
   "customer.signin.phone": "Телефон",

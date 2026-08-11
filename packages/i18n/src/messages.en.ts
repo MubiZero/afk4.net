@@ -198,6 +198,7 @@ export const en = {
   "customer.reservations.timeError": "Set a start and end time",
   "customer.reservations.title": "Bookings",
   "customer.signin.error": "Wrong number or password",
+  "customer.signin.networkError": "No connection to the server. Check your internet.",
   "customer.signin.otpSoon": "Sign in by SMS code · soon",
   "customer.signin.password": "PIN or password",
   "customer.signin.phone": "Phone",

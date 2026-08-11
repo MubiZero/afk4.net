@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'api/player_api_client.dart';
+import 'auth/player_session.dart';
+import 'auth/player_session_store.dart';
+import 'auth/sign_in_screen.dart';
 import 'l10n/app_localizations.dart';
 import 'l10n/localization_setup.dart';
 import 'organization/club_picker_screen.dart';
@@ -22,13 +26,17 @@ class CustomerApp extends StatelessWidget {
     super.key,
     this.locale,
     required this.directory,
+    required this.api,
     this.selectedOrganizationStore = const SelectedOrganizationStore(),
+    this.sessionStore = const PlayerSessionStore(),
   });
 
   /// Задаётся только тестами и будущим переключателем в профиле; null = язык устройства.
   final Locale? locale;
   final OrganizationDirectory directory;
+  final PlayerApiClient api;
   final SelectedOrganizationStore selectedOrganizationStore;
+  final PlayerSessionStore sessionStore;
 
   @override
   Widget build(BuildContext context) {
@@ -46,18 +54,29 @@ class CustomerApp extends StatelessWidget {
         final match = supported.where((l) => l.languageCode == deviceLocale?.languageCode);
         return match.isNotEmpty ? match.first : const Locale('ru');
       },
-      home: _Root(directory: directory, store: selectedOrganizationStore),
+      home: _Root(
+        directory: directory,
+        api: api,
+        organizationStore: selectedOrganizationStore,
+        sessionStore: sessionStore,
+      ),
     );
   }
 }
 
-/// Решает, что показать при запуске: выбор клуба или экран за ним. Клуб, выбранный однажды,
-/// не спрашивается снова — это предпочтение, а не шаг входа.
+/// Решает, что показать при запуске: выбор клуба, вход или экран за ними.
 class _Root extends StatefulWidget {
-  const _Root({required this.directory, required this.store});
+  const _Root({
+    required this.directory,
+    required this.api,
+    required this.organizationStore,
+    required this.sessionStore,
+  });
 
   final OrganizationDirectory directory;
-  final SelectedOrganizationStore store;
+  final PlayerApiClient api;
+  final SelectedOrganizationStore organizationStore;
+  final PlayerSessionStore sessionStore;
 
   @override
   State<_Root> createState() => _RootState();
@@ -66,6 +85,7 @@ class _Root extends StatefulWidget {
 class _RootState extends State<_Root> {
   bool _restoring = true;
   Organization? _organization;
+  PlayerSession? _session;
 
   @override
   void initState() {
@@ -74,18 +94,44 @@ class _RootState extends State<_Root> {
   }
 
   Future<void> _restore() async {
-    final saved = await widget.store.read();
+    final organization = await widget.organizationStore.read();
+    final session = await widget.sessionStore.read();
+    if (session != null) widget.api.updateSession(session);
     if (!mounted) return;
     setState(() {
-      _organization = saved;
+      _organization = organization;
+      _session = session;
       _restoring = false;
     });
   }
 
-  Future<void> _select(Organization organization) async {
-    await widget.store.write(organization);
+  Future<void> _selectOrganization(Organization organization) async {
+    await widget.organizationStore.write(organization);
     if (!mounted) return;
     setState(() => _organization = organization);
+  }
+
+  Future<void> _onSignedIn() async {
+    final session = widget.api.session;
+    if (session != null) await widget.sessionStore.write(session);
+    if (!mounted) return;
+    setState(() => _session = session);
+  }
+
+  /// Выход стирает и сессию, и сохранённые данные: устройство бывает общим, и следующий
+  /// вошедший не должен видеть чужой кошелёк. Правило перенесено из веб-версии.
+  Future<void> _signOut() async {
+    widget.api.updateSession(null);
+    await widget.sessionStore.clear();
+    if (!mounted) return;
+    setState(() => _session = null);
+  }
+
+  Future<void> _changeClub() async {
+    await _signOut();
+    await widget.organizationStore.clear();
+    if (!mounted) return;
+    setState(() => _organization = null);
   }
 
   @override
@@ -96,24 +142,30 @@ class _RootState extends State<_Root> {
 
     final organization = _organization;
     if (organization == null) {
-      return ClubPickerScreen(directory: widget.directory, onSelected: _select);
+      return ClubPickerScreen(directory: widget.directory, onSelected: _selectOrganization);
     }
 
-    return _PlaceholderHome(organization: organization, onChangeClub: () async {
-      await widget.store.clear();
-      if (!mounted) return;
-      setState(() => _organization = null);
-    });
+    final session = _session;
+    if (session == null) {
+      return SignInScreen(
+        organization: organization,
+        api: widget.api,
+        onSignedIn: _onSignedIn,
+        onChangeClub: _changeClub,
+      );
+    }
+
+    return _PlaceholderHome(session: session, onSignOut: _signOut);
   }
 }
 
-/// Временная заглушка вместо главного экрана: он появится следующим шагом вместе со входом.
-/// Здесь она подтверждает, что клуб выбран и запомнился.
+/// Временная заглушка вместо главного экрана: он появится следующим шагом.
+/// Здесь она подтверждает, что вход прошёл и сессия сохранилась.
 class _PlaceholderHome extends StatelessWidget {
-  const _PlaceholderHome({required this.organization, required this.onChangeClub});
+  const _PlaceholderHome({required this.session, required this.onSignOut});
 
-  final Organization organization;
-  final VoidCallback onChangeClub;
+  final PlayerSession session;
+  final VoidCallback onSignOut;
 
   @override
   Widget build(BuildContext context) {
@@ -123,9 +175,10 @@ class _PlaceholderHome extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(organization.name, style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 12),
-            OutlinedButton(onPressed: onChangeClub, child: Text(l.customerClubPickerChange)),
+            Text(l.customerDashboardWelcome, style: Theme.of(context).textTheme.bodyMedium),
+            Text(session.displayName, style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 16),
+            OutlinedButton(onPressed: onSignOut, child: Text(l.customerProfileSignOut)),
           ],
         ),
       ),

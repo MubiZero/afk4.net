@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'api/player_api_client.dart';
 import 'app.dart';
 import 'organization/organization_directory.dart';
 
@@ -8,5 +9,8 @@ import 'organization/organization_directory.dart';
 const String apiBase = String.fromEnvironment('AFK4_API_BASE');
 
 void main() {
-  runApp(CustomerApp(directory: OrganizationDirectory(baseUrl: apiBase)));
+  runApp(CustomerApp(
+    directory: OrganizationDirectory(baseUrl: apiBase),
+    api: PlayerApiClient(baseUrl: apiBase),
+  ));
 }
