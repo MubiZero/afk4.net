@@ -23,6 +23,7 @@ jobs:
     outputs:
       run_dotnet: ${{ steps.filter.outputs.run_dotnet }}
       run_web: ${{ steps.filter.outputs.run_web }}
+      run_flutter: ${{ steps.filter.outputs.run_flutter }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,6 +60,12 @@ jobs:
             "src/AFK4.Customer.Web/",
             "src/AFK4.SetupWizard.Web/"
           )
+          $flutterPrefixes = @(
+            ".github/workflows/pr-verification.yml",
+            "locales/",
+            "packages/i18n/",
+            "src/afk4_customer_app/"
+          )
           $webFiles = @(
             "package.json",
             "bun.lock",
@@ -66,6 +73,7 @@ jobs:
           )
           $runDotnet = $false
           $runWeb = $false
+          $runFlutter = $false
 
           foreach ($path in $changed) {
             if ($relevantFiles -contains $path) {
@@ -86,7 +94,13 @@ jobs:
               }
             }
 
-            if ($runDotnet -and $runWeb) {
+            foreach ($prefix in $flutterPrefixes) {
+              if ($path.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $runFlutter = $true
+              }
+            }
+
+            if ($runDotnet -and $runWeb -and $runFlutter) {
               break
             }
           }
@@ -95,8 +109,10 @@ jobs:
           $changed | ForEach-Object { Write-Host " - $_" }
           Write-Host "Run .NET build/test: $runDotnet"
           Write-Host "Run web build/test: $runWeb"
+          Write-Host "Run Flutter build/test: $runFlutter"
           "run_dotnet=$($runDotnet.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           "run_web=$($runWeb.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "run_flutter=$($runFlutter.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
   build-test-windows:
     name: Build And Test Windows
@@ -220,6 +236,56 @@ jobs:
             echo "::endgroup::"
           done
 
+  build-test-flutter:
+    name: Build And Test Flutter
+    needs: changes
+    if: ${{ needs.changes.outputs.run_flutter == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.6
+          channel: stable
+          cache: true
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # ARB рождаются из locales/*.json тем же генератором, что и messages.ts. Перегенерируем
+      # и требуем чистого дерева: правка каталога без перегенерации иначе доедет до магазина
+      # как молча устаревший перевод.
+      - name: Verify generated localization is current
+        run: |
+          set -e
+          (cd packages/i18n && bun run gen)
+          git diff --exit-code -- locales src/afk4_customer_app/lib/l10n packages/i18n/src
+
+      # `flutter pub get` сам генерирует классы локализации из .arb (generate: true),
+      # поэтому отдельного шага gen-l10n не нужно.
+      - name: Analyze and test
+        run: |
+          set -e
+          cd src/afk4_customer_app
+          flutter pub get
+          flutter analyze
+          flutter test
+
+      - name: Build web
+        run: |
+          set -e
+          cd src/afk4_customer_app
+          flutter build web --release
+
   pr-verification-result:
     name: PR Verification Result
     needs:
@@ -227,6 +293,7 @@ jobs:
       - build-test-windows
       - test-postgres
       - build-test-web
+      - build-test-flutter
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -240,6 +307,8 @@ jobs:
           $postgresResult = "${{ needs.test-postgres.result }}"
           $runWeb = "${{ needs.changes.outputs.run_web }}"
           $webResult = "${{ needs.build-test-web.result }}"
+          $runFlutter = "${{ needs.changes.outputs.run_flutter }}"
+          $flutterResult = "${{ needs.build-test-flutter.result }}"
 
           if ($changesResult -ne "success") {
             throw "Change detection failed. Result: $changesResult"
@@ -257,6 +326,10 @@ jobs:
             throw "Web build/test gate did not pass. Result: $webResult"
           }
 
+          if ($runFlutter -eq "true" -and $flutterResult -ne "success") {
+            throw "Flutter build/test gate did not pass. Result: $flutterResult"
+          }
+
           if ($runDotnet -ne "true") {
             Write-Host "No .NET-relevant changes detected; skipping the paid Windows runner and the PostgreSQL job."
           }
@@ -269,4 +342,11 @@ jobs:
           }
           else {
             Write-Host "Web build/test gate passed."
+          }
+
+          if ($runFlutter -ne "true") {
+            Write-Host "No Flutter-relevant changes detected; skipping Flutter checks."
+          }
+          else {
+            Write-Host "Flutter build/test gate passed."
           }

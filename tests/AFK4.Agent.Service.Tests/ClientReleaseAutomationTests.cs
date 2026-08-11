@@ -636,6 +636,21 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("Windows build/test gate did not pass.", workflow, StringComparison.Ordinal);
         Assert.Contains("PostgreSQL test gate did not pass.", workflow, StringComparison.Ordinal);
         Assert.Contains("No .NET-relevant changes detected; skipping the paid Windows runner and the PostgreSQL job.", workflow, StringComparison.Ordinal);
+
+        // The Flutter gate has to be wired the same way as the others: a job, a change filter that
+        // includes the string catalog it generates from, and a throw in the result gate. A job that
+        // nothing depends on is a job nobody notices failing.
+        Assert.Contains("build-test-flutter:", workflow, StringComparison.Ordinal);
+        Assert.Contains("run_flutter: ${{ steps.filter.outputs.run_flutter }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("\"src/afk4_customer_app/\"", workflow, StringComparison.Ordinal);
+        // ARB files are generated from locales/*.json, so a catalog edit must retrigger Flutter.
+        Assert.Contains("\"locales/\"", workflow, StringComparison.Ordinal);
+        Assert.Contains("- build-test-flutter", workflow, StringComparison.Ordinal);
+        Assert.Contains("Flutter build/test gate did not pass.", workflow, StringComparison.Ordinal);
+        // Regenerating and diffing is what stops a stale translation from shipping to a store.
+        Assert.Contains("git diff --exit-code -- locales src/afk4_customer_app/lib/l10n packages/i18n/src", workflow, StringComparison.Ordinal);
+        Assert.Contains("flutter analyze", workflow, StringComparison.Ordinal);
+        Assert.Contains("flutter test", workflow, StringComparison.Ordinal);
     }
 
     [Fact]
