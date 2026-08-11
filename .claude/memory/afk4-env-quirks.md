@@ -38,3 +38,26 @@ WSL distro is `FedoraLinux-42`. WPF projects (`AFK4.OrganizationAdmin.App`, `AFK
 4. **Cross-OS obj/bin collision**: Linux `dotnet` and Windows `dotnet.exe` share the same `obj/bin` and stomp each other → CS0006 "metadata file ref/...dll not found" cascades. Before a Windows build (or switching back to Linux), clean: `find src -type d \( -name obj -o -name bin \) -prune -exec rm -rf {} +`. Use `dangerouslyDisableSandbox: true` on the Bash call when invoking Windows exes.
 6. **Sync an UNPUSHED WSL branch into the D: clone without GitHub (verified 2026-06-09):** local-path fetch works — `cd /mnt/d/projects/afk4.net && git fetch /home/fedya/projects/afk4.net <branch>:<branch>` (or `git fetch … <branch>` then `git merge --ff-only FETCH_HEAD`), then run Windows tests: `powershell.exe -NoProfile -Command "cd D:\projects\afk4.net; & 'C:\Program Files\dotnet\dotnet.exe' test tests\<Proj>\<Proj>.csproj --nologo"` (native `D:\` path → vstest runs; test summary line is in Russian: `Пройден! : … пройдено N`). WSL `git -C /mnt/d/...` fetch/checkout is fine (objects only); CRLF only distorts working-tree *status*. For the host build to copy web assets, build the web `dist` in WSL and `cp -r` it into the D: clone's `src/AFK4.Player.Shell.Web/dist` first (bun is WSL-only).
 5. **Dedicated native Windows clone for WPF (RECOMMENDED, set up 2026-06-03) — supersedes the UNC approach in #3 for test runs:** `D:\projects\afk4.net` (= `/mnt/d/projects/afk4.net`) is a clean clone authed via Windows `gh.exe` (account MubiZero, keyring; `gh.exe` at `/mnt/c/Program Files/GitHub CLI/gh.exe`). Build/run WPF there: `"/mnt/c/Program Files/dotnet/dotnet.exe" test "D:\projects\afk4.net\tests\<Proj>\<Proj>.csproj"`. A native NTFS path avoids BOTH the UNC issue AND the cross-OS obj/bin collision (#3/#4), and — unlike `\\wsl.localhost` paths — **vstest can actually RUN tests** (over UNC it dies with "test source .dll not found", build-only works). Verified there on sp4-localization: Player.Shell.Tests 12, Operator.App.Tests 235, Localization.Tests 15, all pass. Git ops via `"/mnt/c/Program Files/Git/cmd/git.exe" -C "D:\projects\afk4.net" …`. **CRLF caveat:** this clone has `core.autocrlf=true`, so inspecting it with WSL `git` shows EVERY file as phantom-modified (LF↔CRLF) — use Windows `git.exe` for an accurate status. To delete/move it from WSL use WSL `rm`/`mv` on `/mnt/d/...`; `cmd.exe` launched from a `\\wsl$` cwd refuses ("UNC paths not supported as current directory"). (A stale codex clone previously sat at this path; deleted + replaced 2026-06-03.)
+
+## Flutter toolchain (поставлено 2026-08-11 под [[flutter-migration-decision]])
+
+Всё в `~/develop`, БЕЗ root; переменные (`JAVA_HOME`, `ANDROID_HOME`, `PATH`) прописаны в `~/.zshrc`.
+
+- **Flutter 3.41.6 stable + Dart 3.11.4** — `~/develop/flutter` (стоял ещё до переезда).
+- **JDK 21 Temurin** — `~/develop/jdk` (346 МБ). Ставится распаковкой tar.gz с api.adoptium.net.
+- **Android SDK** — `~/develop/android-sdk` (3 ГБ): cmdline-tools + platform-tools + platforms 35/36
+  + build-tools 35/36 + cmake 3.22.1 (тянется сам при первой сборке APK).
+- `flutter config --android-sdk ~/develop/android-sdk` и `--jdk-dir ~/develop/jdk` уже выполнены.
+
+**Проверено делом:** `flutter build web` ~15 с; `flutter build apk --release` ~4.5 мин (первая
+сборка, дальше быстрее), APK 42.6 МБ без `--split-per-abi`; `flutter test` работает.
+
+**Грабли и границы:**
+- **Flutter 3.41 требует Android SDK 36**, не 35 — на 35 doctor краснеет. Ставить обе платформы.
+- **iOS собрать локально НЕЛЬЗЯ** — macOS нет и не предвидится. Единственный путь — раннер
+  `macos-latest` в GitHub Actions (в проекте сейчас только ubuntu+windows) плюс сертификаты Apple.
+- **Windows desktop-таргет из WSL НЕ собрать.** Нужен второй Flutter на Windows-стороне; VS 18 и
+  .NET 10 там уже есть. Пойдёт через тот же клон `D:\projects\afk4.net`, что и WPF (см. выше).
+- **Вес Flutter Web** (замерено на пустом проекте): 1.8 МБ `main.dart.js` + движок рендеринга
+  3.4–6.9 МБ wasm. Для сравнения, весь нынешний Platform Control = 1.4 МБ JS. Пользователь принял
+  этот проигрыш сознательно (см. [[flutter-migration-decision]]) — не переоткрывать вопрос.

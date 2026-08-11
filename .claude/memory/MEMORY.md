@@ -21,7 +21,7 @@
 - [Не использовать opus для агентов](feedback_no_opus_delegation.md) — явный запрет; делегировать на sonnet/haiku.
 
 ## Окружение / тулчейн
-- [Env quirks](afk4-env-quirks.md) — bun полный путь, bun test+build гейты, rtk→/tmp/x.sh, dotnet ef на Linux traps, Coolify runbook, WPF-мост через D:\ clone, agent-test WSL baseline.
+- [Env quirks](afk4-env-quirks.md) — bun полный путь, bun test+build гейты, rtk→/tmp/x.sh, dotnet ef на Linux traps, Coolify runbook, WPF-мост через D:\ clone, agent-test WSL baseline; **Flutter-тулчейн готов** (Flutter 3.41.6+JDK21+Android SDK 36 в ~/develop, APK собирается; iOS только через macos-раннер CI, Windows-таргет только с Windows-стороны).
 - [Frontends on bun test](frontends-on-bun-test.md) — все фронты на `bun test` (не vitest, happy-dom+jest-dom), `mock.module` течёт process-wide; build=`tsc -b && vite` И тайпчекает тест-файлы (зелёный `bun test` ≠ зелёная сборка → типизировать bun-моки; финал слайса обязан включать `bun run build`).
 - [CI: Postgres-тесты и охват PR](ci-postgres-and-pr-coverage.md) — job `test-postgres` на ubuntu; `AFK4_REQUIRE_POSTGRES_TESTS=1` = skip→падение; PR во ВСЕ ветки; workflow охраняется построчным тестом.
 - [Coolify reference](coolify-reference.md) — staging cool.mubi.dev, API /api/v1 Bearer; токен в `~/.config/afk4/coolify.token`.
