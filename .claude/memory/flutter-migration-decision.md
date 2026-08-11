@@ -60,6 +60,30 @@ App Store их не принимает. Голая обёртка вокруг �
 shell — лаунчер, получает состояние по named pipe и не авторитетен
 (см. [[afk4-customer-shell-pivot]]). Выбор UI-технологии на управление машиной не влияет.
 
+## Ход переезда
+
+- **Шаг 1 — каркас клиентского приложения: СДЕЛАН** (PR #156, main `f5de0e1a`).
+  `src/afk4_customer_app`, applicationId `net.afk4.player` (после публикации не меняется).
+  Спека захода: `docs/superpowers/specs/2026-08-11-customer-app-flutter-design.md`.
+  Дальше по спеке: каталог клубов на сервере + экран выбора клуба.
+
+### Durable из шага 1
+
+- **Строки НЕ дублируются в ARB.** `packages/i18n/scripts/generate-messages.ts` генерирует и
+  `messages.ts`, и `lib/l10n/app_*.arb` (по префиксу ключа; для админского приложения добавить
+  `op.` в `ARB_TARGETS`). Стерегут `packages/i18n/src/arb.test.ts` и шаг CI, который
+  перегенерирует и требует чистого дерева.
+- **Классы локализации (`app_localizations*.dart`) НЕ коммитятся** — их генерирует
+  `flutter pub get` (при `generate: true` в pubspec). Отдельный `gen-l10n` в CI не нужен.
+- **У Flutter НЕТ таджикской локали.** Без делегатов приложение падает предупреждением
+  `delegate that supports the tg locale was not found`. Решено `lib/l10n/tajik_fallback_delegates.dart`:
+  системный слой берётся с русского (откат tg→ru, как в вебе). Следствие: системная кнопка
+  «Отмена» в tg-интерфейсе русская; наши строки — настоящий таджикский.
+- **Тема — копия `packages/tokens/tokens.css` значение в значение**, не подбор. Зона касания
+  поднята с вебовых 36px до 44 (`AppTheme.minTouchTarget`).
+- **CI:** job `Build And Test Flutter` в `pr-verification.yml`, фильтр включает `locales/` и
+  `packages/i18n/`; охраняется построчным тестом `PrVerificationWorkflow_UsesCostAwareRequiredResultGate`.
+
 ## Открытые риски
 
 - Первая загрузка Flutter Web у Platform Control — замерить на реальном канале.
