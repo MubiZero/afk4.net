@@ -4,6 +4,7 @@ import '../api/dto.dart';
 import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
+import '../phone/phone_verification_sheet.dart';
 import 'new_reservation_sheet.dart';
 
 /// Что не так со временем — до отправки. Сервер проверяет то же самое, но отвечает общей
@@ -21,11 +22,15 @@ class ReservationsScreen extends StatefulWidget {
     super.key,
     required this.api,
     required this.phoneVerified,
+    this.onPhoneVerified,
     this.clock = DateTime.now,
   });
 
   final PlayerApiClient api;
   final bool phoneVerified;
+
+  /// Номер подтвердили прямо из гейта — оболочке пора считать игрока подтверждённым.
+  final VoidCallback? onPhoneVerified;
   final DateTime Function() clock;
 
   @override
@@ -198,15 +203,41 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
     );
   }
 
+  /// Гейт с выходом: объяснение и кнопка, а не тупик с отсылкой к администратору.
   Widget _gate(L l, ThemeData theme) => Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Text(
-            l.customerReservationsGate,
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l.customerReservationsGate,
+                style:
+                    theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: _verifyPhone,
+                child: Text(l.customerWalletGateAction),
+              ),
+            ],
           ),
         ),
       );
+
+  Future<void> _verifyPhone() async {
+    final l = L.of(context);
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => PhoneVerificationSheet(api: widget.api),
+    );
+    if (confirmed != true || !mounted) return;
+
+    _say(l.customerPhoneDone);
+    widget.onPhoneVerified?.call();
+  }
 }
 
 class _ReservationCard extends StatelessWidget {

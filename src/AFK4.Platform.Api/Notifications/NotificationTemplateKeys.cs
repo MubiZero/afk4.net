@@ -17,6 +17,9 @@ public static class NotificationTemplateKeys
     /// <summary>SMS phone verification code for staff registration (Phase B).</summary>
     public const string StaffPhoneVerification = "staff.phone_verification";
 
+    /// <summary>SMS phone verification code for a player confirming their own number.</summary>
+    public const string PlayerPhoneVerification = "player.phone_verification";
+
     /// <summary>SMS password-reset code for a staff/owner account (Phase D).</summary>
     public const string StaffPasswordResetSms = "staff.password_reset_sms";
 
@@ -54,5 +57,5 @@ public static class NotificationTemplateKeys
     public const string ScheduledReport = "report.scheduled";
 
     public static readonly IReadOnlyList<string> All =
-        [Test, StaffPasswordReset, StaffPhoneVerification, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement];
+        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement];
 }

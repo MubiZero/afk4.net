@@ -291,3 +291,16 @@ class PlayerProfile {
         marketingOptIn: json['marketingOptIn'] as bool? ?? false,
       );
 }
+
+/// Ответ на просьбу прислать код: сколько он живёт и когда можно просить следующий.
+class PhoneVerificationStarted {
+  const PhoneVerificationStarted({required this.expiresInSeconds, required this.resendAfterSeconds});
+
+  final int expiresInSeconds;
+  final int resendAfterSeconds;
+
+  factory PhoneVerificationStarted.fromJson(Map<String, dynamic> json) => PhoneVerificationStarted(
+        expiresInSeconds: (json['expiresInSeconds'] as num).toInt(),
+        resendAfterSeconds: (json['resendAfterSeconds'] as num).toInt(),
+      );
+}

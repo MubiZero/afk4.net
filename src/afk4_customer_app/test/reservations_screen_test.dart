@@ -132,7 +132,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Забронировать'), findsNothing);
-    expect(find.textContaining('подтвердите номер телефона'), findsOneWidget);
+    expect(find.textContaining('подтвердите свой номер телефона'), findsOneWidget);
+
+    await tester.tap(find.text('Подтвердить номер'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Подтверждение номера'), findsOneWidget);
   });
 
   // Раздел открывают, чтобы посмотреть свои брони: развёрнутая форма занимала первый экран

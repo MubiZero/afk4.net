@@ -77,6 +77,41 @@
   "customerNavReservations": "Бронҳо",
   "customerOfflineBanner": "Офлайн — маълумоти захирашуда нишон дода мешавад",
   "customerOfflineStale": "Алоқа нест — маълумот метавонад кӯҳна бошад",
+  "customerPhoneCode": "Рамз аз SMS",
+  "customerPhoneConfirm": "Тасдиқ кардан",
+  "customerPhoneConfirming": "Санҷида истодаем…",
+  "customerPhoneDone": "Рақам тасдиқ шуд",
+  "customerPhoneErrCooldown": "Рамз ҳозир фиристода шуд — каме интизор шавед",
+  "customerPhoneErrExpired": "Рамз кӯҳна шуд — нави онро дархост кунед",
+  "customerPhoneErrGeneric": "Рақамро тасдиқ карда натавонистем",
+  "customerPhoneErrInUse": "Ин рақамро аллакай бозигари дигари клуб истифода мебарад",
+  "customerPhoneErrInvalidCode": "Рамз нодуруст аст",
+  "customerPhoneErrInvalidPhone": "Рақами телефонро санҷед",
+  "customerPhoneErrRateLimited": "Дар як соат рамзҳои аз ҳад зиёд. Баъдтар кӯшиш кунед",
+  "customerPhoneErrSms": "SMS фиристода нашуд. Баъдтар кӯшиш кунед",
+  "customerPhoneErrTooManyAttempts": "Кӯшишҳои аз ҳад зиёд — рамзи нав дархост кунед",
+  "customerPhoneIntro": "Мо ба шумо рамз бо SMS мефиристем — он тасдиқ мекунад, ки рақам аз они шумост.",
+  "customerPhoneNumber": "Рақами телефон",
+  "customerPhoneResend": "Рамзро дубора фиристед",
+  "customerPhoneResendIn": "Дубора фиристодан пас аз {seconds} сония мумкин аст",
+  "@customerPhoneResendIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPhoneSend": "Фиристодани рамз",
+  "customerPhoneSending": "Фиристода истодаем…",
+  "customerPhoneSent": "Рамз ба {phone} фиристода шуд",
+  "@customerPhoneSent": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPhoneTitle": "Тасдиқи рақам",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русӣ",
   "customerProfileLangTg": "Тоҷикӣ",
@@ -106,7 +141,7 @@
   "customerReservationsCreating": "Сохта истодаем…",
   "customerReservationsEnd": "Анҷом",
   "customerReservationsEndBeforeStart": "Анҷом бояд пас аз оғоз бошад",
-  "customerReservationsGate": "Барои онлайн брон кардан рақами телефонатонро дар назди маъмури клуб тасдиқ кунед. Тасдиқ тавассути SMS дертар пайдо мешавад.",
+  "customerReservationsGate": "Барои онлайн брон кардан рақами телефони худро тасдиқ кунед.",
   "customerReservationsLoadError": "Брониҳоро бор кардан нашуд.",
   "customerReservationsNewTitle": "Брони нав",
   "customerReservationsNoSeat": "Бе ҷой",
@@ -131,7 +166,8 @@
   "customerSigninTitle": "Даромад",
   "customerWalletAmount": "Маблағ",
   "customerWalletAmountError": "Маблағи аз сифр зиёдро ворид кунед",
-  "customerWalletGate": "Барои онлайн пур кардани ҳамён рақами телефонатонро дар назди маъмури клуб тасдиқ кунед. Тасдиқ тавассути SMS дертар пайдо мешавад.",
+  "customerWalletGate": "Барои онлайн пур кардани ҳамён рақами телефони худро тасдиқ кунед.",
+  "customerWalletGateAction": "Рақамро тасдиқ кунед",
   "customerWalletIntents": "Дархостҳои шумо",
   "customerWalletNote": "Клуб маблағро пас аз тасдиқи он дар мизи қабул ворид мекунад.",
   "customerWalletPendingHint": "Дархост барои {amount} интизори воридшавӣ аст",

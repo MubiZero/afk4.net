@@ -77,6 +77,41 @@
   "customerNavReservations": "Bookings",
   "customerOfflineBanner": "Offline — showing saved data",
   "customerOfflineStale": "No connection — the data may be out of date",
+  "customerPhoneCode": "Code from the SMS",
+  "customerPhoneConfirm": "Confirm",
+  "customerPhoneConfirming": "Checking…",
+  "customerPhoneDone": "Number confirmed",
+  "customerPhoneErrCooldown": "A code was just sent — please wait a moment",
+  "customerPhoneErrExpired": "The code expired — request a new one",
+  "customerPhoneErrGeneric": "Could not confirm the number",
+  "customerPhoneErrInUse": "Another player of this club already uses that number",
+  "customerPhoneErrInvalidCode": "Wrong code",
+  "customerPhoneErrInvalidPhone": "Check the phone number",
+  "customerPhoneErrRateLimited": "Too many codes this hour. Try later",
+  "customerPhoneErrSms": "The SMS could not be sent. Try later",
+  "customerPhoneErrTooManyAttempts": "Too many attempts — request a new code",
+  "customerPhoneIntro": "We will text you a code to confirm the number is yours.",
+  "customerPhoneNumber": "Phone number",
+  "customerPhoneResend": "Send the code again",
+  "customerPhoneResendIn": "You can resend in {seconds} s",
+  "@customerPhoneResendIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPhoneSend": "Send the code",
+  "customerPhoneSending": "Sending…",
+  "customerPhoneSent": "Code sent to {phone}",
+  "@customerPhoneSent": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPhoneTitle": "Confirm your number",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русский",
   "customerProfileLangTg": "Tajik",
@@ -106,7 +141,7 @@
   "customerReservationsCreating": "Booking…",
   "customerReservationsEnd": "End",
   "customerReservationsEndBeforeStart": "The end must be later than the start",
-  "customerReservationsGate": "To book online, verify your phone number with the club staff. SMS verification is coming later.",
+  "customerReservationsGate": "To book online, confirm your phone number.",
   "customerReservationsLoadError": "Failed to load reservations.",
   "customerReservationsNewTitle": "New booking",
   "customerReservationsNoSeat": "No seat",
@@ -131,7 +166,8 @@
   "customerSigninTitle": "Sign in",
   "customerWalletAmount": "Amount",
   "customerWalletAmountError": "Enter an amount greater than zero",
-  "customerWalletGate": "To top up online, verify your phone number with the club staff. SMS verification is coming later.",
+  "customerWalletGate": "To top up your wallet online, confirm your phone number.",
+  "customerWalletGateAction": "Confirm the number",
   "customerWalletIntents": "Your requests",
   "customerWalletNote": "The club credits the amount once it confirms it at the desk.",
   "customerWalletPendingHint": "A request for {amount} is awaiting credit",

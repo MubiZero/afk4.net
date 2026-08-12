@@ -42,6 +42,10 @@ class _AppShellState extends State<AppShell> {
   /// удобство интерфейса, а не защита — сервер всё равно проверяет право на действие.
   List<String>? _features;
 
+  /// Номер подтвердили прямо сейчас. Сессия в памяти этого ещё не знает, а входить заново
+  /// ради открывшихся возможностей — плохая цена за подтверждение.
+  bool _phoneVerifiedNow = false;
+
   @override
   void initState() {
     super.initState();
@@ -59,6 +63,8 @@ class _AppShellState extends State<AppShell> {
 
   bool _enabled(String feature) => _features == null || _features!.contains(feature);
 
+  bool get _phoneVerified => _phoneVerifiedNow || widget.session.phoneVerified;
+
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
@@ -69,8 +75,9 @@ class _AppShellState extends State<AppShell> {
         DashboardScreen(
           api: widget.api,
           displayName: widget.session.displayName,
-          phoneVerified: widget.session.phoneVerified,
+          phoneVerified: _phoneVerified,
           features: _features,
+          onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
           // Раздел броней стоит третьим, когда он есть. Звать в него неоткуда, если клуб
           // онлайн-брони не принимает.
           onOpenReservations: booking ? () => setState(() => _section = 2) : null,
@@ -94,7 +101,8 @@ class _AppShellState extends State<AppShell> {
         (
           ReservationsScreen(
             api: widget.api,
-            phoneVerified: widget.session.phoneVerified,
+            phoneVerified: _phoneVerified,
+            onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
             clock: widget.clock,
           ),
           NavigationDestination(

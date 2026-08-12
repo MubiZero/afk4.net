@@ -27,7 +27,7 @@ it('lists reservations with a localized state', async () => {
 it('hides the create form behind the D8 gate when the phone is unverified', async () => {
   const api = { getReservations: mock().mockResolvedValue([]) } as unknown as PlayerApiClient;
   renderScreen(api, false);
-  expect(await screen.findByText(/подтвердите номер/i)).toBeInTheDocument();
+  expect(await screen.findByText(/подтвердите свой номер/i)).toBeInTheDocument();
   expect(screen.queryByLabelText('Начало')).not.toBeInTheDocument();
 });
 
