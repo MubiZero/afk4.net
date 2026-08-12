@@ -117,6 +117,7 @@ class _AppShellState extends State<AppShell> {
           onSignOut: widget.onSignOut,
           onChangeClub: widget.onChangeClub,
           onLocaleChanged: widget.onLocaleChanged,
+          onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
         ),
         NavigationDestination(
           icon: const Icon(Icons.person_outline),

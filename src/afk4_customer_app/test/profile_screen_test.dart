@@ -14,12 +14,13 @@ String _profileJson({
   String? phone = '+992900000000',
   String? locale,
   bool marketing = false,
+  bool phoneVerified = true,
 }) =>
     jsonEncode({
       'playerAccountId': 'p1',
       'displayName': name,
       'phoneNumber': phone,
-      'phoneVerified': true,
+      'phoneVerified': phoneVerified,
       'preferredLocale': locale,
       'marketingOptIn': marketing,
     });
@@ -44,6 +45,33 @@ Widget harness(
     );
 
 void main() {
+  // От подтверждённости зависят пополнение и брони — профиль обязан показывать состояние,
+  // а не только сам номер.
+  testWidgets('неподтверждённый номер назван неподтверждённым и зовёт подтвердить', (tester) async {
+    await tester.pumpWidget(
+        harness(FakeHttpClient((_) => (_profileJson(phoneVerified: false), 200))));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Номер не подтверждён'), findsOneWidget);
+
+    await tester.tap(find.text('Подтвердить номер'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Подтверждение номера'), findsOneWidget);
+  });
+
+  // Смена номера — та же процедура: код уходит на новый номер и доказывает владение им.
+  testWidgets('подтверждённый номер можно сменить отсюда же', (tester) async {
+    await tester.pumpWidget(harness(FakeHttpClient((_) => (_profileJson(), 200))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Изменить номер'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Подтверждение номера'), findsOneWidget);
+    expect(find.text('+992900000000'), findsWidgets);
+  });
+
   testWidgets('показывает имя и телефон игрока', (tester) async {
     await tester.pumpWidget(harness(FakeHttpClient((_) => (_profileJson(), 200))));
     await tester.pumpAndSettle();

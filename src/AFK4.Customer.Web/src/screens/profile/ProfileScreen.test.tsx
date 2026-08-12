@@ -20,11 +20,11 @@ const profile = {
   phoneVerified: false, preferredLocale: 'ru', marketingOptIn: false
 };
 
-it('renders the profile and tells where to change the phone number', async () => {
+it('renders the profile and states whether the phone is confirmed', async () => {
   const api = { getProfile: mock().mockResolvedValue(profile) } as unknown as PlayerApiClient;
   renderScreen(api);
   expect(await screen.findByText('Фёдор')).toBeInTheDocument();
-  expect(screen.getByText(/обратитесь к администратору/i)).toBeInTheDocument();
+  expect(screen.getByText(/Номер не подтверждён/i)).toBeInTheDocument();
 });
 
 it('PATCHes the marketing opt-in when toggled', async () => {

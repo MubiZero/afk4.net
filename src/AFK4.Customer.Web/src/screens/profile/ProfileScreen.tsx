@@ -43,7 +43,12 @@ export function ProfileScreen({ api, onSignOut, onLocaleChange }: ProfileScreenP
       <header>
         <h1 className="text-2xl font-extrabold tracking-tight">{profile.displayName}</h1>
         <p className="mt-1 text-sm text-[var(--text-2)]">
-          {profile.phoneNumber ?? '—'} · <span className="text-[var(--text-3)]">{t('customer.profile.phoneNote')}</span>
+          {profile.phoneNumber ?? '—'} ·{' '}
+          {/* Подтверждённость решает, доступны ли пополнение и брони, — одна подпись на оба
+              состояния лгала бы в одном из них. */}
+          <span className="text-[var(--text-3)]">
+            {t(profile.phoneVerified ? 'customer.profile.phoneNote' : 'customer.profile.phoneUnverified')}
+          </span>
         </p>
       </header>
 
