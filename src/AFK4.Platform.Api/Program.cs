@@ -427,13 +427,16 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-// `--migrate` applies pending EF migrations and exits without serving traffic. Coolify runs it as
-// the pre-deployment command, so the schema is up to date before the new container starts.
+// Схема догоняет код сама. Раньше это был ручной шаг, о котором нечему было напомнить: staging
+// две недели простоял на сборке от 29 июля, потому что база отстала на 14 миграций, а падение
+// нового контейнера выглядело как здоровый сервис — Coolify откатывался на предыдущий.
 //
-// This replaces a manual step that silently rotted: staging spent two weeks on an old build
-// because every deploy crashed on a table nobody had created, and the failure looked like a
-// healthy service — the rollback kept the previous container alive.
-if (args.Contains("--migrate", StringComparer.Ordinal))
+// `--migrate` применяет миграции и выходит, не поднимая веб-сервер: этим удобно чинить руками.
+// `Database:ApplyMigrationsOnStartup` делает то же самое при обычном запуске — так работает
+// staging, где инстанс один. Включать это там, где контейнеров несколько, нельзя: одновременный
+// Migrate из двух процессов конфликтует, и такой установке нужен отдельный шаг миграции.
+var migrateAndExit = args.Contains("--migrate", StringComparer.Ordinal);
+if (migrateAndExit || app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
 {
     await using var migrationScope = app.Services.CreateAsyncScope();
     var migrationDb = migrationScope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -445,14 +448,19 @@ if (args.Contains("--migrate", StringComparer.Ordinal))
     if (pending.Count == 0)
     {
         migrationLogger.LogInformation("No pending migrations.");
-        return;
+    }
+    else
+    {
+        migrationLogger.LogInformation(
+            "Applying {Count} pending migration(s): {Migrations}", pending.Count, string.Join(", ", pending));
+        await migrationDb.Database.MigrateAsync();
+        migrationLogger.LogInformation("Migrations applied.");
     }
 
-    migrationLogger.LogInformation(
-        "Applying {Count} pending migration(s): {Migrations}", pending.Count, string.Join(", ", pending));
-    await migrationDb.Database.MigrateAsync();
-    migrationLogger.LogInformation("Migrations applied.");
-    return;
+    if (migrateAndExit)
+    {
+        return;
+    }
 }
 
 // Fail fast at startup if any registered notification template key is missing its file (§8),
