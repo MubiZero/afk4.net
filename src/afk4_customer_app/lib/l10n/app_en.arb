@@ -159,9 +159,22 @@
   "customerReservationsStateSeated": "Seated",
   "customerReservationsTimeError": "Set a start and end time",
   "customerReservationsTitle": "Bookings",
+  "customerSigninByCode": "Sign in with an SMS code",
+  "customerSigninByPassword": "Sign in with a password",
+  "customerSigninCodeError": "Wrong code",
+  "customerSigninCodeExpired": "The code expired — request a new one",
+  "customerSigninCodeNone": "No code was requested, or it has already been used",
+  "customerSigninCodeSent": "Code sent to {phone}, if such a player exists at this club.",
+  "@customerSigninCodeSent": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSigninCodeTooMany": "Too many attempts — request a new code",
   "customerSigninError": "Wrong number or password",
   "customerSigninNetworkError": "No connection to the server. Check your internet.",
-  "customerSigninOtpSoon": "Sign in by SMS code · soon",
   "customerSigninPassword": "PIN or password",
   "customerSigninPhone": "Phone",
   "customerSigninSubmit": "Sign in",

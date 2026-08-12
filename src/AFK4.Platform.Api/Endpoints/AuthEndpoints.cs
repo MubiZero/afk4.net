@@ -156,6 +156,50 @@ internal static class AuthEndpoints
             return response is null ? Results.Unauthorized() : Results.Ok(response);
         }).RequireRateLimiting("player-public");
 
+        // Вход по SMS-коду: телефон и так опознаёт игрока, а код доказывает владение им не хуже
+        // пароля — и его нечего забывать. Ответ на просьбу прислать код одинаков для известного и
+        // неизвестного номера: разница превратила бы эндпоинт в справочник «кто где играет».
+        app.MapPost("/api/public/player/sign-in/code", async (
+            PlayerCodeSignInStartRequest request,
+            IPlayerPhoneSignInService signInService,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await signInService.StartAsync(
+                request.OrganizationId, request.PhoneNumber, cancellationToken);
+
+            return result.Status switch
+            {
+                PhoneVerificationStartStatus.Sent => Results.Ok(
+                    new PlayerCodeSignInStartedResponse(result.ExpiresInSeconds, result.ResendAfterSeconds)),
+                PhoneVerificationStartStatus.InvalidPhone => Results.BadRequest(new { error = "invalid_phone" }),
+                _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
+            };
+        }).RequireRateLimiting("player-public");
+
+        app.MapPost("/api/public/player/sign-in/code/confirm", async (
+            PlayerCodeSignInRequest request,
+            IPlayerPhoneSignInService signInService,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await signInService.ConfirmAsync(
+                request.OrganizationId, request.PhoneNumber, request.Code, cancellationToken);
+
+            return result.Status switch
+            {
+                PlayerCodeSignInStatus.SignedIn => Results.Ok(result.Tokens),
+                PlayerCodeSignInStatus.InvalidCode => Results.Json(
+                    new { error = "invalid_code", remainingAttempts = result.RemainingAttempts },
+                    statusCode: StatusCodes.Status400BadRequest),
+                PlayerCodeSignInStatus.Expired => Results.Json(
+                    new { error = "code_expired" }, statusCode: StatusCodes.Status410Gone),
+                PlayerCodeSignInStatus.NoActiveCode => Results.Json(
+                    new { error = "no_active_code" }, statusCode: StatusCodes.Status410Gone),
+                PlayerCodeSignInStatus.TooManyAttempts => Results.Json(
+                    new { error = "too_many_attempts" }, statusCode: StatusCodes.Status429TooManyRequests),
+                _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
+            };
+        }).RequireRateLimiting("player-public");
+
         app.MapPost("/api/public/player/refresh", async (
             PlayerRefreshRequest request,
             IPlayerTokenService tokenService,

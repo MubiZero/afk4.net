@@ -60,6 +60,37 @@ class PlayerApiClient {
     return signedIn;
   }
 
+  /// Просит код для входа. Ответ одинаков и для известного, и для незнакомого номера —
+  /// сервер намеренно не подсказывает, кто где играет.
+  Future<PhoneVerificationStarted> startCodeSignIn({
+    required String organizationId,
+    required String phoneNumber,
+  }) async =>
+      _parse(
+        await _post('/api/public/player/sign-in/code', {
+          'organizationId': organizationId,
+          'phoneNumber': phoneNumber,
+        }),
+        PhoneVerificationStarted.fromJson,
+      );
+
+  /// Вход по коду. Он же подтверждает номер: прочитать код с этого телефона — то же
+  /// доказательство, которого требует подтверждение.
+  Future<PlayerSession> confirmCodeSignIn({
+    required String organizationId,
+    required String phoneNumber,
+    required String code,
+  }) async {
+    final body = await _post('/api/public/player/sign-in/code/confirm', {
+      'organizationId': organizationId,
+      'phoneNumber': phoneNumber,
+      'code': code,
+    });
+    final signedIn = PlayerSession.fromJson(body);
+    updateSession(signedIn);
+    return signedIn;
+  }
+
   Future<Map<String, dynamic>> getJson(String path) async {
     var response = await _send('GET', path);
     if (response.statusCode == 401 && await _refreshOnce()) {

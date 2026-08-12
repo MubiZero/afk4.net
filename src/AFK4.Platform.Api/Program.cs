@@ -283,6 +283,7 @@ builder.Services.AddSingleton<IPhoneOtpHasher, Sha256PhoneOtpHasher>();
 builder.Services.AddSingleton<IPhoneOtpGenerator, RandomPhoneOtpGenerator>();
 builder.Services.AddScoped<IStaffPhoneVerificationService, EfStaffPhoneVerificationService>();
 builder.Services.AddScoped<IPlayerPhoneVerificationService, EfPlayerPhoneVerificationService>();
+builder.Services.AddScoped<IPlayerPhoneSignInService, EfPlayerPhoneSignInService>();
 builder.Services.AddScoped<IStaffPhonePasswordResetService, EfStaffPhonePasswordResetService>();
 builder.Services.AddScoped<IStaffInviteService, EfStaffInviteService>();
 builder.Services.AddScoped<IDailySummaryRunner, EfDailySummaryRunner>();

@@ -43,6 +43,79 @@ Widget harness(PlayerApiClient api, {VoidCallback? onSignedIn, VoidCallback? onC
 PlayerApiClient clientWith(http.Client inner) => PlayerApiClient(baseUrl: 'https://api', httpClient: inner);
 
 void main() {
+  // Код — не запасной путь, а равноправный: телефон и так служит логином, а пароль можно забыть.
+  testWidgets('вход по SMS-коду доводится до сессии', (tester) async {
+    var signedIn = false;
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/public/player/sign-in/code' =>
+            (jsonEncode({'expiresInSeconds': 300, 'resendAfterSeconds': 60}), 200),
+          _ => (_sessionJson(), 200),
+        });
+    await tester.pumpWidget(harness(clientWith(http), onSignedIn: () => signedIn = true));
+
+    await tester.tap(find.text('Войти по SMS-коду'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, '+992900000000');
+    await tester.tap(find.text('Прислать код'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Код отправлен'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).last, '123456');
+    await tester.tap(find.text('Войти'));
+    await tester.pumpAndSettle();
+
+    expect(http.bodies.last['code'], '123456');
+    expect(signedIn, isTrue);
+  });
+
+  // Сервер намеренно отвечает одинаково на знакомый и незнакомый номер — экран не должен
+  // додумывать за него, что игрок точно существует.
+  testWidgets('сообщение о коде не утверждает, что игрок найден', (tester) async {
+    final http = FakeHttpClient(
+        (_) => (jsonEncode({'expiresInSeconds': 300, 'resendAfterSeconds': 60}), 200));
+    await tester.pumpWidget(harness(clientWith(http)));
+
+    await tester.tap(find.text('Войти по SMS-коду'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, '+992900000000');
+    await tester.tap(find.text('Прислать код'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Если такой игрок есть'), findsOneWidget);
+  });
+
+  testWidgets('неверный код называется неверным, а не отказом входа', (tester) async {
+    final http = FakeHttpClient((request) =>
+        request.url.path == '/api/public/player/sign-in/code'
+            ? (jsonEncode({'expiresInSeconds': 300, 'resendAfterSeconds': 60}), 200)
+            : ('{"error":"invalid_code"}', 400));
+    await tester.pumpWidget(harness(clientWith(http)));
+
+    await tester.tap(find.text('Войти по SMS-коду'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, '+992900000000');
+    await tester.tap(find.text('Прислать код'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, '000000');
+    await tester.tap(find.text('Войти'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Неверный код'), findsOneWidget);
+  });
+
+  testWidgets('способ входа переключается обратно на пароль', (tester) async {
+    await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => (_sessionJson(), 200)))));
+
+    await tester.tap(find.text('Войти по SMS-коду'));
+    await tester.pumpAndSettle();
+    expect(find.text('PIN или пароль'), findsNothing);
+
+    await tester.tap(find.text('Войти по паролю'));
+    await tester.pumpAndSettle();
+    expect(find.text('PIN или пароль'), findsOneWidget);
+  });
+
   testWidgets('показывает клуб, в который входим', (tester) async {
     await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => (_sessionJson(), 200)))));
 
