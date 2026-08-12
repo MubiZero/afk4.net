@@ -3,9 +3,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:afk4_customer_app/api/dto.dart';
 import 'package:afk4_customer_app/api/player_api_client.dart';
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
-import 'package:afk4_customer_app/wallet/wallet_panel.dart';
+import 'package:afk4_customer_app/wallet/wallet_card.dart';
 
 import 'support/fake_http.dart';
 
@@ -29,17 +30,20 @@ Widget harness(
   bool phoneVerified = true,
   List<String>? features = const ['online_topup'],
   String currencyCode = 'TJS',
+  int wallet = 120050,
+  int debt = 0,
 }) =>
     MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
       home: Scaffold(
-        body: WalletPanel(
+        body: WalletCard(
           api: api,
+          walletBalance: Money(currencyCode: currencyCode, minorUnits: wallet),
+          debtBalance: Money(currencyCode: currencyCode, minorUnits: debt),
           phoneVerified: phoneVerified,
           features: features,
-          currencyCode: currencyCode,
         ),
       ),
     );
@@ -47,19 +51,49 @@ Widget harness(
 PlayerApiClient clientWith(FakeHttpClient inner) =>
     PlayerApiClient(baseUrl: 'https://api', httpClient: inner);
 
+/// Открывает лист пополнения — форма живёт там, а не на главной.
+Future<void> openTopUp(WidgetTester tester) async {
+  await tester.tap(find.text('Пополнить'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
+  testWidgets('баланс виден сразу, а форма ввода не занимает экран', (tester) async {
+    await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => ('[]', 200)))));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('200,50'), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('Пополнить'), findsOneWidget);
+  });
+
+  testWidgets('долг показывается только когда он есть и говорит, где его закрыть', (tester) async {
+    await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => ('[]', 200)))));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Долг'), findsNothing);
+
+    await tester.pumpWidget(
+      harness(clientWith(FakeHttpClient((_) => ('[]', 200))), debt: 5000),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Долг'), findsOneWidget);
+    // Пополнение кошелька долг не закрывает — гасят его на кассе, и обещать иное нельзя.
+    expect(find.text('Погасить долг можно на стойке клуба'), findsOneWidget);
+  });
+
   testWidgets('заявка уходит на сервер в минорных единицах', (tester) async {
     final http = FakeHttpClient((request) =>
         request.method == 'POST' ? (jsonEncode(_intent()), 200) : ('[]', 200));
     await tester.pumpWidget(harness(clientWith(http)));
     await tester.pumpAndSettle();
 
+    await openTopUp(tester);
     await tester.enterText(find.byType(TextField), '12,50');
     await tester.tap(find.text('Запросить'));
     await tester.pumpAndSettle();
 
     expect(http.bodies.single['amountMinorUnits'], 1250);
-    expect(http.bodies.single['currencyCode'], 'TJS');
+    expect(find.text('Заявка на пополнение отправлена'), findsOneWidget);
   });
 
   // Валюта заявки бралась из константы «TJS», и клуб на других деньгах получал бы просьбу
@@ -70,11 +104,28 @@ void main() {
     await tester.pumpWidget(harness(clientWith(http), currencyCode: 'USD'));
     await tester.pumpAndSettle();
 
+    await openTopUp(tester);
     await tester.enterText(find.byType(TextField), '10');
     await tester.tap(find.text('Запросить'));
     await tester.pumpAndSettle();
 
     expect(http.bodies.single['currencyCode'], 'USD');
+  });
+
+  // Набирать «100» пальцем — лишнее трение там, где хватает одного касания.
+  testWidgets('быстрая сумма подставляется одним касанием', (tester) async {
+    final http = FakeHttpClient((request) =>
+        request.method == 'POST' ? (jsonEncode(_intent()), 200) : ('[]', 200));
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    await openTopUp(tester);
+    await tester.tap(find.widgetWithText(ActionChip, '100,00 с.'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Запросить'));
+    await tester.pumpAndSettle();
+
+    expect(http.bodies.single['amountMinorUnits'], 10000);
   });
 
   // Ввод вроде `1e400` превращается в бесконечность, а та уезжает на сервер как null.
@@ -85,6 +136,7 @@ void main() {
       await tester.pumpWidget(harness(clientWith(http)));
       await tester.pumpAndSettle();
 
+      await openTopUp(tester);
       await tester.enterText(find.byType(TextField), input);
       await tester.tap(find.text('Запросить'));
       await tester.pumpAndSettle();
@@ -96,18 +148,20 @@ void main() {
   });
 
   testWidgets('неподтверждённый телефон объясняет, почему пополнить нельзя', (tester) async {
-    await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => ('[]', 200))), phoneVerified: false));
+    await tester.pumpWidget(
+        harness(clientWith(FakeHttpClient((_) => ('[]', 200))), phoneVerified: false));
     await tester.pumpAndSettle();
 
-    expect(find.byType(TextField), findsNothing);
+    expect(find.text('Пополнить'), findsNothing);
     expect(find.textContaining('подтвердите номер телефона'), findsOneWidget);
   });
 
-  testWidgets('выключенное клубу пополнение прячет форму целиком', (tester) async {
-    await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => ('[]', 200))), features: const []));
+  testWidgets('выключенное клубу пополнение прячет кнопку целиком', (tester) async {
+    await tester.pumpWidget(
+        harness(clientWith(FakeHttpClient((_) => ('[]', 200))), features: const []));
     await tester.pumpAndSettle();
 
-    expect(find.byType(TextField), findsNothing);
+    expect(find.text('Пополнить'), findsNothing);
     expect(find.textContaining('подтвердите номер телефона'), findsNothing);
   });
 
@@ -118,28 +172,42 @@ void main() {
     await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => ('[]', 200))), features: null));
     await tester.pumpAndSettle();
 
-    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('Пополнить'), findsOneWidget);
   });
 
-  testWidgets('заявки показываются суммой и состоянием', (tester) async {
-    await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => (_intentListJson(state: 'fulfilled'), 200)))));
+  // Иначе игрок отправляет вторую заявку, забыв про первую.
+  testWidgets('ожидающая заявка видна на самой карточке', (tester) async {
+    await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => (_intentListJson(), 200)))));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('50,00'), findsOneWidget);
-    expect(find.text('Зачислено'), findsOneWidget);
+    expect(find.textContaining('ждёт зачисления'), findsOneWidget);
   });
 
-  testWidgets('истёкшая заявка помечается истёкшей, а не ожидающей', (tester) async {
-    await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => (_intentListJson(expired: true), 200)))));
+  testWidgets('зачисленная заявка карточку не занимает', (tester) async {
+    await tester.pumpWidget(harness(
+        clientWith(FakeHttpClient((_) => (_intentListJson(state: 'fulfilled'), 200)))));
     await tester.pumpAndSettle();
 
+    expect(find.textContaining('ждёт зачисления'), findsNothing);
+  });
+
+  testWidgets('заявки перечислены в листе суммой и состоянием', (tester) async {
+    await tester.pumpWidget(
+        harness(clientWith(FakeHttpClient((_) => (_intentListJson(expired: true), 200)))));
+    await tester.pumpAndSettle();
+
+    await openTopUp(tester);
+
+    expect(find.text('Ваши заявки'), findsOneWidget);
     expect(find.text('Истекло'), findsOneWidget);
   });
 
-  testWidgets('недоступный список заявок не ломает саму панель', (tester) async {
-    await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => ('{"error":"boom"}', 500)))));
+  testWidgets('недоступный список заявок не ломает саму карточку', (tester) async {
+    await tester
+        .pumpWidget(harness(clientWith(FakeHttpClient((_) => ('{"error":"boom"}', 500)))));
     await tester.pumpAndSettle();
 
-    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('Пополнить'), findsOneWidget);
   });
 }

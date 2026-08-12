@@ -4,7 +4,7 @@ import '../api/dto.dart';
 import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
-import 'date_time_field.dart';
+import 'new_reservation_sheet.dart';
 
 /// Что не так со временем — до отправки. Сервер проверяет то же самое, но отвечает общей
 /// ошибкой, а игроку нужно знать, какое из двух полей чинить. null — всё в порядке.
@@ -37,9 +37,6 @@ enum _Load { loading, failed, ready }
 class _ReservationsScreenState extends State<ReservationsScreen> {
   _Load _state = _Load.loading;
   List<PlayerReservation> _reservations = const [];
-  DateTime? _startsAt;
-  DateTime? _endsAt;
-  bool _pending = false;
 
   @override
   void initState() {
@@ -64,33 +61,20 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
     }
   }
 
-  Future<void> _create() async {
+  /// Форма живёт в листе снизу: раздел открывают, чтобы посмотреть свои брони, а не
+  /// бронировать заново — развёрнутая форма занимала первый экран у всех.
+  Future<void> _openForm() async {
     final l = L.of(context);
-    final problem = reservationTimeProblem(l, _startsAt, _endsAt, now: widget.clock());
-    if (problem != null) {
-      _say(problem);
-      return;
-    }
+    final created = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => NewReservationSheet(api: widget.api, clock: widget.clock),
+    );
+    if (created != true || !mounted) return;
 
-    setState(() => _pending = true);
-    try {
-      await widget.api.createReservation(startsAtUtc: _startsAt!, endsAtUtc: _endsAt!);
-      if (!mounted) return;
-      setState(() {
-        _startsAt = null;
-        _endsAt = null;
-      });
-      _say(l.customerReservationsCreated);
-      await _refresh();
-    } on PlayerApiException catch (error) {
-      if (!mounted) return;
-      // 409 — время занято. Это не сбой, а нормальный ответ, и звучать он должен иначе.
-      _say(error.statusCode == 409
-          ? l.customerReservationsConflict
-          : l.customerReservationsCreateError);
-    } finally {
-      if (mounted) setState(() => _pending = false);
-    }
+    _say(l.customerReservationsCreated);
+    await _refresh();
   }
 
   Future<void> _cancel(PlayerReservation reservation) async {
@@ -147,11 +131,22 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(l.customerReservationsTitle)),
+      // Бронировать можно только с подтверждённым телефоном; без него кнопка не появляется,
+      // а объяснение стоит на месте списка.
+      floatingActionButton: widget.phoneVerified
+          ? FloatingActionButton.extended(
+              onPressed: _openForm,
+              icon: const Icon(Icons.add),
+              label: Text(l.customerReservationsCreate),
+            )
+          : null,
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          if (widget.phoneVerified) _form(l) else _gate(l, theme),
-          const SizedBox(height: 16),
+          if (!widget.phoneVerified) ...[
+            _gate(l, theme),
+            const SizedBox(height: 16),
+          ],
           switch (_state) {
             _Load.loading => Semantics(
                 label: l.a11yLoadingReservations,
@@ -197,37 +192,6 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
       ),
     );
   }
-
-  Widget _form(L l) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              DateTimeField(
-                label: l.customerReservationsStart,
-                value: _startsAt,
-                firstAllowed: widget.clock(),
-                onChanged: (value) => setState(() => _startsAt = value),
-              ),
-              const SizedBox(height: 12),
-              DateTimeField(
-                label: l.customerReservationsEnd,
-                value: _endsAt,
-                firstAllowed: _startsAt ?? widget.clock(),
-                onChanged: (value) => setState(() => _endsAt = value),
-              ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _pending ? null : _create,
-                child: Text(_pending
-                    ? l.customerReservationsCreating
-                    : l.customerReservationsCreate),
-              ),
-            ],
-          ),
-        ),
-      );
 
   Widget _gate(L l, ThemeData theme) => Card(
         child: Padding(

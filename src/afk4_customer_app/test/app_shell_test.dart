@@ -146,6 +146,18 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  // Приглашение с главной должно приводить туда, где бронь действительно создают.
+  testWidgets('«забронировать место» с главной ведёт в раздел броней', (tester) async {
+    await tester.pumpWidget(harness(_serve()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Забронировать место'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Броней пока нет'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('раздел броней открывается из панели', (tester) async {
     await tester.pumpWidget(harness(_serve()));
     await tester.pumpAndSettle();
