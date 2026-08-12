@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/dto.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
+import '../phone/phone_verification_sheet.dart';
 
 /// Профиль: кто вошёл, на каком языке говорить, и выходы — из аккаунта и из клуба.
 class ProfileScreen extends StatefulWidget {
@@ -12,12 +13,16 @@ class ProfileScreen extends StatefulWidget {
     required this.onSignOut,
     required this.onChangeClub,
     required this.onLocaleChanged,
+    this.onPhoneVerified,
   });
 
   final PlayerApiClient api;
   final VoidCallback onSignOut;
   final VoidCallback onChangeClub;
   final ValueChanged<Locale> onLocaleChanged;
+
+  /// Номер подтвердили отсюда — оболочке пора считать игрока подтверждённым.
+  final VoidCallback? onPhoneVerified;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -78,6 +83,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  /// Смена номера — та же процедура, что и первое подтверждение: код приходит на НОВЫЙ номер,
+  /// и владение им доказывается прежде, чем он станет основным.
+  Future<void> _verifyPhone(PlayerProfile profile) async {
+    final l = L.of(context);
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => PhoneVerificationSheet(api: widget.api, initialPhone: profile.phoneNumber),
+    );
+    if (confirmed != true || !mounted) return;
+
+    _say(l.customerPhoneDone);
+    widget.onPhoneVerified?.call();
+    await _load();
+  }
+
   void _say(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
@@ -121,9 +143,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
           profile.phoneNumber ?? '—',
           style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
+        // Подтверждённость номера — не украшение: от неё зависят пополнение и брони, поэтому
+        // видно и состояние, и способ его изменить.
         Text(
-          l.customerProfilePhoneNote,
-          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          profile.phoneVerified ? l.customerProfilePhoneNote : l.customerProfilePhoneUnverified,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: profile.phoneVerified
+                ? theme.colorScheme.onSurfaceVariant
+                : theme.colorScheme.error,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton(
+            onPressed: _saving ? null : () => _verifyPhone(profile),
+            child: Text(profile.phoneVerified
+                ? l.customerProfileChangePhone
+                : l.customerProfileVerifyPhone),
+          ),
         ),
         const SizedBox(height: 24),
         Text(l.customerProfileLanguage, style: theme.textTheme.titleMedium),
