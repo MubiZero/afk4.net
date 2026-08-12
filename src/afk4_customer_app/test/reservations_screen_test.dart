@@ -157,10 +157,36 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Отменить бронь?'), findsOneWidget);
 
-    await tester.tap(find.text('← Назад'));
+    await tester.tap(find.text('Оставить'));
     await tester.pumpAndSettle();
 
     expect(http.requests.where((r) => r.method == 'DELETE'), isEmpty);
+  });
+
+  // Пара «Отменить» / «Назад» читалась как два способа закрыть диалог: игрок, выходивший из
+  // него, с равной вероятностью отменял свою бронь.
+  testWidgets('обе кнопки диалога называют своё действие целиком', (tester) async {
+    await tester.pumpWidget(harness(_serve(jsonEncode([_reservation()]))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Отменить'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(TextButton, 'Оставить'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Отменить бронь'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, '← Назад'), findsNothing);
+  });
+
+  // При двух бронях безымянный вопрос «Отменить бронь?» не говорит, какую именно.
+  testWidgets('диалог называет отменяемую бронь', (tester) async {
+    await tester.pumpWidget(harness(_serve(jsonEncode([_reservation()]))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Отменить'));
+    await tester.pumpAndSettle();
+
+    expect(find.descendant(of: find.byType(AlertDialog), matching: find.textContaining('PC-07')),
+        findsOneWidget);
   });
 
   testWidgets('подтверждённая отмена уходит на сервер', (tester) async {
@@ -171,7 +197,7 @@ void main() {
 
     await tester.tap(find.text('Отменить'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Отменить'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Отменить бронь'));
     await tester.pumpAndSettle();
 
     expect(http.requests.where((r) => r.method == 'DELETE'), hasLength(1));

@@ -28,13 +28,19 @@ Widget harness(
   PlayerApiClient api, {
   bool phoneVerified = true,
   List<String>? features = const ['online_topup'],
+  String currencyCode = 'TJS',
 }) =>
     MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
       home: Scaffold(
-        body: WalletPanel(api: api, phoneVerified: phoneVerified, features: features),
+        body: WalletPanel(
+          api: api,
+          phoneVerified: phoneVerified,
+          features: features,
+          currencyCode: currencyCode,
+        ),
       ),
     );
 
@@ -54,6 +60,21 @@ void main() {
 
     expect(http.bodies.single['amountMinorUnits'], 1250);
     expect(http.bodies.single['currencyCode'], 'TJS');
+  });
+
+  // Валюта заявки бралась из константы «TJS», и клуб на других деньгах получал бы просьбу
+  // зачислить чужую валюту.
+  testWidgets('заявка идёт в валюте кошелька, а не в зашитой', (tester) async {
+    final http = FakeHttpClient((request) =>
+        request.method == 'POST' ? (jsonEncode(_intent()), 200) : ('[]', 200));
+    await tester.pumpWidget(harness(clientWith(http), currencyCode: 'USD'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), '10');
+    await tester.tap(find.text('Запросить'));
+    await tester.pumpAndSettle();
+
+    expect(http.bodies.single['currencyCode'], 'USD');
   });
 
   // Ввод вроде `1e400` превращается в бесконечность, а та уезжает на сервер как null.

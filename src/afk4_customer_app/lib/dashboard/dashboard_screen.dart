@@ -105,6 +105,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 api: widget.api,
                 phoneVerified: widget.phoneVerified,
                 features: widget.features,
+                currencyCode: data.walletBalance.currencyCode,
               ),
               const SizedBox(height: 12),
               if (data.activeSession != null)

@@ -5,8 +5,6 @@ import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 
-const String _defaultCurrency = 'TJS';
-
 /// Потолок одной заявки. Нужен не против богатых, а против ввода вроде `1e308`: он
 /// превращается в бесконечность, а та уезжает на сервер как `null`.
 const double maxTopUpMajor = 1000000;
@@ -18,10 +16,15 @@ class WalletPanel extends StatefulWidget {
     required this.api,
     required this.phoneVerified,
     required this.features,
+    required this.currencyCode,
   });
 
   final PlayerApiClient api;
   final bool phoneVerified;
+
+  /// Валюта кошелька игрока. Берётся из баланса, а не из константы: клуб на другой валюте
+  /// получал бы заявку в чужих деньгах.
+  final String currencyCode;
 
   /// null — список возможностей не загрузился. Тогда пополнение считается включённым:
   /// панель прячет кнопку для удобства, а право на запись всё равно проверяет сервер.
@@ -72,7 +75,7 @@ class _WalletPanelState extends State<WalletPanel> {
     try {
       await widget.api.createTopUpIntent(
         amountMinorUnits: majorToMinor(major),
-        currencyCode: _defaultCurrency,
+        currencyCode: widget.currencyCode,
       );
       if (!mounted) return;
       _amount.clear();

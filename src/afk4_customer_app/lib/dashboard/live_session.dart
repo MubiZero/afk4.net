@@ -14,6 +14,20 @@ int projectRemainingSeconds(int remainingAtFetch, DateTime fetchedAt, {required 
   return projected < 0 ? 0 : projected;
 }
 
+/// С какого момента оплаченная сессия считается заканчивающейся. Пять минут — столько нужно,
+/// чтобы дойти до стойки или оставить заявку на пополнение, не потеряв игру на полуслове.
+const int endingSoonSeconds = 5 * 60;
+
+/// Как выглядит остаток времени. Спокойные цифры до последней секунды — это то, как игрока
+/// молча выбрасывает из-за компьютера.
+enum RemainingUrgency { calm, endingSoon, ended }
+
+RemainingUrgency remainingUrgency(int remainingSeconds) {
+  if (remainingSeconds <= 0) return RemainingUrgency.ended;
+  if (remainingSeconds <= endingSoonSeconds) return RemainingUrgency.endingSoon;
+  return RemainingUrgency.calm;
+}
+
 String formatClock(int totalSeconds) {
   final s = totalSeconds < 0 ? 0 : totalSeconds;
   final hh = (s ~/ 3600).toString().padLeft(2, '0');
