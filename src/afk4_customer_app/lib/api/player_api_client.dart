@@ -112,6 +112,28 @@ class PlayerApiClient {
   static String _withCursor(String path, String? cursor) =>
       cursor == null ? path : '$path?cursor=${Uri.encodeQueryComponent(cursor)}';
 
+  Future<List<PlayerReservation>> getReservations() async {
+    final list = await getJsonList('/api/me/reservations');
+    return list.map((item) => _parse(item, PlayerReservation.fromJson)).toList();
+  }
+
+  Future<PlayerReservation> createReservation({
+    required DateTime startsAtUtc,
+    required DateTime endsAtUtc,
+  }) async {
+    final body = await sendJson('POST', '/api/me/reservations', {
+      'startsAtUtc': startsAtUtc.toUtc().toIso8601String(),
+      'endsAtUtc': endsAtUtc.toUtc().toIso8601String(),
+    });
+    return _parse(body, PlayerReservation.fromJson);
+  }
+
+  Future<PlayerReservation> cancelReservation(String reservationId) async {
+    final body = await sendJson(
+        'DELETE', '/api/me/reservations/${Uri.encodeComponent(reservationId)}');
+    return _parse(body, PlayerReservation.fromJson);
+  }
+
   Future<List<TopUpIntent>> getTopUpIntents() async {
     final list = await getJsonList('/api/me/wallet/top-up-intents');
     return list.map((item) => _parse(item, TopUpIntent.fromJson)).toList();
@@ -138,7 +160,7 @@ class PlayerApiClient {
 
   /// Запрос с телом под сессией. Как и чтение, продлевает токен один раз и повторяет —
   /// с тем же телом.
-  Future<Map<String, dynamic>> sendJson(String method, String path, Object body) async {
+  Future<Map<String, dynamic>> sendJson(String method, String path, [Object? body]) async {
     var response = await _send(method, path, body: body);
     if (response.statusCode == 401 && await _refreshOnce()) {
       response = await _send(method, path, body: body);

@@ -47,9 +47,11 @@ String _visits() => jsonEncode({
       'nextCursor': null,
     });
 
-FakeHttpClient _serve() => FakeHttpClient((request) => switch (request.url.path) {
+FakeHttpClient _serve({String features = '{"features":["online_topup","online_booking"]}'}) =>
+    FakeHttpClient((request) => switch (request.url.path) {
       '/api/me/dashboard' => (_dashboard(), 200),
-      '/api/me/features' => ('{"features":["online_topup"]}', 200),
+      '/api/me/features' => (features, 200),
+      '/api/me/reservations' => ('[]', 200),
       '/api/me/visits' => (_visits(), 200),
       '/api/me/purchases' => ('{"items":[],"nextCursor":null}', 200),
       _ => ('[]', 200),
@@ -109,12 +111,47 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('раздела «Брони» пока нет — пустых обещаний в панели не висит', (tester) async {
+  testWidgets('раздела «Профиль» пока нет — пустых обещаний в панели не висит', (tester) async {
     await tester.pumpWidget(harness(_serve()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Брони'), findsNothing);
     expect(find.text('Профиль'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('клуб без онлайн-броней не показывает раздел броней', (tester) async {
+    await tester.pumpWidget(harness(_serve(features: '{"features":["online_topup"]}')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Брони'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  // Список возможностей не пришёл — разделы показываются все. Спрятать «Брони» из-за
+  // сетевого сбоя значит соврать игроку, что клуб их не принимает.
+  testWidgets('неизвестные возможности оставляют разделы на месте', (tester) async {
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/me/dashboard' => (_dashboard(), 200),
+          '/api/me/features' => ('{"error":"boom"}', 500),
+          '/api/me/reservations' => ('[]', 200),
+          '/api/me/visits' => (_visits(), 200),
+          _ => ('[]', 200),
+        });
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Брони'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('раздел броней открывается из панели', (tester) async {
+    await tester.pumpWidget(harness(_serve()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Брони'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Броней пока нет'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 }

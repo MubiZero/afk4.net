@@ -1,0 +1,247 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:afk4_customer_app/api/player_api_client.dart';
+import 'package:afk4_customer_app/l10n/app_localizations.dart';
+import 'package:afk4_customer_app/l10n/localization_setup.dart';
+import 'package:afk4_customer_app/reservations/reservations_screen.dart';
+
+import 'support/fake_http.dart';
+
+final _now = DateTime(2026, 8, 12, 12, 0, 0);
+
+Map<String, dynamic> _reservation({
+  String id = 'r1',
+  String? seat = 'PC-07',
+  String state = 'confirmed',
+}) =>
+    {
+      'reservationId': id,
+      'seatId': 'seat-1',
+      'seatName': seat,
+      'startsAtUtc': _now.add(const Duration(days: 1)).toUtc().toIso8601String(),
+      'endsAtUtc': _now.add(const Duration(days: 1, hours: 2)).toUtc().toIso8601String(),
+      'state': state,
+      'note': null,
+    };
+
+Widget harness(FakeHttpClient http, {bool phoneVerified = true}) => MaterialApp(
+      locale: const Locale('ru'),
+      localizationsDelegates: appLocalizationsDelegates,
+      supportedLocales: appSupportedLocales,
+      home: ReservationsScreen(
+        api: PlayerApiClient(baseUrl: 'https://api', httpClient: http),
+        phoneVerified: phoneVerified,
+        clock: () => _now,
+      ),
+    );
+
+FakeHttpClient _serve(String list, {(String, int)? onWrite}) =>
+    FakeHttpClient((request) => request.method == 'GET' ? (list, 200) : (onWrite ?? (list, 200)));
+
+/// Кнопка подтверждения системного диалога. Пишется по-разному в зависимости от языка
+/// («ОК» кириллицей на русском), поэтому ищется по обоим написаниям.
+final confirmButton = find.byWidgetPredicate(
+  (widget) => widget is Text && (widget.data == 'OK' || widget.data == 'ОК'),
+);
+
+/// Проходит оба системных диалога, соглашаясь с предложенными значениями.
+Future<void> pickDateTime(WidgetTester tester, String fieldLabel) async {
+  await tester.tap(find.text(fieldLabel));
+  await tester.pumpAndSettle();
+  await tester.tap(confirmButton);
+  await tester.pumpAndSettle();
+  await tester.tap(confirmButton);
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  testWidgets('бронь показывает место, время и состояние', (tester) async {
+    await tester.pumpWidget(harness(_serve(jsonEncode([_reservation()]))));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PC-07'), findsOneWidget);
+    expect(find.text('Подтверждена'), findsOneWidget);
+  });
+
+  testWidgets('бронь без назначенного места говорит об этом', (tester) async {
+    await tester.pumpWidget(harness(_serve(jsonEncode([_reservation(seat: null)]))));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Без места'), findsOneWidget);
+  });
+
+  testWidgets('пустой список говорит «броней пока нет»', (tester) async {
+    await tester.pumpWidget(harness(_serve('[]')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Броней пока нет'), findsOneWidget);
+  });
+
+  // «Броней нет» и «мы их не увидели» — разные новости: на первой игрок спокойно уйдёт
+  // мимо собственной брони.
+  testWidgets('сбой загрузки не выдаётся за отсутствие броней', (tester) async {
+    var attempt = 0;
+    final http = FakeHttpClient((_) =>
+        ++attempt == 1 ? ('{"error":"boom"}', 500) : (jsonEncode([_reservation()]), 200));
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Броней пока нет'), findsNothing);
+    expect(find.text('Не удалось загрузить брони.'), findsOneWidget);
+
+    await tester.tap(find.text('Повторить'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PC-07'), findsOneWidget);
+  });
+
+  testWidgets('неподтверждённый телефон объясняет, почему бронировать нельзя', (tester) async {
+    await tester.pumpWidget(harness(_serve('[]'), phoneVerified: false));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Забронировать'), findsNothing);
+    expect(find.textContaining('подтвердите номер телефона'), findsOneWidget);
+  });
+
+  testWidgets('без выбранного времени бронь не уходит на сервер', (tester) async {
+    final http = _serve('[]');
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Забронировать'));
+    await tester.pumpAndSettle();
+
+    expect(http.bodies, isEmpty);
+    expect(find.text('Укажите начало и конец'), findsOneWidget);
+  });
+
+  testWidgets('выбранное время уходит на сервер в UTC', (tester) async {
+    final http = _serve('[]', onWrite: (jsonEncode(_reservation()), 200));
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    await pickDateTime(tester, 'Начало');
+    await pickDateTime(tester, 'Конец');
+    await tester.tap(find.text('Забронировать'));
+    await tester.pumpAndSettle();
+
+    expect(http.bodies, hasLength(1));
+    expect(http.bodies.single['startsAtUtc'], endsWith('Z'));
+    expect(http.bodies.single['endsAtUtc'], endsWith('Z'));
+    expect(find.text('Бронь создана'), findsOneWidget);
+  });
+
+  // 409 — не сбой, а «время уже занято». Общая «не удалось создать» тут врёт про причину.
+  testWidgets('занятое время объясняется занятостью, а не общей ошибкой', (tester) async {
+    await tester.pumpWidget(harness(_serve('[]', onWrite: ('{"error":"taken"}', 409))));
+    await tester.pumpAndSettle();
+
+    await pickDateTime(tester, 'Начало');
+    await pickDateTime(tester, 'Конец');
+    await tester.tap(find.text('Забронировать'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Это время уже занято'), findsOneWidget);
+    expect(find.text('Не удалось создать бронь'), findsNothing);
+  });
+
+  testWidgets('отмена спрашивает подтверждение и без него ничего не шлёт', (tester) async {
+    final http = _serve(jsonEncode([_reservation()]));
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Отменить'));
+    await tester.pumpAndSettle();
+    expect(find.text('Отменить бронь?'), findsOneWidget);
+
+    await tester.tap(find.text('← Назад'));
+    await tester.pumpAndSettle();
+
+    expect(http.requests.where((r) => r.method == 'DELETE'), isEmpty);
+  });
+
+  testWidgets('подтверждённая отмена уходит на сервер', (tester) async {
+    final http = _serve(jsonEncode([_reservation()]),
+        onWrite: (jsonEncode(_reservation(state: 'cancelled')), 200));
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Отменить'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Отменить'));
+    await tester.pumpAndSettle();
+
+    expect(http.requests.where((r) => r.method == 'DELETE'), hasLength(1));
+    expect(find.text('Бронь отменена'), findsOneWidget);
+  });
+
+  testWidgets('у отменённой брони отменять нечего', (tester) async {
+    await tester.pumpWidget(harness(_serve(jsonEncode([_reservation(state: 'cancelled')]))));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Отменена'), findsOneWidget);
+    expect(find.text('Отменить'), findsNothing);
+  });
+
+  testWidgets('незнакомое состояние показывается как есть, а не выдумывается', (tester) async {
+    await tester.pumpWidget(harness(_serve(jsonEncode([_reservation(state: 'no_show')]))));
+    await tester.pumpAndSettle();
+
+    expect(find.text('no_show'), findsOneWidget);
+  });
+
+  group('проверка времени до отправки', () {
+    late L l;
+
+    Future<void> load(WidgetTester tester) async {
+      await tester.pumpWidget(MaterialApp(
+        locale: const Locale('ru'),
+        localizationsDelegates: appLocalizationsDelegates,
+        supportedLocales: appSupportedLocales,
+        home: Builder(builder: (context) {
+          l = L.of(context);
+          return const SizedBox.shrink();
+        }),
+      ));
+    }
+
+    testWidgets('начало в прошлом отклоняется с понятной причиной', (tester) async {
+      await load(tester);
+      final problem = reservationTimeProblem(
+        l,
+        _now.subtract(const Duration(hours: 1)),
+        _now.add(const Duration(hours: 1)),
+        now: _now,
+      );
+
+      expect(problem, 'Начало должно быть в будущем');
+    });
+
+    testWidgets('конец раньше начала отклоняется с понятной причиной', (tester) async {
+      await load(tester);
+      final problem = reservationTimeProblem(
+        l,
+        _now.add(const Duration(hours: 3)),
+        _now.add(const Duration(hours: 1)),
+        now: _now,
+      );
+
+      expect(problem, 'Конец должен быть позже начала');
+    });
+
+    testWidgets('корректный промежуток проходит', (tester) async {
+      await load(tester);
+      final problem = reservationTimeProblem(
+        l,
+        _now.add(const Duration(hours: 1)),
+        _now.add(const Duration(hours: 3)),
+        now: _now,
+      );
+
+      expect(problem, isNull);
+    });
+  });
+}

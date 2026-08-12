@@ -33,7 +33,13 @@ Map<String, dynamic> _openSession() => {
       'currencyCode': 'TJS',
     };
 
-Widget harness(PlayerApiClient api, {bool phoneVerified = true, VoidCallback? onSignOut}) => MaterialApp(
+Widget harness(
+  PlayerApiClient api, {
+  bool phoneVerified = true,
+  VoidCallback? onSignOut,
+  List<String>? features = const ['online_topup'],
+}) =>
+    MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
@@ -42,6 +48,7 @@ Widget harness(PlayerApiClient api, {bool phoneVerified = true, VoidCallback? on
         displayName: 'Иван',
         phoneVerified: phoneVerified,
         onSignOut: onSignOut ?? () {},
+        features: features,
         clock: () => _now,
       ),
     );

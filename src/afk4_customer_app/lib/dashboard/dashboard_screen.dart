@@ -17,6 +17,7 @@ class DashboardScreen extends StatefulWidget {
     required this.displayName,
     required this.phoneVerified,
     required this.onSignOut,
+    required this.features,
     this.clock = DateTime.now,
   });
 
@@ -24,6 +25,11 @@ class DashboardScreen extends StatefulWidget {
   final String displayName;
   final bool phoneVerified;
   final VoidCallback onSignOut;
+
+  /// Возможности клуба; null — список не получен. Загружает их оболочка: он нужен ещё и
+  /// разделам, а два независимых запроса одного и того же — лишний трафик и рассинхрон.
+  final List<String>? features;
+
   final DateTime Function() clock;
 
   @override
@@ -40,15 +46,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   DateTime? _fetchedAt;
   bool _failed = false;
 
-  /// null = список возможностей ещё не получен или не получился. Панель кошелька трактует
-  /// это как «пополнение включено» — см. её комментарий.
-  List<String>? _features;
-
   @override
   void initState() {
     super.initState();
     _refresh();
-    _loadFeatures();
     _poll = Timer.periodic(_refreshEvery, (_) => _refresh());
   }
 
@@ -72,15 +73,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // Уже показанные цифры не стираются: пропавшая на секунду сеть не повод заменять
       // баланс сообщением об ошибке. Ошибка видна, только пока показывать нечего.
       if (_data == null) setState(() => _failed = true);
-    }
-  }
-
-  Future<void> _loadFeatures() async {
-    try {
-      final features = await widget.api.getFeatures();
-      if (mounted) setState(() => _features = features);
-    } on PlayerApiException {
-      // Остаётся null — «считаем включённым».
     }
   }
 
@@ -125,7 +117,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               WalletPanel(
                 api: widget.api,
                 phoneVerified: widget.phoneVerified,
-                features: _features,
+                features: widget.features,
               ),
               const SizedBox(height: 12),
               if (data.activeSession != null)

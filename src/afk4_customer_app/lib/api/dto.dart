@@ -233,3 +233,34 @@ class PlayerPurchase {
             .toList(),
       );
 }
+
+/// Бронь места: когда, где и в каком состоянии.
+class PlayerReservation {
+  const PlayerReservation({
+    required this.reservationId,
+    required this.seatName,
+    required this.startsAtUtc,
+    required this.endsAtUtc,
+    required this.state,
+  });
+
+  final String reservationId;
+
+  /// null — клуб ещё не назначил конкретное место.
+  final String? seatName;
+  final DateTime startsAtUtc;
+  final DateTime endsAtUtc;
+  final String state;
+
+  /// Отменить можно то, что ещё не состоялось. Отменённую или уже отыгранную бронь трогать
+  /// нечего — кнопка там только сбивает с толку.
+  bool get isCancellable => state == 'pending' || state == 'confirmed';
+
+  factory PlayerReservation.fromJson(Map<String, dynamic> json) => PlayerReservation(
+        reservationId: json['reservationId'] as String,
+        seatName: json['seatName'] as String?,
+        startsAtUtc: DateTime.parse(json['startsAtUtc'] as String),
+        endsAtUtc: DateTime.parse(json['endsAtUtc'] as String),
+        state: json['state'] as String,
+      );
+}
