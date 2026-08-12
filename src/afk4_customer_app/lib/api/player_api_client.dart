@@ -112,6 +112,18 @@ class PlayerApiClient {
   static String _withCursor(String path, String? cursor) =>
       cursor == null ? path : '$path?cursor=${Uri.encodeQueryComponent(cursor)}';
 
+  Future<PlayerProfile> getProfile() async =>
+      _parse(await getJson('/api/me/profile'), PlayerProfile.fromJson);
+
+  /// Меняет только переданные поля: не указанное остаётся как было. Слать весь профиль
+  /// целиком значит затирать чужие изменения тем, что экран успел прочитать.
+  Future<PlayerProfile> updateProfile({String? preferredLocale, bool? marketingOptIn}) async {
+    final body = <String, dynamic>{};
+    if (preferredLocale != null) body['preferredLocale'] = preferredLocale;
+    if (marketingOptIn != null) body['marketingOptIn'] = marketingOptIn;
+    return _parse(await sendJson('PATCH', '/api/me/profile', body), PlayerProfile.fromJson);
+  }
+
   Future<List<PlayerReservation>> getReservations() async {
     final list = await getJsonList('/api/me/reservations');
     return list.map((item) => _parse(item, PlayerReservation.fromJson)).toList();

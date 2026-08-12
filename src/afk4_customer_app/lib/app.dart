@@ -5,6 +5,7 @@ import 'auth/player_session.dart';
 import 'auth/player_session_store.dart';
 import 'auth/sign_in_screen.dart';
 import 'shell/app_shell.dart';
+import 'l10n/locale_preference_store.dart';
 import 'l10n/localization_setup.dart';
 import 'organization/club_picker_screen.dart';
 import 'organization/organization.dart';
@@ -21,7 +22,7 @@ const String brandName = 'AFK4.NET';
 /// Тема следует системной настройке телефона: у клуба ночная аудитория, и навязывать светлую
 /// тему тому, кто держит телефон в тёмном зале, — плохая идея. Явный выбор языка появится
 /// в профиле; до этого берётся язык устройства с откатом на русский.
-class CustomerApp extends StatelessWidget {
+class CustomerApp extends StatefulWidget {
   const CustomerApp({
     super.key,
     this.locale,
@@ -29,14 +30,40 @@ class CustomerApp extends StatelessWidget {
     required this.api,
     this.selectedOrganizationStore = const SelectedOrganizationStore(),
     this.sessionStore = const PlayerSessionStore(),
+    this.localeStore = const LocalePreferenceStore(),
   });
 
-  /// Задаётся только тестами и будущим переключателем в профиле; null = язык устройства.
+  /// Жёстко задаётся только тестами: перебивает и выбор игрока, и язык устройства.
   final Locale? locale;
   final OrganizationDirectory directory;
   final PlayerApiClient api;
   final SelectedOrganizationStore selectedOrganizationStore;
   final PlayerSessionStore sessionStore;
+  final LocalePreferenceStore localeStore;
+
+  @override
+  State<CustomerApp> createState() => _CustomerAppState();
+}
+
+class _CustomerAppState extends State<CustomerApp> {
+  /// Язык, выбранный игроком в профиле. null — выбора не было, берётся язык устройства.
+  Locale? _chosen;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreLocale();
+  }
+
+  Future<void> _restoreLocale() async {
+    final saved = await widget.localeStore.read();
+    if (mounted && saved != null) setState(() => _chosen = saved);
+  }
+
+  Future<void> _chooseLocale(Locale locale) async {
+    setState(() => _chosen = locale);
+    await widget.localeStore.write(locale);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +74,7 @@ class CustomerApp extends StatelessWidget {
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
       themeMode: ThemeMode.system,
-      locale: locale,
+      locale: widget.locale ?? _chosen,
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
       localeResolutionCallback: (deviceLocale, supported) {
@@ -55,10 +82,11 @@ class CustomerApp extends StatelessWidget {
         return match.isNotEmpty ? match.first : const Locale('ru');
       },
       home: _Root(
-        directory: directory,
-        api: api,
-        organizationStore: selectedOrganizationStore,
-        sessionStore: sessionStore,
+        directory: widget.directory,
+        api: widget.api,
+        organizationStore: widget.selectedOrganizationStore,
+        sessionStore: widget.sessionStore,
+        onLocaleChanged: _chooseLocale,
       ),
     );
   }
@@ -71,12 +99,14 @@ class _Root extends StatefulWidget {
     required this.api,
     required this.organizationStore,
     required this.sessionStore,
+    required this.onLocaleChanged,
   });
 
   final OrganizationDirectory directory;
   final PlayerApiClient api;
   final SelectedOrganizationStore organizationStore;
   final PlayerSessionStore sessionStore;
+  final ValueChanged<Locale> onLocaleChanged;
 
   @override
   State<_Root> createState() => _RootState();
@@ -155,6 +185,12 @@ class _RootState extends State<_Root> {
       );
     }
 
-    return AppShell(api: widget.api, session: session, onSignOut: _signOut);
+    return AppShell(
+      api: widget.api,
+      session: session,
+      onSignOut: _signOut,
+      onChangeClub: _changeClub,
+      onLocaleChanged: widget.onLocaleChanged,
+    );
   }
 }

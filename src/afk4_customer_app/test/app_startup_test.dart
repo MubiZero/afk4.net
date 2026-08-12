@@ -28,6 +28,7 @@ class _FakeHttp extends http.BaseClient {
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final body = switch (request.url.path) {
       '/api/me/dashboard' => _dashboardJson,
+      '/api/me/profile' => _profileJson,
       '/api/me/features' => '{"features":["online_topup"]}',
       '/api/me/wallet/top-up-intents' => '[]',
       _ => _sessionJson,
@@ -52,6 +53,10 @@ const _sessionJson = '''
  "accessToken":"access-1","accessTokenExpiresAtUtc":"2026-08-11T12:00:00Z",
  "refreshToken":"refresh-1","refreshTokenExpiresAtUtc":"2026-09-11T12:00:00Z"}''';
 
+const _profileJson = '''
+{"playerAccountId":"p1","displayName":"Иван","phoneNumber":"+992900000000",
+ "phoneVerified":true,"preferredLocale":null,"marketingOptIn":false}''';
+
 const _dashboardJson = '''
 {"walletBalance":{"currencyCode":"TJS","minorUnits":120050},
  "debtBalance":{"currencyCode":"TJS","minorUnits":0},
@@ -61,8 +66,8 @@ const _dashboardJson = '''
 /// действительно стирает сессию с устройства, а не только убирает её с экрана.
 late Map<String, String> secureValues;
 
-Widget buildApp() => CustomerApp(
-      locale: const Locale('ru'),
+Widget buildApp({Locale? locale = const Locale('ru')}) => CustomerApp(
+      locale: locale,
       directory: _StubDirectory(const [_cyberx]),
       api: PlayerApiClient(baseUrl: 'https://api', httpClient: _FakeHttp()),
       sessionStore: const PlayerSessionStore(),
@@ -72,9 +77,15 @@ Widget buildApp() => CustomerApp(
 /// валит тест как «pending timer».
 Future<void> unmount(WidgetTester tester) => tester.pumpWidget(const SizedBox.shrink());
 
-/// Выход живёт в шапке главной кнопкой-иконкой; свой экран профиля появится позже.
+/// Выход и смена клуба живут в разделе «Профиль».
+Future<void> openProfile(WidgetTester tester) async {
+  await tester.tap(find.text('Профиль'));
+  await tester.pumpAndSettle();
+}
+
 Future<void> signOut(WidgetTester tester) async {
-  await tester.tap(find.byIcon(Icons.logout));
+  await openProfile(tester);
+  await tester.tap(find.text('Выйти'));
   await tester.pumpAndSettle();
 }
 
@@ -83,7 +94,8 @@ Future<void> signIn(WidgetTester tester) async {
   await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextField).first, '+992900000000');
   await tester.enterText(find.byType(TextField).last, 'secret');
-  await tester.tap(find.text('Войти'));
+  // Кнопка ищется по типу, а не по подписи: тест языка запускает приложение на английском.
+  await tester.tap(find.byType(FilledButton));
   await tester.pumpAndSettle();
 }
 
@@ -163,5 +175,26 @@ void main() {
 
     expect(find.text('Выберите клуб'), findsOneWidget);
     expect(secureValues, isEmpty);
+  });
+
+  // Язык — предпочтение, а не разовая настройка сессии: спрашивать его каждый запуск
+  // означает возвращать игрока к языку телефона, который он только что отверг.
+  testWidgets('выбранный язык переживает перезапуск приложения', (tester) async {
+    await tester.pumpWidget(buildApp(locale: null));
+    await tester.pumpAndSettle();
+    await signIn(tester);
+
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Русский'));
+    await tester.pumpAndSettle();
+    expect(find.text('Профиль'), findsWidgets);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(buildApp(locale: null));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Главная'), findsOneWidget);
+    await unmount(tester);
   });
 }

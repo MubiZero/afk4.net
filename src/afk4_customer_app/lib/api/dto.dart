@@ -264,3 +264,30 @@ class PlayerReservation {
         state: json['state'] as String,
       );
 }
+
+/// Профиль игрока: как его зовут, чем он подписан и что он разрешил присылать.
+class PlayerProfile {
+  const PlayerProfile({
+    required this.displayName,
+    required this.phoneNumber,
+    required this.phoneVerified,
+    required this.preferredLocale,
+    required this.marketingOptIn,
+  });
+
+  final String displayName;
+  final String? phoneNumber;
+  final bool phoneVerified;
+
+  /// null — игрок не выбирал язык, и письма идут на языке клуба.
+  final String? preferredLocale;
+  final bool marketingOptIn;
+
+  factory PlayerProfile.fromJson(Map<String, dynamic> json) => PlayerProfile(
+        displayName: json['displayName'] as String,
+        phoneNumber: json['phoneNumber'] as String?,
+        phoneVerified: json['phoneVerified'] as bool? ?? false,
+        preferredLocale: json['preferredLocale'] as String?,
+        marketingOptIn: json['marketingOptIn'] as bool? ?? false,
+      );
+}

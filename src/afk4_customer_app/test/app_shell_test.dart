@@ -65,6 +65,8 @@ Widget harness(FakeHttpClient http, {VoidCallback? onSignOut}) => MaterialApp(
         api: PlayerApiClient(baseUrl: 'https://api', httpClient: http),
         session: _session,
         onSignOut: onSignOut ?? () {},
+        onChangeClub: () {},
+        onLocaleChanged: (_) {},
         clock: () => _now,
       ),
     );
@@ -111,11 +113,11 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('раздела «Профиль» пока нет — пустых обещаний в панели не висит', (tester) async {
+  testWidgets('все готовые разделы на месте', (tester) async {
     await tester.pumpWidget(harness(_serve()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Профиль'), findsNothing);
+    expect(find.text('Профиль'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
