@@ -159,9 +159,22 @@
   "customerReservationsStateSeated": "Шумо дар ҷой ҳастед",
   "customerReservationsTimeError": "Оғоз ва анҷомро нишон диҳед",
   "customerReservationsTitle": "Бронҳо",
+  "customerSigninByCode": "Даромадан бо рамзи SMS",
+  "customerSigninByPassword": "Даромадан бо парол",
+  "customerSigninCodeError": "Рамз нодуруст аст",
+  "customerSigninCodeExpired": "Рамз кӯҳна шуд — нави онро дархост кунед",
+  "customerSigninCodeNone": "Рамз дархост нашудааст ё аллакай истифода шудааст",
+  "customerSigninCodeSent": "Рамз ба {phone} фиристода шуд, агар чунин бозигар дар клуб бошад.",
+  "@customerSigninCodeSent": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSigninCodeTooMany": "Кӯшишҳои аз ҳад зиёд — рамзи нав дархост кунед",
   "customerSigninError": "Рақам ё парол нодуруст аст",
   "customerSigninNetworkError": "Алоқа бо сервер нест. Интернетро санҷед.",
-  "customerSigninOtpSoon": "Ворид бо рамзи SMS · ба зудӣ",
   "customerSigninPassword": "PIN ё парол",
   "customerSigninPhone": "Телефон",
   "customerSigninSubmit": "Ворид шудан",

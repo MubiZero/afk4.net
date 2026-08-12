@@ -159,9 +159,22 @@
   "customerReservationsStateSeated": "Вы за местом",
   "customerReservationsTimeError": "Укажите начало и конец",
   "customerReservationsTitle": "Брони",
+  "customerSigninByCode": "Войти по SMS-коду",
+  "customerSigninByPassword": "Войти по паролю",
+  "customerSigninCodeError": "Неверный код",
+  "customerSigninCodeExpired": "Код устарел — запросите новый",
+  "customerSigninCodeNone": "Код не запрашивали или он уже использован",
+  "customerSigninCodeSent": "Код отправлен на {phone}. Если такой игрок есть в клубе.",
+  "@customerSigninCodeSent": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSigninCodeTooMany": "Слишком много попыток — запросите новый код",
   "customerSigninError": "Неверный номер или пароль",
   "customerSigninNetworkError": "Нет связи с сервером. Проверьте интернет.",
-  "customerSigninOtpSoon": "Войти по SMS-коду · скоро",
   "customerSigninPassword": "PIN или пароль",
   "customerSigninPhone": "Телефон",
   "customerSigninSubmit": "Войти",

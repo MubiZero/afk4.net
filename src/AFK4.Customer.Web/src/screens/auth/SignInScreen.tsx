@@ -57,11 +57,6 @@ export function SignInScreen({ organizationId, brandName, signIn, onSignedIn }: 
           {pending ? t('customer.signin.submitting') : t('customer.signin.submit')}
         </Button>
       </form>
-
-      <Button type="button" variant="outline" className="w-full" disabled
-        title={t('customer.signin.otpSoon')}>
-        {t('customer.signin.otpSoon')}
-      </Button>
     </main>
   );
 }
