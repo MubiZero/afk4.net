@@ -36,7 +36,6 @@ Map<String, dynamic> _openSession() => {
 Widget harness(
   PlayerApiClient api, {
   bool phoneVerified = true,
-  VoidCallback? onSignOut,
   List<String>? features = const ['online_topup'],
 }) =>
     MaterialApp(
@@ -47,7 +46,6 @@ Widget harness(
         api: api,
         displayName: 'Иван',
         phoneVerified: phoneVerified,
-        onSignOut: onSignOut ?? () {},
         features: features,
         clock: () => _now,
       ),
@@ -153,18 +151,4 @@ void main() {
     await unmount(tester);
   });
 
-  testWidgets('кнопка выхода зовёт обработчик', (tester) async {
-    var signedOut = false;
-    await tester.pumpWidget(harness(
-      clientWith(_serve((_dashboardJson(), 200))),
-      onSignOut: () => signedOut = true,
-    ));
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byIcon(Icons.logout));
-    await tester.pump();
-
-    expect(signedOut, isTrue);
-    await unmount(tester);
-  });
 }

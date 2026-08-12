@@ -16,7 +16,6 @@ class DashboardScreen extends StatefulWidget {
     required this.api,
     required this.displayName,
     required this.phoneVerified,
-    required this.onSignOut,
     required this.features,
     this.clock = DateTime.now,
   });
@@ -24,8 +23,6 @@ class DashboardScreen extends StatefulWidget {
   final PlayerApiClient api;
   final String displayName;
   final bool phoneVerified;
-  final VoidCallback onSignOut;
-
   /// Возможности клуба; null — список не получен. Загружает их оболочка: он нужен ещё и
   /// разделам, а два независимых запроса одного и того же — лишний трафик и рассинхрон.
   final List<String>? features;
@@ -83,17 +80,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final data = _data;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.displayName),
-        actions: [
-          // Временно живёт здесь: свой экран профиля с выходом появится шагом позже.
-          IconButton(
-            onPressed: widget.onSignOut,
-            icon: const Icon(Icons.logout),
-            tooltip: l.customerProfileSignOut,
-          ),
-        ],
-      ),
+      appBar: AppBar(title: Text(widget.displayName)),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: ListView(

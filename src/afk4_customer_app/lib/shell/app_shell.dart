@@ -5,24 +5,29 @@ import '../auth/player_session.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../history/history_screen.dart';
 import '../l10n/app_localizations.dart';
+import '../profile/profile_screen.dart';
 import '../reservations/reservations_screen.dart';
 
 /// Оболочка вошедшего игрока: разделы внизу, содержимое сверху.
 ///
-/// Разделы добавляются по мере готовности — «Профиль» появится следующим шагом. Пустая
-/// вкладка-заглушка хуже её отсутствия: она обещает то, чего нет.
+/// Раздел «Брони» появляется, только если клуб принимает онлайн-брони: вкладка, ведущая в
+/// невозможное действие, хуже её отсутствия.
 class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
     required this.api,
     required this.session,
     required this.onSignOut,
+    required this.onChangeClub,
+    required this.onLocaleChanged,
     this.clock = DateTime.now,
   });
 
   final PlayerApiClient api;
   final PlayerSession session;
   final VoidCallback onSignOut;
+  final VoidCallback onChangeClub;
+  final ValueChanged<Locale> onLocaleChanged;
   final DateTime Function() clock;
 
   @override
@@ -65,7 +70,6 @@ class _AppShellState extends State<AppShell> {
           api: widget.api,
           displayName: widget.session.displayName,
           phoneVerified: widget.session.phoneVerified,
-          onSignOut: widget.onSignOut,
           features: _features,
           clock: widget.clock,
         ),
@@ -96,6 +100,19 @@ class _AppShellState extends State<AppShell> {
             label: l.customerNavReservations,
           ),
         ),
+      (
+        ProfileScreen(
+          api: widget.api,
+          onSignOut: widget.onSignOut,
+          onChangeClub: widget.onChangeClub,
+          onLocaleChanged: widget.onLocaleChanged,
+        ),
+        NavigationDestination(
+          icon: const Icon(Icons.person_outline),
+          selectedIcon: const Icon(Icons.person),
+          label: l.customerNavProfile,
+        ),
+      ),
     ];
 
     return Scaffold(
