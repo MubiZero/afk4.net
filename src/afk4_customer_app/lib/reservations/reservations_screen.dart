@@ -89,8 +89,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
         // Какую именно бронь отменяем: при двух бронях безымянный вопрос ничего не значит.
         content: Text(
           '${reservation.seatName ?? l.customerReservationsNoSeat}\n'
-          '${formatDateTime(reservation.startsAtUtc, locale)} — '
-          '${formatDateTime(reservation.endsAtUtc, locale)}',
+          '${formatTimeRange(l, reservation.startsAtUtc, reservation.endsAtUtc, locale, now: widget.clock())}',
         ),
         actions: [
           TextButton(
@@ -140,55 +139,61 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
               label: Text(l.customerReservationsCreate),
             )
           : null,
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          if (!widget.phoneVerified) ...[
-            _gate(l, theme),
-            const SizedBox(height: 16),
-          ],
-          switch (_state) {
-            _Load.loading => Semantics(
-                label: l.a11yLoadingReservations,
-                child: const Center(child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: CircularProgressIndicator(),
-                )),
-              ),
-            _Load.failed => Center(
-                child: Column(
-                  children: [
-                    Text(l.customerReservationsLoadError,
-                        style: TextStyle(color: theme.colorScheme.error)),
-                    const SizedBox(height: 8),
-                    TextButton(onPressed: _refresh, child: Text(l.customerCommonRetry)),
-                  ],
+      // Потянуть вниз обновляет список — тот же жест, что на главной и в истории.
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            if (!widget.phoneVerified) ...[
+              _gate(l, theme),
+              const SizedBox(height: 16),
+            ],
+            switch (_state) {
+              _Load.loading => Semantics(
+                  label: l.a11yLoadingReservations,
+                  child: const Center(child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: CircularProgressIndicator(),
+                  )),
                 ),
-              ),
-            _Load.ready when _reservations.isEmpty => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Text(
-                    l.customerReservationsNone,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              _Load.failed => Center(
+                  child: Column(
+                    children: [
+                      Text(l.customerReservationsLoadError,
+                          style: TextStyle(color: theme.colorScheme.error)),
+                      const SizedBox(height: 8),
+                      TextButton(onPressed: _refresh, child: Text(l.customerCommonRetry)),
+                    ],
                   ),
                 ),
-              ),
-            _Load.ready => Column(
-                children: [
-                  for (final reservation in _reservations)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _ReservationCard(
-                        reservation: reservation,
-                        onCancel: () => _cancel(reservation),
-                      ),
+              _Load.ready when _reservations.isEmpty => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Text(
+                      l.customerReservationsNone,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
-                ],
-              ),
-          },
-        ],
+                  ),
+                ),
+              _Load.ready => Column(
+                  children: [
+                    for (final reservation in _reservations)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _ReservationCard(
+                          reservation: reservation,
+                          now: widget.clock(),
+                          onCancel: () => _cancel(reservation),
+                        ),
+                      ),
+                  ],
+                ),
+            },
+          ],
+        ),
       ),
     );
   }
@@ -205,9 +210,14 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
 }
 
 class _ReservationCard extends StatelessWidget {
-  const _ReservationCard({required this.reservation, required this.onCancel});
+  const _ReservationCard({
+    required this.reservation,
+    required this.now,
+    required this.onCancel,
+  });
 
   final PlayerReservation reservation;
+  final DateTime now;
   final VoidCallback onCancel;
 
   /// Состояние словами. Незнакомое приходит с сервера как есть — лучше сырой код, чем
@@ -246,8 +256,7 @@ class _ReservationCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${formatDateTime(reservation.startsAtUtc, locale)} — '
-              '${formatDateTime(reservation.endsAtUtc, locale)}',
+              formatTimeRange(l, reservation.startsAtUtc, reservation.endsAtUtc, locale, now: now),
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),

@@ -47,6 +47,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   DateTime? _fetchedAt;
   bool _failed = false;
 
+  /// Последний запрос не дошёл до сервера. Данные на экране остаются, но они с прошлого
+  /// удачного ответа — молчать об этом значит показывать баланс, которому нельзя верить.
+  bool _stale = false;
+
   @override
   void initState() {
     super.initState();
@@ -68,12 +72,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _data = data;
         _fetchedAt = widget.clock();
         _failed = false;
+        _stale = false;
       });
-    } on PlayerApiException {
+    } on PlayerApiException catch (error) {
       if (!mounted) return;
       // Уже показанные цифры не стираются: пропавшая на секунду сеть не повод заменять
-      // баланс сообщением об ошибке. Ошибка видна, только пока показывать нечего.
-      if (_data == null) setState(() => _failed = true);
+      // баланс сообщением об ошибке. Ошибка видна, только пока показывать нечего — а когда
+      // есть что показать, полоска сверху честно говорит, что цифры могли устареть.
+      setState(() {
+        _failed = _data == null;
+        _stale = error.statusCode == null;
+      });
     }
   }
 
@@ -90,6 +99,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (_stale && data != null) ...[
+              const _StaleBanner(),
+              const SizedBox(height: 12),
+            ],
             if (data == null && _failed)
               Text(l.customerDashboardLoadError, style: TextStyle(color: theme.colorScheme.error))
             else if (data == null)
@@ -131,6 +144,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
         phoneVerified: widget.phoneVerified,
         features: widget.features,
       );
+}
+
+/// Полоска «данные могли устареть». Не пугает ошибкой — просто снимает доверие с цифр,
+/// пока связь не вернулась.
+class _StaleBanner extends StatelessWidget {
+  const _StaleBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.cloud_off_outlined, size: 18, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              l.customerOfflineStale,
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Пустое состояние с выходом: раньше здесь была серая надпись и никакого следующего шага.

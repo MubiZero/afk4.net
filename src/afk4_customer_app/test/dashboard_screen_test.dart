@@ -201,6 +201,28 @@ void main() {
     await unmount(tester);
   });
 
+  // Показывать баланс, которому нельзя верить, и молчать об этом — хуже, чем сказать.
+  testWidgets('пропавшая связь честно помечает цифры устаревшими', (tester) async {
+    var calls = 0;
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/me/dashboard' when ++calls == 1 => (_dashboardJson(), 200),
+          // Заглушка обрывает соединение так же, как это делает пропавшая сеть.
+          '/api/me/dashboard' => throw Exception('offline'),
+          '/api/me/features' => ('{"features":[]}', 200),
+          _ => ('[]', 200),
+        });
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+    expect(find.text('Нет связи — данные могут устареть'), findsNothing);
+
+    await tester.drag(find.byType(ListView), const Offset(0, 300));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('200,50'), findsOneWidget);
+    expect(find.text('Нет связи — данные могут устареть'), findsOneWidget);
+    await unmount(tester);
+  });
+
   testWidgets('сетевая ошибка показывается, только пока показывать нечего', (tester) async {
     await tester.pumpWidget(harness(
       clientWith(FakeHttpClient((_) => ('{"error":"boom"}', 500))),

@@ -20,11 +20,11 @@ const profile = {
   phoneVerified: false, preferredLocale: 'ru', marketingOptIn: false
 };
 
-it('renders the profile and a disabled OTP note for the phone', async () => {
+it('renders the profile and tells where to change the phone number', async () => {
   const api = { getProfile: mock().mockResolvedValue(profile) } as unknown as PlayerApiClient;
   renderScreen(api);
   expect(await screen.findByText('Фёдор')).toBeInTheDocument();
-  expect(screen.getByText(/через OTP/i)).toBeInTheDocument();
+  expect(screen.getByText(/обратитесь к администратору/i)).toBeInTheDocument();
 });
 
 it('PATCHes the marketing opt-in when toggled', async () => {

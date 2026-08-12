@@ -84,7 +84,7 @@ class _VisitCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${formatDateTime(visit.startedAtUtc, locale)} · '
+              '${formatDateTime(l, visit.startedAtUtc, locale, now: now)} · '
               '${formatVisitDuration(l, visit.startedAtUtc, visit.endedAtUtc, now: now)}',
               style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),

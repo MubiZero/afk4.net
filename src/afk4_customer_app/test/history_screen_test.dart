@@ -94,7 +94,9 @@ void main() {
     expect(find.text('PC-07'), findsOneWidget);
   });
 
-  testWidgets('«показать ещё» дозагружает следующую страницу', (tester) async {
+  // Лишнее касание «показать ещё» на телефоне ничего не решает: следующая страница
+  // подтягивается сама у края списка.
+  testWidgets('следующая страница подтягивается сама', (tester) async {
     final http = FakeHttpClient((request) {
       if (request.url.path != '/api/me/visits') return (_page([]), 200);
       return request.url.queryParameters['cursor'] == null
@@ -103,14 +105,48 @@ void main() {
     });
     await tester.pumpWidget(harness(clientWith(http)));
     await tester.pumpAndSettle();
-    expect(find.text('PC-02'), findsNothing);
-
-    await tester.tap(find.text('Показать ещё'));
     await tester.pumpAndSettle();
 
     expect(find.text('PC-01'), findsOneWidget);
     expect(find.text('PC-02'), findsOneWidget);
-    expect(find.text('Показать ещё'), findsNothing);
+  });
+
+  // Молча зациклить запрос на ошибке хуже, чем показать кнопку: игрок сам решает, повторять
+  // ли, и видит, что список неполон.
+  testWidgets('сорвавшаяся подгрузка предлагает повтор, а не крутится вечно', (tester) async {
+    var attempt = 0;
+    final http = FakeHttpClient((request) {
+      if (request.url.path != '/api/me/visits') return (_page([]), 200);
+      if (request.url.queryParameters['cursor'] == null) {
+        return (_page([_visit(seat: 'PC-01')], next: 'c2'), 200);
+      }
+      return ++attempt == 1
+          ? ('{"error":"boom"}', 500)
+          : (_page([_visit(id: 's2', seat: 'PC-02')]), 200);
+    });
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PC-01'), findsOneWidget);
+    expect(find.textContaining('Не удалось подгрузить'), findsOneWidget);
+
+    await tester.tap(find.textContaining('Не удалось подгрузить'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PC-02'), findsOneWidget);
+  });
+
+  // Жест, выученный на главной, должен работать и в списках.
+  testWidgets('список обновляется потягиванием вниз', (tester) async {
+    final http = _serve(visits: _page([_visit(seat: 'PC-01')]));
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+    final before = http.paths.where((path) => path == '/api/me/visits').length;
+
+    await tester.fling(find.byType(RefreshIndicator).first, const Offset(0, 300), 1000);
+    await tester.pumpAndSettle();
+
+    expect(http.paths.where((path) => path == '/api/me/visits').length, greaterThan(before));
   });
 
   // Кнопка чека обещает то, чего может не быть, — поэтому её нет там, где чека нет.
