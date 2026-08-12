@@ -33,6 +33,17 @@ Map<String, dynamic> _openSession() => {
       'currencyCode': 'TJS',
     };
 
+Map<String, dynamic> _fixedSession({required int remainingSeconds}) => {
+      'sessionId': 's1',
+      'seatId': 'seat-1',
+      'seatName': 'PC-07',
+      'startedAtUtc': _now.subtract(const Duration(minutes: 30)).toIso8601String(),
+      'durationMode': 'fixed',
+      'remainingSeconds': remainingSeconds,
+      'accruedCostMinorUnits': null,
+      'currencyCode': 'TJS',
+    };
+
 Widget harness(
   PlayerApiClient api, {
   bool phoneVerified = true,
@@ -113,6 +124,39 @@ void main() {
     expect(find.text('PC-07'), findsOneWidget);
     expect(find.text('00:30:00'), findsOneWidget);
     expect(find.textContaining('45,00'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  // Оплаченная сессия заканчивалась без единого сигнала: игрока выбрасывало из-за
+  // компьютера, а последнее, что он видел, — спокойные чёрные цифры.
+  testWidgets('запас времени не тревожит раньше времени', (tester) async {
+    await tester.pumpWidget(harness(
+      clientWith(_serve((_dashboardJson(session: _fixedSession(remainingSeconds: 3600)), 200))),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('01:00:00'), findsOneWidget);
+    expect(find.text('Время заканчивается'), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets('последние минуты оплаченной сессии предупреждают', (tester) async {
+    await tester.pumpWidget(harness(
+      clientWith(_serve((_dashboardJson(session: _fixedSession(remainingSeconds: 240)), 200))),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Время заканчивается'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('кончившееся время названо кончившимся, а не нулём на часах', (tester) async {
+    await tester.pumpWidget(harness(
+      clientWith(_serve((_dashboardJson(session: _fixedSession(remainingSeconds: 0)), 200))),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Время вышло'), findsOneWidget);
     await unmount(tester);
   });
 

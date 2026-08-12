@@ -95,18 +95,31 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
 
   Future<void> _cancel(PlayerReservation reservation) async {
     final l = L.of(context);
+    final locale = Localizations.localeOf(context).languageCode;
     final confirmed = await showDialog<bool>(
       context: context,
+      // Обе кнопки называют своё действие целиком. Пара «Отменить» / «Назад» читалась как
+      // два способа закрыть диалог, и промах стоил игроку брони.
       builder: (context) => AlertDialog(
-        content: Text(l.customerReservationsCancelConfirm),
+        title: Text(l.customerReservationsCancelConfirm),
+        // Какую именно бронь отменяем: при двух бронях безымянный вопрос ничего не значит.
+        content: Text(
+          '${reservation.seatName ?? l.customerReservationsNoSeat}\n'
+          '${formatDateTime(reservation.startsAtUtc, locale)} — '
+          '${formatDateTime(reservation.endsAtUtc, locale)}',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l.customerCommonBack),
+            child: Text(l.customerReservationsCancelKeep),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text(l.customerReservationsCancel),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: Text(l.customerReservationsCancelAction),
           ),
         ],
       ),

@@ -53,11 +53,28 @@ class _LiveSessionCardState extends State<LiveSessionCard> {
     final now = widget.clock();
     final fixed = session.durationMode == SessionDurationMode.fixed;
 
-    final clock = fixed
-        ? formatClock(projectRemainingSeconds(session.remainingSeconds ?? 0, widget.fetchedAt, now: now))
-        : formatClock(elapsedSeconds(session.startedAtUtc, now: now));
+    final remaining = fixed
+        ? projectRemainingSeconds(session.remainingSeconds ?? 0, widget.fetchedAt, now: now)
+        : null;
+    final clock = formatClock(remaining ?? elapsedSeconds(session.startedAtUtc, now: now));
+    final urgency = remaining == null ? RemainingUrgency.calm : remainingUrgency(remaining);
+    final alarming = urgency != RemainingUrgency.calm;
+
+    final warning = switch (urgency) {
+      RemainingUrgency.ended => l.customerDashboardSessionEnded,
+      RemainingUrgency.endingSoon => l.customerDashboardSessionEndingSoon,
+      RemainingUrgency.calm => null,
+    };
 
     return Card(
+      // На исходе оплаченного времени карточка перестаёт быть спокойной: игрока не должно
+      // выбрасывать из-за компьютера в тот момент, когда экран выглядел как обычно.
+      shape: alarming
+          ? RoundedRectangleBorder(
+              side: BorderSide(color: theme.colorScheme.error),
+              borderRadius: BorderRadius.circular(12),
+            )
+          : null,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -77,11 +94,28 @@ class _LiveSessionCardState extends State<LiveSessionCard> {
             // Читалке отдаётся подпись со смыслом, а само поле цифр скрыто: иначе она
             // проговаривает время каждую секунду и перебивает всё остальное.
             Semantics(
-              label: '${fixed ? l.a11ySessionRemaining : l.a11ySessionElapsed} $clock',
+              label: [
+                fixed ? l.a11ySessionRemaining : l.a11ySessionElapsed,
+                clock,
+                ?warning,
+              ].join(' '),
               child: ExcludeSemantics(
-                child: Text(clock, style: theme.textTheme.headlineMedium),
+                child: Text(
+                  clock,
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    color: alarming ? theme.colorScheme.error : null,
+                  ),
+                ),
               ),
             ),
+            if (warning != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  warning,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error),
+                ),
+              ),
             // Оплаченная наперёд сессия не набегает по секундам — бегущая стоимость только
             // у открытой.
             if (!fixed && session.accruedCostMinorUnits != null)
