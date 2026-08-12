@@ -96,6 +96,22 @@ class PlayerApiClient {
     return features.cast<String>();
   }
 
+  Future<CursorPage<PlayerVisit>> getVisits({String? cursor}) async =>
+      _parse(await getJson(_withCursor('/api/me/visits', cursor)),
+          (body) => CursorPage.fromJson(body, PlayerVisit.fromJson));
+
+  Future<VisitReceipt> getVisitReceipt(String sessionId) async => _parse(
+        await getJson('/api/me/visits/${Uri.encodeComponent(sessionId)}/receipt'),
+        VisitReceipt.fromJson,
+      );
+
+  Future<CursorPage<PlayerPurchase>> getPurchases({String? cursor}) async =>
+      _parse(await getJson(_withCursor('/api/me/purchases', cursor)),
+          (body) => CursorPage.fromJson(body, PlayerPurchase.fromJson));
+
+  static String _withCursor(String path, String? cursor) =>
+      cursor == null ? path : '$path?cursor=${Uri.encodeQueryComponent(cursor)}';
+
   Future<List<TopUpIntent>> getTopUpIntents() async {
     final list = await getJsonList('/api/me/wallet/top-up-intents');
     return list.map((item) => _parse(item, TopUpIntent.fromJson)).toList();

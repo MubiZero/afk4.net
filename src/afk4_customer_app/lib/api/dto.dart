@@ -93,3 +93,143 @@ class TopUpIntent {
         isExpired: json['isExpired'] as bool? ?? false,
       );
 }
+
+/// Страница списка с курсором. Курсор — «продолжить отсюда», а не номер страницы: список
+/// растёт с одного конца, и смещение съезжало бы на каждой новой записи.
+class CursorPage<T> {
+  const CursorPage({required this.items, required this.nextCursor});
+
+  final List<T> items;
+
+  /// null — дальше ничего нет.
+  final String? nextCursor;
+
+  factory CursorPage.fromJson(
+    Map<String, dynamic> json,
+    T Function(Map<String, dynamic>) itemFromJson,
+  ) =>
+      CursorPage(
+        items: (json['items'] as List)
+            .map((item) => itemFromJson(item as Map<String, dynamic>))
+            .toList(),
+        nextCursor: json['nextCursor'] as String?,
+      );
+}
+
+/// Прошедший визит: где сидел, сколько пробыл и на сколько наиграл.
+class PlayerVisit {
+  const PlayerVisit({
+    required this.sessionId,
+    required this.seatName,
+    required this.startedAtUtc,
+    required this.endedAtUtc,
+    required this.grandTotalMinorUnits,
+    required this.currencyCode,
+    required this.hasReceipt,
+  });
+
+  final String sessionId;
+  final String seatName;
+  final DateTime startedAtUtc;
+
+  /// null — визит ещё не закрыт.
+  final DateTime? endedAtUtc;
+  final int grandTotalMinorUnits;
+  final String currencyCode;
+  final bool hasReceipt;
+
+  factory PlayerVisit.fromJson(Map<String, dynamic> json) => PlayerVisit(
+        sessionId: json['sessionId'] as String,
+        seatName: json['seatName'] as String,
+        startedAtUtc: DateTime.parse(json['startedAtUtc'] as String),
+        endedAtUtc: json['endedAtUtc'] == null ? null : DateTime.parse(json['endedAtUtc'] as String),
+        grandTotalMinorUnits: (json['grandTotalMinorUnits'] as num).toInt(),
+        currencyCode: json['currencyCode'] as String,
+        hasReceipt: json['hasReceipt'] as bool? ?? false,
+      );
+}
+
+/// Строка покупки: что, сколько и на какую сумму.
+class PurchaseLine {
+  const PurchaseLine({
+    required this.productName,
+    required this.quantity,
+    required this.lineTotalMinorUnits,
+  });
+
+  final String productName;
+  final int quantity;
+  final int lineTotalMinorUnits;
+
+  factory PurchaseLine.fromJson(Map<String, dynamic> json) => PurchaseLine(
+        productName: json['productName'] as String,
+        quantity: (json['quantity'] as num).toInt(),
+        lineTotalMinorUnits: (json['lineTotalMinorUnits'] as num).toInt(),
+      );
+}
+
+/// Чек визита: время, покупки и итог.
+class VisitReceipt {
+  const VisitReceipt({
+    required this.receiptNumber,
+    required this.createdAtUtc,
+    required this.seatName,
+    required this.startedAtUtc,
+    required this.endedAtUtc,
+    required this.timeChargeMinorUnits,
+    required this.lines,
+    required this.grandTotalMinorUnits,
+    required this.currencyCode,
+  });
+
+  final String receiptNumber;
+  final DateTime createdAtUtc;
+  final String seatName;
+  final DateTime startedAtUtc;
+  final DateTime? endedAtUtc;
+  final int timeChargeMinorUnits;
+  final List<PurchaseLine> lines;
+  final int grandTotalMinorUnits;
+  final String currencyCode;
+
+  factory VisitReceipt.fromJson(Map<String, dynamic> json) => VisitReceipt(
+        receiptNumber: json['receiptNumber'] as String,
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        seatName: json['seatName'] as String,
+        startedAtUtc: DateTime.parse(json['startedAtUtc'] as String),
+        endedAtUtc: json['endedAtUtc'] == null ? null : DateTime.parse(json['endedAtUtc'] as String),
+        timeChargeMinorUnits: (json['timeChargeMinorUnits'] as num).toInt(),
+        lines: (json['posLines'] as List)
+            .map((line) => PurchaseLine.fromJson(line as Map<String, dynamic>))
+            .toList(),
+        grandTotalMinorUnits: (json['grandTotalMinorUnits'] as num).toInt(),
+        currencyCode: json['currencyCode'] as String,
+      );
+}
+
+/// Покупка в баре: когда, что и на сколько.
+class PlayerPurchase {
+  const PlayerPurchase({
+    required this.posSaleId,
+    required this.createdAtUtc,
+    required this.totalMinorUnits,
+    required this.currencyCode,
+    required this.lines,
+  });
+
+  final String posSaleId;
+  final DateTime createdAtUtc;
+  final int totalMinorUnits;
+  final String currencyCode;
+  final List<PurchaseLine> lines;
+
+  factory PlayerPurchase.fromJson(Map<String, dynamic> json) => PlayerPurchase(
+        posSaleId: json['posSaleId'] as String,
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+        totalMinorUnits: (json['totalMinorUnits'] as num).toInt(),
+        currencyCode: json['currencyCode'] as String,
+        lines: (json['lines'] as List)
+            .map((line) => PurchaseLine.fromJson(line as Map<String, dynamic>))
+            .toList(),
+      );
+}

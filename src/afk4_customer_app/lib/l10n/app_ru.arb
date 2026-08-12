@@ -27,6 +27,25 @@
   "customerDashboardSessionActive": "Сессия активна",
   "customerDashboardSessionRemaining": "Осталось",
   "customerDashboardWelcome": "С возвращением",
+  "customerHistoryDurationHoursMinutes": "{hours} ч {minutes} мин",
+  "@customerHistoryDurationHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "customerHistoryDurationMinutes": "{minutes} мин",
+  "@customerHistoryDurationMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
   "customerHistoryLoadError": "Не удалось загрузить историю.",
   "customerHistoryNoPurchases": "Пока нет покупок",
   "customerHistoryNoVisits": "Пока нет визитов",

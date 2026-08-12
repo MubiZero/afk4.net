@@ -27,6 +27,25 @@
   "customerDashboardSessionActive": "Session active",
   "customerDashboardSessionRemaining": "Remaining",
   "customerDashboardWelcome": "Welcome back",
+  "customerHistoryDurationHoursMinutes": "{hours} h {minutes} min",
+  "@customerHistoryDurationHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "customerHistoryDurationMinutes": "{minutes} min",
+  "@customerHistoryDurationMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
   "customerHistoryLoadError": "Couldn't load your history.",
   "customerHistoryNoPurchases": "No purchases yet",
   "customerHistoryNoVisits": "No visits yet",

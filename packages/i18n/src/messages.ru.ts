@@ -153,6 +153,8 @@ export const ru = {
   "customer.dashboard.sessionActive": "Сессия активна",
   "customer.dashboard.sessionRemaining": "Осталось",
   "customer.dashboard.welcome": "С возвращением",
+  "customer.history.durationHoursMinutes": "{hours} ч {minutes} мин",
+  "customer.history.durationMinutes": "{minutes} мин",
   "customer.history.loadError": "Не удалось загрузить историю.",
   "customer.history.noPurchases": "Пока нет покупок",
   "customer.history.noVisits": "Пока нет визитов",

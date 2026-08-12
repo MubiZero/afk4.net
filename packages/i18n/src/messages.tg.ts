@@ -153,6 +153,8 @@ export const tg = {
   "customer.dashboard.sessionActive": "Сессия фаъол аст",
   "customer.dashboard.sessionRemaining": "Боқӣ мондааст",
   "customer.dashboard.welcome": "Хуш омадед",
+  "customer.history.durationHoursMinutes": "{hours} соат {minutes} дақиқа",
+  "customer.history.durationMinutes": "{minutes} дақиқа",
   "customer.history.loadError": "Таърихро бор кардан муяссар нашуд.",
   "customer.history.noPurchases": "Ҳоло хариде нест",
   "customer.history.noVisits": "Ҳоло ташрифе нест",

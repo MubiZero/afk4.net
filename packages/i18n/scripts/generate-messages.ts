@@ -31,6 +31,21 @@ function toArbName(key: string): string {
     .join('');
 }
 
+/** Имена подстановок в ICU-сообщении: `{amount}`, `{days, plural, …}`, `{kind, select, …}`. */
+const PLACEHOLDER = /\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:,\s*(plural|selectordinal|select|number|date|time)\b)?/g;
+
+/** Flutter требует объявить подстановки в `@ключе` — без этого `gen-l10n` не соберёт метод
+ *  с аргументами. Тип выводится из самой формы ICU: у плюрала это число, у остального строка.
+ *  Возвращает `undefined`, когда подстановок нет: лишние `@ключи` только раздувают ARB. */
+function describePlaceholders(message: string): Record<string, { type: string }> | undefined {
+  const placeholders: Record<string, { type: string }> = {};
+  for (const [, name, kind] of message.matchAll(PLACEHOLDER)) {
+    const numeric = kind === 'plural' || kind === 'selectordinal' || kind === 'number';
+    placeholders[name] = { type: numeric ? 'num' : 'String' };
+  }
+  return Object.keys(placeholders).length > 0 ? placeholders : undefined;
+}
+
 for (const loc of LOCALES) {
   const obj = JSON.parse(readFileSync(join(localesDir, `${loc}.json`), 'utf8')) as Record<string, string>;
   writeFileSync(
@@ -59,10 +74,13 @@ for (const target of ARB_TARGETS) {
   mkdirSync(target.dir, { recursive: true });
   for (const loc of LOCALES) {
     const catalog = JSON.parse(readFileSync(join(localesDir, `${loc}.json`), 'utf8')) as Record<string, string>;
-    const arb: Record<string, string> = { '@@locale': loc };
+    const arb: Record<string, unknown> = { '@@locale': loc };
     const keys = Object.keys(catalog).filter((k) => target.prefixes.some((p) => k.startsWith(p)));
     for (const key of keys.sort()) {
-      arb[toArbName(key)] = catalog[key];
+      const name = toArbName(key);
+      arb[name] = catalog[key];
+      const placeholders = describePlaceholders(catalog[key]);
+      if (placeholders) arb[`@${name}`] = { placeholders };
     }
     writeFileSync(join(target.dir, `app_${loc}.arb`), `${JSON.stringify(arb, null, 2)}\n`);
   }

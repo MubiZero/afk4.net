@@ -27,6 +27,25 @@
   "customerDashboardSessionActive": "Сессия фаъол аст",
   "customerDashboardSessionRemaining": "Боқӣ мондааст",
   "customerDashboardWelcome": "Хуш омадед",
+  "customerHistoryDurationHoursMinutes": "{hours} соат {minutes} дақиқа",
+  "@customerHistoryDurationHoursMinutes": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      },
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "customerHistoryDurationMinutes": "{minutes} дақиқа",
+  "@customerHistoryDurationMinutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
   "customerHistoryLoadError": "Таърихро бор кардан муяссар нашуд.",
   "customerHistoryNoPurchases": "Ҳоло хариде нест",
   "customerHistoryNoVisits": "Ҳоло ташрифе нест",
