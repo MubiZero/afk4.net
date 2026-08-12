@@ -427,6 +427,34 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
+// `--migrate` applies pending EF migrations and exits without serving traffic. Coolify runs it as
+// the pre-deployment command, so the schema is up to date before the new container starts.
+//
+// This replaces a manual step that silently rotted: staging spent two weeks on an old build
+// because every deploy crashed on a table nobody had created, and the failure looked like a
+// healthy service — the rollback kept the previous container alive.
+if (args.Contains("--migrate", StringComparer.Ordinal))
+{
+    await using var migrationScope = app.Services.CreateAsyncScope();
+    var migrationDb = migrationScope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+    var migrationLogger = migrationScope.ServiceProvider
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("Migrations");
+
+    var pending = (await migrationDb.Database.GetPendingMigrationsAsync()).ToList();
+    if (pending.Count == 0)
+    {
+        migrationLogger.LogInformation("No pending migrations.");
+        return;
+    }
+
+    migrationLogger.LogInformation(
+        "Applying {Count} pending migration(s): {Migrations}", pending.Count, string.Join(", ", pending));
+    await migrationDb.Database.MigrateAsync();
+    migrationLogger.LogInformation("Migrations applied.");
+    return;
+}
+
 // Fail fast at startup if any registered notification template key is missing its file (§8),
 // rather than discovering it when a send is attempted at runtime.
 app.Services.GetRequiredService<ITemplateProvider>().EnsureKeysPresent(NotificationTemplateKeys.All);

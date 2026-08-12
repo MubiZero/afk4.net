@@ -728,7 +728,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
     }
 
     [Fact]
-    public void CoolifyStagingDeployWorkflow_TriggersDeployAndFailsClosedForMigrations()
+    public void CoolifyStagingDeployWorkflow_TriggersDeployAndReportsMigrations()
     {
         var workflow = NormalizeLineEndings(File.ReadAllText(ScriptPath(".github/workflows/coolify-staging-deploy.yml")));
 
@@ -737,7 +737,6 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("- main", workflow, StringComparison.Ordinal);
         Assert.Contains("workflow_dispatch:", workflow, StringComparison.Ordinal);
         Assert.Contains("force_rebuild:", workflow, StringComparison.Ordinal);
-        Assert.Contains("confirm_migrations_applied:", workflow, StringComparison.Ordinal);
         Assert.Contains("permissions:\n  contents: read", workflow, StringComparison.Ordinal);
         Assert.Contains("concurrency:", workflow, StringComparison.Ordinal);
         Assert.Contains("group: coolify-staging-deploy-${{ github.workflow }}-${{ github.ref }}", workflow, StringComparison.Ordinal);
@@ -751,11 +750,13 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("- \"src/AFK4.Shared.Contracts/**\"", workflow, StringComparison.Ordinal);
         Assert.Contains("- \"src/AFK4.BuildingBlocks/**\"", workflow, StringComparison.Ordinal);
 
-        Assert.Contains("Guard EF migrations", workflow, StringComparison.Ordinal);
+        // Ручное подтверждение убрано намеренно: миграции применяет pre-deployment command
+        // контейнера, а блокирующий гард ровно один раз оставил staging на старой сборке
+        // на две недели — про ручной шаг забыли, а падение выглядело как здоровый сервис.
+        Assert.Contains("Report EF migrations in this deploy", workflow, StringComparison.Ordinal);
         Assert.Contains("git diff --name-only \"$before...$head\"", workflow, StringComparison.Ordinal);
         Assert.Contains("src/AFK4.Platform.Api/Data/Migrations/", workflow, StringComparison.Ordinal);
-        Assert.Contains("EF migration changes require explicit backup/migration run before Coolify deploy.", workflow, StringComparison.Ordinal);
-        Assert.Contains("$env:CONFIRM_MIGRATIONS_APPLIED -ne \"true\"", workflow, StringComparison.Ordinal);
+        Assert.DoesNotContain("confirm_migrations_applied", workflow, StringComparison.Ordinal);
 
         Assert.Contains("COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}", workflow, StringComparison.Ordinal);
         Assert.Contains("COOLIFY_BASE_URL: ${{ vars.COOLIFY_BASE_URL }}", workflow, StringComparison.Ordinal);

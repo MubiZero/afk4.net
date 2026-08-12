@@ -22,11 +22,6 @@ on:
         required: false
         type: boolean
         default: false
-      confirm_migrations_applied:
-        description: "Allow deploy when this commit contains EF migrations after backup and migration have been handled."
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -45,16 +40,20 @@ jobs:
     timeout-minutes: 30
     env:
       COOLIFY_FORCE_REBUILD: ${{ inputs.force_rebuild || false }}
-      CONFIRM_MIGRATIONS_APPLIED: ${{ inputs.confirm_migrations_applied || false }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Guard EF migrations
+      - name: Report EF migrations in this deploy
         shell: pwsh
         run: |
+          # Миграции применяет сам сервер: pre-deployment command контейнера запускает
+          # `dotnet AFK4.Platform.Api.dll --migrate` до старта новой версии. Раньше здесь стоял
+          # блокирующий гард с ручным подтверждением — и staging две недели простоял на старой
+          # сборке, потому что про ручной шаг просто забыли, а падение выглядело как здоровый
+          # сервис (Coolify откатывался на предыдущий контейнер).
           $before = "${{ github.event.before }}"
           $head = "${{ github.sha }}"
 
@@ -64,20 +63,14 @@ jobs:
             $changed = git show --name-only --format= $head
           }
 
-          Write-Host "Changed paths considered for staging deploy:"
-          $changed | ForEach-Object { Write-Host " - $_" }
-
           $migrationPrefix = "src/AFK4.Platform.Api/Data/Migrations/"
-          $hasMigrationChanges = $false
-          foreach ($path in $changed) {
-            if ($path.StartsWith($migrationPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
-              $hasMigrationChanges = $true
-              break
-            }
-          }
+          $migrations = @($changed | Where-Object { $_.StartsWith($migrationPrefix, [System.StringComparison]::OrdinalIgnoreCase) })
 
-          if ($hasMigrationChanges -and $env:CONFIRM_MIGRATIONS_APPLIED -ne "true") {
-            throw "EF migration changes require explicit backup/migration run before Coolify deploy. Re-run this workflow_dispatch with confirm_migrations_applied=true only after the staging database migration is handled."
+          if ($migrations.Count -gt 0) {
+            Write-Host "Deploy carries EF migrations; they are applied by the pre-deployment command:"
+            $migrations | ForEach-Object { Write-Host " - $_" }
+          } else {
+            Write-Host "No EF migration changes in this deploy."
           }
 
       - name: Trigger Coolify deployment
