@@ -105,7 +105,7 @@ class _ReceiptBody extends StatelessWidget {
                   children: [
                     Text(receipt.receiptNumber, style: theme.textTheme.titleMedium),
                     Text(
-                      formatDateTime(receipt.createdAtUtc, locale),
+                      formatDateTime(l, receipt.createdAtUtc, locale, now: now),
                       style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                   ],

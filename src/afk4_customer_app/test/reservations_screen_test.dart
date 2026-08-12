@@ -107,6 +107,26 @@ void main() {
     expect(find.text('PC-07'), findsOneWidget);
   });
 
+  testWidgets('список броней обновляется потягиванием вниз', (tester) async {
+    final http = _serve(jsonEncode([_reservation()]));
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+    final before = http.requests.where((r) => r.method == 'GET').length;
+
+    await tester.fling(find.byType(RefreshIndicator), const Offset(0, 300), 1000);
+    await tester.pumpAndSettle();
+
+    expect(http.requests.where((r) => r.method == 'GET').length, greaterThan(before));
+  });
+
+  // Бронь на завтра важнее знать днём недели, чем датой: «12 авг.» заставляет считать.
+  testWidgets('время брони называет соседний день словом', (tester) async {
+    await tester.pumpWidget(harness(_serve(jsonEncode([_reservation()]))));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Завтра'), findsOneWidget);
+  });
+
   testWidgets('неподтверждённый телефон объясняет, почему бронировать нельзя', (tester) async {
     await tester.pumpWidget(harness(_serve('[]'), phoneVerified: false));
     await tester.pumpAndSettle();

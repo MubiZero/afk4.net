@@ -49,10 +49,44 @@ void main() {
   });
 
   testWidgets('дата показывается с временем и не падает на таджикском', (tester) async {
-    await localizations(tester, const Locale('tg'));
+    final l = await localizations(tester, const Locale('tg'));
 
-    expect(formatDateTime(_start, 'ru'), contains(':'));
-    expect(formatDateTime(_start, 'tg'), formatDateTime(_start, 'ru'));
+    expect(formatDateTime(l, _start, 'ru'), contains(':'));
+    expect(formatDateTime(l, _start, 'tg'), formatDateTime(l, _start, 'ru'));
     expect(dateLocale('tg'), 'ru');
+  });
+
+  // «12 авг.» заставляет считать, какой сегодня день, а соседние дни — самое частое в
+  // истории и в бронях.
+  testWidgets('соседние дни называются словами', (tester) async {
+    final l = await localizations(tester, const Locale('ru'));
+    final now = DateTime(2026, 8, 12, 18, 0);
+
+    expect(formatDateTime(l, DateTime(2026, 8, 12, 14, 30), 'ru', now: now), 'Сегодня, 14:30');
+    expect(formatDateTime(l, DateTime(2026, 8, 11, 9, 5), 'ru', now: now), 'Вчера, 09:05');
+    expect(formatDateTime(l, DateTime(2026, 8, 13, 20, 0), 'ru', now: now), 'Завтра, 20:00');
+  });
+
+  // Без года декабрь позапрошлого выглядел так же, как декабрь этого.
+  testWidgets('давняя дата показывается с годом, а этого года — без', (tester) async {
+    final l = await localizations(tester, const Locale('ru'));
+    final now = DateTime(2026, 8, 12, 18, 0);
+
+    expect(formatDateTime(l, DateTime(2026, 3, 4, 12, 0), 'ru', now: now), isNot(contains('2026')));
+    expect(formatDateTime(l, DateTime(2024, 12, 31, 12, 0), 'ru', now: now), contains('2024'));
+  });
+
+  testWidgets('промежуток в один день называет день один раз', (tester) async {
+    final l = await localizations(tester, const Locale('ru'));
+    final now = DateTime(2026, 8, 12, 18, 0);
+
+    expect(
+      formatTimeRange(l, DateTime(2026, 8, 13, 14, 0), DateTime(2026, 8, 13, 16, 0), 'ru', now: now),
+      'Завтра, 14:00 — 16:00',
+    );
+    expect(
+      formatTimeRange(l, DateTime(2026, 8, 13, 23, 0), DateTime(2026, 8, 14, 1, 0), 'ru', now: now),
+      contains('—'),
+    );
   });
 }

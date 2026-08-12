@@ -16,9 +16,24 @@
   "customerClubPickerSubtitle": "Шумо дар кадом клуб бозӣ мекунед",
   "customerClubPickerTitle": "Клубро интихоб кунед",
   "customerCommonBack": "← Бозгашт",
+  "customerCommonDayAtTime": "{day}, {time}",
+  "@customerCommonDayAtTime": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "customerCommonLoadMore": "Боз нишон додан",
+  "customerCommonLoadMoreError": "Илова бор нашуд. Такрор",
   "customerCommonLoading": "Боркунӣ…",
   "customerCommonRetry": "Такрор",
+  "customerCommonToday": "Имрӯз",
+  "customerCommonTomorrow": "Пагоҳ",
+  "customerCommonYesterday": "Дирӯз",
   "customerDashboardAccrued": "ҷамъ шуд",
   "customerDashboardBalance": "Баланси ҳамён",
   "customerDashboardBookSeat": "Ҷой брон кардан",
@@ -61,13 +76,14 @@
   "customerNavProfile": "Профил",
   "customerNavReservations": "Бронҳо",
   "customerOfflineBanner": "Офлайн — маълумоти захирашуда нишон дода мешавад",
+  "customerOfflineStale": "Алоқа нест — маълумот метавонад кӯҳна бошад",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русӣ",
   "customerProfileLangTg": "Тоҷикӣ",
   "customerProfileLanguage": "Забон",
   "customerProfileLoadError": "Профилро бор кардан нашуд.",
   "customerProfileMarketing": "Гирифтани хабарнома дар бораи аксияҳо",
-  "customerProfilePhoneNote": "тағйир тавассути OTP, ба зудӣ",
+  "customerProfilePhoneNote": "Барои иваз кардани рақам ба маъмури клуб муроҷиат кунед",
   "customerProfileSaveError": "Нигоҳ доштан муяссар нашуд",
   "customerProfileSaved": "Нигоҳ дошта шуд",
   "customerProfileSignOut": "Баромадан",
@@ -112,7 +128,7 @@
   "customerSigninPhone": "Телефон",
   "customerSigninSubmit": "Ворид шудан",
   "customerSigninSubmitting": "Воридшавӣ…",
-  "customerSigninTitle": "Ворид ба портал",
+  "customerSigninTitle": "Даромад",
   "customerWalletAmount": "Маблағ",
   "customerWalletAmountError": "Маблағи аз сифр зиёдро ворид кунед",
   "customerWalletGate": "Барои онлайн пур кардани ҳамён рақами телефонатонро дар назди маъмури клуб тасдиқ кунед. Тасдиқ тавассути SMS дертар пайдо мешавад.",

@@ -35,7 +35,7 @@ class DateTimeField extends StatelessWidget {
       child: InputDecorator(
         decoration: InputDecoration(labelText: label),
         child: Text(
-          chosen == null ? l.customerReservationsNotChosen : formatDateTime(chosen, locale),
+          chosen == null ? l.customerReservationsNotChosen : formatDateTime(l, chosen, locale),
           style: theme.textTheme.bodyLarge,
         ),
       ),

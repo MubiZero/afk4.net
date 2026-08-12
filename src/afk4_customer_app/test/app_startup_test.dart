@@ -120,7 +120,7 @@ void main() {
     await tester.tap(find.text('CyberX'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Вход в портал'), findsOneWidget);
+    expect(find.text('Вход'), findsOneWidget);
     expect(find.text('CyberX'), findsOneWidget);
   });
 
@@ -148,7 +148,7 @@ void main() {
 
     await signOut(tester);
 
-    expect(find.text('Вход в портал'), findsOneWidget);
+    expect(find.text('Вход'), findsOneWidget);
     expect(secureValues, isEmpty);
   });
 

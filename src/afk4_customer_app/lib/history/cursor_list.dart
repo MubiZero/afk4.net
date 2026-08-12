@@ -22,6 +22,7 @@ class CursorListController<T> extends ChangeNotifier {
   List<T> _items = const [];
   String? _cursor;
   bool _loadingMore = false;
+  bool _moreFailed = false;
   bool _disposed = false;
 
   /// Отсекает ответы отменённых запросов: повтор после ошибки не должен получить страницу
@@ -33,9 +34,14 @@ class CursorListController<T> extends ChangeNotifier {
   bool get hasMore => _cursor != null;
   bool get loadingMore => _loadingMore;
 
+  /// Подгрузка следующей страницы сорвалась. Пока это так, список не пытается сам —
+  /// иначе прокрутка у края повторяла бы запрос без остановки.
+  bool get moreFailed => _moreFailed;
+
   Future<void> load() async {
     final seq = ++_requestSeq;
     _status = CursorListStatus.loading;
+    _moreFailed = false;
     _notify();
     try {
       final page = await _fetch(null);
@@ -56,6 +62,7 @@ class CursorListController<T> extends ChangeNotifier {
 
     final seq = _requestSeq;
     _loadingMore = true;
+    _moreFailed = false;
     _notify();
     try {
       final page = await _fetch(cursor);
@@ -64,6 +71,7 @@ class CursorListController<T> extends ChangeNotifier {
       _cursor = page.nextCursor;
     } on PlayerApiException {
       // Уже показанные записи остаются: не дозагрузилось — не повод очищать список.
+      if (seq == _requestSeq) _moreFailed = true;
     } finally {
       if (seq == _requestSeq) {
         _loadingMore = false;

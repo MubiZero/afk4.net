@@ -57,32 +57,64 @@ class CursorListView<T> extends StatelessWidget {
           );
         }
 
-        if (controller.items.isEmpty) {
-          return Center(
+        // Потянуть вниз обновляет список: жест, выученный на главной, должен работать и
+        // здесь. Пустой список тоже тянется — иначе обновить его нечем.
+        return RefreshIndicator(
+          onRefresh: controller.load,
+          child: controller.items.isEmpty
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Text(
+                        emptyText,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ),
+                  ],
+                )
+              : _items(context, l),
+        );
+      },
+    );
+  }
+
+  /// Следующая страница подтягивается сама у края списка: лишнее касание «показать ещё»
+  /// на телефоне ничего не решает. Кнопка остаётся только как способ повторить сорвавшуюся
+  /// подгрузку — молча зациклить запрос на ошибке было бы хуже.
+  Widget _items(BuildContext context, L l) {
+    final controller = this.controller;
+    final showFooter = controller.hasMore;
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      physics: const AlwaysScrollableScrollPhysics(),
+      itemCount: controller.items.length + (showFooter ? 1 : 0),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        if (index == controller.items.length) {
+          if (controller.moreFailed) {
+            return OutlinedButton(
+              onPressed: controller.loadMore,
+              child: Text(l.customerCommonLoadMoreError),
+            );
+          }
+          if (!controller.loadingMore) {
+            // Запрос ставится в очередь после текущего кадра: дёргать его прямо во время
+            // построения списка нельзя.
+            WidgetsBinding.instance.addPostFrameCallback((_) => controller.loadMore());
+          }
+          return const Center(
             child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Text(
-                emptyText,
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(),
             ),
           );
         }
-
-        return ListView.separated(
-          padding: const EdgeInsets.all(16),
-          itemCount: controller.items.length + (controller.hasMore ? 1 : 0),
-          separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            if (index == controller.items.length) {
-              return OutlinedButton(
-                onPressed: controller.loadingMore ? null : controller.loadMore,
-                child: Text(controller.loadingMore ? l.customerCommonLoading : l.customerCommonLoadMore),
-              );
-            }
-            return itemBuilder(context, controller.items[index]);
-          },
-        );
+        return itemBuilder(context, controller.items[index]);
       },
     );
   }

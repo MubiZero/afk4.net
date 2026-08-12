@@ -16,9 +16,24 @@
   "customerClubPickerSubtitle": "Which club do you play at",
   "customerClubPickerTitle": "Choose your club",
   "customerCommonBack": "← Back",
+  "customerCommonDayAtTime": "{day}, {time}",
+  "@customerCommonDayAtTime": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "customerCommonLoadMore": "Show more",
+  "customerCommonLoadMoreError": "Could not load more. Retry",
   "customerCommonLoading": "Loading…",
   "customerCommonRetry": "Retry",
+  "customerCommonToday": "Today",
+  "customerCommonTomorrow": "Tomorrow",
+  "customerCommonYesterday": "Yesterday",
   "customerDashboardAccrued": "accrued",
   "customerDashboardBalance": "Wallet balance",
   "customerDashboardBookSeat": "Book a seat",
@@ -61,13 +76,14 @@
   "customerNavProfile": "Profile",
   "customerNavReservations": "Bookings",
   "customerOfflineBanner": "Offline — showing saved data",
+  "customerOfflineStale": "No connection — the data may be out of date",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русский",
   "customerProfileLangTg": "Tajik",
   "customerProfileLanguage": "Language",
   "customerProfileLoadError": "Failed to load the profile.",
   "customerProfileMarketing": "Receive promo emails",
-  "customerProfilePhoneNote": "change via OTP, soon",
+  "customerProfilePhoneNote": "To change your number, ask the club staff",
   "customerProfileSaveError": "Couldn't save",
   "customerProfileSaved": "Saved",
   "customerProfileSignOut": "Sign out",
@@ -112,7 +128,7 @@
   "customerSigninPhone": "Phone",
   "customerSigninSubmit": "Sign in",
   "customerSigninSubmitting": "Signing in…",
-  "customerSigninTitle": "Player sign in",
+  "customerSigninTitle": "Sign in",
   "customerWalletAmount": "Amount",
   "customerWalletAmountError": "Enter an amount greater than zero",
   "customerWalletGate": "To top up online, verify your phone number with the club staff. SMS verification is coming later.",

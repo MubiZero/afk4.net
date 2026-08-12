@@ -16,9 +16,24 @@
   "customerClubPickerSubtitle": "В каком клубе вы играете",
   "customerClubPickerTitle": "Выберите клуб",
   "customerCommonBack": "← Назад",
+  "customerCommonDayAtTime": "{day}, {time}",
+  "@customerCommonDayAtTime": {
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "customerCommonLoadMore": "Показать ещё",
+  "customerCommonLoadMoreError": "Не удалось подгрузить. Повторить",
   "customerCommonLoading": "Загрузка…",
   "customerCommonRetry": "Повторить",
+  "customerCommonToday": "Сегодня",
+  "customerCommonTomorrow": "Завтра",
+  "customerCommonYesterday": "Вчера",
   "customerDashboardAccrued": "накоплено",
   "customerDashboardBalance": "Баланс кошелька",
   "customerDashboardBookSeat": "Забронировать место",
@@ -61,13 +76,14 @@
   "customerNavProfile": "Профиль",
   "customerNavReservations": "Брони",
   "customerOfflineBanner": "Офлайн — показаны сохранённые данные",
+  "customerOfflineStale": "Нет связи — данные могут устареть",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русский",
   "customerProfileLangTg": "Таджикский",
   "customerProfileLanguage": "Язык",
   "customerProfileLoadError": "Не удалось загрузить профиль.",
   "customerProfileMarketing": "Получать рассылку об акциях",
-  "customerProfilePhoneNote": "изменение через OTP, скоро",
+  "customerProfilePhoneNote": "Чтобы изменить номер, обратитесь к администратору клуба",
   "customerProfileSaveError": "Не удалось сохранить",
   "customerProfileSaved": "Сохранено",
   "customerProfileSignOut": "Выйти",
@@ -112,7 +128,7 @@
   "customerSigninPhone": "Телефон",
   "customerSigninSubmit": "Войти",
   "customerSigninSubmitting": "Входим…",
-  "customerSigninTitle": "Вход в портал",
+  "customerSigninTitle": "Вход",
   "customerWalletAmount": "Сумма",
   "customerWalletAmountError": "Введите сумму больше нуля",
   "customerWalletGate": "Чтобы пополнять кошелёк онлайн, подтвердите номер телефона у администратора клуба. Подтверждение по SMS появится позже.",

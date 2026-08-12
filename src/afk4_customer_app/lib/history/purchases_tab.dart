@@ -48,6 +48,7 @@ class _PurchaseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final theme = Theme.of(context);
     final locale = Localizations.localeOf(context).languageCode;
 
@@ -61,7 +62,7 @@ class _PurchaseCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  formatDateTime(purchase.createdAtUtc, locale),
+                  formatDateTime(l, purchase.createdAtUtc, locale),
                   style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
                 Text(
