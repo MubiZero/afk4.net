@@ -4,6 +4,7 @@ import '../api/dto.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
+import '../phone/phone_verification_sheet.dart';
 import 'top_up_sheet.dart';
 
 /// Деньги игрока одним блоком: сколько на кошельке, есть ли долг и что с пополнением.
@@ -18,6 +19,7 @@ class WalletCard extends StatefulWidget {
     required this.debtBalance,
     required this.phoneVerified,
     required this.features,
+    this.onPhoneVerified,
   });
 
   final PlayerApiClient api;
@@ -29,6 +31,10 @@ class WalletCard extends StatefulWidget {
   /// карточка прячет кнопку для удобства, а право на запись всё равно проверяет сервер.
   /// Спрятать её из-за сетевого сбоя значит соврать игроку, что возможности нет.
   final List<String>? features;
+
+  /// Номер подтверждён — экрану выше нужно перечитать себя: подтверждение открывает
+  /// пополнение и брони сразу, без повторного входа.
+  final VoidCallback? onPhoneVerified;
 
   @override
   State<WalletCard> createState() => _WalletCardState();
@@ -75,6 +81,20 @@ class _WalletCardState extends State<WalletCard> {
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.customerWalletSent)));
     await _refreshIntents();
+  }
+
+  Future<void> _verifyPhone() async {
+    final l = L.of(context);
+    final confirmed = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => PhoneVerificationSheet(api: widget.api),
+    );
+    if (confirmed != true || !mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.customerPhoneDone)));
+    widget.onPhoneVerified?.call();
   }
 
   @override
@@ -136,12 +156,23 @@ class _WalletCardState extends State<WalletCard> {
                     child: Text(l.customerWalletTopUp),
                   ),
                 )
-              else
+              else ...[
+                // Гейт перестал быть тупиком: раньше он отправлял к администратору клуба,
+                // у которого возможности подтвердить номер тоже не было.
                 Text(
                   l.customerWalletGate,
                   style: theme.textTheme.bodyMedium
                       ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton(
+                    onPressed: _verifyPhone,
+                    child: Text(l.customerWalletGateAction),
+                  ),
+                ),
+              ],
             ],
           ],
         ),

@@ -17,6 +17,7 @@ class DashboardScreen extends StatefulWidget {
     required this.phoneVerified,
     required this.features,
     this.onOpenReservations,
+    this.onPhoneVerified,
     this.clock = DateTime.now,
   });
 
@@ -30,6 +31,9 @@ class DashboardScreen extends StatefulWidget {
   /// Куда вести из пустого состояния «нет сессии». null — клуб не принимает онлайн-брони,
   /// и звать туда некуда.
   final VoidCallback? onOpenReservations;
+
+  /// Номер подтвердили из карточки кошелька — оболочке пора считать игрока подтверждённым.
+  final VoidCallback? onPhoneVerified;
 
   final DateTime Function() clock;
 
@@ -143,6 +147,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         debtBalance: data.debtBalance,
         phoneVerified: widget.phoneVerified,
         features: widget.features,
+        onPhoneVerified: widget.onPhoneVerified,
       );
 }
 

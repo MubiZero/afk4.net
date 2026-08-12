@@ -150,6 +150,88 @@ internal static class PlayerSelfServiceEndpoints
                 account.MarketingOptIn));
         }).RequireRateLimiting("player-me");
 
+        // Подтверждение своего номера по SMS. Без него онлайн-пополнение и онлайн-бронь
+        // закрыты, а раньше открыть их было нечем: интерфейс отправлял игрока к администратору
+        // клуба, у которого такой возможности тоже не было.
+        app.MapPost("/api/me/phone/start-verification", async (
+            PlayerPhoneStartVerificationRequest request,
+            IPlayerContextAccessor playerContextAccessor,
+            IPlayerPhoneVerificationService verificationService,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var result = await verificationService.StartAsync(
+                player.PlayerAccountId, request.Phone, cancellationToken);
+
+            return result.Status switch
+            {
+                PhoneVerificationStartStatus.Sent => Results.Ok(
+                    new PlayerPhoneVerificationStartedResponse(result.ExpiresInSeconds, result.ResendAfterSeconds)),
+                PhoneVerificationStartStatus.InvalidPhone => Results.BadRequest(new { error = "invalid_phone" }),
+                PhoneVerificationStartStatus.CooldownActive => Results.Json(
+                    new { error = "cooldown_active", resendAfterSeconds = result.ResendAfterSeconds },
+                    statusCode: StatusCodes.Status429TooManyRequests),
+                PhoneVerificationStartStatus.RateLimited => Results.Json(
+                    new { error = "rate_limited" }, statusCode: StatusCodes.Status429TooManyRequests),
+                PhoneVerificationStartStatus.SmsFailed => Results.Json(
+                    new { error = "sms_unavailable" }, statusCode: StatusCodes.Status502BadGateway),
+                _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
+            };
+        }).RequireRateLimiting("player-me");
+
+        app.MapPost("/api/me/phone/confirm", async (
+            PlayerPhoneConfirmRequest request,
+            IPlayerContextAccessor playerContextAccessor,
+            IPlayerPhoneVerificationService verificationService,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var result = await verificationService.ConfirmAsync(
+                player.PlayerAccountId, request.Code, cancellationToken);
+
+            return result.Status switch
+            {
+                PhoneConfirmStatus.Confirmed => Results.Ok(new PlayerPhoneConfirmedResponse(result.VerifiedPhone!)),
+                PhoneConfirmStatus.InvalidCode => Results.Json(
+                    new { error = "invalid_code", remainingAttempts = result.RemainingAttempts },
+                    statusCode: StatusCodes.Status400BadRequest),
+                PhoneConfirmStatus.Expired => Results.Json(
+                    new { error = "code_expired" }, statusCode: StatusCodes.Status410Gone),
+                PhoneConfirmStatus.NoActiveCode => Results.Json(
+                    new { error = "no_active_code" }, statusCode: StatusCodes.Status410Gone),
+                PhoneConfirmStatus.TooManyAttempts => Results.Json(
+                    new { error = "too_many_attempts" }, statusCode: StatusCodes.Status429TooManyRequests),
+                PhoneConfirmStatus.PhoneAlreadyInUse => Results.Json(
+                    new { error = "phone_already_in_use" }, statusCode: StatusCodes.Status409Conflict),
+                _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
+            };
+        }).RequireRateLimiting("player-me");
+
+        app.MapGet("/api/me/phone", async (
+            IPlayerContextAccessor playerContextAccessor,
+            IPlayerPhoneVerificationService verificationService,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var status = await verificationService.GetStatusAsync(player.PlayerAccountId, cancellationToken);
+            return Results.Ok(new PlayerPhoneStatusResponse(status.Phone, status.PhoneVerifiedAtUtc));
+        }).RequireRateLimiting("player-me");
+
         app.MapGet("/api/me/dashboard", async (
             IPlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,

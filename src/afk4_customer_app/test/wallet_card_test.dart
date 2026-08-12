@@ -147,13 +147,20 @@ void main() {
     }
   });
 
-  testWidgets('неподтверждённый телефон объясняет, почему пополнить нельзя', (tester) async {
+  // Гейт раньше отправлял к администратору клуба, у которого возможности подтвердить номер
+  // тоже не было: дверь была заперта с обеих сторон.
+  testWidgets('неподтверждённый телефон объясняет запрет и даёт выход', (tester) async {
     await tester.pumpWidget(
         harness(clientWith(FakeHttpClient((_) => ('[]', 200))), phoneVerified: false));
     await tester.pumpAndSettle();
 
     expect(find.text('Пополнить'), findsNothing);
-    expect(find.textContaining('подтвердите номер телефона'), findsOneWidget);
+    expect(find.textContaining('подтвердите свой номер телефона'), findsOneWidget);
+
+    await tester.tap(find.text('Подтвердить номер'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Подтверждение номера'), findsOneWidget);
   });
 
   testWidgets('выключенное клубу пополнение прячет кнопку целиком', (tester) async {

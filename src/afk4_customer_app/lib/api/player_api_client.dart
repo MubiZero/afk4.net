@@ -124,6 +124,22 @@ class PlayerApiClient {
     return _parse(await sendJson('PATCH', '/api/me/profile', body), PlayerProfile.fromJson);
   }
 
+  /// Просит прислать код на номер. Ошибки различимы по коду состояния: 400 — номер не похож
+  /// на номер, 429 — рано или слишком часто, 502 — SMS не ушла.
+  Future<PhoneVerificationStarted> startPhoneVerification(String phone) async => _parse(
+        await sendJson('POST', '/api/me/phone/start-verification', {'phone': phone}),
+        PhoneVerificationStarted.fromJson,
+      );
+
+  /// Подтверждает номер кодом. 400 — код неверен, 410 — устарел или его нет, 409 — номер уже
+  /// занят другим игроком клуба.
+  Future<String> confirmPhone(String code) async {
+    final body = await sendJson('POST', '/api/me/phone/confirm', {'code': code});
+    final phone = body['phone'];
+    if (phone is! String) throw const PlayerApiException(null, 'malformed-body');
+    return phone;
+  }
+
   Future<List<PlayerReservation>> getReservations() async {
     final list = await getJsonList('/api/me/reservations');
     return list.map((item) => _parse(item, PlayerReservation.fromJson)).toList();

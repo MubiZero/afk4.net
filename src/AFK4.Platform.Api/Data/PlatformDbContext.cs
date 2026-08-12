@@ -172,6 +172,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<StaffPhoneOtpEntity> StaffPhoneOtps => Set<StaffPhoneOtpEntity>();
 
+    public DbSet<PlayerPhoneOtpEntity> PlayerPhoneOtps => Set<PlayerPhoneOtpEntity>();
+
     public DbSet<PlatformAdminInvitationEntity> PlatformAdminInvitations => Set<PlatformAdminInvitationEntity>();
 
     public DbSet<PlatformAdminSignInChallengeEntity> PlatformAdminSignInChallenges => Set<PlatformAdminSignInChallengeEntity>();
@@ -1294,6 +1296,15 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(otp => otp.Phone).HasMaxLength(20).IsRequired();
             entity.Property(otp => otp.CodeHash).HasMaxLength(64).IsRequired();
             entity.HasIndex(otp => new { otp.StaffUserId, otp.Purpose, otp.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<PlayerPhoneOtpEntity>(entity =>
+        {
+            entity.ToTable("player_phone_otps");
+            entity.HasKey(otp => otp.PlayerPhoneOtpId);
+            entity.Property(otp => otp.Phone).HasMaxLength(20).IsRequired();
+            entity.Property(otp => otp.CodeHash).HasMaxLength(64).IsRequired();
+            entity.HasIndex(otp => new { otp.PlayerAccountId, otp.Purpose, otp.CreatedAtUtc });
         });
 
         modelBuilder.Entity<PlatformAdminInvitationEntity>(entity =>

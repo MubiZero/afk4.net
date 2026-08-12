@@ -77,6 +77,41 @@
   "customerNavReservations": "Брони",
   "customerOfflineBanner": "Офлайн — показаны сохранённые данные",
   "customerOfflineStale": "Нет связи — данные могут устареть",
+  "customerPhoneCode": "Код из SMS",
+  "customerPhoneConfirm": "Подтвердить",
+  "customerPhoneConfirming": "Проверяем…",
+  "customerPhoneDone": "Номер подтверждён",
+  "customerPhoneErrCooldown": "Код уже отправлен — подождите немного",
+  "customerPhoneErrExpired": "Код устарел — запросите новый",
+  "customerPhoneErrGeneric": "Не удалось подтвердить номер",
+  "customerPhoneErrInUse": "Этот номер уже занят другим игроком клуба",
+  "customerPhoneErrInvalidCode": "Неверный код",
+  "customerPhoneErrInvalidPhone": "Проверьте номер телефона",
+  "customerPhoneErrRateLimited": "Слишком много кодов за час. Попробуйте позже",
+  "customerPhoneErrSms": "SMS не отправилась. Попробуйте позже",
+  "customerPhoneErrTooManyAttempts": "Слишком много попыток — запросите новый код",
+  "customerPhoneIntro": "Пришлём код в SMS — он подтвердит, что номер ваш.",
+  "customerPhoneNumber": "Номер телефона",
+  "customerPhoneResend": "Прислать код заново",
+  "customerPhoneResendIn": "Прислать заново можно через {seconds} с",
+  "@customerPhoneResendIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPhoneSend": "Прислать код",
+  "customerPhoneSending": "Отправляем…",
+  "customerPhoneSent": "Код отправлен на {phone}",
+  "@customerPhoneSent": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPhoneTitle": "Подтверждение номера",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русский",
   "customerProfileLangTg": "Таджикский",
@@ -106,7 +141,7 @@
   "customerReservationsCreating": "Создаём…",
   "customerReservationsEnd": "Конец",
   "customerReservationsEndBeforeStart": "Конец должен быть позже начала",
-  "customerReservationsGate": "Чтобы бронировать онлайн, подтвердите номер телефона у администратора клуба. Подтверждение по SMS появится позже.",
+  "customerReservationsGate": "Чтобы бронировать онлайн, подтвердите свой номер телефона.",
   "customerReservationsLoadError": "Не удалось загрузить брони.",
   "customerReservationsNewTitle": "Новая бронь",
   "customerReservationsNoSeat": "Без места",
@@ -131,7 +166,8 @@
   "customerSigninTitle": "Вход",
   "customerWalletAmount": "Сумма",
   "customerWalletAmountError": "Введите сумму больше нуля",
-  "customerWalletGate": "Чтобы пополнять кошелёк онлайн, подтвердите номер телефона у администратора клуба. Подтверждение по SMS появится позже.",
+  "customerWalletGate": "Чтобы пополнять кошелёк онлайн, подтвердите свой номер телефона.",
+  "customerWalletGateAction": "Подтвердить номер",
   "customerWalletIntents": "Ваши заявки",
   "customerWalletNote": "Клуб зачислит сумму, когда подтвердит её на стойке.",
   "customerWalletPendingHint": "Заявка на {amount} ждёт зачисления",

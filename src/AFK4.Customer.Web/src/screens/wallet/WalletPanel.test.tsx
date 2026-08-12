@@ -18,7 +18,7 @@ function renderPanel(api: PlayerApiClient, phoneVerified: boolean, features: str
 it('closes the top-up form with an explanation when the phone is unverified', async () => {
   const api = { getTopUpIntents: mock().mockResolvedValue([]) } as unknown as PlayerApiClient;
   renderPanel(api, false);
-  expect(await screen.findByText(/подтвердите номер/i)).toBeInTheDocument();
+  expect(await screen.findByText(/подтвердите свой номер/i)).toBeInTheDocument();
   expect(screen.queryByLabelText('Сумма')).not.toBeInTheDocument();
 });
 
