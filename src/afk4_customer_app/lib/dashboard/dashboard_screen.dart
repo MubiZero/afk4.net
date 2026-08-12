@@ -5,11 +5,10 @@ import 'package:flutter/material.dart';
 import '../api/dto.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
-import '../money/money.dart';
-import '../wallet/wallet_panel.dart';
+import '../wallet/wallet_card.dart';
 import 'live_session_card.dart';
 
-/// Главный экран: сколько денег в кошельке и что происходит с сессией прямо сейчас.
+/// Главный экран: что происходит с сессией прямо сейчас и сколько денег в кошельке.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
     super.key,
@@ -17,6 +16,7 @@ class DashboardScreen extends StatefulWidget {
     required this.displayName,
     required this.phoneVerified,
     required this.features,
+    this.onOpenReservations,
     this.clock = DateTime.now,
   });
 
@@ -26,6 +26,10 @@ class DashboardScreen extends StatefulWidget {
   /// Возможности клуба; null — список не получен. Загружает их оболочка: он нужен ещё и
   /// разделам, а два независимых запроса одного и того же — лишний трафик и рассинхрон.
   final List<String>? features;
+
+  /// Куда вести из пустого состояния «нет сессии». null — клуб не принимает онлайн-брони,
+  /// и звать туда некуда.
+  final VoidCallback? onOpenReservations;
 
   final DateTime Function() clock;
 
@@ -86,8 +90,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text(l.customerDashboardWelcome, style: theme.textTheme.bodyMedium),
-            const SizedBox(height: 16),
             if (data == null && _failed)
               Text(l.customerDashboardLoadError, style: TextStyle(color: theme.colorScheme.error))
             else if (data == null)
@@ -99,78 +101,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 )),
               )
             else ...[
-              _BalanceCard(data: data),
-              const SizedBox(height: 12),
-              WalletPanel(
-                api: widget.api,
-                phoneVerified: widget.phoneVerified,
-                features: widget.features,
-                currencyCode: data.walletBalance.currencyCode,
-              ),
-              const SizedBox(height: 12),
-              if (data.activeSession != null)
+              // Идущая сессия — то, ради чего экран открывают посреди игры, поэтому она
+              // впереди денег. Когда сессии нет, впереди кошелёк: пустая карточка наверху
+              // сообщала бы только об отсутствии.
+              if (data.activeSession != null) ...[
                 LiveSessionCard(
                   session: data.activeSession!,
                   fetchedAt: _fetchedAt ?? widget.clock(),
                   clock: widget.clock,
-                )
-              else
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
-                    child: Center(
-                      child: Text(
-                        l.customerDashboardNoSession,
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                    ),
-                  ),
                 ),
+                const SizedBox(height: 12),
+                _wallet(data),
+              ] else ...[
+                _wallet(data),
+                const SizedBox(height: 12),
+                _NoSessionCard(onBook: widget.onOpenReservations),
+              ],
             ],
           ],
         ),
       ),
     );
   }
+
+  Widget _wallet(PlayerDashboard data) => WalletCard(
+        api: widget.api,
+        walletBalance: data.walletBalance,
+        debtBalance: data.debtBalance,
+        phoneVerified: widget.phoneVerified,
+        features: widget.features,
+      );
 }
 
-class _BalanceCard extends StatelessWidget {
-  const _BalanceCard({required this.data});
+/// Пустое состояние с выходом: раньше здесь была серая надпись и никакого следующего шага.
+class _NoSessionCard extends StatelessWidget {
+  const _NoSessionCard({required this.onBook});
 
-  final PlayerDashboard data;
+  final VoidCallback? onBook;
 
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
     final theme = Theme.of(context);
-    final locale = Localizations.localeOf(context).languageCode;
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              l.customerDashboardBalance,
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              l.customerDashboardNoSession,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 4),
-            Text(
-              formatMoney(data.walletBalance.minorUnits, data.walletBalance.currencyCode, locale: locale),
-              style: theme.textTheme.headlineMedium,
-            ),
-            // Долг показывается, только когда он есть: строка «Долг: 0» на главной пугает зря.
-            if (data.debtBalance.minorUnits > 0)
-              Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  '${l.customerDashboardDebt}: '
-                  '${formatMoney(data.debtBalance.minorUnits, data.debtBalance.currencyCode, locale: locale)}',
-                  style: TextStyle(color: theme.colorScheme.error),
-                ),
-              ),
+            if (onBook != null) ...[
+              const SizedBox(height: 12),
+              OutlinedButton(onPressed: onBook, child: Text(l.customerDashboardBookSeat)),
+            ],
           ],
         ),
       ),

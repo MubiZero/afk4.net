@@ -47,6 +47,15 @@ final confirmButton = find.byWidgetPredicate(
   (widget) => widget is Text && (widget.data == 'OK' || widget.data == 'ОК'),
 );
 
+/// Открывает лист новой брони: форма живёт там, а раздел начинается со списка.
+Future<void> openForm(WidgetTester tester) async {
+  await tester.tap(find.byType(FloatingActionButton));
+  await tester.pumpAndSettle();
+}
+
+/// Кнопка подтверждения внутри листа — у неё то же слово, что и у кнопки открытия.
+final submitButton = find.widgetWithText(FilledButton, 'Забронировать');
+
 /// Проходит оба системных диалога, соглашаясь с предложенными значениями.
 Future<void> pickDateTime(WidgetTester tester, String fieldLabel) async {
   await tester.tap(find.text(fieldLabel));
@@ -106,16 +115,44 @@ void main() {
     expect(find.textContaining('подтвердите номер телефона'), findsOneWidget);
   });
 
+  // Раздел открывают, чтобы посмотреть свои брони: развёрнутая форма занимала первый экран
+  // у всех, включая тех, кто бронировать не собирался.
+  testWidgets('раздел начинается со списка, а форма ждёт за кнопкой', (tester) async {
+    await tester.pumpWidget(harness(_serve(jsonEncode([_reservation()]))));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PC-07'), findsOneWidget);
+    expect(find.text('Начало'), findsNothing);
+
+    await openForm(tester);
+    expect(find.text('Новая бронь'), findsOneWidget);
+    expect(find.text('Начало'), findsOneWidget);
+  });
+
+  // В киберклубе выбор машины — половина смысла брони, и молчать о том, что место назначает
+  // клуб, значит оставить игрока в неведении.
+  testWidgets('форма говорит, кто назначает место', (tester) async {
+    await tester.pumpWidget(harness(_serve('[]')));
+    await tester.pumpAndSettle();
+    await openForm(tester);
+
+    expect(find.textContaining('Место назначит администратор клуба'), findsOneWidget);
+  });
+
+  // Ошибка относится к полям времени и должна жить рядом с ними: снекбар внизу экрана
+  // исчезал вместе с объяснением, что именно чинить.
   testWidgets('без выбранного времени бронь не уходит на сервер', (tester) async {
     final http = _serve('[]');
     await tester.pumpWidget(harness(http));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Забронировать'));
+    await openForm(tester);
+    await tester.tap(submitButton);
     await tester.pumpAndSettle();
 
     expect(http.bodies, isEmpty);
     expect(find.text('Укажите начало и конец'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets('выбранное время уходит на сервер в UTC', (tester) async {
@@ -123,9 +160,10 @@ void main() {
     await tester.pumpWidget(harness(http));
     await tester.pumpAndSettle();
 
+    await openForm(tester);
     await pickDateTime(tester, 'Начало');
     await pickDateTime(tester, 'Конец');
-    await tester.tap(find.text('Забронировать'));
+    await tester.tap(submitButton);
     await tester.pumpAndSettle();
 
     expect(http.bodies, hasLength(1));
@@ -139,9 +177,10 @@ void main() {
     await tester.pumpWidget(harness(_serve('[]', onWrite: ('{"error":"taken"}', 409))));
     await tester.pumpAndSettle();
 
+    await openForm(tester);
     await pickDateTime(tester, 'Начало');
     await pickDateTime(tester, 'Конец');
-    await tester.tap(find.text('Забронировать'));
+    await tester.tap(submitButton);
     await tester.pumpAndSettle();
 
     expect(find.text('Это время уже занято'), findsOneWidget);

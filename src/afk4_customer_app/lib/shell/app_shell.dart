@@ -71,6 +71,9 @@ class _AppShellState extends State<AppShell> {
           displayName: widget.session.displayName,
           phoneVerified: widget.session.phoneVerified,
           features: _features,
+          // Раздел броней стоит третьим, когда он есть. Звать в него неоткуда, если клуб
+          // онлайн-брони не принимает.
+          onOpenReservations: booking ? () => setState(() => _section = 2) : null,
           clock: widget.clock,
         ),
         NavigationDestination(

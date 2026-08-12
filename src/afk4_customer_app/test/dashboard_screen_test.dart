@@ -48,6 +48,7 @@ Widget harness(
   PlayerApiClient api, {
   bool phoneVerified = true,
   List<String>? features = const ['online_topup'],
+  VoidCallback? onOpenReservations,
 }) =>
     MaterialApp(
       locale: const Locale('ru'),
@@ -58,6 +59,7 @@ Widget harness(
         displayName: 'Иван',
         phoneVerified: phoneVerified,
         features: features,
+        onOpenReservations: onOpenReservations,
         clock: () => _now,
       ),
     );
@@ -112,6 +114,45 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Нет активной сессии'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  // Пустое состояние без следующего шага — тупик: игрок узнал, что сессии нет, и всё.
+  testWidgets('без сессии предлагается забронировать место', (tester) async {
+    var opened = false;
+    await tester.pumpWidget(harness(
+      clientWith(_serve((_dashboardJson(), 200))),
+      onOpenReservations: () => opened = true,
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Забронировать место'));
+    await tester.pump();
+
+    expect(opened, isTrue);
+    await unmount(tester);
+  });
+
+  // Клуб не принимает онлайн-брони — звать некуда, и кнопки быть не должно.
+  testWidgets('без онлайн-броней пустое состояние никуда не зовёт', (tester) async {
+    await tester.pumpWidget(harness(clientWith(_serve((_dashboardJson(), 200)))));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Нет активной сессии'), findsOneWidget);
+    expect(find.text('Забронировать место'), findsNothing);
+    await unmount(tester);
+  });
+
+  // Идущая сессия — то, ради чего экран открывают посреди игры.
+  testWidgets('идущая сессия стоит выше кошелька', (tester) async {
+    await tester.pumpWidget(harness(
+      clientWith(_serve((_dashboardJson(session: _openSession()), 200))),
+    ));
+    await tester.pumpAndSettle();
+
+    final session = tester.getTopLeft(find.text('PC-07')).dy;
+    final wallet = tester.getTopLeft(find.text('Баланс кошелька')).dy;
+    expect(session, lessThan(wallet));
     await unmount(tester);
   });
 
