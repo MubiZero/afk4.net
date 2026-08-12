@@ -4,7 +4,7 @@ import 'api/player_api_client.dart';
 import 'auth/player_session.dart';
 import 'auth/player_session_store.dart';
 import 'auth/sign_in_screen.dart';
-import 'dashboard/dashboard_screen.dart';
+import 'shell/app_shell.dart';
 import 'l10n/localization_setup.dart';
 import 'organization/club_picker_screen.dart';
 import 'organization/organization.dart';
@@ -155,11 +155,6 @@ class _RootState extends State<_Root> {
       );
     }
 
-    return DashboardScreen(
-      api: widget.api,
-      displayName: session.displayName,
-      phoneVerified: session.phoneVerified,
-      onSignOut: _signOut,
-    );
+    return AppShell(api: widget.api, session: session, onSignOut: _signOut);
   }
 }

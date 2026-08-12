@@ -38,6 +38,28 @@ it('ARB объявляет свою локаль — без @@locale Flutter н�
   }
 });
 
+// Без объявленных подстановок `gen-l10n` не соберёт метод с аргументами — строка с
+// `{amount}` уедет в интерфейс как есть, с фигурными скобками.
+it('строка с подстановками объявляет их в @ключе', () => {
+  const arb = readArb('ru');
+  const withPlaceholders = Object.entries(arb)
+    .filter(([name, value]) => !name.startsWith('@') && typeof value === 'string' && value.includes('{'));
+
+  expect(withPlaceholders.length).toBeGreaterThan(0);
+  for (const [name] of withPlaceholders) {
+    const meta = arb[`@${name}`] as unknown as { placeholders?: Record<string, { type: string }> };
+    expect(meta?.placeholders, `нет @${name}.placeholders`).toBeDefined();
+  }
+});
+
+it('обычная подстановка объявлена строкой', () => {
+  const arb = readArb('ru') as unknown as Record<string, { placeholders?: Record<string, { type: string }> }>;
+  expect(arb['@customerHistoryDurationHoursMinutes']?.placeholders).toEqual({
+    hours: { type: 'String' },
+    minutes: { type: 'String' },
+  });
+});
+
 it('преобразование имени не схлопывает разные ключи в одно имя', () => {
   const names = appKeys.map(toArbName);
   expect(new Set(names).size).toBe(names.length);

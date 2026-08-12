@@ -153,6 +153,8 @@ export const en = {
   "customer.dashboard.sessionActive": "Session active",
   "customer.dashboard.sessionRemaining": "Remaining",
   "customer.dashboard.welcome": "Welcome back",
+  "customer.history.durationHoursMinutes": "{hours} h {minutes} min",
+  "customer.history.durationMinutes": "{minutes} min",
   "customer.history.loadError": "Couldn't load your history.",
   "customer.history.noPurchases": "No purchases yet",
   "customer.history.noVisits": "No visits yet",
