@@ -12,10 +12,14 @@ import 'organization.dart';
 /// а игрок спрашивает «где это, сколько стоит и как там внутри». Поэтому карточка крупная и
 /// начинается с фотографии: она отвечает на последний вопрос быстрее любого описания.
 class ClubCard extends StatelessWidget {
-  const ClubCard({super.key, required this.club, required this.onTap});
+  const ClubCard({super.key, required this.club, required this.onTap, this.onOpenReviews});
 
   final Organization club;
   final VoidCallback onTap;
+
+  /// Открыть отзывы. null — читать нечего (или некому показать): тогда оценка остаётся
+  /// подписью и не притворяется кнопкой.
+  final VoidCallback? onOpenReviews;
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +39,7 @@ class ClubCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Cover(club: club),
+            _Cover(club: club, onOpenReviews: onOpenReviews),
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
               child: Column(
@@ -85,9 +89,10 @@ class ClubCard extends StatelessWidget {
 /// фирменный градиент со знаком клуба: пустой серый прямоугольник читался бы как ошибка
 /// загрузки, а не как «клуб не прислал фото».
 class _Cover extends StatelessWidget {
-  const _Cover({required this.club});
+  const _Cover({required this.club, this.onOpenReviews});
 
   final Organization club;
+  final VoidCallback? onOpenReviews;
 
   @override
   Widget build(BuildContext context) {
@@ -134,7 +139,11 @@ class _Cover extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(top: 12, right: 12, child: _RatingBadge(club: club)),
+          Positioned(
+            top: 12,
+            right: 12,
+            child: _RatingBadge(club: club, onOpenReviews: onOpenReviews),
+          ),
         ],
       ),
     );
@@ -194,17 +203,21 @@ class _Monogram extends StatelessWidget {
 /// Оценка клуба. «Оценок пока нет» — не ноль звёзд: клуб, куда ещё никто не сходил, не хуже
 /// клуба, который все ругают, и выглядеть хуже он не должен.
 class _RatingBadge extends StatelessWidget {
-  const _RatingBadge({required this.club});
+  const _RatingBadge({required this.club, this.onOpenReviews});
 
   final Organization club;
+  final VoidCallback? onOpenReviews;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l = L.of(context);
     final rating = club.rating;
+    // Цифра отвечает «насколько хорошо», а на «почему» отвечают только слова игроков —
+    // поэтому по оценке открываются отзывы. Пока их нет, открывать нечего.
+    final openable = onOpenReviews != null && club.reviewCount > 0;
 
-    return DecoratedBox(
+    final badge = DecoratedBox(
       decoration: BoxDecoration(
         color: const Color(0xCC000000),
         borderRadius: BorderRadius.circular(999),
@@ -236,6 +249,14 @@ class _RatingBadge extends StatelessWidget {
           ],
         ),
       ),
+    );
+
+    if (!openable) return badge;
+
+    return Semantics(
+      button: true,
+      label: l.customerReviewsTitle,
+      child: GestureDetector(onTap: onOpenReviews, child: badge),
     );
   }
 }

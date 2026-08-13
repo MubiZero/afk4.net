@@ -579,3 +579,124 @@ class PhoneVerificationStarted {
         resendAfterSeconds: (json['resendAfterSeconds'] as num).toInt(),
       );
 }
+
+/// Закрытый визит, о котором ещё не спрашивали. Приложение предлагает его оценить —
+/// один раз и только пока вечер свежий в памяти.
+class PendingReview {
+  const PendingReview({
+    required this.sessionId,
+    required this.branchName,
+    required this.seatName,
+    required this.endedAtUtc,
+  });
+
+  final String sessionId;
+  final String branchName;
+  final String seatName;
+  final DateTime endedAtUtc;
+
+  factory PendingReview.fromJson(Map<String, dynamic> json) => PendingReview(
+        sessionId: json['sessionId'] as String,
+        branchName: json['branchName'] as String? ?? '',
+        seatName: json['seatName'] as String? ?? '',
+        endedAtUtc: DateTime.parse(json['endedAtUtc'] as String).toUtc(),
+      );
+}
+
+/// Отзыв игрока о клубе, каким его читают до входа.
+class ClubReview {
+  const ClubReview({
+    required this.reviewId,
+    required this.authorName,
+    required this.rating,
+    required this.createdAtUtc,
+    this.comment,
+  });
+
+  final String reviewId;
+  final String authorName;
+  final int rating;
+  final String? comment;
+  final DateTime createdAtUtc;
+
+  factory ClubReview.fromJson(Map<String, dynamic> json) => ClubReview(
+        reviewId: json['reviewId'] as String,
+        authorName: json['authorName'] as String? ?? '',
+        rating: (json['rating'] as num).toInt(),
+        comment: json['comment'] as String?,
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String).toUtc(),
+      );
+}
+
+/// Страница отзывов клуба: средняя оценка — то, что читают первым, отзывы — почему она такая.
+class ClubReviews {
+  const ClubReviews({this.rating, this.reviewCount = 0, this.items = const []});
+
+  /// null — оценок пока нет. Это не ноль звёзд.
+  final double? rating;
+  final int reviewCount;
+  final List<ClubReview> items;
+
+  factory ClubReviews.fromJson(Map<String, dynamic> json) => ClubReviews(
+        rating: (json['rating'] as num?)?.toDouble(),
+        reviewCount: (json['reviewCount'] as num?)?.toInt() ?? 0,
+        items: (json['items'] as List<dynamic>? ?? const [])
+            .map((entry) => ClubReview.fromJson(entry as Map<String, dynamic>))
+            .toList(growable: false),
+      );
+}
+
+/// Стаж игрока: уровень, часы за ПК и достижения. Названий достижений сервер не присылает —
+/// только коды: подписи живут здесь, где у них есть три языка.
+class PlayerAchievements {
+  const PlayerAchievements({
+    required this.level,
+    required this.visitCount,
+    required this.playedMinutes,
+    this.minutesToNextLevel,
+    this.achievements = const [],
+  });
+
+  final int level;
+  final int visitCount;
+  final int playedMinutes;
+
+  /// null — уровень последний, дальше расти некуда.
+  final int? minutesToNextLevel;
+  final List<PlayerAchievement> achievements;
+
+  factory PlayerAchievements.fromJson(Map<String, dynamic> json) => PlayerAchievements(
+        level: (json['level'] as num).toInt(),
+        visitCount: (json['visitCount'] as num?)?.toInt() ?? 0,
+        playedMinutes: (json['playedMinutes'] as num?)?.toInt() ?? 0,
+        minutesToNextLevel: (json['minutesToNextLevel'] as num?)?.toInt(),
+        achievements: (json['achievements'] as List<dynamic>? ?? const [])
+            .map((entry) => PlayerAchievement.fromJson(entry as Map<String, dynamic>))
+            .toList(growable: false),
+      );
+}
+
+class PlayerAchievement {
+  const PlayerAchievement({
+    required this.code,
+    required this.progress,
+    required this.target,
+    this.unlockedAtUtc,
+  });
+
+  final String code;
+  final int progress;
+  final int target;
+  final DateTime? unlockedAtUtc;
+
+  bool get unlocked => unlockedAtUtc != null;
+
+  factory PlayerAchievement.fromJson(Map<String, dynamic> json) => PlayerAchievement(
+        code: json['code'] as String,
+        progress: (json['progress'] as num?)?.toInt() ?? 0,
+        target: (json['target'] as num?)?.toInt() ?? 1,
+        unlockedAtUtc: json['unlockedAtUtc'] == null
+            ? null
+            : DateTime.parse(json['unlockedAtUtc'] as String).toUtc(),
+      );
+}

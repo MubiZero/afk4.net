@@ -316,6 +316,39 @@
   "customerReservationsTariffNone": "The club hasn't published its rates; the desk will price it",
   "customerReservationsTimeError": "Set a start and end time",
   "customerReservationsTitle": "Bookings",
+  "customerReviewDone": "Thanks, your review is in",
+  "customerReviewDuplicate": "You have already reviewed this visit",
+  "customerReviewError": "Could not send the review",
+  "customerReviewInviteAction": "Rate it",
+  "customerReviewInviteBody": "{seat} at {branch}",
+  "@customerReviewInviteBody": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      },
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReviewInviteDismiss": "Not now",
+  "customerReviewInviteTitle": "How was your visit?",
+  "customerReviewSheetComment": "What was good, what got in the way",
+  "customerReviewSheetPickRating": "Pick a rating",
+  "customerReviewSheetSending": "Sending…",
+  "customerReviewSheetSubmit": "Send review",
+  "customerReviewSheetTitle": "Rate your visit",
+  "customerReviewStar": "{count, plural, one {{count} star} other {{count} stars}}",
+  "@customerReviewStar": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerReviewsEmpty": "No reviews yet — yours would be the first",
+  "customerReviewsError": "Could not load the reviews",
+  "customerReviewsTitle": "Player reviews",
   "customerSessionExtendAction": "Add time",
   "customerSessionExtendConfirm": "Add {duration}",
   "@customerSessionExtendConfirm": {

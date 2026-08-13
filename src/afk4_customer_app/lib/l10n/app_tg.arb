@@ -316,6 +316,39 @@
   "customerReservationsTariffNone": "Клуб тарифҳоро нагузоштааст — нархро дар мизи қабул ҳисоб мекунанд",
   "customerReservationsTimeError": "Оғоз ва анҷомро нишон диҳед",
   "customerReservationsTitle": "Бронҳо",
+  "customerReviewDone": "Ташаккур, тақриз фиристода шуд",
+  "customerReviewDuplicate": "Дар бораи ин ташриф шумо аллакай навиштаед",
+  "customerReviewError": "Тақризро фиристода натавонистем",
+  "customerReviewInviteAction": "Баҳо додан",
+  "customerReviewInviteBody": "{seat} дар клуби {branch}",
+  "@customerReviewInviteBody": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      },
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReviewInviteDismiss": "Ҳоло не",
+  "customerReviewInviteTitle": "Ташриф чӣ хел гузашт?",
+  "customerReviewSheetComment": "Чӣ маъқул шуд ё чӣ халал расонд",
+  "customerReviewSheetPickRating": "Баҳо гузоред",
+  "customerReviewSheetSending": "Мефиристем…",
+  "customerReviewSheetSubmit": "Тақризро фиристодан",
+  "customerReviewSheetTitle": "Ба ташриф баҳо диҳед",
+  "customerReviewStar": "{count, plural, one {{count} ситора} other {{count} ситора}}",
+  "@customerReviewStar": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerReviewsEmpty": "Ҳанӯз тақриз нест — аввалин аз они шумо мешавад",
+  "customerReviewsError": "Тақризҳоро бор карда натавонистем",
+  "customerReviewsTitle": "Тақризҳои бозигарон",
   "customerSessionExtendAction": "Дароз кардан",
   "customerSessionExtendConfirm": "Ба {duration} дароз кардан",
   "@customerSessionExtendConfirm": {

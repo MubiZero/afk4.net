@@ -136,6 +136,35 @@ class PlayerApiClient {
         VisitReceipt.fromJson,
       );
 
+  /// Визит, о котором ещё не спрашивали. null — спрашивать не о чем: сервер отвечает на это
+  /// пустым 204, и превращать его в ошибку значило бы показывать сбой там, где всё в порядке.
+  Future<PendingReview?> getPendingReview() async {
+    var response = await _send('GET', '/api/me/reviews/pending');
+    if (response.statusCode == 401 && await _refreshOnce()) {
+      response = await _send('GET', '/api/me/reviews/pending');
+    }
+    if (response.statusCode == 204) return null;
+    return _parse(_decode(response), PendingReview.fromJson);
+  }
+
+  Future<ClubReviews> submitReview({
+    required String sessionId,
+    required int rating,
+    String? comment,
+  }) async =>
+      _parse(
+        await sendJson('POST', '/api/me/reviews', {
+          'sessionId': sessionId,
+          'rating': rating,
+          if (comment != null && comment.trim().isNotEmpty) 'comment': comment.trim(),
+        }),
+        ClubReviews.fromJson,
+      );
+
+  /// Стаж игрока: уровень и достижения.
+  Future<PlayerAchievements> getAchievements() async =>
+      _parse(await getJson('/api/me/achievements'), PlayerAchievements.fromJson);
+
   Future<CursorPage<PlayerPurchase>> getPurchases({String? cursor}) async =>
       _parse(await getJson(_withCursor('/api/me/purchases', cursor)),
           (body) => CursorPage.fromJson(body, PlayerPurchase.fromJson));

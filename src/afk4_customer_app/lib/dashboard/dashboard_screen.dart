@@ -11,6 +11,8 @@ import '../money/money.dart';
 import '../news/news_section.dart';
 import '../organization/organization.dart';
 import '../play/start_session_screen.dart';
+import '../reviews/review_invite.dart';
+import '../reviews/review_sheet.dart';
 import '../shell/app_scaffold.dart';
 import '../shell/pressable.dart';
 import '../shell/skeleton.dart';
@@ -84,6 +86,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// узнать, в какое ты вошёл, можно было только через профиль.
   String? _branchName;
 
+  /// Визит, о котором ещё не спрашивали. null — спрашивать не о чем.
+  PendingReview? _pendingReview;
+
   /// Последний запрос не дошёл до сервера. Данные на экране остаются, но они с прошлого
   /// удачного ответа — молчать об этом значит показывать баланс, которому нельзя верить.
   bool _stale = false;
@@ -93,6 +98,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.initState();
     _refresh();
     _loadBranch();
+    _loadPendingReview();
     _poll = Timer.periodic(_refreshEvery, (_) => _refresh());
   }
 
@@ -112,6 +118,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
       });
     } on PlayerApiException {
       // Не узнали филиал — просто не предлагаем сесть самому. Всё остальное на экране работает.
+    }
+  }
+
+  Future<void> _loadPendingReview() async {
+    try {
+      final pending = await widget.api.getPendingReview();
+      if (!mounted) return;
+      setState(() => _pendingReview = pending);
+    } on PlayerApiException {
+      // Не спросили — не спрашиваем. Приглашение оценить визит не то, ради чего стоит
+      // показывать игроку сообщение об ошибке.
+    }
+  }
+
+  /// Оценка визита. Отказ («не сейчас») убирает карточку до следующего запуска: сервер
+  /// продолжит предлагать этот визит, пока о нём не написали, и это правильно — передумать
+  /// игрок может, а вот навязчивость он запомнит.
+  Future<void> _rateVisit(PendingReview visit) async {
+    final l = L.of(context);
+    final sent = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => ReviewSheet(api: widget.api, visit: visit),
+    );
+    if (!mounted) return;
+
+    setState(() => _pendingReview = null);
+    if (sent == true) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.customerReviewDone)));
     }
   }
 
@@ -259,6 +295,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onOpen: widget.onOpenWallet,
                 ),
                 const SizedBox(height: 12),
+                // Спросить об ушедшем вечере уместно, только пока он свежий, — и до новостей
+                // клуба: это разговор с игроком, а не объявление для него.
+                if (_pendingReview != null && data.activeSession == null) ...[
+                  ReviewInvite(
+                    visit: _pendingReview!,
+                    onRate: () => _rateVisit(_pendingReview!),
+                    onDismiss: () => setState(() => _pendingReview = null),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 // Идущая сессия — то, ради чего экран открывают посреди игры. Когда её нет,
                 // на её месте стоит приглашение сесть: пустое место сообщало бы только об
                 // отсутствии.

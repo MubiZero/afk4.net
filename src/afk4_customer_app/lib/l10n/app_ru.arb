@@ -316,6 +316,39 @@
   "customerReservationsTariffNone": "Клуб не выложил тарифы — стоимость посчитают на стойке",
   "customerReservationsTimeError": "Укажите начало и конец",
   "customerReservationsTitle": "Брони",
+  "customerReviewDone": "Спасибо, отзыв отправлен",
+  "customerReviewDuplicate": "Об этом визите вы уже написали",
+  "customerReviewError": "Не удалось отправить отзыв",
+  "customerReviewInviteAction": "Оценить",
+  "customerReviewInviteBody": "{seat} в клубе {branch}",
+  "@customerReviewInviteBody": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      },
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReviewInviteDismiss": "Не сейчас",
+  "customerReviewInviteTitle": "Как прошёл визит?",
+  "customerReviewSheetComment": "Что понравилось или помешало",
+  "customerReviewSheetPickRating": "Поставьте оценку",
+  "customerReviewSheetSending": "Отправляем…",
+  "customerReviewSheetSubmit": "Отправить отзыв",
+  "customerReviewSheetTitle": "Оцените визит",
+  "customerReviewStar": "{count, plural, one {{count} звезда} few {{count} звезды} many {{count} звёзд} other {{count} звезды}}",
+  "@customerReviewStar": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerReviewsEmpty": "Отзывов пока нет — ваш будет первым",
+  "customerReviewsError": "Не удалось загрузить отзывы",
+  "customerReviewsTitle": "Отзывы игроков",
   "customerSessionExtendAction": "Продлить",
   "customerSessionExtendConfirm": "Продлить на {duration}",
   "@customerSessionExtendConfirm": {

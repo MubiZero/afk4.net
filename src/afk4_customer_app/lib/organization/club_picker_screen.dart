@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
 import '../theme/brand_mark.dart';
+import '../reviews/club_reviews_sheet.dart';
 import 'club_card.dart';
 import 'club_map.dart';
 import 'organization.dart';
@@ -91,6 +92,15 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
     _debounce = Timer(_typingPause, _fetch);
   }
 
+  void _openReviews(Organization club) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => ClubReviewsSheet(directory: widget.directory, club: club),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
@@ -173,6 +183,7 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
               itemBuilder: (context, index) => ClubCard(
                 club: clubs[index],
                 onTap: () => widget.onSelected(clubs[index]),
+                onOpenReviews: () => _openReviews(clubs[index]),
               ),
             ),
           _View.map => Padding(
