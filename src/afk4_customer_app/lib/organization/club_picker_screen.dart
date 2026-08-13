@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../theme/brand_mark.dart';
 import '../reviews/club_reviews_sheet.dart';
 import 'club_card.dart';
+import 'club_details_sheet.dart';
 import 'club_map.dart';
 import 'organization.dart';
 import 'organization_directory.dart';
@@ -101,6 +102,21 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
     );
   }
 
+  void _openDetails(Organization club) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => ClubDetailsSheet(
+        club: club,
+        onChoose: () {
+          Navigator.of(sheetContext).pop();
+          widget.onSelected(club);
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
@@ -184,6 +200,7 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
                 club: clubs[index],
                 onTap: () => widget.onSelected(clubs[index]),
                 onOpenReviews: () => _openReviews(clubs[index]),
+                onOpenDetails: () => _openDetails(clubs[index]),
               ),
             ),
           _View.map => Padding(

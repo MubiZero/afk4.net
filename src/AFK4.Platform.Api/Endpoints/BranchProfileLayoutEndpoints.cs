@@ -73,6 +73,11 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class BranchProfileLayoutEndpoints
 {
+    /// Пустая строка и пробелы — это «не задано», а не значение: иначе в витрине появилась бы
+    /// пустая строка железа, которую игрок примет за недогрузившийся текст.
+    private static string? Trimmed(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
     public static void MapBranchProfileLayoutEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("branches/{branchId:guid}/profile", async (
@@ -370,6 +375,7 @@ internal static class BranchProfileLayoutEndpoints
                     BranchId = branchId,
                     Name = request.Name.Trim(),
                     SortOrder = request.SortOrder,
+                    HardwareSummary = Trimmed(request.HardwareSummary),
                     CreatedAtUtc = timeProvider.GetUtcNow()
                 };
                 dbContext.Zones.Add(zone);
@@ -468,6 +474,7 @@ internal static class BranchProfileLayoutEndpoints
 
             zone.Name = trimmedName;
             zone.SortOrder = request.SortOrder;
+            zone.HardwareSummary = Trimmed(request.HardwareSummary);
             await dbContext.SaveChangesAsync(cancellationToken);
 
             var seats = await dbContext.Seats

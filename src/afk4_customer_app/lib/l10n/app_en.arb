@@ -24,8 +24,21 @@
   "customerAchievementVeteranHint": "Fifty visits to the club",
   "customerActionsBook": "Book a seat",
   "customerActionsOrder": "Order food",
+  "customerClubDetailsChoose": "Play here",
+  "customerClubDetailsDayOff": "closed",
+  "customerClubDetailsHallSeats": "{count, plural, one {{count} seat} other {{count} seats}}",
+  "@customerClubDetailsHallSeats": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerClubDetailsHalls": "Halls",
+  "customerClubDetailsHours": "Opening hours",
   "customerClubPickerChange": "Change club",
   "customerClubPickerClosedToday": "Closed today",
+  "customerClubPickerDetails": "Details",
   "customerClubPickerEmpty": "No clubs found",
   "customerClubPickerError": "Could not load the club list",
   "customerClubPickerMapEmpty": "No club has put itself on the map yet",
@@ -544,5 +557,12 @@
   "customerWalletStateFulfilled": "Credited",
   "customerWalletStatePending": "Pending",
   "customerWalletTitle": "Top up wallet",
-  "customerWalletTopUp": "Top up"
+  "customerWalletTopUp": "Top up",
+  "customerWeekday1": "Monday",
+  "customerWeekday2": "Tuesday",
+  "customerWeekday3": "Wednesday",
+  "customerWeekday4": "Thursday",
+  "customerWeekday5": "Friday",
+  "customerWeekday6": "Saturday",
+  "customerWeekday7": "Sunday"
 }

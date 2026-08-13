@@ -258,6 +258,23 @@ internal static class AuthEndpoints
                 })
                 .ToListAsync(cancellationToken);
 
+            // Залы с железом и числом мест — по филиалам сети. Считаем одним запросом на
+            // страницу каталога, а не по клубу: клубов здесь максимум полсотни.
+            var branchIds = branches.Select(b => b.BranchId).ToList();
+            var zones = await dbContext.Zones
+                .AsNoTracking()
+                .Where(zone => branchIds.Contains(zone.BranchId))
+                .OrderBy(zone => zone.SortOrder)
+                .Select(zone => new { zone.ZoneId, zone.BranchId, zone.Name, zone.HardwareSummary })
+                .ToListAsync(cancellationToken);
+
+            var zoneSeatCounts = await dbContext.Seats
+                .AsNoTracking()
+                .Where(seat => branchIds.Contains(seat.BranchId))
+                .GroupBy(seat => seat.ZoneId)
+                .Select(group => new { ZoneId = group.Key, Count = group.Count() })
+                .ToListAsync(cancellationToken);
+
             var places = branches.Select(b => new
             {
                 b.OrganizationId,
@@ -265,6 +282,12 @@ internal static class AuthEndpoints
                     b.BranchId, b.Name, b.City, b.Address, b.Description,
                     b.CoverImageUrl, b.Latitude, b.Longitude,
                     AFK4.Platform.Api.Branches.BranchWorkingHours.Deserialize(b.WorkingHoursJson),
+                    zones.Where(zone => zone.BranchId == b.BranchId)
+                        .Select(zone => new ClubZoneDto(
+                            zone.Name,
+                            zoneSeatCounts.FirstOrDefault(count => count.ZoneId == zone.ZoneId)?.Count ?? 0,
+                            zone.HardwareSummary))
+                        .ToList(),
                     // Обложка идёт первой: она выбрана владельцем как лицо зала, остальные —
                     // за ней, в заданном им порядке.
                     [

@@ -384,6 +384,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         modelBuilder.Entity<ZoneEntity>(entity =>
         {
             entity.ToTable("zones");
+            entity.Property(zone => zone.HardwareSummary).HasMaxLength(200);
             entity.HasKey(zone => zone.ZoneId);
             entity.Property(zone => zone.Name).HasMaxLength(120).IsRequired();
             entity.Property(zone => zone.Color).HasMaxLength(32);

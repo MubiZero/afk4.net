@@ -18,6 +18,7 @@ class ClubCard extends StatelessWidget {
     required this.club,
     required this.onTap,
     this.onOpenReviews,
+    this.onOpenDetails,
     this.clock = DateTime.now,
   });
 
@@ -27,6 +28,9 @@ class ClubCard extends StatelessWidget {
   /// Открыть отзывы. null — читать нечего (или некому показать): тогда оценка остаётся
   /// подписью и не притворяется кнопкой.
   final VoidCallback? onOpenReviews;
+
+  /// Открыть подробности клуба: описание, залы с железом, расписание на неделю.
+  final VoidCallback? onOpenDetails;
 
   /// Часы клуба сверяются с этим временем. Отдельный параметр — ради тестов: «открыто
   /// сейчас» иначе проверялось бы в час, когда идёт прогон.
@@ -59,6 +63,7 @@ class ClubCard extends StatelessWidget {
                   _AddressLine(club: club),
                   const SizedBox(height: 10),
                   _OpeningLine(club: club, clock: clock),
+                  _DescriptionLine(club: club),
                   // Цена и мест — то, ради чего игрок открывает карточку клуба на любом сервисе.
                   Wrap(
                     spacing: 8,
@@ -87,6 +92,16 @@ class ClubCard extends StatelessWidget {
                         ),
                     ],
                   ),
+                  // «Подробнее» — для того, кто уже присматривается: сравнивает железо и
+                  // смотрит, работает ли клуб в субботу. В карточке этому места нет.
+                  if (onOpenDetails != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: onOpenDetails,
+                        child: Text(l.customerClubPickerDetails),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -361,6 +376,32 @@ class _AddressLine extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Пара слов о клубе от владельца — то, чего не расскажут ни цена, ни адрес. Длинное описание
+/// в карточку не помещаем: целиком его покажут подробности.
+class _DescriptionLine extends StatelessWidget {
+  const _DescriptionLine({required this.club});
+
+  final Organization club;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final place = club.places.isEmpty ? null : club.places.first;
+    final description = place?.description;
+    if (description == null || description.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(
+        description,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.bodyMedium,
+      ),
     );
   }
 }

@@ -83,6 +83,7 @@ public sealed class OrganizationDirectoryEndpointTests
             BranchId = branchId,
             Name = "Основной зал",
             SortOrder = 1,
+            HardwareSummary = "RTX 4060 · 27\" 165 Гц",
             CreatedAtUtc = created
         });
         for (var index = 0; index < seats; index++)
@@ -313,6 +314,23 @@ public sealed class OrganizationDirectoryEndpointTests
                 "https://cdn.example/cyberx-bar.jpg"
             },
             place.PhotoUrls!.ToArray());
+    }
+
+    /// По железу клубы и сравнивают: «сорок мест» ничего не говорит о том, пойдёт ли на них игра.
+    [Fact]
+    public async Task GetDirectory_CarriesTheHallsAndTheirHardware()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedOrgAsync(factory, "cyberx", "CyberX");
+        await SeedShowcaseAsync(factory, "cyberx", seats: 12);
+        using var client = factory.CreateClient();
+
+        var body = await client.GetFromJsonAsync<OrganizationDirectoryEntryDto[]>("/api/public/organizations");
+
+        var zone = Assert.Single(Assert.Single(Assert.Single(body!).Places!).Zones!);
+        Assert.Equal("Основной зал", zone.Name);
+        Assert.Equal(12, zone.SeatCount);
+        Assert.Equal("RTX 4060 · 27\" 165 Гц", zone.HardwareSummary);
     }
 
     /// Снятый с публикации тариф назвал бы игроку цену, которую на кассе никто не подтвердит.

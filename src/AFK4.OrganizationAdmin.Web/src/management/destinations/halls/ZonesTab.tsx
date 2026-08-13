@@ -63,6 +63,7 @@ export function ZonesTab({
   const [criticalAction, setCriticalAction] = useState<CriticalAction | null>(null);
   const [zoneName, setZoneName] = useState('');
   const [zoneSortOrder, setZoneSortOrder] = useState('10');
+  const [zoneHardware, setZoneHardware] = useState('');
   const [seatName, setSeatName] = useState('');
   const [seatSortOrder, setSeatSortOrder] = useState('10');
   const [busy, setBusy] = useState(false);
@@ -85,11 +86,13 @@ export function ZonesTab({
   const openCreateZone = () => {
     setZoneName(t('op.settings.prefill.zoneName'));
     setZoneSortOrder(String((zones.length + 1) * 10));
+    setZoneHardware('');
     setZoneModal({ mode: 'create-zone' });
   };
   const openEditZone = (zone: Zone) => {
     setZoneName(readString(zone, 'name'));
     setZoneSortOrder(String(readNumber(zone, 'sortOrder', 0)));
+    setZoneHardware(readString(zone, 'hardwareSummary'));
     setZoneModal({ mode: 'edit-zone', zoneId: readString(zone, 'zoneId') });
   };
   const openCreateSeat = (zoneId: string) => {
@@ -117,6 +120,8 @@ export function ZonesTab({
 
       const name = zoneName.trim();
       const sortOrder = Number(zoneSortOrder);
+      // Пустая строка — это «железо не указано», а не пустая строка в витрине клуба.
+      const hardware = zoneHardware.trim() === '' ? null : zoneHardware.trim();
       if (!name || !Number.isInteger(sortOrder)) {
         throw new Error(t('op.settings.layout.error.fillZone'));
       }
@@ -126,12 +131,14 @@ export function ZonesTab({
         ? await apiClients.settings.updateZone(nextBackend.branchId, zoneModal.zoneId, {
           organizationId: nextBackend.session.organizationId,
           name,
-          sortOrder
+          sortOrder,
+          hardwareSummary: hardware
         })
         : await apiClients.settings.createZone(nextBackend.branchId, {
           organizationId: nextBackend.session.organizationId,
           name,
-          sortOrder
+          sortOrder,
+          hardwareSummary: hardware
         });
       setSelectedZoneId(readString(zone, 'zoneId', zoneModal.mode === 'edit-zone' ? zoneModal.zoneId : ''));
       setZoneModal(null);
@@ -376,6 +383,15 @@ export function ZonesTab({
               </label>
               <label>{t('op.settings.layout.zoneOrder')}
                 <input inputMode="numeric" value={zoneSortOrder} onChange={(event) => setZoneSortOrder(event.currentTarget.value)} />
+              </label>
+              <label className="mgmt-form-wide">{t('op.settings.layout.zoneHardware')}
+                <input
+                  value={zoneHardware}
+                  maxLength={200}
+                  placeholder={t('op.settings.layout.zoneHardwarePlaceholder')}
+                  onChange={(event) => setZoneHardware(event.currentTarget.value)}
+                />
+                <span className="club-field-hint">{t('op.settings.layout.zoneHardwareHint')}</span>
               </label>
             </div>
             <div className="mgmt-form-actions">

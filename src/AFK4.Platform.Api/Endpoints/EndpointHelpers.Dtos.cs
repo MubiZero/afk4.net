@@ -190,6 +190,7 @@ internal static partial class EndpointHelpers
             zone.Name,
             zone.SortOrder,
             zone.CreatedAtUtc,
+            zone.HardwareSummary,
             seats.Select(ToSeatDto).ToList());
     }
 

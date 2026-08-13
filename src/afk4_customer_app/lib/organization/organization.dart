@@ -108,6 +108,7 @@ class ClubPlace {
     this.latitude,
     this.longitude,
     this.workingHours = const [],
+    this.zones = const [],
   });
 
   final String branchId;
@@ -128,6 +129,9 @@ class ClubPlace {
   /// Расписание клуба. Пусто — расписание не задано, и врать «открыто» об этом нельзя.
   final List<OpeningDay> workingHours;
 
+  /// Залы этого клуба: сколько мест и на чём играют.
+  final List<ClubZone> zones;
+
   bool get hasPoint => latitude != null && longitude != null;
 
   factory ClubPlace.fromJson(Map<String, dynamic> json) => ClubPlace(
@@ -145,6 +149,9 @@ class ClubPlace {
         workingHours: (json['workingHours'] as List<dynamic>? ?? const [])
             .map((entry) => OpeningDay.fromJson(entry as Map<String, dynamic>))
             .toList(growable: false),
+        zones: (json['zones'] as List<dynamic>? ?? const [])
+            .map((entry) => ClubZone.fromJson(entry as Map<String, dynamic>))
+            .toList(growable: false),
       );
 
   Map<String, dynamic> toJson() => {
@@ -159,5 +166,29 @@ class ClubPlace {
         if (longitude != null) 'longitude': longitude,
         if (workingHours.isNotEmpty)
           'workingHours': workingHours.map((day) => day.toJson()).toList(),
+        if (zones.isNotEmpty) 'zones': zones.map((zone) => zone.toJson()).toList(),
+      };
+}
+
+/// Зал клуба: название, сколько в нём мест и чем оснащён.
+class ClubZone {
+  const ClubZone({required this.name, this.seatCount = 0, this.hardwareSummary});
+
+  final String name;
+  final int seatCount;
+
+  /// Железо словами владельца. null — не указано, и выдумывать за него нечего.
+  final String? hardwareSummary;
+
+  factory ClubZone.fromJson(Map<String, dynamic> json) => ClubZone(
+        name: json['name'] as String? ?? '',
+        seatCount: (json['seatCount'] as num?)?.toInt() ?? 0,
+        hardwareSummary: json['hardwareSummary'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'seatCount': seatCount,
+        if (hardwareSummary != null) 'hardwareSummary': hardwareSummary,
       };
 }

@@ -7,4 +7,5 @@ public sealed record ZoneDto(
     string Name,
     int SortOrder,
     DateTimeOffset CreatedAtUtc,
+    string? HardwareSummary,
     IReadOnlyList<SeatDto> Seats);

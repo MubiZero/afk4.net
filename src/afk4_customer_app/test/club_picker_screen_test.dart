@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
 import 'package:afk4_customer_app/organization/club_card.dart';
+import 'package:afk4_customer_app/organization/club_details_sheet.dart';
 import 'package:afk4_customer_app/organization/club_map.dart';
 import 'package:afk4_customer_app/organization/club_picker_screen.dart';
 import 'package:afk4_customer_app/organization/opening_hours.dart';
@@ -236,6 +237,35 @@ void main() {
     await tester.pump();
 
     expect(find.text('Клубы ещё не отметились на карте'), findsOneWidget);
+  });
+
+  // «Подробнее» — для того, кто уже присматривается: сравнивает железо и смотрит расписание.
+  testWidgets('«подробнее» открывает подробности клуба', (tester) async {
+    await tester.pumpWidget(harness(_StubDirectory(clubs: const [_cyberx])));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Подробнее'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ClubDetailsSheet), findsOneWidget);
+  });
+
+  // Из подробностей клуб выбирается сразу: возвращаться в список ради одной кнопки незачем.
+  testWidgets('выбор из подробностей отдаёт клуб наверх', (tester) async {
+    Organization? picked;
+    await tester.pumpWidget(harness(
+      _StubDirectory(clubs: const [_cyberx]),
+      onSelected: (club) => picked = club,
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Подробнее'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Играть здесь'));
+    await tester.pumpAndSettle();
+
+    expect(picked, _cyberx);
+    expect(find.byType(ClubDetailsSheet), findsNothing);
   });
 
   // Пустой список и сбой сети выглядят одинаково, если не различать их явно: игрок решит,

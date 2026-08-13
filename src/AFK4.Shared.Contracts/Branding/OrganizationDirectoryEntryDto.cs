@@ -35,5 +35,10 @@ public sealed record ClubPlaceDto(
     /// Расписание клуба: игрок хочет знать не только где клуб, но и открыт ли он сейчас.
     /// Пустой список — расписание не задано.
     IReadOnlyList<BranchWorkingHoursDayDto>? WorkingHours = null,
+    /// Залы этого клуба: сколько мест и на чём играют. По железу клубы и сравнивают.
+    IReadOnlyList<ClubZoneDto>? Zones = null,
     /// Фото зала по порядку: обложка первой, дальше галерея. Пусто — клуб фото не прислал.
     IReadOnlyList<string>? PhotoUrls = null);
+
+/// Зал клуба в витрине: название, сколько в нём мест и чем оснащён.
+public sealed record ClubZoneDto(string Name, int SeatCount, string? HardwareSummary);

@@ -24,8 +24,21 @@
   "customerAchievementVeteranHint": "Панҷоҳ ташриф ба клуб",
   "customerActionsBook": "Ҷой банд кардан",
   "customerActionsOrder": "Фармоиши хӯрок",
+  "customerClubDetailsChoose": "Дар ин ҷо бозӣ мекунам",
+  "customerClubDetailsDayOff": "рӯзи истироҳат",
+  "customerClubDetailsHallSeats": "{count, plural, one {{count} ҷой} other {{count} ҷой}}",
+  "@customerClubDetailsHallSeats": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerClubDetailsHalls": "Толорҳо",
+  "customerClubDetailsHours": "Соатҳои корӣ",
   "customerClubPickerChange": "Иваз кардани клуб",
   "customerClubPickerClosedToday": "Имрӯз рӯзи истироҳат",
+  "customerClubPickerDetails": "Муфассал",
   "customerClubPickerEmpty": "Клуб ёфт нашуд",
   "customerClubPickerError": "Рӯйхати клубҳоро бор кардан нашуд",
   "customerClubPickerMapEmpty": "Ҳанӯз ягон клуб дар харита нест",
@@ -544,5 +557,12 @@
   "customerWalletStateFulfilled": "Ворид шуд",
   "customerWalletStatePending": "Дар интизор",
   "customerWalletTitle": "Пур кардани ҳамён",
-  "customerWalletTopUp": "Пур кардан"
+  "customerWalletTopUp": "Пур кардан",
+  "customerWeekday1": "Душанбе",
+  "customerWeekday2": "Сешанбе",
+  "customerWeekday3": "Чоршанбе",
+  "customerWeekday4": "Панҷшанбе",
+  "customerWeekday5": "Ҷумъа",
+  "customerWeekday6": "Шанбе",
+  "customerWeekday7": "Якшанбе"
 }

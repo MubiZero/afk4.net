@@ -86,12 +86,15 @@ export interface CreateZoneRequest extends Record<string, unknown> {
   organizationId: Guid;
   name: string;
   sortOrder: number;
+  // Чем зал оснащён — эту строку игрок видит в подробностях клуба; null = не указано.
+  hardwareSummary?: string | null;
 }
 
 export interface UpdateZoneRequest extends Record<string, unknown> {
   organizationId: Guid;
   name: string;
   sortOrder: number;
+  hardwareSummary?: string | null;
 }
 
 export interface CreateSeatRequest extends Record<string, unknown> {

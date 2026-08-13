@@ -207,7 +207,10 @@ there is no owner-code mechanism.
   stored separately. The club card also answers "is it open right now" from
   the branch schedule (which now accepts overnight shifts such as 22:00-06:00,
   the normal case for a computer club), and carries a swipeable hall gallery —
-  up to ten photos per branch, uploaded and ordered on the operator screen.
+  up to ten photos per branch, uploaded and ordered on the operator screen. A
+  club-details sheet behind "Подробнее" carries the owner's description, the
+  halls with their hardware (a new per-zone field edited in «Залы и ПК»), and
+  the week's schedule, and the club can be chosen from there directly.
 
 ## Latest Verification
 
@@ -216,9 +219,9 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
 `docs/archive/progress/2026-08-06-vertical-slice-detailed-history.md`.
 
 - Club showcase / reviews / player record gate (2026-08-13): Platform API
-  passed 1972 tests with 27 PostgreSQL-only skips; Shared Contracts passed
-  141/141; Organization Admin Web passed 1101 tests; i18n passed 39/39; the
-  customer app passed 269 widget tests with a clean `flutter analyze`. The
+  passed 1973 tests with 27 PostgreSQL-only skips; Shared Contracts passed
+  141/141; Organization Admin Web passed 1102 tests; i18n passed 39/39; the
+  customer app passed 277 widget tests with a clean `flutter analyze`. The
   full-solution build was not run on this machine: `AFK4.Player.Shell` targets
   Windows and cannot build on Linux. A live browser pass over the picker,
   reviews, review sheet, and record screen was done against a local fake API;

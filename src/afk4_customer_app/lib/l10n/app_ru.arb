@@ -24,8 +24,21 @@
   "customerAchievementVeteranHint": "Пятьдесят визитов в клуб",
   "customerActionsBook": "Забронировать",
   "customerActionsOrder": "Заказать еду",
+  "customerClubDetailsChoose": "Играть здесь",
+  "customerClubDetailsDayOff": "выходной",
+  "customerClubDetailsHallSeats": "{count, plural, one {{count} место} few {{count} места} many {{count} мест} other {{count} места}}",
+  "@customerClubDetailsHallSeats": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerClubDetailsHalls": "Залы",
+  "customerClubDetailsHours": "Часы работы",
   "customerClubPickerChange": "Сменить клуб",
   "customerClubPickerClosedToday": "Сегодня выходной",
+  "customerClubPickerDetails": "Подробнее",
   "customerClubPickerEmpty": "Клуб не найден",
   "customerClubPickerError": "Не удалось загрузить список клубов",
   "customerClubPickerMapEmpty": "Клубы ещё не отметились на карте",
@@ -544,5 +557,12 @@
   "customerWalletStateFulfilled": "Зачислено",
   "customerWalletStatePending": "Ожидает",
   "customerWalletTitle": "Пополнить кошелёк",
-  "customerWalletTopUp": "Пополнить"
+  "customerWalletTopUp": "Пополнить",
+  "customerWeekday1": "Понедельник",
+  "customerWeekday2": "Вторник",
+  "customerWeekday3": "Среда",
+  "customerWeekday4": "Четверг",
+  "customerWeekday5": "Пятница",
+  "customerWeekday6": "Суббота",
+  "customerWeekday7": "Воскресенье"
 }

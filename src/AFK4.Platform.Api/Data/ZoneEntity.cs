@@ -25,5 +25,11 @@ public sealed class ZoneEntity
 
     public string? ZoneType { get; set; }
 
+    /// <summary>
+    /// Чем зал оснащён, словами владельца: «RTX 4060 · 27\" 165 Гц · кресла DXRacer».
+    /// Показывается игроку в подробностях клуба — по железу клубы и сравнивают.
+    /// </summary>
+    public string? HardwareSummary { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }
