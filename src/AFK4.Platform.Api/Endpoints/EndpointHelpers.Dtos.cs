@@ -73,7 +73,18 @@ namespace AFK4.Platform.Api.Endpoints;
 internal static partial class EndpointHelpers
 {
     public static PlayerReservationDto ToPlayerReservationDto(ReservationDto r) =>
-        new(r.ReservationId, r.SeatId, r.SeatName, r.StartsAtUtc, r.EndsAtUtc, r.State, r.Note);
+        new(
+            r.ReservationId,
+            r.SeatId,
+            r.SeatName,
+            r.StartsAtUtc,
+            r.EndsAtUtc,
+            r.State,
+            r.Note,
+            r.TariffVersionId,
+            r.TariffName,
+            r.EstimatedCostMinorUnits,
+            r.CurrencyCode);
 
     public static ReceiptDto ToDto(ReceiptEntity receipt, Guid? shopOrderId = null)
     {

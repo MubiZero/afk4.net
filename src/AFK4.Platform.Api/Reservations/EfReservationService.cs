@@ -713,6 +713,26 @@ public sealed class EfReservationService(
         var seatById = seats.ToDictionary(seat => seat.SeatId);
         var zoneById = zones.ToDictionary(zone => zone.ZoneId);
 
+        // Имя тарифа — для показа, а не для расчёта: сумма уже посчитана и записана при брони.
+        // Версия могла быть снята с публикации, поэтому имя берётся по самой версии, а не по
+        // действующему на сегодня прайсу.
+        var tariffVersionIds = reservations
+            .Where(reservation => reservation.TariffVersionId is not null)
+            .Select(reservation => reservation.TariffVersionId!.Value)
+            .Distinct()
+            .ToList();
+        var tariffNameByVersionId = tariffVersionIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await dbContext.TariffVersions
+                .AsNoTracking()
+                .Where(version => tariffVersionIds.Contains(version.TariffVersionId))
+                .Join(
+                    dbContext.Tariffs.AsNoTracking(),
+                    version => version.TariffId,
+                    tariff => tariff.TariffId,
+                    (version, tariff) => new { version.TariffVersionId, tariff.Name })
+                .ToDictionaryAsync(row => row.TariffVersionId, row => row.Name, cancellationToken);
+
         return reservations.Select(reservation =>
         {
             SeatEntity? seat = null;
@@ -747,7 +767,14 @@ public sealed class EfReservationService(
                 reservation.CancelReason,
                 reservation.ReservationGroupId,
                 reservation.Version,
-                reservation.StartedSessionId);
+                reservation.StartedSessionId,
+                reservation.TariffVersionId,
+                reservation.TariffVersionId is { } tariffVersionId &&
+                    tariffNameByVersionId.TryGetValue(tariffVersionId, out var tariffName)
+                        ? tariffName
+                        : null,
+                reservation.EstimatedCostMinorUnits,
+                reservation.CurrencyCode);
         }).ToList();
     }
 
@@ -866,6 +893,49 @@ public sealed class EfReservationService(
         }
 
         var now = timeProvider.GetUtcNow();
+
+        // Billing choice made by the player in the app. Priced here, not in the client: the
+        // minimum-billable floor and the rounding increment are billing rules, and a second
+        // implementation in the app would disagree with the charge the moment either side moved.
+        TariffVersionEntity? tariffVersion = null;
+        TariffComputation? estimate = null;
+        if (request.TariffVersionId is { } tariffVersionId)
+        {
+            tariffVersion = await dbContext.TariffVersions
+                .AsNoTracking()
+                .SingleOrDefaultAsync(
+                    version =>
+                        version.TariffVersionId == tariffVersionId &&
+                        version.OrganizationId == organizationId &&
+                        version.BranchId == branchId &&
+                        version.EffectiveFromUtc <= now &&
+                        (version.RetiredAtUtc == null || version.RetiredAtUtc > now),
+                    cancellationToken);
+
+            // A retired or foreign tariff is rejected rather than silently replaced by a default:
+            // the player agreed to a specific price, and quietly booking on another one is a lie
+            // about money.
+            if (tariffVersion is null)
+            {
+                return ReservationServiceResult<ReservationDto>.Invalid(
+                    "Selected tariff is not available in this branch.");
+            }
+
+            estimate = TariffBilling.ComputeForMinutes(
+                durationMinutes,
+                new TariffPricing(
+                    tariffVersion.PricePerMinuteMinorUnits,
+                    tariffVersion.MinimumBillableMinutes,
+                    tariffVersion.RoundingIncrementMinutes,
+                    tariffVersion.CurrencyCode));
+
+            if (estimate is null)
+            {
+                return ReservationServiceResult<ReservationDto>.Invalid(
+                    "Selected tariff cannot price this booking.");
+            }
+        }
+
         // Auto-confirm self-service bookings when the player has funds (positive wallet, no debt):
         // «free slot + has balance → book without operator». Otherwise stay Pending for operator
         // review (the requests lane stays a fallback for funded-later / disputed cases).
@@ -891,7 +961,10 @@ public sealed class EfReservationService(
             UpdatedByStaffUserId = Guid.Empty,
             CreatedAtUtc = now,
             UpdatedAtUtc = now,
-            CancelReason = string.Empty
+            CancelReason = string.Empty,
+            TariffVersionId = tariffVersion?.TariffVersionId,
+            EstimatedCostMinorUnits = estimate?.AmountMinorUnits,
+            CurrencyCode = estimate?.CurrencyCode
         };
 
         dbContext.Reservations.Add(reservation);
