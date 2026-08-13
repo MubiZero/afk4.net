@@ -78,9 +78,13 @@ public static class BranchWorkingHours
                 return "Open/close time must be in HH:mm format for non-closed days.";
             }
 
-            if (open >= close)
+            // Закрытие раньше открытия — это ночная смена: «22:00–06:00» работает до утра
+            // следующего дня. Компьютерный клуб живёт именно так, и запрет на такую пару
+            // заставлял бы владельца врать расписанием. Совпадение времён смысла не имеет:
+            // это либо круглые сутки, либо ноль часов, и какие именно — из пары не следует.
+            if (open == close)
             {
-                return "Open time must be earlier than close time.";
+                return "Open and close time must differ; use «closed» for a day off.";
             }
         }
 

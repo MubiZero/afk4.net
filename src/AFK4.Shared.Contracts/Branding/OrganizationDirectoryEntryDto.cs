@@ -1,3 +1,5 @@
+using AFK4.Shared.Contracts.Branches;
+
 namespace AFK4.Shared.Contracts.Branding;
 
 /// A club as it appears in the public picker: enough to choose it, nothing about how the
@@ -29,4 +31,7 @@ public sealed record ClubPlaceDto(
     string? Description,
     string? CoverImageUrl,
     double? Latitude,
-    double? Longitude);
+    double? Longitude,
+    /// Расписание клуба: игрок хочет знать не только где клуб, но и открыт ли он сейчас.
+    /// Пустой список — расписание не задано.
+    IReadOnlyList<BranchWorkingHoursDayDto>? WorkingHours = null);

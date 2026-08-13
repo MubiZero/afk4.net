@@ -57,11 +57,23 @@ public class BranchWorkingHoursTests
         Assert.NotNull(BranchWorkingHours.Validate(days));
     }
 
+    /// Компьютерный клуб живёт ночью: «22:00–06:00» — обычная смена до утра, и запрет на
+    /// такую пару заставлял бы владельца врать расписанием.
     [Fact]
-    public void Validate_OpenNotBeforeClose_ReturnsError()
+    public void Validate_OvernightShift_IsAllowed()
     {
         var days = BranchWorkingHours.Default().ToList();
-        days[0] = days[0] with { OpenTime = "22:00", CloseTime = "10:00" };
+        days[0] = days[0] with { OpenTime = "22:00", CloseTime = "06:00" };
+        Assert.Null(BranchWorkingHours.Validate(days));
+    }
+
+    /// Совпадение времён — это либо круглые сутки, либо ноль часов, и какие именно, из
+    /// самой пары не следует.
+    [Fact]
+    public void Validate_SameOpenAndCloseTime_ReturnsError()
+    {
+        var days = BranchWorkingHours.Default().ToList();
+        days[0] = days[0] with { OpenTime = "10:00", CloseTime = "10:00" };
         Assert.NotNull(BranchWorkingHours.Validate(days));
     }
 

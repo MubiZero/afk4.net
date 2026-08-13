@@ -25,6 +25,7 @@
   "customerActionsBook": "Book a seat",
   "customerActionsOrder": "Order food",
   "customerClubPickerChange": "Change club",
+  "customerClubPickerClosedToday": "Closed today",
   "customerClubPickerEmpty": "No clubs found",
   "customerClubPickerError": "Could not load the club list",
   "customerClubPickerMapEmpty": "No club has put itself on the map yet",
@@ -39,6 +40,23 @@
   },
   "customerClubPickerNoRating": "No ratings yet",
   "customerClubPickerOpen": "Choose",
+  "customerClubPickerOpenAllDay": "Open around the clock",
+  "customerClubPickerOpenUntil": "Open until {time}",
+  "@customerClubPickerOpenUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubPickerOpensAt": "Closed, opens at {time}",
+  "@customerClubPickerOpensAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "customerClubPickerPriceFrom": "from {price} per hour",
   "@customerClubPickerPriceFrom": {
     "placeholders": {

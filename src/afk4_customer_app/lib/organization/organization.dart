@@ -1,3 +1,5 @@
+import 'opening_hours.dart';
+
 /// Клуб, каким его видит игрок в выборе: достаточно, чтобы выбрать, и ничего о делах бизнеса.
 /// Зеркало `OrganizationDirectoryEntryDto` с сервера.
 class Organization {
@@ -102,6 +104,7 @@ class ClubPlace {
     this.coverImageUrl,
     this.latitude,
     this.longitude,
+    this.workingHours = const [],
   });
 
   final String branchId;
@@ -116,6 +119,9 @@ class ClubPlace {
   final double? latitude;
   final double? longitude;
 
+  /// Расписание клуба. Пусто — расписание не задано, и врать «открыто» об этом нельзя.
+  final List<OpeningDay> workingHours;
+
   bool get hasPoint => latitude != null && longitude != null;
 
   factory ClubPlace.fromJson(Map<String, dynamic> json) => ClubPlace(
@@ -127,6 +133,9 @@ class ClubPlace {
         coverImageUrl: json['coverImageUrl'] as String?,
         latitude: (json['latitude'] as num?)?.toDouble(),
         longitude: (json['longitude'] as num?)?.toDouble(),
+        workingHours: (json['workingHours'] as List<dynamic>? ?? const [])
+            .map((entry) => OpeningDay.fromJson(entry as Map<String, dynamic>))
+            .toList(growable: false),
       );
 
   Map<String, dynamic> toJson() => {
@@ -138,5 +147,7 @@ class ClubPlace {
         if (coverImageUrl != null) 'coverImageUrl': coverImageUrl,
         if (latitude != null) 'latitude': latitude,
         if (longitude != null) 'longitude': longitude,
+        if (workingHours.isNotEmpty)
+          'workingHours': workingHours.map((day) => day.toJson()).toList(),
       };
 }

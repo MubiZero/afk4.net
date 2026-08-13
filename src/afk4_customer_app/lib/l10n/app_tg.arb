@@ -25,6 +25,7 @@
   "customerActionsBook": "Ҷой банд кардан",
   "customerActionsOrder": "Фармоиши хӯрок",
   "customerClubPickerChange": "Иваз кардани клуб",
+  "customerClubPickerClosedToday": "Имрӯз рӯзи истироҳат",
   "customerClubPickerEmpty": "Клуб ёфт нашуд",
   "customerClubPickerError": "Рӯйхати клубҳоро бор кардан нашуд",
   "customerClubPickerMapEmpty": "Ҳанӯз ягон клуб дар харита нест",
@@ -39,6 +40,23 @@
   },
   "customerClubPickerNoRating": "Ҳанӯз баҳо нест",
   "customerClubPickerOpen": "Интихоб",
+  "customerClubPickerOpenAllDay": "Шабонарӯзӣ кушода",
+  "customerClubPickerOpenUntil": "То соати {time} кушода",
+  "@customerClubPickerOpenUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubPickerOpensAt": "Пӯшида, соати {time} мекушояд",
+  "@customerClubPickerOpensAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "customerClubPickerPriceFrom": "аз {price} дар як соат",
   "@customerClubPickerPriceFrom": {
     "placeholders": {

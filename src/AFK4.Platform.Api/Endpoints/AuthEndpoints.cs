@@ -247,18 +247,25 @@ internal static class AuthEndpoints
             // Витрина собирается тремя отдельными запросами и склеивается в памяти, а не одним
             // выражением с группировками: клубов здесь максимум полсотни, зато запросы остаются
             // такими, какие одинаково выполняет и Postgres, и InMemory под тестами.
-            var places = await dbContext.Branches
+            var branches = await dbContext.Branches
                 .AsNoTracking()
                 .Where(b => organizationIds.Contains(b.OrganizationId))
                 .OrderBy(b => b.City).ThenBy(b => b.Name)
                 .Select(b => new
                 {
-                    b.OrganizationId,
-                    Place = new ClubPlaceDto(
-                        b.BranchId, b.Name, b.City, b.Address, b.Description,
-                        b.CoverImageUrl, b.Latitude, b.Longitude)
+                    b.OrganizationId, b.BranchId, b.Name, b.City, b.Address, b.Description,
+                    b.CoverImageUrl, b.Latitude, b.Longitude, b.WorkingHoursJson
                 })
                 .ToListAsync(cancellationToken);
+
+            var places = branches.Select(b => new
+            {
+                b.OrganizationId,
+                Place = new ClubPlaceDto(
+                    b.BranchId, b.Name, b.City, b.Address, b.Description,
+                    b.CoverImageUrl, b.Latitude, b.Longitude,
+                    AFK4.Platform.Api.Branches.BranchWorkingHours.Deserialize(b.WorkingHoursJson))
+            }).ToList();
 
             var seatCounts = await dbContext.Seats
                 .AsNoTracking()

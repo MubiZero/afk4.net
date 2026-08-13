@@ -5,6 +5,7 @@ import 'package:afk4_customer_app/l10n/localization_setup.dart';
 import 'package:afk4_customer_app/organization/club_card.dart';
 import 'package:afk4_customer_app/organization/club_map.dart';
 import 'package:afk4_customer_app/organization/club_picker_screen.dart';
+import 'package:afk4_customer_app/organization/opening_hours.dart';
 import 'package:afk4_customer_app/organization/organization.dart';
 import 'package:afk4_customer_app/organization/organization_directory.dart';
 
@@ -66,6 +67,58 @@ void main() {
 
     expect(find.text('CyberX'), findsOneWidget);
     expect(find.text('Arena'), findsOneWidget);
+  });
+
+  // «Открыт ли он сейчас» игрок спрашивает до выхода из дома, и семь строк расписания на
+  // карточке этот вопрос не закрывают.
+  testWidgets('карточка отвечает, открыт ли клуб сейчас', (tester) async {
+    const club = Organization(
+      organizationId: '44444444-4444-4444-4444-444444444444',
+      slug: 'cyberx',
+      name: 'CyberX',
+      places: [
+        ClubPlace(
+          branchId: 'b1',
+          name: 'На Рудаки',
+          city: 'Душанбе',
+          workingHours: [
+            OpeningDay(dayOfWeek: 1, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+            OpeningDay(dayOfWeek: 2, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+            OpeningDay(dayOfWeek: 3, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+            OpeningDay(dayOfWeek: 4, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+            OpeningDay(dayOfWeek: 5, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+            OpeningDay(dayOfWeek: 6, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+            OpeningDay(dayOfWeek: 7, isClosed: true),
+          ],
+        ),
+      ],
+    );
+
+    Widget card(DateTime now) => MaterialApp(
+          locale: const Locale('ru'),
+          localizationsDelegates: appLocalizationsDelegates,
+          supportedLocales: appSupportedLocales,
+          home: Scaffold(body: ClubCard(club: club, onTap: () {}, clock: () => now)),
+        );
+
+    // 2026-08-12 — среда.
+    await tester.pumpWidget(card(DateTime(2026, 8, 12, 14)));
+    await tester.pumpAndSettle();
+    expect(find.text('Открыто до 23:00'), findsOneWidget);
+
+    await tester.pumpWidget(card(DateTime(2026, 8, 12, 8)));
+    await tester.pumpAndSettle();
+    expect(find.text('Закрыто, откроется в 10:00'), findsOneWidget);
+  });
+
+  // Расписания может не быть — придумывать за клуб часы работы значит отправить игрока
+  // к закрытой двери.
+  testWidgets('без расписания карточка о часах молчит', (tester) async {
+    await tester.pumpWidget(harness(_StubDirectory(clubs: const [_cyberx])));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Открыто'), findsNothing);
+    expect(find.textContaining('Закрыто'), findsNothing);
   });
 
   // Клуб выбирают по тому, где он и сколько стоит час: одно название не отвечает ни на один

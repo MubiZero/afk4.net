@@ -25,6 +25,7 @@
   "customerActionsBook": "Забронировать",
   "customerActionsOrder": "Заказать еду",
   "customerClubPickerChange": "Сменить клуб",
+  "customerClubPickerClosedToday": "Сегодня выходной",
   "customerClubPickerEmpty": "Клуб не найден",
   "customerClubPickerError": "Не удалось загрузить список клубов",
   "customerClubPickerMapEmpty": "Клубы ещё не отметились на карте",
@@ -39,6 +40,23 @@
   },
   "customerClubPickerNoRating": "Оценок пока нет",
   "customerClubPickerOpen": "Выбрать",
+  "customerClubPickerOpenAllDay": "Открыто круглосуточно",
+  "customerClubPickerOpenUntil": "Открыто до {time}",
+  "@customerClubPickerOpenUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubPickerOpensAt": "Закрыто, откроется в {time}",
+  "@customerClubPickerOpensAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "customerClubPickerPriceFrom": "от {price} в час",
   "@customerClubPickerPriceFrom": {
     "placeholders": {

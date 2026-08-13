@@ -4,6 +4,7 @@ import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../shell/pressable.dart';
 import '../theme/app_theme.dart';
+import 'opening_hours.dart';
 import 'organization.dart';
 
 /// Карточка клуба в витрине: фото зала, название поверх него, оценка, цена часа и адрес.
@@ -12,7 +13,13 @@ import 'organization.dart';
 /// а игрок спрашивает «где это, сколько стоит и как там внутри». Поэтому карточка крупная и
 /// начинается с фотографии: она отвечает на последний вопрос быстрее любого описания.
 class ClubCard extends StatelessWidget {
-  const ClubCard({super.key, required this.club, required this.onTap, this.onOpenReviews});
+  const ClubCard({
+    super.key,
+    required this.club,
+    required this.onTap,
+    this.onOpenReviews,
+    this.clock = DateTime.now,
+  });
 
   final Organization club;
   final VoidCallback onTap;
@@ -20,6 +27,10 @@ class ClubCard extends StatelessWidget {
   /// Открыть отзывы. null — читать нечего (или некому показать): тогда оценка остаётся
   /// подписью и не притворяется кнопкой.
   final VoidCallback? onOpenReviews;
+
+  /// Часы клуба сверяются с этим временем. Отдельный параметр — ради тестов: «открыто
+  /// сейчас» иначе проверялось бы в час, когда идёт прогон.
+  final DateTime Function() clock;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +58,7 @@ class ClubCard extends StatelessWidget {
                 children: [
                   _AddressLine(club: club),
                   const SizedBox(height: 10),
+                  _OpeningLine(club: club, clock: clock),
                   // Цена и мест — то, ради чего игрок открывает карточку клуба на любом сервисе.
                   Wrap(
                     spacing: 8,
@@ -289,6 +301,57 @@ class _AddressLine extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Открыт ли клуб прямо сейчас. Семь строк расписания на карточке никто не читает, а
+/// «открыто до 23:00» отвечает на единственный вопрос, который в этот момент задают.
+class _OpeningLine extends StatelessWidget {
+  const _OpeningLine({required this.club, required this.clock});
+
+  final Organization club;
+  final DateTime Function() clock;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final theme = Theme.of(context);
+    final place = club.places.isEmpty ? null : club.places.first;
+    if (place == null || place.workingHours.isEmpty) return const SizedBox.shrink();
+
+    final status = openingStatusAt(place.workingHours, clock());
+    final (text, open) = switch (status.kind) {
+      OpeningStatusKind.openUntil => (l.customerClubPickerOpenUntil(status.time ?? ''), true),
+      OpeningStatusKind.openAllDay => (l.customerClubPickerOpenAllDay, true),
+      OpeningStatusKind.opensAt => (l.customerClubPickerOpensAt(status.time ?? ''), false),
+      OpeningStatusKind.closedToday => (l.customerClubPickerClosedToday, false),
+      // Расписание не задано или записано не по формату — молчим. Придумать за клуб часы
+      // работы значит отправить игрока к закрытой двери.
+      OpeningStatusKind.unknown => ('', false),
+    };
+    if (text.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Icon(
+            open ? Icons.schedule : Icons.lock_clock,
+            size: 16,
+            color: open ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: open ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

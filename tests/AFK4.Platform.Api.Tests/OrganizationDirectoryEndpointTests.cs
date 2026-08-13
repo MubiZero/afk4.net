@@ -62,6 +62,11 @@ public sealed class OrganizationDirectoryEndpointTests
             Address = "пр. Рудаки, 1",
             Description = "40 машин и две PlayStation",
             CoverImageUrl = $"https://cdn.example/{slug}-hall.jpg",
+            WorkingHoursJson = AFK4.Platform.Api.Branches.BranchWorkingHours.Serialize(
+                Enumerable.Range(1, 7)
+                    .Select(day => new AFK4.Shared.Contracts.Branches.BranchWorkingHoursDayDto(
+                        day, day == 7, day == 7 ? null : "10:00", day == 7 ? null : "23:00"))
+                    .ToList()),
             Latitude = latitude,
             Longitude = longitude,
             CreatedAtUtc = created
@@ -262,6 +267,24 @@ public sealed class OrganizationDirectoryEndpointTests
         Assert.Equal("https://cdn.example/cyberx-hall.jpg", place.CoverImageUrl);
         Assert.Equal(38.5598, place.Latitude);
         Assert.Equal(68.7870, place.Longitude);
+    }
+
+    /// «Открыт ли он сейчас» — вопрос, который игрок задаёт до выхода из дома, а ответ на
+    /// него уже лежал в базе и никуда не отдавался.
+    [Fact]
+    public async Task GetDirectory_CarriesTheOpeningHours()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedOrgAsync(factory, "cyberx", "CyberX");
+        await SeedShowcaseAsync(factory, "cyberx");
+        using var client = factory.CreateClient();
+
+        var body = await client.GetFromJsonAsync<OrganizationDirectoryEntryDto[]>("/api/public/organizations");
+
+        var place = Assert.Single(Assert.Single(body!).Places!);
+        Assert.Equal(7, place.WorkingHours!.Count);
+        Assert.Equal("23:00", place.WorkingHours.Single(day => day.DayOfWeek == 1).CloseTime);
+        Assert.True(place.WorkingHours.Single(day => day.DayOfWeek == 7).IsClosed);
     }
 
     /// Снятый с публикации тариф назвал бы игроку цену, которую на кассе никто не подтвердит.
