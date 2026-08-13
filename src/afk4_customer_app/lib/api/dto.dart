@@ -265,6 +265,76 @@ class PlayerReservation {
       );
 }
 
+/// Позиция меню бара: что можно заказать к месту прямо во время сессии.
+class ShopProduct {
+  const ShopProduct({
+    required this.productId,
+    required this.name,
+    required this.price,
+    required this.stockOnHand,
+  });
+
+  final String productId;
+  final String name;
+  final Money price;
+
+  /// Остаток на складе филиала. Сервер уже убрал отсюда то, что кончилось и не продаётся
+  /// в минус, поэтому число нужно только чтобы предупредить о последних штуках.
+  final int stockOnHand;
+
+  factory ShopProduct.fromJson(Map<String, dynamic> json) => ShopProduct(
+        productId: json['productId'] as String,
+        name: json['name'] as String,
+        price: Money.fromJson(json['price'] as Map<String, dynamic>),
+        stockOnHand: (json['stockOnHand'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// Строка заказа: что и сколько.
+class ShopOrderLine {
+  const ShopOrderLine({required this.name, required this.quantity, required this.lineTotal});
+
+  final String name;
+  final int quantity;
+  final Money lineTotal;
+
+  factory ShopOrderLine.fromJson(Map<String, dynamic> json) => ShopOrderLine(
+        name: json['name'] as String,
+        quantity: (json['quantity'] as num).toInt(),
+        lineTotal: Money.fromJson(json['lineTotal'] as Map<String, dynamic>),
+      );
+}
+
+/// Заказ к месту и его судьба: оформлен, готовится, принесли, отменён.
+class ShopOrder {
+  const ShopOrder({
+    required this.id,
+    required this.status,
+    required this.total,
+    required this.lines,
+  });
+
+  final String id;
+  final String status;
+  final Money total;
+  final List<ShopOrderLine> lines;
+
+  /// Отменить можно, пока заказ не выдан: после «принесли» отменять нечего.
+  bool get isCancellable => status == 'placed' || status == 'accepted';
+
+  /// Заказ ещё в работе — за ним есть смысл следить.
+  bool get isOpen => status == 'placed' || status == 'accepted';
+
+  factory ShopOrder.fromJson(Map<String, dynamic> json) => ShopOrder(
+        id: json['id'] as String,
+        status: json['status'] as String,
+        total: Money.fromJson(json['total'] as Map<String, dynamic>),
+        lines: (json['lines'] as List? ?? const [])
+            .map((line) => ShopOrderLine.fromJson(line as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
 /// Профиль игрока: как его зовут, чем он подписан и что он разрешил присылать.
 class PlayerProfile {
   const PlayerProfile({

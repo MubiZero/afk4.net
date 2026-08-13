@@ -198,6 +198,45 @@
   },
   "customerSessionExtendPending": "Adding time…",
   "customerSessionExtendTitle": "Add time to your session",
+  "customerShopCancel": "Cancel the order",
+  "customerShopCancelError": "Couldn't cancel the order",
+  "customerShopCartEmpty": "Pick what to bring you",
+  "customerShopEmpty": "Nothing to order right now",
+  "customerShopEmptyHint": "The club has not published a menu here. Ask at the desk.",
+  "customerShopErrFunds": "Your wallet doesn't cover this order",
+  "customerShopErrGeneric": "Couldn't place the order. Try again.",
+  "customerShopErrNoSession": "Ordering works only during a session",
+  "customerShopErrStock": "That item just ran out",
+  "customerShopErrUnavailable": "That item is no longer on the menu",
+  "customerShopLastItems": "{count, plural, one {{count} left} other {{count} left}}",
+  "@customerShopLastItems": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerShopLoadError": "Couldn't load the menu",
+  "customerShopNewOrder": "Order more",
+  "customerShopOpen": "Order to your seat",
+  "customerShopOpenHint": "Food and drinks are brought to your PC",
+  "customerShopOrderTitle": "Your order",
+  "customerShopOutOfStock": "Out of stock",
+  "customerShopPlace": "Order for {amount}",
+  "@customerShopPlace": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerShopPlacing": "Placing the order…",
+  "customerShopStatusAccepted": "The operator is bringing it",
+  "customerShopStatusCancelled": "Order cancelled",
+  "customerShopStatusDelivered": "Order delivered",
+  "customerShopStatusPlaced": "Order received, preparing it",
+  "customerShopTitle": "Order to your seat",
+  "customerShopTotal": "Total",
   "customerSigninByCode": "Sign in with an SMS code",
   "customerSigninByPassword": "Sign in with a password",
   "customerSigninCodeError": "Wrong code",

@@ -307,4 +307,64 @@ void main() {
     expect(find.text('01:10:00'), findsOneWidget);
     await unmount(tester);
   });
+
+  // Заказ к месту имеет смысл только при идущей сессии — сервер и меню отдаёт по месту.
+  testWidgets('заказ к месту предлагается только при идущей сессии', (tester) async {
+    await tester.pumpWidget(harness(
+      clientWith(_serve((_dashboardJson(session: _fixedSession(remainingSeconds: 600)), 200))),
+      features: const ['player_shop'],
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Заказать к месту'), findsOneWidget);
+    await unmount(tester);
+
+    await tester.pumpWidget(harness(
+      clientWith(_serve((_dashboardJson(), 200))),
+      features: const ['player_shop'],
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Заказать к месту'), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets('без магазина в тарифе клуба заказа нет', (tester) async {
+    await tester.pumpWidget(harness(
+      clientWith(_serve((_dashboardJson(session: _fixedSession(remainingSeconds: 600)), 200))),
+      features: const ['online_topup'],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Заказать к месту'), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets('заказ открывается с главной и возвращает обновлённый баланс', (tester) async {
+    var dashboardCalls = 0;
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/me/dashboard' => (
+              _dashboardJson(
+                wallet: ++dashboardCalls == 1 ? 120050 : 108050,
+                session: _fixedSession(remainingSeconds: 600),
+              ),
+              200
+            ),
+          '/api/me/features' => ('{"features":["player_shop"]}', 200),
+          _ => ('[]', 200),
+        });
+
+    await tester.pumpWidget(harness(clientWith(http), features: const ['player_shop']));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Заказать к месту'));
+    await tester.pumpAndSettle();
+    expect(find.text('Заказ к месту'), findsOneWidget);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    // Заказ списывает деньги — вернувшись, игрок должен видеть настоящий баланс, а не тот,
+    // с которым уходил.
+    expect(find.textContaining('080,50'), findsOneWidget);
+    await unmount(tester);
+  });
 }

@@ -198,6 +198,45 @@
   },
   "customerSessionExtendPending": "Дароз карда истодаем…",
   "customerSessionExtendTitle": "Сессияро дароз кардан",
+  "customerShopCancel": "Фармоишро бекор кардан",
+  "customerShopCancelError": "Фармоишро бекор кардан муяссар нашуд",
+  "customerShopCartEmpty": "Интихоб кунед, ки чӣ оваранд",
+  "customerShopEmpty": "Ҳоло чизе барои фармоиш нест",
+  "customerShopEmptyHint": "Клуб менюро ба ин ҷо нагузоштааст. Дар мизи қабул пурсед.",
+  "customerShopErrFunds": "Дар ҳамён барои ин фармоиш маблағ намерасад",
+  "customerShopErrGeneric": "Фармоишро ба расмият даровардан муяссар нашуд. Бори дигар кӯшиш кунед.",
+  "customerShopErrNoSession": "Фармоиш танҳо ҳангоми сессия имконпазир аст",
+  "customerShopErrStock": "Ин мол ҳозир тамом шуд",
+  "customerShopErrUnavailable": "Ин мол дигар дар меню нест",
+  "customerShopLastItems": "{count, plural, other {{count} дона мондааст}}",
+  "@customerShopLastItems": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerShopLoadError": "Менюро бор кардан муяссар нашуд",
+  "customerShopNewOrder": "Боз фармоиш додан",
+  "customerShopOpen": "Ба ҷой фармоиш додан",
+  "customerShopOpenHint": "Хӯрок ва нӯшокиро рост ба назди ПК-и шумо меоранд",
+  "customerShopOrderTitle": "Фармоиши шумо",
+  "customerShopOutOfStock": "Тамом шуд",
+  "customerShopPlace": "Фармоиш ба {amount}",
+  "@customerShopPlace": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerShopPlacing": "Ба расмият дароварда истодаем…",
+  "customerShopStatusAccepted": "Оператор фармоишро оварда истодааст",
+  "customerShopStatusCancelled": "Фармоиш бекор карда шуд",
+  "customerShopStatusDelivered": "Фармоиш оварда шуд",
+  "customerShopStatusPlaced": "Фармоиш қабул шуд, тайёр карда истодаем",
+  "customerShopTitle": "Фармоиш ба ҷой",
+  "customerShopTotal": "Ҳамагӣ",
   "customerSigninByCode": "Даромадан бо рамзи SMS",
   "customerSigninByPassword": "Даромадан бо парол",
   "customerSigninCodeError": "Рамз нодуруст аст",

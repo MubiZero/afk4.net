@@ -198,6 +198,45 @@
   },
   "customerSessionExtendPending": "Продлеваем…",
   "customerSessionExtendTitle": "Продлить сессию",
+  "customerShopCancel": "Отменить заказ",
+  "customerShopCancelError": "Не удалось отменить заказ",
+  "customerShopCartEmpty": "Выберите, что принести",
+  "customerShopEmpty": "Сейчас заказывать нечего",
+  "customerShopEmptyHint": "Клуб не выложил меню в приложение. Спросите на стойке.",
+  "customerShopErrFunds": "На кошельке не хватает денег на этот заказ",
+  "customerShopErrGeneric": "Не удалось оформить заказ. Попробуйте ещё раз.",
+  "customerShopErrNoSession": "Заказать можно только во время сессии",
+  "customerShopErrStock": "Товар только что закончился",
+  "customerShopErrUnavailable": "Товара больше нет в меню",
+  "customerShopLastItems": "{count, plural, one {осталась {count} штука} few {осталось {count} штуки} many {осталось {count} штук} other {осталось {count} штуки}}",
+  "@customerShopLastItems": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerShopLoadError": "Не удалось загрузить меню",
+  "customerShopNewOrder": "Заказать ещё",
+  "customerShopOpen": "Заказать к месту",
+  "customerShopOpenHint": "Еда и напитки принесут прямо к вашему ПК",
+  "customerShopOrderTitle": "Ваш заказ",
+  "customerShopOutOfStock": "Закончилось",
+  "customerShopPlace": "Заказать за {amount}",
+  "@customerShopPlace": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerShopPlacing": "Оформляем…",
+  "customerShopStatusAccepted": "Оператор несёт заказ",
+  "customerShopStatusCancelled": "Заказ отменён",
+  "customerShopStatusDelivered": "Заказ принесли",
+  "customerShopStatusPlaced": "Заказ принят, готовим",
+  "customerShopTitle": "Заказ к месту",
+  "customerShopTotal": "Итого",
   "customerSigninByCode": "Войти по SMS-коду",
   "customerSigninByPassword": "Войти по паролю",
   "customerSigninCodeError": "Неверный код",

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../api/dto.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
+import '../shop/shop_screen.dart';
 import '../wallet/wallet_card.dart';
 import 'extend_session_sheet.dart';
 import 'live_session_card.dart';
@@ -92,6 +93,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  /// null в списке возможностей — «считаем включённым», как и везде в приложении: спрятать
+  /// заказ из-за сетевого сбоя значит соврать игроку, что клуб его не принимает.
+  bool get _shopEnabled => widget.features == null || widget.features!.contains('player_shop');
+
+  Future<void> _openShop() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => ShopScreen(api: widget.api)),
+    );
+    // Заказ списывает деньги с кошелька — вернувшись, игрок должен увидеть настоящий баланс.
+    if (mounted) await _refresh();
+  }
+
   /// Продление сессии. Успех подтверждается тремя способами сразу: короткая вибрация в
   /// момент действия, сообщение с выбранным временем и перечитанный экран — игрок не должен
   /// гадать, списались деньги или нет.
@@ -165,6 +178,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onExtend: () => _extend(data.activeSession!),
                   clock: widget.clock,
                 ),
+                // Заказ к месту живёт рядом с сессией и только при ней: меню сервер отдаёт
+                // по месту, за которым игрок сидит, а вне сессии заказывать некуда.
+                if (_shopEnabled) ...[
+                  const SizedBox(height: 12),
+                  _ShopEntry(onOpen: _openShop),
+                ],
                 const SizedBox(height: 12),
                 _wallet(data),
               ] else ...[
@@ -216,6 +235,53 @@ class _StaleBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Вход в заказ к месту. Строкой, а не кнопкой: заказ — не главное действие экрана, но и
+/// прятать его в разделы нельзя, иначе о нём никто не узнает.
+class _ShopEntry extends StatelessWidget {
+  const _ShopEntry({required this.onOpen});
+
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final theme = Theme.of(context);
+
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onOpen,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(Icons.local_cafe_outlined, color: theme.colorScheme.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(l.customerShopOpen, style: theme.textTheme.titleMedium),
+                    Text(
+                      l.customerShopOpenHint,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -209,6 +209,41 @@ class PlayerApiClient {
     });
   }
 
+  /// Меню бара для места, за которым игрок сидит. Вне сессии сервер отдаёт пустой список:
+  /// заказывать некуда, и это не ошибка.
+  Future<List<ShopProduct>> getShopCatalog() async {
+    final list = await getJsonList('/api/me/shop/catalog');
+    return list.map((item) => _parse(item, ShopProduct.fromJson)).toList();
+  }
+
+  /// Оформляет заказ к месту. Как и продление, платное действие с ключом идемпотентности.
+  ///
+  /// 409 несёт причину в теле: `insufficient_funds` — не хватает денег, `out_of_stock` —
+  /// товар кончился, `placement_context_invalid` — сессии уже нет.
+  Future<ShopOrder> placeShopOrder({
+    required Map<String, int> quantitiesByProductId,
+    required String idempotencyKey,
+  }) async {
+    final body = await sendJson('POST', '/api/me/shop/orders', {
+      'lines': [
+        for (final entry in quantitiesByProductId.entries)
+          {'productId': entry.key, 'quantity': entry.value},
+      ],
+      'idempotencyKey': idempotencyKey,
+    });
+    return _parse(body, ShopOrder.fromJson);
+  }
+
+  Future<List<ShopOrder>> getShopOrders() async {
+    final list = await getJsonList('/api/me/shop/orders');
+    return list.map((item) => _parse(item, ShopOrder.fromJson)).toList();
+  }
+
+  Future<ShopOrder> cancelShopOrder(String orderId) async => _parse(
+        await sendJson('POST', '/api/me/shop/orders/${Uri.encodeComponent(orderId)}/cancel'),
+        ShopOrder.fromJson,
+      );
+
   Future<List<TopUpIntent>> getTopUpIntents() async {
     final list = await getJsonList('/api/me/wallet/top-up-intents');
     return list.map((item) => _parse(item, TopUpIntent.fromJson)).toList();
