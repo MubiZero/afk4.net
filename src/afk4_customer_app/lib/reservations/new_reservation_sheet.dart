@@ -132,10 +132,14 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
       if (!mounted) return;
       setState(() {
         _pending = false;
-        // 409 — время занято. Это не сбой, а нормальный ответ, и звучать он должен иначе.
-        _problem = error.statusCode == 409
-            ? l.customerReservationsConflict
-            : l.customerReservationsCreateError;
+        // Занятое время и нехватка денег — не сбои, а нормальные ответы сервера, и звучать
+        // они должны каждый по-своему: из первого выход — другое время, из второго — пополнить
+        // кошелёк.
+        _problem = switch ((error.statusCode, error.message)) {
+          (409, _) => l.customerReservationsConflict,
+          (_, 'insufficient_funds') => l.customerReservationsNoFunds,
+          _ => l.customerReservationsCreateError,
+        };
       });
     }
   }

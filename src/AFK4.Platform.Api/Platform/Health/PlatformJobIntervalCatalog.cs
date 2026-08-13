@@ -2,6 +2,7 @@ using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Platform.Analytics;
 using AFK4.Platform.Api.Platform.Billing;
+using AFK4.Platform.Api.Reservations;
 using AFK4.Platform.Api.Sessions;
 using Microsoft.Extensions.Options;
 
@@ -19,6 +20,7 @@ public sealed class PlatformJobIntervalCatalog(
     IOptions<NotificationOptions> notificationOptions,
     IOptions<OutboxOptions> outboxOptions,
     AutoProtectionOptions autoProtectionOptions,
+    ReservationNoShowOptions reservationNoShowOptions,
     IOptions<PlatformAnalyticsOptions> analyticsOptions)
 {
     public IReadOnlyDictionary<string, TimeSpan> Build() => new Dictionary<string, TimeSpan>(StringComparer.Ordinal)
@@ -31,6 +33,7 @@ public sealed class PlatformJobIntervalCatalog(
         [PlatformJobNames.AutoProtection] = autoProtectionOptions.TickInterval,
         [PlatformJobNames.HealthWatch] = healthOptions.Value.WatchInterval,
         [PlatformJobNames.SubscriptionSnapshots] = analyticsOptions.Value.SnapshotInterval,
-        [PlatformJobNames.BranchSnapshots] = analyticsOptions.Value.SnapshotInterval
+        [PlatformJobNames.BranchSnapshots] = analyticsOptions.Value.SnapshotInterval,
+        [PlatformJobNames.ReservationNoShow] = reservationNoShowOptions.TickInterval
     };
 }

@@ -446,6 +446,10 @@ public sealed class EfReservationService(
         reservation.UpdatedByStaffUserId = actorStaffUserId;
         reservation.UpdatedAtUtc = now;
         reservation.Version++;
+        // Игрок сел — холд снимается, дальше считает обычный биллинг сессии. Оставить холд
+        // значит взять деньги дважды: сначала заморозкой, потом настоящим списанием.
+        await ReservationHold.ReleaseAsync(
+            dbContext, reservation.ReservationId, ReservationHoldCauses.Seated, now, cancellationToken);
         var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
         if (saveConflict is not null)
         {
@@ -493,6 +497,10 @@ public sealed class EfReservationService(
             reservation.UpdatedByStaffUserId = actorStaffUserId;
             reservation.UpdatedAtUtc = now;
             reservation.Version++;
+            // Отмена со стойки возвращает деньги так же, как отмена из приложения: игроку всё
+            // равно, кто нажал кнопку, а замороженные после отмены деньги он считает списанием.
+            await ReservationHold.ReleaseAsync(
+                dbContext, reservation.ReservationId, ReservationHoldCauses.Cancelled, now, cancellationToken);
             var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
             if (saveConflict is not null)
             {
@@ -936,10 +944,29 @@ public sealed class EfReservationService(
             }
         }
 
+        // Бронь с выбранным тарифом сразу замораживает деньги: слот занят, значит и сумма должна
+        // быть занята — иначе к моменту прихода игрока её потратят в баре или на другой брони.
+        // Не хватает денег — бронь отклоняется, а не висит «в ожидании»: «бронь только с деньгами»
+        // (решение владельца 2026-06-18). Бронь без тарифа считают на стойке, там всё как раньше.
+        LedgerEntryEntity? hold = null;
+        if (estimate is not null)
+        {
+            var wallet = await LedgerBalanceProjector.GetWalletSummaryAsync(
+                dbContext, playerAccountId, cancellationToken);
+            var available = wallet?.WalletBalance.MinorUnits ?? 0;
+            if (available < estimate.AmountMinorUnits)
+            {
+                return ReservationServiceResult<ReservationDto>.Invalid("insufficient_funds");
+            }
+        }
+
         // Auto-confirm self-service bookings when the player has funds (positive wallet, no debt):
         // «free slot + has balance → book without operator». Otherwise stay Pending for operator
         // review (the requests lane stays a fallback for funded-later / disputed cases).
-        var autoConfirm = await ShouldAutoConfirmOnlineAsync(playerAccountId, cancellationToken);
+        // Замороженные деньги — более сильный ответ на вопрос «придёт ли он», чем «баланс
+        // положительный»: поэтому бронь с холдом подтверждается сразу.
+        var autoConfirm = estimate is not null
+            || await ShouldAutoConfirmOnlineAsync(playerAccountId, cancellationToken);
         var reservation = new ReservationEntity
         {
             ReservationId = Guid.NewGuid(),
@@ -968,6 +995,14 @@ public sealed class EfReservationService(
         };
 
         dbContext.Reservations.Add(reservation);
+        if (estimate is not null)
+        {
+            hold = ReservationHold.Create(reservation, estimate.AmountMinorUnits, estimate.CurrencyCode, now);
+            dbContext.LedgerEntries.Add(hold);
+        }
+
+        // Бронь и холд сохраняются одним разом: бронь без замороженных денег — это занятый слот
+        // без обеспечения, а холд без брони — деньги, которые некому вернуть.
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return ReservationServiceResult<ReservationDto>.Ok(
@@ -1007,6 +1042,10 @@ public sealed class EfReservationService(
             reservation.CancelledAtUtc = now;
             reservation.UpdatedByStaffUserId = Guid.Empty;
             reservation.UpdatedAtUtc = now;
+            // Отменил — деньги свободны в тот же момент. Держать их «до выяснения» не за чем:
+            // слот освободился, а замороженный без причины баланс игрок считает списанием.
+            await ReservationHold.ReleaseAsync(
+                dbContext, reservation.ReservationId, ReservationHoldCauses.Cancelled, now, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 

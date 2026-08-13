@@ -297,6 +297,7 @@ builder.Services.AddHostedService<OutboxDispatcher>();
 builder.Services.AddHostedService<NotificationDispatcher>();
 builder.Services.AddHostedService<DailySummaryHostedService>();
 builder.Services.AddHostedService<AutoProtectionHostedService>();
+builder.Services.AddHostedService<ReservationNoShowHostedService>();
 builder.Services.AddHostedService<ScheduledReportHostedService>();
 builder.Services.Configure<PlatformHealthOptions>(
     builder.Configuration.GetSection(PlatformHealthOptions.ConfigurationSection));
@@ -352,6 +353,8 @@ builder.Services.AddScoped<ISessionStartWorkflow, EfSessionStartWorkflow>();
 builder.Services.AddScoped<ISessionCommandService, EfSessionCommandService>();
 builder.Services.AddScoped<ISessionCheckoutService, EfSessionCheckoutService>();
 builder.Services.AddSingleton(new AutoProtectionOptions());
+builder.Services.AddSingleton(new ReservationNoShowOptions());
+builder.Services.AddScoped<ReservationNoShowRunner>();
 builder.Services.AddScoped<AutoProtectionRunner>();
 builder.Services.AddScoped<ISessionCommandResultProcessor, EfSessionCommandResultProcessor>();
 builder.Services.AddScoped<IBillingCommandService, EfBillingCommandService>();

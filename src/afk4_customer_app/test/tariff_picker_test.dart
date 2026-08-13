@@ -205,6 +205,33 @@ void main() {
     expect(created['tariffVersionId'], 'v2');
   });
 
+  // Заморозка денег объясняется до брони: молча уменьшенный баланс читается как списание.
+  testWidgets('сказано, что сумма удерживается и вернётся при отмене', (tester) async {
+    await tester.pumpWidget(harness(_serve(tariffs: _tariffsJson(1))));
+    await tester.pumpAndSettle();
+    await openForm(tester);
+    await fillTimes(tester);
+
+    expect(find.textContaining('удерживается на кошельке'), findsOneWidget);
+  });
+
+  // Отказ по деньгам и занятое время — разные новости: из первого выход в пополнение,
+  // из второго — в другое время.
+  testWidgets('нехватка денег на бронь названа своей причиной', (tester) async {
+    final http = _serve(
+      tariffs: _tariffsJson(1),
+      create: ('{"error":"insufficient_funds"}', 400),
+    );
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+    await openForm(tester);
+    await fillTimes(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Забронировать'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('не хватает денег'), findsOneWidget);
+  });
+
   // Без филиала спрашивать прайс не по чему — это должно проходить молча, а не ошибкой.
   testWidgets('аккаунт без филиала не ломает форму', (tester) async {
     await tester.pumpWidget(harness(_serve(profile: _profileJson(branchId: null))));

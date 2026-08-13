@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
+using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Reservations;
@@ -56,6 +57,14 @@ public class PlayerBookingCatalogEndpointTests
         };
         credential.PasswordHash = new PasswordHasher<PlayerCredentialEntity>().HashPassword(credential, pin);
         db.PlayerCredentials.Add(credential);
+        // Бронь с выбранным тарифом замораживает деньги, поэтому у игрока должен быть кошелёк:
+        // без него сервер справедливо откажет «бронь только с деньгами».
+        db.LedgerEntries.Add(new LedgerEntryEntity
+        {
+            LedgerEntryId = Guid.NewGuid(), OrganizationId = org, BranchId = branch, PlayerAccountId = player,
+            EntryType = LedgerEntryTypeNames.TopUp, AccountType = LedgerAccountTypeNames.Wallet,
+            AmountMinorUnits = 50_000, CurrencyCode = "TJS", CreatedAtUtc = Now
+        });
         db.Tariffs.Add(new TariffEntity
         {
             TariffId = tariffId, OrganizationId = org, BranchId = branch, Name = "Ночной", IsActive = true, CreatedAtUtc = Now

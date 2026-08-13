@@ -88,6 +88,12 @@ class TariffPicker extends StatelessWidget {
               ),
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
+          // Деньги замораживаются в момент брони. Молча уменьшить баланс значит получить
+          // вопрос «куда делись деньги» вместо понятной брони.
+          Text(
+            l.customerReservationsHoldNote,
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
         ] else
           Text(
             l.customerReservationsTariffHint,
