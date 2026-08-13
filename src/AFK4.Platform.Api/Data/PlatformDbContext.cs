@@ -12,6 +12,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<UploadedMediaEntity> UploadedMedia => Set<UploadedMediaEntity>();
 
+    public DbSet<ClubReviewEntity> ClubReviews => Set<ClubReviewEntity>();
+
     public DbSet<BranchEntity> Branches => Set<BranchEntity>();
 
     public DbSet<EskhataMerchantConfigEntity> EskhataMerchantConfigs => Set<EskhataMerchantConfigEntity>();
@@ -212,6 +214,18 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(news => news.Body).HasMaxLength(4000).IsRequired();
             entity.Property(news => news.ImageUrl).HasMaxLength(2048);
             entity.HasIndex(news => news.OrganizationId);
+        });
+
+        modelBuilder.Entity<ClubReviewEntity>(entity =>
+        {
+            entity.ToTable("club_reviews");
+            entity.HasKey(review => review.ReviewId);
+            entity.Property(review => review.Comment).HasMaxLength(1000);
+            // Один визит — один отзыв. Уникальность на сессии, а не проверка перед вставкой:
+            // два быстрых нажатия «Отправить» иначе оставят два отзыва об одном вечере.
+            entity.HasIndex(review => review.SessionId).IsUnique();
+            entity.HasIndex(review => new { review.OrganizationId, review.CreatedAtUtc });
+            entity.HasIndex(review => review.PlayerAccountId);
         });
 
         modelBuilder.Entity<UploadedMediaEntity>(entity =>

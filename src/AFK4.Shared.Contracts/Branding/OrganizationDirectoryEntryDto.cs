@@ -16,7 +16,9 @@ public sealed record OrganizationDirectoryEntryDto(
     IReadOnlyList<ClubPlaceDto>? Places = null,
     long? PricePerHourFromMinorUnits = null,
     string? CurrencyCode = null,
-    int SeatCount = 0);
+    int SeatCount = 0,
+    double? Rating = null,
+    int ReviewCount = 0);
 
 /// A physical club of the network: what the card shows and where the map puts its pin.
 public sealed record ClubPlaceDto(

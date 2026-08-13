@@ -278,8 +278,23 @@ internal static class AuthEndpoints
                 .Select(v => new { v.OrganizationId, v.PricePerMinuteMinorUnits, v.CurrencyCode })
                 .ToListAsync(cancellationToken);
 
+            // Оценка клуба — то же, что цена и адрес: часть витрины, по которой выбирают. Считаем
+            // её здесь же, одним запросом на всю страницу каталога.
+            var ratings = await dbContext.ClubReviews
+                .AsNoTracking()
+                .Where(review => organizationIds.Contains(review.OrganizationId))
+                .GroupBy(review => review.OrganizationId)
+                .Select(group => new
+                {
+                    OrganizationId = group.Key,
+                    Average = group.Average(review => (double)review.Rating),
+                    Count = group.Count()
+                })
+                .ToListAsync(cancellationToken);
+
             var entries = found.Select(o =>
             {
+                var rating = ratings.FirstOrDefault(r => r.OrganizationId == o.OrganizationId);
                 var cheapest = prices
                     .Where(p => p.OrganizationId == o.OrganizationId)
                     .OrderBy(p => p.PricePerMinuteMinorUnits)
@@ -296,7 +311,9 @@ internal static class AuthEndpoints
                         .ToList(),
                     cheapest is null ? null : cheapest.PricePerMinuteMinorUnits * 60,
                     cheapest?.CurrencyCode,
-                    seatCounts.FirstOrDefault(c => c.OrganizationId == o.OrganizationId)?.Count ?? 0);
+                    seatCounts.FirstOrDefault(c => c.OrganizationId == o.OrganizationId)?.Count ?? 0,
+                    rating is null ? null : Math.Round(rating.Average, 1),
+                    rating?.Count ?? 0);
             }).ToList();
 
             return Results.Ok(entries);

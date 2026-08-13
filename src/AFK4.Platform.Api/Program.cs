@@ -528,6 +528,7 @@ app.MapPlayerShopEndpoints();
 app.MapPlayerLoyaltyEndpoints();
 app.MapPlayerFeatureEndpoints();
 app.MapPlayerNewsEndpoints();
+app.MapClubReviewEndpoints();
 organizations.MapShopOrderEndpoints();
 organizations.MapWalletEndpoints();
 app.MapStaffOnboardingEndpoints(organizations);
