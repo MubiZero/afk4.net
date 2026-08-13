@@ -1,17 +1,21 @@
 # afk4_customer_app
 
-A new Flutter project.
+Клиентское приложение AFK4 на Flutter: вход, главная, история, брони, профиль.
+Первый заход переезда на Flutter — спека:
+`docs/superpowers/specs/2026-08-11-customer-app-flutter-design.md`.
 
-## Getting Started
+## Проверка
 
-This project is a starting point for a Flutter application.
+```bash
+flutter pub get                                   # он же генерирует классы локализации из .arb
+flutter analyze
+flutter test                                      # модульные и виджет-тесты
+flutter test integration_test -d flutter-tester   # сквозной сценарий
+```
 
-A few resources to get you started if this is your first Flutter project:
+Сквозной сценарий (`integration_test/`) поднимает приложение целиком и подменяет только
+сервер. В обычный `flutter test` он не попадает, а без `-d flutter-tester` инструмент ищет
+подключённое устройство — поэтому в CI это отдельный шаг.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Строки берутся из общего каталога `locales/*.json`: править `lib/l10n/*.arb` руками нельзя,
+их перегенерирует `cd packages/i18n && bun run gen`.

@@ -651,6 +651,10 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("git diff --exit-code -- locales src/afk4_customer_app/lib/l10n packages/i18n/src", workflow, StringComparison.Ordinal);
         Assert.Contains("flutter analyze", workflow, StringComparison.Ordinal);
         Assert.Contains("flutter test", workflow, StringComparison.Ordinal);
+        // integration_test/ is skipped by a plain `flutter test`, and without -d the tool looks
+        // for a connected device the runner does not have. Either omission silently drops the
+        // only test that covers the whole journey.
+        Assert.Contains("flutter test integration_test -d flutter-tester", workflow, StringComparison.Ordinal);
     }
 
     [Fact]

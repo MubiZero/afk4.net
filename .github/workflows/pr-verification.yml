@@ -280,6 +280,15 @@ jobs:
           flutter analyze
           flutter test
 
+      # Сквозной сценарий поднимает приложение целиком и подменяет только сервер. Идёт на
+      # flutter-tester: без `-d` инструмент ищет подключённое устройство, которого на раннере
+      # нет, и `integration_test/` в обычный `flutter test` не попадает.
+      - name: End-to-end journey
+        run: |
+          set -e
+          cd src/afk4_customer_app
+          flutter test integration_test -d flutter-tester
+
       - name: Build web
         run: |
           set -e
