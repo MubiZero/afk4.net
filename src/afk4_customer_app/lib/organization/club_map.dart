@@ -56,8 +56,21 @@ class ClubMap extends StatelessWidget {
           children: [
             FlutterMap(
               options: MapOptions(
-                initialCenter: _center(points),
-                initialZoom: points.length == 1 ? 14 : 11,
+                // Подложка под тайлами — цвет приложения: пока тайлы едут, карта не должна
+                // светиться серым листом посреди тёмного экрана.
+                backgroundColor: theme.colorScheme.surface,
+                // Масштаб подбирается под разброс точек, а не задаётся числом: с двумя
+                // клубами в разных городах любой фиксированный зум оставляет один из них
+                // за кадром — и карта выглядит пустой при полном каталоге.
+                initialCameraFit: CameraFit.bounds(
+                  bounds: LatLngBounds.fromPoints([
+                    for (final (_, place) in points) LatLng(place.latitude!, place.longitude!),
+                  ]),
+                  // Снизу запас больше: там лежит подсказка с авторством карты, и точка,
+                  // попавшая под неё, не нажимается.
+                  padding: const EdgeInsets.fromLTRB(48, 48, 48, 88),
+                  maxZoom: 15,
+                ),
                 interactionOptions: const InteractionOptions(
                   // Вращение выключено: на карте города оно только сбивает, а вернуть север
                   // на место игроку нечем.
@@ -97,15 +110,6 @@ class ClubMap extends StatelessWidget {
     );
   }
 
-  /// Середина между крайними точками: так в кадр попадают все клубы, а не первый из списка.
-  static LatLng _center(List<(Organization, ClubPlace)> points) {
-    final latitudes = points.map((point) => point.$2.latitude!);
-    final longitudes = points.map((point) => point.$2.longitude!);
-    return LatLng(
-      (latitudes.reduce((a, b) => a < b ? a : b) + latitudes.reduce((a, b) => a > b ? a : b)) / 2,
-      (longitudes.reduce((a, b) => a < b ? a : b) + longitudes.reduce((a, b) => a > b ? a : b)) / 2,
-    );
-  }
 }
 
 /// Точка клуба. Подпись рядом с точкой не рисуем: на карте города подписи налезают друг на

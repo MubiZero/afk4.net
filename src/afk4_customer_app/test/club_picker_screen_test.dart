@@ -128,6 +128,35 @@ void main() {
     expect(find.byType(ClubCard), findsOneWidget);
   });
 
+  // Точки на карте должны быть видны при любом разбросе клубов: с двумя городами любой
+  // фиксированный масштаб оставлял бы один из них за кадром, и полный каталог выглядел бы
+  // как пустая карта.
+  testWidgets('на карте видны точки клубов из разных городов', (tester) async {
+    const khujand = Organization(
+      organizationId: '33333333-3333-3333-3333-333333333333',
+      slug: 'nightowl',
+      name: 'Night Owl',
+      places: [
+        ClubPlace(
+          branchId: 'b2',
+          name: 'Night Owl',
+          city: 'Худжанд',
+          latitude: 40.2833,
+          longitude: 69.6167,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(harness(_StubDirectory(clubs: const [_cyberx, khujand])));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('На карте'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byIcon(Icons.sports_esports), findsNWidgets(2));
+  });
+
   // Клуб без координат остаётся в каталоге: на карте его просто нет, и об этом сказано прямо.
   testWidgets('карта без точек объясняет пустоту, а не показывает пустой глобус', (tester) async {
     await tester.pumpWidget(harness(_StubDirectory(clubs: const [_arena])));
