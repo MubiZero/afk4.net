@@ -159,6 +159,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Сесть за ПК'), findsOneWidget);
+    // Заодно шапка подписана клубом: у сети их несколько, и до этого узнать, в какой ты
+    // вошёл, можно было только через профиль.
+    expect(find.text('CyberX'), findsOneWidget);
     await unmount(tester);
   });
 

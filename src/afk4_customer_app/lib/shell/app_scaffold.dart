@@ -15,6 +15,7 @@ SliverAppBar appHeader(
   BuildContext context, {
   required String title,
   String? eyebrow,
+  String? place,
   List<Widget>? actions,
   TabBar? tabs,
 }) {
@@ -23,9 +24,9 @@ SliverAppBar appHeader(
 
   return SliverAppBar(
     pinned: true,
-    // Раскрытая высота считается от строк, которые в ней стоят: с надстрочником шапке нужно
-    // на строку больше.
-    expandedHeight: (eyebrow == null ? 104 : 124) + tabsHeight,
+    // Раскрытая высота считается от строк, которые в ней стоят: пустая полоса над текстом
+    // выглядит как недогрузившийся экран, а не как воздух.
+    expandedHeight: 104 + (eyebrow == null ? 0 : 20) + (place == null ? 0 : 22) + tabsHeight,
     actions: actions,
     bottom: tabs,
     // Свёрнутая шапка полупрозрачна и размывает то, что уходит под неё. Непрозрачная
@@ -39,18 +40,47 @@ SliverAppBar appHeader(
           child: FlexibleSpaceBar(
             titlePadding: EdgeInsetsDirectional.only(start: 20, end: 20, bottom: 14 + tabsHeight),
             title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
-            background: eyebrow == null
+            background: eyebrow == null && place == null
                 ? null
                 : SafeArea(
                     child: Align(
                       alignment: Alignment.bottomLeft,
                       child: Padding(
                         padding: EdgeInsets.only(left: 20, right: 20, bottom: 50 + tabsHeight),
-                        child: Text(
-                          eyebrow,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Где игрок находится. Клубов у сети несколько, а узнать, в какой
+                            // ты вошёл, можно было только через профиль.
+                            if (place != null) ...[
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.place_outlined,
+                                    size: 14,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    place,
+                                    style: theme.textTheme.labelMedium?.copyWith(
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                            ],
+                            if (eyebrow != null)
+                              Text(
+                                eyebrow,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
@@ -69,6 +99,7 @@ class AppScaffold extends StatelessWidget {
     required this.title,
     required this.slivers,
     this.eyebrow,
+    this.place,
     this.actions,
     this.onRefresh,
     this.floatingActionButton,
@@ -76,9 +107,12 @@ class AppScaffold extends StatelessWidget {
 
   final String title;
 
-  /// Надстрочник над заголовком: где мы находимся или к кому обращаемся. Виден только у
-  /// раскрытой шапки — при прокрутке он уходит первым, как менее важный из двух.
+  /// Надстрочник над заголовком: к кому обращаемся. Виден только у раскрытой шапки — при
+  /// прокрутке он уходит первым, как менее важный из двух.
   final String? eyebrow;
+
+  /// Клуб, в котором игрок сейчас. Стоит над приветствием и уходит вместе с ним.
+  final String? place;
 
   final List<Widget>? actions;
   final Future<void> Function()? onRefresh;
@@ -93,7 +127,7 @@ class AppScaffold extends StatelessWidget {
       // сколько сегодня карточек.
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
-        appHeader(context, title: title, eyebrow: eyebrow, actions: actions),
+        appHeader(context, title: title, eyebrow: eyebrow, place: place, actions: actions),
         ...slivers,
         // Хвост под последней карточкой: без него нижний край содержимого упирается в
         // панель разделов и читается как обрезанный.

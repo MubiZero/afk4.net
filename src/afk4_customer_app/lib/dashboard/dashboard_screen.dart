@@ -74,6 +74,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// тарифы у клуба свои. null — профиль ещё не прочитан или филиала у аккаунта нет.
   String? _branchId;
 
+  /// Название клуба игрока — им подписана шапка: сеть бывает из нескольких заведений, и
+  /// узнать, в какое ты вошёл, можно было только через профиль.
+  String? _branchName;
+
   /// Последний запрос не дошёл до сервера. Данные на экране остаются, но они с прошлого
   /// удачного ответа — молчать об этом значит показывать баланс, которому нельзя верить.
   bool _stale = false;
@@ -95,7 +99,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _loadBranch() async {
     try {
       final profile = await widget.api.getProfile();
-      if (mounted) setState(() => _branchId = profile.homeBranchId);
+      if (!mounted) return;
+      setState(() {
+        _branchId = profile.homeBranchId;
+        _branchName = profile.homeBranchName;
+      });
     } on PlayerApiException {
       // Не узнали филиал — просто не предлагаем сесть самому. Всё остальное на экране работает.
     }
@@ -213,6 +221,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // Приветствие над именем: экран открывает свой человек, а не пользователь системы.
       // При прокрутке приветствие уходит первым — из двух строк оно менее важная.
       eyebrow: l.customerDashboardWelcome,
+      place: _branchName,
       title: widget.displayName,
       onRefresh: _refresh,
       slivers: [
