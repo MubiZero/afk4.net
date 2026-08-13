@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import '../api/dto.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
+import '../loyalty/loyalty_screen.dart';
+import '../news/news_section.dart';
 import '../shop/shop_screen.dart';
 import '../wallet/wallet_card.dart';
 import 'extend_session_sheet.dart';
@@ -96,6 +98,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// null в списке возможностей — «считаем включённым», как и везде в приложении: спрятать
   /// заказ из-за сетевого сбоя значит соврать игроку, что клуб его не принимает.
   bool get _shopEnabled => widget.features == null || widget.features!.contains('player_shop');
+
+  bool get _loyaltyEnabled => widget.features == null || widget.features!.contains('loyalty');
+
+  void _openLoyalty() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => LoyaltyScreen(api: widget.api)),
+    );
+  }
 
   Future<void> _openShop() async {
     await Navigator.of(context).push<void>(
@@ -191,6 +201,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(height: 12),
                 _NoSessionCard(onBook: widget.onOpenReservations),
               ],
+              // Кешбэк идёт сразу за деньгами: он и есть деньги, просто отложенные.
+              if (_loyaltyEnabled) ...[
+                const SizedBox(height: 12),
+                _LoyaltyEntry(onOpen: _openLoyalty),
+              ],
+              // Новости внизу: акция клуба важна, но не важнее идущей сессии и баланса.
+              const SizedBox(height: 24),
+              NewsSection(api: widget.api),
             ],
           ],
         ),
@@ -250,6 +268,51 @@ class _ShopEntry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
+    return _NavRow(
+      icon: Icons.local_cafe_outlined,
+      title: l.customerShopOpen,
+      subtitle: l.customerShopOpenHint,
+      onOpen: onOpen,
+    );
+  }
+}
+
+/// Вход в кешбэк. Кешбэк начислялся и раньше, но игрок его не видел — а невидимая
+/// лояльность не удерживает никого.
+class _LoyaltyEntry extends StatelessWidget {
+  const _LoyaltyEntry({required this.onOpen});
+
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    return _NavRow(
+      icon: Icons.savings_outlined,
+      title: l.customerLoyaltyTitle,
+      subtitle: l.customerLoyaltySpendNote,
+      onOpen: onOpen,
+    );
+  }
+}
+
+/// Строка-переход в отдельный экран. Одна форма на все такие входы, чтобы главная не
+/// расползлась на разнородные карточки.
+class _NavRow extends StatelessWidget {
+  const _NavRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onOpen,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Material(
@@ -262,16 +325,16 @@ class _ShopEntry extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(Icons.local_cafe_outlined, color: theme.colorScheme.primary),
+              Icon(icon, color: theme.colorScheme.primary),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(l.customerShopOpen, style: theme.textTheme.titleMedium),
+                    Text(title, style: theme.textTheme.titleMedium),
                     Text(
-                      l.customerShopOpenHint,
+                      subtitle,
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),

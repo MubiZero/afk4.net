@@ -71,10 +71,57 @@
   "customerHistoryPurchases": "Покупки",
   "customerHistoryPurchasesError": "Не удалось загрузить покупки.",
   "customerHistoryVisits": "Визиты",
+  "customerLoyaltyEarned": "Накоплено кешбэком",
+  "customerLoyaltyEmpty": "Кешбэк ещё не начислялся",
+  "customerLoyaltyEmptyHint": "Он появится после первого пополнения или заказа.",
+  "customerLoyaltyEntry": "Накоплено {amount}",
+  "@customerLoyaltyEntry": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyHistory": "Последние начисления",
+  "customerLoyaltyLoadError": "Не удалось загрузить кешбэк",
+  "customerLoyaltyOff": "Клуб пока не начисляет кешбэк",
+  "customerLoyaltyRuleSession": "{percent} с оплаченного времени",
+  "@customerLoyaltyRuleSession": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRuleShop": "{percent} с заказов в баре",
+  "@customerLoyaltyRuleShop": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRuleTopUp": "{percent} с пополнения кошелька",
+  "@customerLoyaltyRuleTopUp": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRules": "Как начисляется",
+  "customerLoyaltySourceSession": "Игровое время",
+  "customerLoyaltySourceShop": "Заказ в баре",
+  "customerLoyaltySourceTopUp": "Пополнение",
+  "customerLoyaltySpendNote": "Кешбэк — обычные деньги на кошельке: их можно тратить на время и бар.",
+  "customerLoyaltyTitle": "Кешбэк",
   "customerNavDashboard": "Главная",
   "customerNavHistory": "История",
   "customerNavProfile": "Профиль",
   "customerNavReservations": "Брони",
+  "customerNewsAll": "Все новости",
+  "customerNewsEmpty": "Новостей пока нет",
+  "customerNewsTitle": "Новости клуба",
   "customerOfflineBanner": "Офлайн — показаны сохранённые данные",
   "customerOfflineStale": "Нет связи — данные могут устареть",
   "customerPhoneCode": "Код из SMS",

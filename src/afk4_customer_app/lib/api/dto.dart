@@ -335,6 +335,104 @@ class ShopOrder {
       );
 }
 
+/// Начисление кешбэка: сколько, когда и за что.
+class CashbackEntry {
+  const CashbackEntry({required this.amount, required this.reason, required this.createdAtUtc});
+
+  final Money amount;
+
+  /// Служебная причина вида `cashback:topup` или `cashback:shop:{id}`. Разбирается на экране
+  /// в человеческую подпись: показывать игроку внутреннее имя события незачем.
+  final String reason;
+  final DateTime createdAtUtc;
+
+  /// Источник начисления: `topup`, `shop`, `session` или null, если причина незнакомая.
+  String? get source {
+    final parts = reason.split(':');
+    return parts.length >= 2 && parts[0] == 'cashback' ? parts[1] : null;
+  }
+
+  factory CashbackEntry.fromJson(Map<String, dynamic> json) => CashbackEntry(
+        amount: Money(
+          currencyCode: json['currencyCode'] as String,
+          minorUnits: (json['amountMinorUnits'] as num).toInt(),
+        ),
+        reason: json['reason'] as String? ?? '',
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+      );
+}
+
+/// Кешбэк игрока: сколько накоплено и по каким правилам начисляется.
+///
+/// Кешбэк — не баллы: он приходит на кошелёк обычными деньгами, и тратится так же.
+class PlayerLoyalty {
+  const PlayerLoyalty({
+    required this.topUpEnabled,
+    required this.topUpPercentBasisPoints,
+    required this.shopEnabled,
+    required this.shopPercentBasisPoints,
+    required this.sessionEnabled,
+    required this.sessionPercentBasisPoints,
+    required this.totalEarned,
+    required this.recent,
+  });
+
+  final bool topUpEnabled;
+  final int topUpPercentBasisPoints;
+  final bool shopEnabled;
+  final int shopPercentBasisPoints;
+  final bool sessionEnabled;
+  final int sessionPercentBasisPoints;
+  final Money totalEarned;
+  final List<CashbackEntry> recent;
+
+  /// Клуб не начисляет кешбэк ни за что — рассказывать о нём нечего.
+  bool get isOff =>
+      !(topUpEnabled && topUpPercentBasisPoints > 0) &&
+      !(shopEnabled && shopPercentBasisPoints > 0) &&
+      !(sessionEnabled && sessionPercentBasisPoints > 0);
+
+  factory PlayerLoyalty.fromJson(Map<String, dynamic> json) => PlayerLoyalty(
+        topUpEnabled: json['topUpEnabled'] as bool? ?? false,
+        topUpPercentBasisPoints: (json['topUpPercentBasisPoints'] as num?)?.toInt() ?? 0,
+        shopEnabled: json['shopEnabled'] as bool? ?? false,
+        shopPercentBasisPoints: (json['shopPercentBasisPoints'] as num?)?.toInt() ?? 0,
+        sessionEnabled: json['sessionEnabled'] as bool? ?? false,
+        sessionPercentBasisPoints: (json['sessionPercentBasisPoints'] as num?)?.toInt() ?? 0,
+        totalEarned: Money.fromJson(json['totalEarned'] as Map<String, dynamic>),
+        recent: (json['recent'] as List? ?? const [])
+            .map((entry) => CashbackEntry.fromJson(entry as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+/// Новость или акция клуба.
+class NewsItem {
+  const NewsItem({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.imageUrl,
+    required this.publishedAtUtc,
+  });
+
+  final String id;
+  final String title;
+  final String body;
+  final String? imageUrl;
+  final DateTime publishedAtUtc;
+
+  factory NewsItem.fromJson(Map<String, dynamic> json) => NewsItem(
+        id: json['id'] as String,
+        title: json['title'] as String,
+        body: json['body'] as String? ?? '',
+        imageUrl: json['imageUrl'] as String?,
+        // Дата публикации может быть не проставлена — тогда новость живёт с момента создания.
+        publishedAtUtc: DateTime.parse(
+            (json['publishAtUtc'] ?? json['createdAtUtc']) as String),
+      );
+}
+
 /// Профиль игрока: как его зовут, чем он подписан и что он разрешил присылать.
 class PlayerProfile {
   const PlayerProfile({

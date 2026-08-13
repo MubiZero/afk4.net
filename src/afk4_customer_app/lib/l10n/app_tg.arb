@@ -71,10 +71,57 @@
   "customerHistoryPurchases": "Харидҳо",
   "customerHistoryPurchasesError": "Харидҳоро бор кардан муяссар нашуд.",
   "customerHistoryVisits": "Ташрифҳо",
+  "customerLoyaltyEarned": "Бо кешбэк ҷамъ шудааст",
+  "customerLoyaltyEmpty": "Ҳанӯз кешбэк ҳисоб нашудааст",
+  "customerLoyaltyEmptyHint": "Он пас аз аввалин пуркунӣ ё фармоиш пайдо мешавад.",
+  "customerLoyaltyEntry": "{amount} ҷамъ шуд",
+  "@customerLoyaltyEntry": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyHistory": "Ҳисобкуниҳои охирин",
+  "customerLoyaltyLoadError": "Кешбэкро бор кардан муяссар нашуд",
+  "customerLoyaltyOff": "Клуб ҳоло кешбэк намедиҳад",
+  "customerLoyaltyRuleSession": "{percent} аз вақти пардохтшуда",
+  "@customerLoyaltyRuleSession": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRuleShop": "{percent} аз фармоишҳои бар",
+  "@customerLoyaltyRuleShop": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRuleTopUp": "{percent} аз пур кардани ҳамён",
+  "@customerLoyaltyRuleTopUp": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRules": "Чӣ тавр ҳисоб мешавад",
+  "customerLoyaltySourceSession": "Вақти бозӣ",
+  "customerLoyaltySourceShop": "Фармоиши бар",
+  "customerLoyaltySourceTopUp": "Пуркунӣ",
+  "customerLoyaltySpendNote": "Кешбэк пули оддии ҳамён аст: онро барои вақт ва бар сарф кардан мумкин аст.",
+  "customerLoyaltyTitle": "Кешбэк",
   "customerNavDashboard": "Асосӣ",
   "customerNavHistory": "Таърих",
   "customerNavProfile": "Профил",
   "customerNavReservations": "Бронҳо",
+  "customerNewsAll": "Ҳамаи хабарҳо",
+  "customerNewsEmpty": "Ҳоло хабаре нест",
+  "customerNewsTitle": "Хабарҳои клуб",
   "customerOfflineBanner": "Офлайн — маълумоти захирашуда нишон дода мешавад",
   "customerOfflineStale": "Алоқа нест — маълумот метавонад кӯҳна бошад",
   "customerPhoneCode": "Рамз аз SMS",

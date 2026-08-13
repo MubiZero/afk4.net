@@ -209,6 +209,16 @@ class PlayerApiClient {
     });
   }
 
+  /// Кешбэк игрока: накопленное и правила начисления. 403 — клуб не подключил лояльность.
+  Future<PlayerLoyalty> getLoyalty() async =>
+      _parse(await getJson('/api/me/loyalty'), PlayerLoyalty.fromJson);
+
+  /// Новости и акции клуба. Сервер уже отфильтровал снятые с публикации и просроченные.
+  Future<List<NewsItem>> getNews() async {
+    final list = await getJsonList('/api/me/news');
+    return list.map((item) => _parse(item, NewsItem.fromJson)).toList();
+  }
+
   /// Меню бара для места, за которым игрок сидит. Вне сессии сервер отдаёт пустой список:
   /// заказывать некуда, и это не ошибка.
   Future<List<ShopProduct>> getShopCatalog() async {

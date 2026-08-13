@@ -71,10 +71,57 @@
   "customerHistoryPurchases": "Purchases",
   "customerHistoryPurchasesError": "Couldn't load your purchases.",
   "customerHistoryVisits": "Visits",
+  "customerLoyaltyEarned": "Earned as cashback",
+  "customerLoyaltyEmpty": "No cashback yet",
+  "customerLoyaltyEmptyHint": "It shows up after your first top-up or order.",
+  "customerLoyaltyEntry": "Earned {amount}",
+  "@customerLoyaltyEntry": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyHistory": "Recent cashback",
+  "customerLoyaltyLoadError": "Couldn't load cashback",
+  "customerLoyaltyOff": "This club doesn't give cashback yet",
+  "customerLoyaltyRuleSession": "{percent} of paid game time",
+  "@customerLoyaltyRuleSession": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRuleShop": "{percent} of bar orders",
+  "@customerLoyaltyRuleShop": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRuleTopUp": "{percent} of every wallet top-up",
+  "@customerLoyaltyRuleTopUp": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRules": "How it adds up",
+  "customerLoyaltySourceSession": "Game time",
+  "customerLoyaltySourceShop": "Bar order",
+  "customerLoyaltySourceTopUp": "Top-up",
+  "customerLoyaltySpendNote": "Cashback is ordinary wallet money: spend it on time and the bar.",
+  "customerLoyaltyTitle": "Cashback",
   "customerNavDashboard": "Home",
   "customerNavHistory": "History",
   "customerNavProfile": "Profile",
   "customerNavReservations": "Bookings",
+  "customerNewsAll": "All news",
+  "customerNewsEmpty": "No news yet",
+  "customerNewsTitle": "Club news",
   "customerOfflineBanner": "Offline — showing saved data",
   "customerOfflineStale": "No connection — the data may be out of date",
   "customerPhoneCode": "Code from the SMS",
