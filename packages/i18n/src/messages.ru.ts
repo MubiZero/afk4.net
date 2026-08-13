@@ -174,6 +174,7 @@ export const ru = {
   "customer.loyalty.empty": "Кешбэк ещё не начислялся",
   "customer.loyalty.emptyHint": "Он появится после первого пополнения или заказа.",
   "customer.loyalty.entry": "Накоплено {amount}",
+  "customer.loyalty.entryHint": "Процент с пополнений и заказов возвращается на кошелёк",
   "customer.loyalty.history": "Последние начисления",
   "customer.loyalty.loadError": "Не удалось загрузить кешбэк",
   "customer.loyalty.off": "Клуб пока не начисляет кешбэк",

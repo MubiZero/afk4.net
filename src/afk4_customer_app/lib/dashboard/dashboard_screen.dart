@@ -290,7 +290,7 @@ class _LoyaltyEntry extends StatelessWidget {
     return _NavRow(
       icon: Icons.savings_outlined,
       title: l.customerLoyaltyTitle,
-      subtitle: l.customerLoyaltySpendNote,
+      subtitle: l.customerLoyaltyEntryHint,
       onOpen: onOpen,
     );
   }

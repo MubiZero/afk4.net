@@ -174,6 +174,7 @@ export const en = {
   "customer.loyalty.empty": "No cashback yet",
   "customer.loyalty.emptyHint": "It shows up after your first top-up or order.",
   "customer.loyalty.entry": "Earned {amount}",
+  "customer.loyalty.entryHint": "A share of top-ups and orders comes back to your wallet",
   "customer.loyalty.history": "Recent cashback",
   "customer.loyalty.loadError": "Couldn't load cashback",
   "customer.loyalty.off": "This club doesn't give cashback yet",

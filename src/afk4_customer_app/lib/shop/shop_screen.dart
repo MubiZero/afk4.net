@@ -147,6 +147,14 @@ class _ShopScreenState extends State<ShopScreen> {
           _ => l.customerShopErrGeneric,
         };
       });
+    } catch (_) {
+      // См. лист продления: любой другой сбой тоже обязан вернуть кнопку в рабочее состояние,
+      // иначе «Оформляем…» висит вечно и выглядит как зависшее списание.
+      if (!mounted) return;
+      setState(() {
+        _placing = false;
+        _error = l.customerShopErrGeneric;
+      });
     }
   }
 

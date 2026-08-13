@@ -82,6 +82,7 @@
       }
     }
   },
+  "customerLoyaltyEntryHint": "A share of top-ups and orders comes back to your wallet",
   "customerLoyaltyHistory": "Recent cashback",
   "customerLoyaltyLoadError": "Couldn't load cashback",
   "customerLoyaltyOff": "This club doesn't give cashback yet",

@@ -101,6 +101,14 @@ class AppTheme {
       onPrimary: onAccent,
       secondary: violet,
       onSecondary: Colors.white,
+      // Material красит этим всё «второстепенное подсвеченное»: тональные кнопки, выбранные
+      // чипы, подложки подсказок. Без явного значения он выводит его из secondary и заливает
+      // экран фиолетовым — чужим на фирменном зелёном. Задаётся здесь, а не в каждом виджете:
+      // иначе фиолетовый вылезает в следующем же месте, где Material решит его применить.
+      secondaryContainer: brightness == Brightness.dark
+          ? const Color(0xFF17322A)
+          : const Color(0xFFD9EFE6),
+      onSecondaryContainer: brightness == Brightness.dark ? emeraldBright : const Color(0xFF06503B),
       error: danger,
       onError: brightness == Brightness.dark ? _darkOnAccent : Colors.white,
       surface: surface,
@@ -153,6 +161,19 @@ class AppTheme {
         ),
       ),
       dividerTheme: DividerThemeData(color: border, space: 1, thickness: 1),
+      // Выбранный чип по умолчанию красится фиолетовым secondaryContainer из палитры Material —
+      // на фирменном тёмно-зелёном экране это чужой цвет. Выбор — такое же утверждение, как
+      // нажатая кнопка, поэтому он тоже фирменный.
+      chipTheme: ChipThemeData(
+        backgroundColor: card,
+        selectedColor: accent,
+        checkmarkColor: onAccent,
+        side: BorderSide(color: border),
+        labelStyle: TextStyle(color: text, fontSize: 14, fontWeight: FontWeight.w600),
+        secondaryLabelStyle: TextStyle(color: onAccent, fontSize: 14, fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusControl)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size(0, primaryButtonHeight),

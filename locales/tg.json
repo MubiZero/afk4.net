@@ -173,6 +173,7 @@
   "customer.loyalty.empty": "Ҳанӯз кешбэк ҳисоб нашудааст",
   "customer.loyalty.emptyHint": "Он пас аз аввалин пуркунӣ ё фармоиш пайдо мешавад.",
   "customer.loyalty.entry": "{amount} ҷамъ шуд",
+  "customer.loyalty.entryHint": "Фоизи пуркунӣ ва фармоишҳо ба ҳамён бармегардад",
   "customer.loyalty.history": "Ҳисобкуниҳои охирин",
   "customer.loyalty.loadError": "Кешбэкро бор кардан муяссар нашуд",
   "customer.loyalty.off": "Клуб ҳоло кешбэк намедиҳад",

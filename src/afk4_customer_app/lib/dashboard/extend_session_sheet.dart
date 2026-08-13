@@ -66,6 +66,14 @@ class _ExtendSessionSheetState extends State<ExtendSessionSheet> {
           _ => l.customerSessionExtendErrGeneric,
         };
       });
+    } catch (_) {
+      // Любой другой сбой тоже обязан вернуть кнопку в рабочее состояние: незакрытое
+      // «Продлеваем…» выглядит как зависшее списание, и игрок либо ждёт зря, либо жмёт ещё раз.
+      if (!mounted) return;
+      setState(() {
+        _pending = false;
+        _error = l.customerSessionExtendErrGeneric;
+      });
     }
   }
 

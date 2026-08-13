@@ -7,7 +7,10 @@ import 'dart:math';
 /// ключ генерируется ОДИН раз на попытку и переиспользуется при повторе, а не на каждый вызов.
 String newIdempotencyKey() {
   final stamp = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
-  final noise = _random.nextInt(1 << 32).toRadixString(36);
+  // Потолок ровно в 2^31-1, а не 1 << 32: у `nextInt` верхняя граница платформозависима, и
+  // на вебе значение с краю диапазона роняет генератор. В тестах на виртуальной машине это
+  // не видно — ловится только живым прогоном в браузере.
+  final noise = _random.nextInt(0x7fffffff).toRadixString(36);
   return '$stamp-$noise';
 }
 

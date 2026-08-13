@@ -82,6 +82,7 @@
       }
     }
   },
+  "customerLoyaltyEntryHint": "Процент с пополнений и заказов возвращается на кошелёк",
   "customerLoyaltyHistory": "Последние начисления",
   "customerLoyaltyLoadError": "Не удалось загрузить кешбэк",
   "customerLoyaltyOff": "Клуб пока не начисляет кешбэк",

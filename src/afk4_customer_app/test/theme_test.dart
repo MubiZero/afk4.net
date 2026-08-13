@@ -43,6 +43,17 @@ void main() {
     }
   });
 
+  // Material выводит secondaryContainer из secondary, и без явного значения тональные кнопки
+  // и выбранные чипы становятся фиолетовыми посреди фирменного зелёного экрана.
+  test('второстепенные подсвеченные поверхности остаются фирменными, а не фиолетовыми', () {
+    for (final theme in [AppTheme.dark(), AppTheme.light()]) {
+      final container = theme.colorScheme.secondaryContainer;
+      expect(container, isNot(AppTheme.violet));
+      // Зелёного в подложке больше, чем синего — это оттенок бренда, а не Material по умолчанию.
+      expect(container.g, greaterThan(container.b));
+    }
+  });
+
   // Палец, а не мышь: 44 — минимум для касания. Главная кнопка экрана крупнее минимума,
   // иначе основное действие требует прицеливания.
   test('минимальная высота интерактивных элементов не ниже 44', () {

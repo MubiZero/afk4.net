@@ -82,6 +82,7 @@
       }
     }
   },
+  "customerLoyaltyEntryHint": "Фоизи пуркунӣ ва фармоишҳо ба ҳамён бармегардад",
   "customerLoyaltyHistory": "Ҳисобкуниҳои охирин",
   "customerLoyaltyLoadError": "Кешбэкро бор кардан муяссар нашуд",
   "customerLoyaltyOff": "Клуб ҳоло кешбэк намедиҳад",
