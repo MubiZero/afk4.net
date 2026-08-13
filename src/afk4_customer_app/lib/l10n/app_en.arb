@@ -10,6 +10,18 @@
   "a11yLoadingVisits": "Loading visits",
   "a11ySessionElapsed": "Session running:",
   "a11ySessionRemaining": "Time remaining:",
+  "customerAchievementFirstVisit": "First visit",
+  "customerAchievementFirstVisitHint": "Play at the club once",
+  "customerAchievementMarathon": "Marathon",
+  "customerAchievementMarathonHint": "A single five-hour session",
+  "customerAchievementNightOwl": "Night owl",
+  "customerAchievementNightOwlHint": "Five visits started after ten in the evening",
+  "customerAchievementRegular": "One of us",
+  "customerAchievementRegularHint": "Ten visits to the club",
+  "customerAchievementReviewer": "Player's word",
+  "customerAchievementReviewerHint": "Leave a review about the club",
+  "customerAchievementVeteran": "Hall veteran",
+  "customerAchievementVeteranHint": "Fifty visits to the club",
   "customerActionsBook": "Book a seat",
   "customerActionsOrder": "Order food",
   "customerClubPickerChange": "Change club",
@@ -251,6 +263,49 @@
   "customerProfileSignOut": "Sign out",
   "customerProfileTitle": "Profile",
   "customerProfileVerifyPhone": "Confirm the number",
+  "customerProgressAchievements": "Achievements",
+  "customerProgressError": "Could not load your record",
+  "customerProgressHours": "{hours} h at a PC · {count, plural, one {{count} visit} other {{count} visits}}",
+  "@customerProgressHours": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      },
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerProgressLevel": "Level {level}",
+  "@customerProgressLevel": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "customerProgressLocked": "{progress} of {target}",
+  "@customerProgressLocked": {
+    "placeholders": {
+      "progress": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "customerProgressMaxLevel": "Top level reached",
+  "customerProgressOpen": "Record and achievements",
+  "customerProgressTitle": "Your record",
+  "customerProgressToNext": "{hours} h to the next level",
+  "@customerProgressToNext": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
   "customerReceiptLoadError": "Couldn't load the receipt.",
   "customerReceiptNotFound": "Receipt not found",
   "customerReceiptOpenLink": "Receipt →",

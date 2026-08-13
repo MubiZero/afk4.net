@@ -10,6 +10,18 @@
   "a11yLoadingVisits": "Загрузка визитов",
   "a11ySessionElapsed": "Сессия идёт:",
   "a11ySessionRemaining": "Осталось времени:",
+  "customerAchievementFirstVisit": "Первый визит",
+  "customerAchievementFirstVisitHint": "Сыграть в клубе первый раз",
+  "customerAchievementMarathon": "Марафон",
+  "customerAchievementMarathonHint": "Одна сессия длиной пять часов",
+  "customerAchievementNightOwl": "Ночной житель",
+  "customerAchievementNightOwlHint": "Пять визитов, начатых после десяти вечера",
+  "customerAchievementRegular": "Свой человек",
+  "customerAchievementRegularHint": "Десять визитов в клуб",
+  "customerAchievementReviewer": "Слово игрока",
+  "customerAchievementReviewerHint": "Оставить отзыв о клубе",
+  "customerAchievementVeteran": "Ветеран зала",
+  "customerAchievementVeteranHint": "Пятьдесят визитов в клуб",
   "customerActionsBook": "Забронировать",
   "customerActionsOrder": "Заказать еду",
   "customerClubPickerChange": "Сменить клуб",
@@ -251,6 +263,49 @@
   "customerProfileSignOut": "Выйти",
   "customerProfileTitle": "Профиль",
   "customerProfileVerifyPhone": "Подтвердить номер",
+  "customerProgressAchievements": "Достижения",
+  "customerProgressError": "Не удалось загрузить стаж",
+  "customerProgressHours": "{hours} ч за ПК · {count, plural, one {{count} визит} few {{count} визита} many {{count} визитов} other {{count} визита}}",
+  "@customerProgressHours": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      },
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerProgressLevel": "Уровень {level}",
+  "@customerProgressLevel": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "customerProgressLocked": "{progress} из {target}",
+  "@customerProgressLocked": {
+    "placeholders": {
+      "progress": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "customerProgressMaxLevel": "Максимальный уровень",
+  "customerProgressOpen": "Стаж и достижения",
+  "customerProgressTitle": "Ваш стаж",
+  "customerProgressToNext": "До следующего уровня — {hours} ч",
+  "@customerProgressToNext": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
   "customerReceiptLoadError": "Не удалось загрузить чек.",
   "customerReceiptNotFound": "Чек не найден",
   "customerReceiptOpenLink": "Чек →",

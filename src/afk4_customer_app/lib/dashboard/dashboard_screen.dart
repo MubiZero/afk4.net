@@ -11,6 +11,7 @@ import '../money/money.dart';
 import '../news/news_section.dart';
 import '../organization/organization.dart';
 import '../play/start_session_screen.dart';
+import '../progress/progress_screen.dart';
 import '../reviews/review_invite.dart';
 import '../reviews/review_sheet.dart';
 import '../shell/app_scaffold.dart';
@@ -196,6 +197,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await _refresh();
   }
 
+  void _openProgress() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => ProgressScreen(api: widget.api)),
+    );
+  }
+
   void _openLoyalty() {
     Navigator.of(context).push<void>(
       MaterialPageRoute(builder: (_) => LoyaltyScreen(api: widget.api)),
@@ -256,6 +263,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             label: l.customerLoyaltyTitle,
             onOpen: _openLoyalty,
           ),
+        // Стаж есть у любого игрока и не зависит от возможностей клуба: он считается из
+        // визитов, которые уже случились.
+        QuickAction(
+          icon: Icons.military_tech_outlined,
+          label: l.customerProgressTitle,
+          onOpen: _openProgress,
+        ),
       ];
 
   @override

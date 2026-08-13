@@ -10,6 +10,18 @@
   "a11yLoadingVisits": "Боркунии ташрифҳо",
   "a11ySessionElapsed": "Сессия идома дорад:",
   "a11ySessionRemaining": "Вақти боқимонда:",
+  "customerAchievementFirstVisit": "Ташрифи аввал",
+  "customerAchievementFirstVisitHint": "Бори аввал дар клуб бозӣ кардан",
+  "customerAchievementMarathon": "Марафон",
+  "customerAchievementMarathonHint": "Як сессияи панҷсоата",
+  "customerAchievementNightOwl": "Сокини шабона",
+  "customerAchievementNightOwlHint": "Панҷ ташрифи пас аз соати даҳи шаб оғозшуда",
+  "customerAchievementRegular": "Шахси худӣ",
+  "customerAchievementRegularHint": "Даҳ ташриф ба клуб",
+  "customerAchievementReviewer": "Сухани бозигар",
+  "customerAchievementReviewerHint": "Дар бораи клуб тақриз гузоштан",
+  "customerAchievementVeteran": "Ветерани толор",
+  "customerAchievementVeteranHint": "Панҷоҳ ташриф ба клуб",
   "customerActionsBook": "Ҷой банд кардан",
   "customerActionsOrder": "Фармоиши хӯрок",
   "customerClubPickerChange": "Иваз кардани клуб",
@@ -251,6 +263,49 @@
   "customerProfileSignOut": "Баромадан",
   "customerProfileTitle": "Профил",
   "customerProfileVerifyPhone": "Тасдиқи рақам",
+  "customerProgressAchievements": "Дастовардҳо",
+  "customerProgressError": "Собиқаро бор карда натавонистем",
+  "customerProgressHours": "{hours} соат дар ПК · {count, plural, one {{count} ташриф} other {{count} ташриф}}",
+  "@customerProgressHours": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      },
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerProgressLevel": "Сатҳи {level}",
+  "@customerProgressLevel": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "customerProgressLocked": "{progress} аз {target}",
+  "@customerProgressLocked": {
+    "placeholders": {
+      "progress": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "customerProgressMaxLevel": "Сатҳи баландтарин",
+  "customerProgressOpen": "Собиқа ва дастовардҳо",
+  "customerProgressTitle": "Собиқаи шумо",
+  "customerProgressToNext": "То сатҳи оянда — {hours} соат",
+  "@customerProgressToNext": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
   "customerReceiptLoadError": "Чекро бор кардан муяссар нашуд.",
   "customerReceiptNotFound": "Чек ёфт нашуд",
   "customerReceiptOpenLink": "Чек →",
