@@ -126,7 +126,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Забронировать место'));
+    await tester.tap(find.text('Забронировать'));
     await tester.pump();
 
     expect(opened, isTrue);
@@ -177,12 +177,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Нет активной сессии'), findsOneWidget);
-    expect(find.text('Забронировать место'), findsNothing);
+    expect(find.text('Забронировать'), findsNothing);
     await unmount(tester);
   });
 
-  // Идущая сессия — то, ради чего экран открывают посреди игры.
-  testWidgets('идущая сессия стоит выше кошелька', (tester) async {
+  // Деньги — первый вопрос вошедшего, и строка баланса стоит на одном месте независимо от
+  // того, идёт сессия или нет: блок, который переезжает вверх-вниз по состоянию, приходится
+  // каждый раз искать глазами заново.
+  testWidgets('баланс стоит первым, сессия сразу под ним', (tester) async {
     await tester.pumpWidget(harness(
       clientWith(_serve((_dashboardJson(session: _openSession()), 200))),
     ));
@@ -190,7 +192,7 @@ void main() {
 
     final session = tester.getTopLeft(find.text('PC-07')).dy;
     final wallet = tester.getTopLeft(find.text('Баланс кошелька')).dy;
-    expect(session, lessThan(wallet));
+    expect(wallet, lessThan(session));
     await unmount(tester);
   });
 
@@ -253,7 +255,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Нет связи — данные могут устареть'), findsNothing);
 
-    await tester.drag(find.byType(ListView), const Offset(0, 300));
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 300));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('200,50'), findsOneWidget);
@@ -353,7 +355,7 @@ void main() {
       features: const ['player_shop'],
     ));
     await tester.pumpAndSettle();
-    expect(find.text('Заказать к месту'), findsOneWidget);
+    expect(find.text('Заказать'), findsOneWidget);
     await unmount(tester);
 
     await tester.pumpWidget(harness(
@@ -361,7 +363,7 @@ void main() {
       features: const ['player_shop'],
     ));
     await tester.pumpAndSettle();
-    expect(find.text('Заказать к месту'), findsNothing);
+    expect(find.text('Заказать'), findsNothing);
     await unmount(tester);
   });
 
@@ -372,7 +374,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Заказать к месту'), findsNothing);
+    expect(find.text('Заказать'), findsNothing);
     await unmount(tester);
   });
 
@@ -393,7 +395,7 @@ void main() {
     await tester.pumpWidget(harness(clientWith(http), features: const ['player_shop']));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Заказать к месту'));
+    await tester.tap(find.text('Заказать'));
     await tester.pumpAndSettle();
     expect(find.text('Заказ к месту'), findsOneWidget);
 

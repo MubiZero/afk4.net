@@ -3,10 +3,14 @@ import 'package:flutter/material.dart';
 import '../api/player_api_client.dart';
 import '../auth/player_session.dart';
 import '../dashboard/dashboard_screen.dart';
-import '../history/history_screen.dart';
 import '../l10n/app_localizations.dart';
 import '../profile/profile_screen.dart';
 import '../reservations/reservations_screen.dart';
+import '../wallet/wallet_screen.dart';
+
+/// Разделы приложения. Порядок — это заявление о том, чем игрок пользуется чаще: сначала то,
+/// что происходит сейчас, потом деньги, в конце настройки.
+enum AppSection { home, reservations, wallet, profile }
 
 /// Оболочка вошедшего игрока: разделы внизу, содержимое сверху.
 ///
@@ -35,7 +39,7 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  int _section = 0;
+  AppSection _section = AppSection.home;
 
   /// null — список возможностей не получен. Тогда разделы показываются все: спрятать
   /// «Брони» из-за сетевого сбоя значит соврать игроку, что клуб их не принимает. Это
@@ -65,22 +69,24 @@ class _AppShellState extends State<AppShell> {
 
   bool get _phoneVerified => _phoneVerifiedNow || widget.session.phoneVerified;
 
+  void _open(AppSection section) => setState(() => _section = section);
+
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
     final booking = _enabled('online_booking');
 
-    final sections = <(Widget screen, NavigationDestination tab)>[
+    final sections = <(AppSection, Widget screen, NavigationDestination tab)>[
       (
+        AppSection.home,
         DashboardScreen(
           api: widget.api,
           displayName: widget.session.displayName,
           phoneVerified: _phoneVerified,
           features: _features,
           onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
-          // Раздел броней стоит третьим, когда он есть. Звать в него неоткуда, если клуб
-          // онлайн-брони не принимает.
-          onOpenReservations: booking ? () => setState(() => _section = 2) : null,
+          onOpenReservations: booking ? () => _open(AppSection.reservations) : null,
+          onOpenWallet: () => _open(AppSection.wallet),
           clock: widget.clock,
         ),
         NavigationDestination(
@@ -89,16 +95,9 @@ class _AppShellState extends State<AppShell> {
           label: l.customerNavDashboard,
         ),
       ),
-      (
-        HistoryScreen(api: widget.api, clock: widget.clock),
-        NavigationDestination(
-          icon: const Icon(Icons.history_outlined),
-          selectedIcon: const Icon(Icons.history),
-          label: l.customerNavHistory,
-        ),
-      ),
       if (booking)
         (
+          AppSection.reservations,
           ReservationsScreen(
             api: widget.api,
             phoneVerified: _phoneVerified,
@@ -112,6 +111,22 @@ class _AppShellState extends State<AppShell> {
           ),
         ),
       (
+        AppSection.wallet,
+        WalletScreen(
+          api: widget.api,
+          phoneVerified: _phoneVerified,
+          features: _features,
+          onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
+          clock: widget.clock,
+        ),
+        NavigationDestination(
+          icon: const Icon(Icons.account_balance_wallet_outlined),
+          selectedIcon: const Icon(Icons.account_balance_wallet),
+          label: l.customerNavWallet,
+        ),
+      ),
+      (
+        AppSection.profile,
         ProfileScreen(
           api: widget.api,
           onSignOut: widget.onSignOut,
@@ -127,19 +142,30 @@ class _AppShellState extends State<AppShell> {
       ),
     ];
 
+    // Раздел ищется по имени, а не по номеру: список укорачивается, когда клуб не принимает
+    // брони, и запомненный номер после этого указывал бы на соседа. Пропавший раздел
+    // возвращает игрока на главную.
+    final index = sections.indexWhere((section) => section.$1 == _section);
+    final selected = index < 0 ? 0 : index;
+
     return Scaffold(
       // Разделы держатся живыми: вернувшись на главную, игрок видит её сразу, а не заново
       // загружающийся экран.
       body: IndexedStack(
-        // Список разделов может укоротиться, когда придёт ответ про возможности, — тогда
-        // выбранный индекс упирается в последний доступный, а не в пустоту.
-        index: _section.clamp(0, sections.length - 1),
-        children: [for (final (screen, _) in sections) screen],
+        index: selected,
+        children: [for (final (_, screen, _) in sections) screen],
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _section.clamp(0, sections.length - 1),
-        onDestinationSelected: (index) => setState(() => _section = index),
-        destinations: [for (final (_, tab) in sections) tab],
+      bottomNavigationBar: DecoratedBox(
+        // Волосяная линия сверху: без неё панель сливается с прокрученным под неё списком, и
+        // непонятно, где кончается содержимое и начинается навигация.
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outline)),
+        ),
+        child: NavigationBar(
+          selectedIndex: selected,
+          onDestinationSelected: (position) => _open(sections[position].$1),
+          destinations: [for (final (_, _, tab) in sections) tab],
+        ),
       ),
     );
   }

@@ -7,14 +7,22 @@ import '../api/dto.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../loyalty/loyalty_screen.dart';
+import '../money/money.dart';
 import '../news/news_section.dart';
 import '../play/start_session_screen.dart';
+import '../shell/app_scaffold.dart';
+import '../shell/pressable.dart';
+import '../shell/skeleton.dart';
 import '../shop/shop_screen.dart';
-import '../wallet/wallet_card.dart';
+import '../theme/app_theme.dart';
 import 'extend_session_sheet.dart';
 import 'live_session_card.dart';
+import 'quick_actions.dart';
 
 /// Главный экран: что происходит с сессией прямо сейчас и сколько денег в кошельке.
+///
+/// Порядок блоков отвечает на вопросы в том порядке, в каком их задают, открыв приложение в
+/// зале: сколько у меня денег, что с моей сессией, что я могу сделать, что нового в клубе.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
     super.key,
@@ -23,6 +31,7 @@ class DashboardScreen extends StatefulWidget {
     required this.phoneVerified,
     required this.features,
     this.onOpenReservations,
+    this.onOpenWallet,
     this.onPhoneVerified,
     this.clock = DateTime.now,
   });
@@ -30,6 +39,7 @@ class DashboardScreen extends StatefulWidget {
   final PlayerApiClient api;
   final String displayName;
   final bool phoneVerified;
+
   /// Возможности клуба; null — список не получен. Загружает их оболочка: он нужен ещё и
   /// разделам, а два независимых запроса одного и того же — лишний трафик и рассинхрон.
   final List<String>? features;
@@ -37,6 +47,9 @@ class DashboardScreen extends StatefulWidget {
   /// Куда вести из пустого состояния «нет сессии». null — клуб не принимает онлайн-брони,
   /// и звать туда некуда.
   final VoidCallback? onOpenReservations;
+
+  /// Переход в раздел денег: строка баланса — не украшение, по ней приходят за пополнением.
+  final VoidCallback? onOpenWallet;
 
   /// Номер подтвердили из карточки кошелька — оболочке пора считать игрока подтверждённым.
   final VoidCallback? onPhoneVerified;
@@ -73,6 +86,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _poll = Timer.periodic(_refreshEvery, (_) => _refresh());
   }
 
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
   Future<void> _loadBranch() async {
     try {
       final profile = await widget.api.getProfile();
@@ -80,29 +99,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } on PlayerApiException {
       // Не узнали филиал — просто не предлагаем сесть самому. Всё остальное на экране работает.
     }
-  }
-
-  Future<void> _startSession() async {
-    final l = L.of(context);
-    final branchId = _branchId;
-    if (branchId == null) return;
-
-    final seatName = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => StartSessionScreen(api: widget.api, branchId: branchId)),
-    );
-    if (seatName == null || !mounted) return;
-
-    // Куда садиться — единственное, что игроку сейчас нужно знать: он стоит посреди зала.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l.customerPlayStarted(seatName))),
-    );
-    await _refresh();
-  }
-
-  @override
-  void dispose() {
-    _poll?.cancel();
-    super.dispose();
   }
 
   Future<void> _refresh() async {
@@ -132,6 +128,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool get _shopEnabled => widget.features == null || widget.features!.contains('player_shop');
 
   bool get _loyaltyEnabled => widget.features == null || widget.features!.contains('loyalty');
+
+  Future<void> _startSession() async {
+    final l = L.of(context);
+    final branchId = _branchId;
+    if (branchId == null) return;
+
+    final seatName = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => StartSessionScreen(api: widget.api, branchId: branchId)),
+    );
+    if (seatName == null || !mounted) return;
+
+    // Куда садиться — единственное, что игроку сейчас нужно знать: он стоит посреди зала.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l.customerPlayStarted(seatName))),
+    );
+    await _refresh();
+  }
 
   void _openLoyalty() {
     Navigator.of(context).push<void>(
@@ -167,99 +180,173 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await _refresh();
   }
 
+  List<QuickAction> _actions(L l, PlayerDashboard data) => [
+        if (widget.onOpenReservations != null)
+          QuickAction(
+            icon: Icons.event_outlined,
+            label: l.customerActionsBook,
+            onOpen: widget.onOpenReservations!,
+          ),
+        // Заказ живёт только при сессии: меню сервер отдаёт по месту, за которым игрок
+        // сидит, а вне сессии нести заказ некуда.
+        if (data.activeSession != null && _shopEnabled)
+          QuickAction(
+            icon: Icons.local_cafe_outlined,
+            label: l.customerActionsOrder,
+            onOpen: _openShop,
+          ),
+        if (_loyaltyEnabled)
+          QuickAction(
+            icon: Icons.savings_outlined,
+            label: l.customerLoyaltyTitle,
+            onOpen: _openLoyalty,
+          ),
+      ];
+
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
     final theme = Theme.of(context);
     final data = _data;
 
-    return Scaffold(
-      // Приветствие мелким шрифтом над именем: экран открывает свой человек, а не пользователь
-      // системы. Имя остаётся заголовком — по нему видно, в чей аккаунт вошли.
-      appBar: AppBar(
-        toolbarHeight: 76,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              l.customerDashboardWelcome,
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-            Text(widget.displayName, style: theme.textTheme.headlineSmall),
-          ],
+    return AppScaffold(
+      // Приветствие над именем: экран открывает свой человек, а не пользователь системы.
+      // При прокрутке приветствие уходит первым — из двух строк оно менее важная.
+      eyebrow: l.customerDashboardWelcome,
+      title: widget.displayName,
+      onRefresh: _refresh,
+      slivers: [
+        SliverPadding(
+          padding: sectionPadding,
+          sliver: SliverList.list(
+            children: [
+              if (_stale && data != null) ...[
+                const _StaleBanner(),
+                const SizedBox(height: 12),
+              ],
+              if (data == null && _failed)
+                Text(l.customerDashboardLoadError, style: TextStyle(color: theme.colorScheme.error))
+              else if (data == null)
+                Semantics(label: l.a11yLoadingDashboard, child: const _DashboardSkeleton())
+              else ...[
+                _BalanceStrip(
+                  balance: data.walletBalance,
+                  debt: data.debtBalance,
+                  onOpen: widget.onOpenWallet,
+                ),
+                const SizedBox(height: 12),
+                // Идущая сессия — то, ради чего экран открывают посреди игры. Когда её нет,
+                // на её месте стоит приглашение сесть: пустое место сообщало бы только об
+                // отсутствии.
+                if (data.activeSession != null)
+                  LiveSessionCard(
+                    session: data.activeSession!,
+                    fetchedAt: _fetchedAt ?? widget.clock(),
+                    onExtend: () => _extend(data.activeSession!),
+                    clock: widget.clock,
+                  )
+                else
+                  _StartPlayingCard(
+                    // Сесть можно, только когда известен филиал: места у клуба свои.
+                    onPlay: _branchId == null ? null : _startSession,
+                  ),
+                const SizedBox(height: 16),
+                QuickActions(actions: _actions(l, data)),
+                // Новости внизу: акция клуба важна, но не важнее идущей сессии и денег.
+                const SizedBox(height: 24),
+                NewsSection(api: widget.api),
+              ],
+            ],
+          ),
         ),
-      ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+      ],
+    );
+  }
+}
+
+/// Скелет главной: те же блоки, что появятся после ответа, той же высоты.
+class _DashboardSkeleton extends StatelessWidget {
+  const _DashboardSkeleton();
+
+  @override
+  Widget build(BuildContext context) => const Column(
+        children: [
+          SkeletonBox(height: 72),
+          SizedBox(height: 12),
+          SkeletonBox(height: 168, radius: 24),
+          SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: SkeletonBox(height: 88)),
+              SizedBox(width: 12),
+              Expanded(child: SkeletonBox(height: 88)),
+            ],
+          ),
+        ],
+      );
+}
+
+/// Строка баланса. Деньги стоят первыми и ведут в свой раздел: «сколько у меня» — первый
+/// вопрос вошедшего, и ответ на него не должен требовать прокрутки.
+class _BalanceStrip extends StatelessWidget {
+  const _BalanceStrip({required this.balance, required this.debt, required this.onOpen});
+
+  final Money balance;
+  final Money debt;
+  final VoidCallback? onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final theme = Theme.of(context);
+    final locale = Localizations.localeOf(context).languageCode;
+
+    return Pressable(
+      onPressed: onOpen,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppTheme.radiusControl),
+          border: Border.all(color: theme.colorScheme.outline),
+          color: theme.colorScheme.surfaceContainerHighest,
+        ),
+        child: Row(
           children: [
-            if (_stale && data != null) ...[
-              const _StaleBanner(),
-              const SizedBox(height: 12),
-            ],
-            if (data == null && _failed)
-              Text(l.customerDashboardLoadError, style: TextStyle(color: theme.colorScheme.error))
-            else if (data == null)
-              Semantics(
-                label: l.a11yLoadingDashboard,
-                child: const Center(child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
-                  child: CircularProgressIndicator(),
-                )),
-              )
-            else ...[
-              // Идущая сессия — то, ради чего экран открывают посреди игры, поэтому она
-              // впереди денег. Когда сессии нет, впереди кошелёк: пустая карточка наверху
-              // сообщала бы только об отсутствии.
-              if (data.activeSession != null) ...[
-                LiveSessionCard(
-                  session: data.activeSession!,
-                  fetchedAt: _fetchedAt ?? widget.clock(),
-                  onExtend: () => _extend(data.activeSession!),
-                  clock: widget.clock,
-                ),
-                // Заказ к месту живёт рядом с сессией и только при ней: меню сервер отдаёт
-                // по месту, за которым игрок сидит, а вне сессии заказывать некуда.
-                if (_shopEnabled) ...[
-                  const SizedBox(height: 12),
-                  _ShopEntry(onOpen: _openShop),
+            Icon(Icons.account_balance_wallet_outlined,
+                size: 20, color: theme.colorScheme.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    l.customerDashboardBalance,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                  Text(
+                    formatMoney(balance.minorUnits, balance.currencyCode, locale: locale),
+                    style: theme.textTheme.titleLarge,
+                  ),
+                  // Долг показывается, только когда он есть: строка «Долг: 0» на главной
+                  // пугает зря.
+                  if (debt.minorUnits > 0)
+                    Text(
+                      '${l.customerDashboardDebt}: '
+                      '${formatMoney(debt.minorUnits, debt.currencyCode, locale: locale)}',
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+                    ),
                 ],
-                const SizedBox(height: 12),
-                _wallet(data),
-              ] else ...[
-                _wallet(data),
-                const SizedBox(height: 12),
-                _NoSessionCard(
-                  onBook: widget.onOpenReservations,
-                  // Сесть можно, только когда известен филиал: места у клуба свои.
-                  onPlay: _branchId == null ? null : _startSession,
-                ),
-              ],
-              // Кешбэк идёт сразу за деньгами: он и есть деньги, просто отложенные.
-              if (_loyaltyEnabled) ...[
-                const SizedBox(height: 12),
-                _LoyaltyEntry(onOpen: _openLoyalty),
-              ],
-              // Новости внизу: акция клуба важна, но не важнее идущей сессии и баланса.
-              const SizedBox(height: 24),
-              NewsSection(api: widget.api),
-            ],
+              ),
+            ),
+            if (onOpen != null)
+              Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
           ],
         ),
       ),
     );
   }
-
-  Widget _wallet(PlayerDashboard data) => WalletCard(
-        api: widget.api,
-        walletBalance: data.walletBalance,
-        debtBalance: data.debtBalance,
-        phoneVerified: widget.phoneVerified,
-        features: widget.features,
-        onPhoneVerified: widget.onPhoneVerified,
-      );
 }
 
 /// Полоска «данные могли устареть». Не пугает ошибкой — просто снимает доверие с цифр,
@@ -294,103 +381,12 @@ class _StaleBanner extends StatelessWidget {
   }
 }
 
-/// Вход в заказ к месту. Строкой, а не кнопкой: заказ — не главное действие экрана, но и
-/// прятать его в разделы нельзя, иначе о нём никто не узнает.
-class _ShopEntry extends StatelessWidget {
-  const _ShopEntry({required this.onOpen});
-
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = L.of(context);
-    return _NavRow(
-      icon: Icons.local_cafe_outlined,
-      title: l.customerShopOpen,
-      subtitle: l.customerShopOpenHint,
-      onOpen: onOpen,
-    );
-  }
-}
-
-/// Вход в кешбэк. Кешбэк начислялся и раньше, но игрок его не видел — а невидимая
-/// лояльность не удерживает никого.
-class _LoyaltyEntry extends StatelessWidget {
-  const _LoyaltyEntry({required this.onOpen});
-
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = L.of(context);
-    return _NavRow(
-      icon: Icons.savings_outlined,
-      title: l.customerLoyaltyTitle,
-      subtitle: l.customerLoyaltyEntryHint,
-      onOpen: onOpen,
-    );
-  }
-}
-
-/// Строка-переход в отдельный экран. Одна форма на все такие входы, чтобы главная не
-/// расползлась на разнородные карточки.
-class _NavRow extends StatelessWidget {
-  const _NavRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onOpen,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onOpen,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(icon, color: theme.colorScheme.primary),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(title, style: theme.textTheme.titleMedium),
-                    Text(
-                      subtitle,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// Пустое состояние с выходом: раньше здесь была серая надпись и никакого следующего шага.
-class _NoSessionCard extends StatelessWidget {
-  const _NoSessionCard({required this.onBook, required this.onPlay});
-
-  final VoidCallback? onBook;
+///
+/// Действие здесь ровно одно. Бронь живёт плиткой ниже: два призыва подряд заставляют
+/// выбирать вместо того, чтобы делать, а игрок в зале пришёл играть сейчас.
+class _StartPlayingCard extends StatelessWidget {
+  const _StartPlayingCard({required this.onPlay});
 
   /// Сесть за свободный ПК прямо сейчас. Это главное действие пустого состояния: игрок,
   /// открывший приложение в клубе, хочет играть, а не бронировать на завтра.
@@ -403,7 +399,7 @@ class _NoSessionCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
         child: Column(
           children: [
             Container(
@@ -414,32 +410,32 @@ class _NoSessionCard extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: theme.colorScheme.primary.withValues(alpha: 0.12),
               ),
-              child: Icon(Icons.sports_esports_outlined,
-                  color: theme.colorScheme.primary, size: 28),
+              child:
+                  Icon(Icons.sports_esports_outlined, color: theme.colorScheme.primary, size: 28),
             ),
             const SizedBox(height: 14),
             Text(
               l.customerDashboardNoSession,
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style:
+                  theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             if (onPlay != null) ...[
-              const SizedBox(height: 14),
-              FilledButton.icon(
-                onPressed: onPlay,
-                icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                label: Text(l.customerPlayStart),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: onPlay,
+                  icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                  label: Text(l.customerPlayStart),
+                ),
               ),
+              const SizedBox(height: 6),
               Text(
                 l.customerPlayStartHint,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
               ),
-            ],
-            if (onBook != null) ...[
-              const SizedBox(height: 8),
-              OutlinedButton(onPressed: onBook, child: Text(l.customerDashboardBookSeat)),
             ],
           ],
         ),

@@ -156,6 +156,10 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
+    // Выходы стоят в самом низу профиля: на невысоком экране до них надо доскроллить, и с
+    // запасом — прокрутка «до видимости» оставляет кнопку под прилипшей шапкой.
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Выйти'));
     await tester.tap(find.text('Сменить клуб'));
     await tester.pump();

@@ -1,0 +1,113 @@
+import 'dart:ui';
+
+import 'package:flutter/material.dart';
+
+/// Шапка раздела: крупный заголовок, который сжимается при прокрутке.
+///
+/// Раньше каждый экран носил свою `AppBar` фиксированной высоты, и на главной 76 точек
+/// уходило на приветствие, которое не исчезало никогда. Крупный заголовок при открытии и
+/// компактный при прокрутке — то, как устроены современные мобильные приложения: заголовок
+/// заявляет раздел, а на середине списка отдаёт место содержимому, не пропадая совсем.
+///
+/// Одна шапка на все разделы, а не повторённая вручную вёрстка: иначе они разъедутся по
+/// высоте и отступам на второй же правке.
+SliverAppBar appHeader(
+  BuildContext context, {
+  required String title,
+  String? eyebrow,
+  List<Widget>? actions,
+  TabBar? tabs,
+}) {
+  final theme = Theme.of(context);
+  final tabsHeight = tabs == null ? 0.0 : tabs.preferredSize.height;
+
+  return SliverAppBar(
+    pinned: true,
+    // Раскрытая высота считается от строк, которые в ней стоят: с надстрочником шапке нужно
+    // на строку больше.
+    expandedHeight: (eyebrow == null ? 104 : 124) + tabsHeight,
+    actions: actions,
+    bottom: tabs,
+    // Свёрнутая шапка полупрозрачна и размывает то, что уходит под неё. Непрозрачная
+    // заливка перекрыла бы свет зала и дала шов поперёк экрана, а совсем прозрачная —
+    // накладывала бы заголовок прямо на карточки.
+    flexibleSpace: ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: DecoratedBox(
+          decoration: BoxDecoration(color: theme.canvasColor.withValues(alpha: 0.55)),
+          child: FlexibleSpaceBar(
+            titlePadding: EdgeInsetsDirectional.only(start: 20, end: 20, bottom: 14 + tabsHeight),
+            title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            background: eyebrow == null
+                ? null
+                : SafeArea(
+                    child: Align(
+                      alignment: Alignment.bottomLeft,
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 20, right: 20, bottom: 50 + tabsHeight),
+                        child: Text(
+                          eyebrow,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Каркас раздела: шапка выше, прокручиваемое содержимое под ней.
+class AppScaffold extends StatelessWidget {
+  const AppScaffold({
+    super.key,
+    required this.title,
+    required this.slivers,
+    this.eyebrow,
+    this.actions,
+    this.onRefresh,
+    this.floatingActionButton,
+  });
+
+  final String title;
+
+  /// Надстрочник над заголовком: где мы находимся или к кому обращаемся. Виден только у
+  /// раскрытой шапки — при прокрутке он уходит первым, как менее важный из двух.
+  final String? eyebrow;
+
+  final List<Widget>? actions;
+  final Future<void> Function()? onRefresh;
+  final Widget? floatingActionButton;
+
+  final List<Widget> slivers;
+
+  @override
+  Widget build(BuildContext context) {
+    final scroll = CustomScrollView(
+      // Тянуть вниз можно и на коротком списке: жест обновления не должен зависеть от того,
+      // сколько сегодня карточек.
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        appHeader(context, title: title, eyebrow: eyebrow, actions: actions),
+        ...slivers,
+        // Хвост под последней карточкой: без него нижний край содержимого упирается в
+        // панель разделов и читается как обрезанный.
+        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+      ],
+    );
+
+    return Scaffold(
+      floatingActionButton: floatingActionButton,
+      body: onRefresh == null ? scroll : RefreshIndicator(onRefresh: onRefresh!, child: scroll),
+    );
+  }
+}
+
+/// Отступы содержимого раздела. Одно значение на все экраны: разные поля у соседних вкладок
+/// заметны при переключении сильнее, чем кажется на макете.
+const EdgeInsets sectionPadding = EdgeInsets.fromLTRB(16, 8, 16, 0);
