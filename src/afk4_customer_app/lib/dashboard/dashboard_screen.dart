@@ -97,7 +97,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final data = _data;
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.displayName)),
+      // Приветствие мелким шрифтом над именем: экран открывает свой человек, а не пользователь
+      // системы. Имя остаётся заголовком — по нему видно, в чей аккаунт вошли.
+      appBar: AppBar(
+        toolbarHeight: 76,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l.customerDashboardWelcome,
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+            Text(widget.displayName, style: theme.textTheme.headlineSmall),
+          ],
+        ),
+      ),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: ListView(
@@ -196,12 +211,24 @@ class _NoSessionCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 16),
         child: Column(
           children: [
+            Container(
+              width: 56,
+              height: 56,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: theme.colorScheme.primary.withValues(alpha: 0.12),
+              ),
+              child: Icon(Icons.sports_esports_outlined,
+                  color: theme.colorScheme.primary, size: 28),
+            ),
+            const SizedBox(height: 14),
             Text(
               l.customerDashboardNoSession,
-              style: theme.textTheme.bodyMedium
+              style: theme.textTheme.titleMedium
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             if (onBook != null) ...[

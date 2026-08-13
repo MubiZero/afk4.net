@@ -11,6 +11,7 @@ import 'organization/club_picker_screen.dart';
 import 'organization/organization.dart';
 import 'organization/organization_directory.dart';
 import 'organization/selected_organization_store.dart';
+import 'theme/ambient_background.dart';
 import 'theme/app_theme.dart';
 
 /// Название продукта. Регистр и точка — часть знака, см. бренд-гайд; не переводится и не
@@ -71,9 +72,14 @@ class _CustomerAppState extends State<CustomerApp> {
       // Бренд не локализуется — см. docs/product/copy-voice-and-terminology.md.
       title: brandName,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
+      // Приложение всегда тёмное, а не «следует системе»: это игровая витрина, её смотрят
+      // в зале и ночью, и весь визуальный строй — свет, свечение акцента, контраст цифр —
+      // построен на тёмном. Светлый вариант тех же экранов был бы вторым продуктом.
+      theme: AppTheme.dark(),
       darkTheme: AppTheme.dark(),
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.dark,
+      // Свет зала живёт под навигатором: один фон на все экраны, без шва при переходах.
+      builder: (context, child) => AmbientBackground(child: child ?? const SizedBox.shrink()),
       locale: widget.locale ?? _chosen,
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,

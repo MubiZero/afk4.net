@@ -102,6 +102,11 @@ void main() {
     await tester.pumpWidget(harness(_StubDirectory(clubs: const [_arena])));
     await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(CircleAvatar, 'A'), findsOneWidget);
+    // Проверяется правило, а не форма знака: буква стоит на месте логотипа внутри плитки,
+    // по которой открывается клуб.
+    expect(
+      find.descendant(of: find.byType(InkWell), matching: find.text('A')),
+      findsOneWidget,
+    );
   });
 }

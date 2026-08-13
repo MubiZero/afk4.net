@@ -5,6 +5,7 @@ import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../phone/phone_verification_sheet.dart';
+import '../theme/app_theme.dart';
 import 'top_up_sheet.dart';
 
 /// Деньги игрока одним блоком: сколько на кошельке, есть ли долг и что с пополнением.
@@ -104,21 +105,45 @@ class _WalletCardState extends State<WalletCard> {
     final locale = Localizations.localeOf(context).languageCode;
     final awaiting = _awaiting;
 
-    return Card(
+    final dark = theme.brightness == Brightness.dark;
+
+    // Кошелёк — единственная карточка с собственным светом: баланс должен читаться первым,
+    // а не соревноваться с соседними блоками за внимание.
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+        border: Border.all(color: theme.colorScheme.outline),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: dark
+              ? [const Color(0xFF17322A), const Color(0xFF121B19)]
+              : [const Color(0xFFE7F6EF), Colors.white],
+        ),
+        boxShadow: dark ? AppTheme.accentGlow(AppTheme.emerald.withValues(alpha: 0.35)) : null,
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              l.customerDashboardBalance,
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            Row(
+              children: [
+                Icon(Icons.account_balance_wallet_outlined,
+                    size: 18, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  l.customerDashboardBalance,
+                  style: theme.textTheme.labelLarge
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 10),
             Text(
               formatMoney(widget.walletBalance.minorUnits, widget.walletBalance.currencyCode,
                   locale: locale),
-              style: theme.textTheme.headlineMedium,
+              style: theme.textTheme.displaySmall,
             ),
             // Долг показывается, только когда он есть: строка «Долг: 0» на главной пугает зря.
             // Гасится он на кассе, поэтому карточка отправляет к стойке, а не обещает, что
@@ -147,13 +172,14 @@ class _WalletCardState extends State<WalletCard> {
               ),
             ],
             if (_topUpEnabled) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               if (widget.phoneVerified)
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: FilledButton(
+                  child: FilledButton.icon(
                     onPressed: _openTopUp,
-                    child: Text(l.customerWalletTopUp),
+                    icon: const Icon(Icons.add, size: 20),
+                    label: Text(l.customerWalletTopUp),
                   ),
                 )
               else ...[

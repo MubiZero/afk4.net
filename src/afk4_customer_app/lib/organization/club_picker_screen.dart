@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../theme/app_theme.dart';
+import '../theme/brand_mark.dart';
 import 'organization.dart';
 import 'organization_directory.dart';
 
@@ -92,15 +94,18 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(l.customerClubPickerTitle, style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: 4),
+              const SizedBox(height: 12),
+              const BrandMark(),
+              const SizedBox(height: 20),
+              Text(l.customerClubPickerTitle, style: Theme.of(context).textTheme.headlineLarge),
+              const SizedBox(height: 6),
               Text(
                 l.customerClubPickerSubtitle,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               TextField(
                 decoration: InputDecoration(
                   labelText: l.customerClubPickerSearch,
@@ -127,23 +132,72 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
           onAction: _fetch,
         ),
       _Ready(clubs: final clubs) when clubs.isEmpty => _Message(text: l.customerClubPickerEmpty),
+      // Клуб выбирают глазами, а не читают списком: каждый — отдельная плитка со знаком.
+      // Строки через разделитель выглядели как список настроек, а не как витрина.
       _Ready(clubs: final clubs) => ListView.separated(
           itemCount: clubs.length,
-          separatorBuilder: (_, _) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final club = clubs[index];
-            return ListTile(
-              // Логотипа может не быть — тогда первая буква названия вместо пустой дыры.
-              leading: club.logoUrl == null
-                  ? CircleAvatar(child: Text(club.name.characters.first.toUpperCase()))
-                  : CircleAvatar(backgroundImage: NetworkImage(club.logoUrl!)),
-              title: Text(club.name),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => widget.onSelected(club),
-            );
-          },
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
+          itemBuilder: (context, index) => _ClubTile(
+            club: clubs[index],
+            onTap: () => widget.onSelected(clubs[index]),
+          ),
         ),
     };
+  }
+}
+
+/// Плитка клуба: знак, название и стрелка.
+class _ClubTile extends StatelessWidget {
+  const _ClubTile({required this.club, required this.onTap});
+
+  final Organization club;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+            border: Border.all(color: theme.colorScheme.outline),
+          ),
+          child: Row(
+            children: [
+              // Логотипа может не быть — тогда первая буква названия вместо пустой дыры.
+              Container(
+                width: 48,
+                height: 48,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  color: AppTheme.emerald.withValues(alpha: 0.16),
+                  image: club.logoUrl == null
+                      ? null
+                      : DecorationImage(image: NetworkImage(club.logoUrl!), fit: BoxFit.cover),
+                ),
+                child: club.logoUrl != null
+                    ? null
+                    : Text(
+                        club.name.characters.first.toUpperCase(),
+                        style: theme.textTheme.titleLarge?.copyWith(color: AppTheme.emeraldBright),
+                      ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(child: Text(club.name, style: theme.textTheme.titleMedium)),
+              Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
