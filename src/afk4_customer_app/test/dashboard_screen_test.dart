@@ -355,7 +355,7 @@ void main() {
       features: const ['player_shop'],
     ));
     await tester.pumpAndSettle();
-    expect(find.text('Заказать'), findsOneWidget);
+    expect(find.text('Заказать еду'), findsOneWidget);
     await unmount(tester);
 
     await tester.pumpWidget(harness(
@@ -363,7 +363,7 @@ void main() {
       features: const ['player_shop'],
     ));
     await tester.pumpAndSettle();
-    expect(find.text('Заказать'), findsNothing);
+    expect(find.text('Заказать еду'), findsNothing);
     await unmount(tester);
   });
 
@@ -374,7 +374,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Заказать'), findsNothing);
+    expect(find.text('Заказать еду'), findsNothing);
     await unmount(tester);
   });
 
@@ -395,7 +395,7 @@ void main() {
     await tester.pumpWidget(harness(clientWith(http), features: const ['player_shop']));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Заказать'));
+    await tester.tap(find.text('Заказать еду'));
     await tester.pumpAndSettle();
     expect(find.text('Заказ к месту'), findsOneWidget);
 

@@ -136,7 +136,7 @@ export const ru = {
   "common.save": "Сохранить",
   "common.saving": "Сохранение…",
   "customer.actions.book": "Забронировать",
-  "customer.actions.order": "Заказать",
+  "customer.actions.order": "Заказать еду",
   "customer.clubPicker.change": "Сменить клуб",
   "customer.clubPicker.empty": "Клуб не найден",
   "customer.clubPicker.error": "Не удалось загрузить список клубов",

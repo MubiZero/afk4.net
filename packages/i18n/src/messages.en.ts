@@ -136,7 +136,7 @@ export const en = {
   "common.save": "Save",
   "common.saving": "Saving…",
   "customer.actions.book": "Book a seat",
-  "customer.actions.order": "Order",
+  "customer.actions.order": "Order food",
   "customer.clubPicker.change": "Change club",
   "customer.clubPicker.empty": "No clubs found",
   "customer.clubPicker.error": "Could not load the club list",

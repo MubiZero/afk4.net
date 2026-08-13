@@ -10,7 +10,7 @@
   "a11ySessionElapsed": "Session running:",
   "a11ySessionRemaining": "Time remaining:",
   "customerActionsBook": "Book a seat",
-  "customerActionsOrder": "Order",
+  "customerActionsOrder": "Order food",
   "customerClubPickerChange": "Change club",
   "customerClubPickerEmpty": "No clubs found",
   "customerClubPickerError": "Could not load the club list",
