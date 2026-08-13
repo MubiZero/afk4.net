@@ -3,9 +3,11 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Reservations;
+using AFK4.Shared.Contracts.Sessions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -184,6 +186,135 @@ public class PlayerBookingCatalogEndpointTests
         var mine = await client.GetFromJsonAsync<List<PlayerReservationDto>>("/api/me/reservations");
         Assert.Equal(1_500, Assert.Single(mine!).EstimatedCostMinorUnits);
         Assert.Equal("Ночной", mine![0].TariffName);
+    }
+
+    /// <summary>Место с привязанным принятым компьютером — то, за что игрок может сесть сам.</summary>
+    private static async Task<(Guid SeatId, Guid DeviceId)> SeedSeatAsync(
+        PlatformApiFactory factory,
+        Seeded seeded,
+        string name,
+        bool online = true)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var zoneId = await db.Zones
+            .Where(zone => zone.BranchId == seeded.BranchId)
+            .Select(zone => zone.ZoneId)
+            .FirstOrDefaultAsync();
+        if (zoneId == Guid.Empty)
+        {
+            zoneId = Guid.NewGuid();
+            db.Zones.Add(new ZoneEntity
+            {
+                ZoneId = zoneId, OrganizationId = seeded.OrgId, BranchId = seeded.BranchId,
+                Name = "Зал A", SortOrder = 1, CreatedAtUtc = Now
+            });
+        }
+
+        var seatId = Guid.NewGuid();
+        var deviceId = Guid.NewGuid();
+        db.Seats.Add(new SeatEntity
+        {
+            SeatId = seatId, OrganizationId = seeded.OrgId, BranchId = seeded.BranchId, ZoneId = zoneId,
+            Name = name, SortOrder = 10, CreatedAtUtc = Now
+        });
+        db.Devices.Add(new DeviceEntity
+        {
+            DeviceId = deviceId, OrganizationId = seeded.OrgId, BranchId = seeded.BranchId,
+            MachineName = name, DisplayName = name, DevicePublicKey = $"key-{deviceId:N}",
+            Role = DeviceRoleNames.GamingPc, EnrollmentState = DeviceEnrollmentStateNames.Approved,
+            IsOnline = online, EnrolledAtUtc = Now
+        });
+        db.DeviceSeatAssignments.Add(new DeviceSeatAssignmentEntity
+        {
+            DeviceSeatAssignmentId = Guid.NewGuid(), OrganizationId = seeded.OrgId, BranchId = seeded.BranchId,
+            SeatId = seatId, DeviceId = deviceId, AttachedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+        return (seatId, deviceId);
+    }
+
+    [Fact]
+    public async Task Seats_ListWhatThePlayerCanSitAt()
+    {
+        await using var factory = new PlatformApiFactory();
+        var seeded = await SeedAsync(factory, "1234");
+        await SeedSeatAsync(factory, seeded, "PC-01");
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, seeded.OrgId, seeded.Phone, "1234");
+
+        var seats = await client.GetFromJsonAsync<List<PlayerSeatDto>>(
+            $"/api/me/branches/{seeded.BranchId}/seats");
+
+        var seat = Assert.Single(seats!);
+        Assert.Equal("PC-01", seat.SeatName);
+        Assert.Equal("Зал A", seat.ZoneName);
+        Assert.True(seat.IsAvailable);
+    }
+
+    // Занятое место остаётся в списке с причиной: пропавшее место выглядит как сбой приложения,
+    // а «PC-01 занят» — это ответ.
+    [Fact]
+    public async Task Seats_ShowBusyOnesWithAReason()
+    {
+        await using var factory = new PlatformApiFactory();
+        var seeded = await SeedAsync(factory, "1234");
+        var seat = await SeedSeatAsync(factory, seeded, "PC-01");
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            db.Sessions.Add(new SessionEntity
+            {
+                SessionId = Guid.NewGuid(), OrganizationId = seeded.OrgId, BranchId = seeded.BranchId,
+                SeatId = seat.SeatId, DeviceId = seat.DeviceId, State = SessionStateNames.Active,
+                RequestedAtUtc = Now, StartedAtUtc = Now,
+                TariffRuleVersionId = seeded.TariffVersionId.ToString("D"),
+                BillingMode = BillingModeNames.PrepaidWallet
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, seeded.OrgId, seeded.Phone, "1234");
+
+        var seats = await client.GetFromJsonAsync<List<PlayerSeatDto>>(
+            $"/api/me/branches/{seeded.BranchId}/seats");
+
+        var listed = Assert.Single(seats!);
+        Assert.False(listed.IsAvailable);
+        Assert.Equal(PlayerSeatUnavailableReasons.Session, listed.UnavailableReason);
+    }
+
+    // Выключенный компьютер сесть не даст, и сказать об этом надо до, а не после списания денег.
+    [Fact]
+    public async Task Seats_MarkOfflineMachines()
+    {
+        await using var factory = new PlatformApiFactory();
+        var seeded = await SeedAsync(factory, "1234");
+        await SeedSeatAsync(factory, seeded, "PC-02", online: false);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, seeded.OrgId, seeded.Phone, "1234");
+
+        var seats = await client.GetFromJsonAsync<List<PlayerSeatDto>>(
+            $"/api/me/branches/{seeded.BranchId}/seats");
+
+        Assert.Equal(PlayerSeatUnavailableReasons.Offline, Assert.Single(seats!).UnavailableReason);
+    }
+
+    [Fact]
+    public async Task Seats_AreScopedToTheCallersOrganization()
+    {
+        await using var factory = new PlatformApiFactory();
+        var mine = await SeedAsync(factory, "1234");
+        var stranger = await SeedAsync(factory, "4321");
+        await SeedSeatAsync(factory, stranger, "PC-99");
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, mine.OrgId, mine.Phone, "1234");
+
+        var response = await client.GetAsync($"/api/me/branches/{stranger.BranchId}/seats");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]

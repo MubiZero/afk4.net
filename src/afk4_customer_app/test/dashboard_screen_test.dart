@@ -133,6 +133,44 @@ void main() {
     await unmount(tester);
   });
 
+  // Игрок, открывший приложение в клубе, хочет играть сейчас, а не бронировать на завтра —
+  // поэтому посадка стоит главным действием пустого состояния.
+  testWidgets('без сессии предлагается сесть за свободный ПК', (tester) async {
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/me/dashboard' => (_dashboardJson(), 200),
+          '/api/me/profile' => (
+              jsonEncode({
+                'playerAccountId': 'p1',
+                'displayName': 'Иван',
+                'phoneNumber': '+992900000000',
+                'phoneVerified': true,
+                'preferredLocale': null,
+                'marketingOptIn': false,
+                'homeBranchId': 'branch-1',
+                'homeBranchName': 'CyberX',
+              }),
+              200
+            ),
+          '/api/me/features' => ('{"features":[]}', 200),
+          _ => ('[]', 200),
+        });
+
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Сесть за ПК'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  // Филиал неизвестен — предлагать посадку нечем: и места, и тарифы у клуба свои.
+  testWidgets('без филиала посадка не предлагается', (tester) async {
+    await tester.pumpWidget(harness(clientWith(_serve((_dashboardJson(), 200)))));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Сесть за ПК'), findsNothing);
+    await unmount(tester);
+  });
+
   // Клуб не принимает онлайн-брони — звать некуда, и кнопки быть не должно.
   testWidgets('без онлайн-броней пустое состояние никуда не зовёт', (tester) async {
     await tester.pumpWidget(harness(clientWith(_serve((_dashboardJson(), 200)))));

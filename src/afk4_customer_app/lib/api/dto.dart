@@ -260,6 +260,38 @@ class TariffOption {
       );
 }
 
+/// Место в зале глазами игрока, который выбирает, куда сесть.
+class PlayerSeat {
+  const PlayerSeat({
+    required this.seatId,
+    required this.deviceId,
+    required this.seatName,
+    required this.zoneName,
+    required this.isAvailable,
+    required this.unavailableReason,
+  });
+
+  final String seatId;
+
+  /// Нужен для старта сессии. На экране игрок видит имя места, а не этот идентификатор.
+  final String deviceId;
+  final String seatName;
+  final String zoneName;
+  final bool isAvailable;
+
+  /// `session`, `reservation` или `offline`. null — место свободно.
+  final String? unavailableReason;
+
+  factory PlayerSeat.fromJson(Map<String, dynamic> json) => PlayerSeat(
+        seatId: json['seatId'] as String,
+        deviceId: json['deviceId'] as String,
+        seatName: json['seatName'] as String,
+        zoneName: json['zoneName'] as String? ?? '',
+        isAvailable: json['isAvailable'] as bool? ?? false,
+        unavailableReason: json['unavailableReason'] as String?,
+      );
+}
+
 /// Во сколько обойдётся бронь по выбранному тарифу.
 class ReservationQuote {
   const ReservationQuote({

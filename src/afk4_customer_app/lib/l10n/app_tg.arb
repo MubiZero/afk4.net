@@ -160,6 +160,39 @@
     }
   },
   "customerPhoneTitle": "Тасдиқи рақам",
+  "customerPlayBusyOffline": "ПК хомӯш аст",
+  "customerPlayBusyReservation": "Брон шудааст",
+  "customerPlayBusySession": "Банд",
+  "customerPlayConfirm": "Оғоз бо {amount}",
+  "@customerPlayConfirm": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPlayDuration": "Чанд вақт",
+  "customerPlayErrFunds": "Дар ҳамён барои ин вақт маблағ намерасад",
+  "customerPlayErrGeneric": "Сессияро оғоз кардан муяссар нашуд. Бори дигар кӯшиш кунед.",
+  "customerPlayErrTaken": "Ин ҷойро ҳозир банд карданд — дигарашро интихоб кунед",
+  "customerPlayLoadError": "Ҷойҳоро бор кардан муяссар нашуд",
+  "customerPlayNoSeats": "Ҷои холӣ нест",
+  "customerPlayNoSeatsHint": "Ба мизи қабул муроҷиат кунед — мегӯянд, кай холӣ мешавад.",
+  "customerPlayPickSeat": "Ҷои холиро интихоб кунед",
+  "customerPlayPickTariff": "Тарифро интихоб кунед",
+  "customerPlaySeat": "Ҷой",
+  "customerPlayStart": "Ба ПК нишастан",
+  "customerPlayStartHint": "Бе оператор бозиро оғоз кунед",
+  "customerPlayStarted": "Сессия оғоз шуд — ба {seat} нишинед",
+  "@customerPlayStarted": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPlayStarting": "Оғоз карда истодаем…",
+  "customerPlayTitle": "Оғози бозӣ",
   "customerProfileChangePhone": "Иваз кардани рақам",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русӣ",

@@ -197,6 +197,29 @@ class PlayerApiClient {
     return list.map((item) => _parse(item, TariffOption.fromJson)).toList();
   }
 
+  /// Места филиала: за какое можно сесть сейчас и какое занято.
+  Future<List<PlayerSeat>> getSeats(String branchId) async {
+    final list = await getJsonList('/api/me/branches/${Uri.encodeComponent(branchId)}/seats');
+    return list.map((item) => _parse(item, PlayerSeat.fromJson)).toList();
+  }
+
+  /// Начинает сессию за выбранным компьютером. Платное действие, отсюда ключ идемпотентности.
+  ///
+  /// 409 — не хватает денег или место успели занять, 404 — за местом нет машины.
+  Future<void> startSession({
+    required String deviceId,
+    required String tariffRuleVersionId,
+    required int durationMinutes,
+    required String idempotencyKey,
+  }) async {
+    await sendJson('POST', '/api/me/sessions/start', {
+      'deviceId': deviceId,
+      'tariffRuleVersionId': tariffRuleVersionId,
+      'durationMinutes': durationMinutes,
+      'idempotencyKey': idempotencyKey,
+    });
+  }
+
   /// Во сколько обойдётся бронь. Считает сервер: правила округления и минимума живут в биллинге,
   /// и вторая арифметика в приложении разошлась бы с настоящим списанием.
   ///

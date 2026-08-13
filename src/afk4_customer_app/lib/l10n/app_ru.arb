@@ -160,6 +160,39 @@
     }
   },
   "customerPhoneTitle": "Подтверждение номера",
+  "customerPlayBusyOffline": "ПК выключен",
+  "customerPlayBusyReservation": "Забронировано",
+  "customerPlayBusySession": "Занято",
+  "customerPlayConfirm": "Начать за {amount}",
+  "@customerPlayConfirm": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPlayDuration": "Сколько играем",
+  "customerPlayErrFunds": "На кошельке не хватает денег на это время",
+  "customerPlayErrGeneric": "Не удалось начать сессию. Попробуйте ещё раз.",
+  "customerPlayErrTaken": "Место только что заняли — выберите другое",
+  "customerPlayLoadError": "Не удалось загрузить места",
+  "customerPlayNoSeats": "Свободных мест нет",
+  "customerPlayNoSeatsHint": "Подойдите к стойке — администратор подскажет, когда освободится.",
+  "customerPlayPickSeat": "Выберите свободное место",
+  "customerPlayPickTariff": "Выберите тариф",
+  "customerPlaySeat": "Место",
+  "customerPlayStart": "Сесть за ПК",
+  "customerPlayStartHint": "Начните игру без оператора",
+  "customerPlayStarted": "Сессия началась — садитесь за {seat}",
+  "@customerPlayStarted": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPlayStarting": "Запускаем…",
+  "customerPlayTitle": "Начать игру",
   "customerProfileChangePhone": "Изменить номер",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русский",

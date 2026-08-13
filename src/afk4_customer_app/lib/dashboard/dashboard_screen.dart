@@ -8,6 +8,7 @@ import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../loyalty/loyalty_screen.dart';
 import '../news/news_section.dart';
+import '../play/start_session_screen.dart';
 import '../shop/shop_screen.dart';
 import '../wallet/wallet_card.dart';
 import 'extend_session_sheet.dart';
@@ -56,6 +57,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   DateTime? _fetchedAt;
   bool _failed = false;
 
+  /// Филиал игрока — из профиля. Нужен, чтобы предложить сесть за свободный ПК: и места, и
+  /// тарифы у клуба свои. null — профиль ещё не прочитан или филиала у аккаунта нет.
+  String? _branchId;
+
   /// Последний запрос не дошёл до сервера. Данные на экране остаются, но они с прошлого
   /// удачного ответа — молчать об этом значит показывать баланс, которому нельзя верить.
   bool _stale = false;
@@ -64,7 +69,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _refresh();
+    _loadBranch();
     _poll = Timer.periodic(_refreshEvery, (_) => _refresh());
+  }
+
+  Future<void> _loadBranch() async {
+    try {
+      final profile = await widget.api.getProfile();
+      if (mounted) setState(() => _branchId = profile.homeBranchId);
+    } on PlayerApiException {
+      // Не узнали филиал — просто не предлагаем сесть самому. Всё остальное на экране работает.
+    }
+  }
+
+  Future<void> _startSession() async {
+    final l = L.of(context);
+    final branchId = _branchId;
+    if (branchId == null) return;
+
+    final seatName = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => StartSessionScreen(api: widget.api, branchId: branchId)),
+    );
+    if (seatName == null || !mounted) return;
+
+    // Куда садиться — единственное, что игроку сейчас нужно знать: он стоит посреди зала.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l.customerPlayStarted(seatName))),
+    );
+    await _refresh();
   }
 
   @override
@@ -199,7 +231,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ] else ...[
                 _wallet(data),
                 const SizedBox(height: 12),
-                _NoSessionCard(onBook: widget.onOpenReservations),
+                _NoSessionCard(
+                  onBook: widget.onOpenReservations,
+                  // Сесть можно, только когда известен филиал: места у клуба свои.
+                  onPlay: _branchId == null ? null : _startSession,
+                ),
               ],
               // Кешбэк идёт сразу за деньгами: он и есть деньги, просто отложенные.
               if (_loyaltyEnabled) ...[
@@ -352,9 +388,13 @@ class _NavRow extends StatelessWidget {
 
 /// Пустое состояние с выходом: раньше здесь была серая надпись и никакого следующего шага.
 class _NoSessionCard extends StatelessWidget {
-  const _NoSessionCard({required this.onBook});
+  const _NoSessionCard({required this.onBook, required this.onPlay});
 
   final VoidCallback? onBook;
+
+  /// Сесть за свободный ПК прямо сейчас. Это главное действие пустого состояния: игрок,
+  /// открывший приложение в клубе, хочет играть, а не бронировать на завтра.
+  final VoidCallback? onPlay;
 
   @override
   Widget build(BuildContext context) {
@@ -383,8 +423,22 @@ class _NoSessionCard extends StatelessWidget {
               style: theme.textTheme.titleMedium
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
+            if (onPlay != null) ...[
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                onPressed: onPlay,
+                icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                label: Text(l.customerPlayStart),
+              ),
+              Text(
+                l.customerPlayStartHint,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
             if (onBook != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               OutlinedButton(onPressed: onBook, child: Text(l.customerDashboardBookSeat)),
             ],
           ],
