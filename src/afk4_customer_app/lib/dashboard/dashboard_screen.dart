@@ -162,7 +162,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _openShop() async {
     await Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => ShopScreen(api: widget.api)),
+      MaterialPageRoute(
+        builder: (_) => ShopScreen(
+          api: widget.api,
+          sessionActive: _data?.activeSession != null,
+        ),
+      ),
     );
     // Заказ списывает деньги с кошелька — вернувшись, игрок должен увидеть настоящий баланс.
     if (mounted) await _refresh();
@@ -195,9 +200,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             label: l.customerActionsBook,
             onOpen: widget.onOpenReservations!,
           ),
-        // Заказ живёт только при сессии: меню сервер отдаёт по месту, за которым игрок
-        // сидит, а вне сессии нести заказ некуда.
-        if (data.activeSession != null && _shopEnabled)
+        // Меню открыто всегда: цены смотрят и до игры, а плитка, появляющаяся только при
+        // сессии, выглядит как пропавшая. Что заказ несут за ПК, объясняет сам экран.
+        if (_shopEnabled)
           QuickAction(
             icon: Icons.local_cafe_outlined,
             label: l.customerActionsOrder,
@@ -220,7 +225,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return AppScaffold(
       // Приветствие над именем: экран открывает свой человек, а не пользователь системы.
       // При прокрутке приветствие уходит первым — из двух строк оно менее важная.
-      eyebrow: l.customerDashboardWelcome,
+      // Приветствия здесь больше нет: из трёх строк подряд оно единственное ничего не
+      // сообщало, а вместе они читались как сжатый в комок заголовок.
       place: _branchName,
       title: widget.displayName,
       onRefresh: _refresh,

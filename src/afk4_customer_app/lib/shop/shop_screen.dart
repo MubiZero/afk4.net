@@ -16,9 +16,14 @@ import '../theme/app_theme.dart';
 /// сидит. Экран живёт отдельным маршрутом, а не вкладкой, ровно поэтому — вкладка, которая
 /// половину времени пуста, выглядит сломанной.
 class ShopScreen extends StatefulWidget {
-  const ShopScreen({super.key, required this.api});
+  const ShopScreen({super.key, required this.api, this.sessionActive = true});
 
   final PlayerApiClient api;
+
+  /// Идёт ли сессия. Меню открыто всегда — цены смотрят и до игры, — но заказ несут за
+  /// конкретный ПК, и без сессии нести его некуда. Об этом говорит кнопка, а не отказ
+  /// сервера после оформления.
+  final bool sessionActive;
 
   @override
   State<ShopScreen> createState() => _ShopScreenState();
@@ -251,15 +256,17 @@ class _ShopScreenState extends State<ShopScreen> {
               const SizedBox(height: 8),
             ],
             FilledButton(
-              // Кнопка не выключается пустой корзиной молча: она говорит, чего не хватает.
-              // Выключенная кнопка без объяснения — самый частый тупик в заказе.
-              onPressed: _placing || empty ? null : _place,
+              // Кнопка не выключается молча: она говорит, чего не хватает — сессии или
+              // товаров в корзине. Выключенная кнопка без объяснения — самый частый тупик
+              // в заказе.
+              onPressed: _placing || empty || !widget.sessionActive ? null : _place,
               child: Text(
-                _placing
-                    ? l.customerShopPlacing
-                    : empty
-                        ? l.customerShopCartEmpty
-                        : l.customerShopPlace(formatMoney(total, _currencyCode, locale: locale)),
+                switch ((_placing, widget.sessionActive, empty)) {
+                  (true, _, _) => l.customerShopPlacing,
+                  (_, false, _) => l.customerShopErrNoSession,
+                  (_, _, true) => l.customerShopCartEmpty,
+                  _ => l.customerShopPlace(formatMoney(total, _currencyCode, locale: locale)),
+                },
               ),
             ),
           ],

@@ -41,11 +41,11 @@ Map<String, dynamic> _order({String status = 'placed', int total = 1200}) => {
       ],
     };
 
-Widget harness(PlayerApiClient api) => MaterialApp(
+Widget harness(PlayerApiClient api, {bool sessionActive = true}) => MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
-      home: ShopScreen(api: api),
+      home: ShopScreen(api: api, sessionActive: sessionActive),
     );
 
 PlayerApiClient clientWith(FakeHttpClient http) =>
@@ -219,5 +219,21 @@ void main() {
     expect(find.text('Сейчас заказывать нечего'), findsOneWidget);
     expect(find.textContaining('Спросите на стойке'), findsOneWidget);
     await unmount(tester);
+  });
+
+  // Меню открыто и до игры — цены смотрят заранее. Но заказ несут за конкретный ПК, и об
+  // этом говорит кнопка, а не отказ сервера после оформления.
+  testWidgets('без сессии кнопка заказа называет недостающий шаг', (tester) async {
+    await tester.pumpWidget(harness(
+      clientWith(_serve(catalog: _catalogJson())),
+      sessionActive: false,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Заказать можно только во время сессии'), findsOneWidget);
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNull,
+    );
   });
 }

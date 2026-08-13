@@ -352,7 +352,9 @@ void main() {
   });
 
   // Заказ к месту имеет смысл только при идущей сессии — сервер и меню отдаёт по месту.
-  testWidgets('заказ к месту предлагается только при идущей сессии', (tester) async {
+  // Меню открыто всегда: цены смотрят и до игры, а плитка, появляющаяся только при сессии,
+  // выглядит как пропавшая.
+  testWidgets('заказ еды предлагается и до, и во время сессии', (tester) async {
     await tester.pumpWidget(harness(
       clientWith(_serve((_dashboardJson(session: _fixedSession(remainingSeconds: 600)), 200))),
       features: const ['player_shop'],
@@ -366,7 +368,7 @@ void main() {
       features: const ['player_shop'],
     ));
     await tester.pumpAndSettle();
-    expect(find.text('Заказать еду'), findsNothing);
+    expect(find.text('Заказать еду'), findsOneWidget);
     await unmount(tester);
   });
 
