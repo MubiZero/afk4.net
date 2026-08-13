@@ -236,11 +236,68 @@ internal static class AuthEndpoints
 
             // Порядок по имени, а не по времени создания: список должен выглядеть одинаково при
             // каждом открытии, иначе выбранный глазом клуб уезжает под пальцем.
-            var entries = await organizations
+            var found = await organizations
                 .OrderBy(o => o.Name)
                 .Take(maxResults)
-                .Select(o => new OrganizationDirectoryEntryDto(o.OrganizationId, o.Slug, o.Name, o.LogoUrl, o.AccentColor))
+                .Select(o => new { o.OrganizationId, o.Slug, o.Name, o.LogoUrl, o.AccentColor })
                 .ToListAsync(cancellationToken);
+
+            var organizationIds = found.Select(o => o.OrganizationId).ToList();
+
+            // Витрина собирается тремя отдельными запросами и склеивается в памяти, а не одним
+            // выражением с группировками: клубов здесь максимум полсотни, зато запросы остаются
+            // такими, какие одинаково выполняет и Postgres, и InMemory под тестами.
+            var places = await dbContext.Branches
+                .AsNoTracking()
+                .Where(b => organizationIds.Contains(b.OrganizationId))
+                .OrderBy(b => b.City).ThenBy(b => b.Name)
+                .Select(b => new
+                {
+                    b.OrganizationId,
+                    Place = new ClubPlaceDto(
+                        b.BranchId, b.Name, b.City, b.Address, b.Description,
+                        b.CoverImageUrl, b.Latitude, b.Longitude)
+                })
+                .ToListAsync(cancellationToken);
+
+            var seatCounts = await dbContext.Seats
+                .AsNoTracking()
+                .Where(s => organizationIds.Contains(s.OrganizationId))
+                .GroupBy(s => s.OrganizationId)
+                .Select(group => new { OrganizationId = group.Key, Count = group.Count() })
+                .ToListAsync(cancellationToken);
+
+            // «Цена от» — по действующим версиям тарифов: снятые с публикации и ещё не вступившие
+            // в силу обещали бы игроку цену, которую на кассе никто не назовёт.
+            var now = DateTimeOffset.UtcNow;
+            var prices = await dbContext.TariffVersions
+                .AsNoTracking()
+                .Where(v => organizationIds.Contains(v.OrganizationId)
+                    && v.RetiredAtUtc == null
+                    && v.EffectiveFromUtc <= now)
+                .Select(v => new { v.OrganizationId, v.PricePerMinuteMinorUnits, v.CurrencyCode })
+                .ToListAsync(cancellationToken);
+
+            var entries = found.Select(o =>
+            {
+                var cheapest = prices
+                    .Where(p => p.OrganizationId == o.OrganizationId)
+                    .OrderBy(p => p.PricePerMinuteMinorUnits)
+                    .FirstOrDefault();
+
+                return new OrganizationDirectoryEntryDto(
+                    o.OrganizationId,
+                    o.Slug,
+                    o.Name,
+                    o.LogoUrl,
+                    o.AccentColor,
+                    places.Where(p => p.OrganizationId == o.OrganizationId)
+                        .Select(p => p.Place)
+                        .ToList(),
+                    cheapest is null ? null : cheapest.PricePerMinuteMinorUnits * 60,
+                    cheapest?.CurrencyCode,
+                    seatCounts.FirstOrDefault(c => c.OrganizationId == o.OrganizationId)?.Count ?? 0);
+            }).ToList();
 
             return Results.Ok(entries);
         }).RequireRateLimiting("player-public");

@@ -18,7 +18,8 @@ import type { DestinationProps } from './types';
 
 const emptyForm: ClubProfileForm = {
   name: 'AFK4', city: 'Dushanbe', description: '', address: '', phone: '', telegram: '', website: '', instagram: '',
-  logoUrl: null, logoMediaId: null, timeZone: 'Asia/Dushanbe', locale: 'ru', workingHours: normalizeWorkingHours(null)
+  logoUrl: null, logoMediaId: null, coverImageUrl: null, coverMediaId: null, latitude: '', longitude: '',
+  timeZone: 'Asia/Dushanbe', locale: 'ru', workingHours: normalizeWorkingHours(null)
 };
 
 // Клуб: полный профиль филиала (лицо игрока + контакты + часы + настройки). Название — человекочитаемое,

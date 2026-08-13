@@ -75,6 +75,61 @@ public class BranchProfileEndpointTests
         Assert.Equal(7, dto!.WorkingHours.Count);
     }
 
+    /// Фото зала и точка на карте — то, из чего собрана витрина клуба в приложении игрока.
+    [Fact]
+    public async Task Patch_PersistsShowcaseCoverAndCoordinates()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+
+        var request = FullRequest(TestIds.OrganizationId) with
+        {
+            CoverImageUrl = "https://cdn.example/hall.jpg",
+            Latitude = 38.5598,
+            Longitude = 68.7870
+        };
+        await client.PatchAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile", request);
+
+        var dto = await client.GetFromJsonAsync<BranchProfileDto>(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile");
+
+        Assert.Equal("https://cdn.example/hall.jpg", dto!.CoverImageUrl);
+        Assert.Equal(38.5598, dto.Latitude);
+        Assert.Equal(68.7870, dto.Longitude);
+    }
+
+    /// Точка за пределами глобуса на карте выглядит поломкой карты, а не опечаткой в форме.
+    [Fact]
+    public async Task Patch_CoordinatesOutsideTheGlobe_ReturnsBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile",
+            FullRequest(TestIds.OrganizationId) with { Latitude = 138.0, Longitude = 68.7870 });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    /// Одна широта без долготы поставила бы клуб на нулевой меридиан — в Атлантику.
+    [Fact]
+    public async Task Patch_HalfOfACoordinatePair_ReturnsBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile",
+            FullRequest(TestIds.OrganizationId) with { Latitude = 38.5598 });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     [Fact]
     public async Task Patch_InvalidWorkingHours_ReturnsBadRequest()
     {

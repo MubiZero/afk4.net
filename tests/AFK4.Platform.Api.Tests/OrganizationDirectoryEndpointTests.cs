@@ -33,6 +33,91 @@ public sealed class OrganizationDirectoryEndpointTests
         await db.SaveChangesAsync();
     }
 
+    /// A club with a hall, a price and a pin on the map — the state a filled-in club is in.
+    private static async Task<Guid> SeedShowcaseAsync(
+        PlatformApiFactory factory,
+        string slug,
+        long pricePerMinuteMinorUnits = 50,
+        double? latitude = 38.5598,
+        double? longitude = 68.7870,
+        int seats = 3,
+        DateTimeOffset? retiredAtUtc = null,
+        DateTimeOffset? effectiveFromUtc = null)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var organizationId = db.Organizations.Single(o => o.Slug == slug).OrganizationId;
+        var branchId = Guid.NewGuid();
+        var zoneId = Guid.NewGuid();
+        var tariffId = Guid.NewGuid();
+        var created = DateTimeOffset.Parse("2026-08-11T00:00:00Z");
+
+        db.Branches.Add(new BranchEntity
+        {
+            BranchId = branchId,
+            OrganizationId = organizationId,
+            Slug = $"{slug}-main",
+            Name = "На Рудаки",
+            City = "Душанбе",
+            Address = "пр. Рудаки, 1",
+            Description = "40 машин и две PlayStation",
+            CoverImageUrl = $"https://cdn.example/{slug}-hall.jpg",
+            Latitude = latitude,
+            Longitude = longitude,
+            CreatedAtUtc = created
+        });
+        db.Zones.Add(new ZoneEntity
+        {
+            ZoneId = zoneId,
+            OrganizationId = organizationId,
+            BranchId = branchId,
+            Name = "Основной зал",
+            SortOrder = 1,
+            CreatedAtUtc = created
+        });
+        for (var index = 0; index < seats; index++)
+        {
+            db.Seats.Add(new SeatEntity
+            {
+                SeatId = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                BranchId = branchId,
+                ZoneId = zoneId,
+                Name = $"PC-{index:D2}",
+                SortOrder = index,
+                CreatedAtUtc = created
+            });
+        }
+
+        db.Tariffs.Add(new TariffEntity
+        {
+            TariffId = tariffId,
+            OrganizationId = organizationId,
+            BranchId = branchId,
+            Name = "День",
+            IsActive = true,
+            CreatedAtUtc = created
+        });
+        db.TariffVersions.Add(new TariffVersionEntity
+        {
+            TariffVersionId = Guid.NewGuid(),
+            TariffId = tariffId,
+            OrganizationId = organizationId,
+            BranchId = branchId,
+            VersionNumber = 1,
+            CurrencyCode = "TJS",
+            PricePerMinuteMinorUnits = pricePerMinuteMinorUnits,
+            MinimumBillableMinutes = 60,
+            RoundingIncrementMinutes = 1,
+            EffectiveFromUtc = effectiveFromUtc ?? created,
+            RetiredAtUtc = retiredAtUtc,
+            CreatedAtUtc = created
+        });
+
+        await db.SaveChangesAsync();
+        return branchId;
+    }
+
     [Fact]
     public async Task GetDirectory_ReturnsActiveOrganizations()
     {
@@ -153,6 +238,86 @@ public sealed class OrganizationDirectoryEndpointTests
 
         Assert.NotNull(body);
         Assert.Equal(50, body!.Length);
+    }
+
+    /// Клуб выбирают по тому, где он и сколько стоит час. Одно название не отвечает ни на один
+    /// из этих вопросов, поэтому витрина несёт адрес, фото зала, цену и количество мест.
+    [Fact]
+    public async Task GetDirectory_ShowsWhereTheClubIsAndWhatAnHourCosts()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedOrgAsync(factory, "cyberx", "CyberX");
+        await SeedShowcaseAsync(factory, "cyberx", pricePerMinuteMinorUnits: 50, seats: 40);
+        using var client = factory.CreateClient();
+
+        var body = await client.GetFromJsonAsync<OrganizationDirectoryEntryDto[]>("/api/public/organizations");
+
+        var club = Assert.Single(body!);
+        Assert.Equal(3000, club.PricePerHourFromMinorUnits);
+        Assert.Equal("TJS", club.CurrencyCode);
+        Assert.Equal(40, club.SeatCount);
+        var place = Assert.Single(club.Places!);
+        Assert.Equal("Душанбе", place.City);
+        Assert.Equal("пр. Рудаки, 1", place.Address);
+        Assert.Equal("https://cdn.example/cyberx-hall.jpg", place.CoverImageUrl);
+        Assert.Equal(38.5598, place.Latitude);
+        Assert.Equal(68.7870, place.Longitude);
+    }
+
+    /// Снятый с публикации тариф назвал бы игроку цену, которую на кассе никто не подтвердит.
+    [Fact]
+    public async Task GetDirectory_IgnoresRetiredAndFutureTariffs()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedOrgAsync(factory, "retired", "Retired Price");
+        await SeedShowcaseAsync(factory, "retired", pricePerMinuteMinorUnits: 10,
+            retiredAtUtc: DateTimeOffset.Parse("2026-08-12T00:00:00Z"));
+        await SeedOrgAsync(factory, "future", "Future Price");
+        await SeedShowcaseAsync(factory, "future", pricePerMinuteMinorUnits: 10,
+            effectiveFromUtc: DateTimeOffset.UtcNow.AddDays(30));
+        using var client = factory.CreateClient();
+
+        var body = await client.GetFromJsonAsync<OrganizationDirectoryEntryDto[]>("/api/public/organizations");
+
+        Assert.All(body!, club => Assert.Null(club.PricePerHourFromMinorUnits));
+    }
+
+    /// Незаполненный клуб остаётся в списке: пустая витрина — повод её заполнить, а не причина
+    /// пропасть из каталога, в котором игрок его ищет.
+    [Fact]
+    public async Task GetDirectory_KeepsClubsThatFilledNothingIn()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedOrgAsync(factory, "bare", "Bare Club");
+        using var client = factory.CreateClient();
+
+        var body = await client.GetFromJsonAsync<OrganizationDirectoryEntryDto[]>("/api/public/organizations");
+
+        var club = Assert.Single(body!);
+        Assert.Empty(club.Places!);
+        Assert.Null(club.PricePerHourFromMinorUnits);
+        Assert.Equal(0, club.SeatCount);
+    }
+
+    /// Витрина одного клуба не должна считать чужие места и чужие цены.
+    [Fact]
+    public async Task GetDirectory_KeepsShowcasesOfDifferentClubsApart()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedOrgAsync(factory, "alpha", "Alpha");
+        await SeedShowcaseAsync(factory, "alpha", pricePerMinuteMinorUnits: 50, seats: 10);
+        await SeedOrgAsync(factory, "beta", "Beta");
+        await SeedShowcaseAsync(factory, "beta", pricePerMinuteMinorUnits: 80, seats: 4);
+        using var client = factory.CreateClient();
+
+        var body = await client.GetFromJsonAsync<OrganizationDirectoryEntryDto[]>("/api/public/organizations");
+
+        var alpha = Assert.Single(body!, club => club.Slug == "alpha");
+        var beta = Assert.Single(body!, club => club.Slug == "beta");
+        Assert.Equal(3000, alpha.PricePerHourFromMinorUnits);
+        Assert.Equal(10, alpha.SeatCount);
+        Assert.Equal(4800, beta.PricePerHourFromMinorUnits);
+        Assert.Equal(4, beta.SeatCount);
     }
 
     [Fact]

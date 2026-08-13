@@ -204,6 +204,10 @@ internal static class BranchProfileLayoutEndpoints
             branch.Instagram = string.IsNullOrWhiteSpace(request.Instagram) ? null : request.Instagram.Trim();
             branch.LogoUrl = string.IsNullOrWhiteSpace(request.LogoUrl) ? null : request.LogoUrl.Trim();
             branch.LogoMediaId = request.LogoMediaId;
+            branch.CoverImageUrl = string.IsNullOrWhiteSpace(request.CoverImageUrl) ? null : request.CoverImageUrl.Trim();
+            branch.CoverMediaId = request.CoverMediaId;
+            branch.Latitude = request.Latitude;
+            branch.Longitude = request.Longitude;
             branch.PreferredTimeZone = request.TimeZone.Trim();
             branch.PreferredLocale = request.Locale.Trim();
             branch.WorkingHoursJson = AFK4.Platform.Api.Branches.BranchWorkingHours.Serialize(request.WorkingHours);

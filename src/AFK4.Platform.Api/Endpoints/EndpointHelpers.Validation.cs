@@ -205,6 +205,16 @@ internal static partial class EndpointHelpers
         if ((request.Phone?.Length ?? 0) > 40) return "Phone must contain 40 characters or fewer.";
         if ((request.Telegram?.Length ?? 0) > 120) return "Telegram must contain 120 characters or fewer.";
         if ((request.Website?.Length ?? 0) > 300) return "Website must contain 300 characters or fewer.";
+        if ((request.CoverImageUrl?.Length ?? 0) > 600) return "CoverImageUrl must contain 600 characters or fewer.";
+
+        // Координаты приходят из карты, но прийти могут и из формы: точка за пределами глобуса
+        // поставит клуб в никуда, и на карте это будет выглядеть поломкой карты, а не опечаткой.
+        if (request.Latitude is < -90 or > 90) return "Latitude must be between -90 and 90.";
+        if (request.Longitude is < -180 or > 180) return "Longitude must be between -180 and 180.";
+        if (request.Latitude is null != (request.Longitude is null))
+        {
+            return "Latitude and Longitude must be provided together.";
+        }
 
         if (string.IsNullOrWhiteSpace(request.TimeZone) || request.TimeZone.Length > 64)
         {

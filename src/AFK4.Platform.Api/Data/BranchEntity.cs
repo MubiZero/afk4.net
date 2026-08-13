@@ -30,6 +30,21 @@ public sealed class BranchEntity
 
     public Guid? LogoMediaId { get; set; }
 
+    /// <summary>
+    /// Photo of the hall shown on the club card in the player app's picker. A club is chosen by
+    /// eye before it is chosen by name, and a logo on a coloured square says nothing about the room.
+    /// </summary>
+    public string? CoverImageUrl { get; set; }
+
+    public Guid? CoverMediaId { get; set; }
+
+    // Where the club physically is, for the map in the player app's picker. Nullable because an
+    // existing branch has no coordinates until its owner drops a pin: a club without them stays in
+    // the list, it just has nothing to show on the map.
+    public double? Latitude { get; set; }
+
+    public double? Longitude { get; set; }
+
     public string? WorkingHoursJson { get; set; }
 
     public bool RequireManualDeviceApproval { get; set; }
