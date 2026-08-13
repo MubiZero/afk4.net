@@ -50,6 +50,11 @@ class _CustomerAppState extends State<CustomerApp> {
   /// Язык, выбранный игроком в профиле. null — выбора не было, берётся язык устройства.
   Locale? _chosen;
 
+  /// Цвет выбранного клуба. Приложение носит его, пока игрок в этом клубе: заведение он
+  /// узнаёт по цвету раньше, чем прочитает название. null — клуб не выбран или цвет не задан,
+  /// тогда остаётся фирменный emerald.
+  Color? _clubColor;
+
   @override
   void initState() {
     super.initState();
@@ -59,6 +64,16 @@ class _CustomerAppState extends State<CustomerApp> {
   Future<void> _restoreLocale() async {
     final saved = await widget.localeStore.read();
     if (mounted && saved != null) setState(() => _chosen = saved);
+  }
+
+  void _useClubColor(Organization? organization) {
+    final color = AppTheme.parseBrandColor(organization?.accentColor);
+    // Пересборка темы — это перерисовка всего приложения, поэтому только при настоящей смене.
+    if (color != _clubColor) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _clubColor = color);
+      });
+    }
   }
 
   Future<void> _chooseLocale(Locale locale) async {
@@ -75,8 +90,8 @@ class _CustomerAppState extends State<CustomerApp> {
       // Приложение всегда тёмное, а не «следует системе»: это игровая витрина, её смотрят
       // в зале и ночью, и весь визуальный строй — свет, свечение акцента, контраст цифр —
       // построен на тёмном. Светлый вариант тех же экранов был бы вторым продуктом.
-      theme: AppTheme.dark(),
-      darkTheme: AppTheme.dark(),
+      theme: AppTheme.dark(clubColor: _clubColor),
+      darkTheme: AppTheme.dark(clubColor: _clubColor),
       themeMode: ThemeMode.dark,
       // Свет зала живёт под навигатором: один фон на все экраны, без шва при переходах.
       builder: (context, child) => AmbientBackground(child: child ?? const SizedBox.shrink()),
@@ -93,6 +108,7 @@ class _CustomerAppState extends State<CustomerApp> {
         organizationStore: widget.selectedOrganizationStore,
         sessionStore: widget.sessionStore,
         onLocaleChanged: _chooseLocale,
+        onOrganizationChanged: _useClubColor,
       ),
     );
   }
@@ -106,6 +122,7 @@ class _Root extends StatefulWidget {
     required this.organizationStore,
     required this.sessionStore,
     required this.onLocaleChanged,
+    required this.onOrganizationChanged,
   });
 
   final OrganizationDirectory directory;
@@ -113,6 +130,9 @@ class _Root extends StatefulWidget {
   final SelectedOrganizationStore organizationStore;
   final PlayerSessionStore sessionStore;
   final ValueChanged<Locale> onLocaleChanged;
+
+  /// Клуб выбран, восстановлен или сброшен — теме пора перекраситься.
+  final ValueChanged<Organization?> onOrganizationChanged;
 
   @override
   State<_Root> createState() => _RootState();
@@ -176,6 +196,10 @@ class _RootState extends State<_Root> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    // Цвет клуба сообщается наружу из одного места — из построения экрана: сюда сходятся и
+    // восстановление при запуске, и выбор, и смена клуба, и не надо помнить про каждый путь.
+    widget.onOrganizationChanged(_organization);
+
     final organization = _organization;
     if (organization == null) {
       return ClubPickerScreen(directory: widget.directory, onSelected: _selectOrganization);
@@ -194,6 +218,7 @@ class _RootState extends State<_Root> {
     return AppShell(
       api: widget.api,
       session: session,
+      organization: organization,
       onSignOut: _signOut,
       onChangeClub: _changeClub,
       onLocaleChanged: widget.onLocaleChanged,

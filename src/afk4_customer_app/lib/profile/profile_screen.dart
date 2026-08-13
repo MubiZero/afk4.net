@@ -5,6 +5,7 @@ import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../phone/phone_verification_sheet.dart';
 import '../shell/app_scaffold.dart';
+import '../theme/brand_mark.dart';
 
 /// Профиль: кто вошёл, на каком языке говорить, и выходы — из аккаунта и из клуба.
 class ProfileScreen extends StatefulWidget {
@@ -236,6 +237,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ],
+      ),
+      // Чей это продукт. Приложение носит цвет и знак клуба — игрок пришёл к нему, а не к
+      // нам, — поэтому наш знак стоит здесь: в самом низу настроек, где подпись платформы
+      // никому не мешает и никого не путает.
+      const SizedBox(height: 24),
+      Center(
+        child: Column(
+          children: [
+            const BrandMark(size: 30),
+            const SizedBox(height: 8),
+            Text(
+              l.customerProfilePoweredBy,
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ],
+        ),
       ),
     ];
   }

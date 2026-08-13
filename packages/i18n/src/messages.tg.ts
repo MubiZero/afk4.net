@@ -248,6 +248,7 @@ export const tg = {
   "customer.profile.marketing": "Гирифтани хабарнома дар бораи аксияҳо",
   "customer.profile.phoneNote": "Рақам тасдиқ шуд — рамзҳо ва огоҳиномаҳо ба ҳамин рақам меоянд",
   "customer.profile.phoneUnverified": "Рақам тасдиқ нашудааст — пур кардани онлайн ва брон баста аст",
+  "customer.profile.poweredBy": "Дар AFK4.NET кор мекунад",
   "customer.profile.saveError": "Нигоҳ доштан муяссар нашуд",
   "customer.profile.saved": "Нигоҳ дошта шуд",
   "customer.profile.signOut": "Баромадан",

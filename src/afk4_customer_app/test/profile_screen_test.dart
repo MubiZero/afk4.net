@@ -7,6 +7,8 @@ import 'package:afk4_customer_app/api/player_api_client.dart';
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
 import 'package:afk4_customer_app/profile/profile_screen.dart';
 
+import 'package:afk4_customer_app/theme/brand_mark.dart';
+
 import 'support/fake_http.dart';
 
 String _profileJson({
@@ -166,5 +168,18 @@ void main() {
 
     expect(signedOut, isTrue);
     expect(changedClub, isTrue);
+  });
+
+  // Приложение носит цвет и знак клуба — игрок пришёл к нему. Наш знак стоит в самом низу
+  // настроек: подпись платформы, которая никому не мешает и никого не путает.
+  testWidgets('знак платформы стоит в конце профиля', (tester) async {
+    await tester.pumpWidget(harness(FakeHttpClient((_) => (_profileJson(), 200))));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BrandMark), findsOneWidget);
+    expect(find.text('Работает на AFK4.NET'), findsOneWidget);
   });
 }

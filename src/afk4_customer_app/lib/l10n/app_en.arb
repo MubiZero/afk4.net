@@ -205,6 +205,7 @@
   "customerProfileMarketing": "Receive promo emails",
   "customerProfilePhoneNote": "Number confirmed — codes and notifications go here",
   "customerProfilePhoneUnverified": "Number not confirmed — online top-up and booking are closed",
+  "customerProfilePoweredBy": "Powered by AFK4.NET",
   "customerProfileSaveError": "Couldn't save",
   "customerProfileSaved": "Saved",
   "customerProfileSignOut": "Sign out",

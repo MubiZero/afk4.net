@@ -8,7 +8,17 @@ import 'package:afk4_customer_app/auth/player_session.dart';
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
 import 'package:afk4_customer_app/shell/app_shell.dart';
 
+import 'package:afk4_customer_app/organization/organization.dart';
+
 import 'support/fake_http.dart';
+
+const _club = Organization(
+  organizationId: 'o1',
+  slug: 'cyberx',
+  name: 'CyberX',
+  logoUrl: null,
+  accentColor: null,
+);
 
 final _now = DateTime.utc(2026, 8, 12, 12, 0, 0);
 
@@ -64,6 +74,7 @@ Widget harness(FakeHttpClient http, {VoidCallback? onSignOut}) => MaterialApp(
       home: AppShell(
         api: PlayerApiClient(baseUrl: 'https://api', httpClient: http),
         session: _session,
+        organization: _club,
         onSignOut: onSignOut ?? () {},
         onChangeClub: () {},
         onLocaleChanged: (_) {},

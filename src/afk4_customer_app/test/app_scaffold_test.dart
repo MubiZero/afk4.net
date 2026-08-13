@@ -153,4 +153,37 @@ void main() {
     expect(tester.widget<AnimatedScale>(find.byType(AnimatedScale)).scale, 1);
     await gesture.up();
   });
+
+  // Логотип клуба владелец задаёт на сеть: он и стоит перед названием заведения.
+  testWidgets('логотип клуба виден в шапке', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        const AppScaffold(
+          title: 'Иван',
+          place: 'CyberX на Рудаки',
+          placeLogoUrl: 'https://example.test/logo.png',
+          slivers: [SliverToBoxAdapter(child: SizedBox(height: 400))],
+        ),
+      ),
+    );
+
+    expect(find.byType(Image), findsOneWidget);
+    expect(find.text('CyberX на Рудаки'), findsOneWidget);
+  });
+
+  // Клуб без логотипа не должен оставлять дырку в строке.
+  testWidgets('без логотипа на его месте значок места', (tester) async {
+    await tester.pumpWidget(
+      wrap(
+        const AppScaffold(
+          title: 'Иван',
+          place: 'CyberX на Рудаки',
+          slivers: [SliverToBoxAdapter(child: SizedBox(height: 400))],
+        ),
+      ),
+    );
+
+    expect(find.byType(Image), findsNothing);
+    expect(find.byIcon(Icons.place_outlined), findsOneWidget);
+  });
 }

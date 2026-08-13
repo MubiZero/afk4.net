@@ -64,4 +64,43 @@ void main() {
       expect(buttonSize.height, AppTheme.primaryButtonHeight);
     }
   });
+
+  // Цвет клуба владелец задаёт в брендинге сети. Приложение носит его, пока игрок в этом
+  // клубе: заведение узнают по цвету раньше, чем прочитают название.
+  test('цвет клуба становится акцентом приложения', () {
+    final theme = AppTheme.dark(clubColor: const Color(0xFFD64545));
+
+    expect(theme.colorScheme.primary.r, greaterThan(theme.colorScheme.primary.g));
+    expect(theme.colorScheme.primary, isNot(AppTheme.emerald));
+  });
+
+  test('без цвета клуба остаётся фирменный emerald', () {
+    expect(AppTheme.dark(clubColor: null).colorScheme.primary, AppTheme.emerald);
+  });
+
+  // Мусор в поле цвета — не повод красить приложение в чёрный или падать на запуске.
+  test('нецветное значение брендинга игнорируется', () {
+    for (final value in ['', '   ', 'зелёный', '#12', '#GGGGGG', null]) {
+      expect(AppTheme.parseBrandColor(value), isNull, reason: value ?? 'null');
+    }
+    expect(AppTheme.parseBrandColor('#D64545'), const Color(0xFFD64545));
+    expect(AppTheme.parseBrandColor('d64545'), const Color(0xFFD64545));
+    // Короткая запись и запись с прозрачностью тоже встречаются в брендбуках.
+    expect(AppTheme.parseBrandColor('#f00'), const Color(0xFFFF0000));
+    expect(AppTheme.parseBrandColor('#80D64545'), const Color(0xFFD64545));
+  });
+
+  // Тёмно-синий логотип на почти чёрном фоне дал бы кнопку, которой не видно.
+  test('слишком тёмный цвет клуба поднимается до различимого', () {
+    final theme = AppTheme.dark(clubColor: const Color(0xFF0A1240));
+
+    expect(theme.colorScheme.primary.computeLuminance(),
+        greaterThan(const Color(0xFF0A1240).computeLuminance()));
+  });
+
+  // Белые буквы на жёлтой кнопке не читаются, чёрные на тёмно-синей — тоже.
+  test('надпись на цвете клуба выбирается по его яркости', () {
+    expect(AppTheme.onAccentFor(const Color(0xFFF5D90A)), isNot(Colors.white));
+    expect(AppTheme.onAccentFor(const Color(0xFF1E3A8A)), Colors.white);
+  });
 }

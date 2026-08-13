@@ -7,7 +7,17 @@ import 'package:afk4_customer_app/api/player_api_client.dart';
 import 'package:afk4_customer_app/dashboard/dashboard_screen.dart';
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
 
+import 'package:afk4_customer_app/organization/organization.dart';
+
 import 'support/fake_http.dart';
+
+const _club = Organization(
+  organizationId: 'o1',
+  slug: 'cyberx',
+  name: 'CyberX',
+  logoUrl: null,
+  accentColor: null,
+);
 
 final _now = DateTime.utc(2026, 8, 12, 12, 0, 0);
 
@@ -57,6 +67,7 @@ Widget harness(
       home: DashboardScreen(
         api: api,
         displayName: 'Иван',
+        organization: _club,
         phoneVerified: phoneVerified,
         features: features,
         onOpenReservations: onOpenReservations,

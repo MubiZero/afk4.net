@@ -9,6 +9,7 @@ import '../l10n/app_localizations.dart';
 import '../loyalty/loyalty_screen.dart';
 import '../money/money.dart';
 import '../news/news_section.dart';
+import '../organization/organization.dart';
 import '../play/start_session_screen.dart';
 import '../shell/app_scaffold.dart';
 import '../shell/pressable.dart';
@@ -28,6 +29,7 @@ class DashboardScreen extends StatefulWidget {
     super.key,
     required this.api,
     required this.displayName,
+    required this.organization,
     required this.phoneVerified,
     required this.features,
     this.onOpenReservations,
@@ -38,6 +40,10 @@ class DashboardScreen extends StatefulWidget {
 
   final PlayerApiClient api;
   final String displayName;
+
+  /// Клуб игрока: его знак стоит в шапке рядом с названием заведения.
+  final Organization organization;
+
   final bool phoneVerified;
 
   /// Возможности клуба; null — список не получен. Загружает их оболочка: он нужен ещё и
@@ -227,7 +233,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // При прокрутке приветствие уходит первым — из двух строк оно менее важная.
       // Приветствия здесь больше нет: из трёх строк подряд оно единственное ничего не
       // сообщало, а вместе они читались как сжатый в комок заголовок.
-      place: _branchName,
+      // Название конкретного зала, если оно известно, иначе название сети: игрок должен
+      // видеть, куда он пришёл, а не только чьё приложение открыл.
+      place: _branchName ?? widget.organization.name,
+      placeLogoUrl: widget.organization.logoUrl,
       title: widget.displayName,
       onRefresh: _refresh,
       slivers: [

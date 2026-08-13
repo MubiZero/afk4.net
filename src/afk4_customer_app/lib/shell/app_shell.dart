@@ -4,6 +4,7 @@ import '../api/player_api_client.dart';
 import '../auth/player_session.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../l10n/app_localizations.dart';
+import '../organization/organization.dart';
 import '../profile/profile_screen.dart';
 import '../reservations/reservations_screen.dart';
 import '../wallet/wallet_screen.dart';
@@ -21,6 +22,7 @@ class AppShell extends StatefulWidget {
     super.key,
     required this.api,
     required this.session,
+    required this.organization,
     required this.onSignOut,
     required this.onChangeClub,
     required this.onLocaleChanged,
@@ -29,6 +31,10 @@ class AppShell extends StatefulWidget {
 
   final PlayerApiClient api;
   final PlayerSession session;
+
+  /// Клуб, в который игрок вошёл: его знак и цвет носит приложение, пока игрок здесь.
+  final Organization organization;
+
   final VoidCallback onSignOut;
   final VoidCallback onChangeClub;
   final ValueChanged<Locale> onLocaleChanged;
@@ -82,6 +88,7 @@ class _AppShellState extends State<AppShell> {
         DashboardScreen(
           api: widget.api,
           displayName: widget.session.displayName,
+          organization: widget.organization,
           phoneVerified: _phoneVerified,
           features: _features,
           onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),

@@ -205,6 +205,7 @@
   "customerProfileMarketing": "Получать рассылку об акциях",
   "customerProfilePhoneNote": "Номер подтверждён — по нему приходят коды и уведомления",
   "customerProfilePhoneUnverified": "Номер не подтверждён — онлайн-пополнение и брони закрыты",
+  "customerProfilePoweredBy": "Работает на AFK4.NET",
   "customerProfileSaveError": "Не удалось сохранить",
   "customerProfileSaved": "Сохранено",
   "customerProfileSignOut": "Выйти",

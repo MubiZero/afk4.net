@@ -17,6 +17,9 @@ class AmbientBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
+    // Свет берётся из акцента темы, а не из фирменного emerald напрямую: у клуба может быть
+    // свой цвет, и зелёное зарево под красным интерфейсом выглядело бы чужим.
+    final accent = theme.colorScheme.primary;
 
     return DecoratedBox(
       decoration: BoxDecoration(color: theme.canvasColor),
@@ -25,7 +28,7 @@ class AmbientBackground extends StatelessWidget {
           if (dark) ...[
             _Glow(
               alignment: const Alignment(-0.9, -1),
-              color: AppTheme.emerald.withValues(alpha: 0.22),
+              color: accent.withValues(alpha: 0.22),
               size: 1.15,
             ),
             _Glow(
@@ -35,13 +38,13 @@ class AmbientBackground extends StatelessWidget {
             ),
             _Glow(
               alignment: const Alignment(0, 1.25),
-              color: AppTheme.emerald.withValues(alpha: 0.10),
+              color: accent.withValues(alpha: 0.10),
               size: 1.3,
             ),
           ] else
             _Glow(
               alignment: const Alignment(-0.9, -1),
-              color: AppTheme.emerald.withValues(alpha: 0.10),
+              color: accent.withValues(alpha: 0.10),
               size: 1.1,
             ),
           child,

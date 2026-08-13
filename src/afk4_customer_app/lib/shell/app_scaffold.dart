@@ -16,6 +16,7 @@ SliverAppBar appHeader(
   required String title,
   String? eyebrow,
   String? place,
+  String? placeLogoUrl,
   List<Widget>? actions,
   TabBar? tabs,
 }) {
@@ -57,12 +58,8 @@ SliverAppBar appHeader(
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(
-                                    Icons.place_outlined,
-                                    size: 14,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 4),
+                                  _PlaceMark(logoUrl: placeLogoUrl),
+                                  const SizedBox(width: 6),
                                   Text(
                                     place,
                                     style: theme.textTheme.labelMedium?.copyWith(
@@ -92,6 +89,34 @@ SliverAppBar appHeader(
   );
 }
 
+/// Знак клуба перед его названием. Логотип клуб задаёт сам; пока он не загрузился или не
+/// задан вовсе, на его месте стоит значок места — дырки в строке не остаётся.
+class _PlaceMark extends StatelessWidget {
+  const _PlaceMark({required this.logoUrl});
+
+  final String? logoUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final fallback = Icon(Icons.place_outlined, size: 14, color: theme.colorScheme.primary);
+    final url = logoUrl;
+    if (url == null || url.isEmpty) return fallback;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(4),
+      child: Image.network(
+        url,
+        width: 16,
+        height: 16,
+        fit: BoxFit.cover,
+        // Не загрузившийся логотип не должен оставлять пустоту вместо строки.
+        errorBuilder: (_, _, _) => fallback,
+      ),
+    );
+  }
+}
+
 /// Каркас раздела: шапка выше, прокручиваемое содержимое под ней.
 class AppScaffold extends StatelessWidget {
   const AppScaffold({
@@ -100,6 +125,7 @@ class AppScaffold extends StatelessWidget {
     required this.slivers,
     this.eyebrow,
     this.place,
+    this.placeLogoUrl,
     this.actions,
     this.onRefresh,
     this.floatingActionButton,
@@ -111,8 +137,11 @@ class AppScaffold extends StatelessWidget {
   /// прокрутке он уходит первым, как менее важный из двух.
   final String? eyebrow;
 
-  /// Клуб, в котором игрок сейчас. Стоит над приветствием и уходит вместе с ним.
+  /// Клуб, в котором игрок сейчас. Стоит над заголовком и уходит при прокрутке.
   final String? place;
+
+  /// Логотип этого клуба — его владелец задаёт на сеть.
+  final String? placeLogoUrl;
 
   final List<Widget>? actions;
   final Future<void> Function()? onRefresh;
@@ -127,7 +156,14 @@ class AppScaffold extends StatelessWidget {
       // сколько сегодня карточек.
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
-        appHeader(context, title: title, eyebrow: eyebrow, place: place, actions: actions),
+        appHeader(
+          context,
+          title: title,
+          eyebrow: eyebrow,
+          place: place,
+          placeLogoUrl: placeLogoUrl,
+          actions: actions,
+        ),
         ...slivers,
         // Хвост под последней карточкой: без него нижний край содержимого упирается в
         // панель разделов и читается как обрезанный.

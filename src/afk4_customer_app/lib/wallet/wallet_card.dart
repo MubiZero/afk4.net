@@ -106,6 +106,7 @@ class _WalletCardState extends State<WalletCard> {
     final awaiting = _awaiting;
 
     final dark = theme.brightness == Brightness.dark;
+    final accent = theme.colorScheme.primary;
 
     // Кошелёк — единственная карточка с собственным светом: баланс должен читаться первым,
     // а не соревноваться с соседними блоками за внимание.
@@ -113,14 +114,19 @@ class _WalletCardState extends State<WalletCard> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppTheme.radiusCard),
         border: Border.all(color: theme.colorScheme.outline),
+        // Подложка и свечение замешаны на акценте темы, а не на фирменном зелёном: у клуба
+        // может быть свой цвет, и главная карточка приложения — первое место, где его ждут.
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: dark
-              ? [const Color(0xFF17322A), const Color(0xFF121B19)]
-              : [const Color(0xFFE7F6EF), Colors.white],
+              ? [
+                  Color.alphaBlend(accent.withValues(alpha: 0.18), const Color(0xFF121B19)),
+                  const Color(0xFF121B19),
+                ]
+              : [Color.alphaBlend(accent.withValues(alpha: 0.14), Colors.white), Colors.white],
         ),
-        boxShadow: dark ? AppTheme.accentGlow(AppTheme.emerald.withValues(alpha: 0.35)) : null,
+        boxShadow: dark ? AppTheme.accentGlow(accent.withValues(alpha: 0.35)) : null,
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),

@@ -248,6 +248,7 @@ export const ru = {
   "customer.profile.marketing": "Получать рассылку об акциях",
   "customer.profile.phoneNote": "Номер подтверждён — по нему приходят коды и уведомления",
   "customer.profile.phoneUnverified": "Номер не подтверждён — онлайн-пополнение и брони закрыты",
+  "customer.profile.poweredBy": "Работает на AFK4.NET",
   "customer.profile.saveError": "Не удалось сохранить",
   "customer.profile.saved": "Сохранено",
   "customer.profile.signOut": "Выйти",

@@ -57,31 +57,75 @@ class AppTheme {
         BoxShadow(color: color.withValues(alpha: 0.28), blurRadius: 28, offset: const Offset(0, 12)),
       ];
 
-  static ThemeData dark() => _build(
-        brightness: Brightness.dark,
-        canvas: _darkCanvas,
-        surface: _darkSurface,
-        card: _darkCard,
-        border: _darkBorder,
-        text: _darkText,
-        textMuted: _darkTextMuted,
-        accent: emerald,
-        onAccent: _darkOnAccent,
-        danger: _darkDanger,
-      );
+  /// Цвет клуба из его брендинга. `null` — цвет не задан или записан не цветом: тогда
+  /// приложение остаётся фирменно зелёным, а не красится в случайное значение из базы.
+  ///
+  /// Принимаются `#RGB`, `#RRGGBB` и `#AARRGGBB`; прозрачность отбрасывается — полупрозрачный
+  /// акцент дал бы нечитаемый текст на кнопках.
+  static Color? parseBrandColor(String? value) {
+    final hex = value?.trim().replaceFirst('#', '');
+    if (hex == null || hex.isEmpty) return null;
 
-  static ThemeData light() => _build(
-        brightness: Brightness.light,
-        canvas: _lightCanvas,
-        surface: _lightSurface,
-        card: _lightCard,
-        border: _lightBorder,
-        text: _lightText,
-        textMuted: _lightTextMuted,
-        accent: _lightAccent,
-        onAccent: _lightOnAccent,
-        danger: _lightDanger,
-      );
+    final normalized = switch (hex.length) {
+      3 => hex.split('').map((character) => '$character$character').join(),
+      6 => hex,
+      8 => hex.substring(2),
+      _ => null,
+    };
+    final parsed = normalized == null ? null : int.tryParse(normalized, radix: 16);
+    return parsed == null ? null : Color(0xFF000000 | parsed);
+  }
+
+  /// Цвет клуба, приведённый к яркости, на которой он вообще работает акцентом.
+  ///
+  /// Тёмно-синий логотип на почти чёрном фоне даст кнопку, которую не видно, а бледно-жёлтый
+  /// на белом — то же самое в светлой теме. Оттенок клуба сохраняется, меняется только
+  /// светлота: это его цвет, просто различимый.
+  static Color _fitAccent(Color color, Brightness brightness) {
+    final hsl = HSLColor.fromColor(color);
+    final lightness = brightness == Brightness.dark
+        ? hsl.lightness.clamp(0.42, 1.0)
+        : hsl.lightness.clamp(0.0, 0.58);
+    return hsl.withLightness(lightness).toColor();
+  }
+
+  /// Что писать на цвете клуба. Порог по яркости, а не «всегда белое»: белые буквы на жёлтом
+  /// не читаются, а чёрные на тёмно-синем — тем более.
+  static Color onAccentFor(Color accent) =>
+      accent.computeLuminance() > 0.42 ? _darkOnAccent : Colors.white;
+
+  /// [clubColor] — акцент из брендинга клуба; `null` оставляет фирменный emerald.
+  static ThemeData dark({Color? clubColor}) {
+    final accent = clubColor == null ? emerald : _fitAccent(clubColor, Brightness.dark);
+    return _build(
+      brightness: Brightness.dark,
+      canvas: _darkCanvas,
+      surface: _darkSurface,
+      card: _darkCard,
+      border: _darkBorder,
+      text: _darkText,
+      textMuted: _darkTextMuted,
+      accent: accent,
+      onAccent: clubColor == null ? _darkOnAccent : onAccentFor(accent),
+      danger: _darkDanger,
+    );
+  }
+
+  static ThemeData light({Color? clubColor}) {
+    final accent = clubColor == null ? _lightAccent : _fitAccent(clubColor, Brightness.light);
+    return _build(
+      brightness: Brightness.light,
+      canvas: _lightCanvas,
+      surface: _lightSurface,
+      card: _lightCard,
+      border: _lightBorder,
+      text: _lightText,
+      textMuted: _lightTextMuted,
+      accent: accent,
+      onAccent: clubColor == null ? _lightOnAccent : onAccentFor(accent),
+      danger: _lightDanger,
+    );
+  }
 
   static ThemeData _build({
     required Brightness brightness,
@@ -105,10 +149,13 @@ class AppTheme {
       // чипы, подложки подсказок. Без явного значения он выводит его из secondary и заливает
       // экран фиолетовым — чужим на фирменном зелёном. Задаётся здесь, а не в каждом виджете:
       // иначе фиолетовый вылезает в следующем же месте, где Material решит его применить.
-      secondaryContainer: brightness == Brightness.dark
-          ? const Color(0xFF17322A)
-          : const Color(0xFFD9EFE6),
-      onSecondaryContainer: brightness == Brightness.dark ? emeraldBright : const Color(0xFF06503B),
+      secondaryContainer: Color.alphaBlend(
+        accent.withValues(alpha: brightness == Brightness.dark ? 0.20 : 0.22),
+        brightness == Brightness.dark ? _darkCard : _lightSurface,
+      ),
+      onSecondaryContainer: HSLColor.fromColor(accent)
+          .withLightness(brightness == Brightness.dark ? 0.72 : 0.26)
+          .toColor(),
       error: danger,
       onError: brightness == Brightness.dark ? _darkOnAccent : Colors.white,
       surface: surface,

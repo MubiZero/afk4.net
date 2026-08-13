@@ -248,6 +248,7 @@ export const en = {
   "customer.profile.marketing": "Receive promo emails",
   "customer.profile.phoneNote": "Number confirmed — codes and notifications go here",
   "customer.profile.phoneUnverified": "Number not confirmed — online top-up and booking are closed",
+  "customer.profile.poweredBy": "Powered by AFK4.NET",
   "customer.profile.saveError": "Couldn't save",
   "customer.profile.saved": "Saved",
   "customer.profile.signOut": "Sign out",
