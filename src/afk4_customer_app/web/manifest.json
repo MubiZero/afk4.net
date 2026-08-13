@@ -1,11 +1,11 @@
 {
-    "name": "afk4_customer_app",
-    "short_name": "afk4_customer_app",
+    "name": "AFK4.NET",
+    "short_name": "AFK4.NET",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#080C0B",
+    "theme_color": "#0E2019",
+    "description": "Кошелёк, сессия и брони игрока компьютерного клуба.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
