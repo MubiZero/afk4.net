@@ -1,5 +1,6 @@
 {
   "@@locale": "en",
+  "a11yClubMap": "Map of clubs",
   "a11yLoading": "Loading",
   "a11yLoadingDashboard": "Loading data",
   "a11yLoadingProfile": "Loading profile",
@@ -14,8 +15,47 @@
   "customerClubPickerChange": "Change club",
   "customerClubPickerEmpty": "No clubs found",
   "customerClubPickerError": "Could not load the club list",
+  "customerClubPickerMapEmpty": "No club has put itself on the map yet",
+  "customerClubPickerMapHint": "Tap a pin to pick the club",
+  "customerClubPickerMorePlaces": "{count, plural, one {{count} more hall} other {{count} more halls}}",
+  "@customerClubPickerMorePlaces": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerClubPickerNoRating": "No ratings yet",
+  "customerClubPickerOpen": "Choose",
+  "customerClubPickerPriceFrom": "from {price} per hour",
+  "@customerClubPickerPriceFrom": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubPickerPriceUnknown": "Ask the club about prices",
+  "customerClubPickerReviews": "{count, plural, one {{count} review} other {{count} reviews}}",
+  "@customerClubPickerReviews": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerClubPickerSearch": "Search by name",
+  "customerClubPickerSeats": "{count, plural, one {{count} seat} other {{count} seats}}",
+  "@customerClubPickerSeats": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerClubPickerSubtitle": "Which club do you play at",
+  "customerClubPickerTabList": "List",
+  "customerClubPickerTabMap": "Map",
   "customerClubPickerTitle": "Choose your club",
   "customerCommonBack": "← Back",
   "customerCommonDayAtTime": "{day}, {time}",

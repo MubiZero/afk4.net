@@ -1,5 +1,6 @@
 {
   "@@locale": "ru",
+  "a11yClubMap": "Карта клубов",
   "a11yLoading": "Загрузка",
   "a11yLoadingDashboard": "Загрузка данных",
   "a11yLoadingProfile": "Загрузка профиля",
@@ -14,8 +15,47 @@
   "customerClubPickerChange": "Сменить клуб",
   "customerClubPickerEmpty": "Клуб не найден",
   "customerClubPickerError": "Не удалось загрузить список клубов",
+  "customerClubPickerMapEmpty": "Клубы ещё не отметились на карте",
+  "customerClubPickerMapHint": "Нажмите на точку, чтобы выбрать клуб",
+  "customerClubPickerMorePlaces": "{count, plural, one {ещё {count} зал} few {ещё {count} зала} many {ещё {count} залов} other {ещё {count} зала}}",
+  "@customerClubPickerMorePlaces": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerClubPickerNoRating": "Оценок пока нет",
+  "customerClubPickerOpen": "Выбрать",
+  "customerClubPickerPriceFrom": "от {price} в час",
+  "@customerClubPickerPriceFrom": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubPickerPriceUnknown": "Цену уточняйте в клубе",
+  "customerClubPickerReviews": "{count, plural, one {{count} отзыв} few {{count} отзыва} many {{count} отзывов} other {{count} отзыва}}",
+  "@customerClubPickerReviews": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerClubPickerSearch": "Поиск по названию",
+  "customerClubPickerSeats": "{count, plural, one {{count} место} few {{count} места} many {{count} мест} other {{count} места}}",
+  "@customerClubPickerSeats": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerClubPickerSubtitle": "В каком клубе вы играете",
+  "customerClubPickerTabList": "Списком",
+  "customerClubPickerTabMap": "На карте",
   "customerClubPickerTitle": "Выберите клуб",
   "customerCommonBack": "← Назад",
   "customerCommonDayAtTime": "{day}, {time}",

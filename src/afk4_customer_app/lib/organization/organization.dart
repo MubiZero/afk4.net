@@ -1,4 +1,4 @@
-/// Клуб, каким его видит игрок в выборе: достаточно, чтобы узнать, и ничего о делах бизнеса.
+/// Клуб, каким его видит игрок в выборе: достаточно, чтобы выбрать, и ничего о делах бизнеса.
 /// Зеркало `OrganizationDirectoryEntryDto` с сервера.
 class Organization {
   const Organization({
@@ -7,6 +7,12 @@ class Organization {
     required this.name,
     this.logoUrl,
     this.accentColor,
+    this.places = const [],
+    this.pricePerHourFromMinorUnits,
+    this.currencyCode,
+    this.seatCount = 0,
+    this.rating,
+    this.reviewCount = 0,
   });
 
   final String organizationId;
@@ -15,12 +21,46 @@ class Organization {
   final String? logoUrl;
   final String? accentColor;
 
+  /// Залы сети: то, что показывает карточка, и то, что карта ставит точками.
+  final List<ClubPlace> places;
+
+  /// Цена часа «от» — по действующим тарифам сети.
+  final int? pricePerHourFromMinorUnits;
+  final String? currencyCode;
+  final int seatCount;
+
+  /// Средняя оценка по отзывам игроков; null — оценок пока нет (это не ноль звёзд).
+  final double? rating;
+  final int reviewCount;
+
+  /// Город, в котором клуб. Сеть может быть в нескольких — тогда показываем первый и считаем
+  /// остальные: «Душанбе +2» честнее, чем один город, выданный за всю сеть.
+  String? get city => places.isEmpty ? null : places.first.city;
+
+  /// Обложка карточки — фото зала первого клуба сети, у которого оно есть.
+  String? get coverImageUrl {
+    for (final place in places) {
+      if (place.coverImageUrl != null && place.coverImageUrl!.isNotEmpty) {
+        return place.coverImageUrl;
+      }
+    }
+    return null;
+  }
+
   factory Organization.fromJson(Map<String, dynamic> json) => Organization(
         organizationId: json['organizationId'] as String,
         slug: json['slug'] as String,
         name: json['name'] as String,
         logoUrl: json['logoUrl'] as String?,
         accentColor: json['accentColor'] as String?,
+        places: (json['places'] as List<dynamic>? ?? const [])
+            .map((entry) => ClubPlace.fromJson(entry as Map<String, dynamic>))
+            .toList(growable: false),
+        pricePerHourFromMinorUnits: (json['pricePerHourFromMinorUnits'] as num?)?.toInt(),
+        currencyCode: json['currencyCode'] as String?,
+        seatCount: (json['seatCount'] as num?)?.toInt() ?? 0,
+        rating: (json['rating'] as num?)?.toDouble(),
+        reviewCount: (json['reviewCount'] as num?)?.toInt() ?? 0,
       );
 
   Map<String, dynamic> toJson() => {
@@ -29,6 +69,13 @@ class Organization {
         'name': name,
         if (logoUrl != null) 'logoUrl': logoUrl,
         if (accentColor != null) 'accentColor': accentColor,
+        if (places.isNotEmpty) 'places': places.map((place) => place.toJson()).toList(),
+        if (pricePerHourFromMinorUnits != null)
+          'pricePerHourFromMinorUnits': pricePerHourFromMinorUnits,
+        if (currencyCode != null) 'currencyCode': currencyCode,
+        if (seatCount != 0) 'seatCount': seatCount,
+        if (rating != null) 'rating': rating,
+        if (reviewCount != 0) 'reviewCount': reviewCount,
       };
 
   @override
@@ -42,4 +89,54 @@ class Organization {
 
   @override
   int get hashCode => Object.hash(organizationId, slug, name, logoUrl, accentColor);
+}
+
+/// Один зал сети: адрес, фото и точка на карте.
+class ClubPlace {
+  const ClubPlace({
+    required this.branchId,
+    required this.name,
+    required this.city,
+    this.address,
+    this.description,
+    this.coverImageUrl,
+    this.latitude,
+    this.longitude,
+  });
+
+  final String branchId;
+  final String name;
+  final String city;
+  final String? address;
+  final String? description;
+  final String? coverImageUrl;
+
+  /// Координат может не быть: владелец их ещё не поставил. Такой клуб остаётся в списке —
+  /// просто на карте его нет.
+  final double? latitude;
+  final double? longitude;
+
+  bool get hasPoint => latitude != null && longitude != null;
+
+  factory ClubPlace.fromJson(Map<String, dynamic> json) => ClubPlace(
+        branchId: json['branchId'] as String,
+        name: json['name'] as String,
+        city: json['city'] as String? ?? '',
+        address: json['address'] as String?,
+        description: json['description'] as String?,
+        coverImageUrl: json['coverImageUrl'] as String?,
+        latitude: (json['latitude'] as num?)?.toDouble(),
+        longitude: (json['longitude'] as num?)?.toDouble(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'branchId': branchId,
+        'name': name,
+        'city': city,
+        if (address != null) 'address': address,
+        if (description != null) 'description': description,
+        if (coverImageUrl != null) 'coverImageUrl': coverImageUrl,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+      };
 }

@@ -1,5 +1,6 @@
 {
   "@@locale": "tg",
+  "a11yClubMap": "Харитаи клубҳо",
   "a11yLoading": "Боркунӣ",
   "a11yLoadingDashboard": "Боркунии маълумот",
   "a11yLoadingProfile": "Боркунии профил",
@@ -14,8 +15,47 @@
   "customerClubPickerChange": "Иваз кардани клуб",
   "customerClubPickerEmpty": "Клуб ёфт нашуд",
   "customerClubPickerError": "Рӯйхати клубҳоро бор кардан нашуд",
+  "customerClubPickerMapEmpty": "Ҳанӯз ягон клуб дар харита нест",
+  "customerClubPickerMapHint": "Барои интихоби клуб ба нуқта зер кунед",
+  "customerClubPickerMorePlaces": "{count, plural, one {боз {count} толор} other {боз {count} толор}}",
+  "@customerClubPickerMorePlaces": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerClubPickerNoRating": "Ҳанӯз баҳо нест",
+  "customerClubPickerOpen": "Интихоб",
+  "customerClubPickerPriceFrom": "аз {price} дар як соат",
+  "@customerClubPickerPriceFrom": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubPickerPriceUnknown": "Нархро дар клуб пурсед",
+  "customerClubPickerReviews": "{count, plural, one {{count} тақриз} other {{count} тақриз}}",
+  "@customerClubPickerReviews": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerClubPickerSearch": "Ҷустуҷӯ аз рӯи ном",
+  "customerClubPickerSeats": "{count, plural, one {{count} ҷой} other {{count} ҷой}}",
+  "@customerClubPickerSeats": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerClubPickerSubtitle": "Шумо дар кадом клуб бозӣ мекунед",
+  "customerClubPickerTabList": "Рӯйхат",
+  "customerClubPickerTabMap": "Дар харита",
   "customerClubPickerTitle": "Клубро интихоб кунед",
   "customerCommonBack": "← Бозгашт",
   "customerCommonDayAtTime": "{day}, {time}",

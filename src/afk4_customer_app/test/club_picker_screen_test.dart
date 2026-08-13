@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
+import 'package:afk4_customer_app/organization/club_card.dart';
+import 'package:afk4_customer_app/organization/club_map.dart';
 import 'package:afk4_customer_app/organization/club_picker_screen.dart';
 import 'package:afk4_customer_app/organization/organization.dart';
 import 'package:afk4_customer_app/organization/organization_directory.dart';
@@ -25,7 +27,23 @@ const _cyberx = Organization(
   organizationId: '11111111-1111-1111-1111-111111111111',
   slug: 'cyberx',
   name: 'CyberX',
+  places: [
+    ClubPlace(
+      branchId: 'b1',
+      name: 'На Рудаки',
+      city: 'Душанбе',
+      address: 'пр. Рудаки, 1',
+      latitude: 38.5598,
+      longitude: 68.7870,
+    ),
+  ],
+  pricePerHourFromMinorUnits: 1500,
+  currencyCode: 'TJS',
+  seatCount: 40,
+  rating: 4.6,
+  reviewCount: 12,
 );
+
 const _arena = Organization(
   organizationId: '22222222-2222-2222-2222-222222222222',
   slug: 'arena',
@@ -33,7 +51,8 @@ const _arena = Organization(
   logoUrl: null,
 );
 
-Widget harness(OrganizationDirectory directory, {ValueChanged<Organization>? onSelected}) => MaterialApp(
+Widget harness(OrganizationDirectory directory, {ValueChanged<Organization>? onSelected}) =>
+    MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
@@ -49,6 +68,35 @@ void main() {
     expect(find.text('Arena'), findsOneWidget);
   });
 
+  // Клуб выбирают по тому, где он и сколько стоит час: одно название не отвечает ни на один
+  // из этих вопросов.
+  testWidgets('карточка отвечает, где клуб, сколько стоит час и сколько мест', (tester) async {
+    await tester.pumpWidget(harness(_StubDirectory(clubs: const [_cyberx])));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Душанбе, пр. Рудаки, 1'), findsOneWidget);
+    expect(find.text('от 15,00 с. в час'), findsOneWidget);
+    expect(find.text('40 мест'), findsOneWidget);
+    expect(find.text('4,6'), findsOneWidget);
+  });
+
+  // Клуб, в который ещё никто не сходил, не хуже клуба, который все ругают: ноль звёзд был бы
+  // приговором за отсутствие отзывов.
+  testWidgets('клуб без отзывов говорит «оценок пока нет», а не показывает ноль', (tester) async {
+    await tester.pumpWidget(harness(_StubDirectory(clubs: const [_arena])));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Оценок пока нет'), findsOneWidget);
+    expect(find.text('0,0'), findsNothing);
+  });
+
+  testWidgets('клуб без тарифов зовёт уточнить цену, а не показывает ноль', (tester) async {
+    await tester.pumpWidget(harness(_StubDirectory(clubs: const [_arena])));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Цену уточняйте в клубе'), findsOneWidget);
+  });
+
   testWidgets('нажатие на клуб отдаёт его наверх', (tester) async {
     Organization? picked;
     await tester.pumpWidget(harness(
@@ -57,10 +105,38 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('CyberX'));
+    await tester.tap(find.byType(ClubCard));
     await tester.pump();
 
     expect(picked, _cyberx);
+  });
+
+  // До клуба надо доехать, поэтому «какой рядом» — вопрос не менее частый, чем «какие есть».
+  testWidgets('карта открывается переключателем и не теряет список', (tester) async {
+    await tester.pumpWidget(harness(_StubDirectory(clubs: const [_cyberx])));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('На карте'));
+    await tester.pump();
+
+    expect(find.byType(ClubMap), findsOneWidget);
+    expect(find.byType(ClubCard), findsNothing);
+
+    await tester.tap(find.text('Списком'));
+    await tester.pump();
+
+    expect(find.byType(ClubCard), findsOneWidget);
+  });
+
+  // Клуб без координат остаётся в каталоге: на карте его просто нет, и об этом сказано прямо.
+  testWidgets('карта без точек объясняет пустоту, а не показывает пустой глобус', (tester) async {
+    await tester.pumpWidget(harness(_StubDirectory(clubs: const [_arena])));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('На карте'));
+    await tester.pump();
+
+    expect(find.text('Клубы ещё не отметились на карте'), findsOneWidget);
   });
 
   // Пустой список и сбой сети выглядят одинаково, если не различать их явно: игрок решит,
@@ -98,14 +174,14 @@ void main() {
     expect(directory.queries.last, 'аре');
   });
 
-  testWidgets('клуб без логотипа получает букву вместо пустого кружка', (tester) async {
+  // Фотографии зала может не быть — тогда на её месте знак клуба, а не серый прямоугольник,
+  // который читается как несработавшая загрузка.
+  testWidgets('клуб без фото и логотипа получает букву вместо пустой обложки', (tester) async {
     await tester.pumpWidget(harness(_StubDirectory(clubs: const [_arena])));
     await tester.pumpAndSettle();
 
-    // Проверяется правило, а не форма знака: буква стоит на месте логотипа внутри плитки,
-    // по которой открывается клуб.
     expect(
-      find.descendant(of: find.byType(InkWell), matching: find.text('A')),
+      find.descendant(of: find.byType(ClubCard), matching: find.text('A')),
       findsOneWidget,
     );
   });
