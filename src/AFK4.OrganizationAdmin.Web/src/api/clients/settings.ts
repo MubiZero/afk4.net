@@ -77,6 +77,7 @@ export interface UpdateBranchProfileRequest extends Record<string, unknown> {
   // Витрина клуба в приложении игрока: фото зала и точка на карте.
   coverImageUrl: string | null;
   coverMediaId: string | null;
+  photos: Array<{ url: string; mediaId: string | null }>;
   latitude: number | null;
   longitude: number | null;
 }

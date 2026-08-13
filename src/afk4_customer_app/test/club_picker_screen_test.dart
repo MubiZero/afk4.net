@@ -34,6 +34,7 @@ const _cyberx = Organization(
       name: 'На Рудаки',
       city: 'Душанбе',
       address: 'пр. Рудаки, 1',
+      coverImageUrl: 'https://cdn.example/hall.jpg',
       latitude: 38.5598,
       longitude: 68.7870,
     ),
@@ -164,6 +165,22 @@ void main() {
     expect(picked, _cyberx);
   });
 
+  // Нажатие по фото открывает клуб так же, как по любому другому месту карточки: лента
+  // фотографий забирает себе только движение вбок.
+  testWidgets('нажатие по фото зала тоже открывает клуб', (tester) async {
+    Organization? picked;
+    await tester.pumpWidget(harness(
+      _StubDirectory(clubs: const [_cyberx]),
+      onSelected: (club) => picked = club,
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.descendant(of: find.byType(ClubCard), matching: find.byType(PageView)));
+    await tester.pump();
+
+    expect(picked, _cyberx);
+  });
+
   // До клуба надо доехать, поэтому «какой рядом» — вопрос не менее частый, чем «какие есть».
   testWidgets('карта открывается переключателем и не теряет список', (tester) async {
     await tester.pumpWidget(harness(_StubDirectory(clubs: const [_cyberx])));
@@ -254,6 +271,51 @@ void main() {
 
     expect(directory.queries, hasLength(2));
     expect(directory.queries.last, 'аре');
+  });
+
+  // Одно фото отвечает «как тут выглядит», остальные — «а что ещё»: их листают, и о том,
+  // что они есть, говорят точки-счётчик.
+  testWidgets('несколько фото зала листаются в карточке', (tester) async {
+    const club = Organization(
+      organizationId: '55555555-5555-5555-5555-555555555555',
+      slug: 'cyberx',
+      name: 'CyberX',
+      places: [
+        ClubPlace(
+          branchId: 'b1',
+          name: 'На Рудаки',
+          city: 'Душанбе',
+          photoUrls: [
+            'https://cdn.example/hall.jpg',
+            'https://cdn.example/vip.jpg',
+            'https://cdn.example/bar.jpg',
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(harness(_StubDirectory(clubs: const [club])));
+    await tester.pumpAndSettle();
+
+    final gallery = find.descendant(of: find.byType(ClubCard), matching: find.byType(PageView));
+    expect(gallery, findsOneWidget);
+    expect(tester.widget<PageView>(gallery).controller!.hasClients, isTrue);
+
+    // Тестовый экран шире телефонного, и порог перелистывания — половина его ширины:
+    // короткий сдвиг вернулся бы на первое фото, ничего не доказав.
+    await tester.drag(gallery, const Offset(-600, 0));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<PageView>(gallery).controller!.page?.round(), 1);
+  });
+
+  // Одно фото листать нечего — и точек-счётчика быть не должно.
+  testWidgets('одно фото не притворяется галереей', (tester) async {
+    await tester.pumpWidget(harness(_StubDirectory(clubs: const [_cyberx])));
+    await tester.pumpAndSettle();
+
+    expect(find.descendant(of: find.byType(ClubCard), matching: find.byType(PageView)), findsOneWidget);
+    expect(tester.widget<PageView>(find.byType(PageView)).childrenDelegate.estimatedChildCount, 1);
   });
 
   // Фотографии зала может не быть — тогда на её месте знак клуба, а не серый прямоугольник,

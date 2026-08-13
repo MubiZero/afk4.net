@@ -39,14 +39,16 @@ class Organization {
   /// остальные: «Душанбе +2» честнее, чем один город, выданный за всю сеть.
   String? get city => places.isEmpty ? null : places.first.city;
 
-  /// Обложка карточки — фото зала первого клуба сети, у которого оно есть.
-  String? get coverImageUrl {
+  /// Фото для карточки — из первого зала сети, который их прислал. Смешивать фотографии
+  /// разных залов в одну ленту нельзя: игрок пролистал бы чужой зал, думая, что смотрит этот.
+  List<String> get photoUrls {
     for (final place in places) {
+      if (place.photoUrls.isNotEmpty) return place.photoUrls;
       if (place.coverImageUrl != null && place.coverImageUrl!.isNotEmpty) {
-        return place.coverImageUrl;
+        return [place.coverImageUrl!];
       }
     }
-    return null;
+    return const [];
   }
 
   factory Organization.fromJson(Map<String, dynamic> json) => Organization(
@@ -102,6 +104,7 @@ class ClubPlace {
     this.address,
     this.description,
     this.coverImageUrl,
+    this.photoUrls = const [],
     this.latitude,
     this.longitude,
     this.workingHours = const [],
@@ -113,6 +116,9 @@ class ClubPlace {
   final String? address;
   final String? description;
   final String? coverImageUrl;
+
+  /// Фото зала по порядку: обложка первой, дальше галерея — так их выстроил владелец.
+  final List<String> photoUrls;
 
   /// Координат может не быть: владелец их ещё не поставил. Такой клуб остаётся в списке —
   /// просто на карте его нет.
@@ -131,6 +137,9 @@ class ClubPlace {
         address: json['address'] as String?,
         description: json['description'] as String?,
         coverImageUrl: json['coverImageUrl'] as String?,
+        photoUrls: (json['photoUrls'] as List<dynamic>? ?? const [])
+            .map((entry) => entry as String)
+            .toList(growable: false),
         latitude: (json['latitude'] as num?)?.toDouble(),
         longitude: (json['longitude'] as num?)?.toDouble(),
         workingHours: (json['workingHours'] as List<dynamic>? ?? const [])
@@ -145,6 +154,7 @@ class ClubPlace {
         if (address != null) 'address': address,
         if (description != null) 'description': description,
         if (coverImageUrl != null) 'coverImageUrl': coverImageUrl,
+        if (photoUrls.isNotEmpty) 'photoUrls': photoUrls,
         if (latitude != null) 'latitude': latitude,
         if (longitude != null) 'longitude': longitude,
         if (workingHours.isNotEmpty)

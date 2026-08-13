@@ -34,4 +34,6 @@ public sealed record ClubPlaceDto(
     double? Longitude,
     /// Расписание клуба: игрок хочет знать не только где клуб, но и открыт ли он сейчас.
     /// Пустой список — расписание не задано.
-    IReadOnlyList<BranchWorkingHoursDayDto>? WorkingHours = null);
+    IReadOnlyList<BranchWorkingHoursDayDto>? WorkingHours = null,
+    /// Фото зала по порядку: обложка первой, дальше галерея. Пусто — клуб фото не прислал.
+    IReadOnlyList<string>? PhotoUrls = null);

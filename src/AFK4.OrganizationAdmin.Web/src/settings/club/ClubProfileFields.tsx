@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
 import { MediaUpload } from '../../components/MediaUpload';
+import { GalleryUpload, type GalleryPhoto } from '../../components/GalleryUpload';
 import type { OperatorBackendContext } from '../../operatorTypes';
 import type { BranchWorkingHoursDay } from '../../api/clients/settings';
 import { WorkingHoursEditor } from './WorkingHoursEditor';
@@ -25,6 +26,7 @@ export interface ClubProfileForm {
   logoMediaId: string | null;
   coverImageUrl: string | null;
   coverMediaId: string | null;
+  photos: GalleryPhoto[];
   // Координаты живут в форме строкой, а не числом: при вводе «38.» число проглотило бы точку
   // и продолжить набор дробной части стало бы невозможно. В число их превращает сборка запроса.
   latitude: string;
@@ -100,6 +102,15 @@ export function ClubProfileFields({ form, currencyCode, backend, disabled, onFie
                 }}
               />
               <span className="club-field-hint">{t('op.club.hint.cover')}</span>
+            </label>
+            <label className="club-identity-gallery">{t('op.club.field.gallery')}
+              <GalleryUpload
+                value={form.photos}
+                branchId={backend.branchId}
+                backend={backend}
+                disabled={disabled}
+                onChange={(photos) => onField('photos', photos)}
+              />
             </label>
           </div>
 

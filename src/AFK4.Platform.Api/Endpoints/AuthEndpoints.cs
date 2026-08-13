@@ -254,7 +254,7 @@ internal static class AuthEndpoints
                 .Select(b => new
                 {
                     b.OrganizationId, b.BranchId, b.Name, b.City, b.Address, b.Description,
-                    b.CoverImageUrl, b.Latitude, b.Longitude, b.WorkingHoursJson
+                    b.CoverImageUrl, b.Latitude, b.Longitude, b.WorkingHoursJson, b.PhotosJson
                 })
                 .ToListAsync(cancellationToken);
 
@@ -264,7 +264,14 @@ internal static class AuthEndpoints
                 Place = new ClubPlaceDto(
                     b.BranchId, b.Name, b.City, b.Address, b.Description,
                     b.CoverImageUrl, b.Latitude, b.Longitude,
-                    AFK4.Platform.Api.Branches.BranchWorkingHours.Deserialize(b.WorkingHoursJson))
+                    AFK4.Platform.Api.Branches.BranchWorkingHours.Deserialize(b.WorkingHoursJson),
+                    // Обложка идёт первой: она выбрана владельцем как лицо зала, остальные —
+                    // за ней, в заданном им порядке.
+                    [
+                        .. string.IsNullOrWhiteSpace(b.CoverImageUrl) ? Array.Empty<string>() : [b.CoverImageUrl],
+                        .. AFK4.Platform.Api.Branches.BranchPhotos.Deserialize(b.PhotosJson)
+                            .Select(photo => photo.Url)
+                    ])
             }).ToList();
 
             var seatCounts = await dbContext.Seats

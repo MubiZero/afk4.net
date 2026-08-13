@@ -15,6 +15,7 @@ public sealed record BranchProfileDto(
     Guid? LogoMediaId,
     string? CoverImageUrl,
     Guid? CoverMediaId,
+    IReadOnlyList<BranchPhotoDto> Photos,
     double? Latitude,
     double? Longitude,
     string TimeZone,

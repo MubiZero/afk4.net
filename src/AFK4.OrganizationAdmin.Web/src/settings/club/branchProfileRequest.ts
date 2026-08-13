@@ -40,6 +40,10 @@ export function mapProfileToForm(profile: BranchProfileDto): ClubProfileForm {
     logoMediaId: (profile.logoMediaId as string | null) ?? null,
     coverImageUrl: (profile.coverImageUrl as string | null) ?? null,
     coverMediaId: (profile.coverMediaId as string | null) ?? null,
+    photos: ((profile.photos as Array<{ url: string; mediaId: string | null }> | null) ?? []).map((photo) => ({
+      url: photo.url,
+      mediaId: photo.mediaId ?? null
+    })),
     latitude: profile.latitude === null || profile.latitude === undefined ? '' : String(profile.latitude),
     longitude: profile.longitude === null || profile.longitude === undefined ? '' : String(profile.longitude),
     timeZone: readString(profile, 'timeZone', 'Asia/Dushanbe'),
@@ -63,6 +67,7 @@ export function buildUpdateBranchProfileRequest(organizationId: string, form: Cl
     logoMediaId: form.logoMediaId,
     coverImageUrl: form.coverImageUrl,
     coverMediaId: form.coverMediaId,
+    photos: form.photos,
     // Координаты нужны парой: одна широта ставит клуб на нулевой меридиан, и бэкенд такую
     // пару отклонит — отправляем обе или ни одной.
     latitude: coordinatePair(form).latitude,

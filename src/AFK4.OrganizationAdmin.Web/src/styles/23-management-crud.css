@@ -60,6 +60,7 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:
     "name logo"
+    "cover gallery"
     "desc desc";
   gap: 12px 20px;
   align-items: start;
@@ -71,10 +72,29 @@
 .club-identity-logo .media-upload-hint { display: none; }
 .club-identity-logo .media-upload-actions .ui-btn { min-height: var(--control-md); height: var(--control-md); }
 .club-identity-logo .media-upload-actions .ui-btn--primary { flex: 1; }
+.club-identity-cover { grid-area: cover; margin: 0; }
+.club-identity-gallery { grid-area: gallery; margin: 0; }
 .club-identity-desc { grid-area: desc; }
+
+/* Галерея зала: лента миниатюр с кнопками порядка и удаления под каждой. */
+.gallery-upload { display: flex; flex-direction: column; gap: 8px; }
+.gallery-upload-list {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin: 0; padding: 0; list-style: none;
+}
+.gallery-upload-item { display: flex; flex-direction: column; gap: 4px; }
+.gallery-upload-thumb {
+  width: 84px; height: 60px; object-fit: cover;
+  border-radius: 8px; background: var(--surface-sunken, rgba(0,0,0,0.05));
+}
+.gallery-upload-item-actions { display: flex; gap: 2px; }
+.gallery-upload-item-actions .ui-btn { min-width: 26px; padding: 0 6px; }
 .club-identity-desc textarea { min-height: 130px; resize: vertical; }
 @media (max-width: 560px) {
-  .club-identity-grid { grid-template-columns: 1fr; grid-template-areas: "name" "logo" "desc"; }
+  .club-identity-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas: "name" "logo" "cover" "gallery" "desc";
+  }
 }
 
 .club-preview { position: sticky; top: 4px; display: flex; flex-direction: column; gap: 10px; }

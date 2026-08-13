@@ -207,6 +207,9 @@ internal static partial class EndpointHelpers
         if ((request.Website?.Length ?? 0) > 300) return "Website must contain 300 characters or fewer.";
         if ((request.CoverImageUrl?.Length ?? 0) > 600) return "CoverImageUrl must contain 600 characters or fewer.";
 
+        var photos = AFK4.Platform.Api.Branches.BranchPhotos.Validate(request.Photos);
+        if (photos is not null) return photos;
+
         // Координаты приходят из карты, но прийти могут и из формы: точка за пределами глобуса
         // поставит клуб в никуда, и на карте это будет выглядеть поломкой карты, а не опечаткой.
         if (request.Latitude is < -90 or > 90) return "Latitude must be between -90 and 90.";

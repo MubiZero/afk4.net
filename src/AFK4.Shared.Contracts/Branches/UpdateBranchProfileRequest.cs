@@ -19,5 +19,6 @@ public sealed record UpdateBranchProfileRequest(
     // умолчаниями — чтобы старый клиент, который их не шлёт, продолжал сохранять профиль.
     string? CoverImageUrl = null,
     Guid? CoverMediaId = null,
+    IReadOnlyList<BranchPhotoDto>? Photos = null,
     double? Latitude = null,
     double? Longitude = null);

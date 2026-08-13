@@ -172,6 +172,7 @@ internal static partial class EndpointHelpers
             branch.LogoMediaId,
             branch.CoverImageUrl,
             branch.CoverMediaId,
+            AFK4.Platform.Api.Branches.BranchPhotos.Deserialize(branch.PhotosJson),
             branch.Latitude,
             branch.Longitude,
             branch.PreferredTimeZone,

@@ -206,6 +206,9 @@ internal static class BranchProfileLayoutEndpoints
             branch.LogoMediaId = request.LogoMediaId;
             branch.CoverImageUrl = string.IsNullOrWhiteSpace(request.CoverImageUrl) ? null : request.CoverImageUrl.Trim();
             branch.CoverMediaId = request.CoverMediaId;
+            branch.PhotosJson = request.Photos is null
+                ? null
+                : AFK4.Platform.Api.Branches.BranchPhotos.Serialize(request.Photos);
             branch.Latitude = request.Latitude;
             branch.Longitude = request.Longitude;
             branch.PreferredTimeZone = request.TimeZone.Trim();

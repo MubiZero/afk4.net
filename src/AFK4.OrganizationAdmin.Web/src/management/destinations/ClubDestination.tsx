@@ -18,7 +18,7 @@ import type { DestinationProps } from './types';
 
 const emptyForm: ClubProfileForm = {
   name: 'AFK4', city: 'Dushanbe', description: '', address: '', phone: '', telegram: '', website: '', instagram: '',
-  logoUrl: null, logoMediaId: null, coverImageUrl: null, coverMediaId: null, latitude: '', longitude: '',
+  logoUrl: null, logoMediaId: null, coverImageUrl: null, coverMediaId: null, photos: [], latitude: '', longitude: '',
   timeZone: 'Asia/Dushanbe', locale: 'ru', workingHours: normalizeWorkingHours(null)
 };
 

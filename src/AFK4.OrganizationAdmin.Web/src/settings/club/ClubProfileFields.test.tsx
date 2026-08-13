@@ -19,6 +19,7 @@ const form: ClubProfileForm = {
   logoMediaId: null,
   coverImageUrl: null,
   coverMediaId: null,
+  photos: [],
   latitude: '',
   longitude: '',
   timeZone: 'Asia/Dushanbe',

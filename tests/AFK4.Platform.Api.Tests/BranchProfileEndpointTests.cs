@@ -100,6 +100,53 @@ public class BranchProfileEndpointTests
         Assert.Equal(68.7870, dto.Longitude);
     }
 
+    /// Галерея зала: обложка отвечает «как тут выглядит», остальные фото — «а что ещё».
+    [Fact]
+    public async Task Patch_PersistsHallGalleryInTheGivenOrder()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+
+        var request = FullRequest(TestIds.OrganizationId) with
+        {
+            Photos =
+            [
+                new BranchPhotoDto("https://cdn.example/vip.jpg", null),
+                new BranchPhotoDto("https://cdn.example/bar.jpg", null)
+            ]
+        };
+        await client.PatchAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile", request);
+
+        var dto = await client.GetFromJsonAsync<BranchProfileDto>(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile");
+
+        Assert.Equal(
+            new[] { "https://cdn.example/vip.jpg", "https://cdn.example/bar.jpg" },
+            dto!.Photos.Select(photo => photo.Url).ToArray());
+    }
+
+    /// Больше десятка фото зала никто не пролистает, а каждое — трафик игрока на витрине.
+    [Fact]
+    public async Task Patch_TooManyPhotos_ReturnsBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile",
+            FullRequest(TestIds.OrganizationId) with
+            {
+                Photos = Enumerable.Range(1, 11)
+                    .Select(index => new BranchPhotoDto($"https://cdn.example/{index}.jpg", null))
+                    .ToList()
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     /// Точка за пределами глобуса на карте выглядит поломкой карты, а не опечаткой в форме.
     [Fact]
     public async Task Patch_CoordinatesOutsideTheGlobe_ReturnsBadRequest()

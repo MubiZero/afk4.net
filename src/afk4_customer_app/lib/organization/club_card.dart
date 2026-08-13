@@ -97,19 +97,35 @@ class ClubCard extends StatelessWidget {
   }
 }
 
-/// Фото зала с названием поверх него. Фотографии может не быть — тогда её место занимает
-/// фирменный градиент со знаком клуба: пустой серый прямоугольник читался бы как ошибка
-/// загрузки, а не как «клуб не прислал фото».
-class _Cover extends StatelessWidget {
+/// Фото зала с названием поверх него.
+///
+/// Фотографий может быть несколько — их листают: одна отвечает «как тут выглядит», остальные —
+/// «а что ещё». Если фото нет вовсе, её место занимает фирменный градиент со знаком клуба:
+/// пустой серый прямоугольник читался бы как ошибка загрузки, а не как «клуб не прислал фото».
+class _Cover extends StatefulWidget {
   const _Cover({required this.club, this.onOpenReviews});
 
   final Organization club;
   final VoidCallback? onOpenReviews;
 
   @override
+  State<_Cover> createState() => _CoverState();
+}
+
+class _CoverState extends State<_Cover> {
+  final PageController _pages = PageController();
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cover = club.coverImageUrl;
+    final photos = widget.club.photoUrls;
 
     return SizedBox(
       height: 150,
@@ -117,23 +133,31 @@ class _Cover extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (cover != null && cover.isNotEmpty)
-            Image.network(
-              cover,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => _CoverFallback(club: club),
-              loadingBuilder: (context, child, progress) =>
-                  progress == null ? child : _CoverFallback(club: club),
-            )
+          if (photos.isEmpty)
+            _CoverFallback(club: widget.club)
           else
-            _CoverFallback(club: club),
-          // Затемнение снизу: без него светлое фото съедает белое название.
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.center,
-                end: Alignment.bottomCenter,
-                colors: [Colors.transparent, Color(0xCC000000)],
+            PageView.builder(
+              controller: _pages,
+              itemCount: photos.length,
+              onPageChanged: (page) => setState(() => _page = page),
+              itemBuilder: (context, index) => Image.network(
+                photos[index],
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _CoverFallback(club: widget.club),
+                loadingBuilder: (context, child, progress) =>
+                    progress == null ? child : _CoverFallback(club: widget.club),
+              ),
+            ),
+          // Затемнение и подписи не перехватывают касания: под ними лента фото, и жест
+          // листания должен доходить до неё.
+          const IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.center,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Color(0xCC000000)],
+                ),
               ),
             ),
           ),
@@ -141,25 +165,61 @@ class _Cover extends StatelessWidget {
             left: 14,
             right: 14,
             bottom: 12,
-            child: Text(
-              club.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleLarge?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
+            child: IgnorePointer(
+              child: Text(
+                widget.club.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
+          // Точки-счётчик: без них не видно, что фото больше одного, и никто не листает.
+          if (photos.length > 1)
+            Positioned(
+              right: 14,
+              bottom: 14,
+              child: IgnorePointer(child: _PhotoDots(count: photos.length, current: _page)),
+            ),
           Positioned(
             top: 12,
             right: 12,
-            child: _RatingBadge(club: club, onOpenReviews: onOpenReviews),
+            child: _RatingBadge(club: widget.club, onOpenReviews: widget.onOpenReviews),
           ),
         ],
       ),
     );
   }
+}
+
+/// Сколько фото и какое сейчас.
+class _PhotoDots extends StatelessWidget {
+  const _PhotoDots({required this.count, required this.current});
+
+  final int count;
+  final int current;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var index = 0; index < count; index++)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: index == current ? Colors.white : Colors.white38,
+                ),
+              ),
+            ),
+        ],
+      );
 }
 
 class _CoverFallback extends StatelessWidget {

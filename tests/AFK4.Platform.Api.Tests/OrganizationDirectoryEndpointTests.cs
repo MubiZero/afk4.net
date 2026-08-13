@@ -67,6 +67,11 @@ public sealed class OrganizationDirectoryEndpointTests
                     .Select(day => new AFK4.Shared.Contracts.Branches.BranchWorkingHoursDayDto(
                         day, day == 7, day == 7 ? null : "10:00", day == 7 ? null : "23:00"))
                     .ToList()),
+            PhotosJson = AFK4.Platform.Api.Branches.BranchPhotos.Serialize(
+            [
+                new AFK4.Shared.Contracts.Branches.BranchPhotoDto($"https://cdn.example/{slug}-vip.jpg", null),
+                new AFK4.Shared.Contracts.Branches.BranchPhotoDto($"https://cdn.example/{slug}-bar.jpg", null),
+            ]),
             Latitude = latitude,
             Longitude = longitude,
             CreatedAtUtc = created
@@ -285,6 +290,29 @@ public sealed class OrganizationDirectoryEndpointTests
         Assert.Equal(7, place.WorkingHours!.Count);
         Assert.Equal("23:00", place.WorkingHours.Single(day => day.DayOfWeek == 1).CloseTime);
         Assert.True(place.WorkingHours.Single(day => day.DayOfWeek == 7).IsClosed);
+    }
+
+    /// Одно фото отвечает «как тут выглядит», галерея — «а что ещё». Обложка идёт первой:
+    /// её владелец выбрал лицом зала.
+    [Fact]
+    public async Task GetDirectory_CarriesTheHallPhotosCoverFirst()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedOrgAsync(factory, "cyberx", "CyberX");
+        await SeedShowcaseAsync(factory, "cyberx");
+        using var client = factory.CreateClient();
+
+        var body = await client.GetFromJsonAsync<OrganizationDirectoryEntryDto[]>("/api/public/organizations");
+
+        var place = Assert.Single(Assert.Single(body!).Places!);
+        Assert.Equal(
+            new[]
+            {
+                "https://cdn.example/cyberx-hall.jpg",
+                "https://cdn.example/cyberx-vip.jpg",
+                "https://cdn.example/cyberx-bar.jpg"
+            },
+            place.PhotoUrls!.ToArray());
     }
 
     /// Снятый с публикации тариф назвал бы игроку цену, которую на кассе никто не подтвердит.

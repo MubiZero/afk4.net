@@ -38,6 +38,12 @@ public sealed class BranchEntity
 
     public Guid? CoverMediaId { get; set; }
 
+    /// <summary>
+    /// Остальные фото зала, JSON-массивом: обложка отвечает «как тут выглядит», галерея —
+    /// «а что ещё». Порядок задаёт владелец и он же виден игроку.
+    /// </summary>
+    public string? PhotosJson { get; set; }
+
     // Where the club physically is, for the map in the player app's picker. Nullable because an
     // existing branch has no coordinates until its owner drops a pin: a club without them stays in
     // the list, it just has nothing to show on the map.
