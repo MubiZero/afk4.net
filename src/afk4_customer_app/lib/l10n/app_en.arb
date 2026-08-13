@@ -198,6 +198,31 @@
   "customerReservationsNoSeat": "No seat",
   "customerReservationsNone": "No bookings yet",
   "customerReservationsNotChosen": "Not chosen",
+  "customerReservationsPrice": "You'll pay {amount}",
+  "@customerReservationsPrice": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsPriceFailed": "Couldn't work out the price",
+  "customerReservationsPriceMinimum": "This rate bills a minimum of {minutes}",
+  "@customerReservationsPriceMinimum": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsPriceMinutes": "{count, plural, one {{count} minute} other {{count} minutes}}",
+  "@customerReservationsPriceMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerReservationsSeatNote": "The club assigns the seat — you will see it in the confirmation.",
   "customerReservationsStart": "Start",
   "customerReservationsStartInPast": "The start must be in the future",
@@ -205,6 +230,10 @@
   "customerReservationsStateConfirmed": "Confirmed",
   "customerReservationsStatePending": "Awaiting confirmation",
   "customerReservationsStateSeated": "Seated",
+  "customerReservationsTariff": "Rate",
+  "customerReservationsTariffGone": "That rate is no longer available; pick another",
+  "customerReservationsTariffHint": "Pick a rate and we'll show the price before you confirm",
+  "customerReservationsTariffNone": "The club hasn't published its rates; the desk will price it",
   "customerReservationsTimeError": "Set a start and end time",
   "customerReservationsTitle": "Bookings",
   "customerSessionExtendAction": "Add time",

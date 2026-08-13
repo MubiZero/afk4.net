@@ -234,6 +234,60 @@ class PlayerPurchase {
       );
 }
 
+/// Тариф клуба: по чём и с какими правилами считается время.
+///
+/// Цену по этим полям приложение НЕ считает — за этим есть расчёт на сервере: минимальное
+/// оплачиваемое время и шаг округления живут в биллинге, и вторая арифметика здесь разошлась
+/// бы с настоящим списанием.
+class TariffOption {
+  const TariffOption({
+    required this.tariffVersionId,
+    required this.name,
+    required this.pricePerMinuteMinorUnits,
+    required this.currencyCode,
+  });
+
+  final String tariffVersionId;
+  final String name;
+  final int pricePerMinuteMinorUnits;
+  final String currencyCode;
+
+  factory TariffOption.fromJson(Map<String, dynamic> json) => TariffOption(
+        tariffVersionId: json['tariffVersionId'] as String,
+        name: json['name'] as String,
+        pricePerMinuteMinorUnits: (json['pricePerMinuteMinorUnits'] as num).toInt(),
+        currencyCode: json['currencyCode'] as String,
+      );
+}
+
+/// Во сколько обойдётся бронь по выбранному тарифу.
+class ReservationQuote {
+  const ReservationQuote({
+    required this.requestedMinutes,
+    required this.billableMinutes,
+    required this.amountMinorUnits,
+    required this.currencyCode,
+  });
+
+  final int requestedMinutes;
+
+  /// Сколько минут оплачивается. Больше заказанного — когда у тарифа минимум или округление;
+  /// ради этого расчёт и живёт на сервере.
+  final int billableMinutes;
+  final int amountMinorUnits;
+  final String currencyCode;
+
+  /// Тариф берёт больше, чем игрок забронировал, — об этом надо сказать до подтверждения.
+  bool get hasMinimum => billableMinutes > requestedMinutes;
+
+  factory ReservationQuote.fromJson(Map<String, dynamic> json) => ReservationQuote(
+        requestedMinutes: (json['requestedMinutes'] as num).toInt(),
+        billableMinutes: (json['billableMinutes'] as num).toInt(),
+        amountMinorUnits: (json['amountMinorUnits'] as num).toInt(),
+        currencyCode: json['currencyCode'] as String,
+      );
+}
+
 /// Бронь места: когда, где и в каком состоянии.
 class PlayerReservation {
   const PlayerReservation({
@@ -242,6 +296,9 @@ class PlayerReservation {
     required this.startsAtUtc,
     required this.endsAtUtc,
     required this.state,
+    this.tariffName,
+    this.estimatedCostMinorUnits,
+    this.currencyCode,
   });
 
   final String reservationId;
@@ -251,6 +308,12 @@ class PlayerReservation {
   final DateTime startsAtUtc;
   final DateTime endsAtUtc;
   final String state;
+
+  /// Название выбранного тарифа и стоимость, посчитанная сервером при брони. null — бронь
+  /// завели на стойке, там же её и посчитают.
+  final String? tariffName;
+  final int? estimatedCostMinorUnits;
+  final String? currencyCode;
 
   /// Отменить можно то, что ещё не состоялось. Отменённую или уже отыгранную бронь трогать
   /// нечего — кнопка там только сбивает с толку.
@@ -262,6 +325,9 @@ class PlayerReservation {
         startsAtUtc: DateTime.parse(json['startsAtUtc'] as String),
         endsAtUtc: DateTime.parse(json['endsAtUtc'] as String),
         state: json['state'] as String,
+        tariffName: json['tariffName'] as String?,
+        estimatedCostMinorUnits: (json['estimatedCostMinorUnits'] as num?)?.toInt(),
+        currencyCode: json['currencyCode'] as String?,
       );
 }
 
@@ -441,6 +507,8 @@ class PlayerProfile {
     required this.phoneVerified,
     required this.preferredLocale,
     required this.marketingOptIn,
+    this.homeBranchId,
+    this.homeBranchName,
   });
 
   final String displayName;
@@ -451,12 +519,19 @@ class PlayerProfile {
   final String? preferredLocale;
   final bool marketingOptIn;
 
+  /// Филиал, к которому привязан аккаунт. По нему приложение спрашивает прайс: до этого сервер
+  /// знал филиал только про себя, и спросить тарифы было не по чему.
+  final String? homeBranchId;
+  final String? homeBranchName;
+
   factory PlayerProfile.fromJson(Map<String, dynamic> json) => PlayerProfile(
         displayName: json['displayName'] as String,
         phoneNumber: json['phoneNumber'] as String?,
         phoneVerified: json['phoneVerified'] as bool? ?? false,
         preferredLocale: json['preferredLocale'] as String?,
         marketingOptIn: json['marketingOptIn'] as bool? ?? false,
+        homeBranchId: json['homeBranchId'] as String?,
+        homeBranchName: json['homeBranchName'] as String?,
       );
 }
 

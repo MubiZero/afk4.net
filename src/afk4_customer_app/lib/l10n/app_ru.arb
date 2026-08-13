@@ -198,6 +198,31 @@
   "customerReservationsNoSeat": "Без места",
   "customerReservationsNone": "Броней пока нет",
   "customerReservationsNotChosen": "Не выбрано",
+  "customerReservationsPrice": "К оплате {amount}",
+  "@customerReservationsPrice": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsPriceFailed": "Не удалось посчитать стоимость",
+  "customerReservationsPriceMinimum": "Тариф считает минимум {minutes}",
+  "@customerReservationsPriceMinimum": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsPriceMinutes": "{count, plural, one {{count} минута} few {{count} минуты} many {{count} минут} other {{count} минуты}}",
+  "@customerReservationsPriceMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerReservationsSeatNote": "Место назначит администратор клуба — вы получите его в подтверждении.",
   "customerReservationsStart": "Начало",
   "customerReservationsStartInPast": "Начало должно быть в будущем",
@@ -205,6 +230,10 @@
   "customerReservationsStateConfirmed": "Подтверждена",
   "customerReservationsStatePending": "Ожидает подтверждения",
   "customerReservationsStateSeated": "Вы за местом",
+  "customerReservationsTariff": "Тариф",
+  "customerReservationsTariffGone": "Этот тариф больше не действует — выберите другой",
+  "customerReservationsTariffHint": "Выберите тариф — покажем стоимость до подтверждения",
+  "customerReservationsTariffNone": "Клуб не выложил тарифы — стоимость посчитают на стойке",
   "customerReservationsTimeError": "Укажите начало и конец",
   "customerReservationsTitle": "Брони",
   "customerSessionExtendAction": "Продлить",

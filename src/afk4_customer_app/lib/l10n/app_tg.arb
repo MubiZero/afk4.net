@@ -198,6 +198,31 @@
   "customerReservationsNoSeat": "Бе ҷой",
   "customerReservationsNone": "Ҳоло броне нест",
   "customerReservationsNotChosen": "Интихоб нашудааст",
+  "customerReservationsPrice": "Барои пардохт {amount}",
+  "@customerReservationsPrice": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsPriceFailed": "Нархро ҳисоб кардан муяссар нашуд",
+  "customerReservationsPriceMinimum": "Ин тариф ҳадди ақали {minutes}-ро ҳисоб мекунад",
+  "@customerReservationsPriceMinimum": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsPriceMinutes": "{count, plural, other {{count} дақиқа}}",
+  "@customerReservationsPriceMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerReservationsSeatNote": "Ҷойро маъмури клуб таъин мекунад — шумо онро дар тасдиқ мебинед.",
   "customerReservationsStart": "Оғоз",
   "customerReservationsStartInPast": "Оғоз бояд дар оянда бошад",
@@ -205,6 +230,10 @@
   "customerReservationsStateConfirmed": "Тасдиқшуда",
   "customerReservationsStatePending": "Дар интизори тасдиқ",
   "customerReservationsStateSeated": "Шумо дар ҷой ҳастед",
+  "customerReservationsTariff": "Тариф",
+  "customerReservationsTariffGone": "Ин тариф дигар эътибор надорад — дигарашро интихоб кунед",
+  "customerReservationsTariffHint": "Тарифро интихоб кунед — нархро пеш аз тасдиқ нишон медиҳем",
+  "customerReservationsTariffNone": "Клуб тарифҳоро нагузоштааст — нархро дар мизи қабул ҳисоб мекунанд",
   "customerReservationsTimeError": "Оғоз ва анҷомро нишон диҳед",
   "customerReservationsTitle": "Бронҳо",
   "customerSessionExtendAction": "Дароз кардан",

@@ -179,13 +179,41 @@ class PlayerApiClient {
   Future<PlayerReservation> createReservation({
     required DateTime startsAtUtc,
     required DateTime endsAtUtc,
+    String? tariffVersionId,
   }) async {
     final body = await sendJson('POST', '/api/me/reservations', {
       'startsAtUtc': startsAtUtc.toUtc().toIso8601String(),
       'endsAtUtc': endsAtUtc.toUtc().toIso8601String(),
+      // Тариф уходит, только когда игрок его выбрал: у клуба может не быть прайса в системе,
+      // и тогда бронь считают на стойке, как раньше.
+      'tariffVersionId': ?tariffVersionId,
     });
     return _parse(body, PlayerReservation.fromJson);
   }
+
+  /// Тарифы филиала. Филиал игрок узнаёт из своего профиля — сервер до этого держал его при себе.
+  Future<List<TariffOption>> getTariffs(String branchId) async {
+    final list = await getJsonList('/api/me/branches/${Uri.encodeComponent(branchId)}/tariffs');
+    return list.map((item) => _parse(item, TariffOption.fromJson)).toList();
+  }
+
+  /// Во сколько обойдётся бронь. Считает сервер: правила округления и минимума живут в биллинге,
+  /// и вторая арифметика в приложении разошлась бы с настоящим списанием.
+  ///
+  /// 404 — тариф сняли с публикации, пока игрок выбирал.
+  Future<ReservationQuote> quoteReservation({
+    required String tariffVersionId,
+    required DateTime startsAtUtc,
+    required DateTime endsAtUtc,
+  }) async =>
+      _parse(
+        await sendJson('POST', '/api/me/reservations/quote', {
+          'tariffVersionId': tariffVersionId,
+          'startsAtUtc': startsAtUtc.toUtc().toIso8601String(),
+          'endsAtUtc': endsAtUtc.toUtc().toIso8601String(),
+        }),
+        ReservationQuote.fromJson,
+      );
 
   Future<PlayerReservation> cancelReservation(String reservationId) async {
     final body = await sendJson(
