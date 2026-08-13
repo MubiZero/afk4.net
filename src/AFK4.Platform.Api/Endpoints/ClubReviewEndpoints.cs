@@ -1,5 +1,6 @@
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Players;
 using AFK4.Shared.Contracts.Reviews;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
@@ -99,6 +100,24 @@ internal static class ClubReviewEndpoints
                 branchName ?? string.Empty,
                 seatName ?? string.Empty,
                 visit.EndedAtUtc!.Value));
+        }).RequireRateLimiting("player-me");
+
+        // Стаж игрока: уровень и достижения. Живёт рядом с отзывами, потому что «оставил отзыв» —
+        // одно из достижений, и считаются они из одной и той же истории визитов.
+        app.MapGet("/api/me/achievements", async (
+            IPlayerContextAccessor playerContextAccessor,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var achievements = await PlayerAchievementsProjector.GetAsync(
+                dbContext, player.PlayerAccountId, cancellationToken);
+            return Results.Ok(achievements);
         }).RequireRateLimiting("player-me");
 
         app.MapPost("/api/me/reviews", async (
