@@ -36,11 +36,18 @@ const PLACEHOLDER = /\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:,\s*(plural|selectordina
 
 /** Flutter требует объявить подстановки в `@ключе` — без этого `gen-l10n` не соберёт метод
  *  с аргументами. Тип выводится из самой формы ICU: у плюрала это число, у остального строка.
- *  Возвращает `undefined`, когда подстановок нет: лишние `@ключи` только раздувают ARB. */
+ *  Возвращает `undefined`, когда подстановок нет: лишние `@ключи` только раздувают ARB.
+ *
+ *  Числовой тип не понижается повторной встречей того же имени: в `{count, plural, one {{count}
+ *  час} …}` аргумент упомянут дважды — в шапке плюрала и внутри ветки, — и вторая встреча выглядит
+ *  как обычная строковая подстановка. Раньше она затирала `num`, и `gen-l10n` падал с
+ *  «Placeholders used in plurals must be of type 'num' or 'int'». Ветку с самим числом писать
+ *  приходится: `#` генератор Flutter не понимает и оставляет решёткой прямо в интерфейсе. */
 function describePlaceholders(message: string): Record<string, { type: string }> | undefined {
   const placeholders: Record<string, { type: string }> = {};
   for (const [, name, kind] of message.matchAll(PLACEHOLDER)) {
     const numeric = kind === 'plural' || kind === 'selectordinal' || kind === 'number';
+    if (!numeric && placeholders[name]?.type === 'num') continue;
     placeholders[name] = { type: numeric ? 'num' : 'String' };
   }
   return Object.keys(placeholders).length > 0 ? placeholders : undefined;

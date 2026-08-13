@@ -159,6 +159,45 @@
   "customerReservationsStateSeated": "Seated",
   "customerReservationsTimeError": "Set a start and end time",
   "customerReservationsTitle": "Bookings",
+  "customerSessionExtendAction": "Add time",
+  "customerSessionExtendConfirm": "Add {duration}",
+  "@customerSessionExtendConfirm": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionExtendDone": "Session extended by {duration}",
+  "@customerSessionExtendDone": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionExtendErrBalance": "Your wallet doesn't cover this. Top it up on the home screen.",
+  "customerSessionExtendErrGeneric": "Couldn't add the time. Try again.",
+  "customerSessionExtendErrGone": "The session has already ended",
+  "customerSessionExtendHint": "The time is charged to your wallet at the current session's rate.",
+  "customerSessionExtendHours": "{count, plural, one {{count} hour} other {{count} hours}}",
+  "@customerSessionExtendHours": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerSessionExtendMinutes": "{count, plural, one {{count} minute} other {{count} minutes}}",
+  "@customerSessionExtendMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerSessionExtendPending": "Adding time…",
+  "customerSessionExtendTitle": "Add time to your session",
   "customerSigninByCode": "Sign in with an SMS code",
   "customerSigninByPassword": "Sign in with a password",
   "customerSigninCodeError": "Wrong code",

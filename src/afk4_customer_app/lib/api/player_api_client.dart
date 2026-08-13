@@ -193,6 +193,22 @@ class PlayerApiClient {
     return _parse(body, PlayerReservation.fromJson);
   }
 
+  /// Продлевает идущую сессию. Деньги списываются сразу, поэтому запрос несёт ключ
+  /// идемпотентности — см. `newIdempotencyKey`. Ответ сервера не разбирается: главный экран
+  /// всё равно перечитывает себя, а состояние сессии он берёт оттуда, а не из эха команды.
+  ///
+  /// 409 — на кошельке не хватает денег, 404 — сессия уже не идёт (или чужая).
+  Future<void> extendSession({
+    required String sessionId,
+    required int additionalMinutes,
+    required String idempotencyKey,
+  }) async {
+    await sendJson('POST', '/api/me/sessions/${Uri.encodeComponent(sessionId)}/extend', {
+      'additionalMinutes': additionalMinutes,
+      'idempotencyKey': idempotencyKey,
+    });
+  }
+
   Future<List<TopUpIntent>> getTopUpIntents() async {
     final list = await getJsonList('/api/me/wallet/top-up-intents');
     return list.map((item) => _parse(item, TopUpIntent.fromJson)).toList();

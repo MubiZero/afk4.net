@@ -159,6 +159,45 @@
   "customerReservationsStateSeated": "Шумо дар ҷой ҳастед",
   "customerReservationsTimeError": "Оғоз ва анҷомро нишон диҳед",
   "customerReservationsTitle": "Бронҳо",
+  "customerSessionExtendAction": "Дароз кардан",
+  "customerSessionExtendConfirm": "Ба {duration} дароз кардан",
+  "@customerSessionExtendConfirm": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionExtendDone": "Сессия ба {duration} дароз карда шуд",
+  "@customerSessionExtendDone": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionExtendErrBalance": "Дар ҳамён маблағ намерасад. Онро дар саҳифаи асосӣ пур кунед.",
+  "customerSessionExtendErrGeneric": "Дароз кардан муяссар нашуд. Бори дигар кӯшиш кунед.",
+  "customerSessionExtendErrGone": "Сессия аллакай ба анҷом расид",
+  "customerSessionExtendHint": "Вақт аз ҳамён аз рӯи тарифи сессияи ҷорӣ гирифта мешавад.",
+  "customerSessionExtendHours": "{count, plural, other {{count} соат}}",
+  "@customerSessionExtendHours": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerSessionExtendMinutes": "{count, plural, other {{count} дақиқа}}",
+  "@customerSessionExtendMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerSessionExtendPending": "Дароз карда истодаем…",
+  "customerSessionExtendTitle": "Сессияро дароз кардан",
   "customerSigninByCode": "Даромадан бо рамзи SMS",
   "customerSigninByPassword": "Даромадан бо парол",
   "customerSigninCodeError": "Рамз нодуруст аст",

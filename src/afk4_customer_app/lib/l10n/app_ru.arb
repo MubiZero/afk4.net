@@ -159,6 +159,45 @@
   "customerReservationsStateSeated": "Вы за местом",
   "customerReservationsTimeError": "Укажите начало и конец",
   "customerReservationsTitle": "Брони",
+  "customerSessionExtendAction": "Продлить",
+  "customerSessionExtendConfirm": "Продлить на {duration}",
+  "@customerSessionExtendConfirm": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionExtendDone": "Сессия продлена на {duration}",
+  "@customerSessionExtendDone": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionExtendErrBalance": "На кошельке не хватает денег. Пополните его на главной.",
+  "customerSessionExtendErrGeneric": "Не удалось продлить. Попробуйте ещё раз.",
+  "customerSessionExtendErrGone": "Сессия уже завершилась",
+  "customerSessionExtendHint": "Время спишется с кошелька по тарифу текущей сессии.",
+  "customerSessionExtendHours": "{count, plural, one {{count} час} few {{count} часа} many {{count} часов} other {{count} часа}}",
+  "@customerSessionExtendHours": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerSessionExtendMinutes": "{count, plural, one {{count} минута} few {{count} минуты} many {{count} минут} other {{count} минуты}}",
+  "@customerSessionExtendMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerSessionExtendPending": "Продлеваем…",
+  "customerSessionExtendTitle": "Продлить сессию",
   "customerSigninByCode": "Войти по SMS-коду",
   "customerSigninByPassword": "Войти по паролю",
   "customerSigninCodeError": "Неверный код",

@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../api/dto.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../wallet/wallet_card.dart';
+import 'extend_session_sheet.dart';
 import 'live_session_card.dart';
 
 /// Главный экран: что происходит с сессией прямо сейчас и сколько денег в кошельке.
@@ -90,6 +92,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  /// Продление сессии. Успех подтверждается тремя способами сразу: короткая вибрация в
+  /// момент действия, сообщение с выбранным временем и перечитанный экран — игрок не должен
+  /// гадать, списались деньги или нет.
+  Future<void> _extend(ActiveSession session) async {
+    final l = L.of(context);
+    final minutes = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => ExtendSessionSheet(api: widget.api, sessionId: session.sessionId),
+    );
+    if (minutes == null || !mounted) return;
+
+    unawaited(HapticFeedback.lightImpact());
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(l.customerSessionExtendDone(extendDurationLabel(l, minutes))),
+    ));
+    await _refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
@@ -140,6 +162,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 LiveSessionCard(
                   session: data.activeSession!,
                   fetchedAt: _fetchedAt ?? widget.clock(),
+                  onExtend: () => _extend(data.activeSession!),
                   clock: widget.clock,
                 ),
                 const SizedBox(height: 12),

@@ -14,10 +14,15 @@ class LiveSessionCard extends StatefulWidget {
     super.key,
     required this.session,
     required this.fetchedAt,
+    this.onExtend,
     this.clock = DateTime.now,
   });
 
   final ActiveSession session;
+
+  /// Продлить время. null — продлевать нечего: у открытой сессии нет оплаченного остатка,
+  /// она и так идёт, пока игрок не встанет.
+  final VoidCallback? onExtend;
 
   /// Момент ответа сервера. От него отсчитывается остаток оплаченной сессии.
   final DateTime fetchedAt;
@@ -149,6 +154,17 @@ class _LiveSessionCardState extends State<LiveSessionCard> {
                   style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary),
                 ),
               ),
+            // Продление стоит в карточке сессии, а не в отдельном разделе: его нажимают
+            // ровно в тот момент, когда смотрят на убегающие цифры. Дорога до кассы или
+            // до вкладки — это брошенная сессия.
+            if (fixed && widget.onExtend != null) ...[
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: widget.onExtend,
+                icon: const Icon(Icons.more_time, size: 20),
+                label: Text(l.customerSessionExtendAction),
+              ),
+            ],
           ],
         ),
       ),

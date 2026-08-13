@@ -258,4 +258,53 @@ void main() {
     await unmount(tester);
   });
 
+  // Продлевают ровно в тот момент, когда смотрят на убегающие цифры. Если за временем надо
+  // идти к стойке, сессия чаще всего просто заканчивается.
+  testWidgets('у оплаченной сессии время можно продлить прямо из карточки', (tester) async {
+    await tester.pumpWidget(harness(
+      clientWith(_serve((_dashboardJson(session: _fixedSession(remainingSeconds: 600)), 200))),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Продлить'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  // У открытой сессии нет оплаченного остатка: продлевать нечего, она идёт, пока игрок сидит.
+  testWidgets('у открытой сессии продления нет', (tester) async {
+    await tester.pumpWidget(
+      harness(clientWith(_serve((_dashboardJson(session: _openSession()), 200)))),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Продлить'), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets('после продления экран говорит о результате и перечитывает себя', (tester) async {
+    var dashboardCalls = 0;
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/me/dashboard' => (
+              _dashboardJson(session: _fixedSession(remainingSeconds: ++dashboardCalls == 1 ? 600 : 4200)),
+              200
+            ),
+          '/api/me/features' => ('{"features":["online_topup"]}', 200),
+          '/api/me/sessions/s1/extend' => ('{}', 200),
+          _ => ('[]', 200),
+        });
+
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Продлить'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Продлить на 1 час'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Сессия продлена на 1 час'), findsOneWidget);
+    // Экран перечитан: остаток на часах уже новый, а не тот, с которым игрок нажимал кнопку.
+    expect(http.paths.where((path) => path == '/api/me/dashboard').length, greaterThan(1));
+    expect(find.text('01:10:00'), findsOneWidget);
+    await unmount(tester);
+  });
 }
