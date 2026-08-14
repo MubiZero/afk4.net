@@ -29,30 +29,23 @@ class _RecordingClient extends http.BaseClient {
 }
 
 class _StubTokens implements PushTokens {
-  _StubTokens({
-    this.isSupported = true,
-    this.granted = true,
-    this.currentToken = 'token-1',
-  });
+  _StubTokens({this.isSupported = true, this.granted = true});
 
   @override
   final bool isSupported;
 
   bool granted;
-  String? currentToken;
+
+  /// Токен устройства. Меняется в тестах присваиванием — так же, как его меняет Firebase.
+  String? currentToken = 'token-1';
 
   final StreamController<String> refresh = StreamController<String>.broadcast();
-
-  int permissionRequests = 0;
 
   @override
   String get platform => 'android';
 
   @override
-  Future<bool> requestPermission() async {
-    permissionRequests++;
-    return granted;
-  }
+  Future<bool> requestPermission() async => granted;
 
   @override
   Future<String?> token() async => currentToken;
