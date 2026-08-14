@@ -1224,6 +1224,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(row => row.Locale).HasMaxLength(16).IsRequired();
             entity.Property(row => row.RecipientAddress).HasMaxLength(320);
             entity.Property(row => row.Subject).HasMaxLength(512);
+            entity.Property(row => row.TokensJson).HasMaxLength(4000);
             entity.Property(row => row.Status).HasMaxLength(16).IsRequired();
             entity.Property(row => row.LastError).HasMaxLength(2000);
             entity.HasIndex(row => row.IdempotencyKey).IsUnique();

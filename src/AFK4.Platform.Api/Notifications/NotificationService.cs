@@ -64,6 +64,8 @@ public sealed class NotificationService(
                 Subject = rendered.Subject,
                 BodyText = rendered.BodyText,
                 BodyHtml = rendered.BodyHtml,
+                // Нужны SMS-каналу: шлюз принимает шаблон со значениями, а не готовый текст.
+                TokensJson = System.Text.Json.JsonSerializer.Serialize(request.Tokens),
                 Status = suppressionReason is null ? NotificationOutboxStatus.Pending : NotificationOutboxStatus.Suppressed,
                 LastError = suppressionReason,
                 AttemptCount = 0,

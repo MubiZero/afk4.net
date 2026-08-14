@@ -99,7 +99,7 @@ public sealed class PlayerPhoneVerificationEndpointTests
             new AuthenticationHeaderValue("Bearer", tokens!.AccessToken);
     }
 
-    private static string CodeFrom(SmsMessage message) => Regex.Match(message.Text, "\\d{6}").Value;
+    private static string CodeFrom(SmsMessage message) => message.Variables["code-1"];
 
     [Fact]
     public async Task StartThenConfirm_MarksThePhoneVerified()

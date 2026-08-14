@@ -72,7 +72,7 @@ public sealed class StaffPasswordResetByPhoneEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var sms = Assert.Single(recording.Sent);
         Assert.Equal("+992937380070", sms.ToPhoneNumber);
-        Assert.Matches("\\d{6}", sms.Text);
+        Assert.Matches("\\d{6}", sms.Variables["code-1"]);
     }
 
     [Fact]
@@ -115,7 +115,7 @@ public sealed class StaffPasswordResetByPhoneEndpointTests
             "/api/auth/staff/forgot-password-by-phone",
             new StaffForgotPasswordByPhoneRequest(Phone));
         // Submit a code guaranteed to differ from the real one (deterministic, no RNG collision).
-        var realCode = Regex.Match(Assert.Single(recording.Sent).Text, "\\d{6}").Value;
+        var realCode = Assert.Single(recording.Sent).Variables["code-1"];
         var wrongCode = realCode == "000000" ? "111111" : "000000";
 
         var response = await client.PostAsJsonAsync(
@@ -135,7 +135,7 @@ public sealed class StaffPasswordResetByPhoneEndpointTests
         await client.PostAsJsonAsync(
             "/api/auth/staff/forgot-password-by-phone",
             new StaffForgotPasswordByPhoneRequest(Phone));
-        var code = Regex.Match(Assert.Single(recording.Sent).Text, "\\d{6}").Value;
+        var code = Assert.Single(recording.Sent).Variables["code-1"];
 
         var response = await client.PostAsJsonAsync(
             "/api/auth/staff/reset-password-by-phone",
@@ -155,7 +155,7 @@ public sealed class StaffPasswordResetByPhoneEndpointTests
         await client.PostAsJsonAsync(
             "/api/auth/staff/forgot-password-by-phone",
             new StaffForgotPasswordByPhoneRequest(Phone));
-        var code = Regex.Match(Assert.Single(recording.Sent).Text, "\\d{6}").Value;
+        var code = Assert.Single(recording.Sent).Variables["code-1"];
 
         var reset = await client.PostAsJsonAsync(
             "/api/auth/staff/reset-password-by-phone",

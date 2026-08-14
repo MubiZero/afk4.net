@@ -19,6 +19,13 @@ public sealed class PlatformAlertNotifierTests
         }
     }
 
+    /// Оповещения уходят по SMS только через одобренный шаблон — без него канал молчит,
+    /// и проверять было бы нечего.
+    private static IOptions<SmsOptions> AlertSmsOptions() => Options.Create(new SmsOptions
+    {
+        TemplateIds = { ["platform.alert"] = "test-alert-template" },
+    });
+
     private sealed class CapturingSms : ISmsTransport
     {
         public List<SmsMessage> Sent { get; } = [];
@@ -60,6 +67,7 @@ public sealed class PlatformAlertNotifierTests
             scope.ServiceProvider.GetRequiredService<PlatformDbContext>(),
             smtp, sms,
             scope.ServiceProvider.GetRequiredService<IOptions<NotificationOptions>>(),
+            AlertSmsOptions(),
             Options.Create(new PlatformAlertOptions { SmsRecipients = ["+992900000000"] }),
             scope.ServiceProvider.GetRequiredService<IJobRunRecorder>(),
             TimeProvider.System,
@@ -87,6 +95,7 @@ public sealed class PlatformAlertNotifierTests
             scope.ServiceProvider.GetRequiredService<PlatformDbContext>(),
             smtp, sms,
             scope.ServiceProvider.GetRequiredService<IOptions<NotificationOptions>>(),
+            AlertSmsOptions(),
             Options.Create(new PlatformAlertOptions { SmsRecipients = ["+992900000000"] }),
             scope.ServiceProvider.GetRequiredService<IJobRunRecorder>(),
             TimeProvider.System,
@@ -114,6 +123,7 @@ public sealed class PlatformAlertNotifierTests
             scope.ServiceProvider.GetRequiredService<PlatformDbContext>(),
             smtp, new CapturingSms(),
             scope.ServiceProvider.GetRequiredService<IOptions<NotificationOptions>>(),
+            AlertSmsOptions(),
             Options.Create(new PlatformAlertOptions()),
             scope.ServiceProvider.GetRequiredService<IJobRunRecorder>(),
             TimeProvider.System,
@@ -138,6 +148,7 @@ public sealed class PlatformAlertNotifierTests
             scope.ServiceProvider.GetRequiredService<PlatformDbContext>(),
             new ThrowingSmtp(), new CapturingSms(),
             scope.ServiceProvider.GetRequiredService<IOptions<NotificationOptions>>(),
+            AlertSmsOptions(),
             Options.Create(new PlatformAlertOptions { SmsRecipients = ["+992900000000"] }),
             scope.ServiceProvider.GetRequiredService<IJobRunRecorder>(),
             TimeProvider.System,
@@ -165,6 +176,7 @@ public sealed class PlatformAlertNotifierTests
             scope.ServiceProvider.GetRequiredService<PlatformDbContext>(),
             new ThrowingSmtp(), sms,
             scope.ServiceProvider.GetRequiredService<IOptions<NotificationOptions>>(),
+            AlertSmsOptions(),
             Options.Create(new PlatformAlertOptions { SmsRecipients = ["+992900000000"] }),
             scope.ServiceProvider.GetRequiredService<IJobRunRecorder>(),
             TimeProvider.System,
@@ -189,6 +201,7 @@ public sealed class PlatformAlertNotifierTests
             scope.ServiceProvider.GetRequiredService<PlatformDbContext>(),
             new CapturingSmtp(), new CapturingSms(),
             scope.ServiceProvider.GetRequiredService<IOptions<NotificationOptions>>(),
+            AlertSmsOptions(),
             Options.Create(new PlatformAlertOptions()),
             scope.ServiceProvider.GetRequiredService<IJobRunRecorder>(),
             TimeProvider.System,
@@ -219,6 +232,7 @@ public sealed class PlatformAlertNotifierTests
             scope.ServiceProvider.GetRequiredService<PlatformDbContext>(),
             smtp, sms,
             scope.ServiceProvider.GetRequiredService<IOptions<NotificationOptions>>(),
+            AlertSmsOptions(),
             Options.Create(new PlatformAlertOptions { SmsRecipients = ["+992900000000"] }),
             scope.ServiceProvider.GetRequiredService<IJobRunRecorder>(),
             TimeProvider.System,

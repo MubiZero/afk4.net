@@ -45,7 +45,7 @@ public sealed class StaffPhoneVerificationEndpointTests
 
         var sms = Assert.Single(recording.Sent);
         Assert.Equal("+992937380070", sms.ToPhoneNumber);
-        var code = Regex.Match(sms.Text, "\\d{6}").Value;
+        var code = sms.Variables["code-1"];
         Assert.False(string.IsNullOrEmpty(code));
 
         var confirm = await client.PostAsJsonAsync(
@@ -117,7 +117,7 @@ public sealed class StaffPhoneVerificationEndpointTests
             new StaffPhoneStartVerificationRequest("+992 93 738-00-70"));
         Assert.Equal(HttpStatusCode.OK, startResp.StatusCode);
 
-        var code = Regex.Match(Assert.Single(recording.Sent).Text, "\\d{6}").Value;
+        var code = Assert.Single(recording.Sent).Variables["code-1"];
 
         var confirmResp = await client.PostAsJsonAsync(
             $"/api/organizations/{TestIds.OrganizationId:D}/account/phone/confirm", new StaffPhoneConfirmRequest(code));
