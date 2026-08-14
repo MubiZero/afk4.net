@@ -183,7 +183,7 @@ public sealed class SessionBillingService(
         var openShift = await openShiftResolver.GetOpenShiftIdAsync(organizationId, branchId, cancellationToken);
         return openShift.Succeeded
             ? validation
-            : Invalid(openShift.Error ?? "An open shift is required.");
+            : Invalid(openShift.Error ?? EfShiftService.OpenShiftRequiredCode);
     }
 
     private async Task<SessionBillingValidationResult> ValidateTariffBillingAsync(
@@ -654,7 +654,7 @@ public sealed class SessionBillingService(
         var openShift = await openShiftResolver.GetOpenShiftIdAsync(organizationId, branchId, cancellationToken);
         if (!openShift.Succeeded)
         {
-            throw new InvalidOperationException(openShift.Error ?? "An open shift is required.");
+            throw new InvalidOperationException(openShift.Error ?? EfShiftService.OpenShiftRequiredCode);
         }
 
         return openShift.Response;

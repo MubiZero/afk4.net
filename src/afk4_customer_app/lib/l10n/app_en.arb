@@ -264,6 +264,8 @@
   "customerPlayLoadError": "Couldn't load the seats",
   "customerPlayNoSeats": "No free seats",
   "customerPlayNoSeatsHint": "Ask at the desk; they'll tell you when one frees up.",
+  "customerPlayNoTariffs": "The club has not set prices yet",
+  "customerPlayNoTariffsHint": "You cannot start a session from the app. Ask at the desk — an attendant will seat you.",
   "customerPlayPickSeat": "Pick a free seat",
   "customerPlayPickTariff": "Pick a rate",
   "customerPlaySeat": "Seat",

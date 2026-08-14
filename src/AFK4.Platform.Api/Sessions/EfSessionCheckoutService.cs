@@ -151,7 +151,7 @@ public sealed class EfSessionCheckoutService(
         var openShift = await openShiftResolver.GetOpenShiftIdAsync(session.OrganizationId, session.BranchId, cancellationToken);
         if (!openShift.Succeeded)
         {
-            return SessionCheckoutResult.Invalid(openShift.Error ?? "An open shift is required.");
+            return SessionCheckoutResult.Invalid(openShift.Error ?? EfShiftService.OpenShiftRequiredCode);
         }
 
         var shiftId = openShift.Response;

@@ -713,7 +713,7 @@ public sealed class EfPackageService(
         return openShift.Succeeded && openShift.Response != Guid.Empty
             ? new OpenShiftValidation<TResponse>(null, openShift.Response)
             : new OpenShiftValidation<TResponse>(
-                BillingCommandServiceResult<TResponse>.Invalid(openShift.Error ?? "An open shift is required."),
+                BillingCommandServiceResult<TResponse>.Invalid(openShift.Error ?? EfShiftService.OpenShiftRequiredCode),
                 Guid.Empty);
     }
 

@@ -132,6 +132,9 @@ public sealed class EfShiftService(
         return BillingCommandServiceResult<ShiftDto?>.Ok(shift is null ? null : ToDto(shift));
     }
 
+    /// <summary>Код «нужна открытая смена». Интерфейсы переводят его сами.</summary>
+    public const string OpenShiftRequiredCode = "open_shift_required";
+
     public async Task<BillingCommandServiceResult<Guid>> GetOpenShiftIdAsync(
         Guid organizationId,
         Guid branchId,
@@ -147,8 +150,10 @@ public sealed class EfShiftService(
             .Select(shift => (Guid?)shift.ShiftId)
             .SingleOrDefaultAsync(cancellationToken);
 
+        // Машинный код, а не фраза: интерфейсы переводят его сами (op.error.code.openShiftRequired),
+        // и английская проза из ответа сервера доезжала до оператора как есть.
         return shiftId is null
-            ? BillingCommandServiceResult<Guid>.Invalid("An open shift is required.")
+            ? BillingCommandServiceResult<Guid>.Invalid(OpenShiftRequiredCode)
             : BillingCommandServiceResult<Guid>.Ok(shiftId.Value);
     }
 

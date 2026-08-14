@@ -36,7 +36,8 @@ public sealed class EfPosServiceTests
 
         Assert.False(result.Succeeded);
         Assert.False(result.Conflict);
-        Assert.Contains("open shift", result.Error, StringComparison.OrdinalIgnoreCase);
+        // Машинный код, а не фраза: интерфейсы переводят его сами.
+        Assert.Equal("open_shift_required", result.Error);
         Assert.Empty(await db.PosSales.ToListAsync());
     }
 

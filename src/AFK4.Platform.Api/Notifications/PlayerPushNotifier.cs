@@ -1,5 +1,5 @@
-using System.Globalization;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Platform.Billing;
 using AFK4.Shared.Contracts.Notifications;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,7 +24,9 @@ public sealed class PlayerPushNotifier(
         long balanceMinorUnits,
         string currencyCode,
         string idempotencyKey,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken)
+    {
+        var locale = await LocaleAsync(playerAccountId, cancellationToken);
         await SendAsync(
             NotificationTemplateKeys.PlayerBalanceToppedUp,
             playerAccountId,
@@ -32,11 +34,12 @@ public sealed class PlayerPushNotifier(
             branchId,
             new Dictionary<string, string>
             {
-                ["amount"] = $"{Money(amountMinorUnits)} {currencyCode}",
-                ["balance"] = $"{Money(balanceMinorUnits)} {currencyCode}",
+                ["amount"] = MoneyFormatting.ToDisplayString(amountMinorUnits, currencyCode, locale),
+                ["balance"] = MoneyFormatting.ToDisplayString(balanceMinorUnits, currencyCode, locale),
             },
             $"player.balance_topped_up:{idempotencyKey}",
             cancellationToken);
+    }
 
     public async Task OrderReadyAsync(
         Guid playerAccountId,
@@ -58,6 +61,13 @@ public sealed class PlayerPushNotifier(
             },
             $"player.order_ready:{idempotencyKey}",
             cancellationToken);
+
+    private async Task<string> LocaleAsync(Guid playerAccountId, CancellationToken cancellationToken) =>
+        await dbContext.PlayerAccounts
+            .AsNoTracking()
+            .Where(account => account.PlayerAccountId == playerAccountId)
+            .Select(account => account.PreferredLocale)
+            .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
 
     private async Task SendAsync(
         string templateKey,
@@ -95,7 +105,4 @@ public sealed class PlayerPushNotifier(
             logger.LogWarning(exception, "Failed to queue player push '{TemplateKey}'.", templateKey);
         }
     }
-
-    private static string Money(long minorUnits) =>
-        (minorUnits / 100m).ToString("0.00", CultureInfo.InvariantCulture);
 }
