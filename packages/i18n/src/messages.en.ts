@@ -265,6 +265,8 @@ export const en = {
   "customer.play.loadError": "Couldn't load the seats",
   "customer.play.noSeats": "No free seats",
   "customer.play.noSeatsHint": "Ask at the desk; they'll tell you when one frees up.",
+  "customer.play.noTariffs": "The club has not set prices yet",
+  "customer.play.noTariffsHint": "You cannot start a session from the app. Ask at the desk — an attendant will seat you.",
   "customer.play.pickSeat": "Pick a free seat",
   "customer.play.pickTariff": "Pick a rate",
   "customer.play.seat": "Seat",

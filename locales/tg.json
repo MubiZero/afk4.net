@@ -264,6 +264,8 @@
   "customer.play.loadError": "Ҷойҳоро бор кардан муяссар нашуд",
   "customer.play.noSeats": "Ҷои холӣ нест",
   "customer.play.noSeatsHint": "Ба мизи қабул муроҷиат кунед — мегӯянд, кай холӣ мешавад.",
+  "customer.play.noTariffs": "Клуб ҳанӯз нархҳоро муқаррар накардааст",
+  "customer.play.noTariffsHint": "Аз барнома бозиро оғоз кардан мумкин нест. Ба назди мизи корӣ равед — маъмур шуморо шинонда мекунад.",
   "customer.play.pickSeat": "Ҷои холиро интихоб кунед",
   "customer.play.pickTariff": "Тарифро интихоб кунед",
   "customer.play.seat": "Ҷой",

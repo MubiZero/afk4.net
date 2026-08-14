@@ -265,6 +265,8 @@ export const ru = {
   "customer.play.loadError": "Не удалось загрузить места",
   "customer.play.noSeats": "Свободных мест нет",
   "customer.play.noSeatsHint": "Подойдите к стойке — администратор подскажет, когда освободится.",
+  "customer.play.noTariffs": "Клуб пока не назначил цены",
+  "customer.play.noTariffsHint": "Начать игру из приложения не получится. Подойдите к стойке — администратор посадит вас за ПК.",
   "customer.play.pickSeat": "Выберите свободное место",
   "customer.play.pickTariff": "Выберите тариф",
   "customer.play.seat": "Место",

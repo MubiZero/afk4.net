@@ -48,10 +48,10 @@ String _quoteJson({int amount = 1500}) => jsonEncode({
       'currencyCode': 'TJS',
     });
 
-FakeHttpClient _serve({String seats = '[]', (String, int)? start}) =>
+FakeHttpClient _serve({String seats = '[]', (String, int)? start, String? tariffs}) =>
     FakeHttpClient((request) => switch (request.url.path) {
           '/api/me/branches/branch-1/seats' => (seats, 200),
-          '/api/me/branches/branch-1/tariffs' => (_tariffsJson(), 200),
+          '/api/me/branches/branch-1/tariffs' => (tariffs ?? _tariffsJson(), 200),
           '/api/me/reservations/quote' => (_quoteJson(), 200),
           '/api/me/sessions/start' => start ?? ('{}', 500),
           _ => ('[]', 200),
@@ -87,6 +87,19 @@ Future<void> open(WidgetTester tester) async {
 }
 
 void main() {
+  // Клуб не завёл цены — начать игру из приложения нельзя. Раньше блок тарифов просто исчезал,
+  // а кнопка оставалась серой: экран выглядел сломанным, хотя дело в настройках клуба.
+  testWidgets('без тарифов экран объясняет, почему играть нельзя', (tester) async {
+    final http = _serve(seats: jsonEncode([_seat(id: 's1', name: 'PC-01')]), tariffs: '[]');
+    await tester.pumpWidget(harness(http));
+    await open(tester);
+
+    expect(find.text('Клуб пока не назначил цены'), findsOneWidget);
+    expect(find.textContaining('администратор посадит вас за ПК'), findsOneWidget);
+    // Кнопки старта нет вовсе: серая кнопка без объяснения — та же поломка, что и была.
+    expect(find.byType(FilledButton), findsNothing);
+  });
+
   testWidgets('свободные и занятые места видны вместе, с причиной занятости', (tester) async {
     final http = _serve(
       seats: jsonEncode([

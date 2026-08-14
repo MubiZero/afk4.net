@@ -148,7 +148,9 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l.customerPlayTitle)),
       body: _body(l),
-      bottomNavigationBar: (_seats?.any((seat) => seat.isAvailable) ?? false) ? _footer(l) : null,
+      bottomNavigationBar: (_seats?.any((seat) => seat.isAvailable) ?? false) && _tariffs.isNotEmpty
+          ? _footer(l)
+          : null,
     );
   }
 
@@ -168,6 +170,11 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
     }
 
     if (!seats.any((seat) => seat.isAvailable)) return _NoSeats();
+
+    // Без тарифа сессию не начать, и выбирать на этом экране больше нечего. Раньше блок
+    // тарифов просто исчезал, а кнопка оставалась серой — игрок видел неработающий экран
+    // и не понимал, он что-то сделал не так или клуб.
+    if (_tariffs.isEmpty) return _NoTariffs();
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -329,6 +336,36 @@ class _SeatTile extends StatelessWidget {
                 Icon(Icons.check_circle, color: theme.colorScheme.primary),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Клуб не завёл цены. Игроку тут делать нечего, и сказать об этом надо прямо: серая кнопка
+/// без объяснения выглядит поломкой приложения, хотя дело в настройках клуба.
+class _NoTariffs extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final theme = Theme.of(context);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.payments_outlined, size: 40, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(height: 12),
+            Text(l.customerPlayNoTariffs, style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              l.customerPlayNoTariffsHint,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ],
         ),
       ),
     );

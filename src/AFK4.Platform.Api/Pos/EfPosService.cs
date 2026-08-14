@@ -10,6 +10,7 @@ using AFK4.Shared.Contracts.Receipts;
 using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
+using AFK4.Platform.Api.Shifts;
 
 namespace AFK4.Platform.Api.Pos;
 
@@ -65,7 +66,7 @@ public sealed class EfPosService(
 
         if (shift is null)
         {
-            return BillingCommandServiceResult<PosSaleDto>.Invalid("An open shift is required to create a POS sale.");
+            return BillingCommandServiceResult<PosSaleDto>.Invalid(EfShiftService.OpenShiftRequiredCode);
         }
 
         if (request.PlayerAccountId is Guid playerAccountId)

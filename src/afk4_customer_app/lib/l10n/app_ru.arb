@@ -264,6 +264,8 @@
   "customerPlayLoadError": "Не удалось загрузить места",
   "customerPlayNoSeats": "Свободных мест нет",
   "customerPlayNoSeatsHint": "Подойдите к стойке — администратор подскажет, когда освободится.",
+  "customerPlayNoTariffs": "Клуб пока не назначил цены",
+  "customerPlayNoTariffsHint": "Начать игру из приложения не получится. Подойдите к стойке — администратор посадит вас за ПК.",
   "customerPlayPickSeat": "Выберите свободное место",
   "customerPlayPickTariff": "Выберите тариф",
   "customerPlaySeat": "Место",
