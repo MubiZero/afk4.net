@@ -101,7 +101,11 @@ jobs:
           $headers = @{ Authorization = "Bearer $env:COOLIFY_API_TOKEN" }
 
           Write-Host "Triggering Coolify deployment for staging app UUID $appUuid"
-          $response = Invoke-RestMethod -Method Get -Uri $deployUri -Headers $headers -TimeoutSec 60
+          # POST, а не GET: Coolify сменил метод у этого эндпоинта и на GET отвечает
+          # «This endpoint has changed to a POST request» — деплой при этом не запускается,
+          # а задание падает уже после того, как мержем всё выглядело успешным.
+          # Проверка статуса ниже осталась на GET — там метод не менялся.
+          $response = Invoke-RestMethod -Method Post -Uri $deployUri -Headers $headers -TimeoutSec 60
           $deployment = @($response.deployments)[0]
           if ($null -eq $deployment -or [string]::IsNullOrWhiteSpace([string]$deployment.deployment_uuid)) {
             $responseJson = $response | ConvertTo-Json -Depth 10
