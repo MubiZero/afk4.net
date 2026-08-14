@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "589108322772",
+    "project_id": "afk4-net",
+    "storage_bucket": "afk4-net.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:589108322772:android:ddf6eda27b20f272e2b641",
+        "android_client_info": {
+          "package_name": "net.afk4.player"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZFF2u8EiNNiiPWpP9tlwHta_JxbfgSRc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
