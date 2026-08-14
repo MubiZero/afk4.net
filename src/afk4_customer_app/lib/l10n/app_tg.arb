@@ -1,5 +1,6 @@
 {
   "@@locale": "tg",
+  "a11yClubMap": "Харитаи клубҳо",
   "a11yLoading": "Боркунӣ",
   "a11yLoadingDashboard": "Боркунии маълумот",
   "a11yLoadingProfile": "Боркунии профил",
@@ -9,11 +10,95 @@
   "a11yLoadingVisits": "Боркунии ташрифҳо",
   "a11ySessionElapsed": "Сессия идома дорад:",
   "a11ySessionRemaining": "Вақти боқимонда:",
+  "customerAchievementFirstVisit": "Ташрифи аввал",
+  "customerAchievementFirstVisitHint": "Бори аввал дар клуб бозӣ кардан",
+  "customerAchievementMarathon": "Марафон",
+  "customerAchievementMarathonHint": "Як сессияи панҷсоата",
+  "customerAchievementNightOwl": "Сокини шабона",
+  "customerAchievementNightOwlHint": "Панҷ ташрифи пас аз соати даҳи шаб оғозшуда",
+  "customerAchievementRegular": "Шахси худӣ",
+  "customerAchievementRegularHint": "Даҳ ташриф ба клуб",
+  "customerAchievementReviewer": "Сухани бозигар",
+  "customerAchievementReviewerHint": "Дар бораи клуб тақриз гузоштан",
+  "customerAchievementVeteran": "Ветерани толор",
+  "customerAchievementVeteranHint": "Панҷоҳ ташриф ба клуб",
+  "customerActionsBook": "Ҷой банд кардан",
+  "customerActionsOrder": "Фармоиши хӯрок",
+  "customerClubDetailsChoose": "Дар ин ҷо бозӣ мекунам",
+  "customerClubDetailsDayOff": "рӯзи истироҳат",
+  "customerClubDetailsHallSeats": "{count, plural, one {{count} ҷой} other {{count} ҷой}}",
+  "@customerClubDetailsHallSeats": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerClubDetailsHalls": "Толорҳо",
+  "customerClubDetailsHours": "Соатҳои корӣ",
   "customerClubPickerChange": "Иваз кардани клуб",
+  "customerClubPickerClosedToday": "Имрӯз рӯзи истироҳат",
+  "customerClubPickerDetails": "Муфассал",
   "customerClubPickerEmpty": "Клуб ёфт нашуд",
   "customerClubPickerError": "Рӯйхати клубҳоро бор кардан нашуд",
+  "customerClubPickerMapEmpty": "Ҳанӯз ягон клуб дар харита нест",
+  "customerClubPickerMapHint": "Барои интихоби клуб ба нуқта зер кунед",
+  "customerClubPickerMorePlaces": "{count, plural, one {боз {count} толор} other {боз {count} толор}}",
+  "@customerClubPickerMorePlaces": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerClubPickerNoRating": "Ҳанӯз баҳо нест",
+  "customerClubPickerOpen": "Интихоб",
+  "customerClubPickerOpenAllDay": "Шабонарӯзӣ кушода",
+  "customerClubPickerOpenUntil": "То соати {time} кушода",
+  "@customerClubPickerOpenUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubPickerOpensAt": "Пӯшида, соати {time} мекушояд",
+  "@customerClubPickerOpensAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubPickerPriceFrom": "аз {price} дар як соат",
+  "@customerClubPickerPriceFrom": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubPickerPriceUnknown": "Нархро дар клуб пурсед",
+  "customerClubPickerReviews": "{count, plural, one {{count} тақриз} other {{count} тақриз}}",
+  "@customerClubPickerReviews": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerClubPickerSearch": "Ҷустуҷӯ аз рӯи ном",
+  "customerClubPickerSeats": "{count, plural, one {{count} ҷой} other {{count} ҷой}}",
+  "@customerClubPickerSeats": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerClubPickerSubtitle": "Шумо дар кадом клуб бозӣ мекунед",
+  "customerClubPickerTabList": "Рӯйхат",
+  "customerClubPickerTabMap": "Дар харита",
   "customerClubPickerTitle": "Клубро интихоб кунед",
   "customerCommonBack": "← Бозгашт",
   "customerCommonDayAtTime": "{day}, {time}",
@@ -71,10 +156,59 @@
   "customerHistoryPurchases": "Харидҳо",
   "customerHistoryPurchasesError": "Харидҳоро бор кардан муяссар нашуд.",
   "customerHistoryVisits": "Ташрифҳо",
+  "customerLoyaltyEarned": "Бо кешбэк ҷамъ шудааст",
+  "customerLoyaltyEmpty": "Ҳанӯз кешбэк ҳисоб нашудааст",
+  "customerLoyaltyEmptyHint": "Он пас аз аввалин пуркунӣ ё фармоиш пайдо мешавад.",
+  "customerLoyaltyEntry": "{amount} ҷамъ шуд",
+  "@customerLoyaltyEntry": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyEntryHint": "Фоизи пуркунӣ ва фармоишҳо ба ҳамён бармегардад",
+  "customerLoyaltyHistory": "Ҳисобкуниҳои охирин",
+  "customerLoyaltyLoadError": "Кешбэкро бор кардан муяссар нашуд",
+  "customerLoyaltyOff": "Клуб ҳоло кешбэк намедиҳад",
+  "customerLoyaltyRuleSession": "{percent} аз вақти пардохтшуда",
+  "@customerLoyaltyRuleSession": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRuleShop": "{percent} аз фармоишҳои бар",
+  "@customerLoyaltyRuleShop": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRuleTopUp": "{percent} аз пур кардани ҳамён",
+  "@customerLoyaltyRuleTopUp": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRules": "Чӣ тавр ҳисоб мешавад",
+  "customerLoyaltySourceSession": "Вақти бозӣ",
+  "customerLoyaltySourceShop": "Фармоиши бар",
+  "customerLoyaltySourceTopUp": "Пуркунӣ",
+  "customerLoyaltySpendNote": "Кешбэк пули оддии ҳамён аст: онро барои вақт ва бар сарф кардан мумкин аст.",
+  "customerLoyaltyTitle": "Кешбэк",
   "customerNavDashboard": "Асосӣ",
   "customerNavHistory": "Таърих",
   "customerNavProfile": "Профил",
   "customerNavReservations": "Бронҳо",
+  "customerNavWallet": "Ҳамён",
+  "customerNewsAll": "Ҳамаи хабарҳо",
+  "customerNewsEmpty": "Ҳоло хабаре нест",
+  "customerNewsTitle": "Хабарҳои клуб",
   "customerOfflineBanner": "Офлайн — маълумоти захирашуда нишон дода мешавад",
   "customerOfflineStale": "Алоқа нест — маълумот метавонад кӯҳна бошад",
   "customerPhoneCode": "Рамз аз SMS",
@@ -112,6 +246,39 @@
     }
   },
   "customerPhoneTitle": "Тасдиқи рақам",
+  "customerPlayBusyOffline": "ПК хомӯш аст",
+  "customerPlayBusyReservation": "Брон шудааст",
+  "customerPlayBusySession": "Банд",
+  "customerPlayConfirm": "Оғоз бо {amount}",
+  "@customerPlayConfirm": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPlayDuration": "Чанд вақт",
+  "customerPlayErrFunds": "Дар ҳамён барои ин вақт маблағ намерасад",
+  "customerPlayErrGeneric": "Сессияро оғоз кардан муяссар нашуд. Бори дигар кӯшиш кунед.",
+  "customerPlayErrTaken": "Ин ҷойро ҳозир банд карданд — дигарашро интихоб кунед",
+  "customerPlayLoadError": "Ҷойҳоро бор кардан муяссар нашуд",
+  "customerPlayNoSeats": "Ҷои холӣ нест",
+  "customerPlayNoSeatsHint": "Ба мизи қабул муроҷиат кунед — мегӯянд, кай холӣ мешавад.",
+  "customerPlayPickSeat": "Ҷои холиро интихоб кунед",
+  "customerPlayPickTariff": "Тарифро интихоб кунед",
+  "customerPlaySeat": "Ҷой",
+  "customerPlayStart": "Ба ПК нишастан",
+  "customerPlayStartHint": "Бе оператор бозиро оғоз кунед",
+  "customerPlayStarted": "Сессия оғоз шуд — ба {seat} нишинед",
+  "@customerPlayStarted": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPlayStarting": "Оғоз карда истодаем…",
+  "customerPlayTitle": "Оғози бозӣ",
   "customerProfileChangePhone": "Иваз кардани рақам",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русӣ",
@@ -121,11 +288,57 @@
   "customerProfileMarketing": "Гирифтани хабарнома дар бораи аксияҳо",
   "customerProfilePhoneNote": "Рақам тасдиқ шуд — рамзҳо ва огоҳиномаҳо ба ҳамин рақам меоянд",
   "customerProfilePhoneUnverified": "Рақам тасдиқ нашудааст — пур кардани онлайн ва брон баста аст",
+  "customerProfilePoweredBy": "Дар AFK4.NET кор мекунад",
+  "customerProfilePush": "Огоҳиномаҳо ба телефон",
+  "customerProfilePushNote": "Анҷоми бозӣ, ҷойгирӣ, пуркунӣ ва фармоиш",
   "customerProfileSaveError": "Нигоҳ доштан муяссар нашуд",
   "customerProfileSaved": "Нигоҳ дошта шуд",
   "customerProfileSignOut": "Баромадан",
   "customerProfileTitle": "Профил",
   "customerProfileVerifyPhone": "Тасдиқи рақам",
+  "customerProgressAchievements": "Дастовардҳо",
+  "customerProgressError": "Собиқаро бор карда натавонистем",
+  "customerProgressHours": "{hours} соат дар ПК · {count, plural, one {{count} ташриф} other {{count} ташриф}}",
+  "@customerProgressHours": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      },
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerProgressLevel": "Сатҳи {level}",
+  "@customerProgressLevel": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "customerProgressLocked": "{progress} аз {target}",
+  "@customerProgressLocked": {
+    "placeholders": {
+      "progress": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "customerProgressMaxLevel": "Сатҳи баландтарин",
+  "customerProgressOpen": "Собиқа ва дастовардҳо",
+  "customerProgressTitle": "Собиқаи шумо",
+  "customerProgressToNext": "То сатҳи оянда — {hours} соат",
+  "@customerProgressToNext": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
   "customerReceiptLoadError": "Чекро бор кардан муяссар нашуд.",
   "customerReceiptNotFound": "Чек ёфт нашуд",
   "customerReceiptOpenLink": "Чек →",
@@ -145,11 +358,39 @@
   "customerReservationsEnd": "Анҷом",
   "customerReservationsEndBeforeStart": "Анҷом бояд пас аз оғоз бошад",
   "customerReservationsGate": "Барои онлайн брон кардан рақами телефони худро тасдиқ кунед.",
+  "customerReservationsHoldNote": "Маблағи брон дар ҳамён нигоҳ дошта мешавад ва ҳангоми бекоркунӣ бармегардад",
   "customerReservationsLoadError": "Брониҳоро бор кардан нашуд.",
   "customerReservationsNewTitle": "Брони нав",
+  "customerReservationsNoFunds": "Дар ҳамён барои ин брон маблағ намерасад — пур кунед ва бори дигар кӯшиш кунед",
   "customerReservationsNoSeat": "Бе ҷой",
   "customerReservationsNone": "Ҳоло броне нест",
+  "customerReservationsNoneHint": "Бронь ПК-и интихобшударо то омадани шумо нигоҳ медорад",
   "customerReservationsNotChosen": "Интихоб нашудааст",
+  "customerReservationsPrice": "Барои пардохт {amount}",
+  "@customerReservationsPrice": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsPriceFailed": "Нархро ҳисоб кардан муяссар нашуд",
+  "customerReservationsPriceMinimum": "Ин тариф ҳадди ақали {minutes}-ро ҳисоб мекунад",
+  "@customerReservationsPriceMinimum": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsPriceMinutes": "{count, plural, other {{count} дақиқа}}",
+  "@customerReservationsPriceMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerReservationsSeatNote": "Ҷойро маъмури клуб таъин мекунад — шумо онро дар тасдиқ мебинед.",
   "customerReservationsStart": "Оғоз",
   "customerReservationsStartInPast": "Оғоз бояд дар оянда бошад",
@@ -157,8 +398,123 @@
   "customerReservationsStateConfirmed": "Тасдиқшуда",
   "customerReservationsStatePending": "Дар интизори тасдиқ",
   "customerReservationsStateSeated": "Шумо дар ҷой ҳастед",
+  "customerReservationsTariff": "Тариф",
+  "customerReservationsTariffGone": "Ин тариф дигар эътибор надорад — дигарашро интихоб кунед",
+  "customerReservationsTariffHint": "Тарифро интихоб кунед — нархро пеш аз тасдиқ нишон медиҳем",
+  "customerReservationsTariffNone": "Клуб тарифҳоро нагузоштааст — нархро дар мизи қабул ҳисоб мекунанд",
   "customerReservationsTimeError": "Оғоз ва анҷомро нишон диҳед",
   "customerReservationsTitle": "Бронҳо",
+  "customerReviewDone": "Ташаккур, тақриз фиристода шуд",
+  "customerReviewDuplicate": "Дар бораи ин ташриф шумо аллакай навиштаед",
+  "customerReviewError": "Тақризро фиристода натавонистем",
+  "customerReviewInviteAction": "Баҳо додан",
+  "customerReviewInviteBody": "{seat} дар клуби {branch}",
+  "@customerReviewInviteBody": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      },
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReviewInviteDismiss": "Ҳоло не",
+  "customerReviewInviteTitle": "Ташриф чӣ хел гузашт?",
+  "customerReviewSheetComment": "Чӣ маъқул шуд ё чӣ халал расонд",
+  "customerReviewSheetPickRating": "Баҳо гузоред",
+  "customerReviewSheetSending": "Мефиристем…",
+  "customerReviewSheetSubmit": "Тақризро фиристодан",
+  "customerReviewSheetTitle": "Ба ташриф баҳо диҳед",
+  "customerReviewStar": "{count, plural, one {{count} ситора} other {{count} ситора}}",
+  "@customerReviewStar": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerReviewsEmpty": "Ҳанӯз тақриз нест — аввалин аз они шумо мешавад",
+  "customerReviewsError": "Тақризҳоро бор карда натавонистем",
+  "customerReviewsTitle": "Тақризҳои бозигарон",
+  "customerSessionExtendAction": "Дароз кардан",
+  "customerSessionExtendConfirm": "Ба {duration} дароз кардан",
+  "@customerSessionExtendConfirm": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionExtendDone": "Сессия ба {duration} дароз карда шуд",
+  "@customerSessionExtendDone": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionExtendErrBalance": "Дар ҳамён маблағ намерасад. Онро дар саҳифаи асосӣ пур кунед.",
+  "customerSessionExtendErrGeneric": "Дароз кардан муяссар нашуд. Бори дигар кӯшиш кунед.",
+  "customerSessionExtendErrGone": "Сессия аллакай ба анҷом расид",
+  "customerSessionExtendHint": "Вақт аз ҳамён аз рӯи тарифи сессияи ҷорӣ гирифта мешавад.",
+  "customerSessionExtendHours": "{count, plural, other {{count} соат}}",
+  "@customerSessionExtendHours": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerSessionExtendMinutes": "{count, plural, other {{count} дақиқа}}",
+  "@customerSessionExtendMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerSessionExtendPending": "Дароз карда истодаем…",
+  "customerSessionExtendTitle": "Сессияро дароз кардан",
+  "customerShopCancel": "Фармоишро бекор кардан",
+  "customerShopCancelError": "Фармоишро бекор кардан муяссар нашуд",
+  "customerShopCartEmpty": "Интихоб кунед, ки чӣ оваранд",
+  "customerShopEmpty": "Ҳоло чизе барои фармоиш нест",
+  "customerShopEmptyHint": "Клуб менюро ба ин ҷо нагузоштааст. Дар мизи қабул пурсед.",
+  "customerShopErrFunds": "Дар ҳамён барои ин фармоиш маблағ намерасад",
+  "customerShopErrGeneric": "Фармоишро ба расмият даровардан муяссар нашуд. Бори дигар кӯшиш кунед.",
+  "customerShopErrNoSession": "Фармоиш танҳо ҳангоми сессия имконпазир аст",
+  "customerShopErrStock": "Ин мол ҳозир тамом шуд",
+  "customerShopErrUnavailable": "Ин мол дигар дар меню нест",
+  "customerShopLastItems": "{count, plural, other {{count} дона мондааст}}",
+  "@customerShopLastItems": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerShopLoadError": "Менюро бор кардан муяссар нашуд",
+  "customerShopNewOrder": "Боз фармоиш додан",
+  "customerShopOpen": "Ба ҷой фармоиш додан",
+  "customerShopOpenHint": "Хӯрок ва нӯшокиро рост ба назди ПК-и шумо меоранд",
+  "customerShopOrderTitle": "Фармоиши шумо",
+  "customerShopOutOfStock": "Тамом шуд",
+  "customerShopPlace": "Фармоиш ба {amount}",
+  "@customerShopPlace": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerShopPlacing": "Ба расмият дароварда истодаем…",
+  "customerShopStatusAccepted": "Оператор фармоишро оварда истодааст",
+  "customerShopStatusCancelled": "Фармоиш бекор карда шуд",
+  "customerShopStatusDelivered": "Фармоиш оварда шуд",
+  "customerShopStatusPlaced": "Фармоиш қабул шуд, тайёр карда истодаем",
+  "customerShopTitle": "Фармоиш ба ҷой",
+  "customerShopTotal": "Ҳамагӣ",
   "customerSigninByCode": "Даромадан бо рамзи SMS",
   "customerSigninByPassword": "Даромадан бо парол",
   "customerSigninCodeError": "Рамз нодуруст аст",
@@ -203,5 +559,12 @@
   "customerWalletStateFulfilled": "Ворид шуд",
   "customerWalletStatePending": "Дар интизор",
   "customerWalletTitle": "Пур кардани ҳамён",
-  "customerWalletTopUp": "Пур кардан"
+  "customerWalletTopUp": "Пур кардан",
+  "customerWeekday1": "Душанбе",
+  "customerWeekday2": "Сешанбе",
+  "customerWeekday3": "Чоршанбе",
+  "customerWeekday4": "Панҷшанбе",
+  "customerWeekday5": "Ҷумъа",
+  "customerWeekday6": "Шанбе",
+  "customerWeekday7": "Якшанбе"
 }

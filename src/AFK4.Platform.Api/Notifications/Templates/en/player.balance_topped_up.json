@@ -1,0 +1,5 @@
+{
+  "subject": "Balance topped up",
+  "bodyText": "{{amount}} added. Balance: {{balance}}.",
+  "bodyHtml": ""
+}

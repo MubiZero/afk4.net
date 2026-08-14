@@ -249,6 +249,12 @@ public sealed class EfReservationSessionCoordinator(
                 request.CompReason
             })));
 
+        // Игрок сел за машину — замороженные под бронь деньги возвращаются в баланс, и сессию
+        // дальше считает обычный биллинг. Без этого списание было бы двойным: сначала холд,
+        // потом настоящая оплата времени.
+        await ReservationHold.ReleaseAsync(
+            dbContext, reservation.ReservationId, ReservationHoldCauses.Seated, now, cancellationToken);
+
         await dbContext.SaveChangesAsync(cancellationToken);
         var response = new StartReservationSessionResponse(
             await ProjectAsync(reservation, cancellationToken),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../organization/organization.dart';
+import '../theme/brand_mark.dart';
 
 /// Вход в клуб, выбранный на предыдущем экране. Организация обязательна: игрок опознаётся
 /// парой организация + телефон, один и тот же номер может быть игроком в разных сетях.
@@ -128,10 +129,16 @@ class _SignInScreenState extends State<SignInScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 24),
-              Text(l.customerSigninTitle, style: theme.textTheme.bodyMedium),
-              Text(widget.organization.name, style: theme.textTheme.headlineMedium),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
+              const Align(alignment: Alignment.centerLeft, child: BrandMark()),
+              const SizedBox(height: 40),
+              Text(
+                l.customerSigninTitle,
+                style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 2),
+              Text(widget.organization.name, style: theme.textTheme.headlineLarge),
+              const SizedBox(height: 28),
               TextField(
                 controller: _phone,
                 enabled: !_busy && _method != _Method.codeEntry,

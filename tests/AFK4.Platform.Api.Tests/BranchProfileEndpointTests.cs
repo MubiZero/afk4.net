@@ -75,6 +75,108 @@ public class BranchProfileEndpointTests
         Assert.Equal(7, dto!.WorkingHours.Count);
     }
 
+    /// Фото зала и точка на карте — то, из чего собрана витрина клуба в приложении игрока.
+    [Fact]
+    public async Task Patch_PersistsShowcaseCoverAndCoordinates()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+
+        var request = FullRequest(TestIds.OrganizationId) with
+        {
+            CoverImageUrl = "https://cdn.example/hall.jpg",
+            Latitude = 38.5598,
+            Longitude = 68.7870
+        };
+        await client.PatchAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile", request);
+
+        var dto = await client.GetFromJsonAsync<BranchProfileDto>(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile");
+
+        Assert.Equal("https://cdn.example/hall.jpg", dto!.CoverImageUrl);
+        Assert.Equal(38.5598, dto.Latitude);
+        Assert.Equal(68.7870, dto.Longitude);
+    }
+
+    /// Галерея зала: обложка отвечает «как тут выглядит», остальные фото — «а что ещё».
+    [Fact]
+    public async Task Patch_PersistsHallGalleryInTheGivenOrder()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+
+        var request = FullRequest(TestIds.OrganizationId) with
+        {
+            Photos =
+            [
+                new BranchPhotoDto("https://cdn.example/vip.jpg", null),
+                new BranchPhotoDto("https://cdn.example/bar.jpg", null)
+            ]
+        };
+        await client.PatchAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile", request);
+
+        var dto = await client.GetFromJsonAsync<BranchProfileDto>(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile");
+
+        Assert.Equal(
+            new[] { "https://cdn.example/vip.jpg", "https://cdn.example/bar.jpg" },
+            dto!.Photos.Select(photo => photo.Url).ToArray());
+    }
+
+    /// Больше десятка фото зала никто не пролистает, а каждое — трафик игрока на витрине.
+    [Fact]
+    public async Task Patch_TooManyPhotos_ReturnsBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile",
+            FullRequest(TestIds.OrganizationId) with
+            {
+                Photos = Enumerable.Range(1, 11)
+                    .Select(index => new BranchPhotoDto($"https://cdn.example/{index}.jpg", null))
+                    .ToList()
+            });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    /// Точка за пределами глобуса на карте выглядит поломкой карты, а не опечаткой в форме.
+    [Fact]
+    public async Task Patch_CoordinatesOutsideTheGlobe_ReturnsBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile",
+            FullRequest(TestIds.OrganizationId) with { Latitude = 138.0, Longitude = 68.7870 });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    /// Одна широта без долготы поставила бы клуб на нулевой меридиан — в Атлантику.
+    [Fact]
+    public async Task Patch_HalfOfACoordinatePair_ReturnsBadRequest()
+    {
+        await using var factory = new PlatformApiFactory();
+        using var client = factory.CreateClient();
+        await StaffAuthTestHelper.AuthorizeAsAsync(factory, client, OrganizationRoleNames.BranchManager);
+
+        var response = await client.PatchAsJsonAsync(
+            $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId}/profile",
+            FullRequest(TestIds.OrganizationId) with { Latitude = 38.5598 });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     [Fact]
     public async Task Patch_InvalidWorkingHours_ReturnsBadRequest()
     {

@@ -47,4 +47,32 @@ const icoLight = await pngToIco([
 ]);
 writeFileSync(join(DIST, "afk4-light.ico"), icoLight);
 
-console.log("brand assets written to brand/dist/");
+// Иконки клиентского приложения на Flutter. Кладутся прямо в проект, а не в dist: иначе они
+// живут копией, которую забывают обновить, и приложение уезжает в магазин со стандартным
+// синим значком Flutter — именно так и было до 2026-08-13.
+const FLUTTER_APP = join(ROOT, "src", "afk4_customer_app");
+
+// Плотности Android: mdpi 48 → xxxhdpi 192.
+const ANDROID_LAUNCHER = {
+  "mipmap-mdpi": 48,
+  "mipmap-hdpi": 72,
+  "mipmap-xhdpi": 96,
+  "mipmap-xxhdpi": 144,
+  "mipmap-xxxhdpi": 192,
+};
+for (const [dir, size] of Object.entries(ANDROID_LAUNCHER)) {
+  const target = join(FLUTTER_APP, "android", "app", "src", "main", "res", dir);
+  mkdirSync(target, { recursive: true });
+  writeFileSync(join(target, "ic_launcher.png"), renderPng("afk4-icon.svg", size));
+}
+
+// Веб-сборка того же приложения: вкладка браузера и установка на домашний экран.
+const WEB = join(FLUTTER_APP, "web");
+mkdirSync(join(WEB, "icons"), { recursive: true });
+writeFileSync(join(WEB, "favicon.png"), renderPng("afk4-icon.svg", 32));
+writeFileSync(join(WEB, "icons", "Icon-192.png"), renderPng("afk4-icon.svg", 192));
+writeFileSync(join(WEB, "icons", "Icon-512.png"), renderPng("afk4-icon.svg", 512));
+writeFileSync(join(WEB, "icons", "Icon-maskable-192.png"), renderPng("afk4-icon-maskable.svg", 192));
+writeFileSync(join(WEB, "icons", "Icon-maskable-512.png"), renderPng("afk4-icon-maskable.svg", 512));
+
+console.log("brand assets written to brand/dist/ and src/afk4_customer_app/");

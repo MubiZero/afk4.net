@@ -21,6 +21,7 @@ COPY packages/formatting/package.json ./packages/formatting/
 COPY packages/i18n/package.json ./packages/i18n/
 COPY packages/money/package.json ./packages/money/
 COPY packages/tokens/package.json ./packages/tokens/
+COPY packages/ui/package.json ./packages/ui/
 COPY src/AFK4.PlatformControl.Web/package.json ./src/AFK4.PlatformControl.Web/
 COPY src/AFK4.OrganizationAdmin.Web/package.json ./src/AFK4.OrganizationAdmin.Web/
 COPY src/AFK4.Customer.Web/package.json ./src/AFK4.Customer.Web/

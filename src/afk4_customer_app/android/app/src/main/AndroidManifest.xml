@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="AFK4"
+        android:label="AFK4.NET"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -74,18 +74,27 @@ export interface UpdateBranchProfileRequest extends Record<string, unknown> {
   timeZone: string;
   locale: string;
   workingHours: BranchWorkingHoursDay[];
+  // Витрина клуба в приложении игрока: фото зала и точка на карте.
+  coverImageUrl: string | null;
+  coverMediaId: string | null;
+  photos: Array<{ url: string; mediaId: string | null }>;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface CreateZoneRequest extends Record<string, unknown> {
   organizationId: Guid;
   name: string;
   sortOrder: number;
+  // Чем зал оснащён — эту строку игрок видит в подробностях клуба; null = не указано.
+  hardwareSummary?: string | null;
 }
 
 export interface UpdateZoneRequest extends Record<string, unknown> {
   organizationId: Guid;
   name: string;
   sortOrder: number;
+  hardwareSummary?: string | null;
 }
 
 export interface CreateSeatRequest extends Record<string, unknown> {

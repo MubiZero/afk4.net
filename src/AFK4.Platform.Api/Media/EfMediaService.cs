@@ -26,14 +26,18 @@ public sealed class EfMediaService(
             return new(false, "Unsupported file type. Allowed: PNG, JPEG, WEBP.", null);
         buffer.Position = 0;
 
-        // branch-logo — «одиночный»: удалить прежние объекты этого (branch, purpose).
-        var previous = await db.UploadedMedia
-            .Where(m => m.OrganizationId == organizationId && m.BranchId == branchId && m.Purpose == purpose)
-            .ToListAsync(ct);
-        foreach (var old in previous)
+        // У «одиночных» назначений (логотип, обложка) новая загрузка вытесняет прежнюю.
+        // Галерея так себя не ведёт: там второе фото стирало бы первое.
+        if (MediaPurposeNames.IsSingle(purpose))
         {
-            await storage.DeleteAsync(old.ObjectKey, ct);
-            db.UploadedMedia.Remove(old);
+            var previous = await db.UploadedMedia
+                .Where(m => m.OrganizationId == organizationId && m.BranchId == branchId && m.Purpose == purpose)
+                .ToListAsync(ct);
+            foreach (var old in previous)
+            {
+                await storage.DeleteAsync(old.ObjectKey, ct);
+                db.UploadedMedia.Remove(old);
+            }
         }
 
         var mediaId = Guid.NewGuid();

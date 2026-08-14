@@ -7,7 +7,17 @@ import 'package:afk4_customer_app/api/player_api_client.dart';
 import 'package:afk4_customer_app/dashboard/dashboard_screen.dart';
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
 
+import 'package:afk4_customer_app/organization/organization.dart';
+
 import 'support/fake_http.dart';
+
+const _club = Organization(
+  organizationId: 'o1',
+  slug: 'cyberx',
+  name: 'CyberX',
+  logoUrl: null,
+  accentColor: null,
+);
 
 final _now = DateTime.utc(2026, 8, 12, 12, 0, 0);
 
@@ -57,6 +67,7 @@ Widget harness(
       home: DashboardScreen(
         api: api,
         displayName: 'Иван',
+        organization: _club,
         phoneVerified: phoneVerified,
         features: features,
         onOpenReservations: onOpenReservations,
@@ -126,10 +137,51 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Забронировать место'));
+    await tester.tap(find.text('Забронировать'));
     await tester.pump();
 
     expect(opened, isTrue);
+    await unmount(tester);
+  });
+
+  // Игрок, открывший приложение в клубе, хочет играть сейчас, а не бронировать на завтра —
+  // поэтому посадка стоит главным действием пустого состояния.
+  testWidgets('без сессии предлагается сесть за свободный ПК', (tester) async {
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/me/dashboard' => (_dashboardJson(), 200),
+          '/api/me/profile' => (
+              jsonEncode({
+                'playerAccountId': 'p1',
+                'displayName': 'Иван',
+                'phoneNumber': '+992900000000',
+                'phoneVerified': true,
+                'preferredLocale': null,
+                'marketingOptIn': false,
+                'homeBranchId': 'branch-1',
+                'homeBranchName': 'CyberX',
+              }),
+              200
+            ),
+          '/api/me/features' => ('{"features":[]}', 200),
+          _ => ('[]', 200),
+        });
+
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Сесть за ПК'), findsOneWidget);
+    // Заодно шапка подписана клубом: у сети их несколько, и до этого узнать, в какой ты
+    // вошёл, можно было только через профиль.
+    expect(find.text('CyberX'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  // Филиал неизвестен — предлагать посадку нечем: и места, и тарифы у клуба свои.
+  testWidgets('без филиала посадка не предлагается', (tester) async {
+    await tester.pumpWidget(harness(clientWith(_serve((_dashboardJson(), 200)))));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Сесть за ПК'), findsNothing);
     await unmount(tester);
   });
 
@@ -139,12 +191,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Нет активной сессии'), findsOneWidget);
-    expect(find.text('Забронировать место'), findsNothing);
+    expect(find.text('Забронировать'), findsNothing);
     await unmount(tester);
   });
 
-  // Идущая сессия — то, ради чего экран открывают посреди игры.
-  testWidgets('идущая сессия стоит выше кошелька', (tester) async {
+  // Деньги — первый вопрос вошедшего, и строка баланса стоит на одном месте независимо от
+  // того, идёт сессия или нет: блок, который переезжает вверх-вниз по состоянию, приходится
+  // каждый раз искать глазами заново.
+  testWidgets('баланс стоит первым, сессия сразу под ним', (tester) async {
     await tester.pumpWidget(harness(
       clientWith(_serve((_dashboardJson(session: _openSession()), 200))),
     ));
@@ -152,7 +206,7 @@ void main() {
 
     final session = tester.getTopLeft(find.text('PC-07')).dy;
     final wallet = tester.getTopLeft(find.text('Баланс кошелька')).dy;
-    expect(session, lessThan(wallet));
+    expect(wallet, lessThan(session));
     await unmount(tester);
   });
 
@@ -215,7 +269,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Нет связи — данные могут устареть'), findsNothing);
 
-    await tester.drag(find.byType(ListView), const Offset(0, 300));
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 300));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('200,50'), findsOneWidget);
@@ -258,4 +312,115 @@ void main() {
     await unmount(tester);
   });
 
+  // Продлевают ровно в тот момент, когда смотрят на убегающие цифры. Если за временем надо
+  // идти к стойке, сессия чаще всего просто заканчивается.
+  testWidgets('у оплаченной сессии время можно продлить прямо из карточки', (tester) async {
+    await tester.pumpWidget(harness(
+      clientWith(_serve((_dashboardJson(session: _fixedSession(remainingSeconds: 600)), 200))),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Продлить'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  // У открытой сессии нет оплаченного остатка: продлевать нечего, она идёт, пока игрок сидит.
+  testWidgets('у открытой сессии продления нет', (tester) async {
+    await tester.pumpWidget(
+      harness(clientWith(_serve((_dashboardJson(session: _openSession()), 200)))),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Продлить'), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets('после продления экран говорит о результате и перечитывает себя', (tester) async {
+    var dashboardCalls = 0;
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/me/dashboard' => (
+              _dashboardJson(session: _fixedSession(remainingSeconds: ++dashboardCalls == 1 ? 600 : 4200)),
+              200
+            ),
+          '/api/me/features' => ('{"features":["online_topup"]}', 200),
+          '/api/me/sessions/s1/extend' => ('{}', 200),
+          _ => ('[]', 200),
+        });
+
+    await tester.pumpWidget(harness(clientWith(http)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Продлить'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Продлить на 1 час'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Сессия продлена на 1 час'), findsOneWidget);
+    // Экран перечитан: остаток на часах уже новый, а не тот, с которым игрок нажимал кнопку.
+    expect(http.paths.where((path) => path == '/api/me/dashboard').length, greaterThan(1));
+    expect(find.text('01:10:00'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  // Заказ к месту имеет смысл только при идущей сессии — сервер и меню отдаёт по месту.
+  // Меню открыто всегда: цены смотрят и до игры, а плитка, появляющаяся только при сессии,
+  // выглядит как пропавшая.
+  testWidgets('заказ еды предлагается и до, и во время сессии', (tester) async {
+    await tester.pumpWidget(harness(
+      clientWith(_serve((_dashboardJson(session: _fixedSession(remainingSeconds: 600)), 200))),
+      features: const ['player_shop'],
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Заказать еду'), findsOneWidget);
+    await unmount(tester);
+
+    await tester.pumpWidget(harness(
+      clientWith(_serve((_dashboardJson(), 200))),
+      features: const ['player_shop'],
+    ));
+    await tester.pumpAndSettle();
+    expect(find.text('Заказать еду'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  testWidgets('без магазина в тарифе клуба заказа нет', (tester) async {
+    await tester.pumpWidget(harness(
+      clientWith(_serve((_dashboardJson(session: _fixedSession(remainingSeconds: 600)), 200))),
+      features: const ['online_topup'],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Заказать еду'), findsNothing);
+    await unmount(tester);
+  });
+
+  testWidgets('заказ открывается с главной и возвращает обновлённый баланс', (tester) async {
+    var dashboardCalls = 0;
+    final http = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/me/dashboard' => (
+              _dashboardJson(
+                wallet: ++dashboardCalls == 1 ? 120050 : 108050,
+                session: _fixedSession(remainingSeconds: 600),
+              ),
+              200
+            ),
+          '/api/me/features' => ('{"features":["player_shop"]}', 200),
+          _ => ('[]', 200),
+        });
+
+    await tester.pumpWidget(harness(clientWith(http), features: const ['player_shop']));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Заказать еду'));
+    await tester.pumpAndSettle();
+    expect(find.text('Заказ к месту'), findsOneWidget);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    // Заказ списывает деньги — вернувшись, игрок должен видеть настоящий баланс, а не тот,
+    // с которым уходил.
+    expect(find.textContaining('080,50'), findsOneWidget);
+    await unmount(tester);
+  });
 }

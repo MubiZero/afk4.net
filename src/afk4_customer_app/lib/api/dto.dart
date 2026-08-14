@@ -234,6 +234,92 @@ class PlayerPurchase {
       );
 }
 
+/// Тариф клуба: по чём и с какими правилами считается время.
+///
+/// Цену по этим полям приложение НЕ считает — за этим есть расчёт на сервере: минимальное
+/// оплачиваемое время и шаг округления живут в биллинге, и вторая арифметика здесь разошлась
+/// бы с настоящим списанием.
+class TariffOption {
+  const TariffOption({
+    required this.tariffVersionId,
+    required this.name,
+    required this.pricePerMinuteMinorUnits,
+    required this.currencyCode,
+  });
+
+  final String tariffVersionId;
+  final String name;
+  final int pricePerMinuteMinorUnits;
+  final String currencyCode;
+
+  factory TariffOption.fromJson(Map<String, dynamic> json) => TariffOption(
+        tariffVersionId: json['tariffVersionId'] as String,
+        name: json['name'] as String,
+        pricePerMinuteMinorUnits: (json['pricePerMinuteMinorUnits'] as num).toInt(),
+        currencyCode: json['currencyCode'] as String,
+      );
+}
+
+/// Место в зале глазами игрока, который выбирает, куда сесть.
+class PlayerSeat {
+  const PlayerSeat({
+    required this.seatId,
+    required this.deviceId,
+    required this.seatName,
+    required this.zoneName,
+    required this.isAvailable,
+    required this.unavailableReason,
+  });
+
+  final String seatId;
+
+  /// Нужен для старта сессии. На экране игрок видит имя места, а не этот идентификатор.
+  final String deviceId;
+  final String seatName;
+  final String zoneName;
+  final bool isAvailable;
+
+  /// `session`, `reservation` или `offline`. null — место свободно.
+  final String? unavailableReason;
+
+  factory PlayerSeat.fromJson(Map<String, dynamic> json) => PlayerSeat(
+        seatId: json['seatId'] as String,
+        deviceId: json['deviceId'] as String,
+        seatName: json['seatName'] as String,
+        zoneName: json['zoneName'] as String? ?? '',
+        isAvailable: json['isAvailable'] as bool? ?? false,
+        unavailableReason: json['unavailableReason'] as String?,
+      );
+}
+
+/// Во сколько обойдётся бронь по выбранному тарифу.
+class ReservationQuote {
+  const ReservationQuote({
+    required this.requestedMinutes,
+    required this.billableMinutes,
+    required this.amountMinorUnits,
+    required this.currencyCode,
+  });
+
+  final int requestedMinutes;
+
+  /// Сколько минут оплачивается. Больше заказанного — когда у тарифа минимум или округление;
+  /// ради этого расчёт и живёт на сервере.
+  final int billableMinutes;
+  final int amountMinorUnits;
+  final String currencyCode;
+
+  /// Тариф берёт больше, чем игрок забронировал, — об этом надо сказать до подтверждения.
+  bool get hasMinimum => billableMinutes > requestedMinutes;
+
+  factory ReservationQuote.fromJson(Map<String, dynamic> json) => ReservationQuote(
+        requestedMinutes: (json['requestedMinutes'] as num).toInt(),
+        billableMinutes: (json['billableMinutes'] as num).toInt(),
+        amountMinorUnits: (json['amountMinorUnits'] as num).toInt(),
+        currencyCode: json['currencyCode'] as String,
+      );
+}
+
 /// Бронь места: когда, где и в каком состоянии.
 class PlayerReservation {
   const PlayerReservation({
@@ -242,6 +328,9 @@ class PlayerReservation {
     required this.startsAtUtc,
     required this.endsAtUtc,
     required this.state,
+    this.tariffName,
+    this.estimatedCostMinorUnits,
+    this.currencyCode,
   });
 
   final String reservationId;
@@ -251,6 +340,12 @@ class PlayerReservation {
   final DateTime startsAtUtc;
   final DateTime endsAtUtc;
   final String state;
+
+  /// Название выбранного тарифа и стоимость, посчитанная сервером при брони. null — бронь
+  /// завели на стойке, там же её и посчитают.
+  final String? tariffName;
+  final int? estimatedCostMinorUnits;
+  final String? currencyCode;
 
   /// Отменить можно то, что ещё не состоялось. Отменённую или уже отыгранную бронь трогать
   /// нечего — кнопка там только сбивает с толку.
@@ -262,6 +357,177 @@ class PlayerReservation {
         startsAtUtc: DateTime.parse(json['startsAtUtc'] as String),
         endsAtUtc: DateTime.parse(json['endsAtUtc'] as String),
         state: json['state'] as String,
+        tariffName: json['tariffName'] as String?,
+        estimatedCostMinorUnits: (json['estimatedCostMinorUnits'] as num?)?.toInt(),
+        currencyCode: json['currencyCode'] as String?,
+      );
+}
+
+/// Позиция меню бара: что можно заказать к месту прямо во время сессии.
+class ShopProduct {
+  const ShopProduct({
+    required this.productId,
+    required this.name,
+    required this.price,
+    required this.stockOnHand,
+  });
+
+  final String productId;
+  final String name;
+  final Money price;
+
+  /// Остаток на складе филиала. Сервер уже убрал отсюда то, что кончилось и не продаётся
+  /// в минус, поэтому число нужно только чтобы предупредить о последних штуках.
+  final int stockOnHand;
+
+  factory ShopProduct.fromJson(Map<String, dynamic> json) => ShopProduct(
+        productId: json['productId'] as String,
+        name: json['name'] as String,
+        price: Money.fromJson(json['price'] as Map<String, dynamic>),
+        stockOnHand: (json['stockOnHand'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// Строка заказа: что и сколько.
+class ShopOrderLine {
+  const ShopOrderLine({required this.name, required this.quantity, required this.lineTotal});
+
+  final String name;
+  final int quantity;
+  final Money lineTotal;
+
+  factory ShopOrderLine.fromJson(Map<String, dynamic> json) => ShopOrderLine(
+        name: json['name'] as String,
+        quantity: (json['quantity'] as num).toInt(),
+        lineTotal: Money.fromJson(json['lineTotal'] as Map<String, dynamic>),
+      );
+}
+
+/// Заказ к месту и его судьба: оформлен, готовится, принесли, отменён.
+class ShopOrder {
+  const ShopOrder({
+    required this.id,
+    required this.status,
+    required this.total,
+    required this.lines,
+  });
+
+  final String id;
+  final String status;
+  final Money total;
+  final List<ShopOrderLine> lines;
+
+  /// Отменить можно, пока заказ не выдан: после «принесли» отменять нечего.
+  bool get isCancellable => status == 'placed' || status == 'accepted';
+
+  /// Заказ ещё в работе — за ним есть смысл следить.
+  bool get isOpen => status == 'placed' || status == 'accepted';
+
+  factory ShopOrder.fromJson(Map<String, dynamic> json) => ShopOrder(
+        id: json['id'] as String,
+        status: json['status'] as String,
+        total: Money.fromJson(json['total'] as Map<String, dynamic>),
+        lines: (json['lines'] as List? ?? const [])
+            .map((line) => ShopOrderLine.fromJson(line as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+/// Начисление кешбэка: сколько, когда и за что.
+class CashbackEntry {
+  const CashbackEntry({required this.amount, required this.reason, required this.createdAtUtc});
+
+  final Money amount;
+
+  /// Служебная причина вида `cashback:topup` или `cashback:shop:{id}`. Разбирается на экране
+  /// в человеческую подпись: показывать игроку внутреннее имя события незачем.
+  final String reason;
+  final DateTime createdAtUtc;
+
+  /// Источник начисления: `topup`, `shop`, `session` или null, если причина незнакомая.
+  String? get source {
+    final parts = reason.split(':');
+    return parts.length >= 2 && parts[0] == 'cashback' ? parts[1] : null;
+  }
+
+  factory CashbackEntry.fromJson(Map<String, dynamic> json) => CashbackEntry(
+        amount: Money(
+          currencyCode: json['currencyCode'] as String,
+          minorUnits: (json['amountMinorUnits'] as num).toInt(),
+        ),
+        reason: json['reason'] as String? ?? '',
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+      );
+}
+
+/// Кешбэк игрока: сколько накоплено и по каким правилам начисляется.
+///
+/// Кешбэк — не баллы: он приходит на кошелёк обычными деньгами, и тратится так же.
+class PlayerLoyalty {
+  const PlayerLoyalty({
+    required this.topUpEnabled,
+    required this.topUpPercentBasisPoints,
+    required this.shopEnabled,
+    required this.shopPercentBasisPoints,
+    required this.sessionEnabled,
+    required this.sessionPercentBasisPoints,
+    required this.totalEarned,
+    required this.recent,
+  });
+
+  final bool topUpEnabled;
+  final int topUpPercentBasisPoints;
+  final bool shopEnabled;
+  final int shopPercentBasisPoints;
+  final bool sessionEnabled;
+  final int sessionPercentBasisPoints;
+  final Money totalEarned;
+  final List<CashbackEntry> recent;
+
+  /// Клуб не начисляет кешбэк ни за что — рассказывать о нём нечего.
+  bool get isOff =>
+      !(topUpEnabled && topUpPercentBasisPoints > 0) &&
+      !(shopEnabled && shopPercentBasisPoints > 0) &&
+      !(sessionEnabled && sessionPercentBasisPoints > 0);
+
+  factory PlayerLoyalty.fromJson(Map<String, dynamic> json) => PlayerLoyalty(
+        topUpEnabled: json['topUpEnabled'] as bool? ?? false,
+        topUpPercentBasisPoints: (json['topUpPercentBasisPoints'] as num?)?.toInt() ?? 0,
+        shopEnabled: json['shopEnabled'] as bool? ?? false,
+        shopPercentBasisPoints: (json['shopPercentBasisPoints'] as num?)?.toInt() ?? 0,
+        sessionEnabled: json['sessionEnabled'] as bool? ?? false,
+        sessionPercentBasisPoints: (json['sessionPercentBasisPoints'] as num?)?.toInt() ?? 0,
+        totalEarned: Money.fromJson(json['totalEarned'] as Map<String, dynamic>),
+        recent: (json['recent'] as List? ?? const [])
+            .map((entry) => CashbackEntry.fromJson(entry as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+/// Новость или акция клуба.
+class NewsItem {
+  const NewsItem({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.imageUrl,
+    required this.publishedAtUtc,
+  });
+
+  final String id;
+  final String title;
+  final String body;
+  final String? imageUrl;
+  final DateTime publishedAtUtc;
+
+  factory NewsItem.fromJson(Map<String, dynamic> json) => NewsItem(
+        id: json['id'] as String,
+        title: json['title'] as String,
+        body: json['body'] as String? ?? '',
+        imageUrl: json['imageUrl'] as String?,
+        // Дата публикации может быть не проставлена — тогда новость живёт с момента создания.
+        publishedAtUtc: DateTime.parse(
+            (json['publishAtUtc'] ?? json['createdAtUtc']) as String),
       );
 }
 
@@ -273,6 +539,8 @@ class PlayerProfile {
     required this.phoneVerified,
     required this.preferredLocale,
     required this.marketingOptIn,
+    this.homeBranchId,
+    this.homeBranchName,
   });
 
   final String displayName;
@@ -283,12 +551,19 @@ class PlayerProfile {
   final String? preferredLocale;
   final bool marketingOptIn;
 
+  /// Филиал, к которому привязан аккаунт. По нему приложение спрашивает прайс: до этого сервер
+  /// знал филиал только про себя, и спросить тарифы было не по чему.
+  final String? homeBranchId;
+  final String? homeBranchName;
+
   factory PlayerProfile.fromJson(Map<String, dynamic> json) => PlayerProfile(
         displayName: json['displayName'] as String,
         phoneNumber: json['phoneNumber'] as String?,
         phoneVerified: json['phoneVerified'] as bool? ?? false,
         preferredLocale: json['preferredLocale'] as String?,
         marketingOptIn: json['marketingOptIn'] as bool? ?? false,
+        homeBranchId: json['homeBranchId'] as String?,
+        homeBranchName: json['homeBranchName'] as String?,
       );
 }
 
@@ -302,5 +577,126 @@ class PhoneVerificationStarted {
   factory PhoneVerificationStarted.fromJson(Map<String, dynamic> json) => PhoneVerificationStarted(
         expiresInSeconds: (json['expiresInSeconds'] as num).toInt(),
         resendAfterSeconds: (json['resendAfterSeconds'] as num).toInt(),
+      );
+}
+
+/// Закрытый визит, о котором ещё не спрашивали. Приложение предлагает его оценить —
+/// один раз и только пока вечер свежий в памяти.
+class PendingReview {
+  const PendingReview({
+    required this.sessionId,
+    required this.branchName,
+    required this.seatName,
+    required this.endedAtUtc,
+  });
+
+  final String sessionId;
+  final String branchName;
+  final String seatName;
+  final DateTime endedAtUtc;
+
+  factory PendingReview.fromJson(Map<String, dynamic> json) => PendingReview(
+        sessionId: json['sessionId'] as String,
+        branchName: json['branchName'] as String? ?? '',
+        seatName: json['seatName'] as String? ?? '',
+        endedAtUtc: DateTime.parse(json['endedAtUtc'] as String).toUtc(),
+      );
+}
+
+/// Отзыв игрока о клубе, каким его читают до входа.
+class ClubReview {
+  const ClubReview({
+    required this.reviewId,
+    required this.authorName,
+    required this.rating,
+    required this.createdAtUtc,
+    this.comment,
+  });
+
+  final String reviewId;
+  final String authorName;
+  final int rating;
+  final String? comment;
+  final DateTime createdAtUtc;
+
+  factory ClubReview.fromJson(Map<String, dynamic> json) => ClubReview(
+        reviewId: json['reviewId'] as String,
+        authorName: json['authorName'] as String? ?? '',
+        rating: (json['rating'] as num).toInt(),
+        comment: json['comment'] as String?,
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String).toUtc(),
+      );
+}
+
+/// Страница отзывов клуба: средняя оценка — то, что читают первым, отзывы — почему она такая.
+class ClubReviews {
+  const ClubReviews({this.rating, this.reviewCount = 0, this.items = const []});
+
+  /// null — оценок пока нет. Это не ноль звёзд.
+  final double? rating;
+  final int reviewCount;
+  final List<ClubReview> items;
+
+  factory ClubReviews.fromJson(Map<String, dynamic> json) => ClubReviews(
+        rating: (json['rating'] as num?)?.toDouble(),
+        reviewCount: (json['reviewCount'] as num?)?.toInt() ?? 0,
+        items: (json['items'] as List<dynamic>? ?? const [])
+            .map((entry) => ClubReview.fromJson(entry as Map<String, dynamic>))
+            .toList(growable: false),
+      );
+}
+
+/// Стаж игрока: уровень, часы за ПК и достижения. Названий достижений сервер не присылает —
+/// только коды: подписи живут здесь, где у них есть три языка.
+class PlayerAchievements {
+  const PlayerAchievements({
+    required this.level,
+    required this.visitCount,
+    required this.playedMinutes,
+    this.minutesToNextLevel,
+    this.achievements = const [],
+  });
+
+  final int level;
+  final int visitCount;
+  final int playedMinutes;
+
+  /// null — уровень последний, дальше расти некуда.
+  final int? minutesToNextLevel;
+  final List<PlayerAchievement> achievements;
+
+  factory PlayerAchievements.fromJson(Map<String, dynamic> json) => PlayerAchievements(
+        level: (json['level'] as num).toInt(),
+        visitCount: (json['visitCount'] as num?)?.toInt() ?? 0,
+        playedMinutes: (json['playedMinutes'] as num?)?.toInt() ?? 0,
+        minutesToNextLevel: (json['minutesToNextLevel'] as num?)?.toInt(),
+        achievements: (json['achievements'] as List<dynamic>? ?? const [])
+            .map((entry) => PlayerAchievement.fromJson(entry as Map<String, dynamic>))
+            .toList(growable: false),
+      );
+}
+
+class PlayerAchievement {
+  const PlayerAchievement({
+    required this.code,
+    required this.progress,
+    required this.target,
+    this.unlockedAtUtc,
+  });
+
+  final String code;
+  final int progress;
+  final int target;
+  final DateTime? unlockedAtUtc;
+
+  bool get unlocked => unlockedAtUtc != null;
+
+  factory PlayerAchievement.fromJson(Map<String, dynamic> json) => PlayerAchievement(
+        code: json['code'] as String,
+        progress: (json['progress'] as num?)?.toInt() ?? 0,
+        target: (json['target'] as num?)?.toInt() ?? 1,
+        unlockedAtUtc: json['unlockedAtUtc'] == null
+            ? null
+            : DateTime.parse(json['unlockedAtUtc'] as String).toUtc(),
       );
 }

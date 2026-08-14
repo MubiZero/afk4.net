@@ -1,5 +1,6 @@
 {
   "@@locale": "ru",
+  "a11yClubMap": "Карта клубов",
   "a11yLoading": "Загрузка",
   "a11yLoadingDashboard": "Загрузка данных",
   "a11yLoadingProfile": "Загрузка профиля",
@@ -9,11 +10,95 @@
   "a11yLoadingVisits": "Загрузка визитов",
   "a11ySessionElapsed": "Сессия идёт:",
   "a11ySessionRemaining": "Осталось времени:",
+  "customerAchievementFirstVisit": "Первый визит",
+  "customerAchievementFirstVisitHint": "Сыграть в клубе первый раз",
+  "customerAchievementMarathon": "Марафон",
+  "customerAchievementMarathonHint": "Одна сессия длиной пять часов",
+  "customerAchievementNightOwl": "Ночной житель",
+  "customerAchievementNightOwlHint": "Пять визитов, начатых после десяти вечера",
+  "customerAchievementRegular": "Свой человек",
+  "customerAchievementRegularHint": "Десять визитов в клуб",
+  "customerAchievementReviewer": "Слово игрока",
+  "customerAchievementReviewerHint": "Оставить отзыв о клубе",
+  "customerAchievementVeteran": "Ветеран зала",
+  "customerAchievementVeteranHint": "Пятьдесят визитов в клуб",
+  "customerActionsBook": "Забронировать",
+  "customerActionsOrder": "Заказать еду",
+  "customerClubDetailsChoose": "Играть здесь",
+  "customerClubDetailsDayOff": "выходной",
+  "customerClubDetailsHallSeats": "{count, plural, one {{count} место} few {{count} места} many {{count} мест} other {{count} места}}",
+  "@customerClubDetailsHallSeats": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerClubDetailsHalls": "Залы",
+  "customerClubDetailsHours": "Часы работы",
   "customerClubPickerChange": "Сменить клуб",
+  "customerClubPickerClosedToday": "Сегодня выходной",
+  "customerClubPickerDetails": "Подробнее",
   "customerClubPickerEmpty": "Клуб не найден",
   "customerClubPickerError": "Не удалось загрузить список клубов",
+  "customerClubPickerMapEmpty": "Клубы ещё не отметились на карте",
+  "customerClubPickerMapHint": "Нажмите на точку, чтобы выбрать клуб",
+  "customerClubPickerMorePlaces": "{count, plural, one {ещё {count} зал} few {ещё {count} зала} many {ещё {count} залов} other {ещё {count} зала}}",
+  "@customerClubPickerMorePlaces": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerClubPickerNoRating": "Оценок пока нет",
+  "customerClubPickerOpen": "Выбрать",
+  "customerClubPickerOpenAllDay": "Открыто круглосуточно",
+  "customerClubPickerOpenUntil": "Открыто до {time}",
+  "@customerClubPickerOpenUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubPickerOpensAt": "Закрыто, откроется в {time}",
+  "@customerClubPickerOpensAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubPickerPriceFrom": "от {price} в час",
+  "@customerClubPickerPriceFrom": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubPickerPriceUnknown": "Цену уточняйте в клубе",
+  "customerClubPickerReviews": "{count, plural, one {{count} отзыв} few {{count} отзыва} many {{count} отзывов} other {{count} отзыва}}",
+  "@customerClubPickerReviews": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerClubPickerSearch": "Поиск по названию",
+  "customerClubPickerSeats": "{count, plural, one {{count} место} few {{count} места} many {{count} мест} other {{count} места}}",
+  "@customerClubPickerSeats": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerClubPickerSubtitle": "В каком клубе вы играете",
+  "customerClubPickerTabList": "Списком",
+  "customerClubPickerTabMap": "На карте",
   "customerClubPickerTitle": "Выберите клуб",
   "customerCommonBack": "← Назад",
   "customerCommonDayAtTime": "{day}, {time}",
@@ -71,10 +156,59 @@
   "customerHistoryPurchases": "Покупки",
   "customerHistoryPurchasesError": "Не удалось загрузить покупки.",
   "customerHistoryVisits": "Визиты",
+  "customerLoyaltyEarned": "Накоплено кешбэком",
+  "customerLoyaltyEmpty": "Кешбэк ещё не начислялся",
+  "customerLoyaltyEmptyHint": "Он появится после первого пополнения или заказа.",
+  "customerLoyaltyEntry": "Накоплено {amount}",
+  "@customerLoyaltyEntry": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyEntryHint": "Процент с пополнений и заказов возвращается на кошелёк",
+  "customerLoyaltyHistory": "Последние начисления",
+  "customerLoyaltyLoadError": "Не удалось загрузить кешбэк",
+  "customerLoyaltyOff": "Клуб пока не начисляет кешбэк",
+  "customerLoyaltyRuleSession": "{percent} с оплаченного времени",
+  "@customerLoyaltyRuleSession": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRuleShop": "{percent} с заказов в баре",
+  "@customerLoyaltyRuleShop": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRuleTopUp": "{percent} с пополнения кошелька",
+  "@customerLoyaltyRuleTopUp": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRules": "Как начисляется",
+  "customerLoyaltySourceSession": "Игровое время",
+  "customerLoyaltySourceShop": "Заказ в баре",
+  "customerLoyaltySourceTopUp": "Пополнение",
+  "customerLoyaltySpendNote": "Кешбэк — обычные деньги на кошельке: их можно тратить на время и бар.",
+  "customerLoyaltyTitle": "Кешбэк",
   "customerNavDashboard": "Главная",
   "customerNavHistory": "История",
   "customerNavProfile": "Профиль",
   "customerNavReservations": "Брони",
+  "customerNavWallet": "Кошелёк",
+  "customerNewsAll": "Все новости",
+  "customerNewsEmpty": "Новостей пока нет",
+  "customerNewsTitle": "Новости клуба",
   "customerOfflineBanner": "Офлайн — показаны сохранённые данные",
   "customerOfflineStale": "Нет связи — данные могут устареть",
   "customerPhoneCode": "Код из SMS",
@@ -112,6 +246,39 @@
     }
   },
   "customerPhoneTitle": "Подтверждение номера",
+  "customerPlayBusyOffline": "ПК выключен",
+  "customerPlayBusyReservation": "Забронировано",
+  "customerPlayBusySession": "Занято",
+  "customerPlayConfirm": "Начать за {amount}",
+  "@customerPlayConfirm": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPlayDuration": "Сколько играем",
+  "customerPlayErrFunds": "На кошельке не хватает денег на это время",
+  "customerPlayErrGeneric": "Не удалось начать сессию. Попробуйте ещё раз.",
+  "customerPlayErrTaken": "Место только что заняли — выберите другое",
+  "customerPlayLoadError": "Не удалось загрузить места",
+  "customerPlayNoSeats": "Свободных мест нет",
+  "customerPlayNoSeatsHint": "Подойдите к стойке — администратор подскажет, когда освободится.",
+  "customerPlayPickSeat": "Выберите свободное место",
+  "customerPlayPickTariff": "Выберите тариф",
+  "customerPlaySeat": "Место",
+  "customerPlayStart": "Сесть за ПК",
+  "customerPlayStartHint": "Начните игру без оператора",
+  "customerPlayStarted": "Сессия началась — садитесь за {seat}",
+  "@customerPlayStarted": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPlayStarting": "Запускаем…",
+  "customerPlayTitle": "Начать игру",
   "customerProfileChangePhone": "Изменить номер",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русский",
@@ -121,11 +288,57 @@
   "customerProfileMarketing": "Получать рассылку об акциях",
   "customerProfilePhoneNote": "Номер подтверждён — по нему приходят коды и уведомления",
   "customerProfilePhoneUnverified": "Номер не подтверждён — онлайн-пополнение и брони закрыты",
+  "customerProfilePoweredBy": "Работает на AFK4.NET",
+  "customerProfilePush": "Уведомления на телефон",
+  "customerProfilePushNote": "Конец сессии, бронь, зачисление и заказ",
   "customerProfileSaveError": "Не удалось сохранить",
   "customerProfileSaved": "Сохранено",
   "customerProfileSignOut": "Выйти",
   "customerProfileTitle": "Профиль",
   "customerProfileVerifyPhone": "Подтвердить номер",
+  "customerProgressAchievements": "Достижения",
+  "customerProgressError": "Не удалось загрузить стаж",
+  "customerProgressHours": "{hours} ч за ПК · {count, plural, one {{count} визит} few {{count} визита} many {{count} визитов} other {{count} визита}}",
+  "@customerProgressHours": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      },
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerProgressLevel": "Уровень {level}",
+  "@customerProgressLevel": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "customerProgressLocked": "{progress} из {target}",
+  "@customerProgressLocked": {
+    "placeholders": {
+      "progress": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "customerProgressMaxLevel": "Максимальный уровень",
+  "customerProgressOpen": "Стаж и достижения",
+  "customerProgressTitle": "Ваш стаж",
+  "customerProgressToNext": "До следующего уровня — {hours} ч",
+  "@customerProgressToNext": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
   "customerReceiptLoadError": "Не удалось загрузить чек.",
   "customerReceiptNotFound": "Чек не найден",
   "customerReceiptOpenLink": "Чек →",
@@ -145,11 +358,39 @@
   "customerReservationsEnd": "Конец",
   "customerReservationsEndBeforeStart": "Конец должен быть позже начала",
   "customerReservationsGate": "Чтобы бронировать онлайн, подтвердите свой номер телефона.",
+  "customerReservationsHoldNote": "Сумма брони удерживается на кошельке и вернётся, если бронь отменить",
   "customerReservationsLoadError": "Не удалось загрузить брони.",
   "customerReservationsNewTitle": "Новая бронь",
+  "customerReservationsNoFunds": "На кошельке не хватает денег на эту бронь — пополните и попробуйте снова",
   "customerReservationsNoSeat": "Без места",
   "customerReservationsNone": "Броней пока нет",
+  "customerReservationsNoneHint": "Бронь держит выбранный ПК к вашему приходу",
   "customerReservationsNotChosen": "Не выбрано",
+  "customerReservationsPrice": "К оплате {amount}",
+  "@customerReservationsPrice": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsPriceFailed": "Не удалось посчитать стоимость",
+  "customerReservationsPriceMinimum": "Тариф считает минимум {minutes}",
+  "@customerReservationsPriceMinimum": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsPriceMinutes": "{count, plural, one {{count} минута} few {{count} минуты} many {{count} минут} other {{count} минуты}}",
+  "@customerReservationsPriceMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerReservationsSeatNote": "Место назначит администратор клуба — вы получите его в подтверждении.",
   "customerReservationsStart": "Начало",
   "customerReservationsStartInPast": "Начало должно быть в будущем",
@@ -157,8 +398,123 @@
   "customerReservationsStateConfirmed": "Подтверждена",
   "customerReservationsStatePending": "Ожидает подтверждения",
   "customerReservationsStateSeated": "Вы за местом",
+  "customerReservationsTariff": "Тариф",
+  "customerReservationsTariffGone": "Этот тариф больше не действует — выберите другой",
+  "customerReservationsTariffHint": "Выберите тариф — покажем стоимость до подтверждения",
+  "customerReservationsTariffNone": "Клуб не выложил тарифы — стоимость посчитают на стойке",
   "customerReservationsTimeError": "Укажите начало и конец",
   "customerReservationsTitle": "Брони",
+  "customerReviewDone": "Спасибо, отзыв отправлен",
+  "customerReviewDuplicate": "Об этом визите вы уже написали",
+  "customerReviewError": "Не удалось отправить отзыв",
+  "customerReviewInviteAction": "Оценить",
+  "customerReviewInviteBody": "{seat} в клубе {branch}",
+  "@customerReviewInviteBody": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      },
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReviewInviteDismiss": "Не сейчас",
+  "customerReviewInviteTitle": "Как прошёл визит?",
+  "customerReviewSheetComment": "Что понравилось или помешало",
+  "customerReviewSheetPickRating": "Поставьте оценку",
+  "customerReviewSheetSending": "Отправляем…",
+  "customerReviewSheetSubmit": "Отправить отзыв",
+  "customerReviewSheetTitle": "Оцените визит",
+  "customerReviewStar": "{count, plural, one {{count} звезда} few {{count} звезды} many {{count} звёзд} other {{count} звезды}}",
+  "@customerReviewStar": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerReviewsEmpty": "Отзывов пока нет — ваш будет первым",
+  "customerReviewsError": "Не удалось загрузить отзывы",
+  "customerReviewsTitle": "Отзывы игроков",
+  "customerSessionExtendAction": "Продлить",
+  "customerSessionExtendConfirm": "Продлить на {duration}",
+  "@customerSessionExtendConfirm": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionExtendDone": "Сессия продлена на {duration}",
+  "@customerSessionExtendDone": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionExtendErrBalance": "На кошельке не хватает денег. Пополните его на главной.",
+  "customerSessionExtendErrGeneric": "Не удалось продлить. Попробуйте ещё раз.",
+  "customerSessionExtendErrGone": "Сессия уже завершилась",
+  "customerSessionExtendHint": "Время спишется с кошелька по тарифу текущей сессии.",
+  "customerSessionExtendHours": "{count, plural, one {{count} час} few {{count} часа} many {{count} часов} other {{count} часа}}",
+  "@customerSessionExtendHours": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerSessionExtendMinutes": "{count, plural, one {{count} минута} few {{count} минуты} many {{count} минут} other {{count} минуты}}",
+  "@customerSessionExtendMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerSessionExtendPending": "Продлеваем…",
+  "customerSessionExtendTitle": "Продлить сессию",
+  "customerShopCancel": "Отменить заказ",
+  "customerShopCancelError": "Не удалось отменить заказ",
+  "customerShopCartEmpty": "Выберите, что принести",
+  "customerShopEmpty": "Сейчас заказывать нечего",
+  "customerShopEmptyHint": "Клуб не выложил меню в приложение. Спросите на стойке.",
+  "customerShopErrFunds": "На кошельке не хватает денег на этот заказ",
+  "customerShopErrGeneric": "Не удалось оформить заказ. Попробуйте ещё раз.",
+  "customerShopErrNoSession": "Заказать можно только во время сессии",
+  "customerShopErrStock": "Товар только что закончился",
+  "customerShopErrUnavailable": "Товара больше нет в меню",
+  "customerShopLastItems": "{count, plural, one {осталась {count} штука} few {осталось {count} штуки} many {осталось {count} штук} other {осталось {count} штуки}}",
+  "@customerShopLastItems": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerShopLoadError": "Не удалось загрузить меню",
+  "customerShopNewOrder": "Заказать ещё",
+  "customerShopOpen": "Заказать к месту",
+  "customerShopOpenHint": "Еда и напитки принесут прямо к вашему ПК",
+  "customerShopOrderTitle": "Ваш заказ",
+  "customerShopOutOfStock": "Закончилось",
+  "customerShopPlace": "Заказать за {amount}",
+  "@customerShopPlace": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerShopPlacing": "Оформляем…",
+  "customerShopStatusAccepted": "Оператор несёт заказ",
+  "customerShopStatusCancelled": "Заказ отменён",
+  "customerShopStatusDelivered": "Заказ принесли",
+  "customerShopStatusPlaced": "Заказ принят, готовим",
+  "customerShopTitle": "Заказ к месту",
+  "customerShopTotal": "Итого",
   "customerSigninByCode": "Войти по SMS-коду",
   "customerSigninByPassword": "Войти по паролю",
   "customerSigninCodeError": "Неверный код",
@@ -203,5 +559,12 @@
   "customerWalletStateFulfilled": "Зачислено",
   "customerWalletStatePending": "Ожидает",
   "customerWalletTitle": "Пополнить кошелёк",
-  "customerWalletTopUp": "Пополнить"
+  "customerWalletTopUp": "Пополнить",
+  "customerWeekday1": "Понедельник",
+  "customerWeekday2": "Вторник",
+  "customerWeekday3": "Среда",
+  "customerWeekday4": "Четверг",
+  "customerWeekday5": "Пятница",
+  "customerWeekday6": "Суббота",
+  "customerWeekday7": "Воскресенье"
 }

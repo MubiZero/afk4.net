@@ -5,6 +5,7 @@ import '../api/player_api_client.dart';
 import '../format/date_time.dart';
 import '../l10n/app_localizations.dart';
 import '../phone/phone_verification_sheet.dart';
+import '../shell/app_scaffold.dart';
 import 'new_reservation_sheet.dart';
 
 /// Что не так со временем — до отправки. Сервер проверяет то же самое, но отвечает общей
@@ -133,8 +134,8 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
     final l = L.of(context);
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l.customerReservationsTitle)),
+    return AppScaffold(
+      title: l.customerReservationsTitle,
       // Бронировать можно только с подтверждённым телефоном; без него кнопка не появляется,
       // а объяснение стоит на месте списка.
       floatingActionButton: widget.phoneVerified
@@ -144,13 +145,13 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
               label: Text(l.customerReservationsCreate),
             )
           : null,
-      // Потянуть вниз обновляет список — тот же жест, что на главной и в истории.
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
+      // Потянуть вниз обновляет список — тот же жест, что на главной и в кошельке.
+      onRefresh: _refresh,
+      slivers: [
+        SliverPadding(
+          padding: sectionPadding,
+          sliver: SliverList.list(
+            children: [
             if (!widget.phoneVerified) ...[
               _gate(l, theme),
               const SizedBox(height: 16),
@@ -173,14 +174,24 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
                     ],
                   ),
                 ),
-              _Load.ready when _reservations.isEmpty => Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Text(
-                      l.customerReservationsNone,
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                    ),
+              // Пустой раздел объясняет, зачем он нужен, а не сообщает о пустоте: серая
+              // строка «броней пока нет» не отвечает на вопрос, что здесь делать.
+              _Load.ready when _reservations.isEmpty => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 24),
+                  child: Column(
+                    children: [
+                      Icon(Icons.event_available_outlined,
+                          size: 40, color: theme.colorScheme.onSurfaceVariant),
+                      const SizedBox(height: 12),
+                      Text(l.customerReservationsNone, style: theme.textTheme.titleMedium),
+                      const SizedBox(height: 4),
+                      Text(
+                        l.customerReservationsNoneHint,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ],
                   ),
                 ),
               _Load.ready => Column(
@@ -197,9 +208,13 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
                   ],
                 ),
             },
-          ],
+              // Плавающая кнопка «Забронировать» перекрывает последнюю карточку списка —
+              // место под ней освобождается заранее.
+              const SizedBox(height: 72),
+            ],
+          ),
         ),
-      ),
+      ],
     );
   }
 

@@ -126,6 +126,10 @@ public sealed class NotificationService(
                 : (recipient.PhoneNumber, null),
             // In-app uses the linkage ids rather than an address; no address suppression in Stage 1.
             NotificationChannel.InApp => (null, null),
+            // Пуш адресуется аккаунтом игрока: устройств у него бывает несколько, и выбирает их канал.
+            NotificationChannel.Push => recipient.PlayerAccountId is null
+                ? (null, "Push notifications are addressed to a player account.")
+                : (null, null),
             _ => (null, $"Unsupported channel '{channel}'."),
         };
 }

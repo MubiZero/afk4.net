@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-08-06
+Last updated: 2026-08-14
 
 ## Purpose
 
@@ -194,11 +194,71 @@ there is no owner-code mechanism.
   organization-scoped account, with the access boundary enforced through
   existing role checks rather than a parallel authorization path.
 
+- **Club showcase, reviews, and player record (mobile app)** — the public club
+  catalogue now carries a shop window (hall photo, city/address, price-from,
+  seat count, rating) plus map coordinates, filled in by the owner on the
+  operator "Клуб" screen. The player app's club picker renders that as photo
+  cards with a list/map toggle (flutter_map over OpenStreetMap tiles, with
+  attribution); clubs without coordinates stay in the list and are simply
+  absent from the map. Reviews are tied to a visit — one ended session, one
+  review — surfaced as a post-visit prompt on the dashboard and readable
+  before sign-in from the club card. A player record screen derives level,
+  hours played, and achievements from visit history; nothing about it is
+  stored separately. The club card also answers "is it open right now" from
+  the branch schedule (which now accepts overnight shifts such as 22:00-06:00,
+  the normal case for a computer club), and carries a swipeable hall gallery —
+  up to ten photos per branch, uploaded and ordered on the operator screen. A
+  club-details sheet behind "Подробнее" carries the owner's description, the
+  halls with their hardware (a new per-zone field edited in «Залы и ПК»), and
+  the week's schedule, and the club can be chosen from there directly.
+
+Push notifications reach the player's phone through the existing notification
+backbone rather than around it: `Push` is a channel alongside email and SMS, so
+it reuses the same templates, outbox, idempotency and backoff. It is addressed
+by player account rather than by token — a player may have a phone and a
+tablet, and one queue row fans out to every registered device; a token FCM
+reports as unregistered is deleted instead of accumulating failures forever.
+Four triggers are wired: a session ending in ten minutes (while extending is
+still possible), a booking an hour out, a fulfilled top-up, and an accepted
+shop order. The first two have no event to hang off and are found by clock in a
+periodic job, keyed per session and per reservation so frequent ticks cannot
+ring twice. Delivery failures never fail the operation that caused them. The
+app registers its device on sign-in, removes it on sign-out, follows FCM token
+rotation, and carries a real off switch in the profile — off means the device
+is removed server-side, not a flag hidden in the app. FCM credentials live in
+environment variables; without them the channel stays silent and the server
+runs normally. `google-services.json` is deliberately not in the repository —
+it is supplied at build time and git-ignored.
+
 ## Latest Verification
 
 Older verification entries (2026-07-28 and earlier, including the superseded
 Platform Control rebuild Tasks 1-7 gates) are archived in
 `docs/archive/progress/2026-08-06-vertical-slice-detailed-history.md`.
+
+- Push notification gate (2026-08-14): Platform API passed 1996 tests with 27
+  PostgreSQL-only skips; Shared Contracts passed 141/141; Organization Admin
+  Web passed 1102 tests; i18n passed 39/39; the customer app passed 286 widget
+  tests with a clean `flutter analyze`. Delivery to a real phone was NOT
+  verified: it needs an APNs key, a Firebase service-account key, and a device
+  build, none of which exist in this environment. What is covered by tests is
+  the logic around delivery — channel fan-out, dead-token cleanup, reminder
+  windows and idempotency, device registration and removal, and the app's
+  register/unregister/rotate behaviour. The FCM transport itself (JWT signing,
+  token exchange, HTTP v1 payload) is unexercised until credentials exist.
+
+- Club showcase / reviews / player record gate (2026-08-13): Platform API
+  passed 1973 tests with 27 PostgreSQL-only skips; Shared Contracts passed
+  141/141; Organization Admin Web passed 1102 tests; i18n passed 39/39; the
+  customer app passed 277 widget tests with a clean `flutter analyze`. The
+  full-solution build was not run on this machine: `AFK4.Player.Shell` targets
+  Windows and cannot build on Linux. A live browser pass over the picker,
+  reviews, review sheet, and record screen was done against a local fake API;
+  OpenStreetMap tiles are unreachable from this environment, so the map was
+  verified by its pins and camera fit, not by rendered tiles. The hall gallery
+  was verified by widget test (swipe + tap) and by its page dots in the
+  browser: Flutter leaves mouse out of `dragDevices`, so a desktop-web mouse
+  cannot swipe it — touch can, and this app ships to phones.
 
 - Platform-admin directory, mandatory 2FA, and support-mode gate (2026-08-06):
   the Platform API suite passed 1596 tests against a real PostgreSQL database

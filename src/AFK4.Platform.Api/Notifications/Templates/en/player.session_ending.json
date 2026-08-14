@@ -1,0 +1,5 @@
+{
+  "subject": "Your session ends soon",
+  "bodyText": "{{minutes}} min left at {{seat}}. You can extend it in the app.",
+  "bodyHtml": ""
+}

@@ -136,6 +136,35 @@ class PlayerApiClient {
         VisitReceipt.fromJson,
       );
 
+  /// Визит, о котором ещё не спрашивали. null — спрашивать не о чем: сервер отвечает на это
+  /// пустым 204, и превращать его в ошибку значило бы показывать сбой там, где всё в порядке.
+  Future<PendingReview?> getPendingReview() async {
+    var response = await _send('GET', '/api/me/reviews/pending');
+    if (response.statusCode == 401 && await _refreshOnce()) {
+      response = await _send('GET', '/api/me/reviews/pending');
+    }
+    if (response.statusCode == 204) return null;
+    return _parse(_decode(response), PendingReview.fromJson);
+  }
+
+  Future<ClubReviews> submitReview({
+    required String sessionId,
+    required int rating,
+    String? comment,
+  }) async =>
+      _parse(
+        await sendJson('POST', '/api/me/reviews', {
+          'sessionId': sessionId,
+          'rating': rating,
+          if (comment != null && comment.trim().isNotEmpty) 'comment': comment.trim(),
+        }),
+        ClubReviews.fromJson,
+      );
+
+  /// Стаж игрока: уровень и достижения.
+  Future<PlayerAchievements> getAchievements() async =>
+      _parse(await getJson('/api/me/achievements'), PlayerAchievements.fromJson);
+
   Future<CursorPage<PlayerPurchase>> getPurchases({String? cursor}) async =>
       _parse(await getJson(_withCursor('/api/me/purchases', cursor)),
           (body) => CursorPage.fromJson(body, PlayerPurchase.fromJson));
@@ -179,19 +208,131 @@ class PlayerApiClient {
   Future<PlayerReservation> createReservation({
     required DateTime startsAtUtc,
     required DateTime endsAtUtc,
+    String? tariffVersionId,
   }) async {
     final body = await sendJson('POST', '/api/me/reservations', {
       'startsAtUtc': startsAtUtc.toUtc().toIso8601String(),
       'endsAtUtc': endsAtUtc.toUtc().toIso8601String(),
+      // Тариф уходит, только когда игрок его выбрал: у клуба может не быть прайса в системе,
+      // и тогда бронь считают на стойке, как раньше.
+      'tariffVersionId': ?tariffVersionId,
     });
     return _parse(body, PlayerReservation.fromJson);
   }
+
+  /// Тарифы филиала. Филиал игрок узнаёт из своего профиля — сервер до этого держал его при себе.
+  Future<List<TariffOption>> getTariffs(String branchId) async {
+    final list = await getJsonList('/api/me/branches/${Uri.encodeComponent(branchId)}/tariffs');
+    return list.map((item) => _parse(item, TariffOption.fromJson)).toList();
+  }
+
+  /// Места филиала: за какое можно сесть сейчас и какое занято.
+  Future<List<PlayerSeat>> getSeats(String branchId) async {
+    final list = await getJsonList('/api/me/branches/${Uri.encodeComponent(branchId)}/seats');
+    return list.map((item) => _parse(item, PlayerSeat.fromJson)).toList();
+  }
+
+  /// Начинает сессию за выбранным компьютером. Платное действие, отсюда ключ идемпотентности.
+  ///
+  /// 409 — не хватает денег или место успели занять, 404 — за местом нет машины.
+  Future<void> startSession({
+    required String deviceId,
+    required String tariffRuleVersionId,
+    required int durationMinutes,
+    required String idempotencyKey,
+  }) async {
+    await sendJson('POST', '/api/me/sessions/start', {
+      'deviceId': deviceId,
+      'tariffRuleVersionId': tariffRuleVersionId,
+      'durationMinutes': durationMinutes,
+      'idempotencyKey': idempotencyKey,
+    });
+  }
+
+  /// Во сколько обойдётся бронь. Считает сервер: правила округления и минимума живут в биллинге,
+  /// и вторая арифметика в приложении разошлась бы с настоящим списанием.
+  ///
+  /// 404 — тариф сняли с публикации, пока игрок выбирал.
+  Future<ReservationQuote> quoteReservation({
+    required String tariffVersionId,
+    required DateTime startsAtUtc,
+    required DateTime endsAtUtc,
+  }) async =>
+      _parse(
+        await sendJson('POST', '/api/me/reservations/quote', {
+          'tariffVersionId': tariffVersionId,
+          'startsAtUtc': startsAtUtc.toUtc().toIso8601String(),
+          'endsAtUtc': endsAtUtc.toUtc().toIso8601String(),
+        }),
+        ReservationQuote.fromJson,
+      );
 
   Future<PlayerReservation> cancelReservation(String reservationId) async {
     final body = await sendJson(
         'DELETE', '/api/me/reservations/${Uri.encodeComponent(reservationId)}');
     return _parse(body, PlayerReservation.fromJson);
   }
+
+  /// Продлевает идущую сессию. Деньги списываются сразу, поэтому запрос несёт ключ
+  /// идемпотентности — см. `newIdempotencyKey`. Ответ сервера не разбирается: главный экран
+  /// всё равно перечитывает себя, а состояние сессии он берёт оттуда, а не из эха команды.
+  ///
+  /// 409 — на кошельке не хватает денег, 404 — сессия уже не идёт (или чужая).
+  Future<void> extendSession({
+    required String sessionId,
+    required int additionalMinutes,
+    required String idempotencyKey,
+  }) async {
+    await sendJson('POST', '/api/me/sessions/${Uri.encodeComponent(sessionId)}/extend', {
+      'additionalMinutes': additionalMinutes,
+      'idempotencyKey': idempotencyKey,
+    });
+  }
+
+  /// Кешбэк игрока: накопленное и правила начисления. 403 — клуб не подключил лояльность.
+  Future<PlayerLoyalty> getLoyalty() async =>
+      _parse(await getJson('/api/me/loyalty'), PlayerLoyalty.fromJson);
+
+  /// Новости и акции клуба. Сервер уже отфильтровал снятые с публикации и просроченные.
+  Future<List<NewsItem>> getNews() async {
+    final list = await getJsonList('/api/me/news');
+    return list.map((item) => _parse(item, NewsItem.fromJson)).toList();
+  }
+
+  /// Меню бара для места, за которым игрок сидит. Вне сессии сервер отдаёт пустой список:
+  /// заказывать некуда, и это не ошибка.
+  Future<List<ShopProduct>> getShopCatalog() async {
+    final list = await getJsonList('/api/me/shop/catalog');
+    return list.map((item) => _parse(item, ShopProduct.fromJson)).toList();
+  }
+
+  /// Оформляет заказ к месту. Как и продление, платное действие с ключом идемпотентности.
+  ///
+  /// 409 несёт причину в теле: `insufficient_funds` — не хватает денег, `out_of_stock` —
+  /// товар кончился, `placement_context_invalid` — сессии уже нет.
+  Future<ShopOrder> placeShopOrder({
+    required Map<String, int> quantitiesByProductId,
+    required String idempotencyKey,
+  }) async {
+    final body = await sendJson('POST', '/api/me/shop/orders', {
+      'lines': [
+        for (final entry in quantitiesByProductId.entries)
+          {'productId': entry.key, 'quantity': entry.value},
+      ],
+      'idempotencyKey': idempotencyKey,
+    });
+    return _parse(body, ShopOrder.fromJson);
+  }
+
+  Future<List<ShopOrder>> getShopOrders() async {
+    final list = await getJsonList('/api/me/shop/orders');
+    return list.map((item) => _parse(item, ShopOrder.fromJson)).toList();
+  }
+
+  Future<ShopOrder> cancelShopOrder(String orderId) async => _parse(
+        await sendJson('POST', '/api/me/shop/orders/${Uri.encodeComponent(orderId)}/cancel'),
+        ShopOrder.fromJson,
+      );
 
   Future<List<TopUpIntent>> getTopUpIntents() async {
     final list = await getJsonList('/api/me/wallet/top-up-intents');
@@ -207,6 +348,38 @@ class PlayerApiClient {
       'currencyCode': currencyCode,
     });
     return _parse(body, TopUpIntent.fromJson);
+  }
+
+  /// Сообщить серверу, куда слать пуши. Ответ пустой — проверяем только, что он не отказ:
+  /// регистрация устройства не должна ронять экран, на котором игрок просто вошёл.
+  Future<void> registerDevice({
+    required String pushToken,
+    required String platform,
+    String? locale,
+  }) async {
+    var response = await _send('POST', '/api/me/devices', body: {
+      'pushToken': pushToken,
+      'platform': platform,
+      'locale': locale,
+    });
+    if (response.statusCode == 401 && await _refreshOnce()) {
+      response = await _send('POST', '/api/me/devices', body: {
+        'pushToken': pushToken,
+        'platform': platform,
+        'locale': locale,
+      });
+    }
+    if (response.statusCode >= 400) {
+      throw PlayerApiException(response.statusCode, _errorMessage(response));
+    }
+  }
+
+  /// Снять устройство — при выходе из аккаунта и при отключении уведомлений.
+  Future<void> unregisterDevice(String pushToken) async {
+    final response = await _send('DELETE', '/api/me/devices/$pushToken');
+    if (response.statusCode >= 400 && response.statusCode != 401) {
+      throw PlayerApiException(response.statusCode, _errorMessage(response));
+    }
   }
 
   Future<List<Map<String, dynamic>>> getJsonList(String path) async {

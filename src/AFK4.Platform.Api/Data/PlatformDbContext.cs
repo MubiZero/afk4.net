@@ -12,6 +12,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<UploadedMediaEntity> UploadedMedia => Set<UploadedMediaEntity>();
 
+    public DbSet<ClubReviewEntity> ClubReviews => Set<ClubReviewEntity>();
+
     public DbSet<BranchEntity> Branches => Set<BranchEntity>();
 
     public DbSet<EskhataMerchantConfigEntity> EskhataMerchantConfigs => Set<EskhataMerchantConfigEntity>();
@@ -160,6 +162,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<NotificationPreferenceEntity> NotificationPreferences => Set<NotificationPreferenceEntity>();
 
+    public DbSet<PlayerDeviceEntity> PlayerDevices => Set<PlayerDeviceEntity>();
+
     public DbSet<ReportScheduleEntity> ReportSchedules => Set<ReportScheduleEntity>();
 
     public DbSet<StaffMoneyCapEntity> StaffMoneyCaps => Set<StaffMoneyCapEntity>();
@@ -212,6 +216,18 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(news => news.Body).HasMaxLength(4000).IsRequired();
             entity.Property(news => news.ImageUrl).HasMaxLength(2048);
             entity.HasIndex(news => news.OrganizationId);
+        });
+
+        modelBuilder.Entity<ClubReviewEntity>(entity =>
+        {
+            entity.ToTable("club_reviews");
+            entity.HasKey(review => review.ReviewId);
+            entity.Property(review => review.Comment).HasMaxLength(1000);
+            // Один визит — один отзыв. Уникальность на сессии, а не проверка перед вставкой:
+            // два быстрых нажатия «Отправить» иначе оставят два отзыва об одном вечере.
+            entity.HasIndex(review => review.SessionId).IsUnique();
+            entity.HasIndex(review => new { review.OrganizationId, review.CreatedAtUtc });
+            entity.HasIndex(review => review.PlayerAccountId);
         });
 
         modelBuilder.Entity<UploadedMediaEntity>(entity =>
@@ -279,7 +295,9 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(branch => branch.Website).HasMaxLength(300);
             entity.Property(branch => branch.Instagram).HasMaxLength(120);
             entity.Property(branch => branch.LogoUrl).HasMaxLength(600);
+            entity.Property(branch => branch.CoverImageUrl).HasMaxLength(600);
             entity.Property(branch => branch.WorkingHoursJson).HasColumnType("jsonb");
+            entity.Property(branch => branch.PhotosJson).HasColumnType("jsonb");
             entity.Property(branch => branch.RequireManualDeviceApproval).HasDefaultValue(false);
             entity.Property(branch => branch.PreferredLocale).HasMaxLength(8).HasDefaultValue("ru").IsRequired();
             entity.Property(branch => branch.PreferredTimeZone).HasMaxLength(64).HasDefaultValue("Asia/Dushanbe").IsRequired();
@@ -368,6 +386,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         modelBuilder.Entity<ZoneEntity>(entity =>
         {
             entity.ToTable("zones");
+            entity.Property(zone => zone.HardwareSummary).HasMaxLength(200);
             entity.HasKey(zone => zone.ZoneId);
             entity.Property(zone => zone.Name).HasMaxLength(120).IsRequired();
             entity.Property(zone => zone.Color).HasMaxLength(32);
@@ -1233,6 +1252,18 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(preference => preference.Channel).HasMaxLength(16).IsRequired();
             entity.HasIndex(preference => new { preference.StaffUserId, preference.Category, preference.Channel });
             entity.HasIndex(preference => new { preference.PlayerAccountId, preference.Category, preference.Channel });
+        });
+
+        modelBuilder.Entity<PlayerDeviceEntity>(entity =>
+        {
+            entity.ToTable("player_devices");
+            entity.HasKey(device => device.PlayerDeviceId);
+            entity.Property(device => device.PushToken).HasMaxLength(512).IsRequired();
+            entity.Property(device => device.Platform).HasMaxLength(16).IsRequired();
+            entity.Property(device => device.Locale).HasMaxLength(16);
+            // Токен уникален: один телефон — одна строка, даже если на нём сменился игрок.
+            entity.HasIndex(device => device.PushToken).IsUnique();
+            entity.HasIndex(device => device.PlayerAccountId);
         });
 
         modelBuilder.Entity<ReportScheduleEntity>(entity =>

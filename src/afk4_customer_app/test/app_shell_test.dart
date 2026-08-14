@@ -8,7 +8,17 @@ import 'package:afk4_customer_app/auth/player_session.dart';
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
 import 'package:afk4_customer_app/shell/app_shell.dart';
 
+import 'package:afk4_customer_app/organization/organization.dart';
+
 import 'support/fake_http.dart';
+
+const _club = Organization(
+  organizationId: 'o1',
+  slug: 'cyberx',
+  name: 'CyberX',
+  logoUrl: null,
+  accentColor: null,
+);
 
 final _now = DateTime.utc(2026, 8, 12, 12, 0, 0);
 
@@ -64,6 +74,7 @@ Widget harness(FakeHttpClient http, {VoidCallback? onSignOut}) => MaterialApp(
       home: AppShell(
         api: PlayerApiClient(baseUrl: 'https://api', httpClient: http),
         session: _session,
+        organization: _club,
         onSignOut: onSignOut ?? () {},
         onChangeClub: () {},
         onLocaleChanged: (_) {},
@@ -80,11 +91,11 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('нижняя панель уводит в историю и обратно', (tester) async {
+  testWidgets('нижняя панель уводит в кошелёк и обратно', (tester) async {
     await tester.pumpWidget(harness(_serve()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('История'));
+    await tester.tap(find.text('Кошелёк'));
     await tester.pumpAndSettle();
     expect(find.text('PC-07'), findsOneWidget);
 
@@ -95,21 +106,46 @@ void main() {
   });
 
   // Возврат на уже открытый раздел не должен выглядеть как повторный вход в приложение.
-  testWidgets('возврат в историю не перезагружает список заново', (tester) async {
+  testWidgets('возврат в кошелёк не перезагружает список заново', (tester) async {
     final http = _serve();
     await tester.pumpWidget(harness(http));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('История'));
+    await tester.tap(find.text('Кошелёк'));
     await tester.pumpAndSettle();
     final afterFirstVisit = http.paths.where((path) => path == '/api/me/visits').length;
 
     await tester.tap(find.text('Главная'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('История'));
+    await tester.tap(find.text('Кошелёк'));
     await tester.pumpAndSettle();
 
     expect(http.paths.where((path) => path == '/api/me/visits').length, afterFirstVisit);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  // Строка баланса на главной — не подпись, а вход в раздел денег.
+  testWidgets('баланс с главной ведёт в кошелёк', (tester) async {
+    await tester.pumpWidget(harness(_serve()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Баланс кошелька'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Визиты'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  // Разделов у клуба без броней на один меньше, и запомненный номер после этого указывал бы
+  // на соседа: раздел ищется по имени.
+  testWidgets('без броней кошелёк остаётся кошельком, а не сдвигается', (tester) async {
+    await tester.pumpWidget(harness(_serve(features: '{"features":["online_topup"]}')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Кошелёк'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Визиты'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
@@ -147,11 +183,11 @@ void main() {
   });
 
   // Приглашение с главной должно приводить туда, где бронь действительно создают.
-  testWidgets('«забронировать место» с главной ведёт в раздел броней', (tester) async {
+  testWidgets('«забронировать» с главной ведёт в раздел броней', (tester) async {
     await tester.pumpWidget(harness(_serve()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Забронировать место'));
+    await tester.tap(find.text('Забронировать'));
     await tester.pumpAndSettle();
 
     expect(find.text('Броней пока нет'), findsOneWidget);

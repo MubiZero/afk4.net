@@ -95,13 +95,7 @@ internal static class PlayerSelfServiceEndpoints
                 return Results.Unauthorized();
             }
 
-            return Results.Ok(new PlayerProfileDto(
-                account.PlayerAccountId,
-                account.DisplayName,
-                account.PhoneNumber,
-                player.PhoneVerified,
-                account.PreferredLocale,
-                account.MarketingOptIn));
+            return Results.Ok(await ToProfileDtoAsync(dbContext, account, player.PhoneVerified, cancellationToken));
         }).RequireRateLimiting("player-me");
 
         app.MapPatch("/api/me/profile", async (
@@ -141,13 +135,7 @@ internal static class PlayerSelfServiceEndpoints
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            return Results.Ok(new PlayerProfileDto(
-                account.PlayerAccountId,
-                account.DisplayName,
-                account.PhoneNumber,
-                player.PhoneVerified,
-                account.PreferredLocale,
-                account.MarketingOptIn));
+            return Results.Ok(await ToProfileDtoAsync(dbContext, account, player.PhoneVerified, cancellationToken));
         }).RequireRateLimiting("player-me");
 
         // Подтверждение своего номера по SMS. Без него онлайн-пополнение и онлайн-бронь
@@ -640,6 +628,26 @@ internal static class PlayerSelfServiceEndpoints
                     .Where(seat => seatIds.Contains(seat.SeatId))
                     .ToDictionaryAsync(seat => seat.SeatId, seat => seat.Name, cancellationToken);
 
+            // Имя тарифа берётся по версии, а не по действующему прайсу: версия могла быть снята
+            // с публикации после брони, а показать надо то, на что игрок согласился.
+            var tariffVersionIds = reservations
+                .Where(r => r.TariffVersionId is not null)
+                .Select(r => r.TariffVersionId!.Value)
+                .Distinct()
+                .ToList();
+
+            var tariffNames = tariffVersionIds.Count == 0
+                ? new Dictionary<Guid, string>()
+                : await dbContext.TariffVersions
+                    .AsNoTracking()
+                    .Where(version => tariffVersionIds.Contains(version.TariffVersionId))
+                    .Join(
+                        dbContext.Tariffs.AsNoTracking(),
+                        version => version.TariffId,
+                        tariff => tariff.TariffId,
+                        (version, tariff) => new { version.TariffVersionId, tariff.Name })
+                    .ToDictionaryAsync(row => row.TariffVersionId, row => row.Name, cancellationToken);
+
             var dtos = reservations.Select(r => new PlayerReservationDto(
                 r.ReservationId,
                 r.SeatId,
@@ -647,7 +655,11 @@ internal static class PlayerSelfServiceEndpoints
                 r.StartsAtUtc,
                 r.EndsAtUtc,
                 r.State,
-                string.IsNullOrEmpty(r.Note) ? null : r.Note))
+                string.IsNullOrEmpty(r.Note) ? null : r.Note,
+                r.TariffVersionId,
+                r.TariffVersionId is not null ? tariffNames.GetValueOrDefault(r.TariffVersionId.Value) : null,
+                r.EstimatedCostMinorUnits,
+                r.CurrencyCode))
                 .ToList();
 
             return Results.Ok(dtos);
@@ -804,6 +816,36 @@ internal static class PlayerSelfServiceEndpoints
             return Results.Ok(result.Response);
         }).RequireRateLimiting("player-me");
 
+    }
+
+    /// <summary>
+    /// Профиль игрока вместе с его филиалом. Имя филиала может не найтись (аккаунт заведён до того,
+    /// как филиал появился, или филиал удалён) — тогда возвращается только идентификатор: он и есть
+    /// то, ради чего филиал отдаётся клиенту, а имя лишь подпись на экране.
+    /// </summary>
+    private static async Task<PlayerProfileDto> ToProfileDtoAsync(
+        PlatformDbContext dbContext,
+        PlayerAccountEntity account,
+        bool phoneVerified,
+        CancellationToken cancellationToken)
+    {
+        var homeBranchId = account.HomeBranchId == Guid.Empty ? (Guid?)null : account.HomeBranchId;
+        var branchName = homeBranchId is null
+            ? null
+            : await dbContext.Branches.AsNoTracking()
+                .Where(branch => branch.BranchId == homeBranchId.Value)
+                .Select(branch => branch.Name)
+                .FirstOrDefaultAsync(cancellationToken);
+
+        return new PlayerProfileDto(
+            account.PlayerAccountId,
+            account.DisplayName,
+            account.PhoneNumber,
+            phoneVerified,
+            account.PreferredLocale,
+            account.MarketingOptIn,
+            homeBranchId,
+            branchName);
     }
 
     private static async Task<int?> ResolveEskhataMerchantIdAsync(

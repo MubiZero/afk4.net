@@ -37,6 +37,9 @@ public sealed class NotificationOptions
     /// <summary>How often the scheduled-report service ticks. Idempotency per (schedule, window) makes repeated ticks safe.</summary>
     public TimeSpan ScheduledReportInterval { get; set; } = TimeSpan.FromHours(1);
 
+    /// <summary>Как часто ищутся напоминания игроку. Заметно чаще окна поиска: пропущенный тик не должен стоить напоминания.</summary>
+    public TimeSpan PlayerReminderInterval { get; set; } = TimeSpan.FromMinutes(2);
+
     /// <summary>How often the dispatcher polls for due rows.</summary>
     public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(15);
 

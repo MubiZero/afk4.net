@@ -31,6 +31,8 @@ it('ru, en and tg have identical key sets (catalog parity)', () => {
 // it only fakes "translated" coverage. Add a key here ONLY with a real reason above,
 // never to silence the check. Native-Tajik review may move entries out of this list.
 const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
+    // «Кешбэк» и «Тариф» — заимствования, в таджикском пишутся так же; переводить их нечем.
+    'customer.loyalty.title', 'customer.reservations.tariff',
     'roles.operator', 'roles.technician',
     'op.network.billing.col.number',
     'auth.admin.title', 'account.phone.placeholder', 'clients.field.phone', 'op.network.billing.plan',
@@ -42,6 +44,10 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.eskhata.hashKey', 'op.dc.title', 'op.auth.operator', 'op.booking.source.operator',
     'op.cash.title', 'op.club.field.telegram', 'op.club.field.instagram', 'op.club.ph.city',
     'op.club.ph.phone', 'op.club.ph.telegram', 'op.club.ph.website', 'op.club.ph.instagram',
+    // Координаты — числа: у широты Душанбе нет таджикского написания.
+    'op.club.ph.latitude', 'op.club.ph.longitude',
+    // «Марафон» — заимствование, в таджикском пишется так же.
+    'customer.achievement.marathon',
     'op.command.stage.cashier', 'op.floor.duration.secShort', 'op.floor.remaining.pcOffline', 'op.helper.appVer.agent',
     'op.helper.appVer.shell', 'op.helper.audit.system', 'op.helper.billing.package', 'op.helper.deviceStatus.online',
     'op.helper.player.packageCount', 'op.helper.player.packageFallback', 'op.helper.player.platform', 'op.helper.player.tariffFallback',

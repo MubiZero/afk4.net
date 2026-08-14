@@ -73,7 +73,18 @@ namespace AFK4.Platform.Api.Endpoints;
 internal static partial class EndpointHelpers
 {
     public static PlayerReservationDto ToPlayerReservationDto(ReservationDto r) =>
-        new(r.ReservationId, r.SeatId, r.SeatName, r.StartsAtUtc, r.EndsAtUtc, r.State, r.Note);
+        new(
+            r.ReservationId,
+            r.SeatId,
+            r.SeatName,
+            r.StartsAtUtc,
+            r.EndsAtUtc,
+            r.State,
+            r.Note,
+            r.TariffVersionId,
+            r.TariffName,
+            r.EstimatedCostMinorUnits,
+            r.CurrencyCode);
 
     public static ReceiptDto ToDto(ReceiptEntity receipt, Guid? shopOrderId = null)
     {
@@ -159,6 +170,11 @@ internal static partial class EndpointHelpers
             branch.Instagram,
             branch.LogoUrl,
             branch.LogoMediaId,
+            branch.CoverImageUrl,
+            branch.CoverMediaId,
+            AFK4.Platform.Api.Branches.BranchPhotos.Deserialize(branch.PhotosJson),
+            branch.Latitude,
+            branch.Longitude,
             branch.PreferredTimeZone,
             branch.PreferredLocale,
             AFK4.Platform.Api.Branches.BranchWorkingHours.Deserialize(branch.WorkingHoursJson),
@@ -174,7 +190,8 @@ internal static partial class EndpointHelpers
             zone.Name,
             zone.SortOrder,
             zone.CreatedAtUtc,
-            seats.Select(ToSeatDto).ToList());
+            seats.Select(ToSeatDto).ToList(),
+            zone.HardwareSummary);
     }
 
     public static SeatDto ToSeatDto(SeatEntity seat)

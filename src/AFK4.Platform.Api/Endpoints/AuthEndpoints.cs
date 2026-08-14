@@ -236,11 +236,122 @@ internal static class AuthEndpoints
 
             // Порядок по имени, а не по времени создания: список должен выглядеть одинаково при
             // каждом открытии, иначе выбранный глазом клуб уезжает под пальцем.
-            var entries = await organizations
+            var found = await organizations
                 .OrderBy(o => o.Name)
                 .Take(maxResults)
-                .Select(o => new OrganizationDirectoryEntryDto(o.OrganizationId, o.Slug, o.Name, o.LogoUrl, o.AccentColor))
+                .Select(o => new { o.OrganizationId, o.Slug, o.Name, o.LogoUrl, o.AccentColor })
                 .ToListAsync(cancellationToken);
+
+            var organizationIds = found.Select(o => o.OrganizationId).ToList();
+
+            // Витрина собирается тремя отдельными запросами и склеивается в памяти, а не одним
+            // выражением с группировками: клубов здесь максимум полсотни, зато запросы остаются
+            // такими, какие одинаково выполняет и Postgres, и InMemory под тестами.
+            var branches = await dbContext.Branches
+                .AsNoTracking()
+                .Where(b => organizationIds.Contains(b.OrganizationId))
+                .OrderBy(b => b.City).ThenBy(b => b.Name)
+                .Select(b => new
+                {
+                    b.OrganizationId, b.BranchId, b.Name, b.City, b.Address, b.Description,
+                    b.CoverImageUrl, b.Latitude, b.Longitude, b.WorkingHoursJson, b.PhotosJson
+                })
+                .ToListAsync(cancellationToken);
+
+            // Залы с железом и числом мест — по филиалам сети. Считаем одним запросом на
+            // страницу каталога, а не по клубу: клубов здесь максимум полсотни.
+            var branchIds = branches.Select(b => b.BranchId).ToList();
+            var zones = await dbContext.Zones
+                .AsNoTracking()
+                .Where(zone => branchIds.Contains(zone.BranchId))
+                .OrderBy(zone => zone.SortOrder)
+                .Select(zone => new { zone.ZoneId, zone.BranchId, zone.Name, zone.HardwareSummary })
+                .ToListAsync(cancellationToken);
+
+            var zoneSeatCounts = await dbContext.Seats
+                .AsNoTracking()
+                .Where(seat => branchIds.Contains(seat.BranchId))
+                .GroupBy(seat => seat.ZoneId)
+                .Select(group => new { ZoneId = group.Key, Count = group.Count() })
+                .ToListAsync(cancellationToken);
+
+            var places = branches.Select(b => new
+            {
+                b.OrganizationId,
+                Place = new ClubPlaceDto(
+                    b.BranchId, b.Name, b.City, b.Address, b.Description,
+                    b.CoverImageUrl, b.Latitude, b.Longitude,
+                    AFK4.Platform.Api.Branches.BranchWorkingHours.Deserialize(b.WorkingHoursJson),
+                    zones.Where(zone => zone.BranchId == b.BranchId)
+                        .Select(zone => new ClubZoneDto(
+                            zone.Name,
+                            zoneSeatCounts.FirstOrDefault(count => count.ZoneId == zone.ZoneId)?.Count ?? 0,
+                            zone.HardwareSummary))
+                        .ToList(),
+                    // Обложка идёт первой: она выбрана владельцем как лицо зала, остальные —
+                    // за ней, в заданном им порядке.
+                    [
+                        .. string.IsNullOrWhiteSpace(b.CoverImageUrl) ? Array.Empty<string>() : [b.CoverImageUrl],
+                        .. AFK4.Platform.Api.Branches.BranchPhotos.Deserialize(b.PhotosJson)
+                            .Select(photo => photo.Url)
+                    ])
+            }).ToList();
+
+            var seatCounts = await dbContext.Seats
+                .AsNoTracking()
+                .Where(s => organizationIds.Contains(s.OrganizationId))
+                .GroupBy(s => s.OrganizationId)
+                .Select(group => new { OrganizationId = group.Key, Count = group.Count() })
+                .ToListAsync(cancellationToken);
+
+            // «Цена от» — по действующим версиям тарифов: снятые с публикации и ещё не вступившие
+            // в силу обещали бы игроку цену, которую на кассе никто не назовёт.
+            var now = DateTimeOffset.UtcNow;
+            var prices = await dbContext.TariffVersions
+                .AsNoTracking()
+                .Where(v => organizationIds.Contains(v.OrganizationId)
+                    && v.RetiredAtUtc == null
+                    && v.EffectiveFromUtc <= now)
+                .Select(v => new { v.OrganizationId, v.PricePerMinuteMinorUnits, v.CurrencyCode })
+                .ToListAsync(cancellationToken);
+
+            // Оценка клуба — то же, что цена и адрес: часть витрины, по которой выбирают. Считаем
+            // её здесь же, одним запросом на всю страницу каталога.
+            var ratings = await dbContext.ClubReviews
+                .AsNoTracking()
+                .Where(review => organizationIds.Contains(review.OrganizationId))
+                .GroupBy(review => review.OrganizationId)
+                .Select(group => new
+                {
+                    OrganizationId = group.Key,
+                    Average = group.Average(review => (double)review.Rating),
+                    Count = group.Count()
+                })
+                .ToListAsync(cancellationToken);
+
+            var entries = found.Select(o =>
+            {
+                var rating = ratings.FirstOrDefault(r => r.OrganizationId == o.OrganizationId);
+                var cheapest = prices
+                    .Where(p => p.OrganizationId == o.OrganizationId)
+                    .OrderBy(p => p.PricePerMinuteMinorUnits)
+                    .FirstOrDefault();
+
+                return new OrganizationDirectoryEntryDto(
+                    o.OrganizationId,
+                    o.Slug,
+                    o.Name,
+                    o.LogoUrl,
+                    o.AccentColor,
+                    places.Where(p => p.OrganizationId == o.OrganizationId)
+                        .Select(p => p.Place)
+                        .ToList(),
+                    cheapest is null ? null : cheapest.PricePerMinuteMinorUnits * 60,
+                    cheapest?.CurrencyCode,
+                    seatCounts.FirstOrDefault(c => c.OrganizationId == o.OrganizationId)?.Count ?? 0,
+                    rating is null ? null : Math.Round(rating.Average, 1),
+                    rating?.Count ?? 0);
+            }).ToList();
 
             return Results.Ok(entries);
         }).RequireRateLimiting("player-public");

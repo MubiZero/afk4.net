@@ -272,6 +272,23 @@ builder.Services.AddSingleton<ISmsTransport>(provider =>
         smsOptions.SenderName);
 });
 builder.Services.AddSingleton<INotificationChannel, SmsChannel>();
+builder.Services.Configure<PushOptions>(
+    builder.Configuration.GetSection(PushOptions.SectionName));
+builder.Services.AddHttpClient(PushClientRegistration.HttpClientName, (provider, http) =>
+{
+    http.Timeout = TimeSpan.FromSeconds(
+        provider.GetRequiredService<IOptions<PushOptions>>().Value.TimeoutSeconds);
+});
+builder.Services.AddSingleton<IPushTransport>(provider => new FcmPushTransport(
+    provider.GetRequiredService<IHttpClientFactory>().CreateClient(PushClientRegistration.HttpClientName),
+    provider.GetRequiredService<IOptions<PushOptions>>().Value,
+    provider.GetRequiredService<TimeProvider>()));
+// Устройства читаются из базы, поэтому канал — scoped, в отличие от почты и SMS.
+builder.Services.AddScoped<IPlayerDeviceStore, EfPlayerDeviceStore>();
+builder.Services.AddScoped<INotificationChannel, PushChannel>();
+builder.Services.AddScoped<PlayerPushNotifier>();
+builder.Services.AddScoped<PlayerReminderRunner>();
+builder.Services.AddHostedService<PlayerReminderHostedService>();
 builder.Services.AddScoped<INotificationOutbox, EfNotificationOutbox>();
 builder.Services.AddScoped<INotificationPreferenceService, EfNotificationPreferenceService>();
 builder.Services.AddScoped<NotificationDispatchRunner>();
@@ -297,6 +314,7 @@ builder.Services.AddHostedService<OutboxDispatcher>();
 builder.Services.AddHostedService<NotificationDispatcher>();
 builder.Services.AddHostedService<DailySummaryHostedService>();
 builder.Services.AddHostedService<AutoProtectionHostedService>();
+builder.Services.AddHostedService<ReservationNoShowHostedService>();
 builder.Services.AddHostedService<ScheduledReportHostedService>();
 builder.Services.Configure<PlatformHealthOptions>(
     builder.Configuration.GetSection(PlatformHealthOptions.ConfigurationSection));
@@ -352,6 +370,8 @@ builder.Services.AddScoped<ISessionStartWorkflow, EfSessionStartWorkflow>();
 builder.Services.AddScoped<ISessionCommandService, EfSessionCommandService>();
 builder.Services.AddScoped<ISessionCheckoutService, EfSessionCheckoutService>();
 builder.Services.AddSingleton(new AutoProtectionOptions());
+builder.Services.AddSingleton(new ReservationNoShowOptions());
+builder.Services.AddScoped<ReservationNoShowRunner>();
 builder.Services.AddScoped<AutoProtectionRunner>();
 builder.Services.AddScoped<ISessionCommandResultProcessor, EfSessionCommandResultProcessor>();
 builder.Services.AddScoped<IBillingCommandService, EfBillingCommandService>();
@@ -525,6 +545,8 @@ app.MapPlayerShopEndpoints();
 app.MapPlayerLoyaltyEndpoints();
 app.MapPlayerFeatureEndpoints();
 app.MapPlayerNewsEndpoints();
+app.MapClubReviewEndpoints();
+app.MapPlayerDeviceEndpoints();
 organizations.MapShopOrderEndpoints();
 organizations.MapWalletEndpoints();
 app.MapStaffOnboardingEndpoints(organizations);

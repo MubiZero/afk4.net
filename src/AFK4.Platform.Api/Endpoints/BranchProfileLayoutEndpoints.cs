@@ -73,6 +73,11 @@ namespace AFK4.Platform.Api.Endpoints;
 
 internal static class BranchProfileLayoutEndpoints
 {
+    /// Пустая строка и пробелы — это «не задано», а не значение: иначе в витрине появилась бы
+    /// пустая строка железа, которую игрок примет за недогрузившийся текст.
+    private static string? Trimmed(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
     public static void MapBranchProfileLayoutEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("branches/{branchId:guid}/profile", async (
@@ -204,6 +209,13 @@ internal static class BranchProfileLayoutEndpoints
             branch.Instagram = string.IsNullOrWhiteSpace(request.Instagram) ? null : request.Instagram.Trim();
             branch.LogoUrl = string.IsNullOrWhiteSpace(request.LogoUrl) ? null : request.LogoUrl.Trim();
             branch.LogoMediaId = request.LogoMediaId;
+            branch.CoverImageUrl = string.IsNullOrWhiteSpace(request.CoverImageUrl) ? null : request.CoverImageUrl.Trim();
+            branch.CoverMediaId = request.CoverMediaId;
+            branch.PhotosJson = request.Photos is null
+                ? null
+                : AFK4.Platform.Api.Branches.BranchPhotos.Serialize(request.Photos);
+            branch.Latitude = request.Latitude;
+            branch.Longitude = request.Longitude;
             branch.PreferredTimeZone = request.TimeZone.Trim();
             branch.PreferredLocale = request.Locale.Trim();
             branch.WorkingHoursJson = AFK4.Platform.Api.Branches.BranchWorkingHours.Serialize(request.WorkingHours);
@@ -363,6 +375,7 @@ internal static class BranchProfileLayoutEndpoints
                     BranchId = branchId,
                     Name = request.Name.Trim(),
                     SortOrder = request.SortOrder,
+                    HardwareSummary = Trimmed(request.HardwareSummary),
                     CreatedAtUtc = timeProvider.GetUtcNow()
                 };
                 dbContext.Zones.Add(zone);
@@ -461,6 +474,7 @@ internal static class BranchProfileLayoutEndpoints
 
             zone.Name = trimmedName;
             zone.SortOrder = request.SortOrder;
+            zone.HardwareSummary = Trimmed(request.HardwareSummary);
             await dbContext.SaveChangesAsync(cancellationToken);
 
             var seats = await dbContext.Seats

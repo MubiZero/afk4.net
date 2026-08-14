@@ -94,6 +94,46 @@ public sealed class EfMediaServiceTests
         Assert.Equal(second.Media.MediaId, remaining.MediaId);
     }
 
+    /// Галерея зала — не логотип: второе фото не должно стирать первое.
+    [Fact]
+    public async Task Upload_GalleryPhotos_KeepEachOther()
+    {
+        await using var db = CreateDbContext();
+        var storage = new FakeMediaStorage();
+        var service = CreateService(db, storage);
+
+        var first = await service.UploadAsync(
+            TestIds.OrganizationId, TestIds.BranchId, TestIds.TechnicianStaffUserId,
+            MediaPurposeNames.BranchGallery, "image/png", Png(), 12, CancellationToken.None);
+        var second = await service.UploadAsync(
+            TestIds.OrganizationId, TestIds.BranchId, TestIds.TechnicianStaffUserId,
+            MediaPurposeNames.BranchGallery, "image/png", Png(), 12, CancellationToken.None);
+
+        Assert.True(first.Succeeded);
+        Assert.True(second.Succeeded);
+        Assert.Equal(2, storage.Objects.Count);
+        Assert.Equal(2, await db.UploadedMedia.CountAsync());
+    }
+
+    /// Обложка — «одиночная»: её заменяют, а не копят.
+    [Fact]
+    public async Task Upload_SecondCover_ReplacesTheFirst()
+    {
+        await using var db = CreateDbContext();
+        var storage = new FakeMediaStorage();
+        var service = CreateService(db, storage);
+
+        await service.UploadAsync(
+            TestIds.OrganizationId, TestIds.BranchId, TestIds.TechnicianStaffUserId,
+            MediaPurposeNames.BranchCover, "image/png", Png(), 12, CancellationToken.None);
+        await service.UploadAsync(
+            TestIds.OrganizationId, TestIds.BranchId, TestIds.TechnicianStaffUserId,
+            MediaPurposeNames.BranchCover, "image/png", Png(), 12, CancellationToken.None);
+
+        Assert.Single(storage.Objects);
+        Assert.Equal(1, await db.UploadedMedia.CountAsync());
+    }
+
     [Fact]
     public async Task Delete_RemovesObjectAndRecord()
     {

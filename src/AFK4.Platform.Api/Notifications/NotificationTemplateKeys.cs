@@ -59,6 +59,18 @@ public static class NotificationTemplateKeys
     /// <summary>Scheduled report digest — a recurring CSV report delivered to the owner as an attachment (Stage 5 digest trigger).</summary>
     public const string ScheduledReport = "report.scheduled";
 
+    /// <summary>Пуш игроку: до конца оплаченного времени осталось немного, ещё можно продлить.</summary>
+    public const string PlayerSessionEnding = "player.session_ending";
+
+    /// <summary>Пуш игроку: до брони остался час.</summary>
+    public const string PlayerReservationSoon = "player.reservation_soon";
+
+    /// <summary>Пуш игроку: заявку на пополнение подтвердили, деньги на балансе.</summary>
+    public const string PlayerBalanceToppedUp = "player.balance_topped_up";
+
+    /// <summary>Пуш игроку: заказ из бара собран и его несут за место.</summary>
+    public const string PlayerOrderReady = "player.order_ready";
+
     public static readonly IReadOnlyList<string> All =
-        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, PlayerSignInCode, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement];
+        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, PlayerSignInCode, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement, PlayerSessionEnding, PlayerReservationSoon, PlayerBalanceToppedUp, PlayerOrderReady];
 }

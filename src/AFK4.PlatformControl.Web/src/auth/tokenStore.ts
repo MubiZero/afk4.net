@@ -37,14 +37,34 @@ export function readSession(storage: SessionStorageLike | null = getStorage()): 
     return null;
   }
   try {
-    const parsed = JSON.parse(raw) as PlatformAdminSession;
-    if (typeof parsed.accessToken !== 'string' || parsed.accessToken.length === 0) {
-      return null;
-    }
-    return parsed;
+    const parsed = JSON.parse(raw) as unknown;
+    return isSession(parsed) ? parsed : null;
   } catch {
     return null;
   }
+}
+
+/// Сессия, пережившая обновление приложения, может оказаться другой формы: поля появлялись и
+/// исчезали между версиями. Проверяем её целиком, а не по одному токену — иначе полусессия
+/// проходит дальше и роняет экран на первом же обращении к правам, причём вместо формы входа
+/// администратор видит белую страницу и думает, что упал сервер.
+function isSession(value: unknown): value is PlatformAdminSession {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const candidate = value as Partial<PlatformAdminSession>;
+  return isNonEmptyString(candidate.accessToken)
+    && isNonEmptyString(candidate.refreshToken)
+    && isNonEmptyString(candidate.platformAdminId)
+    && typeof candidate.userName === 'string'
+    && typeof candidate.displayName === 'string'
+    && Array.isArray(candidate.roles)
+    && Array.isArray(candidate.permissions);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
 }
 
 export function writeSession(

@@ -1,0 +1,5 @@
+{
+  "subject": "Баланс пополнен",
+  "bodyText": "Зачислено {{amount}}. Баланс: {{balance}}.",
+  "bodyHtml": ""
+}

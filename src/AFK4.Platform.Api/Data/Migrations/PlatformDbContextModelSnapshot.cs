@@ -210,6 +210,13 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<long?>("CompApprovalThresholdMinorUnits")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("CoverImageUrl")
+                        .HasMaxLength(600)
+                        .HasColumnType("character varying(600)");
+
+                    b.Property<Guid?>("CoverMediaId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -227,12 +234,18 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
 
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("double precision");
+
                     b.Property<Guid?>("LogoMediaId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("LogoUrl")
                         .HasMaxLength(600)
                         .HasColumnType("character varying(600)");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("double precision");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -255,6 +268,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<string>("Phone")
                         .HasMaxLength(40)
                         .HasColumnType("character varying(40)");
+
+                    b.Property<string>("PhotosJson")
+                        .HasColumnType("jsonb");
 
                     b.Property<long?>("PostpaidCreditLimitMinorUnits")
                         .HasColumnType("bigint");
@@ -358,6 +374,46 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.HasIndex("ShiftId", "CreatedAtUtc");
 
                     b.ToTable("cash_movements", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.ClubReviewEntity", b =>
+                {
+                    b.Property<Guid>("ReviewId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PlayerAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("ReviewId");
+
+                    b.HasIndex("PlayerAccountId");
+
+                    b.HasIndex("SessionId")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "CreatedAtUtc");
+
+                    b.ToTable("club_reviews", (string)null);
                 });
 
             modelBuilder.Entity("AFK4.Platform.Api.Data.DcPayLinkConfigEntity", b =>
@@ -2562,6 +2618,45 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("player_credentials", (string)null);
                 });
 
+            modelBuilder.Entity("AFK4.Platform.Api.Data.PlayerDeviceEntity", b =>
+                {
+                    b.Property<Guid>("PlayerDeviceId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("LastSeenUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<Guid>("PlayerAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PushToken")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.HasKey("PlayerDeviceId");
+
+                    b.HasIndex("PlayerAccountId");
+
+                    b.HasIndex("PushToken")
+                        .IsUnique();
+
+                    b.ToTable("player_devices", (string)null);
+                });
+
             modelBuilder.Entity("AFK4.Platform.Api.Data.PlayerPackageEntity", b =>
                 {
                     b.Property<Guid>("PlayerPackageId")
@@ -3078,6 +3173,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<Guid>("CreatedByStaffUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("CurrencyCode")
+                        .HasColumnType("text");
+
                     b.Property<string>("CustomerName")
                         .IsRequired()
                         .HasMaxLength(160)
@@ -3085,6 +3183,9 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.Property<DateTimeOffset>("EndsAtUtc")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("EstimatedCostMinorUnits")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("Note")
                         .IsRequired()
@@ -3125,6 +3226,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
+
+                    b.Property<Guid?>("TariffVersionId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -4451,6 +4555,10 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.Property<int?>("GeoY")
                         .HasColumnType("integer");
+
+                    b.Property<string>("HardwareSummary")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("Name")
                         .IsRequired()

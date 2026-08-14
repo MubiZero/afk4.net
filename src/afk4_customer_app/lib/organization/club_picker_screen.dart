@@ -3,11 +3,19 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../theme/brand_mark.dart';
+import '../reviews/club_reviews_sheet.dart';
+import 'club_card.dart';
+import 'club_details_sheet.dart';
+import 'club_map.dart';
 import 'organization.dart';
 import 'organization_directory.dart';
 
 /// Выбор клуба — первый экран приложения. У мобильной сборки нет поддомена, из которого веб
 /// берёт организацию, а войти без неё нельзя: игрок опознаётся парой организация + телефон.
+///
+/// Это витрина, а не список настроек: клуб выбирают по тому, где он, сколько стоит час и как
+/// выглядит зал. Списком удобно сравнивать, картой — понять, что рядом; поэтому и то, и другое.
 class ClubPickerScreen extends StatefulWidget {
   const ClubPickerScreen({
     super.key,
@@ -40,11 +48,14 @@ class _Ready extends _Load {
   final List<Organization> clubs;
 }
 
+enum _View { list, map }
+
 class _ClubPickerScreenState extends State<ClubPickerScreen> {
   /// Пауза перед запросом: набор «Аре…» иначе шлёт три запроса вместо одного.
   static const Duration _typingPause = Duration(milliseconds: 300);
 
   _Load _load = const _Loading();
+  _View _view = _View.list;
   Timer? _debounce;
   String _query = '';
   int _requestSeq = 0;
@@ -82,37 +93,90 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
     _debounce = Timer(_typingPause, _fetch);
   }
 
+  void _openReviews(Organization club) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => ClubReviewsSheet(directory: widget.directory, club: club),
+    );
+  }
+
+  void _openDetails(Organization club) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => ClubDetailsSheet(
+        club: club,
+        onChoose: () {
+          Navigator.of(sheetContext).pop();
+          widget.onSelected(club);
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
+    final theme = Theme.of(context);
+
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(l.customerClubPickerTitle, style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: 4),
-              Text(
-                l.customerClubPickerSubtitle,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const BrandMark(),
+                  const SizedBox(height: 18),
+                  Text(l.customerClubPickerTitle, style: theme.textTheme.headlineMedium),
+                  const SizedBox(height: 4),
+                  Text(
+                    l.customerClubPickerSubtitle,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    decoration: InputDecoration(
+                      labelText: l.customerClubPickerSearch,
+                      prefixIcon: const Icon(Icons.search),
+                    ),
+                    textInputAction: TextInputAction.search,
+                    onChanged: _onQueryChanged,
+                  ),
+                  const SizedBox(height: 12),
+                  // Список и карта — два взгляда на один и тот же каталог: поиск сверху
+                  // относится к обоим, поэтому переключатель стоит под ним, а не над.
+                  SegmentedButton<_View>(
+                    segments: [
+                      ButtonSegment(
+                        value: _View.list,
+                        icon: const Icon(Icons.view_agenda_outlined),
+                        label: Text(l.customerClubPickerTabList),
+                      ),
+                      ButtonSegment(
+                        value: _View.map,
+                        icon: const Icon(Icons.map_outlined),
+                        label: Text(l.customerClubPickerTabMap),
+                      ),
+                    ],
+                    selected: {_view},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (selection) => setState(() => _view = selection.first),
+                  ),
+                  const SizedBox(height: 12),
+                ],
               ),
-              const SizedBox(height: 16),
-              TextField(
-                decoration: InputDecoration(
-                  labelText: l.customerClubPickerSearch,
-                  prefixIcon: const Icon(Icons.search),
-                ),
-                textInputAction: TextInputAction.search,
-                onChanged: _onQueryChanged,
-              ),
-              const SizedBox(height: 16),
-              Expanded(child: _buildBody(l)),
-            ],
-          ),
+            ),
+            Expanded(child: _buildBody(l)),
+          ],
         ),
       ),
     );
@@ -127,22 +191,23 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
           onAction: _fetch,
         ),
       _Ready(clubs: final clubs) when clubs.isEmpty => _Message(text: l.customerClubPickerEmpty),
-      _Ready(clubs: final clubs) => ListView.separated(
-          itemCount: clubs.length,
-          separatorBuilder: (_, _) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final club = clubs[index];
-            return ListTile(
-              // Логотипа может не быть — тогда первая буква названия вместо пустой дыры.
-              leading: club.logoUrl == null
-                  ? CircleAvatar(child: Text(club.name.characters.first.toUpperCase()))
-                  : CircleAvatar(backgroundImage: NetworkImage(club.logoUrl!)),
-              title: Text(club.name),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => widget.onSelected(club),
-            );
-          },
-        ),
+      _Ready(clubs: final clubs) => switch (_view) {
+          _View.list => ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              itemCount: clubs.length,
+              separatorBuilder: (_, _) => const SizedBox(height: 14),
+              itemBuilder: (context, index) => ClubCard(
+                club: clubs[index],
+                onTap: () => widget.onSelected(clubs[index]),
+                onOpenReviews: () => _openReviews(clubs[index]),
+                onOpenDetails: () => _openDetails(clubs[index]),
+              ),
+            ),
+          _View.map => Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              child: ClubMap(clubs: clubs, onSelected: widget.onSelected),
+            ),
+        },
     };
   }
 }

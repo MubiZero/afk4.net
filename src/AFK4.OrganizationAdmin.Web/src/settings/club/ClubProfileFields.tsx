@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
 import type { MessageKey } from '@afk4/i18n';
 import { MediaUpload } from '../../components/MediaUpload';
+import { GalleryUpload, type GalleryPhoto } from '../../components/GalleryUpload';
 import type { OperatorBackendContext } from '../../operatorTypes';
 import type { BranchWorkingHoursDay } from '../../api/clients/settings';
 import { WorkingHoursEditor } from './WorkingHoursEditor';
@@ -10,6 +11,7 @@ import { WorkingHoursEditor } from './WorkingHoursEditor';
 // (that name is a C# assembly, `AFK4.Shared.Contracts`) — `MediaUpload`'s `purpose` prop is a
 // plain string, and the existing MediaUpload.test.tsx already uses this same literal.
 const BRANCH_LOGO_PURPOSE = 'branch-logo';
+const BRANCH_COVER_PURPOSE = 'branch-cover';
 
 export interface ClubProfileForm {
   name: string;
@@ -22,6 +24,13 @@ export interface ClubProfileForm {
   instagram: string;
   logoUrl: string | null;
   logoMediaId: string | null;
+  coverImageUrl: string | null;
+  coverMediaId: string | null;
+  photos: GalleryPhoto[];
+  // Координаты живут в форме строкой, а не числом: при вводе «38.» число проглотило бы точку
+  // и продолжить набор дробной части стало бы невозможно. В число их превращает сборка запроса.
+  latitude: string;
+  longitude: string;
   timeZone: string;
   locale: string;
   workingHours: BranchWorkingHoursDay[];
@@ -77,6 +86,32 @@ export function ClubProfileFields({ form, currencyCode, backend, disabled, onFie
                 }}
               />
             </label>
+            {/* Фото зала: в приложении игрок выбирает клуб глазами, и логотип на цветном
+                квадрате не говорит ничего о том, как выглядит зал. */}
+            <label className="club-logo-field club-identity-cover">{t('op.club.field.cover')}
+              <MediaUpload
+                value={form.coverImageUrl}
+                mediaId={form.coverMediaId}
+                purpose={BRANCH_COVER_PURPOSE}
+                branchId={backend.branchId}
+                backend={backend}
+                disabled={disabled}
+                onChange={(media) => {
+                  onField('coverImageUrl', media?.url ?? null);
+                  onField('coverMediaId', media?.mediaId ?? null);
+                }}
+              />
+              <span className="club-field-hint">{t('op.club.hint.cover')}</span>
+            </label>
+            <label className="club-identity-gallery">{t('op.club.field.gallery')}
+              <GalleryUpload
+                value={form.photos}
+                branchId={backend.branchId}
+                backend={backend}
+                disabled={disabled}
+                onChange={(photos) => onField('photos', photos)}
+              />
+            </label>
           </div>
 
           <div className="mgmt-section-title"><span>{t('op.club.section.contacts')}</span></div>
@@ -99,7 +134,28 @@ export function ClubProfileFields({ form, currencyCode, backend, disabled, onFie
             <label>{t('op.club.field.instagram')}
               <input value={form.instagram} placeholder={t('op.club.ph.instagram')} disabled={disabled} onChange={(e) => onField('instagram', e.currentTarget.value)} />
             </label>
+            {/* Координаты ставят клуб на карту в приложении. Пустое поле — не ошибка: клуб
+                останется в списке, просто без точки на карте. */}
+            <label>{t('op.club.field.latitude')}
+              <input
+                value={form.latitude}
+                inputMode="decimal"
+                placeholder={t('op.club.ph.latitude')}
+                disabled={disabled}
+                onChange={(e) => onField('latitude', e.currentTarget.value)}
+              />
+            </label>
+            <label>{t('op.club.field.longitude')}
+              <input
+                value={form.longitude}
+                inputMode="decimal"
+                placeholder={t('op.club.ph.longitude')}
+                disabled={disabled}
+                onChange={(e) => onField('longitude', e.currentTarget.value)}
+              />
+            </label>
           </div>
+          <p className="club-field-hint">{t('op.club.hint.coords')}</p>
         </div>
       </section>
 

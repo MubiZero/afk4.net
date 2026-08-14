@@ -312,6 +312,11 @@ describe('operator API clients', () => {
       instagram: null,
       logoUrl: null,
       logoMediaId: null,
+      coverImageUrl: null,
+      coverMediaId: null,
+      photos: [],
+      latitude: null,
+      longitude: null,
       timeZone: 'Asia/Dushanbe',
       locale: 'ru',
       workingHours: defaultWorkingHours()
@@ -461,6 +466,11 @@ describe('operator API clients', () => {
       instagram: null,
       logoUrl: null,
       logoMediaId: null,
+      coverImageUrl: null,
+      coverMediaId: null,
+      photos: [],
+      latitude: null,
+      longitude: null,
       timeZone: 'Asia/Dushanbe',
       locale: 'ru',
       workingHours: defaultWorkingHours()

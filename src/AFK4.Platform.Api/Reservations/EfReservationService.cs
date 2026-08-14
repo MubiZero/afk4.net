@@ -446,6 +446,10 @@ public sealed class EfReservationService(
         reservation.UpdatedByStaffUserId = actorStaffUserId;
         reservation.UpdatedAtUtc = now;
         reservation.Version++;
+        // Игрок сел — холд снимается, дальше считает обычный биллинг сессии. Оставить холд
+        // значит взять деньги дважды: сначала заморозкой, потом настоящим списанием.
+        await ReservationHold.ReleaseAsync(
+            dbContext, reservation.ReservationId, ReservationHoldCauses.Seated, now, cancellationToken);
         var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
         if (saveConflict is not null)
         {
@@ -493,6 +497,10 @@ public sealed class EfReservationService(
             reservation.UpdatedByStaffUserId = actorStaffUserId;
             reservation.UpdatedAtUtc = now;
             reservation.Version++;
+            // Отмена со стойки возвращает деньги так же, как отмена из приложения: игроку всё
+            // равно, кто нажал кнопку, а замороженные после отмены деньги он считает списанием.
+            await ReservationHold.ReleaseAsync(
+                dbContext, reservation.ReservationId, ReservationHoldCauses.Cancelled, now, cancellationToken);
             var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
             if (saveConflict is not null)
             {
@@ -713,6 +721,26 @@ public sealed class EfReservationService(
         var seatById = seats.ToDictionary(seat => seat.SeatId);
         var zoneById = zones.ToDictionary(zone => zone.ZoneId);
 
+        // Имя тарифа — для показа, а не для расчёта: сумма уже посчитана и записана при брони.
+        // Версия могла быть снята с публикации, поэтому имя берётся по самой версии, а не по
+        // действующему на сегодня прайсу.
+        var tariffVersionIds = reservations
+            .Where(reservation => reservation.TariffVersionId is not null)
+            .Select(reservation => reservation.TariffVersionId!.Value)
+            .Distinct()
+            .ToList();
+        var tariffNameByVersionId = tariffVersionIds.Count == 0
+            ? new Dictionary<Guid, string>()
+            : await dbContext.TariffVersions
+                .AsNoTracking()
+                .Where(version => tariffVersionIds.Contains(version.TariffVersionId))
+                .Join(
+                    dbContext.Tariffs.AsNoTracking(),
+                    version => version.TariffId,
+                    tariff => tariff.TariffId,
+                    (version, tariff) => new { version.TariffVersionId, tariff.Name })
+                .ToDictionaryAsync(row => row.TariffVersionId, row => row.Name, cancellationToken);
+
         return reservations.Select(reservation =>
         {
             SeatEntity? seat = null;
@@ -747,7 +775,14 @@ public sealed class EfReservationService(
                 reservation.CancelReason,
                 reservation.ReservationGroupId,
                 reservation.Version,
-                reservation.StartedSessionId);
+                reservation.StartedSessionId,
+                reservation.TariffVersionId,
+                reservation.TariffVersionId is { } tariffVersionId &&
+                    tariffNameByVersionId.TryGetValue(tariffVersionId, out var tariffName)
+                        ? tariffName
+                        : null,
+                reservation.EstimatedCostMinorUnits,
+                reservation.CurrencyCode);
         }).ToList();
     }
 
@@ -866,10 +901,72 @@ public sealed class EfReservationService(
         }
 
         var now = timeProvider.GetUtcNow();
+
+        // Billing choice made by the player in the app. Priced here, not in the client: the
+        // minimum-billable floor and the rounding increment are billing rules, and a second
+        // implementation in the app would disagree with the charge the moment either side moved.
+        TariffVersionEntity? tariffVersion = null;
+        TariffComputation? estimate = null;
+        if (request.TariffVersionId is { } tariffVersionId)
+        {
+            tariffVersion = await dbContext.TariffVersions
+                .AsNoTracking()
+                .SingleOrDefaultAsync(
+                    version =>
+                        version.TariffVersionId == tariffVersionId &&
+                        version.OrganizationId == organizationId &&
+                        version.BranchId == branchId &&
+                        version.EffectiveFromUtc <= now &&
+                        (version.RetiredAtUtc == null || version.RetiredAtUtc > now),
+                    cancellationToken);
+
+            // A retired or foreign tariff is rejected rather than silently replaced by a default:
+            // the player agreed to a specific price, and quietly booking on another one is a lie
+            // about money.
+            if (tariffVersion is null)
+            {
+                return ReservationServiceResult<ReservationDto>.Invalid(
+                    "Selected tariff is not available in this branch.");
+            }
+
+            estimate = TariffBilling.ComputeForMinutes(
+                durationMinutes,
+                new TariffPricing(
+                    tariffVersion.PricePerMinuteMinorUnits,
+                    tariffVersion.MinimumBillableMinutes,
+                    tariffVersion.RoundingIncrementMinutes,
+                    tariffVersion.CurrencyCode));
+
+            if (estimate is null)
+            {
+                return ReservationServiceResult<ReservationDto>.Invalid(
+                    "Selected tariff cannot price this booking.");
+            }
+        }
+
+        // Бронь с выбранным тарифом сразу замораживает деньги: слот занят, значит и сумма должна
+        // быть занята — иначе к моменту прихода игрока её потратят в баре или на другой брони.
+        // Не хватает денег — бронь отклоняется, а не висит «в ожидании»: «бронь только с деньгами»
+        // (решение владельца 2026-06-18). Бронь без тарифа считают на стойке, там всё как раньше.
+        LedgerEntryEntity? hold = null;
+        if (estimate is not null)
+        {
+            var wallet = await LedgerBalanceProjector.GetWalletSummaryAsync(
+                dbContext, playerAccountId, cancellationToken);
+            var available = wallet?.WalletBalance.MinorUnits ?? 0;
+            if (available < estimate.AmountMinorUnits)
+            {
+                return ReservationServiceResult<ReservationDto>.Invalid("insufficient_funds");
+            }
+        }
+
         // Auto-confirm self-service bookings when the player has funds (positive wallet, no debt):
         // «free slot + has balance → book without operator». Otherwise stay Pending for operator
         // review (the requests lane stays a fallback for funded-later / disputed cases).
-        var autoConfirm = await ShouldAutoConfirmOnlineAsync(playerAccountId, cancellationToken);
+        // Замороженные деньги — более сильный ответ на вопрос «придёт ли он», чем «баланс
+        // положительный»: поэтому бронь с холдом подтверждается сразу.
+        var autoConfirm = estimate is not null
+            || await ShouldAutoConfirmOnlineAsync(playerAccountId, cancellationToken);
         var reservation = new ReservationEntity
         {
             ReservationId = Guid.NewGuid(),
@@ -891,10 +988,21 @@ public sealed class EfReservationService(
             UpdatedByStaffUserId = Guid.Empty,
             CreatedAtUtc = now,
             UpdatedAtUtc = now,
-            CancelReason = string.Empty
+            CancelReason = string.Empty,
+            TariffVersionId = tariffVersion?.TariffVersionId,
+            EstimatedCostMinorUnits = estimate?.AmountMinorUnits,
+            CurrencyCode = estimate?.CurrencyCode
         };
 
         dbContext.Reservations.Add(reservation);
+        if (estimate is not null)
+        {
+            hold = ReservationHold.Create(reservation, estimate.AmountMinorUnits, estimate.CurrencyCode, now);
+            dbContext.LedgerEntries.Add(hold);
+        }
+
+        // Бронь и холд сохраняются одним разом: бронь без замороженных денег — это занятый слот
+        // без обеспечения, а холд без брони — деньги, которые некому вернуть.
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return ReservationServiceResult<ReservationDto>.Ok(
@@ -934,6 +1042,10 @@ public sealed class EfReservationService(
             reservation.CancelledAtUtc = now;
             reservation.UpdatedByStaffUserId = Guid.Empty;
             reservation.UpdatedAtUtc = now;
+            // Отменил — деньги свободны в тот же момент. Держать их «до выяснения» не за чем:
+            // слот освободился, а замороженный без причины баланс игрок считает списанием.
+            await ReservationHold.ReleaseAsync(
+                dbContext, reservation.ReservationId, ReservationHoldCauses.Cancelled, now, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 

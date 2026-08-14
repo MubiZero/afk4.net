@@ -115,6 +115,30 @@ describe('ZonesTab', () => {
     await waitFor(() => expect(onReload).toHaveBeenCalled());
   });
 
+  // По железу клубы и сравнивают: «сорок мест» ничего не говорит о том, пойдёт ли на них игра.
+  it('передаёт железо зала при создании, а пустое поле — как «не указано»', async () => {
+    wrap(<ZonesTab zones={zones} backend={backend as never} canManageLayout onReload={onReload} onFeedback={onFeedback} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ Зал' }));
+    fireEvent.change(screen.getByPlaceholderText('RTX 4060 · 27" 165 Гц · кресла DXRacer'), {
+      target: { value: '  RTX 4060 · 27" 165 Гц  ' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Создать зал' }));
+
+    await waitFor(() => expect(createZone).toHaveBeenCalledTimes(1));
+    expect(createZone).toHaveBeenCalledWith('b1', expect.objectContaining({
+      hardwareSummary: 'RTX 4060 · 27" 165 Гц'
+    }));
+
+    cleanup();
+    createZone.mockClear();
+    wrap(<ZonesTab zones={zones} backend={backend as never} canManageLayout onReload={onReload} onFeedback={onFeedback} />);
+    fireEvent.click(screen.getByRole('button', { name: '+ Зал' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Создать зал' }));
+
+    await waitFor(() => expect(createZone).toHaveBeenCalledTimes(1));
+    expect(createZone).toHaveBeenCalledWith('b1', expect.objectContaining({ hardwareSummary: null }));
+  });
+
   it('deleting a zone via the row menu asks for confirmation before calling settings.deleteZone', async () => {
     const { container } = wrap(<ZonesTab zones={zones} backend={backend as never} canManageLayout onReload={onReload} onFeedback={onFeedback} />);
     // The zone is auto-selected, so its permanent detail panel ALSO shows a "Действия" ⋯-menu —

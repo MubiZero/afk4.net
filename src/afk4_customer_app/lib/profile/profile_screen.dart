@@ -2,14 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../api/dto.dart';
 import '../api/player_api_client.dart';
+import '../push/push_service.dart';
 import '../l10n/app_localizations.dart';
 import '../phone/phone_verification_sheet.dart';
+import '../shell/app_scaffold.dart';
+import '../theme/brand_mark.dart';
 
 /// Профиль: кто вошёл, на каком языке говорить, и выходы — из аккаунта и из клуба.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
     super.key,
     required this.api,
+    this.push,
     required this.onSignOut,
     required this.onChangeClub,
     required this.onLocaleChanged,
@@ -17,6 +21,9 @@ class ProfileScreen extends StatefulWidget {
   });
 
   final PlayerApiClient api;
+
+  /// Уведомления на телефон. null — платформа их не поддерживает (веб, тесты).
+  final PushService? push;
   final VoidCallback onSignOut;
   final VoidCallback onChangeClub;
   final ValueChanged<Locale> onLocaleChanged;
@@ -34,11 +41,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
   _Load _state = _Load.loading;
   PlayerProfile? _profile;
   bool _saving = false;
+  bool _pushEnabled = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _readPushState();
+  }
+
+  Future<void> _readPushState() async {
+    final push = widget.push;
+    if (push == null || !push.isSupported) return;
+    final enabled = await push.isEnabled();
+    if (mounted) setState(() => _pushEnabled = enabled);
+  }
+
+  /// Включение может не состояться: система вправе отказать в разрешении. Тогда переключатель
+  /// возвращается назад — врать игроку, что уведомления включены, хуже, чем не включить их.
+  Future<void> _togglePush(bool value) async {
+    final push = widget.push;
+    if (push == null) return;
+
+    setState(() => _saving = true);
+    var enabled = false;
+    if (value) {
+      enabled = await push.enable();
+    } else {
+      await push.disable();
+    }
+    if (!mounted) return;
+    setState(() {
+      _pushEnabled = enabled;
+      _saving = false;
+    });
   }
 
   Future<void> _load() async {
@@ -109,91 +145,182 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final l = L.of(context);
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l.customerProfileTitle)),
-      body: switch (_state) {
-        _Load.loading => Semantics(
-            label: l.a11yLoadingProfile,
-            child: const Center(child: CircularProgressIndicator()),
+    return AppScaffold(
+      title: l.customerProfileTitle,
+      slivers: [
+        SliverPadding(
+          padding: sectionPadding,
+          sliver: SliverList.list(
+            children: switch (_state) {
+              _Load.loading => [
+                  Semantics(
+                    label: l.a11yLoadingProfile,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 32),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  ),
+                ],
+              _Load.failed => [
+                  Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(l.customerProfileLoadError,
+                            style: TextStyle(color: theme.colorScheme.error)),
+                        const SizedBox(height: 8),
+                        TextButton(onPressed: _load, child: Text(l.customerCommonRetry)),
+                      ],
+                    ),
+                  ),
+                ],
+              _Load.ready => _body(l, theme, _profile!),
+            },
           ),
-        _Load.failed => Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(l.customerProfileLoadError, style: TextStyle(color: theme.colorScheme.error)),
-                const SizedBox(height: 8),
-                TextButton(onPressed: _load, child: Text(l.customerCommonRetry)),
-              ],
-            ),
-          ),
-        _Load.ready => _body(l, theme, _profile!),
-      },
-    );
-  }
-
-  Widget _body(L l, ThemeData theme, PlayerProfile profile) {
-    final current = Localizations.localeOf(context).languageCode;
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(profile.displayName, style: theme.textTheme.headlineSmall),
-        const SizedBox(height: 4),
-        Text(
-          profile.phoneNumber ?? '—',
-          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-        ),
-        // Подтверждённость номера — не украшение: от неё зависят пополнение и брони, поэтому
-        // видно и состояние, и способ его изменить.
-        Text(
-          profile.phoneVerified ? l.customerProfilePhoneNote : l.customerProfilePhoneUnverified,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: profile.phoneVerified
-                ? theme.colorScheme.onSurfaceVariant
-                : theme.colorScheme.error,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: OutlinedButton(
-            onPressed: _saving ? null : () => _verifyPhone(profile),
-            child: Text(profile.phoneVerified
-                ? l.customerProfileChangePhone
-                : l.customerProfileVerifyPhone),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Text(l.customerProfileLanguage, style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
-        // Таджикский здесь наравне с остальными: приложение работает в Таджикистане, и
-        // веб-версия, предлагавшая только русский и английский, просто теряла эту часть
-        // аудитории.
-        SegmentedButton<String>(
-          segments: [
-            ButtonSegment(value: 'ru', label: Text(l.customerProfileLangRu)),
-            ButtonSegment(value: 'tg', label: Text(l.customerProfileLangTg)),
-            ButtonSegment(value: 'en', label: Text(l.customerProfileLangEn)),
-          ],
-          selected: {current},
-          onSelectionChanged: _saving ? null : (selection) => _chooseLanguage(selection.first),
-        ),
-        const SizedBox(height: 24),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(l.customerProfileMarketing),
-          value: profile.marketingOptIn,
-          onChanged: _saving ? null : (value) => _save(marketingOptIn: value),
-        ),
-        const SizedBox(height: 24),
-        OutlinedButton(onPressed: widget.onChangeClub, child: Text(l.customerClubPickerChange)),
-        const SizedBox(height: 8),
-        OutlinedButton(
-          onPressed: widget.onSignOut,
-          style: OutlinedButton.styleFrom(foregroundColor: theme.colorScheme.error),
-          child: Text(l.customerProfileSignOut),
         ),
       ],
     );
   }
+
+  /// Три карточки вместо одного столбца контролов: кто я, как со мной говорить, как отсюда
+  /// выйти. Раньше настройка языка и кнопка выхода отличались друг от друга только текстом,
+  /// и глазу не за что было зацепиться при беглом просмотре.
+  List<Widget> _body(L l, ThemeData theme, PlayerProfile profile) {
+    final current = Localizations.localeOf(context).languageCode;
+
+    return [
+      _Group(
+        children: [
+          Text(profile.displayName, style: theme.textTheme.headlineSmall),
+          const SizedBox(height: 4),
+          Text(
+            profile.phoneNumber ?? '—',
+            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+          // Подтверждённость номера — не украшение: от неё зависят пополнение и брони,
+          // поэтому видно и состояние, и способ его изменить.
+          Text(
+            profile.phoneVerified ? l.customerProfilePhoneNote : l.customerProfilePhoneUnverified,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: profile.phoneVerified
+                  ? theme.colorScheme.onSurfaceVariant
+                  : theme.colorScheme.error,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton(
+              onPressed: _saving ? null : () => _verifyPhone(profile),
+              child: Text(profile.phoneVerified
+                  ? l.customerProfileChangePhone
+                  : l.customerProfileVerifyPhone),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      _Group(
+        children: [
+          Text(l.customerProfileLanguage, style: theme.textTheme.titleMedium),
+          const SizedBox(height: 12),
+          // Таджикский здесь наравне с остальными: приложение работает в Таджикистане, и
+          // веб-версия, предлагавшая только русский и английский, просто теряла эту часть
+          // аудитории.
+          SegmentedButton<String>(
+            segments: [
+              ButtonSegment(value: 'ru', label: Text(l.customerProfileLangRu)),
+              ButtonSegment(value: 'tg', label: Text(l.customerProfileLangTg)),
+              ButtonSegment(value: 'en', label: Text(l.customerProfileLangEn)),
+            ],
+            selected: {current},
+            onSelectionChanged: _saving ? null : (selection) => _chooseLanguage(selection.first),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      // Рассылка — своей карточкой, а не хвостом языковой: заголовок «Язык» над переключателем
+      // об акциях обещал не то, что под ним стоит.
+      // Пуши — отдельно от рассылки: это разные вещи. Рассылка про акции, пуши про то, что
+      // сессия кончается через десять минут. Выключение здесь настоящее: устройство снимается
+      // с сервера, а не просто прячется флажком.
+      if (widget.push?.isSupported ?? false) ...[
+        _Group(
+          children: [
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(l.customerProfilePush),
+              subtitle: Text(l.customerProfilePushNote),
+              value: _pushEnabled,
+              onChanged: _saving ? null : _togglePush,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+      ],
+      _Group(
+        children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(l.customerProfileMarketing),
+            value: profile.marketingOptIn,
+            onChanged: _saving ? null : (value) => _save(marketingOptIn: value),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      _Group(
+        children: [
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: widget.onChangeClub,
+              child: Text(l.customerClubPickerChange),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: widget.onSignOut,
+              style: OutlinedButton.styleFrom(foregroundColor: theme.colorScheme.error),
+              child: Text(l.customerProfileSignOut),
+            ),
+          ),
+        ],
+      ),
+      // Чей это продукт. Приложение носит цвет и знак клуба — игрок пришёл к нему, а не к
+      // нам, — поэтому наш знак стоит здесь: в самом низу настроек, где подпись платформы
+      // никому не мешает и никого не путает.
+      const SizedBox(height: 24),
+      Center(
+        child: Column(
+          children: [
+            const BrandMark(size: 30),
+            const SizedBox(height: 8),
+            Text(
+              l.customerProfilePoweredBy,
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
+}
+
+/// Группа настроек одной карточкой. Соседство внутри карточки говорит «это об одном», и
+/// говорит дешевле, чем заголовки над каждой строкой.
+class _Group extends StatelessWidget {
+  const _Group({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+        ),
+      );
 }

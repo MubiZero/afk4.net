@@ -10,6 +10,7 @@ import 'package:afk4_customer_app/api/player_api_client.dart';
 import 'package:afk4_customer_app/app.dart';
 import 'package:afk4_customer_app/auth/player_session_store.dart';
 import 'package:afk4_customer_app/organization/organization.dart';
+import 'package:afk4_customer_app/profile/profile_screen.dart';
 import 'package:afk4_customer_app/organization/organization_directory.dart';
 
 class _StubDirectory extends OrganizationDirectory {
@@ -85,6 +86,16 @@ Future<void> openProfile(WidgetTester tester) async {
 
 Future<void> signOut(WidgetTester tester) async {
   await openProfile(tester);
+  // Выход стоит в самом низу профиля — на невысоком экране до него надо доскроллить, и с
+  // запасом: прокрутка «до видимости» оставляет кнопку под прилипшей шапкой. Список
+  // указывается явно — разделы живут в IndexedStack, и «первый Scrollable» это главная.
+  final profileList = find.descendant(
+    of: find.byType(ProfileScreen),
+    matching: find.byType(Scrollable),
+  );
+  await tester.scrollUntilVisible(find.text('Выйти'), 200, scrollable: profileList);
+  await tester.drag(profileList, const Offset(0, -160));
+  await tester.pumpAndSettle();
   await tester.tap(find.text('Выйти'));
   await tester.pumpAndSettle();
 }

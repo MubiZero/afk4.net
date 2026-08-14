@@ -13,6 +13,12 @@ public static class PlatformJobNames
     public const string SubscriptionSnapshots = "subscription_snapshots";
     public const string BranchSnapshots = "branch_snapshots";
 
+    /// <summary>Возврат замороженных денег и освобождение места, когда игрок не пришёл.</summary>
+    public const string ReservationNoShow = "reservation_no_show";
+
+    /// <summary>Напоминания игроку, у которых нет события: конец сессии и приближающаяся бронь.</summary>
+    public const string PlayerReminders = "player_reminders";
+
     /// <summary>Доставка оповещений мимо очереди — результат тоже записывается как прогон.</summary>
     public const string AlertDelivery = "alert_delivery";
 
@@ -31,6 +37,8 @@ public static class PlatformJobNames
         AutoProtection,
         HealthWatch,
         SubscriptionSnapshots,
-        BranchSnapshots
+        BranchSnapshots,
+        ReservationNoShow,
+        PlayerReminders
     ];
 }

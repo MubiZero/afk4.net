@@ -1,5 +1,6 @@
 {
   "@@locale": "en",
+  "a11yClubMap": "Map of clubs",
   "a11yLoading": "Loading",
   "a11yLoadingDashboard": "Loading data",
   "a11yLoadingProfile": "Loading profile",
@@ -9,11 +10,95 @@
   "a11yLoadingVisits": "Loading visits",
   "a11ySessionElapsed": "Session running:",
   "a11ySessionRemaining": "Time remaining:",
+  "customerAchievementFirstVisit": "First visit",
+  "customerAchievementFirstVisitHint": "Play at the club once",
+  "customerAchievementMarathon": "Marathon",
+  "customerAchievementMarathonHint": "A single five-hour session",
+  "customerAchievementNightOwl": "Night owl",
+  "customerAchievementNightOwlHint": "Five visits started after ten in the evening",
+  "customerAchievementRegular": "One of us",
+  "customerAchievementRegularHint": "Ten visits to the club",
+  "customerAchievementReviewer": "Player's word",
+  "customerAchievementReviewerHint": "Leave a review about the club",
+  "customerAchievementVeteran": "Hall veteran",
+  "customerAchievementVeteranHint": "Fifty visits to the club",
+  "customerActionsBook": "Book a seat",
+  "customerActionsOrder": "Order food",
+  "customerClubDetailsChoose": "Play here",
+  "customerClubDetailsDayOff": "closed",
+  "customerClubDetailsHallSeats": "{count, plural, one {{count} seat} other {{count} seats}}",
+  "@customerClubDetailsHallSeats": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerClubDetailsHalls": "Halls",
+  "customerClubDetailsHours": "Opening hours",
   "customerClubPickerChange": "Change club",
+  "customerClubPickerClosedToday": "Closed today",
+  "customerClubPickerDetails": "Details",
   "customerClubPickerEmpty": "No clubs found",
   "customerClubPickerError": "Could not load the club list",
+  "customerClubPickerMapEmpty": "No club has put itself on the map yet",
+  "customerClubPickerMapHint": "Tap a pin to pick the club",
+  "customerClubPickerMorePlaces": "{count, plural, one {{count} more hall} other {{count} more halls}}",
+  "@customerClubPickerMorePlaces": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerClubPickerNoRating": "No ratings yet",
+  "customerClubPickerOpen": "Choose",
+  "customerClubPickerOpenAllDay": "Open around the clock",
+  "customerClubPickerOpenUntil": "Open until {time}",
+  "@customerClubPickerOpenUntil": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubPickerOpensAt": "Closed, opens at {time}",
+  "@customerClubPickerOpensAt": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubPickerPriceFrom": "from {price} per hour",
+  "@customerClubPickerPriceFrom": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubPickerPriceUnknown": "Ask the club about prices",
+  "customerClubPickerReviews": "{count, plural, one {{count} review} other {{count} reviews}}",
+  "@customerClubPickerReviews": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerClubPickerSearch": "Search by name",
+  "customerClubPickerSeats": "{count, plural, one {{count} seat} other {{count} seats}}",
+  "@customerClubPickerSeats": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerClubPickerSubtitle": "Which club do you play at",
+  "customerClubPickerTabList": "List",
+  "customerClubPickerTabMap": "Map",
   "customerClubPickerTitle": "Choose your club",
   "customerCommonBack": "← Back",
   "customerCommonDayAtTime": "{day}, {time}",
@@ -71,10 +156,59 @@
   "customerHistoryPurchases": "Purchases",
   "customerHistoryPurchasesError": "Couldn't load your purchases.",
   "customerHistoryVisits": "Visits",
+  "customerLoyaltyEarned": "Earned as cashback",
+  "customerLoyaltyEmpty": "No cashback yet",
+  "customerLoyaltyEmptyHint": "It shows up after your first top-up or order.",
+  "customerLoyaltyEntry": "Earned {amount}",
+  "@customerLoyaltyEntry": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyEntryHint": "A share of top-ups and orders comes back to your wallet",
+  "customerLoyaltyHistory": "Recent cashback",
+  "customerLoyaltyLoadError": "Couldn't load cashback",
+  "customerLoyaltyOff": "This club doesn't give cashback yet",
+  "customerLoyaltyRuleSession": "{percent} of paid game time",
+  "@customerLoyaltyRuleSession": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRuleShop": "{percent} of bar orders",
+  "@customerLoyaltyRuleShop": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRuleTopUp": "{percent} of every wallet top-up",
+  "@customerLoyaltyRuleTopUp": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "customerLoyaltyRules": "How it adds up",
+  "customerLoyaltySourceSession": "Game time",
+  "customerLoyaltySourceShop": "Bar order",
+  "customerLoyaltySourceTopUp": "Top-up",
+  "customerLoyaltySpendNote": "Cashback is ordinary wallet money: spend it on time and the bar.",
+  "customerLoyaltyTitle": "Cashback",
   "customerNavDashboard": "Home",
   "customerNavHistory": "History",
   "customerNavProfile": "Profile",
   "customerNavReservations": "Bookings",
+  "customerNavWallet": "Wallet",
+  "customerNewsAll": "All news",
+  "customerNewsEmpty": "No news yet",
+  "customerNewsTitle": "Club news",
   "customerOfflineBanner": "Offline — showing saved data",
   "customerOfflineStale": "No connection — the data may be out of date",
   "customerPhoneCode": "Code from the SMS",
@@ -112,6 +246,39 @@
     }
   },
   "customerPhoneTitle": "Confirm your number",
+  "customerPlayBusyOffline": "PC is off",
+  "customerPlayBusyReservation": "Booked",
+  "customerPlayBusySession": "Taken",
+  "customerPlayConfirm": "Start for {amount}",
+  "@customerPlayConfirm": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPlayDuration": "How long",
+  "customerPlayErrFunds": "Your wallet doesn't cover this time",
+  "customerPlayErrGeneric": "Couldn't start the session. Try again.",
+  "customerPlayErrTaken": "That seat was just taken; pick another",
+  "customerPlayLoadError": "Couldn't load the seats",
+  "customerPlayNoSeats": "No free seats",
+  "customerPlayNoSeatsHint": "Ask at the desk; they'll tell you when one frees up.",
+  "customerPlayPickSeat": "Pick a free seat",
+  "customerPlayPickTariff": "Pick a rate",
+  "customerPlaySeat": "Seat",
+  "customerPlayStart": "Take a PC",
+  "customerPlayStartHint": "Start playing without the operator",
+  "customerPlayStarted": "Session started; take {seat}",
+  "@customerPlayStarted": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPlayStarting": "Starting…",
+  "customerPlayTitle": "Start playing",
   "customerProfileChangePhone": "Change the number",
   "customerProfileLangEn": "English",
   "customerProfileLangRu": "Русский",
@@ -121,11 +288,57 @@
   "customerProfileMarketing": "Receive promo emails",
   "customerProfilePhoneNote": "Number confirmed — codes and notifications go here",
   "customerProfilePhoneUnverified": "Number not confirmed — online top-up and booking are closed",
+  "customerProfilePoweredBy": "Powered by AFK4.NET",
+  "customerProfilePush": "Phone notifications",
+  "customerProfilePushNote": "Session end, booking, top-up and orders",
   "customerProfileSaveError": "Couldn't save",
   "customerProfileSaved": "Saved",
   "customerProfileSignOut": "Sign out",
   "customerProfileTitle": "Profile",
   "customerProfileVerifyPhone": "Confirm the number",
+  "customerProgressAchievements": "Achievements",
+  "customerProgressError": "Could not load your record",
+  "customerProgressHours": "{hours} h at a PC · {count, plural, one {{count} visit} other {{count} visits}}",
+  "@customerProgressHours": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      },
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerProgressLevel": "Level {level}",
+  "@customerProgressLevel": {
+    "placeholders": {
+      "level": {
+        "type": "String"
+      }
+    }
+  },
+  "customerProgressLocked": "{progress} of {target}",
+  "@customerProgressLocked": {
+    "placeholders": {
+      "progress": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "customerProgressMaxLevel": "Top level reached",
+  "customerProgressOpen": "Record and achievements",
+  "customerProgressTitle": "Your record",
+  "customerProgressToNext": "{hours} h to the next level",
+  "@customerProgressToNext": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
   "customerReceiptLoadError": "Couldn't load the receipt.",
   "customerReceiptNotFound": "Receipt not found",
   "customerReceiptOpenLink": "Receipt →",
@@ -145,11 +358,39 @@
   "customerReservationsEnd": "End",
   "customerReservationsEndBeforeStart": "The end must be later than the start",
   "customerReservationsGate": "To book online, confirm your phone number.",
+  "customerReservationsHoldNote": "The amount is held on your wallet and comes back if you cancel",
   "customerReservationsLoadError": "Failed to load reservations.",
   "customerReservationsNewTitle": "New booking",
+  "customerReservationsNoFunds": "Your wallet doesn't cover this booking; top it up and try again",
   "customerReservationsNoSeat": "No seat",
   "customerReservationsNone": "No bookings yet",
+  "customerReservationsNoneHint": "A booking holds the PC you picked until you arrive",
   "customerReservationsNotChosen": "Not chosen",
+  "customerReservationsPrice": "You'll pay {amount}",
+  "@customerReservationsPrice": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsPriceFailed": "Couldn't work out the price",
+  "customerReservationsPriceMinimum": "This rate bills a minimum of {minutes}",
+  "@customerReservationsPriceMinimum": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsPriceMinutes": "{count, plural, one {{count} minute} other {{count} minutes}}",
+  "@customerReservationsPriceMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerReservationsSeatNote": "The club assigns the seat — you will see it in the confirmation.",
   "customerReservationsStart": "Start",
   "customerReservationsStartInPast": "The start must be in the future",
@@ -157,8 +398,123 @@
   "customerReservationsStateConfirmed": "Confirmed",
   "customerReservationsStatePending": "Awaiting confirmation",
   "customerReservationsStateSeated": "Seated",
+  "customerReservationsTariff": "Rate",
+  "customerReservationsTariffGone": "That rate is no longer available; pick another",
+  "customerReservationsTariffHint": "Pick a rate and we'll show the price before you confirm",
+  "customerReservationsTariffNone": "The club hasn't published its rates; the desk will price it",
   "customerReservationsTimeError": "Set a start and end time",
   "customerReservationsTitle": "Bookings",
+  "customerReviewDone": "Thanks, your review is in",
+  "customerReviewDuplicate": "You have already reviewed this visit",
+  "customerReviewError": "Could not send the review",
+  "customerReviewInviteAction": "Rate it",
+  "customerReviewInviteBody": "{seat} at {branch}",
+  "@customerReviewInviteBody": {
+    "placeholders": {
+      "seat": {
+        "type": "String"
+      },
+      "branch": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReviewInviteDismiss": "Not now",
+  "customerReviewInviteTitle": "How was your visit?",
+  "customerReviewSheetComment": "What was good, what got in the way",
+  "customerReviewSheetPickRating": "Pick a rating",
+  "customerReviewSheetSending": "Sending…",
+  "customerReviewSheetSubmit": "Send review",
+  "customerReviewSheetTitle": "Rate your visit",
+  "customerReviewStar": "{count, plural, one {{count} star} other {{count} stars}}",
+  "@customerReviewStar": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerReviewsEmpty": "No reviews yet — yours would be the first",
+  "customerReviewsError": "Could not load the reviews",
+  "customerReviewsTitle": "Player reviews",
+  "customerSessionExtendAction": "Add time",
+  "customerSessionExtendConfirm": "Add {duration}",
+  "@customerSessionExtendConfirm": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionExtendDone": "Session extended by {duration}",
+  "@customerSessionExtendDone": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSessionExtendErrBalance": "Your wallet doesn't cover this. Top it up on the home screen.",
+  "customerSessionExtendErrGeneric": "Couldn't add the time. Try again.",
+  "customerSessionExtendErrGone": "The session has already ended",
+  "customerSessionExtendHint": "The time is charged to your wallet at the current session's rate.",
+  "customerSessionExtendHours": "{count, plural, one {{count} hour} other {{count} hours}}",
+  "@customerSessionExtendHours": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerSessionExtendMinutes": "{count, plural, one {{count} minute} other {{count} minutes}}",
+  "@customerSessionExtendMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerSessionExtendPending": "Adding time…",
+  "customerSessionExtendTitle": "Add time to your session",
+  "customerShopCancel": "Cancel the order",
+  "customerShopCancelError": "Couldn't cancel the order",
+  "customerShopCartEmpty": "Pick what to bring you",
+  "customerShopEmpty": "Nothing to order right now",
+  "customerShopEmptyHint": "The club has not published a menu here. Ask at the desk.",
+  "customerShopErrFunds": "Your wallet doesn't cover this order",
+  "customerShopErrGeneric": "Couldn't place the order. Try again.",
+  "customerShopErrNoSession": "Ordering works only during a session",
+  "customerShopErrStock": "That item just ran out",
+  "customerShopErrUnavailable": "That item is no longer on the menu",
+  "customerShopLastItems": "{count, plural, one {{count} left} other {{count} left}}",
+  "@customerShopLastItems": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerShopLoadError": "Couldn't load the menu",
+  "customerShopNewOrder": "Order more",
+  "customerShopOpen": "Order to your seat",
+  "customerShopOpenHint": "Food and drinks are brought to your PC",
+  "customerShopOrderTitle": "Your order",
+  "customerShopOutOfStock": "Out of stock",
+  "customerShopPlace": "Order for {amount}",
+  "@customerShopPlace": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerShopPlacing": "Placing the order…",
+  "customerShopStatusAccepted": "The operator is bringing it",
+  "customerShopStatusCancelled": "Order cancelled",
+  "customerShopStatusDelivered": "Order delivered",
+  "customerShopStatusPlaced": "Order received, preparing it",
+  "customerShopTitle": "Order to your seat",
+  "customerShopTotal": "Total",
   "customerSigninByCode": "Sign in with an SMS code",
   "customerSigninByPassword": "Sign in with a password",
   "customerSigninCodeError": "Wrong code",
@@ -203,5 +559,12 @@
   "customerWalletStateFulfilled": "Credited",
   "customerWalletStatePending": "Pending",
   "customerWalletTitle": "Top up wallet",
-  "customerWalletTopUp": "Top up"
+  "customerWalletTopUp": "Top up",
+  "customerWeekday1": "Monday",
+  "customerWeekday2": "Tuesday",
+  "customerWeekday3": "Wednesday",
+  "customerWeekday4": "Thursday",
+  "customerWeekday5": "Friday",
+  "customerWeekday6": "Saturday",
+  "customerWeekday7": "Sunday"
 }

@@ -58,6 +58,51 @@ describe('tokenStore', () => {
     expect(readSession(storage)).toBeNull();
   });
 
+  // Ровно то, что случилось на staging: сессия старого формата пережила обновление, проверки
+  // на один токен ей хватило, и приложение упало на чтении прав — белым экраном вместо формы
+  // входа. Полусессия должна считаться отсутствующей.
+  it('treats a session without permissions as missing', () => {
+    const storage = buildStorage();
+    storage.setItem('afk4.platform.session', JSON.stringify({
+      platformAdminId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      userName: 'admin@platform.test',
+      displayName: 'Admin',
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      roles: ['platform_admin']
+    }));
+
+    expect(readSession(storage)).toBeNull();
+  });
+
+  it('treats a session without roles as missing', () => {
+    const storage = buildStorage();
+    storage.setItem('afk4.platform.session', JSON.stringify({
+      platformAdminId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      userName: 'admin@platform.test',
+      displayName: 'Admin',
+      accessToken: 'access',
+      refreshToken: 'refresh',
+      permissions: []
+    }));
+
+    expect(readSession(storage)).toBeNull();
+  });
+
+  it('treats a session without a refresh token as missing', () => {
+    const storage = buildStorage();
+    storage.setItem('afk4.platform.session', JSON.stringify({
+      platformAdminId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+      userName: 'admin@platform.test',
+      displayName: 'Admin',
+      accessToken: 'access',
+      roles: [],
+      permissions: []
+    }));
+
+    expect(readSession(storage)).toBeNull();
+  });
+
   it('clears the stored session', () => {
     const storage = buildStorage();
     storage.setItem('afk4.platform.session', JSON.stringify({ accessToken: 'a' }));

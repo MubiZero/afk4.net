@@ -22,7 +22,13 @@ public sealed record ReservationDto(
     string CancelReason,
     Guid? ReservationGroupId,
     int Version = 1,
-    Guid? StartedSessionId = null);
+    Guid? StartedSessionId = null,
+    // Billing choice carried by a self-service booking, and the price the server computed for it.
+    // Null for desk-created bookings — those are still priced when the player is seated.
+    Guid? TariffVersionId = null,
+    string? TariffName = null,
+    long? EstimatedCostMinorUnits = null,
+    string? CurrencyCode = null);
 
 public sealed record ReservationSearchResultDto(
     IReadOnlyList<ReservationDto> Reservations,

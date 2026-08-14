@@ -12,13 +12,22 @@ public enum NotificationCategory
     Digest,
 }
 
-/// <summary>Pluggable delivery channels (D8). Only <see cref="Email"/> is wired today; the others are seams.</summary>
+/// <summary>Pluggable delivery channels (D8). Email, SMS and push are wired; in-app is a seam.</summary>
 public enum NotificationChannel
 {
     Email,
     Sms,
     InApp,
+
+    /// <summary>Пуш на телефон игрока. Адресуется аккаунтом: устройств у одного игрока бывает несколько.</summary>
+    Push,
 }
+
+/// <summary>
+/// Регистрация телефона игрока для пушей. Токен выдаёт FCM, платформа — <c>android</c> или
+/// <c>ios</c>, локаль — язык приложения на этом устройстве.
+/// </summary>
+public sealed record RegisterPlayerDeviceRequest(string? PushToken, string? Platform, string? Locale = null);
 
 /// <summary>
 /// A resolved delivery target. Locale is BCP-47-ish (ru/en/tg) resolved upstream; address fields are
