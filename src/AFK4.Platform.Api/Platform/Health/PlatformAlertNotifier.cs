@@ -16,6 +16,7 @@ public sealed class PlatformAlertNotifier(
     ISmtpTransport smtpTransport,
     ISmsTransport smsTransport,
     IOptions<NotificationOptions> notificationOptions,
+    IOptions<AFK4.Platform.Api.Notifications.SmsOptions> smsOptions,
     IOptions<PlatformAlertOptions> alertOptions,
     IJobRunRecorder jobRunRecorder,
     TimeProvider timeProvider,
@@ -26,6 +27,13 @@ public sealed class PlatformAlertNotifier(
 
     // Виды, после которых теряются деньги или доверие клиентов. Список узкий намеренно:
     // SMS, приходящая на каждый warning, через неделю перестаёт читаться.
+    /// <summary>Ключ шаблона payom для оповещений платформы. Шаблона пока нет — см. ниже.</summary>
+    private const string PlatformAlertTemplateKey = "platform.alert";
+
+    /// <summary>Кириллица уходит как UCS-2: 71-й символ стоит как второе сообщение.</summary>
+    private static string Shorten(string value, int limit) =>
+        value.Length <= limit ? value : value[..limit].TrimEnd();
+
     private static readonly HashSet<string> SmsWorthyKinds = new(StringComparer.Ordinal)
     {
         PlatformIncidentKindNames.NotificationQueueStuck,
@@ -97,13 +105,27 @@ public sealed class PlatformAlertNotifier(
                 && incident.Severity == PlatformIncidentSeverityNames.Critical
                 && (SmsWorthyKinds.Contains(incident.Kind) || IsInvoiceGenerationOverdue(incident));
 
-            if (smsWorthy)
+            // Шлюз принимает только одобренный шаблон. Под оповещения платформы его нет, и
+            // выдумывать чужой нельзя: пришлось бы отправить текст инцидента в плейсхолдер
+            // шаблона про запись к мастеру. Пока шаблон не заведён — канал молчит, и это видно.
+            var alertTemplateId = smsOptions.Value.TemplateIds.GetValueOrDefault(PlatformAlertTemplateKey);
+
+            if (smsWorthy && string.IsNullOrWhiteSpace(alertTemplateId))
+            {
+                errors.Add($"sms: no payom template configured (Sms__TemplateIds__{PlatformAlertTemplateKey}).");
+            }
+            else if (smsWorthy)
             {
                 foreach (var phone in alertOptions.SmsRecipients)
                 {
                     try
                     {
-                        await smsTransport.SendAsync(new SmsMessage(phone, subject), cancellationToken);
+                        await smsTransport.SendAsync(
+                            new SmsMessage(phone, alertTemplateId!, new Dictionary<string, string>
+                            {
+                                ["text-1"] = Shorten(subject, smsOptions.Value.SenderLabelMaxLength),
+                            }),
+                            cancellationToken);
                         delivered++;
                     }
                     catch (Exception exception)

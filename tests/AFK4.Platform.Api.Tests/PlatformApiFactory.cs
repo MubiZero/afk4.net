@@ -195,6 +195,23 @@ internal sealed class PlatformApiFactory : IAsyncDisposable, IDisposable
 
             builder.ConfigureServices(services =>
             {
+                // Шлюз SMS принимает только одобренные шаблоны, поэтому канал молчит, пока их
+                // идентификаторы не заданы. Тестам нужны те же настройки, что и проду, иначе
+                // проверки кода подтверждения ловили бы отсутствие конфигурации, а не поведение.
+                services.Configure<AFK4.Platform.Api.Notifications.SmsOptions>(options =>
+                {
+                    options.ApiToken = "test-token";
+                    foreach (var key in new[]
+                             {
+                                 AFK4.Platform.Api.Notifications.NotificationTemplateKeys.PlayerSignInCode,
+                                 AFK4.Platform.Api.Notifications.NotificationTemplateKeys.PlayerPhoneVerification,
+                                 AFK4.Platform.Api.Notifications.NotificationTemplateKeys.StaffPhoneVerification,
+                                 AFK4.Platform.Api.Notifications.NotificationTemplateKeys.StaffPasswordResetSms,
+                             })
+                    {
+                        options.TemplateIds[key] = "test-code-template";
+                    }
+                });
                 services.RemoveAll<IDbContextOptionsConfiguration<PlatformDbContext>>();
                 services.RemoveAll<DbContextOptions<PlatformDbContext>>();
                 services.RemoveAll<PlatformDbContext>();

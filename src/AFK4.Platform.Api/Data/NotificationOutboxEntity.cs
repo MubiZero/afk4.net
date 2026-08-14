@@ -37,6 +37,13 @@ public sealed class NotificationOutboxEntity
 
     public string BodyHtml { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Значения плейсхолдеров этого сообщения, как их дал вызывающий. Хранятся рядом с уже
+    /// отрисованным текстом, потому что SMS-шлюз принимает не текст, а шаблон со значениями —
+    /// и повтор через час должен отправить ровно те же, а не пересобирать их заново.
+    /// </summary>
+    public string? TokensJson { get; set; }
+
     public string Status { get; set; } = NotificationOutboxStatus.Pending;
 
     public int AttemptCount { get; set; }

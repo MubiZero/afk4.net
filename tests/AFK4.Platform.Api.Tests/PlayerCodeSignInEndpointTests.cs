@@ -73,7 +73,7 @@ public sealed class PlayerCodeSignInEndpointTests
             services.AddSingleton<ISmsTransport>(recording);
         });
 
-    private static string CodeFrom(SmsMessage message) => Regex.Match(message.Text, "\\d{6}").Value;
+    private static string CodeFrom(SmsMessage message) => message.Variables["code-1"];
 
     // Игрок без пароля: код — единственный способ войти, и он должен работать.
     [Fact]
