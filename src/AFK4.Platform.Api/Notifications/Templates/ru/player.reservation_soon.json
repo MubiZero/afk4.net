@@ -1,0 +1,5 @@
+{
+  "subject": "Бронь через час",
+  "bodyText": "{{club}}: ждём вас в {{time}}.",
+  "bodyHtml": ""
+}

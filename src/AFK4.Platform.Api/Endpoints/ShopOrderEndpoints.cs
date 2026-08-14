@@ -1,8 +1,11 @@
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Commerce;
+using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Identity;
 using AFK4.Platform.Api.Shop;
 using AFK4.Shared.Contracts.Identity;
+using Microsoft.EntityFrameworkCore;
 using static AFK4.Platform.Api.Endpoints.EndpointHelpers;
 
 namespace AFK4.Platform.Api.Endpoints;
@@ -35,8 +38,11 @@ internal static class ShopOrderEndpoints
             return Results.Ok(await shopOrderService.ListQueueAsync(branchId, cancellationToken));
         });
 
+        // Пуш шлём на «принят»: это и есть момент, когда игроку есть что узнать — заказ собирают
+        // и сейчас понесут. На «доставлен» писать поздно: заказ уже стоит на столе.
         MapTransition(app, "accept", AuditActionNames.AcceptShopOrder,
-            (svc, branchId, orderId, staffUserId, version, ct) => svc.AcceptAsync(branchId, orderId, staffUserId, version, ct));
+            (svc, branchId, orderId, staffUserId, version, ct) => svc.AcceptAsync(branchId, orderId, staffUserId, version, ct),
+            notifyPlayer: true);
         MapTransition(app, "deliver", AuditActionNames.DeliverShopOrder,
             (svc, branchId, orderId, staffUserId, version, ct) => svc.DeliverAsync(branchId, orderId, staffUserId, version, ct));
         MapCancel(app);
@@ -46,7 +52,8 @@ internal static class ShopOrderEndpoints
         IEndpointRouteBuilder app,
         string verb,
         string auditAction,
-        Func<IShopOrderService, Guid, Guid, Guid, int?, CancellationToken, Task<ShopOrderActionResult>> action)
+        Func<IShopOrderService, Guid, Guid, Guid, int?, CancellationToken, Task<ShopOrderActionResult>> action,
+        bool notifyPlayer = false)
     {
         app.MapPost($"branches/{{branchId:guid}}/shop/orders/{{orderId:guid}}/{verb}", async (
             Guid branchId,
@@ -55,6 +62,8 @@ internal static class ShopOrderEndpoints
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
             IShopOrderService shopOrderService,
+            PlayerPushNotifier playerPush,
+            PlatformDbContext dbContext,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -92,6 +101,24 @@ internal static class ShopOrderEndpoints
 
             if (result.Succeeded)
             {
+                if (notifyPlayer && result.Order is { } order)
+                {
+                    var seatName = await dbContext.Seats
+                        .AsNoTracking()
+                        .Where(seat => seat.SeatId == order.SeatId)
+                        .Select(seat => seat.Name)
+                        .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
+
+                    await playerPush.OrderReadyAsync(
+                        order.PlayerAccountId,
+                        authorization.StaffContext.OrganizationId,
+                        branchId,
+                        string.Join(", ", order.Lines.Select(line => line.Quantity > 1 ? $"{line.Name} × {line.Quantity}" : line.Name)),
+                        seatName,
+                        order.Id.ToString("N"),
+                        cancellationToken);
+                }
+
                 return Results.Ok(result.Order);
             }
 

@@ -34,6 +34,7 @@ public sealed class PlatformJobIntervalCatalog(
         [PlatformJobNames.HealthWatch] = healthOptions.Value.WatchInterval,
         [PlatformJobNames.SubscriptionSnapshots] = analyticsOptions.Value.SnapshotInterval,
         [PlatformJobNames.BranchSnapshots] = analyticsOptions.Value.SnapshotInterval,
-        [PlatformJobNames.ReservationNoShow] = reservationNoShowOptions.TickInterval
+        [PlatformJobNames.ReservationNoShow] = reservationNoShowOptions.TickInterval,
+        [PlatformJobNames.PlayerReminders] = notificationOptions.Value.PlayerReminderInterval
     };
 }

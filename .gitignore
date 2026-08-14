@@ -44,3 +44,7 @@ g_test.txt
 
 # /graphify skill output (generated knowledge-graph artifacts + AST cache)
 graphify-out/
+
+# Ключи Firebase для сборки. Файл выдаёт владелец проекта, в репозиторий не кладём.
+src/afk4_customer_app/android/app/google-services.json
+src/afk4_customer_app/ios/Runner/GoogleService-Info.plist

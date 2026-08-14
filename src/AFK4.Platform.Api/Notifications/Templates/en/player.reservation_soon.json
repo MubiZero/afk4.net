@@ -1,0 +1,5 @@
+{
+  "subject": "Booking in an hour",
+  "bodyText": "{{club}}: see you at {{time}}.",
+  "bodyHtml": ""
+}

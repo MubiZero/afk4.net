@@ -81,6 +81,7 @@ internal static class WalletEndpoints
             StaffAuthorizationService authorizationService,
             IAuditRecordWriter auditRecordWriter,
             IBillingCommandService billingCommandService,
+            PlayerPushNotifier playerPush,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
@@ -210,6 +211,18 @@ internal static class WalletEndpoints
                 intentId.ToString("D"),
                 AuditOutcome.Succeeded,
                 new { intent.AmountMinorUnits, intent.CurrencyCode },
+                cancellationToken);
+
+            // Заявку оставляют и уходят играть: без этого пуша игрок узнаёт о зачислении, только
+            // когда сам откроет кошелёк. Ключ — id заявки: повторное подтверждение не звонит дважды.
+            await playerPush.BalanceToppedUpAsync(
+                intent.PlayerAccountId,
+                intent.OrganizationId,
+                intent.BranchId,
+                intent.AmountMinorUnits,
+                billingResult.Response?.WalletBalance.MinorUnits ?? intent.AmountMinorUnits,
+                intent.CurrencyCode,
+                intent.PaymentIntentId.ToString("N"),
                 cancellationToken);
 
             return Results.Ok(new PlayerTopUpIntentDto(

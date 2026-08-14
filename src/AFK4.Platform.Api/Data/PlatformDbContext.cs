@@ -162,6 +162,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<NotificationPreferenceEntity> NotificationPreferences => Set<NotificationPreferenceEntity>();
 
+    public DbSet<PlayerDeviceEntity> PlayerDevices => Set<PlayerDeviceEntity>();
+
     public DbSet<ReportScheduleEntity> ReportSchedules => Set<ReportScheduleEntity>();
 
     public DbSet<StaffMoneyCapEntity> StaffMoneyCaps => Set<StaffMoneyCapEntity>();
@@ -1250,6 +1252,18 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(preference => preference.Channel).HasMaxLength(16).IsRequired();
             entity.HasIndex(preference => new { preference.StaffUserId, preference.Category, preference.Channel });
             entity.HasIndex(preference => new { preference.PlayerAccountId, preference.Category, preference.Channel });
+        });
+
+        modelBuilder.Entity<PlayerDeviceEntity>(entity =>
+        {
+            entity.ToTable("player_devices");
+            entity.HasKey(device => device.PlayerDeviceId);
+            entity.Property(device => device.PushToken).HasMaxLength(512).IsRequired();
+            entity.Property(device => device.Platform).HasMaxLength(16).IsRequired();
+            entity.Property(device => device.Locale).HasMaxLength(16);
+            // Токен уникален: один телефон — одна строка, даже если на нём сменился игрок.
+            entity.HasIndex(device => device.PushToken).IsUnique();
+            entity.HasIndex(device => device.PlayerAccountId);
         });
 
         modelBuilder.Entity<ReportScheduleEntity>(entity =>
