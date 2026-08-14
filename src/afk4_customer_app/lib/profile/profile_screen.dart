@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/dto.dart';
 import '../api/player_api_client.dart';
+import '../push/push_service.dart';
 import '../l10n/app_localizations.dart';
 import '../phone/phone_verification_sheet.dart';
 import '../shell/app_scaffold.dart';
@@ -12,6 +13,7 @@ class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
     super.key,
     required this.api,
+    this.push,
     required this.onSignOut,
     required this.onChangeClub,
     required this.onLocaleChanged,
@@ -19,6 +21,9 @@ class ProfileScreen extends StatefulWidget {
   });
 
   final PlayerApiClient api;
+
+  /// Уведомления на телефон. null — платформа их не поддерживает (веб, тесты).
+  final PushService? push;
   final VoidCallback onSignOut;
   final VoidCallback onChangeClub;
   final ValueChanged<Locale> onLocaleChanged;
@@ -36,11 +41,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
   _Load _state = _Load.loading;
   PlayerProfile? _profile;
   bool _saving = false;
+  bool _pushEnabled = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _readPushState();
+  }
+
+  Future<void> _readPushState() async {
+    final push = widget.push;
+    if (push == null || !push.isSupported) return;
+    final enabled = await push.isEnabled();
+    if (mounted) setState(() => _pushEnabled = enabled);
+  }
+
+  /// Включение может не состояться: система вправе отказать в разрешении. Тогда переключатель
+  /// возвращается назад — врать игроку, что уведомления включены, хуже, чем не включить их.
+  Future<void> _togglePush(bool value) async {
+    final push = widget.push;
+    if (push == null) return;
+
+    setState(() => _saving = true);
+    var enabled = false;
+    if (value) {
+      enabled = await push.enable();
+    } else {
+      await push.disable();
+    }
+    if (!mounted) return;
+    setState(() {
+      _pushEnabled = enabled;
+      _saving = false;
+    });
   }
 
   Future<void> _load() async {
@@ -207,6 +241,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
       const SizedBox(height: 12),
       // Рассылка — своей карточкой, а не хвостом языковой: заголовок «Язык» над переключателем
       // об акциях обещал не то, что под ним стоит.
+      // Пуши — отдельно от рассылки: это разные вещи. Рассылка про акции, пуши про то, что
+      // сессия кончается через десять минут. Выключение здесь настоящее: устройство снимается
+      // с сервера, а не просто прячется флажком.
+      if (widget.push?.isSupported ?? false) ...[
+        _Group(
+          children: [
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(l.customerProfilePush),
+              subtitle: Text(l.customerProfilePushNote),
+              value: _pushEnabled,
+              onChanged: _saving ? null : _togglePush,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+      ],
       _Group(
         children: [
           SwitchListTile(

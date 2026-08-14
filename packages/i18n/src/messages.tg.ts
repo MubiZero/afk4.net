@@ -280,6 +280,8 @@ export const tg = {
   "customer.profile.language": "Забон",
   "customer.profile.loadError": "Профилро бор кардан нашуд.",
   "customer.profile.marketing": "Гирифтани хабарнома дар бораи аксияҳо",
+  "customer.profile.push": "Огоҳиномаҳо ба телефон",
+  "customer.profile.push.note": "Анҷоми бозӣ, ҷойгирӣ, пуркунӣ ва фармоиш",
   "customer.profile.phoneNote": "Рақам тасдиқ шуд — рамзҳо ва огоҳиномаҳо ба ҳамин рақам меоянд",
   "customer.profile.phoneUnverified": "Рақам тасдиқ нашудааст — пур кардани онлайн ва брон баста аст",
   "customer.profile.poweredBy": "Дар AFK4.NET кор мекунад",

@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-08-13
+Last updated: 2026-08-14
 
 ## Purpose
 
@@ -212,11 +212,40 @@ there is no owner-code mechanism.
   halls with their hardware (a new per-zone field edited in «Залы и ПК»), and
   the week's schedule, and the club can be chosen from there directly.
 
+Push notifications reach the player's phone through the existing notification
+backbone rather than around it: `Push` is a channel alongside email and SMS, so
+it reuses the same templates, outbox, idempotency and backoff. It is addressed
+by player account rather than by token — a player may have a phone and a
+tablet, and one queue row fans out to every registered device; a token FCM
+reports as unregistered is deleted instead of accumulating failures forever.
+Four triggers are wired: a session ending in ten minutes (while extending is
+still possible), a booking an hour out, a fulfilled top-up, and an accepted
+shop order. The first two have no event to hang off and are found by clock in a
+periodic job, keyed per session and per reservation so frequent ticks cannot
+ring twice. Delivery failures never fail the operation that caused them. The
+app registers its device on sign-in, removes it on sign-out, follows FCM token
+rotation, and carries a real off switch in the profile — off means the device
+is removed server-side, not a flag hidden in the app. FCM credentials live in
+environment variables; without them the channel stays silent and the server
+runs normally. `google-services.json` is deliberately not in the repository —
+it is supplied at build time and git-ignored.
+
 ## Latest Verification
 
 Older verification entries (2026-07-28 and earlier, including the superseded
 Platform Control rebuild Tasks 1-7 gates) are archived in
 `docs/archive/progress/2026-08-06-vertical-slice-detailed-history.md`.
+
+- Push notification gate (2026-08-14): Platform API passed 1996 tests with 27
+  PostgreSQL-only skips; Shared Contracts passed 141/141; Organization Admin
+  Web passed 1102 tests; i18n passed 39/39; the customer app passed 286 widget
+  tests with a clean `flutter analyze`. Delivery to a real phone was NOT
+  verified: it needs an APNs key, a Firebase service-account key, and a device
+  build, none of which exist in this environment. What is covered by tests is
+  the logic around delivery — channel fan-out, dead-token cleanup, reminder
+  windows and idempotency, device registration and removal, and the app's
+  register/unregister/rotate behaviour. The FCM transport itself (JWT signing,
+  token exchange, HTTP v1 payload) is unexercised until credentials exist.
 
 - Club showcase / reviews / player record gate (2026-08-13): Platform API
   passed 1973 tests with 27 PostgreSQL-only skips; Shared Contracts passed

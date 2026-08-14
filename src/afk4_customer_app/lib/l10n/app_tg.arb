@@ -289,6 +289,8 @@
   "customerProfilePhoneNote": "Рақам тасдиқ шуд — рамзҳо ва огоҳиномаҳо ба ҳамин рақам меоянд",
   "customerProfilePhoneUnverified": "Рақам тасдиқ нашудааст — пур кардани онлайн ва брон баста аст",
   "customerProfilePoweredBy": "Дар AFK4.NET кор мекунад",
+  "customerProfilePush": "Огоҳиномаҳо ба телефон",
+  "customerProfilePushNote": "Анҷоми бозӣ, ҷойгирӣ, пуркунӣ ва фармоиш",
   "customerProfileSaveError": "Нигоҳ доштан муяссар нашуд",
   "customerProfileSaved": "Нигоҳ дошта шуд",
   "customerProfileSignOut": "Баромадан",

@@ -280,6 +280,8 @@ export const en = {
   "customer.profile.language": "Language",
   "customer.profile.loadError": "Failed to load the profile.",
   "customer.profile.marketing": "Receive promo emails",
+  "customer.profile.push": "Phone notifications",
+  "customer.profile.push.note": "Session end, booking, top-up and orders",
   "customer.profile.phoneNote": "Number confirmed — codes and notifications go here",
   "customer.profile.phoneUnverified": "Number not confirmed — online top-up and booking are closed",
   "customer.profile.poweredBy": "Powered by AFK4.NET",

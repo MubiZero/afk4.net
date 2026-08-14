@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'api/player_api_client.dart';
@@ -11,6 +13,8 @@ import 'organization/club_picker_screen.dart';
 import 'organization/organization.dart';
 import 'organization/organization_directory.dart';
 import 'organization/selected_organization_store.dart';
+import 'push/push_service.dart';
+import 'push/push_tokens.dart';
 import 'theme/ambient_background.dart';
 import 'theme/app_theme.dart';
 
@@ -32,6 +36,7 @@ class CustomerApp extends StatefulWidget {
     this.selectedOrganizationStore = const SelectedOrganizationStore(),
     this.sessionStore = const PlayerSessionStore(),
     this.localeStore = const LocalePreferenceStore(),
+    this.pushTokens,
   });
 
   /// Жёстко задаётся только тестами: перебивает и выбор игрока, и язык устройства.
@@ -41,6 +46,10 @@ class CustomerApp extends StatefulWidget {
   final SelectedOrganizationStore selectedOrganizationStore;
   final PlayerSessionStore sessionStore;
   final LocalePreferenceStore localeStore;
+
+  /// Откуда берётся адрес телефона для пушей. Тесты подставляют свой — настоящий Firebase
+  /// в проверке того, что при выходе токен снимается, участвовать не должен.
+  final PushTokens? pushTokens;
 
   @override
   State<CustomerApp> createState() => _CustomerAppState();
@@ -105,6 +114,7 @@ class _CustomerAppState extends State<CustomerApp> {
       home: _Root(
         directory: widget.directory,
         api: widget.api,
+        pushTokens: widget.pushTokens,
         organizationStore: widget.selectedOrganizationStore,
         sessionStore: widget.sessionStore,
         onLocaleChanged: _chooseLocale,
@@ -119,6 +129,7 @@ class _Root extends StatefulWidget {
   const _Root({
     required this.directory,
     required this.api,
+    required this.pushTokens,
     required this.organizationStore,
     required this.sessionStore,
     required this.onLocaleChanged,
@@ -127,6 +138,7 @@ class _Root extends StatefulWidget {
 
   final OrganizationDirectory directory;
   final PlayerApiClient api;
+  final PushTokens? pushTokens;
   final SelectedOrganizationStore organizationStore;
   final PlayerSessionStore sessionStore;
   final ValueChanged<Locale> onLocaleChanged;
@@ -142,6 +154,7 @@ class _RootState extends State<_Root> {
   bool _restoring = true;
   Organization? _organization;
   PlayerSession? _session;
+  PushService? _push;
 
   @override
   void initState() {
@@ -150,9 +163,18 @@ class _RootState extends State<_Root> {
   }
 
   Future<void> _restore() async {
+    final tokens = widget.pushTokens;
+    if (tokens != null) {
+      _push = PushService(api: widget.api, tokens: tokens);
+    }
     final organization = await widget.organizationStore.read();
     final session = await widget.sessionStore.read();
-    if (session != null) widget.api.updateSession(session);
+    if (session != null) {
+      widget.api.updateSession(session);
+      // Токен FCM меняется сам по себе: без сверки при запуске пуши однажды просто
+      // перестают доходить, и никто об этом не узнаёт.
+      unawaited(_push?.syncAfterSignIn() ?? Future<void>.value());
+    }
     if (!mounted) return;
     setState(() {
       _organization = organization;
@@ -169,7 +191,10 @@ class _RootState extends State<_Root> {
 
   Future<void> _onSignedIn() async {
     final session = widget.api.session;
-    if (session != null) await widget.sessionStore.write(session);
+    if (session != null) {
+      await widget.sessionStore.write(session);
+      await _push?.syncAfterSignIn();
+    }
     if (!mounted) return;
     setState(() => _session = session);
   }
@@ -177,6 +202,9 @@ class _RootState extends State<_Root> {
   /// Выход стирает и сессию, и сохранённые данные: устройство бывает общим, и следующий
   /// вошедший не должен видеть чужой кошелёк. Правило перенесено из веб-версии.
   Future<void> _signOut() async {
+    // Снимаем устройство до того, как выбросить сессию: после выхода звать сервер уже нечем,
+    // а токен остался бы висеть на прежнем игроке — и уведомления пришли бы ему.
+    await _push?.clearOnSignOut();
     widget.api.updateSession(null);
     await widget.sessionStore.clear();
     if (!mounted) return;
@@ -219,6 +247,7 @@ class _RootState extends State<_Root> {
       api: widget.api,
       session: session,
       organization: organization,
+      push: _push,
       onSignOut: _signOut,
       onChangeClub: _changeClub,
       onLocaleChanged: widget.onLocaleChanged,

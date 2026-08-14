@@ -289,6 +289,8 @@
   "customerProfilePhoneNote": "Номер подтверждён — по нему приходят коды и уведомления",
   "customerProfilePhoneUnverified": "Номер не подтверждён — онлайн-пополнение и брони закрыты",
   "customerProfilePoweredBy": "Работает на AFK4.NET",
+  "customerProfilePush": "Уведомления на телефон",
+  "customerProfilePushNote": "Конец сессии, бронь, зачисление и заказ",
   "customerProfileSaveError": "Не удалось сохранить",
   "customerProfileSaved": "Сохранено",
   "customerProfileSignOut": "Выйти",

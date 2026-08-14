@@ -5,6 +5,7 @@ import '../auth/player_session.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../l10n/app_localizations.dart';
 import '../organization/organization.dart';
+import '../push/push_service.dart';
 import '../profile/profile_screen.dart';
 import '../reservations/reservations_screen.dart';
 import '../wallet/wallet_screen.dart';
@@ -23,6 +24,7 @@ class AppShell extends StatefulWidget {
     required this.api,
     required this.session,
     required this.organization,
+    this.push,
     required this.onSignOut,
     required this.onChangeClub,
     required this.onLocaleChanged,
@@ -35,6 +37,8 @@ class AppShell extends StatefulWidget {
   /// Клуб, в который игрок вошёл: его знак и цвет носит приложение, пока игрок здесь.
   final Organization organization;
 
+  /// Уведомления на телефон. null — платформа их не поддерживает (веб, тесты).
+  final PushService? push;
   final VoidCallback onSignOut;
   final VoidCallback onChangeClub;
   final ValueChanged<Locale> onLocaleChanged;
@@ -136,6 +140,7 @@ class _AppShellState extends State<AppShell> {
         AppSection.profile,
         ProfileScreen(
           api: widget.api,
+          push: widget.push,
           onSignOut: widget.onSignOut,
           onChangeClub: widget.onChangeClub,
           onLocaleChanged: widget.onLocaleChanged,

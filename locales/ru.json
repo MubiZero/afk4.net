@@ -279,6 +279,8 @@
   "customer.profile.language": "Язык",
   "customer.profile.loadError": "Не удалось загрузить профиль.",
   "customer.profile.marketing": "Получать рассылку об акциях",
+  "customer.profile.push": "Уведомления на телефон",
+  "customer.profile.push.note": "Конец сессии, бронь, зачисление и заказ",
   "customer.profile.phoneNote": "Номер подтверждён — по нему приходят коды и уведомления",
   "customer.profile.phoneUnverified": "Номер не подтверждён — онлайн-пополнение и брони закрыты",
   "customer.profile.poweredBy": "Работает на AFK4.NET",

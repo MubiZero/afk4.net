@@ -350,6 +350,38 @@ class PlayerApiClient {
     return _parse(body, TopUpIntent.fromJson);
   }
 
+  /// Сообщить серверу, куда слать пуши. Ответ пустой — проверяем только, что он не отказ:
+  /// регистрация устройства не должна ронять экран, на котором игрок просто вошёл.
+  Future<void> registerDevice({
+    required String pushToken,
+    required String platform,
+    String? locale,
+  }) async {
+    var response = await _send('POST', '/api/me/devices', body: {
+      'pushToken': pushToken,
+      'platform': platform,
+      'locale': locale,
+    });
+    if (response.statusCode == 401 && await _refreshOnce()) {
+      response = await _send('POST', '/api/me/devices', body: {
+        'pushToken': pushToken,
+        'platform': platform,
+        'locale': locale,
+      });
+    }
+    if (response.statusCode >= 400) {
+      throw PlayerApiException(response.statusCode, _errorMessage(response));
+    }
+  }
+
+  /// Снять устройство — при выходе из аккаунта и при отключении уведомлений.
+  Future<void> unregisterDevice(String pushToken) async {
+    final response = await _send('DELETE', '/api/me/devices/$pushToken');
+    if (response.statusCode >= 400 && response.statusCode != 401) {
+      throw PlayerApiException(response.statusCode, _errorMessage(response));
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getJsonList(String path) async {
     var response = await _send('GET', path);
     if (response.statusCode == 401 && await _refreshOnce()) {
