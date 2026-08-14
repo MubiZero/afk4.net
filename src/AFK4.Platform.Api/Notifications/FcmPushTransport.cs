@@ -184,7 +184,7 @@ public sealed class FcmPushTransport(HttpClient http, PushOptions options, TimeP
         using var rsa = RSA.Create();
         try
         {
-            rsa.ImportFromPem(options.PrivateKey);
+            rsa.ImportFromPem(options.NormalizedPrivateKey);
         }
         catch (ArgumentException exception)
         {

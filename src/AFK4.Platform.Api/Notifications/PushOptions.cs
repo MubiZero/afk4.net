@@ -17,6 +17,18 @@ public sealed class PushOptions
     /// <summary>Приватный ключ служебного аккаунта в формате PEM.</summary>
     public string PrivateKey { get; set; } = string.Empty;
 
+    /// <summary>
+    /// Ключ, пригодный для разбора. В служебном файле Firebase он записан одной строкой, где
+    /// переносы закодированы как <c>\n</c>; при переносе в переменную окружения половина
+    /// переносов обычно становится настоящими, а половина остаётся такими — и PEM не читается.
+    /// Приводим к одному виду здесь, а не просим человека выправлять base64 руками.
+    /// </summary>
+    public string NormalizedPrivateKey => PrivateKey
+        .Replace("\\r\\n", "\n", StringComparison.Ordinal)
+        .Replace("\\n", "\n", StringComparison.Ordinal)
+        .Replace("\r\n", "\n", StringComparison.Ordinal)
+        .Trim();
+
     public string TokenEndpoint { get; set; } = "https://oauth2.googleapis.com/token";
 
     public int TimeoutSeconds { get; set; } = 15;
