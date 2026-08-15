@@ -226,6 +226,36 @@ class PlayerApiClient {
     return list.map((item) => _parse(item, TariffOption.fromJson)).toList();
   }
 
+  /// Пакеты часов в прайсе филиала. Пустой список — клуб не продаёт пакеты, и это не ошибка.
+  Future<List<PackageOption>> getPackages(String branchId) async {
+    final list = await getJsonList('/api/me/branches/${Uri.encodeComponent(branchId)}/packages');
+    return list.map((item) => _parse(item, PackageOption.fromJson)).toList();
+  }
+
+  /// Свои пакеты с остатком времени — вместе с потраченными и просроченными.
+  Future<List<PlayerPackage>> getMyPackages() async {
+    final list = await getJsonList('/api/me/packages');
+    return list.map((item) => _parse(item, PlayerPackage.fromJson)).toList();
+  }
+
+  /// Покупает пакет за деньги кошелька. Открытая смена не нужна: пакет — предоплаченное
+  /// время, и покупают его как раз до прихода в клуб.
+  ///
+  /// 409 несёт причину в теле: `insufficient_funds` — не хватает денег на кошельке.
+  Future<PlayerPackage> purchasePackage({
+    required String branchId,
+    required String packageDefinitionId,
+    required String idempotencyKey,
+  }) async {
+    final body = await sendJson(
+      'POST',
+      '/api/me/branches/${Uri.encodeComponent(branchId)}'
+          '/packages/${Uri.encodeComponent(packageDefinitionId)}/purchase',
+      {'idempotencyKey': idempotencyKey},
+    );
+    return _parse(body, PlayerPackage.fromJson);
+  }
+
   /// Места филиала: за какое можно сесть сейчас и какое занято.
   Future<List<PlayerSeat>> getSeats(String branchId) async {
     final list = await getJsonList('/api/me/branches/${Uri.encodeComponent(branchId)}/seats');

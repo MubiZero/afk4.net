@@ -1,7 +1,9 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Install;
+using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
@@ -37,6 +39,82 @@ internal static class PlayerCatalogEndpoints
             if (player is null) return Results.Unauthorized();
             if (!await BranchInOrgAsync(dbContext, branchId, player.OrganizationId, ct)) return Results.NotFound();
             return Results.Ok(await referenceData.GetPackageOptionsAsync(player.OrganizationId, branchId, ct));
+        }).RequireRateLimiting("player-me");
+
+        // Покупка пакета самим игроком. Открытой смены не требует намеренно: пакет — это
+        // предоплаченное время, деньги уже лежат в кошельке и просто переходят в часы, а
+        // предоплачивать игрок хочет как раз тогда, когда до клуба ещё не дошёл.
+        app.MapPost("/api/me/branches/{branchId:guid}/packages/{packageDefinitionId:guid}/purchase", async (
+            Guid branchId,
+            Guid packageDefinitionId,
+            PurchasePackageFromAppRequest request,
+            IPlayerContextAccessor playerContextAccessor,
+            PlatformDbContext dbContext,
+            IPackageService packageService,
+            CancellationToken ct) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null) return Results.Unauthorized();
+            if (string.IsNullOrWhiteSpace(request.IdempotencyKey))
+            {
+                return Results.BadRequest(new { error = "idempotency_key_required" });
+            }
+
+            if (!await BranchInOrgAsync(dbContext, branchId, player.OrganizationId, ct)) return Results.NotFound();
+
+            var result = await packageService.PurchasePackageAsPlayerAsync(
+                player.PlayerAccountId,
+                branchId,
+                new PurchasePackageRequest(player.OrganizationId, packageDefinitionId, request.IdempotencyKey),
+                ct);
+
+            if (result.NotFound) return Results.NotFound();
+            if (!result.Succeeded) return Results.Conflict(new { error = result.Error });
+            return Results.Ok(result.Response);
+        }).RequireRateLimiting("player-me");
+
+        // Свои купленные пакеты с остатком времени. Отдаются все, включая истёкшие и потраченные:
+        // «куда делись мои часы» — такой же законный вопрос, как «сколько осталось», а исчезнувшая
+        // из списка покупка читается как пропажа денег.
+        app.MapGet("/api/me/packages", async (
+            IPlayerContextAccessor playerContextAccessor,
+            PlatformDbContext dbContext,
+            CancellationToken ct) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null) return Results.Unauthorized();
+
+            var packages = await dbContext.PlayerPackages
+                .AsNoTracking()
+                .Where(package =>
+                    package.PlayerAccountId == player.PlayerAccountId &&
+                    package.OrganizationId == player.OrganizationId)
+                .OrderByDescending(package => package.PurchasedAtUtc)
+                .ToListAsync(ct);
+
+            var response = new List<PlayerPackageDto>(packages.Count);
+            foreach (var package in packages)
+            {
+                var remaining = await LedgerBalanceProjector.GetPackageRemainingSecondsAsync(
+                    dbContext,
+                    package.PlayerPackageId,
+                    ct);
+
+                response.Add(new PlayerPackageDto(
+                    package.PlayerPackageId,
+                    package.PackageDefinitionId,
+                    package.PlayerAccountId,
+                    package.Name,
+                    new MoneyDto(package.CurrencyCode, package.PurchasedPriceMinorUnits),
+                    package.IncludedSeconds,
+                    package.BonusSeconds,
+                    remaining.IncludedSeconds,
+                    remaining.BonusSeconds,
+                    package.PurchasedAtUtc,
+                    package.ExpiresAtUtc));
+            }
+
+            return Results.Ok(response);
         }).RequireRateLimiting("player-me");
 
         // Места зала: за какое можно сесть прямо сейчас и какое занято.

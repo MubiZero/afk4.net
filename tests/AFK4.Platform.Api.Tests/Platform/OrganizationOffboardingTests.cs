@@ -17,7 +17,11 @@ namespace AFK4.Platform.Api.Tests.Platform;
 /// </summary>
 public sealed class OrganizationOffboardingTests
 {
-    private static readonly DateTimeOffset Now = new(2026, 8, 10, 10, 0, 0, TimeSpan.Zero);
+    /// Часы сеялки идут от настоящего времени, а не от прибитой даты. Служба чистки сравнивает
+    /// срок отсрочки с системными часами, поэтому фиксированная дата превращала тест в мину с
+    /// часовым механизмом: 10.08.2026 плюс пять дней наступили сами собой, и проверка «не стирать
+    /// раньше срока» стала зелёной наоборот — покупка срока прошла, отказа не было.
+    private static DateTimeOffset Now => DateTimeOffset.UtcNow;
 
     [Fact]
     public async Task Purge_RemovesEverythingPersonal()

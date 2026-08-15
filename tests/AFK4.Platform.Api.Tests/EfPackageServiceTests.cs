@@ -298,6 +298,114 @@ public sealed class EfPackageServiceTests
     }
 
     [Fact]
+    public async Task PurchasePackageAsync_RequiresAnOpenShiftAtTheCounter()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        await SeedWalletTopUpAsync(db, 5000);
+        var definition = await SeedPackageDefinitionAsync(db, priceMinorUnits: 4000);
+        var service = CreateService(db);
+        var request = new PurchasePackageRequest(TestIds.OrganizationId, definition.PackageDefinitionId, "package-purchase-001");
+
+        var result = await service.PurchasePackageAsync(PlayerAccountId, TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(EfShiftService.OpenShiftRequiredCode, result.Error);
+        Assert.Empty(await db.PlayerPackages.ToListAsync());
+    }
+
+    [Fact]
+    public async Task PurchasePackageAsPlayerAsync_BuysWithClubClosedAndLeavesEntriesWithoutAShift()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        await SeedWalletTopUpAsync(db, 5000);
+        var definition = await SeedPackageDefinitionAsync(db, priceMinorUnits: 4000, includedSeconds: 18000, bonusSeconds: 1800);
+        var service = CreateService(db);
+        var request = new PurchasePackageRequest(TestIds.OrganizationId, definition.PackageDefinitionId, "self-purchase-001");
+
+        var result = await service.PurchasePackageAsPlayerAsync(PlayerAccountId, TestIds.BranchId, request, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Equal(18000, result.Response.RemainingIncludedSeconds);
+        Assert.Equal(1800, result.Response.RemainingBonusSeconds);
+
+        var playerPackage = await db.PlayerPackages.SingleAsync();
+        Assert.Equal(4000, playerPackage.PurchasedPriceMinorUnits);
+
+        var packageEntries = await db.LedgerEntries
+            .Where(entry => entry.EntryType != LedgerEntryTypeNames.TopUp)
+            .ToListAsync();
+        Assert.Equal(3, packageEntries.Count);
+        Assert.All(packageEntries, entry => Assert.Null(entry.ShiftId));
+        Assert.All(packageEntries, entry => Assert.Equal(SystemActorIds.PlayerSelfService, entry.CreatedByStaffUserId));
+    }
+
+    [Fact]
+    public async Task PurchasePackageAsPlayerAsync_StampsTheOpenShiftWhenTheClubIsWorking()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        await SeedWalletTopUpAsync(db, 5000);
+        var definition = await SeedPackageDefinitionAsync(db, priceMinorUnits: 4000);
+        await SeedOpenShiftAsync(db);
+        var service = CreateService(db);
+        var request = new PurchasePackageRequest(TestIds.OrganizationId, definition.PackageDefinitionId, "self-purchase-001");
+
+        var result = await service.PurchasePackageAsPlayerAsync(PlayerAccountId, TestIds.BranchId, request, CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var openShiftId = await db.Shifts.Select(shift => shift.ShiftId).SingleAsync();
+        var packageEntries = await db.LedgerEntries
+            .Where(entry => entry.EntryType != LedgerEntryTypeNames.TopUp)
+            .ToListAsync();
+        Assert.NotEmpty(packageEntries);
+        Assert.All(packageEntries, entry => Assert.Equal(openShiftId, entry.ShiftId));
+    }
+
+    [Fact]
+    public async Task PurchasePackageAsPlayerAsync_RepeatedWithSameKeyChargesOnce()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        await SeedWalletTopUpAsync(db, 5000);
+        var definition = await SeedPackageDefinitionAsync(db, priceMinorUnits: 4000);
+        var service = CreateService(db);
+        var request = new PurchasePackageRequest(TestIds.OrganizationId, definition.PackageDefinitionId, "self-purchase-001");
+
+        var first = await service.PurchasePackageAsPlayerAsync(PlayerAccountId, TestIds.BranchId, request, CancellationToken.None);
+        var second = await service.PurchasePackageAsPlayerAsync(PlayerAccountId, TestIds.BranchId, request, CancellationToken.None);
+
+        Assert.True(first.Succeeded);
+        Assert.True(second.Succeeded);
+        Assert.Equal(first.Response!.PlayerPackageId, second.Response!.PlayerPackageId);
+        Assert.Single(await db.PlayerPackages.ToListAsync());
+        var debits = await db.LedgerEntries
+            .Where(entry => entry.EntryType == LedgerEntryTypeNames.PackagePurchase && entry.AmountMinorUnits != 0)
+            .ToListAsync();
+        Assert.Single(debits);
+        Assert.Equal(-4000, debits[0].AmountMinorUnits);
+    }
+
+    [Fact]
+    public async Task PurchasePackageAsPlayerAsync_RefusesShortWalletByMachineCode()
+    {
+        await using var db = CreateDbContext();
+        await SeedPlayerAsync(db);
+        await SeedWalletTopUpAsync(db, 3000);
+        var definition = await SeedPackageDefinitionAsync(db, priceMinorUnits: 4000);
+        var service = CreateService(db);
+        var request = new PurchasePackageRequest(TestIds.OrganizationId, definition.PackageDefinitionId, "self-purchase-001");
+
+        var result = await service.PurchasePackageAsPlayerAsync(PlayerAccountId, TestIds.BranchId, request, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("insufficient_funds", result.Error);
+        Assert.Empty(await db.PlayerPackages.ToListAsync());
+    }
+
+    [Fact]
     public async Task PurchasePackageAsync_RejectsMismatchedCurrency()
     {
         await using var db = CreateDbContext();

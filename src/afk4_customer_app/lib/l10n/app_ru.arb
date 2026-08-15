@@ -211,6 +211,78 @@
   "customerNewsTitle": "Новости клуба",
   "customerOfflineBanner": "Офлайн — показаны сохранённые данные",
   "customerOfflineStale": "Нет связи — данные могут устареть",
+  "customerPackagesBonus": "+{bonus} в подарок",
+  "@customerPackagesBonus": {
+    "placeholders": {
+      "bonus": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPackagesBought": "Пакет «{name}» куплен",
+  "@customerPackagesBought": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPackagesBuy": "Купить",
+  "customerPackagesBuying": "Покупаем…",
+  "customerPackagesCancel": "Отмена",
+  "customerPackagesConfirm": "Спишем {price} с кошелька, на счёт добавится {duration}.",
+  "@customerPackagesConfirm": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPackagesErrFunds": "На кошельке не хватает денег на этот пакет",
+  "customerPackagesErrGeneric": "Не удалось купить пакет. Попробуйте ещё раз.",
+  "customerPackagesExpired": "Срок вышел",
+  "customerPackagesExpiresIn": "{count, plural, one {действует {count} день} few {действует {count} дня} many {действует {count} дней} other {действует {count} дня}}",
+  "@customerPackagesExpiresIn": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerPackagesHours": "{hours} ч",
+  "@customerPackagesHours": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPackagesLeft": "Осталось {duration}",
+  "@customerPackagesLeft": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPackagesLoadError": "Не удалось загрузить пакеты",
+  "customerPackagesMine": "Мои пакеты",
+  "customerPackagesNone": "Клуб не продаёт пакеты часов",
+  "customerPackagesOffers": "Пакеты клуба",
+  "customerPackagesSpent": "Использованные",
+  "customerPackagesTitle": "Пакеты часов",
+  "customerPackagesUsedUp": "Время потрачено",
+  "customerPackagesValidUntil": "Действует до {date}",
+  "@customerPackagesValidUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "customerPhoneCode": "Код из SMS",
   "customerPhoneConfirm": "Подтвердить",
   "customerPhoneConfirming": "Проверяем…",

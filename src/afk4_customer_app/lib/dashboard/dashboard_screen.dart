@@ -10,6 +10,7 @@ import '../loyalty/loyalty_screen.dart';
 import '../money/money.dart';
 import '../news/news_section.dart';
 import '../organization/organization.dart';
+import '../packages/packages_screen.dart';
 import '../play/start_session_screen.dart';
 import '../progress/progress_screen.dart';
 import '../reviews/review_invite.dart';
@@ -90,6 +91,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// Визит, о котором ещё не спрашивали. null — спрашивать не о чем.
   PendingReview? _pendingReview;
 
+  /// У клуба есть пакеты часов в прайсе. Плитка появляется только тогда: вести на пустой
+  /// список — то же самое, что звать в невозможное.
+  bool _hasPackages = false;
+
   /// Последний запрос не дошёл до сервера. Данные на экране остаются, но они с прошлого
   /// удачного ответа — молчать об этом значит показывать баланс, которому нельзя верить.
   bool _stale = false;
@@ -117,8 +122,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _branchId = profile.homeBranchId;
         _branchName = profile.homeBranchName;
       });
+      await _loadPackagesAvailability();
     } on PlayerApiException {
       // Не узнали филиал — просто не предлагаем сесть самому. Всё остальное на экране работает.
+    }
+  }
+
+  Future<void> _loadPackagesAvailability() async {
+    final branchId = _branchId;
+    if (branchId == null) return;
+    try {
+      final offers = await widget.api.getPackages(branchId);
+      if (!mounted) return;
+      setState(() => _hasPackages = offers.isNotEmpty);
+    } on PlayerApiException {
+      // Прайс не спросился — плитку не показываем. Пакеты не то, ради чего стоит ронять главную.
     }
   }
 
@@ -203,6 +221,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  /// Пакеты. Возвращают true, если покупка состоялась: деньги ушли с кошелька, и баланс на
+  /// главной обязан это показать, а не остаться прежним до следующего опроса.
+  Future<void> _openPackages() async {
+    final branchId = _branchId;
+    if (branchId == null) return;
+    final bought = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PackagesScreen(api: widget.api, branchId: branchId, clock: widget.clock),
+      ),
+    );
+    if (bought == true) await _refresh();
+  }
+
   void _openLoyalty() {
     Navigator.of(context).push<void>(
       MaterialPageRoute(builder: (_) => LoyaltyScreen(api: widget.api)),
@@ -256,6 +287,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: Icons.local_cafe_outlined,
             label: l.customerActionsOrder,
             onOpen: _openShop,
+          ),
+        // Пакет часов — предоплата вперёд, самая доходная плитка для клуба. Показывается,
+        // только когда прайс клуба их действительно содержит.
+        if (_hasPackages && _branchId != null)
+          QuickAction(
+            icon: Icons.confirmation_number_outlined,
+            label: l.customerPackagesTitle,
+            onOpen: _openPackages,
           ),
         if (_loyaltyEnabled)
           QuickAction(

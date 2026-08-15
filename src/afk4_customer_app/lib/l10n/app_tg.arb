@@ -211,6 +211,78 @@
   "customerNewsTitle": "Хабарҳои клуб",
   "customerOfflineBanner": "Офлайн — маълумоти захирашуда нишон дода мешавад",
   "customerOfflineStale": "Алоқа нест — маълумот метавонад кӯҳна бошад",
+  "customerPackagesBonus": "+{bonus} тӯҳфа",
+  "@customerPackagesBonus": {
+    "placeholders": {
+      "bonus": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPackagesBought": "Бастаи «{name}» харида шуд",
+  "@customerPackagesBought": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPackagesBuy": "Харидан",
+  "customerPackagesBuying": "Харида истодаем…",
+  "customerPackagesCancel": "Бекор кардан",
+  "customerPackagesConfirm": "Аз ҳамён {price} гирифта мешавад, ба ҳисоб {duration} илова мегардад.",
+  "@customerPackagesConfirm": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPackagesErrFunds": "Дар ҳамён барои ин баста маблағ намерасад",
+  "customerPackagesErrGeneric": "Бастаро харида нашуд. Бори дигар кӯшиш кунед.",
+  "customerPackagesExpired": "Мӯҳлат гузашт",
+  "customerPackagesExpiresIn": "{count, plural, one {{count} рӯз эътибор дорад} other {{count} рӯз эътибор дорад}}",
+  "@customerPackagesExpiresIn": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerPackagesHours": "{hours} соат",
+  "@customerPackagesHours": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPackagesLeft": "{duration} мондааст",
+  "@customerPackagesLeft": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPackagesLoadError": "Бастаҳо бор нашуданд",
+  "customerPackagesMine": "Бастаҳои ман",
+  "customerPackagesNone": "Клуб бастаҳои соатӣ намефурӯшад",
+  "customerPackagesOffers": "Бастаҳои клуб",
+  "customerPackagesSpent": "Истифодашуда",
+  "customerPackagesTitle": "Бастаҳои соатӣ",
+  "customerPackagesUsedUp": "Вақт сарф шуд",
+  "customerPackagesValidUntil": "То {date} эътибор дорад",
+  "@customerPackagesValidUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "customerPhoneCode": "Рамз аз SMS",
   "customerPhoneConfirm": "Тасдиқ кардан",
   "customerPhoneConfirming": "Санҷида истодаем…",
