@@ -244,7 +244,7 @@
   "customerPackagesErrFunds": "Your wallet is short for this package",
   "customerPackagesErrGeneric": "Could not buy the package. Please try again.",
   "customerPackagesExpired": "Expired",
-  "customerPackagesExpiresIn": "{count, plural, one {valid for {count} day} other {valid for {count} days}}",
+  "customerPackagesExpiresIn": "{count, plural, one {{count} day to use it} other {{count} days to use it}}",
   "@customerPackagesExpiresIn": {
     "placeholders": {
       "count": {
