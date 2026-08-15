@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-08-14
+Last updated: 2026-08-15
 
 ## Purpose
 
@@ -228,13 +228,49 @@ rotation, and carries a real off switch in the profile — off means the device
 is removed server-side, not a flag hidden in the app. FCM credentials live in
 environment variables; without them the channel stays silent and the server
 runs normally. `google-services.json` is deliberately not in the repository —
-it is supplied at build time and git-ignored.
+it is supplied at build time and git-ignored. Android credentials and the FCM
+service account are configured, and delivery to a real device is verified (see
+Latest Verification).
+
+- **SMS through payom** — the gateway rejects free text, so the channel sends an
+  approved template identifier plus placeholder values rather than a composed
+  message. Template identifiers come from configuration
+  (`Sms__TemplateIds__<key>`), because a template is immutable and editing its
+  text yields a new identifier; a missing key makes the channel refuse
+  permanently and name the variable instead of failing anonymously. The
+  identifiers are configured and real delivery is verified.
+
+- **Live-check corrections** — money in notifications is formatted the way the
+  app formats it (player-language separator, currency sign instead of the ISO
+  code), the seat screen explains an empty tariff list instead of showing a grey
+  button, and the shift refusal travels as the machine code
+  `open_shift_required` that interfaces already translate, replacing five
+  hand-written variants of the same English sentence.
+
+- **Staging deploy actually fires** — Coolify moved `/api/v1/deploy` to POST and
+  answered GET with an error, so the workflow failed after every merge and had
+  not deployed once since the API change while looking configured. Deployment
+  status polling stayed on GET. Migrations are applied by the container's
+  pre-deployment command at start rather than by a manual step.
 
 ## Latest Verification
 
 Older verification entries (2026-07-28 and earlier, including the superseded
 Platform Control rebuild Tasks 1-7 gates) are archived in
 `docs/archive/progress/2026-08-06-vertical-slice-detailed-history.md`.
+
+- Live Android device check (2026-08-15, run by the owner against Coolify
+  staging, manual — no test artifact): payom template identifiers and the
+  Android FCM credentials are configured, and the installed Android build
+  carried a whole player scenario end to end. A real SMS code arrived and
+  confirmed the phone number; the club owner topped up that player's wallet from
+  the owner account; the player started a session and made a booking, including
+  one for the following day, which behaved correctly. The push notifications for
+  those scenarios arrived on the device. This supersedes the 2026-08-14 caveat
+  below for Android: the FCM transport (JWT signing, token exchange, HTTP v1
+  payload) and the payom transport are now exercised against the real gateways,
+  not only around them. iOS/APNs delivery remains unverified — no APNs key and
+  no iOS build exist yet.
 
 - Push notification gate (2026-08-14): Platform API passed 1996 tests with 27
   PostgreSQL-only skips; Shared Contracts passed 141/141; Organization Admin
@@ -282,7 +318,10 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   themes together with the broader clean `manager_workstation` smoke below.
 
 - **Per-environment SMTP config** still needs the user's real connection
-  details wired into `NotificationOptions`.
+  details wired into `NotificationOptions`. Email is now the only notification
+  channel not proven against a real provider: SMS and Android push are.
+- **iOS side of the mobile app** — no APNs key, no iOS build, no delivery
+  evidence. Android is verified end to end; iOS is untouched.
 - **Operator entity search** is still deferred: the command palette navigates
   between workspaces but does not yet search clients, seats, reservations,
   orders, or receipts.
@@ -303,8 +342,14 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
 
 ## Recommended Next Work
 
+The player-facing path is proven on a real Android phone against staging, so the
+remaining work is the Windows side and the operational backlog.
+
 1. Return to the production-readiness backlog: repeat the
    Operator day flow from a clean `manager_workstation` install at 100%/125%,
-   then run the physical Windows 10/11 gaming-PC Agent/Shell smoke.
+   then run the physical Windows 10/11 gaming-PC Agent/Shell smoke. These need
+   physical hardware and are the last functional evidence gap.
 2. Wire real per-environment SMTP settings and work through the remaining
    pre-production decisions in the production-readiness roadmap.
+3. Decide whether iOS is in scope before launch. If it is, it needs an APNs key,
+   an Apple developer account, and a device pass equivalent to the Android one.
