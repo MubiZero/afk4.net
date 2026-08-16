@@ -30,6 +30,14 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
   /// исправлять её нужно здесь же, а снекбар исчезает вместе с объяснением.
   String? _problem;
 
+  /// Сколько мест бронируется. Один — обычная бронь, больше — компания: сервер заведёт их
+  /// одной группой и заморозит деньги за всех сразу.
+  int _seats = 1;
+
+  /// Столько же, сколько разрешает сервер: больше восьми человек в клубе договариваются
+  /// голосом, а не через форму.
+  static const int _maxSeats = 8;
+
   List<TariffOption> _tariffs = const [];
   String? _tariffId;
   ReservationQuote? _quote;
@@ -90,6 +98,7 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
         tariffVersionId: tariffId,
         startsAtUtc: start,
         endsAtUtc: end,
+        seatCount: _seats,
       );
       if (!mounted || request != _quoteRequest) return;
       setState(() {
@@ -122,11 +131,20 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
       _pending = true;
     });
     try {
-      await widget.api.createReservation(
-        startsAtUtc: _startsAt!,
-        endsAtUtc: _endsAt!,
-        tariffVersionId: _tariffId,
-      );
+      if (_seats > 1) {
+        await widget.api.createReservationGroup(
+          seatCount: _seats,
+          startsAtUtc: _startsAt!,
+          endsAtUtc: _endsAt!,
+          tariffVersionId: _tariffId,
+        );
+      } else {
+        await widget.api.createReservation(
+          startsAtUtc: _startsAt!,
+          endsAtUtc: _endsAt!,
+          tariffVersionId: _tariffId,
+        );
+      }
       if (mounted) Navigator.of(context).pop(true);
     } on PlayerApiException catch (error) {
       if (!mounted) return;
@@ -136,8 +154,12 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
         // они должны каждый по-своему: из первого выход — другое время, из второго — пополнить
         // кошелёк.
         _problem = switch ((error.statusCode, error.message)) {
+          // Причина важнее кода: «нет денег на всю компанию» — это другой ответ, чем «время занято».
+          (_, 'insufficient_funds') => _seats > 1
+              ? l.customerReservationsGroupNoFunds
+              : l.customerReservationsNoFunds,
+          (_, 'invalid_seat_count') => l.customerReservationsGroupTooMany('$_maxSeats'),
           (409, _) => l.customerReservationsConflict,
-          (_, 'insufficient_funds') => l.customerReservationsNoFunds,
           _ => l.customerReservationsCreateError,
         };
       });
@@ -202,9 +224,21 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
                 _refreshQuote();
               },
             ),
+            const SizedBox(height: 16),
+            _SeatCountField(
+              seats: _seats,
+              maxSeats: _maxSeats,
+              onChanged: (value) {
+                setState(() {
+                  _seats = value;
+                  _problem = null;
+                });
+                _refreshQuote();
+              },
+            ),
             const SizedBox(height: 12),
             Text(
-              l.customerReservationsSeatNote,
+              _seats > 1 ? l.customerReservationsGroupSeatNote : l.customerReservationsSeatNote,
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 16),
@@ -217,6 +251,65 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Сколько мест бронируем.
+///
+/// Шаговый выбор, а не поле ввода: компания в киберклубе — это два-три-четыре человека, и
+/// клавиатура ради однозначного числа лишняя. Границы видны сразу — кнопка гаснет, а не
+/// отвечает отказом после нажатия.
+class _SeatCountField extends StatelessWidget {
+  const _SeatCountField({
+    required this.seats,
+    required this.maxSeats,
+    required this.onChanged,
+  });
+
+  final int seats;
+  final int maxSeats;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final theme = Theme.of(context);
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l.customerReservationsSeats, style: theme.textTheme.titleSmall),
+              Text(
+                seats > 1 ? l.customerReservationsSeatsCompany : l.customerReservationsSeatsAlone,
+                style:
+                    theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+        IconButton.outlined(
+          onPressed: seats > 1 ? () => onChanged(seats - 1) : null,
+          icon: const Icon(Icons.remove),
+          tooltip: l.customerReservationsSeatsFewer,
+        ),
+        SizedBox(
+          width: 44,
+          child: Text(
+            '$seats',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.titleLarge,
+          ),
+        ),
+        IconButton.outlined(
+          onPressed: seats < maxSeats ? () => onChanged(seats + 1) : null,
+          icon: const Icon(Icons.add),
+          tooltip: l.customerReservationsSeatsMore,
+        ),
+      ],
     );
   }
 }

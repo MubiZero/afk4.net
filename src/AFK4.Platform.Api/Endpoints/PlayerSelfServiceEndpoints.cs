@@ -598,6 +598,119 @@ internal static class PlayerSelfServiceEndpoints
             return Results.Ok(ToPlayerReservationDto(result.Response!));
         }).RequireRateLimiting("player-me");
 
+        // Бронь на компанию: несколько мест на одно время одним действием. Мест здесь количество,
+        // а не список, — конкретную машину игроку в приложении не выбирают, её назначает клуб.
+        app.MapPost("/api/me/reservations/group", async (
+            CreatePlayerReservationGroupRequest request,
+            IPlayerContextAccessor playerContextAccessor,
+            IReservationService reservationService,
+            IOrganizationEntitlements entitlements,
+            PlatformDbContext dbContext,
+            TimeProvider timeProvider,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var featureDenial = await entitlements.RequireAsync(
+                player.OrganizationId, PlatformFeatureNames.OnlineBooking, cancellationToken);
+            if (featureDenial is not null)
+            {
+                return featureDenial;
+            }
+
+            if (!player.PhoneVerified)
+            {
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var now = timeProvider.GetUtcNow();
+            if (request.StartsAtUtc >= request.EndsAtUtc)
+            {
+                return Results.BadRequest(new { Error = "End time must be after start time." });
+            }
+
+            if (request.StartsAtUtc <= now)
+            {
+                return Results.BadRequest(new { Error = "Start time must be in the future." });
+            }
+
+            var account = await dbContext.PlayerAccounts
+                .AsNoTracking()
+                .SingleOrDefaultAsync(a => a.PlayerAccountId == player.PlayerAccountId, cancellationToken);
+            if (account is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var result = await reservationService.CreateOnlineGroupAsync(
+                player.PlayerAccountId,
+                player.OrganizationId,
+                account.HomeBranchId,
+                request,
+                cancellationToken);
+
+            if (!result.Succeeded)
+            {
+                if (result.Conflict)
+                {
+                    return Results.Conflict(new { Error = result.Error });
+                }
+
+                if (result.NotFound)
+                {
+                    return Results.NotFound(new { Error = result.Error });
+                }
+
+                // Отказ по деньгам и по числу мест — машинные коды, интерфейсы их переводят.
+                return result.Error is "insufficient_funds" or PlayerReservationGroupLimits.InvalidSeatCountCode
+                    ? Results.Conflict(new { Error = result.Error })
+                    : Results.BadRequest(new { Error = result.Error });
+            }
+
+            var reservations = result.Response!.Select(ToPlayerReservationDto).ToList();
+            var first = reservations[0];
+            return Results.Ok(new PlayerReservationGroupDto(
+                first.ReservationGroupId!.Value,
+                reservations,
+                // Сумма по всей компании — то, что действительно заморожено.
+                first.EstimatedCostMinorUnits is { } perSeat ? perSeat * reservations.Count : null,
+                first.CurrencyCode));
+        }).RequireRateLimiting("player-me");
+
+        // Отмена всей компании разом: передумали идти все, и четыре отдельных отмены — это четыре
+        // шанса оборваться на полпути, оставив часть денег замороженной.
+        app.MapDelete("/api/me/reservations/group/{reservationGroupId:guid}", async (
+            Guid reservationGroupId,
+            IPlayerContextAccessor playerContextAccessor,
+            IReservationService reservationService,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var result = await reservationService.CancelOnlineGroupAsync(
+                reservationGroupId, player.PlayerAccountId, cancellationToken);
+
+            if (result.NotFound)
+            {
+                return Results.NotFound();
+            }
+
+            if (!result.Succeeded)
+            {
+                return Results.BadRequest(new { Error = result.Error });
+            }
+
+            return Results.Ok(result.Response!.Select(ToPlayerReservationDto).ToList());
+        }).RequireRateLimiting("player-me");
+
         app.MapGet("/api/me/reservations", async (
             IPlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,
@@ -659,7 +772,8 @@ internal static class PlayerSelfServiceEndpoints
                 r.TariffVersionId,
                 r.TariffVersionId is not null ? tariffNames.GetValueOrDefault(r.TariffVersionId.Value) : null,
                 r.EstimatedCostMinorUnits,
-                r.CurrencyCode))
+                r.CurrencyCode,
+                r.ReservationGroupId))
                 .ToList();
 
             return Results.Ok(dtos);

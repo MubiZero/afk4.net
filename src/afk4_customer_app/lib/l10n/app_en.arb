@@ -420,10 +420,19 @@
   "customerReceiptTotal": "Total",
   "customerReservationsCancel": "Cancel",
   "customerReservationsCancelAction": "Cancel booking",
+  "customerReservationsCancelCompany": "Cancel the whole group",
   "customerReservationsCancelConfirm": "Cancel this booking?",
   "customerReservationsCancelError": "Couldn't cancel",
   "customerReservationsCancelKeep": "Keep booking",
   "customerReservationsCancelled": "Booking cancelled",
+  "customerReservationsCompanySeats": "{count, plural, one {{count} seat} other {{count} seats}}",
+  "@customerReservationsCompanySeats": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerReservationsConflict": "That time is already taken",
   "customerReservationsCreate": "Book",
   "customerReservationsCreateError": "Couldn't create the booking",
@@ -432,6 +441,16 @@
   "customerReservationsEnd": "End",
   "customerReservationsEndBeforeStart": "The end must be later than the start",
   "customerReservationsGate": "To book online, confirm your phone number.",
+  "customerReservationsGroupNoFunds": "Your wallet is short for the whole group. Top it up or book fewer seats.",
+  "customerReservationsGroupSeatNote": "The club assigns the machines — you will get them in the confirmation. Your group will sit together if the hall has free machines.",
+  "customerReservationsGroupTooMany": "One booking takes at most {max} seats. Arrange a bigger group with the club.",
+  "@customerReservationsGroupTooMany": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
   "customerReservationsHoldNote": "The amount is held on your wallet and comes back if you cancel",
   "customerReservationsLoadError": "Failed to load reservations.",
   "customerReservationsNewTitle": "New booking",
@@ -466,6 +485,11 @@
     }
   },
   "customerReservationsSeatNote": "The club assigns the seat — you will see it in the confirmation.",
+  "customerReservationsSeats": "How many seats",
+  "customerReservationsSeatsAlone": "Booking for one",
+  "customerReservationsSeatsCompany": "Booking for a group",
+  "customerReservationsSeatsFewer": "Fewer seats",
+  "customerReservationsSeatsMore": "More seats",
   "customerReservationsStart": "Start",
   "customerReservationsStartInPast": "The start must be in the future",
   "customerReservationsStateCancelled": "Cancelled",

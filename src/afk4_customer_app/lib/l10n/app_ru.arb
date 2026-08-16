@@ -420,10 +420,19 @@
   "customerReceiptTotal": "Итого",
   "customerReservationsCancel": "Отменить",
   "customerReservationsCancelAction": "Отменить бронь",
+  "customerReservationsCancelCompany": "Отменить всю компанию",
   "customerReservationsCancelConfirm": "Отменить бронь?",
   "customerReservationsCancelError": "Не удалось отменить",
   "customerReservationsCancelKeep": "Оставить",
   "customerReservationsCancelled": "Бронь отменена",
+  "customerReservationsCompanySeats": "{count, plural, one {{count} место} few {{count} места} many {{count} мест} other {{count} места}}",
+  "@customerReservationsCompanySeats": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerReservationsConflict": "Это время уже занято",
   "customerReservationsCreate": "Забронировать",
   "customerReservationsCreateError": "Не удалось создать бронь",
@@ -432,6 +441,16 @@
   "customerReservationsEnd": "Конец",
   "customerReservationsEndBeforeStart": "Конец должен быть позже начала",
   "customerReservationsGate": "Чтобы бронировать онлайн, подтвердите свой номер телефона.",
+  "customerReservationsGroupNoFunds": "На кошельке не хватает денег на всю компанию. Пополните его или возьмите меньше мест.",
+  "customerReservationsGroupSeatNote": "Места назначит администратор клуба — вы получите их в подтверждении. Компания сядет рядом, если в зале есть свободные машины.",
+  "customerReservationsGroupTooMany": "Одной бронью берут не больше {max} мест. Про большую компанию договоритесь с клубом.",
+  "@customerReservationsGroupTooMany": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
   "customerReservationsHoldNote": "Сумма брони удерживается на кошельке и вернётся, если бронь отменить",
   "customerReservationsLoadError": "Не удалось загрузить брони.",
   "customerReservationsNewTitle": "Новая бронь",
@@ -466,6 +485,11 @@
     }
   },
   "customerReservationsSeatNote": "Место назначит администратор клуба — вы получите его в подтверждении.",
+  "customerReservationsSeats": "Сколько мест",
+  "customerReservationsSeatsAlone": "Бронь на одного",
+  "customerReservationsSeatsCompany": "Бронь на компанию",
+  "customerReservationsSeatsFewer": "Меньше мест",
+  "customerReservationsSeatsMore": "Больше мест",
   "customerReservationsStart": "Начало",
   "customerReservationsStartInPast": "Начало должно быть в будущем",
   "customerReservationsStateCancelled": "Отменена",

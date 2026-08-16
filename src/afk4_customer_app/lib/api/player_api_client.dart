@@ -288,19 +288,50 @@ class PlayerApiClient {
   /// и вторая арифметика в приложении разошлась бы с настоящим списанием.
   ///
   /// 404 — тариф сняли с публикации, пока игрок выбирал.
+  /// Цена до подтверждения. `seatCount` умножает её на сервере: показанная и замороженная
+  /// суммы обязаны приходить из одного места, иначе однажды разойдутся.
   Future<ReservationQuote> quoteReservation({
     required String tariffVersionId,
     required DateTime startsAtUtc,
     required DateTime endsAtUtc,
+    int seatCount = 1,
   }) async =>
       _parse(
         await sendJson('POST', '/api/me/reservations/quote', {
           'tariffVersionId': tariffVersionId,
           'startsAtUtc': startsAtUtc.toUtc().toIso8601String(),
           'endsAtUtc': endsAtUtc.toUtc().toIso8601String(),
+          'seatCount': seatCount,
         }),
         ReservationQuote.fromJson,
       );
+
+  /// Бронь на компанию: несколько мест на одно время одним действием. Мест здесь количество —
+  /// конкретную машину назначает клуб.
+  ///
+  /// 409 несёт причину: `insufficient_funds` — денег не хватает на всю компанию (частично не
+  /// бронируется ничего), `invalid_seat_count` — столько мест одной бронью не берут.
+  Future<PlayerReservationGroup> createReservationGroup({
+    required int seatCount,
+    required DateTime startsAtUtc,
+    required DateTime endsAtUtc,
+    String? tariffVersionId,
+  }) async {
+    final body = await sendJson('POST', '/api/me/reservations/group', {
+      'seatCount': seatCount,
+      'startsAtUtc': startsAtUtc.toUtc().toIso8601String(),
+      'endsAtUtc': endsAtUtc.toUtc().toIso8601String(),
+      'tariffVersionId': ?tariffVersionId,
+    });
+    return _parse(body, PlayerReservationGroup.fromJson);
+  }
+
+  /// Отменяет всю компанию разом: передумали идти все.
+  Future<List<PlayerReservation>> cancelReservationGroup(String reservationGroupId) async {
+    final list = await getJsonListVia(
+        'DELETE', '/api/me/reservations/group/${Uri.encodeComponent(reservationGroupId)}');
+    return list.map((item) => _parse(item, PlayerReservation.fromJson)).toList();
+  }
 
   Future<PlayerReservation> cancelReservation(String reservationId) async {
     final body = await sendJson(
@@ -421,6 +452,16 @@ class PlayerApiClient {
     var response = await _send('GET', path);
     if (response.statusCode == 401 && await _refreshOnce()) {
       response = await _send('GET', path);
+    }
+    return _decodeList(response);
+  }
+
+  /// Список в ответ на запрос, который не GET, — например отмена компании возвращает все её
+  /// брони разом. Продление токена и повтор те же, что у чтения.
+  Future<List<Map<String, dynamic>>> getJsonListVia(String method, String path) async {
+    var response = await _send(method, path);
+    if (response.statusCode == 401 && await _refreshOnce()) {
+      response = await _send(method, path);
     }
     return _decodeList(response);
   }
