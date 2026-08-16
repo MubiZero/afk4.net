@@ -34,7 +34,12 @@ class PlayerApiClient {
 
   final String baseUrl;
   final http.Client _http;
-  final void Function(PlayerSession?)? _onSessionChanged;
+
+  /// Кому сообщать о смене сессии. Задаётся и после создания клиента: оболочка, которая умеет
+  /// писать сессию на диск и уводить на экран входа, рождается позже самого клиента.
+  void Function(PlayerSession?)? _onSessionChanged;
+
+  set onSessionChanged(void Function(PlayerSession?)? handler) => _onSessionChanged = handler;
 
   PlayerSession? _session;
   PlayerSession? get session => _session;
@@ -224,6 +229,36 @@ class PlayerApiClient {
   Future<List<TariffOption>> getTariffs(String branchId) async {
     final list = await getJsonList('/api/me/branches/${Uri.encodeComponent(branchId)}/tariffs');
     return list.map((item) => _parse(item, TariffOption.fromJson)).toList();
+  }
+
+  /// Пакеты часов в прайсе филиала. Пустой список — клуб не продаёт пакеты, и это не ошибка.
+  Future<List<PackageOption>> getPackages(String branchId) async {
+    final list = await getJsonList('/api/me/branches/${Uri.encodeComponent(branchId)}/packages');
+    return list.map((item) => _parse(item, PackageOption.fromJson)).toList();
+  }
+
+  /// Свои пакеты с остатком времени — вместе с потраченными и просроченными.
+  Future<List<PlayerPackage>> getMyPackages() async {
+    final list = await getJsonList('/api/me/packages');
+    return list.map((item) => _parse(item, PlayerPackage.fromJson)).toList();
+  }
+
+  /// Покупает пакет за деньги кошелька. Открытая смена не нужна: пакет — предоплаченное
+  /// время, и покупают его как раз до прихода в клуб.
+  ///
+  /// 409 несёт причину в теле: `insufficient_funds` — не хватает денег на кошельке.
+  Future<PlayerPackage> purchasePackage({
+    required String branchId,
+    required String packageDefinitionId,
+    required String idempotencyKey,
+  }) async {
+    final body = await sendJson(
+      'POST',
+      '/api/me/branches/${Uri.encodeComponent(branchId)}'
+          '/packages/${Uri.encodeComponent(packageDefinitionId)}/purchase',
+      {'idempotencyKey': idempotencyKey},
+    );
+    return _parse(body, PlayerPackage.fromJson);
   }
 
   /// Места филиала: за какое можно сесть сейчас и какое занято.
@@ -422,9 +457,20 @@ class PlayerApiClient {
     }
   }
 
+  /// Продление, общее на всех. Refresh-токен ОДНОРАЗОВЫЙ: сервер помечает его отозванным и
+  /// выдаёт новый. Главный экран открывается несколькими запросами сразу, и через час после
+  /// входа все они получают 401 одновременно — если каждый пойдёт продлеваться сам, первый
+  /// выиграет, а остальные предъявят уже отозванный токен, получат отказ и снесут только что
+  /// выданную сессию. Поэтому продление одно на всех: опоздавшие ждут того же результата.
+  Future<bool> _refreshOnce() {
+    return _refreshing ??= _refresh().whenComplete(() => _refreshing = null);
+  }
+
+  Future<bool>? _refreshing;
+
   /// Одна попытка продления на запрос. Больше одной — верный способ зациклиться на сервере,
   /// который упорно отвечает 401.
-  Future<bool> _refreshOnce() async {
+  Future<bool> _refresh() async {
     final current = _session;
     if (current == null) return false;
 

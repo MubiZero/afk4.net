@@ -54,6 +54,13 @@ const _sessionJson = '''
  "accessToken":"access-1","accessTokenExpiresAtUtc":"2026-08-11T12:00:00Z",
  "refreshToken":"refresh-1","refreshTokenExpiresAtUtc":"2026-09-11T12:00:00Z"}''';
 
+/// Пара, выданная при продлении. refresh-токен ДРУГОЙ: сервер одноразовый старый отзывает.
+const _rotatedSessionJson = '''
+{"playerAccountId":"p1","organizationId":"11111111-1111-1111-1111-111111111111",
+ "displayName":"Иван","phoneVerified":true,
+ "accessToken":"access-2","accessTokenExpiresAtUtc":"2026-08-11T13:00:00Z",
+ "refreshToken":"refresh-2","refreshTokenExpiresAtUtc":"2026-09-11T12:00:00Z"}''';
+
 const _profileJson = '''
 {"playerAccountId":"p1","displayName":"Иван","phoneNumber":"+992900000000",
  "phoneVerified":true,"preferredLocale":null,"marketingOptIn":false}''';
@@ -67,10 +74,46 @@ const _dashboardJson = '''
 /// действительно стирает сессию с устройства, а не только убирает её с экрана.
 late Map<String, String> secureValues;
 
-Widget buildApp({Locale? locale = const Locale('ru')}) => CustomerApp(
+/// Сервер, у которого протух токен доступа. Продление либо выдаёт новую пару, либо отвергает
+/// уже отозванный refresh-токен — второе и видит игрок, не заходивший сутки.
+class _ExpiredTokenHttp extends http.BaseClient {
+  _ExpiredTokenHttp({required this.refreshSucceeds});
+
+  final bool refreshSucceeds;
+  int refreshCalls = 0;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    if (request.url.path == '/api/public/player/refresh') {
+      refreshCalls++;
+      return _respond(
+        refreshSucceeds ? _rotatedSessionJson : '{"error":"revoked"}',
+        refreshSucceeds ? 200 : 401,
+      );
+    }
+
+    final authorized = request.headers['Authorization'] == 'Bearer access-2';
+    if (!authorized) return _respond('{"error":"expired"}', 401);
+
+    return _respond(switch (request.url.path) {
+      '/api/me/dashboard' => _dashboardJson,
+      '/api/me/profile' => _profileJson,
+      '/api/me/features' => '{"features":["online_topup"]}',
+      _ => '[]',
+    }, 200);
+  }
+
+  static http.StreamedResponse _respond(String body, int status) => http.StreamedResponse(
+        Stream.value(utf8.encode(body)),
+        status,
+        headers: const {'content-type': 'application/json; charset=utf-8'},
+      );
+}
+
+Widget buildApp({Locale? locale = const Locale('ru'), http.Client? httpClient}) => CustomerApp(
       locale: locale,
       directory: _StubDirectory(const [_cyberx]),
-      api: PlayerApiClient(baseUrl: 'https://api', httpClient: _FakeHttp()),
+      api: PlayerApiClient(baseUrl: 'https://api', httpClient: httpClient ?? _FakeHttp()),
       sessionStore: const PlayerSessionStore(),
     );
 
@@ -149,6 +192,43 @@ void main() {
     expect(find.text('Иван'), findsOneWidget);
     expect(find.text('Выберите клуб'), findsNothing);
     await unmount(tester);
+  });
+
+  // Продление выдаёт НОВЫЙ refresh-токен, старый сервер отзывает. Пока продлённую сессию не
+  // писали на диск, там оставался отозванный токен: приложение доживало до перезапуска, а на
+  // следующий день встречало игрока ошибкой, которую снимал только повторный вход.
+  testWidgets('продлённый токен сохраняется на устройство, а не только в память', (tester) async {
+    await tester.pumpWidget(buildApp());
+    await tester.pumpAndSettle();
+    await signIn(tester);
+    await unmount(tester);
+
+    // Следующий запуск: токен доступа протух, продление проходит.
+    final server = _ExpiredTokenHttp(refreshSucceeds: true);
+    await tester.pumpWidget(buildApp(httpClient: server));
+    await tester.pumpAndSettle();
+
+    expect(server.refreshCalls, 1);
+    expect(find.text('Иван'), findsOneWidget);
+    expect(secureValues.values.join(), contains('refresh-2'));
+    expect(secureValues.values.join(), isNot(contains('refresh-1')));
+    await unmount(tester);
+  });
+
+  // То, что игрок видел на самом деле: связь в порядке, а на экране «проверьте соединение».
+  // Мёртвая сессия — это вопрос входа, и ответ на него экран входа, а не совет про интернет.
+  testWidgets('отозванный токен уводит на вход, а не в ошибку соединения', (tester) async {
+    await tester.pumpWidget(buildApp());
+    await tester.pumpAndSettle();
+    await signIn(tester);
+    await unmount(tester);
+
+    await tester.pumpWidget(buildApp(httpClient: _ExpiredTokenHttp(refreshSucceeds: false)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Вход'), findsOneWidget);
+    expect(find.textContaining('соединение'), findsNothing);
+    expect(secureValues, isEmpty);
   });
 
   // Устройство бывает общим: после выхода следующий вошедший не должен видеть чужие данные.

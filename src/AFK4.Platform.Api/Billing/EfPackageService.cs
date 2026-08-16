@@ -183,11 +183,39 @@ public sealed class EfPackageService(
         return BillingCommandServiceResult<PackageDefinitionDto>.Ok(ToDto(package));
     }
 
-    public async Task<BillingCommandServiceResult<PlayerPackageDto>> PurchasePackageAsync(
+    public Task<BillingCommandServiceResult<PlayerPackageDto>> PurchasePackageAsync(
         Guid playerAccountId,
         Guid branchId,
         Guid actorStaffUserId,
         PurchasePackageRequest request,
+        CancellationToken cancellationToken) =>
+        PurchasePackageCoreAsync(
+            playerAccountId,
+            branchId,
+            actorStaffUserId,
+            request,
+            requireOpenShift: true,
+            cancellationToken);
+
+    public Task<BillingCommandServiceResult<PlayerPackageDto>> PurchasePackageAsPlayerAsync(
+        Guid playerAccountId,
+        Guid branchId,
+        PurchasePackageRequest request,
+        CancellationToken cancellationToken) =>
+        PurchasePackageCoreAsync(
+            playerAccountId,
+            branchId,
+            SystemActorIds.PlayerSelfService,
+            request,
+            requireOpenShift: false,
+            cancellationToken);
+
+    private async Task<BillingCommandServiceResult<PlayerPackageDto>> PurchasePackageCoreAsync(
+        Guid playerAccountId,
+        Guid branchId,
+        Guid actorStaffUserId,
+        PurchasePackageRequest request,
+        bool requireOpenShift,
         CancellationToken cancellationToken)
     {
         var requestHashInput = PlayerScopedRequest(playerAccountId, request);
@@ -239,16 +267,34 @@ public sealed class EfPackageService(
             var walletBalance = await GetWalletBalanceAsync(playerAccountId, cancellationToken);
             if (walletBalance < package.PriceMinorUnits)
             {
-                return BillingCommandServiceResult<PlayerPackageDto>.Invalid("Insufficient wallet balance.");
+                // Машинный код, а не фраза: этот же отказ уже называется так в магазине, брони и
+                // старте сессии, и интерфейсы умеют его переводить.
+                return BillingCommandServiceResult<PlayerPackageDto>.Invalid("insufficient_funds");
             }
 
-            var openShift = await RequireOpenShiftAsync<PlayerPackageDto>(
-                request.OrganizationId,
-                branchId,
-                cancellationToken);
-            if (openShift.Error is not null)
+            // Самостоятельная покупка всё равно попадает в открытую смену, если она есть, — клуб
+            // видит выручку там, где она случилась. Просто смены не требует: игрок может купить и
+            // при закрытом клубе.
+            Guid? shiftId;
+            if (requireOpenShift)
             {
-                return openShift.Error;
+                var openShift = await RequireOpenShiftAsync<PlayerPackageDto>(
+                    request.OrganizationId,
+                    branchId,
+                    cancellationToken);
+                if (openShift.Error is not null)
+                {
+                    return openShift.Error;
+                }
+
+                shiftId = openShift.ShiftId;
+            }
+            else
+            {
+                shiftId = await ResolveOptionalOpenShiftAsync(
+                    request.OrganizationId,
+                    branchId,
+                    cancellationToken);
             }
 
             var now = timeProvider.GetUtcNow();
@@ -288,7 +334,7 @@ public sealed class EfPackageService(
                     reversesLedgerEntryId: null,
                     actorStaffUserId,
                     now,
-                    openShift.ShiftId),
+                    shiftId),
                 BillingEntryFactory.Create(
                     package.OrganizationId,
                     package.BranchId,
@@ -305,7 +351,7 @@ public sealed class EfPackageService(
                     reversesLedgerEntryId: null,
                     actorStaffUserId,
                     now.AddTicks(1),
-                    openShift.ShiftId)
+                    shiftId)
             };
 
             if (package.BonusSeconds > 0)
@@ -326,7 +372,7 @@ public sealed class EfPackageService(
                     reversesLedgerEntryId: null,
                     actorStaffUserId,
                     now.AddTicks(2),
-                    openShift.ShiftId));
+                    shiftId));
             }
 
             dbContext.LedgerEntries.AddRange(entries);
@@ -715,6 +761,23 @@ public sealed class EfPackageService(
             : new OpenShiftValidation<TResponse>(
                 BillingCommandServiceResult<TResponse>.Invalid(openShift.Error ?? EfShiftService.OpenShiftRequiredCode),
                 Guid.Empty);
+    }
+
+    /// <summary>
+    /// The open shift when there is one, otherwise null. Used by paths that may legitimately run
+    /// while the club is closed: the entry still lands in the ledger, just without a shift to
+    /// belong to, exactly as an online top-up does.
+    /// </summary>
+    private async Task<Guid?> ResolveOptionalOpenShiftAsync(
+        Guid organizationId,
+        Guid branchId,
+        CancellationToken cancellationToken)
+    {
+        var openShift = await openShiftResolver.GetOpenShiftIdAsync(organizationId, branchId, cancellationToken);
+
+        return openShift.Succeeded && openShift.Response != Guid.Empty
+            ? openShift.Response
+            : null;
     }
 
     private sealed record LedgerCurrencyValidation<TResponse>(

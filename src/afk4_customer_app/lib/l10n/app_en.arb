@@ -211,6 +211,78 @@
   "customerNewsTitle": "Club news",
   "customerOfflineBanner": "Offline — showing saved data",
   "customerOfflineStale": "No connection — the data may be out of date",
+  "customerPackagesBonus": "+{bonus} free",
+  "@customerPackagesBonus": {
+    "placeholders": {
+      "bonus": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPackagesBought": "“{name}” is yours",
+  "@customerPackagesBought": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPackagesBuy": "Buy",
+  "customerPackagesBuying": "Buying…",
+  "customerPackagesCancel": "Cancel",
+  "customerPackagesConfirm": "We will take {price} from your wallet and add {duration} to your account.",
+  "@customerPackagesConfirm": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPackagesErrFunds": "Your wallet is short for this package",
+  "customerPackagesErrGeneric": "Could not buy the package. Please try again.",
+  "customerPackagesExpired": "Expired",
+  "customerPackagesExpiresIn": "{count, plural, one {{count} day to use it} other {{count} days to use it}}",
+  "@customerPackagesExpiresIn": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerPackagesHours": "{hours} h",
+  "@customerPackagesHours": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPackagesLeft": "{duration} left",
+  "@customerPackagesLeft": {
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "customerPackagesLoadError": "Could not load the packages",
+  "customerPackagesMine": "My packages",
+  "customerPackagesNone": "This club does not sell hour packages",
+  "customerPackagesOffers": "Club packages",
+  "customerPackagesSpent": "Used up",
+  "customerPackagesTitle": "Hour packages",
+  "customerPackagesUsedUp": "All hours used",
+  "customerPackagesValidUntil": "Valid until {date}",
+  "@customerPackagesValidUntil": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "customerPhoneCode": "Code from the SMS",
   "customerPhoneConfirm": "Confirm",
   "customerPhoneConfirming": "Checking…",

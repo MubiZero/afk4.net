@@ -260,6 +260,88 @@ class TariffOption {
       );
 }
 
+/// Пакет часов в прайсе клуба: предоплата, за которую час выходит дешевле поминутного тарифа.
+class PackageOption {
+  const PackageOption({
+    required this.packageDefinitionId,
+    required this.name,
+    required this.priceMinorUnits,
+    required this.currencyCode,
+    required this.includedSeconds,
+    required this.bonusSeconds,
+    required this.expiresAfterDays,
+  });
+
+  final String packageDefinitionId;
+  final String name;
+  final int priceMinorUnits;
+  final String currencyCode;
+  final int includedSeconds;
+  final int bonusSeconds;
+  final int expiresAfterDays;
+
+  /// Всё время пакета вместе с бонусным: игрок покупает часы, а не две отдельные величины.
+  int get totalSeconds => includedSeconds + bonusSeconds;
+
+  factory PackageOption.fromJson(Map<String, dynamic> json) => PackageOption(
+        packageDefinitionId: json['packageDefinitionId'] as String,
+        name: json['name'] as String,
+        priceMinorUnits: (json['priceMinorUnits'] as num).toInt(),
+        currencyCode: json['currencyCode'] as String,
+        includedSeconds: (json['includedSeconds'] as num).toInt(),
+        bonusSeconds: (json['bonusSeconds'] as num?)?.toInt() ?? 0,
+        expiresAfterDays: (json['expiresAfterDays'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// Купленный пакет с остатком времени.
+class PlayerPackage {
+  const PlayerPackage({
+    required this.playerPackageId,
+    required this.name,
+    required this.purchasedPrice,
+    required this.includedSeconds,
+    required this.bonusSeconds,
+    required this.remainingIncludedSeconds,
+    required this.remainingBonusSeconds,
+    required this.purchasedAtUtc,
+    required this.expiresAtUtc,
+  });
+
+  final String playerPackageId;
+  final String name;
+  final Money purchasedPrice;
+  final int includedSeconds;
+  final int bonusSeconds;
+  final int remainingIncludedSeconds;
+  final int remainingBonusSeconds;
+  final DateTime purchasedAtUtc;
+  final DateTime? expiresAtUtc;
+
+  int get remainingSeconds => remainingIncludedSeconds + remainingBonusSeconds;
+
+  bool get isSpent => remainingSeconds <= 0;
+
+  bool isExpired(DateTime now) => expiresAtUtc != null && !expiresAtUtc!.isAfter(now);
+
+  /// Пакетом ещё можно играть: время осталось и срок не вышел.
+  bool isUsable(DateTime now) => !isSpent && !isExpired(now);
+
+  factory PlayerPackage.fromJson(Map<String, dynamic> json) => PlayerPackage(
+        playerPackageId: json['playerPackageId'] as String,
+        name: json['name'] as String,
+        purchasedPrice: Money.fromJson(json['purchasedPrice'] as Map<String, dynamic>),
+        includedSeconds: (json['includedSeconds'] as num).toInt(),
+        bonusSeconds: (json['bonusSeconds'] as num?)?.toInt() ?? 0,
+        remainingIncludedSeconds: (json['remainingIncludedSeconds'] as num?)?.toInt() ?? 0,
+        remainingBonusSeconds: (json['remainingBonusSeconds'] as num?)?.toInt() ?? 0,
+        purchasedAtUtc: DateTime.parse(json['purchasedAtUtc'] as String).toLocal(),
+        expiresAtUtc: json['expiresAtUtc'] == null
+            ? null
+            : DateTime.parse(json['expiresAtUtc'] as String).toLocal(),
+      );
+}
+
 /// Место в зале глазами игрока, который выбирает, куда сесть.
 class PlayerSeat {
   const PlayerSeat({
