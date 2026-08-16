@@ -116,6 +116,62 @@ void main() {
     expect(refreshCalls, 1);
   });
 
+  // Refresh-токен одноразовый: продлив его, сервер помечает старый отозванным. Главный экран
+  // открывается несколькими запросами сразу, и через час после входа все они получают 401
+  // одновременно. Пока продление шло у каждого своё, первый выигрывал, а остальные предъявляли
+  // уже отозванный токен, получали отказ и сносили только что выданную сессию — игрок видел
+  // «проверьте соединение» на живой связи, и лечил это только повторным входом.
+  test('параллельные 401 продлевают токен один раз, а не наперегонки', () async {
+    var refreshCalls = 0;
+    final http = _RecordingClient((request) {
+      if (request.url.path == '/api/public/player/refresh') {
+        refreshCalls++;
+        // Второе продление тем же токеном сервер отвергает — он уже отозван.
+        return refreshCalls == 1
+            ? makeResponse(sessionJson(access: 'access-2', refresh: 'refresh-2'))
+            : makeResponse('{"error":"revoked"}', status: 401);
+      }
+      return request.headers['Authorization'] == 'Bearer access-2'
+          ? makeResponse('{"ok":true}')
+          : makeResponse('{"error":"expired"}', status: 401);
+    });
+    final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http, session: theSession());
+
+    final results = await Future.wait([
+      client.getJson('/api/me/dashboard'),
+      client.getJson('/api/me/profile'),
+      client.getJson('/api/me/reviews/pending'),
+    ]);
+
+    expect(refreshCalls, 1);
+    expect(results.every((body) => body['ok'] == true), isTrue);
+    expect(client.session, isNotNull);
+    expect(client.session!.accessToken, 'access-2');
+  });
+
+  // Продление выдаёт НОВЫЙ refresh-токен, и о нём обязан узнать тот, кто хранит сессию на
+  // диске. Пока об этом не сообщали, на диске оставался отозванный токен: приложение работало
+  // до перезапуска, а наутро встречало игрока ошибкой.
+  test('продление сообщает наверх новую сессию, а не только меняет её в памяти', () async {
+    final observed = <PlayerSession?>[];
+    var call = 0;
+    final http = _RecordingClient((request) {
+      call++;
+      if (call == 1) return makeResponse('{"error":"expired"}', status: 401);
+      if (request.url.path == '/api/public/player/refresh') {
+        return makeResponse(sessionJson(access: 'access-2', refresh: 'refresh-2'));
+      }
+      return makeResponse('{"ok":true}');
+    });
+    final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http, session: theSession());
+    client.onSessionChanged = observed.add;
+
+    await client.getJson('/api/me/dashboard');
+
+    expect(observed, hasLength(1));
+    expect(observed.single!.refreshToken, 'refresh-2');
+  });
+
   // Правило из веб-версии: обновление сессии НЕ пересоздаёт клиента. Иначе дерево экранов
   // перемонтируется и опросы стартуют заново — на главной это видно как мигание живой сессии.
   test('смена сессии не меняет саму личность клиента', () async {

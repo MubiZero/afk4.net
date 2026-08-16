@@ -34,7 +34,12 @@ class PlayerApiClient {
 
   final String baseUrl;
   final http.Client _http;
-  final void Function(PlayerSession?)? _onSessionChanged;
+
+  /// Кому сообщать о смене сессии. Задаётся и после создания клиента: оболочка, которая умеет
+  /// писать сессию на диск и уводить на экран входа, рождается позже самого клиента.
+  void Function(PlayerSession?)? _onSessionChanged;
+
+  set onSessionChanged(void Function(PlayerSession?)? handler) => _onSessionChanged = handler;
 
   PlayerSession? _session;
   PlayerSession? get session => _session;
@@ -452,9 +457,20 @@ class PlayerApiClient {
     }
   }
 
+  /// Продление, общее на всех. Refresh-токен ОДНОРАЗОВЫЙ: сервер помечает его отозванным и
+  /// выдаёт новый. Главный экран открывается несколькими запросами сразу, и через час после
+  /// входа все они получают 401 одновременно — если каждый пойдёт продлеваться сам, первый
+  /// выиграет, а остальные предъявят уже отозванный токен, получат отказ и снесут только что
+  /// выданную сессию. Поэтому продление одно на всех: опоздавшие ждут того же результата.
+  Future<bool> _refreshOnce() {
+    return _refreshing ??= _refresh().whenComplete(() => _refreshing = null);
+  }
+
+  Future<bool>? _refreshing;
+
   /// Одна попытка продления на запрос. Больше одной — верный способ зациклиться на сервере,
   /// который упорно отвечает 401.
-  Future<bool> _refreshOnce() async {
+  Future<bool> _refresh() async {
     final current = _session;
     if (current == null) return false;
 

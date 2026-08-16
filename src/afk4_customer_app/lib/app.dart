@@ -169,6 +169,11 @@ class _RootState extends State<_Root> {
     }
     final organization = await widget.organizationStore.read();
     final session = await widget.sessionStore.read();
+    // Слушать смену сессии обязательно, а не «полезно»: refresh-токен одноразовый, и продление
+    // выдаёт новый. Пока продлённую сессию никто не писал на диск, там оставался токен, который
+    // сервер уже отозвал, — приложение работало до перезапуска, а наутро встречало игрока
+    // ошибкой, лечившейся только повторным входом.
+    widget.api.onSessionChanged = _onSessionRotated;
     if (session != null) {
       widget.api.updateSession(session);
       // Токен FCM меняется сам по себе: без сверки при запуске пуши однажды просто
@@ -181,6 +186,17 @@ class _RootState extends State<_Root> {
       _session = session;
       _restoring = false;
     });
+  }
+
+  /// Сессия сменилась внутри клиента — продлилась или умерла.
+  ///
+  /// Продлённую пишем на диск: следующий запуск обязан взять живой токен, а не тот, который
+  /// сервер отозвал при продлении. Умершую стираем и показываем экран входа — это честный ответ
+  /// вместо «проверьте соединение» на экране, за которым уже нет никакой сессии.
+  void _onSessionRotated(PlayerSession? next) {
+    unawaited(next == null ? widget.sessionStore.clear() : widget.sessionStore.write(next));
+    if (!mounted) return;
+    setState(() => _session = next);
   }
 
   Future<void> _selectOrganization(Organization organization) async {
