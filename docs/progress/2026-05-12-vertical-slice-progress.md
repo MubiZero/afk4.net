@@ -253,11 +253,62 @@ Latest Verification).
   status polling stayed on GET. Migrations are applied by the container's
   pre-deployment command at start rather than by a manual step.
 
+- **Hour packages bought from the app** (revenue wave 2, slice 1) — the purchase
+  existed but was a counter operation: it demanded an open shift and a staff
+  actor, so prepaid time could only be bought by walking into the club, which is
+  the opposite of what prepaying is for. The purchase core is now split by a flag
+  the same way online top-up already is: the counter path requires a shift, the
+  player path does not. When a shift does happen to be open the entries carry it,
+  so the club still sees the revenue where it occurred. The actor is the reserved
+  `Player Self-Service`; without it the cash journal printed a truncated empty
+  guid. The short-wallet refusal travels as `insufficient_funds`, the name the
+  same refusal already carries in the shop, in booking, and at session start.
+  The app shows the price list with price, hours, bonus and validity, confirms
+  the amount and the time before charging, and lists owned packages with the
+  time left; spent and expired ones stay in the list, because a purchase that
+  vanishes reads as money that vanished.
+
+- **Player sessions survive a night away** — a player who had not opened the app
+  for a day met a connection error on a working connection, curable only by
+  signing in again. Three faults stacked. The refresh token is single-use (the
+  server revokes it and issues a new one), but the rotated session never reached
+  disk because the client was constructed without `onSessionChanged` — the hook
+  existed and nobody passed it — so storage kept a token the server had already
+  revoked and the app died on the next launch. Concurrent requests each refreshed
+  on their own: the first won and the rest presented the revoked token, failed,
+  and wiped the session that had just been issued; refresh is now shared, and
+  latecomers await the same result. A cleared session was observed by nobody, so
+  the shell stayed put and blamed the connection; it now clears storage and shows
+  the sign-in screen, which is the honest answer.
+
 ## Latest Verification
 
 Older verification entries (2026-07-28 and earlier, including the superseded
 Platform Control rebuild Tasks 1-7 gates) are archived in
 `docs/archive/progress/2026-08-06-vertical-slice-detailed-history.md`.
+
+- Hour packages and session survival gate (2026-08-15): Platform API passed
+  **2051 tests against a real PostgreSQL database with zero skips** — the local
+  database was raised for the run, so the 27 Postgres-only tests that earlier
+  gates skipped are included here. Shared Contracts passed 141/141,
+  Localization 15/15, `@afk4/i18n` 39/39, Organization Admin Web 1102/1102 plus
+  its production build, Platform Control 286/286, and the customer app passed
+  299 widget tests with a clean `flutter analyze`. The concurrent-refresh test
+  was checked against the unfixed client and fails there, so it proves the race
+  rather than itself. The full-solution build was not run: `AFK4.Player.Shell`
+  targets Windows and cannot build on Linux. Nothing in this slice has been
+  exercised on a real device or against staging yet.
+
+  Two pre-existing defects were found and fixed on the way. The organization
+  offboarding tests pinned the date 2026-08-10 and compared it with the system
+  clock, so the "do not purge before the grace period ends" check silently
+  inverted five days later — 2026-08-15 armed it, and it was already red on a
+  clean tree. The i18n generator matched a placeholder name from the opening
+  brace without requiring a comma or closing brace after it, so the first word
+  of a plural branch became a placeholder: `other {valid for {count} days}`
+  yielded an argument named `valid`. Cyrillic never matched the pattern, so the
+  miss waited for the first English branch starting with a word; regenerating
+  all three locales after the fix changed no existing string.
 
 - Live Android device check (2026-08-15, run by the owner against Coolify
   staging, manual — no test artifact): payom template identifiers and the
@@ -342,14 +393,26 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
 
 ## Recommended Next Work
 
-The player-facing path is proven on a real Android phone against staging, so the
-remaining work is the Windows side and the operational backlog.
+The revenue wave for the mobile app is in progress; the rest is the Windows side
+and the operational backlog.
 
-1. Return to the production-readiness backlog: repeat the
+1. Finish revenue wave 2 in the customer app. Slice 1 (hour packages) is done;
+   remaining, in descending revenue-to-risk order: group booking for a company
+   (the operator-side group service and all-or-nothing conflict reporting
+   already exist, so the work is a hold covering every seat plus a multi-seat
+   picker), a refer-a-friend bonus (nothing exists yet, but it touches no
+   existing money path and `bonus_grant` is already a ledger entry type), and
+   off-peak pricing. Off-peak is the largest and the riskiest: contrary to the
+   2026-08-13 product analysis, tariffs carry **no** time windows — a tariff is
+   a name plus a price per minute, and a human picks it — so selling cheap
+   mornings means new mechanics inside session billing, and it needs an owner
+   decision on the model first (time windows inside a tariff versus a separate
+   tariff applied automatically).
+2. Return to the production-readiness backlog: repeat the
    Operator day flow from a clean `manager_workstation` install at 100%/125%,
    then run the physical Windows 10/11 gaming-PC Agent/Shell smoke. These need
    physical hardware and are the last functional evidence gap.
-2. Wire real per-environment SMTP settings and work through the remaining
+3. Wire real per-environment SMTP settings and work through the remaining
    pre-production decisions in the production-readiness roadmap.
-3. Decide whether iOS is in scope before launch. If it is, it needs an APNs key,
+4. Decide whether iOS is in scope before launch. If it is, it needs an APNs key,
    an Apple developer account, and a device pass equivalent to the Android one.
