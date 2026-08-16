@@ -902,47 +902,15 @@ public sealed class EfReservationService(
 
         var now = timeProvider.GetUtcNow();
 
-        // Billing choice made by the player in the app. Priced here, not in the client: the
-        // minimum-billable floor and the rounding increment are billing rules, and a second
-        // implementation in the app would disagree with the charge the moment either side moved.
-        TariffVersionEntity? tariffVersion = null;
-        TariffComputation? estimate = null;
-        if (request.TariffVersionId is { } tariffVersionId)
+        var pricing = await PriceOnlineBookingAsync(
+            organizationId, branchId, request.TariffVersionId, durationMinutes, now, cancellationToken);
+        if (pricing.Error is not null)
         {
-            tariffVersion = await dbContext.TariffVersions
-                .AsNoTracking()
-                .SingleOrDefaultAsync(
-                    version =>
-                        version.TariffVersionId == tariffVersionId &&
-                        version.OrganizationId == organizationId &&
-                        version.BranchId == branchId &&
-                        version.EffectiveFromUtc <= now &&
-                        (version.RetiredAtUtc == null || version.RetiredAtUtc > now),
-                    cancellationToken);
-
-            // A retired or foreign tariff is rejected rather than silently replaced by a default:
-            // the player agreed to a specific price, and quietly booking on another one is a lie
-            // about money.
-            if (tariffVersion is null)
-            {
-                return ReservationServiceResult<ReservationDto>.Invalid(
-                    "Selected tariff is not available in this branch.");
-            }
-
-            estimate = TariffBilling.ComputeForMinutes(
-                durationMinutes,
-                new TariffPricing(
-                    tariffVersion.PricePerMinuteMinorUnits,
-                    tariffVersion.MinimumBillableMinutes,
-                    tariffVersion.RoundingIncrementMinutes,
-                    tariffVersion.CurrencyCode));
-
-            if (estimate is null)
-            {
-                return ReservationServiceResult<ReservationDto>.Invalid(
-                    "Selected tariff cannot price this booking.");
-            }
+            return ReservationServiceResult<ReservationDto>.Invalid(pricing.Error);
         }
+
+        var tariffVersion = pricing.TariffVersion;
+        var estimate = pricing.Estimate;
 
         // Бронь с выбранным тарифом сразу замораживает деньги: слот занят, значит и сумма должна
         // быть занята — иначе к моменту прихода игрока её потратят в баре или на другой брони.
@@ -1051,5 +1019,241 @@ public sealed class EfReservationService(
 
         return ReservationServiceResult<ReservationDto>.Ok(
             (await ProjectAsync([reservation], cancellationToken))[0]);
+    }
+
+    private sealed record OnlineBookingPricing(
+        string? Error,
+        TariffVersionEntity? TariffVersion,
+        TariffComputation? Estimate);
+
+    /// <summary>
+    /// Цена выбора игрока — за одно место. Считается на сервере, а не в приложении: минимальная
+    /// оплачиваемая длительность и шаг округления живут в биллинге, и вторая их реализация в
+    /// клиенте разошлась бы с настоящим списанием при первой же правке любой из сторон.
+    ///
+    /// Общая и для одиночной брони, и для брони на компанию: две копии этого расчёта — верный
+    /// способ однажды показать компании одну цену, а заморозить другую.
+    /// </summary>
+    private async Task<OnlineBookingPricing> PriceOnlineBookingAsync(
+        Guid organizationId,
+        Guid branchId,
+        Guid? tariffVersionId,
+        int durationMinutes,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        // Тарифа нет — бронь считают на стойке, как было до самообслуживания.
+        if (tariffVersionId is not { } versionId)
+        {
+            return new OnlineBookingPricing(null, null, null);
+        }
+
+        var tariffVersion = await dbContext.TariffVersions
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                version =>
+                    version.TariffVersionId == versionId &&
+                    version.OrganizationId == organizationId &&
+                    version.BranchId == branchId &&
+                    version.EffectiveFromUtc <= now &&
+                    (version.RetiredAtUtc == null || version.RetiredAtUtc > now),
+                cancellationToken);
+
+        // Снятый с публикации или чужой тариф отклоняется, а не подменяется тихо тарифом по
+        // умолчанию: игрок согласился на конкретную цену, и забронировать по другой — это ложь
+        // о деньгах.
+        if (tariffVersion is null)
+        {
+            return new OnlineBookingPricing(
+                "Selected tariff is not available in this branch.", null, null);
+        }
+
+        var estimate = TariffBilling.ComputeForMinutes(
+            durationMinutes,
+            new TariffPricing(
+                tariffVersion.PricePerMinuteMinorUnits,
+                tariffVersion.MinimumBillableMinutes,
+                tariffVersion.RoundingIncrementMinutes,
+                tariffVersion.CurrencyCode));
+
+        return estimate is null
+            ? new OnlineBookingPricing("Selected tariff cannot price this booking.", null, null)
+            : new OnlineBookingPricing(null, tariffVersion, estimate);
+    }
+
+    public async Task<ReservationServiceResult<IReadOnlyList<ReservationDto>>> CreateOnlineGroupAsync(
+        Guid playerAccountId,
+        Guid organizationId,
+        Guid branchId,
+        CreatePlayerReservationGroupRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!PlayerReservationGroupLimits.IsAllowedSeatCount(request.SeatCount))
+        {
+            return ReservationServiceResult<IReadOnlyList<ReservationDto>>.Invalid(
+                PlayerReservationGroupLimits.InvalidSeatCountCode);
+        }
+
+        if (request.StartsAtUtc >= request.EndsAtUtc)
+        {
+            return ReservationServiceResult<IReadOnlyList<ReservationDto>>.Invalid(
+                "Reservation end time must be after start time.");
+        }
+
+        var durationMinutes = (int)Math.Round((request.EndsAtUtc - request.StartsAtUtc).TotalMinutes);
+
+        var account = await dbContext.PlayerAccounts
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                player =>
+                    player.OrganizationId == organizationId &&
+                    player.HomeBranchId == branchId &&
+                    player.PlayerAccountId == playerAccountId,
+                cancellationToken);
+
+        if (account is null)
+        {
+            return ReservationServiceResult<IReadOnlyList<ReservationDto>>.Invalid(
+                "Player account was not found in this branch.");
+        }
+
+        // Форма проверяется один раз: у всех мест группы она общая, а конкретного места у брони из
+        // приложения нет — его назначает клуб.
+        var validation = await ValidateReservationShapeAsync(
+            organizationId,
+            branchId,
+            playerAccountId,
+            seatId: null,
+            account.DisplayName,
+            request.StartsAtUtc,
+            durationMinutes,
+            ReservationSourceNames.Online,
+            cancellationToken);
+
+        if (validation is not null)
+        {
+            return ReservationServiceResult<IReadOnlyList<ReservationDto>>.Invalid(validation);
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var endsAtUtc = request.StartsAtUtc.AddMinutes(durationMinutes);
+
+        var pricing = await PriceOnlineBookingAsync(
+            organizationId, branchId, request.TariffVersionId, durationMinutes, now, cancellationToken);
+        if (pricing.Error is not null)
+        {
+            return ReservationServiceResult<IReadOnlyList<ReservationDto>>.Invalid(pricing.Error);
+        }
+
+        // Денег должно хватить на ВСЮ компанию сразу. Забронировать три места из четырёх и
+        // промолчать про четвёртое — это подвести компанию в клубе, а не «частичный успех».
+        if (pricing.Estimate is { } perSeat)
+        {
+            var wallet = await LedgerBalanceProjector.GetWalletSummaryAsync(
+                dbContext, playerAccountId, cancellationToken);
+            var available = wallet?.WalletBalance.MinorUnits ?? 0;
+            if (available < perSeat.AmountMinorUnits * request.SeatCount)
+            {
+                return ReservationServiceResult<IReadOnlyList<ReservationDto>>.Invalid("insufficient_funds");
+            }
+        }
+
+        var autoConfirm = pricing.Estimate is not null
+            || await ShouldAutoConfirmOnlineAsync(playerAccountId, cancellationToken);
+        var groupId = Guid.NewGuid();
+        var note = NormalizeText(request.Note);
+        var reservations = new List<ReservationEntity>(request.SeatCount);
+
+        for (var index = 0; index < request.SeatCount; index++)
+        {
+            var reservation = new ReservationEntity
+            {
+                ReservationId = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                BranchId = branchId,
+                ReservationGroupId = groupId,
+                PlayerAccountId = playerAccountId,
+                SeatId = null,
+                CustomerName = account.DisplayName,
+                PhoneNumber = account.PhoneNumber,
+                StartsAtUtc = request.StartsAtUtc,
+                EndsAtUtc = endsAtUtc,
+                State = autoConfirm
+                    ? ReservationStateNames.Confirmed
+                    : ReservationStateNames.Pending,
+                Source = ReservationSourceNames.Online,
+                Note = note,
+                CreatedByStaffUserId = Guid.Empty,
+                UpdatedByStaffUserId = Guid.Empty,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now,
+                CancelReason = string.Empty,
+                TariffVersionId = pricing.TariffVersion?.TariffVersionId,
+                EstimatedCostMinorUnits = pricing.Estimate?.AmountMinorUnits,
+                CurrencyCode = pricing.Estimate?.CurrencyCode
+            };
+
+            reservations.Add(reservation);
+            dbContext.Reservations.Add(reservation);
+
+            // Холд на КАЖДОЕ место отдельной записью, а не один общий на группу. Так отмена
+            // одного места, посадка одного человека и неявка одного из компании работают ровно
+            // тем же кодом, что и у одиночной брони, — ничего не пришлось учить про группы.
+            if (pricing.Estimate is { } estimate)
+            {
+                dbContext.LedgerEntries.Add(
+                    ReservationHold.Create(reservation, estimate.AmountMinorUnits, estimate.CurrencyCode, now));
+            }
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ReservationServiceResult<IReadOnlyList<ReservationDto>>.Ok(
+            await ProjectAsync(reservations, cancellationToken));
+    }
+
+    public async Task<ReservationServiceResult<IReadOnlyList<ReservationDto>>> CancelOnlineGroupAsync(
+        Guid reservationGroupId,
+        Guid playerAccountId,
+        CancellationToken cancellationToken)
+    {
+        var reservations = await dbContext.Reservations
+            .Where(candidate =>
+                candidate.ReservationGroupId == reservationGroupId &&
+                candidate.PlayerAccountId == playerAccountId)
+            .ToListAsync(cancellationToken);
+
+        // Чужая группа неотличима от несуществующей — иначе перебором идентификаторов можно
+        // узнать, что она есть.
+        if (reservations.Count == 0)
+        {
+            return ReservationServiceResult<IReadOnlyList<ReservationDto>>.Missing(
+                "Reservation group was not found.");
+        }
+
+        var now = timeProvider.GetUtcNow();
+        foreach (var reservation in reservations)
+        {
+            // Уже отменённые и отыгранные пропускаются молча: отмена компании — это одно действие
+            // с одним исходом, и падать на месте, которое уже отменили, значит запретить отменить
+            // остальные.
+            if (reservation.State is not ReservationStateNames.Pending and not ReservationStateNames.Confirmed)
+            {
+                continue;
+            }
+
+            reservation.State = ReservationStateNames.Cancelled;
+            reservation.CancelReason = "player-initiated";
+            reservation.CancelledAtUtc = now;
+            reservation.UpdatedByStaffUserId = Guid.Empty;
+            reservation.UpdatedAtUtc = now;
+            await ReservationHold.ReleaseAsync(
+                dbContext, reservation.ReservationId, ReservationHoldCauses.Cancelled, now, cancellationToken);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return ReservationServiceResult<IReadOnlyList<ReservationDto>>.Ok(
+            await ProjectAsync(reservations, cancellationToken));
     }
 }

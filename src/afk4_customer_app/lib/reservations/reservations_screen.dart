@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/dto.dart';
 import '../api/player_api_client.dart';
 import '../format/date_time.dart';
+import '../money/money.dart';
 import '../l10n/app_localizations.dart';
 import '../phone/phone_verification_sheet.dart';
 import '../shell/app_scaffold.dart';
@@ -83,9 +84,10 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
     await _refresh();
   }
 
-  Future<void> _cancel(PlayerReservation reservation) async {
+  Future<void> _cancel(ReservationEntry entry) async {
     final l = L.of(context);
     final locale = Localizations.localeOf(context).languageCode;
+    final reservation = entry.first;
     final confirmed = await showDialog<bool>(
       context: context,
       // Обе кнопки называют своё действие целиком. Пара «Отменить» / «Назад» читалась как
@@ -94,7 +96,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
         title: Text(l.customerReservationsCancelConfirm),
         // Какую именно бронь отменяем: при двух бронях безымянный вопрос ничего не значит.
         content: Text(
-          '${reservation.seatName ?? l.customerReservationsNoSeat}\n'
+          '${entry.isCompany ? l.customerReservationsCompanySeats(entry.seatCount) : reservation.seatName ?? l.customerReservationsNoSeat}\n'
           '${formatTimeRange(l, reservation.startsAtUtc, reservation.endsAtUtc, locale, now: widget.clock())}',
         ),
         actions: [
@@ -116,7 +118,13 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
     if (confirmed != true) return;
 
     try {
-      await widget.api.cancelReservation(reservation.reservationId);
+      // Компания отменяется одним запросом: четыре отдельных отмены — это четыре шанса
+      // оборваться на полпути и оставить часть денег замороженной.
+      if (entry.isCompany && entry.groupId != null) {
+        await widget.api.cancelReservationGroup(entry.groupId!);
+      } else {
+        await widget.api.cancelReservation(reservation.reservationId);
+      }
       if (!mounted) return;
       _say(l.customerReservationsCancelled);
       await _refresh();
@@ -196,13 +204,13 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
                 ),
               _Load.ready => Column(
                   children: [
-                    for (final reservation in _reservations)
+                    for (final entry in groupReservations(_reservations))
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _ReservationCard(
-                          reservation: reservation,
+                          entry: entry,
                           now: widget.clock(),
-                          onCancel: () => _cancel(reservation),
+                          onCancel: () => _cancel(entry),
                         ),
                       ),
                   ],
@@ -255,20 +263,86 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
   }
 }
 
+/// Строка списка: обычная бронь или целая компания.
+///
+/// Компания приходит с сервера несколькими бронями с общим идентификатором группы. Показывать их
+/// отдельными строками значит показать четыре одинаковых карточки, между которыми не видно
+/// разницы, — игрок не поймёт, четыре у него брони или одна на четверых.
+class ReservationEntry {
+  ReservationEntry(this.reservations);
+
+  final List<PlayerReservation> reservations;
+
+  bool get isCompany => reservations.length > 1;
+
+  PlayerReservation get first => reservations.first;
+
+  String? get groupId => first.reservationGroupId;
+
+  /// Места, которые ещё в силе. Отменённые из счёта уходят: «4 места» рядом с двумя
+  /// отменёнными — это неправда о брони.
+  List<PlayerReservation> get live =>
+      reservations.where((r) => r.state != 'cancelled').toList();
+
+  int get seatCount => live.isNotEmpty ? live.length : reservations.length;
+
+  /// Состояние компании — состояние её живых мест; когда живых нет, компания отменена.
+  String get state => live.isNotEmpty ? live.first.state : 'cancelled';
+
+  bool get isCancellable => live.any((r) => r.isCancellable);
+
+  /// Сумма по всем живым местам. null — бронь без тарифа, её считают на стойке.
+  int? get totalMinorUnits {
+    final priced = live.where((r) => r.estimatedCostMinorUnits != null).toList();
+    if (priced.isEmpty) return null;
+    return priced.fold<int>(0, (sum, r) => sum + r.estimatedCostMinorUnits!);
+  }
+
+  String? get currencyCode => live.isNotEmpty ? live.first.currencyCode : first.currencyCode;
+}
+
+/// Собирает брони в строки списка: компании — под своим идентификатором группы, одиночные —
+/// сами по себе. Порядок сервера сохраняется: он уже отсортирован по времени.
+List<ReservationEntry> groupReservations(List<PlayerReservation> reservations) {
+  final entries = <ReservationEntry>[];
+  final byGroup = <String, ReservationEntry>{};
+
+  for (final reservation in reservations) {
+    final groupId = reservation.reservationGroupId;
+    if (groupId == null) {
+      entries.add(ReservationEntry([reservation]));
+      continue;
+    }
+
+    final existing = byGroup[groupId];
+    if (existing == null) {
+      final entry = ReservationEntry([reservation]);
+      byGroup[groupId] = entry;
+      entries.add(entry);
+    } else {
+      existing.reservations.add(reservation);
+    }
+  }
+
+  return entries;
+}
+
 class _ReservationCard extends StatelessWidget {
   const _ReservationCard({
-    required this.reservation,
+    required this.entry,
     required this.now,
     required this.onCancel,
   });
 
-  final PlayerReservation reservation;
+  final ReservationEntry entry;
   final DateTime now;
   final VoidCallback onCancel;
 
+  PlayerReservation get reservation => entry.first;
+
   /// Состояние словами. Незнакомое приходит с сервера как есть — лучше сырой код, чем
   /// уверенное враньё про «подтверждена».
-  String _stateLabel(L l) => switch (reservation.state) {
+  String _stateLabel(L l) => switch (entry.state) {
         'pending' => l.customerReservationsStatePending,
         'confirmed' => l.customerReservationsStateConfirmed,
         'seated' => l.customerReservationsStateSeated,
@@ -291,8 +365,12 @@ class _ReservationCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(reservation.seatName ?? l.customerReservationsNoSeat,
-                    style: theme.textTheme.titleMedium),
+                Text(
+                  entry.isCompany
+                      ? l.customerReservationsCompanySeats(entry.seatCount)
+                      : reservation.seatName ?? l.customerReservationsNoSeat,
+                  style: theme.textTheme.titleMedium,
+                ),
                 Text(
                   _stateLabel(l),
                   style: theme.textTheme.bodyMedium
@@ -306,13 +384,20 @@ class _ReservationCard extends StatelessWidget {
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
-            if (reservation.isCancellable)
+            if (entry.isCompany && entry.totalMinorUnits != null)
+              Text(
+                formatMoney(entry.totalMinorUnits!, entry.currencyCode ?? 'TJS', locale: locale),
+                style: theme.textTheme.bodyMedium,
+              ),
+            if (entry.isCancellable)
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton(
                   onPressed: onCancel,
                   style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
-                  child: Text(l.customerReservationsCancel),
+                  child: Text(entry.isCompany
+                      ? l.customerReservationsCancelCompany
+                      : l.customerReservationsCancel),
                 ),
               ),
           ],

@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Reservations;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Packages;
@@ -217,6 +218,11 @@ internal static class PlayerCatalogEndpoints
                 return Results.BadRequest(new { error = "invalid_duration" });
             }
 
+            if (!PlayerReservationGroupLimits.IsAllowedSeatCount(request.SeatCount))
+            {
+                return Results.BadRequest(new { error = "invalid_seat_count" });
+            }
+
             var now = timeProvider.GetUtcNow();
             var row = await dbContext.TariffVersions.AsNoTracking()
                 .Where(version =>
@@ -250,8 +256,10 @@ internal static class PlayerCatalogEndpoints
                 row.Name,
                 requestedMinutes,
                 charge.BillableMinutes,
-                charge.AmountMinorUnits,
-                charge.CurrencyCode));
+                // Цена за всю компанию: столько и заморозится.
+                charge.AmountMinorUnits * request.SeatCount,
+                charge.CurrencyCode,
+                request.SeatCount));
         }).RequireRateLimiting("player-me");
     }
 

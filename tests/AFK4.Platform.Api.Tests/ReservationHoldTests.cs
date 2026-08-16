@@ -266,6 +266,49 @@ public sealed class ReservationHoldTests
         Assert.Equal(5_000, await WalletAsync(options));
     }
 
+    // Компания из трёх не пришла. Фоновая задача разбирает брони по одной и ничего не знает про
+    // группы — ровно поэтому холд и стоит на каждом месте отдельно: деньги возвращаются все,
+    // а специального кода для компаний не потребовалось.
+    [Fact]
+    public async Task NoShow_ReturnsTheMoneyForEverySeatOfACompany()
+    {
+        var options = NewOptions();
+        await SeedAsync(options, walletMinor: 10_000);
+        var group = await BookGroupAsync(options, seatCount: 3);
+        Assert.Equal(5_500, await WalletAsync(options));
+
+        int handled;
+        await using (var db = new PlatformDbContext(options))
+        {
+            var runner = new ReservationNoShowRunner(
+                db, new ReservationNoShowOptions(), new FixedTimeProvider(Start.AddMinutes(16)));
+            handled = await runner.RunOnceAsync(CancellationToken.None);
+        }
+
+        Assert.Equal(3, handled);
+        Assert.Equal(10_000, await WalletAsync(options));
+
+        await using var read = new PlatformDbContext(options);
+        var rows = await read.Reservations
+            .Where(r => r.ReservationGroupId == group.Response![0].ReservationGroupId)
+            .ToListAsync();
+        Assert.Equal(3, rows.Count);
+        Assert.All(rows, r => Assert.Equal(ReservationStateNames.Cancelled, r.State));
+        Assert.All(rows, r => Assert.Equal(ReservationNoShowRunner.CancelReason, r.CancelReason));
+    }
+
+    private static async Task<ReservationServiceResult<IReadOnlyList<ReservationDto>>> BookGroupAsync(
+        DbContextOptions<PlatformDbContext> options,
+        int seatCount)
+    {
+        await using var db = new PlatformDbContext(options);
+        var service = new EfReservationService(db, TimeProvider.System);
+        return await service.CreateOnlineGroupAsync(
+            PlayerId, OrgId, BranchId,
+            new CreatePlayerReservationGroupRequest(seatCount, Start, Start.AddHours(1), null, TariffVersionId),
+            CancellationToken.None);
+    }
+
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;

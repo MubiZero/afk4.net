@@ -19,4 +19,7 @@ public sealed record PlayerReservationDto(
     Guid? TariffVersionId = null,
     string? TariffName = null,
     long? EstimatedCostMinorUnits = null,
-    string? CurrencyCode = null);
+    string? CurrencyCode = null,
+    // Бронь на компанию: у всех мест группы он общий. Без него приложение показало бы компанию из
+    // четырёх человек четырьмя одинаковыми строками, между которыми не видно разницы.
+    Guid? ReservationGroupId = null);

@@ -16,6 +16,8 @@ Map<String, dynamic> _reservation({
   String id = 'r1',
   String? seat = 'PC-07',
   String state = 'confirmed',
+  String? groupId,
+  int? costMinorUnits,
 }) =>
     {
       'reservationId': id,
@@ -25,7 +27,22 @@ Map<String, dynamic> _reservation({
       'endsAtUtc': _now.add(const Duration(days: 1, hours: 2)).toUtc().toIso8601String(),
       'state': state,
       'note': null,
+      'reservationGroupId': groupId,
+      'estimatedCostMinorUnits': costMinorUnits,
+      'currencyCode': costMinorUnits == null ? null : 'TJS',
     };
+
+/// Компания: несколько мест с общим идентификатором группы, как их отдаёт сервер.
+String _companyJson({int seats = 3, String state = 'confirmed', int perSeat = 1500}) => jsonEncode([
+      for (var index = 0; index < seats; index++)
+        _reservation(
+          id: 'g$index',
+          seat: null,
+          state: state,
+          groupId: 'group-1',
+          costMinorUnits: perSeat,
+        ),
+    ]);
 
 Widget harness(FakeHttpClient http, {bool phoneVerified = true}) => MaterialApp(
       locale: const Locale('ru'),
@@ -197,6 +214,90 @@ void main() {
     expect(find.text('Бронь создана'), findsOneWidget);
   });
 
+  // В киберклуб ходят компанией, и это ровно один шаг в форме — счётчик мест.
+  testWidgets('несколько мест уходят одной групповой бронью', (tester) async {
+    final http = _serve('[]',
+        onWrite: (jsonEncode({
+          'reservationGroupId': 'group-1',
+          'reservations': [_reservation(id: 'g0', seat: null, groupId: 'group-1')],
+          'totalEstimatedCostMinorUnits': 4500,
+          'currencyCode': 'TJS',
+        }), 200));
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    await openForm(tester);
+    // Время выбирается первым: счётчик мест стоит ниже, и после него поля уезжают за край
+    // невысокого экрана — как и у настоящего игрока, до них надо прокрутить.
+    await pickDateTime(tester, 'Начало');
+    await pickDateTime(tester, 'Конец');
+    await tester.tap(find.byTooltip('Больше мест'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Больше мест'));
+    await tester.pumpAndSettle();
+    expect(find.text('3'), findsOneWidget);
+    expect(find.text('Бронь на компанию'), findsOneWidget);
+
+    await tester.tap(submitButton);
+    await tester.pumpAndSettle();
+
+    final writes = http.requests.where((r) => r.method == 'POST').toList();
+    expect(writes.single.url.path, '/api/me/reservations/group');
+    expect(http.bodies.single['seatCount'], 3);
+  });
+
+  // Одно место — обычная бронь: групповой маршрут для одиночки был бы лишней сущностью.
+  testWidgets('одно место уходит обычной бронью, а не группой', (tester) async {
+    final http = _serve('[]', onWrite: (jsonEncode(_reservation()), 200));
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    await openForm(tester);
+    expect(find.text('Бронь на одного'), findsOneWidget);
+    await pickDateTime(tester, 'Начало');
+    await pickDateTime(tester, 'Конец');
+    await tester.tap(submitButton);
+    await tester.pumpAndSettle();
+
+    final writes = http.requests.where((r) => r.method == 'POST').toList();
+    expect(writes.single.url.path, '/api/me/reservations');
+  });
+
+  // Границу видно кнопкой, а не отказом после нажатия.
+  testWidgets('меньше одного места не выбрать', (tester) async {
+    await tester.pumpWidget(harness(_serve('[]')));
+    await tester.pumpAndSettle();
+
+    await openForm(tester);
+
+    // Проверяется исход, а не форма дерева виджетов: нажатие на «минус» на одном месте не
+    // должно ни уменьшать счёт, ни ронять экран.
+    await tester.tap(find.byTooltip('Меньше мест'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    expect(find.text('1'), findsOneWidget);
+    expect(find.text('0'), findsNothing);
+    expect(find.text('Бронь на одного'), findsOneWidget);
+  });
+
+  // Денег не хватило на всю компанию — говорим именно это, а не «пополните кошелёк»:
+  // выход отсюда ещё и в том, чтобы взять меньше мест.
+  testWidgets('нехватка денег на компанию названа своей причиной', (tester) async {
+    await tester.pumpWidget(harness(
+        _serve('[]', onWrite: ('{"error":"insufficient_funds"}', 409))));
+    await tester.pumpAndSettle();
+
+    await openForm(tester);
+    await pickDateTime(tester, 'Начало');
+    await pickDateTime(tester, 'Конец');
+    await tester.tap(find.byTooltip('Больше мест'));
+    await tester.pumpAndSettle();
+    await tester.tap(submitButton);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('на всю компанию'), findsOneWidget);
+  });
+
   // 409 — не сбой, а «время уже занято». Общая «не удалось создать» тут врёт про причину.
   testWidgets('занятое время объясняется занятостью, а не общей ошибкой', (tester) async {
     await tester.pumpWidget(harness(_serve('[]', onWrite: ('{"error":"taken"}', 409))));
@@ -274,6 +375,63 @@ void main() {
 
     expect(find.text('Отменена'), findsOneWidget);
     expect(find.text('Отменить'), findsNothing);
+  });
+
+  // Четыре брони с общим идентификатором — это одна компания, а не четыре одинаковые карточки:
+  // из четырёх строк подряд игрок не поймёт, четыре у него брони или одна на четверых.
+  testWidgets('компания показывается одной карточкой с числом мест', (tester) async {
+    await tester.pumpWidget(harness(_serve(_companyJson(seats: 3))));
+    await tester.pumpAndSettle();
+
+    expect(find.text('3 места'), findsOneWidget);
+    expect(find.text('Без места'), findsNothing);
+    // Сумма по всей компании: 3 × 15,00.
+    expect(find.textContaining('45,00'), findsOneWidget);
+  });
+
+  testWidgets('отменённые места компании не идут в счёт', (tester) async {
+    final list = jsonEncode([
+      _reservation(id: 'g0', seat: null, groupId: 'group-1', costMinorUnits: 1500),
+      _reservation(id: 'g1', seat: null, groupId: 'group-1', costMinorUnits: 1500),
+      _reservation(
+          id: 'g2', seat: null, state: 'cancelled', groupId: 'group-1', costMinorUnits: 1500),
+    ]);
+    await tester.pumpWidget(harness(_serve(list)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 места'), findsOneWidget);
+    expect(find.textContaining('30,00'), findsOneWidget);
+  });
+
+  // Отмена компании — одно действие с одним исходом: четыре отдельных запроса это четыре
+  // шанса оборваться на полпути и оставить часть денег замороженной.
+  testWidgets('компания отменяется одним запросом к группе', (tester) async {
+    final http = _serve(_companyJson(seats: 3));
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Отменить всю компанию'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Отменить бронь'));
+    await tester.pumpAndSettle();
+
+    final deletes = http.requests.where((r) => r.method == 'DELETE').toList();
+    expect(deletes, hasLength(1));
+    expect(deletes.single.url.path, '/api/me/reservations/group/group-1');
+  });
+
+  testWidgets('одиночная бронь по-прежнему отменяется по себе', (tester) async {
+    final http = _serve(jsonEncode([_reservation()]));
+    await tester.pumpWidget(harness(http));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Отменить'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Отменить бронь'));
+    await tester.pumpAndSettle();
+
+    final deletes = http.requests.where((r) => r.method == 'DELETE').toList();
+    expect(deletes.single.url.path, '/api/me/reservations/r1');
   });
 
   testWidgets('незнакомое состояние показывается как есть, а не выдумывается', (tester) async {

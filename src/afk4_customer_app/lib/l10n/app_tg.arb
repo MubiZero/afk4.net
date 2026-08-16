@@ -420,10 +420,19 @@
   "customerReceiptTotal": "Ҷамъ",
   "customerReservationsCancel": "Бекор кардан",
   "customerReservationsCancelAction": "Бронро бекор кардан",
+  "customerReservationsCancelCompany": "Тамоми гурӯҳро бекор кардан",
   "customerReservationsCancelConfirm": "Бронро бекор мекунед?",
   "customerReservationsCancelError": "Бекор кардан муяссар нашуд",
   "customerReservationsCancelKeep": "Нигоҳ доштан",
   "customerReservationsCancelled": "Брон бекор карда шуд",
+  "customerReservationsCompanySeats": "{count, plural, one {{count} ҷой} other {{count} ҷой}}",
+  "@customerReservationsCompanySeats": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
   "customerReservationsConflict": "Ин вақт аллакай банд аст",
   "customerReservationsCreate": "Брон кардан",
   "customerReservationsCreateError": "Бронро сохтан муяссар нашуд",
@@ -432,6 +441,16 @@
   "customerReservationsEnd": "Анҷом",
   "customerReservationsEndBeforeStart": "Анҷом бояд пас аз оғоз бошад",
   "customerReservationsGate": "Барои онлайн брон кардан рақами телефони худро тасдиқ кунед.",
+  "customerReservationsGroupNoFunds": "Дар ҳамён барои тамоми гурӯҳ маблағ намерасад. Онро пур кунед ё ҷойҳои камтар гиред.",
+  "customerReservationsGroupSeatNote": "Компютерҳоро маъмури клуб таъин мекунад — шумо онҳоро дар тасдиқ мегиред. Агар дар толор компютерҳои холӣ бошанд, гурӯҳ паҳлӯи ҳам менишинад.",
+  "customerReservationsGroupTooMany": "Бо як фармоиш на бештар аз {max} ҷой гирифта мешавад. Дар бораи гурӯҳи калон бо клуб гуфтугӯ кунед.",
+  "@customerReservationsGroupTooMany": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
   "customerReservationsHoldNote": "Маблағи брон дар ҳамён нигоҳ дошта мешавад ва ҳангоми бекоркунӣ бармегардад",
   "customerReservationsLoadError": "Брониҳоро бор кардан нашуд.",
   "customerReservationsNewTitle": "Брони нав",
@@ -466,6 +485,11 @@
     }
   },
   "customerReservationsSeatNote": "Ҷойро маъмури клуб таъин мекунад — шумо онро дар тасдиқ мебинед.",
+  "customerReservationsSeats": "Чанд ҷой",
+  "customerReservationsSeatsAlone": "Фармоиш барои як нафар",
+  "customerReservationsSeatsCompany": "Фармоиш барои гурӯҳ",
+  "customerReservationsSeatsFewer": "Ҷойҳои камтар",
+  "customerReservationsSeatsMore": "Ҷойҳои бештар",
   "customerReservationsStart": "Оғоз",
   "customerReservationsStartInPast": "Оғоз бояд дар оянда бошад",
   "customerReservationsStateCancelled": "Бекоршуда",

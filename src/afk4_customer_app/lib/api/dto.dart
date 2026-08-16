@@ -381,6 +381,7 @@ class ReservationQuote {
     required this.billableMinutes,
     required this.amountMinorUnits,
     required this.currencyCode,
+    this.seatCount = 1,
   });
 
   final int requestedMinutes;
@@ -388,8 +389,12 @@ class ReservationQuote {
   /// Сколько минут оплачивается. Больше заказанного — когда у тарифа минимум или округление;
   /// ради этого расчёт и живёт на сервере.
   final int billableMinutes;
+  /// Сумма за ВСЮ бронь, включая все её места: столько и заморозится.
   final int amountMinorUnits;
   final String currencyCode;
+
+  /// Сколько мест посчитано.
+  final int seatCount;
 
   /// Тариф берёт больше, чем игрок забронировал, — об этом надо сказать до подтверждения.
   bool get hasMinimum => billableMinutes > requestedMinutes;
@@ -399,6 +404,7 @@ class ReservationQuote {
         billableMinutes: (json['billableMinutes'] as num).toInt(),
         amountMinorUnits: (json['amountMinorUnits'] as num).toInt(),
         currencyCode: json['currencyCode'] as String,
+        seatCount: (json['seatCount'] as num?)?.toInt() ?? 1,
       );
 }
 
@@ -413,6 +419,7 @@ class PlayerReservation {
     this.tariffName,
     this.estimatedCostMinorUnits,
     this.currencyCode,
+    this.reservationGroupId,
   });
 
   final String reservationId;
@@ -429,6 +436,9 @@ class PlayerReservation {
   final int? estimatedCostMinorUnits;
   final String? currencyCode;
 
+  /// Бронь на компанию: у всех мест группы он общий. null — обычная бронь на одного.
+  final String? reservationGroupId;
+
   /// Отменить можно то, что ещё не состоялось. Отменённую или уже отыгранную бронь трогать
   /// нечего — кнопка там только сбивает с толку.
   bool get isCancellable => state == 'pending' || state == 'confirmed';
@@ -441,6 +451,34 @@ class PlayerReservation {
         state: json['state'] as String,
         tariffName: json['tariffName'] as String?,
         estimatedCostMinorUnits: (json['estimatedCostMinorUnits'] as num?)?.toInt(),
+        currencyCode: json['currencyCode'] as String?,
+        reservationGroupId: json['reservationGroupId'] as String?,
+      );
+}
+
+/// Забронированная компания: её брони и общая замороженная сумма.
+class PlayerReservationGroup {
+  const PlayerReservationGroup({
+    required this.reservationGroupId,
+    required this.reservations,
+    required this.totalEstimatedCostMinorUnits,
+    required this.currencyCode,
+  });
+
+  final String reservationGroupId;
+  final List<PlayerReservation> reservations;
+
+  /// Сумма по всей компании. null — бронь без тарифа, её посчитают на стойке.
+  final int? totalEstimatedCostMinorUnits;
+  final String? currencyCode;
+
+  factory PlayerReservationGroup.fromJson(Map<String, dynamic> json) => PlayerReservationGroup(
+        reservationGroupId: json['reservationGroupId'] as String,
+        reservations: (json['reservations'] as List<dynamic>)
+            .map((item) => PlayerReservation.fromJson(item as Map<String, dynamic>))
+            .toList(),
+        totalEstimatedCostMinorUnits:
+            (json['totalEstimatedCostMinorUnits'] as num?)?.toInt(),
         currencyCode: json['currencyCode'] as String?,
       );
 }

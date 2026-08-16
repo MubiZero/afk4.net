@@ -268,6 +268,22 @@ Latest Verification).
   time left; spent and expired ones stay in the list, because a purchase that
   vanishes reads as money that vanished.
 
+- **Group booking for a company** (revenue wave 2, slice 2) — a computer club is visited by a
+  company, and the app booked one seat at a time. From the app the group is a seat
+  **count**, not a list: the player never picks a machine, the club assigns it, so
+  asking them to choose five would be asking about something they do not decide.
+  (The operator-side group booking does take an explicit seat list — there a human
+  drags across timeline rows and knows exactly which machines they are giving away.)
+  All-or-nothing on money: the wallet must cover the whole company, otherwise not a
+  single seat is booked, because seating half a company is worse than an honest
+  refusal. Each seat carries its own hold rather than one shared hold for the group,
+  so cancelling one seat, seating one person, and one no-show out of the company all
+  run through exactly the same code as a single booking — nothing had to learn about
+  groups. Pricing moved into one helper shared with single booking; two copies of it
+  would eventually show a company one price and freeze another. The app grew a seat
+  stepper, prices the whole company through the server, shows a group as one card
+  with its seat count and total, and cancels the whole company in one request.
+
 - **Player sessions survive a night away** — a player who had not opened the app
   for a day met a connection error on a working connection, curable only by
   signing in again. Three faults stacked. The refresh token is single-use (the
@@ -286,6 +302,14 @@ Latest Verification).
 Older verification entries (2026-07-28 and earlier, including the superseded
 Platform Control rebuild Tasks 1-7 gates) are archived in
 `docs/archive/progress/2026-08-06-vertical-slice-detailed-history.md`.
+
+- Group booking gate (2026-08-16): Platform API passed **2060 tests against a real
+  PostgreSQL database with zero skips**; Shared Contracts 141/141; Localization
+  15/15; `@afk4/i18n` 39/39; Organization Admin Web 1102/1102 plus its production
+  build; Platform Control 286/286; the customer app passed 307 widget tests with a
+  clean `flutter analyze`. The full-solution build was not run: `AFK4.Player.Shell`
+  and `AFK4.OrganizationAdmin.App` target Windows and cannot build on Linux. Nothing
+  here has been exercised on a device or against staging.
 
 - Hour packages and session survival gate (2026-08-15): Platform API passed
   **2051 tests against a real PostgreSQL database with zero skips** — the local
@@ -373,6 +397,14 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   channel not proven against a real provider: SMS and Android push are.
 - **iOS side of the mobile app** — no APNs key, no iOS build, no delivery
   evidence. Android is verified end to end; iOS is untouched.
+- **Online bookings do not check club capacity.** `FindConflictAsync` returns "no
+  conflict" for a reservation with no seat, and app bookings never carry one — the
+  club assigns the machine afterwards. So the app will accept a booking, or a
+  company of five, for an hour when fewer machines are free, and the operator sorts
+  it out. This predates group booking and is unchanged by it, but a group makes the
+  failure louder: one letdown becomes five. Fixing it means counting free seats for
+  the window against sessions and reservations, which would change single-booking
+  behaviour too, so it needs an owner decision rather than a quiet patch.
 - **Operator entity search** is still deferred: the command palette navigates
   between workspaces but does not yet search clients, seats, reservations,
   orders, or receipts.
@@ -396,12 +428,10 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
 The revenue wave for the mobile app is in progress; the rest is the Windows side
 and the operational backlog.
 
-1. Finish revenue wave 2 in the customer app. Slice 1 (hour packages) is done;
-   remaining, in descending revenue-to-risk order: group booking for a company
-   (the operator-side group service and all-or-nothing conflict reporting
-   already exist, so the work is a hold covering every seat plus a multi-seat
-   picker), a refer-a-friend bonus (nothing exists yet, but it touches no
-   existing money path and `bonus_grant` is already a ledger entry type), and
+1. Finish revenue wave 2 in the customer app. Slices 1 and 2 (hour packages,
+   group booking) are done; remaining: a refer-a-friend bonus (nothing exists
+   yet, but it touches no existing money path and `bonus_grant` is already a
+   ledger entry type), and
    off-peak pricing. Off-peak is the largest and the riskiest: contrary to the
    2026-08-13 product analysis, tariffs carry **no** time windows — a tariff is
    a name plus a price per minute, and a human picks it — so selling cheap

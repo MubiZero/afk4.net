@@ -84,7 +84,8 @@ internal static partial class EndpointHelpers
             r.TariffVersionId,
             r.TariffName,
             r.EstimatedCostMinorUnits,
-            r.CurrencyCode);
+            r.CurrencyCode,
+            r.ReservationGroupId);
 
     public static ReceiptDto ToDto(ReceiptEntity receipt, Guid? shopOrderId = null)
     {
