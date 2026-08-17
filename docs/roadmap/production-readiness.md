@@ -244,7 +244,9 @@ Minimum bar:
    Document exactly how to create the first organization, branch, staff users,
    roles, zones, seats, devices, tariffs, POS products, and update channels for
    a pilot club. Staff-authorized setup APIs, the pilot setup script, and the
-   minimum Organization Admin setup panel exist. Club self-service onboarding now has
+   per-area `Управление` screens in Organization Admin exist; staff users are the
+   one part the UI cannot finish, because an invite has no redemption screen yet
+   (see `docs/operations/pilot-branch-setup.md`). Club self-service onboarding now has
    backend install APIs, branch device admin APIs, owner-facing Platform Control
    screens on `main` and staging, separate admin/customer SPA builds, and a
    deployed customer staging app. The single `AFK4 Agent` MSI includes Setup
@@ -501,8 +503,10 @@ Minimum bar:
   command-history/credential controls and a branch-wide command-history
   browser. Broader non-command device telemetry/event browsing is still
   missing.
-- Pilot branch setup can now run through either the Organization Admin Pilot Setup
-  panel or the Platform API script fallback. Commercial production still needs
+- Pilot branch setup runs either through the `Управление` destinations in
+  Organization Admin (one screen per part of the setup — the single `Pilot Setup`
+  panel no longer exists) or through the Platform API script fallback, which
+  remains the only idempotent, repeatable path. Commercial production still needs
   the internal Platform Control for platform-owner organization onboarding/support
   plus broader operator-safe configuration screens inside Organization Admin.
 

@@ -31,6 +31,13 @@ public static class TariffSchedule
     private const int MinutesPerDay = 24 * 60;
 
     /// <summary>
+    /// Предел проверяемого промежутка — неделя. Расписание повторяется по неделям, а сессии и
+    /// брони такой длины не бывает; более длинный промежуток отклоняется, а не проверяется по
+    /// минуте.
+    /// </summary>
+    private const int MaxCheckedMinutes = 7 * MinutesPerDay;
+
+    /// <summary>
     /// Действует ли тариф в этот момент по местному времени филиала.
     /// </summary>
     public static bool AppliesAt(
@@ -60,6 +67,54 @@ public static class TariffSchedule
         // этого не надо — иначе владелец, отметив только рабочие дни, потерял бы ночь с пятницы.
         return (minuteOfDay >= from && MatchesDay(daysMask, local.DayOfWeek))
             || (minuteOfDay < to && MatchesDay(daysMask, Previous(local.DayOfWeek)));
+    }
+
+    /// <summary>
+    /// Действует ли тариф на протяжении ВСЕГО промежутка [<paramref name="startsAtUtc"/>,
+    /// <paramref name="endsAtUtc"/>).
+    ///
+    /// Одной проверки момента начала мало. Сессия и бронь считаются одной ставкой на всю
+    /// длительность, поэтому тариф, действующий только в момент старта, растягивает утреннюю цену
+    /// на весь вечер: бронь с 08:00 до 23:00 на утреннем тарифе иначе проходит целиком по утренней
+    /// цене. Впустить в окно и не проверить выход — это отдать разницу даром.
+    /// </summary>
+    public static bool AppliesThroughout(
+        int daysMask,
+        int? fromMinuteOfDay,
+        int? toMinuteOfDay,
+        DateTimeOffset startsAtUtc,
+        DateTimeOffset endsAtUtc,
+        TimeZoneInfo zone)
+    {
+        if (!IsRestricted(daysMask, fromMinuteOfDay, toMinuteOfDay))
+        {
+            return true;
+        }
+
+        // Конца нет (или он не позже начала) — проверить можно только сам момент. Так приходит
+        // сессия без запланированного конца: она длится «пока играет», и её остаток неизвестен.
+        if (endsAtUtc <= startsAtUtc)
+        {
+            return AppliesAt(daysMask, fromMinuteOfDay, toMinuteOfDay, startsAtUtc, zone);
+        }
+
+        if ((endsAtUtc - startsAtUtc).TotalMinutes > MaxCheckedMinutes)
+        {
+            return false;
+        }
+
+        // Шаг в минуту: границы окна заданы минутами, дыр короче минуты в расписании не бывает.
+        for (var cursor = startsAtUtc; cursor < endsAtUtc; cursor = cursor.AddMinutes(1))
+        {
+            if (!AppliesAt(daysMask, fromMinuteOfDay, toMinuteOfDay, cursor, zone))
+            {
+                return false;
+            }
+        }
+
+        // Последнее мгновение промежутка проверяется отдельно: шаг в минуту мог перешагнуть конец
+        // окна внутри последней минуты.
+        return AppliesAt(daysMask, fromMinuteOfDay, toMinuteOfDay, endsAtUtc.AddTicks(-1), zone);
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using System.Data;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Reservations;
@@ -837,7 +838,18 @@ public sealed class EfReservationService(
         return Math.Max(1, (int)Math.Round((reservation.EndsAtUtc - reservation.StartsAtUtc).TotalMinutes));
     }
 
-    public async Task<ReservationServiceResult<ReservationDto>> CreateOnlineAsync(
+    public Task<ReservationServiceResult<ReservationDto>> CreateOnlineAsync(
+        Guid playerAccountId,
+        Guid organizationId,
+        Guid branchId,
+        CreatePlayerReservationRequest request,
+        CancellationToken cancellationToken) =>
+        ExecuteBookingAsync(
+            () => CreateOnlineCoreAsync(playerAccountId, organizationId, branchId, request, cancellationToken),
+            () => ReservationServiceResult<ReservationDto>.RequestConflict(BranchCapacity.NoSeatsAvailableCode),
+            cancellationToken);
+
+    private async Task<ReservationServiceResult<ReservationDto>> CreateOnlineCoreAsync(
         Guid playerAccountId,
         Guid organizationId,
         Guid branchId,
@@ -903,7 +915,8 @@ public sealed class EfReservationService(
         // Свободные машины считаются раньше денег: сказать «не хватает средств» про вечер, на
         // который в зале всё равно нет мест, — это отправить игрока пополнять кошелёк впустую.
         if (!await BranchCapacity.HasRoomForAsync(
-            dbContext, organizationId, branchId, request.StartsAtUtc, endsAtUtc, 1, cancellationToken))
+            dbContext, organizationId, branchId, request.StartsAtUtc, endsAtUtc, 1,
+            timeProvider.GetUtcNow(), cancellationToken))
         {
             return ReservationServiceResult<ReservationDto>.RequestConflict(
                 BranchCapacity.NoSeatsAvailableCode);
@@ -1031,6 +1044,55 @@ public sealed class EfReservationService(
             (await ProjectAsync([reservation], cancellationToken))[0]);
     }
 
+    private const int MaxBookingAttempts = 3;
+
+    /// <summary>
+    /// Проверка вместимости и вставка брони — одно неделимое действие.
+    ///
+    /// Порознь они образуют классическую гонку: две брони одновременно читают «места есть», обе
+    /// проходят проверку и обе вставляются, и зал на одну машину раздаёт два обещания и замораживает
+    /// деньги дважды. Читающая проверка на READ COMMITTED от этого не спасает: соперник вставляет
+    /// строку уже после нашего чтения.
+    ///
+    /// Тот же приём, что у старта сессии (EfSessionCommandService) и у старта по брони
+    /// (EfReservationSessionCoordinator): Serializable плюс повтор при конфликте сериализации,
+    /// который транзиентен. Исчерпали попытки — отвечаем «мест нет»: раз соперник продолжает
+    /// выигрывать гонку, места достались ему.
+    /// </summary>
+    private async Task<T> ExecuteBookingAsync<T>(
+        Func<Task<T>> action,
+        Func<T> whenSeatsRanOut,
+        CancellationToken cancellationToken)
+    {
+        // In-memory провайдер транзакций не знает; тесты на нём проверяют логику, а не изоляцию.
+        if (!dbContext.Database.IsRelational())
+        {
+            return await action();
+        }
+
+        for (var attempt = 1; attempt <= MaxBookingAttempts; attempt++)
+        {
+            try
+            {
+                await using var transaction = await dbContext.Database.BeginTransactionAsync(
+                    IsolationLevel.Serializable, cancellationToken);
+                var result = await action();
+                await transaction.CommitAsync(cancellationToken);
+                return result;
+            }
+            catch (Exception exception) when (RelationalFailureClassifier.IsSerializationFailure(exception))
+            {
+                dbContext.ChangeTracker.Clear();
+                if (attempt == MaxBookingAttempts)
+                {
+                    return whenSeatsRanOut();
+                }
+            }
+        }
+
+        return whenSeatsRanOut();
+    }
+
     private sealed record OnlineBookingPricing(
         string? Error,
         TariffVersionEntity? TariffVersion,
@@ -1079,11 +1141,16 @@ public sealed class EfReservationService(
                 "Selected tariff is not available in this branch.", null, null);
         }
 
-        // Расписание проверяется по времени начала брони, а не по «сейчас»: игрок в восемь вечера
+        // Расписание проверяется по времени брони, а не по «сейчас»: игрок в восемь вечера
         // бронирует завтрашнее утро, и утренний тариф для этой брони действует, хотя в момент
         // нажатия кнопки — нет.
-        if (!await TariffAvailability.AppliesAtAsync(
-            dbContext, organizationId, branchId, versionId, startsAtUtc, cancellationToken))
+        //
+        // Проверяется весь промежуток, а не одно его начало. Бронь считается одной ставкой на всю
+        // длительность, поэтому «тариф действовал на старте» пропустило бы бронь с 08:00 до 23:00
+        // целиком по утренней цене.
+        if (!await TariffAvailability.AppliesThroughoutAsync(
+            dbContext, organizationId, branchId, versionId, startsAtUtc,
+            startsAtUtc.AddMinutes(durationMinutes), cancellationToken))
         {
             return new OnlineBookingPricing(TariffSchedule.OutsideHoursCode, null, null);
         }
@@ -1101,7 +1168,19 @@ public sealed class EfReservationService(
             : new OnlineBookingPricing(null, tariffVersion, estimate);
     }
 
-    public async Task<ReservationServiceResult<IReadOnlyList<ReservationDto>>> CreateOnlineGroupAsync(
+    public Task<ReservationServiceResult<IReadOnlyList<ReservationDto>>> CreateOnlineGroupAsync(
+        Guid playerAccountId,
+        Guid organizationId,
+        Guid branchId,
+        CreatePlayerReservationGroupRequest request,
+        CancellationToken cancellationToken) =>
+        ExecuteBookingAsync(
+            () => CreateOnlineGroupCoreAsync(playerAccountId, organizationId, branchId, request, cancellationToken),
+            () => ReservationServiceResult<IReadOnlyList<ReservationDto>>.RequestConflict(
+                BranchCapacity.NoSeatsAvailableCode),
+            cancellationToken);
+
+    private async Task<ReservationServiceResult<IReadOnlyList<ReservationDto>>> CreateOnlineGroupCoreAsync(
         Guid playerAccountId,
         Guid organizationId,
         Guid branchId,
@@ -1162,7 +1241,7 @@ public sealed class EfReservationService(
         // про пятого — это тот же подвод компании в клубе, что и «денег хватило на троих».
         if (!await BranchCapacity.HasRoomForAsync(
             dbContext, organizationId, branchId, request.StartsAtUtc, endsAtUtc, request.SeatCount,
-            cancellationToken))
+            now, cancellationToken))
         {
             return ReservationServiceResult<IReadOnlyList<ReservationDto>>.RequestConflict(
                 BranchCapacity.NoSeatsAvailableCode);

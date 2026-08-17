@@ -55,7 +55,8 @@ import {
 } from './tariffSchedule';
 
 // Вкладка «Тарифы» раздела «Тарифы и пакеты»: список версий тарифов + drawer-редактор выбранной
-// версии (портировано из settings/SettingsTariffsSection.runAction createTariff/updateTariff/
+// версии (портировано из прежней формы настроек, удалённой вместе с разделом Settings:
+// createTariff/updateTariff/
 // updateTariffVersion 1:1 — те же клиентские вызовы, идемпотентные ключи и двойной permission-гейт,
 // canManageTariffs проп + серверный hasPermission на каждый вызов). Создание — в PanelModal
 // (createTariff → createTariffVersion одним потоком); редактирование — прямо в открытом drawer
@@ -156,7 +157,7 @@ export function TariffsTab({
         organizationId: nextBackend.session.organizationId,
         name: trimmedName,
         idempotencyKey: createIdempotencyKey('tariff-create'),
-        ...schedulePayload
+        schedule: schedulePayload
       });
       const tariffId = readString(tariff, 'tariffId');
       if (tariffId) {
@@ -214,7 +215,7 @@ export function TariffsTab({
         organizationId: nextBackend.session.organizationId,
         name: trimmedName,
         isActive: true,
-        ...schedulePayload
+        schedule: schedulePayload
       });
       await apiClients.settings.updateTariffVersion(nextBackend.branchId, tariffId, tariffVersionId, {
         organizationId: nextBackend.session.organizationId,
@@ -251,12 +252,9 @@ export function TariffsTab({
       await apiClients.settings.updateTariff(nextBackend.branchId, tariffId, {
         organizationId: nextBackend.session.organizationId,
         name: readString(tariffOption, 'name', name),
-        isActive: false,
-        // Часы переносятся как есть: снятие с продажи — это про доступность, а не про
-        // расписание, и молча стереть его здесь значит вернуть тариф из архива уже круглосуточным.
-        appliesOnDaysMask: readNumber(tariffOption, 'appliesOnDaysMask', 0),
-        appliesFromMinuteOfDay: readOptionalNumber(tariffOption, 'appliesFromMinuteOfDay'),
-        appliesToMinuteOfDay: readOptionalNumber(tariffOption, 'appliesToMinuteOfDay')
+        isActive: false
+        // Расписание не передаётся вовсе: снятие с продажи — про доступность, а не про часы, и
+        // сервер оставляет их как есть.
       });
       await apiClients.settings.updateTariffVersion(nextBackend.branchId, tariffId, tariffVersionId, {
         organizationId: nextBackend.session.organizationId,

@@ -18,12 +18,27 @@ internal static class TariffAvailability
     /// Действует ли выбранная версия тарифа в этот момент. Неизвестная версия — не наш вопрос:
     /// её отсутствие обнаружит и назовёт расчёт, который идёт следом.
     /// </summary>
-    public static async Task<bool> AppliesAtAsync(
+    public static Task<bool> AppliesAtAsync(
         PlatformDbContext dbContext,
         Guid organizationId,
         Guid branchId,
         Guid tariffVersionId,
         DateTimeOffset instant,
+        CancellationToken cancellationToken) =>
+        AppliesThroughoutAsync(
+            dbContext, organizationId, branchId, tariffVersionId, instant, instant, cancellationToken);
+
+    /// <summary>
+    /// Действует ли выбранная версия тарифа на протяжении всего промежутка. Конец, равный началу
+    /// (или раньше него), означает «конец неизвестен» — проверяется только сам момент.
+    /// </summary>
+    public static async Task<bool> AppliesThroughoutAsync(
+        PlatformDbContext dbContext,
+        Guid organizationId,
+        Guid branchId,
+        Guid tariffVersionId,
+        DateTimeOffset startsAtUtc,
+        DateTimeOffset endsAtUtc,
         CancellationToken cancellationToken)
     {
         var schedule = await (
@@ -56,11 +71,12 @@ internal static class TariffAvailability
             .Select(branch => branch.PreferredTimeZone)
             .SingleOrDefaultAsync(cancellationToken);
 
-        return TariffSchedule.AppliesAt(
+        return TariffSchedule.AppliesThroughout(
             schedule.AppliesOnDaysMask,
             schedule.AppliesFromMinuteOfDay,
             schedule.AppliesToMinuteOfDay,
-            instant,
+            startsAtUtc,
+            endsAtUtc,
             BranchLocalTime.ResolveZone(timeZoneId ?? "UTC"));
     }
 }

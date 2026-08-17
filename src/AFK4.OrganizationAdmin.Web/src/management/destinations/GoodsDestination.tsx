@@ -35,7 +35,8 @@ interface DelistAction {
 // Товары: список+drawer CRUD по эталону «Залы и ПК»/«Тарифы»/«Сотрудники» (см.
 // task-C3-goods-brief.md). Одна сущность — товары; категория задаётся при создании товара и
 // дальше не меняется (как в оригинале). createProduct/updateProduct/delistProduct портированы
-// 1:1 из settings/SettingsGoodsSection.tsx.runAction — те же клиентские вызовы, идемпотентные
+// 1:1 из прежней формы настроек (удалена вместе с разделом Settings) — те же клиентские
+// вызовы, идемпотентные
 // ключи и двойной permission-гейт (canManagePosCatalog проп + серверный hasPermission на каждый
 // вызов). Штрихкоды остаются отдельным самодостаточным виджетом (ProductBarcodesSection, не
 // трогаем), встроенным в drawer; их гейтит canManageInventoryStock, а не canManagePosCatalog.

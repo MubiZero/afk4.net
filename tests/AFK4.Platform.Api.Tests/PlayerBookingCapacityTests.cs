@@ -167,6 +167,29 @@ public class PlayerBookingCapacityTests
         await db.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Посаженная бронь: место занято живым человеком. Сессии при этом может не быть вовсе —
+    /// SeatAsync её не создаёт.
+    /// </summary>
+    private static async Task SeatReservationAsync(
+        PlatformApiFactory factory,
+        Seeded branch,
+        Guid seatId,
+        DateTimeOffset startsAtUtc,
+        DateTimeOffset endsAtUtc)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        db.Reservations.Add(new ReservationEntity
+        {
+            ReservationId = Guid.NewGuid(), OrganizationId = branch.OrgId, BranchId = branch.BranchId,
+            SeatId = seatId, CustomerName = "Севший гость", StartsAtUtc = startsAtUtc, EndsAtUtc = endsAtUtc,
+            State = ReservationStateNames.Seated, Source = ReservationSourceNames.Operator,
+            Note = string.Empty, CancelReason = string.Empty, CreatedAtUtc = Now, UpdatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+    }
+
     private static async Task<long> AvailableWalletAsync(PlatformApiFactory factory, Guid playerId)
     {
         await using var scope = factory.Services.CreateAsyncScope();
@@ -417,4 +440,107 @@ public class PlayerBookingCapacityTests
     }
 
     private sealed record ErrorBody(string Error);
+    /// <summary>
+    /// Найдено ревью: посаженную бронь исключали из подсчёта, считая, что место держит сессия. Но
+    /// SeatAsync сессии не создаёт, и место переставало считаться занятым вовсе — зал с живым
+    /// человеком за единственной машиной читался как пустой.
+    /// </summary>
+    [Fact]
+    public async Task ASeatedGuestWithNoSession_StillOccupiesTheMachine()
+    {
+        await using var factory = new PlatformApiFactory();
+        var seeded = await SeedAsync(factory, "1234", seatCount: 1);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, seeded.OrgId, seeded.Phone, "1234");
+
+        var start = Now.AddHours(5);
+        var end = start.AddHours(2);
+        await SeatReservationAsync(factory, seeded, seeded.SeatIds[0], start, end);
+
+        var response = await BookAsync(client, seeded, start.AddMinutes(30), end);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ErrorBody>();
+        Assert.Equal("no_seats_available", body!.Error);
+    }
+
+    // Та же посаженная бронь не должна закрывать время, до которого она не дотягивается.
+    [Fact]
+    public async Task ASeatedGuest_DoesNotOccupyTheMachineAfterTheirWindow()
+    {
+        await using var factory = new PlatformApiFactory();
+        var seeded = await SeedAsync(factory, "1234", seatCount: 1);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, seeded.OrgId, seeded.Phone, "1234");
+
+        var start = Now.AddHours(5);
+        await SeatReservationAsync(factory, seeded, seeded.SeatIds[0], start, start.AddHours(2));
+
+        var later = start.AddHours(3);
+        var response = await BookAsync(client, seeded, later, later.AddHours(1));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    // Отменённая бронь машину не держит, даже если её успели посадить и вернуть.
+    [Fact]
+    public async Task ACancelledReservationNeverOccupies()
+    {
+        await using var factory = new PlatformApiFactory();
+        var seeded = await SeedAsync(factory, "1234", seatCount: 1);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, seeded.OrgId, seeded.Phone, "1234");
+
+        var start = Now.AddHours(5);
+        var end = start.AddHours(1);
+        await PromiseSeatsAsync(factory, seeded, start, end, count: 1, state: ReservationStateNames.Cancelled);
+
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(client, seeded, start, end)).StatusCode);
+    }
+
+    // Ожидающая подтверждения бронь занимает машину так же, как подтверждённая: обещание дано.
+    [Fact]
+    public async Task APendingReservation_OccupiesTheMachineToo()
+    {
+        await using var factory = new PlatformApiFactory();
+        var seeded = await SeedAsync(factory, "1234", seatCount: 1);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, seeded.OrgId, seeded.Phone, "1234");
+
+        var start = Now.AddHours(5);
+        var end = start.AddHours(1);
+        await PromiseSeatsAsync(factory, seeded, start, end, count: 1, state: ReservationStateNames.Pending);
+
+        var response = await BookAsync(client, seeded, start, end);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    // Филиал без принятых игровых машин считается безлимитным намеренно: это недонастройка клуба,
+    // а не ответ игроку. Ветка опасная, поэтому она должна быть под тестом, а не подразумеваться.
+    [Fact]
+    public async Task ABranchWithNoApprovedMachines_AcceptsBookingsInstead()
+    {
+        await using var factory = new PlatformApiFactory();
+        var seeded = await SeedAsync(factory, "1234", seatCount: 2);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, seeded.OrgId, seeded.Phone, "1234");
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            await foreach (var device in db.Devices.Where(d => d.BranchId == seeded.BranchId).AsAsyncEnumerable())
+            {
+                device.EnrollmentState = DeviceEnrollmentStateNames.Pending;
+            }
+
+            await db.SaveChangesAsync();
+        }
+
+        var start = Now.AddHours(5);
+        var end = start.AddHours(1);
+        await PromiseSeatsAsync(factory, seeded, start, end, count: 5);
+
+        Assert.Equal(HttpStatusCode.OK, (await BookAsync(client, seeded, start, end)).StatusCode);
+    }
 }

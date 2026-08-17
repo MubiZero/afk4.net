@@ -30,7 +30,8 @@ interface RetirePackageAction {
 }
 
 // Вкладка «Пакеты» раздела «Тарифы и пакеты»: список пакетов времени + drawer-редактор выбранного
-// пакета. Портировано из settings/SettingsTariffsSection.runAction createPackageDefinition/
+// пакета. Портировано из прежней формы настроек, удалённой вместе с разделом Settings:
+// createPackageDefinition/
 // updatePackageDefinition 1:1 (те же вызовы/аргументы/идемпотентные ключи, гейт managePackages) —
 // см. TariffsTab.tsx для парного домена «Тарифы». Минуты хранятся в СЕКУНДАХ (×60/÷60 на границе
 // UI). Создание — PanelModal, редактирование — прямо в drawer, «Снять с продажи» — через

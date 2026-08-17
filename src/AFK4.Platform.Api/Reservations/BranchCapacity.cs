@@ -22,10 +22,20 @@ internal static class BranchCapacity
     /// <summary>Машинный код отказа: свободных машин на это время не осталось.</summary>
     public const string NoSeatsAvailableCode = "no_seats_available";
 
-    private static readonly string[] ActiveReservationStates =
+    /// <summary>
+    /// Состояния брони, которые занимают машину.
+    ///
+    /// Посаженная бронь тоже занимает. Раньше её исключали, считая, что место уже держит сессия, —
+    /// но <c>SeatAsync</c> сессии не создаёт вовсе, а walk-in-сессия бывает без запланированного
+    /// конца, и тогда место переставало считаться занятым с обеих сторон сразу: физически полный
+    /// зал читался как пустой. У посаженной брони есть и место, и окно, и это лучшее, что о
+    /// занятости этой машины вообще известно.
+    /// </summary>
+    private static readonly string[] OccupyingReservationStates =
     [
         ReservationStateNames.Pending,
-        ReservationStateNames.Confirmed
+        ReservationStateNames.Confirmed,
+        ReservationStateNames.Seated
     ];
 
     private static readonly string[] BlockingSessionStates =
@@ -46,6 +56,7 @@ internal static class BranchCapacity
         DateTimeOffset startsAtUtc,
         DateTimeOffset endsAtUtc,
         int requestedSeats,
+        DateTimeOffset now,
         CancellationToken cancellationToken)
     {
         var bookableSeatIds = await LoadBookableSeatIdsAsync(
@@ -59,7 +70,7 @@ internal static class BranchCapacity
         }
 
         var occupied = await CountOccupiedAsync(
-            dbContext, organizationId, branchId, bookableSeatIds, startsAtUtc, endsAtUtc, cancellationToken);
+            dbContext, organizationId, branchId, bookableSeatIds, startsAtUtc, endsAtUtc, now, cancellationToken);
 
         return occupied + requestedSeats <= bookableSeatIds.Count;
     }
@@ -99,11 +110,14 @@ internal static class BranchCapacity
     /// Бронь без места считается за одну машину: обещание «приходите вчетвером» стоит клубу четыре
     /// машины, даже когда номера машин ещё не выбраны. Бронь с местом и сессия на том же месте
     /// считаются один раз — иначе один человек занимал бы две машины и зал закрывался бы раньше,
-    /// чем кончались компьютеры. Посаженные брони не считаются вовсе: их место уже держит сессия.
+    /// чем кончались компьютеры.
     ///
-    /// Сессия без запланированного конца в будущее не переносится. Она длится «пока играет», и
-    /// счесть сегодняшний полный зал занятым и завтра значит запретить бронировать вообще.
-    /// Обратная сторона честная: бронь на ближайший час может встать рядом с открытой сессией.
+    /// Сессия без запланированного конца в будущее не переносится: она длится «пока играет», и
+    /// счесть сегодняшний полный зал занятым и завтра значит запретить бронировать вообще. Поэтому
+    /// такая сессия занимает машину только по текущий момент. Остаётся честная разница с проверкой
+    /// по конкретному месту (<c>HasBlockingSessionAsync</c>), которая считает бессрочную сессию
+    /// блокирующей всегда: там вопрос «свободна ли вот эта машина сейчас», здесь — «сколько машин
+    /// будет свободно в будущем окне», и ответы у них законно разные.
     /// </summary>
     public static async Task<int> CountOccupiedAsync(
         PlatformDbContext dbContext,
@@ -112,6 +126,7 @@ internal static class BranchCapacity
         IReadOnlySet<Guid> bookableSeatIds,
         DateTimeOffset startsAtUtc,
         DateTimeOffset endsAtUtc,
+        DateTimeOffset now,
         CancellationToken cancellationToken)
     {
         var overlappingReservations = dbContext.Reservations
@@ -119,7 +134,7 @@ internal static class BranchCapacity
             .Where(reservation =>
                 reservation.OrganizationId == organizationId &&
                 reservation.BranchId == branchId &&
-                ActiveReservationStates.Contains(reservation.State) &&
+                OccupyingReservationStates.Contains(reservation.State) &&
                 reservation.StartsAtUtc < endsAtUtc &&
                 reservation.EndsAtUtc > startsAtUtc);
 
@@ -138,8 +153,11 @@ internal static class BranchCapacity
                 session.OrganizationId == organizationId &&
                 session.BranchId == branchId &&
                 BlockingSessionStates.Contains(session.State) &&
-                session.EndsAtUtc != null &&
-                session.EndsAtUtc > startsAtUtc &&
+                // Сессия держит машину до своего запланированного конца; если конца нет или он уже
+                // прошёл (играют дольше оплаченного) — до текущего момента. Второе слагаемое от
+                // строки не зависит: у окна, которое уже началось, считаются все живые сессии, а в
+                // будущее бессрочная сессия не переносится.
+                (session.EndsAtUtc > startsAtUtc || now > startsAtUtc) &&
                 session.RequestedAtUtc < endsAtUtc)
             .Select(session => session.SeatId)
             .Distinct()

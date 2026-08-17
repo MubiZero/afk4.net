@@ -174,4 +174,73 @@ public class TariffScheduleTests
         Assert.Null(TariffSchedule.Validate(TariffSchedule.EveryDayMask, 8 * 60, 16 * 60));
         Assert.Null(TariffSchedule.Validate(Saturday | Sunday, 22 * 60, 6 * 60));
     }
+    // Одной проверки момента начала мало: сессия и бронь считаются одной ставкой на всю
+    // длительность, и тариф, действующий только на старте, растянул бы утреннюю цену на вечер.
+    [Fact]
+    public void ASpanThatLeavesTheWindow_IsNotCovered()
+    {
+        // 08:00-23:00 при окне 08:00-16:00: начало внутри, хвост снаружи.
+        Assert.False(TariffSchedule.AppliesThroughout(
+            TariffSchedule.EveryDayMask, 8 * 60, 16 * 60, Utc0(17, 8), Utc0(17, 23), Utc));
+    }
+
+    [Fact]
+    public void ASpanFullyInsideTheWindow_IsCovered()
+    {
+        Assert.True(TariffSchedule.AppliesThroughout(
+            TariffSchedule.EveryDayMask, 8 * 60, 16 * 60, Utc0(17, 9), Utc0(17, 15), Utc));
+    }
+
+    // Конец окна не входит в него, значит промежуток ровно до конца — целиком внутри.
+    [Fact]
+    public void ASpanEndingExactlyAtTheWindowEnd_IsCovered()
+    {
+        Assert.True(TariffSchedule.AppliesThroughout(
+            TariffSchedule.EveryDayMask, 8 * 60, 16 * 60, Utc0(17, 15), Utc0(17, 16), Utc));
+    }
+
+    [Fact]
+    public void ASpanThatStartsBeforeTheWindow_IsNotCovered()
+    {
+        Assert.False(TariffSchedule.AppliesThroughout(
+            TariffSchedule.EveryDayMask, 8 * 60, 16 * 60, Utc0(17, 7), Utc0(17, 9), Utc));
+    }
+
+    // Ночное окно непрерывно проходит через полночь — промежуток внутри него покрыт целиком.
+    [Fact]
+    public void ANightSpanAcrossMidnight_IsCovered()
+    {
+        Assert.True(TariffSchedule.AppliesThroughout(
+            TariffSchedule.EveryDayMask, 22 * 60, 6 * 60, Utc0(17, 23), Utc0(18, 5), Utc));
+        Assert.False(TariffSchedule.AppliesThroughout(
+            TariffSchedule.EveryDayMask, 22 * 60, 6 * 60, Utc0(17, 23), Utc0(18, 7), Utc));
+    }
+
+    // Пропуск дня разрывает покрытие, даже если оба конца промежутка попадают в отмеченные дни.
+    [Fact]
+    public void ASpanCrossingAnUnmarkedDay_IsNotCovered()
+    {
+        // Понедельник и среда отмечены, вторник нет.
+        const int mondayAndWednesday = (1 << 0) | (1 << 2);
+        Assert.False(TariffSchedule.AppliesThroughout(
+            mondayAndWednesday, null, null, Utc0(17, 12), Utc0(19, 12), Utc));
+    }
+
+    // У сессии без запланированного конца остаток неизвестен: конец, равный началу, означает
+    // «проверить можно только сам момент».
+    [Fact]
+    public void AnUnknownEnd_FallsBackToCheckingTheInstantAlone()
+    {
+        Assert.True(TariffSchedule.AppliesThroughout(
+            TariffSchedule.EveryDayMask, 8 * 60, 16 * 60, Utc0(17, 10), Utc0(17, 10), Utc));
+        Assert.False(TariffSchedule.AppliesThroughout(
+            TariffSchedule.EveryDayMask, 8 * 60, 16 * 60, Utc0(17, 20), Utc0(17, 20), Utc));
+    }
+
+    [Fact]
+    public void ATariffWithoutASchedule_CoversAnySpan()
+    {
+        Assert.True(TariffSchedule.AppliesThroughout(
+            TariffSchedule.EveryDayMask, null, null, Utc0(17, 0), Utc0(19, 0), Utc));
+    }
 }

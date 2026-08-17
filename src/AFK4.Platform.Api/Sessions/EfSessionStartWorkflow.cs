@@ -156,6 +156,26 @@ public sealed class EfSessionStartWorkflow(
             return Invalid(billingValidation.Error ?? "Session billing validation failed.");
         }
 
+        // Гостевая сессия проходит мимо биллинга (режим оплаты пуст), но версию тарифа на себе
+        // всё равно уносит — из неё потом считают открытый счёт при закрытии. Значит и запрет
+        // расписания к ней относится: иначе утренний тариф прикрепляется к гостю в восемь вечера,
+        // и три вечерних часа считаются по утренней цене.
+        var effectiveTariffRuleVersionId = string.IsNullOrWhiteSpace(billingValidation.TariffRuleVersionId)
+            ? request.TariffRuleVersionId
+            : billingValidation.TariffRuleVersionId;
+        if (Guid.TryParse(effectiveTariffRuleVersionId, out var effectiveTariffVersionId) &&
+            !await TariffAvailability.AppliesThroughoutAsync(
+                dbContext,
+                request.OrganizationId,
+                branchId,
+                effectiveTariffVersionId,
+                timeProvider.GetUtcNow(),
+                timeProvider.GetUtcNow().AddMinutes(validationMinutes),
+                cancellationToken))
+        {
+            return Invalid(TariffSchedule.OutsideHoursCode);
+        }
+
         var now = timeProvider.GetUtcNow();
         var sessionId = Guid.NewGuid();
         DateTimeOffset? endsAtUtc = isFixed ? now.AddMinutes(request.DurationMinutes!.Value) : null;
@@ -180,9 +200,7 @@ public sealed class EfSessionStartWorkflow(
             CreatedByStaffUserId = actorStaffUserId,
             PlayerKind = "guest",
             PlayerAccountId = request.PlayerAccountId,
-            TariffRuleVersionId = string.IsNullOrWhiteSpace(billingValidation.TariffRuleVersionId)
-                ? request.TariffRuleVersionId
-                : billingValidation.TariffRuleVersionId,
+            TariffRuleVersionId = effectiveTariffRuleVersionId,
             BillingMode = billingMode,
             State = SessionStateNames.Active,
             RequestedAtUtc = now,

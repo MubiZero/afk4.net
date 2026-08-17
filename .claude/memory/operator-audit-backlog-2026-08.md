@@ -52,9 +52,14 @@ Durable из этой работы:
 `settings/SettingsProfileSection`, `settings/SettingsIntegrationsSection`,
 `settings/OrganizationAdminUpdateCard`. Из 368 ключей `op.settings.*` живым кодом используются 9.
 
-**ОСТОРОЖНО при уборке:** `SettingsLayoutSection`, `SettingsStaffSection`, `SettingsTariffsSection`,
-`SettingsGoodsSection`, `ProductBarcodesSection` — **ЖИВЫЕ**, их переиспользуют
-`management/destinations/*`. Папку `settings/` целиком сносить нельзя.
+**Обновлено 2026-08-17.** Четыре секции — `SettingsLayoutSection`, `SettingsStaffSection`,
+`SettingsTariffsSection`, `SettingsGoodsSection` — **удалены**: живым кодом на них ссылались только
+комментарии «портировано из…», настоящих импортов не было ни одного. Прежняя пометка «ЖИВЫЕ» в этой
+заметке считала упоминания в комментариях за использование — ровно та ловушка, ради которой стоит
+проверять импорты, а не grep по имени.
+
+**ОСТОРОЖНО при уборке:** `settings/club/*` и `ProductBarcodesSection` — **ЖИВЫЕ**, их импортируют
+разделы «Клуб», «Сеть» и «Товары». Папку `settings/` целиком сносить нельзя.
 
 ## 4. 26 отключённых тестов — ЗАКРЫТО (PR #152, `4d6bed23`), пропущенных в наборе не осталось
 
