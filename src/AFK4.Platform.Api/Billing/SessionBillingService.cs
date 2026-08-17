@@ -370,7 +370,10 @@ public sealed class SessionBillingService(
                     LedgerEntryTypeNames.PostpaidDebt,
                     LedgerAccountTypeNames.Debt,
                     validation.AmountMinorUnits,
-                    quantitySeconds: 0,
+                    // Время нужно записать, а не только деньги: закрытие сессии смотрит сюда, чтобы
+                    // не выставить уже начисленные минуты второй раз и не переоценить их тарифом,
+                    // который действует в момент закрытия.
+                    validation.BillableSeconds,
                     validation.CurrencyCode,
                     LedgerEntryTypeNames.PostpaidDebt,
                     "postpaid gameplay debt",
@@ -573,21 +576,53 @@ public sealed class SessionBillingService(
             version.MinimumBillableMinutes,
             version.RoundingIncrementMinutes,
             version.CurrencyCode);
-        var computation = TariffBilling.ComputeForElapsed(now - startedAtUtc, pricing);
-        if (computation is null)
+
+        // Постоплата с фиксированной длительностью начисляет долг по ходу дела: старт пишет свои
+        // минуты, каждое продление — свои. Закрытие досчитывает только то, что сверх начисленного.
+        // Иначе оплаченное время выставлялось бы второй раз, да ещё по тарифу, действующему в
+        // момент закрытия: утренние часы, проданные по утреннему тарифу, дорожали бы до вечернего,
+        // как только продление переключало сессию на вечерний. У открытого счёта начисленного нет,
+        // и весь путь считается как раньше.
+        var alreadyBilled = await dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(entry =>
+                entry.SessionId == sessionId &&
+                entry.EntryType == LedgerEntryTypeNames.PostpaidDebt)
+            .Select(entry => new { entry.AmountMinorUnits, entry.QuantitySeconds })
+            .ToListAsync(cancellationToken);
+        var billedAmount = alreadyBilled.Sum(entry => (long)entry.AmountMinorUnits);
+        var billedSeconds = alreadyBilled.Sum(entry => (long)entry.QuantitySeconds);
+
+        var unbilled = billedSeconds > 0
+            ? now - startedAtUtc - TimeSpan.FromSeconds(billedSeconds)
+            : now - startedAtUtc;
+        var baseAmount = billedSeconds > 0 ? billedAmount : 0;
+
+        long extraAmount = 0;
+        long extraSeconds = 0;
+        if (unbilled > TimeSpan.Zero || billedSeconds <= 0)
         {
-            return Invalid("Checkout charge could not be computed.");
+            var computation = TariffBilling.ComputeForElapsed(unbilled, pricing);
+            if (computation is null)
+            {
+                return Invalid("Checkout charge could not be computed.");
+            }
+
+            extraAmount = computation.AmountMinorUnits;
+            extraSeconds = (long)computation.BillableMinutes * 60;
         }
 
-        var billableSeconds = (int)Math.Min(int.MaxValue, (long)computation.BillableMinutes * 60);
+        var billableSeconds = (int)Math.Min(
+            int.MaxValue,
+            (billedSeconds > 0 ? billedSeconds : 0) + extraSeconds);
         return new SessionBillingValidationResult(
             Succeeded: true,
             Error: null,
             version.TariffVersionId.ToString("D"),
             version.TariffVersionId,
             billableSeconds,
-            computation.AmountMinorUnits,
-            computation.CurrencyCode);
+            baseAmount + extraAmount,
+            pricing.CurrencyCode);
     }
 
     public async Task<SessionBillingValidationResult> ComputeCompValueAsync(
@@ -652,6 +687,21 @@ public sealed class SessionBillingService(
             return;
         }
 
+        // Долг за уже начисленные минуты висит на сессии с самого старта; оплата на кассе гасит
+        // его вместе с доплатой. Записывать здесь всю сумму заново значило бы оставить гостя
+        // должником ровно на ту сумму, которую он только что заплатил.
+        var outstanding = await dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(entry =>
+                entry.SessionId == sessionId &&
+                entry.AccountType == LedgerAccountTypeNames.Debt)
+            .SumAsync(entry => (long?)entry.AmountMinorUnits, cancellationToken) ?? 0;
+        var unrecorded = validation.AmountMinorUnits - outstanding;
+        if (unrecorded <= 0)
+        {
+            return;
+        }
+
         var session = await dbContext.Sessions
             .SingleAsync(candidate => candidate.SessionId == sessionId, cancellationToken);
         var shiftId = await GetRequiredOpenShiftIdAsync(session.OrganizationId, session.BranchId, cancellationToken);
@@ -664,7 +714,7 @@ public sealed class SessionBillingService(
             playerPackageId: null,
             LedgerEntryTypeNames.PostpaidDebt,
             LedgerAccountTypeNames.Debt,
-            validation.AmountMinorUnits,
+            unrecorded,
             quantitySeconds: 0,
             validation.CurrencyCode,
             LedgerEntryTypeNames.PostpaidDebt,

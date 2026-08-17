@@ -69,14 +69,15 @@ bun run preview
 ```
 
 It serves on `http://127.0.0.1:4174`. **Do not change the port.** The API's CORS
-list is built by `ResolveCorsOrigins` in `src/AFK4.Platform.Api/Program.cs`,
-which *concatenates* configured origins onto its built-in defaults rather than
-replacing them, and `http://127.0.0.1:4174`, `http://localhost:4174`,
-`http://127.0.0.1:5174` and `http://localhost:5174` are among those defaults. So
-this works against any environment without changing its configuration. From any
-other port the browser withholds the response — the preflight `OPTIONS` still
-reaches the API, since every request carries an `Authorization` header and is
-therefore non-simple; it is the browser that refuses to hand the answer back.
+list is built by `CorsOrigins.Resolve`, which *concatenates* configured origins
+onto its built-in developer defaults rather than replacing them, and
+`http://127.0.0.1:4174`, `http://localhost:4174`, `http://127.0.0.1:5174` and
+`http://localhost:5174` are among those defaults. So this works against any
+non-production environment — staging included — without changing its
+configuration. From any other port the browser withholds the response — the
+preflight `OPTIONS` still reaches the API, since every request carries an
+`Authorization` header and is therefore non-simple; it is the browser that
+refuses to hand the answer back.
 
 `bun run dev` is a different thing: it serves on port 5174 against
 `devMockBackend.ts`, not against a real API. Use it for UI work, never to verify
@@ -84,21 +85,31 @@ behaviour.
 
 Sign-in is the ordinary staff sign-in — phone or email/login plus password.
 
-### The same defaults in production
+### Production lists its own origins
 
-Those localhost origins cannot be configured away: they are appended
-unconditionally, so every deployed environment accepts cross-origin calls from a
-page on `localhost:4174`. That is what makes the browser path above work
-everywhere.
+The developer defaults — the loopback ports and the `*.afk4.local` hosts-file
+names — are appended only when `ASPNETCORE_ENVIRONMENT` is anything other than
+`Production`. Staging sets it to `Staging` (`deploy/coolify/staging.env.template`),
+so the browser route above keeps working there. A production deployment gets no
+defaults at all and must list its origins explicitly:
 
-The exposure is smaller than that sentence sounds. The API has no cookie
+```
+Cors__OperatorWebOrigins__0=https://admin.afk4.example
+Cors__PlatformWebOrigins__0=https://platform.afk4.example
+```
+
+Miss that and browser clients are refused outright; the API logs a warning at
+startup saying so. That is the deliberate trade: a visible misconfiguration
+instead of a quietly open `localhost:4174` on every deployment.
+
+The exposure that was closed was narrow to begin with. The API has no cookie
 authentication at all — a grep for cookie usage in `src/AFK4.Platform.Api`
 returns nothing — and staff auth is a bearer token held in `sessionStorage`
-(`platformApi.ts`, `authClient`). `AllowCredentials` therefore grants no ambient
+(`platformApi.ts`, `authClient`). `AllowCredentials` therefore granted no ambient
 authority: a page on `localhost:4174` carries no token unless it already has one,
 and cross-origin JavaScript cannot read another origin's `sessionStorage`. CORS
 is not a server-side authorization boundary either — any non-browser client
-reaches the API regardless. What remains is narrow: a malicious page served from
-the operator's own machine on that exact port can read API responses **if** it
-first obtains a token, for instance by phishing a sign-in on that origin. Worth
-an explicit decision before production, but not a CSRF hole.
+reaches the API regardless. What remained was a malicious page served from the
+operator's own machine on that exact port reading API responses **if** it first
+obtained a token, for instance by phishing a sign-in on that origin. Never a CSRF
+hole; still not something to ship on by default.

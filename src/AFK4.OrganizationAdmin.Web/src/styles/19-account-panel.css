@@ -242,7 +242,3 @@
 .account-phone-verified button {
   margin-left: auto;
 }
-
-.payment-card-session-last {
-  font-variant-numeric: tabular-nums;
-}
