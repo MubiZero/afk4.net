@@ -900,6 +900,15 @@ public sealed class EfReservationService(
             return ReservationServiceResult<ReservationDto>.RequestConflict(conflict);
         }
 
+        // Свободные машины считаются раньше денег: сказать «не хватает средств» про вечер, на
+        // который в зале всё равно нет мест, — это отправить игрока пополнять кошелёк впустую.
+        if (!await BranchCapacity.HasRoomForAsync(
+            dbContext, organizationId, branchId, request.StartsAtUtc, endsAtUtc, 1, cancellationToken))
+        {
+            return ReservationServiceResult<ReservationDto>.RequestConflict(
+                BranchCapacity.NoSeatsAvailableCode);
+        }
+
         var now = timeProvider.GetUtcNow();
 
         var pricing = await PriceOnlineBookingAsync(
@@ -1137,6 +1146,16 @@ public sealed class EfReservationService(
 
         var now = timeProvider.GetUtcNow();
         var endsAtUtc = request.StartsAtUtc.AddMinutes(durationMinutes);
+
+        // Компания влезает целиком или не влезает вовсе. Посадить четверых из пятерых и промолчать
+        // про пятого — это тот же подвод компании в клубе, что и «денег хватило на троих».
+        if (!await BranchCapacity.HasRoomForAsync(
+            dbContext, organizationId, branchId, request.StartsAtUtc, endsAtUtc, request.SeatCount,
+            cancellationToken))
+        {
+            return ReservationServiceResult<IReadOnlyList<ReservationDto>>.RequestConflict(
+                BranchCapacity.NoSeatsAvailableCode);
+        }
 
         var pricing = await PriceOnlineBookingAsync(
             organizationId, branchId, request.TariffVersionId, durationMinutes, now, cancellationToken);

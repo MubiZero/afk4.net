@@ -494,6 +494,7 @@
   "customerReservationsEndBeforeStart": "Конец должен быть позже начала",
   "customerReservationsGate": "Чтобы бронировать онлайн, подтвердите свой номер телефона.",
   "customerReservationsGroupNoFunds": "На кошельке не хватает денег на всю компанию. Пополните его или возьмите меньше мест.",
+  "customerReservationsGroupNoSeats": "На это время в зале нет столько свободных машин. Возьмите меньше мест или выберите другое время.",
   "customerReservationsGroupSeatNote": "Места назначит администратор клуба — вы получите их в подтверждении. Компания сядет рядом, если в зале есть свободные машины.",
   "customerReservationsGroupTooMany": "Одной бронью берут не больше {max} мест. Про большую компанию договоритесь с клубом.",
   "@customerReservationsGroupTooMany": {
@@ -508,6 +509,7 @@
   "customerReservationsNewTitle": "Новая бронь",
   "customerReservationsNoFunds": "На кошельке не хватает денег на эту бронь — пополните и попробуйте снова",
   "customerReservationsNoSeat": "Без места",
+  "customerReservationsNoSeats": "На это время свободных машин в зале не осталось. Выберите другое время.",
   "customerReservationsNone": "Броней пока нет",
   "customerReservationsNoneHint": "Бронь держит выбранный ПК к вашему приходу",
   "customerReservationsNotChosen": "Не выбрано",

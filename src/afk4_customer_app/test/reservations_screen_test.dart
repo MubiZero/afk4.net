@@ -298,6 +298,40 @@ void main() {
     expect(find.textContaining('на всю компанию'), findsOneWidget);
   });
 
+  // Зал полон — это не «время занято»: время свободно, кончились машины. Выход отсюда другой,
+  // и назвать его надо словами.
+  testWidgets('заполненный зал объясняется машинами, а не занятым временем', (tester) async {
+    await tester.pumpWidget(harness(
+        _serve('[]', onWrite: ('{"error":"no_seats_available"}', 409))));
+    await tester.pumpAndSettle();
+
+    await openForm(tester);
+    await pickDateTime(tester, 'Начало');
+    await pickDateTime(tester, 'Конец');
+    await tester.tap(submitButton);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('свободных машин'), findsOneWidget);
+    expect(find.text('Это время уже занято'), findsNothing);
+  });
+
+  // Компании добавляется выход, которого у одиночной брони нет: взять меньше мест.
+  testWidgets('компании, которая не влезла, предлагают взять меньше мест', (tester) async {
+    await tester.pumpWidget(harness(
+        _serve('[]', onWrite: ('{"error":"no_seats_available"}', 409))));
+    await tester.pumpAndSettle();
+
+    await openForm(tester);
+    await pickDateTime(tester, 'Начало');
+    await pickDateTime(tester, 'Конец');
+    await tester.tap(find.byTooltip('Больше мест'));
+    await tester.pumpAndSettle();
+    await tester.tap(submitButton);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('меньше мест'), findsOneWidget);
+  });
+
   // 409 — не сбой, а «время уже занято». Общая «не удалось создать» тут врёт про причину.
   testWidgets('занятое время объясняется занятостью, а не общей ошибкой', (tester) async {
     await tester.pumpWidget(harness(_serve('[]', onWrite: ('{"error":"taken"}', 409))));

@@ -159,6 +159,11 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
               ? l.customerReservationsGroupNoFunds
               : l.customerReservationsNoFunds,
           (_, 'invalid_seat_count') => l.customerReservationsGroupTooMany('$_maxSeats'),
+          // «Мест нет» — это не «время занято»: время свободно, кончились машины. Компании
+          // добавляется выход, которого у одиночной брони нет, — взять меньше мест.
+          (_, 'no_seats_available') => _seats > 1
+              ? l.customerReservationsGroupNoSeats
+              : l.customerReservationsNoSeats,
           (409, _) => l.customerReservationsConflict,
           _ => l.customerReservationsCreateError,
         };

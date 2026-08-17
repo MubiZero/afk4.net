@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-08-16
+Last updated: 2026-08-17
 
 ## Purpose
 
@@ -300,6 +300,21 @@ Latest Verification).
   copied by hand. Both bonus entries ride the same transaction as the top-up that
   triggered them, the way cashback already does.
 
+- **Online bookings are checked against the hall's machine count** — the app books
+  without a seat (the club assigns the machine at seating), so the per-seat overlap
+  check returned "no conflict" every time and a ten-machine hall accepted any number
+  of bookings for one evening. The operator sorted it out with live people at the
+  counter. Capacity asks the only question that means anything for a seatless
+  booking: how many machines exist and how many are already promised. Capacity is
+  seats with an attached, approved gaming PC — powered-off machines included, since
+  at night nothing in the hall is on and it is tomorrow evening that gets booked.
+  Occupancy counts seatless bookings one machine each, dedupes a seat-assigned
+  booking against a session on the same seat, and ignores seated bookings whose
+  machine a session already holds. The check applies to single and group bookings
+  alike — a rule only for companies would make single bookings the loophole — and it
+  runs before the money check, because telling someone they lack funds for an evening
+  that has no machines sends them to top up for nothing.
+
 - **Player sessions survive a night away** — a player who had not opened the app
   for a day met a connection error on a working connection, curable only by
   signing in again. Three faults stacked. The refresh token is single-use (the
@@ -318,6 +333,20 @@ Latest Verification).
 Older verification entries (2026-07-28 and earlier, including the superseded
 Platform Control rebuild Tasks 1-7 gates) are archived in
 `docs/archive/progress/2026-08-06-vertical-slice-detailed-history.md`.
+
+- Booking capacity gate (2026-08-17): Platform API passed **2082 tests against a
+  real PostgreSQL database with zero skips**; Shared Contracts 141/141;
+  Localization 15/15; Building Blocks 3/3; Update Publisher 13/13; `@afk4/i18n`
+  39/39; Organization Admin Web 1102/1102 plus its production build; Platform
+  Control 286/286; the customer app passed 319 widget tests with a clean
+  `flutter analyze`. The ten capacity tests were re-run with the check neutered:
+  exactly the four refusal cases fail and the six "must still work" cases pass, so
+  they prove the check rather than themselves; the two new booking-sheet tests were
+  checked the same way. `AFK4.Agent.Service.Tests` fails 26 `ClientReleaseAutomation`
+  tests here — verified identical on a clean tree, they need Windows signing tooling
+  and run on the CI Windows job. The full-solution build was not run: the
+  Windows-targeted projects cannot build on Linux. Not exercised on a device or
+  against staging.
 
 - Refer-a-friend gate (2026-08-16): Platform API passed **2072 tests against a real
   PostgreSQL database with zero skips**; Shared Contracts 141/141; Localization
@@ -422,14 +451,15 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   channel not proven against a real provider: SMS and Android push are.
 - **iOS side of the mobile app** — no APNs key, no iOS build, no delivery
   evidence. Android is verified end to end; iOS is untouched.
-- **Online bookings do not check club capacity.** `FindConflictAsync` returns "no
-  conflict" for a reservation with no seat, and app bookings never carry one — the
-  club assigns the machine afterwards. So the app will accept a booking, or a
-  company of five, for an hour when fewer machines are free, and the operator sorts
-  it out. This predates group booking and is unchanged by it, but a group makes the
-  failure louder: one letdown becomes five. Fixing it means counting free seats for
-  the window against sessions and reservations, which would change single-booking
-  behaviour too, so it needs an owner decision rather than a quiet patch.
+- **Capacity is checked by machine count, so two cases stay open by design.** A
+  branch with no attached, approved gaming PC is treated as unlimited — an
+  unconfigured branch should not explain its own misconfiguration to a player. And a
+  session with no scheduled end (`EndsAtUtc == null`, the ordinary walk-in) is not
+  projected forward: a booking an hour out can be accepted next to one. Counting
+  open-ended sessions as occupying the future would refuse tomorrow's bookings
+  because the hall is full today, which is worse. Counter-side bookings
+  (`CreateAsync`) are deliberately not capacity-checked: the operator sees the floor
+  and may overbook on purpose.
 - **Operator entity search** is still deferred: the command palette navigates
   between workspaces but does not yet search clients, seats, reservations,
   orders, or receipts.
@@ -454,13 +484,20 @@ The revenue wave for the mobile app is in progress; the rest is the Windows side
 and the operational backlog.
 
 1. Finish revenue wave 2 in the customer app. Slices 1-3 (hour packages, group
-   booking, refer a friend) are done; the only one left is
-   off-peak pricing. Off-peak is the largest and the riskiest: contrary to the
-   2026-08-13 product analysis, tariffs carry **no** time windows — a tariff is
-   a name plus a price per minute, and a human picks it — so selling cheap
-   mornings means new mechanics inside session billing, and it needs an owner
-   decision on the model first (time windows inside a tariff versus a separate
-   tariff applied automatically).
+   booking, refer a friend) and the booking capacity check are done; the only one
+   left is off-peak pricing. Contrary to the 2026-08-13 product analysis, tariffs
+   carry **no** time windows — a tariff is a name plus a price per minute, and a
+   human picks it. The model is decided: **a separate tariff selected automatically
+   by schedule**, not time windows inside one tariff. A session is priced with one
+   flat `TariffPricing` for its whole elapsed span, and the tariff version is frozen
+   on the session; windows would force splitting elapsed time across them and
+   re-deciding whether the minimum billable duration and the rounding increment
+   apply per window or per session — a rewrite of `TariffBilling`, which the live
+   accrued-cost display and the booking quote must agree with exactly. A scheduled
+   tariff leaves `TariffBilling` untouched and adds only a resolver for "which
+   tariff applies now in this branch". The accepted cost: a session started at 11:50
+   on the cheap morning tariff runs to 15:00 at the morning price, which matches how
+   the operator already picks a tariff today.
 2. Return to the production-readiness backlog: repeat the
    Operator day flow from a clean `manager_workstation` install at 100%/125%,
    then run the physical Windows 10/11 gaming-PC Agent/Shell smoke. These need
