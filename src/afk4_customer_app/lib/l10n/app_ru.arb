@@ -418,6 +418,58 @@
   "customerReceiptOpenLink": "Чек →",
   "customerReceiptTime": "Время",
   "customerReceiptTotal": "Итого",
+  "customerReferralAlreadyInvited": "Вы пришли по приглашению друга",
+  "customerReferralClaim": "Применить код",
+  "customerReferralClaimed": "Код принят: вас пригласил {name}",
+  "@customerReferralClaimed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReferralClaimedPlain": "Код принят",
+  "customerReferralClaiming": "Проверяем…",
+  "customerReferralCopied": "Код скопирован",
+  "customerReferralCopy": "Скопировать",
+  "customerReferralEarned": "заработано",
+  "customerReferralEnterCode": "Код друга",
+  "customerReferralErrAlready": "Код можно назвать один раз, и вы это уже сделали",
+  "customerReferralErrGeneric": "Не удалось применить код. Попробуйте ещё раз.",
+  "customerReferralErrOwnCode": "Это ваш собственный код",
+  "customerReferralErrUnknown": "Клуб не знает такого кода. Проверьте буквы.",
+  "customerReferralErrWindow": "Для вашего аккаунта время ввода кода уже прошло",
+  "customerReferralHaveCode": "У меня есть код друга",
+  "customerReferralHow": "Как это работает",
+  "customerReferralInvited": "пришло друзей",
+  "customerReferralLoadError": "Не удалось загрузить приглашения",
+  "customerReferralMine": "Мои приглашения",
+  "customerReferralOff": "Клуб пока не платит за приглашения",
+  "customerReferralRewarded": "дошло до пополнения",
+  "customerReferralStepReward": "Вы получаете {referrer}, друг — {invitee}",
+  "@customerReferralStepReward": {
+    "placeholders": {
+      "referrer": {
+        "type": "String"
+      },
+      "invitee": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReferralStepShare": "Назовите другу свой код — он введёт его в приложении",
+  "customerReferralStepTopUp": "Друг пополняет кошелёк на {amount} или больше",
+  "@customerReferralStepTopUp": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReferralStepTopUpAny": "Друг пополняет кошелёк",
+  "customerReferralTitle": "Приведи друга",
+  "customerReferralWindowClosedNote": "Назвать чужой код можно только в первые дни после того, как клуб завёл вам аккаунт.",
+  "customerReferralYourCode": "Ваш код",
   "customerReservationsCancel": "Отменить",
   "customerReservationsCancelAction": "Отменить бронь",
   "customerReservationsCancelCompany": "Отменить всю компанию",

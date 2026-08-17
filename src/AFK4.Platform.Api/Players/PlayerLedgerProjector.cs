@@ -34,7 +34,8 @@ public static class PlayerLedgerFilter
         LedgerEntryTypeNames.DebtPayment,
         LedgerEntryTypeNames.WalletPayment,
         LedgerEntryTypeNames.Reversal,
-        LedgerEntryTypeNames.Cashback
+        LedgerEntryTypeNames.Cashback,
+        LedgerEntryTypeNames.ReferralBonus
     };
 
     private static readonly HashSet<string> KnownAccountTypes = new(StringComparer.Ordinal)

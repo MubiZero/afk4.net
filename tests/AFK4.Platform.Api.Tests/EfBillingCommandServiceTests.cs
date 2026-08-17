@@ -714,7 +714,8 @@ public sealed class EfBillingCommandServiceTests
             db,
             new EfShiftService(db, new FixedTimeProvider(Now)),
             new FixedTimeProvider(Now),
-            new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance));
+            new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance),
+            new ReferralService(db, AlwaysEnabledOrganizationEntitlements.Instance, new FixedTimeProvider(Now)));
     }
 
     private static async Task SeedLoyaltyAsync(PlatformDbContext db, bool topUpEnabled, int topUpBps)

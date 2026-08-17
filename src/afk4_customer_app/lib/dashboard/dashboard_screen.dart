@@ -13,6 +13,7 @@ import '../organization/organization.dart';
 import '../packages/packages_screen.dart';
 import '../play/start_session_screen.dart';
 import '../progress/progress_screen.dart';
+import '../referral/referral_screen.dart';
 import '../reviews/review_invite.dart';
 import '../reviews/review_sheet.dart';
 import '../shell/app_scaffold.dart';
@@ -91,6 +92,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// Визит, о котором ещё не спрашивали. null — спрашивать не о чем.
   PendingReview? _pendingReview;
 
+  /// Клуб платит за приглашения. Плитка появляется только тогда: звать делиться кодом,
+  /// за который никто не заплатит, — обман.
+  bool _referralEnabled = false;
+
   /// У клуба есть пакеты часов в прайсе. Плитка появляется только тогда: вести на пустой
   /// список — то же самое, что звать в невозможное.
   bool _hasPackages = false;
@@ -123,8 +128,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _branchName = profile.homeBranchName;
       });
       await _loadPackagesAvailability();
+      await _loadReferralAvailability();
     } on PlayerApiException {
       // Не узнали филиал — просто не предлагаем сесть самому. Всё остальное на экране работает.
+    }
+  }
+
+  Future<void> _loadReferralAvailability() async {
+    try {
+      final referral = await widget.api.getReferral();
+      if (!mounted) return;
+      setState(() => _referralEnabled = referral.enabled);
+    } on PlayerApiException {
+      // Не спросилось — плитку не показываем. Приглашение не то, ради чего стоит ронять главную.
     }
   }
 
@@ -234,6 +250,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (bought == true) await _refresh();
   }
 
+  void _openReferral() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => ReferralScreen(api: widget.api)),
+    );
+  }
+
   void _openLoyalty() {
     Navigator.of(context).push<void>(
       MaterialPageRoute(builder: (_) => LoyaltyScreen(api: widget.api)),
@@ -301,6 +323,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: Icons.savings_outlined,
             label: l.customerLoyaltyTitle,
             onOpen: _openLoyalty,
+          ),
+        if (_referralEnabled)
+          QuickAction(
+            icon: Icons.group_add_outlined,
+            label: l.customerReferralTitle,
+            onOpen: _openReferral,
           ),
         // Стаж есть у любого игрока и не зависит от возможностей клуба: он считается из
         // визитов, которые уже случились.

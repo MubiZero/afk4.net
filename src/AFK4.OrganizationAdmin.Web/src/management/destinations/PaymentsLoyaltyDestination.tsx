@@ -6,8 +6,10 @@ import { EmptyState } from '../../operatorPrimitives';
 import { useOrganizationFeatures } from '../../useOrganizationFeatures';
 import { PaymentMethodsSection } from './payments/PaymentMethodsSection';
 import { LoyaltySection } from './payments/LoyaltySection';
+import { ReferralSection } from './payments/ReferralSection';
 import { PaymentsSetupSection } from './payments/PaymentsSetupSection';
 import { useLoyaltySettings } from './payments/useLoyaltySettings';
+import { useReferralSettings } from './payments/useReferralSettings';
 import type { DestinationProps } from './types';
 
 // «Платежи и лояльность» — спокойный setup-экран, куда заходят раз в несколько месяцев. Две ясные
@@ -27,10 +29,12 @@ export function PaymentsLoyaltyDestination({ backend, session, currencyCode, onD
   const showLoyalty = canLoyalty && loyaltyFeatureEnabled;
 
   const loyalty = useLoyaltySettings(backend, showLoyalty);
+  // Приглашение — та же программа лояльности и то же право: гейтится вместе с кэшбэком.
+  const referral = useReferralSettings(backend, showLoyalty);
 
   useEffect(() => {
-    onDirtyChange?.(loyalty.dirty);
-  }, [loyalty.dirty, onDirtyChange]);
+    onDirtyChange?.(loyalty.dirty || referral.dirty);
+  }, [loyalty.dirty, referral.dirty, onDirtyChange]);
 
   return (
     <ManagementScreen
@@ -65,6 +69,16 @@ export function PaymentsLoyaltyDestination({ backend, session, currencyCode, onD
             lead={t('op.payments.zone.loyalty.lead')}
           >
             <LoyaltySection controller={loyalty} currencyCode={currencyCode} hasBackend={backend !== null} />
+          </PaymentsSetupSection>
+        )}
+
+        {showLoyalty && (
+          <PaymentsSetupSection
+            direction="out"
+            title={t('op.payments.zone.referral')}
+            lead={t('op.payments.zone.referral.lead')}
+          >
+            <ReferralSection controller={referral} currencyCode={currencyCode} hasBackend={backend !== null} />
           </PaymentsSetupSection>
         )}
       </div>

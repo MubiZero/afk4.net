@@ -418,6 +418,58 @@
   "customerReceiptOpenLink": "Чек →",
   "customerReceiptTime": "Вақт",
   "customerReceiptTotal": "Ҷамъ",
+  "customerReferralAlreadyInvited": "Шумо бо даъвати дӯст омадаед",
+  "customerReferralClaim": "Рамзро татбиқ кардан",
+  "customerReferralClaimed": "Рамз қабул шуд: шуморо {name} даъват кард",
+  "@customerReferralClaimed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReferralClaimedPlain": "Рамз қабул шуд",
+  "customerReferralClaiming": "Тафтиш карда истодаем…",
+  "customerReferralCopied": "Рамз нусхабардорӣ шуд",
+  "customerReferralCopy": "Нусха бардоштан",
+  "customerReferralEarned": "кор карда шуд",
+  "customerReferralEnterCode": "Рамзи дӯст",
+  "customerReferralErrAlready": "Рамзро як бор гуфтан мумкин аст, ва шумо аллакай гуфтед",
+  "customerReferralErrGeneric": "Рамз татбиқ нашуд. Бори дигар кӯшиш кунед.",
+  "customerReferralErrOwnCode": "Ин рамзи худи шумост",
+  "customerReferralErrUnknown": "Клуб чунин рамзро намедонад. Ҳарфҳоро тафтиш кунед.",
+  "customerReferralErrWindow": "Барои ҳисоби шумо мӯҳлати гуфтани рамз гузаштааст",
+  "customerReferralHaveCode": "Ман рамзи дӯст дорам",
+  "customerReferralHow": "Чӣ тавр кор мекунад",
+  "customerReferralInvited": "дӯстон омаданд",
+  "customerReferralLoadError": "Даъватҳо бор нашуданд",
+  "customerReferralMine": "Даъватҳои ман",
+  "customerReferralOff": "Клуб ҳанӯз барои даъват пул намедиҳад",
+  "customerReferralRewarded": "то пуркунӣ расиданд",
+  "customerReferralStepReward": "Шумо {referrer} мегиред, дӯстатон — {invitee}",
+  "@customerReferralStepReward": {
+    "placeholders": {
+      "referrer": {
+        "type": "String"
+      },
+      "invitee": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReferralStepShare": "Рамзи худро ба дӯст гӯед — ӯ онро дар барнома дохил мекунад",
+  "customerReferralStepTopUp": "Дӯст ҳамёнашро ба {amount} ё бештар пур мекунад",
+  "@customerReferralStepTopUp": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReferralStepTopUpAny": "Дӯст ҳамёнашро пур мекунад",
+  "customerReferralTitle": "Дӯстро даъват кунед",
+  "customerReferralWindowClosedNote": "Рамзи каси дигарро танҳо дар рӯзҳои аввали пас аз кушодани ҳисоб гуфтан мумкин аст.",
+  "customerReferralYourCode": "Рамзи шумо",
   "customerReservationsCancel": "Бекор кардан",
   "customerReservationsCancelAction": "Бронро бекор кардан",
   "customerReservationsCancelCompany": "Тамоми гурӯҳро бекор кардан",

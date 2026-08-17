@@ -37,7 +37,7 @@ public sealed class BillingShiftIntegrationTests
         await using var db = CreateDbContext();
         await SeedPlayerAsync(db);
         var shiftService = CreateShiftService(db);
-        var billing = new EfBillingCommandService(db, shiftService, new FixedTimeProvider(Now), new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance));
+        var billing = new EfBillingCommandService(db, shiftService, new FixedTimeProvider(Now), new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance), new ReferralService(db, AlwaysEnabledOrganizationEntitlements.Instance, new FixedTimeProvider(Now)));
 
         var result = await billing.TopUpWalletAsync(
             PlayerAccountId,
@@ -64,7 +64,7 @@ public sealed class BillingShiftIntegrationTests
         await SeedPlayerAsync(db);
         var shiftService = CreateShiftService(db);
         var shift = await OpenShiftAsync(shiftService);
-        var billing = new EfBillingCommandService(db, shiftService, new FixedTimeProvider(Now), new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance));
+        var billing = new EfBillingCommandService(db, shiftService, new FixedTimeProvider(Now), new LoyaltyAccrualService(db, AlwaysEnabledOrganizationEntitlements.Instance), new ReferralService(db, AlwaysEnabledOrganizationEntitlements.Instance, new FixedTimeProvider(Now)));
 
         var result = await billing.TopUpWalletAsync(
             PlayerAccountId,

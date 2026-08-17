@@ -15,4 +15,7 @@ public static class LedgerEntryTypeNames
     public const string WalletPayment = "wallet_payment";
     public const string Reversal = "reversal";
     public const string Cashback = "cashback";
+
+    /// <summary>Деньги за приведённого друга — платит клуб, обоим сразу.</summary>
+    public const string ReferralBonus = "referral_bonus";
 }
