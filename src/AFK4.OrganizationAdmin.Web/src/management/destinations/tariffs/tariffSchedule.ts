@@ -44,8 +44,18 @@ export function timeInputToMinutes(value: string): number | null {
   return hours * 60 + minutes;
 }
 
+/**
+ * Пустая маска означает «каждый день», и все семь дней показаны выбранными. Голый XOR по нулю
+ * превращал бы первый же клик в свою противоположность: владелец, снимая субботу у ежедневного
+ * тарифа, получал тариф «только по субботам». Поэтому перед первым переключением ноль
+ * разворачивается в полную маску — снимается ровно тот день, по которому кликнули.
+ *
+ * Обратно в ноль маска не сворачивается: «отмечены все семь» и «не отмечен ни один» на сервере
+ * значат одно и то же, а лишнее превращение только запутало бы форму.
+ */
 export function toggleDay(daysMask: number, index: number): number {
-  return daysMask ^ DAY_BITS[index];
+  const expanded = daysMask === EVERY_DAY_MASK ? ALL_DAYS_MASK : daysMask;
+  return expanded ^ DAY_BITS[index];
 }
 
 export function isDaySelected(daysMask: number, index: number): boolean {
@@ -59,7 +69,7 @@ export function isOvernight(form: TariffScheduleForm): boolean {
   return from !== null && to !== null && from > to;
 }
 
-export interface TariffSchedulePayload {
+export interface TariffSchedulePayload extends Record<string, unknown> {
   appliesOnDaysMask: number;
   appliesFromMinuteOfDay: number | null;
   appliesToMinuteOfDay: number | null;

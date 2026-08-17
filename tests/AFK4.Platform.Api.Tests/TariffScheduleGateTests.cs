@@ -7,6 +7,7 @@ using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
+using AFK4.Shared.Contracts.Tariffs;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Tests;
@@ -272,5 +273,149 @@ public class TariffScheduleGateTests
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
+    }
+    /// <summary>
+    /// Дыра, найденная ревью: проверялось только начало. Бронь с 08:00 до 23:00 на утреннем
+    /// тарифе проходила целиком по утренней цене — пятнадцать часов, из них семь вечерних.
+    /// </summary>
+    [Fact]
+    public async Task ABookingThatRunsPastTheWindow_IsRefused()
+    {
+        await using var db = CreateDbContext();
+        var versionId = await SeedMorningTariffAsync(db);
+        var service = new EfReservationService(db, new FixedTimeProvider(MondayEvening));
+
+        var tomorrowMorning = DateTimeOffset.Parse("2026-08-18T08:00:00Z");
+        var result = await service.CreateOnlineAsync(
+            PlayerAccountId,
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            new CreatePlayerReservationRequest(
+                null, tomorrowMorning, DateTimeOffset.Parse("2026-08-18T23:00:00Z"), null, versionId),
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(TariffSchedule.OutsideHoursCode, result.Error);
+    }
+
+    // Бронь, целиком укладывающаяся в окно, по-прежнему проходит: запрет не должен закрыть то,
+    // ради чего тариф и заводят.
+    [Fact]
+    public async Task ABookingWhollyInsideTheWindow_StillGoesThrough()
+    {
+        await using var db = CreateDbContext();
+        var versionId = await SeedMorningTariffAsync(db);
+        var service = new EfReservationService(db, new FixedTimeProvider(MondayEvening));
+
+        var from = DateTimeOffset.Parse("2026-08-18T09:00:00Z");
+        var result = await service.CreateOnlineAsync(
+            PlayerAccountId,
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            new CreatePlayerReservationRequest(null, from, from.AddHours(2), null, versionId),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+    }
+
+    /// <summary>
+    /// Та же дыра со стороны сессии: старт в 15:30 на двенадцать часов проходил по утренней
+    /// ставке — одиннадцать с половиной из них вечерние.
+    /// </summary>
+    [Fact]
+    public async Task ASessionLongerThanTheWindow_IsRefusedAtStart()
+    {
+        await using var db = CreateDbContext();
+        var versionId = await SeedMorningTariffAsync(db);
+
+        var halfPastThree = DateTimeOffset.Parse("2026-08-17T15:30:00Z");
+        var result = await CreateBilling(db, halfPastThree).ValidateStartAsync(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            PlayerAccountId,
+            BillingModeNames.PostpaidDebt,
+            versionId,
+            playerPackageId: null,
+            durationMinutes: 720,
+            CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(TariffSchedule.OutsideHoursCode, result.Error);
+    }
+
+    [Fact]
+    public async Task ASessionThatFitsInsideTheWindow_StillStarts()
+    {
+        await using var db = CreateDbContext();
+        var versionId = await SeedMorningTariffAsync(db);
+
+        var result = await ValidateStartAsync(db, versionId, MondayMorning);
+
+        Assert.True(result.Succeeded);
+    }
+    /// <summary>
+    /// Найдено ревью: поля расписания в запросе имели значения по умолчанию и присваивались
+    /// безусловно, поэтому вызов, не знающий про часы, стирал их молча — тариф возвращался из
+    /// архива круглосуточным и продавал утро по вечерней цене.
+    /// </summary>
+    [Fact]
+    public async Task UpdatingATariffWithoutMentioningHours_KeepsThem()
+    {
+        await using var db = CreateDbContext();
+        await SeedMorningTariffAsync(db);
+        var tariff = db.Tariffs.Single();
+        var service = new EfTariffService(db, new FixedTimeProvider(MondayMorning));
+
+        var result = await service.UpdateTariffAsync(
+            TestIds.BranchId,
+            tariff.TariffId,
+            Guid.NewGuid(),
+            new UpdateTariffRequest(TestIds.OrganizationId, "Утренний", IsActive: false),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var stored = db.Tariffs.Single();
+        Assert.Equal(EightAm, stored.AppliesFromMinuteOfDay);
+        Assert.Equal(FourPm, stored.AppliesToMinuteOfDay);
+        Assert.False(stored.IsActive);
+    }
+
+    [Fact]
+    public async Task UpdatingATariffWithAScheduleReplacesIt()
+    {
+        await using var db = CreateDbContext();
+        await SeedMorningTariffAsync(db);
+        var tariff = db.Tariffs.Single();
+        var service = new EfTariffService(db, new FixedTimeProvider(MondayMorning));
+
+        var result = await service.UpdateTariffAsync(
+            TestIds.BranchId,
+            tariff.TariffId,
+            Guid.NewGuid(),
+            new UpdateTariffRequest(
+                TestIds.OrganizationId, "Утренний", IsActive: true, new TariffScheduleDto(0, 22 * 60, 6 * 60)),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        var stored = db.Tariffs.Single();
+        Assert.Equal(22 * 60, stored.AppliesFromMinuteOfDay);
+        Assert.Equal(6 * 60, stored.AppliesToMinuteOfDay);
+    }
+
+    /// <summary>
+    /// Найдено ревью: стоимость бесплатного времени идёт в порог одобрения менеджером, и утренний
+    /// тариф вечером занижал бы её.
+    /// </summary>
+    [Fact]
+    public async Task ACompSessionCannotBeValuedByAnOutOfHoursTariff()
+    {
+        await using var db = CreateDbContext();
+        var versionId = await SeedMorningTariffAsync(db);
+
+        var result = await CreateBilling(db, MondayEvening).ComputeCompValueAsync(
+            TestIds.OrganizationId, TestIds.BranchId, versionId, 600, CancellationToken.None);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(TariffSchedule.OutsideHoursCode, result.Error);
     }
 }

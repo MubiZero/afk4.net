@@ -191,6 +191,99 @@ public sealed class EfSessionStartWorkflowTests
         return new PlatformDbContext(options);
     }
 
+    /// <summary>
+    /// Найдено ревью: гостевая сессия проходит мимо биллинга (режим оплаты пуст), но версию
+    /// тарифа на себе уносит — из неё считают открытый счёт при закрытии. Значит и запрет
+    /// расписания к ней относится: иначе утренний тариф прикрепляется к гостю в восемь вечера.
+    /// </summary>
+    [Fact]
+    public async Task StageAsync_GuestSession_RefusesATariffOutsideItsHours()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        var morningVersionId = await SeedMorningTariffAsync(db);
+        var evening = DateTimeOffset.Parse("2026-05-13T20:00:00Z");
+
+        var stage = await StageGuestAsync(db, morningVersionId, evening);
+
+        Assert.False(stage.Result.Succeeded);
+        Assert.Equal(TariffSchedule.OutsideHoursCode, stage.Result.Error);
+    }
+
+    [Fact]
+    public async Task StageAsync_GuestSession_AcceptsTheSameTariffInsideItsHours()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db);
+        var morningVersionId = await SeedMorningTariffAsync(db);
+
+        var stage = await StageGuestAsync(db, morningVersionId, Now);
+
+        Assert.True(stage.Result.Succeeded);
+    }
+
+    private static async Task<SessionStartStage> StageGuestAsync(
+        PlatformDbContext db,
+        Guid tariffVersionId,
+        DateTimeOffset now)
+    {
+        var workflow = new EfSessionStartWorkflow(
+            db,
+            new TrackingCommandDispatchService(db),
+            new FakeSessionLeaseSigner(),
+            new FixedTimeProvider(now),
+            new TrackingSessionBillingService(db),
+            new RecordingSessionLifecycleNotifier(),
+            new EfPlanLimitGuard(db));
+
+        // Пустой режим оплаты — это и есть гость: биллинг такую сессию не считает.
+        var request = new StartGuestSessionRequest(
+            TestIds.OrganizationId,
+            SeatId,
+            TariffRuleVersionId: tariffVersionId.ToString("D"),
+            IdempotencyKey: $"guest-{tariffVersionId:N}-{now.Ticks}",
+            DurationMode: SessionDurationModes.Fixed,
+            DurationMinutes: 60,
+            PlayerAccountId: null,
+            BillingMode: string.Empty);
+
+        return await workflow.StageAsync(
+            TestIds.BranchId, ActorStaffUserId, request, actorCanApproveComp: false, CancellationToken.None);
+    }
+
+    /// <summary>Тариф, действующий с 08:00 до 16:00 каждый день.</summary>
+    private static async Task<Guid> SeedMorningTariffAsync(PlatformDbContext db)
+    {
+        var tariffId = Guid.NewGuid();
+        var versionId = Guid.NewGuid();
+        db.Tariffs.Add(new TariffEntity
+        {
+            TariffId = tariffId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            Name = "Утренний",
+            IsActive = true,
+            AppliesFromMinuteOfDay = 8 * 60,
+            AppliesToMinuteOfDay = 16 * 60,
+            CreatedAtUtc = Now
+        });
+        db.TariffVersions.Add(new TariffVersionEntity
+        {
+            TariffVersionId = versionId,
+            TariffId = tariffId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            VersionNumber = 1,
+            CurrencyCode = "TJS",
+            PricePerMinuteMinorUnits = 10,
+            MinimumBillableMinutes = 1,
+            RoundingIncrementMinutes = 1,
+            EffectiveFromUtc = Now.AddYears(-1)
+        });
+        await db.SaveChangesAsync();
+        return versionId;
+    }
+
     private static async Task SeedLayoutAsync(PlatformDbContext db)
     {
         db.Organizations.Add(new OrganizationEntity
@@ -301,7 +394,7 @@ public sealed class EfSessionStartWorkflowTests
             Guid? tariffVersionId,
             Guid? playerPackageId,
             int durationMinutes,
-            CancellationToken cancellationToken) => Task.FromResult(Valid(durationMinutes));
+            CancellationToken cancellationToken) => Task.FromResult(Valid(durationMinutes, billingMode));
 
         public Task AppendStartLedgerEntriesAsync(
             Guid sessionId,
@@ -334,16 +427,19 @@ public sealed class EfSessionStartWorkflowTests
             return Task.CompletedTask;
         }
 
-        public Task<SessionBillingValidationResult> ComputeCompValueAsync(Guid organizationId, Guid branchId, Guid tariffVersionId, int durationMinutes, CancellationToken cancellationToken) => Task.FromResult(Valid(durationMinutes));
-        public Task<SessionBillingValidationResult> ValidateExtendAsync(Guid organizationId, Guid branchId, Guid? playerAccountId, string billingMode, Guid? tariffVersionId, Guid? playerPackageId, int additionalMinutes, CancellationToken cancellationToken) => Task.FromResult(Valid(additionalMinutes));
+        public Task<SessionBillingValidationResult> ComputeCompValueAsync(Guid organizationId, Guid branchId, Guid tariffVersionId, int durationMinutes, CancellationToken cancellationToken) => Task.FromResult(Valid(durationMinutes, BillingModeNames.PrepaidWallet));
+        public Task<SessionBillingValidationResult> ValidateExtendAsync(Guid organizationId, Guid branchId, Guid? playerAccountId, string billingMode, Guid? tariffVersionId, Guid? playerPackageId, int additionalMinutes, CancellationToken cancellationToken) => Task.FromResult(Valid(additionalMinutes, billingMode));
         public Task AppendExtendLedgerEntriesAsync(Guid sessionId, Guid actorStaffUserId, SessionBillingValidationResult validation, Guid playerAccountId, Guid? playerPackageId, string billingMode, DateTimeOffset now, CancellationToken cancellationToken) => Task.CompletedTask;
-        public Task<SessionBillingValidationResult> ComputeCheckoutChargeAsync(Guid sessionId, DateTimeOffset now, CancellationToken cancellationToken) => Task.FromResult(Valid(0));
+        public Task<SessionBillingValidationResult> ComputeCheckoutChargeAsync(Guid sessionId, DateTimeOffset now, CancellationToken cancellationToken) => Task.FromResult(Valid(0, BillingModeNames.PrepaidWallet));
         public Task AppendCheckoutLedgerEntriesAsync(Guid sessionId, Guid actorStaffUserId, SessionBillingValidationResult validation, Guid playerAccountId, DateTimeOffset now, CancellationToken cancellationToken) => Task.CompletedTask;
 
-        private static SessionBillingValidationResult Valid(int minutes) => new(
+        // Настоящий биллинг для пустого режима оплаты (гость) отдаёт ПУСТОЙ идентификатор версии
+        // тарифа, и рабочий процесс подставляет вместо него то, что прислал клиент. Фейк, всегда
+        // возвращавший «manual-v1», прятал этот путь целиком.
+        private static SessionBillingValidationResult Valid(int minutes, string billingMode) => new(
             true,
             null,
-            "manual-v1",
+            string.IsNullOrWhiteSpace(billingMode) ? string.Empty : "manual-v1",
             null,
             minutes * 60,
             100,

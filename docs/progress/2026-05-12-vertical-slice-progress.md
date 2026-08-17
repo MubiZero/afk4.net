@@ -363,12 +363,45 @@ Older verification entries (2026-07-28 and earlier, including the superseded
 Platform Control rebuild Tasks 1-7 gates) are archived in
 `docs/archive/progress/2026-08-06-vertical-slice-detailed-history.md`.
 
+- Review-fix round (2026-08-17): three independent reviewers went over the two
+  merged revenue slices and this branch's docs/cleanup. They found real defects in
+  merged code, all now fixed and each pinned by a test that was mutation-checked
+  against the unfixed code. **A scheduled tariff was only checked at the start
+  instant**, so a booking 08:00–23:00 on an 08:00–16:00 tariff was priced entirely
+  at the morning rate; the gate now requires the tariff to apply throughout the
+  whole span, and falls back to the instant only when there is no known end (an
+  open-ended session). **The capacity check and the booking insert were not one
+  transaction**, so two concurrent bookings for a one-machine hall both committed
+  with two wallet holds; both online paths now run Serializable with a retry, the
+  same pattern session start already used, and a real-PostgreSQL test with a read
+  barrier reproduces the double booking when the transaction is removed.
+  **Seated reservations were dropped from occupancy** on the false premise that a
+  session holds their seat — `SeatAsync` creates no session — so a physically full
+  hall could read as empty; seated now occupies, and a session with no scheduled
+  end (or one already passed) occupies through the present moment instead of
+  vanishing. **The day-of-week toggles inverted their own meaning**: an everyday
+  tariff shows all seven days selected, and the first click XOR-ed against zero,
+  turning "not Saturdays" into "Saturdays only". **`PATCH /tariffs/{id}` erased the
+  schedule** whenever a caller omitted the fields; the schedule moved into a
+  nested object where absent means keep. **Guest and comp sessions bypassed the
+  gate** — a guest session carries a tariff version that checkout prices from, and
+  a comp valuation feeds the manager-approval threshold; both are gated now.
+  Docs: the pilot runbook sent readers to a `Pilot Setup` panel that no longer
+  exists and to a staff step the UI cannot finish (an invite has no redemption
+  screen anywhere in the repo), the roadmap still advertised that panel, the
+  permission names had lost their `organization.` prefix, the CORS caveat
+  overstated the risk (auth is bearer, not cookie), and a `.claude/memory` note
+  still called the deleted settings sections live.
+
 - Off-peak pricing gate (2026-08-17): Platform API passed **2105 tests against a
   real PostgreSQL database with zero skips**; Shared Contracts 141/141;
   Localization 15/15; Building Blocks 3/3; Update Publisher 13/13; `@afk4/i18n`
   39/39; Organization Admin Web 1106/1106 plus its production build; Platform
   Control 286/286; the customer app passed 323 widget tests with a clean
-  `flutter analyze`. The nine gate tests were re-run with the schedule check
+  `flutter analyze`. Read that PostgreSQL number carefully: it is true of the
+  suite, but `PlatformApiFactory` runs on the in-memory provider, so the tests for
+  a feature built on it never execute their SQL against Npgsql and can observe no
+  isolation behaviour at all. The nine gate tests were re-run with the schedule check
   neutered: exactly the four refusal cases fail and the five "must still work" cases
   pass. Fourteen more unit tests pin the window itself — midnight crossing, day
   masks, half-open boundaries and the branch time zone — with a fixed-offset zone

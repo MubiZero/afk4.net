@@ -119,10 +119,18 @@ export interface CreateTariffVersionRequest extends Record<string, unknown> {
   organizationId: Guid;
 }
 
+export interface TariffSchedulePayload extends Record<string, unknown> {
+  appliesOnDaysMask: number;
+  appliesFromMinuteOfDay: number | null;
+  appliesToMinuteOfDay: number | null;
+}
+
 export interface UpdateTariffRequest extends Record<string, unknown> {
   organizationId: Guid;
   name: string;
   isActive: boolean;
+  /** Не передано — расписание остаётся прежним. */
+  schedule?: TariffSchedulePayload;
 }
 
 export interface UpdateTariffVersionRequest extends Record<string, unknown> {

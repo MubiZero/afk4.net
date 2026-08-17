@@ -19,9 +19,12 @@ outside the current MVP implementation surface.
 - Platform API deployed and healthy.
 - Organization and branch already exist.
 - An existing owner or branch manager staff account for the branch. The account
-  must have `identity.branch_staff.manage`, `layout.manage`, `tariffs.manage`,
-  and `pos.catalog.manage`. Optional already-enrolled device assignment also
-  requires `devices.seat_assignment.assign`.
+  must have `organization.identity.branch_staff.manage`,
+  `organization.layout.manage`, `organization.tariffs.manage`, and
+  `organization.pos.catalog.manage`. Optional already-enrolled device assignment
+  also requires `organization.devices.seat_assignment.assign`. (The names carry
+  the `organization.` prefix since the 2026-07-28 product-boundary migration; see
+  `src/AFK4.Shared.Contracts/Identity/OrganizationPermissionNames.cs`.)
 - PowerShell on a trusted operator or release workstation.
 
 ## Preferred Path: Organization Admin
@@ -31,7 +34,13 @@ it was replaced by the `Управление` workspace, where each part of the 
 its own destination. A signed-in owner or branch manager with the permissions
 listed above sets a pilot branch up in this order:
 
-1. `Управление` -> `Сотрудники и роли` — branch staff users and their roles.
+1. **Staff must come from the script, not the UI.** `Управление` ->
+   `Сотрудники и роли` issues an invite *code*, and nothing in the repository
+   redeems one: `POST /api/staff/invites/accept` has no screen in Organization
+   Admin, Platform Control's `/account-activation` is owner activation, and the
+   invite email carries a code rather than a link. Use the `Configure Branch`
+   script below, which POSTs to `/branches/{branchId}/staff` with a password and
+   yields an account that can sign in — which the `Verify` section then requires.
 2. `Управление` -> `Залы и ПК` — one zone, then the seats in it.
 3. `Управление` -> `Тарифы и пакеты` — a tariff and its first version. Leave the
    hours empty unless the pilot is meant to test off-peak pricing: empty means

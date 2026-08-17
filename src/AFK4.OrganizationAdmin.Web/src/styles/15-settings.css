@@ -149,194 +149,14 @@
   font-weight: 700;
 }
 
-.settings-form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 8px;
-  padding: 0 12px;
-}
-
-.settings-form-grid label {
-  display: grid;
-  gap: 4px;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.settings-form-grid input,
-.settings-form-grid textarea {
-  height: 28px;
-  min-width: 0;
-  border: 1px solid var(--border-default);
-  border-radius: 5px;
-  padding: 0 9px;
-  outline: 0;
-  background: var(--surface-sunken);
-  color: var(--text-primary);
-  font-size: 12px;
-  font-family: inherit;
-}
-
-.settings-form-grid select {
-  height: 28px;
-  min-width: 0;
-  border: 1px solid var(--border-default);
-  border-radius: 5px;
-  padding: 0 9px;
-  outline: 0;
-  background: var(--surface-sunken);
-  color: var(--text-primary);
-  font-size: 12px;
-}
-
-/* Native checkbox: the shared input rule above targets text/number fields — a checkbox
-   boxed the same way (fixed height, padded background) reads as a broken control, so it
-   opts out and keeps the platform's own tick, just sized to sit under the caption like
-   every other control in this grid. */
-.settings-form-grid input[type='checkbox'] {
-  height: auto;
-  width: 16px;
-  border: none;
-  padding: 0;
-  background: none;
-  justify-self: start;
-  accent-color: var(--accent);
-}
-
-.settings-form-grid textarea {
-  height: auto;
-  min-height: 72px;
-  padding: 7px 9px;
-  line-height: 1.4;
-  resize: vertical;
-}
-
-.settings-form-grid input:disabled,
-.settings-form-grid select:disabled,
-.settings-form-grid textarea:disabled {
-  color: var(--text-quaternary);
-}
-
-.settings-section-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 0 12px;
-}
-
-.settings-section-title span {
-  color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.settings-section-title strong {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.settings-section-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  min-width: 0;
-  flex-wrap: wrap;
-}
-
-.settings-section-title button {
-  height: 28px;
-  border: 1px solid var(--border-default);
-  border-radius: 5px;
-  padding: 0 9px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.settings-section-title button:disabled,
-.settings-section-title button:disabled:hover,
-.settings-section-title button:disabled:focus-visible {
-  cursor: not-allowed;
-  border-color: var(--border-default);
-  background: var(--surface-muted);
-  color: var(--text-quaternary);
-}
-
-.settings-staff-layout {
-  display: grid;
-  gap: 10px;
-}
-
-.settings-staff-form {
-  border-top: 1px solid var(--border-default);
-  padding-top: 10px;
-}
-
-.settings-pos-form {
-  border-top: 1px solid var(--border-default);
-  padding-top: 10px;
-}
-
 .settings-stock-form {
   border-top: 1px solid var(--border-default);
   padding-top: 10px;
 }
 
-.settings-device-form {
-  border-top: 1px solid var(--border-default);
-  padding-top: 10px;
-}
-
-.settings-layout-form {
-  border-top: 1px solid var(--border-default);
-  padding-top: 10px;
-}
-
-.settings-device-form button,
-.settings-staff-form button,
-.settings-layout-form button {
-  align-self: end;
-  height: 28px;
-  border: 1px solid var(--accent);
-  border-radius: 5px;
-  padding: 0 9px;
-  background: var(--accent);
-  color: var(--text-on-accent);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.settings-device-form button:disabled,
-.settings-staff-form button:disabled,
-.settings-layout-form button:disabled {
-  cursor: not-allowed;
-  border-color: var(--border-default);
-  background: var(--surface-muted);
-  color: var(--text-quaternary);
-}
-
-.settings-package-form {
-  border-top: 1px solid var(--border-default);
-  padding-top: 10px;
-}
-
-.settings-tariff-form {
-  padding: 0 12px 4px;
-}
-
 .settings-update-form {
   border-top: 1px solid var(--border-default);
   padding-top: 10px;
-}
-
-.settings-form-wide {
-  grid-column: 1 / -1;
 }
 
 /* Новости: form actions row (save/cancel) and the list of existing items below the form.
@@ -349,13 +169,6 @@
   justify-content: flex-end;
   gap: 8px;
   padding: 2px 12px 0;
-}
-
-.settings-room-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  padding: 0 12px;
 }
 
 .settings-device-detail-grid,
@@ -393,23 +206,6 @@
   font-weight: 500;
 }
 
-.settings-command-history em {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-style: normal;
-}
-
-.settings-room-card,
-.settings-device-row,
-.settings-tariff-row {
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  text-align: left;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
-}
-
 .settings-room-card:hover,
 .settings-room-card:focus-visible,
 .settings-device-row:hover,
@@ -431,24 +227,11 @@
   background: var(--surface-accent-soft);
 }
 
-.settings-room-card {
-  display: grid;
-  gap: 3px;
-  min-height: 56px;
-  padding: 7px 10px;
-}
-
 .settings-room-card strong,
 .settings-tariff-row strong,
 .settings-action-card strong,
 .settings-readiness-list strong {
   color: var(--text-primary);
-}
-
-.settings-room-card b {
-  color: var(--text-primary);
-  font-size: 18px;
-  line-height: 1;
 }
 
 .settings-room-card span,
@@ -462,74 +245,8 @@
   font-style: normal;
 }
 
-.settings-tariff-list {
-  display: grid;
-  gap: 4px;
-  padding: 0 12px;
-}
-
-.settings-device-row {
-  display: grid;
-  gap: 3px;
-  min-height: 72px;
-  padding: 8px 10px;
-}
-
 .settings-device-row.attention {
   border-color: rgba(239, 68, 68, 0.58);
-}
-
-.settings-device-row:disabled,
-.settings-device-row:disabled:hover,
-.settings-device-row:disabled:focus-visible {
-  cursor: not-allowed;
-  border-color: var(--border-default);
-  background: var(--surface-muted);
-  color: var(--text-quaternary);
-  transform: none;
-}
-
-.settings-device-row strong,
-.settings-device-row b {
-  color: var(--text-primary);
-}
-
-.settings-device-row strong {
-  font-size: 13px;
-}
-
-.settings-device-row b {
-  font-size: 11px;
-}
-
-.settings-device-empty {
-  grid-column: 1 / -1;
-  min-height: 36px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 10px;
-  background: var(--surface-elevated);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.settings-tariff-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 4px 10px;
-  min-height: 31px;
-  padding: 4px 10px;
-}
-
-.settings-tariff-row span {
-  grid-column: 1 / 3;
-}
-
-.settings-tariff-row b {
-  color: var(--text-primary);
-  font-size: 13px;
 }
 
 .settings-readiness-list {
@@ -574,46 +291,9 @@
   color: var(--accent-text);
 }
 
-.settings-config-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  padding: 0 12px;
-}
-
-.settings-config-grid button {
-  display: grid;
-  gap: 4px;
-  min-height: 70px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 10px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  text-align: left;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
-}
-
-.settings-config-grid button:hover,
-.settings-config-grid button:focus-visible {
-  border-color: var(--border-accent);
-  background: var(--surface-hover);
-  outline: none;
-  transform: translateY(-1px);
-}
-
 .settings-config-grid button.active {
   border-color: var(--accent);
   background: var(--surface-accent-soft);
-}
-
-.settings-config-grid button:disabled,
-.settings-config-grid button:disabled:hover,
-.settings-config-grid button:disabled:focus-visible {
-  cursor: not-allowed;
-  border-color: var(--border-default);
-  background: var(--surface-elevated);
-  transform: none;
 }
 
 .settings-config-grid strong,
@@ -622,11 +302,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.settings-config-grid strong {
-  color: var(--text-primary);
-  font-size: 14px;
 }
 
 .settings-config-grid span,

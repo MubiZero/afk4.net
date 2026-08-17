@@ -117,9 +117,7 @@ describe('TariffsTab', () => {
       organizationId: 'org',
       name: 'Стандарт',
       isActive: true,
-      appliesOnDaysMask: 0,
-      appliesFromMinuteOfDay: null,
-      appliesToMinuteOfDay: null
+      schedule: { appliesOnDaysMask: 0, appliesFromMinuteOfDay: null, appliesToMinuteOfDay: null }
     }));
     await waitFor(() => expect(updateTariffVersion).toHaveBeenCalledWith('b1', tariffId, tariffVersionId, expect.objectContaining({
       organizationId: 'org',
@@ -153,8 +151,7 @@ describe('TariffsTab', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
     await waitFor(() => expect(updateTariff).toHaveBeenCalledWith('b1', tariffId, expect.objectContaining({
-      appliesFromMinuteOfDay: 480,
-      appliesToMinuteOfDay: 960
+      schedule: expect.objectContaining({ appliesFromMinuteOfDay: 480, appliesToMinuteOfDay: 960 })
     })));
   });
 
@@ -183,12 +180,12 @@ describe('TariffsTab', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Снять тариф' }));
     fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Снять тариф' }));
 
-    await waitFor(() => expect(updateTariff).toHaveBeenCalledWith('b1', tariffId, expect.objectContaining({
-      isActive: false,
-      appliesOnDaysMask: 3,
-      appliesFromMinuteOfDay: 480,
-      appliesToMinuteOfDay: 960
-    })));
+    // Расписание не передаётся вовсе — сервер оставляет часы как есть.
+    await waitFor(() => expect(updateTariff).toHaveBeenCalledWith('b1', tariffId, {
+      organizationId: 'org',
+      name: 'Стандарт',
+      isActive: false
+    }));
   });
 
   it('shows the hours in the list so lookalike tariffs stay apart', () => {
@@ -196,5 +193,34 @@ describe('TariffsTab', () => {
     wrap(<TariffsTab tariffs={morning} currencyCode="TJS" backend={backend as never} canManageTariffs onReload={onReload} onFeedback={onFeedback} />);
 
     expect(screen.getByText('08:00–16:00')).toBeTruthy();
+  });
+  // Пустая маска означает «каждый день», и все семь дней показаны выбранными. Голый XOR по нулю
+  // превращал первый же клик в противоположность: снимая субботу у ежедневного тарифа, владелец
+  // получал тариф «только по субботам».
+  it('unchecking one day of an everyday tariff leaves the other six', async () => {
+    wrap(<TariffsTab tariffs={tariffs} currencyCode="TJS" backend={backend as never} canManageTariffs onReload={onReload} onFeedback={onFeedback} />);
+    fireEvent.click(screen.getByText('Стандарт'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Сб' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    // 0b1111111 без субботы (шестой бит) = 95.
+    await waitFor(() => expect(updateTariff).toHaveBeenCalledWith('b1', tariffId, expect.objectContaining({
+      schedule: expect.objectContaining({ appliesOnDaysMask: 95 })
+    })));
+  });
+
+  it('a weekday tariff loses exactly the day that was clicked', async () => {
+    const weekdays = [{ ...tariffs[0], appliesOnDaysMask: 0b0011111 }] as TariffOptionDto[];
+    wrap(<TariffsTab tariffs={weekdays} currencyCode="TJS" backend={backend as never} canManageTariffs onReload={onReload} onFeedback={onFeedback} />);
+    fireEvent.click(screen.getByText('Стандарт'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Пт' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    // Пн-Чт: пятница снята, остальные не тронуты.
+    await waitFor(() => expect(updateTariff).toHaveBeenCalledWith('b1', tariffId, expect.objectContaining({
+      schedule: expect.objectContaining({ appliesOnDaysMask: 0b0001111 })
+    })));
   });
 });

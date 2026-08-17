@@ -58,8 +58,9 @@ public sealed class EfTariffService(
             return BillingCommandServiceResult<TariffDto>.Invalid("Tariff name already exists.");
         }
 
+        var schedule = request.Schedule ?? new TariffScheduleDto();
         var scheduleError = TariffSchedule.Validate(
-            request.AppliesOnDaysMask, request.AppliesFromMinuteOfDay, request.AppliesToMinuteOfDay);
+            schedule.AppliesOnDaysMask, schedule.AppliesFromMinuteOfDay, schedule.AppliesToMinuteOfDay);
         if (scheduleError is not null)
         {
             return BillingCommandServiceResult<TariffDto>.Invalid(scheduleError);
@@ -75,9 +76,9 @@ public sealed class EfTariffService(
                 BranchId = branchId,
                 Name = trimmedName,
                 IsActive = true,
-                AppliesOnDaysMask = request.AppliesOnDaysMask,
-                AppliesFromMinuteOfDay = request.AppliesFromMinuteOfDay,
-                AppliesToMinuteOfDay = request.AppliesToMinuteOfDay,
+                AppliesOnDaysMask = schedule.AppliesOnDaysMask,
+                AppliesFromMinuteOfDay = schedule.AppliesFromMinuteOfDay,
+                AppliesToMinuteOfDay = schedule.AppliesToMinuteOfDay,
                 CreatedAtUtc = now
             };
 
@@ -280,20 +281,31 @@ public sealed class EfTariffService(
             return BillingCommandServiceResult<TariffDto>.Invalid("Tariff name already exists.");
         }
 
-        var scheduleError = TariffSchedule.Validate(
-            request.AppliesOnDaysMask, request.AppliesFromMinuteOfDay, request.AppliesToMinuteOfDay);
-        if (scheduleError is not null)
+        if (request.Schedule is { } schedule)
         {
-            return BillingCommandServiceResult<TariffDto>.Invalid(scheduleError);
+            var scheduleError = TariffSchedule.Validate(
+                schedule.AppliesOnDaysMask, schedule.AppliesFromMinuteOfDay, schedule.AppliesToMinuteOfDay);
+            if (scheduleError is not null)
+            {
+                return BillingCommandServiceResult<TariffDto>.Invalid(scheduleError);
+            }
         }
 
         tariff.Name = trimmedName;
         tariff.IsActive = request.IsActive;
-        // Расписание меняет только будущие продажи. Уже идущие сессии привязаны к своей версии
-        // тарифа до конца, и цена под игроком не меняется оттого, что владелец подвинул часы.
-        tariff.AppliesOnDaysMask = request.AppliesOnDaysMask;
-        tariff.AppliesFromMinuteOfDay = request.AppliesFromMinuteOfDay;
-        tariff.AppliesToMinuteOfDay = request.AppliesToMinuteOfDay;
+        // Расписание не передано — оно остаётся прежним. Снять тариф с продажи или переименовать
+        // его можно, не зная про часы: иначе такой вызов молча возвращал бы тариф круглосуточным,
+        // то есть продавал бы утро по вечерней цене.
+        //
+        // Переданное расписание меняет только будущие продажи. Уже идущие сессии привязаны к своей
+        // версии тарифа до конца, и цена под игроком не меняется оттого, что владелец подвинул часы.
+        if (request.Schedule is { } nextSchedule)
+        {
+            tariff.AppliesOnDaysMask = nextSchedule.AppliesOnDaysMask;
+            tariff.AppliesFromMinuteOfDay = nextSchedule.AppliesFromMinuteOfDay;
+            tariff.AppliesToMinuteOfDay = nextSchedule.AppliesToMinuteOfDay;
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return BillingCommandServiceResult<TariffDto>.Ok(ToDto(tariff));

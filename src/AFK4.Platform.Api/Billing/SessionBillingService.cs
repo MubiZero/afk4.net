@@ -205,8 +205,15 @@ public sealed class SessionBillingService(
         // расчёте: расчёт — калькулятор, им же считают предварительную цену на стойке, а запрет
         // касается только настоящей продажи времени. Уже начатая сессия к своей версии тарифа
         // привязана до конца и по расписанию не пересчитывается — цена не меняется под игроком.
-        if (!await TariffAvailability.AppliesAtAsync(
-            dbContext, organizationId, branchId, tariffVersionId.Value, timeProvider.GetUtcNow(), cancellationToken))
+        //
+        // Проверяется весь оплачиваемый промежуток, а не только его начало: сессия считается одной
+        // ставкой на всю длительность, и старт в 15:30 на двенадцать часов иначе продал бы вечер
+        // по утренней цене. У сессии без запланированного конца длительность приходит как одна
+        // минута — там проверить можно только сам момент, и это записано в известных ограничениях.
+        var now = timeProvider.GetUtcNow();
+        if (!await TariffAvailability.AppliesThroughoutAsync(
+            dbContext, organizationId, branchId, tariffVersionId.Value, now, now.AddMinutes(durationMinutes),
+            cancellationToken))
         {
             return Invalid(TariffSchedule.OutsideHoursCode);
         }
@@ -593,6 +600,17 @@ public sealed class SessionBillingService(
         if (durationMinutes <= 0)
         {
             return Invalid("Comp duration must be positive.");
+        }
+
+        // Бесплатное время тоже оценивается по тарифу, и эта оценка идёт в порог одобрения
+        // менеджером. Утренний тариф вечером занизил бы её и провёл подарок под порогом, который
+        // вечерняя ставка бы подняла.
+        var compNow = timeProvider.GetUtcNow();
+        if (!await TariffAvailability.AppliesThroughoutAsync(
+            dbContext, organizationId, branchId, tariffVersionId, compNow,
+            compNow.AddMinutes(durationMinutes), cancellationToken))
+        {
+            return Invalid(TariffSchedule.OutsideHoursCode);
         }
 
         var calculation = await tariffService.CalculateAsync(
