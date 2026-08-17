@@ -38,7 +38,8 @@ type CriticalAction =
 // two-pane лейаут вместо список+закрываемый drawer: правая панель не закрывается и всегда
 // показывает актуальный зал, первый зал автовыбирается на маунте и при инвалидации выбора, чтобы
 // панель не пустовала). Все 6 операций (A1-A6) портированы 1:1 из
-// settings/SettingsLayoutSection.tsx.runAction — те же клиентские вызовы, тот же двойной
+// прежней формы настроек (удалена вместе с разделом Settings) — те же клиентские вызовы,
+// тот же двойной
 // permission-гейт (canManageLayout проп + серверный hasPermission(nextBackend.session, ...) на
 // каждый вызов), та же валидация и onFeedback pending→confirmed/failed. create/edit — в
 // PanelModal, удаление — через CriticalActionConfirmation, без предварительного «pending»-тоста

@@ -55,7 +55,8 @@ import {
 } from './tariffSchedule';
 
 // Вкладка «Тарифы» раздела «Тарифы и пакеты»: список версий тарифов + drawer-редактор выбранной
-// версии (портировано из settings/SettingsTariffsSection.runAction createTariff/updateTariff/
+// версии (портировано из прежней формы настроек, удалённой вместе с разделом Settings:
+// createTariff/updateTariff/
 // updateTariffVersion 1:1 — те же клиентские вызовы, идемпотентные ключи и двойной permission-гейт,
 // canManageTariffs проп + серверный hasPermission на каждый вызов). Создание — в PanelModal
 // (createTariff → createTariffVersion одним потоком); редактирование — прямо в открытом drawer
