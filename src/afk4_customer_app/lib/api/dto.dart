@@ -483,6 +483,54 @@ class PlayerReservationGroup {
       );
 }
 
+/// Экран «Приведи друга»: свой код, условия клуба и что уже вышло.
+class PlayerReferral {
+  const PlayerReferral({
+    required this.enabled,
+    required this.code,
+    required this.referrerBonusMinorUnits,
+    required this.inviteeBonusMinorUnits,
+    required this.minimumTopUpMinorUnits,
+    required this.currencyCode,
+    required this.invitedCount,
+    required this.rewardedCount,
+    required this.earnedMinorUnits,
+    required this.hasClaimedCode,
+    required this.canClaimCode,
+  });
+
+  /// Клуб платит за приглашения. false — экран честно говорит, что программы нет.
+  final bool enabled;
+  final String? code;
+  final int referrerBonusMinorUnits;
+  final int inviteeBonusMinorUnits;
+  final int minimumTopUpMinorUnits;
+  final String currencyCode;
+  final int invitedCount;
+  final int rewardedCount;
+  final int earnedMinorUnits;
+
+  /// Игрок сам пришёл по чужому коду.
+  final bool hasClaimedCode;
+
+  /// Назвать чужой код ещё можно: приглашение не использовано и окно не закрылось.
+  final bool canClaimCode;
+
+  factory PlayerReferral.fromJson(Map<String, dynamic> json) => PlayerReferral(
+        enabled: json['enabled'] as bool? ?? false,
+        code: json['code'] as String?,
+        referrerBonusMinorUnits: (json['referrerBonusMinorUnits'] as num?)?.toInt() ?? 0,
+        inviteeBonusMinorUnits: (json['inviteeBonusMinorUnits'] as num?)?.toInt() ?? 0,
+        minimumTopUpMinorUnits: (json['minimumTopUpMinorUnits'] as num?)?.toInt() ?? 0,
+        currencyCode: json['currencyCode'] as String? ?? 'TJS',
+        invitedCount: (json['invitedCount'] as num?)?.toInt() ?? 0,
+        rewardedCount: (json['rewardedCount'] as num?)?.toInt() ?? 0,
+        earnedMinorUnits: (json['earnedMinorUnits'] as num?)?.toInt() ?? 0,
+        hasClaimedCode: json['hasClaimedCode'] as bool? ?? false,
+        canClaimCode: json['canClaimCode'] as bool? ?? false,
+      );
+}
+
 /// Позиция меню бара: что можно заказать к месту прямо во время сессии.
 class ShopProduct {
   const ShopProduct({

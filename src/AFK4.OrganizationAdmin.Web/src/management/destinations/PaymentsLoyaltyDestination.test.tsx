@@ -3,7 +3,7 @@ import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/re
 import { I18nProvider } from '@afk4/i18n';
 import { ToastProvider } from '../../operatorToast';
 import { permissionNames } from '../../operatorPermissions';
-import type { LoyaltySettingsDto, EskhataConfigDto, DcPayLinkConfigDto } from '../../operatorApiClients';
+import type { LoyaltySettingsDto, ReferralSettingsDto, EskhataConfigDto, DcPayLinkConfigDto } from '../../operatorApiClients';
 
 const loyaltyDefaults: LoyaltySettingsDto = {
   topUpEnabled: false, topUpPercentBasisPoints: 0,
@@ -13,6 +13,16 @@ const loyaltyDefaults: LoyaltySettingsDto = {
 };
 const loyaltyGet = mock(async (): Promise<LoyaltySettingsDto> => loyaltyDefaults);
 const loyaltyUpdate = mock(async (req: LoyaltySettingsDto): Promise<LoyaltySettingsDto> => req);
+const referralDefaults: ReferralSettingsDto = {
+  enabled: false,
+  referrerBonusMinorUnits: 0,
+  inviteeBonusMinorUnits: 0,
+  minimumTopUpMinorUnits: 0,
+  claimWindowDays: 30,
+  maxRewardedPerReferrer: 0
+};
+const referralGet = mock(async (): Promise<ReferralSettingsDto> => referralDefaults);
+const referralUpdate = mock(async (req: ReferralSettingsDto): Promise<ReferralSettingsDto> => req);
 const eskhataGet = mock(async (): Promise<EskhataConfigDto> => ({ baseUrl: '', companyId: '', merchantId: 0, hashKeySet: false, status: 'inactive' }));
 const dcConfigGet = mock(async (): Promise<DcPayLinkConfigDto> => ({ cardSet: false, cardLast4: '', commentTemplate: 'AFK4-{ref}', isActive: false }));
 // Default: loyalty feature enabled, so the existing zone-visibility tests above keep seeing the
@@ -24,6 +34,7 @@ mock.module('../../operatorHelpers', () => ({
   ...actual,
   createAuthenticatedOperatorClients: () => ({
     loyaltySettings: { get: loyaltyGet, update: loyaltyUpdate },
+    referralSettings: { get: referralGet, update: referralUpdate },
     eskhataConfig: { get: eskhataGet, update: mock(async () => ({})) },
     dcConfig: { get: dcConfigGet, update: mock(async () => ({})) },
     features: { list: featuresList }
@@ -83,7 +94,7 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
   it('keeps the loyalty section save button disabled until something changes', async () => {
     view([permissionNames.manageLoyaltySettings]);
     await screen.findByLabelText(/кэшбэк с пополнений/i);
-    const saveButton = screen.getByRole('button', { name: /сохранить/i });
+    const saveButton = screen.getByRole('button', { name: 'Сохранить' });
     expect(saveButton).toBeDisabled();
     fireEvent.click(screen.getByLabelText(/кэшбэк с пополнений/i));
     expect(saveButton).toBeEnabled();
@@ -94,7 +105,7 @@ describe('PaymentsLoyaltyDestination (одна страница, без табо
     const toggle = await screen.findByLabelText(/кэшбэк с пополнений/i);
     fireEvent.click(toggle);
     fireEvent.change(screen.getByLabelText(/процент с пополнений/i), { target: { value: '5' } });
-    fireEvent.click(screen.getByRole('button', { name: /сохранить/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
     await waitFor(() => expect(loyaltyUpdate).toHaveBeenCalledWith(expect.objectContaining({
       topUpEnabled: true,
       topUpPercentBasisPoints: 500

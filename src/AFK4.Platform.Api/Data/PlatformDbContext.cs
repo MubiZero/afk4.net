@@ -7,6 +7,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
     public DbSet<OrganizationEntity> Organizations => Set<OrganizationEntity>();
 
     public DbSet<OrganizationLoyaltySettingsEntity> OrganizationLoyaltySettings => Set<OrganizationLoyaltySettingsEntity>();
+    public DbSet<OrganizationReferralSettingsEntity> OrganizationReferralSettings => Set<OrganizationReferralSettingsEntity>();
+    public DbSet<PlayerReferralEntity> PlayerReferrals => Set<PlayerReferralEntity>();
 
     public DbSet<NewsItemEntity> NewsItems => Set<NewsItemEntity>();
 
@@ -206,6 +208,21 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         {
             entity.ToTable("organization_loyalty_settings");
             entity.HasKey(settings => settings.OrganizationId);
+        });
+
+        modelBuilder.Entity<OrganizationReferralSettingsEntity>(entity =>
+        {
+            entity.ToTable("organization_referral_settings");
+            entity.HasKey(settings => settings.OrganizationId);
+        });
+
+        modelBuilder.Entity<PlayerReferralEntity>(entity =>
+        {
+            entity.ToTable("player_referrals");
+            // Ключ по приглашённому: код называют один раз, и второй записи о нём быть не может.
+            entity.HasKey(referral => referral.InviteePlayerAccountId);
+            entity.Property(referral => referral.CurrencyCode).HasMaxLength(3);
+            entity.HasIndex(referral => new { referral.OrganizationId, referral.ReferrerPlayerAccountId });
         });
 
         modelBuilder.Entity<NewsItemEntity>(entity =>
@@ -555,7 +572,11 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(player => player.PhoneNumber).HasMaxLength(64);
             entity.Property(player => player.Email).HasMaxLength(320);
             entity.Property(player => player.PreferredLocale).HasMaxLength(16);
+            entity.Property(player => player.ReferralCode).HasMaxLength(16);
             entity.HasIndex(player => new { player.OrganizationId, player.HomeBranchId });
+            // Код уникален внутри клуба, а не глобально: игрок называет его вслух, и чем короче
+            // код, тем важнее не требовать уникальности через всю платформу.
+            entity.HasIndex(player => new { player.OrganizationId, player.ReferralCode }).IsUnique();
         });
 
         modelBuilder.Entity<PlayerCredentialEntity>(entity =>

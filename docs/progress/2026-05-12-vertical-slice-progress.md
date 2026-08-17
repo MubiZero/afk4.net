@@ -1,6 +1,6 @@
 # AFK4 Current Progress Snapshot
 
-Last updated: 2026-08-15
+Last updated: 2026-08-16
 
 ## Purpose
 
@@ -284,6 +284,22 @@ Latest Verification).
   stepper, prices the whole company through the server, shows a group as one card
   with its seat count and total, and cancels the whole company in one request.
 
+- **Refer a friend** (revenue wave 2, slice 3) — the club pays and the club sets the
+  amounts, exactly as with cashback; off by default, because a loyalty programme
+  switched on without the owner knowing starts giving away their money. The shape
+  follows from one constraint: **players do not register themselves** — the club
+  creates the account at the counter — so a code cannot be entered "at sign-up".
+  The friend names it as a separate action in the app, once in the account's life.
+  Payment is not for the code but for the friend's **first real top-up**: the code
+  is a promise to come, the club pays for the arrival. A top-up below the club's
+  minimum pays nothing and does not burn the promise — the next real one closes it.
+  Guards: not your own code, not a second code, not an account older than the claim
+  window, not a code from another club. The per-referrer cap stops paying the
+  inviter but still pays the friend, who broke no rule and knew of no cap. Codes
+  avoid look-alike characters (no O/0, no I/1) because they are spoken aloud and
+  copied by hand. Both bonus entries ride the same transaction as the top-up that
+  triggered them, the way cashback already does.
+
 - **Player sessions survive a night away** — a player who had not opened the app
   for a day met a connection error on a working connection, curable only by
   signing in again. Three faults stacked. The refresh token is single-use (the
@@ -302,6 +318,15 @@ Latest Verification).
 Older verification entries (2026-07-28 and earlier, including the superseded
 Platform Control rebuild Tasks 1-7 gates) are archived in
 `docs/archive/progress/2026-08-06-vertical-slice-detailed-history.md`.
+
+- Refer-a-friend gate (2026-08-16): Platform API passed **2072 tests against a real
+  PostgreSQL database with zero skips**; Shared Contracts 141/141; Localization
+  15/15; `@afk4/i18n` 39/39; Organization Admin Web 1102/1102 plus its production
+  build; Platform Control 286/286; the customer app passed 317 widget tests with a
+  clean `flutter analyze`. The migration `AddPlayerReferrals` adds two tables and a
+  per-organization unique referral code on the player. The full-solution build was
+  not run: the Windows-targeted projects cannot build on Linux. Not exercised on a
+  device or against staging.
 
 - Group booking gate (2026-08-16): Platform API passed **2060 tests against a real
   PostgreSQL database with zero skips**; Shared Contracts 141/141; Localization
@@ -428,10 +453,8 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
 The revenue wave for the mobile app is in progress; the rest is the Windows side
 and the operational backlog.
 
-1. Finish revenue wave 2 in the customer app. Slices 1 and 2 (hour packages,
-   group booking) are done; remaining: a refer-a-friend bonus (nothing exists
-   yet, but it touches no existing money path and `bonus_grant` is already a
-   ledger entry type), and
+1. Finish revenue wave 2 in the customer app. Slices 1-3 (hour packages, group
+   booking, refer a friend) are done; the only one left is
    off-peak pricing. Off-peak is the largest and the riskiest: contrary to the
    2026-08-13 product analysis, tariffs carry **no** time windows — a tariff is
    a name plus a price per minute, and a human picks it — so selling cheap

@@ -20,6 +20,7 @@ import { createMoneyActionClient } from './moneyActions';
 import { createAccountClient } from './account';
 import { createShopOrderClient } from './shopOrders';
 import { createLoyaltySettingsClient } from './loyaltySettings';
+import { createReferralSettingsClient } from './referralSettings';
 import { createFeaturesClient } from './features';
 import { createEskhataConfigClient } from './eskhataConfig';
 import { createNewsClient } from './news';
@@ -54,6 +55,7 @@ export function createOperatorApiClients(api: PlatformApiClient, organizationId:
     account: createAccountClient(organizationApi),
     shopOrders: createShopOrderClient(organizationApi),
     loyaltySettings: createLoyaltySettingsClient(organizationApi),
+    referralSettings: createReferralSettingsClient(organizationApi),
     features: createFeaturesClient(organizationApi),
     eskhataConfig: createEskhataConfigClient(organizationApi),
     news: createNewsClient(organizationApi),

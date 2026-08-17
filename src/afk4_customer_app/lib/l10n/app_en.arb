@@ -418,6 +418,58 @@
   "customerReceiptOpenLink": "Receipt →",
   "customerReceiptTime": "Time",
   "customerReceiptTotal": "Total",
+  "customerReferralAlreadyInvited": "You joined on a friend's invitation",
+  "customerReferralClaim": "Apply the code",
+  "customerReferralClaimed": "Code accepted: {name} invited you",
+  "@customerReferralClaimed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReferralClaimedPlain": "Code accepted",
+  "customerReferralClaiming": "Checking…",
+  "customerReferralCopied": "Code copied",
+  "customerReferralCopy": "Copy",
+  "customerReferralEarned": "earned",
+  "customerReferralEnterCode": "Friend's code",
+  "customerReferralErrAlready": "A code can be named once, and you already did",
+  "customerReferralErrGeneric": "Could not apply the code. Please try again.",
+  "customerReferralErrOwnCode": "That is your own code",
+  "customerReferralErrUnknown": "The club does not know this code. Check the letters.",
+  "customerReferralErrWindow": "The time to name a code has passed for your account",
+  "customerReferralHaveCode": "I have a friend's code",
+  "customerReferralHow": "How it works",
+  "customerReferralInvited": "friends joined",
+  "customerReferralLoadError": "Could not load invitations",
+  "customerReferralMine": "My invitations",
+  "customerReferralOff": "This club does not pay for invitations yet",
+  "customerReferralRewarded": "reached a top-up",
+  "customerReferralStepReward": "You get {referrer}, your friend gets {invitee}",
+  "@customerReferralStepReward": {
+    "placeholders": {
+      "referrer": {
+        "type": "String"
+      },
+      "invitee": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReferralStepShare": "Give your friend your code — they enter it in the app",
+  "customerReferralStepTopUp": "Your friend tops up their wallet by {amount} or more",
+  "@customerReferralStepTopUp": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReferralStepTopUpAny": "Your friend tops up their wallet",
+  "customerReferralTitle": "Invite a friend",
+  "customerReferralWindowClosedNote": "Someone else's code can only be named in the first days after the club creates your account.",
+  "customerReferralYourCode": "Your code",
   "customerReservationsCancel": "Cancel",
   "customerReservationsCancelAction": "Cancel booking",
   "customerReservationsCancelCompany": "Cancel the whole group",

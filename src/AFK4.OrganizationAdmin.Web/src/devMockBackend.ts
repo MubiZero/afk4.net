@@ -458,6 +458,22 @@ function tariffOptions() {
   ];
 }
 
+// Настройки приглашений: те же правила превью, что у лояльности рядом.
+let mutableReferralSettings: Record<string, unknown> | null = null;
+function referralSettings(): Record<string, unknown> {
+  if (mutableReferralSettings === null) {
+    mutableReferralSettings = {
+      enabled: true,
+      referrerBonusMinorUnits: 5000,
+      inviteeBonusMinorUnits: 3000,
+      minimumTopUpMinorUnits: 10000,
+      claimWindowDays: 30,
+      maxRewardedPerReferrer: 0
+    };
+  }
+  return mutableReferralSettings;
+}
+
 // Настройки лояльности: мутируемые, чтобы «Сохранить» в превью реально держалось до перезагрузки.
 // Значения реалистичные (не нули) — иначе экран выглядит пустым/сломанным. Money в minor units.
 let mutableLoyaltySettings: Record<string, unknown> | null = null;
@@ -502,6 +518,7 @@ function route(pathname: string, method: string): unknown | undefined {
   if (pathname.endsWith('/auth/staff/sign-in') && method === 'POST') return createMockSession();
   if (pathname.endsWith('/auth/staff/refresh') && method === 'POST') return createMockSession();
   if (pathname.endsWith('/loyalty-settings') && method === 'GET') return loyaltySettings();
+  if (pathname.endsWith('/referral-settings') && method === 'GET') return referralSettings();
   if (pathname.endsWith('/payments/eskhata-config') && method === 'GET') return eskhataConfig();
   if (pathname.endsWith('/checkout/quote') && method === 'GET') return checkoutQuote();
   if (pathname.endsWith('/tariffs/options')) return tariffOptions();
@@ -904,6 +921,12 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
     };
     prependLedger(entry);
     return json(entry);
+  }
+  if (url.pathname.endsWith('/referral-settings') && method === 'POST') {
+    let req: Record<string, unknown> = {};
+    try { req = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>; } catch { req = {}; }
+    mutableReferralSettings = { ...referralSettings(), ...req };
+    return json(mutableReferralSettings);
   }
   if (url.pathname.endsWith('/loyalty-settings') && method === 'POST') {
     let req: Record<string, unknown> = {};

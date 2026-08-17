@@ -237,6 +237,20 @@ class PlayerApiClient {
     return list.map((item) => _parse(item, PackageOption.fromJson)).toList();
   }
 
+  /// «Приведи друга»: свой код, условия клуба и что уже вышло.
+  Future<PlayerReferral> getReferral() async =>
+      _parse(await getJson('/api/me/referral'), PlayerReferral.fromJson);
+
+  /// Назвать код друга. Один раз в жизни аккаунта.
+  ///
+  /// 409 несёт причину: `referral_own_code` — это свой код, `referral_already_claimed` — код
+  /// уже называли, `referral_window_closed` — аккаунт слишком старый, `referral_unknown_code` —
+  /// такого кода в клубе нет, `referral_disabled` — клуб не платит за приглашения.
+  Future<String?> claimReferralCode(String code) async {
+    final body = await sendJson('POST', '/api/me/referral/claim', {'code': code});
+    return body['referrerDisplayName'] as String?;
+  }
+
   /// Свои пакеты с остатком времени — вместе с потраченными и просроченными.
   Future<List<PlayerPackage>> getMyPackages() async {
     final list = await getJsonList('/api/me/packages');

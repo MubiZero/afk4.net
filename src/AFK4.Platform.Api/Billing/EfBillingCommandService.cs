@@ -13,7 +13,8 @@ public sealed class EfBillingCommandService(
     PlatformDbContext dbContext,
     IOpenShiftResolver openShiftResolver,
     TimeProvider timeProvider,
-    ILoyaltyAccrualService loyaltyAccrualService) : IBillingCommandService
+    ILoyaltyAccrualService loyaltyAccrualService,
+    IReferralService referralService) : IBillingCommandService
 {
     private const string PlayerCreateOperation = "player-create";
     private const string WalletTopUpOperation = "wallet-top-up";
@@ -254,6 +255,26 @@ public sealed class EfBillingCommandService(
             timeProvider.GetUtcNow(),
             cancellationToken);
 
+        // Приглашение закрывается ПЕРВЫМ настоящим пополнением друга, а не вводом кода: код —
+        // это обещание прийти, а платит клуб за приход. Записи бонуса едут в той же транзакции,
+        // что и пополнение, иначе деньги за друга однажды переживут причину своего появления.
+        var referralEntries = await referralService.BuildTopUpRewardEntriesAsync(
+            request.OrganizationId,
+            branchId,
+            playerAccountId,
+            request.Amount.MinorUnits,
+            currencyValidation.CurrencyCode,
+            timeProvider.GetUtcNow(),
+            cancellationToken);
+
+        var extraEntries = new List<LedgerEntryEntity>();
+        if (cashbackEntry is not null)
+        {
+            extraEntries.Add(cashbackEntry);
+        }
+
+        extraEntries.AddRange(referralEntries);
+
         return await ExecuteLedgerSummaryCommandAsync(
             request.OrganizationId,
             branchId,
@@ -262,7 +283,7 @@ public sealed class EfBillingCommandService(
             request,
             PlayerScopedRequest(playerAccountId, request),
             topUpEntry,
-            cashbackEntry is null ? null : new[] { cashbackEntry },
+            extraEntries.Count == 0 ? null : extraEntries.ToArray(),
             cancellationToken);
     }
 

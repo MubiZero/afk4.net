@@ -27,5 +27,12 @@ public sealed class PlayerAccountEntity
     // back to the branch default (and null there means unbounded).
     public long? PostpaidCreditLimitMinorUnits { get; set; }
 
+    /// <summary>
+    /// Код приглашения, который игрок называет друзьям. Заводится при первом обращении к экрану
+    /// «Приведи друга», а не всем подряд: у клуба тысячи заведённых на стойке аккаунтов, и
+    /// большинство приложение не откроет.
+    /// </summary>
+    public string? ReferralCode { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; }
 }
