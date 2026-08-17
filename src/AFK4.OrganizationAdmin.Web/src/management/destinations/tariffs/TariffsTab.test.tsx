@@ -113,7 +113,14 @@ describe('TariffsTab', () => {
     fireEvent.click(screen.getByText('Стандарт'));
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
 
-    await waitFor(() => expect(updateTariff).toHaveBeenCalledWith('b1', tariffId, { organizationId: 'org', name: 'Стандарт', isActive: true }));
+    await waitFor(() => expect(updateTariff).toHaveBeenCalledWith('b1', tariffId, {
+      organizationId: 'org',
+      name: 'Стандарт',
+      isActive: true,
+      appliesOnDaysMask: 0,
+      appliesFromMinuteOfDay: null,
+      appliesToMinuteOfDay: null
+    }));
     await waitFor(() => expect(updateTariffVersion).toHaveBeenCalledWith('b1', tariffId, tariffVersionId, expect.objectContaining({
       organizationId: 'org',
       pricePerMinuteMinorUnits: 150,
@@ -134,5 +141,60 @@ describe('TariffsTab', () => {
     fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Снять тариф' }));
     await waitFor(() => expect(updateTariff).toHaveBeenCalledWith('b1', tariffId, expect.objectContaining({ isActive: false })));
     await waitFor(() => expect(updateTariffVersion).toHaveBeenCalledWith('b1', tariffId, tariffVersionId, expect.objectContaining({ isActive: false })));
+  });
+  // Часы задаются в тех же минутах от полуночи, что и хранятся: 08:00 — это 480.
+  it('saves the hours the owner set on the tariff', async () => {
+    wrap(<TariffsTab tariffs={tariffs} currencyCode="TJS" backend={backend as never} canManageTariffs onReload={onReload} onFeedback={onFeedback} />);
+    fireEvent.click(screen.getByText('Стандарт'));
+
+    const [from, to] = screen.getAllByLabelText(/^(С|До)$/);
+    fireEvent.change(from, { target: { value: '08:00' } });
+    fireEvent.change(to, { target: { value: '16:00' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(updateTariff).toHaveBeenCalledWith('b1', tariffId, expect.objectContaining({
+      appliesFromMinuteOfDay: 480,
+      appliesToMinuteOfDay: 960
+    })));
+  });
+
+  // Полдня — это не расписание, а недописанная настройка: сервер такое отклонит, и спрашивать
+  // его об этом незачем.
+  it('refuses to save half a window', async () => {
+    wrap(<TariffsTab tariffs={tariffs} currencyCode="TJS" backend={backend as never} canManageTariffs onReload={onReload} onFeedback={onFeedback} />);
+    fireEvent.click(screen.getByText('Стандарт'));
+
+    const [from] = screen.getAllByLabelText(/^(С|До)$/);
+    fireEvent.change(from, { target: { value: '08:00' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+
+    await waitFor(() => expect(onFeedback).toHaveBeenCalledWith(expect.objectContaining({ state: 'failed' })));
+    expect(updateTariff).not.toHaveBeenCalled();
+  });
+
+  // Снятие с продажи — про доступность, а не про расписание. Стереть часы здесь значит вернуть
+  // тариф из архива уже круглосуточным, по вечерней цене за утро.
+  it('retiring a tariff keeps its hours', async () => {
+    const morning = [{ ...tariffs[0], appliesOnDaysMask: 3, appliesFromMinuteOfDay: 480, appliesToMinuteOfDay: 960 }] as TariffOptionDto[];
+    const { container } = wrap(
+      <TariffsTab tariffs={morning} currencyCode="TJS" backend={backend as never} canManageTariffs onReload={onReload} onFeedback={onFeedback} />
+    );
+    fireEvent.click(within(container).getAllByRole('button', { name: 'Действия' })[0]);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Снять тариф' }));
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Снять тариф' }));
+
+    await waitFor(() => expect(updateTariff).toHaveBeenCalledWith('b1', tariffId, expect.objectContaining({
+      isActive: false,
+      appliesOnDaysMask: 3,
+      appliesFromMinuteOfDay: 480,
+      appliesToMinuteOfDay: 960
+    })));
+  });
+
+  it('shows the hours in the list so lookalike tariffs stay apart', () => {
+    const morning = [{ ...tariffs[0], appliesFromMinuteOfDay: 480, appliesToMinuteOfDay: 960 }] as TariffOptionDto[];
+    wrap(<TariffsTab tariffs={morning} currencyCode="TJS" backend={backend as never} canManageTariffs onReload={onReload} onFeedback={onFeedback} />);
+
+    expect(screen.getByText('08:00–16:00')).toBeTruthy();
   });
 });

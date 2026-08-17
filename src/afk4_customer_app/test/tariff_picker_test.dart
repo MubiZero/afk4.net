@@ -38,6 +38,30 @@ String _tariffsJson(int count) => jsonEncode([
         },
     ]);
 
+/// Тариф с расписанием: утренний, по будням.
+String _scheduledTariffJson({
+  int? from = 8 * 60,
+  int? to = 16 * 60,
+  int daysMask = 0,
+}) =>
+    jsonEncode([
+      {
+        'tariffId': 't1',
+        'tariffVersionId': 'v1',
+        'name': 'Утренний',
+        'tariffRuleVersionId': 'v1',
+        'versionNumber': 1,
+        'currencyCode': 'TJS',
+        'pricePerMinuteMinorUnits': 25,
+        'minimumBillableMinutes': 0,
+        'roundingIncrementMinutes': 1,
+        'effectiveFromUtc': '2026-01-01T00:00:00Z',
+        'appliesOnDaysMask': daysMask,
+        'appliesFromMinuteOfDay': from,
+        'appliesToMinuteOfDay': to,
+      },
+    ]);
+
 String _quoteJson({int requested = 60, int billable = 60, int amount = 1500}) => jsonEncode({
       'tariffVersionId': 'v1',
       'tariffName': 'Дневной',
@@ -240,5 +264,52 @@ void main() {
 
     expect(find.widgetWithText(FilledButton, 'Забронировать'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+  // Клуб с «Утренним» и «Вечерним» различает их временем, и игрок должен видеть его до отказа,
+  // а не после.
+  testWidgets('часы тарифа видно прямо в списке', (tester) async {
+    await tester.pumpWidget(harness(_serve(tariffs: _scheduledTariffJson())));
+    await tester.pumpAndSettle();
+    await openForm(tester);
+
+    expect(find.text('Утренний · 08:00–16:00'), findsOneWidget);
+  });
+
+  testWidgets('у тарифа по будням в подписи стоят дни', (tester) async {
+    await tester.pumpWidget(harness(_serve(
+      tariffs: _scheduledTariffJson(daysMask: 0x1F),
+    )));
+    await tester.pumpAndSettle();
+    await openForm(tester);
+
+    expect(find.text('Утренний · Пн Вт Ср Чт Пт 08:00–16:00'), findsOneWidget);
+  });
+
+  // Обычный круглосуточный тариф подписи не получает: приписка к каждому только зашумила бы
+  // список.
+  testWidgets('тариф без расписания остаётся просто названием', (tester) async {
+    await tester.pumpWidget(harness(_serve(
+      tariffs: _scheduledTariffJson(from: null, to: null),
+    )));
+    await tester.pumpAndSettle();
+    await openForm(tester);
+
+    expect(find.text('Утренний'), findsOneWidget);
+  });
+
+  // Выход отсюда — другой тариф или другое время, и общая «не удалось» не подсказывает ни того,
+  // ни другого.
+  testWidgets('отказ по часам тарифа назван своей причиной', (tester) async {
+    await tester.pumpWidget(harness(_serve(
+      tariffs: _scheduledTariffJson(),
+      create: ('{"error":"tariff_outside_its_hours"}', 400),
+    )));
+    await tester.pumpAndSettle();
+    await openForm(tester);
+    await fillTimes(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Забронировать'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('не действует в выбранное время'), findsOneWidget);
   });
 }

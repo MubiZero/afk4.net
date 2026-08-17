@@ -245,6 +245,9 @@ class TariffOption {
     required this.name,
     required this.pricePerMinuteMinorUnits,
     required this.currencyCode,
+    this.appliesOnDaysMask = 0,
+    this.appliesFromMinuteOfDay,
+    this.appliesToMinuteOfDay,
   });
 
   final String tariffVersionId;
@@ -252,11 +255,25 @@ class TariffOption {
   final int pricePerMinuteMinorUnits;
   final String currencyCode;
 
+  /// Биты дней недели с понедельника (1) по воскресенье (64); 0 — каждый день.
+  final int appliesOnDaysMask;
+
+  /// Окно местного времени клуба, минуты от полуночи. Оба null — круглосуточно, начало больше
+  /// конца — переход через полночь.
+  ///
+  /// Действует ли тариф на выбранное время, решает сервер: у него есть часовой пояс филиала, а
+  /// у телефона — свой собственный, и в поездке он другой. Здесь часы только показываются.
+  final int? appliesFromMinuteOfDay;
+  final int? appliesToMinuteOfDay;
+
   factory TariffOption.fromJson(Map<String, dynamic> json) => TariffOption(
         tariffVersionId: json['tariffVersionId'] as String,
         name: json['name'] as String,
         pricePerMinuteMinorUnits: (json['pricePerMinuteMinorUnits'] as num).toInt(),
         currencyCode: json['currencyCode'] as String,
+        appliesOnDaysMask: (json['appliesOnDaysMask'] as num?)?.toInt() ?? 0,
+        appliesFromMinuteOfDay: (json['appliesFromMinuteOfDay'] as num?)?.toInt(),
+        appliesToMinuteOfDay: (json['appliesToMinuteOfDay'] as num?)?.toInt(),
       );
 }
 

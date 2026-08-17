@@ -4,6 +4,43 @@ import '../api/dto.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 
+/// Часы тарифа словами: «08:00–16:00», «Пн Вт 08:00–16:00», «Сб Вс». Возвращает null у тарифа без
+/// расписания — приписка «круглосуточно» к каждому обычному тарифу только зашумила бы список.
+///
+/// Здесь не решается, действует ли тариф на выбранное время: у клуба свой часовой пояс, у
+/// телефона свой, и в поездке они разные. Ответ даёт сервер при бронировании, а это подпись.
+String? tariffScheduleLabel(TariffOption tariff, L l) {
+  final from = tariff.appliesFromMinuteOfDay;
+  final to = tariff.appliesToMinuteOfDay;
+  final hours = from != null && to != null && from != to ? '${_hhmm(from)}–${_hhmm(to)}' : null;
+
+  const everyDay = 0;
+  const allDays = 0x7F;
+  final mask = tariff.appliesOnDaysMask;
+  final days = mask == everyDay || mask == allDays
+      ? null
+      : [
+          for (var index = 0; index < 7; index++)
+            if (mask & (1 << index) != 0) _dayName(index, l)
+        ].join(' ');
+
+  if (hours == null && days == null) return null;
+  return [days, hours].whereType<String>().join(' ');
+}
+
+String _hhmm(int minuteOfDay) =>
+    '${(minuteOfDay ~/ 60).toString().padLeft(2, '0')}:${(minuteOfDay % 60).toString().padLeft(2, '0')}';
+
+String _dayName(int index, L l) => switch (index) {
+      0 => l.customerTariffDayMon,
+      1 => l.customerTariffDayTue,
+      2 => l.customerTariffDayWed,
+      3 => l.customerTariffDayThu,
+      4 => l.customerTariffDayFri,
+      5 => l.customerTariffDaySat,
+      _ => l.customerTariffDaySun,
+    };
+
 /// Выбор тарифа и цена брони по нему.
 ///
 /// Цена приходит с сервера, а не считается здесь: минимальное оплачиваемое время и шаг
@@ -58,7 +95,12 @@ class TariffPicker extends StatelessWidget {
           children: [
             for (final tariff in tariffs)
               ChoiceChip(
-                label: Text(tariff.name),
+                // Часы стоят рядом с названием: клуб с «Утренним» и «Вечерним» различает их
+                // временем, и игрок должен видеть его до отказа, а не после.
+                label: Text(switch (tariffScheduleLabel(tariff, l)) {
+                  final String schedule => '${tariff.name} · $schedule',
+                  null => tariff.name,
+                }),
                 selected: tariff.tariffVersionId == selectedId,
                 onSelected: (_) => onSelected(tariff.tariffVersionId),
               ),
