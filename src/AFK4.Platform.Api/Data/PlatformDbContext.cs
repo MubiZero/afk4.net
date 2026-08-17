@@ -645,6 +645,7 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.ToTable("tariffs");
             entity.HasKey(tariff => tariff.TariffId);
             entity.Property(tariff => tariff.Name).HasMaxLength(160).IsRequired();
+            entity.Property(tariff => tariff.AppliesOnDaysMask).HasDefaultValue(0);
             entity.HasIndex(tariff => new { tariff.OrganizationId, tariff.BranchId, tariff.Name }).IsUnique();
         });
 

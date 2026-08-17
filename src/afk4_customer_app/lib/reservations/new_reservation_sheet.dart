@@ -164,6 +164,9 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
           (_, 'no_seats_available') => _seats > 1
               ? l.customerReservationsGroupNoSeats
               : l.customerReservationsNoSeats,
+          // Тариф с расписанием на выбранный час не действует. Выход отсюда — другой тариф или
+          // другое время, и общая «не удалось» не подсказывает ни того, ни другого.
+          (_, 'tariff_outside_its_hours') => l.customerReservationsTariffOutsideHours,
           (409, _) => l.customerReservationsConflict,
           _ => l.customerReservationsCreateError,
         };

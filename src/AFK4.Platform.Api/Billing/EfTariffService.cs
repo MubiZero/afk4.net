@@ -58,6 +58,13 @@ public sealed class EfTariffService(
             return BillingCommandServiceResult<TariffDto>.Invalid("Tariff name already exists.");
         }
 
+        var scheduleError = TariffSchedule.Validate(
+            request.AppliesOnDaysMask, request.AppliesFromMinuteOfDay, request.AppliesToMinuteOfDay);
+        if (scheduleError is not null)
+        {
+            return BillingCommandServiceResult<TariffDto>.Invalid(scheduleError);
+        }
+
         return await ExecuteInTransactionAsync(async () =>
         {
             var now = timeProvider.GetUtcNow();
@@ -68,6 +75,9 @@ public sealed class EfTariffService(
                 BranchId = branchId,
                 Name = trimmedName,
                 IsActive = true,
+                AppliesOnDaysMask = request.AppliesOnDaysMask,
+                AppliesFromMinuteOfDay = request.AppliesFromMinuteOfDay,
+                AppliesToMinuteOfDay = request.AppliesToMinuteOfDay,
                 CreatedAtUtc = now
             };
 
@@ -270,8 +280,20 @@ public sealed class EfTariffService(
             return BillingCommandServiceResult<TariffDto>.Invalid("Tariff name already exists.");
         }
 
+        var scheduleError = TariffSchedule.Validate(
+            request.AppliesOnDaysMask, request.AppliesFromMinuteOfDay, request.AppliesToMinuteOfDay);
+        if (scheduleError is not null)
+        {
+            return BillingCommandServiceResult<TariffDto>.Invalid(scheduleError);
+        }
+
         tariff.Name = trimmedName;
         tariff.IsActive = request.IsActive;
+        // Расписание меняет только будущие продажи. Уже идущие сессии привязаны к своей версии
+        // тарифа до конца, и цена под игроком не меняется оттого, что владелец подвинул часы.
+        tariff.AppliesOnDaysMask = request.AppliesOnDaysMask;
+        tariff.AppliesFromMinuteOfDay = request.AppliesFromMinuteOfDay;
+        tariff.AppliesToMinuteOfDay = request.AppliesToMinuteOfDay;
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return BillingCommandServiceResult<TariffDto>.Ok(ToDto(tariff));
@@ -596,7 +618,10 @@ public sealed class EfTariffService(
             tariff.BranchId,
             tariff.Name,
             tariff.IsActive,
-            tariff.CreatedAtUtc);
+            tariff.CreatedAtUtc,
+            tariff.AppliesOnDaysMask,
+            tariff.AppliesFromMinuteOfDay,
+            tariff.AppliesToMinuteOfDay);
     }
 
     private static TariffVersionDto ToDto(TariffVersionEntity version)

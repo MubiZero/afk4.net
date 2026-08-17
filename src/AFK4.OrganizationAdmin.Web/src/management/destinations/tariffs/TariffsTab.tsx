@@ -16,6 +16,7 @@ import {
   parseMoneyInputMinorUnits,
   readBoolean,
   readNumber,
+  readOptionalNumber,
   readString,
   requireBackend
 } from '../../../operatorHelpers';
@@ -42,6 +43,16 @@ function localInputToIso(localValue: string): string {
   const parsed = new Date(localValue);
   return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
 }
+
+import { TariffScheduleFields } from './TariffScheduleFields';
+import {
+  ALL_HOURS,
+  DAY_LABEL_KEYS,
+  describeSchedule,
+  scheduleFromOption,
+  toSchedulePayload,
+  type TariffScheduleForm
+} from './tariffSchedule';
 
 // Вкладка «Тарифы» раздела «Тарифы и пакеты»: список версий тарифов + drawer-редактор выбранной
 // версии (портировано из settings/SettingsTariffsSection.runAction createTariff/updateTariff/
@@ -74,6 +85,7 @@ export function TariffsTab({
   const [minimumMinutes, setMinimumMinutes] = useState('15');
   const [roundingMinutes, setRoundingMinutes] = useState('5');
   const [effectiveFromUtc, setEffectiveFromUtc] = useState(() => new Date().toISOString());
+  const [schedule, setSchedule] = useState<TariffScheduleForm>(ALL_HOURS);
   const [busy, setBusy] = useState(false);
 
   // Если выбранная версия пропала из выборки (снята с продажи/reload) — закрыть drawer, а не
@@ -81,6 +93,11 @@ export function TariffsTab({
   useEffect(() => {
     setSelectedTariffVersionId((current) => (current && tariffs.some((tariff) => readString(tariff, 'tariffVersionId') === current) ? current : null));
   }, [tariffs]);
+
+  const scheduleLabels = {
+    dayNames: DAY_LABEL_KEYS.map((key) => t(key)),
+    always: t('op.management.tariffs.schedule.always')
+  };
 
   const selectedTariff = tariffs.find((tariff) => readString(tariff, 'tariffVersionId') === selectedTariffVersionId) ?? null;
 
@@ -93,6 +110,10 @@ export function TariffsTab({
     setMinimumMinutes(String(readNumber(selectedTariff, 'minimumBillableMinutes', 15)));
     setRoundingMinutes(String(readNumber(selectedTariff, 'roundingIncrementMinutes', 5)));
     setEffectiveFromUtc(readString(selectedTariff, 'effectiveFromUtc', new Date().toISOString()));
+    setSchedule(scheduleFromOption(
+      readNumber(selectedTariff, 'appliesOnDaysMask', 0),
+      readOptionalNumber(selectedTariff, 'appliesFromMinuteOfDay'),
+      readOptionalNumber(selectedTariff, 'appliesToMinuteOfDay')));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTariffVersionId]);
 
@@ -101,6 +122,7 @@ export function TariffsTab({
     setPricePerHour('90.00');
     setMinimumMinutes('15');
     setRoundingMinutes('5');
+    setSchedule(ALL_HOURS);
     setCreateOpen(true);
   };
 
@@ -124,11 +146,17 @@ export function TariffsTab({
         throw new Error(t('op.settings.tariffs.error.fillCreate'));
       }
 
+      const schedulePayload = toSchedulePayload(schedule);
+      if (!schedulePayload) {
+        throw new Error(t('op.settings.tariffs.error.schedule'));
+      }
+
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       const tariff = await apiClients.settings.createTariff(nextBackend.branchId, {
         organizationId: nextBackend.session.organizationId,
         name: trimmedName,
-        idempotencyKey: createIdempotencyKey('tariff-create')
+        idempotencyKey: createIdempotencyKey('tariff-create'),
+        ...schedulePayload
       });
       const tariffId = readString(tariff, 'tariffId');
       if (tariffId) {
@@ -176,11 +204,17 @@ export function TariffsTab({
         throw new Error(t('op.settings.tariffs.error.fillUpdate'));
       }
 
+      const schedulePayload = toSchedulePayload(schedule);
+      if (!schedulePayload) {
+        throw new Error(t('op.settings.tariffs.error.schedule'));
+      }
+
       const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
       await apiClients.settings.updateTariff(nextBackend.branchId, tariffId, {
         organizationId: nextBackend.session.organizationId,
         name: trimmedName,
-        isActive: true
+        isActive: true,
+        ...schedulePayload
       });
       await apiClients.settings.updateTariffVersion(nextBackend.branchId, tariffId, tariffVersionId, {
         organizationId: nextBackend.session.organizationId,
@@ -217,7 +251,12 @@ export function TariffsTab({
       await apiClients.settings.updateTariff(nextBackend.branchId, tariffId, {
         organizationId: nextBackend.session.organizationId,
         name: readString(tariffOption, 'name', name),
-        isActive: false
+        isActive: false,
+        // Часы переносятся как есть: снятие с продажи — это про доступность, а не про
+        // расписание, и молча стереть его здесь значит вернуть тариф из архива уже круглосуточным.
+        appliesOnDaysMask: readNumber(tariffOption, 'appliesOnDaysMask', 0),
+        appliesFromMinuteOfDay: readOptionalNumber(tariffOption, 'appliesFromMinuteOfDay'),
+        appliesToMinuteOfDay: readOptionalNumber(tariffOption, 'appliesToMinuteOfDay')
       });
       await apiClients.settings.updateTariffVersion(nextBackend.branchId, tariffId, tariffVersionId, {
         organizationId: nextBackend.session.organizationId,
@@ -290,6 +329,17 @@ export function TariffsTab({
             { key: 'min', header: t('op.management.tariffs.col.minMinutes'), align: 'end', render: (tariff) => String(readNumber(tariff, 'minimumBillableMinutes', 0)) },
             { key: 'rounding', header: t('op.management.tariffs.col.rounding'), align: 'end', render: (tariff) => String(readNumber(tariff, 'roundingIncrementMinutes', 0)) },
             {
+              key: 'schedule',
+              header: t('op.management.tariffs.col.schedule'),
+              // Часы стоят в таблице, а не только в карточке: владелец, у которого утренний и
+              // вечерний тарифы называются похоже, различает их по времени, а не по имени.
+              render: (tariff) => describeSchedule(
+                readNumber(tariff, 'appliesOnDaysMask', 0),
+                readOptionalNumber(tariff, 'appliesFromMinuteOfDay'),
+                readOptionalNumber(tariff, 'appliesToMinuteOfDay'),
+                scheduleLabels)
+            },
+            {
               key: 'status',
               header: t('op.management.tariffs.col.status'),
               render: (tariff) => readBoolean(tariff, 'isActive', true) ? t('op.settings.tariffs.active') : t('op.settings.tariffs.inactive')
@@ -297,7 +347,7 @@ export function TariffsTab({
           ]}
           rows={tariffs}
           rowKey={(tariff) => readString(tariff, 'tariffVersionId')}
-          gridTemplate="1.4fr 1fr 0.9fr 0.9fr 0.8fr"
+          gridTemplate="1.3fr 0.9fr 0.8fr 0.8fr 1.1fr 0.7fr"
           selectedKey={selectedTariffVersionId}
           onSelectRow={(tariff) => setSelectedTariffVersionId(readString(tariff, 'tariffVersionId'))}
           rowActions={rowActions}
@@ -351,6 +401,11 @@ export function TariffsTab({
                     onChange={(event) => setEffectiveFromUtc(localInputToIso(event.currentTarget.value))}
                   />
                 </label>
+                <TariffScheduleFields
+                  value={schedule}
+                  disabled={!canManageTariffs || busy}
+                  onChange={setSchedule}
+                />
               </div>
             </form>
           </MgmtDrawer>
@@ -373,6 +428,7 @@ export function TariffsTab({
               <label>{t('op.settings.tariffs.rounding')}
                 <input inputMode="numeric" value={roundingMinutes} onChange={(event) => setRoundingMinutes(event.currentTarget.value)} />
               </label>
+              <TariffScheduleFields value={schedule} disabled={busy} onChange={setSchedule} />
             </div>
             <div className="mgmt-form-actions">
               <button type="button" className="ui-btn" onClick={() => setCreateOpen(false)} disabled={busy}>{t('common.cancel')}</button>

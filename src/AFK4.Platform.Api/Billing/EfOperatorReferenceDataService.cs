@@ -1,4 +1,5 @@
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Platform.Analytics;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Operator;
 using Microsoft.EntityFrameworkCore;
@@ -187,6 +188,15 @@ public sealed class EfOperatorReferenceDataService(
             .ThenByDescending(row => row.Version.VersionNumber)
             .ToListAsync(cancellationToken);
 
+        // Часовой пояс филиала, а не сервера и не телефона: окно владелец задавал по времени
+        // своего клуба, и «действует ли сейчас» имеет ответ только в нём.
+        var timeZoneId = await dbContext.Branches
+            .AsNoTracking()
+            .Where(branch => branch.OrganizationId == organizationId && branch.BranchId == branchId)
+            .Select(branch => branch.PreferredTimeZone)
+            .SingleOrDefaultAsync(cancellationToken);
+        var zone = BranchLocalTime.ResolveZone(timeZoneId ?? "UTC");
+
         return rows
             .GroupBy(row => row.Tariff.TariffId)
             .Select(group => group.First())
@@ -201,7 +211,18 @@ public sealed class EfOperatorReferenceDataService(
                 row.Version.PricePerMinuteMinorUnits,
                 row.Version.MinimumBillableMinutes,
                 row.Version.RoundingIncrementMinutes,
-                row.Version.EffectiveFromUtc))
+                row.Version.EffectiveFromUtc,
+                row.Tariff.AppliesOnDaysMask,
+                row.Tariff.AppliesFromMinuteOfDay,
+                row.Tariff.AppliesToMinuteOfDay,
+                // Тариф вне часов не прячется: пропавший из списка «Утренний» читается как сбой,
+                // а названный с его часами объясняет и себя, и почему сейчас недоступен.
+                TariffSchedule.AppliesAt(
+                    row.Tariff.AppliesOnDaysMask,
+                    row.Tariff.AppliesFromMinuteOfDay,
+                    row.Tariff.AppliesToMinuteOfDay,
+                    now,
+                    zone)))
             .ToList();
     }
 

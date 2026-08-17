@@ -200,6 +200,17 @@ public sealed class SessionBillingService(
             return Invalid("Tariff version id is required for tariff billing.");
         }
 
+        // Тариф с расписанием нельзя выбрать вне его часов: иначе утренняя цена продаётся вечером
+        // одним нажатием, и весь смысл дешёвого утра пропадает. Проверка стоит здесь, а не в
+        // расчёте: расчёт — калькулятор, им же считают предварительную цену на стойке, а запрет
+        // касается только настоящей продажи времени. Уже начатая сессия к своей версии тарифа
+        // привязана до конца и по расписанию не пересчитывается — цена не меняется под игроком.
+        if (!await TariffAvailability.AppliesAtAsync(
+            dbContext, organizationId, branchId, tariffVersionId.Value, timeProvider.GetUtcNow(), cancellationToken))
+        {
+            return Invalid(TariffSchedule.OutsideHoursCode);
+        }
+
         var calculation = await tariffService.CalculateAsync(
             branchId,
             new CalculateTariffRequest(organizationId, tariffVersionId.Value, durationMinutes),

@@ -893,6 +893,19 @@ export function readNumber(value: unknown, name: string, fallback = 0): number {
   return typeof nextValue === 'number' && Number.isFinite(nextValue) ? nextValue : fallback;
 }
 
+/**
+ * Число, у которого отсутствие — это ответ, а не ноль: у часов тарифа <c>null</c> означает
+ * «круглосуточно», и подстановка нуля превратила бы её в полночь.
+ */
+export function readOptionalNumber(value: unknown, name: string): number | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const nextValue = value[name];
+  return typeof nextValue === 'number' && Number.isFinite(nextValue) ? nextValue : null;
+}
+
 export function readBoolean(value: unknown, name: string, fallback = false): boolean {
   if (!isRecord(value)) {
     return fallback;

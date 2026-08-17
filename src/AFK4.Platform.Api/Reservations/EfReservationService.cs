@@ -912,7 +912,8 @@ public sealed class EfReservationService(
         var now = timeProvider.GetUtcNow();
 
         var pricing = await PriceOnlineBookingAsync(
-            organizationId, branchId, request.TariffVersionId, durationMinutes, now, cancellationToken);
+            organizationId, branchId, request.TariffVersionId, durationMinutes, request.StartsAtUtc, now,
+            cancellationToken);
         if (pricing.Error is not null)
         {
             return ReservationServiceResult<ReservationDto>.Invalid(pricing.Error);
@@ -1048,6 +1049,7 @@ public sealed class EfReservationService(
         Guid branchId,
         Guid? tariffVersionId,
         int durationMinutes,
+        DateTimeOffset startsAtUtc,
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
@@ -1075,6 +1077,15 @@ public sealed class EfReservationService(
         {
             return new OnlineBookingPricing(
                 "Selected tariff is not available in this branch.", null, null);
+        }
+
+        // Расписание проверяется по времени начала брони, а не по «сейчас»: игрок в восемь вечера
+        // бронирует завтрашнее утро, и утренний тариф для этой брони действует, хотя в момент
+        // нажатия кнопки — нет.
+        if (!await TariffAvailability.AppliesAtAsync(
+            dbContext, organizationId, branchId, versionId, startsAtUtc, cancellationToken))
+        {
+            return new OnlineBookingPricing(TariffSchedule.OutsideHoursCode, null, null);
         }
 
         var estimate = TariffBilling.ComputeForMinutes(
@@ -1158,7 +1169,8 @@ public sealed class EfReservationService(
         }
 
         var pricing = await PriceOnlineBookingAsync(
-            organizationId, branchId, request.TariffVersionId, durationMinutes, now, cancellationToken);
+            organizationId, branchId, request.TariffVersionId, durationMinutes, request.StartsAtUtc, now,
+            cancellationToken);
         if (pricing.Error is not null)
         {
             return ReservationServiceResult<IReadOnlyList<ReservationDto>>.Invalid(pricing.Error);

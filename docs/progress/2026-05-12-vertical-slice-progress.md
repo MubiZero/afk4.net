@@ -300,6 +300,27 @@ Latest Verification).
   copied by hand. Both bonus entries ride the same transaction as the top-up that
   triggered them, the way cashback already does.
 
+- **Off-peak pricing sells cheap hours as a separate tariff on a schedule** (revenue
+  wave 2, slice 4) — a tariff now carries the days of the week and the local-time
+  window it applies in, and a tariff cannot be chosen outside them. Windows *inside*
+  a tariff were rejected on the evidence: a session is priced with one flat
+  `TariffPricing` for its whole elapsed span, so windows would force splitting
+  elapsed time across them and re-deciding whether the minimum billable duration and
+  the rounding increment apply per window or per session — a rewrite of
+  `TariffBilling`, which the live accrued-cost counter and the booking quote must
+  agree with exactly. A scheduled tariff leaves that calculation untouched. No
+  auto-selection was needed either: refusing a tariff outside its hours is enough,
+  because then the morning tariff simply is not offered at eight in the evening.
+  The gate sits at the two points where a tariff turns into money — session start
+  (and extension) and booking pricing — and a booking is checked against **its own
+  start time**, not against now, so an evening player can book tomorrow morning at
+  the morning price. An already-running session stays bound to its tariff version to
+  the end: the price never moves under a player, not even when the owner edits the
+  schedule. The window may cross midnight and then belongs to the day it started on,
+  so a club can sell «ночь с пятницы» without accidentally selling Saturday night
+  too. Hours are shown, never hidden: a vanished «Утренний» reads as a broken app,
+  while one labelled with its hours explains both itself and why it is unavailable.
+
 - **Online bookings are checked against the hall's machine count** — the app books
   without a seat (the club assigns the machine at seating), so the per-seat overlap
   check returned "no conflict" every time and a ten-machine hall accepted any number
@@ -333,6 +354,21 @@ Latest Verification).
 Older verification entries (2026-07-28 and earlier, including the superseded
 Platform Control rebuild Tasks 1-7 gates) are archived in
 `docs/archive/progress/2026-08-06-vertical-slice-detailed-history.md`.
+
+- Off-peak pricing gate (2026-08-17): Platform API passed **2105 tests against a
+  real PostgreSQL database with zero skips**; Shared Contracts 141/141;
+  Localization 15/15; Building Blocks 3/3; Update Publisher 13/13; `@afk4/i18n`
+  39/39; Organization Admin Web 1106/1106 plus its production build; Platform
+  Control 286/286; the customer app passed 323 widget tests with a clean
+  `flutter analyze`. The nine gate tests were re-run with the schedule check
+  neutered: exactly the four refusal cases fail and the five "must still work" cases
+  pass. Fourteen more unit tests pin the window itself — midnight crossing, day
+  masks, half-open boundaries and the branch time zone — with a fixed-offset zone
+  rather than a named one, so the answer cannot differ between Linux and Windows.
+  The migration `AddTariffSchedule` adds three nullable/defaulted columns to
+  `tariffs`, so every existing tariff keeps applying round the clock. The
+  full-solution build was not run: the Windows-targeted projects cannot build on
+  Linux. Not exercised on a device or against staging.
 
 - Booking capacity gate (2026-08-17): Platform API passed **2082 tests against a
   real PostgreSQL database with zero skips**; Shared Contracts 141/141;
@@ -483,21 +519,16 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
 The revenue wave for the mobile app is in progress; the rest is the Windows side
 and the operational backlog.
 
-1. Finish revenue wave 2 in the customer app. Slices 1-3 (hour packages, group
-   booking, refer a friend) and the booking capacity check are done; the only one
-   left is off-peak pricing. Contrary to the 2026-08-13 product analysis, tariffs
-   carry **no** time windows — a tariff is a name plus a price per minute, and a
-   human picks it. The model is decided: **a separate tariff selected automatically
-   by schedule**, not time windows inside one tariff. A session is priced with one
-   flat `TariffPricing` for its whole elapsed span, and the tariff version is frozen
-   on the session; windows would force splitting elapsed time across them and
-   re-deciding whether the minimum billable duration and the rounding increment
-   apply per window or per session — a rewrite of `TariffBilling`, which the live
-   accrued-cost display and the booking quote must agree with exactly. A scheduled
-   tariff leaves `TariffBilling` untouched and adds only a resolver for "which
-   tariff applies now in this branch". The accepted cost: a session started at 11:50
-   on the cheap morning tariff runs to 15:00 at the morning price, which matches how
-   the operator already picks a tariff today.
+1. Revenue wave 2 is complete in code: hour packages, group booking, refer a
+   friend, the booking capacity check and off-peak pricing are all merged. **None of
+   the five has been on a phone or against staging.** They are all money paths, and
+   the live device pass earlier in this work found two defects that 2000+ tests did
+   not. Referral is off by default and has to be switched on in «Платежи и
+   лояльность» first; off-peak needs a tariff with hours set in «Тарифы и пакеты».
+   The accepted cost of the scheduled-tariff model is worth re-checking on real
+   traffic: a session started at 11:50 on the cheap morning tariff runs to 15:00 at
+   the morning price, the same way the operator's manual tariff choice already
+   behaves.
 2. Return to the production-readiness backlog: repeat the
    Operator day flow from a clean `manager_workstation` install at 100%/125%,
    then run the physical Windows 10/11 gaming-PC Agent/Shell smoke. These need

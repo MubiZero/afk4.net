@@ -397,6 +397,47 @@
   font-weight: 600;
 }
 
+/* Часы тарифа: два поля времени, подпись и переключатели дней одним блоком. Своя раскладка, а не
+   .mgmt-role-set: там две колонки чекбоксов, здесь колонка из разнородных строк. */
+.mgmt-form fieldset.mgmt-schedule-set {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.mgmt-form fieldset.mgmt-schedule-set legend {
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mgmt-schedule-hint {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.mgmt-day-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mgmt-day-toggles .ui-btn {
+  min-width: 42px;
+}
+
+.mgmt-day-toggles .ui-btn.is-selected {
+  border-color: var(--border-accent);
+  background: var(--accent-soft);
+  color: var(--accent-on-soft);
+}
+
 .mgmt-form input:not([type="checkbox"]),
 .mgmt-form select {
   height: var(--control-md);
