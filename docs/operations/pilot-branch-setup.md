@@ -26,20 +26,29 @@ outside the current MVP implementation surface.
 
 ## Preferred Path: Organization Admin
 
-Use Organization Admin `Settings` -> `Pilot Setup` when a signed-in owner or branch
-manager has the required setup permissions.
+There is no longer a single `Pilot Setup` panel that does all of this at once —
+it was replaced by the `Управление` workspace, where each part of the setup has
+its own destination. A signed-in owner or branch manager with the permissions
+listed above sets a pilot branch up in this order:
 
-Use this path only when the Organization Admin is configured for the target Platform
-API. If no staging-configured Organization Admin is available, use the PowerShell
-script fallback below.
+1. `Управление` -> `Сотрудники и роли` — branch staff users and their roles.
+2. `Управление` -> `Залы и ПК` — one zone, then the seats in it.
+3. `Управление` -> `Тарифы и пакеты` — a tariff and its first version. Leave the
+   hours empty unless the pilot is meant to test off-peak pricing: empty means
+   round the clock.
+4. `Управление` -> `Товары` — one POS category and one product.
+5. `Управление` -> `Залы и ПК` — assign an already enrolled device to a seat.
+   Seats without an attached, approved gaming PC do not count as capacity, so a
+   branch left at this step accepts unlimited online bookings.
 
-The panel creates or reuses branch staff users, one layout zone, and seats. It
-creates tariff/POS setup idempotently for reruns through the same Organization Admin
-inputs, and can optionally assign an already enrolled device to a configured
-seat.
+Unlike the removed panel, these steps are not one idempotent action: rerunning
+them means editing what is already there rather than re-submitting the same
+inputs. For headless setup, recovery, or a rerun that has to be repeatable, use
+the PowerShell script below — it is still idempotent by design.
 
-The PowerShell script remains the release-workstation fallback for headless
-setup or recovery.
+See [`organization-admin-access.md`](organization-admin-access.md) for how to
+open Organization Admin against a deployed environment, including the browser
+route when no Windows machine is available.
 
 ## Configure Branch
 

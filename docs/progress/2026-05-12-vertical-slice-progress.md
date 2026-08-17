@@ -16,8 +16,11 @@ needed.
 ## Current Product Direction
 
 - AFK4 is a cloud-first SaaS platform for computer clubs.
-- Day-to-day club operations run in the native Windows app Organization Admin (a .NET
-  shell hosting a WebView2 React/TypeScript UI).
+- Day-to-day club operations **and** the owner-facing settings run in the same
+  native Windows app, Organization Admin (a .NET shell hosting a WebView2
+  React/TypeScript UI) — permissions decide who sees which sections, not which
+  app they open. It was the Operator App before the 2026-07-28 product-boundary
+  migration; that name survives only inside the code and in archived plans.
 - Platform-owner/support operations run in the browser Platform Control
   (`AFK4.PlatformControl.Web`, admin-only SPA under `/admin`).
 - Players have a self-service shell + installable PWA portal (PIN/QR, balance,
@@ -33,6 +36,11 @@ needed.
 - Architecture source of truth:
   `docs/superpowers/specs/2026-05-12-afk4-platform-architecture-design.md`.
 - Operational/production roadmap: `docs/roadmap/production-readiness.md`.
+- Opening Organization Admin against a deployed environment, and which of its
+  sections holds what: `docs/operations/organization-admin-access.md`. Read it
+  before looking for an "owner cabinet" — there isn't one, the owner-facing
+  settings are the `Управление` workspace inside Organization Admin, and Platform
+  Control is a different product.
 
 ## Implemented (high level)
 
