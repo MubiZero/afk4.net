@@ -494,6 +494,7 @@
   "customerReservationsEndBeforeStart": "The end must be later than the start",
   "customerReservationsGate": "To book online, confirm your phone number.",
   "customerReservationsGroupNoFunds": "Your wallet is short for the whole group. Top it up or book fewer seats.",
+  "customerReservationsGroupNoSeats": "The hall does not have that many free machines at this time. Book fewer seats or pick another time.",
   "customerReservationsGroupSeatNote": "The club assigns the machines — you will get them in the confirmation. Your group will sit together if the hall has free machines.",
   "customerReservationsGroupTooMany": "One booking takes at most {max} seats. Arrange a bigger group with the club.",
   "@customerReservationsGroupTooMany": {
@@ -508,6 +509,7 @@
   "customerReservationsNewTitle": "New booking",
   "customerReservationsNoFunds": "Your wallet doesn't cover this booking; top it up and try again",
   "customerReservationsNoSeat": "No seat",
+  "customerReservationsNoSeats": "No free machines are left in the hall at this time. Pick another time.",
   "customerReservationsNone": "No bookings yet",
   "customerReservationsNoneHint": "A booking holds the PC you picked until you arrive",
   "customerReservationsNotChosen": "Not chosen",

@@ -210,6 +210,8 @@ class PlayerApiClient {
     return list.map((item) => _parse(item, PlayerReservation.fromJson)).toList();
   }
 
+  /// 409 несёт причину: `insufficient_funds` — не хватает денег на бронь,
+  /// `no_seats_available` — свободных машин в зале на это время не осталось.
   Future<PlayerReservation> createReservation({
     required DateTime startsAtUtc,
     required DateTime endsAtUtc,
@@ -324,7 +326,8 @@ class PlayerApiClient {
   /// конкретную машину назначает клуб.
   ///
   /// 409 несёт причину: `insufficient_funds` — денег не хватает на всю компанию (частично не
-  /// бронируется ничего), `invalid_seat_count` — столько мест одной бронью не берут.
+  /// бронируется ничего), `invalid_seat_count` — столько мест одной бронью не берут,
+  /// `no_seats_available` — столько свободных машин на это время в зале нет.
   Future<PlayerReservationGroup> createReservationGroup({
     required int seatCount,
     required DateTime startsAtUtc,

@@ -494,6 +494,7 @@
   "customerReservationsEndBeforeStart": "Анҷом бояд пас аз оғоз бошад",
   "customerReservationsGate": "Барои онлайн брон кардан рақами телефони худро тасдиқ кунед.",
   "customerReservationsGroupNoFunds": "Дар ҳамён барои тамоми гурӯҳ маблағ намерасад. Онро пур кунед ё ҷойҳои камтар гиред.",
+  "customerReservationsGroupNoSeats": "Дар ин вақт дар толор ин қадар компютери холӣ нест. Ҷойҳои камтар гиред ё вақти дигар интихоб кунед.",
   "customerReservationsGroupSeatNote": "Компютерҳоро маъмури клуб таъин мекунад — шумо онҳоро дар тасдиқ мегиред. Агар дар толор компютерҳои холӣ бошанд, гурӯҳ паҳлӯи ҳам менишинад.",
   "customerReservationsGroupTooMany": "Бо як фармоиш на бештар аз {max} ҷой гирифта мешавад. Дар бораи гурӯҳи калон бо клуб гуфтугӯ кунед.",
   "@customerReservationsGroupTooMany": {
@@ -508,6 +509,7 @@
   "customerReservationsNewTitle": "Брони нав",
   "customerReservationsNoFunds": "Дар ҳамён барои ин брон маблағ намерасад — пур кунед ва бори дигар кӯшиш кунед",
   "customerReservationsNoSeat": "Бе ҷой",
+  "customerReservationsNoSeats": "Дар ин вақт дар толор компютери холӣ намондааст. Вақти дигар интихоб кунед.",
   "customerReservationsNone": "Ҳоло броне нест",
   "customerReservationsNoneHint": "Бронь ПК-и интихобшударо то омадани шумо нигоҳ медорад",
   "customerReservationsNotChosen": "Интихоб нашудааст",
