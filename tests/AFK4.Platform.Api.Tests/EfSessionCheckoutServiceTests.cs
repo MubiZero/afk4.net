@@ -89,6 +89,64 @@ public sealed class EfSessionCheckoutServiceTests
     }
 
     [Fact]
+    public async Task CheckoutAsync_FixedDurationPostpaid_DoesNotChargeThePaidTimeTwice()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        await SeedFixedPostpaidSessionAsync(db);
+        var service = CreateService(db, new RecordingDispatch());
+
+        var result = await service.CheckoutAsync(
+            SessionId,
+            ActorStaffUserId,
+            new SessionCheckoutRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", ExpectedTimeCharge))],
+                "checkout-fixed-postpaid"),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+
+        // Гость отыграл ровно оплаченные 40 минут; долг за них записан стартом сессии. На кассе он
+        // платит эти 2250 один раз, и они гасят записанный долг. Пока закрытие писало долг заново,
+        // гость расплачивался и уходил должником ровно на уплаченную сумму.
+        Assert.Equal(ExpectedTimeCharge, result.Response.TimeCharge.MinorUnits);
+        Assert.Equal(0, await DebtBalanceAsync(db));
+        Assert.Single(db.LedgerEntries.Where(entry => entry.EntryType == LedgerEntryTypeNames.PostpaidDebt));
+    }
+
+    [Fact]
+    public async Task CheckoutAsync_FixedDurationPostpaid_PricesOnlyTheOverstayAtTheCurrentTariff()
+    {
+        await using var db = CreateDbContext();
+        await SeedCoreAsync(db);
+        // Сессия начата на 40 минут по дешёвому утреннему тарифу (800 вместо 2250), а к закрытию
+        // висит на вечернем — так выглядит продление, переключившее сессию на другой тариф.
+        // Утренние минуты уже начислены и переоценке не подлежат; вечерним тарифом считается
+        // только пересиженное время.
+        await SeedFixedPostpaidSessionAsync(db, billedAmountMinorUnits: 800, startedMinutesAgo: 70);
+        var service = CreateService(db, new RecordingDispatch());
+
+        // 70 минут прошло, 40 начислено -> 30 минут сверх, по 50/мин с минимумом 30 -> 1500.
+        // Без разделения касса взяла бы 70 минут по вечернему тарифу: 75 * 50 = 3750.
+        const long expectedTotal = 800 + 1500;
+        var result = await service.CheckoutAsync(
+            SessionId,
+            ActorStaffUserId,
+            new SessionCheckoutRequest(
+                TestIds.OrganizationId,
+                [new PaymentPartDto(PaymentMethodNames.Cash, new MoneyDto("TJS", expectedTotal))],
+                "checkout-fixed-postpaid-overstay"),
+            CancellationToken.None);
+
+        Assert.True(result.Succeeded);
+        Assert.NotNull(result.Response);
+        Assert.Equal(expectedTotal, result.Response.TimeCharge.MinorUnits);
+        Assert.Equal(0, await DebtBalanceAsync(db));
+    }
+
+    [Fact]
     public async Task CheckoutAsync_AccruesSessionCashbackWhenEnabled()
     {
         await using var db = CreateDbContext();
@@ -518,6 +576,51 @@ public sealed class EfSessionCheckoutServiceTests
         var result = await service.QuoteAsync(SessionId, Guid.NewGuid(), CancellationToken.None);
 
         Assert.False(result.Succeeded);
+    }
+
+    private static async Task SeedFixedPostpaidSessionAsync(
+        PlatformDbContext db,
+        long billedAmountMinorUnits = ExpectedTimeCharge,
+        int billedMinutes = 40,
+        int startedMinutesAgo = 40)
+    {
+        db.Sessions.Add(new SessionEntity
+        {
+            SessionId = SessionId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            SeatId = SeatId,
+            DeviceId = TestIds.DeviceId,
+            CreatedByStaffUserId = ActorStaffUserId,
+            PlayerKind = "guest",
+            PlayerAccountId = PlayerAccountId,
+            TariffRuleVersionId = TariffVersionId.ToString("D"),
+            BillingMode = BillingModeNames.PostpaidDebt,
+            State = SessionStateNames.Active,
+            RequestedAtUtc = Now.AddMinutes(-startedMinutesAgo),
+            StartedAtUtc = Now.AddMinutes(-startedMinutesAgo),
+            EndsAtUtc = Now.AddMinutes(billedMinutes - startedMinutesAgo),
+            UpdatedAtUtc = Now.AddMinutes(-startedMinutesAgo)
+        });
+
+        // Именно это пишет старт сессии с фиксированной длительностью: долг за оплаченные минуты.
+        db.LedgerEntries.Add(BillingEntryFactory.Create(
+            TestIds.OrganizationId,
+            TestIds.BranchId,
+            PlayerAccountId,
+            SessionId,
+            playerPackageId: null,
+            LedgerEntryTypeNames.PostpaidDebt,
+            LedgerAccountTypeNames.Debt,
+            billedAmountMinorUnits,
+            quantitySeconds: billedMinutes * 60,
+            "TJS",
+            LedgerEntryTypeNames.PostpaidDebt,
+            "postpaid gameplay debt",
+            reversesLedgerEntryId: null,
+            ActorStaffUserId,
+            Now.AddMinutes(-startedMinutesAgo)));
+        await db.SaveChangesAsync();
     }
 
     private static async Task<long> DebtBalanceAsync(PlatformDbContext db) =>

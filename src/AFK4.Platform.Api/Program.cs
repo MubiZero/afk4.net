@@ -9,6 +9,7 @@ using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Payments.Eskhata;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
+using AFK4.Platform.Api.Common;
 using AFK4.Platform.Api.Configuration;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Dashboard;
@@ -92,23 +93,15 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddSignalR();
 
-string[] ResolveCorsOrigins(string configurationKey, string[] defaults)
-{
-    var configured = builder.Configuration
-        .GetSection(configurationKey)
-        .Get<string[]>();
-    if (configured is null || configured.Length == 0)
-    {
-        return defaults;
-    }
+// Адреса разработчика подставляются везде, кроме прода; см. CorsOrigins.
+var allowDeveloperCorsOrigins = !builder.Environment.IsProduction();
 
-    return defaults
-        .Concat(configured)
-        .Where(origin => !string.IsNullOrWhiteSpace(origin))
-        .Select(origin => origin.Trim().TrimEnd('/'))
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .ToArray();
-}
+string[] ResolveCorsOrigins(string configurationKey, string[] developerDefaults) =>
+    CorsOrigins.Resolve(
+        builder.Configuration,
+        configurationKey,
+        developerDefaults,
+        allowDeveloperCorsOrigins);
 
 var organizationAdminWebOrigins = ResolveCorsOrigins(
     "Cors:OperatorWebOrigins",
@@ -447,6 +440,15 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var app = builder.Build();
+
+// Прод без перечисленных источников не пускает браузерные кабинеты вовсе. Это лучше открытого
+// localhost, но узнать об этом из логов надо раньше, чем из «кнопка не работает».
+if (!allowDeveloperCorsOrigins && combinedWebOrigins.Length == 0)
+{
+    app.Logger.LogWarning(
+        "CORS origins are not configured for this environment; browser clients will be refused. " +
+        "Set Cors:OperatorWebOrigins and Cors:PlatformWebOrigins.");
+}
 
 // Схема догоняет код сама. Раньше это был ручной шаг, о котором нечему было напомнить: staging
 // две недели простоял на сборке от 29 июля, потому что база отстала на 14 миграций, а падение

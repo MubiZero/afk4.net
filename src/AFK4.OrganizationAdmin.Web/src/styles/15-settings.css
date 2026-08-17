@@ -1,187 +1,12 @@
-.settings-screen {
-  grid-column: 2 / 4;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  gap: 10px;
-  height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px));
-}
-
-.settings-head {
-  margin-bottom: 0;
-}
-
-.settings-layout {
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) 330px;
-  gap: 10px;
-  height: auto;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.settings-nav-panel,
-.settings-main-panel,
-.settings-card-panel {
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid var(--border-soft);
-  border-radius: 7px;
-  background: var(--surface-elevated);
-  box-shadow: var(--shadow-card);
-}
-
-.settings-nav-panel {
-  display: grid;
-  align-content: start;
-  gap: 7px;
-  padding: 12px;
-}
-
-.settings-nav-panel > span {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.settings-nav-panel button {
-  display: grid;
-  gap: 3px;
-  min-height: 52px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 9px 10px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  text-align: left;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
-}
-
-.settings-nav-panel button:hover,
-.settings-nav-panel button:focus-visible,
-.settings-nav-panel button.active {
-  border-color: var(--accent);
-  background: var(--surface-accent-soft);
-  outline: none;
-}
-
-.settings-nav-panel button:hover,
-.settings-nav-panel button:focus-visible {
-  transform: translateY(-1px);
-}
-
-.settings-nav-panel strong,
-.settings-nav-panel em,
-.settings-panel-title span,
-.settings-panel-title strong,
-.settings-form-grid label,
-.settings-form-grid input,
-.settings-form-grid select,
-.settings-section-title span,
-.settings-room-card strong,
-.settings-room-card b,
-.settings-room-card span,
-.settings-device-row strong,
-.settings-device-row b,
-.settings-device-row span,
-.settings-device-row em,
-.settings-tariff-row strong,
-.settings-tariff-row b,
-.settings-tariff-row span,
-.settings-readiness-list span,
-.settings-readiness-list strong,
-.settings-action-card strong,
-.settings-action-card span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settings-nav-panel strong {
-  color: var(--text-primary);
-  font-size: 13px;
-}
-
-.settings-nav-panel em {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-style: normal;
-}
-
-.settings-main-panel {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-  min-height: 0;
-  overflow: auto;
-  padding-bottom: 6px;
-}
-
-.settings-side-panel {
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.settings-card-panel {
-  min-height: 0;
-}
-
-.settings-panel-title {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-  padding: 10px 12px 0;
-}
-
-.settings-panel-title span {
-  color: var(--text-primary);
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1.08;
-}
-
-.settings-panel-title strong {
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.settings-stock-form {
-  border-top: 1px solid var(--border-default);
-  padding-top: 10px;
-}
-
-.settings-update-form {
-  border-top: 1px solid var(--border-default);
-  padding-top: 10px;
-}
-
-/* Новости: form actions row (save/cancel) and the list of existing items below the form.
-   Rows mirror .settings-tariff-row's card idiom (border + surface-card, no shadow — nested
-   content stays flat per the surface-elevation rule) but aren't buttons, so they get their
-   own class instead of reusing a <button>-only selector group. */
-.news-form-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 2px 12px 0;
-}
-
-.settings-device-detail-grid,
-.settings-command-history,
-.settings-device-inventory {
+/* Детали устройства во вкладке «Залы и ПК» — плитки «поле: значение» в четыре колонки. */
+.settings-device-detail-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   padding: 0 12px;
 }
 
-.settings-device-detail-grid span,
-.settings-command-history span {
+.settings-device-detail-grid span {
   display: grid;
   gap: 3px;
   min-height: 54px;
@@ -191,269 +16,27 @@
   background: var(--surface-card);
 }
 
-.settings-device-detail-grid strong,
-.settings-command-history strong {
+.settings-device-detail-grid strong {
   color: var(--text-tertiary);
   font-size: 10px;
   font-weight: 500;
   text-transform: uppercase;
 }
 
-.settings-device-detail-grid b,
-.settings-command-history b {
+.settings-device-detail-grid b {
   color: var(--text-strong);
   font-size: 12px;
   font-weight: 500;
 }
 
-.settings-room-card:hover,
-.settings-room-card:focus-visible,
-.settings-device-row:hover,
-.settings-device-row:focus-visible,
-.settings-tariff-row:hover,
-.settings-tariff-row:focus-visible,
-.settings-action-card:hover,
-.settings-action-card:focus-visible {
-  border-color: var(--border-accent);
-  background: var(--surface-hover);
-  outline: none;
-  transform: translateY(-1px);
-}
-
-.settings-room-card.active,
-.settings-device-row.active,
-.settings-tariff-row.active {
-  border-color: var(--accent);
-  background: var(--surface-accent-soft);
-}
-
-.settings-room-card strong,
-.settings-tariff-row strong,
-.settings-action-card strong,
-.settings-readiness-list strong {
-  color: var(--text-primary);
-}
-
-.settings-room-card span,
-.settings-device-row span,
-.settings-device-row em,
-.settings-tariff-row span,
-.settings-action-card span,
-.settings-readiness-list span {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-style: normal;
-}
-
-.settings-device-row.attention {
-  border-color: rgba(239, 68, 68, 0.58);
-}
-
-.settings-readiness-list {
-  display: grid;
-  gap: 5px;
-  padding: 8px 12px 10px;
-}
-
-.settings-readiness-list div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 25px;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.settings-action-grid {
-  display: grid;
-  gap: 6px;
-  padding: 8px 12px 10px;
-}
-
-.settings-action-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  align-items: center;
-  gap: 2px 8px;
-  min-height: 38px;
-  border: 1px solid var(--border-default);
-  border-radius: 6px;
-  padding: 7px 10px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  text-align: left;
-  transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
-}
-
-.settings-action-card svg {
-  grid-row: 1 / 3;
-  color: var(--accent-text);
-}
-
-.settings-config-grid button.active {
-  border-color: var(--accent);
-  background: var(--surface-accent-soft);
-}
-
-.settings-config-grid strong,
-.settings-config-grid span,
-.settings-save-row span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.settings-config-grid span,
-.settings-save-row span {
-  color: var(--text-secondary);
-  font-size: 11px;
-}
-
-.settings-save-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 0 12px;
-}
-
-.settings-save-row button {
-  height: 30px;
-  border: 1px solid var(--accent);
-  border-radius: 5px;
-  padding: 0 10px;
-  background: var(--accent);
-  color: var(--text-on-accent);
-  font-size: 12px;
-  font-weight: 600;
-}
-
 /* Управление — shared scaffold every management destination screen mounts into
    (header + scrollable body + optional sticky save bar). Fills the workspace
-   height the same way .settings-screen does. */
+   height the same way the shell does. */
 .management-screen {
   display: flex;
   flex-direction: column;
   min-height: 0;
   height: calc(100vh - 46px - 26px - var(--shell-tabstrip, 0px));
-}
-
-/* Заголовок смысловой зоны внутри панели («Как игрок платит вам» / «Как вы возвращаете»):
-   уровень между заголовком экрана и мелким uppercase .mgmt-section-title под-блоков — даёт
-   двухуровневую иерархию на одностраничном экране «Платежи и лояльность» без card-in-card. */
-.payment-zone-title {
-  margin: 0;
-  color: var(--text-strong);
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-/* Лояльность — компактная форма в зоне «Как вы возвращаете» раздела «Платежи и лояльность»:
-   правила начисления стопкой, ниже блок лимитов (отбит линией). Своя секционная кнопка
-   сохранения (.mgmt-form-actions), глобального save-бара на экране нет. */
-.loyalty-form > .loyalty-limits {
-  margin-top: 4px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border-soft);
-}
-
-/* Каждое правило кэшбэка — отдельная карточка: переключатель с названием и пояснением, поле
-   процента, и (когда правило включено и процент > 0) живой пример начисления снизу во всю
-   ширину. Светлая тема: карточка — это подъём (белая/приподнятая поверхность), не затемнение;
-   включённая карточка дополнительно подсвечена акцентной рамкой/подложкой. */
-.loyalty-rules {
-  display: flex;
-  flex-direction: column;
-}
-
-.loyalty-section-hint {
-  margin: -4px 0 4px;
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-.loyalty-rule-card {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: start;
-  gap: 12px 16px;
-  padding: 14px 16px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--surface-card);
-}
-
-.loyalty-rule-card.is-on {
-  border-color: var(--border-accent);
-  background: var(--surface-accent-soft);
-}
-
-.loyalty-rule-card + .loyalty-rule-card {
-  margin-top: 10px;
-}
-
-.loyalty-rule-toggle.mgmt-check {
-  align-items: flex-start;
-  padding: 0;
-}
-
-.loyalty-rule-text {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.loyalty-rule-name {
-  color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.loyalty-rule-hint {
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 1.45;
-}
-
-.loyalty-rule-percent {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.loyalty-rule-percent input {
-  width: 88px;
-  text-align: right;
-}
-
-.loyalty-rule-percent input:disabled {
-  color: var(--text-tertiary);
-  opacity: 0.6;
-}
-
-.loyalty-rule-example {
-  grid-column: 1 / -1;
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-/* Лимиты начисления: money-инпуты держат «денежную» ширину, а не тянутся на всю колонку грида
-   (пустой бокс под «50.00» читается недоделанным). */
-.loyalty-limits {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.loyalty-limits .mgmt-form-grid input {
-  max-width: 200px;
 }
 
 /* Eskhata Merchant — блок реквизитов во вкладке «Платёжные шлюзы», секцией под dcgate-картами. */
@@ -464,32 +47,6 @@
   margin-top: 20px;
 }
 
-.eskhata-note {
-  margin: 0;
-}
-
-/* Платёжные шлюзы: dcgate-карты + Eskhata стопкой без разделителя (см. GatewaysTab). */
-.payment-gateways { display: grid; gap: 24px; }
-.payment-gateways .eskhata-gateway { margin-top: 0; }
-.payment-card-rows { display: grid; gap: 10px; }
-.payment-card-row {
-  display: grid; gap: 8px;
-  padding: 12px 14px;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  background: var(--surface-card);
-}
-.payment-card-main { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
-.payment-card-pan { font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
-.payment-card-disable { margin-left: auto; }
-.payment-card-session-last { color: var(--text-secondary); font-size: 12px; }
-.payment-attach-row { display: flex; align-items: flex-end; gap: 10px; }
-.payment-attach-row label { flex: 1; }
-.payment-card-attach {
-  padding-top: 10px;
-  border-top: 1px solid var(--border-default);
-}
-.payment-card-attached { color: var(--success-text); font-size: 13px; font-weight: 600; margin: 0; }
 .ui-inline-error { color: var(--danger-text); font-size: 13px; margin: 0; }
 
 .management-save-bar {
@@ -514,9 +71,9 @@
   font-weight: 600;
 }
 
-/* Управление shell: left destination rail + the active destination's ManagementScreen. Mirrors
-   .settings-nav-panel's card idiom (raised surface + shadow-card, no shadow on nested buttons)
-   so the new rail reads as the same interface, not a parallel visual language. */
+/* Управление shell: left destination rail + the active destination's ManagementScreen. The rail
+   is a raised card (surface-elevated + shadow-card) with flat nested buttons, so it reads as one
+   interface with the panels it opens rather than a parallel visual language. */
 .management-layout {
   display: flex;
   flex: 1;
@@ -671,4 +228,3 @@
     transition-duration: 1ms !important;
   }
 }
-

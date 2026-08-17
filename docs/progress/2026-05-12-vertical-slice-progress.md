@@ -363,6 +363,27 @@ Older verification entries (2026-07-28 and earlier, including the superseded
 Platform Control rebuild Tasks 1-7 gates) are archived in
 `docs/archive/progress/2026-08-06-vertical-slice-detailed-history.md`.
 
+- Cleanup round (2026-08-17, after the review-fix round below): three leftovers
+  closed. **Postpaid billed the same minutes twice.** A fixed-duration postpaid
+  session records a debt for its minutes at start and at every extension, and
+  checkout then priced the whole elapsed span again: the guest paid the full
+  amount at the till and walked out still owing it on the ledger, because the
+  fresh debt and its settlement netted to zero while the start debt stayed
+  untouched. Checkout now records only what is not already on the session and
+  settles the whole outstanding balance. The same change fixes the repricing that
+  the tariff-schedule work made likely: postpaid debt entries now carry their
+  billable seconds, so already-billed minutes keep the price they were sold at,
+  and the tariff in force at checkout applies only to the overstay. Two tests,
+  both mutation-checked: without the fix one leaves 2250 of phantom debt, the
+  other demands 3750 at the till where 2300 was owed. Open tabs bill exactly as
+  before — they have nothing recorded to subtract. **The localhost CORS origins
+  are no longer appended in production** (`CorsOrigins.Resolve`); staging and dev
+  keep them, so the browser verification route still works, and a production
+  deployment lists its own origins or gets a startup warning. **444 lines of dead
+  CSS** removed: `15-settings.css` kept the whole pre-`payset-*` payments and
+  loyalty stylesheet plus the retired settings shell — 46 class names with no
+  reference anywhere in the repository. Full suite green, including all 28
+  PostgreSQL tests (2134 backend, 1108 web).
 - Review-fix round (2026-08-17): three independent reviewers went over the two
   merged revenue slices and this branch's docs/cleanup. They found real defects in
   merged code, all now fixed and each pinned by a test that was mutation-checked
@@ -537,6 +558,13 @@ Platform Control rebuild Tasks 1-7 gates) are archived in
   because the hall is full today, which is worse. Counter-side bookings
   (`CreateAsync`) are deliberately not capacity-checked: the operator sees the floor
   and may overbook on purpose.
+- **An open-ended session is checked against its tariff's hours only at the
+  moment it starts.** A walk-in put on the 08:00–16:00 tariff at 15:30 keeps
+  playing at the morning price until midnight, and checkout bills the whole span
+  at it. Ending the session at the window edge, or repricing the tail, both
+  change what an operator's session means and need a product decision. Fixed
+  duration and extensions are already handled: they are refused outside the
+  tariff's hours, and the minutes each of them billed keep their own price.
 - **Operator entity search** is still deferred: the command palette navigates
   between workspaces but does not yet search clients, seats, reservations,
   orders, or receipts.
