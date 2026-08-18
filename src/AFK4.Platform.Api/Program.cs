@@ -179,6 +179,7 @@ builder.Services.AddScoped<IPlayerContextAccessor, PlayerContextAccessor>();
 builder.Services.AddScoped<IPlatformPersonTokenService, OpaquePlatformPersonTokenService>();
 builder.Services.AddScoped<IPlatformPersonContextAccessor, PlatformPersonContextAccessor>();
 builder.Services.AddScoped<IPlayerClubAccountResolver, EfPlayerClubAccountResolver>();
+builder.Services.AddScoped<IPlayerClubMembershipService, EfPlayerClubMembershipService>();
 builder.Services.AddScoped<IStaffCredentialService, PasswordHashingStaffCredentialService>();
 builder.Services.AddScoped<IStaffContextAccessor, StaffContextAccessor>();
 builder.Services.AddScoped<StaffAuthorizationService>();

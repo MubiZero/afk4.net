@@ -291,20 +291,25 @@ internal static class PlayerSelfServiceEndpoints
         app.MapPost("/api/me/wallet/top-up-intent", async (
             PlayerTopUpIntentRequest request,
             IPlayerContextAccessor playerContextAccessor,
+            IPlatformPersonContextAccessor personContextAccessor,
+            IPlayerClubMembershipService clubMembership,
             AFK4.Platform.Api.Payments.Eskhata.IEskhataMerchantClientFactory eskhataClientFactory,
             IOrganizationEntitlements entitlements,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
-            var player = playerContextAccessor.Current;
-            if (player is null)
+            // Клуб известен до счёта. Порядок здесь важен: отказ клуба и кривая сумма не должны
+            // оставлять после себя карточку гостя, который в клуб так и не пришёл.
+            var selectedOrganizationId = playerContextAccessor.Current?.OrganizationId
+                ?? personContextAccessor.Current?.SelectedOrganizationId;
+            if (selectedOrganizationId is null)
             {
                 return Results.Unauthorized();
             }
 
             var featureDenial = await entitlements.RequireAsync(
-                player.OrganizationId, PlatformFeatureNames.OnlineTopUp, cancellationToken);
+                selectedOrganizationId.Value, PlatformFeatureNames.OnlineTopUp, cancellationToken);
             if (featureDenial is not null)
             {
                 return featureDenial;
@@ -321,6 +326,19 @@ internal static class PlayerSelfServiceEndpoints
             if (method != "counter" && method != "eskhata")
             {
                 return Results.BadRequest(new { Error = "Method must be 'counter' or 'eskhata'." });
+            }
+
+            var clubDenial = await OpenClubAccountIfNeededAsync(
+                playerContextAccessor, personContextAccessor, clubMembership, null, cancellationToken);
+            if (clubDenial is not null)
+            {
+                return clubDenial;
+            }
+
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
             }
 
             var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
@@ -403,7 +421,7 @@ internal static class PlayerSelfServiceEndpoints
                 GatewayExpiresAtUtc: intent.GatewayExpiresAtUtc,
                 Qr: intent.GatewayQrPayload,
                 DeepLink: AFK4.Platform.Api.Payments.Eskhata.EskhataDeepLink.FromInvoiceUrl(intent.GatewayPayUrl)));
-        }).RequireRateLimiting("player-me");
+        }).RequireRateLimiting("player-me").OpensClubAccount();
 
         app.MapGet("/api/me/wallet/top-up-intents", async (
             IPlayerContextAccessor playerContextAccessor,
@@ -529,27 +547,35 @@ internal static class PlayerSelfServiceEndpoints
         app.MapPost("/api/me/reservations", async (
             CreatePlayerReservationRequest request,
             IPlayerContextAccessor playerContextAccessor,
+            IPlatformPersonContextAccessor personContextAccessor,
+            IPlayerClubMembershipService clubMembership,
             IReservationService reservationService,
             IOrganizationEntitlements entitlements,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
-            var player = playerContextAccessor.Current;
-            if (player is null)
+            // Порядок: сначала всё, из-за чего бронь может не состояться, и только потом счёт.
+            // Иначе каждая отклонённая попытка оставляла бы клубу карточку несуществующего гостя.
+            var selectedOrganizationId = playerContextAccessor.Current?.OrganizationId
+                ?? personContextAccessor.Current?.SelectedOrganizationId;
+            if (selectedOrganizationId is null)
             {
                 return Results.Unauthorized();
             }
 
             var featureDenial = await entitlements.RequireAsync(
-                player.OrganizationId, PlatformFeatureNames.OnlineBooking, cancellationToken);
+                selectedOrganizationId.Value, PlatformFeatureNames.OnlineBooking, cancellationToken);
             if (featureDenial is not null)
             {
                 return featureDenial;
             }
 
-            // D8 gate: verified phone required for booking actions.
-            if (!player.PhoneVerified)
+            // D8 gate: бронировать может только подтверждённый номер. Подтверждение принадлежит
+            // человеку, а не клубной карточке, поэтому спрашиваем его до открытия счёта.
+            var phoneVerified = playerContextAccessor.Current?.PhoneVerified
+                ?? personContextAccessor.Current?.PhoneVerified ?? false;
+            if (!phoneVerified)
             {
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
@@ -563,6 +589,19 @@ internal static class PlayerSelfServiceEndpoints
             if (request.StartsAtUtc <= now)
             {
                 return Results.BadRequest(new { Error = "Start time must be in the future." });
+            }
+
+            var clubDenial = await OpenClubAccountIfNeededAsync(
+                playerContextAccessor, personContextAccessor, clubMembership, null, cancellationToken);
+            if (clubDenial is not null)
+            {
+                return clubDenial;
+            }
+
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
             }
 
             var account = await dbContext.PlayerAccounts
@@ -596,33 +635,40 @@ internal static class PlayerSelfServiceEndpoints
             }
 
             return Results.Ok(ToPlayerReservationDto(result.Response!));
-        }).RequireRateLimiting("player-me");
+        }).RequireRateLimiting("player-me").OpensClubAccount();
 
         // Бронь на компанию: несколько мест на одно время одним действием. Мест здесь количество,
         // а не список, — конкретную машину игроку в приложении не выбирают, её назначает клуб.
         app.MapPost("/api/me/reservations/group", async (
             CreatePlayerReservationGroupRequest request,
             IPlayerContextAccessor playerContextAccessor,
+            IPlatformPersonContextAccessor personContextAccessor,
+            IPlayerClubMembershipService clubMembership,
             IReservationService reservationService,
             IOrganizationEntitlements entitlements,
             PlatformDbContext dbContext,
             TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
-            var player = playerContextAccessor.Current;
-            if (player is null)
+            // Порядок: сначала всё, из-за чего бронь может не состояться, и только потом счёт.
+            // Иначе каждая отклонённая попытка оставляла бы клубу карточку несуществующего гостя.
+            var selectedOrganizationId = playerContextAccessor.Current?.OrganizationId
+                ?? personContextAccessor.Current?.SelectedOrganizationId;
+            if (selectedOrganizationId is null)
             {
                 return Results.Unauthorized();
             }
 
             var featureDenial = await entitlements.RequireAsync(
-                player.OrganizationId, PlatformFeatureNames.OnlineBooking, cancellationToken);
+                selectedOrganizationId.Value, PlatformFeatureNames.OnlineBooking, cancellationToken);
             if (featureDenial is not null)
             {
                 return featureDenial;
             }
 
-            if (!player.PhoneVerified)
+            var phoneVerified = playerContextAccessor.Current?.PhoneVerified
+                ?? personContextAccessor.Current?.PhoneVerified ?? false;
+            if (!phoneVerified)
             {
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
@@ -636,6 +682,19 @@ internal static class PlayerSelfServiceEndpoints
             if (request.StartsAtUtc <= now)
             {
                 return Results.BadRequest(new { Error = "Start time must be in the future." });
+            }
+
+            var clubDenial = await OpenClubAccountIfNeededAsync(
+                playerContextAccessor, personContextAccessor, clubMembership, null, cancellationToken);
+            if (clubDenial is not null)
+            {
+                return clubDenial;
+            }
+
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
             }
 
             var account = await dbContext.PlayerAccounts
@@ -679,7 +738,7 @@ internal static class PlayerSelfServiceEndpoints
                 // Сумма по всей компании — то, что действительно заморожено.
                 first.EstimatedCostMinorUnits is { } perSeat ? perSeat * reservations.Count : null,
                 first.CurrencyCode));
-        }).RequireRateLimiting("player-me");
+        }).RequireRateLimiting("player-me").OpensClubAccount();
 
         // Отмена всей компании разом: передумали идти все, и четыре отдельных отмены — это четыре
         // шанса оборваться на полпути, оставив часть денег замороженной.
@@ -812,18 +871,24 @@ internal static class PlayerSelfServiceEndpoints
         app.MapPost("/api/me/sessions/start", async (
             PlayerSelfStartRequest request,
             IPlayerContextAccessor playerContextAccessor,
+            IPlatformPersonContextAccessor personContextAccessor,
+            IPlayerClubMembershipService clubMembership,
             PlatformDbContext dbContext,
             ISessionCommandService sessionCommandService,
             CancellationToken cancellationToken) =>
         {
-            var player = playerContextAccessor.Current;
-            if (player is null) return Results.Unauthorized();
+            // Клуб известен ещё до счёта: человек стоит у конкретного ПК конкретного клуба.
+            // Проверка принадлежности устройства этому клубу остаётся на месте — иначе по номеру
+            // чужой машины можно было бы сесть в клубе, который тебя не звал.
+            var organizationId = playerContextAccessor.Current?.OrganizationId
+                ?? personContextAccessor.Current?.SelectedOrganizationId;
+            if (organizationId is null) return Results.Unauthorized();
 
             var assignment = await (
                 from a in dbContext.DeviceSeatAssignments.AsNoTracking()
                 join d in dbContext.Devices.AsNoTracking() on a.DeviceId equals d.DeviceId
                 where a.DeviceId == request.DeviceId &&
-                      a.OrganizationId == player.OrganizationId &&
+                      a.OrganizationId == organizationId &&
                       a.DetachedAtUtc == null &&
                       d.EnrollmentState == DeviceEnrollmentStateNames.Approved
                 orderby a.AttachedAtUtc descending
@@ -834,7 +899,7 @@ internal static class PlayerSelfServiceEndpoints
                 return Results.BadRequest(new { error = "invalid_tariff" });
 
             var version = await dbContext.TariffVersions.AsNoTracking().SingleOrDefaultAsync(
-                v => v.OrganizationId == player.OrganizationId &&
+                v => v.OrganizationId == organizationId &&
                      v.BranchId == assignment.BranchId &&
                      v.TariffVersionId == tariffVersionId, cancellationToken);
             if (version is null) return Results.BadRequest(new { error = "invalid_tariff" });
@@ -844,6 +909,17 @@ internal static class PlayerSelfServiceEndpoints
                 version.RoundingIncrementMinutes, version.CurrencyCode);
             var charge = TariffBilling.ComputeForMinutes(request.DurationMinutes, pricing);
             if (charge is null) return Results.BadRequest(new { error = "invalid_duration" });
+
+            // Счёт открывается последним шагом перед делом, и филиал берётся из привязки машины,
+            // а не угадывается: человек сидит именно здесь. Отклонённая попытка не должна
+            // оставлять клубу карточку гостя, который так и не сел.
+            var clubDenial = await OpenClubAccountIfNeededAsync(
+                playerContextAccessor, personContextAccessor, clubMembership,
+                assignment.BranchId, cancellationToken);
+            if (clubDenial is not null) return clubDenial;
+
+            var player = playerContextAccessor.Current;
+            if (player is null) return Results.Unauthorized();
 
             var wallet = await LedgerBalanceProjector.GetWalletSummaryAsync(
                 dbContext, player.PlayerAccountId, cancellationToken);
@@ -869,7 +945,7 @@ internal static class PlayerSelfServiceEndpoints
             if (result.NotFound) return Results.NotFound(new { error = result.Error });
             if (!result.Succeeded) return Results.BadRequest(new { error = result.Error });
             return Results.Ok(result.Response);
-        }).RequireRateLimiting("player-me");
+        }).RequireRateLimiting("player-me").OpensClubAccount();
 
         app.MapPost("/api/me/sessions/{sessionId:guid}/extend", async (
             Guid sessionId,
@@ -937,6 +1013,48 @@ internal static class PlayerSelfServiceEndpoints
     /// как филиал появился, или филиал удалён) — тогда возвращается только идентификатор: он и есть
     /// то, ради чего филиал отдаётся клиенту, а имя лишь подпись на экране.
     /// </summary>
+    /// <summary>
+    /// Открывает человеку счёт в выбранном клубе, если его там ещё нет, и делает этот счёт
+    /// текущим для остатка запроса. Ничего не делает, когда счёт уже есть, — то есть в
+    /// подавляющем большинстве запросов.
+    ///
+    /// Возвращает готовый отказ, если счёт открыть невозможно (клуб не найден, филиал не назван
+    /// у клуба с несколькими филиалами), и null, когда путь свободен.
+    /// </summary>
+    private static async Task<IResult?> OpenClubAccountIfNeededAsync(
+        IPlayerContextAccessor playerContextAccessor,
+        IPlatformPersonContextAccessor personContextAccessor,
+        IPlayerClubMembershipService clubMembership,
+        Guid? branchId,
+        CancellationToken cancellationToken)
+    {
+        if (playerContextAccessor.Current is not null)
+        {
+            return null;
+        }
+
+        var person = personContextAccessor.Current;
+        if (person?.SelectedOrganizationId is not { } organizationId)
+        {
+            // Ни счёта, ни выбранного клуба — отвечать будет сам эндпоинт, как и раньше.
+            return null;
+        }
+
+        var membership = await clubMembership.EnsureAsync(
+            person.PlatformPersonId, organizationId, branchId, cancellationToken);
+        if (!membership.Succeeded)
+        {
+            return Results.Conflict(new { error = membership.Error });
+        }
+
+        playerContextAccessor.Current = new PlayerContext(
+            membership.Account!.PlayerAccountId,
+            organizationId,
+            person.PhoneVerified,
+            person.PlatformPersonId);
+        return null;
+    }
+
     private static async Task<PlayerProfileDto> ToProfileDtoAsync(
         PlatformDbContext dbContext,
         PlayerAccountEntity account,

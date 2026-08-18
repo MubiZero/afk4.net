@@ -5,23 +5,25 @@ namespace AFK4.Platform.Api.Identity;
 
 public sealed class EfPlayerClubAccountResolver(PlatformDbContext dbContext) : IPlayerClubAccountResolver
 {
-    public async Task<PlayerAccountEntity?> ResolveAsync(
+    public async Task<PlayerClubSelection> ResolveAsync(
         Guid platformPersonId,
         Guid? requestedOrganizationId,
         Guid? pinnedOrganizationId,
         CancellationToken cancellationToken)
     {
-        // 1. Клуб, названный запросом. Если связи с ним нет — клуба нет: молча подставить другой
-        //    значит показать человеку чужой кошелёк там, где он ждал свой.
+        // 1. Клуб, названный запросом. Если счёта в нём нет — клуб всё равно этот: молча
+        //    подставить другой значит показать человеку чужой кошелёк там, где он ждал свой.
         if (requestedOrganizationId is { } requested)
         {
-            return await FindAsync(platformPersonId, requested, cancellationToken);
+            return new PlayerClubSelection(
+                requested, await FindAsync(platformPersonId, requested, cancellationToken));
         }
 
         // 2. Клуб, закреплённый в токене при входе, — дорога старых клиентов.
         if (pinnedOrganizationId is { } pinned)
         {
-            return await FindAsync(platformPersonId, pinned, cancellationToken);
+            return new PlayerClubSelection(
+                pinned, await FindAsync(platformPersonId, pinned, cancellationToken));
         }
 
         // 3. Единственная связь не нуждается в выборе.
@@ -33,7 +35,9 @@ public sealed class EfPlayerClubAccountResolver(PlatformDbContext dbContext) : I
             .ToListAsync(cancellationToken);
 
         // 4. Клубов несколько и ни один не назван — выбирать за человека нечего.
-        return accounts.Count == 1 ? accounts[0] : null;
+        return accounts.Count == 1
+            ? new PlayerClubSelection(accounts[0].OrganizationId, accounts[0])
+            : PlayerClubSelection.None;
     }
 
     private Task<PlayerAccountEntity?> FindAsync(
