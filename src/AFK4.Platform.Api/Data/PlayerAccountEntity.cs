@@ -6,6 +6,14 @@ public sealed class PlayerAccountEntity
 
     public Guid OrganizationId { get; set; }
 
+    /// <summary>
+    /// Человек, которому принадлежит этот клубный счёт. Null — нормальный случай, а не переходный
+    /// мусор: гостя без телефона завели на стойке, и он живёт чисто клубным, пока однажды не
+    /// подтвердит номер. Пара (PlatformPersonId, OrganizationId) уникальна: у человека в одном
+    /// клубе ровно один счёт.
+    /// </summary>
+    public Guid? PlatformPersonId { get; set; }
+
     public Guid HomeBranchId { get; set; }
 
     public string DisplayName { get; set; } = string.Empty;
@@ -33,6 +41,13 @@ public sealed class PlayerAccountEntity
     /// большинство приложение не откроет.
     /// </summary>
     public string? ReferralCode { get; set; }
+
+    /// <summary>
+    /// Счёт завёлся сам, первым действием игрока из приложения, а не рукой оператора на стойке.
+    /// Нужен стойке, чтобы отличать «пришёл из приложения» от «завели здесь»; игроку не
+    /// показывается — это кухня клуба.
+    /// </summary>
+    public bool CreatedFromApp { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; }
 }

@@ -184,6 +184,21 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PlatformAdminSignInChallengeEntity> PlatformAdminSignInChallenges => Set<PlatformAdminSignInChallengeEntity>();
 
+    public DbSet<PlatformPersonEntity> PlatformPersons => Set<PlatformPersonEntity>();
+
+    public DbSet<PlatformPersonAccessTokenEntity> PlatformPersonAccessTokens => Set<PlatformPersonAccessTokenEntity>();
+
+    public DbSet<PlatformPersonRefreshTokenEntity> PlatformPersonRefreshTokens => Set<PlatformPersonRefreshTokenEntity>();
+
+    public DbSet<PlatformPhoneOtpEntity> PlatformPhoneOtps => Set<PlatformPhoneOtpEntity>();
+
+    public DbSet<PlatformReputationSnapshotEntity> PlatformReputationSnapshots => Set<PlatformReputationSnapshotEntity>();
+
+    public DbSet<PlatformIdentityMigrationFindingEntity> PlatformIdentityMigrationFindings =>
+        Set<PlatformIdentityMigrationFindingEntity>();
+
+    public DbSet<BranchBookingSettingsEntity> BranchBookingSettings => Set<BranchBookingSettingsEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<OrganizationEntity>(entity =>
@@ -577,6 +592,14 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             // Код уникален внутри клуба, а не глобально: игрок называет его вслух, и чем короче
             // код, тем важнее не требовать уникальности через всю платформу.
             entity.HasIndex(player => new { player.OrganizationId, player.ReferralCode }).IsUnique();
+            entity.HasIndex(player => player.PlatformPersonId);
+            // У человека в одном клубе ровно один счёт — и это защита на уровне базы, а не на
+            // уровне надежды: при гонке вторая вставка падает на индексе, а код перечитывает
+            // существующую связь. Счета без личности под ограничение не попадают: гостей без
+            // телефона в одном клубе бывает сколько угодно.
+            entity.HasIndex(player => new { player.PlatformPersonId, player.OrganizationId })
+                .IsUnique()
+                .HasFilter("\"PlatformPersonId\" IS NOT NULL");
         });
 
         modelBuilder.Entity<PlayerCredentialEntity>(entity =>
@@ -1379,6 +1402,70 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(challenge => challenge.TokenHash).IsRequired();
             entity.HasIndex(challenge => challenge.TokenHash).IsUnique();
             entity.HasIndex(challenge => new { challenge.PlatformAdminUserId, challenge.ExpiresAtUtc });
+        });
+
+        modelBuilder.Entity<PlatformPersonEntity>(entity =>
+        {
+            entity.ToTable("platform_persons");
+            entity.HasKey(person => person.PlatformPersonId);
+            entity.Property(person => person.PhoneNumber).HasMaxLength(32).IsRequired();
+            entity.Property(person => person.DisplayName).HasMaxLength(160).IsRequired();
+            entity.Property(person => person.PreferredLocale).HasMaxLength(16);
+            entity.Property(person => person.PinHash).HasMaxLength(512);
+            entity.Property(person => person.NetworkBanReason).HasMaxLength(500);
+            // Номер — это и есть личность: второй записи на тот же номер быть не может.
+            entity.HasIndex(person => person.PhoneNumber).IsUnique();
+        });
+
+        modelBuilder.Entity<PlatformPersonAccessTokenEntity>(entity =>
+        {
+            entity.ToTable("platform_person_access_tokens");
+            entity.HasKey(accessToken => accessToken.PlatformPersonAccessTokenId);
+            entity.Property(accessToken => accessToken.TokenHash).IsRequired();
+            entity.HasIndex(accessToken => accessToken.TokenHash);
+            entity.HasIndex(accessToken => new { accessToken.PlatformPersonId, accessToken.ExpiresAtUtc });
+        });
+
+        modelBuilder.Entity<PlatformPersonRefreshTokenEntity>(entity =>
+        {
+            entity.ToTable("platform_person_refresh_tokens");
+            entity.HasKey(refreshToken => refreshToken.PlatformPersonRefreshTokenId);
+            entity.Property(refreshToken => refreshToken.TokenHash).IsRequired();
+            entity.HasIndex(refreshToken => refreshToken.TokenHash);
+            entity.HasIndex(refreshToken => new { refreshToken.PlatformPersonId, refreshToken.ExpiresAtUtc });
+        });
+
+        modelBuilder.Entity<PlatformPhoneOtpEntity>(entity =>
+        {
+            entity.ToTable("platform_phone_otps");
+            entity.HasKey(otp => otp.PlatformPhoneOtpId);
+            entity.Property(otp => otp.Phone).HasMaxLength(32).IsRequired();
+            entity.Property(otp => otp.CodeHash).HasMaxLength(64).IsRequired();
+            // Счётчик отправок ключуется номером, а не счётом: у незнакомого номера счёта ещё нет.
+            entity.HasIndex(otp => new { otp.Phone, otp.Purpose, otp.CreatedAtUtc });
+        });
+
+        modelBuilder.Entity<PlatformReputationSnapshotEntity>(entity =>
+        {
+            entity.ToTable("platform_reputation_snapshots");
+            entity.HasKey(snapshot => snapshot.PlatformPersonId);
+        });
+
+        modelBuilder.Entity<PlatformIdentityMigrationFindingEntity>(entity =>
+        {
+            entity.ToTable("platform_identity_migration_findings");
+            entity.HasKey(finding => finding.FindingId);
+            entity.Property(finding => finding.Kind).HasMaxLength(32).IsRequired();
+            entity.Property(finding => finding.DetailsJson).HasColumnType("jsonb").IsRequired();
+            entity.HasIndex(finding => new { finding.Kind, finding.ResolvedAtUtc });
+        });
+
+        modelBuilder.Entity<BranchBookingSettingsEntity>(entity =>
+        {
+            entity.ToTable("branch_booking_settings");
+            entity.HasKey(settings => settings.BranchId);
+            entity.Property(settings => settings.AcceptanceMode).HasMaxLength(16).IsRequired();
+            entity.HasIndex(settings => settings.OrganizationId);
         });
     }
 }
