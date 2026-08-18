@@ -1,4 +1,4 @@
-using AFK4.Platform.Api.Data;
+﻿using AFK4.Platform.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -123,6 +123,16 @@ public sealed class PlatformAccountPoolMigrationTests
             """));
         Assert.Equal("1", await schema.ScalarAsync("""
             SELECT count(*)::text FROM player_credentials WHERE "PasswordHash" IS NOT NULL
+            """));
+
+        // У каждой находки есть дата: очередь разбора живёт месяцами, и без неё в ней нет порядка.
+        Assert.Equal("0", await schema.ScalarAsync("""
+            SELECT count(*)::text FROM platform_identity_migration_findings
+            WHERE "CreatedAtUtc" IS NULL
+            """));
+        Assert.Equal("3", await schema.ScalarAsync("""
+            SELECT count(*)::text FROM platform_identity_migration_findings
+            WHERE "CreatedAtUtc" > CURRENT_TIMESTAMP - interval '1 hour' AND "ResolvedAtUtc" IS NULL
             """));
 
         // Главный инвариант: миграция денег не касается.

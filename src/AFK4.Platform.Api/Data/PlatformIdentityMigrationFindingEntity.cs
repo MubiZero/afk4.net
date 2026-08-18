@@ -20,6 +20,12 @@ public sealed class PlatformIdentityMigrationFindingEntity
 
     public string DetailsJson { get; set; } = "{}";
 
+    /// <summary>
+    /// Когда находка появилась. Перенос наполняет таблицу разом, но разбирать её будут месяцами, и
+    /// без даты в очереди разбора нет ни порядка, ни ответа на вопрос «это старое или новое».
+    /// </summary>
+    public DateTimeOffset CreatedAtUtc { get; set; }
+
     public DateTimeOffset? ResolvedAtUtc { get; set; }
 }
 

@@ -67,6 +67,7 @@ namespace AFK4.Platform.Api.Data.Migrations
                     PlayerAccountId = table.Column<Guid>(type: "uuid", nullable: true),
                     OrganizationId = table.Column<Guid>(type: "uuid", nullable: true),
                     DetailsJson = table.Column<string>(type: "jsonb", nullable: false),
+                    CreatedAtUtc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     ResolvedAtUtc = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
@@ -182,9 +183,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                 column: "OrganizationId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_platform_identity_migration_findings_Kind_ResolvedAtUtc",
+                name: "IX_platform_identity_migration_findings_Kind_ResolvedAtUtc_Cre~",
                 table: "platform_identity_migration_findings",
-                columns: new[] { "Kind", "ResolvedAtUtc" });
+                columns: new[] { "Kind", "ResolvedAtUtc", "CreatedAtUtc" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_platform_person_access_tokens_PlatformPersonId_ExpiresAtUtc",
@@ -305,7 +306,7 @@ namespace AFK4.Platform.Api.Data.Migrations
                     -- слияния увидит только один из двух счетов.
                     INSERT INTO platform_identity_migration_findings (
                         "FindingId", "Kind", "PlatformPersonId", "PlayerAccountId",
-                        "OrganizationId", "DetailsJson", "ResolvedAtUtc")
+                        "OrganizationId", "DetailsJson", "CreatedAtUtc", "ResolvedAtUtc")
                     SELECT
                         gen_random_uuid(),
                         'duplicate_in_club',
@@ -316,6 +317,7 @@ namespace AFK4.Platform.Api.Data.Migrations
                             'phone', account."PhoneNumber",
                             'displayName', account."DisplayName",
                             'attachedPlayerAccountId', attached."PlayerAccountId"),
+                        CURRENT_TIMESTAMP,
                         NULL
                     FROM player_accounts account
                     JOIN platform_persons person
@@ -330,7 +332,7 @@ namespace AFK4.Platform.Api.Data.Migrations
                     -- случаи «один номер, два человека», и разбирает их живой человек.
                     INSERT INTO platform_identity_migration_findings (
                         "FindingId", "Kind", "PlatformPersonId", "PlayerAccountId",
-                        "OrganizationId", "DetailsJson", "ResolvedAtUtc")
+                        "OrganizationId", "DetailsJson", "CreatedAtUtc", "ResolvedAtUtc")
                     SELECT
                         gen_random_uuid(),
                         'name_mismatch',
@@ -338,6 +340,7 @@ namespace AFK4.Platform.Api.Data.Migrations
                         NULL,
                         NULL,
                         jsonb_build_object('phone', person."PhoneNumber", 'names', names.seen),
+                        CURRENT_TIMESTAMP,
                         NULL
                     FROM platform_persons person
                     JOIN LATERAL (
@@ -355,7 +358,7 @@ namespace AFK4.Platform.Api.Data.Migrations
                     -- склеить не тех, а ронять перенос из-за трёх кривых строк — тоже не дело.
                     INSERT INTO platform_identity_migration_findings (
                         "FindingId", "Kind", "PlatformPersonId", "PlayerAccountId",
-                        "OrganizationId", "DetailsJson", "ResolvedAtUtc")
+                        "OrganizationId", "DetailsJson", "CreatedAtUtc", "ResolvedAtUtc")
                     SELECT
                         gen_random_uuid(),
                         'unusable_phone',
@@ -365,6 +368,7 @@ namespace AFK4.Platform.Api.Data.Migrations
                         jsonb_build_object(
                             'phone', account."PhoneNumber",
                             'displayName', account."DisplayName"),
+                        CURRENT_TIMESTAMP,
                         NULL
                     FROM player_accounts account
                     WHERE account."IsActive"

@@ -1457,7 +1457,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.HasKey(finding => finding.FindingId);
             entity.Property(finding => finding.Kind).HasMaxLength(32).IsRequired();
             entity.Property(finding => finding.DetailsJson).HasColumnType("jsonb").IsRequired();
-            entity.HasIndex(finding => new { finding.Kind, finding.ResolvedAtUtc });
+            // Очередь разбора читается так: нужный вид, ещё не разобранные, свежие сверху.
+            entity.HasIndex(finding => new { finding.Kind, finding.ResolvedAtUtc, finding.CreatedAtUtc });
         });
 
         modelBuilder.Entity<BranchBookingSettingsEntity>(entity =>

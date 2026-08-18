@@ -1,4 +1,4 @@
-using AFK4.Platform.Api.Data;
+﻿using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Tests.Sessions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -83,6 +83,25 @@ public sealed class PlatformPersonSchemaTests
         Assert.Equal(
             new[] { nameof(BranchBookingSettingsEntity.BranchId) },
             entityType.FindPrimaryKey()!.Properties.Select(property => property.Name).ToArray());
+    }
+
+    [Fact]
+    public void MigrationFinding_CarriesTheDateItWasFound()
+    {
+        var entityType = Model().FindEntityType(typeof(PlatformIdentityMigrationFindingEntity))!;
+
+        Assert.False(entityType.FindProperty(
+            nameof(PlatformIdentityMigrationFindingEntity.CreatedAtUtc))!.IsNullable);
+        // Очередь разбора: нужный вид, ещё не разобранные, свежие сверху.
+        Assert.Contains(
+            entityType.GetIndexes(),
+            index => index.Properties.Select(property => property.Name).SequenceEqual(
+                new[]
+                {
+                    nameof(PlatformIdentityMigrationFindingEntity.Kind),
+                    nameof(PlatformIdentityMigrationFindingEntity.ResolvedAtUtc),
+                    nameof(PlatformIdentityMigrationFindingEntity.CreatedAtUtc)
+                }));
     }
 
     [PostgresSessionFact]

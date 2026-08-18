@@ -2382,6 +2382,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("DetailsJson")
                         .IsRequired()
                         .HasColumnType("jsonb");
@@ -2405,7 +2408,7 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.HasKey("FindingId");
 
-                    b.HasIndex("Kind", "ResolvedAtUtc");
+                    b.HasIndex("Kind", "ResolvedAtUtc", "CreatedAtUtc");
 
                     b.ToTable("platform_identity_migration_findings", (string)null);
                 });
