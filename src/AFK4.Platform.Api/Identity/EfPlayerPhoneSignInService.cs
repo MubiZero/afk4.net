@@ -19,6 +19,7 @@ public sealed class EfPlayerPhoneSignInService(
     PlatformDbContext db,
     INotificationService notifications,
     IPlayerTokenService tokenService,
+    IPlatformPersonTokenService personTokenService,
     IPhoneOtpHasher hasher,
     IPhoneOtpGenerator generator,
     TimeProvider timeProvider,
@@ -193,6 +194,28 @@ public sealed class EfPlayerPhoneSignInService(
         credential.UpdatedAtUtc = now;
         otp.ConsumedAtUtc = now;
         await db.SaveChangesAsync(cancellationToken);
+
+        // Токен выдаётся человеку, а названный при входе клуб закрепляется за токеном: клиент,
+        // который про выбор клуба ничего не знает, попадает туда же, куда и вчера. Счёт, ещё не
+        // подшитый к личности (дубль внутри клуба после переноса), входит по-старому — иначе
+        // человек остался бы без входа вовсе.
+        var person = account.PlatformPersonId is { } platformPersonId
+            ? await db.PlatformPersons.FirstOrDefaultAsync(
+                candidate => candidate.PlatformPersonId == platformPersonId && candidate.IsActive,
+                cancellationToken)
+            : null;
+
+        if (person is not null)
+        {
+            // Прочитать код с этого телефона — то же доказательство владения номером, что и в
+            // проверке номера, поэтому личность считается подтверждённой.
+            person.PhoneVerifiedAtUtc ??= now;
+            person.UpdatedAtUtc = now;
+            await db.SaveChangesAsync(cancellationToken);
+
+            var personTokens = await personTokenService.IssueAsync(person, account, cancellationToken);
+            return new PlayerCodeSignInResult(PlayerCodeSignInStatus.SignedIn, personTokens, otpOptions.MaxAttempts);
+        }
 
         var tokens = await tokenService.IssueAsync(account, phoneVerified: true, cancellationToken);
         return new PlayerCodeSignInResult(PlayerCodeSignInStatus.SignedIn, tokens, otpOptions.MaxAttempts);

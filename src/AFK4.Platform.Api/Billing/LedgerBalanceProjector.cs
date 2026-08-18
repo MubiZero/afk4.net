@@ -6,9 +6,16 @@ namespace AFK4.Platform.Api.Billing;
 
 public sealed record PackageRemainingSeconds(int IncludedSeconds, int BonusSeconds);
 
+/// <summary>Деньги игрока в одном клубе: доступно, придержано под брони, должен.</summary>
+public sealed record ClubBalances(long WalletMinorUnits, long HeldMinorUnits, long DebtMinorUnits);
+
 public static class LedgerBalanceProjector
 {
     private const string DefaultCurrencyCode = "TJS";
+
+    // Тип записи холда пока живёт в Reservations/ReservationHold.cs; в общий список типов он
+    // переезжает вместе с третьим числом кошелька (Ф7), и тогда эта константа уходит.
+    private const string ReservationHoldEntryType = "reservation_hold";
 
     public static async Task<WalletSummaryDto?> GetWalletSummaryAsync(
         PlatformDbContext dbContext,
@@ -47,14 +54,30 @@ public static class LedgerBalanceProjector
             .Take(25)
             .ToListAsync(cancellationToken);
 
-        var wallet = await SumAmountAsync(dbContext, playerAccountId, LedgerAccountTypeNames.Wallet, cancellationToken);
-        var debt = await SumAmountAsync(dbContext, playerAccountId, LedgerAccountTypeNames.Debt, cancellationToken);
+        var balances = await GetClubBalancesAsync(dbContext, playerAccountId, cancellationToken);
 
         return new WalletSummaryDto(
             playerAccountId,
-            new MoneyDto(currencyCode, wallet),
-            new MoneyDto(currencyCode, debt),
+            new MoneyDto(currencyCode, balances.WalletMinorUnits),
+            new MoneyDto(currencyCode, balances.DebtMinorUnits),
             entries.Select(ToDto).ToList());
+    }
+
+    /// <summary>
+    /// Три числа кошелька одним обращением. Остаток — по-прежнему то, что можно потратить: холд
+    /// уже вычтен из него, потому что холд и есть отрицательная запись журнала. «Придержано» —
+    /// не четвёртое место хранения денег, а объяснение, куда делась часть остатка.
+    /// </summary>
+    public static async Task<ClubBalances> GetClubBalancesAsync(
+        PlatformDbContext dbContext,
+        Guid playerAccountId,
+        CancellationToken cancellationToken)
+    {
+        var wallet = await SumAmountAsync(dbContext, playerAccountId, LedgerAccountTypeNames.Wallet, cancellationToken);
+        var debt = await SumAmountAsync(dbContext, playerAccountId, LedgerAccountTypeNames.Debt, cancellationToken);
+        var held = await SumUnreleasedHoldsAsync(dbContext, playerAccountId, cancellationToken);
+
+        return new ClubBalances(wallet, held, debt);
     }
 
     public static async Task<PackageRemainingSeconds> GetPackageRemainingSecondsAsync(
@@ -86,6 +109,29 @@ public static class LedgerBalanceProjector
             entry.ReversesLedgerEntryId,
             entry.CreatedByStaffUserId,
             entry.CreatedAtUtc);
+    }
+
+    /// <summary>
+    /// Заморожено под непогашенные брони. Снятый холд — это реверс, поэтому в сумму он не входит.
+    /// Число положительное: в журнале холд отрицателен, но человеку показывают «придержано 50»,
+    /// а не «придержано минус 50».
+    /// </summary>
+    private static async Task<long> SumUnreleasedHoldsAsync(
+        PlatformDbContext dbContext,
+        Guid playerAccountId,
+        CancellationToken cancellationToken)
+    {
+        var released = dbContext.LedgerEntries
+            .Where(entry => entry.ReversesLedgerEntryId != null)
+            .Select(entry => entry.ReversesLedgerEntryId!.Value);
+
+        var held = await dbContext.LedgerEntries
+            .Where(entry => entry.PlayerAccountId == playerAccountId
+                && entry.EntryType == ReservationHoldEntryType
+                && !released.Contains(entry.LedgerEntryId))
+            .SumAsync(entry => (long?)entry.AmountMinorUnits, cancellationToken) ?? 0;
+
+        return -held;
     }
 
     private static async Task<long> SumAmountAsync(

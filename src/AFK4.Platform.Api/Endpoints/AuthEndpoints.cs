@@ -200,12 +200,16 @@ internal static class AuthEndpoints
             };
         }).RequireRateLimiting("player-public");
 
+        // Один маршрут обновления на два вида токенов: клиент присылает то, что у него есть, и
+        // про смену модели не знает. Токены, выданные до перехода, доживают свои 30 дней здесь же.
         app.MapPost("/api/public/player/refresh", async (
             PlayerRefreshRequest request,
+            IPlatformPersonTokenService personTokenService,
             IPlayerTokenService tokenService,
             CancellationToken cancellationToken) =>
         {
-            var response = await tokenService.RefreshAsync(request, cancellationToken);
+            var response = await personTokenService.RefreshAsync(request.RefreshToken, cancellationToken)
+                ?? await tokenService.RefreshAsync(request, cancellationToken);
             return response is null ? Results.Unauthorized() : Results.Ok(response);
         }).RequireRateLimiting("player-public");
 
