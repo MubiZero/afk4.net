@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -127,10 +128,10 @@ public sealed class PlayerAuthenticationContextTests
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/me")).StatusCode);
     }
 
-    private static void Authorize(HttpClient client, PlayerSignInResponse tokens) =>
+    private static void Authorize(HttpClient client, PlatformPersonSessionResponse tokens) =>
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
 
-    private static async Task<PlayerSignInResponse> IssueAsync(
+    private static async Task<PlatformPersonSessionResponse> IssueAsync(
         PlatformApiFactory factory, Guid platformPersonId, Guid playerAccountId)
     {
         await using var scope = factory.Services.CreateAsyncScope();
@@ -147,7 +148,7 @@ public sealed class PlayerAuthenticationContextTests
     /// Токен без закреплённого клуба. Такие выдаёт самостоятельная регистрация: человек скачал
     /// приложение дома и ни в один клуб ещё не заходил.
     /// </summary>
-    private static async Task<PlayerSignInResponse> IssueUnpinnedTokenAsync(
+    private static async Task<PlatformPersonSessionResponse> IssueUnpinnedTokenAsync(
         PlatformApiFactory factory, Guid platformPersonId)
     {
         var tokenId = Guid.NewGuid();
@@ -166,8 +167,9 @@ public sealed class PlayerAuthenticationContextTests
         });
         await db.SaveChangesAsync();
 
-        return new PlayerSignInResponse(
-            Guid.Empty, Guid.Empty, "Фаррух", true,
-            token, DateTimeOffset.UtcNow.AddHours(1), "unused", DateTimeOffset.UtcNow.AddDays(30));
+        return new PlatformPersonSessionResponse(
+            null, null, "Фаррух", true,
+            token, DateTimeOffset.UtcNow.AddHours(1), "unused", DateTimeOffset.UtcNow.AddDays(30),
+            platformPersonId, "tg", ProfileCompleted: true);
     }
 }

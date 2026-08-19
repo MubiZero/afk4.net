@@ -44,6 +44,7 @@ using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Inventory;
 using AFK4.Shared.Contracts.Layout;
+using AFK4.Shared.Contracts.Localization;
 using AFK4.Shared.Contracts.Operator;
 using AFK4.Shared.Contracts.Packages;
 using AFK4.Shared.Contracts.Payments;
@@ -171,10 +172,12 @@ internal static class BranchSettingsEndpoints
                 return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
             }
 
-            var supportedLocales = new[] { "ru", "en", "tg" };
-            if (Array.IndexOf(supportedLocales, request.PreferredLocale) < 0)
+            if (!SupportedLocales.IsSupported(request.PreferredLocale))
             {
-                return Results.BadRequest(new { Error = "PreferredLocale must be one of: ru, en, tg." });
+                return Results.BadRequest(new
+                {
+                    Error = $"PreferredLocale must be one of: {string.Join(", ", SupportedLocales.All)}."
+                });
             }
 
             var branch = await dbContext.Branches

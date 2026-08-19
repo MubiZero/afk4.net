@@ -298,6 +298,8 @@ builder.Services.AddSingleton<IPhoneOtpGenerator, RandomPhoneOtpGenerator>();
 builder.Services.AddScoped<IStaffPhoneVerificationService, EfStaffPhoneVerificationService>();
 builder.Services.AddScoped<IPlayerPhoneVerificationService, EfPlayerPhoneVerificationService>();
 builder.Services.AddScoped<IPlayerPhoneSignInService, EfPlayerPhoneSignInService>();
+builder.Services.AddScoped<PhoneKeyedOtpStore>();
+builder.Services.AddScoped<IPlatformRegistrationService, EfPlatformRegistrationService>();
 builder.Services.AddScoped<IStaffPhonePasswordResetService, EfStaffPhonePasswordResetService>();
 builder.Services.AddScoped<IStaffInviteService, EfStaffInviteService>();
 builder.Services.AddScoped<IDailySummaryRunner, EfDailySummaryRunner>();
@@ -433,6 +435,18 @@ builder.Services.AddRateLimiter(options =>
                 Window = TimeSpan.FromMinutes(1)
             }));
 
+    // Своя ручка у регистрации, а не общая с витриной: этот маршрут единственный, где чужой
+    // номер получает SMS за счёт клубов, и прикрутить его надо уметь, не трогая остальной
+    // край игрока.
+    options.AddPolicy("register-public", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
     options.AddPolicy("staff-reset", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -548,6 +562,7 @@ organizations.MapReferralSettingsEndpoints();
 organizations.MapNewsEndpoints();
 organizations.MapAnnouncementFeedEndpoints();
 app.MapMeEndpoints();
+app.MapPlatformRegistrationEndpoints();
 app.MapPlayerSelfServiceEndpoints();
 app.MapPlayerCatalogEndpoints();
 app.MapPlayerShopEndpoints();

@@ -2,6 +2,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity.PhoneOtp;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Shared.Contracts.Notifications;
+using AFK4.Shared.Contracts.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -213,7 +214,19 @@ public sealed class EfPlayerPhoneSignInService(
             person.UpdatedAtUtc = now;
             await db.SaveChangesAsync(cancellationToken);
 
-            var personTokens = await personTokenService.IssueAsync(person, account, cancellationToken);
+            var session = await personTokenService.IssueAsync(person, account, cancellationToken);
+
+            // Этот маршрут отвечает ровно тем же телом, что и вчера: клуб здесь назван входом, и
+            // новых полей старому клиенту тут не нужно. Расширенную сессию отдаёт регистрация.
+            var personTokens = new PlayerSignInResponse(
+                account.PlayerAccountId,
+                account.OrganizationId,
+                session.DisplayName,
+                session.PhoneVerified,
+                session.AccessToken,
+                session.AccessTokenExpiresAtUtc,
+                session.RefreshToken,
+                session.RefreshTokenExpiresAtUtc);
             return new PlayerCodeSignInResult(PlayerCodeSignInStatus.SignedIn, personTokens, otpOptions.MaxAttempts);
         }
 

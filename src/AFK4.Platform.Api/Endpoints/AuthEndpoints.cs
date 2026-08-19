@@ -208,9 +208,14 @@ internal static class AuthEndpoints
             IPlayerTokenService tokenService,
             CancellationToken cancellationToken) =>
         {
-            var response = await personTokenService.RefreshAsync(request.RefreshToken, cancellationToken)
-                ?? await tokenService.RefreshAsync(request, cancellationToken);
-            return response is null ? Results.Unauthorized() : Results.Ok(response);
+            var session = await personTokenService.RefreshAsync(request.RefreshToken, cancellationToken);
+            if (session is not null)
+            {
+                return Results.Ok(session);
+            }
+
+            var legacy = await tokenService.RefreshAsync(request, cancellationToken);
+            return legacy is null ? Results.Unauthorized() : Results.Ok(legacy);
         }).RequireRateLimiting("player-public");
 
         // Каталог клубов для мобильного приложения: у него нет поддомена, из которого веб-сборка

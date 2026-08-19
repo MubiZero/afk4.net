@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Shared.Contracts.Identity;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Sessions;
@@ -145,7 +146,7 @@ public sealed class MeEndpointTests
         Assert.Equal(2, (await response.Content.ReadFromJsonAsync<MeDto>())!.Clubs.Count);
     }
 
-    private static void Authorize(HttpClient client, PlayerSignInResponse tokens) =>
+    private static void Authorize(HttpClient client, PlatformPersonSessionResponse tokens) =>
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
 
     private static async Task<Guid> FirstAccountIdAsync(PlatformApiFactory factory, Guid platformPersonId)
@@ -158,7 +159,7 @@ public sealed class MeEndpointTests
             .FirstAsync();
     }
 
-    private static async Task<PlayerSignInResponse> IssueAsync(
+    private static async Task<PlatformPersonSessionResponse> IssueAsync(
         PlatformApiFactory factory, Guid platformPersonId, Guid playerAccountId)
     {
         await using var scope = factory.Services.CreateAsyncScope();

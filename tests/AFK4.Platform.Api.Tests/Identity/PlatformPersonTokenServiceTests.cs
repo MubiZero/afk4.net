@@ -109,7 +109,7 @@ public sealed class PlatformPersonTokenServiceTests
         Assert.Null(await ValidateAsync(factory, null));
     }
 
-    private static async Task<Shared.Contracts.Players.PlayerSignInResponse> IssueAsync(
+    private static async Task<Shared.Contracts.Identity.PlatformPersonSessionResponse> IssueAsync(
         PlatformApiFactory factory, Guid platformPersonId, Guid playerAccountId)
     {
         await using var scope = factory.Services.CreateAsyncScope();
@@ -129,7 +129,7 @@ public sealed class PlatformPersonTokenServiceTests
             .ValidateAsync(token, CancellationToken.None);
     }
 
-    private static async Task<Shared.Contracts.Players.PlayerSignInResponse?> RefreshAsync(
+    private static async Task<Shared.Contracts.Identity.PlatformPersonSessionResponse?> RefreshAsync(
         PlatformApiFactory factory, string token)
     {
         await using var scope = factory.Services.CreateAsyncScope();

@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using AFK4.Platform.Api.Data;
-using AFK4.Shared.Contracts.Players;
+using AFK4.Shared.Contracts.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace AFK4.Platform.Api.Identity;
@@ -17,9 +17,9 @@ public sealed class OpaquePlatformPersonTokenService(PlatformDbContext dbContext
     private static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromHours(1);
     private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
 
-    public async Task<PlayerSignInResponse> IssueAsync(
+    public async Task<PlatformPersonSessionResponse> IssueAsync(
         PlatformPersonEntity person,
-        PlayerAccountEntity pinnedAccount,
+        PlayerAccountEntity? pinnedAccount,
         CancellationToken cancellationToken)
     {
         var now = timeProvider.GetUtcNow();
@@ -33,7 +33,7 @@ public sealed class OpaquePlatformPersonTokenService(PlatformDbContext dbContext
         {
             PlatformPersonAccessTokenId = accessTokenId,
             PlatformPersonId = person.PlatformPersonId,
-            PinnedOrganizationId = pinnedAccount.OrganizationId,
+            PinnedOrganizationId = pinnedAccount?.OrganizationId,
             TokenHash = HashToken(accessToken),
             CreatedAtUtc = now,
             ExpiresAtUtc = accessExpires
@@ -42,26 +42,30 @@ public sealed class OpaquePlatformPersonTokenService(PlatformDbContext dbContext
         {
             PlatformPersonRefreshTokenId = refreshTokenId,
             PlatformPersonId = person.PlatformPersonId,
-            PinnedOrganizationId = pinnedAccount.OrganizationId,
+            PinnedOrganizationId = pinnedAccount?.OrganizationId,
             TokenHash = HashToken(refreshToken),
             CreatedAtUtc = now,
             ExpiresAtUtc = refreshExpires
         });
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        // Тело ответа не меняется ни на байт: клуб, счёт и имя там, где клиент их и ждёт.
-        return new PlayerSignInResponse(
-            pinnedAccount.PlayerAccountId,
-            pinnedAccount.OrganizationId,
+        // Первые восемь полей стоят там же, где вчера: клуб, счёт и имя клиент читает как читал.
+        // Клуба может не быть вовсе — так выглядит человек, зарегистрировавшийся дома.
+        return new PlatformPersonSessionResponse(
+            pinnedAccount?.PlayerAccountId,
+            pinnedAccount?.OrganizationId,
             person.DisplayName,
             person.PhoneVerifiedAtUtc is not null,
             accessToken,
             accessExpires,
             refreshToken,
-            refreshExpires);
+            refreshExpires,
+            person.PlatformPersonId,
+            person.PreferredLocale,
+            !string.IsNullOrWhiteSpace(person.DisplayName));
     }
 
-    public async Task<PlayerSignInResponse?> RefreshAsync(string? refreshToken, CancellationToken cancellationToken)
+    public async Task<PlatformPersonSessionResponse?> RefreshAsync(string? refreshToken, CancellationToken cancellationToken)
     {
         if (!TryReadTokenId(refreshToken, out var tokenId))
         {
@@ -89,10 +93,18 @@ public sealed class OpaquePlatformPersonTokenService(PlatformDbContext dbContext
             return null;
         }
 
-        var account = await FindPinnedAccountAsync(person.PlatformPersonId, stored.PinnedOrganizationId, cancellationToken);
-        if (account is null)
+        // Закреплённый клуб продлевается закреплённым, а незакреплённый так и остаётся
+        // незакреплённым: подобрать клуб на продлении значило бы решить за человека то, чего он
+        // не выбирал. Если закреплённая карточка закрыта клубом — продлевать нечего.
+        PlayerAccountEntity? account = null;
+        if (stored.PinnedOrganizationId is { } pinnedOrganizationId)
         {
-            return null;
+            account = await FindPinnedAccountAsync(
+                person.PlatformPersonId, pinnedOrganizationId, cancellationToken);
+            if (account is null)
+            {
+                return null;
+            }
         }
 
         stored.RevokedAtUtc = now;
@@ -138,18 +150,13 @@ public sealed class OpaquePlatformPersonTokenService(PlatformDbContext dbContext
 
     private Task<PlayerAccountEntity?> FindPinnedAccountAsync(
         Guid platformPersonId,
-        Guid? pinnedOrganizationId,
-        CancellationToken cancellationToken)
-    {
-        var accounts = dbContext.PlayerAccounts
-            .Where(account => account.PlatformPersonId == platformPersonId && account.IsActive);
-
-        return pinnedOrganizationId is null
-            ? accounts.OrderBy(account => account.CreatedAtUtc).FirstOrDefaultAsync(cancellationToken)
-            : accounts
-                .Where(account => account.OrganizationId == pinnedOrganizationId)
-                .SingleOrDefaultAsync(cancellationToken);
-    }
+        Guid pinnedOrganizationId,
+        CancellationToken cancellationToken) =>
+        dbContext.PlayerAccounts
+            .Where(account => account.PlatformPersonId == platformPersonId
+                && account.IsActive
+                && account.OrganizationId == pinnedOrganizationId)
+            .SingleOrDefaultAsync(cancellationToken);
 
     private static bool TryReadTokenId(string? token, out Guid tokenId)
     {
