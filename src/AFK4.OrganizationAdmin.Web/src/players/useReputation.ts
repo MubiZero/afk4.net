@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { projectOperatorError } from '../apiErrors';
 import { createAuthenticatedOperatorClients } from '../operatorHelpers';
@@ -46,6 +46,10 @@ export function useReputation(
     return known ? { status: 'ready', reputation: known } : { status: 'idle' };
   };
   const [state, setState] = useState<ReputationState>(initial);
+  // Чей номер сейчас на экране. Ответ сети приходит асинхронно, а карточка за это время могла
+  // переехать на другого человека — показать ему чужие числа хуже, чем не показать ничего.
+  const shownPhone = useRef(phone);
+  shownPhone.current = phone;
 
   // Карточка переехала на другого человека — показываем его ответ (или предложение спросить),
   // а не оставшийся на экране чужой.
@@ -57,10 +61,13 @@ export function useReputation(
     createAuthenticatedOperatorClients(backend.config, backend.session).players
       .lookupReputation(backend.branchId, phone)
       .then((reputation) => {
+        // Ответ кладём в память всегда — он верен для своего номера; на экран только если
+        // спрашивали именно про того, кто там сейчас.
         answers.set(phone, reputation);
-        setState({ status: 'ready', reputation });
+        if (shownPhone.current === phone) setState({ status: 'ready', reputation });
       })
       .catch((error) => {
+        if (shownPhone.current !== phone) return;
         const key = reputationErrorKey(error);
         setState({ status: 'failed', detail: key ? t(key) : projectOperatorError(error, t).detail });
       });

@@ -60,6 +60,26 @@ describe('useReputation', () => {
     expect(lookupReputation).toHaveBeenCalledTimes(1);
   });
 
+  it('ответ на прошлого человека не садится в карточку следующего', async () => {
+    let release: (() => void) | null = null;
+    lookupReputation.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => { release = resolve; });
+      return { networkVisits: 99, networkNoShows: 7, networkBanned: true, calculatedAtUtc: '2026-08-20T00:00:00Z' };
+    });
+
+    const view = render(<I18nProvider initialLocale="ru"><Probe phone="93 738 00 70" /></I18nProvider>);
+    act(() => { screen.getByRole('button').click(); });
+    expect(screen.getByTestId('status')).toHaveTextContent('loading');
+
+    // Админ перещёлкнул на другого клиента, пока сеть ещё думает.
+    view.rerender(<I18nProvider initialLocale="ru"><Probe phone="90 111 22 33" /></I18nProvider>);
+    expect(screen.getByTestId('status')).toHaveTextContent('idle');
+
+    await act(async () => { release?.(); });
+    expect(screen.getByTestId('status')).toHaveTextContent('idle');
+    expect(screen.getByTestId('visits')).toHaveTextContent('');
+  });
+
   it('неполный номер спрашивать нечем', async () => {
     renderProbe('93 738');
     expect(screen.getByTestId('status')).toHaveTextContent('noPhone');
