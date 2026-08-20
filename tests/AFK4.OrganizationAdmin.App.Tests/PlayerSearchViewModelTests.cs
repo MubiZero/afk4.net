@@ -189,6 +189,7 @@ public sealed class PlayerSearchViewModelTests
         return new WalletSummaryDto(
             PlayerAccountId,
             new MoneyDto("USD", walletMinorUnits),
+            new MoneyDto("USD", 0),
             new MoneyDto("USD", debtMinorUnits),
             []);
     }

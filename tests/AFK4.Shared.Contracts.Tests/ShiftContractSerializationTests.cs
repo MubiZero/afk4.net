@@ -130,6 +130,27 @@ public sealed class ShiftContractSerializationTests
         Assert.Equal(summary, copy);
     }
 
+    /// <summary>
+    /// Удержанная за неявку предоплата — заработок клуба и потому входит в итог, но стоит отдельно
+    /// от проданного времени: смешать их значит показать кассе наигранные часы, которых не было.
+    /// </summary>
+    [Fact]
+    public void EarnedBreakdown_KeepsNoShowRetentionApartFromTimeAndGoods()
+    {
+        var earned = new EarnedBreakdownDto(
+            Time: new MoneyDto("TJS", 3100),
+            Goods: new MoneyDto("TJS", 1150),
+            NoShow: new MoneyDto("TJS", 1500),
+            Total: new MoneyDto("TJS", 5750));
+
+        var copy = JsonSerializer.Deserialize<EarnedBreakdownDto>(
+            JsonSerializer.Serialize(earned, Options),
+            Options);
+
+        Assert.Equal(earned, copy);
+        Assert.Equal(1500, copy!.NoShow.MinorUnits);
+    }
+
     [Fact]
     public void Constants_ExposeStableShiftNames()
     {

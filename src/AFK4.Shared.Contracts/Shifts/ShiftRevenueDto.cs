@@ -2,7 +2,14 @@ using AFK4.Shared.Contracts.Billing;
 
 namespace AFK4.Shared.Contracts.Shifts;
 
-public sealed record EarnedBreakdownDto(MoneyDto Time, MoneyDto Goods, MoneyDto Total);
+/// <summary>
+/// Чем смена заработала: проданным временем, товаром и удержанной за неявку предоплатой.
+///
+/// <paramref name="NoShow"/> стоит отдельно от <paramref name="Time"/> намеренно: удержание — это
+/// не проданное время, и сложить их значит показать кассе наигранные часы, которых не было.
+/// В <paramref name="Total"/> оно входит — это заработанные деньги, и потерять их в отчёте нельзя.
+/// </summary>
+public sealed record EarnedBreakdownDto(MoneyDto Time, MoneyDto Goods, MoneyDto NoShow, MoneyDto Total);
 
 public sealed record InflowBreakdownDto(MoneyDto Cash, MoneyDto NonCash, MoneyDto WalletTopUps, MoneyDto DirectTotal);
 

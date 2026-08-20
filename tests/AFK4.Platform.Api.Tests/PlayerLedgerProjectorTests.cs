@@ -162,6 +162,10 @@ public sealed class PlayerLedgerProjectorTests
         Assert.True(PlayerLedgerFilter.IsValidEntryType(""));
         Assert.True(PlayerLedgerFilter.IsValidEntryType(LedgerEntryTypeNames.TopUp));
         Assert.True(PlayerLedgerFilter.IsValidEntryType(LedgerEntryTypeNames.Refund));
+        // Заморозка под бронь и удержание за неявку — обычные строки выписки, и отфильтровать
+        // их человек вправе так же, как пополнения: иначе эндпоинт отвечает 400 на собственный тип.
+        Assert.True(PlayerLedgerFilter.IsValidEntryType(LedgerEntryTypeNames.ReservationHold));
+        Assert.True(PlayerLedgerFilter.IsValidEntryType(LedgerEntryTypeNames.ReservationNoShowFee));
         Assert.False(PlayerLedgerFilter.IsValidEntryType("mystery_type"));
     }
 

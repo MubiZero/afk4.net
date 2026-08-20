@@ -13,10 +13,6 @@ public static class LedgerBalanceProjector
 {
     private const string DefaultCurrencyCode = "TJS";
 
-    // Тип записи холда пока живёт в Reservations/ReservationHold.cs; в общий список типов он
-    // переезжает вместе с третьим числом кошелька (Ф7), и тогда эта константа уходит.
-    private const string ReservationHoldEntryType = "reservation_hold";
-
     public static async Task<WalletSummaryDto?> GetWalletSummaryAsync(
         PlatformDbContext dbContext,
         Guid playerAccountId,
@@ -59,6 +55,7 @@ public static class LedgerBalanceProjector
         return new WalletSummaryDto(
             playerAccountId,
             new MoneyDto(currencyCode, balances.WalletMinorUnits),
+            new MoneyDto(currencyCode, balances.HeldMinorUnits),
             new MoneyDto(currencyCode, balances.DebtMinorUnits),
             entries.Select(ToDto).ToList());
     }
@@ -127,7 +124,7 @@ public static class LedgerBalanceProjector
 
         var held = await dbContext.LedgerEntries
             .Where(entry => entry.PlayerAccountId == playerAccountId
-                && entry.EntryType == ReservationHoldEntryType
+                && entry.EntryType == LedgerEntryTypeNames.ReservationHold
                 && !released.Contains(entry.LedgerEntryId))
             .SumAsync(entry => (long?)entry.AmountMinorUnits, cancellationToken) ?? 0;
 

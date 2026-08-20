@@ -118,6 +118,55 @@ public sealed class ShiftRevenueReportTests
         Assert.Equal(3000, row.Inflow.Cash.MinorUnits);       // 4000 − 1000 net
     }
 
+    /// <summary>
+    /// Удержание за неявку — выручка клуба, но не проданное время. В «заработано временем» оно не
+    /// попадает: сложить их значит соврать в отчёте о том, сколько зал наиграл. Отдельная величина —
+    /// и в итог она входит, иначе получаются деньги, которые в журнале есть, а в отчёте нет.
+    /// </summary>
+    [Fact]
+    public async Task GetCurrentShiftRevenue_CountsNoShowRetentionApartFromEarnedTime()
+    {
+        await using var db = CreateDbContext();
+        var shiftId = Guid.Parse("66666666-6666-4666-8666-666666666666");
+        SeedOpenShift(db, shiftId, startingCash: 0);
+        SeedLedger(db, shiftId, LedgerEntryTypeNames.GameplayCharge, -3100);
+        SeedPosSale(db, shiftId, total: 1150, paid: true);
+        SeedLedger(db, shiftId, LedgerEntryTypeNames.ReservationNoShowFee, -1500);
+        await db.SaveChangesAsync();
+        var service = new EfReportService(db);
+
+        var result = await service.GetCurrentShiftRevenueAsync(OrgId, BranchId, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(3100, result!.Earned.Time.MinorUnits);
+        Assert.Equal(1150, result.Earned.Goods.MinorUnits);
+        Assert.Equal(1500, result.Earned.NoShow.MinorUnits);
+        Assert.Equal(5750, result.Earned.Total.MinorUnits);
+    }
+
+    /// <summary>
+    /// Клуб, который предоплату при неявке не удерживает, видит в отчёте ноль — а не пустое место
+    /// и не отсутствующее поле. Снятая заморозка (реверс) выручкой не становится ни в одной строке.
+    /// </summary>
+    [Fact]
+    public async Task GetCurrentShiftRevenue_NoShowRetention_IsZeroWhenTheBranchReturnsTheMoney()
+    {
+        await using var db = CreateDbContext();
+        var shiftId = Guid.Parse("77777777-7777-4777-8777-777777777777");
+        SeedOpenShift(db, shiftId, startingCash: 0);
+        SeedLedger(db, shiftId, LedgerEntryTypeNames.GameplayCharge, -3100);
+        SeedLedger(db, shiftId, LedgerEntryTypeNames.Reversal, 1500);
+        await db.SaveChangesAsync();
+        var service = new EfReportService(db);
+
+        var result = await service.GetCurrentShiftRevenueAsync(OrgId, BranchId, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(0, result!.Earned.NoShow.MinorUnits);
+        Assert.Equal(3100, result.Earned.Time.MinorUnits);
+        Assert.Equal(3100, result.Earned.Total.MinorUnits);
+    }
+
     private static void SeedOpenShift(PlatformDbContext db, Guid shiftId, long startingCash) =>
         db.Shifts.Add(new ShiftEntity
         {

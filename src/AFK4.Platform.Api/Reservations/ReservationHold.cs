@@ -21,7 +21,7 @@ namespace AFK4.Platform.Api.Reservations;
 /// </summary>
 internal static class ReservationHold
 {
-    public const string EntryType = "reservation_hold";
+    public const string EntryType = LedgerEntryTypeNames.ReservationHold;
 
     /// <summary>Причина записи холда. По ней же он и находится при снятии.</summary>
     public static string Reason(Guid reservationId) => $"reservation_hold:{reservationId:D}";
@@ -98,6 +98,46 @@ internal static class ReservationHold
         dbContext.LedgerEntries.Add(release);
         return release;
     }
+
+    /// <summary>Причина удержания. По ней удержание находится в журнале рядом со своей бронью.</summary>
+    public static string NoShowFeeReason(Guid reservationId) =>
+        $"reservation_no_show_fee:{reservationId:D}";
+
+    /// <summary>
+    /// Удержание предоплаты за неявку — выручка клуба.
+    ///
+    /// Пишется всегда парой к снятию заморозки, а не вместо него: «деньги просто не вернулись» —
+    /// это состояние, которое нельзя объяснить и нельзя посчитать в кассе. Здесь же в журнале
+    /// читается «заморозка снята» и «удержано за неявку», кошелёк остаётся там, где был при живой
+    /// брони, а смена получает строку выручки.
+    ///
+    /// <paramref name="shiftId"/> — смена, при которой это случилось, или <c>null</c>, если клуб
+    /// в этот момент был закрыт: ни одна смена за такое удержание не отвечала.
+    /// </summary>
+    public static LedgerEntryEntity CreateNoShowFee(
+        LedgerEntryEntity release,
+        Guid reservationId,
+        Guid? shiftId,
+        DateTimeOffset now) =>
+        BillingEntryFactory.Create(
+            release.OrganizationId,
+            release.BranchId,
+            release.PlayerAccountId,
+            sessionId: null,
+            playerPackageId: null,
+            LedgerEntryTypeNames.ReservationNoShowFee,
+            LedgerAccountTypeNames.Wallet,
+            // Снятие вернуло сумму в остаток — удержание забирает ровно её же.
+            -release.AmountMinorUnits,
+            quantitySeconds: 0,
+            release.CurrencyCode,
+            description: LedgerEntryTypeNames.ReservationNoShowFee,
+            NoShowFeeReason(reservationId),
+            reversesLedgerEntryId: null,
+            // Guid.Empty — удержала автоматика по правилу филиала, а не кассир.
+            actorStaffUserId: Guid.Empty,
+            now,
+            shiftId);
 }
 
 /// <summary>Почему холд сняли. Пишется в журнал, чтобы деньги можно было объяснить без догадок.</summary>

@@ -3,6 +3,7 @@ using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Reservations;
 using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using Microsoft.EntityFrameworkCore;
@@ -191,6 +192,68 @@ public sealed class EfMoneyActionPolicyResolverTests
             AmountMinorUnits = amount,
             CreatedAtUtc = at
         });
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Снятие брони — это реверс, а реверс в списке высокорисковых типов. Если бы такая запись
+    /// попадала в суточный счётчик кассира, каждая снятая бронь съедала бы его лимит, и в час ночи
+    /// оператор не смог бы сделать настоящий возврат. Не попадает по двум независимым причинам:
+    /// холд ставит и снимает самообслуживание (актор — не сотрудник) и делает это вне смены.
+    /// </summary>
+    [Fact]
+    public async Task Assess_SpentToday_IgnoresReservationHoldReleases()
+    {
+        await using var db = CreateDbContext();
+        await SeedBranchAsync(db);
+        await SeedOpenShiftAsync(db);
+        await SeedReleasedReservationHoldAsync(db, amount: 19_000);
+        var resolver = CreateResolver(db);
+
+        var assessment = await Assess(resolver, [OrganizationRoleNames.ShiftSupervisor], amount: -3000);
+
+        Assert.Equal(0, assessment.SpentTodayMinorUnits);
+        Assert.Equal(MoneyActionDecision.ExecuteNow, assessment.Decision);
+    }
+
+    /// <summary>Удержание за неявку — выручка клуба, а не рискованное действие кассира.</summary>
+    [Fact]
+    public async Task Assess_SpentToday_IgnoresNoShowRetention()
+    {
+        await using var db = CreateDbContext();
+        await SeedBranchAsync(db);
+        await SeedOpenShiftAsync(db);
+        // Актор здесь настоящий и смена та же: проверяется именно тип записи, а не то, что
+        // удержание пишет автоматика.
+        await SeedHighRiskEntryAsync(db, ActorStaffUserId, LedgerEntryTypeNames.ReservationNoShowFee, -19_000);
+        var resolver = CreateResolver(db);
+
+        var assessment = await Assess(resolver, [OrganizationRoleNames.ShiftSupervisor], amount: -3000);
+
+        Assert.Equal(0, assessment.SpentTodayMinorUnits);
+        Assert.Equal(MoneyActionDecision.ExecuteNow, assessment.Decision);
+    }
+
+    private static async Task SeedReleasedReservationHoldAsync(PlatformDbContext db, long amount)
+    {
+        var reservation = new ReservationEntity
+        {
+            ReservationId = Guid.NewGuid(),
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            PlayerAccountId = Guid.NewGuid(),
+            SeatId = Guid.NewGuid(),
+            State = "confirmed",
+            StartsAtUtc = Now,
+            EndsAtUtc = Now.AddHours(1),
+            CreatedAtUtc = Now,
+            UpdatedAtUtc = Now
+        };
+        db.LedgerEntries.Add(ReservationHold.Create(reservation, amount, "TJS", Now));
+        await db.SaveChangesAsync();
+
+        await ReservationHold.ReleaseAsync(
+            db, reservation.ReservationId, ReservationHoldCauses.NoShow, Now, CancellationToken.None);
         await db.SaveChangesAsync();
     }
 

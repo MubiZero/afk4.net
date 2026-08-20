@@ -695,6 +695,12 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
                    .Sum(e => e.AmountMinorUnits)
             + ledger.Where(e => e.EntryType == LedgerEntryTypeNames.PostpaidDebt && Cur(e.CurrencyCode))
                     .Sum(e => e.AmountMinorUnits);
+        // Удержанная за неявку предоплата — заработок клуба, но не проданное время: в earnedTime её
+        // класть нельзя, иначе отчёт покажет наигранные часы, которых не было. В журнале это
+        // отрицательная запись кошелька, поэтому знак переворачивается, как у обычного списания.
+        var earnedNoShow =
+            -ledger.Where(e => e.EntryType == LedgerEntryTypeNames.ReservationNoShowFee && Cur(e.CurrencyCode))
+                   .Sum(e => e.AmountMinorUnits);
         var earnedGoods = sales
             .Where(s => Cur(s.CurrencyCode) && s.PaidAtUtc != null && s.VoidedAtUtc == null && s.RefundedAtUtc == null)
             .Sum(s => s.TotalMinorUnits);
@@ -736,7 +742,11 @@ public sealed class EfReportService(PlatformDbContext dbContext) : IReportServic
             shift.OpenedByStaffUserId,
             shift.ClosedByStaffUserId,
             shift.State,
-            new EarnedBreakdownDto(Money(currency, earnedTime), Money(currency, earnedGoods), Money(currency, earnedTime + earnedGoods)),
+            new EarnedBreakdownDto(
+                Money(currency, earnedTime),
+                Money(currency, earnedGoods),
+                Money(currency, earnedNoShow),
+                Money(currency, earnedTime + earnedGoods + earnedNoShow)),
             new InflowBreakdownDto(Money(currency, cash), Money(currency, nonCash), Money(currency, walletTopUps), Money(currency, cash + nonCash)),
             new CashReconciliationDto(
                 Money(currency, shift.StartingCashMinorUnits),
