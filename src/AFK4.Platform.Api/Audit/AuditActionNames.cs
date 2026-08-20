@@ -253,6 +253,8 @@ public static class AuditActionNames
 
     public const string UpdateBranchSettings = "branches.settings.update";
 
+    public const string UpdateBookingSettings = "branches.booking_settings.update";
+
     public const string UpdateFloorMap = "floor_map.update";
 
     public const string ViewBilling = "billing.view";

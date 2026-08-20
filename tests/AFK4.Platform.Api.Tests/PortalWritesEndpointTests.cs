@@ -57,6 +57,11 @@ public class PortalWritesEndpointTests
             IsActive = true,
             CreatedAtUtc = Now
         });
+
+        // Тесты этого файла про права, состояния и конфликты, а не про правила приёма гостей:
+        // филиал берёт брони без предоплаты и без потолка на новичка.
+        db.BranchBookingSettings.Add(BranchBookingSettingsTestData.AcceptsAnyGuest(org, branch, Now));
+
         await db.SaveChangesAsync();
         await PlayerPinTestData.AttachPersonWithPinAsync(
             factory, player, phone, pin, phoneVerified: phoneVerified);
@@ -531,6 +536,7 @@ public class PortalWritesEndpointTests
             IsActive = true,
             CreatedAtUtc = DateTimeOffset.UtcNow
         });
+        db.BranchBookingSettings.Add(BranchBookingSettingsTestData.AcceptsAnyGuest(orgId, branchId, Now));
         await db.SaveChangesAsync();
 
         var svc = scope.ServiceProvider.GetRequiredService<IReservationService>();
@@ -578,6 +584,7 @@ public class PortalWritesEndpointTests
             SeatId = seatId, OrganizationId = orgId, BranchId = branchId,
             ZoneId = zoneId, Name = "S1", SortOrder = 1, CreatedAtUtc = DateTimeOffset.UtcNow
         });
+        db.BranchBookingSettings.Add(BranchBookingSettingsTestData.AcceptsAnyGuest(orgId, branchId, Now));
         await db.SaveChangesAsync();
 
         var svc = scope.ServiceProvider.GetRequiredService<IReservationService>();
@@ -611,6 +618,7 @@ public class PortalWritesEndpointTests
             PlayerAccountId = playerId, OrganizationId = orgId, HomeBranchId = branchId,
             DisplayName = "Canceller", PhoneNumber = "+992911000003", IsActive = true, CreatedAtUtc = DateTimeOffset.UtcNow
         });
+        db.BranchBookingSettings.Add(BranchBookingSettingsTestData.AcceptsAnyGuest(orgId, branchId, Now));
         await db.SaveChangesAsync();
 
         var svc = scope.ServiceProvider.GetRequiredService<IReservationService>();
@@ -641,6 +649,7 @@ public class PortalWritesEndpointTests
             PlayerAccountId = ownerId, OrganizationId = orgId, HomeBranchId = branchId,
             DisplayName = "Owner", PhoneNumber = "+992911000004", IsActive = true, CreatedAtUtc = DateTimeOffset.UtcNow
         });
+        db.BranchBookingSettings.Add(BranchBookingSettingsTestData.AcceptsAnyGuest(orgId, branchId, Now));
         await db.SaveChangesAsync();
 
         var svc = scope.ServiceProvider.GetRequiredService<IReservationService>();

@@ -631,7 +631,11 @@ internal static class PlayerSelfServiceEndpoints
                     return Results.NotFound(new { Error = result.Error });
                 }
 
-                return Results.BadRequest(new { Error = result.Error });
+                // Отказ по решению клуба — это состояние, а не кривой запрос: приложению нужен
+                // код, по которому оно скажет «так решил клуб», а не «проверьте поля».
+                return PlayerBookingRules.IsClubRuleRefusal(result.Error)
+                    ? Results.Conflict(new { Error = result.Error })
+                    : Results.BadRequest(new { Error = result.Error });
             }
 
             return Results.Ok(ToPlayerReservationDto(result.Response!));
@@ -724,8 +728,10 @@ internal static class PlayerSelfServiceEndpoints
                     return Results.NotFound(new { Error = result.Error });
                 }
 
-                // Отказ по деньгам и по числу мест — машинные коды, интерфейсы их переводят.
+                // Отказ по деньгам, по числу мест и по решению клуба — машинные коды, интерфейсы
+                // их переводят.
                 return result.Error is "insufficient_funds" or PlayerReservationGroupLimits.InvalidSeatCountCode
+                    || PlayerBookingRules.IsClubRuleRefusal(result.Error)
                     ? Results.Conflict(new { Error = result.Error })
                     : Results.BadRequest(new { Error = result.Error });
             }

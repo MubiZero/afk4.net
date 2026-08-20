@@ -80,6 +80,8 @@ public sealed class FeatureGateTests
             CreatedAtUtc = Now
         });
 
+        db.BranchBookingSettings.Add(BranchBookingSettingsTestData.AcceptsAnyGuest(org, branch, Now));
+
         await db.SaveChangesAsync();
         await PlayerPinTestData.AttachPersonWithPinAsync(factory, player, phone, pin);
         return new SeededPlayer(org, branch, player, phone);

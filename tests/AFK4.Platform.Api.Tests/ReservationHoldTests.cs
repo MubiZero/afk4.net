@@ -55,6 +55,8 @@ public sealed class ReservationHoldTests
             VersionNumber = 1, CurrencyCode = "TJS", PricePerMinuteMinorUnits = 25,
             MinimumBillableMinutes = 0, RoundingIncrementMinutes = 1, EffectiveFromUtc = Start.AddYears(-1)
         });
+        // Файл про заморозку денег, а не про правила приёма: филиал берёт бронь и без предоплаты.
+        db.BranchBookingSettings.Add(BranchBookingSettingsTestData.AcceptsAnyGuest(OrgId, BranchId, Start));
         await db.SaveChangesAsync();
     }
 

@@ -66,9 +66,12 @@ public sealed class PlayerFirstActionEndpointTests
             "/api/me/reservations",
             new CreatePlayerReservationRequest(null, starts, starts.AddHours(1), null));
 
-        // Дальше бронь может не выйти по залу или тарифу, но «тебя тут нет» — уже не ответ.
+        // Дальше бронь может не выйти по залу, тарифу или правилам приёма гостей, но «тебя тут
+        // нет» — уже не ответ. Сам код 409 теперь занят и отказами клуба, поэтому проверяется
+        // именно тот отказ, ради исчезновения которого тест и написан.
         Assert.NotEqual(HttpStatusCode.Unauthorized, response.StatusCode);
-        Assert.NotEqual(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.DoesNotContain(
+            "club_not_selected", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
 
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();

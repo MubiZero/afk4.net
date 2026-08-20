@@ -118,6 +118,25 @@ internal static class PlayerCatalogEndpoints
             return Results.Ok(response);
         }).RequireRateLimiting("player-me");
 
+        // Правила брони этого филиала для этого игрока. Тем же расчётом, которым сервер брони и
+        // принимает, — иначе приложение обещало бы одно, а отказ приходил бы по другому правилу.
+        app.MapGet("/api/me/branches/{branchId:guid}/booking-rules", async (
+            Guid branchId,
+            IPlayerContextAccessor playerContextAccessor,
+            PlatformDbContext dbContext,
+            TimeProvider timeProvider,
+            CancellationToken ct) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null) return Results.Unauthorized();
+            if (!await BranchInOrgAsync(dbContext, branchId, player.OrganizationId, ct)) return Results.NotFound();
+
+            var rules = await PlayerBookingRules.EvaluateAsync(
+                dbContext, player.OrganizationId, branchId, player.PlayerAccountId, timeProvider.GetUtcNow(), ct);
+
+            return Results.Ok(rules.ToDto());
+        }).RequireRateLimiting("player-me");
+
         // Места зала: за какое можно сесть прямо сейчас и какое занято.
         //
         // Занятые места не прячутся: «PC-07 занят» — это ответ, а пропавшее из списка место

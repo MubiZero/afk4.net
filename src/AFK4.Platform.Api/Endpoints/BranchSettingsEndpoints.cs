@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
+using AFK4.Platform.Api.Branches;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Dashboard;
 using AFK4.Platform.Api.Diagnostics;
@@ -221,5 +222,145 @@ internal static class BranchSettingsEndpoints
         })
             .AllowPlatformSupportAccess(OrganizationPermissionNames.ManageBranchSettings);
 
+        MapBranchBookingSettingsEndpoints(app);
+    }
+
+    /// <summary>
+    /// Как филиал принимает гостей с платформы. Режим поддержки сюда намеренно не пускают ни
+    /// на чтение, ни на запись: принимать ли брони и на каких условиях — решение клуба, и
+    /// сотруднику платформы нечего в нём делать даже с добрыми намерениями.
+    /// </summary>
+    private static void MapBranchBookingSettingsEndpoints(IEndpointRouteBuilder app)
+    {
+        app.MapGet("branches/{branchId:guid}/booking-settings", async (
+            Guid branchId,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IBranchBookingSettingsService bookingSettingsService,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                OrganizationPermissionNames.ManageBranchSettings,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    branchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.ViewBranchSettings,
+                    "BranchBookingSettings",
+                    branchId.ToString("D"),
+                    AuditOutcome.Denied,
+                    new { authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var organizationId = authorization.StaffContext!.OrganizationId;
+            if (!await dbContext.Branches.AsNoTracking().AnyAsync(
+                candidate => candidate.OrganizationId == organizationId && candidate.BranchId == branchId,
+                cancellationToken))
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Ok(await bookingSettingsService.GetAsync(organizationId, branchId, cancellationToken));
+        });
+
+        app.MapPut("branches/{branchId:guid}/booking-settings", async (
+            Guid branchId,
+            UpdateBranchBookingSettingsRequest request,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IBranchBookingSettingsService bookingSettingsService,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId,
+                OrganizationPermissionNames.ManageBranchSettings,
+                cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    branchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.UpdateBookingSettings,
+                    "BranchBookingSettings",
+                    branchId.ToString("D"),
+                    AuditOutcome.Denied,
+                    new { request.AcceptanceMode, authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var organizationId = authorization.StaffContext!.OrganizationId;
+            if (request.OrganizationId != organizationId)
+            {
+                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+            }
+
+            if (BranchBookingSettingsDefaults.Validate(request) is { } validationError)
+            {
+                return Results.BadRequest(new { Error = validationError });
+            }
+
+            if (!await dbContext.Branches.AsNoTracking().AnyAsync(
+                candidate => candidate.OrganizationId == organizationId && candidate.BranchId == branchId,
+                cancellationToken))
+            {
+                return Results.NotFound();
+            }
+
+            var updated = await bookingSettingsService.UpdateAsync(
+                organizationId,
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                request,
+                cancellationToken);
+
+            await WriteAuditAsync(
+                auditRecordWriter,
+                organizationId,
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                AuditActionNames.UpdateBookingSettings,
+                "BranchBookingSettings",
+                branchId.ToString("D"),
+                AuditOutcome.Succeeded,
+                new
+                {
+                    updated.AcceptanceMode,
+                    updated.RespondWithinMinutes,
+                    updated.RequirePrepaymentFromNewGuests,
+                    updated.MaxActiveReservationsForNewGuests,
+                    updated.RegularAfterVisits,
+                    updated.HoldSeatAfterStartMinutes,
+                    updated.KeepPrepaymentOnNoShow
+                },
+                cancellationToken);
+
+            return Results.Ok(updated);
+        });
     }
 }

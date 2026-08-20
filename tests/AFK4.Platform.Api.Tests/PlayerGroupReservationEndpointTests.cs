@@ -68,6 +68,8 @@ public class PlayerGroupReservationEndpointTests
             VersionNumber = 1, CurrencyCode = "TJS", PricePerMinuteMinorUnits = 25,
             MinimumBillableMinutes = 0, RoundingIncrementMinutes = 1, EffectiveFromUtc = Now.AddYears(-1)
         });
+        // Файл про бронь на компанию, а не про правила приёма: филиал берёт её и без предоплаты.
+        db.BranchBookingSettings.Add(BranchBookingSettingsTestData.AcceptsAnyGuest(org, branch, Now));
         await db.SaveChangesAsync();
         await PlayerPinTestData.AttachPersonWithPinAsync(factory, player, phone, pin);
         return new Seeded(org, branch, player, phone, tariffVersionId);
