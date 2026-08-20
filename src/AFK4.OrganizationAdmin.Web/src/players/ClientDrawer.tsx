@@ -40,7 +40,6 @@ export function ClientDrawer({
   canCreateReservation,
   onCorrect,
   onCreateReservation,
-  onSetPin,
   onEditProfile,
   onToggleActive,
   onOpenFullHistory,
@@ -67,7 +66,6 @@ export function ClientDrawer({
   canCreateReservation: boolean;
   onCorrect: () => void;
   onCreateReservation: () => void;
-  onSetPin: () => void;
   onEditProfile: () => void;
   onToggleActive: () => void;
   onOpenFullHistory: () => void;
@@ -93,7 +91,6 @@ export function ClientDrawer({
             isActive={client.isActive}
             canManageClient={canManageClient}
             onEditProfile={onEditProfile}
-            onSetPin={onSetPin}
             onToggleActive={onToggleActive}
             canCreateReservation={canCreateReservation}
             onCreateReservation={onCreateReservation}

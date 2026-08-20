@@ -28,13 +28,12 @@ import { PanelModal } from './PanelModal';
 import { NewClientModal } from './players/NewClientModal';
 import { CorrectionModal, correctionQuantities, type CorrectionAccount, type CorrectionDirection } from './players/CorrectionModal';
 import { RefundModal } from './players/RefundModal';
-import { PinModal } from './players/PinModal';
 import { EditProfileModal } from './players/EditProfileModal';
 import { ActiveStateConfirmModal } from './players/ActiveStateConfirmModal';
 import { PayDebtModal } from './players/PayDebtModal';
 import { DcTopUpDialog } from './players/DcTopUpDialog';
 
-type PlayerActionId = 'topUp' | 'writeOffDebt' | 'booking' | 'newCard' | 'correction' | 'refund' | 'setPin' | 'updateProfile' | 'toggleActive';
+type PlayerActionId = 'topUp' | 'writeOffDebt' | 'booking' | 'newCard' | 'correction' | 'refund' | 'updateProfile' | 'toggleActive';
 
 export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
   const { t } = useI18n();
@@ -71,8 +70,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   const [correctionReason, setCorrectionReason] = useState(() => t('op.players.correction.reasonDefault'));
   const [refundTarget, setRefundTarget] = useState<LedgerEntryDto | null>(null);
   const [refundReason, setRefundReason] = useState(() => t('op.players.refund.reasonDefault'));
-  const [pinOpen, setPinOpen] = useState(false);
-  const [pinValue, setPinValue] = useState('');
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
@@ -535,20 +532,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
         setWalletSummary(wallet);
         bumpLedger();
         setRefundTarget(null);
-      } else if (id === 'setPin') {
-        if (!hasPermission(nextBackend.session, permissionNames.createPlayerAccount)) {
-          throw new Error(t('op.players.error.noPermPin'));
-        }
-
-        const backendClient = requireSelectedBackendClient();
-        const pin = pinValue.trim();
-        if (pin.length < 4) {
-          throw new Error(t('op.players.error.pinInvalid'));
-        }
-
-        await apiClients.players.setPlayerPin(nextBackend.branchId, backendClient.playerAccountId, { pin });
-        setPinValue('');
-        setPinOpen(false);
       } else if (id === 'updateProfile') {
         if (!hasPermission(nextBackend.session, permissionNames.createPlayerAccount)) {
           throw new Error(t('op.players.error.noPermEditProfile'));
@@ -717,7 +700,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
             canCreateReservation={canCreateClientReservation}
             onCorrect={() => setCorrectionOpen(true)}
             onCreateReservation={() => runClientAction('booking', t('op.players.actions.bookingBtn'))}
-            onSetPin={() => setPinOpen(true)}
             onEditProfile={openEditProfile}
             onToggleActive={() => setActiveStateOpen(true)}
             onOpenFullHistory={() => setHistoryModalOpen(true)}
@@ -799,16 +781,6 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
           onChangeReason={setRefundReason}
           onClose={() => setRefundTarget(null)}
           onConfirm={(refundMinorUnits) => void runClientAction('refund', t('op.players.actions.refundLabel'), { refundMinorUnits })}
-          busy={feedback.state === 'pending'}
-        />
-      )}
-
-      {pinOpen && (
-        <PinModal
-          pin={pinValue}
-          onChangePin={setPinValue}
-          onClose={() => setPinOpen(false)}
-          onSubmit={() => void runClientAction('setPin', t('op.players.actions.pinLabel'))}
           busy={feedback.state === 'pending'}
         />
       )}

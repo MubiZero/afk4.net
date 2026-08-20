@@ -99,7 +99,6 @@
 .clients-new-form label,
 .clients-correction-form label,
 .clients-edit-form label,
-.clients-pin-form label,
 .clients-refund-form label {
   display: grid;
   gap: 4px;
@@ -111,7 +110,6 @@
 .clients-new-form input,
 .clients-correction-form input,
 .clients-edit-form input,
-.clients-pin-form input,
 .clients-refund-form input {
   height: var(--control-md);
   min-width: 0;
@@ -129,7 +127,6 @@
 .clients-new-form input:focus,
 .clients-correction-form input:focus,
 .clients-edit-form input:focus,
-.clients-pin-form input:focus,
 .clients-refund-form input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.22);
@@ -137,7 +134,6 @@
 
 .clients-correction-form input:disabled,
 .clients-edit-form input:disabled,
-.clients-pin-form input:disabled,
 .clients-refund-form input:disabled {
   color: var(--text-quaternary);
   cursor: not-allowed;
@@ -242,8 +238,7 @@
 }
 
 .clients-correction-form,
-.clients-refund-form,
-.clients-pin-form {
+.clients-refund-form {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -277,11 +272,6 @@
   font-size: 11px;
   font-style: normal;
   font-variant-numeric: tabular-nums;
-}
-
-.clients-pin-hint {
-  color: var(--text-tertiary);
-  font-size: 11px;
 }
 
 /* S3 — меню «⋯», модалки правки/деактивации, баннер, неактивная строка */

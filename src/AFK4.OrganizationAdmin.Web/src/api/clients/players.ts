@@ -116,10 +116,6 @@ export interface RefundLedgerEntryRequest {
   idempotencyKey: string;
 }
 
-export interface SetPlayerPinRequest {
-  pin: string;
-}
-
 export interface UpdatePlayerAccountRequest {
   organizationId: Guid;
   displayName: string;
@@ -172,9 +168,6 @@ export function createPlayerClient(api: PlatformApiClient) {
     },
     refundLedgerEntry(playerAccountId: Guid, ledgerEntryId: Guid, request: RefundLedgerEntryRequest): Promise<LedgerEntryDto> {
       return api.post<LedgerEntryDto, RefundLedgerEntryRequest>(`players/${playerAccountId}/ledger/${ledgerEntryId}/refunds`, request);
-    },
-    setPlayerPin(branchId: Guid, playerAccountId: Guid, request: SetPlayerPinRequest): Promise<void> {
-      return api.post<void, SetPlayerPinRequest>(`branches/${branchId}/players/${playerAccountId}/pin`, request);
     },
     updateProfile(branchId: Guid, playerAccountId: Guid, request: UpdatePlayerAccountRequest): Promise<PlayerAccountDto> {
       return api.patch<PlayerAccountDto, UpdatePlayerAccountRequest>(`branches/${branchId}/players/${playerAccountId}`, request);

@@ -47,7 +47,6 @@ const baseProps: DrawerProps = {
   canCreateReservation: true,
   onCorrect: () => {},
   onCreateReservation: () => {},
-  onSetPin: () => {},
   onEditProfile: () => {},
   onToggleActive: () => {},
   onOpenFullHistory: () => {},
@@ -147,14 +146,13 @@ describe('ClientDrawer', () => {
   });
 
   describe('«⋯» actions menu', () => {
-    it('opens with items gated by permission: reservation, edit, pin, deactivate — no correction', () => {
+    it('opens with items gated by permission: reservation, edit, deactivate — no correction', () => {
       renderDrawer({ canCreateReservation: true, canManageClient: true, canCorrect: false });
       fireEvent.click(screen.getByRole('button', { name: 'Действия с клиентом' }));
       const items = screen.getAllByRole('menuitem');
       expect(items.map((item) => item.textContent)).toEqual([
         'Создать бронь',
         'Править профиль',
-        'PIN клиента',
         'Деактивировать',
       ]);
     });
@@ -165,7 +163,7 @@ describe('ClientDrawer', () => {
       expect(screen.getByRole('menuitem', { name: /Ручная корректировка/ })).toBeInTheDocument();
     });
 
-    it('fires onCreateReservation/onEditProfile/onSetPin/onToggleActive/onCorrect from their menu items', () => {
+    it('fires onCreateReservation/onCorrect from their menu items', () => {
       const onCreateReservation = mock(() => {});
       const onCorrect = mock(() => {});
       renderDrawer({ canCorrect: true, onCreateReservation, onCorrect });

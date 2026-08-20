@@ -44,9 +44,6 @@ public static class AuditActionNames
 
     public const string ActivatePlayerAccount = "players.activate";
 
-    /// <summary>Попытка задать PIN игроку со стойки. Пишется только как отказ: PIN сетевой, и клуб его не назначает.</summary>
-    public const string SetPlayerPin = "players.pin.set";
-
     public const string TopUpWallet = "billing.wallet.top_up";
 
     public const string RefundLedgerEntry = "billing.refund";

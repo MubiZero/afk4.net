@@ -7,7 +7,6 @@ afterEach(cleanup);
 
 const renderMenu = (over: Partial<Parameters<typeof ClientActionsMenu>[0]> = {}) => {
   const onEditProfile = mock(() => {});
-  const onSetPin = mock(() => {});
   const onToggleActive = mock(() => {});
   render(
     <I18nProvider initialLocale="ru">
@@ -15,13 +14,12 @@ const renderMenu = (over: Partial<Parameters<typeof ClientActionsMenu>[0]> = {})
         isActive={true}
         canManageClient={true}
         onEditProfile={onEditProfile}
-        onSetPin={onSetPin}
         onToggleActive={onToggleActive}
         {...over}
       />
     </I18nProvider>
   );
-  return { onEditProfile, onSetPin, onToggleActive };
+  return { onEditProfile, onToggleActive };
 };
 
 describe('ClientActionsMenu', () => {
@@ -89,7 +87,6 @@ describe('ClientActionsMenu', () => {
     expect(items.map((item) => item.textContent)).toEqual([
       'Создать бронь',
       'Править профиль',
-      'PIN клиента',
       'Ручная корректировка',
       'Деактивировать',
     ]);
