@@ -38,6 +38,11 @@ public static class AuditActionNames
 
     public const string ViewPlayers = "players.view";
 
+    // Единственное действие аудита, которое пишется на сам факт ЧТЕНИЯ, а не на изменение:
+    // репутация течёт наружу через чтение, и доказывают потом именно то, что клуб не изучал
+    // чужую клиентуру. Отказы пишутся тоже — перебор виден только по ним.
+    public const string ViewPlayerReputation = "players.reputation.view";
+
     public const string UpdatePlayerAccount = "players.update";
 
     public const string DeactivatePlayerAccount = "players.deactivate";

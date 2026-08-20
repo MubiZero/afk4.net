@@ -316,6 +316,7 @@ builder.Services.AddHostedService<DailySummaryHostedService>();
 builder.Services.AddHostedService<AutoProtectionHostedService>();
 builder.Services.AddHostedService<ReservationNoShowHostedService>();
 builder.Services.AddHostedService<ReservationRequestExpiryHostedService>();
+builder.Services.AddHostedService<ReputationSnapshotHostedService>();
 builder.Services.AddHostedService<ScheduledReportHostedService>();
 builder.Services.Configure<PlatformHealthOptions>(
     builder.Configuration.GetSection(PlatformHealthOptions.ConfigurationSection));
@@ -376,6 +377,9 @@ builder.Services.AddSingleton(new ReservationNoShowOptions());
 builder.Services.AddScoped<ReservationNoShowRunner>();
 builder.Services.AddSingleton(new ReservationRequestExpiryOptions());
 builder.Services.AddScoped<ReservationRequestExpiryRunner>();
+builder.Services.AddSingleton(new ReputationSnapshotOptions());
+builder.Services.AddScoped<ReputationSnapshotRunner>();
+builder.Services.AddScoped<IPlayerReputationService, EfPlayerReputationService>();
 builder.Services.AddScoped<AutoProtectionRunner>();
 builder.Services.AddScoped<ISessionCommandResultProcessor, EfSessionCommandResultProcessor>();
 builder.Services.AddScoped<IBillingCommandService, EfBillingCommandService>();
@@ -449,6 +453,20 @@ builder.Services.AddRateLimiter(options =>
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    // Спрос репутации по точному номеру — единственное место, где клуб приносит номер человека,
+    // с которым у него нет никакой связи. Ручка своя, ключ — сам сотрудник, а не IP: перебирать
+    // будет живой аккаунт, и прикрутить его надо уметь, не задевая остальную стойку.
+    options.AddPolicy("reputation-lookup", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Request.Headers.Authorization.ToString() is { Length: > 0 } actor
+                ? actor
+                : httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
                 Window = TimeSpan.FromMinutes(1)
             }));
 
