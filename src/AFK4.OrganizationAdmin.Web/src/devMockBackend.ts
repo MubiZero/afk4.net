@@ -339,7 +339,9 @@ function booking(
   seat: { id: string; name: string; zone: string } | null,
   note: string,
   groupId: string | null = null,
-  playerAccountId: string | null = null
+  playerAccountId: string | null = null,
+  // Докуда клуб обещал ответить. Только у заявки, которая ждёт решения стойки.
+  respondInMinutes: number | null = null
 ) {
   return {
     reservationId: id, organizationId: ORG, branchId: BRANCH, playerAccountId,
@@ -349,12 +351,22 @@ function booking(
     startsAtUtc: todayAtUtc(startHour), endsAtUtc: todayAtUtc(startHour, durationMinutes),
     durationMinutes, state, source, note,
     createdAtUtc: todayAtUtc(8), updatedAtUtc: todayAtUtc(8), cancelledAtUtc: null, cancelReason: '',
-    version: 1, startedSessionId: null as string | null
+    version: 1, startedSessionId: null as string | null,
+    respondByUtc: respondInMinutes === null ? null : minutesAgoUtc(-respondInMinutes),
+    confirmedAtUtc: state === 'confirmed' || state === 'seated' ? todayAtUtc(8) : null
   };
 }
 
 // Набор на день: две онлайн-заявки без места (уходят в лейн «новых заявок») + размещённые брони
 // разных статусов на дорожках мест, чтобы превью показывало все тона таймлайна и drawer.
+let previewBookingSettings = {
+  organizationId: ORG, branchId: BRANCH,
+  acceptanceMode: 'auto', respondWithinMinutes: 15,
+  requirePrepaymentFromNewGuests: true, maxActiveReservationsForNewGuests: 1,
+  regularAfterVisits: 3, holdSeatAfterStartMinutes: 20, keepPrepaymentOnNoShow: false,
+  updatedAtUtc: null as string | null
+};
+
 function reservations() {
   const pc01 = { id: 'a1', name: 'PC-01', zone: 'Зал A' };
   const pc02 = { id: 'a2', name: 'PC-02', zone: 'Зал A' };
@@ -363,8 +375,8 @@ function reservations() {
   return [
     booking('r1', 10, 90, 'seated', 'operator', 'Дилноза Х.', '+992900000001', pc06, 'посажена на место'),
     booking('r2', 12, 120, 'confirmed', 'online', 'Азиз П.', '+992900000002', pc02, 'онлайн-заявка, подтверждена'),
-    booking('r3', 14, 60, 'pending', 'online', 'Камрон Р.', '+992900000003', null, 'онлайн-заявка'),
-    booking('r4', 16, 90, 'pending', 'online', 'Сабина М.', '+992900000004', null, 'онлайн-заявка, ждёт места'),
+    booking('r3', 14, 60, 'pending', 'online', 'Камрон Р.', '+992900000003', null, 'онлайн-заявка', null, null, 9),
+    booking('r4', 16, 90, 'pending', 'online', 'Сабина М.', '+992900000004', null, 'онлайн-заявка, ждёт места', null, null, 1),
     booking('r5', 18, 60, 'confirmed', 'operator', 'Фаррух Н.', '+992900000005', vip03, 'бронь оператора'),
     booking('r6', 20, 60, 'pending', 'operator', 'Шерзод Б.', '+992900000006', pc01, 'предварительная бронь'),
     // Бронь конкретного клиента (pl-1) — чтобы профиль показывал полосу «ближайшая бронь».
@@ -539,6 +551,7 @@ function route(pathname: string, method: string): unknown | undefined {
   }
   if (pathname.endsWith('/shop/orders') && method === 'GET') return shopOrders();
   if (pathname.endsWith('/pos/catalog')) return posCatalog();
+  if (pathname.endsWith('/booking-settings') && method === 'GET') return previewBookingSettings;
   if (pathname.endsWith('/reservations') && method === 'GET') return { reservations: reservations(), limit: 40 };
   if (pathname.endsWith('/sessions') && method === 'GET') return { sessions: sessionsTimeline() };
   if (pathname.endsWith('/inventory/stock-movements') && method === 'GET') return stockMovementsFixture();
@@ -821,6 +834,28 @@ export async function devMockFetch(input: RequestInfo | URL, init?: RequestInit)
   }
   if (url.pathname.endsWith('/checkout') && method === 'POST') {
     return json(checkoutResult(init));
+  }
+  if (url.pathname.endsWith('/booking-settings') && method === 'PUT') {
+    const request = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+    previewBookingSettings = {
+      ...previewBookingSettings,
+      ...request,
+      organizationId: ORG,
+      branchId: BRANCH,
+      updatedAtUtc: new Date().toISOString()
+    } as typeof previewBookingSettings;
+    return json(previewBookingSettings);
+  }
+  // Репутация в сети: четыре числа и ни слова о чужих клубах — как на сервере.
+  if (url.pathname.endsWith('/players/reputation/lookup') && method === 'POST') {
+    const request = JSON.parse(String(init?.body ?? '{}')) as { phoneNumber?: string };
+    const digits = String(request.phoneNumber ?? '').replace(/\D/g, '');
+    return json({
+      networkVisits: digits.endsWith('3') ? 2 : 14,
+      networkNoShows: digits.endsWith('3') ? 1 : 0,
+      networkBanned: false,
+      calculatedAtUtc: todayAtUtc(0)
+    });
   }
   if (url.pathname.endsWith('/wallet-summary') && method === 'GET') {
     return json(walletSummary());

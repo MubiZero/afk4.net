@@ -325,6 +325,9 @@ export function BookingDrawer(props: BookingDrawerProps) {
             {localPhoneDigits(selected.phoneNumber).length > 0 && <CopyablePhone phone={selected.phoneNumber} />}
             <div><span>{t('op.booking.detail.comment')}</span><strong>{selected.note || t('op.booking.noComment')}</strong></div>
             <div><span>{t('op.booking.detail.source')}</span><strong>{selected.source === 'online' ? t('op.booking.source.online') : t('op.booking.source.operator')}</strong></div>
+            {selected.state === 'pending' && selected.respondByMs !== null && (
+              <div><span>{t('op.booking.detail.respondBy')}</span><strong>{formatTime(new Date(selected.respondByMs).toISOString())}</strong></div>
+            )}
           </div>
 
           <ReputationCard controller={props.reputation} />
