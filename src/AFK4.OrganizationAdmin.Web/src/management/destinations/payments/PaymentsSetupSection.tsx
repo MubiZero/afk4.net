@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { ArrowDownToLine, RotateCcw } from 'lucide-react';
+import { SetupSection } from '../../kit/SetupSection';
 
 interface Props {
   // «in» = деньги приходят вам (приём), «out» = деньги возвращаются игроку (кэшбэк).
@@ -9,23 +10,12 @@ interface Props {
   children: ReactNode;
 }
 
-// Спокойная секция setup-экрана «Платежи и лояльность»: иконка направления + заголовок + лид,
-// затем содержимое. Экран посещают редко, поэтому лид объясняет смысл словами, а не оставляет
-// оператора наедине с полями.
+// Секция экрана «Платежи и лояльность»: та же оболочка, что у остальных setup-экранов
+// (SetupSection), плюс иконка направления денег — единственное, что здесь своё.
 export function PaymentsSetupSection({ direction, title, lead, children }: Props) {
-  const Icon = direction === 'in' ? ArrowDownToLine : RotateCcw;
   return (
-    <section className="payset-section">
-      <header className="payset-section-head">
-        <span className="payset-section-icon" aria-hidden="true">
-          <Icon size={20} strokeWidth={2} />
-        </span>
-        <div className="payset-section-heading">
-          <h2 className="payset-section-title">{title}</h2>
-          <p className="payset-section-lead">{lead}</p>
-        </div>
-      </header>
+    <SetupSection Icon={direction === 'in' ? ArrowDownToLine : RotateCcw} title={title} lead={lead}>
       {children}
-    </section>
+    </SetupSection>
   );
 }
