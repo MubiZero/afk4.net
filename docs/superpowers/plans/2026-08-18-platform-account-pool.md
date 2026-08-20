@@ -1,6 +1,6 @@
 # Волна 1 — фундамент «общего котла платформы»
 
-Дата: 2026-08-18. Статус: Ф1–Ф6 сделаны; Ф5.1 и Ф11 отменены 20.08.2026; Ф7–Ф10 впереди.
+Дата: 2026-08-18. Статус: Ф1–Ф7 сделаны; Ф5.1 и Ф11 отменены 20.08.2026; Ф8–Ф10 впереди.
 
 Источники решения: решение владельца от 18.08.2026 о трёх слоях (личность/PIN/репутация —
 платформенные; деньги, кешбэк, стаж, долг, чеки, локальные запреты — клубные), два концепта
@@ -570,58 +570,84 @@ PIN), форма ответа — надмножество прежней, и н
 
 ---
 
-### Ф7. Заморозка — третья сумма кошелька
+### Ф7. Заморозка — третья сумма кошелька — **сделано**
 
 **Тесты вперёд**
 
 - `LedgerBalanceProjectorHeldTests`: `HeldMinorUnits` = сумма непогашенных `reservation_hold`;
-  после снятия холда становится нулём; **`WalletBalance` не меняет смысла** — он как был, так и
-  остаётся доступным остатком (это специально: девять мест в коде читают его как «сколько можно
-  потратить», и любое изменение смысла — это класс ошибок «списали дважды»).
-- `WalletSummaryContractTests` / `PlayerDashboardContractTests`: третье число появилось,
-  первые два не поехали.
+  после снятия холда становится нулём; удержание за неявку в «придержано» не попадает;
+  **`WalletBalance` не меняет смысла** — он как был, так и остаётся доступным остатком (это
+  специально: девять мест в коде читают его как «сколько можно потратить», и любое изменение
+  смысла — это класс ошибок «списали дважды»).
+- `BillingContractSerializationTests` / `ShiftContractSerializationTests`: третье число появилось,
+  первые два не поехали; величина удержаний отдельна от времени и товара.
 - `ReservationNoShowRetentionTests`:
-  - `KeepPrepaymentOnNoShow = false` → как сегодня, реверс, деньги вернулись;
+  - `KeepPrepaymentOnNoShow = false` → как сегодня, реверс, деньги вернулись, записи удержания нет;
   - `KeepPrepaymentOnNoShow = true` → реверс холда **плюс** списание
     `reservation_no_show_fee` на ту же сумму, итог по кошельку тот же, но в журнале видно
-    «заморозка снята» и «удержано за неявку»;
+    «заморозка снята» и «удержано за неявку», а «придержано» обнуляется;
   - **удержанное — это выручка клуба** (решение владельца): запись несёт `ShiftId` открытой в
-    филиале смены и попадает в отчёт по смене отдельной строкой, а не растворяется в
-    «заработано временем»;
-  - если в момент разбора неявки открытой смены нет, запись пишется с `ShiftId = null` — она
-    видна в дневном отчёте филиала и не видна ни в одном отчёте по смене, потому что ни одна
-    смена за неё не отвечала (принятое допущение, раздел 7.2);
+    филиале смены;
+  - если в момент разбора неявки открытой смены нет, запись пишется с `ShiftId = null`
+    (принятое допущение, раздел 7.2);
   - повторный прогон фоновой задачи ничего не дублирует;
-  - `HoldSeatAfterStartMinutes` берётся из настроек филиала, а не из зашитых 15 минут.
-- `ShiftRevenueNoShowTests` / `ReportEndpointTests`: удержания видны отдельной величиной в
-  `ShiftRevenueDto` и в отчёте о выручке; при `KeepPrepaymentOnNoShow = false` величина нулевая.
-- `PlayerLedgerFilterTests`: `reservation_hold` и `reservation_no_show_fee` фильтруются
-  (сегодня `PlayerLedgerProjector.KnownEntryTypes` **не содержит даже существующий**
-  `reservation_hold` — то есть выписку по холдам отфильтровать нельзя, эндпоинт отвечает 400).
-- `MoneyActionHighRiskTests`: реверсы холдов **не** попадают в суточный счётчик
-  высокорисковых действий — сегодня `MoneyActionEntryTypes.HighRisk` содержит `reversal`, и
-  каждая снятая бронь начнёт съедать лимит кассира.
+  - `HoldSeatAfterStartMinutes` берётся из настроек филиала, а не из зашитых 15 минут; ноль минут
+    — законная настройка «место не держим»;
+  - бронь, у которой холд уже снят (отменена вручную), удержания не получает.
+- `ShiftRevenueReportTests`: удержания видны отдельной величиной в `ShiftRevenueDto.Earned` и
+  входят в итог; при `KeepPrepaymentOnNoShow = false` величина нулевая, и снятая заморозка
+  (реверс) выручкой не становится.
+- `PlayerLedgerProjectorTests`: `reservation_hold` и `reservation_no_show_fee` фильтруются
+  (раньше `PlayerLedgerFilter.KnownEntryTypes` **не содержал даже существующий**
+  `reservation_hold` — то есть выписку по холдам отфильтровать было нельзя, эндпоинт отвечал 400).
+- `EfMoneyActionPolicyResolverTests`: реверсы холдов и удержания за неявку **не** попадают в
+  суточный счётчик высокорисковых действий кассира.
 
 **Файлы**
 
-- Правки: `Billing/LedgerBalanceProjector.cs`, `Shared.Contracts/Billing/WalletSummaryDto.cs`,
-  `Shared.Contracts/Players/PlayerDashboardDto.cs`,
-  `Shared.Contracts/Billing/LedgerEntryTypeNames.cs` (+`ReservationHold`,
-  `ReservationNoShowFee` — заодно `reservation_hold` переезжает из
-  `ReservationHold.EntryType` в общий список, где ему и место),
-  `Players/PlayerLedgerProjector.cs`, `Reservations/ReservationHold.cs`,
-  `Reservations/ReservationNoShowRunner.cs`, `AntiFraud/EfMoneyActionPolicyResolver.cs`,
-  `Reservations/EfReservationService.cs:675` (снять протухший комментарий, утверждающий, что
-  «the hold/charge lifecycle is a separate deferred feature»),
-  `Reports/EfReportService.cs` — **два места**: `BuildShiftRevenue` (строка ~692, где
-  `earnedTime` собирается по белому списку из `GameplayCharge` и `PostpaidDebt`) и расчёт
-  выручки на строке ~321. Новый тип не добавляется в `earnedTime`: удержание за неявку — это не
-  проданное время, и складывать их значит соврать в отчёте. Появляется отдельная величина в
-  `Shared.Contracts/Reports/ShiftRevenueDto.cs`.
+- Правки: `Billing/LedgerBalanceProjector.cs`, `Shared.Contracts/Billing/WalletSummaryDto.cs`
+  (+`HeldBalance`), `Shared.Contracts/Players/PlayerDashboardDto.cs` (+`HeldBalance`),
+  `Shared.Contracts/Billing/LedgerEntryTypeNames.cs` (+`ReservationHold`, `ReservationNoShowFee`
+  — заодно `reservation_hold` переехал из `ReservationHold.EntryType` в общий список, где ему и
+  место), `Players/PlayerLedgerProjector.cs`, `Players/PlayerDashboardProjector.cs`,
+  `Reservations/ReservationHold.cs` (+`CreateNoShowFee`),
+  `Reservations/ReservationNoShowRunner.cs`, `Reports/EfReportService.cs` (`BuildShiftRevenue`),
+  `Shared.Contracts/Shifts/ShiftRevenueDto.cs` (`EarnedBreakdownDto` +`NoShow`).
 
-**Проверка:** `dotnet test tests/AFK4.Platform.Api.Tests --filter
-FullyQualifiedName~Billing|FullyQualifiedName~Reservation|FullyQualifiedName~Ledger` +
-`dotnet test tests/AFK4.Shared.Contracts.Tests`.
+**Как получилось на самом деле, отличия от плана выше**
+
+- **Счётчик антифрода править не пришлось, и это проверено, а не предположено.** Риск 5 был
+  реальным по формулировке (`MoneyActionEntryTypes.HighRisk` действительно содержит `reversal`),
+  но снятие холда в счётчик не попадает по двум независимым причинам: суточный расход считается
+  по парам «этот актор» + «эта открытая смена», а холд ставит и снимает самообслуживание
+  (`actorStaffUserId = Guid.Empty`) и вне смены (`ShiftId = null`). Ни один список типов не
+  тронут; свойство закреплено тестом, который гоняет настоящие `ReservationHold.Create` и
+  `ReleaseAsync`, а не подставляет строку типа руками.
+- **Второго места в отчётах не оказалось.** План называл `EfReportService.cs:321` вторым местом
+  расчёта выручки. Это `GetGameplayTimeReportAsync` — отчёт по сессиям, и суммы он берёт только по
+  записям с `SessionId`. У удержания за неявку сессии нет и быть не может, поэтому там менять
+  нечего.
+- **Протухший комментарий в `EfReservationService` про «отложенную функцию холдов» уже был снят**
+  раньше по ходу волны — правка из списка файлов не понадобилась.
+- **`ReservationNoShowOptions.Grace` удалён, а не переопределён.** Держать рядом зашитые
+  15 минут и настройку филиала значило бы завести второй ответ на один вопрос. У класса остался
+  только `TickInterval` — как часто просыпаться, а не сколько ждать.
+- **Итог `Earned.Total` теперь включает удержания.** Иначе получились бы деньги, которые в журнале
+  есть, а в отчёте нет (риск 8). В `Earned.Time` удержание не попадает — это не проданное время.
+- **Дневного отчёта филиала по выручке в коде нет.** Допущение 6 обещает, что удержание с
+  `ShiftId = null` «видно в дневном отчёте филиала»; на деле сегодня его видно в журнале и в
+  выписке игрока, а единственный суточный отчёт (`GetOwnerDailySummaryAsync`) — это
+  антифрод-сводка по сотрудникам, и удержанию там не место. Само допущение в силе: запись не
+  теряется и не приписывается чужой смене. Дневной отчёт по выручке — отдельная работа.
+- **Заметно живому человеку.** Игрок и оператор видят третье число в кошельке. Клуб со
+  включённым удержанием теперь оставляет предоплату себе, а игрок видит в выписке две строки
+  вместо одной («заморозка снята», «удержано за неявку»). И место после начала брони по
+  умолчанию держится **двадцать минут вместо пятнадцати** — это значение по умолчанию из Ф6,
+  теперь оно действительно работает. Экран кассы в Organization Admin новую величину пока не
+  показывает — это Ф10.
+
+**Проверка:** `dotnet test tests/AFK4.Platform.Api.Tests` — 2259 пройдено, 0 упало, 0 пропущено
+(было 2243 до фазы); `dotnet test tests/AFK4.Shared.Contracts.Tests` — 144 пройдено (было 141).
 
 ---
 
@@ -915,9 +941,11 @@ FullyQualifiedName~Billing|FullyQualifiedName~Reservation|FullyQualifiedName~Led
    в `EfWalletSettlementService.DebitAsync` (которая считает ещё и застейдженные записи
    `ChangeTracker`). Правило волны: **`WalletBalance` не меняет смысла ни при каких
    обстоятельствах**, третье число только добавляется.
-5. **Реверсы холдов в счётчике антифрода.** `MoneyActionEntryTypes.HighRisk` содержит
-   `reversal`; каждая снятая бронь начнёт съедать суточный лимит кассира, и в час ночи
-   оператор не сможет сделать возврат. Чинится одной строкой, но только если про неё вспомнить.
+5. **Реверсы холдов в счётчике антифрода. — Проверено в Ф7, чинить было нечего.**
+   `MoneyActionEntryTypes.HighRisk` действительно содержит `reversal`, но суточный расход
+   считается по паре «этот сотрудник» + «эта открытая смена», а холд ставит и снимает
+   самообслуживание (`actorStaffUserId = Guid.Empty`) и вне смены (`ShiftId = null`). Ни одна
+   снятая бронь лимит кассира не трогает; свойство закреплено тестом, а не рассуждением.
 6. **Молча пропущенный Postgres-тест.** Миграция и гонки проверяются только на настоящем
    Postgres. Локальный прогон без строки подключения зелёный и ничего не доказывает; в CI это
    ловит `AFK4_REQUIRE_POSTGRES_TESTS=1`, но до CI надо дожить с правильным атрибутом
@@ -926,10 +954,10 @@ FullyQualifiedName~Billing|FullyQualifiedName~Reservation|FullyQualifiedName~Led
    стоит второй миграции и конфликта снапшота. Список из девяти позиций в разделе 2 —
    исчерпывающий; если по ходу фаз 2–9 понадобилась десятая, это ошибка проектирования схемы, и
    лучше остановиться и дособрать фазу 1, чем завести вторую миграцию.
-8. **Отчёт по выручке.** `earnedTime` в `BuildShiftRevenue` собирается по белому списку типов
-   записей. Новый `reservation_no_show_fee` туда **не** добавляется, но и не должен потеряться —
-   если забыть отдельную величину, удержания станут деньгами, которые есть в журнале и которых
-   нет ни в одном отчёте.
+8. **Отчёт по выручке. — Закрыт в Ф7.** `earnedTime` в `BuildShiftRevenue` собирается по белому
+   списку типов записей, и `reservation_no_show_fee` туда не добавлен. Чтобы удержания не стали
+   деньгами, которых нет ни в одном отчёте, у них своя величина `Earned.NoShow`, и она входит
+   в `Earned.Total`.
 
 ---
 
