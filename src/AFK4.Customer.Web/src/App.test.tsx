@@ -141,3 +141,34 @@ it('не роняет экран, если ответ 200 пришёл без к
   expect(within(nav).getAllByRole('button')).toHaveLength(4);
   expect(within(nav).getByRole('button', { name: 'Брони' })).toBeInTheDocument();
 });
+
+// Клуб этой сборки обязан быть известен клиенту до первого запроса экрана. Уйдя без него,
+// запрос получил бы 409 у человека с двумя клубами — то есть «счёта тут нет» тому, у кого он есть.
+it('первый же запрос дашборда называет клуб этой сборки', async () => {
+  setSignedInSession();
+  localStorage.setItem('afk4.player.organizationKey', 'cyberx');
+  const calls: Array<[string, RequestInit | undefined]> = [];
+  globalThis.fetch = mock().mockImplementation(async (url: unknown, init: unknown) => {
+    calls.push([String(url), init as RequestInit | undefined]);
+    if (String(url).includes('/branding')) {
+      return { ok: true, status: 200, text: async () => JSON.stringify({ organizationId: 'org-77', name: 'CyberX', logoUrl: null, accentColor: null }) };
+    }
+    return {
+      ok: true, status: 200, text: async () => JSON.stringify({
+        walletBalance: { currencyCode: 'TJS', minorUnits: 0 },
+        heldBalance: { currencyCode: 'TJS', minorUnits: 0 },
+        debtBalance: { currencyCode: 'TJS', minorUnits: 0 },
+        activeSession: null, items: [], nextCursor: null, features: [],
+        person: { platformPersonId: 'person1', phoneNumber: '+992900000001', displayName: 'Ф', preferredLocale: 'ru', phoneVerified: true, pinSet: false, networkBanned: false },
+        clubs: []
+      })
+    };
+  }) as unknown as typeof fetch;
+
+  render(<I18nProvider><App /></I18nProvider>);
+  await waitFor(() => expect(calls.some(([url]) => url.includes('/api/me/dashboard'))).toBe(true));
+  const dashboardCall = calls.find(([url]) => url.includes('/api/me/dashboard'));
+  const headers = dashboardCall?.[1]?.headers as Record<string, string>;
+  expect(headers['X-AFK4-Organization']).toBe('org-77');
+  localStorage.clear();
+});

@@ -71,9 +71,11 @@ export function App() {
   });
 
   // Клуб этой сборки известен только после загрузки брендирования, а клиент живёт с самого
-  // начала — поэтому клуб доносится до него, а не задаётся в конструкторе.
+  // начала — поэтому клуб доносится до него, а не задаётся в конструкторе. Проставляется он в
+  // рендере, а не в эффекте: эффекты дочерних экранов выполняются раньше родительских, и первый
+  // же запрос дашборда ушёл бы без клуба — то есть показал бы «счёта тут нет» тому, у кого он есть.
   const brandedOrganizationId = branding.status === 'ready' ? branding.organizationId : '';
-  useEffect(() => { api.updateOrganization(brandedOrganizationId); }, [api, brandedOrganizationId]);
+  api.updateOrganization(brandedOrganizationId);
 
   // «Кто я и где у меня счета». Один клуб больше не подразумевается: приложение показывает счёт
   // того клуба, чей сайт человек открыл, а список клубов нужен, чтобы этот счёт в нём найти.
@@ -81,8 +83,17 @@ export function App() {
   const reloadMe = useCallback(() => {
     api.getMe().then(setMe).catch(() => { /* профиль догрузится при следующем действии */ });
   }, [api]);
+  // Тихое продление токена меняет сессию, но не человека: перезапрашиваем личность на новый
+  // токен, а не на каждый её пересбор — иначе продление и запрос гоняли бы друг друга по кругу.
+  const meFetchedForTokenRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!session) { setMe(null); return; }
+    if (!session) {
+      meFetchedForTokenRef.current = null;
+      setMe(null);
+      return;
+    }
+    if (meFetchedForTokenRef.current === session.accessToken) return;
+    meFetchedForTokenRef.current = session.accessToken;
     reloadMe();
   }, [session, reloadMe]);
 
@@ -152,14 +163,17 @@ export function App() {
     reloadMe();
   }, [reloadMe]);
 
+  // Пока клуб этой сборки не известен, экраны не монтируются: их первые запросы ушли бы без
+  // клуба, а ответ на такой запрос — либо 409, либо чужой кошелёк.
+  if (branding.status === 'loading') {
+    return (
+      <main className="flex min-h-dvh items-center justify-center" role="status" aria-label={t('a11y.loading')}>
+        <div className="h-10 w-10 animate-pulse rounded-full bg-[var(--color-surface)]" />
+      </main>
+    );
+  }
+
   if (!session) {
-    if (branding.status === 'loading') {
-      return (
-        <main className="flex min-h-dvh items-center justify-center" role="status" aria-label={t('a11y.loading')}>
-          <div className="h-10 w-10 animate-pulse rounded-full bg-[var(--color-surface)]" />
-        </main>
-      );
-    }
     return (
       <SignInScreen
         brandName={branding.brandName}
