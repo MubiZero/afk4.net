@@ -12,7 +12,7 @@ function openShift(): ShiftRevenueDto {
   return {
     shiftId: 's1', organizationId: 'o', branchId: 'b1',
     openedByStaffUserId: 'u1', closedByStaffUserId: null, state: 'open',
-    earned: { time: m(310000), goods: m(115000), total: m(425000) },
+    earned: { time: m(310000), goods: m(115000), noShow: m(6000), total: m(431000) },
     inflow: { cash: m(200000), nonCash: m(180000), walletTopUps: m(90000), directTotal: m(380000) },
     cash: { starting: m(1000000), expected: m(1380000), counted: null, difference: null },
     openedAtUtc: '2026-06-24T09:00:00Z', closedAtUtc: null
@@ -26,7 +26,7 @@ function closedShift(): ShiftRevenueDto {
     ...openShift(),
     shiftId: 'closed-1',
     state: 'closed',
-    earned: { time: m(150000), goods: m(84000), total: m(234000) },
+    earned: { time: m(150000), goods: m(84000), noShow: m(0), total: m(234000) },
     cash: { starting: m(100000), expected: m(263800), counted: m(258800), difference: m(-5000) },
     openedAtUtc: '2026-05-20T08:00:00Z',
     closedAtUtc: '2026-05-20T22:00:00Z'
@@ -50,6 +50,19 @@ function renderWs(current: ShiftRevenueDto | null, cashRows: Record<string, unkn
 }
 
 describe('CashShiftWorkspace', () => {
+  it('удержания за неявку стоят отдельной величиной в полосе выручки', async () => {
+    renderWs(openShift());
+    await waitFor(() => expect(screen.getByText('Выручка смены')).toBeInTheDocument());
+    expect(screen.getByText('Неявки')).toBeInTheDocument();
+    expect(screen.getByText('60 с.')).toBeInTheDocument();
+  });
+
+  it('филиал без удержаний не получает вечную нулевую строку', async () => {
+    renderWs({ ...openShift(), earned: { time: m(310000), goods: m(115000), noShow: m(0), total: m(425000) } });
+    await waitFor(() => expect(screen.getByText('Выручка смены')).toBeInTheDocument());
+    expect(screen.queryByText('Неявки')).toBeNull();
+  });
+
   it('открытая смена → выручка и сверка', async () => {
     renderWs(openShift());
     await waitFor(() => expect(screen.getByText('Выручка смены')).toBeInTheDocument());

@@ -8,7 +8,7 @@ afterEach(cleanup);
 const m = (minorUnits: number) => ({ currencyCode: 'TJS', minorUnits });
 const data: ShiftReportData = {
   openedAtUtc: '2026-06-24T08:00:00Z', closedAtUtc: null,
-  earned: { time: m(82000), goods: m(41000), total: m(123000) },
+  earned: { time: m(80000), goods: m(41000), noShow: m(2000), total: m(123000) },
   inflow: { cash: m(90000), nonCash: m(33000), walletTopUps: m(15000) },
   cash: { starting: m(100000), expected: m(190000), counted: null, difference: null }
 };

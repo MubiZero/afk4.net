@@ -99,7 +99,7 @@ describe('CashShiftCommandBar', () => {
   const makeRevenue = () => ({
     shiftId: 's1', organizationId: 'o', branchId: 'b1', openedByStaffUserId: 'u1', closedByStaffUserId: null,
     state: 'open',
-    earned: { time: m(82000), goods: m(41000), total: m(123000) },
+    earned: { time: m(82000), goods: m(41000), noShow: m(0), total: m(123000) },
     inflow: { cash: m(90000), nonCash: m(33000), walletTopUps: m(15000), directTotal: m(123000) },
     cash: { starting: m(100000), expected: m(190000), counted: null, difference: null },
     openedAtUtc: '2026-06-24T08:00:00Z', closedAtUtc: null

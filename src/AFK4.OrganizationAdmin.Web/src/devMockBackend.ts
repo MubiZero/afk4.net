@@ -148,7 +148,7 @@ function currentShiftRevenue() {
   return {
     shiftId: 'sh1', organizationId: ORG, branchId: BRANCH,
     openedByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', closedByStaffUserId: null, state: 'open',
-    earned: { time: m(82000), goods: m(41000), total: m(123000) },
+    earned: { time: m(82000), goods: m(41000), noShow: m(4000), total: m(127000) },
     inflow: { cash: m(90000), nonCash: m(33000), walletTopUps: m(15000), directTotal: m(123000) },
     // expected (касса в ящике) = netCashTotal движений (58000) + наличные продажи (90000) = 148000.
     cash: { starting: m(100000), expected: m(148000), counted: null, difference: null },
@@ -166,7 +166,7 @@ function shiftHistory() {
       shiftId, organizationId: ORG, branchId: BRANCH,
       openedByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134', closedByStaffUserId: '3db1367b-88c6-4b1c-99c3-bcbb5f4d5134',
       state: 'closed',
-      earned: { time: money(Math.round(earnedTotal * 0.66)), goods: money(earnedTotal - Math.round(earnedTotal * 0.66)), total: money(earnedTotal) },
+      earned: { time: money(Math.round(earnedTotal * 0.66)), goods: money(earnedTotal - Math.round(earnedTotal * 0.66)), noShow: money(0), total: money(earnedTotal) },
       inflow: { cash: money(cashSales), nonCash: money(Math.round(earnedTotal * 0.2)), walletTopUps: money(Math.round(earnedTotal * 0.1)), directTotal: money(earnedTotal) },
       cash: { starting: money(100000), expected: money(expected), counted: money(expected + differenceMinor), difference: money(differenceMinor) },
       openedAtUtc: `${day}T08:00:00Z`, closedAtUtc: `${day}T22:00:00Z`
@@ -674,7 +674,7 @@ function walletSummary() {
       .reduce((acc, e) => acc + ((e.amount as { minorUnits: number }).minorUnits ?? 0), 0);
   const wallet = 45000 + sumByAccount('wallet') - ledgerLogWalletBaseline;
   const debt = Math.max(0, sumByAccount('debt'));
-  return { playerAccountId: 'pl-1', walletBalance: money(wallet), debtBalance: money(debt), recentEntries: log.slice(0, 5) };
+  return { playerAccountId: 'pl-1', walletBalance: money(wallet), heldBalance: money(6000), debtBalance: money(debt), recentEntries: log.slice(0, 5) };
 }
 
 function playerPackages() {

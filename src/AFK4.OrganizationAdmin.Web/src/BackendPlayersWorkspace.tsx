@@ -316,6 +316,9 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
   const balance = readMoney(walletSummary, 'walletBalance')?.minorUnits ?? selectedClient?.balanceMinorUnits ?? 0;
   const debt = readMoney(walletSummary, 'debtBalance')?.minorUnits ?? selectedClient?.debtMinorUnits ?? 0;
+  // Заморожено под брони. Ноль до загрузки сводки — в строке поиска этого числа нет, и
+  // придумывать его из остатка нельзя: холд из остатка уже вычтен.
+  const held = readMoney(walletSummary, 'heldBalance')?.minorUnits ?? 0;
 
   useEffect(() => {
     if (debt <= 0) {
@@ -682,6 +685,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
             client={selectedClient}
             liveContext={liveContextByClient.get(selectedClient.playerAccountId ?? '') ?? { session: null, nextBooking: null }}
             balanceMinorUnits={balance}
+            heldMinorUnits={held}
             debtMinorUnits={debt}
             currencyCode={currencyCode}
             recentEntries={ledgerEntries}

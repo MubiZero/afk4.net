@@ -47,8 +47,24 @@ export interface LedgerEntryDto {
 export interface WalletSummaryDto {
   playerAccountId: Guid;
   walletBalance: MoneyDto;
+  // Заморожено под будущие брони. Из walletBalance уже вычтено — это не второй кошелёк,
+  // а объяснение, куда делась часть остатка.
+  heldBalance: MoneyDto;
   debtBalance: MoneyDto;
   recentEntries: LedgerEntryDto[];
+}
+
+// Ровно четыре числа, которые сеть сообщает клубу о человеке (PlayerReputationDto).
+// Ни названия чужих клубов, ни дат, ни сумм здесь нет и быть не может.
+export interface PlayerReputationDto {
+  networkVisits: number;
+  networkNoShows: number;
+  networkBanned: boolean;
+  calculatedAtUtc: string;
+}
+
+export interface PlayerReputationLookupRequest {
+  phoneNumber: string;
 }
 
 // Зеркало AFK4.Shared.Contracts.Common.CursorPage<T> (camelCase): страница + курсор следующей
@@ -174,6 +190,20 @@ export function createPlayerClient(api: PlatformApiClient) {
     },
     setActiveState(branchId: Guid, playerAccountId: Guid, request: SetPlayerActiveStateRequest): Promise<PlayerAccountDto> {
       return api.post<PlayerAccountDto, SetPlayerActiveStateRequest>(`branches/${branchId}/players/${playerAccountId}/active-state`, request);
+    },
+    // Репутация человека по сети. Оба маршрута пишутся в аудит на сам факт чтения, поэтому
+    // зовём их только из карточки — там, где администратор принимает решение, — и никогда
+    // построчно из списка.
+    getReputation(branchId: Guid, platformPersonId: Guid): Promise<PlayerReputationDto> {
+      return api.get<PlayerReputationDto>(`branches/${branchId}/players/reputation/${platformPersonId}`);
+    },
+    // Спрос по точному номеру: номер едет телом, а не в адресе — адреса оседают в логах прокси,
+    // а это чужой телефон. Маршрут под лимитом 20/мин на сотрудника.
+    lookupReputation(branchId: Guid, phoneNumber: string): Promise<PlayerReputationDto> {
+      return api.post<PlayerReputationDto, PlayerReputationLookupRequest>(
+        `branches/${branchId}/players/reputation/lookup`,
+        { phoneNumber }
+      );
     }
   };
 }

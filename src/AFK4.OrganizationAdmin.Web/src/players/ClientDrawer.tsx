@@ -22,6 +22,7 @@ export function ClientDrawer({
   client,
   liveContext,
   balanceMinorUnits,
+  heldMinorUnits,
   debtMinorUnits,
   currencyCode,
   recentEntries,
@@ -48,6 +49,9 @@ export function ClientDrawer({
   client: PlayerClientItem;
   liveContext: ClientLiveContext;
   balanceMinorUnits: number;
+  // Придержано под брони. Из остатка уже вычтено — это объяснение, куда делась часть денег,
+  // а не второй кошелёк.
+  heldMinorUnits: number;
   debtMinorUnits: number;
   currencyCode: string;
   recentEntries: LedgerEntryDto[];
@@ -73,6 +77,7 @@ export function ClientDrawer({
 }) {
   const { t } = useI18n();
   const hasDebt = debtMinorUnits > 0;
+  const hasHeld = heldMinorUnits > 0;
   const isInactive = !client.isActive;
   // Триггер «⋯» показываем, если у оператора есть ХОТЯ БЫ одно из трёх прав — иначе меню
   // рендерится пустым (см. ClientActionsMenu), а кнопка без пунктов бесполезна.
@@ -142,6 +147,17 @@ export function ClientDrawer({
             <span className="eyebrow">{t('op.players.wallet.balanceLabel')}</span>
             <span className="val"><Money minorUnits={balanceMinorUnits} currencyCode={currencyCode} /></span>
           </div>
+
+          {/* Третья величина появляется, только когда деньги действительно придержаны: у
+              большинства клиентов это вечный ноль, а нулевая строка рядом с остатком заставляет
+              оператора каждый раз спрашивать себя, что она значит. */}
+          {hasHeld && (
+            <div className="wallet-held">
+              <span className="eyebrow">{t('op.players.wallet.heldLabel')}</span>
+              <span className="val"><Money minorUnits={heldMinorUnits} currencyCode={currencyCode} /></span>
+              <small>{t('op.players.wallet.heldHint')}</small>
+            </div>
+          )}
 
           {hasDebt && (
             <div className="wallet-debt">

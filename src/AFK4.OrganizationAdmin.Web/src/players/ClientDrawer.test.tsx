@@ -30,6 +30,7 @@ const baseProps: DrawerProps = {
   client,
   liveContext: noLiveContext,
   balanceMinorUnits: 45000,
+  heldMinorUnits: 0,
   debtMinorUnits: 0,
   currencyCode: 'TJS',
   recentEntries: [],
@@ -87,6 +88,17 @@ describe('ClientDrawer', () => {
 
   it('renders the wallet balance', () => {
     renderDrawer({ balanceMinorUnits: 45000 });
+    expect(document.querySelector('.wallet-balance')).toHaveTextContent('450 с.');
+  });
+
+  it('shows what is held for bookings only when something is actually held', () => {
+    const { rerender } = renderDrawer({ heldMinorUnits: 0 });
+    expect(document.querySelector('.wallet-held')).toBeNull();
+    rerender(<I18nProvider initialLocale="ru"><ClientDrawer {...baseProps} heldMinorUnits={12000} /></I18nProvider>);
+    const held = document.querySelector('.wallet-held');
+    expect(held).toHaveTextContent('Придержано под бронь');
+    expect(held).toHaveTextContent('120 с.');
+    // Остаток не пересчитываем: холд из него уже вычтен сервером.
     expect(document.querySelector('.wallet-balance')).toHaveTextContent('450 с.');
   });
 
