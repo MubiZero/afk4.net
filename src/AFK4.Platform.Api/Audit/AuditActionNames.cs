@@ -47,9 +47,6 @@ public static class AuditActionNames
     /// <summary>Попытка задать PIN игроку со стойки. Пишется только как отказ: PIN сетевой, и клуб его не назначает.</summary>
     public const string SetPlayerPin = "players.pin.set";
 
-    /// <summary>Разовая рассылка пуша о смене правил PIN. Уходит вместе с концом перехода.</summary>
-    public const string AnnouncePinMigration = "platform.announcements.pin_migration.push";
-
     public const string TopUpWallet = "billing.wallet.top_up";
 
     public const string RefundLedgerEntry = "billing.refund";

@@ -1,5 +1,4 @@
 using AFK4.Platform.Api.Audit;
-using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Platform.Announcements;
 using AFK4.Platform.Api.Platform.Identity;
 using AFK4.Shared.Contracts.Platform.Announcements;
@@ -33,31 +32,6 @@ public static class PlatformAnnouncementEndpoints
             }
 
             return Results.Ok(await announcementService.ListAsync(cancellationToken));
-        });
-
-        // Разовое объявление игрокам о смене правил PIN — пушем, а не SMS: сказать нужно один раз
-        // и многим, а SMS платные. Повторное нажатие никого не будит второй раз: ключ
-        // идемпотентности привязан к игроку, а не к нажатию. Уходит вместе с концом перехода.
-        app.MapPost("/api/platform/announcements/pin-migration/push", async (
-            PlatformAdminAuthorizationService authorizationService,
-            PinMigrationAnnouncer announcer,
-            IAuditRecordWriter auditRecordWriter,
-            CancellationToken cancellationToken) =>
-        {
-            var authorization = authorizationService.RequirePermission(PlatformAdminPermissionNames.ManageAnnouncements);
-            if (!authorization.IsAuthenticated) return Results.Unauthorized();
-            if (!authorization.IsAllowed)
-            {
-                await WriteDeniedAsync(auditRecordWriter, authorization, AuditActionNames.AnnouncePinMigration,
-                    targetId: null, cancellationToken);
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            var queued = await announcer.AnnounceAsync(cancellationToken);
-            await WriteAnnouncementAuditAsync(auditRecordWriter, authorization, AuditActionNames.AnnouncePinMigration,
-                targetId: null, AuditOutcome.Succeeded, new { Queued = queued }, cancellationToken);
-
-            return Results.Ok(new { queued });
         });
 
         app.MapPost("/api/platform/announcements", async (

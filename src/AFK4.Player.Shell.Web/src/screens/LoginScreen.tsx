@@ -2,17 +2,15 @@ import { useState, type FormEvent } from 'react';
 
 export interface LoginScreenProps {
   /** returns true on success, false on bad credentials */
-  onSubmit: (phoneNumber: string, password: string) => Promise<boolean>;
+  onSubmit: (phoneNumber: string, pin: string) => Promise<boolean>;
 }
 
-// Объяснение перехода на сетевой PIN. Сервер отвечает на любую неудачу входа одинаково — иначе по
-// экрану игрового ПК можно проверять, у кого в сети есть аккаунт, — поэтому объясняет оболочка, и
-// объясняет всем одно и то же, независимо от того, что было введено. Уходит вместе с обновлением
-// оболочки, когда переход закончится (30 дней и 90% задавших PIN).
-const PIN_CHANGED_TITLE = 'PIN изменился';
-const PIN_CHANGED_TEXT =
-  'Теперь он один на все клубы сети, и задаёте его вы сами — в приложении, в профиле.';
-const PIN_CHANGED_FALLBACK = 'Нет приложения под рукой — позовите администратора, он посадит вас за ПК.';
+// Где живёт PIN — постоянная подсказка, а не объявление: человек за игровым ПК должен видеть,
+// куда идти, если PIN он не помнит. Отказ во входе один на все причины — сервер не называет,
+// знаком ли ему номер, — поэтому и текст отказа один и тот же для любого введённого номера.
+const PIN_HINT = 'PIN один на все клубы сети — задать или сменить его можно в приложении, в профиле.';
+const SIGN_IN_FAILED = 'Неверный телефон или PIN.';
+const SIGN_IN_FAILED_FALLBACK = 'Нет приложения под рукой — позовите администратора, он посадит вас за ПК.';
 
 export function LoginScreen({ onSubmit }: LoginScreenProps) {
   const [phone, setPhone] = useState('');
@@ -49,12 +47,10 @@ export function LoginScreen({ onSubmit }: LoginScreenProps) {
         value={pin}
         onChange={(e) => setPin(e.target.value)}
       />
-      <p>
-        <strong>{PIN_CHANGED_TITLE}.</strong> {PIN_CHANGED_TEXT}
-      </p>
+      <p>{PIN_HINT}</p>
       {failed && (
         <p role="alert">
-          <strong>{PIN_CHANGED_TITLE}.</strong> {PIN_CHANGED_TEXT} {PIN_CHANGED_FALLBACK}
+          {SIGN_IN_FAILED} {PIN_HINT} {SIGN_IN_FAILED_FALLBACK}
         </p>
       )}
       <button type="submit" disabled={pending || !phone || !pin}>

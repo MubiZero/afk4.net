@@ -13,20 +13,6 @@ public sealed record AnalyticsMonthDto(
     int Left,
     int PayingAtMonthEnd);
 
-/// <summary>
-/// Насколько далеко зашёл переход на сетевой PIN. <see cref="ActivePlayers"/> — все, кто приходил
-/// за окно; <see cref="ActivePlayersWithIdentity"/> — те из них, кто вообще может задать PIN, то
-/// есть чья карточка подшита к личности. Доля считается по второму числу: гость, заведённый на
-/// стойке, PIN задать не может, и включать его в знаменатель значит сделать порог недостижимым.
-/// </summary>
-public sealed record PinAdoptionDto(
-    DateTimeOffset GeneratedAtUtc,
-    int WindowDays,
-    int ActivePlayers,
-    int ActivePlayersWithIdentity,
-    int ActivePlayersWithPin,
-    int AdoptionPercent);
-
 public sealed record PlatformAnalyticsOverviewDto(
     DateTimeOffset GeneratedAtUtc,
     string CurrencyCode,

@@ -175,8 +175,6 @@ builder.Services.AddScoped<ISessionTimelineReadService, EfSessionTimelineReadSer
 builder.Services.AddScoped<IStaffTokenService, OpaqueStaffTokenService>();
 builder.Services.AddScoped<IPlayerTokenService, OpaquePlayerTokenService>();
 builder.Services.AddScoped<IPlatformPinService, EfPlatformPinService>();
-builder.Services.AddScoped<PinMigrationAnnouncer>();
-builder.Services.AddScoped<PinAdoptionReader>();
 builder.Services.AddScoped<IPlayerContextAccessor, PlayerContextAccessor>();
 builder.Services.AddScoped<IPlatformPersonTokenService, OpaquePlatformPersonTokenService>();
 builder.Services.AddScoped<IPlatformPersonContextAccessor, PlatformPersonContextAccessor>();

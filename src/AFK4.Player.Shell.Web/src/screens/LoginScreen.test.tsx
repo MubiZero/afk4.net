@@ -22,12 +22,9 @@ describe('LoginScreen', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
   });
 
-  // Переход: экран объясняет сам и объясняет всем одинаково. Сервер причину отказа не называет —
-  // иначе по этому экрану проверяли бы, у кого в сети есть аккаунт.
-  it('explains the new PIN before anyone has even tried', () => {
+  it('says where the PIN lives before anyone has even tried', () => {
     render(<LoginScreen onSubmit={async () => true} />);
 
-    expect(screen.getByText(/PIN изменился/)).toBeInTheDocument();
     expect(screen.getByText(/в приложении/)).toBeInTheDocument();
   });
 
