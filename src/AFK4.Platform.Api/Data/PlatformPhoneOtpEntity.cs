@@ -3,7 +3,6 @@ namespace AFK4.Platform.Api.Data;
 public enum PlatformPhoneOtpPurpose
 {
     Registration = 0,
-    SignIn = 1,
 }
 
 /// <summary>

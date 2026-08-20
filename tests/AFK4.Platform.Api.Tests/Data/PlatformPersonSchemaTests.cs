@@ -85,25 +85,6 @@ public sealed class PlatformPersonSchemaTests
             entityType.FindPrimaryKey()!.Properties.Select(property => property.Name).ToArray());
     }
 
-    [Fact]
-    public void MigrationFinding_CarriesTheDateItWasFound()
-    {
-        var entityType = Model().FindEntityType(typeof(PlatformIdentityMigrationFindingEntity))!;
-
-        Assert.False(entityType.FindProperty(
-            nameof(PlatformIdentityMigrationFindingEntity.CreatedAtUtc))!.IsNullable);
-        // Очередь разбора: нужный вид, ещё не разобранные, свежие сверху.
-        Assert.Contains(
-            entityType.GetIndexes(),
-            index => index.Properties.Select(property => property.Name).SequenceEqual(
-                new[]
-                {
-                    nameof(PlatformIdentityMigrationFindingEntity.Kind),
-                    nameof(PlatformIdentityMigrationFindingEntity.ResolvedAtUtc),
-                    nameof(PlatformIdentityMigrationFindingEntity.CreatedAtUtc)
-                }));
-    }
-
     [PostgresSessionFact]
     public async Task Person_RoundTripsAndRefusesASecondRecordForTheSameNumber()
     {

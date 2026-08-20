@@ -2376,43 +2376,6 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("platform_idempotency_records", (string)null);
                 });
 
-            modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformIdentityMigrationFindingEntity", b =>
-                {
-                    b.Property<Guid>("FindingId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DetailsJson")
-                        .IsRequired()
-                        .HasColumnType("jsonb");
-
-                    b.Property<string>("Kind")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<Guid?>("OrganizationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("PlatformPersonId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("PlayerAccountId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("ResolvedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("FindingId");
-
-                    b.HasIndex("Kind", "ResolvedAtUtc", "CreatedAtUtc");
-
-                    b.ToTable("platform_identity_migration_findings", (string)null);
-                });
-
             modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformIncidentEntity", b =>
                 {
                     b.Property<Guid>("PlatformIncidentId")

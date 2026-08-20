@@ -194,9 +194,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<PlatformReputationSnapshotEntity> PlatformReputationSnapshots => Set<PlatformReputationSnapshotEntity>();
 
-    public DbSet<PlatformIdentityMigrationFindingEntity> PlatformIdentityMigrationFindings =>
-        Set<PlatformIdentityMigrationFindingEntity>();
-
     public DbSet<BranchBookingSettingsEntity> BranchBookingSettings => Set<BranchBookingSettingsEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -1449,16 +1446,6 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
         {
             entity.ToTable("platform_reputation_snapshots");
             entity.HasKey(snapshot => snapshot.PlatformPersonId);
-        });
-
-        modelBuilder.Entity<PlatformIdentityMigrationFindingEntity>(entity =>
-        {
-            entity.ToTable("platform_identity_migration_findings");
-            entity.HasKey(finding => finding.FindingId);
-            entity.Property(finding => finding.Kind).HasMaxLength(32).IsRequired();
-            entity.Property(finding => finding.DetailsJson).HasColumnType("jsonb").IsRequired();
-            // Очередь разбора читается так: нужный вид, ещё не разобранные, свежие сверху.
-            entity.HasIndex(finding => new { finding.Kind, finding.ResolvedAtUtc, finding.CreatedAtUtc });
         });
 
         modelBuilder.Entity<BranchBookingSettingsEntity>(entity =>
