@@ -21,6 +21,7 @@ public sealed class PlatformJobIntervalCatalog(
     IOptions<OutboxOptions> outboxOptions,
     AutoProtectionOptions autoProtectionOptions,
     ReservationNoShowOptions reservationNoShowOptions,
+    ReservationRequestExpiryOptions reservationRequestExpiryOptions,
     IOptions<PlatformAnalyticsOptions> analyticsOptions)
 {
     public IReadOnlyDictionary<string, TimeSpan> Build() => new Dictionary<string, TimeSpan>(StringComparer.Ordinal)
@@ -35,6 +36,7 @@ public sealed class PlatformJobIntervalCatalog(
         [PlatformJobNames.SubscriptionSnapshots] = analyticsOptions.Value.SnapshotInterval,
         [PlatformJobNames.BranchSnapshots] = analyticsOptions.Value.SnapshotInterval,
         [PlatformJobNames.ReservationNoShow] = reservationNoShowOptions.TickInterval,
+        [PlatformJobNames.ReservationRequestExpiry] = reservationRequestExpiryOptions.TickInterval,
         [PlatformJobNames.PlayerReminders] = notificationOptions.Value.PlayerReminderInterval
     };
 }

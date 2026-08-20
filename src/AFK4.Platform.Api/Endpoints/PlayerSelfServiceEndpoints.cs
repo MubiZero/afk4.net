@@ -838,7 +838,8 @@ internal static class PlayerSelfServiceEndpoints
                 r.TariffVersionId is not null ? tariffNames.GetValueOrDefault(r.TariffVersionId.Value) : null,
                 r.EstimatedCostMinorUnits,
                 r.CurrencyCode,
-                r.ReservationGroupId))
+                r.ReservationGroupId,
+                r.RespondByUtc))
                 .ToList();
 
             return Results.Ok(dtos);

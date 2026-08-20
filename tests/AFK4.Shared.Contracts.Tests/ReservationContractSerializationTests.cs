@@ -121,6 +121,57 @@ public sealed class ReservationContractSerializationTests
         Assert.Equal(sessionId, copy.StartedSessionId);
     }
 
+    /// <summary>
+    /// Срок ответа на заявку и время ответа доезжают до обеих сторон: до стойки в
+    /// <see cref="ReservationDto"/> и до приложения в <see cref="PlayerReservationDto"/>. Иначе у
+    /// двух администраторов на разных машинах были бы разные цифры, а у игрока третья.
+    /// </summary>
+    [Fact]
+    public void ReservationContracts_RoundTripTheAnswerDeadline()
+    {
+        var respondBy = DateTimeOffset.Parse("2026-07-14T10:30:00Z");
+        var confirmedAt = DateTimeOffset.Parse("2026-07-14T10:12:00Z");
+        var reservation = new ReservationDto(
+            Guid.Parse("99999999-1111-4111-8111-999999999999"),
+            Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            Guid.Parse("66666666-1111-4111-8111-666666666666"),
+            Guid.Parse("aaaaaaaa-1111-4111-8111-111111111111"),
+            "PC-01",
+            "VIP",
+            "Aziz P.",
+            "+992900000001",
+            DateTimeOffset.Parse("2026-07-14T16:00:00Z"),
+            DateTimeOffset.Parse("2026-07-14T17:00:00Z"),
+            60,
+            ReservationStateNames.Pending,
+            ReservationSourceNames.Online,
+            string.Empty,
+            DateTimeOffset.Parse("2026-07-14T10:00:00Z"),
+            DateTimeOffset.Parse("2026-07-14T10:00:00Z"),
+            null,
+            string.Empty,
+            null,
+            RespondByUtc: respondBy,
+            ConfirmedAtUtc: confirmedAt);
+        var playerView = new PlayerReservationDto(
+            reservation.ReservationId,
+            reservation.SeatId,
+            reservation.SeatName,
+            reservation.StartsAtUtc,
+            reservation.EndsAtUtc,
+            reservation.State,
+            Note: null,
+            RespondByUtc: respondBy);
+
+        var reservationCopy = RoundTrip(reservation);
+        var playerCopy = RoundTrip(playerView);
+
+        Assert.Equal(respondBy, reservationCopy.RespondByUtc);
+        Assert.Equal(confirmedAt, reservationCopy.ConfirmedAtUtc);
+        Assert.Equal(respondBy, playerCopy.RespondByUtc);
+    }
+
     [Fact]
     public void StartReservationSessionRequest_RoundTripsSessionParameters()
     {

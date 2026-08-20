@@ -16,6 +16,9 @@ public static class PlatformJobNames
     /// <summary>Возврат замороженных денег и освобождение места, когда игрок не пришёл.</summary>
     public const string ReservationNoShow = "reservation_no_show";
 
+    /// <summary>Снятие заявок, на которые клуб не ответил в обещанный срок, с полным возвратом денег.</summary>
+    public const string ReservationRequestExpiry = "reservation_request_expiry";
+
     /// <summary>Напоминания игроку, у которых нет события: конец сессии и приближающаяся бронь.</summary>
     public const string PlayerReminders = "player_reminders";
 
@@ -39,6 +42,7 @@ public static class PlatformJobNames
         SubscriptionSnapshots,
         BranchSnapshots,
         ReservationNoShow,
+        ReservationRequestExpiry,
         PlayerReminders
     ];
 }

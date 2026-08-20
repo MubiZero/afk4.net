@@ -1,5 +1,6 @@
 using System.Data;
 using AFK4.Platform.Api.Billing;
+using AFK4.Platform.Api.Branches;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
@@ -108,6 +109,7 @@ public sealed class EfReservationService(
         }
 
         var source = NormalizeSource(request.Source);
+        var waitsForAnswer = source == ReservationSourceNames.Online;
         var reservation = new ReservationEntity
         {
             ReservationId = Guid.NewGuid(),
@@ -119,9 +121,14 @@ public sealed class EfReservationService(
             PhoneNumber = NormalizeNullable(request.PhoneNumber),
             StartsAtUtc = request.StartsAtUtc,
             EndsAtUtc = endsAtUtc,
-            State = source == ReservationSourceNames.Online
+            State = waitsForAnswer
                 ? ReservationStateNames.Pending
                 : ReservationStateNames.Confirmed,
+            RespondByUtc = waitsForAnswer
+                ? await ResolveRespondByAsync(
+                    request.OrganizationId, branchId, request.StartsAtUtc, now, cancellationToken)
+                : null,
+            ConfirmedAtUtc = waitsForAnswer ? null : now,
             Source = source,
             Note = NormalizeText(request.Note),
             CreatedByStaffUserId = actorStaffUserId,
@@ -199,9 +206,15 @@ public sealed class EfReservationService(
 
         var now = timeProvider.GetUtcNow();
         var source = NormalizeSource(request.Source);
-        var state = source == ReservationSourceNames.Online
+        var waitsForAnswer = source == ReservationSourceNames.Online;
+        var state = waitsForAnswer
             ? ReservationStateNames.Pending
             : ReservationStateNames.Confirmed;
+        // Обещание одно на всю компанию: срок считается один раз и ставится каждому месту группы.
+        DateTimeOffset? respondByUtc = waitsForAnswer
+            ? await ResolveRespondByAsync(
+                request.OrganizationId, branchId, request.StartsAtUtc, now, cancellationToken)
+            : null;
         var groupId = Guid.NewGuid();
         var customerName = request.CustomerName.Trim();
         var phoneNumber = NormalizeNullable(request.PhoneNumber);
@@ -220,6 +233,8 @@ public sealed class EfReservationService(
             StartsAtUtc = request.StartsAtUtc,
             EndsAtUtc = endsAtUtc,
             State = state,
+            RespondByUtc = respondByUtc,
+            ConfirmedAtUtc = waitsForAnswer ? null : now,
             Source = source,
             Note = note,
             CreatedByStaffUserId = actorStaffUserId,
@@ -324,6 +339,13 @@ public sealed class EfReservationService(
         reservation.PhoneNumber = nextPhoneNumber;
         reservation.StartsAtUtc = nextStartsAtUtc;
         reservation.EndsAtUtc = nextEndsAtUtc;
+        // Бронь передвинули на более раннее время — обещание ответа едет вместе с ней: отвечать
+        // после начала уже некому.
+        if (reservation.RespondByUtc is { } respondByUtc && respondByUtc > nextStartsAtUtc)
+        {
+            reservation.RespondByUtc = nextStartsAtUtc;
+        }
+
         reservation.Source = nextSource;
         reservation.Note = nextNote;
         reservation.UpdatedByStaffUserId = actorStaffUserId;
@@ -382,9 +404,13 @@ public sealed class EfReservationService(
             return ReservationServiceResult<ReservationDto>.RequestConflict(conflict);
         }
 
+        var answeredAt = timeProvider.GetUtcNow();
         reservation.State = ReservationStateNames.Confirmed;
+        // Когда клуб ответил. Срок в RespondByUtc остаётся как след обещания: он больше ничего
+        // не решает, но по нему видно, уложилась стойка в своё слово или нет.
+        reservation.ConfirmedAtUtc = answeredAt;
         reservation.UpdatedByStaffUserId = actorStaffUserId;
-        reservation.UpdatedAtUtc = timeProvider.GetUtcNow();
+        reservation.UpdatedAtUtc = answeredAt;
         reservation.Version++;
         var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
         if (saveConflict is not null)
@@ -444,6 +470,10 @@ public sealed class EfReservationService(
 
         reservation.State = ReservationStateNames.Seated;
         reservation.SeatedAtUtc = now;
+        // Посадить — это и есть ответ клуба: заявку, которую никто не подтверждал, стойка приняла
+        // тем, что усадила человека за машину. Без этой отметки посаженная заявка выглядела бы
+        // «так и не подтверждённой».
+        reservation.ConfirmedAtUtc ??= now;
         reservation.UpdatedByStaffUserId = actorStaffUserId;
         reservation.UpdatedAtUtc = now;
         reservation.Version++;
@@ -784,7 +814,9 @@ public sealed class EfReservationService(
                         ? tariffName
                         : null,
                 reservation.EstimatedCostMinorUnits,
-                reservation.CurrencyCode);
+                reservation.CurrencyCode,
+                reservation.RespondByUtc,
+                reservation.ConfirmedAtUtc);
         }).ToList();
     }
 
@@ -832,6 +864,35 @@ public sealed class EfReservationService(
     private static string? NormalizeNullable(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    /// <summary>
+    /// Докуда клуб обещал ответить на заявку. Обещать ответ позже начала брони нельзя: к этому
+    /// времени отвечать уже не на что, и игрок ждал бы того, чего не будет.
+    /// </summary>
+    private static DateTimeOffset RespondBy(
+        DateTimeOffset now,
+        DateTimeOffset startsAtUtc,
+        int respondWithinMinutes)
+    {
+        var promised = now.AddMinutes(respondWithinMinutes);
+        return promised < startsAtUtc ? promised : startsAtUtc;
+    }
+
+    /// <summary>
+    /// Срок для заявки, заведённой на стойке: настройки филиала здесь ещё не читались, в отличие
+    /// от брони из приложения, где они уже посчитаны для этого игрока.
+    /// </summary>
+    private async Task<DateTimeOffset> ResolveRespondByAsync(
+        Guid organizationId,
+        Guid branchId,
+        DateTimeOffset startsAtUtc,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var settings = await BranchBookingSettingsDefaults.ResolveAsync(
+            dbContext, organizationId, branchId, cancellationToken);
+        return RespondBy(now, startsAtUtc, settings.RespondWithinMinutes);
     }
 
     private static int DurationMinutes(ReservationEntity reservation)
@@ -997,6 +1058,12 @@ public sealed class EfReservationService(
             State = autoConfirm
                 ? ReservationStateNames.Confirmed
                 : ReservationStateNames.Pending,
+            // Заявка, которую смотрит стойка, несёт срок ответа: по нему идёт обратный отсчёт у
+            // игрока и таймер у администратора, и по нему же заявка снимается, если клуб промолчал.
+            RespondByUtc = autoConfirm
+                ? null
+                : RespondBy(now, request.StartsAtUtc, rules.Settings.RespondWithinMinutes),
+            ConfirmedAtUtc = autoConfirm ? now : null,
             Source = ReservationSourceNames.Online,
             Note = NormalizeText(request.Note),
             // Guid.Empty = self-service sentinel; no staff actor for online bookings.
@@ -1337,6 +1404,10 @@ public sealed class EfReservationService(
                 State = autoConfirm
                     ? ReservationStateNames.Confirmed
                     : ReservationStateNames.Pending,
+                RespondByUtc = autoConfirm
+                    ? null
+                    : RespondBy(now, request.StartsAtUtc, rules.Settings.RespondWithinMinutes),
+                ConfirmedAtUtc = autoConfirm ? now : null,
                 Source = ReservationSourceNames.Online,
                 Note = note,
                 CreatedByStaffUserId = Guid.Empty,

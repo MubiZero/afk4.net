@@ -146,4 +146,7 @@ internal static class ReservationHoldCauses
     public const string Cancelled = "cancelled";
     public const string Seated = "seated";
     public const string NoShow = "no_show";
+
+    /// <summary>Клуб не ответил на заявку в обещанный срок. Возврат всегда полный.</summary>
+    public const string RequestExpired = "request_expired";
 }
