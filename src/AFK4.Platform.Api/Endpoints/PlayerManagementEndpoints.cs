@@ -141,13 +141,17 @@ internal static class PlayerManagementEndpoints
             return Results.Ok(result.Response);
         });
 
+        // PIN принадлежит игроку и работает во всей сети, поэтому клуб его больше не назначает —
+        // назначить сетевой пароль из одного клуба значит получить вход от чужого имени во всех
+        // остальных. Отказ безусловный: не «если PIN уже задан», а всегда. Кнопка «PIN клиента»
+        // остаётся в установленных в поле версиях Organization Admin, и текст ответа она покажет
+        // тостом, поэтому он человеческий, а не служебный.
         app.MapPost("branches/{branchId:guid}/players/{playerAccountId:guid}/pin", async (
+            HttpContext httpContext,
             Guid branchId,
             Guid playerAccountId,
-            SetPlayerPinRequest request,
             StaffAuthorizationService authorizationService,
-            IPlayerCredentialService credentialService,
-            PlatformDbContext dbContext,
+            IAuditRecordWriter auditRecordWriter,
             CancellationToken cancellationToken) =>
         {
             var authorization = await authorizationService.RequireBranchPermissionAsync(
@@ -165,22 +169,28 @@ internal static class PlayerManagementEndpoints
                 return Results.StatusCode(StatusCodes.Status403Forbidden);
             }
 
-            if (string.IsNullOrWhiteSpace(request.Pin) || request.Pin.Length < 4)
-            {
-                return Results.BadRequest(new { error = "PIN must be at least 4 characters." });
-            }
-
-            var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
-                p => p.PlayerAccountId == playerAccountId
-                    && p.OrganizationId == authorization.StaffContext!.OrganizationId,
+            // Пишется сама попытка: раз маршрут доживает свой век, важно видеть, кто ещё им
+            // пользуется и когда его можно убрать совсем.
+            await WriteAuditAsync(
+                auditRecordWriter,
+                authorization.StaffContext!.OrganizationId,
+                branchId,
+                authorization.StaffContext.StaffUserId,
+                AuditActionNames.SetPlayerPin,
+                "PlayerAccount",
+                playerAccountId.ToString("D"),
+                AuditOutcome.Denied,
+                new { Reason = "pin_owned_by_player" },
                 cancellationToken);
-            if (account is null)
-            {
-                return Results.NotFound();
-            }
 
-            await credentialService.SetPasswordAsync(playerAccountId, request.Pin, cancellationToken);
-            return Results.NoContent();
+            httpContext.Response.Headers["Deprecation"] = "true";
+            return Results.Json(
+                new
+                {
+                    code = "pin_owned_by_player",
+                    message = "PIN задаёт игрок сам, в приложении. Клуб его больше не назначает.",
+                },
+                statusCode: StatusCodes.Status409Conflict);
         });
 
         app.MapPatch("branches/{branchId:guid}/players/{playerAccountId:guid}", async (

@@ -1,6 +1,17 @@
 namespace AFK4.Shared.Contracts.Players;
 
+/// <summary>
+/// Самопосадка за игровой ПК: клуб, номер и сетевой PIN. Поле называется <c>Password</c> с тех
+/// времён, когда PIN был клубным паролем, — переименование сломало бы установленные в поле
+/// оболочки ради одного слова.
+/// </summary>
+/// <param name="BranchId">
+/// Филиал, у ПК которого стоит человек. Нужен ровно в одном случае: клуб с несколькими филиалами,
+/// а счёта у человека в нём ещё нет — гадать филиал за него нельзя, в отчётах это выглядело бы как
+/// два разных гостя. Клиенты, которые филиала не называют, работают как работали.
+/// </param>
 public sealed record PlayerSignInRequest(
     Guid OrganizationId,
     string PhoneNumber,
-    string Password);
+    string Password,
+    Guid? BranchId = null);

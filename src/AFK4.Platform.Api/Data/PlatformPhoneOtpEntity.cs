@@ -4,8 +4,6 @@ public enum PlatformPhoneOtpPurpose
 {
     Registration = 0,
     SignIn = 1,
-    PinReset = 2,
-    PcSignIn = 3,
 }
 
 /// <summary>

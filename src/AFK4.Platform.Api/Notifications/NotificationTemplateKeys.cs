@@ -71,6 +71,9 @@ public static class NotificationTemplateKeys
     /// <summary>Пуш игроку: заказ из бара собран и его несут за место.</summary>
     public const string PlayerOrderReady = "player.order_ready";
 
+    /// <summary>Пуш игроку: PIN теперь один на все клубы и задаётся в приложении (переход, Ф5.1).</summary>
+    public const string PlayerPinMigration = "player.pin_migration";
+
     public static readonly IReadOnlyList<string> All =
-        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, PlayerSignInCode, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement, PlayerSessionEnding, PlayerReservationSoon, PlayerBalanceToppedUp, PlayerOrderReady];
+        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, PlayerSignInCode, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement, PlayerSessionEnding, PlayerReservationSoon, PlayerBalanceToppedUp, PlayerOrderReady, PlayerPinMigration];
 }

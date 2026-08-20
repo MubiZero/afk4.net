@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Payments.Eskhata;
 using AFK4.Shared.Contracts.Players;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -83,7 +82,9 @@ public class EskhataTopUpIntentTests
         var org = Guid.NewGuid();
         var branch = Guid.NewGuid();
         var player = Guid.NewGuid();
-        var phone = $"+99290000{player.ToString("N")[..4]}";
+        // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
+        // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
+        var phone = $"+99290000{(uint)player.GetHashCode() % 10_000:D4}";
 
         // IOrganizationEntitlements.IsEnabledAsync anchors on the Organizations row: without it,
         // the org is "unknown" and every feature (including online_topup) resolves to disabled.
@@ -106,19 +107,8 @@ public class EskhataTopUpIntentTests
             IsActive = true,
             CreatedAtUtc = DateTimeOffset.UtcNow
         });
-        var credential = new PlayerCredentialEntity
-        {
-            PlayerCredentialId = Guid.NewGuid(),
-            PlayerAccountId = player,
-            OrganizationId = org,
-            PhoneVerified = true,
-            CreatedAtUtc = DateTimeOffset.UtcNow,
-            UpdatedAtUtc = DateTimeOffset.UtcNow
-        };
-        credential.PasswordHash =
-            new PasswordHasher<PlayerCredentialEntity>().HashPassword(credential, pin);
-        db.PlayerCredentials.Add(credential);
         await db.SaveChangesAsync();
+        await PlayerPinTestData.AttachPersonWithPinAsync(factory, player, phone, pin);
         return new SeededPlayer(org, branch, player, phone);
     }
 

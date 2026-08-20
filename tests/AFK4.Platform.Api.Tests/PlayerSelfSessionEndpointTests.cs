@@ -7,7 +7,6 @@ using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Shifts;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -37,7 +36,9 @@ public class PlayerSelfSessionEndpointTests
         var orgId = Guid.NewGuid();
         var branchId = Guid.NewGuid();
         var playerId = Guid.NewGuid();
-        var phone = $"+99290001{playerId.ToString("N")[..4]}";
+        // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
+        // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
+        var phone = $"+99290001{(uint)playerId.GetHashCode() % 10_000:D4}";
         var deviceId = Guid.NewGuid();
         var seatId = Guid.NewGuid();
         var tariffVersionId = Guid.NewGuid();
@@ -55,20 +56,6 @@ public class PlayerSelfSessionEndpointTests
             IsActive = true,
             CreatedAtUtc = Now
         });
-
-        // PIN credential
-        var credential = new PlayerCredentialEntity
-        {
-            PlayerCredentialId = Guid.NewGuid(),
-            PlayerAccountId = playerId,
-            OrganizationId = orgId,
-            PhoneVerified = true,
-            CreatedAtUtc = Now,
-            UpdatedAtUtc = Now
-        };
-        credential.PasswordHash = new PasswordHasher<PlayerCredentialEntity>()
-            .HashPassword(credential, "1234");
-        db.PlayerCredentials.Add(credential);
 
         // Wallet ledger entry (top-up)
         if (walletMinorUnits > 0)
@@ -166,6 +153,7 @@ public class PlayerSelfSessionEndpointTests
         });
 
         await db.SaveChangesAsync();
+        await PlayerPinTestData.AttachPersonWithPinAsync(factory, playerId, phone, "1234");
 
         return new SelfStartContext(
             orgId, branchId, playerId, phone,

@@ -4,7 +4,6 @@ using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Operator;
 using AFK4.Shared.Contracts.Packages;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -24,7 +23,9 @@ public class PlayerCatalogEndpointTests
         var org = Guid.NewGuid();
         var branch = Guid.NewGuid();
         var player = Guid.NewGuid();
-        var phone = $"+99291{player.ToString("N")[..7]}";
+        // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
+        // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
+        var phone = $"+99291{(uint)player.GetHashCode() % 10_000_000:D7}";
 
         db.Branches.Add(new BranchEntity
         {
@@ -49,20 +50,8 @@ public class PlayerCatalogEndpointTests
             CreatedAtUtc = DateTimeOffset.UtcNow
         });
 
-        var credential = new PlayerCredentialEntity
-        {
-            PlayerCredentialId = Guid.NewGuid(),
-            PlayerAccountId = player,
-            OrganizationId = org,
-            PhoneVerified = true,
-            CreatedAtUtc = DateTimeOffset.UtcNow,
-            UpdatedAtUtc = DateTimeOffset.UtcNow
-        };
-        credential.PasswordHash =
-            new PasswordHasher<PlayerCredentialEntity>().HashPassword(credential, pin);
-        db.PlayerCredentials.Add(credential);
-
         await db.SaveChangesAsync();
+        await PlayerPinTestData.AttachPersonWithPinAsync(factory, player, phone, pin);
         return new SeededPlayer(org, branch, phone);
     }
 

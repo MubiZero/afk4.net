@@ -38,21 +38,16 @@ internal static class PlatformPersonTestData
         Guid? platformPersonId,
         string organizationName = "Клуб")
     {
+        var club = await AddClubWithoutAccountsAsync(factory, organizationName);
+
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var organizationId = Guid.NewGuid();
-        db.Organizations.Add(new OrganizationEntity
-        {
-            OrganizationId = organizationId,
-            Name = organizationName,
-            CreatedAtUtc = Now
-        });
         var account = new PlayerAccountEntity
         {
             PlayerAccountId = Guid.NewGuid(),
-            OrganizationId = organizationId,
+            OrganizationId = club.OrganizationId,
             PlatformPersonId = platformPersonId,
-            HomeBranchId = Guid.NewGuid(),
+            HomeBranchId = club.BranchId,
             DisplayName = "Карточка клуба",
             IsActive = true,
             CreatedAtUtc = Now
@@ -60,6 +55,32 @@ internal static class PlatformPersonTestData
         db.PlayerAccounts.Add(account);
         await db.SaveChangesAsync();
         return account;
+    }
+
+    /// <summary>Клуб с одним филиалом и без единого счёта: сюда человек приходит впервые.</summary>
+    public static async Task<(Guid OrganizationId, Guid BranchId)> AddClubWithoutAccountsAsync(
+        PlatformApiFactory factory,
+        string organizationName = "Клуб")
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var organizationId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        db.Organizations.Add(new OrganizationEntity
+        {
+            OrganizationId = organizationId,
+            Name = organizationName,
+            CreatedAtUtc = Now
+        });
+        db.Branches.Add(new BranchEntity
+        {
+            BranchId = branchId,
+            OrganizationId = organizationId,
+            Name = organizationName + " — филиал",
+            CreatedAtUtc = Now
+        });
+        await db.SaveChangesAsync();
+        return (organizationId, branchId);
     }
 
     public static async Task AddLedgerEntryAsync(

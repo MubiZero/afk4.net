@@ -8,7 +8,6 @@ using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -52,7 +51,9 @@ public class PlayerBookingCapacityTests
         var zone = Guid.NewGuid();
         var tariffId = Guid.NewGuid();
         var tariffVersionId = Guid.NewGuid();
-        var phone = $"+99291000{player.ToString("N")[..4]}";
+        // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
+        // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
+        var phone = $"+99291000{(uint)player.GetHashCode() % 10_000:D4}";
 
         db.Organizations.Add(new OrganizationEntity
         {
@@ -104,13 +105,6 @@ public class PlayerBookingCapacityTests
             PhoneNumber = phone, PreferredLocale = "ru", MarketingOptIn = false, IsActive = true,
             CreatedAtUtc = Now
         });
-        var credential = new PlayerCredentialEntity
-        {
-            PlayerCredentialId = Guid.NewGuid(), PlayerAccountId = player, OrganizationId = org,
-            PhoneVerified = true, CreatedAtUtc = Now, UpdatedAtUtc = Now
-        };
-        credential.PasswordHash = new PasswordHasher<PlayerCredentialEntity>().HashPassword(credential, pin);
-        db.PlayerCredentials.Add(credential);
         db.LedgerEntries.Add(new LedgerEntryEntity
         {
             LedgerEntryId = Guid.NewGuid(), OrganizationId = org, BranchId = branch, PlayerAccountId = player,
@@ -130,6 +124,7 @@ public class PlayerBookingCapacityTests
         });
 
         await db.SaveChangesAsync();
+        await PlayerPinTestData.AttachPersonWithPinAsync(factory, player, phone, pin);
         return new Seeded(org, branch, player, phone, tariffVersionId, seatIds);
     }
 

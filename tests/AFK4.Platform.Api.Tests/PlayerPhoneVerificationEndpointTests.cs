@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Shared.Contracts.Players;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -71,7 +70,10 @@ public sealed class PlayerPhoneVerificationEndpointTests
             CreatedAtUtc = Now
         });
 
-        var credential = new PlayerCredentialEntity
+        // Клубная карточка остаётся только ради подтверждения номера: именно на ней живёт
+        // `PhoneVerified`, который эти тесты и проверяют. Входом она больше не заведует — PIN
+        // лежит на личности.
+        db.PlayerCredentials.Add(new PlayerCredentialEntity
         {
             PlayerCredentialId = Guid.NewGuid(),
             PlayerAccountId = player,
@@ -80,10 +82,10 @@ public sealed class PlayerPhoneVerificationEndpointTests
             PhoneVerifiedAtUtc = phoneVerified ? Now : null,
             CreatedAtUtc = Now,
             UpdatedAtUtc = Now
-        };
-        credential.PasswordHash = new PasswordHasher<PlayerCredentialEntity>().HashPassword(credential, pin);
-        db.PlayerCredentials.Add(credential);
+        });
         await db.SaveChangesAsync();
+        await PlayerPinTestData.AttachPersonWithPinAsync(
+            factory, player, phone, pin, phoneVerified: phoneVerified);
 
         return new SeededPlayer(org, player, phone);
     }

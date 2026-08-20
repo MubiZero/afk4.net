@@ -10,7 +10,6 @@ using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Shifts;
 using AFK4.Platform.Api.Identity;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -32,7 +31,9 @@ public class PortalWritesEndpointTests
         var org = Guid.NewGuid();
         var branch = Guid.NewGuid();
         var player = Guid.NewGuid();
-        var phone = $"+99290000{player.ToString("N")[..4]}";
+        // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
+        // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
+        var phone = $"+99290000{(uint)player.GetHashCode() % 10_000:D4}";
 
         // IOrganizationEntitlements.IsEnabledAsync anchors on the Organizations row: without it,
         // the org is "unknown" and every feature (online_booking, online_topup, ...) resolves to
@@ -56,19 +57,9 @@ public class PortalWritesEndpointTests
             IsActive = true,
             CreatedAtUtc = Now
         });
-        var credential = new PlayerCredentialEntity
-        {
-            PlayerCredentialId = Guid.NewGuid(),
-            PlayerAccountId = player,
-            OrganizationId = org,
-            PhoneVerified = phoneVerified,
-            CreatedAtUtc = Now,
-            UpdatedAtUtc = Now
-        };
-        credential.PasswordHash = new PasswordHasher<PlayerCredentialEntity>()
-            .HashPassword(credential, pin);
-        db.PlayerCredentials.Add(credential);
         await db.SaveChangesAsync();
+        await PlayerPinTestData.AttachPersonWithPinAsync(
+            factory, player, phone, pin, phoneVerified: phoneVerified);
         return new SeededPlayer(org, branch, player, phone);
     }
 
@@ -358,7 +349,7 @@ public class PortalWritesEndpointTests
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
 
         var playerId = Guid.NewGuid();
-        var phone = $"+99291000{playerId.ToString("N")[..4]}";
+        var phone = $"+99291000{(uint)playerId.GetHashCode() % 10_000:D4}";
         db.PlayerAccounts.Add(new PlayerAccountEntity
         {
             PlayerAccountId = playerId,
@@ -369,19 +360,6 @@ public class PortalWritesEndpointTests
             IsActive = true,
             CreatedAtUtc = DateTimeOffset.UtcNow
         });
-        var credential = new PlayerCredentialEntity
-        {
-            PlayerCredentialId = Guid.NewGuid(),
-            PlayerAccountId = playerId,
-            OrganizationId = TestIds.OrganizationId,
-            PhoneVerified = true,
-            CreatedAtUtc = DateTimeOffset.UtcNow,
-            UpdatedAtUtc = DateTimeOffset.UtcNow
-        };
-        credential.PasswordHash = new PasswordHasher<PlayerCredentialEntity>()
-            .HashPassword(credential, "9999");
-        db.PlayerCredentials.Add(credential);
-
         var intentId = Guid.NewGuid();
         var createdAt = DateTimeOffset.UtcNow.AddHours(-createdHoursAgo);
         db.PaymentIntents.Add(new PaymentIntentEntity

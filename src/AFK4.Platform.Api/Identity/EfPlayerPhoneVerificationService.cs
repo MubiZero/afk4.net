@@ -200,6 +200,25 @@ public sealed class EfPlayerPhoneVerificationService(
         credential.UpdatedAtUtc = now;
         otp.ConsumedAtUtc = now;
 
+        // Подтверждение принадлежит человеку, а не клубной карточке: прочитать код с этого
+        // телефона — то же доказательство владения номером, что и на входе по коду, и там оно уже
+        // поднимает флаг личности. Без этого профиль показывал бы «номер не подтверждён» сразу
+        // после того, как человек его подтвердил: клубный флаг читает один маршрут, а флаг
+        // личности — все остальные.
+        //
+        // Номер, отличный от номера личности, — это смена номера, а её волна 1 не делает: тогда
+        // подтверждённым объявился бы номер, которого человек не подтверждал.
+        if (account.PlatformPersonId is { } platformPersonId)
+        {
+            var person = await db.PlatformPersons.FirstOrDefaultAsync(
+                candidate => candidate.PlatformPersonId == platformPersonId, cancellationToken);
+            if (person is not null && person.PhoneNumber == account.PhoneNumber)
+            {
+                person.PhoneVerifiedAtUtc ??= now;
+                person.UpdatedAtUtc = now;
+            }
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
         return new PhoneConfirmResult(PhoneConfirmStatus.Confirmed, otpOptions.MaxAttempts, account.PhoneNumber);

@@ -8,7 +8,6 @@ using AFK4.Shared.Contracts.Platform.Auth;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -39,7 +38,9 @@ public class PlayerBookingCatalogEndpointTests
         var player = Guid.NewGuid();
         var tariffId = Guid.NewGuid();
         var tariffVersionId = Guid.NewGuid();
-        var phone = $"+99290000{player.ToString("N")[..4]}";
+        // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
+        // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
+        var phone = $"+99290000{(uint)player.GetHashCode() % 10_000:D4}";
 
         db.Organizations.Add(new OrganizationEntity { OrganizationId = org, Name = "Booking Test Org", CreatedAtUtc = Now });
         db.Branches.Add(new BranchEntity
@@ -52,13 +53,6 @@ public class PlayerBookingCatalogEndpointTests
             PlayerAccountId = player, OrganizationId = org, HomeBranchId = branch, DisplayName = "Игрок",
             PhoneNumber = phone, PreferredLocale = "ru", MarketingOptIn = false, IsActive = true, CreatedAtUtc = Now
         });
-        var credential = new PlayerCredentialEntity
-        {
-            PlayerCredentialId = Guid.NewGuid(), PlayerAccountId = player, OrganizationId = org,
-            PhoneVerified = true, CreatedAtUtc = Now, UpdatedAtUtc = Now
-        };
-        credential.PasswordHash = new PasswordHasher<PlayerCredentialEntity>().HashPassword(credential, pin);
-        db.PlayerCredentials.Add(credential);
         // Бронь с выбранным тарифом замораживает деньги, поэтому у игрока должен быть кошелёк:
         // без него сервер справедливо откажет «бронь только с деньгами».
         db.LedgerEntries.Add(new LedgerEntryEntity
@@ -79,6 +73,7 @@ public class PlayerBookingCatalogEndpointTests
             EffectiveFromUtc = Now.AddYears(-1)
         });
         await db.SaveChangesAsync();
+        await PlayerPinTestData.AttachPersonWithPinAsync(factory, player, phone, pin);
         return new Seeded(org, branch, player, phone, tariffVersionId);
     }
 

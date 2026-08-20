@@ -139,6 +139,31 @@ internal static class MeEndpoints
                 person.PinHash is not null,
                 person.NetworkBanAtUtc is not null));
         }).RequireRateLimiting("player-me");
+
+        // PIN задаётся и меняется только здесь: человек уже вошёл в приложение, и это не стоит ни
+        // одной SMS. Старый PIN не спрашивается — именно этот маршрут и есть ответ забывшему его.
+        app.MapPut("/api/me/pin", async (
+            SetMyPinRequest request,
+            IPlatformPersonContextAccessor personContextAccessor,
+            IPlatformPinService pinService,
+            CancellationToken cancellationToken) =>
+        {
+            var context = personContextAccessor.Current;
+            if (context is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var status = await pinService.SetAsync(
+                context.PlatformPersonId, request.Pin, cancellationToken);
+
+            return status switch
+            {
+                SetPinStatus.Updated => Results.NoContent(),
+                SetPinStatus.InvalidPin => Results.BadRequest(new { error = "invalid_pin" }),
+                _ => Results.Unauthorized(),
+            };
+        }).RequireRateLimiting("player-me");
     }
 
     /// <summary>Столько же, сколько отведено под имя в <c>platform_persons</c>.</summary>

@@ -14,8 +14,16 @@ public sealed class PlayerAuthenticationMiddleware(RequestDelegate next)
     /// <summary>Клуб, выбранный клиентом на этот запрос. Знают о нём только новые клиенты.</summary>
     public const string OrganizationHeader = "X-AFK4-Organization";
 
-    /// <summary>Единственный маршрут игрока, которому клуб не нужен: «кто я и где у меня счета».</summary>
+    /// <summary>Край игрока целиком: всё, что начинается отсюда, требует опознать человека.</summary>
     private const string PersonScopePath = "/api/me";
+
+    /// <summary>
+    /// Маршруты, которым клуб не нужен вовсе, потому что они про самого человека: «кто я и где у
+    /// меня счета» и его сетевой PIN. PIN принадлежит личности, и задают его обычно ещё до первого
+    /// визита куда бы то ни было — требовать для этого выбранный клуб значило бы запереть дверь
+    /// перед тем, кто зарегистрировался дома.
+    /// </summary>
+    private static readonly string[] PersonScopeRoutes = [PersonScopePath, PersonScopePath + "/pin"];
 
     public async Task InvokeAsync(
         HttpContext httpContext,
@@ -95,8 +103,9 @@ public sealed class PlayerAuthenticationMiddleware(RequestDelegate next)
     }
 
     private static bool IsPersonScopeRoute(PathString path) =>
-        path.Equals(PersonScopePath, StringComparison.OrdinalIgnoreCase)
-        || path.Equals(PersonScopePath + "/", StringComparison.OrdinalIgnoreCase);
+        PersonScopeRoutes.Any(route =>
+            path.Equals(route, StringComparison.OrdinalIgnoreCase)
+            || path.Equals(route + "/", StringComparison.OrdinalIgnoreCase));
 
     private static bool TryReadRequestedOrganization(HttpContext httpContext, out Guid? organizationId)
     {

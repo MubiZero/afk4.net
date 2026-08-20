@@ -147,13 +147,29 @@ internal static class AuthEndpoints
                 : Results.Ok(response);
         });
 
+        // Самопосадка за игровой ПК. Маршрут остался прежним, чтобы ни одна установленная в поле
+        // оболочка не заметила перемены, но проверяет он теперь сетевой PIN личности: PIN
+        // принадлежит человеку и работает во всех клубах сети. Клубный хеш, который назначал
+        // администратор, не читается больше никогда.
+        //
+        // Отказ один на все причины — «нет такого номера», «PIN не задан», «PIN неверен»,
+        // «личность закрыта», «блокировка». Разные ответы превратили бы экран игрового ПК в
+        // справочник «у кого в этой сети есть аккаунт».
         app.MapPost("/api/public/player/sign-in", async (
             PlayerSignInRequest request,
-            IPlayerCredentialService credentialService,
+            IPlatformPinService pinService,
             CancellationToken cancellationToken) =>
         {
-            var response = await credentialService.SignInAsync(request, cancellationToken);
-            return response is null ? Results.Unauthorized() : Results.Ok(response);
+            var result = await pinService.SignInAsync(
+                request.OrganizationId,
+                request.PhoneNumber,
+                request.Password,
+                request.BranchId,
+                cancellationToken);
+
+            return result.Status == PinSignInStatus.SignedIn
+                ? Results.Ok(result.Session)
+                : Results.Unauthorized();
         }).RequireRateLimiting("player-public");
 
         // Вход по SMS-коду: телефон и так опознаёт игрока, а код доказывает владение им не хуже
