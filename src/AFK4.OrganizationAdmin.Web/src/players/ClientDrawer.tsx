@@ -153,6 +153,13 @@ export function ClientDrawer({
             <span className="val"><Money minorUnits={balanceMinorUnits} currencyCode={currencyCode} /></span>
           </div>
 
+          {hasDebt && (
+            <div className="wallet-debt">
+              <span className="eyebrow">{t('op.players.wallet.debtLabel')}</span>
+              <span className="val"><Money minorUnits={debtMinorUnits} currencyCode={currencyCode} /></span>
+            </div>
+          )}
+
           {/* Третья величина появляется, только когда деньги действительно придержаны: у
               большинства клиентов это вечный ноль, а нулевая строка рядом с остатком заставляет
               оператора каждый раз спрашивать себя, что она значит. */}
@@ -161,13 +168,6 @@ export function ClientDrawer({
               <span className="eyebrow">{t('op.players.wallet.heldLabel')}</span>
               <span className="val"><Money minorUnits={heldMinorUnits} currencyCode={currencyCode} /></span>
               <small>{t('op.players.wallet.heldHint')}</small>
-            </div>
-          )}
-
-          {hasDebt && (
-            <div className="wallet-debt">
-              <span className="eyebrow">{t('op.players.wallet.debtLabel')}</span>
-              <span className="val"><Money minorUnits={debtMinorUnits} currencyCode={currencyCode} /></span>
             </div>
           )}
         </div>
