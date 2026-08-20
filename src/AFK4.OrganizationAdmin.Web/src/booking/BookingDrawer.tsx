@@ -9,6 +9,8 @@ import { PanelSelect } from '../PanelSelect';
 import { ClientPicker } from './ClientPicker';
 import { DateTimePicker } from './DateTimePicker';
 import { bookingDetailActions, bookingStateLabelKey, type BookingItem } from './bookingModel';
+import { ReputationCard } from '../players/ReputationCard';
+import type { ReputationController } from '../players/useReputation';
 
 export interface BookingDraft {
   customerName: string;
@@ -37,6 +39,8 @@ export interface BookingDrawerProps {
   groupConflicts: Set<string>;
   groupSize: number; // сколько активных броней в группе выбранной (detail), 0 если не группа
   searchClients: (query: string) => Promise<PlayerClientItem[]>;
+  // Репутация выбранной заявки: спрашивает оркестратор, панель только рисует.
+  reputation: ReputationController;
   onClose: () => void;
   onChangeDraft: (patch: Partial<BookingDraft>) => void;
   onCreate: () => void;
@@ -322,6 +326,8 @@ export function BookingDrawer(props: BookingDrawerProps) {
             <div><span>{t('op.booking.detail.comment')}</span><strong>{selected.note || t('op.booking.noComment')}</strong></div>
             <div><span>{t('op.booking.detail.source')}</span><strong>{selected.source === 'online' ? t('op.booking.source.online') : t('op.booking.source.operator')}</strong></div>
           </div>
+
+          <ReputationCard controller={props.reputation} />
         </div>
       ) : (
         <div className="booking-drawer-body">

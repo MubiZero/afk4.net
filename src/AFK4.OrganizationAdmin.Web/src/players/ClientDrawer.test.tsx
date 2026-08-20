@@ -52,6 +52,7 @@ const baseProps: DrawerProps = {
   onToggleActive: () => {},
   onOpenFullHistory: () => {},
   onClose: () => {},
+  reputation: { state: { status: 'idle' }, ask: () => {} },
 };
 
 const renderDrawer = (over: Partial<DrawerProps> = {}) =>

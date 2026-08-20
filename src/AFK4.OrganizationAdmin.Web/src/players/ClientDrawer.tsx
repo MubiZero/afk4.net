@@ -8,6 +8,8 @@ import { WalletZone } from './WalletZone';
 import { HistorySection } from './HistorySection';
 import { ClientActionsMenu } from './ClientActionsMenu';
 import { PackagesSection } from './PackagesSection';
+import { ReputationCard } from './ReputationCard';
+import type { ReputationController } from './useReputation';
 
 // Сколько последних операций показываем в мини-истории — за остальным уводит «вся история →».
 const RECENT_ENTRIES_LIMIT = 4;
@@ -45,6 +47,7 @@ export function ClientDrawer({
   onToggleActive,
   onOpenFullHistory,
   onClose,
+  reputation,
 }: {
   client: PlayerClientItem;
   liveContext: ClientLiveContext;
@@ -74,6 +77,8 @@ export function ClientDrawer({
   onToggleActive: () => void;
   onOpenFullHistory: () => void;
   onClose: () => void;
+  // Репутацию в сети спрашивает оркестратор — карточка только рисует ответ и кнопку.
+  reputation: ReputationController;
 }) {
   const { t } = useI18n();
   const hasDebt = debtMinorUnits > 0;
@@ -187,6 +192,10 @@ export function ClientDrawer({
             <div className="wallet-sep" />
           </>
         )}
+
+        <ReputationCard controller={reputation} />
+
+        <div className="wallet-sep" />
 
         <PackagesSection packages={packages} loading={packagesLoading} errorDetail={packagesErrorDetail} />
 

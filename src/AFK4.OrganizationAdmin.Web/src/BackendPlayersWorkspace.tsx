@@ -23,6 +23,7 @@ import { StateFlag } from './operatorPrimitives';
 import { useFeedbackToasts } from './useFeedbackToasts';
 import { ClientsTable } from './players/ClientsTable';
 import { ClientDrawer } from './players/ClientDrawer';
+import { useReputation } from './players/useReputation';
 import { HistorySection } from './players/HistorySection';
 import { PanelModal } from './PanelModal';
 import { NewClientModal } from './players/NewClientModal';
@@ -136,6 +137,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, clientSearch, currencyCode]);
 
   const selectedClient = clients.find((client) => client.playerAccountId === selectedClientId) ?? null;
+  const reputation = useReputation(backend, selectedClient?.phoneNumber ?? '');
 
   useEffect(() => {
     if (backend === null || selectedClient?.source !== 'backend' || !selectedClient.playerAccountId) {
@@ -706,6 +708,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
             onCreateReservation={() => runClientAction('booking', t('op.players.actions.bookingBtn'))}
             onEditProfile={openEditProfile}
             onToggleActive={() => setActiveStateOpen(true)}
+            reputation={reputation}
             onOpenFullHistory={() => setHistoryModalOpen(true)}
             onClose={() => handleSelectClient(null)}
           />
