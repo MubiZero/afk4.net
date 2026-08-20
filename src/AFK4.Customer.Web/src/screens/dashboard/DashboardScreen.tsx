@@ -9,6 +9,8 @@ import { WalletPanel } from '@/screens/wallet/WalletPanel';
 type Load =
   | { state: 'loading' }
   | { state: 'error' }
+  // Счёта в этом клубе ещё нет — это не поломка, а нормальное начало: он откроется первым действием.
+  | { state: 'noClub' }
   | { state: 'ready'; data: PlayerDashboardDto; fetchedAt: Date };
 
 export function DashboardScreen({ api, displayName, phoneVerified, features = null }: { api: PlayerApiClient; displayName: string; phoneVerified: boolean; features?: string[] | null }) {
@@ -21,8 +23,13 @@ export function DashboardScreen({ api, displayName, phoneVerified, features = nu
       try {
         const data = await api.getDashboard();
         if (!cancelled) setLoad({ state: 'ready', data, fetchedAt: new Date() });
-      } catch {
-        if (!cancelled) setLoad((prev) => (prev.state === 'ready' ? prev : { state: 'error' }));
+      } catch (caught: unknown) {
+        // 409 club_not_selected — это не сбой: у человека просто ещё нет счёта в этом клубе.
+        // Показать «не удалось загрузить» значило бы позвать чинить то, что не сломано.
+        const noClub = (caught as { message?: string }).message === 'club_not_selected';
+        if (!cancelled) {
+          setLoad((prev) => (prev.state === 'ready' ? prev : { state: noClub ? 'noClub' : 'error' }));
+        }
       }
     }
     void refresh();
@@ -46,6 +53,12 @@ export function DashboardScreen({ api, displayName, phoneVerified, features = nu
       {load.state === 'error' && (
         <p className="text-sm text-red-400">{t('customer.dashboard.loadError')}</p>
       )}
+      {load.state === 'noClub' && (
+        <section className="rounded-2xl border border-dashed border-[var(--color-border)] p-6 text-center">
+          <p className="font-bold">{t('customer.dashboard.noClub')}</p>
+          <p className="mt-1 text-sm text-[var(--text-2)]">{t('customer.dashboard.noClubNote')}</p>
+        </section>
+      )}
 
       {load.state === 'ready' && (
         <>
@@ -54,6 +67,18 @@ export function DashboardScreen({ api, displayName, phoneVerified, features = nu
             <p className="mt-1 text-3xl font-extrabold tracking-tight">
               {formatMoney(load.data.walletBalance.minorUnits, load.data.walletBalance.currencyCode)}
             </p>
+            {/* Придержанное уже вычтено из остатка — без этой строки человек видел бы, что денег
+                стало меньше, и не понимал, куда они делись. */}
+            {load.data.heldBalance.minorUnits > 0 && (
+              <p className="mt-2 text-sm text-[var(--text-2)]">
+                {t('customer.dashboard.held')}:{' '}
+                <span className="font-bold text-[var(--text-1)]">
+                  {formatMoney(load.data.heldBalance.minorUnits, load.data.heldBalance.currencyCode)}
+                </span>
+                <br />
+                <span className="text-[var(--text-3)]">{t('customer.dashboard.heldNote')}</span>
+              </p>
+            )}
             {load.data.debtBalance.minorUnits > 0 && (
               <p className="mt-1 text-sm text-red-400">
                 {t('customer.dashboard.debt')}: {formatMoney(load.data.debtBalance.minorUnits, load.data.debtBalance.currencyCode)}
