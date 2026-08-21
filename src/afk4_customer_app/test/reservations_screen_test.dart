@@ -551,7 +551,7 @@ void main() {
     await tester.pumpWidget(harness(_serve(list)));
     await tester.pumpAndSettle();
 
-    expect(find.text('Клуб не ответил вовремя — заявка снимется, деньги вернутся'),
+    expect(find.text('Клуб не ответил вовремя — заявка снимется, деньги вернутся.'),
         findsOneWidget);
   });
 
