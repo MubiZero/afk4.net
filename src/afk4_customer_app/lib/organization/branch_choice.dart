@@ -90,13 +90,8 @@ class _HallOption extends StatelessWidget {
     final theme = Theme.of(context);
     final radius = BorderRadius.circular(AppTheme.radiusCard);
 
-    // Название зала — то, как его зовут в самом клубе. Пусто оно бывает у клуба, который его
-    // не задал: тогда за название работает город, а безымянной строки на экране не остаётся.
-    final title = hall.name.isNotEmpty ? hall.name : hall.city;
-    final address = [
-      if (hall.name.isNotEmpty) hall.city,
-      hall.address ?? '',
-    ].where((part) => part.isNotEmpty).join(', ');
+    final title = hall.displayName;
+    final address = hall.addressUnderName;
 
     return Semantics(
       selected: selected,

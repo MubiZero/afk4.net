@@ -4,6 +4,8 @@
 /// стоит дороже самого расписания: семь строк «10:00–23:00» на карточке никто не читает.
 library;
 
+import '../l10n/app_localizations.dart';
+
 /// Один день расписания. День недели по ISO-8601: 1 = понедельник … 7 = воскресенье.
 class OpeningDay {
   const OpeningDay({
@@ -110,4 +112,26 @@ int? _minutes(String? time) {
   final minutes = int.tryParse(parts[1]);
   if (hours == null || minutes == null) return null;
   return hours * 60 + minutes;
+}
+
+/// Что сказать про часы зала прямо сейчас: одна фраза и открыт ли он.
+///
+/// Живёт рядом с расчётом расписания, потому что и витрина, и подробности клуба задают часам
+/// один и тот же вопрос — и обязаны отвечать на него одинаковыми словами.
+///
+/// null — расписания нет или оно записано не по формату. Придумать за клуб часы работы значит
+/// отправить игрока к закрытой двери, поэтому в этом случае лучше промолчать.
+({String text, bool open})? openingNowLabel(L l, List<OpeningDay> schedule, DateTime now) {
+  if (schedule.isEmpty) return null;
+
+  final status = openingStatusAt(schedule, now);
+  return switch (status.kind) {
+    OpeningStatusKind.openUntil =>
+      (text: l.customerClubPickerOpenUntil(status.time ?? ''), open: true),
+    OpeningStatusKind.openAllDay => (text: l.customerClubPickerOpenAllDay, open: true),
+    OpeningStatusKind.opensAt =>
+      (text: l.customerClubPickerOpensAt(status.time ?? ''), open: false),
+    OpeningStatusKind.closedToday => (text: l.customerClubPickerClosedToday, open: false),
+    OpeningStatusKind.unknown => null,
+  };
 }
