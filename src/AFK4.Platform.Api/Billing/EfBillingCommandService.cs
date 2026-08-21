@@ -734,7 +734,9 @@ public sealed class EfBillingCommandService(
             player.DisplayName,
             player.PhoneNumber,
             player.IsActive,
-            player.CreatedAtUtc);
+            player.CreatedAtUtc,
+            player.PlatformPersonId,
+            player.CreatedFromApp);
     }
 
     private async Task<long> GetAlreadyRefundedAmountAsync(Guid originalLedgerEntryId, CancellationToken cancellationToken)

@@ -753,6 +753,22 @@ public sealed class EfReservationService(
         var seatById = seats.ToDictionary(seat => seat.SeatId);
         var zoneById = zones.ToDictionary(zone => zone.ZoneId);
 
+        // Личность за счётом — одним запросом на всю выборку: в списке дня заявок десятки, и
+        // спрашивать по строке значит платить за экран сотней обращений к базе.
+        var playerAccountIds = reservations
+            .Where(reservation => reservation.PlayerAccountId is not null)
+            .Select(reservation => reservation.PlayerAccountId!.Value)
+            .Distinct()
+            .ToList();
+        var personByAccountId = playerAccountIds.Count == 0
+            ? new Dictionary<Guid, Guid>()
+            : await dbContext.PlayerAccounts
+                .AsNoTracking()
+                .Where(account => playerAccountIds.Contains(account.PlayerAccountId)
+                    && account.PlatformPersonId != null)
+                .Select(account => new { account.PlayerAccountId, PersonId = account.PlatformPersonId!.Value })
+                .ToDictionaryAsync(row => row.PlayerAccountId, row => row.PersonId, cancellationToken);
+
         // Имя тарифа — для показа, а не для расчёта: сумма уже посчитана и записана при брони.
         // Версия могла быть снята с публикации, поэтому имя берётся по самой версии, а не по
         // действующему на сегодня прайсу.
@@ -816,7 +832,11 @@ public sealed class EfReservationService(
                 reservation.EstimatedCostMinorUnits,
                 reservation.CurrencyCode,
                 reservation.RespondByUtc,
-                reservation.ConfirmedAtUtc);
+                reservation.ConfirmedAtUtc,
+                reservation.PlayerAccountId is { } playerAccountId &&
+                    personByAccountId.TryGetValue(playerAccountId, out var platformPersonId)
+                        ? platformPersonId
+                        : null);
         }).ToList();
     }
 

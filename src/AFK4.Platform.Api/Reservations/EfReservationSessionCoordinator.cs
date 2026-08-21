@@ -440,6 +440,15 @@ public sealed class EfReservationSessionCoordinator(
                 .Select(zone => zone.Name)
                 .SingleOrDefaultAsync(cancellationToken);
 
+        // Посаженная заявка называет ту же личность, что и заявка в списке: поле, которое
+        // исчезает после посадки, для стойки хуже, чем поле, которого нет.
+        var platformPersonId = reservation.PlayerAccountId is not { } playerAccountId
+            ? null
+            : await dbContext.PlayerAccounts.AsNoTracking()
+                .Where(account => account.PlayerAccountId == playerAccountId)
+                .Select(account => account.PlatformPersonId)
+                .SingleOrDefaultAsync(cancellationToken);
+
         return new ReservationDto(
             reservation.ReservationId,
             reservation.OrganizationId,
@@ -462,7 +471,8 @@ public sealed class EfReservationSessionCoordinator(
             reservation.CancelReason,
             reservation.ReservationGroupId,
             reservation.Version,
-            reservation.StartedSessionId);
+            reservation.StartedSessionId,
+            PlatformPersonId: platformPersonId);
     }
 
     private async Task<ReservationSessionStartResult> VersionConflictAsync(

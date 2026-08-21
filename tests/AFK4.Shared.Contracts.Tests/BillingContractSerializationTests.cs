@@ -169,4 +169,35 @@ public sealed class BillingContractSerializationTests
         Assert.Equal(tariffVersionId, copy.TariffVersionId);
         Assert.Equal(playerPackageId, copy.PlayerPackageId);
     }
+
+    /// <summary>
+    /// Карточка клиента называет личность за ней и то, кто её завёл. Идентификатор личности —
+    /// то, чем оператор спрашивает сеть про знакомого человека, не диктуя его телефон в аудит;
+    /// пометка «из приложения» объясняет стойке карточку, которую она не заводила.
+    /// </summary>
+    [Fact]
+    public void PlayerAccountDto_RoundTripsThePersonBehindTheCardAndItsOrigin()
+    {
+        var fromApp = new PlayerAccountDto(
+            PlayerAccountId: Guid.Parse("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb"),
+            OrganizationId: Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            HomeBranchId: Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DisplayName: "Фаррух",
+            PhoneNumber: "+992900000001",
+            IsActive: true,
+            CreatedAtUtc: DateTimeOffset.Parse("2026-08-21T09:00:00Z"),
+            PlatformPersonId: Guid.Parse("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"),
+            CreatedFromApp: true);
+        var deskCard = fromApp with { PlatformPersonId = null, CreatedFromApp = false };
+
+        var fromAppCopy = JsonSerializer.Deserialize<PlayerAccountDto>(JsonSerializer.Serialize(fromApp));
+        var deskCardCopy = JsonSerializer.Deserialize<PlayerAccountDto>(JsonSerializer.Serialize(deskCard));
+
+        Assert.NotNull(fromAppCopy);
+        Assert.Equal(fromApp.PlatformPersonId, fromAppCopy.PlatformPersonId);
+        Assert.True(fromAppCopy.CreatedFromApp);
+        Assert.NotNull(deskCardCopy);
+        Assert.Null(deskCardCopy.PlatformPersonId);
+        Assert.False(deskCardCopy.CreatedFromApp);
+    }
 }

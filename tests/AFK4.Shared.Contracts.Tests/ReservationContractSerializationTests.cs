@@ -226,6 +226,43 @@ public sealed class ReservationContractSerializationTests
         Assert.Equal(10, RoundTrip(cancel).ExpectedVersion);
     }
 
+    /// <summary>
+    /// Заявка называет личность, если за ней стоит подшитый счёт: карточка заявки — то место,
+    /// где клуб решает, сажать ли человека, и спрашивать сеть по его телефону там незачем.
+    /// У гостя, записанного одним телефоном, счёта ещё нет — и называть некого.
+    /// </summary>
+    [Fact]
+    public void ReservationDto_RoundTripsThePersonBehindTheAccount()
+    {
+        var personId = Guid.Parse("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee");
+        var linked = new ReservationDto(
+            Guid.Parse("99999999-1111-4111-8111-999999999999"),
+            Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            Guid.Parse("66666666-1111-4111-8111-666666666666"),
+            Guid.Parse("aaaaaaaa-1111-4111-8111-111111111111"),
+            "PC-01",
+            "VIP",
+            "Фаррух",
+            "+992900000001",
+            DateTimeOffset.Parse("2026-08-21T16:00:00Z"),
+            DateTimeOffset.Parse("2026-08-21T17:00:00Z"),
+            60,
+            ReservationStateNames.Pending,
+            ReservationSourceNames.Online,
+            string.Empty,
+            DateTimeOffset.Parse("2026-08-21T10:00:00Z"),
+            DateTimeOffset.Parse("2026-08-21T10:00:00Z"),
+            null,
+            string.Empty,
+            null,
+            PlatformPersonId: personId);
+        var guest = linked with { PlayerAccountId = null, PlatformPersonId = null };
+
+        Assert.Equal(personId, RoundTrip(linked).PlatformPersonId);
+        Assert.Null(RoundTrip(guest).PlatformPersonId);
+    }
+
     private static T RoundTrip<T>(T value)
     {
         var copy = JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value, Options), Options);
