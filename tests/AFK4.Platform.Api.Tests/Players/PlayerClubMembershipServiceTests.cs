@@ -176,6 +176,92 @@ public sealed class PlayerClubMembershipServiceTests
         Assert.Equal("organization_not_found", result.Error);
     }
 
+    /// <summary>
+    /// Карточка, которую клуб закрыл, обязана оставаться закрытой. На экране деактивации обещано
+    /// дословно: «Денежные операции и вход на место станут недоступны», — и первое действие из
+    /// приложения не имеет права это обещание отменять.
+    /// </summary>
+    [Fact]
+    public async Task CardTheClubClosed_IsRefused_AndNotReopened()
+    {
+        await using var factory = new PlatformApiFactory();
+        var person = await PlatformPersonTestData.AddPersonAsync(factory, "+992900000511");
+        var club = await AddClubWithBranchAsync(factory);
+        var opened = await EnsureAsync(factory, person.PlatformPersonId, club.OrganizationId, club.BranchId);
+        await CloseCardAsync(factory, opened.Account!.PlayerAccountId);
+
+        var result = await EnsureAsync(factory, person.PlatformPersonId, club.OrganizationId, club.BranchId);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("club_account_closed", result.Error);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var card = await db.PlayerAccounts.SingleAsync(
+            account => account.OrganizationId == club.OrganizationId);
+        Assert.False(card.IsActive);
+    }
+
+    /// <summary>
+    /// Закрытая карточка, заведённая на стойке руками, — тот же запрет: она ничейная, но телефон в
+    /// ней тот же самый. Завести рядом свежую значит вернуть человеку ровно то, что клуб отнял.
+    /// </summary>
+    [Fact]
+    public async Task CounterCardTheClubClosed_IsRefused_AndNoFreshCardAppears()
+    {
+        await using var factory = new PlatformApiFactory();
+        var person = await PlatformPersonTestData.AddPersonAsync(factory, "+992900000512");
+        var club = await AddClubWithBranchAsync(factory);
+        var counterCard = await AddCounterCardAsync(factory, club, person.PhoneNumber, "Фаррух с PS5");
+        await CloseCardAsync(factory, counterCard);
+
+        var result = await EnsureAsync(factory, person.PlatformPersonId, club.OrganizationId, club.BranchId);
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("club_account_closed", result.Error);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.Equal(1, await db.PlayerAccounts.CountAsync(
+            account => account.OrganizationId == club.OrganizationId));
+    }
+
+    /// <summary>Живая ничейная карточка сильнее закрытой: подшивается та, за которой играли.</summary>
+    [Fact]
+    public async Task ClosedCounterCard_DoesNotBlockTheLiveOneBesideIt()
+    {
+        await using var factory = new PlatformApiFactory();
+        var person = await PlatformPersonTestData.AddPersonAsync(factory, "+992900000513");
+        var club = await AddClubWithBranchAsync(factory);
+        var closed = await AddCounterCardAsync(factory, club, person.PhoneNumber, "Старая карточка");
+        await CloseCardAsync(factory, closed);
+        var live = await AddCounterCardAsync(factory, club, person.PhoneNumber, "Фаррух с PS5");
+
+        var result = await EnsureAsync(factory, person.PlatformPersonId, club.OrganizationId, club.BranchId);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(live, result.Account!.PlayerAccountId);
+    }
+
+    /// <summary>Закрытая карточка в одном клубе не закрывает человеку соседний.</summary>
+    [Fact]
+    public async Task CardClosedInOneClub_LeavesTheNeighbourClubOpen()
+    {
+        await using var factory = new PlatformApiFactory();
+        var person = await PlatformPersonTestData.AddPersonAsync(factory, "+992900000514");
+        var closedClub = await AddClubWithBranchAsync(factory);
+        var neighbour = await AddClubWithBranchAsync(factory);
+        var opened = await EnsureAsync(
+            factory, person.PlatformPersonId, closedClub.OrganizationId, closedClub.BranchId);
+        await CloseCardAsync(factory, opened.Account!.PlayerAccountId);
+
+        var result = await EnsureAsync(
+            factory, person.PlatformPersonId, neighbour.OrganizationId, neighbour.BranchId);
+
+        Assert.True(result.Succeeded);
+        Assert.True(result.Created);
+    }
+
     internal sealed record SeededClub(Guid OrganizationId, Guid BranchId);
 
     internal static async Task<SeededClub> AddClubWithBranchAsync(PlatformApiFactory factory)
@@ -219,6 +305,17 @@ public sealed class PlayerClubMembershipServiceTests
         });
         await db.SaveChangesAsync();
         return branchId;
+    }
+
+    /// <summary>Клуб закрыл карточку: то же самое делает оператор кнопкой «Деактивировать».</summary>
+    internal static async Task CloseCardAsync(PlatformApiFactory factory, Guid playerAccountId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var account = await db.PlayerAccounts.SingleAsync(
+            candidate => candidate.PlayerAccountId == playerAccountId);
+        account.IsActive = false;
+        await db.SaveChangesAsync();
     }
 
     internal static async Task<Guid> AddCounterCardAsync(

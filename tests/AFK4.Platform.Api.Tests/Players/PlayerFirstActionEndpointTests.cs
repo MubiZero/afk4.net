@@ -333,6 +333,39 @@ public sealed class PlayerFirstActionEndpointTests
             account => account.OrganizationId == newClub.OrganizationId));
     }
 
+    /// <summary>
+    /// Клуб закрыл карточку — значит закрыл. Экран деактивации обещает оператору, что денежные
+    /// операции станут недоступны, и приложение обязано это обещание держать, а не обходить
+    /// первым же действием.
+    /// </summary>
+    [Fact]
+    public async Task TopUp_WithTheCardTheClubClosed_IsRefused()
+    {
+        await using var factory = FactoryWithAllFeatures();
+        var person = await PlatformPersonTestData.AddPersonAsync(factory, "+992900000721");
+        var home = await PlayerClubMembershipServiceTests.AddClubWithBranchAsync(factory);
+        using var client = factory.CreateClient();
+        await AuthorizeAsync(factory, client, person.PlatformPersonId, home);
+
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+            var card = await db.PlayerAccounts.SingleAsync(
+                account => account.PlatformPersonId == person.PlatformPersonId);
+            card.IsActive = false;
+            await db.SaveChangesAsync();
+        }
+
+        client.DefaultRequestHeaders.Add(
+            PlayerAuthenticationMiddleware.OrganizationHeader, home.OrganizationId.ToString());
+        var response = await client.PostAsJsonAsync(
+            "/api/me/wallet/top-up-intent", new PlayerTopUpIntentRequest(5_000, "TJS", "counter"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains(
+            "club_account_closed", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+    }
+
     private static PlatformApiFactory FactoryWithAllFeatures() =>
         FactoryWith(AlwaysEnabledOrganizationEntitlements.Instance);
 

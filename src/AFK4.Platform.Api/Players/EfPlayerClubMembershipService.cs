@@ -16,7 +16,11 @@ public sealed class EfPlayerClubMembershipService(PlatformDbContext dbContext, T
         var existing = await FindAttachedAsync(platformPersonId, organizationId, cancellationToken);
         if (existing is not null)
         {
-            return PlayerClubMembershipResult.Existing(existing);
+            // Закрытая карточка остаётся закрытой. Отдать её как рабочую значило бы вернуть
+            // человеку ровно то, что клуб у него забрал кнопкой «Деактивировать».
+            return existing.IsActive
+                ? PlayerClubMembershipResult.Existing(existing)
+                : PlayerClubMembershipResult.Refused(PlayerClubMembershipErrors.ClubAccountClosed);
         }
 
         var person = await dbContext.PlatformPersons
@@ -53,6 +57,13 @@ public sealed class EfPlayerClubMembershipService(PlatformDbContext dbContext, T
             return PlayerClubMembershipResult.Existing(counterCard);
         }
 
+        // Живой карточки нет, а закрытая по тому же номеру есть — это запрет, а не пустое место.
+        // Свежая карточка рядом с ней обошла бы решение клуба через регистрацию в приложении.
+        if (await HasClosedCounterCardAsync(person.PhoneNumber, organizationId, cancellationToken))
+        {
+            return PlayerClubMembershipResult.Refused(PlayerClubMembershipErrors.ClubAccountClosed);
+        }
+
         var now = timeProvider.GetUtcNow();
         var account = new PlayerAccountEntity
         {
@@ -86,7 +97,9 @@ public sealed class EfPlayerClubMembershipService(PlatformDbContext dbContext, T
                 throw;
             }
 
-            return PlayerClubMembershipResult.Existing(winner);
+            return winner.IsActive
+                ? PlayerClubMembershipResult.Existing(winner)
+                : PlayerClubMembershipResult.Refused(PlayerClubMembershipErrors.ClubAccountClosed);
         }
 
         return PlayerClubMembershipResult.Opened(account);
@@ -98,6 +111,18 @@ public sealed class EfPlayerClubMembershipService(PlatformDbContext dbContext, T
             account => account.PlatformPersonId == platformPersonId
                 && account.OrganizationId == organizationId,
             cancellationToken);
+
+    /// <summary>Закрытая ничейная карточка с тем же номером: решение клуба, а не пустое место.</summary>
+    private Task<bool> HasClosedCounterCardAsync(
+        string phoneNumber, Guid organizationId, CancellationToken cancellationToken) =>
+        dbContext.PlayerAccounts
+            .AsNoTracking()
+            .AnyAsync(
+                account => account.OrganizationId == organizationId
+                    && account.PlatformPersonId == null
+                    && !account.IsActive
+                    && account.PhoneNumber == phoneNumber,
+                cancellationToken);
 
     /// <summary>
     /// Ничейная карточка с тем же номером в этом клубе. Если их несколько — берётся та, за которой

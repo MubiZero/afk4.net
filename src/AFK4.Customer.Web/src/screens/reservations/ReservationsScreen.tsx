@@ -76,7 +76,13 @@ export function ReservationsScreen({ api, phoneVerified, branchId }: Reservation
       refresh();
     } catch (error: unknown) {
       const status = (error as { status?: number }).status;
-      toast({ title: status === 409 ? t('customer.reservations.conflict') : t('customer.reservations.createError'), variant: 'error' });
+      // Клуб закрыл счёт — это его решение, а не занятое время: общий ответ звал бы человека
+      // подобрать другой час, которого не хватит.
+      const closed = (error as { message?: string }).message === 'club_account_closed';
+      const title = closed
+        ? t('customer.club.errClosed')
+        : status === 409 ? t('customer.reservations.conflict') : t('customer.reservations.createError');
+      toast({ title, variant: 'error' });
     } finally {
       setPending(false);
     }

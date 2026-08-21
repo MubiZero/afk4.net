@@ -154,6 +154,7 @@
   "customer.branch.errRequired": "Choose the hall you are coming to first.",
   "customer.branch.hint": "The club opens your wallet and visit history at this hall.",
   "customer.branch.title": "Which hall are you coming to?",
+  "customer.club.errClosed": "The club has closed your account — only an administrator can seat you here.",
   "customer.clubDetails.choose": "Play here",
   "customer.clubDetails.dayOff": "closed",
   "customer.clubDetails.halls": "Halls in the network",

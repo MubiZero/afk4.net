@@ -29,6 +29,7 @@
   "customerBranchErrRequired": "Аввал толореро, ки ба он меоед, интихоб кунед.",
   "customerBranchHint": "Клуб дар ҳамин толор ҳамён ва таърихи ташрифҳои шуморо мекушояд.",
   "customerBranchTitle": "Ба кадом толор меоед?",
+  "customerClubErrClosed": "Клуб ҳисоби шуморо бастааст — дар ин ҷо танҳо тавассути маъмур бозӣ кардан мумкин аст.",
   "customerClubDetailsChoose": "Дар ин ҷо бозӣ мекунам",
   "customerClubDetailsDayOff": "рӯзи истироҳат",
   "customerClubDetailsHalls": "Толорҳои шабака",

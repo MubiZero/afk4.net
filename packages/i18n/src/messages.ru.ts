@@ -155,6 +155,7 @@ export const ru = {
   "customer.branch.errRequired": "Сначала выберите зал, в который придёте.",
   "customer.branch.hint": "В этом зале клуб заведёт ваш кошелёк и историю визитов.",
   "customer.branch.title": "В какой зал вы придёте?",
+  "customer.club.errClosed": "Клуб закрыл ваш счёт — играть здесь можно только через администратора.",
   "customer.clubDetails.choose": "Играть здесь",
   "customer.clubDetails.dayOff": "выходной",
   "customer.clubDetails.halls": "Залы сети",

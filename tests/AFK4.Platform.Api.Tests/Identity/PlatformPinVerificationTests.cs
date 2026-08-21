@@ -80,6 +80,24 @@ public sealed class PlatformPinVerificationTests
         Assert.True(opened.CreatedFromApp);
     }
 
+    // Клуб закрыл карточку — значит закрыл и самопосадку: оператору обещано, что вход на место
+    // станет недоступен. Отказ при этом тот же самый, что у неверного PIN: сказать «PIN верный,
+    // но карточка закрыта» значит подтвердить подбирающему, что PIN он угадал.
+    [Fact]
+    public async Task NetworkPin_WithTheCardTheClubClosed_IsRefused()
+    {
+        await using var factory = new PlatformApiFactory();
+        var person = await PlatformPersonTestData.AddPersonAsync(factory, Phone);
+        var club = await PlatformPersonTestData.AddClubAsync(factory, person.PlatformPersonId);
+        await SetPinAsync(factory, person.PlatformPersonId, "1234");
+        await Players.PlayerClubMembershipServiceTests.CloseCardAsync(factory, club.PlayerAccountId);
+
+        using var client = factory.CreateClient();
+        var response = await SignInAsync(client, club.OrganizationId, Phone, "1234");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     // Клубный PIN мёртв с первой минуты, а не «пока живёт»: иначе админ одного клуба остаётся с
     // ключом от чужих клубов.
     [Fact]

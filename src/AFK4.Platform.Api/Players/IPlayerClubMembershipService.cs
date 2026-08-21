@@ -39,4 +39,11 @@ public static class PlayerClubMembershipErrors
     public const string OrganizationNotFound = "organization_not_found";
     public const string BranchRequired = "branch_required";
     public const string BranchNotFound = "branch_not_found";
+
+    /// <summary>
+    /// Клуб закрыл человеку карточку. Оператору при деактивации обещано, что денежные операции и
+    /// вход на место станут недоступны, — значит ни первое действие, ни PIN у ПК не имеют права
+    /// открыть эту дверь заново.
+    /// </summary>
+    public const string ClubAccountClosed = "club_account_closed";
 }

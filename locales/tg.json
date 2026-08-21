@@ -154,6 +154,7 @@
   "customer.branch.errRequired": "Аввал толореро, ки ба он меоед, интихоб кунед.",
   "customer.branch.hint": "Клуб дар ҳамин толор ҳамён ва таърихи ташрифҳои шуморо мекушояд.",
   "customer.branch.title": "Ба кадом толор меоед?",
+  "customer.club.errClosed": "Клуб ҳисоби шуморо бастааст — дар ин ҷо танҳо тавассути маъмур бозӣ кардан мумкин аст.",
   "customer.clubDetails.choose": "Дар ин ҷо бозӣ мекунам",
   "customer.clubDetails.dayOff": "рӯзи истироҳат",
   "customer.clubDetails.halls": "Толорҳои шабака",

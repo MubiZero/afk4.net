@@ -92,10 +92,14 @@ class _TopUpSheetState extends State<TopUpSheet> {
       // Лист закрывается сам: заявка отправлена, делать здесь больше нечего, а сводку с
       // ожидающей заявкой игрок увидит на главной.
       Navigator.of(context).pop(true);
-    } on PlayerApiException {
+    } on PlayerApiException catch (error) {
       if (mounted) {
         setState(() => _pending = false);
-        _say(l.customerWalletSendError);
+        // Клуб закрыл счёт — это решение клуба, а не сбой отправки: «попробуйте ещё раз» звало бы
+        // человека повторять то, что не выйдет ни с какого раза.
+        _say(error.message == 'club_account_closed'
+            ? l.customerClubErrClosed
+            : l.customerWalletSendError);
       }
     }
   }

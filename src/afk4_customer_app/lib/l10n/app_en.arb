@@ -29,6 +29,7 @@
   "customerBranchErrRequired": "Choose the hall you are coming to first.",
   "customerBranchHint": "The club opens your wallet and visit history at this hall.",
   "customerBranchTitle": "Which hall are you coming to?",
+  "customerClubErrClosed": "The club has closed your account — only an administrator can seat you here.",
   "customerClubDetailsChoose": "Play here",
   "customerClubDetailsDayOff": "closed",
   "customerClubDetailsHalls": "Halls in the network",

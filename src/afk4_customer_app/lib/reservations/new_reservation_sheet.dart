@@ -241,6 +241,9 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
           // выше — он тут же, над временем.
           (_, 'branch_required') => l.customerBranchErrRequired,
           (_, 'branch_not_found') => l.customerBranchErrGone,
+          // Клуб закрыл счёт: это не «время занято» и не сбой. Общий ответ здесь врал бы про
+          // причину и звал попробовать другое время, которого не хватит.
+          (_, 'club_account_closed') => l.customerClubErrClosed,
           (409, _) => l.customerReservationsConflict,
           _ => l.customerReservationsCreateError,
         };
