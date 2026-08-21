@@ -36,6 +36,7 @@ public sealed class EfSessionStartWorkflow(
         Guid actorStaffUserId,
         StartGuestSessionRequest request,
         bool actorCanApproveComp,
+        string origin,
         CancellationToken cancellationToken)
     {
         var durationMode = NormalizeDurationMode(request.DurationMode);
@@ -202,6 +203,7 @@ public sealed class EfSessionStartWorkflow(
             PlayerAccountId = request.PlayerAccountId,
             TariffRuleVersionId = effectiveTariffRuleVersionId,
             BillingMode = billingMode,
+            Origin = origin,
             State = SessionStateNames.Active,
             RequestedAtUtc = now,
             StartedAtUtc = now,

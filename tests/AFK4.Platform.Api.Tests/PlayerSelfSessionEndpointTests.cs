@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Players;
+using AFK4.Shared.Contracts.Sessions;
 using AFK4.Shared.Contracts.Shifts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -189,6 +190,9 @@ public class PlayerSelfSessionEndpointTests
         var session = await db.Sessions.SingleAsync(s => s.PlayerAccountId == ctx.PlayerId);
         Assert.Equal("active", session.State);
         Assert.Equal(ctx.SeatId, session.SeatId);
+        // Человек сел сам — и назвать это посадкой оператора нельзя: у смены и у отчётов
+        // «кто посадил» разные ответы на эти два случая.
+        Assert.Equal(SessionOriginNames.SelfService, session.Origin);
     }
 
     [Fact]

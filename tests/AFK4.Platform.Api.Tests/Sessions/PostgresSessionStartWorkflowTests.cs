@@ -58,6 +58,7 @@ public sealed class PostgresSessionStartWorkflowTests
                 database.BranchId,
                 database.StaffUserId,
                 request,
+                SessionOriginNames.Operator,
                 CancellationToken.None));
 
         Assert.Equal("forced failure after dependency save", exception.Message);
@@ -85,6 +86,7 @@ public sealed class PostgresSessionStartWorkflowTests
             Guid actorStaffUserId,
             StartGuestSessionRequest request,
             bool actorCanApproveComp,
+            string origin,
             CancellationToken cancellationToken)
         {
             var stage = await inner.StageAsync(
@@ -92,6 +94,7 @@ public sealed class PostgresSessionStartWorkflowTests
                 actorStaffUserId,
                 request,
                 actorCanApproveComp,
+                origin,
                 cancellationToken);
             DependencySaveObserved = stage.Result.Succeeded &&
                 await db.Sessions.AsNoTracking().AnyAsync(cancellationToken) &&

@@ -55,6 +55,7 @@ public sealed class EfSessionStartWorkflowTests
             ActorStaffUserId,
             request,
             actorCanApproveComp: false,
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.True(stage.Result.Succeeded);
@@ -113,6 +114,7 @@ public sealed class EfSessionStartWorkflowTests
             ActorStaffUserId,
             request,
             actorCanApproveComp: true,
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.True(stage.Result.Succeeded, stage.Result.Error);
@@ -248,7 +250,7 @@ public sealed class EfSessionStartWorkflowTests
             BillingMode: string.Empty);
 
         return await workflow.StageAsync(
-            TestIds.BranchId, ActorStaffUserId, request, actorCanApproveComp: false, CancellationToken.None);
+            TestIds.BranchId, ActorStaffUserId, request, actorCanApproveComp: false, SessionOriginNames.Operator, CancellationToken.None);
     }
 
     /// <summary>Тариф, действующий с 08:00 до 16:00 каждый день.</summary>

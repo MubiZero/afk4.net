@@ -41,6 +41,7 @@ public sealed class EfSessionBillingIntegrationTests
                 DurationMinutes: 60,
                 TariffRuleVersionId: "manual-v1",
                 IdempotencyKey: "start-guest-no-billing-001"),
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -78,6 +79,7 @@ public sealed class EfSessionBillingIntegrationTests
                 BillingMode: BillingModeNames.PrepaidWallet,
                 TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -117,6 +119,7 @@ public sealed class EfSessionBillingIntegrationTests
                 BillingMode: BillingModeNames.PrepaidWallet,
                 TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.False(result.Succeeded);
@@ -151,6 +154,7 @@ public sealed class EfSessionBillingIntegrationTests
                 BillingMode: BillingModeNames.PrepaidWallet,
                 TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.False(result.Succeeded);
@@ -187,6 +191,7 @@ public sealed class EfSessionBillingIntegrationTests
                 BillingMode: BillingModeNames.PrepaidWallet,
                 TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.False(result.Succeeded);
@@ -260,6 +265,7 @@ public sealed class EfSessionBillingIntegrationTests
                 BillingMode: BillingModeNames.PostpaidDebt,
                 TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -298,6 +304,7 @@ public sealed class EfSessionBillingIntegrationTests
                 BillingMode: BillingModeNames.Package,
                 TariffVersionId: null,
                 PlayerPackageId: PlayerPackageId),
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -337,6 +344,7 @@ public sealed class EfSessionBillingIntegrationTests
                 BillingMode: BillingModeNames.Package,
                 TariffVersionId: null,
                 PlayerPackageId: PlayerPackageId),
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.False(result.Succeeded);
@@ -369,8 +377,8 @@ public sealed class EfSessionBillingIntegrationTests
             TariffVersionId: tariffVersion.TariffVersionId,
             PlayerPackageId: null);
 
-        var first = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
-        var second = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var first = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, SessionOriginNames.Operator, CancellationToken.None);
+        var second = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, SessionOriginNames.Operator, CancellationToken.None);
 
         Assert.True(first.Succeeded);
         Assert.True(second.Succeeded);
@@ -408,6 +416,7 @@ public sealed class EfSessionBillingIntegrationTests
                 BillingMode: BillingModeNames.PrepaidWallet,
                 TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -483,6 +492,7 @@ public sealed class EfSessionBillingIntegrationTests
                 BillingMode: BillingModeNames.PostpaidDebt,
                 TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -522,6 +532,7 @@ public sealed class EfSessionBillingIntegrationTests
                 BillingMode: BillingModeNames.PrepaidWallet,
                 TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.False(result.Succeeded);
@@ -553,6 +564,7 @@ public sealed class EfSessionBillingIntegrationTests
                 BillingMode: BillingModeNames.PostpaidDebt,
                 TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
+            SessionOriginNames.Operator,
             CancellationToken.None);
         Assert.NotNull(start.Response);
 
@@ -593,6 +605,7 @@ public sealed class EfSessionBillingIntegrationTests
                 BillingMode: BillingModeNames.PostpaidDebt,
                 TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
+            SessionOriginNames.Operator,
             CancellationToken.None);
         Assert.NotNull(start.Response);
         var sessionId = start.Response.Session.SessionId;
@@ -632,6 +645,7 @@ public sealed class EfSessionBillingIntegrationTests
                 DurationMinutes: null,
                 TariffRuleVersionId: "manual-v1",
                 IdempotencyKey: "start-open-guest-charge-001"),
+            SessionOriginNames.Operator,
             CancellationToken.None);
         Assert.NotNull(start.Response);
 
@@ -709,6 +723,7 @@ public sealed class EfSessionBillingIntegrationTests
                 BillingMode: BillingModeNames.PrepaidWallet,
                 TariffVersionId: tariffVersionId,
                 PlayerPackageId: null),
+            SessionOriginNames.Operator,
             CancellationToken.None);
     }
 

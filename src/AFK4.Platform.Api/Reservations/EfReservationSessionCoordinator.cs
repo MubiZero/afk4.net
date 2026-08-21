@@ -206,6 +206,9 @@ public sealed class EfReservationSessionCoordinator(
             actorStaffUserId,
             sessionRequest,
             actorCanApproveComp,
+            // Человек пришёл на забронированное время — и это не «посадил оператор»: в отчётах и
+            // в будущей аналитике брони это разные события.
+            SessionOriginNames.Reservation,
             cancellationToken);
         if (!stage.Result.Succeeded || stage.Result.Response is null)
         {

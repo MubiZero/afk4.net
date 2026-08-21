@@ -950,8 +950,14 @@ internal static class PlayerSelfServiceEndpoints
                 BillingMode: BillingModeNames.PrepaidWallet,
                 TariffVersionId: tariffVersionId);
 
+            // Guid.Empty в акторе и есть весь смысл этого маршрута: сотрудника здесь нет, человек
+            // сел сам — и записать это посадкой оператора значит соврать смене и отчётам.
             var result = await sessionCommandService.StartGuestSessionAsync(
-                assignment.BranchId, Guid.Empty, startRequest, cancellationToken);
+                assignment.BranchId,
+                Guid.Empty,
+                startRequest,
+                SessionOriginNames.SelfService,
+                cancellationToken);
 
             if (result.Conflict) return Results.Conflict(new { error = result.Error });
             if (result.NotFound) return Results.NotFound(new { error = result.Error });

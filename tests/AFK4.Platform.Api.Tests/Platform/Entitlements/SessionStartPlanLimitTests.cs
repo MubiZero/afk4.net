@@ -37,7 +37,7 @@ public sealed class SessionStartPlanLimitTests
             DurationMode: SessionDurationModes.Fixed,
             DurationMinutes: 60);
 
-        var result = await service.StartGuestSessionAsync(BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var result = await service.StartGuestSessionAsync(BranchId, ActorStaffUserId, request, SessionOriginNames.Operator, CancellationToken.None);
 
         Assert.True(result.Conflict);
         Assert.Equal(PlanLimitNames.ReachedCode, result.Code);
@@ -61,7 +61,7 @@ public sealed class SessionStartPlanLimitTests
             DurationMode: SessionDurationModes.Fixed,
             DurationMinutes: 60);
 
-        var result = await service.StartGuestSessionAsync(BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var result = await service.StartGuestSessionAsync(BranchId, ActorStaffUserId, request, SessionOriginNames.Operator, CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.Null(result.PlanLimit);

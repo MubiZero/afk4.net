@@ -135,6 +135,7 @@ public sealed class BillingShiftIntegrationTests
                 BillingMode: BillingModeNames.PrepaidWallet,
                 TariffVersionId: tariffVersion.TariffVersionId,
                 PlayerPackageId: null),
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.True(result.Succeeded);

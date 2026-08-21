@@ -317,6 +317,9 @@ public sealed class EfReservationSessionCoordinatorTests
         Assert.Equal(Now, reservation.SeatedAtUtc);
         Assert.Equal(2, reservation.Version);
         Assert.Equal(result.Response.Session.Session.SessionId, reservation.StartedSessionId);
+        // Сессия выросла из брони — и это её происхождение, а не «посадил оператор»: человек
+        // пришёл на забронированное время, и в отчёте это разные события.
+        Assert.Equal(SessionOriginNames.Reservation, (await db.Sessions.SingleAsync()).Origin);
         Assert.Single(await db.Sessions.ToListAsync());
         Assert.Single(await db.SessionLeases.ToListAsync());
         Assert.Single(await db.SessionEvents.ToListAsync());
@@ -1027,6 +1030,7 @@ public sealed class EfReservationSessionCoordinatorTests
             Guid actorStaffUserId,
             StartGuestSessionRequest request,
             bool actorCanApproveComp,
+            string origin,
             CancellationToken cancellationToken)
         {
             StageCalls++;
@@ -1088,6 +1092,7 @@ public sealed class EfReservationSessionCoordinatorTests
             Guid actorStaffUserId,
             StartGuestSessionRequest request,
             bool actorCanApproveComp,
+            string origin,
             CancellationToken cancellationToken) =>
             Task.FromResult(new SessionStartStage(
                 SessionCommandServiceResult.Invalid(error),
@@ -1105,6 +1110,7 @@ public sealed class EfReservationSessionCoordinatorTests
             Guid actorStaffUserId,
             StartGuestSessionRequest request,
             bool actorCanApproveComp,
+            string origin,
             CancellationToken cancellationToken) =>
             Task.FromResult(new SessionStartStage(
                 SessionCommandServiceResult.PlanLimitReached(planLimit),
@@ -1255,6 +1261,7 @@ public sealed class EfReservationSessionCoordinatorTests
             Guid actorStaffUserId,
             StartGuestSessionRequest request,
             bool actorCanApproveComp,
+            string origin,
             CancellationToken cancellationToken)
         {
             var stage = await inner.StageAsync(
@@ -1262,6 +1269,7 @@ public sealed class EfReservationSessionCoordinatorTests
                 actorStaffUserId,
                 request,
                 actorCanApproveComp,
+                origin,
                 cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
             DependencySaveObserved = stage.Result.Succeeded &&
@@ -1311,6 +1319,7 @@ public sealed class EfReservationSessionCoordinatorTests
                 Guid actorStaffUserId,
                 StartGuestSessionRequest request,
                 bool actorCanApproveComp,
+                string origin,
                 CancellationToken cancellationToken)
             {
                 var stage = await inner.StageAsync(
@@ -1318,6 +1327,7 @@ public sealed class EfReservationSessionCoordinatorTests
                     actorStaffUserId,
                     request,
                     actorCanApproveComp,
+                    origin,
                     cancellationToken);
                 if (Interlocked.Increment(ref stageCalls) == 1)
                 {

@@ -31,6 +31,7 @@ public sealed class PostgresSessionStartSerializationRetryTests
             database.BranchId,
             database.StaffUserId,
             Request(database, "serialization-retry-transient"),
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.True(result.Succeeded, result.Error);
@@ -59,6 +60,7 @@ public sealed class PostgresSessionStartSerializationRetryTests
             database.BranchId,
             database.StaffUserId,
             Request(database, "serialization-retry-persistent"),
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         // Соперник выигрывает раз за разом — это «место занято», а не пятисотка на кассе.
@@ -135,6 +137,7 @@ public sealed class PostgresSessionStartSerializationRetryTests
             Guid actorStaffUserId,
             StartGuestSessionRequest request,
             bool actorCanApproveComp,
+            string origin,
             CancellationToken cancellationToken)
         {
             StageCalls++;
@@ -143,6 +146,7 @@ public sealed class PostgresSessionStartSerializationRetryTests
                 actorStaffUserId,
                 request,
                 actorCanApproveComp,
+                origin,
                 cancellationToken);
 
             if (StageCalls <= failures)
