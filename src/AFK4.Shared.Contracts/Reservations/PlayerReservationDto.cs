@@ -25,4 +25,8 @@ public sealed record PlayerReservationDto(
     Guid? ReservationGroupId = null,
     // Докуда клуб обещал ответить на заявку — по нему в приложении идёт обратный отсчёт. У
     // подтверждённой брони его нет: отвечать больше не на что.
-    DateTimeOffset? RespondByUtc = null);
+    DateTimeOffset? RespondByUtc = null,
+    // Почему клуб отказал. Код — чтобы приложение сказало это на языке игрока; слова — то, что
+    // администратор добавил от себя. Без них отказ снова стал бы молчаливым исчезновением брони.
+    string? RejectReasonCode = null,
+    string? RejectReasonNote = null);

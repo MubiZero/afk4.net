@@ -1870,3 +1870,49 @@
     transition: none;
   }
 }
+
+/* Панель отказа в заявке. Живёт внутри карточки, поэтому повторяет её отступы и типографику:
+   отдельная модалка увела бы администратора от того, кому и на какое время он отказывает. */
+.booking-reject {
+  display: grid;
+  gap: 8px;
+  margin: 4px 14px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--surface-card);
+}
+
+.booking-reject-title {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.booking-reject-reasons {
+  display: grid;
+  gap: 6px;
+}
+
+.booking-reject-reasons label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.booking-reject-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+/* Кнопки и поле внутри панели уже имеют свои отступы от карточки — здесь они лишние. */
+.booking-reject .booking-field,
+.booking-reject .booking-action-grid {
+  padding: 0;
+}

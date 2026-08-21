@@ -20,7 +20,9 @@ const repoRoot = join(scriptDir, '..', '..', '..');
  *  подписи для экранных читалок, они нужны каждому приложению. По мере переезда остальных
  *  приложений сюда добавляются свои префиксы — например `op.` для админского. */
 const ARB_TARGETS = [
-  { prefixes: ['customer.', 'a11y.'], dir: join(repoRoot, 'src', 'afk4_customer_app', 'lib', 'l10n') }
+  // `booking.` — общие с операторской частью названия исходов брони: причину отказа читают
+  // и стойка, и игрок, и двух копий одного текста быть не должно.
+  { prefixes: ['customer.', 'a11y.', 'booking.'], dir: join(repoRoot, 'src', 'afk4_customer_app', 'lib', 'l10n') }
 ] as const;
 
 /** `customer.common.back` → `customerCommonBack`: точка не годится в идентификатор Dart. */

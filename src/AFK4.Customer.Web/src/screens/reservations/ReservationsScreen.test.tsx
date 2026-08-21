@@ -62,6 +62,18 @@ it('ведёт обратный отсчёт до ответа клуба', asyn
   expect(screen.getByText(/деньги вернутся целиком/)).toBeInTheDocument();
 });
 
+// Отказ без причины — это исчезнувшая бронь: человек видит, что её нет, и не понимает почему.
+it('называет причину отказа и говорит про деньги', async () => {
+  const api = { getReservations: mock().mockResolvedValue([
+    { reservationId: 'r1', seatId: null, seatName: null, startsAtUtc: '2999-01-01T10:00:00Z', endsAtUtc: '2999-01-01T12:00:00Z', state: 'rejected', note: null, rejectReasonCode: 'no_seats', rejectReasonNote: 'Турнир на все машины' }
+  ]) } as unknown as PlayerApiClient;
+  renderScreen(api, true);
+  expect(await screen.findByText('Клуб отказал')).toBeInTheDocument();
+  expect(screen.getByText('Мест на это время не осталось')).toBeInTheDocument();
+  expect(screen.getByText('Турнир на все машины')).toBeInTheDocument();
+  expect(screen.getByText(/Деньги вернулись целиком/)).toBeInTheDocument();
+});
+
 it('говорит, что срок вышел, а не показывает нули', async () => {
   const api = { getReservations: mock().mockResolvedValue([
     { reservationId: 'r1', seatId: null, seatName: null, startsAtUtc: '2999-01-01T10:00:00Z', endsAtUtc: '2999-01-01T12:00:00Z', state: 'pending', note: null, respondByUtc: '2000-01-01T00:00:00Z' }

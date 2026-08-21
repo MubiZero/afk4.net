@@ -6,13 +6,15 @@ import type { PlayerBookingRulesDto, PlayerReservationDto } from '@/api/types';
 import { formatDateTime } from '@/lib/datetime';
 import { useToast } from '@/components/ui/toast';
 import { RespondByCountdown } from './RespondByCountdown';
+import { Rejection } from './Rejection';
 
 const STATE_KEYS: Record<string, MessageKey> = {
   pending: 'customer.reservations.statePending',
   confirmed: 'customer.reservations.stateConfirmed',
   seated: 'customer.reservations.stateSeated',
   cancelled: 'customer.reservations.stateCancelled',
-  no_show: 'customer.reservations.stateNoShow'
+  no_show: 'customer.reservations.stateNoShow',
+  rejected: 'customer.reservations.stateRejected'
 };
 
 interface ReservationsScreenProps {
@@ -153,6 +155,12 @@ export function ReservationsScreen({ api, phoneVerified, branchId }: Reservation
               <p className="mt-1 text-sm text-[var(--text-2)]">
                 {formatDateTime(reservation.startsAtUtc)} — {formatDateTime(reservation.endsAtUtc)}
               </p>
+              {reservation.state === 'rejected' && (
+                <Rejection
+                  reasonCode={reservation.rejectReasonCode ?? null}
+                  note={reservation.rejectReasonNote ?? null}
+                />
+              )}
               {reservation.state === 'pending' && reservation.respondByUtc && (
                 <RespondByCountdown respondByUtc={reservation.respondByUtc} />
               )}

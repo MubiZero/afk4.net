@@ -13,10 +13,19 @@ import {
 } from './bookingModel';
 
 it('bookingDetailActions: pending confirms, confirmed starts, terminal states expose neither', () => {
-  expect(bookingDetailActions('pending')).toEqual({ canConfirm: true, canStart: false });
-  expect(bookingDetailActions('confirmed')).toEqual({ canConfirm: false, canStart: true });
-  expect(bookingDetailActions('seated')).toEqual({ canConfirm: false, canStart: false });
-  expect(bookingDetailActions('cancelled')).toEqual({ canConfirm: false, canStart: false });
+  expect(bookingDetailActions('pending')).toEqual({ canConfirm: true, canStart: false, canReject: true });
+  expect(bookingDetailActions('confirmed')).toEqual({ canConfirm: false, canStart: true, canReject: false });
+  expect(bookingDetailActions('seated')).toEqual({ canConfirm: false, canStart: false, canReject: false });
+  expect(bookingDetailActions('cancelled')).toEqual({ canConfirm: false, canStart: false, canReject: false });
+});
+
+// Отказать можно только в заявке, которую ещё не приняли: подтверждённую бронь клуб отменяет, и
+// это другой разговор с человеком, которому уже пообещали место.
+it('bookingDetailActions: отказ доступен только у неотвеченной заявки', () => {
+  expect(bookingDetailActions('pending').canReject).toBe(true);
+  expect(bookingDetailActions('confirmed').canReject).toBe(false);
+  expect(bookingDetailActions('rejected').canReject).toBe(false);
+  expect(bookingDetailActions('no_show').canReject).toBe(false);
 });
 
 const seat = (id: string, zone: string, name: string): SeatSummary => ({

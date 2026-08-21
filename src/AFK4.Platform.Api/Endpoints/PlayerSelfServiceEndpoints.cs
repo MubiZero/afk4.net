@@ -842,7 +842,9 @@ internal static class PlayerSelfServiceEndpoints
                 r.EstimatedCostMinorUnits,
                 r.CurrencyCode,
                 r.ReservationGroupId,
-                r.RespondByUtc))
+                r.RespondByUtc,
+                r.RejectReasonCode,
+                r.RejectReasonNote))
                 .ToList();
 
             return Results.Ok(dtos);

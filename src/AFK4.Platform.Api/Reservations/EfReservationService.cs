@@ -496,6 +496,81 @@ public sealed class EfReservationService(
             (await ProjectAsync([reservation], cancellationToken))[0]);
     }
 
+    public async Task<ReservationServiceResult<ReservationDto>> RejectAsync(
+        Guid reservationId,
+        Guid actorStaffUserId,
+        RejectReservationRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!RejectReasonCodes.IsSupported(request.ReasonCode))
+        {
+            return ReservationServiceResult<ReservationDto>.Invalid(
+                $"ReasonCode must be one of: {string.Join(", ", RejectReasonCodes.All)}.");
+        }
+
+        var note = NormalizeNullable(request.Note);
+
+        // Код «своими словами» без слов — тот же пустой отказ, от которого уходили: игрок снова
+        // не узнаёт причину, а статистика получает мусорную корзину вместо ответа.
+        if (request.ReasonCode == RejectReasonCodes.Other && note is null)
+        {
+            return ReservationServiceResult<ReservationDto>.Invalid(
+                "A free-form refusal must say what happened.");
+        }
+
+        var reservation = await LoadForWriteAsync(request.OrganizationId, reservationId, cancellationToken);
+        if (reservation is null)
+        {
+            return ReservationServiceResult<ReservationDto>.Missing("Reservation was not found.");
+        }
+
+        if (request.ExpectedVersion is { } expectedVersion
+            && GuardVersion(reservation, expectedVersion) is { } versionConflict)
+        {
+            return versionConflict;
+        }
+
+        // Уже отказанная заявка отвечает первым ответом: переписывать причину задним числом
+        // значит менять то, что игрок уже прочитал.
+        if (reservation.State == ReservationStateNames.Rejected)
+        {
+            return ReservationServiceResult<ReservationDto>.Ok(
+                (await ProjectAsync([reservation], cancellationToken))[0]);
+        }
+
+        // Отказывают в заявке, которую ещё не приняли. Подтверждённую бронь клуб отменяет — это
+        // другое действие и другой разговор с человеком, которому уже пообещали место.
+        if (reservation.State != ReservationStateNames.Pending)
+        {
+            return ReservationServiceResult<ReservationDto>.Invalid(
+                "Only a request the club has not answered yet can be rejected.");
+        }
+
+        var now = timeProvider.GetUtcNow();
+
+        // Клуб отказал — деньги возвращаются целиком и при любых настройках филиала: удержание
+        // платит за неявку игрока, а не за решение клуба.
+        await ReservationHold.ReleaseAsync(
+            dbContext, reservation.ReservationId, ReservationHoldCauses.Rejected, now, cancellationToken);
+
+        reservation.State = ReservationStateNames.Rejected;
+        reservation.RejectedAtUtc = now;
+        reservation.RejectReasonCode = request.ReasonCode;
+        reservation.RejectReasonNote = note;
+        reservation.UpdatedByStaffUserId = actorStaffUserId;
+        reservation.UpdatedAtUtc = now;
+        reservation.Version++;
+
+        var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
+        if (saveConflict is not null)
+        {
+            return saveConflict;
+        }
+
+        return ReservationServiceResult<ReservationDto>.Ok(
+            (await ProjectAsync([reservation], cancellationToken))[0]);
+    }
+
     public async Task<ReservationServiceResult<ReservationDto>> MarkNoShowAsync(
         Guid reservationId,
         Guid actorStaffUserId,

@@ -108,7 +108,7 @@ function bookingTone(state: string, source: string): BookingTone {
   // Неявка терминальна так же, как отмена, и в полосе выглядит так же приглушённо. Отличает их
   // подпись: смешивать «передумал» и «не приехал» в одно слово нельзя, но и кричать о неявке
   // отдельным цветом не за чем — заявка уже закрыта.
-  if (state === 'cancelled' || state === 'no_show') return 'cancelled';
+  if (state === 'cancelled' || state === 'no_show' || state === 'rejected') return 'cancelled';
   if (state === 'seated') return 'seated';
   if (state === 'confirmed') return 'confirmed';
   return source === 'online' ? 'online' : 'pending';
@@ -122,6 +122,7 @@ type BookingStateKey =
   | 'op.booking.state.seated'
   | 'op.booking.state.cancelled'
   | 'op.booking.state.noShow'
+  | 'op.booking.state.rejected'
   | 'op.booking.state.unknown';
 
 export function bookingStateLabelKey(state: string): BookingStateKey {
@@ -131,12 +132,21 @@ export function bookingStateLabelKey(state: string): BookingStateKey {
     case 'seated': return 'op.booking.state.seated';
     case 'cancelled': return 'op.booking.state.cancelled';
     case 'no_show': return 'op.booking.state.noShow';
+    case 'rejected': return 'op.booking.state.rejected';
     default: return 'op.booking.state.unknown';
   }
 }
 
-export function bookingDetailActions(state: string): { canConfirm: boolean; canStart: boolean } {
-  return { canConfirm: state === 'pending', canStart: state === 'confirmed' };
+// Отказать можно в заявке, которую ещё не приняли: подтверждённую бронь клуб отменяет, и это
+// другой разговор с человеком, которому уже пообещали место.
+export function bookingDetailActions(
+  state: string
+): { canConfirm: boolean; canStart: boolean; canReject: boolean } {
+  return {
+    canConfirm: state === 'pending',
+    canStart: state === 'confirmed',
+    canReject: state === 'pending'
+  };
 }
 
 export function mapReservationsToItems(

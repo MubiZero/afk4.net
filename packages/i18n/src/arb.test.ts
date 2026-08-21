@@ -10,9 +10,9 @@ const arbDir = join(import.meta.dir, '..', '..', '..', 'src', 'afk4_customer_app
 const readArb = (loc: string) => JSON.parse(readFileSync(join(arbDir, `app_${loc}.arb`), 'utf8')) as Record<string, string>;
 
 const LOCALES = ['ru', 'en', 'tg'] as const;
-// Те же префиксы, что в ARB_TARGETS генератора: строки приложения плюс общие подписи для
-// экранных читалок.
-const PREFIXES = ['customer.', 'a11y.'];
+// Те же префиксы, что в ARB_TARGETS генератора: строки приложения, общие подписи для экранных
+// читалок и общие с операторской частью названия исходов брони.
+const PREFIXES = ['customer.', 'a11y.', 'booking.'];
 const appKeys = Object.keys(messages.ru).filter((key) => PREFIXES.some((p) => key.startsWith(p))).sort();
 
 // Точки в ключе — не идентификатор Dart, поэтому ARB получает camelCase-имена.
