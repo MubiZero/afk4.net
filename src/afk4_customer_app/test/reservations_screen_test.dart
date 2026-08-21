@@ -472,10 +472,20 @@ void main() {
   });
 
   testWidgets('незнакомое состояние показывается как есть, а не выдумывается', (tester) async {
+    await tester.pumpWidget(harness(_serve(jsonEncode([_reservation(state: 'teleported')]))));
+    await tester.pumpAndSettle();
+
+    expect(find.text('teleported'), findsOneWidget);
+  });
+
+  // «Не приехал» перестал быть незнакомым состоянием: у него своя подпись. Показывать человеку
+  // сырое no_show значит требовать от него читать по-английски внутренности сервера.
+  testWidgets('неявка называется словами, а не кодом состояния', (tester) async {
     await tester.pumpWidget(harness(_serve(jsonEncode([_reservation(state: 'no_show')]))));
     await tester.pumpAndSettle();
 
-    expect(find.text('no_show'), findsOneWidget);
+    expect(find.text('Вы не приехали'), findsOneWidget);
+    expect(find.text('no_show'), findsNothing);
   });
 
   group('проверка времени до отправки', () {

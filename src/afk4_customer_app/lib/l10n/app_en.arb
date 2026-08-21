@@ -657,6 +657,7 @@
   "customerReservationsStartInPast": "The start must be in the future",
   "customerReservationsStateCancelled": "Cancelled",
   "customerReservationsStateConfirmed": "Confirmed",
+  "customerReservationsStateNoShow": "You did not come",
   "customerReservationsStatePending": "Awaiting confirmation",
   "customerReservationsStateSeated": "Seated",
   "customerReservationsTariff": "Rate",

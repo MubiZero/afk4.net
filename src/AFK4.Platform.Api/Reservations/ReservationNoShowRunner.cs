@@ -24,9 +24,9 @@ public sealed class ReservationNoShowOptions
 /// (<c>HoldSeatAfterStartMinutes</c>, <c>KeepPrepaymentOnNoShow</c>), а не зашитые в код числа:
 /// клуб у вокзала и клуб в спальном районе ждут по-разному.
 ///
-/// Неявка оформляется отменой с причиной <c>no-show</c>, а не отдельным состоянием: слот должен
-/// освободиться так же, как при отмене, а причина отличает автоматику от человека и в журнале, и на
-/// экране оператора.
+/// Неявка — своё состояние (<c>no_show</c>), а не отмена с пометкой в свободном тексте: слот
+/// освобождается так же, как при отмене, но исход остаётся отличим и в журнале, и на экране
+/// оператора, и в сетевой репутации.
 ///
 /// Заявка, на которую клуб так и не ответил, неявкой не считается ни при каких настройках: человек
 /// ждал ответа, ответа не было, и платить за чужое молчание он не должен. Такая заявка закрывается
@@ -38,8 +38,6 @@ public sealed class ReservationNoShowRunner(
     TimeProvider timeProvider,
     IOpenShiftResolver openShiftResolver)
 {
-    public const string CancelReason = "no-show";
-
     /// <summary>Один проход. Возвращает число разобранных броней.</summary>
     public async Task<int> RunOnceAsync(CancellationToken cancellationToken)
     {
@@ -83,42 +81,40 @@ public sealed class ReservationNoShowRunner(
 
             // Подтверждения нет — значит клуб на заявку не ответил, и всё дальнейшее решается
             // не настройкой неявки, а этим фактом: деньги возвращаются целиком.
-            var clubNeverAnswered = reservation.State == ReservationStateNames.Pending;
-
-            var released = await ReservationHold.ReleaseAsync(
-                dbContext,
-                reservation.ReservationId,
-                clubNeverAnswered ? ReservationHoldCauses.RequestExpired : ReservationHoldCauses.NoShow,
-                now,
-                cancellationToken);
-
-            // Удержать можно только то, что было заморожено. Холд мог быть снят раньше — вручную
-            // или посадкой; тогда бронь всё равно закрывается, но выручки из воздуха не берётся.
-            if (!clubNeverAnswered && released is not null && settings.KeepPrepaymentOnNoShow)
+            if (reservation.State == ReservationStateNames.Pending)
             {
-                if (!shiftByBranch.TryGetValue(reservation.BranchId, out var shiftId))
-                {
-                    var openShift = await openShiftResolver.GetOpenShiftIdAsync(
-                        reservation.OrganizationId, reservation.BranchId, cancellationToken);
-                    shiftId = openShift.Succeeded && openShift.Response != Guid.Empty
-                        ? openShift.Response
-                        : null;
-                    shiftByBranch[reservation.BranchId] = shiftId;
-                }
+                await ReservationHold.ReleaseAsync(
+                    dbContext,
+                    reservation.ReservationId,
+                    ReservationHoldCauses.RequestExpired,
+                    now,
+                    cancellationToken);
 
-                dbContext.LedgerEntries.Add(ReservationHold.CreateNoShowFee(
-                    released, reservation.ReservationId, shiftId, now));
+                reservation.State = ReservationStateNames.Cancelled;
+                reservation.CancelReason = ReservationRequestExpiryRunner.CancelReason;
+                reservation.CancelledAtUtc = now;
+                // Guid.Empty — сделала система, а не сотрудник: в журнале это должно быть видно.
+                reservation.UpdatedByStaffUserId = Guid.Empty;
+                reservation.UpdatedAtUtc = now;
+                reservation.Version++;
+                handled++;
+                continue;
             }
 
-            reservation.State = ReservationStateNames.Cancelled;
-            reservation.CancelReason = clubNeverAnswered
-                ? ReservationRequestExpiryRunner.CancelReason
-                : CancelReason;
-            reservation.CancelledAtUtc = now;
-            // Guid.Empty — сделала система, а не сотрудник: в журнале это должно быть видно.
-            reservation.UpdatedByStaffUserId = Guid.Empty;
-            reservation.UpdatedAtUtc = now;
-            reservation.Version++;
+            if (!shiftByBranch.TryGetValue(reservation.BranchId, out var shiftId))
+            {
+                var openShift = await openShiftResolver.GetOpenShiftIdAsync(
+                    reservation.OrganizationId, reservation.BranchId, cancellationToken);
+                shiftId = openShift.Succeeded && openShift.Response != Guid.Empty
+                    ? openShift.Response
+                    : null;
+                shiftByBranch[reservation.BranchId] = shiftId;
+            }
+
+            // Тем же кодом, которым неявку отмечает администратор: два представления о том, чем
+            // неявка отличается от отмены, разъехались бы на первом же исправлении.
+            await ReservationNoShow.MarkAsync(
+                dbContext, reservation, settings, shiftId, Guid.Empty, now, cancellationToken);
             handled++;
         }
 

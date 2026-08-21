@@ -215,8 +215,9 @@ public sealed class ReservationHoldTests
 
         await using var read = new PlatformDbContext(options);
         var reservation = await read.Reservations.SingleAsync(r => r.ReservationId == booked.Response!.ReservationId);
-        Assert.Equal(ReservationStateNames.Cancelled, reservation.State);
-        Assert.Equal(ReservationNoShowRunner.CancelReason, reservation.CancelReason);
+        // Неявка перестала быть отменой с пометкой: у неё своё состояние.
+        Assert.Equal(ReservationStateNames.NoShow, reservation.State);
+        Assert.Equal(string.Empty, reservation.CancelReason);
     }
 
     // Опоздание на десять минут — не неявка: место и деньги ещё держатся.
@@ -288,8 +289,8 @@ public sealed class ReservationHoldTests
             .Where(r => r.ReservationGroupId == group.Response![0].ReservationGroupId)
             .ToListAsync();
         Assert.Equal(3, rows.Count);
-        Assert.All(rows, r => Assert.Equal(ReservationStateNames.Cancelled, r.State));
-        Assert.All(rows, r => Assert.Equal(ReservationNoShowRunner.CancelReason, r.CancelReason));
+        Assert.All(rows, r => Assert.Equal(ReservationStateNames.NoShow, r.State));
+        Assert.All(rows, r => Assert.Equal(string.Empty, r.CancelReason));
     }
 
     private static async Task<ReservationServiceResult<IReadOnlyList<ReservationDto>>> BookGroupAsync(

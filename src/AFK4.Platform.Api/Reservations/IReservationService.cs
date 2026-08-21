@@ -75,6 +75,17 @@ public interface IReservationService
         SeatReservationRequest request,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Администратор говорит «он не приехал». Таймер ждёт положенных филиалу минут и знает только
+    /// про брони с замороженными деньгами; человек за стойкой видит пустое место раньше и знает
+    /// про бронь без предоплаты то, чего таймер не знает вовсе.
+    /// </summary>
+    Task<ReservationServiceResult<ReservationDto>> MarkNoShowAsync(
+        Guid reservationId,
+        Guid actorStaffUserId,
+        MarkReservationNoShowRequest request,
+        CancellationToken cancellationToken);
+
     Task<ReservationServiceResult<ReservationDto>> CancelAsync(
         Guid reservationId,
         Guid actorStaffUserId,

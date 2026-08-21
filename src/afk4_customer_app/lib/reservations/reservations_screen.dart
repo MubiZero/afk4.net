@@ -356,12 +356,14 @@ class ReservationEntry {
   /// Места, которые ещё в силе. Отменённые из счёта уходят: «4 места» рядом с двумя
   /// отменёнными — это неправда о брони.
   List<PlayerReservation> get live =>
-      reservations.where((r) => r.state != 'cancelled').toList();
+      reservations.where((r) => r.state != 'cancelled' && r.state != 'no_show').toList();
 
   int get seatCount => live.isNotEmpty ? live.length : reservations.length;
 
-  /// Состояние компании — состояние её живых мест; когда живых нет, компания отменена.
-  String get state => live.isNotEmpty ? live.first.state : 'cancelled';
+  /// Состояние компании — состояние её живых мест. Когда живых не осталось, компания кончилась
+  /// тем же, чем кончились её места: подставлять сюда «отменена» значит называть отменой и
+  /// неявку, за которую человек мог заплатить.
+  String get state => live.isNotEmpty ? live.first.state : first.state;
 
   bool get isCancellable => live.any((r) => r.isCancellable);
 
@@ -421,6 +423,7 @@ class _ReservationCard extends StatelessWidget {
         'confirmed' => l.customerReservationsStateConfirmed,
         'seated' => l.customerReservationsStateSeated,
         'cancelled' => l.customerReservationsStateCancelled,
+        'no_show' => l.customerReservationsStateNoShow,
         _ => reservation.state,
       };
 

@@ -123,7 +123,9 @@ internal static class ReservationProjection
                 reservation.PlayerAccountId is { } playerAccountId &&
                     personByAccountId.TryGetValue(playerAccountId, out var platformPersonId)
                         ? platformPersonId
-                        : null);
+                        : null,
+                reservation.NoShowAtUtc,
+                reservation.RetainedAmountMinorUnits);
         }).ToList();
     }
 

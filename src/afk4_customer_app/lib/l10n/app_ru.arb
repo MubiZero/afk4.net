@@ -657,6 +657,7 @@
   "customerReservationsStartInPast": "Начало должно быть в будущем",
   "customerReservationsStateCancelled": "Отменена",
   "customerReservationsStateConfirmed": "Подтверждена",
+  "customerReservationsStateNoShow": "Вы не приехали",
   "customerReservationsStatePending": "Ожидает подтверждения",
   "customerReservationsStateSeated": "Вы за местом",
   "customerReservationsTariff": "Тариф",

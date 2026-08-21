@@ -32,6 +32,7 @@ it('bookingStateLabelKey: каждое известное состояние →
   expect(bookingStateLabelKey('pending')).toBe('op.booking.state.pending');
   expect(bookingStateLabelKey('seated')).toBe('op.booking.state.seated');
   expect(bookingStateLabelKey('cancelled')).toBe('op.booking.state.cancelled');
+  expect(bookingStateLabelKey('no_show')).toBe('op.booking.state.noShow');
   expect(bookingStateLabelKey('expired')).toBe('op.booking.state.unknown');
   expect(bookingStateLabelKey('')).toBe('op.booking.state.unknown');
 });
@@ -49,6 +50,18 @@ it('mapReservationsToItems: парсит поля и считает endMs из �
   expect(items[0].version).toBe(9);
   expect(items[0].playerAccountId).toBe('player-1');
   expect(items[0].startedSessionId).toBe('session-1');
+});
+
+// «Не приехал» — исход терминальный, как отмена, и в полосе он такой же приглушённый. Без этого
+// новое состояние падало бы в общий хвост и рисовалось как ожидающая заявка: полоса показывала бы
+// администратору работу, которой нет.
+it('mapReservationsToItems: неявка выглядит закрытой заявкой, а не ожидающей', () => {
+  const items = mapReservationsToItems([
+    { reservationId: 'r1', version: 2, state: 'no_show', source: 'online', startsAtUtc: '2026-06-17T14:00:00Z',
+      durationMinutes: 60, customerName: 'Марат', phoneNumber: '+992', playerAccountId: 'player-1',
+      seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A', startedSessionId: null }
+  ], 'Гость');
+  expect(items[0].tone).toBe('cancelled');
 });
 
 it('mapReservationsToItems: читает reservationGroupId (пусто если нет)', () => {

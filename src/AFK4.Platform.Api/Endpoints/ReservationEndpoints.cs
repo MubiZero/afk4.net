@@ -492,6 +492,80 @@ internal static class ReservationEndpoints
             return Results.Ok(result.Response);
         });
 
+        app.MapPost("reservations/{reservationId:guid}/no-show", async (
+            Guid reservationId,
+            MarkReservationNoShowRequest request,
+            PlatformDbContext dbContext,
+            IStaffContextAccessor staffContextAccessor,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IReservationService reservationService,
+            CancellationToken cancellationToken) =>
+        {
+            var scoped = await LoadReservationForStaffAsync(dbContext, staffContextAccessor, reservationId, cancellationToken);
+            if (scoped.Result is not null)
+            {
+                return scoped.Result;
+            }
+
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                scoped.Reservation!.BranchId,
+                OrganizationPermissionNames.ManageReservations,
+                cancellationToken);
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteAuditAsync(
+                    auditRecordWriter,
+                    authorization.StaffContext!.OrganizationId,
+                    scoped.Reservation.BranchId,
+                    authorization.StaffContext.StaffUserId,
+                    AuditActionNames.MarkReservationNoShow,
+                    "Reservation",
+                    reservationId.ToString("D"),
+                    AuditOutcome.Denied,
+                    new { authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (request.OrganizationId != authorization.StaffContext!.OrganizationId)
+            {
+                return Results.BadRequest(new { Error = "OrganizationId must match the authenticated staff organization." });
+            }
+
+            var result = await reservationService.MarkNoShowAsync(
+                reservationId,
+                authorization.StaffContext.StaffUserId,
+                request,
+                cancellationToken);
+            if (!result.Succeeded)
+            {
+                return ToReservationHttpResult(result);
+            }
+
+            // Удержанная сумма пишется в аудит: это деньги, оставшиеся клубу по решению человека,
+            // и вопрос «кто отметил неявку, за которую игрок заплатил» обязан иметь ответ.
+            await WriteAuditAsync(
+                auditRecordWriter,
+                authorization.StaffContext.OrganizationId,
+                result.Response!.BranchId,
+                authorization.StaffContext.StaffUserId,
+                AuditActionNames.MarkReservationNoShow,
+                "Reservation",
+                reservationId.ToString("D"),
+                AuditOutcome.Succeeded,
+                new { result.Response.State, result.Response.RetainedAmountMinorUnits },
+                cancellationToken);
+
+            return Results.Ok(result.Response);
+        });
+
         app.MapPost("reservations/{reservationId:guid}/cancel", async (
             Guid reservationId,
             CancelReservationRequest request,

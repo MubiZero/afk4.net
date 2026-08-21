@@ -130,6 +130,9 @@ public static class AuditActionNames
 
     public const string CancelReservation = "reservations.cancel";
 
+    /// <summary>Администратор объявил, что игрок не приехал. Деньги при этом могут остаться клубу.</summary>
+    public const string MarkReservationNoShow = "reservations.no_show";
+
     public const string CreateProductCategory = "pos.categories.create";
 
     public const string CreateProduct = "pos.products.create";

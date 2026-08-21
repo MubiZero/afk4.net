@@ -105,7 +105,10 @@ export function respondCountdown(
 }
 
 function bookingTone(state: string, source: string): BookingTone {
-  if (state === 'cancelled') return 'cancelled';
+  // Неявка терминальна так же, как отмена, и в полосе выглядит так же приглушённо. Отличает их
+  // подпись: смешивать «передумал» и «не приехал» в одно слово нельзя, но и кричать о неявке
+  // отдельным цветом не за чем — заявка уже закрыта.
+  if (state === 'cancelled' || state === 'no_show') return 'cancelled';
   if (state === 'seated') return 'seated';
   if (state === 'confirmed') return 'confirmed';
   return source === 'online' ? 'online' : 'pending';
@@ -118,6 +121,7 @@ type BookingStateKey =
   | 'op.booking.state.pending'
   | 'op.booking.state.seated'
   | 'op.booking.state.cancelled'
+  | 'op.booking.state.noShow'
   | 'op.booking.state.unknown';
 
 export function bookingStateLabelKey(state: string): BookingStateKey {
@@ -126,6 +130,7 @@ export function bookingStateLabelKey(state: string): BookingStateKey {
     case 'pending': return 'op.booking.state.pending';
     case 'seated': return 'op.booking.state.seated';
     case 'cancelled': return 'op.booking.state.cancelled';
+    case 'no_show': return 'op.booking.state.noShow';
     default: return 'op.booking.state.unknown';
   }
 }
