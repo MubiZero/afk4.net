@@ -6,6 +6,7 @@ import '../history/purchases_tab.dart';
 import '../history/visits_tab.dart';
 import '../l10n/app_localizations.dart';
 import '../shell/app_scaffold.dart';
+import '../shell/new_club_note.dart';
 import '../shell/skeleton.dart';
 import 'wallet_card.dart';
 
@@ -21,14 +22,21 @@ class WalletScreen extends StatefulWidget {
     required this.api,
     required this.phoneVerified,
     required this.features,
+    this.accountOpen = true,
     this.onPhoneVerified,
+    this.onAccountOpened,
     this.clock = DateTime.now,
   });
 
   final PlayerApiClient api;
   final bool phoneVerified;
   final List<String>? features;
+
+  /// Есть ли у игрока счёт в этом клубе. Пока нет — показывать нечего, и спрашивать сервер
+  /// не о чем: деньги появятся вместе со счётом.
+  final bool accountOpen;
   final VoidCallback? onPhoneVerified;
+  final Future<void> Function()? onAccountOpened;
   final DateTime Function() clock;
 
   @override
@@ -46,6 +54,7 @@ class _WalletScreenState extends State<WalletScreen> {
   }
 
   Future<void> _load() async {
+    if (!widget.accountOpen) return;
     try {
       final data = await widget.api.getDashboard();
       if (mounted) {
@@ -69,6 +78,22 @@ class _WalletScreenState extends State<WalletScreen> {
     final theme = Theme.of(context);
     final data = _data;
 
+    // Клуб, где счёта ещё нет, не о чем спрашивать: ни остатка, ни визитов, ни покупок.
+    // Вкладки истории здесь показали бы два пустых списка или две ошибки.
+    if (!widget.accountOpen) {
+      return Scaffold(
+        body: CustomScrollView(
+          slivers: [
+            appHeader(context, title: l.customerNavWallet),
+            const SliverPadding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
+              sliver: SliverToBoxAdapter(child: NewClubNote()),
+            ),
+          ],
+        ),
+      );
+    }
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -85,10 +110,12 @@ class _WalletScreenState extends State<WalletScreen> {
                     : WalletCard(
                         api: widget.api,
                         walletBalance: data.walletBalance,
+                        heldBalance: data.heldBalance,
                         debtBalance: data.debtBalance,
                         phoneVerified: widget.phoneVerified,
                         features: widget.features,
                         onPhoneVerified: widget.onPhoneVerified,
+                        onToppedUp: widget.onAccountOpened,
                       ),
               ),
             ),

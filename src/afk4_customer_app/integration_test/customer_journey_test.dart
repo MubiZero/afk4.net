@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:afk4_customer_app/api/player_api_client.dart';
 import 'package:afk4_customer_app/app.dart';
 import 'package:afk4_customer_app/organization/organization_directory.dart';
+import 'package:afk4_customer_app/profile/profile_screen.dart';
 
 import 'support/fake_backend.dart';
 
@@ -69,12 +70,9 @@ void main() {
     await tester.tap(find.text(FakeBackend.clubName));
     await tester.pumpAndSettle();
 
-    // 2. Вход по коду из SMS.
+    // 2. Вход по коду из SMS — единственная дверь, и клуба она не называет.
     expect(find.text('Вход'), findsOneWidget);
-    await tester.tap(find.text('Войти по SMS-коду'));
-    await tester.pumpAndSettle();
-
-    await tester.enterText(find.byType(TextField), '+992900000000');
+    await tester.enterText(find.byType(TextField).first, '+992900000000');
     await tester.tap(find.widgetWithText(FilledButton, 'Прислать код'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Код отправлен'), findsOneWidget);
@@ -91,7 +89,12 @@ void main() {
     expect(find.textContaining('200,50 с.'), findsOneWidget);
     expect(secureValues, isNotEmpty);
 
-    // Закрытые разделы отвечают 401 без токена — раз данные на экране есть, заголовок дошёл.
+    // Третье число кошелька: остаток уже без него, и без строки непонятно, куда оно делось.
+    expect(find.textContaining('Придержано под брони'), findsOneWidget);
+
+    // Закрытые разделы отвечают 401 без токена и 409 без названного клуба — раз данные на
+    // экране есть, дошли оба заголовка.
+    expect(backend.log, contains('GET /api/me'));
     expect(backend.log, contains('GET /api/me/dashboard'));
 
     // 4. Бронь. Раздел появился, потому что клуб принимает онлайн-брони.
@@ -101,6 +104,8 @@ void main() {
 
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
+    // Филиал смотрит заявки руками, и лист говорит об этом до того, как игрок заполнит форму.
+    expect(find.textContaining('Заявку смотрит администратор'), findsOneWidget);
     await pickDateTime(tester, 'Начало');
     await pickDateTime(tester, 'Конец');
     await tester.tap(find.widgetWithText(FilledButton, 'Забронировать'));
@@ -112,17 +117,30 @@ void main() {
     expect(find.text('Бронь создана'), findsOneWidget);
     expect(find.text('Ожидает подтверждения'), findsOneWidget);
     expect(find.text('Броней пока нет'), findsNothing);
+    // У заявки есть срок ответа, и он виден игроку: молчание клуба не длится вечно.
+    expect(find.textContaining('Клуб ответит до'), findsOneWidget);
 
     // Снекбар живёт четыре секунды и перекрывает низ следующего экрана — ждём, пока уйдёт.
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
 
-    // 5. Выход. Устройство бывает общим: следующий вошедший не должен увидеть чужой кошелёк.
+    // 5. Профиль: здесь и только здесь задаётся PIN, которым игрок садится за ПК.
     await tester.tap(find.text('Профиль'));
     await tester.pumpAndSettle();
+    expect(find.text('PIN для посадки за ПК'), findsOneWidget);
+    expect(find.textContaining('PIN не задан'), findsOneWidget);
+
     final requestsBeforeSignOut = backend.log.length;
 
-    await tester.ensureVisible(find.text('Выйти'));
+    // 6. Выход. Устройство бывает общим: следующий вошедший не должен увидеть чужой кошелёк.
+    // Кнопка стоит в самом низу профиля — до неё надо доскроллить, и с запасом: прокрутка
+    // «до видимости» оставляет её под прилипшей шапкой.
+    final profileList = find.descendant(
+      of: find.byType(ProfileScreen),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(find.text('Выйти'), 200, scrollable: profileList);
+    await tester.drag(profileList, const Offset(0, -160));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Выйти'));
     await tester.pumpAndSettle();

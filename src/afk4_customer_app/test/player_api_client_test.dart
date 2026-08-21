@@ -40,25 +40,129 @@ PlayerSession theSession({String access = 'access-1', String refresh = 'refresh-
     PlayerSession.fromJson(jsonDecode(sessionJson(access: access, refresh: refresh)) as Map<String, dynamic>);
 
 void main() {
-  test('вход отдаёт сессию и запоминает её в клиенте', () async {
+  // Дверь одна на всех и клуба не называет: аккаунт принадлежит человеку, а не заведению.
+  test('вход по коду отдаёт сессию и запоминает её в клиенте', () async {
     final http = _RecordingClient((_) => makeResponse(sessionJson()));
     final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http);
 
-    final session = await client.signIn(organizationId: 'o1', phoneNumber: '+992900000000', password: 'pw');
+    final session = await client.confirmSignIn(phoneNumber: '+992900000000', code: '123456');
 
     expect(session.displayName, 'Иван');
     expect(client.session, isNotNull);
-    expect(http.requests.single.url.path, '/api/public/player/sign-in');
+    expect(http.requests.single.url.path, '/api/public/register/confirm');
+    expect(jsonDecode(http.requests.single.body), isNot(contains('organizationId')));
   });
 
-  test('неверный пароль поднимается как ошибка с кодом, а не как пустой ответ', () async {
-    final http = _RecordingClient((_) => makeResponse('{"error":"invalid"}', status: 401));
+  test('просьба прислать код идёт на общую дверь и не называет клуб', () async {
+    final http = _RecordingClient(
+        (_) => makeResponse('{"expiresInSeconds":300,"resendAfterSeconds":60}'));
+    final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http);
+
+    await client.startSignIn('+992900000000');
+
+    expect(http.requests.single.url.path, '/api/public/register/start');
+    expect(jsonDecode(http.requests.single.body), {'phoneNumber': '+992900000000'});
+  });
+
+  test('неверный код поднимается как ошибка с кодом, а не как пустой ответ', () async {
+    final http = _RecordingClient((_) => makeResponse('{"error":"invalid_code"}', status: 400));
     final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http);
 
     await expectLater(
-      client.signIn(organizationId: 'o1', phoneNumber: '+992900000000', password: 'wrong'),
-      throwsA(isA<PlayerApiException>().having((e) => e.statusCode, 'statusCode', 401)),
+      client.confirmSignIn(phoneNumber: '+992900000000', code: '000000'),
+      throwsA(isA<PlayerApiException>().having((e) => e.statusCode, 'statusCode', 400)),
     );
+  });
+
+  // Один аккаунт на все клубы: без этого заголовка сервер не знает, чей кошелёк показывать.
+  test('выбранный клуб едет заголовком на своих маршрутах', () async {
+    final http = _RecordingClient((_) => makeResponse('{"ok":true}'));
+    final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http, session: theSession())
+      ..organizationId = 'o7';
+
+    await client.getJson('/api/me/dashboard');
+
+    expect(http.requests.single.headers['X-AFK4-Organization'], 'o7');
+  });
+
+  test('публичная дверь заголовок клуба не несёт — там ещё нет ни клуба, ни игрока', () async {
+    final http = _RecordingClient(
+        (_) => makeResponse('{"expiresInSeconds":300,"resendAfterSeconds":60}'));
+    final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http)
+      ..organizationId = 'o7';
+
+    await client.startSignIn('+992900000000');
+
+    expect(http.requests.single.headers.containsKey('X-AFK4-Organization'), isFalse);
+  });
+
+  // 409 club_not_selected — это «счёта здесь ещё нет», а не сбой: экран показывает по нему
+  // приглашение, а не сообщение об ошибке.
+  test('«счёта в клубе нет» отличается от прочих отказов', () async {
+    final http = _RecordingClient((_) => makeResponse('{"error":"club_not_selected"}', status: 409));
+    final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http, session: theSession());
+
+    await expectLater(
+      client.getReservations(),
+      throwsA(isA<PlayerApiException>().having((e) => e.isNoAccountInClub, 'isNoAccountInClub', isTrue)),
+    );
+  });
+
+  test('PIN уходит на маршрут личности и не ждёт тела в ответ', () async {
+    final http = _RecordingClient((_) => makeResponse('', status: 204));
+    final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http, session: theSession());
+
+    await client.setPin('4321');
+
+    expect(http.requests.single.url.path, '/api/me/pin');
+    expect(http.requests.single.method, 'PUT');
+    expect(jsonDecode(http.requests.single.body), {'pin': '4321'});
+  });
+
+  test('короткий PIN поднимается ошибкой сервера, а не молча проглатывается', () async {
+    final http = _RecordingClient((_) => makeResponse('{"error":"invalid_pin"}', status: 400));
+    final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http, session: theSession());
+
+    await expectLater(
+      client.setPin('12'),
+      throwsA(isA<PlayerApiException>().having((e) => e.statusCode, 'statusCode', 400)),
+    );
+  });
+
+  // Общей суммы денег у человека нет: у каждого клуба своя касса.
+  test('«кто я» разбирается в личность и список клубов со своими деньгами', () async {
+    final http = _RecordingClient((_) => makeResponse(jsonEncode({
+          'person': {
+            'platformPersonId': 'pp1',
+            'phoneNumber': '+992900000000',
+            'displayName': 'Иван',
+            'preferredLocale': 'ru',
+            'phoneVerified': true,
+            'pinSet': false,
+            'networkBanned': false,
+          },
+          'clubs': [
+            {
+              'organizationId': 'o1',
+              'organizationName': 'CyberX',
+              'playerAccountId': 'p1',
+              'homeBranchId': 'b1',
+              'currencyCode': 'TJS',
+              'walletBalanceMinorUnits': 12000,
+              'heldMinorUnits': 5000,
+              'debtMinorUnits': 0,
+              'visitCount': 3,
+            },
+          ],
+        })));
+    final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http, session: theSession());
+
+    final me = await client.getMe();
+
+    expect(me.person.pinSet, isFalse);
+    expect(me.clubs.single.heldBalance.minorUnits, 5000);
+    expect(me.clubAt('o1'), isNotNull);
+    expect(me.clubAt('o2'), isNull);
   });
 
   // Перенос правила из веб-версии: на 401 клиент продлевает токен ОДИН раз и повторяет запрос.
@@ -179,7 +283,7 @@ void main() {
     final client = PlayerApiClient(baseUrl: 'https://api', httpClient: http);
     final identity = identityHashCode(client);
 
-    await client.signIn(organizationId: 'o1', phoneNumber: '+992900000000', password: 'pw');
+    await client.confirmSignIn(phoneNumber: '+992900000000', code: '123456');
     client.updateSession(null);
 
     expect(identityHashCode(client), identity);

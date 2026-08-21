@@ -17,18 +17,30 @@ const _club = Organization(
   name: 'CyberX',
 );
 
-String _sessionJson() => jsonEncode({
-      'playerAccountId': 'p1',
-      'organizationId': _club.organizationId,
-      'displayName': 'Иван',
+/// Сессия давнего игрока: имя и язык у него уже спрошены.
+String _sessionJson({bool profileCompleted = true, String? organizationId}) => jsonEncode({
+      'playerAccountId': ?(organizationId == null ? null : 'p1'),
+      'organizationId': ?organizationId,
+      'platformPersonId': 'pp1',
+      'displayName': profileCompleted ? 'Иван' : '',
       'phoneVerified': true,
       'accessToken': 'access-1',
       'accessTokenExpiresAtUtc': '2026-08-11T12:00:00Z',
       'refreshToken': 'refresh-1',
       'refreshTokenExpiresAtUtc': '2026-09-11T12:00:00Z',
+      'preferredLocale': null,
+      'profileCompleted': profileCompleted,
     });
 
-Widget harness(PlayerApiClient api, {VoidCallback? onSignedIn, VoidCallback? onChangeClub}) => MaterialApp(
+const String _codeSent = '{"expiresInSeconds":300,"resendAfterSeconds":60}';
+
+Widget harness(
+  PlayerApiClient api, {
+  VoidCallback? onSignedIn,
+  VoidCallback? onChangeClub,
+  ValueChanged<Locale>? onLocaleChanged,
+}) =>
+    MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
@@ -37,162 +49,214 @@ Widget harness(PlayerApiClient api, {VoidCallback? onSignedIn, VoidCallback? onC
         api: api,
         onSignedIn: onSignedIn ?? () {},
         onChangeClub: onChangeClub ?? () {},
+        onLocaleChanged: onLocaleChanged,
       ),
     );
 
-PlayerApiClient clientWith(http.Client inner) => PlayerApiClient(baseUrl: 'https://api', httpClient: inner);
+PlayerApiClient clientWith(http.Client inner) =>
+    PlayerApiClient(baseUrl: 'https://api', httpClient: inner);
+
+/// Первый шаг двери: номер и просьба прислать код.
+Future<void> askForCode(WidgetTester tester, {String phone = '+992900000000'}) async {
+  await tester.enterText(find.byType(TextField).first, phone);
+  await tester.tap(find.widgetWithText(FilledButton, 'Прислать код'));
+  await tester.pumpAndSettle();
+}
 
 void main() {
-  // Код — не запасной путь, а равноправный: телефон и так служит логином, а пароль можно забыть.
-  testWidgets('вход по SMS-коду доводится до сессии', (tester) async {
+  // Дверь одна на всех: и тот, кто здесь впервые, и тот, кто играет третий год, называют
+  // номер и получают код. Клуб в этом не участвует — аккаунт один на всю сеть.
+  testWidgets('вход по коду доводится до сессии и не называет клуб', (tester) async {
     var signedIn = false;
-    final http = FakeHttpClient((request) => switch (request.url.path) {
-          '/api/public/player/sign-in/code' =>
-            (jsonEncode({'expiresInSeconds': 300, 'resendAfterSeconds': 60}), 200),
+    final inner = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/public/register/start' => (_codeSent, 200),
           _ => (_sessionJson(), 200),
         });
-    await tester.pumpWidget(harness(clientWith(http), onSignedIn: () => signedIn = true));
+    await tester.pumpWidget(harness(clientWith(inner), onSignedIn: () => signedIn = true));
 
-    await tester.tap(find.text('Войти по SMS-коду'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).first, '+992900000000');
-    await tester.tap(find.text('Прислать код'));
-    await tester.pumpAndSettle();
-
+    await askForCode(tester);
     expect(find.textContaining('Код отправлен'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField).last, '123456');
-    await tester.tap(find.text('Войти'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
     await tester.pumpAndSettle();
 
-    expect(http.bodies.last['code'], '123456');
+    expect(inner.paths, [
+      '/api/public/register/start',
+      '/api/public/register/confirm',
+    ]);
+    expect(inner.bodies.last['code'], '123456');
+    expect(inner.bodies.last.containsKey('organizationId'), isFalse);
     expect(signedIn, isTrue);
   });
 
-  // Сервер намеренно отвечает одинаково на знакомый и незнакомый номер — экран не должен
-  // додумывать за него, что игрок точно существует.
-  testWidgets('сообщение о коде не утверждает, что игрок найден', (tester) async {
-    final http = FakeHttpClient(
-        (_) => (jsonEncode({'expiresInSeconds': 300, 'resendAfterSeconds': 60}), 200));
-    await tester.pumpWidget(harness(clientWith(http)));
+  // Пароля больше нет: вход по паролю на сервере не существует, и предлагать его значит
+  // вести игрока в дверь, которой нет.
+  testWidgets('пароль не предлагается ни первым способом, ни запасным', (tester) async {
+    await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => (_codeSent, 200)))));
 
-    await tester.tap(find.text('Войти по SMS-коду'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).first, '+992900000000');
-    await tester.tap(find.text('Прислать код'));
+    expect(find.text('PIN или пароль'), findsNothing);
+    expect(find.text('Войти по паролю'), findsNothing);
+    expect(find.widgetWithText(FilledButton, 'Прислать код'), findsOneWidget);
+  });
+
+  // Незнакомого человека спрашивают об имени и языке — и это вся регистрация.
+  testWidgets('новому человеку дверь задаёт имя и язык', (tester) async {
+    var signedIn = false;
+    final inner = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/public/register/start' => (_codeSent, 200),
+          '/api/public/register/confirm' => (_sessionJson(profileCompleted: false), 200),
+          _ => ('{"platformPersonId":"pp1","phoneNumber":"+992900000000","displayName":"Фаррух",'
+              '"preferredLocale":"tg","phoneVerified":true,"pinSet":false,"networkBanned":false}', 200),
+        });
+    Locale? chosen;
+    await tester.pumpWidget(harness(
+      clientWith(inner),
+      onSignedIn: () => signedIn = true,
+      onLocaleChanged: (locale) => chosen = locale,
+    ));
+
+    await askForCode(tester);
+    await tester.enterText(find.byType(TextField).last, '123456');
+    await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Если такой игрок есть'), findsOneWidget);
+    // Пока имя не названо, наверх ещё ничего не сообщено.
+    expect(signedIn, isFalse);
+    expect(find.text('Как вас зовут'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, 'Фаррух');
+    await tester.tap(find.text('Таджикский'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Продолжить'));
+    await tester.pumpAndSettle();
+
+    expect(inner.paths.last, '/api/me');
+    expect(inner.bodies.last['displayName'], 'Фаррух');
+    expect(inner.bodies.last['preferredLocale'], 'tg');
+    expect(chosen, const Locale('tg'));
+    expect(signedIn, isTrue);
+  });
+
+  // Давнего игрока тащить через форму знакомства значит не узнать его.
+  testWidgets('знакомого человека форма знакомства не задерживает', (tester) async {
+    var signedIn = false;
+    final inner = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/public/register/start' => (_codeSent, 200),
+          _ => (_sessionJson(organizationId: _club.organizationId), 200),
+        });
+    await tester.pumpWidget(harness(clientWith(inner), onSignedIn: () => signedIn = true));
+
+    await askForCode(tester);
+    await tester.enterText(find.byType(TextField).last, '123456');
+    await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Как вас зовут'), findsNothing);
+    expect(signedIn, isTrue);
+  });
+
+  testWidgets('имя обязательно — пустое поле не отправляется на сервер', (tester) async {
+    final inner = FakeHttpClient((request) => switch (request.url.path) {
+          '/api/public/register/start' => (_codeSent, 200),
+          _ => (_sessionJson(profileCompleted: false), 200),
+        });
+    await tester.pumpWidget(harness(clientWith(inner)));
+
+    await askForCode(tester);
+    await tester.enterText(find.byType(TextField).last, '123456');
+    await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Продолжить'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Введите имя'), findsOneWidget);
+    expect(inner.paths, isNot(contains('/api/me')));
   });
 
   testWidgets('неверный код называется неверным, а не отказом входа', (tester) async {
-    final http = FakeHttpClient((request) =>
-        request.url.path == '/api/public/player/sign-in/code'
-            ? (jsonEncode({'expiresInSeconds': 300, 'resendAfterSeconds': 60}), 200)
-            : ('{"error":"invalid_code"}', 400));
-    await tester.pumpWidget(harness(clientWith(http)));
+    final inner = FakeHttpClient((request) => request.url.path == '/api/public/register/start'
+        ? (_codeSent, 200)
+        : ('{"error":"invalid_code"}', 400));
+    await tester.pumpWidget(harness(clientWith(inner)));
 
-    await tester.tap(find.text('Войти по SMS-коду'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).first, '+992900000000');
-    await tester.tap(find.text('Прислать код'));
-    await tester.pumpAndSettle();
+    await askForCode(tester);
     await tester.enterText(find.byType(TextField).last, '000000');
-    await tester.tap(find.text('Войти'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
     await tester.pumpAndSettle();
 
     expect(find.text('Неверный код'), findsOneWidget);
   });
 
-  testWidgets('способ входа переключается обратно на пароль', (tester) async {
-    await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => (_sessionJson(), 200)))));
+  // Кривой номер — это не «неверный код»: чинить нужно другое поле.
+  testWidgets('непохожий на номер телефон назван своей причиной', (tester) async {
+    final inner = FakeHttpClient((_) => ('{"error":"invalid_phone"}', 400));
+    await tester.pumpWidget(harness(clientWith(inner)));
 
-    await tester.tap(find.text('Войти по SMS-коду'));
-    await tester.pumpAndSettle();
-    expect(find.text('PIN или пароль'), findsNothing);
+    await askForCode(tester, phone: '12');
 
-    await tester.tap(find.text('Войти по паролю'));
+    expect(find.text('Проверьте номер телефона'), findsOneWidget);
+  });
+
+  testWidgets('закрытый аккаунт отправляет в клуб, а не по кругу', (tester) async {
+    final inner = FakeHttpClient((request) => request.url.path == '/api/public/register/start'
+        ? (_codeSent, 200)
+        : ('{"error":"account_disabled"}', 403));
+    await tester.pumpWidget(harness(clientWith(inner)));
+
+    await askForCode(tester);
+    await tester.enterText(find.byType(TextField).last, '123456');
+    await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
     await tester.pumpAndSettle();
-    expect(find.text('PIN или пароль'), findsOneWidget);
+
+    expect(find.text('Вход в аккаунт закрыт. Обратитесь в клуб.'), findsOneWidget);
   });
 
   testWidgets('показывает клуб, в который входим', (tester) async {
-    await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => (_sessionJson(), 200)))));
+    await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => (_codeSent, 200)))));
 
     expect(find.text('CyberX'), findsOneWidget);
   });
 
-  testWidgets('успешный вход сообщает наверх и шлёт выбранный клуб', (tester) async {
-    var signedIn = false;
-    final inner = FakeHttpClient((_) => (_sessionJson(), 200));
-    await tester.pumpWidget(harness(clientWith(inner), onSignedIn: () => signedIn = true));
-
-    await tester.enterText(find.byType(TextField).first, '+992900000000');
-    await tester.enterText(find.byType(TextField).last, 'secret');
-    await tester.tap(find.text('Войти'));
-    await tester.pumpAndSettle();
-
-    expect(signedIn, isTrue);
-    expect(inner.bodies.single['organizationId'], _club.organizationId);
-    expect(inner.bodies.single['phoneNumber'], '+992900000000');
-  });
-
-  testWidgets('номер с лишними пробелами обрезается — иначе сервер не найдёт игрока', (tester) async {
-    final inner = FakeHttpClient((_) => (_sessionJson(), 200));
+  testWidgets('номер с лишними пробелами обрезается — иначе сервер его не узнает',
+      (tester) async {
+    final inner = FakeHttpClient((_) => (_codeSent, 200));
     await tester.pumpWidget(harness(clientWith(inner)));
 
-    await tester.enterText(find.byType(TextField).first, '  +992900000000  ');
-    await tester.enterText(find.byType(TextField).last, 'secret');
-    await tester.tap(find.text('Войти'));
-    await tester.pumpAndSettle();
+    await askForCode(tester, phone: '  +992900000000  ');
 
     expect(inner.bodies.single['phoneNumber'], '+992900000000');
   });
 
-  testWidgets('неверный пароль показывает ошибку и оставляет форму рабочей', (tester) async {
-    await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => ('{"error":"no"}', 401)))));
-
-    await tester.enterText(find.byType(TextField).first, '+992900000000');
-    await tester.enterText(find.byType(TextField).last, 'wrong');
-    await tester.tap(find.text('Войти'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Неверный номер или пароль'), findsOneWidget);
-    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed, isNotNull);
-  });
-
-  // Обрыв связи и неверный пароль — разные беды. Показать «неверный пароль» при пропавшем
-  // интернете значит отправить игрока менять правильный пароль.
-  testWidgets('обрыв связи показывает сетевую ошибку, а не «неверный пароль»', (tester) async {
+  // Обрыв связи и неверный код — разные беды. Показать «неверный код» при пропавшем
+  // интернете значит отправить игрока искать SMS, которая давно пришла.
+  testWidgets('обрыв связи показывает сетевую ошибку, а не «неверный код»', (tester) async {
     final inner = FakeHttpClient((_) => throw const SocketExceptionStub());
     await tester.pumpWidget(harness(clientWith(inner)));
 
-    await tester.enterText(find.byType(TextField).first, '+992900000000');
-    await tester.enterText(find.byType(TextField).last, 'secret');
-    await tester.tap(find.text('Войти'));
-    await tester.pumpAndSettle();
+    await askForCode(tester);
 
     expect(find.text('Нет связи с сервером. Проверьте интернет.'), findsOneWidget);
-    expect(find.text('Неверный номер или пароль'), findsNothing);
+    expect(find.text('Неверный код'), findsNothing);
   });
 
-  testWidgets('во время отправки кнопка заблокирована — двойной тап не шлёт два входа', (tester) async {
+  testWidgets('во время отправки кнопка заблокирована — двойной тап не шлёт два кода',
+      (tester) async {
     var calls = 0;
     final inner = FakeHttpClient(
       (_) {
         calls++;
-        return (_sessionJson(), 200);
+        return (_codeSent, 200);
       },
       delay: const Duration(milliseconds: 200),
     );
     await tester.pumpWidget(harness(clientWith(inner)));
 
     await tester.enterText(find.byType(TextField).first, '+992900000000');
-    await tester.enterText(find.byType(TextField).last, 'secret');
-    await tester.tap(find.text('Войти'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Прислать код'));
     await tester.pump();
 
-    expect(find.text('Входим…'), findsOneWidget);
+    expect(find.text('Отправляем…'), findsOneWidget);
     await tester.tap(find.byType(FilledButton));
     await tester.pumpAndSettle();
 
@@ -202,7 +266,7 @@ void main() {
   testWidgets('«сменить клуб» доступен со входа — иначе ошибся клубом и заперт', (tester) async {
     var changed = false;
     await tester.pumpWidget(harness(
-      clientWith(FakeHttpClient((_) => (_sessionJson(), 200))),
+      clientWith(FakeHttpClient((_) => (_codeSent, 200))),
       onChangeClub: () => changed = true,
     ));
 

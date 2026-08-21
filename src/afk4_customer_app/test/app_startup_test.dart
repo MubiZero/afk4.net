@@ -28,10 +28,12 @@ class _FakeHttp extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final body = switch (request.url.path) {
+      '/api/me' => _meJson,
       '/api/me/dashboard' => _dashboardJson,
       '/api/me/profile' => _profileJson,
       '/api/me/features' => '{"features":["online_topup"]}',
       '/api/me/wallet/top-up-intents' => '[]',
+      '/api/public/register/start' => '{"expiresInSeconds":300,"resendAfterSeconds":60}',
       _ => _sessionJson,
     };
     return http.StreamedResponse(
@@ -61,12 +63,21 @@ const _rotatedSessionJson = '''
  "accessToken":"access-2","accessTokenExpiresAtUtc":"2026-08-11T13:00:00Z",
  "refreshToken":"refresh-2","refreshTokenExpiresAtUtc":"2026-09-11T12:00:00Z"}''';
 
+/// «Кто я и где у меня счета»: личность одна, клуб один — тот самый, что выбран.
+const _meJson = '''
+{"person":{"platformPersonId":"pp1","phoneNumber":"+992900000000","displayName":"Иван",
+ "preferredLocale":null,"phoneVerified":true,"pinSet":false,"networkBanned":false},
+ "clubs":[{"organizationId":"11111111-1111-1111-1111-111111111111","organizationName":"CyberX",
+ "playerAccountId":"p1","homeBranchId":"b1","currencyCode":"TJS",
+ "walletBalanceMinorUnits":120050,"heldMinorUnits":0,"debtMinorUnits":0,"visitCount":3}]}''';
+
 const _profileJson = '''
 {"playerAccountId":"p1","displayName":"Иван","phoneNumber":"+992900000000",
  "phoneVerified":true,"preferredLocale":null,"marketingOptIn":false}''';
 
 const _dashboardJson = '''
 {"walletBalance":{"currencyCode":"TJS","minorUnits":120050},
+ "heldBalance":{"currencyCode":"TJS","minorUnits":0},
  "debtBalance":{"currencyCode":"TJS","minorUnits":0},
  "activeSession":null}''';
 
@@ -96,6 +107,7 @@ class _ExpiredTokenHttp extends http.BaseClient {
     if (!authorized) return _respond('{"error":"expired"}', 401);
 
     return _respond(switch (request.url.path) {
+      '/api/me' => _meJson,
       '/api/me/dashboard' => _dashboardJson,
       '/api/me/profile' => _profileJson,
       '/api/me/features' => '{"features":["online_topup"]}',
@@ -127,28 +139,35 @@ Future<void> openProfile(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> signOut(WidgetTester tester) async {
-  await openProfile(tester);
-  // Выход стоит в самом низу профиля — на невысоком экране до него надо доскроллить, и с
-  // запасом: прокрутка «до видимости» оставляет кнопку под прилипшей шапкой. Список
-  // указывается явно — разделы живут в IndexedStack, и «первый Scrollable» это главная.
+/// Нажимает кнопку в профиле. На невысоком экране до неё надо доскроллить, и с запасом:
+/// прокрутка «до видимости» оставляет кнопку под прилипшей шапкой. Список указывается
+/// явно — разделы живут в IndexedStack, и «первый Scrollable» это главная.
+Future<void> tapInProfile(WidgetTester tester, Finder target) async {
   final profileList = find.descendant(
     of: find.byType(ProfileScreen),
     matching: find.byType(Scrollable),
   );
-  await tester.scrollUntilVisible(find.text('Выйти'), 200, scrollable: profileList);
+  await tester.scrollUntilVisible(target, 200, scrollable: profileList);
   await tester.drag(profileList, const Offset(0, -160));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Выйти'));
+  await tester.tap(target);
   await tester.pumpAndSettle();
 }
 
+Future<void> signOut(WidgetTester tester) async {
+  await openProfile(tester);
+  await tapInProfile(tester, find.text('Выйти'));
+}
+
+/// Вход по коду из SMS — единственный, который есть. Кнопки ищутся по типу, а не по
+/// подписи: тест языка запускает приложение на английском.
 Future<void> signIn(WidgetTester tester) async {
   await tester.tap(find.text('CyberX'));
   await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextField).first, '+992900000000');
-  await tester.enterText(find.byType(TextField).last, 'secret');
-  // Кнопка ищется по типу, а не по подписи: тест языка запускает приложение на английском.
+  await tester.tap(find.byType(FilledButton));
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byType(TextField).last, '4321');
   await tester.tap(find.byType(FilledButton));
   await tester.pumpAndSettle();
 }
@@ -255,17 +274,25 @@ void main() {
     expect(find.text('CyberX'), findsOneWidget);
   });
 
-  testWidgets('смена клуба возвращает к выбору и убирает сессию', (tester) async {
+  // Аккаунт один на всю сеть, поэтому переход в соседнее заведение — это не повторный вход.
+  // Раньше «сменить клуб» выбрасывало из аккаунта, и игрок вводил код заново ради соседа.
+  testWidgets('смена клуба ведёт на витрину и НЕ выбрасывает из аккаунта', (tester) async {
     await tester.pumpWidget(buildApp());
     await tester.pumpAndSettle();
     await signIn(tester);
-    await signOut(tester);
-
-    await tester.tap(find.text('Сменить клуб'));
-    await tester.pumpAndSettle();
+    await openProfile(tester);
+    await tapInProfile(tester, find.text('Сменить клуб'));
 
     expect(find.text('Выберите клуб'), findsOneWidget);
-    expect(secureValues, isEmpty);
+    // Сессия на месте: вернувшись в клуб, игрок попадает на главную, а не на экран входа.
+    expect(secureValues, isNotEmpty);
+
+    await tester.tap(find.text('CyberX').last);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Иван'), findsOneWidget);
+    expect(find.text('Вход'), findsNothing);
+    await unmount(tester);
   });
 
   // Язык — предпочтение, а не разовая настройка сессии: спрашивать его каждый запуск
@@ -277,8 +304,7 @@ void main() {
 
     await tester.tap(find.text('Profile'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Русский'));
-    await tester.pumpAndSettle();
+    await tapInProfile(tester, find.text('Русский'));
     expect(find.text('Профиль'), findsWidgets);
 
     await tester.pumpWidget(const SizedBox());

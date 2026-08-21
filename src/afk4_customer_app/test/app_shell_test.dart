@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:afk4_customer_app/api/dto.dart';
 import 'package:afk4_customer_app/api/player_api_client.dart';
 import 'package:afk4_customer_app/auth/player_session.dart';
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
@@ -35,6 +36,7 @@ final _session = PlayerSession(
 
 String _dashboard() => jsonEncode({
       'walletBalance': {'currencyCode': 'TJS', 'minorUnits': 120050},
+      'heldBalance': {'currencyCode': 'TJS', 'minorUnits': 0},
       'debtBalance': {'currencyCode': 'TJS', 'minorUnits': 0},
       'activeSession': null,
     });
@@ -67,7 +69,34 @@ FakeHttpClient _serve({String features = '{"features":["online_topup","online_bo
       _ => ('[]', 200),
     });
 
-Widget harness(FakeHttpClient http, {VoidCallback? onSignOut}) => MaterialApp(
+/// «Кто я и где у меня счета». `clubs` пуст — человек в этом клубе ещё ничего не делал.
+Me _me({bool hasAccountHere = true}) => Me.fromJson({
+      'person': {
+        'platformPersonId': 'pp1',
+        'phoneNumber': '+992900000000',
+        'displayName': 'Иван',
+        'preferredLocale': 'ru',
+        'phoneVerified': true,
+        'pinSet': false,
+        'networkBanned': false,
+      },
+      'clubs': [
+        if (hasAccountHere)
+          {
+            'organizationId': 'o1',
+            'organizationName': 'CyberX',
+            'playerAccountId': 'p1',
+            'homeBranchId': 'b1',
+            'currencyCode': 'TJS',
+            'walletBalanceMinorUnits': 120050,
+            'heldMinorUnits': 0,
+            'debtMinorUnits': 0,
+            'visitCount': 3,
+          },
+      ],
+    });
+
+Widget harness(FakeHttpClient http, {VoidCallback? onSignOut, Me? me}) => MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
@@ -75,6 +104,7 @@ Widget harness(FakeHttpClient http, {VoidCallback? onSignOut}) => MaterialApp(
         api: PlayerApiClient(baseUrl: 'https://api', httpClient: http),
         session: _session,
         organization: _club,
+        me: me,
         onSignOut: onSignOut ?? () {},
         onChangeClub: () {},
         onLocaleChanged: (_) {},
@@ -202,6 +232,39 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Броней пока нет'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  // Клуб не заводит человека — счёт появляется с первым действием. До него показывать нули
+  // значило бы пообещать кошелёк, которого нет, а «не удалось загрузить» — соврать про сбой.
+  testWidgets('в клубе без счёта главная объясняет пустоту, а не сообщает об ошибке',
+      (tester) async {
+    await tester.pumpWidget(harness(_serve(), me: _me(hasAccountHere: false)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Здесь вы ещё не играли'), findsOneWidget);
+    expect(find.text('Баланс кошелька'), findsNothing);
+    expect(find.text('Не удалось загрузить данные. Проверьте соединение.'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  // Спрашивать сервер о клубе, который игрока ещё не знает, незачем: он на всё ответит
+  // отказом, а каждый отказ — это лишняя ошибка в логе и лишняя секунда ожидания.
+  testWidgets('в клубе без счёта закрытые разделы не опрашиваются', (tester) async {
+    final http = _serve();
+    await tester.pumpWidget(harness(http, me: _me(hasAccountHere: false)));
+    await tester.pumpAndSettle();
+
+    expect(http.paths, isEmpty);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('свой клуб показывает деньги как раньше', (tester) async {
+    await tester.pumpWidget(harness(_serve(), me: _me()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Баланс кошелька'), findsOneWidget);
+    expect(find.text('Здесь вы ещё не играли'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 }

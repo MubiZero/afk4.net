@@ -31,6 +31,7 @@ Widget harness(
   List<String>? features = const ['online_topup'],
   String currencyCode = 'TJS',
   int wallet = 120050,
+  int held = 0,
   int debt = 0,
 }) =>
     MaterialApp(
@@ -41,6 +42,7 @@ Widget harness(
         body: WalletCard(
           api: api,
           walletBalance: Money(currencyCode: currencyCode, minorUnits: wallet),
+          heldBalance: Money(currencyCode: currencyCode, minorUnits: held),
           debtBalance: Money(currencyCode: currencyCode, minorUnits: debt),
           phoneVerified: phoneVerified,
           features: features,
@@ -216,5 +218,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Пополнить'), findsOneWidget);
+  });
+
+  // Третье число кошелька: остаток уже без него, и без строки игрок видит только то, что
+  // денег стало меньше, — а почему, не видит.
+  testWidgets('придержанное под брони показывается отдельной строкой', (tester) async {
+    await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => ('[]', 200))), held: 5000));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Придержано под брони'), findsOneWidget);
+    expect(find.textContaining('50,00 с.'), findsOneWidget);
+    expect(find.text('Вернётся на кошелёк, если бронь отменят.'), findsOneWidget);
+  });
+
+  // Строка «придержано 0» на главной — шум: она отвечает на вопрос, которого никто не задал.
+  testWidgets('нулевое придержанное не показывается вовсе', (tester) async {
+    await tester.pumpWidget(harness(clientWith(FakeHttpClient((_) => ('[]', 200)))));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Придержано под брони'), findsNothing);
   });
 }

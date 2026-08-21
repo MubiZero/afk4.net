@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../api/dto.dart';
 import '../api/player_api_client.dart';
 import '../auth/player_session.dart';
 import '../dashboard/dashboard_screen.dart';
@@ -24,10 +25,12 @@ class AppShell extends StatefulWidget {
     required this.api,
     required this.session,
     required this.organization,
+    this.me,
     this.push,
     required this.onSignOut,
     required this.onChangeClub,
     required this.onLocaleChanged,
+    this.onAccountOpened,
     this.clock = DateTime.now,
   });
 
@@ -37,11 +40,19 @@ class AppShell extends StatefulWidget {
   /// Клуб, в который игрок вошёл: его знак и цвет носит приложение, пока игрок здесь.
   final Organization organization;
 
+  /// Человек и его клубы. null — список не спросился; тогда разделы работают как раньше и
+  /// сами разберутся с ответом сервера.
+  final Me? me;
+
   /// Уведомления на телефон. null — платформа их не поддерживает (веб, тесты).
   final PushService? push;
   final VoidCallback onSignOut;
   final VoidCallback onChangeClub;
   final ValueChanged<Locale> onLocaleChanged;
+
+  /// Счёт в этом клубе только что открылся первым действием — список клубов пора перечитать.
+  final Future<void> Function()? onAccountOpened;
+
   final DateTime Function() clock;
 
   @override
@@ -63,7 +74,15 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
-    _loadFeatures();
+    if (_accountOpen) _loadFeatures();
+  }
+
+  @override
+  void didUpdateWidget(AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Счёт открылся первым действием — возможности клуба спрашиваем только теперь: до счёта
+    // сервер на этот вопрос отвечать не станет.
+    if (_accountOpen && _features == null) _loadFeatures();
   }
 
   Future<void> _loadFeatures() async {
@@ -74,6 +93,13 @@ class _AppShellState extends State<AppShell> {
       // Остаётся null — «считаем включённым».
     }
   }
+
+  /// Есть ли у игрока счёт в открытом клубе. Пока его нет, клубу нечего рассказать: ни денег,
+  /// ни броней, ни истории. Это не сбой — счёт откроется первой бронью или пополнением.
+  ///
+  /// Список клубов не спросился (`me == null`) — считаем, что счёт есть: разделы сами
+  /// разберутся с ответом сервера, а спрятать всё из-за сетевого сбоя было бы враньём.
+  bool get _accountOpen => widget.me == null || widget.me!.clubAt(widget.organization.organizationId) != null;
 
   bool _enabled(String feature) => _features == null || _features!.contains(feature);
 
@@ -91,10 +117,11 @@ class _AppShellState extends State<AppShell> {
         AppSection.home,
         DashboardScreen(
           api: widget.api,
-          displayName: widget.session.displayName,
+          displayName: widget.me?.person.displayName ?? widget.session.displayName,
           organization: widget.organization,
           phoneVerified: _phoneVerified,
           features: _features,
+          accountOpen: _accountOpen,
           onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
           onOpenReservations: booking ? () => _open(AppSection.reservations) : null,
           onOpenWallet: () => _open(AppSection.wallet),
@@ -112,7 +139,9 @@ class _AppShellState extends State<AppShell> {
           ReservationsScreen(
             api: widget.api,
             phoneVerified: _phoneVerified,
+            accountOpen: _accountOpen,
             onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
+            onAccountOpened: widget.onAccountOpened,
             clock: widget.clock,
           ),
           NavigationDestination(
@@ -127,7 +156,9 @@ class _AppShellState extends State<AppShell> {
           api: widget.api,
           phoneVerified: _phoneVerified,
           features: _features,
+          accountOpen: _accountOpen,
           onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
+          onAccountOpened: widget.onAccountOpened,
           clock: widget.clock,
         ),
         NavigationDestination(
@@ -140,11 +171,14 @@ class _AppShellState extends State<AppShell> {
         AppSection.profile,
         ProfileScreen(
           api: widget.api,
+          person: widget.me?.person,
+          accountOpen: _accountOpen,
           push: widget.push,
           onSignOut: widget.onSignOut,
           onChangeClub: widget.onChangeClub,
           onLocaleChanged: widget.onLocaleChanged,
           onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
+          onPersonChanged: widget.onAccountOpened,
         ),
         NavigationDestination(
           icon: const Icon(Icons.person_outline),

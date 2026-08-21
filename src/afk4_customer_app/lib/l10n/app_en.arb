@@ -101,6 +101,12 @@
   "customerClubPickerTabList": "List",
   "customerClubPickerTabMap": "Map",
   "customerClubPickerTitle": "Choose your club",
+  "customerClubsAll": "All clubs",
+  "customerClubsHere": "You're here",
+  "customerClubsMine": "Your clubs",
+  "customerClubsNoAccount": "You haven't played here yet",
+  "customerClubsNoAccountHint": "This club's wallet opens with your first booking or top-up. Every club keeps its own money.",
+  "customerClubsOpen": "Open",
   "customerCommonBack": "← Back",
   "customerCommonDayAtTime": "{day}, {time}",
   "@customerCommonDayAtTime": {
@@ -324,21 +330,32 @@
   },
   "customerPhoneTitle": "Confirm your number",
   "customerPinCancel": "Cancel",
-  "customerPinChange": "Change the PIN",
+  "customerPinChange": "Change PIN",
+  "customerPinDone": "PIN saved",
+  "customerPinErrFormat": "A PIN is 4 to 8 digits",
+  "customerPinErrRepeat": "The PINs don't match",
+  "customerPinErrSave": "Couldn't save the PIN",
   "customerPinField": "New PIN",
+  "customerPinForgot": "Forgot your PIN? Just set a new one — we won't ask for the old one.",
   "customerPinForgotNote": "We never ask for the old PIN — forgot it, just set a new one.",
   "customerPinHint": "4 to 8 digits",
+  "customerPinIntro": "Type it with your phone number on the PC screen and take a seat yourself, without the staff.",
   "customerPinInvalid": "A PIN is 4 to 8 digits",
   "customerPinIsSet": "PIN is set",
   "customerPinNetworkNote": "One PIN works across every club in the network.",
   "customerPinNotSet": "No PIN yet",
   "customerPinNote": "Type it on the gaming PC and seat yourself, without an administrator.",
+  "customerPinRepeat": "Repeat the PIN",
+  "customerPinRule": "4 to 8 digits",
   "customerPinSave": "Save",
   "customerPinSaveError": "Could not save the PIN",
   "customerPinSaved": "PIN saved",
-  "customerPinSaving": "Saving the PIN…",
+  "customerPinSaving": "Saving…",
+  "customerPinScope": "The PIN works in every club. You don't need it for the app — you sign in here with an SMS code.",
   "customerPinSet": "Set a PIN",
-  "customerPinTitle": "PIN for seating yourself at a PC",
+  "customerPinStateSet": "PIN is set",
+  "customerPinStateUnset": "No PIN yet — for now the staff seats you at a PC",
+  "customerPinTitle": "PIN for sitting down at a PC",
   "customerPlayBusyOffline": "PC is off",
   "customerPlayBusyReservation": "Booked",
   "customerPlayBusySession": "Taken",
@@ -513,6 +530,10 @@
   "customerReservationsCreating": "Booking…",
   "customerReservationsEnd": "End",
   "customerReservationsEndBeforeStart": "The end must be later than the start",
+  "customerReservationsErrBranch": "This network has several venues — the app can't book here yet. Call the club.",
+  "customerReservationsErrDisabled": "The club isn't taking bookings from the app right now",
+  "customerReservationsErrLimit": "You already have an active booking. Wait for it or cancel it",
+  "customerReservationsErrPrepay": "Not enough money for the prepayment — top up your wallet",
   "customerReservationsGate": "To book online, confirm your phone number.",
   "customerReservationsGroupNoFunds": "Your wallet is short for the whole group. Top it up or book fewer seats.",
   "customerReservationsGroupNoSeats": "The hall does not have that many free machines at this time. Book fewer seats or pick another time.",
@@ -570,6 +591,14 @@
       }
     }
   },
+  "customerReservationsRespondBy": "The club will answer by {time}",
+  "@customerReservationsRespondBy": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
   "customerReservationsRespondIn": "The club answers within {clock}",
   "@customerReservationsRespondIn": {
     "placeholders": {
@@ -578,8 +607,27 @@
       }
     }
   },
+  "customerReservationsRespondLeft": "{minutes, plural, one {{minutes} minute left} other {{minutes} minutes left}}",
+  "@customerReservationsRespondLeft": {
+    "placeholders": {
+      "minutes": {
+        "type": "num"
+      }
+    }
+  },
   "customerReservationsRespondNote": "If it does not answer in time, the request drops and the money comes back in full.",
-  "customerReservationsRespondOver": "The answer deadline has passed — the request is about to drop and the money comes back.",
+  "customerReservationsRespondOver": "The club did not answer in time — the request will be cancelled and the money returned.",
+  "customerReservationsRespondSoon": "less than a minute left",
+  "customerReservationsRuleManual": "A member of staff reviews each request — usually within {minutes} min.",
+  "@customerReservationsRuleManual": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsRuleOff": "This club doesn't take bookings from the app. Call the front desk.",
+  "customerReservationsRulePrepay": "Your first bookings need prepayment: the amount is held on your wallet.",
   "customerReservationsSeatNote": "The club assigns the seat — you will see it in the confirmation.",
   "customerReservationsSeats": "How many seats",
   "customerReservationsSeatsAlone": "Booking for one",
@@ -711,6 +759,7 @@
   "customerShopTitle": "Order to your seat",
   "customerShopTotal": "Total",
   "customerSigninAccountDisabled": "This number is closed. Ask at the club counter.",
+  "customerSigninBlocked": "This account is closed. Ask the club for help.",
   "customerSigninByCode": "Sign in with an SMS code",
   "customerSigninByPassword": "Sign in with a password",
   "customerSigninChangePhone": "Use another number",
@@ -734,6 +783,14 @@
       }
     }
   },
+  "customerSigninCodeSentAny": "Code sent to {phone}",
+  "@customerSigninCodeSentAny": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
   "customerSigninCodeSentTo": "Code sent to {phone}",
   "@customerSigninCodeSentTo": {
     "placeholders": {
@@ -744,6 +801,14 @@
   },
   "customerSigninCodeTooMany": "Too many attempts — request a new code",
   "customerSigninError": "Wrong number or password",
+  "customerSigninFailed": "Couldn't sign you in. Try again.",
+  "customerSigninFinish": "Continue",
+  "customerSigninIntro": "Enter your phone number and we'll text you a code. One account works in every club.",
+  "customerSigninLangTitle": "App language",
+  "customerSigninName": "Name",
+  "customerSigninNameError": "Enter your name",
+  "customerSigninNameHint": "The club's staff will see this name when you arrive.",
+  "customerSigninNameTitle": "What's your name?",
   "customerSigninNetworkError": "No connection to the server. Check your internet.",
   "customerSigninNewHere": "First time here? Enter your number too — we will just ask your name.",
   "customerSigninPassword": "PIN or password",
@@ -758,6 +823,8 @@
       }
     }
   },
+  "customerSigninSaveError": "Couldn't save your name",
+  "customerSigninSaving": "Saving…",
   "customerSigninSendCode": "Send the code",
   "customerSigninSending": "Sending…",
   "customerSigninSubmit": "Sign in",
@@ -775,6 +842,8 @@
   "customerWalletAmountError": "Enter an amount greater than zero",
   "customerWalletGate": "To top up your wallet online, confirm your phone number.",
   "customerWalletGateAction": "Confirm the number",
+  "customerWalletHeld": "Held for bookings",
+  "customerWalletHeldNote": "It comes back to your wallet if the booking is cancelled.",
   "customerWalletIntents": "Your requests",
   "customerWalletNote": "The club credits the amount once it confirms it at the desk.",
   "customerWalletPendingHint": "A request for {amount} is awaiting credit",

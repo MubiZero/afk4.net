@@ -16,6 +16,7 @@ final _now = DateTime.utc(2026, 8, 12, 12, 0, 0);
 
 String _dashboardJson({Map<String, dynamic>? session}) => jsonEncode({
       'walletBalance': {'currencyCode': 'TJS', 'minorUnits': 120050},
+      'heldBalance': {'currencyCode': 'TJS', 'minorUnits': 0},
       'debtBalance': {'currencyCode': 'TJS', 'minorUnits': 0},
       'activeSession': session,
     });
