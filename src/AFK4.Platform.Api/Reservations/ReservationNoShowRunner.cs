@@ -27,6 +27,11 @@ public sealed class ReservationNoShowOptions
 /// Неявка оформляется отменой с причиной <c>no-show</c>, а не отдельным состоянием: слот должен
 /// освободиться так же, как при отмене, а причина отличает автоматику от человека и в журнале, и на
 /// экране оператора.
+///
+/// Заявка, на которую клуб так и не ответил, неявкой не считается ни при каких настройках: человек
+/// ждал ответа, ответа не было, и платить за чужое молчание он не должен. Такая заявка закрывается
+/// здесь так же, как её закрыл бы <see cref="ReservationRequestExpiryRunner"/> — полным возвратом и
+/// своей причиной, — чтобы она не легла в сетевую репутацию неявкой, которой не было.
 /// </summary>
 public sealed class ReservationNoShowRunner(
     PlatformDbContext dbContext,
@@ -76,12 +81,20 @@ public sealed class ReservationNoShowRunner(
                 continue;
             }
 
+            // Подтверждения нет — значит клуб на заявку не ответил, и всё дальнейшее решается
+            // не настройкой неявки, а этим фактом: деньги возвращаются целиком.
+            var clubNeverAnswered = reservation.State == ReservationStateNames.Pending;
+
             var released = await ReservationHold.ReleaseAsync(
-                dbContext, reservation.ReservationId, ReservationHoldCauses.NoShow, now, cancellationToken);
+                dbContext,
+                reservation.ReservationId,
+                clubNeverAnswered ? ReservationHoldCauses.RequestExpired : ReservationHoldCauses.NoShow,
+                now,
+                cancellationToken);
 
             // Удержать можно только то, что было заморожено. Холд мог быть снят раньше — вручную
             // или посадкой; тогда бронь всё равно закрывается, но выручки из воздуха не берётся.
-            if (released is not null && settings.KeepPrepaymentOnNoShow)
+            if (!clubNeverAnswered && released is not null && settings.KeepPrepaymentOnNoShow)
             {
                 if (!shiftByBranch.TryGetValue(reservation.BranchId, out var shiftId))
                 {
@@ -98,7 +111,9 @@ public sealed class ReservationNoShowRunner(
             }
 
             reservation.State = ReservationStateNames.Cancelled;
-            reservation.CancelReason = CancelReason;
+            reservation.CancelReason = clubNeverAnswered
+                ? ReservationRequestExpiryRunner.CancelReason
+                : CancelReason;
             reservation.CancelledAtUtc = now;
             // Guid.Empty — сделала система, а не сотрудник: в журнале это должно быть видно.
             reservation.UpdatedByStaffUserId = Guid.Empty;

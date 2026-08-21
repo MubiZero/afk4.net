@@ -181,6 +181,62 @@ public sealed class ReservationNoShowRetentionTests
         Assert.Equal(5_000, await WalletAsync(options));
     }
 
+    /// <summary>
+    /// Заявка, на которую клуб так и не ответил, — это не неявка. Человек ждал ответа, ответа не
+    /// было, и платить за чужое молчание он не должен: деньги возвращаются целиком, удержания нет,
+    /// а причина отмены — молчание клуба, а не «не приехал». Иначе та же запись потом ляжет в
+    /// сетевую репутацию неявкой, которой не было.
+    /// </summary>
+    [Fact]
+    public async Task RequestTheClubNeverAnswered_IsNotAFine_EvenWhenRetentionIsOn()
+    {
+        var options = NewOptions();
+        await SeedAsync(
+            options, keepPrepaymentOnNoShow: true, openShift: true, holdSeatAfterStartMinutes: 0);
+        var booked = await BookAsync(options);
+        await LeaveWaitingForTheClubAsync(options, booked.Response!.ReservationId);
+
+        Assert.Equal(1, await RunAsync(options, Start.AddMinutes(1)));
+
+        await using var db = new PlatformDbContext(options);
+        Assert.False(await db.LedgerEntries.AnyAsync(
+            e => e.EntryType == LedgerEntryTypeNames.ReservationNoShowFee));
+        Assert.Equal(5_000, await WalletAsync(options));
+
+        var reservation = await db.Reservations.SingleAsync(
+            r => r.ReservationId == booked.Response!.ReservationId);
+        Assert.Equal(ReservationStateNames.Cancelled, reservation.State);
+        Assert.Equal(ReservationRequestExpiryRunner.CancelReason, reservation.CancelReason);
+    }
+
+    /// <summary>Клуб ответил и подтвердил — вот тогда неявка стоит денег, если филиал так решил.</summary>
+    [Fact]
+    public async Task RequestTheClubConfirmed_IsStillFined()
+    {
+        var options = NewOptions();
+        await SeedAsync(
+            options, keepPrepaymentOnNoShow: true, openShift: true, holdSeatAfterStartMinutes: 0);
+        await BookAsync(options);
+
+        Assert.Equal(1, await RunAsync(options, Start.AddMinutes(1)));
+
+        await using var db = new PlatformDbContext(options);
+        Assert.True(await db.LedgerEntries.AnyAsync(
+            e => e.EntryType == LedgerEntryTypeNames.ReservationNoShowFee));
+    }
+
+    /// <summary>Заявка, которую клуб ещё смотрит, до конца своего срока не трогается вовсе.</summary>
+    private static async Task LeaveWaitingForTheClubAsync(
+        DbContextOptions<PlatformDbContext> options, Guid reservationId)
+    {
+        await using var db = new PlatformDbContext(options);
+        var reservation = await db.Reservations.SingleAsync(r => r.ReservationId == reservationId);
+        reservation.State = ReservationStateNames.Pending;
+        reservation.ConfirmedAtUtc = null;
+        reservation.RespondByUtc = Start;
+        await db.SaveChangesAsync();
+    }
+
     private static DbContextOptions<PlatformDbContext> NewOptions() =>
         new DbContextOptionsBuilder<PlatformDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
