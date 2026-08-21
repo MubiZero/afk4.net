@@ -4,6 +4,7 @@ import '../api/dto.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
+import '../organization/branch_choice.dart';
 
 /// Потолок одной заявки. Нужен не против богатых, а против ввода вроде `1e308`: он
 /// превращается в бесконечность, а та уезжает на сервер как `null`.
@@ -23,6 +24,7 @@ class TopUpSheet extends StatefulWidget {
     required this.api,
     required this.currencyCode,
     required this.intents,
+    this.branch = const BranchChoice(),
   });
 
   final PlayerApiClient api;
@@ -34,6 +36,10 @@ class TopUpSheet extends StatefulWidget {
   /// Уже оставленные заявки — чтобы игрок не отправлял вторую, забыв про первую.
   final List<TopUpIntent> intents;
 
+  /// Зал, в котором открыть счёт. Нужен первому пополнению в сети из нескольких залов: до
+  /// него счёта в клубе нет, и деньги некуда зачислять.
+  final BranchChoice branch;
+
   @override
   State<TopUpSheet> createState() => _TopUpSheetState();
 }
@@ -41,6 +47,25 @@ class TopUpSheet extends StatefulWidget {
 class _TopUpSheetState extends State<TopUpSheet> {
   final TextEditingController _amount = TextEditingController();
   bool _pending = false;
+
+  /// Зал, который назвал игрок. Ответ виден в той же форме, где его дали, и уходит наверх —
+  /// чтобы бронь не спросила то же самое второй раз.
+  String? _branchId;
+
+  BranchChoice get _choice => BranchChoice(
+        halls: widget.branch.halls,
+        chosenId: _branchId,
+        onChosen: (branchId) {
+          setState(() => _branchId = branchId);
+          widget.branch.onChosen?.call(branchId);
+        },
+      );
+
+  @override
+  void initState() {
+    super.initState();
+    _branchId = widget.branch.branchId;
+  }
 
   @override
   void dispose() {
@@ -61,6 +86,7 @@ class _TopUpSheetState extends State<TopUpSheet> {
       await widget.api.createTopUpIntent(
         amountMinorUnits: majorToMinor(major),
         currencyCode: widget.currencyCode,
+        branchId: _branchId,
       );
       if (!mounted) return;
       // Лист закрывается сам: заявка отправлена, делать здесь больше нечего, а сводку с
@@ -100,6 +126,12 @@ class _TopUpSheetState extends State<TopUpSheet> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(l.customerWalletTitle, style: theme.textTheme.titleLarge),
+            // Зал идёт до суммы: он решает, где заведётся кошелёк, а сумма — сколько на нём
+            // будет. Вопрос о деньгах вперёд вопроса о месте читался бы как мелочь под ним.
+            if (_choice.asks) ...[
+              const SizedBox(height: 16),
+              BranchPicker(choice: _choice),
+            ],
             const SizedBox(height: 16),
             TextField(
               controller: _amount,
@@ -121,7 +153,9 @@ class _TopUpSheetState extends State<TopUpSheet> {
             ),
             const SizedBox(height: 16),
             FilledButton(
-              onPressed: _pending ? null : _submit,
+              // Пока зал не назван, зачислять некуда: сервер ответит отказом, из-за которого
+              // этот вопрос и появился.
+              onPressed: _pending || _choice.unanswered ? null : _submit,
               child: Text(_pending ? l.customerWalletRequesting : l.customerWalletRequest),
             ),
             const SizedBox(height: 8),

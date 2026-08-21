@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../api/dto.dart';
 import '../api/player_api_client.dart';
 import '../format/date_time.dart';
+import '../organization/branch_choice.dart';
 import '../money/money.dart';
 import '../l10n/app_localizations.dart';
 import '../phone/phone_verification_sheet.dart';
@@ -28,6 +29,7 @@ class ReservationsScreen extends StatefulWidget {
     required this.api,
     required this.phoneVerified,
     this.accountOpen = true,
+    this.branch = const BranchChoice(),
     this.onPhoneVerified,
     this.onAccountOpened,
     this.clock = DateTime.now,
@@ -39,6 +41,10 @@ class ReservationsScreen extends StatefulWidget {
   /// Есть ли у игрока счёт в этом клубе. Пока нет, броней тоже нет — спрашивать не о чем,
   /// но забронировать можно: этой самой бронью счёт и открывается.
   final bool accountOpen;
+
+  /// Зал, в который придёт игрок. Нужен первой брони в сети из нескольких залов: ею
+  /// открывается счёт, и сервер не гадает, в каком зале его завести.
+  final BranchChoice branch;
 
   /// Номер подтвердили прямо из гейта — оболочке пора считать игрока подтверждённым.
   final VoidCallback? onPhoneVerified;
@@ -140,6 +146,7 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
         api: widget.api,
         clock: widget.clock,
         accountOpen: widget.accountOpen,
+        branch: widget.branch,
       ),
     );
     if (created != true || !mounted) return;

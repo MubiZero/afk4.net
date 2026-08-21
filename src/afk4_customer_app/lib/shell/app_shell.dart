@@ -5,6 +5,7 @@ import '../api/player_api_client.dart';
 import '../auth/player_session.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../l10n/app_localizations.dart';
+import '../organization/branch_choice.dart';
 import '../organization/organization.dart';
 import '../push/push_service.dart';
 import '../profile/profile_screen.dart';
@@ -71,6 +72,11 @@ class _AppShellState extends State<AppShell> {
   /// ради открывшихся возможностей — плохая цена за подтверждение.
   bool _phoneVerifiedNow = false;
 
+  /// Зал, который игрок назвал для первого действия в этом клубе. Помнит оболочка, а не лист:
+  /// зал нужен и брони, и пополнению, а спрашивать одно и то же дважды — цена ни за что.
+  /// После открытия счёта не нужен вовсе: зал записан в самом счёте.
+  String? _chosenBranchId;
+
   @override
   void initState() {
     super.initState();
@@ -100,6 +106,17 @@ class _AppShellState extends State<AppShell> {
   /// Список клубов не спросился (`me == null`) — считаем, что счёт есть: разделы сами
   /// разберутся с ответом сервера, а спрятать всё из-за сетевого сбоя было бы враньём.
   bool get _accountOpen => widget.me == null || widget.me!.clubAt(widget.organization.organizationId) != null;
+
+  /// Где игрок собирается играть. Залы берутся из каталога клубов — того же ответа, из
+  /// которого игрок выбирал сам клуб. Со счётом выбора нет: сервер уже знает зал, и обещать
+  /// выбор, который ничего не изменит, нельзя.
+  BranchChoice get _branch => _accountOpen
+      ? const BranchChoice()
+      : BranchChoice(
+          halls: widget.organization.places,
+          chosenId: _chosenBranchId,
+          onChosen: (branchId) => setState(() => _chosenBranchId = branchId),
+        );
 
   bool _enabled(String feature) => _features == null || _features!.contains(feature);
 
@@ -140,6 +157,7 @@ class _AppShellState extends State<AppShell> {
             api: widget.api,
             phoneVerified: _phoneVerified,
             accountOpen: _accountOpen,
+            branch: _branch,
             onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
             onAccountOpened: widget.onAccountOpened,
             clock: widget.clock,
@@ -157,6 +175,8 @@ class _AppShellState extends State<AppShell> {
           phoneVerified: _phoneVerified,
           features: _features,
           accountOpen: _accountOpen,
+          branch: _branch,
+          currencyCode: widget.organization.currencyCode ?? 'TJS',
           onPhoneVerified: () => setState(() => _phoneVerifiedNow = true),
           onAccountOpened: widget.onAccountOpened,
           clock: widget.clock,

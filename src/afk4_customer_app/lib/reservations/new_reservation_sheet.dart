@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../api/dto.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
+import '../organization/branch_choice.dart';
 import 'date_time_field.dart';
 import 'reservations_screen.dart';
 import 'tariff_picker.dart';
@@ -19,14 +20,19 @@ class NewReservationSheet extends StatefulWidget {
     required this.api,
     required this.clock,
     this.accountOpen = true,
+    this.branch = const BranchChoice(),
   });
 
   final PlayerApiClient api;
   final DateTime Function() clock;
 
-  /// Есть ли у игрока счёт в этом клубе. Пока нет, прайс и правила спрашивать не по чему —
-  /// филиал приложение узнаёт из профиля, а профиль появляется вместе со счётом.
+  /// Есть ли у игрока счёт в этом клубе. Пока нет, прайс спрашивать не по чему: он идёт по
+  /// профилю, а профиль появляется вместе со счётом. Правила приёма теперь спрашиваются и
+  /// до него — по названному залу.
   final bool accountOpen;
+
+  /// Зал первой брони. Со счётом в клубе не нужен: зал в нём уже записан.
+  final BranchChoice branch;
 
   @override
   State<NewReservationSheet> createState() => _NewReservationSheetState();
@@ -63,10 +69,36 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
   /// отвечает сеть, и без этого счётчика на экран мог бы лечь ответ на предыдущий выбор.
   int _quoteRequest = 0;
 
+  /// Зал, в который придёт игрок. Живёт в листе, а не только наверху: ответ должен быть виден
+  /// в той же форме, где его дали.
+  String? _branchId;
+
+  /// Выбор зала в том виде, в каком его показывают и отправляют. Со счётом в клубе выбора
+  /// нет: зал записан в счёте, и названный заново его не переписывает.
+  BranchChoice get _choice => widget.accountOpen
+      ? const BranchChoice()
+      : BranchChoice(halls: widget.branch.halls, chosenId: _branchId, onChosen: _chooseBranch);
+
   @override
   void initState() {
     super.initState();
+    _branchId = widget.branch.branchId;
     _loadTariffs();
+    // Правила приёма — по названному залу, ещё до счёта: предоплата и ручной приём нужнее
+    // всего тому, кто бронирует здесь впервые.
+    final branchId = _branchId;
+    if (!widget.accountOpen && branchId != null) unawaited(_loadRules(branchId));
+  }
+
+  /// Игрок назвал зал. Правила у каждого свои, поэтому спрашиваются заново, а наверх ответ
+  /// уходит затем, чтобы пополнение не спросило то же самое второй раз.
+  void _chooseBranch(String branchId) {
+    setState(() {
+      _branchId = branchId;
+      _rules = null;
+    });
+    widget.branch.onChosen?.call(branchId);
+    unawaited(_loadRules(branchId));
   }
 
   Future<void> _loadTariffs() async {
@@ -159,18 +191,23 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
       _pending = true;
     });
     try {
+      // Зал называется только там, где его ещё некому знать: у игрока со счётом он записан
+      // в самом счёте.
+      final branchId = widget.accountOpen ? null : _branchId;
       if (_seats > 1) {
         await widget.api.createReservationGroup(
           seatCount: _seats,
           startsAtUtc: _startsAt!,
           endsAtUtc: _endsAt!,
           tariffVersionId: _tariffId,
+          branchId: branchId,
         );
       } else {
         await widget.api.createReservation(
           startsAtUtc: _startsAt!,
           endsAtUtc: _endsAt!,
           tariffVersionId: _tariffId,
+          branchId: branchId,
         );
       }
       if (mounted) Navigator.of(context).pop(true);
@@ -200,9 +237,10 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
           (_, 'booking_disabled') => l.customerReservationsErrDisabled,
           (_, 'prepayment_required') => l.customerReservationsErrPrepay,
           (_, 'active_reservation_limit') => l.customerReservationsErrLimit,
-          // Сеть из нескольких залов, а счёта здесь ещё нет: назвать зал приложение пока не
-          // умеет, и тупика лучше избежать словами, чем молчанием.
-          (_, 'branch_required') => l.customerReservationsErrBranch,
+          // Зал не назван или его в сети уже нет. Оба ответа с выходом: назвать зал в форме
+          // выше — он тут же, над временем.
+          (_, 'branch_required') => l.customerBranchErrRequired,
+          (_, 'branch_not_found') => l.customerBranchErrGone,
           (409, _) => l.customerReservationsConflict,
           _ => l.customerReservationsCreateError,
         };
@@ -255,6 +293,13 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(l.customerReservationsNewTitle, style: theme.textTheme.titleLarge),
+            // Зал идёт первым: от него зависят и правила приёма под ним, и сама возможность
+            // забронировать. Спрашивать его после заполненной формы — значит отменять
+            // ответы, которые игрок уже дал.
+            if (_choice.asks) ...[
+              const SizedBox(height: 16),
+              BranchPicker(choice: _choice),
+            ],
             ..._clubRules(l, theme),
             const SizedBox(height: 16),
             DateTimeField(
@@ -319,7 +364,10 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
             ),
             const SizedBox(height: 16),
             FilledButton(
-              onPressed: _pending ? null : _create,
+              // Пока зал не назван, бронировать нечем: сервер ответил бы тем самым отказом,
+              // из-за которого этот вопрос и появился. Граница видна сразу — кнопка гаснет,
+              // а не отвечает отказом после нажатия.
+              onPressed: _pending || _choice.unanswered ? null : _create,
               child: Text(
                 _pending ? l.customerReservationsCreating : l.customerReservationsCreate,
               ),

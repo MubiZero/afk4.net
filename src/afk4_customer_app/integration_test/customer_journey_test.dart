@@ -12,7 +12,10 @@ import 'package:afk4_customer_app/profile/profile_screen.dart';
 import 'support/fake_backend.dart';
 
 /// Сквозной сценарий клиентского приложения: выбор клуба → вход по SMS-коду → главная →
-/// создание брони → выход.
+/// выбор зала и первая бронь, которой открывается счёт → главная с кошельком → выход.
+///
+/// Игрок здесь новый, а сеть — из двух залов: до первой брони клуб его не знает, и назвать
+/// зал должен он сам. Это и есть тот случай, ради которого выбор зала появился.
 ///
 /// Модульные тесты проверяют экраны поодиночке и подменяют всё вокруг. Здесь подменён
 /// только сервер: приложение поднимается целиком, со своими хранилищами, маршрутизацией и
@@ -50,8 +53,12 @@ void main() {
 
   Future<void> pickDateTime(WidgetTester tester, String field) async {
     // Нажимается поле целиком, а не подпись внутри него: подпись сдвинута в угол рамки и
-    // сама по себе нажатие не принимает.
-    await tester.tap(find.ancestor(of: find.text(field), matching: find.byType(InkWell)).first);
+    // сама по себе нажатие не принимает. Выбор зала делает лист длиннее — поле сначала
+    // подтягивается в видимую часть.
+    final input = find.ancestor(of: find.text(field), matching: find.byType(InkWell)).first;
+    await tester.ensureVisible(input);
+    await tester.pumpAndSettle();
+    await tester.tap(input);
     await tester.pumpAndSettle();
     await tester.tap(confirmButton);
     await tester.pumpAndSettle();
@@ -59,7 +66,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('игрок выбирает клуб, входит по коду, бронирует место и выходит',
+  testWidgets('игрок выбирает клуб, входит по коду, называет зал, бронирует и выходит',
       (tester) async {
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
@@ -81,21 +88,19 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Войти'));
     await tester.pumpAndSettle();
 
-    // 3. Главная: имя игрока и его деньги. Сессия при этом легла в защищённое хранилище —
-    // иначе следующий запуск снова спросил бы код.
+    // 3. Главная клуба, который игрока ещё не знает: ни денег, ни истории — счёт откроется
+    // первым действием. Сессия при этом легла в защищённое хранилище — иначе следующий
+    // запуск снова спросил бы код.
     expect(find.text(FakeBackend.playerName), findsOneWidget);
-    expect(find.text('Баланс кошелька'), findsOneWidget);
-    // Разделитель разрядов у `intl` неразрывный — сумма ищется по хвосту, а не целиком.
-    expect(find.textContaining('200,50 с.'), findsOneWidget);
+    expect(find.text('Здесь вы ещё не играли'), findsOneWidget);
     expect(secureValues, isNotEmpty);
 
-    // Третье число кошелька: остаток уже без него, и без строки непонятно, куда оно делось.
-    expect(find.textContaining('Придержано под брони'), findsOneWidget);
-
-    // Закрытые разделы отвечают 401 без токена и 409 без названного клуба — раз данные на
+    // Закрытые разделы отвечают 401 без токена и 409 без названного клуба — раз имя на
     // экране есть, дошли оба заголовка.
     expect(backend.log, contains('GET /api/me'));
-    expect(backend.log, contains('GET /api/me/dashboard'));
+    // Кошелька на экране нет, и нулей вместо него тоже: в клубе, который игрока не знает,
+    // нулевой баланс был бы обещанием счёта, которого не существует.
+    expect(find.text('Баланс кошелька'), findsNothing);
 
     // 4. Бронь. Раздел появился, потому что клуб принимает онлайн-брони.
     await tester.tap(find.text('Брони'));
@@ -104,16 +109,38 @@ void main() {
 
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
-    // Филиал смотрит заявки руками, и лист говорит об этом до того, как игрок заполнит форму.
+
+    // Сеть из двух залов: сервер не знает, в какой из них придёт человек, и спрашивает его
+    // приложение — до формы, а не отказом после неё.
+    expect(find.text('В какой зал вы придёте?'), findsOneWidget);
+    expect(find.text(FakeBackend.rudakiName), findsOneWidget);
+    expect(find.text(FakeBackend.somoniName), findsOneWidget);
+    // Пока зал не назван, бронировать нечем.
+    expect(
+      tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Забронировать')).onPressed,
+      isNull,
+    );
+
+    await tester.tap(find.text(FakeBackend.somoniName));
+    await tester.pumpAndSettle();
+
+    // Названный зал сразу отвечает своими правилами — счёта для этого больше не требуется.
+    // Зал смотрит заявки руками, и лист говорит об этом до того, как игрок заполнит форму.
+    expect(
+      backend.log,
+      contains('GET /api/me/branches/${FakeBackend.somoniBranchId}/booking-rules'),
+    );
     expect(find.textContaining('Заявку смотрит администратор'), findsOneWidget);
+
     await pickDateTime(tester, 'Начало');
     await pickDateTime(tester, 'Конец');
     await tester.tap(find.widgetWithText(FilledButton, 'Забронировать'));
     await tester.pumpAndSettle();
 
-    // Бронь доехала до сервера и вернулась в список — проверяются обе стороны обмена, а не
-    // только то, что кнопка нажалась.
+    // Бронь доехала до сервера вместе с названным залом и вернулась в список — проверяются
+    // обе стороны обмена, а не только то, что кнопка нажалась.
     expect(backend.reservations, hasLength(1));
+    expect(backend.accountBranchId, FakeBackend.somoniBranchId);
     expect(find.text('Бронь создана'), findsOneWidget);
     expect(find.text('Ожидает подтверждения'), findsOneWidget);
     expect(find.text('Броней пока нет'), findsNothing);
@@ -124,7 +151,19 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
 
-    // 5. Профиль: здесь и только здесь задаётся PIN, которым игрок садится за ПК.
+    // 5. Счёт открылся той же бронью: на главной появились кошелёк и название зала, в
+    // который игрок собрался. До брони клубу нечего было о нём рассказать.
+    await tester.tap(find.text('Главная'));
+    await tester.pumpAndSettle();
+    expect(find.text('Баланс кошелька'), findsOneWidget);
+    // Разделитель разрядов у `intl` неразрывный — сумма ищется по хвосту, а не целиком.
+    expect(find.textContaining('200,50 с.'), findsOneWidget);
+    // Третье число кошелька: остаток уже без него, и без строки непонятно, куда оно делось.
+    expect(find.textContaining('Придержано под брони'), findsOneWidget);
+    expect(find.text(FakeBackend.somoniName), findsOneWidget);
+    expect(backend.log, contains('GET /api/me/dashboard'));
+
+    // 6. Профиль: здесь и только здесь задаётся PIN, которым игрок садится за ПК.
     await tester.tap(find.text('Профиль'));
     await tester.pumpAndSettle();
     expect(find.text('PIN для посадки за ПК'), findsOneWidget);
@@ -132,7 +171,7 @@ void main() {
 
     final requestsBeforeSignOut = backend.log.length;
 
-    // 6. Выход. Устройство бывает общим: следующий вошедший не должен увидеть чужой кошелёк.
+    // 7. Выход. Устройство бывает общим: следующий вошедший не должен увидеть чужой кошелёк.
     // Кнопка стоит в самом низу профиля — до неё надо доскроллить, и с запасом: прокрутка
     // «до видимости» оставляет её под прилипшей шапкой.
     final profileList = find.descendant(

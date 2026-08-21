@@ -237,11 +237,17 @@ class PlayerApiClient {
   }
 
   /// 409 несёт причину: `insufficient_funds` — не хватает денег на бронь,
-  /// `no_seats_available` — свободных машин в зале на это время не осталось.
+  /// `no_seats_available` — свободных машин в зале на это время не осталось,
+  /// `branch_required` — сеть из нескольких залов, а зал не назван.
+  ///
+  /// [branchId] — зал, в который придёт игрок. Нужен только первому действию в клубе: им
+  /// открывается счёт, и у сети с несколькими залами сервер не гадает, в каком именно. У
+  /// игрока со счётом зал уже записан, и присланный его не переписывает.
   Future<PlayerReservation> createReservation({
     required DateTime startsAtUtc,
     required DateTime endsAtUtc,
     String? tariffVersionId,
+    String? branchId,
   }) async {
     final body = await sendJson('POST', '/api/me/reservations', {
       'startsAtUtc': startsAtUtc.toUtc().toIso8601String(),
@@ -249,6 +255,7 @@ class PlayerApiClient {
       // Тариф уходит, только когда игрок его выбрал: у клуба может не быть прайса в системе,
       // и тогда бронь считают на стойке, как раньше.
       'tariffVersionId': ?tariffVersionId,
+      'branchId': ?branchId,
     });
     return _parse(body, PlayerReservation.fromJson);
   }
@@ -354,17 +361,21 @@ class PlayerApiClient {
   /// 409 несёт причину: `insufficient_funds` — денег не хватает на всю компанию (частично не
   /// бронируется ничего), `invalid_seat_count` — столько мест одной бронью не берут,
   /// `no_seats_available` — столько свободных машин на это время в зале нет.
+  ///
+  /// [branchId] — как и у одиночной брони, зал первого действия в клубе.
   Future<PlayerReservationGroup> createReservationGroup({
     required int seatCount,
     required DateTime startsAtUtc,
     required DateTime endsAtUtc,
     String? tariffVersionId,
+    String? branchId,
   }) async {
     final body = await sendJson('POST', '/api/me/reservations/group', {
       'seatCount': seatCount,
       'startsAtUtc': startsAtUtc.toUtc().toIso8601String(),
       'endsAtUtc': endsAtUtc.toUtc().toIso8601String(),
       'tariffVersionId': ?tariffVersionId,
+      'branchId': ?branchId,
     });
     return _parse(body, PlayerReservationGroup.fromJson);
   }
@@ -448,13 +459,17 @@ class PlayerApiClient {
     return list.map((item) => _parse(item, TopUpIntent.fromJson)).toList();
   }
 
+  /// [branchId] — зал, в котором открыть счёт, если его ещё нет. Пополнение — второе действие
+  /// (после брони), которым человек впервые становится игроком клуба.
   Future<TopUpIntent> createTopUpIntent({
     required int amountMinorUnits,
     required String currencyCode,
+    String? branchId,
   }) async {
     final body = await sendJson('POST', '/api/me/wallet/top-up-intent', {
       'amountMinorUnits': amountMinorUnits,
       'currencyCode': currencyCode,
+      'branchId': ?branchId,
     });
     return _parse(body, TopUpIntent.fromJson);
   }
