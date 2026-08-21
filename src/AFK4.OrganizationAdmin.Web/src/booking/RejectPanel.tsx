@@ -11,7 +11,7 @@ import type { MessageKey } from '@afk4/i18n';
  * администратора идут рядом и обязательны там, где кода нет.
  */
 const REASONS: { code: string; key: MessageKey }[] = [
-  { code: 'no_seats', key: 'booking.reject.noSeats' },
+  { code: 'no_seats', key: 'booking.reject.no_seats' },
   { code: 'maintenance', key: 'booking.reject.maintenance' },
   { code: 'event', key: 'booking.reject.event' },
   { code: 'other', key: 'booking.reject.other' }

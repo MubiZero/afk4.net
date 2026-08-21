@@ -20,15 +20,22 @@ const repoRoot = join(scriptDir, '..', '..', '..');
  *  подписи для экранных читалок, они нужны каждому приложению. По мере переезда остальных
  *  приложений сюда добавляются свои префиксы — например `op.` для админского. */
 const ARB_TARGETS = [
-  // `booking.` — общие с операторской частью названия исходов брони: причину отказа читают
-  // и стойка, и игрок, и двух копий одного текста быть не должно.
-  { prefixes: ['customer.', 'a11y.', 'booking.'], dir: join(repoRoot, 'src', 'afk4_customer_app', 'lib', 'l10n') }
+  // `booking.` и `ledger.` — общие с операторской частью названия: причину отказа и типы
+  // движений по кошельку читают и стойка, и игрок, и двух копий одного текста быть не должно.
+  { prefixes: ['customer.', 'a11y.', 'booking.', 'ledger.'], dir: join(repoRoot, 'src', 'afk4_customer_app', 'lib', 'l10n') }
 ] as const;
 
-/** `customer.common.back` → `customerCommonBack`: точка не годится в идентификатор Dart. */
+/**
+ * `customer.common.back` → `customerCommonBack`, `ledger.type.top_up` → `ledgerTypeTopUp`.
+ *
+ * Режется и по точкам, и по подчёркиваниям: в идентификатор Dart не годится ни то, ни другое.
+ * Подчёркивания приходят из ключей, повторяющих коды сервера (`top_up`, `no_seats`) — эта связь
+ * ценна сама по себе, поэтому переучиваем преобразование, а не переименовываем каталог.
+ */
 function toArbName(key: string): string {
   return key
-    .split('.')
+    .split(/[._]/)
+    .filter((part) => part.length > 0)
     .map((part, index) => (index === 0 ? part : part[0].toUpperCase() + part.slice(1)))
     .join('');
 }

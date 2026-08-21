@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/dto.dart';
 import '../api/player_api_client.dart';
+import '../history/ledger_tab.dart';
 import '../history/purchases_tab.dart';
 import '../history/visits_tab.dart';
 import '../l10n/app_localizations.dart';
@@ -158,7 +159,7 @@ class _WalletScreenState extends State<WalletScreen> {
     }
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         body: NestedScrollView(
           headerSliverBuilder: (context, _) => [
@@ -190,6 +191,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   tabs: [
                     Tab(text: l.customerHistoryVisits),
                     Tab(text: l.customerHistoryPurchases),
+                    Tab(text: l.customerWalletLedgerTab),
                   ],
                 ),
               ),
@@ -199,6 +201,7 @@ class _WalletScreenState extends State<WalletScreen> {
             children: [
               VisitsTab(api: widget.api, clock: widget.clock),
               PurchasesTab(api: widget.api),
+              LedgerTab(api: widget.api),
             ],
           ),
         ),

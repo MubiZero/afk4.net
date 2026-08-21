@@ -237,6 +237,30 @@ internal static class PlayerSelfServiceEndpoints
             return Results.Ok(dashboard);
         }).RequireRateLimiting("player-me");
 
+        // Выписка по кошельку. Три ленты истории рядом построены не на деньгах: визиты берутся
+        // из сессий, покупки — из чеков магазина, и пополнение, кешбэк, реферальный бонус, ручная
+        // правка оператора и погашение долга не видны там нигде. Человек видит, за что списали, и
+        // не видит, откуда пришло, — кошелёк у него не сходится, и объяснить нечем.
+        app.MapGet("/api/me/wallet/ledger", async (
+            // `cursor`, а не `before`: так называются страницы у трёх соседних лент игрока.
+            // У стойки свой край и своё имя — переучивать надо кого-то одного, и это не игрок.
+            string? cursor,
+            int? limit,
+            IPlayerContextAccessor playerContextAccessor,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var page = await PlayerLedgerProjector.GetPlayerLedgerPageAsync(
+                dbContext, player.PlayerAccountId, cursor, limit, cancellationToken);
+            return Results.Ok(page);
+        }).RequireRateLimiting("player-me");
+
         app.MapGet("/api/me/visits", async (
             string? cursor,
             IPlayerContextAccessor playerContextAccessor,

@@ -24,6 +24,8 @@ public class PlayerReferralEndpointTests
 
     private sealed record Club(Guid OrgId, Guid BranchId);
 
+    private static int phoneCounter;
+
     private static async Task<Club> SeedClubAsync(
         PlatformApiFactory factory,
         bool referralEnabled = true,
@@ -70,7 +72,13 @@ public class PlayerReferralEndpointTests
         var player = Guid.NewGuid();
         // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
         // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
-        var phone = $"+99290000{(uint)player.GetHashCode() % 10_000:D4}";
+        //
+        // Счётчик, а не хеш Guid: хеш давал четырёхзначное пространство, и двое из трёх игроков
+        // одного теста рано или поздно получали один номер. In-memory провайдер уникальный индекс
+        // по телефону не исполняет, поэтому в личностях оказывались две строки с одним номером, а
+        // вход по PIN, ищущий личность через SingleOrDefault, отвечал пятисоткой. Воспроизводилось
+        // раз в несколько сотен прогонов — то есть только на CI и только у того, кто не виноват.
+        var phone = $"+99290000{Interlocked.Increment(ref phoneCounter) % 10_000:D4}";
 
         db.PlayerAccounts.Add(new PlayerAccountEntity
         {

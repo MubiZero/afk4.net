@@ -9,7 +9,7 @@ import type { MessageKey } from '@afk4/i18n';
  * целиком, и человеку это важнее самой причины.
  */
 const REASON_KEYS: Record<string, MessageKey> = {
-  no_seats: 'booking.reject.noSeats',
+  no_seats: 'booking.reject.no_seats',
   maintenance: 'booking.reject.maintenance',
   event: 'booking.reject.event'
 };

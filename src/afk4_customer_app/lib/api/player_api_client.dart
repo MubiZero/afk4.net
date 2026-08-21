@@ -200,6 +200,10 @@ class PlayerApiClient {
       _parse(await getJson(_withCursor('/api/me/purchases', cursor)),
           (body) => CursorPage.fromJson(body, PlayerPurchase.fromJson));
 
+  Future<CursorPage<PlayerLedgerEntry>> getWalletLedger({String? cursor}) async =>
+      _parse(await getJson(_withCursor('/api/me/wallet/ledger', cursor)),
+          (body) => CursorPage.fromJson(body, PlayerLedgerEntry.fromJson));
+
   static String _withCursor(String path, String? cursor) =>
       cursor == null ? path : '$path?cursor=${Uri.encodeQueryComponent(cursor)}';
 
