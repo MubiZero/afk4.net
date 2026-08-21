@@ -12,6 +12,8 @@ public static class DeviceRealtimeEvents
 
     public const string SessionLifecycleChanged = "sessionLifecycleChanged";
 
+    public const string ReservationChanged = "reservationChanged";
+
     public const string ShopOrderCreated = "shopOrderCreated";
 
     public const string ShopOrderUpdated = "shopOrderUpdated";

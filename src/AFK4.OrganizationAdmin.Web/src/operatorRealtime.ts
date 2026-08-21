@@ -42,6 +42,23 @@ export interface SessionLifecycleChangedDto {
   currencyCode?: string | null;
 }
 
+/**
+ * Что случилось с бронью. Полоса заявок до сих пор узнавала об этом следующим опросом: чужое
+ * решение доезжало через несколько секунд, а решения таймеров — истёкший срок ответа — не
+ * доезжали вовсе, заявка просто исчезала.
+ */
+export interface ReservationChangedDto {
+  organizationId: string;
+  branchId: string;
+  reservationId: string;
+  seatId?: string | null;
+  kind: string;
+  state: string;
+  version: number;
+  startsAtUtc: string;
+  observedAtUtc: string;
+}
+
 export interface OperatorRealtimeClient {
   start(): Promise<void>;
   stop(): Promise<void>;
@@ -63,6 +80,7 @@ export interface OperatorRealtimeOptions {
   onDeviceStatusChanged: (status: DeviceStatusChangedDto) => void;
   onDeviceCommandResult?: (result: DeviceCommandResultDto) => void;
   onSessionLifecycleChanged?: (change: SessionLifecycleChangedDto) => void;
+  onReservationChanged?: (change: ReservationChangedDto) => void;
   onShopOrderCreated?: (order: ShopOrderDto) => void;
   onShopOrderUpdated?: (order: ShopOrderDto) => void;
   onConnectionStateChanged?: (state: OperatorRealtimeConnectionState) => void;
@@ -72,6 +90,7 @@ export interface OperatorRealtimeOptions {
 export const deviceStatusChangedEventName = 'deviceStatusChanged';
 export const deviceCommandResultEventName = 'deviceCommandResult';
 export const sessionLifecycleChangedEventName = 'sessionLifecycleChanged';
+export const reservationChangedEventName = 'reservationChanged';
 export const shopOrderCreatedEventName = 'shopOrderCreated';
 export const shopOrderUpdatedEventName = 'shopOrderUpdated';
 
@@ -89,6 +108,7 @@ export function createOperatorRealtimeClient(options: OperatorRealtimeOptions): 
   // the owning surface still receives the callbacks it requested.
   connection.on<DeviceCommandResultDto>(deviceCommandResultEventName, options.onDeviceCommandResult ?? ignoreRealtimeEvent);
   connection.on<SessionLifecycleChangedDto>(sessionLifecycleChangedEventName, options.onSessionLifecycleChanged ?? ignoreRealtimeEvent);
+  connection.on<ReservationChangedDto>(reservationChangedEventName, options.onReservationChanged ?? ignoreRealtimeEvent);
   connection.on<ShopOrderDto>(shopOrderCreatedEventName, options.onShopOrderCreated ?? ignoreRealtimeEvent);
   connection.on<ShopOrderDto>(shopOrderUpdatedEventName, options.onShopOrderUpdated ?? ignoreRealtimeEvent);
   connection.onreconnecting(() => setState('reconnecting'));

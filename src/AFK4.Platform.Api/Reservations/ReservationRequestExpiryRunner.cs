@@ -28,7 +28,8 @@ public sealed class ReservationRequestExpiryOptions
 /// </summary>
 public sealed class ReservationRequestExpiryRunner(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IReservationChangeNotifier? notifier = null)
 {
     public const string CancelReason = "request-expired";
 
@@ -94,6 +95,24 @@ public sealed class ReservationRequestExpiryRunner(
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
+            // Решение таймера — то самое, о котором стойке узнать больше неоткуда: заявка просто
+            // исчезала из полосы, и никто не мог сказать, кто её снял.
+            if (notifier is not null)
+            {
+                await notifier.NotifyAsync(
+                    new ReservationChangedDto(
+                        reservation.OrganizationId,
+                        reservation.BranchId,
+                        reservation.ReservationId,
+                        reservation.SeatId,
+                        ReservationChangeKinds.Expired,
+                        reservation.State,
+                        reservation.Version,
+                        reservation.StartsAtUtc,
+                        now),
+                    cancellationToken);
+            }
+
             return true;
         }
         catch (DbUpdateConcurrencyException)
