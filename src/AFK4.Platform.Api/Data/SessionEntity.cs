@@ -25,6 +25,10 @@ public sealed class SessionEntity
     // defaulting to a free guest top-up. Empty for legacy rows started before this column.
     public string BillingMode { get; set; } = string.Empty;
 
+    // С чего сессия началась: стойка, самопосадка по PIN или бронь (SessionOriginNames). Пустая
+    // строка — «неизвестно» у строк, заведённых до того, как вопрос начали задавать.
+    public string Origin { get; set; } = string.Empty;
+
     public string State { get; set; } = string.Empty;
 
     public DateTimeOffset RequestedAtUtc { get; set; }

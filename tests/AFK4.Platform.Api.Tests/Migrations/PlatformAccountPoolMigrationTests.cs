@@ -19,7 +19,7 @@ public sealed class PlatformAccountPoolMigrationTests
     [MigrationPostgresFact]
     public async Task Down_ReturnsTheSchemaToWhereItWas()
     {
-        await using var schema = await MigrationSchema.CreateAsync();
+        await using var schema = await MigrationSchema.CreateAsync("account_pool");
         await schema.MigrateToAsync(ThisMigration);
         Assert.Equal("1", await schema.ScalarAsync(TableExistsSql("platform_persons")));
         Assert.Equal("1", await schema.ScalarAsync(ColumnExistsSql("player_accounts", "PlatformPersonId")));
@@ -47,67 +47,4 @@ public sealed class PlatformAccountPoolMigrationTests
         SELECT count(*)::text FROM information_schema.columns
         WHERE table_schema = current_schema() AND table_name = '{table}' AND column_name = '{column}'
         """;
-
-    /// <summary>
-    /// Одноразовая схема настоящей PostgreSQL, по которой можно ходить миграциями вперёд и назад.
-    /// </summary>
-    private sealed class MigrationSchema : IAsyncDisposable
-    {
-        private readonly string connectionString;
-        private readonly string schemaName;
-
-        private MigrationSchema(string connectionString, string schemaName)
-        {
-            this.connectionString = connectionString;
-            this.schemaName = schemaName;
-        }
-
-        public static async Task<MigrationSchema> CreateAsync()
-        {
-            var builder = new NpgsqlConnectionStringBuilder(
-                Environment.GetEnvironmentVariable(MigrationPostgresFactAttribute.EnvironmentVariable)!);
-            var schemaName = $"account_pool_{Guid.NewGuid():N}";
-            await using (var connection = new NpgsqlConnection(builder.ConnectionString))
-            {
-                await connection.OpenAsync();
-                await using var command = connection.CreateCommand();
-                command.CommandText = $"CREATE SCHEMA \"{schemaName}\"";
-                await command.ExecuteNonQueryAsync();
-            }
-
-            builder.SearchPath = schemaName;
-            return new MigrationSchema(builder.ConnectionString, schemaName);
-        }
-
-        public async Task MigrateToAsync(string migration)
-        {
-            await using var db = CreateDbContext();
-            await db.GetService<IMigrator>().MigrateAsync(migration);
-        }
-
-        public async Task<string> ScalarAsync(string sql)
-        {
-            await using var connection = new NpgsqlConnection(connectionString);
-            await connection.OpenAsync();
-            await using var command = connection.CreateCommand();
-            command.CommandText = sql;
-            var value = await command.ExecuteScalarAsync();
-            return value is null or DBNull
-                ? string.Empty
-                : Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)!;
-        }
-
-        private PlatformDbContext CreateDbContext() =>
-            new(new DbContextOptionsBuilder<PlatformDbContext>().UseNpgsql(connectionString).Options);
-
-        public async ValueTask DisposeAsync()
-        {
-            var builder = new NpgsqlConnectionStringBuilder(connectionString) { SearchPath = null };
-            await using var connection = new NpgsqlConnection(builder.ConnectionString);
-            await connection.OpenAsync();
-            await using var command = connection.CreateCommand();
-            command.CommandText = $"DROP SCHEMA IF EXISTS \"{schemaName}\" CASCADE";
-            await command.ExecuteNonQueryAsync();
-        }
-    }
 }
