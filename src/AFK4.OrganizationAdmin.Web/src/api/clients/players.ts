@@ -191,14 +191,14 @@ export function createPlayerClient(api: PlatformApiClient) {
     setActiveState(branchId: Guid, playerAccountId: Guid, request: SetPlayerActiveStateRequest): Promise<PlayerAccountDto> {
       return api.post<PlayerAccountDto, SetPlayerActiveStateRequest>(`branches/${branchId}/players/${playerAccountId}/active-state`, request);
     },
-    // Репутация человека по сети. Оба маршрута пишутся в аудит на сам факт чтения, поэтому
-    // зовём их только из карточки — там, где администратор принимает решение, — и никогда
-    // построчно из списка.
-    getReputation(branchId: Guid, platformPersonId: Guid): Promise<PlayerReputationDto> {
-      return api.get<PlayerReputationDto>(`branches/${branchId}/players/reputation/${platformPersonId}`);
-    },
-    // Спрос по точному номеру: номер едет телом, а не в адресе — адреса оседают в логах прокси,
-    // а это чужой телефон. Маршрут под лимитом 20/мин на сотрудника.
+    // Репутация человека по сети: спрос по точному номеру. Номер едет телом, а не в адресе —
+    // адреса оседают в логах прокси, а это чужой телефон. Маршрут пишется в аудит на сам факт
+    // чтения и стоит под лимитом 20/мин на сотрудника, поэтому зовём его только из карточки —
+    // там, где администратор принимает решение, — и никогда построчно из списка.
+    //
+    // Парного `GET branches/{id}/players/reputation/{platformPersonId}` здесь нет намеренно:
+    // ни одна операторская проекция игрока не отдаёт PlatformPersonId, так что позвать его
+    // сегодня нечем.
     lookupReputation(branchId: Guid, phoneNumber: string): Promise<PlayerReputationDto> {
       return api.post<PlayerReputationDto, PlayerReputationLookupRequest>(
         `branches/${branchId}/players/reputation/lookup`,
