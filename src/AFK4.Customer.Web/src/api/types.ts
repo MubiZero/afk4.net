@@ -183,6 +183,9 @@ export interface PlayerReservationDto {
   note: string | null;
   // Докуда клуб обещал ответить на заявку. У подтверждённой брони его нет: отвечать больше не на что.
   respondByUtc?: string | null;
+  /** Почему клуб отказал: код из общего справочника и слова администратора. */
+  rejectReasonCode?: string | null;
+  rejectReasonNote?: string | null;
 }
 
 // Правила брони этого филиала для этого игрока: предоплата нужна именно ему, потолок заявок

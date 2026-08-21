@@ -41,7 +41,12 @@ public sealed record ReservationDto(
     // оставил себе по своей же настройке. Сумма пустая, а не нулевая, когда не удерживали вовсе:
     // ноль читался бы как «удержали нисколько», хотя удержания не было.
     DateTimeOffset? NoShowAtUtc = null,
-    long? RetainedAmountMinorUnits = null);
+    long? RetainedAmountMinorUnits = null,
+    // Отказ клуба: когда, по какой причине из справочника и что администратор добавил словами.
+    // Причину читает игрок — поэтому код, а не текст: текст на языке стойки ему не поможет.
+    DateTimeOffset? RejectedAtUtc = null,
+    string? RejectReasonCode = null,
+    string? RejectReasonNote = null);
 
 public sealed record ReservationSearchResultDto(
     IReadOnlyList<ReservationDto> Reservations,

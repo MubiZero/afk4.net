@@ -10,6 +10,7 @@ import { ClientPicker } from './ClientPicker';
 import { DateTimePicker } from './DateTimePicker';
 import { bookingDetailActions, bookingStateLabelKey, type BookingItem } from './bookingModel';
 import { ReputationCard } from '../players/ReputationCard';
+import { RejectPanel } from './RejectPanel';
 import type { ReputationController } from '../players/useReputation';
 
 export interface BookingDraft {
@@ -50,6 +51,7 @@ export interface BookingDrawerProps {
   onStart: () => void;
   onMove: (targetSeatId: string) => void;
   onCancel: () => void;
+  onReject: (reasonCode: string, note: string | null) => void;
   onConfirm: (item: BookingItem) => void;
   onOpenMap: (seatId: string) => void;
 }
@@ -95,6 +97,9 @@ function CopyablePhone({ phone }: { phone: string }) {
 }
 
 export function BookingDrawer(props: BookingDrawerProps) {
+  // Панель отказа живёт в карточке, а не в модалке: причина выбирается там же, где видно, кому и
+  // на какое время отказывают.
+  const [rejecting, setRejecting] = useState(false);
   const { t } = useI18n();
   const { mode, selected, freeSeats, allSeats, draft, busy, canManage, canStartSessions, currencyCode, conflict, seatConflict, groupConflicts, groupSize } = props;
   const title = mode === 'create' ? t('op.booking.drawer.createTitle') : t('op.booking.drawer.detailTitle');
@@ -299,11 +304,25 @@ export function BookingDrawer(props: BookingDrawerProps) {
             {bookingDetailActions(selected.state).canConfirm && (
               <button type="button" disabled={!canManage || busy} onClick={() => props.onConfirm(selected)}><Plus size={15} />{t(selected.source === 'online' ? 'op.booking.requests.accept' : 'op.booking.actions.confirm')}</button>
             )}
+            {bookingDetailActions(selected.state).canReject && (
+              <button type="button" className="danger" disabled={!canManage || busy} onClick={() => setRejecting(true)}><X size={15} />{t('op.booking.actions.reject')}</button>
+            )}
             <button type="button" className="danger" disabled={!canManage || busy} onClick={props.onCancel}><Square size={15} />{t('op.booking.actions.cancel')}</button>
             {selected.reservationGroupId && groupSize > 1 && (
               <button type="button" className="danger" disabled={!canManage || busy} onClick={props.onCancelGroup}><Layers size={15} />{t('op.booking.group.cancelAll')}</button>
             )}
           </div>
+
+          {rejecting && bookingDetailActions(selected.state).canReject && (
+            <RejectPanel
+              busy={busy}
+              onSend={(reasonCode, note) => {
+                setRejecting(false);
+                props.onReject(reasonCode, note);
+              }}
+              onDismiss={() => setRejecting(false)}
+            />
+          )}
 
           <div className="booking-field">
             <span>{t('op.booking.move.seat')}</span>

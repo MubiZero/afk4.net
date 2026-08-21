@@ -478,6 +478,22 @@ void main() {
     expect(find.text('teleported'), findsOneWidget);
   });
 
+  // Отказ клуба без причины — это исчезнувшая бронь: человек видит, что её нет, и не понимает
+  // почему. Причина и судьба денег важнее самого факта отказа.
+  testWidgets('отказ клуба показывает причину и судьбу денег', (tester) async {
+    await tester.pumpWidget(harness(_serve(jsonEncode([
+      _reservation(state: 'rejected')
+        ..['rejectReasonCode'] = 'maintenance'
+        ..['rejectReasonNote'] = 'Меняем проводку в зале'
+    ]))));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Клуб отказал'), findsOneWidget);
+    expect(find.text('Зал закрыт на техработы'), findsOneWidget);
+    expect(find.text('Меняем проводку в зале'), findsOneWidget);
+    expect(find.text('Деньги вернулись целиком.'), findsOneWidget);
+  });
+
   // «Не приехал» перестал быть незнакомым состоянием: у него своя подпись. Показывать человеку
   // сырое no_show значит требовать от него читать по-английски внутренности сервера.
   testWidgets('неявка называется словами, а не кодом состояния', (tester) async {

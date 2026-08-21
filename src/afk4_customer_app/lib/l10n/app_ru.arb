@@ -11,6 +11,10 @@
   "a11yReservationsRespondIn": "Клуб ответит через:",
   "a11ySessionElapsed": "Сессия идёт:",
   "a11ySessionRemaining": "Осталось времени:",
+  "bookingRejectEvent": "В это время закрытое мероприятие",
+  "bookingRejectMaintenance": "Зал закрыт на техработы",
+  "bookingRejectNoSeats": "Мест на это время не осталось",
+  "bookingRejectOther": "Своими словами",
   "customerAchievementFirstVisit": "Первый визит",
   "customerAchievementFirstVisitHint": "Сыграть в клубе первый раз",
   "customerAchievementMarathon": "Марафон",
@@ -610,6 +614,7 @@
       }
     }
   },
+  "customerReservationsRejectMoneyBack": "Деньги вернулись целиком.",
   "customerReservationsRespondBy": "Клуб ответит до {time}",
   "@customerReservationsRespondBy": {
     "placeholders": {
@@ -659,6 +664,7 @@
   "customerReservationsStateConfirmed": "Подтверждена",
   "customerReservationsStateNoShow": "Вы не приехали",
   "customerReservationsStatePending": "Ожидает подтверждения",
+  "customerReservationsStateRejected": "Клуб отказал",
   "customerReservationsStateSeated": "Вы за местом",
   "customerReservationsTariff": "Тариф",
   "customerReservationsTariffGone": "Этот тариф больше не действует — выберите другой",

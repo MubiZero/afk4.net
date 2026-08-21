@@ -356,7 +356,10 @@ class ReservationEntry {
   /// Места, которые ещё в силе. Отменённые из счёта уходят: «4 места» рядом с двумя
   /// отменёнными — это неправда о брони.
   List<PlayerReservation> get live =>
-      reservations.where((r) => r.state != 'cancelled' && r.state != 'no_show').toList();
+      reservations
+          .where((r) =>
+              r.state != 'cancelled' && r.state != 'no_show' && r.state != 'rejected')
+          .toList();
 
   int get seatCount => live.isNotEmpty ? live.length : reservations.length;
 
@@ -424,8 +427,38 @@ class _ReservationCard extends StatelessWidget {
         'seated' => l.customerReservationsStateSeated,
         'cancelled' => l.customerReservationsStateCancelled,
         'no_show' => l.customerReservationsStateNoShow,
+        'rejected' => l.customerReservationsStateRejected,
         _ => reservation.state,
       };
+
+  /// Почему клуб отказал — словами, а не кодом состояния. Причина приходит кодом из общего
+  /// справочника: текст на языке стойки игроку не помог бы, а перевод у кода свой на каждый язык.
+  /// Пояснение администратора, если он его написал, идёт следом — оно и есть вся конкретика.
+  List<Widget> _rejection(L l, ThemeData theme) {
+    if (entry.state != 'rejected') return const [];
+    final reason = switch (reservation.rejectReasonCode) {
+      'no_seats' => l.bookingRejectNoSeats,
+      'maintenance' => l.bookingRejectMaintenance,
+      'event' => l.bookingRejectEvent,
+      'other' => null,
+      _ => null,
+    };
+    final note = reservation.rejectReasonNote?.trim();
+    final lines = [
+      ?reason,
+      if (note != null && note.isNotEmpty) note,
+      // Заморозка при отказе возвращается всегда: человеку это важнее самой причины.
+      l.customerReservationsRejectMoneyBack,
+    ];
+    return [
+      for (final line in lines)
+        Text(
+          line,
+          style: theme.textTheme.bodyMedium
+              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        ),
+    ];
+  }
 
   /// Сколько клуб ещё может думать над заявкой. Срок стоит только у заявок в ожидании: у
   /// подтверждённой отвечать больше не на что.
@@ -497,6 +530,7 @@ class _ReservationCard extends StatelessWidget {
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
             ..._respondBy(l, theme, locale),
+            ..._rejection(l, theme),
             if (entry.isCompany && entry.totalMinorUnits != null)
               Text(
                 formatMoney(entry.totalMinorUnits!, entry.currencyCode ?? 'TJS', locale: locale),

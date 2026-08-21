@@ -11,6 +11,10 @@
   "a11yReservationsRespondIn": "The club answers in:",
   "a11ySessionElapsed": "Session running:",
   "a11ySessionRemaining": "Time remaining:",
+  "bookingRejectEvent": "A private event is booked for that time",
+  "bookingRejectMaintenance": "The hall is closed for maintenance",
+  "bookingRejectNoSeats": "No seats left for that time",
+  "bookingRejectOther": "In your own words",
   "customerAchievementFirstVisit": "First visit",
   "customerAchievementFirstVisitHint": "Play at the club once",
   "customerAchievementMarathon": "Marathon",
@@ -610,6 +614,7 @@
       }
     }
   },
+  "customerReservationsRejectMoneyBack": "The money came back in full.",
   "customerReservationsRespondBy": "The club will answer by {time}",
   "@customerReservationsRespondBy": {
     "placeholders": {
@@ -659,6 +664,7 @@
   "customerReservationsStateConfirmed": "Confirmed",
   "customerReservationsStateNoShow": "You did not come",
   "customerReservationsStatePending": "Awaiting confirmation",
+  "customerReservationsStateRejected": "The club declined",
   "customerReservationsStateSeated": "Seated",
   "customerReservationsTariff": "Rate",
   "customerReservationsTariffGone": "That rate is no longer available; pick another",

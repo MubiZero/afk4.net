@@ -133,6 +133,9 @@ public static class AuditActionNames
     /// <summary>Администратор объявил, что игрок не приехал. Деньги при этом могут остаться клубу.</summary>
     public const string MarkReservationNoShow = "reservations.no_show";
 
+    /// <summary>Клуб отказал в заявке. Причина уходит игроку, поэтому в журнале она тоже есть.</summary>
+    public const string RejectReservation = "reservations.reject";
+
     public const string CreateProductCategory = "pos.categories.create";
 
     public const string CreateProduct = "pos.products.create";

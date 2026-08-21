@@ -125,7 +125,10 @@ internal static class ReservationProjection
                         ? platformPersonId
                         : null,
                 reservation.NoShowAtUtc,
-                reservation.RetainedAmountMinorUnits);
+                reservation.RetainedAmountMinorUnits,
+                reservation.RejectedAtUtc,
+                reservation.RejectReasonCode,
+                reservation.RejectReasonNote);
         }).ToList();
     }
 

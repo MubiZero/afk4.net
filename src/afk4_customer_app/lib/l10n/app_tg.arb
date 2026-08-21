@@ -11,6 +11,10 @@
   "a11yReservationsRespondIn": "Клуб ҷавоб медиҳад пас аз:",
   "a11ySessionElapsed": "Сессия идома дорад:",
   "a11ySessionRemaining": "Вақти боқимонда:",
+  "bookingRejectEvent": "Дар ин вақт чорабинии пӯшида аст",
+  "bookingRejectMaintenance": "Толор барои корҳои техникӣ баста аст",
+  "bookingRejectNoSeats": "Барои ин вақт ҷой намондааст",
+  "bookingRejectOther": "Бо суханони худ",
   "customerAchievementFirstVisit": "Ташрифи аввал",
   "customerAchievementFirstVisitHint": "Бори аввал дар клуб бозӣ кардан",
   "customerAchievementMarathon": "Марафон",
@@ -610,6 +614,7 @@
       }
     }
   },
+  "customerReservationsRejectMoneyBack": "Пул пурра баргашт.",
   "customerReservationsRespondBy": "Клуб то {time} ҷавоб медиҳад",
   "@customerReservationsRespondBy": {
     "placeholders": {
@@ -659,6 +664,7 @@
   "customerReservationsStateConfirmed": "Тасдиқшуда",
   "customerReservationsStateNoShow": "Шумо наомадед",
   "customerReservationsStatePending": "Дар интизори тасдиқ",
+  "customerReservationsStateRejected": "Клуб рад кард",
   "customerReservationsStateSeated": "Шумо дар ҷой ҳастед",
   "customerReservationsTariff": "Тариф",
   "customerReservationsTariffGone": "Ин тариф дигар эътибор надорад — дигарашро интихоб кунед",

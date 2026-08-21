@@ -374,6 +374,20 @@ export function BackendBookingWorkspace({
     });
   });
 
+  // Отказ в заявке: не отмена, поэтому и действие своё. Деньги игроку вернёт сервер целиком.
+  const rejectReservation = (reasonCode: string, note: string | null) =>
+    runReservationAction(t('op.booking.actions.reject'), async (clients) => {
+      const nextBackend = requireBackend(backend, t);
+      if (!selectedReservationId) throw new Error(t('op.booking.error.selectReservation'));
+      if (!selectedItem) throw new Error(t('op.booking.error.selectReservation'));
+      return await clients.reservations.reject(selectedReservationId, {
+        organizationId: nextBackend.session.organizationId,
+        reasonCode,
+        note,
+        expectedVersion: selectedItem.version
+      });
+    });
+
   // Отмена всей группы: отменяем каждую активную бронь с тем же ReservationGroupId по очереди.
   const cancelReservationGroup = () => runReservationAction(t('op.booking.group.cancelAll'), async (clients) => {
     const nextBackend = requireBackend(backend, t);
@@ -683,6 +697,7 @@ export function BackendBookingWorkspace({
             onStart={openReservationStart}
             onMove={moveReservation}
             onCancel={cancelReservation}
+            onReject={rejectReservation}
             onConfirm={(item) => confirmReservation(item, t('op.booking.requests.acceptLabel', { client: item.customerName }))}
             onOpenMap={onOpenSeat}
           />

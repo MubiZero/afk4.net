@@ -585,6 +585,8 @@ class PlayerReservation {
     this.currencyCode,
     this.reservationGroupId,
     this.respondByUtc,
+    this.rejectReasonCode,
+    this.rejectReasonNote,
   });
 
   final String reservationId;
@@ -608,6 +610,11 @@ class PlayerReservation {
   /// подтверждена, отменена или отыграна.
   final DateTime? respondByUtc;
 
+  /// Почему клуб отказал: код из общего справочника и слова администратора. Оба пусты у всех
+  /// броней, кроме отказанных.
+  final String? rejectReasonCode;
+  final String? rejectReasonNote;
+
   /// Отменить можно то, что ещё не состоялось. Отменённую или уже отыгранную бронь трогать
   /// нечего — кнопка там только сбивает с толку.
   bool get isCancellable => state == 'pending' || state == 'confirmed';
@@ -625,6 +632,8 @@ class PlayerReservation {
         respondByUtc: json['respondByUtc'] == null
             ? null
             : DateTime.parse(json['respondByUtc'] as String),
+        rejectReasonCode: json['rejectReasonCode'] as String?,
+        rejectReasonNote: json['rejectReasonNote'] as String?,
       );
 }
 

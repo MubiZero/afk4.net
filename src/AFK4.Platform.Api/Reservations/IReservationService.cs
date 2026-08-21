@@ -76,6 +76,16 @@ public interface IReservationService
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Клуб отказывает в заявке и говорит почему. Не отмена: игрок ничего не отменял, деньги ему
+    /// возвращаются целиком при любых настройках филиала, и в его сетевые числа отказ не идёт.
+    /// </summary>
+    Task<ReservationServiceResult<ReservationDto>> RejectAsync(
+        Guid reservationId,
+        Guid actorStaffUserId,
+        RejectReservationRequest request,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Администратор говорит «он не приехал». Таймер ждёт положенных филиалу минут и знает только
     /// про брони с замороженными деньгами; человек за стойкой видит пустое место раньше и знает
     /// про бронь без предоплаты то, чего таймер не знает вовсе.

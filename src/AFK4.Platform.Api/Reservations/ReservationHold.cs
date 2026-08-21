@@ -149,4 +149,7 @@ internal static class ReservationHoldCauses
 
     /// <summary>Клуб не ответил на заявку в обещанный срок. Возврат всегда полный.</summary>
     public const string RequestExpired = "request_expired";
+
+    /// <summary>Клуб отказал в заявке. Возврат тоже всегда полный: игрок ничего не нарушал.</summary>
+    public const string Rejected = "rejected";
 }

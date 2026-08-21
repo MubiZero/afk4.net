@@ -36,7 +36,7 @@ function renderDrawer(groupConflicts = new Set<string>()) {
     busy: false, canManage: true, canStartSessions: true, currencyCode: 'TJS', conflict: null, seatConflict: false,
     groupConflicts, groupSize: 0, searchClients: async () => [], reputation: idleReputation(), onClose: () => {},
     onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {}, onRemoveSeat: () => {},
-    onCancelGroup: () => {}, onStart: () => {}, onMove: () => {}, onCancel: () => {},
+    onCancelGroup: () => {}, onStart: () => {}, onMove: () => {}, onCancel: () => {}, onReject: () => {},
     onConfirm: () => {}, onOpenMap: () => {}
   };
   return render(<I18nProvider><BookingDrawer {...props} /></I18nProvider>);
@@ -55,7 +55,7 @@ function detail(state: string, onConfirm = () => {}, onStart = () => {}) {
     busy: false, canManage: true, canStartSessions: true, currencyCode: 'TJS', conflict: null,
     seatConflict: false, groupConflicts: new Set(), groupSize: 0, searchClients: async () => [], reputation: idleReputation(),
     onClose: () => {}, onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {},
-    onRemoveSeat: () => {}, onCancelGroup: () => {}, onStart, onMove: () => {}, onCancel: () => {},
+    onRemoveSeat: () => {}, onCancelGroup: () => {}, onStart, onMove: () => {}, onCancel: () => {}, onReject: () => {},
     onConfirm, onOpenMap: () => {}
   };
   return render(<I18nProvider><BookingDrawer {...props} /></I18nProvider>);
@@ -68,7 +68,7 @@ it('blocks drawer close while a reservation command is pending', () => {
     canManage: true, canStartSessions: true, currencyCode: 'TJS', conflict: null, seatConflict: false,
     groupConflicts: new Set(), groupSize: 0, searchClients: async () => [], reputation: idleReputation(), onClose,
     onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {}, onRemoveSeat: () => {},
-    onCancelGroup: () => {}, onStart: () => {}, onMove: () => {}, onCancel: () => {},
+    onCancelGroup: () => {}, onStart: () => {}, onMove: () => {}, onCancel: () => {}, onReject: () => {},
     onConfirm: () => {}, onOpenMap: () => {}
   };
   const result = render(<I18nProvider><BookingDrawer {...props} /></I18nProvider>);

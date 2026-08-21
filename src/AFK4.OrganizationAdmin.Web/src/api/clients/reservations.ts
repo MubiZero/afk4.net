@@ -61,6 +61,17 @@ export interface CancelReservationRequest {
   expectedVersion: number;
 }
 
+/**
+ * Отказ клуба в заявке. Не отмена: игроку возвращаются деньги целиком, а причину он читает на
+ * своём языке — поэтому код из справочника, а не свободный текст.
+ */
+export interface RejectReservationRequest {
+  organizationId: Guid;
+  reasonCode: string;
+  note?: string | null;
+  expectedVersion?: number;
+}
+
 export interface StartReservationSessionRequest {
   organizationId: Guid;
   expectedVersion: number;
@@ -102,6 +113,9 @@ export function createReservationClient(api: PlatformApiClient) {
     },
     cancel(reservationId: Guid, request: CancelReservationRequest): Promise<ReservationDto> {
       return api.post<ReservationDto, CancelReservationRequest>(`reservations/${reservationId}/cancel`, request);
+    },
+    reject(reservationId: Guid, request: RejectReservationRequest): Promise<ReservationDto> {
+      return api.post<ReservationDto, RejectReservationRequest>(`reservations/${reservationId}/reject`, request);
     },
     startSession(
       reservationId: Guid,
