@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../api/dto.dart';
@@ -12,10 +14,19 @@ import 'tariff_picker.dart';
 /// Место выбирает клуб, поэтому лист об этом прямо говорит — иначе игрок не понимает,
 /// получит ли он вообще машину, а в киберклубе это половина смысла брони.
 class NewReservationSheet extends StatefulWidget {
-  const NewReservationSheet({super.key, required this.api, required this.clock});
+  const NewReservationSheet({
+    super.key,
+    required this.api,
+    required this.clock,
+    this.accountOpen = true,
+  });
 
   final PlayerApiClient api;
   final DateTime Function() clock;
+
+  /// Есть ли у игрока счёт в этом клубе. Пока нет, прайс и правила спрашивать не по чему —
+  /// филиал приложение узнаёт из профиля, а профиль появляется вместе со счётом.
+  final bool accountOpen;
 
   @override
   State<NewReservationSheet> createState() => _NewReservationSheetState();
@@ -39,6 +50,10 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
   static const int _maxSeats = 8;
 
   List<TariffOption> _tariffs = const [];
+
+  /// Правила приёма заявок у филиала — то, чем лист объясняет «так решил клуб». null —
+  /// не спросились; тогда лист молчит, а не выдумывает за клуб.
+  PlayerBookingRules? _rules;
   String? _tariffId;
   ReservationQuote? _quote;
   bool _quoting = false;
@@ -55,10 +70,12 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
   }
 
   Future<void> _loadTariffs() async {
+    if (!widget.accountOpen) return;
     try {
       final profile = await widget.api.getProfile();
       final branchId = profile.homeBranchId;
       if (branchId == null) return;
+      unawaited(_loadRules(branchId));
       final tariffs = await widget.api.getTariffs(branchId);
       if (!mounted) return;
       setState(() {
@@ -70,6 +87,17 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
       _refreshQuote();
     } on PlayerApiException {
       // Прайса нет — бронь всё равно можно поставить, её посчитают на стойке.
+    }
+  }
+
+  /// Правила клуба. Не спросились — лист работает как работал: отказ всё равно объяснит
+  /// сервер, а выдуманное правило хуже отсутствующего.
+  Future<void> _loadRules(String branchId) async {
+    try {
+      final rules = await widget.api.getBookingRules(branchId);
+      if (mounted) setState(() => _rules = rules);
+    } on PlayerApiException {
+      // Молчим: правила — объяснение, а не условие брони.
     }
   }
 
@@ -167,11 +195,50 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
           // Тариф с расписанием на выбранный час не действует. Выход отсюда — другой тариф или
           // другое время, и общая «не удалось» не подсказывает ни того, ни другого.
           (_, 'tariff_outside_its_hours') => l.customerReservationsTariffOutsideHours,
+          // Решения клуба, а не сбои: у каждого свой выход — позвонить, пополнить,
+          // дождаться своей брони.
+          (_, 'booking_disabled') => l.customerReservationsErrDisabled,
+          (_, 'prepayment_required') => l.customerReservationsErrPrepay,
+          (_, 'active_reservation_limit') => l.customerReservationsErrLimit,
+          // Сеть из нескольких залов, а счёта здесь ещё нет: назвать зал приложение пока не
+          // умеет, и тупика лучше избежать словами, чем молчанием.
+          (_, 'branch_required') => l.customerReservationsErrBranch,
           (409, _) => l.customerReservationsConflict,
           _ => l.customerReservationsCreateError,
         };
       });
     }
+  }
+
+  /// Что клуб решил насчёт заявок — до того, как игрок заполнит форму и получит отказ.
+  /// Молчим, когда решать нечего: клуб подтверждает сам и предоплаты с этого игрока не берёт.
+  List<Widget> _clubRules(L l, ThemeData theme) {
+    final rules = _rules;
+    if (rules == null) return const [];
+
+    final notes = <String>[
+      if (rules.bookingOff) l.customerReservationsRuleOff,
+      if (rules.reviewedByStaff)
+        l.customerReservationsRuleManual('${rules.respondWithinMinutes}'),
+      if (rules.prepaymentRequired) l.customerReservationsRulePrepay,
+    ];
+    if (notes.isEmpty) return const [];
+
+    return [
+      const SizedBox(height: 8),
+      for (final note in notes)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            note,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: rules.bookingOff
+                  ? theme.colorScheme.error
+                  : theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+    ];
   }
 
   @override
@@ -188,6 +255,7 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(l.customerReservationsNewTitle, style: theme.textTheme.titleLarge),
+            ..._clubRules(l, theme),
             const SizedBox(height: 16),
             DateTimeField(
               label: l.customerReservationsStart,

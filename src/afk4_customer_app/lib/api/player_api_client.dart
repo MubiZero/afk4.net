@@ -5,13 +5,17 @@ import 'package:http/http.dart' as http;
 import '../auth/player_session.dart';
 import 'dto.dart';
 
-/// Ошибка запроса к API. Несёт код состояния: 401 на входе — «неверный пароль», 403 на
+/// Ошибка запроса к API. Несёт код состояния: 410 на коде — «код устарел», 403 на
 /// действии — «возможность выключена», и на экране это разные тексты.
 class PlayerApiException implements Exception {
   const PlayerApiException(this.statusCode, this.message);
 
   final int? statusCode;
   final String message;
+
+  /// Клуб выбран, а счёта в нём у человека ещё нет. Это не сбой: счёт открывается первым
+  /// действием — бронью или пополнением, — и до него в клубе просто нечего показывать.
+  bool get isNoAccountInClub => statusCode == 409 && message == 'club_not_selected';
 
   @override
   String toString() => 'PlayerApiException($statusCode, $message)';
@@ -44,50 +48,36 @@ class PlayerApiClient {
   PlayerSession? _session;
   PlayerSession? get session => _session;
 
+  /// Клуб, в котором игрок сейчас находится. Аккаунт один на всю сеть, поэтому клуб
+  /// называется на каждом запросе — иначе сервер не знает, чей кошелёк показывать.
+  /// null — клуб ещё не выбран; тогда работают только маршруты про самого человека.
+  String? organizationId;
+
   /// Смена сессии без пересоздания клиента — см. комментарий к классу.
   void updateSession(PlayerSession? next) {
     _session = next;
     _onSessionChanged?.call(next);
   }
 
-  Future<PlayerSession> signIn({
-    required String organizationId,
-    required String phoneNumber,
-    required String password,
-  }) async {
-    final body = await _post('/api/public/player/sign-in', {
-      'organizationId': organizationId,
-      'phoneNumber': phoneNumber,
-      'password': password,
-    });
-    final signedIn = PlayerSession.fromJson(body);
-    updateSession(signedIn);
-    return signedIn;
-  }
-
-  /// Просит код для входа. Ответ одинаков и для известного, и для незнакомого номера —
-  /// сервер намеренно не подсказывает, кто где играет.
-  Future<PhoneVerificationStarted> startCodeSignIn({
-    required String organizationId,
-    required String phoneNumber,
-  }) async =>
-      _parse(
-        await _post('/api/public/player/sign-in/code', {
-          'organizationId': organizationId,
-          'phoneNumber': phoneNumber,
-        }),
+  /// Просит код на номер — и для нового человека, и для давнего. Дверь одна намеренно:
+  /// отдельный вход и отдельная регистрация сами по себе рассказали бы звонящему, знаком
+  /// ли нам его номер. Клуб здесь не называется — человек заводит себя сам.
+  ///
+  /// 400 — номер не похож на номер, 429 — слишком часто.
+  Future<PhoneVerificationStarted> startSignIn(String phoneNumber) async => _parse(
+        await _post('/api/public/register/start', {'phoneNumber': phoneNumber}),
         PhoneVerificationStarted.fromJson,
       );
 
-  /// Вход по коду. Он же подтверждает номер: прочитать код с этого телефона — то же
-  /// доказательство, которого требует подтверждение.
-  Future<PlayerSession> confirmCodeSignIn({
-    required String organizationId,
+  /// Код из SMS в обмен на сессию. Он же подтверждает номер: прочитать код с этого телефона
+  /// — то же доказательство, которого требует подтверждение.
+  ///
+  /// 400 — код неверен, 410 — устарел или его не запрашивали, 403 — аккаунт закрыт.
+  Future<PlayerSession> confirmSignIn({
     required String phoneNumber,
     required String code,
   }) async {
-    final body = await _post('/api/public/player/sign-in/code/confirm', {
-      'organizationId': organizationId,
+    final body = await _post('/api/public/register/confirm', {
       'phoneNumber': phoneNumber,
       'code': code,
     });
@@ -95,6 +85,42 @@ class PlayerApiClient {
     updateSession(signedIn);
     return signedIn;
   }
+
+  /// Кто я и где у меня счета. Единственный маршрут, которому клуб не нужен: он клубы и
+  /// перечисляет.
+  Future<Me> getMe() async => _parse(await getJson('/api/me'), Me.fromJson);
+
+  /// Имя и язык человека — те два поля, которые спрашиваются при регистрации. Они
+  /// принадлежат человеку, а не клубу, поэтому живут отдельно от клубного профиля.
+  Future<MePerson> updateMe({required String displayName, String? preferredLocale}) async =>
+      _parse(
+        await sendJson('PATCH', '/api/me', {
+          'displayName': displayName,
+          'preferredLocale': ?preferredLocale,
+        }),
+        MePerson.fromJson,
+      );
+
+  /// Задаёт сетевой PIN — тот, которым игрок садится за ПК. Старый не спрашивается: этот
+  /// маршрут и есть ответ забывшему его.
+  ///
+  /// 400 `invalid_pin` — не 4–8 цифр.
+  Future<void> setPin(String pin) async {
+    var response = await _send('PUT', '/api/me/pin', body: {'pin': pin});
+    if (response.statusCode == 401 && await _refreshOnce()) {
+      response = await _send('PUT', '/api/me/pin', body: {'pin': pin});
+    }
+    if (response.statusCode >= 400) {
+      throw PlayerApiException(response.statusCode, _errorMessage(response));
+    }
+  }
+
+  /// Правила брони филиала — посчитанные под этого игрока: принимает ли клуб заявки, сколько
+  /// ждать ответа, нужна ли предоплата именно ему.
+  Future<PlayerBookingRules> getBookingRules(String branchId) async => _parse(
+        await getJson('/api/me/branches/${Uri.encodeComponent(branchId)}/booking-rules'),
+        PlayerBookingRules.fromJson,
+      );
 
   Future<Map<String, dynamic>> getJson(String path) async {
     var response = await _send('GET', path);
@@ -498,11 +524,19 @@ class PlayerApiClient {
     return _decode(response);
   }
 
+  /// Заголовок, которым запрос называет клуб. Он же и вся многоклубность: один аккаунт, а
+  /// кошелёк, брони и история — того заведения, которое игрок открыл.
+  static const String _organizationHeader = 'X-AFK4-Organization';
+
   Future<http.Response> _send(String method, String path, {Object? body}) async {
     final uri = Uri.parse('$baseUrl$path');
     final headers = <String, String>{};
     final token = _session?.accessToken;
     if (token != null) headers['Authorization'] = 'Bearer $token';
+    final club = organizationId;
+    if (club != null && path.startsWith('/api/me')) {
+      headers[_organizationHeader] = club;
+    }
     if (body != null) headers['Content-Type'] = 'application/json';
 
     final request = http.Request(method, uri)..headers.addAll(headers);

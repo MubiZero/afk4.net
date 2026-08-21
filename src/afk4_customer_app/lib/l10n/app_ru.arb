@@ -100,6 +100,12 @@
   "customerClubPickerTabList": "Списком",
   "customerClubPickerTabMap": "На карте",
   "customerClubPickerTitle": "Выберите клуб",
+  "customerClubsAll": "Все клубы",
+  "customerClubsHere": "Вы здесь",
+  "customerClubsMine": "Ваши клубы",
+  "customerClubsNoAccount": "Здесь вы ещё не играли",
+  "customerClubsNoAccountHint": "Кошелёк этого клуба откроется с первой брони или пополнения. Деньги у каждого клуба свои.",
+  "customerClubsOpen": "Перейти",
   "customerCommonBack": "← Назад",
   "customerCommonDayAtTime": "{day}, {time}",
   "@customerCommonDayAtTime": {
@@ -318,6 +324,23 @@
     }
   },
   "customerPhoneTitle": "Подтверждение номера",
+  "customerPinChange": "Сменить PIN",
+  "customerPinDone": "PIN сохранён",
+  "customerPinErrFormat": "PIN — от 4 до 8 цифр",
+  "customerPinErrRepeat": "PIN не совпадает",
+  "customerPinErrSave": "Не удалось сохранить PIN",
+  "customerPinField": "Новый PIN",
+  "customerPinForgot": "Забыли PIN — задайте новый, старый спрашивать не будем.",
+  "customerPinIntro": "Введите его на экране ПК вместе со своим номером — и сядете за место сами, без администратора.",
+  "customerPinRepeat": "Повторите PIN",
+  "customerPinRule": "От 4 до 8 цифр",
+  "customerPinSave": "Сохранить",
+  "customerPinSaving": "Сохраняем…",
+  "customerPinScope": "PIN работает во всех клубах сети. Для входа в приложение он не нужен — сюда вы входите по коду из SMS.",
+  "customerPinSet": "Задать PIN",
+  "customerPinStateSet": "PIN задан",
+  "customerPinStateUnset": "PIN не задан — за ПК вас пока сажает администратор",
+  "customerPinTitle": "PIN для посадки за ПК",
   "customerPlayBusyOffline": "ПК выключен",
   "customerPlayBusyReservation": "Забронировано",
   "customerPlayBusySession": "Занято",
@@ -492,6 +515,10 @@
   "customerReservationsCreating": "Создаём…",
   "customerReservationsEnd": "Конец",
   "customerReservationsEndBeforeStart": "Конец должен быть позже начала",
+  "customerReservationsErrBranch": "У этой сети несколько залов — из приложения бронь пока не оформить. Позвоните в клуб.",
+  "customerReservationsErrDisabled": "Клуб сейчас не принимает брони из приложения",
+  "customerReservationsErrLimit": "У вас уже есть активная бронь. Дождитесь её или отмените",
+  "customerReservationsErrPrepay": "Не хватает денег на предоплату — пополните кошелёк",
   "customerReservationsGate": "Чтобы бронировать онлайн, подтвердите свой номер телефона.",
   "customerReservationsGroupNoFunds": "На кошельке не хватает денег на всю компанию. Пополните его или возьмите меньше мест.",
   "customerReservationsGroupNoSeats": "На это время в зале нет столько свободных машин. Возьмите меньше мест или выберите другое время.",
@@ -538,6 +565,34 @@
       }
     }
   },
+  "customerReservationsRespondBy": "Клуб ответит до {time}",
+  "@customerReservationsRespondBy": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsRespondLeft": "{minutes, plural, one {осталась {minutes} минута} few {осталось {minutes} минуты} many {осталось {minutes} минут} other {осталось {minutes} минуты}}",
+  "@customerReservationsRespondLeft": {
+    "placeholders": {
+      "minutes": {
+        "type": "num"
+      }
+    }
+  },
+  "customerReservationsRespondOver": "Клуб не ответил вовремя — заявка снимется, деньги вернутся",
+  "customerReservationsRespondSoon": "осталось меньше минуты",
+  "customerReservationsRuleManual": "Заявку смотрит администратор — обычно отвечает за {minutes} мин.",
+  "@customerReservationsRuleManual": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsRuleOff": "Клуб не принимает брони из приложения. Позвоните на стойку.",
+  "customerReservationsRulePrepay": "Первые брони клуб держит под предоплату: сумма замораживается на кошельке.",
   "customerReservationsSeatNote": "Место назначит администратор клуба — вы получите его в подтверждении.",
   "customerReservationsSeats": "Сколько мест",
   "customerReservationsSeatsAlone": "Бронь на одного",
@@ -668,6 +723,7 @@
   "customerShopStatusPlaced": "Заказ принят, готовим",
   "customerShopTitle": "Заказ к месту",
   "customerShopTotal": "Итого",
+  "customerSigninBlocked": "Вход в аккаунт закрыт. Обратитесь в клуб.",
   "customerSigninByCode": "Войти по SMS-коду",
   "customerSigninByPassword": "Войти по паролю",
   "customerSigninCodeError": "Неверный код",
@@ -681,11 +737,29 @@
       }
     }
   },
+  "customerSigninCodeSentAny": "Код отправлен на {phone}",
+  "@customerSigninCodeSentAny": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
   "customerSigninCodeTooMany": "Слишком много попыток — запросите новый код",
   "customerSigninError": "Неверный номер или пароль",
+  "customerSigninFailed": "Не удалось войти. Попробуйте ещё раз.",
+  "customerSigninFinish": "Продолжить",
+  "customerSigninIntro": "Введите номер телефона — пришлём код в SMS. Аккаунт один на все клубы сети.",
+  "customerSigninLangTitle": "Язык приложения",
+  "customerSigninName": "Имя",
+  "customerSigninNameError": "Введите имя",
+  "customerSigninNameHint": "Имя увидит администратор клуба, когда вы придёте.",
+  "customerSigninNameTitle": "Как вас зовут",
   "customerSigninNetworkError": "Нет связи с сервером. Проверьте интернет.",
   "customerSigninPassword": "PIN или пароль",
   "customerSigninPhone": "Телефон",
+  "customerSigninSaveError": "Не удалось сохранить имя",
+  "customerSigninSaving": "Сохраняем…",
   "customerSigninSubmit": "Войти",
   "customerSigninSubmitting": "Входим…",
   "customerSigninTitle": "Вход",
@@ -700,6 +774,8 @@
   "customerWalletAmountError": "Введите сумму больше нуля",
   "customerWalletGate": "Чтобы пополнять кошелёк онлайн, подтвердите свой номер телефона.",
   "customerWalletGateAction": "Подтвердить номер",
+  "customerWalletHeld": "Придержано под брони",
+  "customerWalletHeldNote": "Вернётся на кошелёк, если бронь отменят.",
   "customerWalletIntents": "Ваши заявки",
   "customerWalletNote": "Клуб зачислит сумму, когда подтвердит её на стойке.",
   "customerWalletPendingHint": "Заявка на {amount} ждёт зачисления",

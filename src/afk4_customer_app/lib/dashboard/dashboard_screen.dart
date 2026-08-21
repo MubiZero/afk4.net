@@ -17,6 +17,7 @@ import '../referral/referral_screen.dart';
 import '../reviews/review_invite.dart';
 import '../reviews/review_sheet.dart';
 import '../shell/app_scaffold.dart';
+import '../shell/new_club_note.dart';
 import '../shell/pressable.dart';
 import '../shell/skeleton.dart';
 import '../shop/shop_screen.dart';
@@ -37,6 +38,7 @@ class DashboardScreen extends StatefulWidget {
     required this.organization,
     required this.phoneVerified,
     required this.features,
+    this.accountOpen = true,
     this.onOpenReservations,
     this.onOpenWallet,
     this.onPhoneVerified,
@@ -54,6 +56,10 @@ class DashboardScreen extends StatefulWidget {
   /// Возможности клуба; null — список не получен. Загружает их оболочка: он нужен ещё и
   /// разделам, а два независимых запроса одного и того же — лишний трафик и рассинхрон.
   final List<String>? features;
+
+  /// Есть ли у игрока счёт в этом клубе. Пока нет — спрашивать нечего: ни денег, ни сессии,
+  /// ни истории здесь ещё не завелось.
+  final bool accountOpen;
 
   /// Куда вести из пустого состояния «нет сессии». null — клуб не принимает онлайн-брони,
   /// и звать туда некуда.
@@ -107,10 +113,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    if (!widget.accountOpen) return;
     _refresh();
     _loadBranch();
     _loadPendingReview();
     _poll = Timer.periodic(_refreshEvery, (_) => _refresh());
+  }
+
+  /// Счёт открылся, пока экран был на виду, — теперь клубу есть что рассказать.
+  @override
+  void didUpdateWidget(DashboardScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.accountOpen && !oldWidget.accountOpen) {
+      _refresh();
+      _loadBranch();
+      _loadPendingReview();
+      _poll ??= Timer.periodic(_refreshEvery, (_) => _refresh());
+    }
   }
 
   @override
@@ -365,13 +384,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const _StaleBanner(),
                 const SizedBox(height: 12),
               ],
-              if (data == null && _failed)
+              // В клубе, где счёта ещё нет, спрашивать нечего: ни денег, ни сессии, ни
+              // новостей — сервер отвечает на них только своим игрокам.
+              if (!widget.accountOpen)
+                const NewClubNote()
+              else if (data == null && _failed)
                 Text(l.customerDashboardLoadError, style: TextStyle(color: theme.colorScheme.error))
               else if (data == null)
                 Semantics(label: l.a11yLoadingDashboard, child: const _DashboardSkeleton())
               else ...[
                 _BalanceStrip(
                   balance: data.walletBalance,
+                  held: data.heldBalance,
                   debt: data.debtBalance,
                   onOpen: widget.onOpenWallet,
                 ),
@@ -440,9 +464,18 @@ class _DashboardSkeleton extends StatelessWidget {
 /// Строка баланса. Деньги стоят первыми и ведут в свой раздел: «сколько у меня» — первый
 /// вопрос вошедшего, и ответ на него не должен требовать прокрутки.
 class _BalanceStrip extends StatelessWidget {
-  const _BalanceStrip({required this.balance, required this.debt, required this.onOpen});
+  const _BalanceStrip({
+    required this.balance,
+    required this.held,
+    required this.debt,
+    required this.onOpen,
+  });
 
   final Money balance;
+
+  /// Придержанное под брони. Из остатка уже вычтено — строка объясняет, почему остаток
+  /// меньше, чем игрок помнит.
+  final Money held;
   final Money debt;
   final VoidCallback? onOpen;
 
@@ -480,6 +513,13 @@ class _BalanceStrip extends StatelessWidget {
                     formatMoney(balance.minorUnits, balance.currencyCode, locale: locale),
                     style: theme.textTheme.titleLarge,
                   ),
+                  if (held.minorUnits > 0)
+                    Text(
+                      '${l.customerWalletHeld}: '
+                      '${formatMoney(held.minorUnits, held.currencyCode, locale: locale)}',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
                   // Долг показывается, только когда он есть: строка «Долг: 0» на главной
                   // пугает зря.
                   if (debt.minorUnits > 0)

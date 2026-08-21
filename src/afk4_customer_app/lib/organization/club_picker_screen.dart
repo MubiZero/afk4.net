@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../api/dto.dart';
 import '../l10n/app_localizations.dart';
+import '../money/money.dart';
 import '../theme/brand_mark.dart';
 import '../reviews/club_reviews_sheet.dart';
 import 'club_card.dart';
@@ -21,10 +23,19 @@ class ClubPickerScreen extends StatefulWidget {
     super.key,
     required this.directory,
     required this.onSelected,
+    this.myClubs = const [],
+    this.selectedOrganizationId,
   });
 
   final OrganizationDirectory directory;
   final ValueChanged<Organization> onSelected;
+
+  /// Клубы, в которых у игрока уже есть счёт. Они идут первыми и со своими деньгами: аккаунт
+  /// один на всю сеть, а кошелёк у каждого клуба свой, и это первое, что надо видеть.
+  final List<MyClub> myClubs;
+
+  /// Клуб, открытый прямо сейчас. Нужен, чтобы не звать переходить туда, где игрок уже есть.
+  final String? selectedOrganizationId;
 
   @override
   State<ClubPickerScreen> createState() => _ClubPickerScreenState();
@@ -182,6 +193,35 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
     );
   }
 
+  /// «Ваши клубы» — свои заведения первыми и с деньгами каждого. Показывается только когда
+  /// игрок не ищет: в результатах поиска отдельный список поверх найденного сбивает с толку.
+  List<Widget> _myClubsSection(L l, List<Organization> catalogue) {
+    if (widget.myClubs.isEmpty || _query.trim().isNotEmpty) return const [];
+
+    final rows = <Widget>[];
+    for (final mine in widget.myClubs) {
+      final club = catalogue
+          .where((candidate) => candidate.organizationId == mine.organizationId)
+          .firstOrNull;
+      // Клуба нет в каталоге — он закрылся или снялся с витрины. Строка, ведущая в никуда,
+      // хуже её отсутствия.
+      if (club == null) continue;
+      rows.add(_MyClubRow(
+        club: mine,
+        here: mine.organizationId == widget.selectedOrganizationId,
+        onOpen: () => widget.onSelected(club),
+      ));
+    }
+    if (rows.isEmpty) return const [];
+
+    return [
+      _SectionTitle(l.customerClubsMine),
+      ...rows,
+      const SizedBox(height: 8),
+      _SectionTitle(l.customerClubsAll),
+    ];
+  }
+
   Widget _buildBody(L l) {
     return switch (_load) {
       _Loading() => const Center(child: CircularProgressIndicator()),
@@ -192,16 +232,20 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
         ),
       _Ready(clubs: final clubs) when clubs.isEmpty => _Message(text: l.customerClubPickerEmpty),
       _Ready(clubs: final clubs) => switch (_view) {
-          _View.list => ListView.separated(
+          _View.list => ListView(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              itemCount: clubs.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 14),
-              itemBuilder: (context, index) => ClubCard(
-                club: clubs[index],
-                onTap: () => widget.onSelected(clubs[index]),
-                onOpenReviews: () => _openReviews(clubs[index]),
-                onOpenDetails: () => _openDetails(clubs[index]),
-              ),
+              children: [
+                ..._myClubsSection(l, clubs),
+                for (final club in clubs) ...[
+                  ClubCard(
+                    club: club,
+                    onTap: () => widget.onSelected(club),
+                    onOpenReviews: () => _openReviews(club),
+                    onOpenDetails: () => _openDetails(club),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+              ],
             ),
           _View.map => Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -209,6 +253,65 @@ class _ClubPickerScreenState extends State<ClubPickerScreen> {
             ),
         },
     };
+  }
+}
+
+/// Заголовок группы в списке клубов.
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Text(text, style: Theme.of(context).textTheme.titleSmall),
+      );
+}
+
+/// Свой клуб строкой: название, остаток кошелька и переход. Придержанное показывается
+/// отдельно — иначе игрок не поймёт, почему остаток меньше, чем он помнит.
+class _MyClubRow extends StatelessWidget {
+  const _MyClubRow({required this.club, required this.here, required this.onOpen});
+
+  final MyClub club;
+  final bool here;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final theme = Theme.of(context);
+    final locale = Localizations.localeOf(context).languageCode;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        title: Text(club.organizationName),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(formatMoney(club.walletBalance.minorUnits, club.walletBalance.currencyCode,
+                locale: locale)),
+            if (club.heldBalance.minorUnits > 0)
+              Text(
+                '${l.customerWalletHeld}: '
+                '${formatMoney(club.heldBalance.minorUnits, club.heldBalance.currencyCode, locale: locale)}',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+          ],
+        ),
+        trailing: here
+            ? Text(l.customerClubsHere,
+                style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary))
+            : TextButton(onPressed: onOpen, child: Text(l.customerClubsOpen)),
+        // Нажимается и текущий клуб — это и есть дорога назад для того, кто передумал
+        // переходить.
+        onTap: onOpen,
+      ),
+    );
   }
 }
 

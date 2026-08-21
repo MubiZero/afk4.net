@@ -62,8 +62,9 @@ Widget harness(PlayerApiClient api) => MaterialApp(
 PlayerApiClient clientWith(FakeHttpClient inner) =>
     PlayerApiClient(baseUrl: 'https://api', httpClient: inner);
 
-String _dashboard({int wallet = 120050, int debt = 0}) => jsonEncode({
+String _dashboard({int wallet = 120050, int held = 0, int debt = 0}) => jsonEncode({
   'walletBalance': {'currencyCode': 'TJS', 'minorUnits': wallet},
+  'heldBalance': {'currencyCode': 'TJS', 'minorUnits': held},
   'debtBalance': {'currencyCode': 'TJS', 'minorUnits': debt},
   'activeSession': null,
 });
