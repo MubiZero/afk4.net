@@ -67,7 +67,9 @@ it('говорит, что срок вышел, а не показывает н�
     { reservationId: 'r1', seatId: null, seatName: null, startsAtUtc: '2999-01-01T10:00:00Z', endsAtUtc: '2999-01-01T12:00:00Z', state: 'pending', note: null, respondByUtc: '2000-01-01T00:00:00Z' }
   ]) } as unknown as PlayerApiClient;
   renderScreen(api, true);
-  expect(await screen.findByText(/Срок ответа вышел/)).toBeInTheDocument();
+  // Текст берётся из общего каталога: он один на приложение и на веб, и разъехаться им нельзя.
+  expect(await screen.findByText(/Клуб не ответил вовремя/)).toBeInTheDocument();
+  expect(screen.queryByText(/осталось/)).not.toBeInTheDocument();
 });
 
 // Подтверждённой брони отвечать больше не на что — отсчёт у неё был бы обещанием ни о чём.
