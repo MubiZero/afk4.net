@@ -31,16 +31,31 @@
   "customerBranchTitle": "В какой зал вы придёте?",
   "customerClubDetailsChoose": "Играть здесь",
   "customerClubDetailsDayOff": "выходной",
-  "customerClubDetailsHallSeats": "{count, plural, one {{count} место} few {{count} места} many {{count} мест} other {{count} места}}",
-  "@customerClubDetailsHallSeats": {
+  "customerClubDetailsHalls": "Залы сети",
+  "customerClubDetailsHallsIn": "{count, plural, one {{count} зал} few {{count} зала} many {{count} залов} other {{count} зала}} · {cities}",
+  "@customerClubDetailsHallsIn": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      },
+      "cities": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubDetailsHours": "Часы работы",
+  "customerClubDetailsHoursUnknown": "Часы работы клуб не указал",
+  "customerClubDetailsNoHalls": "Клуб не указал, где он находится",
+  "customerClubDetailsZoneSeats": "{count, plural, one {{count} место} few {{count} места} many {{count} мест} other {{count} места}}",
+  "@customerClubDetailsZoneSeats": {
     "placeholders": {
       "count": {
         "type": "num"
       }
     }
   },
-  "customerClubDetailsHalls": "Залы",
-  "customerClubDetailsHours": "Часы работы",
+  "customerClubDetailsZones": "Зоны",
+  "customerClubDetailsZonesUnknown": "Зоны клуб не описал",
   "customerClubPickerChange": "Сменить клуб",
   "customerClubPickerClosedToday": "Сегодня выходной",
   "customerClubPickerDetails": "Подробнее",

@@ -31,16 +31,31 @@
   "customerBranchTitle": "Ба кадом толор меоед?",
   "customerClubDetailsChoose": "Дар ин ҷо бозӣ мекунам",
   "customerClubDetailsDayOff": "рӯзи истироҳат",
-  "customerClubDetailsHallSeats": "{count, plural, one {{count} ҷой} other {{count} ҷой}}",
-  "@customerClubDetailsHallSeats": {
+  "customerClubDetailsHalls": "Толорҳои шабака",
+  "customerClubDetailsHallsIn": "{count, plural, one {{count} толор} other {{count} толор}} · {cities}",
+  "@customerClubDetailsHallsIn": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      },
+      "cities": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubDetailsHours": "Соатҳои корӣ",
+  "customerClubDetailsHoursUnknown": "Клуб соатҳои кориро нишон надодааст",
+  "customerClubDetailsNoHalls": "Клуб ҷойгиршавии худро нишон надодааст",
+  "customerClubDetailsZoneSeats": "{count, plural, one {{count} ҷой} other {{count} ҷой}}",
+  "@customerClubDetailsZoneSeats": {
     "placeholders": {
       "count": {
         "type": "num"
       }
     }
   },
-  "customerClubDetailsHalls": "Толорҳо",
-  "customerClubDetailsHours": "Соатҳои корӣ",
+  "customerClubDetailsZones": "Минтақаҳо",
+  "customerClubDetailsZonesUnknown": "Клуб минтақаҳоро тавсиф накардааст",
   "customerClubPickerChange": "Иваз кардани клуб",
   "customerClubPickerClosedToday": "Имрӯз рӯзи истироҳат",
   "customerClubPickerDetails": "Муфассал",

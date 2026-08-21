@@ -6,42 +6,82 @@ import 'package:afk4_customer_app/organization/club_details_sheet.dart';
 import 'package:afk4_customer_app/organization/opening_hours.dart';
 import 'package:afk4_customer_app/organization/organization.dart';
 
+const _rudaki = ClubPlace(
+  branchId: 'b1',
+  name: 'На Рудаки',
+  city: 'Душанбе',
+  address: 'пр. Рудаки, 25',
+  description: 'Сорок машин и две PlayStation',
+  zones: [
+    ClubZone(name: 'Основной зал', seatCount: 30, hardwareSummary: 'RTX 4060 · 27" 165 Гц'),
+    ClubZone(name: 'VIP', seatCount: 10),
+  ],
+  workingHours: [
+    OpeningDay(dayOfWeek: 1, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+    OpeningDay(dayOfWeek: 2, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+    OpeningDay(dayOfWeek: 3, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+    OpeningDay(dayOfWeek: 4, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+    OpeningDay(dayOfWeek: 5, isClosed: false, openTime: '10:00', closeTime: '02:00'),
+    OpeningDay(dayOfWeek: 6, isClosed: false, openTime: '10:00', closeTime: '02:00'),
+    OpeningDay(dayOfWeek: 7, isClosed: true),
+  ],
+);
+
+/// Второй зал сети: другой город, другой адрес, другие часы и другие зоны. Всё, чем он
+/// отличается от первого, — это ровно то, что раньше подменялось данными первого.
+const _sino = ClubPlace(
+  branchId: 'b2',
+  name: 'На Сино',
+  city: 'Худжанд',
+  address: 'ул. Сино, 4',
+  description: 'Ночной зал у вокзала',
+  zones: [ClubZone(name: 'Буткемп', seatCount: 12, hardwareSummary: 'RTX 4070 · 240 Гц')],
+  workingHours: [
+    OpeningDay(dayOfWeek: 1, isClosed: false, openTime: '12:00', closeTime: '06:00'),
+    OpeningDay(dayOfWeek: 2, isClosed: false, openTime: '12:00', closeTime: '06:00'),
+    OpeningDay(dayOfWeek: 3, isClosed: false, openTime: '12:00', closeTime: '06:00'),
+    OpeningDay(dayOfWeek: 4, isClosed: false, openTime: '12:00', closeTime: '06:00'),
+    OpeningDay(dayOfWeek: 5, isClosed: false, openTime: '12:00', closeTime: '06:00'),
+    OpeningDay(dayOfWeek: 6, isClosed: false, openTime: '12:00', closeTime: '06:00'),
+    OpeningDay(dayOfWeek: 7, isClosed: false, openTime: '12:00', closeTime: '06:00'),
+  ],
+);
+
+/// Зал, про который клуб не рассказал ничего, кроме адреса.
+const _bareHall = ClubPlace(branchId: 'b3', name: 'На Айни', city: 'Душанбе', address: 'ул. Айни, 7');
+
 const _club = Organization(
   organizationId: '11111111-1111-1111-1111-111111111111',
   slug: 'cyberx',
   name: 'CyberX',
   pricePerHourFromMinorUnits: 1500,
   currencyCode: 'TJS',
-  places: [
-    ClubPlace(
-      branchId: 'b1',
-      name: 'На Рудаки',
-      city: 'Душанбе',
-      address: 'пр. Рудаки, 25',
-      description: 'Сорок машин и две PlayStation',
-      zones: [
-        ClubZone(name: 'Основной зал', seatCount: 30, hardwareSummary: 'RTX 4060 · 27" 165 Гц'),
-        ClubZone(name: 'VIP', seatCount: 10),
-      ],
-      workingHours: [
-        OpeningDay(dayOfWeek: 1, isClosed: false, openTime: '10:00', closeTime: '23:00'),
-        OpeningDay(dayOfWeek: 2, isClosed: false, openTime: '10:00', closeTime: '23:00'),
-        OpeningDay(dayOfWeek: 3, isClosed: false, openTime: '10:00', closeTime: '23:00'),
-        OpeningDay(dayOfWeek: 4, isClosed: false, openTime: '10:00', closeTime: '23:00'),
-        OpeningDay(dayOfWeek: 5, isClosed: false, openTime: '10:00', closeTime: '02:00'),
-        OpeningDay(dayOfWeek: 6, isClosed: false, openTime: '10:00', closeTime: '02:00'),
-        OpeningDay(dayOfWeek: 7, isClosed: true),
-      ],
-    ),
-  ],
+  places: [_rudaki],
 );
 
-Widget harness(Organization club, {VoidCallback? onChoose}) => MaterialApp(
+const _network = Organization(
+  organizationId: '11111111-1111-1111-1111-111111111111',
+  slug: 'cyberx',
+  name: 'CyberX',
+  pricePerHourFromMinorUnits: 1500,
+  currencyCode: 'TJS',
+  places: [_rudaki, _sino],
+);
+
+/// Понедельник, 11:00: Рудаки уже открылся, Сино откроется только в полдень. Так видно, что
+/// часы читаются у каждого зала свои, а не у первого за всех.
+final _mondayMorning = DateTime(2026, 8, 24, 11);
+
+Widget harness(Organization club, {VoidCallback? onChoose, DateTime? now}) => MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
       home: Scaffold(
-        body: ClubDetailsSheet(club: club, onChoose: onChoose ?? () {}),
+        body: ClubDetailsSheet(
+          club: club,
+          onChoose: onChoose ?? () {},
+          clock: () => now ?? _mondayMorning,
+        ),
       ),
     );
 
@@ -57,23 +97,24 @@ void main() {
   });
 
   // По железу клубы и сравнивают: «сорок мест» ничего не говорит о том, пойдёт ли на них игра.
-  testWidgets('показывает залы с железом и числом мест', (tester) async {
+  testWidgets('показывает зоны с железом и числом мест', (tester) async {
     await tester.pumpWidget(harness(_club));
     await tester.pumpAndSettle();
 
+    expect(find.text('Зоны'), findsOneWidget);
     expect(find.text('Основной зал'), findsOneWidget);
     expect(find.text('30 мест'), findsOneWidget);
     expect(find.text('RTX 4060 · 27" 165 Гц'), findsOneWidget);
     expect(find.text('VIP'), findsOneWidget);
   });
 
-  // Железо указано не у всех залов — и придумывать его за клуб нечем.
-  testWidgets('зал без указанного железа показывается без выдуманной строки', (tester) async {
+  // Железо указано не у всех зон — и придумывать его за клуб нечем.
+  testWidgets('зона без указанного железа показывается без выдуманной строки', (tester) async {
     await tester.pumpWidget(harness(_club));
     await tester.pumpAndSettle();
 
     expect(find.text('10 мест'), findsOneWidget);
-    expect(find.textContaining('RTX'), findsOneWidget); // только у первого зала
+    expect(find.textContaining('RTX'), findsOneWidget); // только у первой зоны
   });
 
   testWidgets('показывает расписание на неделю с выходным', (tester) async {
@@ -98,8 +139,102 @@ void main() {
     expect(chosen, isTrue);
   });
 
+  // Единственный зал сети и есть клуб: списка с одной строкой над ним быть не должно.
+  testWidgets('сеть из одного зала обходится без списка залов', (tester) async {
+    await tester.pumpWidget(harness(_club));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Залы сети'), findsNothing);
+    expect(find.text('На Рудаки'), findsNothing);
+  });
+
+  // Раньше лист показывал адрес первого зала так, будто он у сети один: человек читал
+  // «Душанбе», а ехал в зал, который на самом деле в Худжанде.
+  testWidgets('сеть из нескольких залов называет их число и города', (tester) async {
+    await tester.pumpWidget(harness(_network));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 зала · Душанбе, Худжанд'), findsOneWidget);
+    // Описание первого зала больше не выдаётся за описание всей сети.
+    expect(find.text('Сорок машин и две PlayStation'), findsNothing);
+  });
+
+  testWidgets('каждый зал сети назван по имени и со своим адресом', (tester) async {
+    await tester.pumpWidget(harness(_network));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Залы сети'), findsOneWidget);
+    expect(find.text('На Рудаки'), findsOneWidget);
+    expect(find.text('Душанбе, пр. Рудаки, 25'), findsOneWidget);
+    expect(find.text('На Сино'), findsOneWidget);
+    expect(find.text('Худжанд, ул. Сино, 4'), findsOneWidget);
+  });
+
+  // Один и тот же час, два разных ответа: часы принадлежат залу, а не сети.
+  testWidgets('открыт ли зал сейчас — считается по его собственным часам', (tester) async {
+    await tester.pumpWidget(harness(_network));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Открыто до 23:00'), findsOneWidget);
+    expect(find.text('Закрыто, откроется в 12:00'), findsOneWidget);
+  });
+
+  testWidgets('зоны и расписание раскрываются у того зала, который открыли', (tester) async {
+    await tester.pumpWidget(harness(_network));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Основной зал'), findsNothing);
+    expect(find.text('Буткемп'), findsNothing);
+
+    await tester.tap(find.text('На Сино'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Буткемп'), findsOneWidget);
+    expect(find.text('12 мест'), findsOneWidget);
+    expect(find.text('Ночной зал у вокзала'), findsOneWidget);
+    // Зоны и часы соседнего зала остались у соседнего зала.
+    expect(find.text('Основной зал'), findsNothing);
+    expect(find.text('10:00 – 23:00'), findsNothing);
+  });
+
+  // Витрину владелец заполняет не всю: пустое место читается как поломка, а не как «клуб
+  // ещё не рассказал».
+  testWidgets('зал без зон и часов показывает состояние, а не пустоту', (tester) async {
+    const network = Organization(
+      organizationId: '33333333-3333-3333-3333-333333333333',
+      slug: 'cyberx',
+      name: 'CyberX',
+      places: [_rudaki, _bareHall],
+    );
+
+    await tester.pumpWidget(harness(network));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('На Айни'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Зоны клуб не описал'), findsOneWidget);
+    expect(find.text('Часы работы клуб не указал'), findsOneWidget);
+  });
+
+  testWidgets('единственный зал без зон и часов тоже объясняет пустоту', (tester) async {
+    const club = Organization(
+      organizationId: '44444444-4444-4444-4444-444444444444',
+      slug: 'bare',
+      name: 'Bare Club',
+      places: [_bareHall],
+    );
+
+    await tester.pumpWidget(harness(club));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Душанбе, ул. Айни, 7'), findsOneWidget);
+    expect(find.text('Зоны клуб не описал'), findsOneWidget);
+    expect(find.text('Часы работы клуб не указал'), findsOneWidget);
+  });
+
   // Пустой клуб не должен ронять экран: заполнять витрину владелец не обязан.
-  testWidgets('клуб без описания, залов и расписания открывается без ошибок', (tester) async {
+  testWidgets('клуб без залов открывается и говорит об этом прямо', (tester) async {
     const bare = Organization(
       organizationId: '22222222-2222-2222-2222-222222222222',
       slug: 'bare',
@@ -111,6 +246,8 @@ void main() {
 
     expect(find.text('Bare Club'), findsOneWidget);
     expect(find.text('Играть здесь'), findsOneWidget);
-    expect(find.text('Залы'), findsNothing);
+    expect(find.text('Клуб не указал, где он находится'), findsOneWidget);
+    expect(find.text('Залы сети'), findsNothing);
+    expect(find.text('Зоны'), findsNothing);
   });
 }

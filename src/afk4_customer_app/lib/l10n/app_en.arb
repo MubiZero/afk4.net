@@ -31,16 +31,31 @@
   "customerBranchTitle": "Which hall are you coming to?",
   "customerClubDetailsChoose": "Play here",
   "customerClubDetailsDayOff": "closed",
-  "customerClubDetailsHallSeats": "{count, plural, one {{count} seat} other {{count} seats}}",
-  "@customerClubDetailsHallSeats": {
+  "customerClubDetailsHalls": "Halls in the network",
+  "customerClubDetailsHallsIn": "{count, plural, one {{count} hall} other {{count} halls}} · {cities}",
+  "@customerClubDetailsHallsIn": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      },
+      "cities": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubDetailsHours": "Opening hours",
+  "customerClubDetailsHoursUnknown": "The club has not set opening hours",
+  "customerClubDetailsNoHalls": "The club has not said where it is",
+  "customerClubDetailsZoneSeats": "{count, plural, one {{count} seat} other {{count} seats}}",
+  "@customerClubDetailsZoneSeats": {
     "placeholders": {
       "count": {
         "type": "num"
       }
     }
   },
-  "customerClubDetailsHalls": "Halls",
-  "customerClubDetailsHours": "Opening hours",
+  "customerClubDetailsZones": "Zones",
+  "customerClubDetailsZonesUnknown": "The club has not described its zones",
   "customerClubPickerChange": "Change club",
   "customerClubPickerClosedToday": "Closed today",
   "customerClubPickerDetails": "Details",
