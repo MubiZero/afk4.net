@@ -19,6 +19,7 @@ import { CriticalActionConfirmation, EmptyState } from '../operatorPrimitives';
 import { allowedManagementDestinations, type ManagementDestinationId } from './managementNav';
 import { useUnsavedGuard } from './useUnsavedGuard';
 import { ClubDestination } from './destinations/ClubDestination';
+import { BookingIntakeDestination } from './destinations/booking/BookingIntakeDestination';
 import { GoodsDestination } from './destinations/GoodsDestination';
 import { HallsDevicesDestination } from './destinations/HallsDevicesDestination';
 import { NewsDestination } from './destinations/NewsDestination';
@@ -26,8 +27,8 @@ import { PaymentsLoyaltyDestination } from './destinations/PaymentsLoyaltyDestin
 import { StaffRolesDestination } from './destinations/StaffRolesDestination';
 import { TariffsPackagesDestination } from './destinations/TariffsPackagesDestination';
 
-// Управление: левый рейл разделов, доступных сессии, + активный экран раздела справа. Все 8
-// разделов (Клуб, Залы, Тарифы, Сотрудники, Товары, Оплата, Лояльность, Новости) маршрутизируют
+// Управление: левый рейл разделов, доступных сессии, + активный экран раздела справа. Все
+// разделы (Клуб, Приём броней, Залы, Тарифы, Сотрудники, Товары, Оплата и лояльность, Новости) маршрутизируют
 // на реальные компоненты — заглушек-скелетов больше нет.
 //
 // Task 2.1: settings-domain data (zones/staff/catalog/tariffs/packages/device lists) is loaded
@@ -145,6 +146,9 @@ export function ManagementWorkspace({
   const renderActiveDestination = () => {
     if (currentId === 'club') {
       return <ClubDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
+    }
+    if (currentId === 'booking') {
+      return <BookingIntakeDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
     }
     if (currentId === 'news') {
       return <NewsDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;

@@ -362,6 +362,50 @@
   animation: management-skeleton-in 160ms ease-out 200ms forwards;
 }
 
+/* ── Приём броней ───────────────────────────────────────────────────────────────────────
+   Тот же setup-кит (.payset-*), что и у «Платежей»: экран редкого визита, спокойные секции с
+   лидом. Здесь только то, чего в кассовом ките не было — выбор режима радио-карточками,
+   одиночное числовое поле и строка «когда меняли». */
+.payset-origin-note {
+  margin: 0 0 16px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Режим приёма — взаимоисключающий выбор, поэтому radio, а не тумблер: три состояния одного
+   вопроса «что филиал делает с заявкой», и два одновременно быть не могут. */
+.payset-mode {
+  display: block;
+  cursor: pointer;
+}
+
+.payset-mode-radio {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.payset-mode-radio:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 50%;
+}
+
+.payset-mode-radio:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Одиночное поле не растягиваем на две колонки: подпись под ним читается как строка, а не как
+   половина пустой таблицы. */
+.payset-limits--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 @media (max-width: 640px) {
   .payset-section {
     padding: 22px 18px;

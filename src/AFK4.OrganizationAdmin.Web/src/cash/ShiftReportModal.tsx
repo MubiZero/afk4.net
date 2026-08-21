@@ -39,6 +39,9 @@ export function ShiftReportModal({
           <div className="cash-shift-row"><span>{t('op.shifts.earned')}</span><strong>{money(data.earned.total)}</strong></div>
           <div className="cash-shift-row"><span>{t('op.shifts.time')}</span><strong>{money(data.earned.time)}</strong></div>
           <div className="cash-shift-row"><span>{t('op.shifts.goods')}</span><strong>{money(data.earned.goods)}</strong></div>
+          {/* Удержанная за неявку предоплата входит в итог выручки, поэтому в документе, который
+              сверяют, строка стоит всегда — даже нулевая. Иначе итог не раскладывается. */}
+          <div className="cash-shift-row"><span>{t('op.shifts.noShow')}</span><strong>{money(data.earned.noShow)}</strong></div>
           <div className="cash-shift-row"><span>{t('op.shifts.cash')}</span><strong>{money(data.inflow.cash)}</strong></div>
           <div className="cash-shift-row"><span>{t('op.shifts.nonCash')}</span><strong>{money(data.inflow.nonCash)}</strong></div>
           <div className="cash-shift-row"><span>{t('op.shifts.walletTopUps')}</span><strong>{money(data.inflow.walletTopUps)}</strong></div>

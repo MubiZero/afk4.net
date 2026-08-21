@@ -46,6 +46,7 @@ import type { BookingDraft } from './booking/BookingDrawer';
 import { BookingDrawer } from './booking/BookingDrawer';
 import { BookingTimeline } from './booking/BookingTimeline';
 import { BookingRequestsLane } from './booking/BookingRequestsLane';
+import { useReputation } from './players/useReputation';
 import type { SeatSummary } from './operatorData';
 import { PanelModal } from './PanelModal';
 import { createSessionStartSelection, SessionStartForm, type SessionStartSelection } from './session/SessionStartForm';
@@ -490,6 +491,7 @@ export function BackendBookingWorkspace({
   };
 
   const selectedItem = items.find((i) => i.reservationId === selectedReservationId) ?? null;
+  const reputation = useReputation(backend, selectedItem?.phoneNumber ?? '');
   const selectedGroupSize = selectedItem?.reservationGroupId
     ? items.filter((i) => i.reservationGroupId === selectedItem.reservationGroupId && i.state !== 'cancelled').length
     : 0;
@@ -671,6 +673,7 @@ export function BackendBookingWorkspace({
             groupConflicts={mergedGroupConflicts}
             groupSize={selectedGroupSize}
             searchClients={searchClients}
+            reputation={reputation}
             onClose={() => setDrawerMode(null)}
             onChangeDraft={(patch) => setDraft((d) => ({ ...d, ...patch }))}
             onCreate={createReservation}

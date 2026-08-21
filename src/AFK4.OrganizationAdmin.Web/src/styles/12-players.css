@@ -718,6 +718,132 @@
   white-space: nowrap;
 }
 
+/* Придержано под бронь — третья величина кошелька. Отдельной строкой во всю ширину под
+   балансом и долгом: это не соперник остатку (из него холд уже вычтен), а объяснение, куда
+   делась часть денег. Спокойный акцент, не тревожный красный долга. */
+.wallet-held {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--border-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface-sunken);
+}
+
+.wallet-held .eyebrow {
+  color: var(--text-secondary);
+}
+
+.wallet-held .val {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wallet-held small {
+  color: var(--text-tertiary);
+  font-size: 11.5px;
+}
+
+/* Репутация в сети — общий блок карточки клиента и карточки заявки. Живёт в players-стилях,
+   потому что это про человека, а не про бронь: в панели заявки он тот же самый. */
+.reputation-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-card);
+}
+
+.reputation-card.is-watch {
+  border-left: 3px solid var(--warning);
+}
+
+.reputation-card.is-banned {
+  border-color: var(--danger-soft-border);
+  border-left: 3px solid var(--danger);
+  background: var(--danger-soft-bg);
+}
+
+.reputation-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.reputation-numbers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.reputation-numbers > div {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--surface-sunken);
+}
+
+.reputation-numbers > div > span {
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  line-height: 1.3;
+}
+
+.reputation-numbers > div > strong {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.reputation-numbers > div.is-attention > strong {
+  color: var(--warning-text);
+}
+
+.reputation-ban {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--danger-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.reputation-note {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.reputation-note--failed {
+  color: var(--danger-text);
+}
+
 .wallet-sep {
   flex: none;
   height: 1px;

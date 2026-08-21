@@ -172,6 +172,12 @@ export function CashShiftWorkspace({
                 <div className="cash-shift-revenue-total"><span>{t('op.cash.shift.revenueTitle')}</span><strong><Money minorUnits={current.earned.total.minorUnits} currencyCode={currencyCode} /></strong></div>
                 <div><span>{t('op.shifts.time')}</span><strong><Money minorUnits={current.earned.time.minorUnits} currencyCode={currencyCode} /></strong><small>{percent(current.earned.time.minorUnits)}%</small></div>
                 <div><span>{t('op.shifts.goods')}</span><strong><Money minorUnits={current.earned.goods.minorUnits} currencyCode={currencyCode} /></strong><small>{percent(current.earned.goods.minorUnits)}%</small></div>
+                {/* Удержания за неявку показываем, только когда они есть: у филиала, который
+                    предоплату не удерживает, это вечный ноль, а полоса выручки — беглый взгляд,
+                    не документ. В Z-отчёте строка стоит всегда — там итог обязан раскладываться. */}
+                {current.earned.noShow.minorUnits > 0 && (
+                  <div><span>{t('op.shifts.noShow')}</span><strong><Money minorUnits={current.earned.noShow.minorUnits} currencyCode={currencyCode} /></strong><small>{percent(current.earned.noShow.minorUnits)}%</small></div>
+                )}
                 <div><span>{t('op.shifts.cash')}</span><strong><Money minorUnits={current.inflow.cash.minorUnits} currencyCode={currencyCode} /></strong><small>{percent(current.inflow.cash.minorUnits)}%</small></div>
                 <div><span>{t('op.shifts.nonCash')}</span><strong><Money minorUnits={current.inflow.nonCash.minorUnits} currencyCode={currencyCode} /></strong><small>{percent(current.inflow.nonCash.minorUnits)}%</small></div>
                 <div><span>{t('op.shifts.walletTopUps')}</span><strong><Money minorUnits={current.inflow.walletTopUps.minorUnits} currencyCode={currencyCode} /></strong></div>

@@ -1,4 +1,4 @@
-import { it, expect } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 import type { SeatSummary } from '../operatorData';
 import {
   mapReservationsToItems,
@@ -8,6 +8,7 @@ import {
   unseatedOnlineRequests,
   bookingStateLabelKey,
   bookingDetailActions,
+  respondCountdown,
   type SessionDtoLike
 } from './bookingModel';
 
@@ -193,4 +194,43 @@ it('unseatedOnlineRequests: только online+pending без места', () =
   ], 'Гость');
   const lane = unseatedOnlineRequests(items);
   expect(lane.map((i) => i.reservationId)).toEqual(['r1']);
+});
+
+describe('respondCountdown', () => {
+  const now = Date.parse('2026-08-20T18:00:00Z');
+  const pending = (respondByMs: number | null) => ({ state: 'pending', respondByMs });
+
+  it('меньше часа — минуты и секунды', () => {
+    expect(respondCountdown(pending(now + 4 * 60_000 + 12_000), now)).toEqual({ label: '4:12', overdue: false });
+    expect(respondCountdown(pending(now + 9_000), now)).toEqual({ label: '0:09', overdue: false });
+  });
+
+  it('длинный срок не путается с минутами: часы отдельным разрядом', () => {
+    expect(respondCountdown(pending(now + 3_600_000 + 4 * 60_000 + 12_000), now))
+      .toEqual({ label: '1:04:12', overdue: false });
+  });
+
+  it('срок вышел, а заявка ещё здесь — так и говорим', () => {
+    expect(respondCountdown(pending(now - 1_000), now)).toEqual({ label: '0:00', overdue: true });
+    expect(respondCountdown(pending(now), now)).toEqual({ label: '0:00', overdue: true });
+  });
+
+  it('у заявки без срока и у любой не ждущей ответа брони отсчёта нет', () => {
+    expect(respondCountdown(pending(null), now)).toBeNull();
+    // Подтверждённая бронь: respondByUtc уже ничего не значит, отсчёт рядом с ней врал бы.
+    expect(respondCountdown({ state: 'confirmed', respondByMs: now + 60_000 }, now)).toBeNull();
+    expect(respondCountdown({ state: 'seated', respondByMs: now + 60_000 }, now)).toBeNull();
+  });
+});
+
+describe('mapReservationsToItems · срок ответа', () => {
+  it('поднимает respondByUtc из ответа сервера и переживает его отсутствие', () => {
+    const [withDeadline, without] = mapReservationsToItems([
+      { reservationId: 'r1', state: 'pending', startsAtUtc: '2026-08-20T18:00:00Z', respondByUtc: '2026-08-20T17:15:00Z' },
+      { reservationId: 'r2', state: 'confirmed', startsAtUtc: '2026-08-20T18:00:00Z' }
+    ], 'Гость');
+
+    expect(withDeadline.respondByMs).toBe(Date.parse('2026-08-20T17:15:00Z'));
+    expect(without.respondByMs).toBeNull();
+  });
 });

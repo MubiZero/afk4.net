@@ -3074,6 +3074,7 @@ function createCurrentShiftRevenue() {
     earned: {
       time: { currencyCode: 'TJS', minorUnits: 82000 },
       goods: { currencyCode: 'TJS', minorUnits: 41000 },
+      noShow: { currencyCode: 'TJS', minorUnits: 0 },
       total: { currencyCode: 'TJS', minorUnits: 123000 }
     },
     inflow: {

@@ -23,6 +23,7 @@ import { StateFlag } from './operatorPrimitives';
 import { useFeedbackToasts } from './useFeedbackToasts';
 import { ClientsTable } from './players/ClientsTable';
 import { ClientDrawer } from './players/ClientDrawer';
+import { useReputation } from './players/useReputation';
 import { HistorySection } from './players/HistorySection';
 import { PanelModal } from './PanelModal';
 import { NewClientModal } from './players/NewClientModal';
@@ -136,6 +137,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, clientSearch, currencyCode]);
 
   const selectedClient = clients.find((client) => client.playerAccountId === selectedClientId) ?? null;
+  const reputation = useReputation(backend, selectedClient?.phoneNumber ?? '');
 
   useEffect(() => {
     if (backend === null || selectedClient?.source !== 'backend' || !selectedClient.playerAccountId) {
@@ -316,6 +318,9 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
 
   const balance = readMoney(walletSummary, 'walletBalance')?.minorUnits ?? selectedClient?.balanceMinorUnits ?? 0;
   const debt = readMoney(walletSummary, 'debtBalance')?.minorUnits ?? selectedClient?.debtMinorUnits ?? 0;
+  // Заморожено под брони. Ноль до загрузки сводки — в строке поиска этого числа нет, и
+  // придумывать его из остатка нельзя: холд из остатка уже вычтен.
+  const held = readMoney(walletSummary, 'heldBalance')?.minorUnits ?? 0;
 
   useEffect(() => {
     if (debt <= 0) {
@@ -682,6 +687,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
             client={selectedClient}
             liveContext={liveContextByClient.get(selectedClient.playerAccountId ?? '') ?? { session: null, nextBooking: null }}
             balanceMinorUnits={balance}
+            heldMinorUnits={held}
             debtMinorUnits={debt}
             currencyCode={currencyCode}
             recentEntries={ledgerEntries}
@@ -702,6 +708,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
             onCreateReservation={() => runClientAction('booking', t('op.players.actions.bookingBtn'))}
             onEditProfile={openEditProfile}
             onToggleActive={() => setActiveStateOpen(true)}
+            reputation={reputation}
             onOpenFullHistory={() => setHistoryModalOpen(true)}
             onClose={() => handleSelectClient(null)}
           />
