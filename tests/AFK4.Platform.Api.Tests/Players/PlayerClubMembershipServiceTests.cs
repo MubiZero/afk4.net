@@ -203,19 +203,22 @@ public sealed class PlayerClubMembershipServiceTests
         return new SeededClub(organizationId, branchId);
     }
 
-    private static async Task AddBranchAsync(PlatformApiFactory factory, Guid organizationId, string name)
+    internal static async Task<Guid> AddBranchAsync(
+        PlatformApiFactory factory, Guid organizationId, string name)
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var branchId = Guid.NewGuid();
         db.Branches.Add(new BranchEntity
         {
-            BranchId = Guid.NewGuid(),
+            BranchId = branchId,
             OrganizationId = organizationId,
             Slug = "second",
             Name = name,
             CreatedAtUtc = PlatformPersonTestData.Now
         });
         await db.SaveChangesAsync();
+        return branchId;
     }
 
     internal static async Task<Guid> AddCounterCardAsync(

@@ -329,7 +329,8 @@ internal static class PlayerSelfServiceEndpoints
             }
 
             var clubDenial = await OpenClubAccountIfNeededAsync(
-                playerContextAccessor, personContextAccessor, clubMembership, null, cancellationToken);
+                playerContextAccessor, personContextAccessor, clubMembership,
+                request.BranchId, cancellationToken);
             if (clubDenial is not null)
             {
                 return clubDenial;
@@ -592,7 +593,8 @@ internal static class PlayerSelfServiceEndpoints
             }
 
             var clubDenial = await OpenClubAccountIfNeededAsync(
-                playerContextAccessor, personContextAccessor, clubMembership, null, cancellationToken);
+                playerContextAccessor, personContextAccessor, clubMembership,
+                request.BranchId, cancellationToken);
             if (clubDenial is not null)
             {
                 return clubDenial;
@@ -689,7 +691,8 @@ internal static class PlayerSelfServiceEndpoints
             }
 
             var clubDenial = await OpenClubAccountIfNeededAsync(
-                playerContextAccessor, personContextAccessor, clubMembership, null, cancellationToken);
+                playerContextAccessor, personContextAccessor, clubMembership,
+                request.BranchId, cancellationToken);
             if (clubDenial is not null)
             {
                 return clubDenial;

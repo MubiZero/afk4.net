@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Identity;
+using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
 
@@ -261,6 +262,39 @@ public sealed class ReservationContractSerializationTests
 
         Assert.Equal(personId, RoundTrip(linked).PlatformPersonId);
         Assert.Null(RoundTrip(guest).PlatformPersonId);
+    }
+
+    /// <summary>
+    /// Филиал в первом действии: сеть с несколькими филиалами ждёт, что приложение назовёт, куда
+    /// человек придёт. Поле необязательное — клиент, который о нём не знает, шлёт запрос без него
+    /// и продолжает работать как раньше.
+    /// </summary>
+    [Fact]
+    public void PlayerBookingRequests_CarryTheBranchAndSurviveAClientThatOmitsIt()
+    {
+        var branchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2");
+        var startsAtUtc = DateTimeOffset.Parse("2026-08-22T16:00:00Z");
+        var single = new CreatePlayerReservationRequest(
+            SeatId: null, startsAtUtc, startsAtUtc.AddHours(1), Note: null, TariffVersionId: null, branchId);
+        var group = new CreatePlayerReservationGroupRequest(
+            SeatCount: 3, startsAtUtc, startsAtUtc.AddHours(1), Note: null, TariffVersionId: null, branchId);
+        var topUp = new PlayerTopUpIntentRequest(5_000, "TJS", "counter", branchId);
+
+        Assert.Equal(branchId, RoundTrip(single).BranchId);
+        Assert.Equal(branchId, RoundTrip(group).BranchId);
+        Assert.Equal(branchId, RoundTrip(topUp).BranchId);
+
+        var oldSingle = JsonSerializer.Deserialize<CreatePlayerReservationRequest>(
+            """{"startsAtUtc":"2026-08-22T16:00:00Z","endsAtUtc":"2026-08-22T17:00:00Z"}""", Options);
+        var oldGroup = JsonSerializer.Deserialize<CreatePlayerReservationGroupRequest>(
+            """{"seatCount":3,"startsAtUtc":"2026-08-22T16:00:00Z","endsAtUtc":"2026-08-22T17:00:00Z"}""",
+            Options);
+        var oldTopUp = JsonSerializer.Deserialize<PlayerTopUpIntentRequest>(
+            """{"amountMinorUnits":5000,"currencyCode":"TJS"}""", Options);
+
+        Assert.Null(oldSingle!.BranchId);
+        Assert.Null(oldGroup!.BranchId);
+        Assert.Null(oldTopUp!.BranchId);
     }
 
     private static T RoundTrip<T>(T value)

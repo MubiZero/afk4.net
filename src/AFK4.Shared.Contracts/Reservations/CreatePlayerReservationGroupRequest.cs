@@ -13,12 +13,17 @@ namespace AFK4.Shared.Contracts.Reservations;
 /// Тариф один на всю компанию: сидят вместе, платят по одной цене, и разные тарифы внутри одной
 /// брони — это уже не «бронь на компанию», а несколько разных броней.
 /// </summary>
+/// <param name="BranchId">
+/// Филиал, в который компания придёт. Нужен только в первом действии в клубе, где счёта ещё нет:
+/// у сети с несколькими филиалами сервер не гадает, куда записать счёт.
+/// </param>
 public sealed record CreatePlayerReservationGroupRequest(
     int SeatCount,
     DateTimeOffset StartsAtUtc,
     DateTimeOffset EndsAtUtc,
     string? Note,
-    Guid? TariffVersionId = null);
+    Guid? TariffVersionId = null,
+    Guid? BranchId = null);
 
 /// <summary>
 /// Что получилось из групповой брони: сама группа и её брони. Отдельного состояния у группы нет —

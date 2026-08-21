@@ -81,6 +81,142 @@ public sealed class PlayerFirstActionEndpointTests
     }
 
     [Fact]
+    public async Task TopUp_InAClubWithSeveralBranches_NamingTheBranch_OpensTheAccountThere()
+    {
+        await using var factory = FactoryWithAllFeatures();
+        var person = await PlatformPersonTestData.AddPersonAsync(factory, "+992900000711");
+        var home = await PlayerClubMembershipServiceTests.AddClubWithBranchAsync(factory);
+        var newClub = await PlayerClubMembershipServiceTests.AddClubWithBranchAsync(factory);
+        var secondBranch = await PlayerClubMembershipServiceTests.AddBranchAsync(
+            factory, newClub.OrganizationId, "Второй филиал");
+        using var client = factory.CreateClient();
+        await AuthorizeAsync(factory, client, person.PlatformPersonId, home);
+
+        client.DefaultRequestHeaders.Add(
+            PlayerAuthenticationMiddleware.OrganizationHeader, newClub.OrganizationId.ToString());
+        var response = await client.PostAsJsonAsync(
+            "/api/me/wallet/top-up-intent",
+            new PlayerTopUpIntentRequest(5_000, "TJS", "counter", secondBranch));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var opened = await db.PlayerAccounts.SingleAsync(
+            account => account.OrganizationId == newClub.OrganizationId);
+        Assert.Equal(secondBranch, opened.HomeBranchId);
+    }
+
+    [Fact]
+    public async Task TopUp_InAClubWithSeveralBranches_WithoutNamingOne_StillAsksWhichBranch()
+    {
+        await using var factory = FactoryWithAllFeatures();
+        var person = await PlatformPersonTestData.AddPersonAsync(factory, "+992900000712");
+        var home = await PlayerClubMembershipServiceTests.AddClubWithBranchAsync(factory);
+        var newClub = await PlayerClubMembershipServiceTests.AddClubWithBranchAsync(factory);
+        await PlayerClubMembershipServiceTests.AddBranchAsync(
+            factory, newClub.OrganizationId, "Второй филиал");
+        using var client = factory.CreateClient();
+        await AuthorizeAsync(factory, client, person.PlatformPersonId, home);
+
+        client.DefaultRequestHeaders.Add(
+            PlayerAuthenticationMiddleware.OrganizationHeader, newClub.OrganizationId.ToString());
+        var response = await client.PostAsJsonAsync(
+            "/api/me/wallet/top-up-intent", new PlayerTopUpIntentRequest(5_000, "TJS", "counter"));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains(
+            "branch_required", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Booking_InAClubWithSeveralBranches_NamingTheBranch_OpensTheAccountThere()
+    {
+        await using var factory = FactoryWithAllFeatures();
+        var person = await PlatformPersonTestData.AddPersonAsync(factory, "+992900000713");
+        var home = await PlayerClubMembershipServiceTests.AddClubWithBranchAsync(factory);
+        var newClub = await PlayerClubMembershipServiceTests.AddClubWithBranchAsync(factory);
+        var secondBranch = await PlayerClubMembershipServiceTests.AddBranchAsync(
+            factory, newClub.OrganizationId, "Второй филиал");
+        using var client = factory.CreateClient();
+        await AuthorizeAsync(factory, client, person.PlatformPersonId, home);
+
+        client.DefaultRequestHeaders.Add(
+            PlayerAuthenticationMiddleware.OrganizationHeader, newClub.OrganizationId.ToString());
+        var starts = DateTimeOffset.UtcNow.AddDays(1);
+        var response = await client.PostAsJsonAsync(
+            "/api/me/reservations",
+            new CreatePlayerReservationRequest(null, starts, starts.AddHours(1), null, null, secondBranch));
+
+        // Бронь дальше может не выйти по залу или тарифу, но «в каком филиале» — уже не вопрос.
+        Assert.DoesNotContain(
+            "branch_required", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var opened = await db.PlayerAccounts.SingleAsync(
+            account => account.OrganizationId == newClub.OrganizationId);
+        Assert.Equal(secondBranch, opened.HomeBranchId);
+    }
+
+    [Fact]
+    public async Task GroupBooking_InAClubWithSeveralBranches_NamingTheBranch_OpensTheAccountThere()
+    {
+        await using var factory = FactoryWithAllFeatures();
+        var person = await PlatformPersonTestData.AddPersonAsync(factory, "+992900000714");
+        var home = await PlayerClubMembershipServiceTests.AddClubWithBranchAsync(factory);
+        var newClub = await PlayerClubMembershipServiceTests.AddClubWithBranchAsync(factory);
+        var secondBranch = await PlayerClubMembershipServiceTests.AddBranchAsync(
+            factory, newClub.OrganizationId, "Второй филиал");
+        using var client = factory.CreateClient();
+        await AuthorizeAsync(factory, client, person.PlatformPersonId, home);
+
+        client.DefaultRequestHeaders.Add(
+            PlayerAuthenticationMiddleware.OrganizationHeader, newClub.OrganizationId.ToString());
+        var starts = DateTimeOffset.UtcNow.AddDays(1);
+        var response = await client.PostAsJsonAsync(
+            "/api/me/reservations/group",
+            new CreatePlayerReservationGroupRequest(3, starts, starts.AddHours(1), null, null, secondBranch));
+
+        Assert.DoesNotContain(
+            "branch_required", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var opened = await db.PlayerAccounts.SingleAsync(
+            account => account.OrganizationId == newClub.OrganizationId);
+        Assert.Equal(secondBranch, opened.HomeBranchId);
+    }
+
+    [Fact]
+    public async Task FirstAction_NamingABranchOfAnotherClub_IsRefused_AndOpensNothing()
+    {
+        await using var factory = FactoryWithAllFeatures();
+        var person = await PlatformPersonTestData.AddPersonAsync(factory, "+992900000715");
+        var home = await PlayerClubMembershipServiceTests.AddClubWithBranchAsync(factory);
+        var newClub = await PlayerClubMembershipServiceTests.AddClubWithBranchAsync(factory);
+        var stranger = await PlayerClubMembershipServiceTests.AddClubWithBranchAsync(factory);
+        using var client = factory.CreateClient();
+        await AuthorizeAsync(factory, client, person.PlatformPersonId, home);
+
+        client.DefaultRequestHeaders.Add(
+            PlayerAuthenticationMiddleware.OrganizationHeader, newClub.OrganizationId.ToString());
+        var response = await client.PostAsJsonAsync(
+            "/api/me/wallet/top-up-intent",
+            new PlayerTopUpIntentRequest(5_000, "TJS", "counter", stranger.BranchId));
+
+        // Чужой филиал — это отказ, а не повод открыть счёт в первом попавшемся своём.
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains(
+            "branch_not_found", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.False(await db.PlayerAccounts.AnyAsync(
+            account => account.OrganizationId == newClub.OrganizationId));
+    }
+
+    [Fact]
     public async Task JustLookingAround_OpensNothing()
     {
         await using var factory = FactoryWithAllFeatures();
@@ -225,7 +361,7 @@ public sealed class PlayerFirstActionEndpointTests
     /// свою базу к async-контексту вызывающего, и созданный во вложенном методе клиент смотрел бы
     /// в чужую.
     /// </summary>
-    private static async Task AuthorizeAsync(
+    internal static async Task AuthorizeAsync(
         PlatformApiFactory factory,
         HttpClient client,
         Guid platformPersonId,
