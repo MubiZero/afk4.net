@@ -27,6 +27,7 @@ public static class PlayerDashboardProjector
             dbContext, playerAccountId, cancellationToken);
 
         var walletBalance = wallet?.WalletBalance ?? new MoneyDto("TJS", 0);
+        var heldBalance = wallet?.HeldBalance ?? new MoneyDto("TJS", 0);
         var debtBalance = wallet?.DebtBalance ?? new MoneyDto("TJS", 0);
 
         var session = await dbContext.Sessions
@@ -43,7 +44,7 @@ public static class PlayerDashboardProjector
             activeSession = await BuildActiveSessionAsync(dbContext, session, now, cancellationToken);
         }
 
-        return new PlayerDashboardDto(walletBalance, debtBalance, activeSession);
+        return new PlayerDashboardDto(walletBalance, heldBalance, debtBalance, activeSession);
     }
 
     private static async Task<ActiveSessionDto> BuildActiveSessionAsync(

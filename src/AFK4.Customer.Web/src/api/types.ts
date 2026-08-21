@@ -1,15 +1,60 @@
-export interface PlayerSignInRequest { organizationId: string; phoneNumber: string; password: string; }
+// Просьба прислать код. Клуб здесь не называется: человек входит номером, а не карточкой,
+// заведённой в конкретном клубе.
+export interface RegistrationStartRequest { phoneNumber: string; }
 
-export interface PlayerSignInResponse {
-  playerAccountId: string;
-  organizationId: string;
+// Ответ одинаков для знакомого и незнакомого номера — по нему нельзя понять, есть ли такой
+// человек в сети, и полей для этого здесь нет намеренно.
+export interface RegistrationStartedResponse { expiresInSeconds: number; resendAfterSeconds: number; }
+
+export interface RegistrationConfirmRequest { phoneNumber: string; code: string; }
+
+// Сессия человека, а не клубного счёта: клуба может не быть вовсе — так выглядит тот, кто
+// зарегистрировался дома и ещё никуда не заходил.
+export interface PlatformPersonSessionResponse {
+  playerAccountId: string | null;
+  organizationId: string | null;
   displayName: string;
   phoneVerified: boolean;
   accessToken: string;
   accessTokenExpiresAtUtc: string;
   refreshToken: string;
   refreshTokenExpiresAtUtc: string;
+  platformPersonId: string;
+  preferredLocale: string | null;
+  // Спрошены ли имя и язык. Решает сервер, а не клиент.
+  profileCompleted: boolean;
 }
+
+export interface MePersonDto {
+  platformPersonId: string;
+  phoneNumber: string;
+  displayName: string;
+  preferredLocale: string | null;
+  phoneVerified: boolean;
+  // Сам PIN сервер не отдаёт никогда — только признак, задан он или ещё нет.
+  pinSet: boolean;
+  networkBanned: boolean;
+}
+
+// Один клуб глазами игрока. Общей суммы по клубам нет и не будет: у каждого клуба своя касса,
+// и сложенное число нельзя потратить ни в одном из них.
+export interface MyClubDto {
+  organizationId: string;
+  organizationName: string;
+  playerAccountId: string;
+  homeBranchId: string;
+  currencyCode: string;
+  walletBalanceMinorUnits: number;
+  heldMinorUnits: number;
+  debtMinorUnits: number;
+  visitCount: number;
+}
+
+export interface MeDto { person: MePersonDto; clubs: MyClubDto[]; }
+
+export interface UpdateMyProfileRequest { displayName: string; preferredLocale: string | null; }
+
+export interface SetMyPinRequest { pin: string; }
 
 export interface MoneyDto { currencyCode: string; minorUnits: number; }
 
@@ -27,8 +72,11 @@ export interface ActiveSessionDto {
   currencyCode: string;
 }
 
+// Три числа кошелька. `heldBalance` уже вычтено из `walletBalance` — это ответ на вопрос
+// «а куда делись мои деньги», а не четвёртое место, где они лежат.
 export interface PlayerDashboardDto {
   walletBalance: MoneyDto;
+  heldBalance: MoneyDto;
   debtBalance: MoneyDto;
   activeSession: ActiveSessionDto | null;
 }
@@ -133,4 +181,19 @@ export interface PlayerReservationDto {
   endsAtUtc: string;
   state: string;
   note: string | null;
+  // Докуда клуб обещал ответить на заявку. У подтверждённой брони его нет: отвечать больше не на что.
+  respondByUtc?: string | null;
+}
+
+// Правила брони этого филиала для этого игрока: предоплата нужна именно ему, потолок заявок
+// именно его. Ни одного поля про других игроков здесь нет.
+export interface PlayerBookingRulesDto {
+  branchId: string;
+  acceptanceMode: 'auto' | 'manual' | 'off';
+  respondWithinMinutes: number;
+  prepaymentRequired: boolean;
+  activeReservations: number;
+  // Пусто — значит потолка нет: игрок в этом филиале уже свой.
+  maxActiveReservations: number | null;
+  holdSeatAfterStartMinutes: number;
 }

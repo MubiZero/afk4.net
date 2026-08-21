@@ -1,6 +1,7 @@
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Reservations;
+using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Reservations;
 using Microsoft.EntityFrameworkCore;
@@ -55,6 +56,8 @@ public sealed class ReservationHoldTests
             VersionNumber = 1, CurrencyCode = "TJS", PricePerMinuteMinorUnits = 25,
             MinimumBillableMinutes = 0, RoundingIncrementMinutes = 1, EffectiveFromUtc = Start.AddYears(-1)
         });
+        // Файл про заморозку денег, а не про правила приёма: филиал берёт бронь и без предоплаты.
+        db.BranchBookingSettings.Add(BranchBookingSettingsTestData.AcceptsAnyGuest(OrgId, BranchId, Start));
         await db.SaveChangesAsync();
     }
 
@@ -203,10 +206,7 @@ public sealed class ReservationHoldTests
         int handled;
         await using (var db = new PlatformDbContext(options))
         {
-            var runner = new ReservationNoShowRunner(
-                db,
-                new ReservationNoShowOptions(),
-                new FixedTimeProvider(Start.AddMinutes(16)));
+            var runner = NewRunner(db, Start.AddMinutes(21));
             handled = await runner.RunOnceAsync(CancellationToken.None);
         }
 
@@ -229,10 +229,7 @@ public sealed class ReservationHoldTests
 
         await using (var db = new PlatformDbContext(options))
         {
-            var runner = new ReservationNoShowRunner(
-                db,
-                new ReservationNoShowOptions(),
-                new FixedTimeProvider(Start.AddMinutes(10)));
+            var runner = NewRunner(db, Start.AddMinutes(10));
             Assert.Equal(0, await runner.RunOnceAsync(CancellationToken.None));
         }
 
@@ -258,8 +255,7 @@ public sealed class ReservationHoldTests
 
         await using (var db = new PlatformDbContext(options))
         {
-            var runner = new ReservationNoShowRunner(
-                db, new ReservationNoShowOptions(), new FixedTimeProvider(Start.AddHours(2)));
+            var runner = NewRunner(db, Start.AddHours(2));
             Assert.Equal(0, await runner.RunOnceAsync(CancellationToken.None));
         }
 
@@ -280,8 +276,7 @@ public sealed class ReservationHoldTests
         int handled;
         await using (var db = new PlatformDbContext(options))
         {
-            var runner = new ReservationNoShowRunner(
-                db, new ReservationNoShowOptions(), new FixedTimeProvider(Start.AddMinutes(16)));
+            var runner = NewRunner(db, Start.AddMinutes(21));
             handled = await runner.RunOnceAsync(CancellationToken.None);
         }
 
@@ -307,6 +302,14 @@ public sealed class ReservationHoldTests
             PlayerId, OrgId, BranchId,
             new CreatePlayerReservationGroupRequest(seatCount, Start, Start.AddHours(1), null, TariffVersionId),
             CancellationToken.None);
+    }
+
+    // Место филиал держит двадцать минут (значение по умолчанию), поэтому «не приехал» — это
+    // двадцать первая минута, а не шестнадцатая.
+    private static ReservationNoShowRunner NewRunner(PlatformDbContext db, DateTimeOffset now)
+    {
+        var clock = new FixedTimeProvider(now);
+        return new ReservationNoShowRunner(db, clock, new EfShiftService(db, clock));
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider

@@ -21,6 +21,9 @@ export interface BookingItem {
   zoneName: string;
   tone: BookingTone;
   startedSessionId: string;
+  // Докуда клуб обещал ответить на заявку. Есть только у той, что ждёт решения стойки:
+  // подтверждённую бронь по таймеру никто не снимает. null = срока нет.
+  respondByMs: number | null;
 }
 
 export interface TimelineAxis {
@@ -67,6 +70,39 @@ export interface ZoneRowGroup {
 }
 
 const HOUR_MS = 3_600_000;
+
+function readTimestamp(source: Record<string, unknown>, key: string): number | null {
+  const raw = readString(source, key);
+  if (raw.length === 0) return null;
+  const ms = new Date(raw).getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
+/**
+ * Сколько осталось на ответ, в виде «4:12» (мм:сс) или «1:04:12» (ч:мм:сс) для длинных сроков.
+ *
+ * Срок показываем только заявке, которая действительно ждёт ответа: у подтверждённой брони
+ * `respondByUtc` уже ничего не значит, и обратный отсчёт рядом с ней врал бы.
+ * `overdue` — срок вышел, а заявка ещё здесь: фоновая задача снимет её в ближайший проход.
+ */
+export function respondCountdown(
+  item: Pick<BookingItem, 'state' | 'respondByMs'>,
+  nowMs: number
+): { label: string; overdue: boolean } | null {
+  if (item.state !== 'pending' || item.respondByMs === null) return null;
+
+  const remainingSeconds = Math.floor((item.respondByMs - nowMs) / 1000);
+  if (remainingSeconds <= 0) return { label: '0:00', overdue: true };
+
+  const hours = Math.floor(remainingSeconds / 3600);
+  const minutes = Math.floor((remainingSeconds % 3600) / 60);
+  const seconds = remainingSeconds % 60;
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return {
+    label: hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`,
+    overdue: false
+  };
+}
 
 function bookingTone(state: string, source: string): BookingTone {
   if (state === 'cancelled') return 'cancelled';
@@ -126,7 +162,8 @@ export function mapReservationsToItems(
       seatName: readString(reservation, 'seatName'),
       zoneName: readString(reservation, 'zoneName'),
       tone: bookingTone(state, source),
-      startedSessionId: readString(reservation, 'startedSessionId')
+      startedSessionId: readString(reservation, 'startedSessionId'),
+      respondByMs: readTimestamp(reservation, 'respondByUtc')
     };
   });
 }

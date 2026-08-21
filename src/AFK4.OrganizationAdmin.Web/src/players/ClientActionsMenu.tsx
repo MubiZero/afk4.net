@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import { useI18n } from '@afk4/i18n';
-import { CalendarClock, KeyRound, MoreHorizontal, Pencil, Power, PowerOff, SlidersHorizontal } from 'lucide-react';
+import { CalendarClock, MoreHorizontal, Pencil, Power, PowerOff, SlidersHorizontal } from 'lucide-react';
 
 interface MenuAction {
   key: string;
@@ -23,7 +23,6 @@ export function ClientActionsMenu({
   isActive,
   canManageClient,
   onEditProfile,
-  onSetPin,
   onToggleActive,
   canCreateReservation = false,
   onCreateReservation,
@@ -33,7 +32,6 @@ export function ClientActionsMenu({
   isActive: boolean;
   canManageClient: boolean;
   onEditProfile: () => void;
-  onSetPin: () => void;
   onToggleActive: () => void;
   canCreateReservation?: boolean;
   onCreateReservation?: () => void;
@@ -64,12 +62,6 @@ export function ClientActionsMenu({
       label: t('op.players.actions.editProfileLabel'),
       icon: <Pencil size={14} aria-hidden="true" />,
       onSelect: onEditProfile,
-    });
-    items.push({
-      key: 'pin',
-      label: t('op.players.actions.pinLabel'),
-      icon: <KeyRound size={14} aria-hidden="true" />,
-      onSelect: onSetPin,
     });
   }
   if (showCorrection) {

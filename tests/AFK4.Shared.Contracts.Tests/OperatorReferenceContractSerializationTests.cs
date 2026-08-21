@@ -79,4 +79,38 @@ public sealed class OperatorReferenceContractSerializationTests
         Assert.Equal(4000, copy.PriceMinorUnits);
         Assert.Equal(19800, copy.IncludedSeconds + copy.BonusSeconds);
     }
+    /// <summary>
+    /// Строка поиска называет личность за карточкой и то, откуда карточка взялась. Без первого
+    /// админка вынуждена спрашивать репутацию по телефону там, где основание очевидно; без
+    /// второго список клиентов растёт сам и оператору нечем объяснить незнакомые строки.
+    /// </summary>
+    [Fact]
+    public void PlayerSearchResultDto_RoundTripsThePersonBehindTheCardAndItsOrigin()
+    {
+        var fromApp = new PlayerSearchResultDto(
+            PlayerAccountId: Guid.Parse("65b9b565-eb5c-4ff5-890c-85f3e12a0fc2"),
+            DisplayName: "Фаррух",
+            PhoneNumber: "+992000000001",
+            WalletBalanceMinorUnits: 0,
+            DebtBalanceMinorUnits: 0,
+            ActivePackageCount: 0,
+            IsActive: true,
+            CreatedAtUtc: new DateTimeOffset(2026, 8, 21, 9, 0, 0, TimeSpan.Zero),
+            LastActivityAtUtc: null,
+            ActivePackageName: null,
+            ActivePackageRemainingMinutes: 0,
+            PlatformPersonId: Guid.Parse("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"),
+            CreatedFromApp: true);
+        var deskCard = fromApp with { PlatformPersonId = null, CreatedFromApp = false };
+
+        var fromAppCopy = JsonSerializer.Deserialize<PlayerSearchResultDto>(JsonSerializer.Serialize(fromApp));
+        var deskCardCopy = JsonSerializer.Deserialize<PlayerSearchResultDto>(JsonSerializer.Serialize(deskCard));
+
+        Assert.NotNull(fromAppCopy);
+        Assert.Equal(fromApp.PlatformPersonId, fromAppCopy.PlatformPersonId);
+        Assert.True(fromAppCopy.CreatedFromApp);
+        Assert.NotNull(deskCardCopy);
+        Assert.Null(deskCardCopy.PlatformPersonId);
+        Assert.False(deskCardCopy.CreatedFromApp);
+    }
 }

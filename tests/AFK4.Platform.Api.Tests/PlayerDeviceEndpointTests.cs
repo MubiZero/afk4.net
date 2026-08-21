@@ -4,7 +4,6 @@ using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Notifications;
 using AFK4.Shared.Contracts.Players;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -26,7 +25,9 @@ public sealed class PlayerDeviceEndpointTests
         var orgId = sameClubAs?.OrgId ?? Guid.NewGuid();
         var branchId = Guid.NewGuid();
         var playerId = Guid.NewGuid();
-        var phone = $"+99290003{playerId.ToString("N")[..4]}";
+        // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
+        // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
+        var phone = $"+99290003{(uint)playerId.GetHashCode() % 10_000:D4}";
 
         if (sameClubAs is null)
         {
@@ -62,19 +63,8 @@ public sealed class PlayerDeviceEndpointTests
             CreatedAtUtc = Now
         });
 
-        var credential = new PlayerCredentialEntity
-        {
-            PlayerCredentialId = Guid.NewGuid(),
-            PlayerAccountId = playerId,
-            OrganizationId = orgId,
-            PhoneVerified = true,
-            CreatedAtUtc = Now,
-            UpdatedAtUtc = Now
-        };
-        credential.PasswordHash = new PasswordHasher<PlayerCredentialEntity>().HashPassword(credential, "1234");
-        db.PlayerCredentials.Add(credential);
-
         await db.SaveChangesAsync();
+        await PlayerPinTestData.AttachPersonWithPinAsync(factory, playerId, phone, "1234");
         return new PlayerContext(orgId, playerId, phone);
     }
 

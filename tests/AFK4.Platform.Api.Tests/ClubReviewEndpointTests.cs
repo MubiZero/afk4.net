@@ -6,7 +6,6 @@ using AFK4.Shared.Contracts.Branding;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Reviews;
 using AFK4.Shared.Contracts.Sessions;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -35,7 +34,9 @@ public sealed class ClubReviewEndpointTests
         var playerId = Guid.NewGuid();
         var seatId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
-        var phone = $"+99290002{playerId.ToString("N")[..4]}";
+        // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
+        // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
+        var phone = $"+99290002{(uint)playerId.GetHashCode() % 10_000:D4}";
 
         if (sameClubAs is null)
         {
@@ -70,18 +71,6 @@ public sealed class ClubReviewEndpointTests
             CreatedAtUtc = Now
         });
 
-        var credential = new PlayerCredentialEntity
-        {
-            PlayerCredentialId = Guid.NewGuid(),
-            PlayerAccountId = playerId,
-            OrganizationId = orgId,
-            PhoneVerified = true,
-            CreatedAtUtc = Now,
-            UpdatedAtUtc = Now
-        };
-        credential.PasswordHash = new PasswordHasher<PlayerCredentialEntity>().HashPassword(credential, "1234");
-        db.PlayerCredentials.Add(credential);
-
         db.Seats.Add(new SeatEntity
         {
             SeatId = seatId,
@@ -110,6 +99,7 @@ public sealed class ClubReviewEndpointTests
         });
 
         await db.SaveChangesAsync();
+        await PlayerPinTestData.AttachPersonWithPinAsync(factory, playerId, phone, "1234");
         return new ReviewContext(orgId, branchId, playerId, phone, sessionId);
     }
 

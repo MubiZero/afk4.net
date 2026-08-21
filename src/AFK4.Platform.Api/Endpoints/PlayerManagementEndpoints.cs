@@ -141,48 +141,6 @@ internal static class PlayerManagementEndpoints
             return Results.Ok(result.Response);
         });
 
-        app.MapPost("branches/{branchId:guid}/players/{playerAccountId:guid}/pin", async (
-            Guid branchId,
-            Guid playerAccountId,
-            SetPlayerPinRequest request,
-            StaffAuthorizationService authorizationService,
-            IPlayerCredentialService credentialService,
-            PlatformDbContext dbContext,
-            CancellationToken cancellationToken) =>
-        {
-            var authorization = await authorizationService.RequireBranchPermissionAsync(
-                branchId,
-                OrganizationPermissionNames.CreatePlayerAccount,
-                cancellationToken);
-
-            if (!authorization.IsAuthenticated)
-            {
-                return Results.Unauthorized();
-            }
-
-            if (!authorization.IsAllowed)
-            {
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
-            if (string.IsNullOrWhiteSpace(request.Pin) || request.Pin.Length < 4)
-            {
-                return Results.BadRequest(new { error = "PIN must be at least 4 characters." });
-            }
-
-            var account = await dbContext.PlayerAccounts.SingleOrDefaultAsync(
-                p => p.PlayerAccountId == playerAccountId
-                    && p.OrganizationId == authorization.StaffContext!.OrganizationId,
-                cancellationToken);
-            if (account is null)
-            {
-                return Results.NotFound();
-            }
-
-            await credentialService.SetPasswordAsync(playerAccountId, request.Pin, cancellationToken);
-            return Results.NoContent();
-        });
-
         app.MapPatch("branches/{branchId:guid}/players/{playerAccountId:guid}", async (
             Guid branchId,
             Guid playerAccountId,
@@ -370,6 +328,106 @@ internal static class PlayerManagementEndpoints
 
             return Results.Ok(players);
         });
+
+        // Репутация по сети. Два маршрута, и оба намеренно НЕ помечены
+        // AllowPlatformSupportAccess: чужая клиентура — не предмет обращения в поддержку.
+        //
+        // Карточка заявки и карточка клиента спрашивают этот же маршрут вместо того, чтобы
+        // возить агрегат внутри списков: репутация — единственное действие, которое пишется в
+        // аудит на сам факт чтения, и в списке это означало бы запись про каждого, кого клуб
+        // просто пролистал.
+        app.MapGet("branches/{branchId:guid}/players/reputation/{platformPersonId:guid}", async (
+            Guid branchId,
+            Guid platformPersonId,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IPlayerReputationService reputationService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId, OrganizationPermissionNames.ViewPlayers, cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteReputationAuditAsync(
+                    auditRecordWriter, authorization, branchId, platformPersonId.ToString("D"),
+                    AuditOutcome.Denied, new { Lookup = "person_id", authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var reputation = await reputationService.GetForLinkedPersonAsync(
+                authorization.StaffContext!.OrganizationId, platformPersonId, cancellationToken);
+
+            await WriteReputationAuditAsync(
+                auditRecordWriter, authorization, branchId, platformPersonId.ToString("D"),
+                reputation is null ? AuditOutcome.Denied : AuditOutcome.Succeeded,
+                new { Lookup = "person_id" },
+                cancellationToken);
+
+            // «Нет такой личности» и «личность не наша» отвечают одинаково — иначе перебор
+            // идентификаторов сам по себе рассказывал бы, кто в сети есть.
+            return reputation is null ? Results.NotFound() : Results.Ok(reputation);
+        });
+
+        app.MapPost("branches/{branchId:guid}/players/reputation/lookup", async (
+            Guid branchId,
+            PlayerReputationLookupRequest request,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IPlayerReputationService reputationService,
+            CancellationToken cancellationToken) =>
+        {
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                branchId, OrganizationPermissionNames.ViewPlayers, cancellationToken);
+
+            if (!authorization.IsAuthenticated)
+            {
+                return Results.Unauthorized();
+            }
+
+            if (!authorization.IsAllowed)
+            {
+                await WriteReputationAuditAsync(
+                    auditRecordWriter, authorization, branchId, null,
+                    AuditOutcome.Denied,
+                    new { Lookup = "exact_phone", authorization.DenialReason },
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            var reputation = await reputationService.GetByExactPhoneAsync(
+                request.PhoneNumber, cancellationToken);
+            if (reputation is null)
+            {
+                // Номер, который не может принадлежать никому, ничего ни о ком не выдаёт —
+                // поэтому отличаться этому ответу можно. Поиска по части номера через платформу
+                // нет: по своим игрокам клуб ищет клубным поиском, чужих через платформу не ищет.
+                return Results.BadRequest(new { Error = "invalid_phone" });
+            }
+
+            // Идентификатор личности в записи не хранится намеренно: свой аудит клуб читает сам,
+            // и заполненный TargetId у знакомого сети номера отличал бы его от незнакомого —
+            // ровно то, что скрыл ответ.
+            await WriteReputationAuditAsync(
+                auditRecordWriter, authorization, branchId, null,
+                AuditOutcome.Succeeded,
+                new
+                {
+                    Lookup = "exact_phone",
+                    Phone = "+" + PhoneNumberNormalizer.Normalize(request.PhoneNumber)
+                },
+                cancellationToken);
+
+            return Results.Ok(reputation);
+        }).RequireRateLimiting("reputation-lookup");
 
         app.MapGet("players/{playerAccountId:guid}/wallet-summary", async (
             Guid playerAccountId,
@@ -749,4 +807,25 @@ internal static class PlayerManagementEndpoints
         // decides execute-now / hold-for-approval / refuse before any ledger write; approval replays the
         // action through the verified billing path with a second pair of eyes.
     }
+
+    /// <summary>Кто спросил, о ком и когда. Пишется и на успех, и на отказ: перебор виден по отказам.</summary>
+    private static Task WriteReputationAuditAsync(
+        IAuditRecordWriter auditRecordWriter,
+        StaffAuthorizationResult authorization,
+        Guid branchId,
+        string? targetId,
+        string outcome,
+        object details,
+        CancellationToken cancellationToken) =>
+        WriteAuditAsync(
+            auditRecordWriter,
+            authorization.StaffContext!.OrganizationId,
+            branchId,
+            authorization.StaffContext.StaffUserId,
+            AuditActionNames.ViewPlayerReputation,
+            "platform_person",
+            targetId,
+            outcome,
+            details,
+            cancellationToken);
 }

@@ -52,20 +52,167 @@ class ActiveSession {
 class PlayerDashboard {
   const PlayerDashboard({
     required this.walletBalance,
+    required this.heldBalance,
     required this.debtBalance,
     required this.activeSession,
   });
 
   final Money walletBalance;
+
+  /// Придержанное под брони. Из остатка оно уже вычтено — это ответ на вопрос «куда делись
+  /// мои деньги», а не вторая копилка.
+  final Money heldBalance;
   final Money debtBalance;
   final ActiveSession? activeSession;
 
   factory PlayerDashboard.fromJson(Map<String, dynamic> json) => PlayerDashboard(
         walletBalance: Money.fromJson(json['walletBalance'] as Map<String, dynamic>),
+        heldBalance: Money.fromJson(json['heldBalance'] as Map<String, dynamic>),
         debtBalance: Money.fromJson(json['debtBalance'] as Map<String, dynamic>),
         activeSession: json['activeSession'] == null
             ? null
             : ActiveSession.fromJson(json['activeSession'] as Map<String, dynamic>),
+      );
+}
+
+/// Человек и его клубы одним ответом: «кто я» и «где у меня что».
+///
+/// Общей суммы денег здесь нет и не будет — у каждого клуба своя касса, и сложенный остаток
+/// был бы числом, которое нельзя потратить ни в одном из них.
+class Me {
+  const Me({required this.person, required this.clubs});
+
+  final MePerson person;
+  final List<MyClub> clubs;
+
+  /// Счёт в названном клубе. null — человек в этом клубе ещё ничего не делал, и счёта там
+  /// пока нет. Это нормальное состояние, а не сбой.
+  MyClub? clubAt(String? organizationId) {
+    if (organizationId == null) return null;
+    for (final club in clubs) {
+      if (club.organizationId == organizationId) return club;
+    }
+    return null;
+  }
+
+  factory Me.fromJson(Map<String, dynamic> json) => Me(
+        person: MePerson.fromJson(json['person'] as Map<String, dynamic>),
+        clubs: (json['clubs'] as List<dynamic>? ?? const [])
+            .map((entry) => MyClub.fromJson(entry as Map<String, dynamic>))
+            .toList(growable: false),
+      );
+}
+
+/// Личность: то, что принадлежит человеку, а не клубу. PIN сюда не приходит — только
+/// признак, задан он или ещё нет.
+class MePerson {
+  const MePerson({
+    required this.platformPersonId,
+    required this.phoneNumber,
+    required this.displayName,
+    required this.preferredLocale,
+    required this.phoneVerified,
+    required this.pinSet,
+    required this.networkBanned,
+  });
+
+  final String platformPersonId;
+  final String phoneNumber;
+  final String displayName;
+  final String? preferredLocale;
+  final bool phoneVerified;
+  final bool pinSet;
+  final bool networkBanned;
+
+  factory MePerson.fromJson(Map<String, dynamic> json) => MePerson(
+        platformPersonId: json['platformPersonId'] as String,
+        phoneNumber: json['phoneNumber'] as String,
+        displayName: json['displayName'] as String,
+        preferredLocale: json['preferredLocale'] as String?,
+        phoneVerified: json['phoneVerified'] as bool? ?? false,
+        pinSet: json['pinSet'] as bool? ?? false,
+        networkBanned: json['networkBanned'] as bool? ?? false,
+      );
+}
+
+/// Один клуб глазами игрока: сколько можно потратить, сколько придержано под брони, сколько
+/// он должен и сколько раз приходил.
+class MyClub {
+  const MyClub({
+    required this.organizationId,
+    required this.organizationName,
+    required this.playerAccountId,
+    required this.homeBranchId,
+    required this.walletBalance,
+    required this.heldBalance,
+    required this.debtBalance,
+    required this.visitCount,
+  });
+
+  final String organizationId;
+  final String organizationName;
+  final String playerAccountId;
+  final String homeBranchId;
+  final Money walletBalance;
+  final Money heldBalance;
+  final Money debtBalance;
+  final int visitCount;
+
+  factory MyClub.fromJson(Map<String, dynamic> json) {
+    final currency = json['currencyCode'] as String? ?? 'TJS';
+    Money money(String field) =>
+        Money(currencyCode: currency, minorUnits: (json[field] as num?)?.toInt() ?? 0);
+
+    return MyClub(
+      organizationId: json['organizationId'] as String,
+      organizationName: json['organizationName'] as String? ?? '',
+      playerAccountId: json['playerAccountId'] as String,
+      homeBranchId: json['homeBranchId'] as String,
+      walletBalance: money('walletBalanceMinorUnits'),
+      heldBalance: money('heldMinorUnits'),
+      debtBalance: money('debtMinorUnits'),
+      visitCount: (json['visitCount'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// Правила брони этого филиала — для этого игрока. Всё посчитано сервером под конкретного
+/// человека: предоплата нужна именно ему, потолок броней именно его.
+class PlayerBookingRules {
+  const PlayerBookingRules({
+    required this.branchId,
+    required this.acceptanceMode,
+    required this.respondWithinMinutes,
+    required this.prepaymentRequired,
+    required this.activeReservations,
+    required this.maxActiveReservations,
+    required this.holdSeatAfterStartMinutes,
+  });
+
+  final String branchId;
+
+  /// `auto` — клуб подтверждает сам, `manual` — заявку смотрит администратор, `off` — брони
+  /// из приложения не принимаются.
+  final String acceptanceMode;
+  final int respondWithinMinutes;
+  final bool prepaymentRequired;
+  final int activeReservations;
+
+  /// null — потолка нет: игрок в этом филиале уже свой.
+  final int? maxActiveReservations;
+  final int holdSeatAfterStartMinutes;
+
+  bool get bookingOff => acceptanceMode == 'off';
+  bool get reviewedByStaff => acceptanceMode == 'manual';
+
+  factory PlayerBookingRules.fromJson(Map<String, dynamic> json) => PlayerBookingRules(
+        branchId: json['branchId'] as String,
+        acceptanceMode: json['acceptanceMode'] as String,
+        respondWithinMinutes: (json['respondWithinMinutes'] as num?)?.toInt() ?? 0,
+        prepaymentRequired: json['prepaymentRequired'] as bool? ?? false,
+        activeReservations: (json['activeReservations'] as num?)?.toInt() ?? 0,
+        maxActiveReservations: (json['maxActiveReservations'] as num?)?.toInt(),
+        holdSeatAfterStartMinutes: (json['holdSeatAfterStartMinutes'] as num?)?.toInt() ?? 0,
       );
 }
 
@@ -437,6 +584,7 @@ class PlayerReservation {
     this.estimatedCostMinorUnits,
     this.currencyCode,
     this.reservationGroupId,
+    this.respondByUtc,
   });
 
   final String reservationId;
@@ -456,6 +604,10 @@ class PlayerReservation {
   /// Бронь на компанию: у всех мест группы он общий. null — обычная бронь на одного.
   final String? reservationGroupId;
 
+  /// Докуда клуб обещал ответить на заявку. null — отвечать больше не на что: бронь уже
+  /// подтверждена, отменена или отыграна.
+  final DateTime? respondByUtc;
+
   /// Отменить можно то, что ещё не состоялось. Отменённую или уже отыгранную бронь трогать
   /// нечего — кнопка там только сбивает с толку.
   bool get isCancellable => state == 'pending' || state == 'confirmed';
@@ -470,6 +622,9 @@ class PlayerReservation {
         estimatedCostMinorUnits: (json['estimatedCostMinorUnits'] as num?)?.toInt(),
         currencyCode: json['currencyCode'] as String?,
         reservationGroupId: json['reservationGroupId'] as String?,
+        respondByUtc: json['respondByUtc'] == null
+            ? null
+            : DateTime.parse(json['respondByUtc'] as String),
       );
 }
 

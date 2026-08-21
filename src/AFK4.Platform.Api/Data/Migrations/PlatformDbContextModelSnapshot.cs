@@ -146,6 +146,51 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("billing_command_idempotency", (string)null);
                 });
 
+            modelBuilder.Entity("AFK4.Platform.Api.Data.BranchBookingSettingsEntity", b =>
+                {
+                    b.Property<Guid>("BranchId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AcceptanceMode")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<int>("HoldSeatAfterStartMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("KeepPrepaymentOnNoShow")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MaxActiveReservationsForNewGuests")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("RegularAfterVisits")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("RequirePrepaymentFromNewGuests")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("RespondWithinMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UpdatedByStaffUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("BranchId");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("branch_booking_settings", (string)null);
+                });
+
             modelBuilder.Entity("AFK4.Platform.Api.Data.BranchDailySnapshotEntity", b =>
                 {
                     b.Property<Guid>("BranchDailySnapshotId")
@@ -2416,6 +2461,192 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.ToTable("platform_job_runs", (string)null);
                 });
 
+            modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformPersonAccessTokenEntity", b =>
+                {
+                    b.Property<Guid>("PlatformPersonAccessTokenId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PinnedOrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PlatformPersonId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<byte[]>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.HasKey("PlatformPersonAccessTokenId");
+
+                    b.HasIndex("TokenHash");
+
+                    b.HasIndex("PlatformPersonId", "ExpiresAtUtc");
+
+                    b.ToTable("platform_person_access_tokens", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformPersonEntity", b =>
+                {
+                    b.Property<Guid>("PlatformPersonId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("NetworkBanAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NetworkBanReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<DateTimeOffset?>("PhoneVerifiedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("PinFailedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PinHash")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset?>("PinLockedUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("PinSetAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PreferredLocale")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("PlatformPersonId");
+
+                    b.HasIndex("PhoneNumber")
+                        .IsUnique();
+
+                    b.ToTable("platform_persons", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformPersonRefreshTokenEntity", b =>
+                {
+                    b.Property<Guid>("PlatformPersonRefreshTokenId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PinnedOrganizationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PlatformPersonId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<byte[]>("TokenHash")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.HasKey("PlatformPersonRefreshTokenId");
+
+                    b.HasIndex("TokenHash");
+
+                    b.HasIndex("PlatformPersonId", "ExpiresAtUtc");
+
+                    b.ToTable("platform_person_refresh_tokens", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformPhoneOtpEntity", b =>
+                {
+                    b.Property<Guid>("PlatformPhoneOtpId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset?>("ConsumedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<int>("Purpose")
+                        .HasColumnType("integer");
+
+                    b.HasKey("PlatformPhoneOtpId");
+
+                    b.HasIndex("Phone", "Purpose", "CreatedAtUtc");
+
+                    b.ToTable("platform_phone_otps", (string)null);
+                });
+
+            modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformReputationSnapshotEntity", b =>
+                {
+                    b.Property<Guid>("PlatformPersonId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CalculatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("NetworkNoShows")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("NetworkVisits")
+                        .HasColumnType("integer");
+
+                    b.HasKey("PlatformPersonId");
+
+                    b.ToTable("platform_reputation_snapshots", (string)null);
+                });
+
             modelBuilder.Entity("AFK4.Platform.Api.Data.PlatformRoleEntity", b =>
                 {
                     b.Property<string>("RoleName")
@@ -2571,6 +2802,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("CreatedFromApp")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasMaxLength(160)
@@ -2596,6 +2830,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<Guid?>("PlatformPersonId")
+                        .HasColumnType("uuid");
+
                     b.Property<long?>("PostpaidCreditLimitMinorUnits")
                         .HasColumnType("bigint");
 
@@ -2609,10 +2846,16 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.HasKey("PlayerAccountId");
 
+                    b.HasIndex("PlatformPersonId");
+
                     b.HasIndex("OrganizationId", "HomeBranchId");
 
                     b.HasIndex("OrganizationId", "ReferralCode")
                         .IsUnique();
+
+                    b.HasIndex("PlatformPersonId", "OrganizationId")
+                        .IsUnique()
+                        .HasFilter("\"PlatformPersonId\" IS NOT NULL");
 
                     b.ToTable("player_accounts", (string)null);
                 });
@@ -3245,6 +3488,9 @@ namespace AFK4.Platform.Api.Data.Migrations
                     b.Property<DateTimeOffset?>("CancelledAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTimeOffset?>("ConfirmedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -3282,6 +3528,9 @@ namespace AFK4.Platform.Api.Data.Migrations
 
                     b.Property<Guid?>("ReservationGroupId")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RespondByUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid?>("SeatId")
                         .HasColumnType("uuid");

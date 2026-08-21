@@ -134,6 +134,17 @@ class ClubPlace {
 
   bool get hasPoint => latitude != null && longitude != null;
 
+  /// Как зал зовут на экране. Пустое имя бывает у клуба, который его не задал: тогда за
+  /// название работает город, а безымянной строки на экране не остаётся.
+  String get displayName => name.isNotEmpty ? name : city;
+
+  /// Адрес зала целиком — вместе с городом. Так его читают там, где имя зала не показано.
+  String get fullAddress =>
+      [city, address ?? ''].where((part) => part.isNotEmpty).join(', ');
+
+  /// Адрес под названием зала. Город не повторяется, когда он и есть название.
+  String get addressUnderName => name.isNotEmpty ? fullAddress : (address ?? '');
+
   factory ClubPlace.fromJson(Map<String, dynamic> json) => ClubPlace(
         branchId: json['branchId'] as String,
         name: json['name'] as String,

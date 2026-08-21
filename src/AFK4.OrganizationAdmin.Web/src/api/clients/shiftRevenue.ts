@@ -8,7 +8,9 @@ export interface ShiftRevenueDto {
   openedByStaffUserId: string;
   closedByStaffUserId: string | null;
   state: string;
-  earned: { time: MoneyDto; goods: MoneyDto; total: MoneyDto };
+  // noShow — удержанная за неявку предоплата. Стоит отдельно от time намеренно: это не проданное
+  // время, но в total оно входит — деньги смена заработала.
+  earned: { time: MoneyDto; goods: MoneyDto; noShow: MoneyDto; total: MoneyDto };
   inflow: { cash: MoneyDto; nonCash: MoneyDto; walletTopUps: MoneyDto; directTotal: MoneyDto };
   cash: { starting: MoneyDto; expected: MoneyDto; counted: MoneyDto | null; difference: MoneyDto | null };
   openedAtUtc: string;

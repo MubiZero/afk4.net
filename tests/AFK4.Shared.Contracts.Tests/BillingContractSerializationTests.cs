@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Sessions;
 
 namespace AFK4.Shared.Contracts.Tests;
@@ -27,7 +28,8 @@ public sealed class BillingContractSerializationTests
             CreatedAtUtc: DateTimeOffset.Parse("2026-05-13T10:00:00Z"));
         var summary = new WalletSummaryDto(
             PlayerAccountId: entry.PlayerAccountId,
-            WalletBalance: new MoneyDto("TJS", 5000),
+            WalletBalance: new MoneyDto("TJS", 3500),
+            HeldBalance: new MoneyDto("TJS", 1500),
             DebtBalance: new MoneyDto("TJS", 0),
             RecentEntries: [entry]);
 
@@ -35,10 +37,42 @@ public sealed class BillingContractSerializationTests
         var copy = JsonSerializer.Deserialize<WalletSummaryDto>(json);
 
         Assert.NotNull(copy);
-        Assert.Equal(5000, copy.WalletBalance.MinorUnits);
+        // Остаток — это по-прежнему «сколько можно потратить»: придержанное из него уже вычтено,
+        // и третье число ничего не переносит, оно только объясняет разницу.
+        Assert.Equal(3500, copy.WalletBalance.MinorUnits);
+        Assert.Equal(1500, copy.HeldBalance.MinorUnits);
         Assert.Equal(0, copy.DebtBalance.MinorUnits);
         Assert.Single(copy.RecentEntries);
         Assert.Equal(LedgerEntryTypeNames.TopUp, copy.RecentEntries[0].EntryType);
+    }
+
+    [Fact]
+    public void PlayerDashboard_CarriesHeldMoneyAlongsideWalletAndDebt()
+    {
+        var dashboard = new PlayerDashboardDto(
+            WalletBalance: new MoneyDto("TJS", 3500),
+            HeldBalance: new MoneyDto("TJS", 1500),
+            DebtBalance: new MoneyDto("TJS", 700),
+            ActiveSession: null);
+
+        var copy = JsonSerializer.Deserialize<PlayerDashboardDto>(JsonSerializer.Serialize(dashboard));
+
+        Assert.NotNull(copy);
+        Assert.Equal(3500, copy.WalletBalance.MinorUnits);
+        Assert.Equal(1500, copy.HeldBalance.MinorUnits);
+        Assert.Equal(700, copy.DebtBalance.MinorUnits);
+    }
+
+    /// <summary>
+    /// Строки типов записей уезжают в базу и в выписку игрока, поэтому меняться они не вправе.
+    /// <c>reservation_hold</c> писался и раньше — из <c>Reservations/ReservationHold.cs</c>; здесь
+    /// он получает общий дом, а не новое значение.
+    /// </summary>
+    [Fact]
+    public void LedgerEntryTypeNames_ExposeReservationMoney()
+    {
+        Assert.Equal("reservation_hold", LedgerEntryTypeNames.ReservationHold);
+        Assert.Equal("reservation_no_show_fee", LedgerEntryTypeNames.ReservationNoShowFee);
     }
 
     [Fact]
@@ -134,5 +168,36 @@ public sealed class BillingContractSerializationTests
         Assert.Equal(BillingModeNames.Package, copy.BillingMode);
         Assert.Equal(tariffVersionId, copy.TariffVersionId);
         Assert.Equal(playerPackageId, copy.PlayerPackageId);
+    }
+
+    /// <summary>
+    /// Карточка клиента называет личность за ней и то, кто её завёл. Идентификатор личности —
+    /// то, чем оператор спрашивает сеть про знакомого человека, не диктуя его телефон в аудит;
+    /// пометка «из приложения» объясняет стойке карточку, которую она не заводила.
+    /// </summary>
+    [Fact]
+    public void PlayerAccountDto_RoundTripsThePersonBehindTheCardAndItsOrigin()
+    {
+        var fromApp = new PlayerAccountDto(
+            PlayerAccountId: Guid.Parse("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb"),
+            OrganizationId: Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+            HomeBranchId: Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+            DisplayName: "Фаррух",
+            PhoneNumber: "+992900000001",
+            IsActive: true,
+            CreatedAtUtc: DateTimeOffset.Parse("2026-08-21T09:00:00Z"),
+            PlatformPersonId: Guid.Parse("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"),
+            CreatedFromApp: true);
+        var deskCard = fromApp with { PlatformPersonId = null, CreatedFromApp = false };
+
+        var fromAppCopy = JsonSerializer.Deserialize<PlayerAccountDto>(JsonSerializer.Serialize(fromApp));
+        var deskCardCopy = JsonSerializer.Deserialize<PlayerAccountDto>(JsonSerializer.Serialize(deskCard));
+
+        Assert.NotNull(fromAppCopy);
+        Assert.Equal(fromApp.PlatformPersonId, fromAppCopy.PlatformPersonId);
+        Assert.True(fromAppCopy.CreatedFromApp);
+        Assert.NotNull(deskCardCopy);
+        Assert.Null(deskCardCopy.PlatformPersonId);
+        Assert.False(deskCardCopy.CreatedFromApp);
     }
 }

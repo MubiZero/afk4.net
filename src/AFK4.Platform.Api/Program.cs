@@ -9,6 +9,7 @@ using AFK4.Platform.Api.AntiFraud;
 using AFK4.Platform.Api.Payments.Eskhata;
 using AFK4.Platform.Api.Audit;
 using AFK4.Platform.Api.Billing;
+using AFK4.Platform.Api.Branches;
 using AFK4.Platform.Api.Common;
 using AFK4.Platform.Api.Configuration;
 using AFK4.Platform.Api.Data;
@@ -174,8 +175,12 @@ builder.Services.AddScoped<IFloorMapEditService, EfFloorMapEditService>();
 builder.Services.AddScoped<ISessionTimelineReadService, EfSessionTimelineReadService>();
 builder.Services.AddScoped<IStaffTokenService, OpaqueStaffTokenService>();
 builder.Services.AddScoped<IPlayerTokenService, OpaquePlayerTokenService>();
-builder.Services.AddScoped<IPlayerCredentialService, PlayerCredentialService>();
+builder.Services.AddScoped<IPlatformPinService, EfPlatformPinService>();
 builder.Services.AddScoped<IPlayerContextAccessor, PlayerContextAccessor>();
+builder.Services.AddScoped<IPlatformPersonTokenService, OpaquePlatformPersonTokenService>();
+builder.Services.AddScoped<IPlatformPersonContextAccessor, PlatformPersonContextAccessor>();
+builder.Services.AddScoped<IPlayerClubAccountResolver, EfPlayerClubAccountResolver>();
+builder.Services.AddScoped<IPlayerClubMembershipService, EfPlayerClubMembershipService>();
 builder.Services.AddScoped<IStaffCredentialService, PasswordHashingStaffCredentialService>();
 builder.Services.AddScoped<IStaffContextAccessor, StaffContextAccessor>();
 builder.Services.AddScoped<StaffAuthorizationService>();
@@ -294,6 +299,8 @@ builder.Services.AddSingleton<IPhoneOtpGenerator, RandomPhoneOtpGenerator>();
 builder.Services.AddScoped<IStaffPhoneVerificationService, EfStaffPhoneVerificationService>();
 builder.Services.AddScoped<IPlayerPhoneVerificationService, EfPlayerPhoneVerificationService>();
 builder.Services.AddScoped<IPlayerPhoneSignInService, EfPlayerPhoneSignInService>();
+builder.Services.AddScoped<PhoneKeyedOtpStore>();
+builder.Services.AddScoped<IPlatformRegistrationService, EfPlatformRegistrationService>();
 builder.Services.AddScoped<IStaffPhonePasswordResetService, EfStaffPhonePasswordResetService>();
 builder.Services.AddScoped<IStaffInviteService, EfStaffInviteService>();
 builder.Services.AddScoped<IDailySummaryRunner, EfDailySummaryRunner>();
@@ -308,6 +315,8 @@ builder.Services.AddHostedService<NotificationDispatcher>();
 builder.Services.AddHostedService<DailySummaryHostedService>();
 builder.Services.AddHostedService<AutoProtectionHostedService>();
 builder.Services.AddHostedService<ReservationNoShowHostedService>();
+builder.Services.AddHostedService<ReservationRequestExpiryHostedService>();
+builder.Services.AddHostedService<ReputationSnapshotHostedService>();
 builder.Services.AddHostedService<ScheduledReportHostedService>();
 builder.Services.Configure<PlatformHealthOptions>(
     builder.Configuration.GetSection(PlatformHealthOptions.ConfigurationSection));
@@ -349,6 +358,7 @@ builder.Services.AddScoped<IReportService, EfReportService>();
 builder.Services.AddScoped<IOrganizationAdminReportService, OrganizationAdminReportService>();
 builder.Services.AddScoped<IReportScheduleService, EfReportScheduleService>();
 builder.Services.AddScoped<IOperatorDashboardService, EfOperatorDashboardService>();
+builder.Services.AddScoped<IBranchBookingSettingsService, EfBranchBookingSettingsService>();
 builder.Services.AddScoped<IReservationService, EfReservationService>();
 builder.Services.AddScoped<IReservationSessionCoordinator, EfReservationSessionCoordinator>();
 builder.Services.Configure<SessionLeaseOptions>(builder.Configuration.GetSection("Sessions"));
@@ -365,6 +375,11 @@ builder.Services.AddScoped<ISessionCheckoutService, EfSessionCheckoutService>();
 builder.Services.AddSingleton(new AutoProtectionOptions());
 builder.Services.AddSingleton(new ReservationNoShowOptions());
 builder.Services.AddScoped<ReservationNoShowRunner>();
+builder.Services.AddSingleton(new ReservationRequestExpiryOptions());
+builder.Services.AddScoped<ReservationRequestExpiryRunner>();
+builder.Services.AddSingleton(new ReputationSnapshotOptions());
+builder.Services.AddScoped<ReputationSnapshotRunner>();
+builder.Services.AddScoped<IPlayerReputationService, EfPlayerReputationService>();
 builder.Services.AddScoped<AutoProtectionRunner>();
 builder.Services.AddScoped<ISessionCommandResultProcessor, EfSessionCommandResultProcessor>();
 builder.Services.AddScoped<IBillingCommandService, EfBillingCommandService>();
@@ -426,6 +441,32 @@ builder.Services.AddRateLimiter(options =>
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    // Своя ручка у регистрации, а не общая с витриной: этот маршрут единственный, где чужой
+    // номер получает SMS за счёт клубов, и прикрутить его надо уметь, не трогая остальной
+    // край игрока.
+    options.AddPolicy("register-public", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    // Спрос репутации по точному номеру — единственное место, где клуб приносит номер человека,
+    // с которым у него нет никакой связи. Ручка своя, ключ — сам сотрудник, а не IP: перебирать
+    // будет живой аккаунт, и прикрутить его надо уметь, не задевая остальную стойку.
+    options.AddPolicy("reputation-lookup", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Request.Headers.Authorization.ToString() is { Length: > 0 } actor
+                ? actor
+                : httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 20,
                 Window = TimeSpan.FromMinutes(1)
             }));
 
@@ -543,6 +584,8 @@ organizations.MapLoyaltySettingsEndpoints();
 organizations.MapReferralSettingsEndpoints();
 organizations.MapNewsEndpoints();
 organizations.MapAnnouncementFeedEndpoints();
+app.MapMeEndpoints();
+app.MapPlatformRegistrationEndpoints();
 app.MapPlayerSelfServiceEndpoints();
 app.MapPlayerCatalogEndpoints();
 app.MapPlayerShopEndpoints();

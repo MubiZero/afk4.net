@@ -9,7 +9,7 @@ type TFunc = (key: MessageKey) => string;
 export interface ShiftReportData {
   openedAtUtc: string;
   closedAtUtc: string | null;
-  earned: { time: Money; goods: Money; total: Money };
+  earned: { time: Money; goods: Money; noShow: Money; total: Money };
   inflow: { cash: Money; nonCash: Money; walletTopUps: Money };
   cash: { starting: Money; expected: Money; counted: Money | null; difference: Money | null };
 }
@@ -47,6 +47,7 @@ export function buildShiftReportText(data: ShiftReportData, variant: 'x' | 'z', 
     row('op.shifts.earned', data.earned.total),
     row('op.shifts.time', data.earned.time),
     row('op.shifts.goods', data.earned.goods),
+    row('op.shifts.noShow', data.earned.noShow),
     row('op.shifts.cash', data.inflow.cash),
     row('op.shifts.nonCash', data.inflow.nonCash),
     row('op.shifts.walletTopUps', data.inflow.walletTopUps),

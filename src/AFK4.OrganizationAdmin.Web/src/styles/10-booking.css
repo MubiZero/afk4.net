@@ -201,6 +201,35 @@
   background: var(--border-strong);
 }
 
+/* Обратный отсчёт «ответить за 4:12». Молчание клуба снимает заявку и возвращает игроку
+   деньги, поэтому срок стоит на самой карточке, а не в детали, куда ещё надо зайти. */
+.booking-lane-respond {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.booking-lane-card.is-urgent {
+  border-color: var(--warning);
+}
+
+.booking-lane-card.is-urgent .booking-lane-respond {
+  color: var(--warning-text);
+  font-weight: 600;
+}
+
+.booking-lane-card.is-overdue {
+  border-color: var(--danger);
+}
+
+.booking-lane-card.is-overdue .booking-lane-respond {
+  color: var(--danger-text);
+  font-weight: 600;
+}
+
 .booking-lane-card {
   display: grid;
   gap: 5px;

@@ -7,7 +7,6 @@ using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Billing;
 using AFK4.Shared.Contracts.Common;
 using AFK4.Shared.Contracts.Players;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -19,8 +18,9 @@ public class PortalReadsEndpointTests
 
     private sealed record SeededPlayer(Guid OrgId, Guid BranchId, Guid PlayerId);
 
-    // Seeds an active player + a PIN credential. Returns ids for further seeding.
-    private static async Task<SeededPlayer> SeedPlayerAsync(PlatformApiFactory factory, string pin)
+    // Seeds an active player + a network PIN on their person. Returns ids for further seeding.
+    private static async Task<SeededPlayer> SeedPlayerAsync(
+        PlatformApiFactory factory, string pin, string phone = "+992900000001")
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
@@ -34,24 +34,14 @@ public class PortalReadsEndpointTests
             OrganizationId = org,
             HomeBranchId = branch,
             DisplayName = "Player One",
-            PhoneNumber = "+992900000001",
+            PhoneNumber = phone,
             PreferredLocale = "ru",
             MarketingOptIn = false,
             IsActive = true,
             CreatedAtUtc = Now
         });
-        var credential = new PlayerCredentialEntity
-        {
-            PlayerCredentialId = Guid.NewGuid(),
-            PlayerAccountId = player,
-            OrganizationId = org,
-            PhoneVerified = true,
-            CreatedAtUtc = Now,
-            UpdatedAtUtc = Now
-        };
-        credential.PasswordHash = new PasswordHasher<PlayerCredentialEntity>().HashPassword(credential, pin);
-        db.PlayerCredentials.Add(credential);
         await db.SaveChangesAsync();
+        await PlayerPinTestData.AttachPersonWithPinAsync(factory, player, phone, pin);
         return new SeededPlayer(org, branch, player);
     }
 
@@ -215,7 +205,7 @@ public class PortalReadsEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         var p = await SeedPlayerAsync(factory, "1234");
-        var other = await SeedPlayerAsync(factory, "9999");
+        var other = await SeedPlayerAsync(factory, "9999", "+992900000002");
         await SeedEndedVisitAsync(factory, other, "Seat X", Now.AddDays(-1), receiptTotal: 9_000, attachedPosTotal: 0);
         using var client = factory.CreateClient();
         await AuthenticateAsync(client, p.OrgId, "+992900000001", "1234");
@@ -273,7 +263,7 @@ public class PortalReadsEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         var p = await SeedPlayerAsync(factory, "1234");
-        var other = await SeedPlayerAsync(factory, "9999");
+        var other = await SeedPlayerAsync(factory, "9999", "+992900000002");
         var otherSession = await SeedEndedVisitAsync(factory, other, "Seat X", Now.AddDays(-1), receiptTotal: 9_000, attachedPosTotal: 0);
         using var client = factory.CreateClient();
         await AuthenticateAsync(client, p.OrgId, "+992900000001", "1234");
@@ -349,7 +339,7 @@ public class PortalReadsEndpointTests
     {
         await using var factory = new PlatformApiFactory();
         var p = await SeedPlayerAsync(factory, "1234");
-        var other = await SeedPlayerAsync(factory, "9999");
+        var other = await SeedPlayerAsync(factory, "9999", "+992900000002");
         await SeedStandalonePurchaseAsync(factory, other, Now.AddDays(-1), 7_000, "Pizza", 1);
         using var client = factory.CreateClient();
         await AuthenticateAsync(client, p.OrgId, "+992900000001", "1234");

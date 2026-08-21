@@ -8,6 +8,8 @@ import { WalletZone } from './WalletZone';
 import { HistorySection } from './HistorySection';
 import { ClientActionsMenu } from './ClientActionsMenu';
 import { PackagesSection } from './PackagesSection';
+import { ReputationCard } from './ReputationCard';
+import type { ReputationController } from './useReputation';
 
 // Сколько последних операций показываем в мини-истории — за остальным уводит «вся история →».
 const RECENT_ENTRIES_LIMIT = 4;
@@ -22,6 +24,7 @@ export function ClientDrawer({
   client,
   liveContext,
   balanceMinorUnits,
+  heldMinorUnits,
   debtMinorUnits,
   currencyCode,
   recentEntries,
@@ -40,15 +43,18 @@ export function ClientDrawer({
   canCreateReservation,
   onCorrect,
   onCreateReservation,
-  onSetPin,
   onEditProfile,
   onToggleActive,
   onOpenFullHistory,
   onClose,
+  reputation,
 }: {
   client: PlayerClientItem;
   liveContext: ClientLiveContext;
   balanceMinorUnits: number;
+  // Придержано под брони. Из остатка уже вычтено — это объяснение, куда делась часть денег,
+  // а не второй кошелёк.
+  heldMinorUnits: number;
   debtMinorUnits: number;
   currencyCode: string;
   recentEntries: LedgerEntryDto[];
@@ -67,14 +73,16 @@ export function ClientDrawer({
   canCreateReservation: boolean;
   onCorrect: () => void;
   onCreateReservation: () => void;
-  onSetPin: () => void;
   onEditProfile: () => void;
   onToggleActive: () => void;
   onOpenFullHistory: () => void;
   onClose: () => void;
+  // Репутацию в сети спрашивает оркестратор — карточка только рисует ответ и кнопку.
+  reputation: ReputationController;
 }) {
   const { t } = useI18n();
   const hasDebt = debtMinorUnits > 0;
+  const hasHeld = heldMinorUnits > 0;
   const isInactive = !client.isActive;
   // Триггер «⋯» показываем, если у оператора есть ХОТЯ БЫ одно из трёх прав — иначе меню
   // рендерится пустым (см. ClientActionsMenu), а кнопка без пунктов бесполезна.
@@ -93,7 +101,6 @@ export function ClientDrawer({
             isActive={client.isActive}
             canManageClient={canManageClient}
             onEditProfile={onEditProfile}
-            onSetPin={onSetPin}
             onToggleActive={onToggleActive}
             canCreateReservation={canCreateReservation}
             onCreateReservation={onCreateReservation}
@@ -152,6 +159,17 @@ export function ClientDrawer({
               <span className="val"><Money minorUnits={debtMinorUnits} currencyCode={currencyCode} /></span>
             </div>
           )}
+
+          {/* Третья величина появляется, только когда деньги действительно придержаны: у
+              большинства клиентов это вечный ноль, а нулевая строка рядом с остатком заставляет
+              оператора каждый раз спрашивать себя, что она значит. */}
+          {hasHeld && (
+            <div className="wallet-held">
+              <span className="eyebrow">{t('op.players.wallet.heldLabel')}</span>
+              <span className="val"><Money minorUnits={heldMinorUnits} currencyCode={currencyCode} /></span>
+              <small>{t('op.players.wallet.heldHint')}</small>
+            </div>
+          )}
         </div>
 
         <div className="wallet-sep" />
@@ -174,6 +192,10 @@ export function ClientDrawer({
             <div className="wallet-sep" />
           </>
         )}
+
+        <ReputationCard controller={reputation} />
+
+        <div className="wallet-sep" />
 
         <PackagesSection packages={packages} loading={packagesLoading} errorDetail={packagesErrorDetail} />
 

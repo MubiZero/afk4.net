@@ -1,12 +1,12 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, MonitorCog, BadgeDollarSign, UsersRound, Boxes, CreditCard, Newspaper } from 'lucide-react';
+import { Building2, CalendarCheck, MonitorCog, BadgeDollarSign, UsersRound, Boxes, CreditCard, Newspaper } from 'lucide-react';
 import type { MessageKey } from '@afk4/i18n';
 import type { OperatorAuthSession } from '../authClient';
 import { hasAnyPermission } from '../operatorPermissions';
 import { permissionNames } from '../permissionNames';
 
 export type ManagementDestinationId =
-  | 'club' | 'halls' | 'tariffs' | 'staff' | 'goods'
+  | 'club' | 'booking' | 'halls' | 'tariffs' | 'staff' | 'goods'
   | 'payments' | 'news';
 
 export interface ManagementDestination {
@@ -23,6 +23,15 @@ export const managementDestinations: readonly ManagementDestination[] = [
     labelKey: 'op.management.dest.club',
     subtitleKey: 'op.management.dest.club.subtitle',
     Icon: Building2,
+    permissions: [permissionNames.manageBranchSettings]
+  },
+  {
+    id: 'booking',
+    labelKey: 'op.management.dest.booking',
+    subtitleKey: 'op.management.dest.booking.subtitle',
+    Icon: CalendarCheck,
+    // Настройки приёма гостей ходят под тем же правом, что и остальные настройки филиала
+    // (ManageBranchSettings на сервере) — своего права у них нет.
     permissions: [permissionNames.manageBranchSettings]
   },
   {

@@ -18,4 +18,16 @@ public static class LedgerEntryTypeNames
 
     /// <summary>Деньги за приведённого друга — платит клуб, обоим сразу.</summary>
     public const string ReferralBonus = "referral_bonus";
+
+    /// <summary>
+    /// Заморозка под бронь: деньги остаются игроку, но потратить их второй раз уже нельзя.
+    /// Оплатой не становится никогда — только снимается реверсом.
+    /// </summary>
+    public const string ReservationHold = "reservation_hold";
+
+    /// <summary>
+    /// Удержанная за неявку предоплата — выручка клуба, а не «деньги, которые не вернулись».
+    /// Пишется только если филиал так решил, и всегда после снятия заморозки.
+    /// </summary>
+    public const string ReservationNoShowFee = "reservation_no_show_fee";
 }

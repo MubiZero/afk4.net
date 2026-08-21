@@ -13,7 +13,6 @@ using AFK4.Shared.Contracts.Platform.Organizations;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Shop;
 using AFK4.Platform.Api.Tests.Shop;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -42,7 +41,9 @@ public sealed class FeatureGateTests
         var org = Guid.NewGuid();
         var branch = Guid.NewGuid();
         var player = Guid.NewGuid();
-        var phone = $"+99291{player.ToString("N")[..7]}";
+        // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
+        // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
+        var phone = $"+99291{(uint)player.GetHashCode() % 10_000_000:D7}";
 
         db.Organizations.Add(new OrganizationEntity
         {
@@ -79,19 +80,10 @@ public sealed class FeatureGateTests
             CreatedAtUtc = Now
         });
 
-        var credential = new PlayerCredentialEntity
-        {
-            PlayerCredentialId = Guid.NewGuid(),
-            PlayerAccountId = player,
-            OrganizationId = org,
-            PhoneVerified = true,
-            CreatedAtUtc = Now,
-            UpdatedAtUtc = Now
-        };
-        credential.PasswordHash = new PasswordHasher<PlayerCredentialEntity>().HashPassword(credential, pin);
-        db.PlayerCredentials.Add(credential);
+        db.BranchBookingSettings.Add(BranchBookingSettingsTestData.AcceptsAnyGuest(org, branch, Now));
 
         await db.SaveChangesAsync();
+        await PlayerPinTestData.AttachPersonWithPinAsync(factory, player, phone, pin);
         return new SeededPlayer(org, branch, player, phone);
     }
 

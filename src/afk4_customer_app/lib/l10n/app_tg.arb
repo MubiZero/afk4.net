@@ -8,6 +8,7 @@
   "a11yLoadingReceipt": "Боркунии чек",
   "a11yLoadingReservations": "Боркунии бронҳо",
   "a11yLoadingVisits": "Боркунии ташрифҳо",
+  "a11yReservationsRespondIn": "Клуб ҷавоб медиҳад пас аз:",
   "a11ySessionElapsed": "Сессия идома дорад:",
   "a11ySessionRemaining": "Вақти боқимонда:",
   "customerAchievementFirstVisit": "Ташрифи аввал",
@@ -24,18 +25,38 @@
   "customerAchievementVeteranHint": "Панҷоҳ ташриф ба клуб",
   "customerActionsBook": "Ҷой банд кардан",
   "customerActionsOrder": "Фармоиши хӯрок",
+  "customerBranchErrGone": "Чунин толор дигар дар шабака нест — дигарашро интихоб кунед.",
+  "customerBranchErrRequired": "Аввал толореро, ки ба он меоед, интихоб кунед.",
+  "customerBranchHint": "Клуб дар ҳамин толор ҳамён ва таърихи ташрифҳои шуморо мекушояд.",
+  "customerBranchTitle": "Ба кадом толор меоед?",
+  "customerClubErrClosed": "Клуб ҳисоби шуморо бастааст — дар ин ҷо танҳо тавассути маъмур бозӣ кардан мумкин аст.",
   "customerClubDetailsChoose": "Дар ин ҷо бозӣ мекунам",
   "customerClubDetailsDayOff": "рӯзи истироҳат",
-  "customerClubDetailsHallSeats": "{count, plural, one {{count} ҷой} other {{count} ҷой}}",
-  "@customerClubDetailsHallSeats": {
+  "customerClubDetailsHalls": "Толорҳои шабака",
+  "customerClubDetailsHallsIn": "{count, plural, one {{count} толор} other {{count} толор}} · {cities}",
+  "@customerClubDetailsHallsIn": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      },
+      "cities": {
+        "type": "String"
+      }
+    }
+  },
+  "customerClubDetailsHours": "Соатҳои корӣ",
+  "customerClubDetailsHoursUnknown": "Клуб соатҳои кориро нишон надодааст",
+  "customerClubDetailsNoHalls": "Клуб ҷойгиршавии худро нишон надодааст",
+  "customerClubDetailsZoneSeats": "{count, plural, one {{count} ҷой} other {{count} ҷой}}",
+  "@customerClubDetailsZoneSeats": {
     "placeholders": {
       "count": {
         "type": "num"
       }
     }
   },
-  "customerClubDetailsHalls": "Толорҳо",
-  "customerClubDetailsHours": "Соатҳои корӣ",
+  "customerClubDetailsZones": "Минтақаҳо",
+  "customerClubDetailsZonesUnknown": "Клуб минтақаҳоро тавсиф накардааст",
   "customerClubPickerChange": "Иваз кардани клуб",
   "customerClubPickerClosedToday": "Имрӯз рӯзи истироҳат",
   "customerClubPickerDetails": "Муфассал",
@@ -100,6 +121,12 @@
   "customerClubPickerTabList": "Рӯйхат",
   "customerClubPickerTabMap": "Дар харита",
   "customerClubPickerTitle": "Клубро интихоб кунед",
+  "customerClubsAll": "Ҳамаи клубҳо",
+  "customerClubsHere": "Шумо ин ҷо ҳастед",
+  "customerClubsMine": "Клубҳои шумо",
+  "customerClubsNoAccount": "Шумо ҳанӯз ин ҷо бозӣ накардаед",
+  "customerClubsNoAccountHint": "Ҳамёни ин клуб бо фармоиш ё пуркунии аввал кушода мешавад. Пули ҳар клуб алоҳида аст.",
+  "customerClubsOpen": "Гузаштан",
   "customerCommonBack": "← Бозгашт",
   "customerCommonDayAtTime": "{day}, {time}",
   "@customerCommonDayAtTime": {
@@ -124,7 +151,11 @@
   "customerDashboardBookSeat": "Ҷой брон кардан",
   "customerDashboardDebt": "Қарз",
   "customerDashboardDebtNote": "Қарзро дар мизи қабули клуб пардохт кардан мумкин аст",
+  "customerDashboardHeld": "Барои бронҳо нигоҳ дошта шудааст",
+  "customerDashboardHeldNote": "Ҳангоми бекоркунии брон ё ҷавоб надодани клуб бармегардад.",
   "customerDashboardLoadError": "Маълумотро бор кардан муяссар нашуд. Пайвастро санҷед.",
+  "customerDashboardNoClub": "Шумо ҳанӯз дар ин ҷо оғоз накардаед",
+  "customerDashboardNoClubNote": "Ҳисоб дар ин клуб бо бронии аввал ё пуркунии аввал кушода мешавад.",
   "customerDashboardNoSession": "Сессияи фаъол нест",
   "customerDashboardSessionActive": "Сессия фаъол аст",
   "customerDashboardSessionEnded": "Вақт тамом шуд",
@@ -318,6 +349,33 @@
     }
   },
   "customerPhoneTitle": "Тасдиқи рақам",
+  "customerPinCancel": "Бекор кардан",
+  "customerPinChange": "PIN-ро иваз кардан",
+  "customerPinDone": "PIN нигоҳ дошта шуд",
+  "customerPinErrFormat": "PIN аз 4 то 8 рақам иборат аст",
+  "customerPinErrRepeat": "PIN-ҳо мувофиқат намекунанд",
+  "customerPinErrSave": "PIN-ро нигоҳ дошта натавонистем",
+  "customerPinField": "PIN-и нав",
+  "customerPinForgot": "PIN-ро фаромӯш кардед — нави онро гузоред, кӯҳнаашро намепурсем.",
+  "customerPinForgotNote": "PIN-и кӯҳнаро намепурсем — фаромӯш кардед, танҳо нави онро муқаррар кунед.",
+  "customerPinHint": "Аз 4 то 8 рақам",
+  "customerPinIntro": "Онро дар экрани ПК ҳамроҳи рақами телефонатон ворид кунед — ва бе маъмур худатон ба ҷой менишинед.",
+  "customerPinInvalid": "PIN аз 4 то 8 рақам иборат аст",
+  "customerPinIsSet": "PIN муқаррар шудааст",
+  "customerPinNetworkNote": "PIN дар ҳамаи клубҳои шабака якхела аст.",
+  "customerPinNotSet": "PIN ҳанӯз муқаррар нашудааст",
+  "customerPinNote": "Онро дар ПК-и бозӣ ворид кунед — бе администратор худатон менишинед.",
+  "customerPinRepeat": "PIN-ро такрор кунед",
+  "customerPinRule": "Аз 4 то 8 рақам",
+  "customerPinSave": "Нигоҳ доштан",
+  "customerPinSaveError": "PIN нигоҳ дошта нашуд",
+  "customerPinSaved": "PIN нигоҳ дошта шуд",
+  "customerPinSaving": "Нигоҳ дошта мешавад…",
+  "customerPinScope": "PIN дар ҳамаи клубҳо кор мекунад. Барои ворид шудан ба барнома лозим нест — ин ҷо шумо бо рамзи SMS медароед.",
+  "customerPinSet": "PIN гузоштан",
+  "customerPinStateSet": "PIN гузошта шудааст",
+  "customerPinStateUnset": "PIN ҳанӯз гузошта нашудааст — ҳоло маъмур шуморо ба ПК менишонад",
+  "customerPinTitle": "PIN барои нишастан ба ПК",
   "customerPlayBusyOffline": "ПК хомӯш аст",
   "customerPlayBusyReservation": "Брон шудааст",
   "customerPlayBusySession": "Банд",
@@ -492,6 +550,9 @@
   "customerReservationsCreating": "Сохта истодаем…",
   "customerReservationsEnd": "Анҷом",
   "customerReservationsEndBeforeStart": "Анҷом бояд пас аз оғоз бошад",
+  "customerReservationsErrDisabled": "Клуб ҳоло фармоишро аз барнома қабул намекунад",
+  "customerReservationsErrLimit": "Шумо аллакай фармоиши фаъол доред. Онро интизор шавед ё бекор кунед",
+  "customerReservationsErrPrepay": "Барои пешпардохт пул намерасад — ҳамёнро пур кунед",
   "customerReservationsGate": "Барои онлайн брон кардан рақами телефони худро тасдиқ кунед.",
   "customerReservationsGroupNoFunds": "Дар ҳамён барои тамоми гурӯҳ маблағ намерасад. Онро пур кунед ё ҷойҳои камтар гиред.",
   "customerReservationsGroupNoSeats": "Дар ин вақт дар толор ин қадар компютери холӣ нест. Ҷойҳои камтар гиред ё вақти дигар интихоб кунед.",
@@ -505,7 +566,17 @@
     }
   },
   "customerReservationsHoldNote": "Маблағи брон дар ҳамён нигоҳ дошта мешавад ва ҳангоми бекоркунӣ бармегардад",
+  "customerReservationsLimitReached": "Ҳоло дархости нав қабул намекунем — ҷавоби дархостҳои ҷориро интизор шавед.",
   "customerReservationsLoadError": "Брониҳоро бор кардан нашуд.",
+  "customerReservationsModeManual": "Дархостро администратор мебинад — дар давоми {minutes, plural, other {{minutes} дақиқа}} ҷавоб медиҳад.",
+  "@customerReservationsModeManual": {
+    "placeholders": {
+      "minutes": {
+        "type": "num"
+      }
+    }
+  },
+  "customerReservationsModeOff": "Ин филиал ҳоло бронро аз замима қабул намекунад.",
   "customerReservationsNewTitle": "Брони нав",
   "customerReservationsNoFunds": "Дар ҳамён барои ин брон маблағ намерасад — пур кунед ва бори дигар кӯшиш кунед",
   "customerReservationsNoSeat": "Бе ҷой",
@@ -513,6 +584,7 @@
   "customerReservationsNone": "Ҳоло броне нест",
   "customerReservationsNoneHint": "Бронь ПК-и интихобшударо то омадани шумо нигоҳ медорад",
   "customerReservationsNotChosen": "Интихоб нашудааст",
+  "customerReservationsPrepayment": "Маблағи бронро то омаданатон дар ҳамён нигоҳ медорем.",
   "customerReservationsPrice": "Барои пардохт {amount}",
   "@customerReservationsPrice": {
     "placeholders": {
@@ -538,6 +610,43 @@
       }
     }
   },
+  "customerReservationsRespondBy": "Клуб то {time} ҷавоб медиҳад",
+  "@customerReservationsRespondBy": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsRespondIn": "Клуб ҷавоб медиҳад: {clock} мондааст",
+  "@customerReservationsRespondIn": {
+    "placeholders": {
+      "clock": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsRespondLeft": "{minutes, plural, one {{minutes} дақиқа мондааст} other {{minutes} дақиқа мондааст}}",
+  "@customerReservationsRespondLeft": {
+    "placeholders": {
+      "minutes": {
+        "type": "num"
+      }
+    }
+  },
+  "customerReservationsRespondNote": "Агар сари вақт ҷавоб надиҳад, дархост бекор мешавад ва пул пурра бармегардад.",
+  "customerReservationsRespondOver": "Клуб дар вақташ ҷавоб надод — дархост бекор мешавад ва пул бармегардад.",
+  "customerReservationsRespondSoon": "камтар аз як дақиқа мондааст",
+  "customerReservationsRuleManual": "Дархостро маъмур мебинад — одатан дар {minutes} дақиқа ҷавоб медиҳад.",
+  "@customerReservationsRuleManual": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsRuleOff": "Ин клуб фармоишро аз барнома қабул намекунад. Ба клуб занг занед.",
+  "customerReservationsRulePrepay": "Фармоишҳои аввал пешпардохт талаб мекунанд: маблағ дар ҳамён нигоҳ дошта мешавад.",
   "customerReservationsSeatNote": "Ҷойро маъмури клуб таъин мекунад — шумо онро дар тасдиқ мебинед.",
   "customerReservationsSeats": "Чанд ҷой",
   "customerReservationsSeatsAlone": "Фармоиш барои як нафар",
@@ -668,10 +777,22 @@
   "customerShopStatusPlaced": "Фармоиш қабул шуд, тайёр карда истодаем",
   "customerShopTitle": "Фармоиш ба ҷой",
   "customerShopTotal": "Ҳамагӣ",
+  "customerSigninAccountDisabled": "Ин рақам баста аст. Ба пештахтаи клуб муроҷиат кунед.",
+  "customerSigninBlocked": "Ворид шудан ба ҳисоб баста аст. Ба клуб муроҷиат кунед.",
   "customerSigninByCode": "Даромадан бо рамзи SMS",
   "customerSigninByPassword": "Даромадан бо парол",
+  "customerSigninChangePhone": "Рақами дигар",
+  "customerSigninCode": "Рамз аз SMS",
   "customerSigninCodeError": "Рамз нодуруст аст",
   "customerSigninCodeExpired": "Рамз кӯҳна шуд — нави онро дархост кунед",
+  "customerSigninCodeLifetime": "Рамз {minutes, plural, other {{minutes} дақиқа}} эътибор дорад.",
+  "@customerSigninCodeLifetime": {
+    "placeholders": {
+      "minutes": {
+        "type": "num"
+      }
+    }
+  },
   "customerSigninCodeNone": "Рамз дархост нашудааст ё аллакай истифода шудааст",
   "customerSigninCodeSent": "Рамз ба {phone} фиристода шуд, агар чунин бозигар дар клуб бошад.",
   "@customerSigninCodeSent": {
@@ -681,13 +802,53 @@
       }
     }
   },
+  "customerSigninCodeSentAny": "Рамз ба {phone} фиристода шуд",
+  "@customerSigninCodeSentAny": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSigninCodeSentTo": "Рамз ба {phone} фиристода шуд",
+  "@customerSigninCodeSentTo": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
   "customerSigninCodeTooMany": "Кӯшишҳои аз ҳад зиёд — рамзи нав дархост кунед",
   "customerSigninError": "Рақам ё парол нодуруст аст",
+  "customerSigninFailed": "Ворид шуда натавонистем. Аз нав кӯшиш кунед.",
+  "customerSigninFinish": "Идома додан",
+  "customerSigninIntro": "Рақами телефонро ворид кунед — рамзро бо SMS мефиристем. Як ҳисоб барои ҳамаи клубҳо.",
+  "customerSigninLangTitle": "Забони барнома",
+  "customerSigninName": "Ном",
+  "customerSigninNameError": "Номро ворид кунед",
+  "customerSigninNameHint": "Ин номро маъмури клуб ҳангоми омаданатон мебинад.",
+  "customerSigninNameTitle": "Номи шумо чист",
   "customerSigninNetworkError": "Алоқа бо сервер нест. Интернетро санҷед.",
+  "customerSigninNewHere": "Бори аввал ин ҷоед? Ҳамон рақамро ворид кунед — танҳо номатонро мепурсем.",
   "customerSigninPassword": "PIN ё парол",
   "customerSigninPhone": "Телефон",
+  "customerSigninPhoneError": "Рақами телефонро санҷед",
+  "customerSigninResend": "Рамзро дубора фиристед",
+  "customerSigninResendIn": "Рамзи навро пас аз {seconds} сония дархост кардан мумкин аст",
+  "@customerSigninResendIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSigninSaveError": "Номро нигоҳ дошта натавонистем",
+  "customerSigninSaving": "Нигоҳ дошта истодаем…",
+  "customerSigninSendCode": "Рамзро фиристед",
+  "customerSigninSending": "Фиристода истодаем…",
   "customerSigninSubmit": "Ворид шудан",
   "customerSigninSubmitting": "Воридшавӣ…",
+  "customerSigninSubtitle": "Рақами телефон — ҳамин калиди даромади шумост. Рамзро ба он мефиристем.",
   "customerSigninTitle": "Даромад",
   "customerTariffDayFri": "Ҷм",
   "customerTariffDayMon": "Дш",
@@ -700,6 +861,8 @@
   "customerWalletAmountError": "Маблағи аз сифр зиёдро ворид кунед",
   "customerWalletGate": "Барои онлайн пур кардани ҳамён рақами телефони худро тасдиқ кунед.",
   "customerWalletGateAction": "Рақамро тасдиқ кунед",
+  "customerWalletHeld": "Барои фармоишҳо нигоҳ дошта шудааст",
+  "customerWalletHeldNote": "Агар фармоиш бекор шавад, ба ҳамён бармегардад.",
   "customerWalletIntents": "Дархостҳои шумо",
   "customerWalletNote": "Клуб маблағро пас аз тасдиқи он дар мизи қабул ворид мекунад.",
   "customerWalletPendingHint": "Дархост барои {amount} интизори воридшавӣ аст",
@@ -726,5 +889,12 @@
   "customerWeekday4": "Панҷшанбе",
   "customerWeekday5": "Ҷумъа",
   "customerWeekday6": "Шанбе",
-  "customerWeekday7": "Якшанбе"
+  "customerWeekday7": "Якшанбе",
+  "customerWelcomeName": "Ном",
+  "customerWelcomeNameError": "Номатонро ворид кунед",
+  "customerWelcomeSaveError": "Нигоҳ доштан нашуд. Бори дигар кӯшиш кунед.",
+  "customerWelcomeSaving": "Нигоҳ дошта истодаем…",
+  "customerWelcomeSubmit": "Идома додан",
+  "customerWelcomeSubtitle": "Ин номро администратор ҳангоми шинондани шумо ба ПК мебинад.",
+  "customerWelcomeTitle": "Номи шумо чист?"
 }

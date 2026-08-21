@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'api/dto.dart';
 import 'api/player_api_client.dart';
 import 'auth/player_session.dart';
 import 'auth/player_session_store.dart';
@@ -156,6 +157,13 @@ class _RootState extends State<_Root> {
   PlayerSession? _session;
   PushService? _push;
 
+  /// Человек и его клубы. null — ещё не спросили или не спросилось; тогда приложение работает
+  /// как раньше, просто не знает, есть ли у игрока счёт в открытом клубе.
+  Me? _me;
+
+  /// Игрок открыл витрину, чтобы перейти в другой клуб. Выбранный до этого никуда не делся.
+  bool _pickingClub = false;
+
   @override
   void initState() {
     super.initState();
@@ -169,6 +177,9 @@ class _RootState extends State<_Root> {
     }
     final organization = await widget.organizationStore.read();
     final session = await widget.sessionStore.read();
+    // Клуб называется на каждом запросе: аккаунт один на всю сеть, и без этого сервер не
+    // знает, чей кошелёк показывать.
+    widget.api.organizationId = organization?.organizationId;
     // Слушать смену сессии обязательно, а не «полезно»: refresh-токен одноразовый, и продление
     // выдаёт новый. Пока продлённую сессию никто не писал на диск, там оставался токен, который
     // сервер уже отозвал, — приложение работало до перезапуска, а наутро встречало игрока
@@ -186,6 +197,18 @@ class _RootState extends State<_Root> {
       _session = session;
       _restoring = false;
     });
+    if (session != null) await _loadMe();
+  }
+
+  /// Кто вошёл и где у него счета. Ошибку не показываем: без этого списка приложение работает
+  /// как работало, а сообщение о сбое на первом экране пугает зря.
+  Future<void> _loadMe() async {
+    try {
+      final me = await widget.api.getMe();
+      if (mounted) setState(() => _me = me);
+    } on PlayerApiException {
+      if (mounted) setState(() => _me = null);
+    }
   }
 
   /// Сессия сменилась внутри клиента — продлилась или умерла.
@@ -201,8 +224,12 @@ class _RootState extends State<_Root> {
 
   Future<void> _selectOrganization(Organization organization) async {
     await widget.organizationStore.write(organization);
+    widget.api.organizationId = organization.organizationId;
     if (!mounted) return;
-    setState(() => _organization = organization);
+    setState(() {
+      _organization = organization;
+      _pickingClub = false;
+    });
   }
 
   Future<void> _onSignedIn() async {
@@ -213,6 +240,7 @@ class _RootState extends State<_Root> {
     }
     if (!mounted) return;
     setState(() => _session = session);
+    if (session != null) await _loadMe();
   }
 
   /// Выход стирает и сессию, и сохранённые данные: устройство бывает общим, и следующий
@@ -224,15 +252,16 @@ class _RootState extends State<_Root> {
     widget.api.updateSession(null);
     await widget.sessionStore.clear();
     if (!mounted) return;
-    setState(() => _session = null);
+    setState(() {
+      _session = null;
+      _me = null;
+    });
   }
 
-  Future<void> _changeClub() async {
-    await _signOut();
-    await widget.organizationStore.clear();
-    if (!mounted) return;
-    setState(() => _organization = null);
-  }
+  /// Смена клуба больше не выбрасывает из аккаунта: аккаунт один на всю сеть, и войти заново
+  /// ради перехода в соседнее заведение — цена ни за что. Прежний клуб при этом не забывается
+  /// до самого выбора: передумавший игрок иначе оставался бы на витрине без дороги назад.
+  void _changeClub() => setState(() => _pickingClub = true);
 
   @override
   Widget build(BuildContext context) {
@@ -245,8 +274,13 @@ class _RootState extends State<_Root> {
     widget.onOrganizationChanged(_organization);
 
     final organization = _organization;
-    if (organization == null) {
-      return ClubPickerScreen(directory: widget.directory, onSelected: _selectOrganization);
+    if (organization == null || _pickingClub) {
+      return ClubPickerScreen(
+        directory: widget.directory,
+        onSelected: _selectOrganization,
+        myClubs: _me?.clubs ?? const [],
+        selectedOrganizationId: organization?.organizationId,
+      );
     }
 
     final session = _session;
@@ -256,6 +290,7 @@ class _RootState extends State<_Root> {
         api: widget.api,
         onSignedIn: _onSignedIn,
         onChangeClub: _changeClub,
+        onLocaleChanged: widget.onLocaleChanged,
       );
     }
 
@@ -263,10 +298,12 @@ class _RootState extends State<_Root> {
       api: widget.api,
       session: session,
       organization: organization,
+      me: _me,
       push: _push,
       onSignOut: _signOut,
       onChangeClub: _changeClub,
       onLocaleChanged: widget.onLocaleChanged,
+      onAccountOpened: _loadMe,
     );
   }
 }

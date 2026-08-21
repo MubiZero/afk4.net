@@ -419,19 +419,11 @@ class _OpeningLine extends StatelessWidget {
     final l = L.of(context);
     final theme = Theme.of(context);
     final place = club.places.isEmpty ? null : club.places.first;
-    if (place == null || place.workingHours.isEmpty) return const SizedBox.shrink();
+    if (place == null) return const SizedBox.shrink();
 
-    final status = openingStatusAt(place.workingHours, clock());
-    final (text, open) = switch (status.kind) {
-      OpeningStatusKind.openUntil => (l.customerClubPickerOpenUntil(status.time ?? ''), true),
-      OpeningStatusKind.openAllDay => (l.customerClubPickerOpenAllDay, true),
-      OpeningStatusKind.opensAt => (l.customerClubPickerOpensAt(status.time ?? ''), false),
-      OpeningStatusKind.closedToday => (l.customerClubPickerClosedToday, false),
-      // Расписание не задано или записано не по формату — молчим. Придумать за клуб часы
-      // работы значит отправить игрока к закрытой двери.
-      OpeningStatusKind.unknown => ('', false),
-    };
-    if (text.isEmpty) return const SizedBox.shrink();
+    final now = openingNowLabel(l, place.workingHours, clock());
+    if (now == null) return const SizedBox.shrink();
+    final (text, open) = (now.text, now.open);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),

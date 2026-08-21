@@ -10,7 +10,7 @@ function openShift(overrides: Partial<ShiftRevenueDto> = {}): ShiftRevenueDto {
   return {
     shiftId: 's1', organizationId: 'o', branchId: 'b',
     openedByStaffUserId: 'u1', closedByStaffUserId: null, state: 'open',
-    earned: { time: m(1000), goods: m(500), total: m(1500) },
+    earned: { time: m(1000), goods: m(500), noShow: m(0), total: m(1500) },
     inflow: { cash: m(0), nonCash: m(0), walletTopUps: m(0), directTotal: m(0) },
     cash: { starting: m(10000), expected: m(11500), counted: null, difference: null },
     openedAtUtc: '2026-06-24T08:00:00Z', closedAtUtc: null,

@@ -1,12 +1,16 @@
-import type { PlayerSignInResponse } from '../api/types';
+import type { PlatformPersonSessionResponse } from '../api/types';
 
 const PLAYER_STORAGE_KEY = 'afk4.player.session';
 
+// Сессия принадлежит человеку, а не счёту в клубе: клуба может не быть вовсе — так выглядит тот,
+// кто зарегистрировался дома и ещё никуда не заходил.
 export interface PlayerSession {
-  playerAccountId: string;
-  organizationId: string;
+  platformPersonId: string;
+  playerAccountId: string | null;
+  organizationId: string | null;
   displayName: string;
   phoneVerified: boolean;
+  profileCompleted: boolean;
   accessToken: string;
   accessTokenExpiresAtUtc: string;
   refreshToken: string;
@@ -26,8 +30,8 @@ export function readPlayerSession(storage: Storage | null = getStorage()): Playe
   try {
     const parsed = JSON.parse(raw) as PlayerSession;
     if (typeof parsed.accessToken !== 'string' || parsed.accessToken.length === 0) return null;
-    if (typeof parsed.organizationId !== 'string' || parsed.organizationId.length === 0) return null;
-    return parsed;
+    // Клуб больше не обязателен: единственное, чем сессия обязана быть, — это живой токен.
+    return { ...parsed, profileCompleted: parsed.profileCompleted !== false };
   } catch {
     return null;
   }
@@ -41,12 +45,14 @@ export function clearPlayerSession(storage: Storage | null = getStorage()): void
   storage?.removeItem(PLAYER_STORAGE_KEY);
 }
 
-export function playerSessionFromSignInResponse(response: PlayerSignInResponse): PlayerSession {
+export function playerSessionFromResponse(response: PlatformPersonSessionResponse): PlayerSession {
   return {
+    platformPersonId: response.platformPersonId,
     playerAccountId: response.playerAccountId,
     organizationId: response.organizationId,
     displayName: response.displayName,
     phoneVerified: response.phoneVerified,
+    profileCompleted: response.profileCompleted !== false,
     accessToken: response.accessToken,
     accessTokenExpiresAtUtc: response.accessTokenExpiresAtUtc,
     refreshToken: response.refreshToken,

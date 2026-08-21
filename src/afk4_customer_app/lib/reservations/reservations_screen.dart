@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../api/dto.dart';
 import '../api/player_api_client.dart';
 import '../format/date_time.dart';
+import '../organization/branch_choice.dart';
 import '../money/money.dart';
 import '../l10n/app_localizations.dart';
 import '../phone/phone_verification_sheet.dart';
@@ -24,15 +28,29 @@ class ReservationsScreen extends StatefulWidget {
     super.key,
     required this.api,
     required this.phoneVerified,
+    this.accountOpen = true,
+    this.branch = const BranchChoice(),
     this.onPhoneVerified,
+    this.onAccountOpened,
     this.clock = DateTime.now,
   });
 
   final PlayerApiClient api;
   final bool phoneVerified;
 
+  /// Есть ли у игрока счёт в этом клубе. Пока нет, броней тоже нет — спрашивать не о чем,
+  /// но забронировать можно: этой самой бронью счёт и открывается.
+  final bool accountOpen;
+
+  /// Зал, в который придёт игрок. Нужен первой брони в сети из нескольких залов: ею
+  /// открывается счёт, и сервер не гадает, в каком зале его завести.
+  final BranchChoice branch;
+
   /// Номер подтвердили прямо из гейта — оболочке пора считать игрока подтверждённым.
   final VoidCallback? onPhoneVerified;
+
+  /// Бронь состоялась в клубе, где счёта не было, — оболочке пора перечитать клубы.
+  final Future<void> Function()? onAccountOpened;
   final DateTime Function() clock;
 
   @override
@@ -45,10 +63,47 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
   _Load _state = _Load.loading;
   List<PlayerReservation> _reservations = const [];
 
+  /// Как часто перерисовывается обратный отсчёт у заявки, ждущей ответа. Минута — шаг, в
+  /// котором он и показан; чаще незачем, реже — цифра застынет на глазах.
+  static const Duration _countdownTick = Duration(seconds: 20);
+
+  Timer? _countdown;
+
   @override
   void initState() {
     super.initState();
-    _refresh();
+    // В клубе, который игрока ещё не знает, броней заведомо нет — и спрашивать о них нечего.
+    // Вечный спиннер на их месте выглядел бы как навсегда зависшая загрузка.
+    if (widget.accountOpen) {
+      _refresh();
+    } else {
+      _state = _Load.ready;
+    }
+  }
+
+  @override
+  void didUpdateWidget(ReservationsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.accountOpen && !oldWidget.accountOpen) _refresh();
+  }
+
+  @override
+  void dispose() {
+    _countdown?.cancel();
+    super.dispose();
+  }
+
+  /// Отсчёт тикает, только пока есть чему тикать: у экрана без заявок в ожидании таймера нет.
+  void _syncCountdown() {
+    final waiting = _reservations.any((r) => r.state == 'pending' && r.respondByUtc != null);
+    if (waiting && _countdown == null) {
+      _countdown = Timer.periodic(_countdownTick, (_) {
+        if (mounted) setState(() {});
+      });
+    } else if (!waiting) {
+      _countdown?.cancel();
+      _countdown = null;
+    }
   }
 
   Future<void> _refresh() async {
@@ -60,7 +115,18 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
         _reservations = reservations;
         _state = _Load.ready;
       });
-    } on PlayerApiException {
+      _syncCountdown();
+    } on PlayerApiException catch (error) {
+      // Счёта в клубе ещё нет — значит и броней нет. Это пустой раздел, а не сбой.
+      if (error.isNoAccountInClub) {
+        if (mounted) {
+          setState(() {
+            _reservations = const [];
+            _state = _Load.ready;
+          });
+        }
+        return;
+      }
       if (!mounted) return;
       // Пустой список вместо ошибки — враньё: «броней нет» и «мы их не увидели» это разные
       // вещи, и на первом игрок спокойно уйдёт мимо своей брони.
@@ -76,11 +142,19 @@ class _ReservationsScreenState extends State<ReservationsScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => NewReservationSheet(api: widget.api, clock: widget.clock),
+      builder: (_) => NewReservationSheet(
+        api: widget.api,
+        clock: widget.clock,
+        accountOpen: widget.accountOpen,
+        branch: widget.branch,
+      ),
     );
     if (created != true || !mounted) return;
 
     _say(l.customerReservationsCreated);
+    // Первая бронь в незнакомом клубе открывает счёт — оболочка узнаёт об этом только так.
+    await widget.onAccountOpened?.call();
+    if (!mounted) return;
     await _refresh();
   }
 
@@ -350,6 +424,41 @@ class _ReservationCard extends StatelessWidget {
         _ => reservation.state,
       };
 
+  /// Сколько клуб ещё может думать над заявкой. Срок стоит только у заявок в ожидании: у
+  /// подтверждённой отвечать больше не на что.
+  ///
+  /// Молчание до срока — не отказ и не потеря денег: заявка снимется сама, а замороженное
+  /// вернётся целиком. Игрок должен видеть и то, и другое, иначе будет звонить на стойку.
+  List<Widget> _respondBy(L l, ThemeData theme, String locale) {
+    final respondBy = reservation.respondByUtc;
+    if (entry.state != 'pending' || respondBy == null) return const [];
+
+    final left = respondBy.difference(now);
+    if (left.isNegative) {
+      return [
+        const SizedBox(height: 4),
+        Text(
+          l.customerReservationsRespondOver,
+          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+        ),
+      ];
+    }
+
+    final minutes = left.inMinutes;
+    final remaining = minutes < 1
+        ? l.customerReservationsRespondSoon
+        : l.customerReservationsRespondLeft(minutes);
+    final at = DateFormat.Hm(dateLocale(locale)).format(respondBy.toLocal());
+
+    return [
+      const SizedBox(height: 4),
+      Text(
+        '${l.customerReservationsRespondBy(at)} · $remaining',
+        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary),
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
@@ -384,6 +493,7 @@ class _ReservationCard extends StatelessWidget {
               style: theme.textTheme.bodyMedium
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
             ),
+            ..._respondBy(l, theme, locale),
             if (entry.isCompany && entry.totalMinorUnits != null)
               Text(
                 formatMoney(entry.totalMinorUnits!, entry.currencyCode ?? 'TJS', locale: locale),

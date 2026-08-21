@@ -17,6 +17,11 @@ function seat(overrides: Partial<SeatSummary>): SeatSummary {
 const activeSeat = seat({ id: 'a1', zone: 'Зал A', name: 'PC-01', tone: 'active', stateLabel: 'В сессии', activeSessionId: 'session-1' });
 const serviceSeat = seat({ id: 'b4', zone: 'Зал B', name: 'PC-04', tone: 'service', stateLabel: 'Обслуживание' });
 
+// Заглушка контроллера репутации: панель только рисует ответ сети, спрашивает его оркестратор.
+function idleReputation() {
+  return { state: { status: 'idle' } as const, ask: () => {} };
+}
+
 function draft(): BookingDraft {
   return {
     customerName: '', phoneNumber: '', playerAccountId: '', clientBalanceMinorUnits: null,
@@ -29,7 +34,7 @@ function renderDrawer(groupConflicts = new Set<string>()) {
   const props: BookingDrawerProps = {
     mode: 'create', selected: null, freeSeats: [], allSeats: [activeSeat, serviceSeat], draft: draft(),
     busy: false, canManage: true, canStartSessions: true, currencyCode: 'TJS', conflict: null, seatConflict: false,
-    groupConflicts, groupSize: 0, searchClients: async () => [], onClose: () => {},
+    groupConflicts, groupSize: 0, searchClients: async () => [], reputation: idleReputation(), onClose: () => {},
     onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {}, onRemoveSeat: () => {},
     onCancelGroup: () => {}, onStart: () => {}, onMove: () => {}, onCancel: () => {},
     onConfirm: () => {}, onOpenMap: () => {}
@@ -42,12 +47,13 @@ function detail(state: string, onConfirm = () => {}, onStart = () => {}) {
     reservationId: 'r1', reservationGroupId: '', version: 2, state, source: 'operator',
     startMs: Date.now() + 60_000, endMs: Date.now() + 3_660_000, durationMinutes: 60,
     customerName: 'Мадина', phoneNumber: '+992900000000', note: '', playerAccountId: 'p1',
-    seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A', tone: state as 'pending', startedSessionId: ''
+    seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A', tone: state as 'pending', startedSessionId: '',
+    respondByMs: null
   };
   const props: BookingDrawerProps = {
     mode: 'detail', selected: item, freeSeats: [], allSeats: [activeSeat], draft: draft(),
     busy: false, canManage: true, canStartSessions: true, currencyCode: 'TJS', conflict: null,
-    seatConflict: false, groupConflicts: new Set(), groupSize: 0, searchClients: async () => [],
+    seatConflict: false, groupConflicts: new Set(), groupSize: 0, searchClients: async () => [], reputation: idleReputation(),
     onClose: () => {}, onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {},
     onRemoveSeat: () => {}, onCancelGroup: () => {}, onStart, onMove: () => {}, onCancel: () => {},
     onConfirm, onOpenMap: () => {}
@@ -60,7 +66,7 @@ it('blocks drawer close while a reservation command is pending', () => {
   const props: BookingDrawerProps = {
     mode: 'detail', selected: null, freeSeats: [], allSeats: [], draft: draft(), busy: true,
     canManage: true, canStartSessions: true, currencyCode: 'TJS', conflict: null, seatConflict: false,
-    groupConflicts: new Set(), groupSize: 0, searchClients: async () => [], onClose,
+    groupConflicts: new Set(), groupSize: 0, searchClients: async () => [], reputation: idleReputation(), onClose,
     onChangeDraft: () => {}, onCreate: () => {}, onCreateGroup: () => {}, onRemoveSeat: () => {},
     onCancelGroup: () => {}, onStart: () => {}, onMove: () => {}, onCancel: () => {},
     onConfirm: () => {}, onOpenMap: () => {}

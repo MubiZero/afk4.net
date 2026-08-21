@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:afk4_customer_app/api/dto.dart';
 import 'package:afk4_customer_app/l10n/localization_setup.dart';
 import 'package:afk4_customer_app/organization/club_card.dart';
 import 'package:afk4_customer_app/organization/club_details_sheet.dart';
@@ -54,13 +55,37 @@ const _arena = Organization(
   logoUrl: null,
 );
 
-Widget harness(OrganizationDirectory directory, {ValueChanged<Organization>? onSelected}) =>
+Widget harness(
+  OrganizationDirectory directory, {
+  ValueChanged<Organization>? onSelected,
+  List<MyClub> myClubs = const [],
+  String? selectedOrganizationId,
+}) =>
     MaterialApp(
       locale: const Locale('ru'),
       localizationsDelegates: appLocalizationsDelegates,
       supportedLocales: appSupportedLocales,
-      home: ClubPickerScreen(directory: directory, onSelected: onSelected ?? (_) {}),
+      home: ClubPickerScreen(
+        directory: directory,
+        onSelected: onSelected ?? (_) {},
+        myClubs: myClubs,
+        selectedOrganizationId: selectedOrganizationId,
+      ),
     );
+
+/// Счёт игрока в клубе, как его отдаёт `/api/me`.
+MyClub _myClub({String? organizationId, String name = 'CyberX', int wallet = 12000, int held = 0}) =>
+    MyClub.fromJson({
+      'organizationId': organizationId ?? _cyberx.organizationId,
+      'organizationName': name,
+      'playerAccountId': 'p1',
+      'homeBranchId': 'b1',
+      'currencyCode': 'TJS',
+      'walletBalanceMinorUnits': wallet,
+      'heldMinorUnits': held,
+      'debtMinorUnits': 0,
+      'visitCount': 3,
+    });
 
 void main() {
   testWidgets('показывает клубы из каталога', (tester) async {
@@ -358,5 +383,60 @@ void main() {
       find.descendant(of: find.byType(ClubCard), matching: find.text('A')),
       findsOneWidget,
     );
+  });
+
+  // Аккаунт один на всю сеть, а деньги у каждого клуба свои: список своих клубов с их
+  // остатками — единственное место, где это видно целиком.
+  testWidgets('свои клубы идут первыми и со своими деньгами', (tester) async {
+    await tester.pumpWidget(harness(
+      _StubDirectory(clubs: const [_cyberx, _arena]),
+      myClubs: [_myClub(held: 4500)],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ваши клубы'), findsOneWidget);
+    expect(find.text('Все клубы'), findsOneWidget);
+    expect(find.textContaining('120,00 с.'), findsOneWidget);
+    expect(find.textContaining('Придержано под брони'), findsOneWidget);
+  });
+
+  testWidgets('без своих клубов витрина выглядит как прежде', (tester) async {
+    await tester.pumpWidget(harness(_StubDirectory(clubs: const [_cyberx, _arena])));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ваши клубы'), findsNothing);
+    expect(find.text('Все клубы'), findsNothing);
+  });
+
+  // Открытый сейчас клуб помечен, но остаётся нажимаемым: это дорога назад для того, кто
+  // передумал переходить.
+  testWidgets('текущий клуб помечен и возвращает в себя', (tester) async {
+    Organization? chosen;
+    await tester.pumpWidget(harness(
+      _StubDirectory(clubs: const [_cyberx, _arena]),
+      myClubs: [_myClub()],
+      selectedOrganizationId: _cyberx.organizationId,
+      onSelected: (club) => chosen = club,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Вы здесь'), findsOneWidget);
+    expect(find.text('Перейти'), findsNothing);
+
+    await tester.tap(find.text('Вы здесь'));
+    await tester.pumpAndSettle();
+
+    expect(chosen?.organizationId, _cyberx.organizationId);
+  });
+
+  // Клуб, снявшийся с витрины, строкой не показывается: она вела бы в никуда.
+  testWidgets('свой клуб без карточки в каталоге не показывается строкой', (tester) async {
+    await tester.pumpWidget(harness(
+      _StubDirectory(clubs: const [_arena]),
+      myClubs: [_myClub()],
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ваши клубы'), findsNothing);
   });
 }

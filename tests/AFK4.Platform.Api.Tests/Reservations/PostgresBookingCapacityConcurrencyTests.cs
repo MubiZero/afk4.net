@@ -28,6 +28,14 @@ public sealed class PostgresBookingCapacityConcurrencyTests
             Environment.GetEnvironmentVariable(PostgresSessionFactAttribute.EnvironmentVariable)!);
         await database.SeedAsync();
 
+        // Тест про гонку за последнюю машину, а не про правила приёма гостей: филиал берёт брони
+        // без предоплаты, иначе обе стороны отказались бы ещё до проверки вместимости.
+        await using (var settingsDb = database.CreateDbContext())
+        {
+            await BranchBookingSettingsTestData.AcceptAnyGuestAsync(
+                settingsDb, database.OrganizationId, database.BranchId, database.Now);
+        }
+
         using var barrier = new Barrier(2);
         await using var firstDb = database.CreateDbContext(new ReservationReadBarrier(barrier));
         await using var secondDb = database.CreateDbContext(new ReservationReadBarrier(barrier));

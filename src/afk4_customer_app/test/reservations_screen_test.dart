@@ -18,6 +18,7 @@ Map<String, dynamic> _reservation({
   String state = 'confirmed',
   String? groupId,
   int? costMinorUnits,
+  Duration? respondIn,
 }) =>
     {
       'reservationId': id,
@@ -30,6 +31,8 @@ Map<String, dynamic> _reservation({
       'reservationGroupId': groupId,
       'estimatedCostMinorUnits': costMinorUnits,
       'currencyCode': costMinorUnits == null ? null : 'TJS',
+      'respondByUtc':
+          respondIn == null ? null : _now.add(respondIn).toUtc().toIso8601String(),
     };
 
 /// Компания: несколько мест с общим идентификатором группы, как их отдаёт сервер.
@@ -525,5 +528,51 @@ void main() {
 
       expect(problem, isNull);
     });
+  });
+
+  // Заявка, которую смотрит администратор, больше не висит без срока: клуб обязан ответить,
+  // а молчание снимает её и возвращает деньги. Игрок должен видеть и срок, и остаток времени.
+  testWidgets('у заявки в ожидании идёт обратный отсчёт ответа клуба', (tester) async {
+    final list = jsonEncode([
+      _reservation(state: 'pending', respondIn: const Duration(minutes: 12)),
+    ]);
+    await tester.pumpWidget(harness(_serve(list)));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Клуб ответит до'), findsOneWidget);
+    expect(find.textContaining('осталось 12 минут'), findsOneWidget);
+  });
+
+  // Срок вышел — это не отказ и не потеря денег, и молчать об этом хуже всего.
+  testWidgets('истёкший срок ответа объясняет, что будет дальше', (tester) async {
+    final list = jsonEncode([
+      _reservation(state: 'pending', respondIn: const Duration(minutes: -1)),
+    ]);
+    await tester.pumpWidget(harness(_serve(list)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Клуб не ответил вовремя — заявка снимется, деньги вернутся.'),
+        findsOneWidget);
+  });
+
+  // У подтверждённой брони отвечать больше не на что: отсчёт там был бы обещанием из воздуха.
+  testWidgets('подтверждённая бронь отсчёта не показывает', (tester) async {
+    final list = jsonEncode([
+      _reservation(state: 'confirmed', respondIn: const Duration(minutes: 12)),
+    ]);
+    await tester.pumpWidget(harness(_serve(list)));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Клуб ответит до'), findsNothing);
+  });
+
+  // Счёта в клубе ещё нет — значит и броней нет. Это пустой раздел, а не сбой загрузки.
+  testWidgets('клуб без счёта показывает пустой раздел, а не ошибку', (tester) async {
+    await tester.pumpWidget(
+        harness(FakeHttpClient((_) => ('{"error":"club_not_selected"}', 409))));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Броней пока нет'), findsOneWidget);
+    expect(find.text('Не удалось загрузить брони.'), findsNothing);
   });
 }

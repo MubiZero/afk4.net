@@ -334,6 +334,72 @@ public sealed class EfReservationSessionCoordinatorTests
     }
 
     [Fact]
+    public async Task StartAsync_SeatedCard_KeepsThePriceAndTheTimeOfConfirmation()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAndReservationAsync(db);
+        var tariffId = Guid.Parse("86666666-6666-4666-8666-666666666666");
+        var tariffVersionId = Guid.Parse("87777777-7777-4777-8777-777777777777");
+        var confirmedAtUtc = Now.AddMinutes(-30);
+        db.Tariffs.Add(new TariffEntity
+        {
+            TariffId = tariffId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            Name = "Ночной",
+            CreatedAtUtc = Now.AddDays(-1)
+        });
+        db.TariffVersions.Add(new TariffVersionEntity
+        {
+            TariffVersionId = tariffVersionId,
+            TariffId = tariffId,
+            OrganizationId = TestIds.OrganizationId,
+            BranchId = TestIds.BranchId,
+            VersionNumber = 1,
+            CurrencyCode = "TJS",
+            PricePerMinuteMinorUnits = 100,
+            MinimumBillableMinutes = 30,
+            RoundingIncrementMinutes = 5,
+            EffectiveFromUtc = Now.AddDays(-1),
+            CreatedAtUtc = Now.AddDays(-1)
+        });
+        var reservation = await db.Reservations.SingleAsync();
+        reservation.TariffVersionId = tariffVersionId;
+        reservation.EstimatedCostMinorUnits = 6_000;
+        reservation.CurrencyCode = "TJS";
+        reservation.ConfirmedAtUtc = confirmedAtUtc;
+        await db.SaveChangesAsync();
+
+        var dispatcher = new TrackingCommandDispatchService(db);
+        var workflow = new EfSessionStartWorkflow(
+            db,
+            dispatcher,
+            new FakeLeaseSigner(),
+            new FixedTimeProvider(Now),
+            new TrackingBillingService(db),
+            new RecordingSessionLifecycleNotifier(),
+            new EfPlanLimitGuard(db));
+        var coordinator = CreateCoordinator(db, workflow);
+
+        var result = await coordinator.StartAsync(
+            ReservationId,
+            ActorStaffUserId,
+            actorCanApproveComp: false,
+            Request(expectedVersion: 1),
+            CancellationToken.None);
+
+        // Стойка сажает гостя и продолжает видеть ту же карточку, что и в списке заявок: цена,
+        // тариф и время подтверждения после посадки никуда не деваются.
+        Assert.True(result.Succeeded);
+        var seated = result.Response!.Reservation;
+        Assert.Equal(tariffVersionId, seated.TariffVersionId);
+        Assert.Equal("Ночной", seated.TariffName);
+        Assert.Equal(6_000, seated.EstimatedCostMinorUnits);
+        Assert.Equal("TJS", seated.CurrencyCode);
+        Assert.Equal(confirmedAtUtc, seated.ConfirmedAtUtc);
+    }
+
+    [Fact]
     public async Task StartAsync_LinkedPlayerComp_StartsFreeSessionWithoutOrdinaryBillingLedger()
     {
         await using var db = CreateDbContext();

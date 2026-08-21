@@ -172,6 +172,7 @@ public sealed class OperatorPlayerApiClientTests
         return new WalletSummaryDto(
             PlayerAccountId,
             new MoneyDto("USD", walletMinorUnits),
+            new MoneyDto("USD", 0),
             new MoneyDto("USD", debtMinorUnits),
             []);
     }

@@ -2,6 +2,7 @@ using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Identity.PhoneOtp;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Shared.Contracts.Notifications;
+using AFK4.Shared.Contracts.Players;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -19,6 +20,7 @@ public sealed class EfPlayerPhoneSignInService(
     PlatformDbContext db,
     INotificationService notifications,
     IPlayerTokenService tokenService,
+    IPlatformPersonTokenService personTokenService,
     IPhoneOtpHasher hasher,
     IPhoneOtpGenerator generator,
     TimeProvider timeProvider,
@@ -193,6 +195,40 @@ public sealed class EfPlayerPhoneSignInService(
         credential.UpdatedAtUtc = now;
         otp.ConsumedAtUtc = now;
         await db.SaveChangesAsync(cancellationToken);
+
+        // Токен выдаётся человеку, а названный при входе клуб закрепляется за токеном: клиент,
+        // который про выбор клуба ничего не знает, попадает туда же, куда и вчера. Счёт, ещё не
+        // подшитый к личности (дубль внутри клуба после переноса), входит по-старому — иначе
+        // человек остался бы без входа вовсе.
+        var person = account.PlatformPersonId is { } platformPersonId
+            ? await db.PlatformPersons.FirstOrDefaultAsync(
+                candidate => candidate.PlatformPersonId == platformPersonId && candidate.IsActive,
+                cancellationToken)
+            : null;
+
+        if (person is not null)
+        {
+            // Прочитать код с этого телефона — то же доказательство владения номером, что и в
+            // проверке номера, поэтому личность считается подтверждённой.
+            person.PhoneVerifiedAtUtc ??= now;
+            person.UpdatedAtUtc = now;
+            await db.SaveChangesAsync(cancellationToken);
+
+            var session = await personTokenService.IssueAsync(person, account, cancellationToken);
+
+            // Этот маршрут отвечает ровно тем же телом, что и вчера: клуб здесь назван входом, и
+            // новых полей старому клиенту тут не нужно. Расширенную сессию отдаёт регистрация.
+            var personTokens = new PlayerSignInResponse(
+                account.PlayerAccountId,
+                account.OrganizationId,
+                session.DisplayName,
+                session.PhoneVerified,
+                session.AccessToken,
+                session.AccessTokenExpiresAtUtc,
+                session.RefreshToken,
+                session.RefreshTokenExpiresAtUtc);
+            return new PlayerCodeSignInResult(PlayerCodeSignInStatus.SignedIn, personTokens, otpOptions.MaxAttempts);
+        }
 
         var tokens = await tokenService.IssueAsync(account, phoneVerified: true, cancellationToken);
         return new PlayerCodeSignInResult(PlayerCodeSignInStatus.SignedIn, tokens, otpOptions.MaxAttempts);

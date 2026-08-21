@@ -157,7 +157,9 @@ public sealed class EfOperatorReferenceDataService(
                     CreatedAtUtc: player.CreatedAtUtc,
                     LastActivityAtUtc: lastActivityLookup.TryGetValue(player.PlayerAccountId, out var last) ? last : (DateTimeOffset?)null,
                     ActivePackageName: bestPackage?.Name,
-                    ActivePackageRemainingMinutes: bestPackage?.RemainingSeconds / 60 ?? 0);
+                    ActivePackageRemainingMinutes: bestPackage?.RemainingSeconds / 60 ?? 0,
+                    PlatformPersonId: player.PlatformPersonId,
+                    CreatedFromApp: player.CreatedFromApp);
             })
             .ToList();
     }

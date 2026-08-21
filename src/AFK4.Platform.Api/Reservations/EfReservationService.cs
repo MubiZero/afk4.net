@@ -1,5 +1,6 @@
 using System.Data;
 using AFK4.Platform.Api.Billing;
+using AFK4.Platform.Api.Branches;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
@@ -108,6 +109,7 @@ public sealed class EfReservationService(
         }
 
         var source = NormalizeSource(request.Source);
+        var waitsForAnswer = source == ReservationSourceNames.Online;
         var reservation = new ReservationEntity
         {
             ReservationId = Guid.NewGuid(),
@@ -119,9 +121,14 @@ public sealed class EfReservationService(
             PhoneNumber = NormalizeNullable(request.PhoneNumber),
             StartsAtUtc = request.StartsAtUtc,
             EndsAtUtc = endsAtUtc,
-            State = source == ReservationSourceNames.Online
+            State = waitsForAnswer
                 ? ReservationStateNames.Pending
                 : ReservationStateNames.Confirmed,
+            RespondByUtc = waitsForAnswer
+                ? await ResolveRespondByAsync(
+                    request.OrganizationId, branchId, request.StartsAtUtc, now, cancellationToken)
+                : null,
+            ConfirmedAtUtc = waitsForAnswer ? null : now,
             Source = source,
             Note = NormalizeText(request.Note),
             CreatedByStaffUserId = actorStaffUserId,
@@ -199,9 +206,15 @@ public sealed class EfReservationService(
 
         var now = timeProvider.GetUtcNow();
         var source = NormalizeSource(request.Source);
-        var state = source == ReservationSourceNames.Online
+        var waitsForAnswer = source == ReservationSourceNames.Online;
+        var state = waitsForAnswer
             ? ReservationStateNames.Pending
             : ReservationStateNames.Confirmed;
+        // Обещание одно на всю компанию: срок считается один раз и ставится каждому месту группы.
+        DateTimeOffset? respondByUtc = waitsForAnswer
+            ? await ResolveRespondByAsync(
+                request.OrganizationId, branchId, request.StartsAtUtc, now, cancellationToken)
+            : null;
         var groupId = Guid.NewGuid();
         var customerName = request.CustomerName.Trim();
         var phoneNumber = NormalizeNullable(request.PhoneNumber);
@@ -220,6 +233,8 @@ public sealed class EfReservationService(
             StartsAtUtc = request.StartsAtUtc,
             EndsAtUtc = endsAtUtc,
             State = state,
+            RespondByUtc = respondByUtc,
+            ConfirmedAtUtc = waitsForAnswer ? null : now,
             Source = source,
             Note = note,
             CreatedByStaffUserId = actorStaffUserId,
@@ -324,6 +339,13 @@ public sealed class EfReservationService(
         reservation.PhoneNumber = nextPhoneNumber;
         reservation.StartsAtUtc = nextStartsAtUtc;
         reservation.EndsAtUtc = nextEndsAtUtc;
+        // Бронь передвинули на более раннее время — обещание ответа едет вместе с ней: отвечать
+        // после начала уже некому.
+        if (reservation.RespondByUtc is { } respondByUtc && respondByUtc > nextStartsAtUtc)
+        {
+            reservation.RespondByUtc = nextStartsAtUtc;
+        }
+
         reservation.Source = nextSource;
         reservation.Note = nextNote;
         reservation.UpdatedByStaffUserId = actorStaffUserId;
@@ -382,9 +404,13 @@ public sealed class EfReservationService(
             return ReservationServiceResult<ReservationDto>.RequestConflict(conflict);
         }
 
+        var answeredAt = timeProvider.GetUtcNow();
         reservation.State = ReservationStateNames.Confirmed;
+        // Когда клуб ответил. Срок в RespondByUtc остаётся как след обещания: он больше ничего
+        // не решает, но по нему видно, уложилась стойка в своё слово или нет.
+        reservation.ConfirmedAtUtc = answeredAt;
         reservation.UpdatedByStaffUserId = actorStaffUserId;
-        reservation.UpdatedAtUtc = timeProvider.GetUtcNow();
+        reservation.UpdatedAtUtc = answeredAt;
         reservation.Version++;
         var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
         if (saveConflict is not null)
@@ -444,6 +470,10 @@ public sealed class EfReservationService(
 
         reservation.State = ReservationStateNames.Seated;
         reservation.SeatedAtUtc = now;
+        // Посадить — это и есть ответ клуба: заявку, которую никто не подтверждал, стойка приняла
+        // тем, что усадила человека за машину. Без этой отметки посаженная заявка выглядела бы
+        // «так и не подтверждённой».
+        reservation.ConfirmedAtUtc ??= now;
         reservation.UpdatedByStaffUserId = actorStaffUserId;
         reservation.UpdatedAtUtc = now;
         reservation.Version++;
@@ -672,9 +702,10 @@ public sealed class EfReservationService(
             cancellationToken);
     }
 
-    // Auto-confirm gate for self-service bookings: the player has spendable funds (positive wallet,
-    // not in debt). Read-only on money — the hold/charge lifecycle is a separate deferred feature.
-    private async Task<bool> ShouldAutoConfirmOnlineAsync(Guid playerAccountId, CancellationToken cancellationToken)
+    // Есть ли игроку чем платить: кошелёк положительный и долга нет. Само по себе это больше не
+    // решает судьбу брони — решает режим приёма у филиала, — но в режиме «подтверждаем сами» это
+    // и есть то условие, по которому клуб раньше подтверждал брони молча.
+    private async Task<bool> HasSpendableFundsAsync(Guid playerAccountId, CancellationToken cancellationToken)
     {
         var summary = await LedgerBalanceProjector.GetWalletSummaryAsync(dbContext, playerAccountId, cancellationToken);
         if (summary is null)
@@ -697,95 +728,10 @@ public sealed class EfReservationService(
             cancellationToken);
     }
 
-    private async Task<IReadOnlyList<ReservationDto>> ProjectAsync(
+    private Task<IReadOnlyList<ReservationDto>> ProjectAsync(
         IReadOnlyList<ReservationEntity> reservations,
-        CancellationToken cancellationToken)
-    {
-        var seatIds = reservations
-            .Where(reservation => reservation.SeatId is not null)
-            .Select(reservation => reservation.SeatId!.Value)
-            .Distinct()
-            .ToList();
-        var seats = seatIds.Count == 0
-            ? new List<SeatEntity>()
-            : await dbContext.Seats
-                .AsNoTracking()
-                .Where(seat => seatIds.Contains(seat.SeatId))
-                .ToListAsync(cancellationToken);
-        var zoneIds = seats.Select(seat => seat.ZoneId).Distinct().ToList();
-        var zones = zoneIds.Count == 0
-            ? new List<ZoneEntity>()
-            : await dbContext.Zones
-                .AsNoTracking()
-                .Where(zone => zoneIds.Contains(zone.ZoneId))
-                .ToListAsync(cancellationToken);
-        var seatById = seats.ToDictionary(seat => seat.SeatId);
-        var zoneById = zones.ToDictionary(zone => zone.ZoneId);
-
-        // Имя тарифа — для показа, а не для расчёта: сумма уже посчитана и записана при брони.
-        // Версия могла быть снята с публикации, поэтому имя берётся по самой версии, а не по
-        // действующему на сегодня прайсу.
-        var tariffVersionIds = reservations
-            .Where(reservation => reservation.TariffVersionId is not null)
-            .Select(reservation => reservation.TariffVersionId!.Value)
-            .Distinct()
-            .ToList();
-        var tariffNameByVersionId = tariffVersionIds.Count == 0
-            ? new Dictionary<Guid, string>()
-            : await dbContext.TariffVersions
-                .AsNoTracking()
-                .Where(version => tariffVersionIds.Contains(version.TariffVersionId))
-                .Join(
-                    dbContext.Tariffs.AsNoTracking(),
-                    version => version.TariffId,
-                    tariff => tariff.TariffId,
-                    (version, tariff) => new { version.TariffVersionId, tariff.Name })
-                .ToDictionaryAsync(row => row.TariffVersionId, row => row.Name, cancellationToken);
-
-        return reservations.Select(reservation =>
-        {
-            SeatEntity? seat = null;
-            if (reservation.SeatId is not null)
-            {
-                seatById.TryGetValue(reservation.SeatId.Value, out seat);
-            }
-
-            var zoneName = seat is not null && zoneById.TryGetValue(seat.ZoneId, out var zone)
-                ? zone.Name
-                : null;
-
-            return new ReservationDto(
-                reservation.ReservationId,
-                reservation.OrganizationId,
-                reservation.BranchId,
-                reservation.PlayerAccountId,
-                reservation.SeatId,
-                seat?.Name,
-                zoneName,
-                reservation.CustomerName,
-                reservation.PhoneNumber,
-                reservation.StartsAtUtc,
-                reservation.EndsAtUtc,
-                DurationMinutes(reservation),
-                reservation.State,
-                reservation.Source,
-                reservation.Note,
-                reservation.CreatedAtUtc,
-                reservation.UpdatedAtUtc,
-                reservation.CancelledAtUtc,
-                reservation.CancelReason,
-                reservation.ReservationGroupId,
-                reservation.Version,
-                reservation.StartedSessionId,
-                reservation.TariffVersionId,
-                reservation.TariffVersionId is { } tariffVersionId &&
-                    tariffNameByVersionId.TryGetValue(tariffVersionId, out var tariffName)
-                        ? tariffName
-                        : null,
-                reservation.EstimatedCostMinorUnits,
-                reservation.CurrencyCode);
-        }).ToList();
-    }
+        CancellationToken cancellationToken) =>
+        ReservationProjection.ProjectAsync(dbContext, reservations, cancellationToken);
 
     private static (DateTimeOffset FromUtc, DateTimeOffset ToUtc) NormalizeRange(
         DateTimeOffset? fromUtc,
@@ -833,6 +779,35 @@ public sealed class EfReservationService(
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
+    /// <summary>
+    /// Докуда клуб обещал ответить на заявку. Обещать ответ позже начала брони нельзя: к этому
+    /// времени отвечать уже не на что, и игрок ждал бы того, чего не будет.
+    /// </summary>
+    private static DateTimeOffset RespondBy(
+        DateTimeOffset now,
+        DateTimeOffset startsAtUtc,
+        int respondWithinMinutes)
+    {
+        var promised = now.AddMinutes(respondWithinMinutes);
+        return promised < startsAtUtc ? promised : startsAtUtc;
+    }
+
+    /// <summary>
+    /// Срок для заявки, заведённой на стойке: настройки филиала здесь ещё не читались, в отличие
+    /// от брони из приложения, где они уже посчитаны для этого игрока.
+    /// </summary>
+    private async Task<DateTimeOffset> ResolveRespondByAsync(
+        Guid organizationId,
+        Guid branchId,
+        DateTimeOffset startsAtUtc,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var settings = await BranchBookingSettingsDefaults.ResolveAsync(
+            dbContext, organizationId, branchId, cancellationToken);
+        return RespondBy(now, startsAtUtc, settings.RespondWithinMinutes);
+    }
+
     private static int DurationMinutes(ReservationEntity reservation)
     {
         return Math.Max(1, (int)Math.Round((reservation.EndsAtUtc - reservation.StartsAtUtc).TotalMinutes));
@@ -864,6 +839,15 @@ public sealed class EfReservationService(
 
         // Compute duration in minutes from the absolute times.
         var durationMinutes = (int)Math.Round((request.EndsAtUtc - request.StartsAtUtc).TotalMinutes);
+
+        // Первым делом — решение клуба о приёме гостей: филиал, закрывший брони из приложения,
+        // не должен объяснять игроку ни цену, ни занятость зала.
+        var rules = await PlayerBookingRules.EvaluateAsync(
+            dbContext, organizationId, branchId, playerAccountId, timeProvider.GetUtcNow(), cancellationToken);
+        if (!rules.AcceptsBookings)
+        {
+            return ReservationServiceResult<ReservationDto>.Invalid(PlayerBookingRules.BookingDisabledCode);
+        }
 
         // Load the player's display name and phone for the reservation record.
         var account = await dbContext.PlayerAccounts
@@ -922,6 +906,14 @@ public sealed class EfReservationService(
                 BranchCapacity.NoSeatsAvailableCode);
         }
 
+        // Потолок броней у новичка считается после зала: сказать «броней хватит» про вечер, на
+        // который всё равно нет мест, — это отказ не по той причине.
+        if (!rules.HasRoomForOneMoreBooking)
+        {
+            return ReservationServiceResult<ReservationDto>.Invalid(
+                PlayerBookingRules.ActiveReservationLimitCode);
+        }
+
         var now = timeProvider.GetUtcNow();
 
         var pricing = await PriceOnlineBookingAsync(
@@ -934,6 +926,14 @@ public sealed class EfReservationService(
 
         var tariffVersion = pricing.TariffVersion;
         var estimate = pricing.Estimate;
+
+        // Клуб просит незнакомого гостя заплатить вперёд. Без выбранного тарифа замораживать
+        // нечего, поэтому такая бронь отклоняется, а не висит «в ожидании».
+        if (rules.PrepaymentRequired && estimate is null)
+        {
+            return ReservationServiceResult<ReservationDto>.Invalid(
+                PlayerBookingRules.PrepaymentRequiredCode);
+        }
 
         // Бронь с выбранным тарифом сразу замораживает деньги: слот занят, значит и сумма должна
         // быть занята — иначе к моменту прихода игрока её потратят в баре или на другой брони.
@@ -951,13 +951,12 @@ public sealed class EfReservationService(
             }
         }
 
-        // Auto-confirm self-service bookings when the player has funds (positive wallet, no debt):
-        // «free slot + has balance → book without operator». Otherwise stay Pending for operator
-        // review (the requests lane stays a fallback for funded-later / disputed cases).
-        // Замороженные деньги — более сильный ответ на вопрос «придёт ли он», чем «баланс
-        // положительный»: поэтому бронь с холдом подтверждается сразу.
-        var autoConfirm = estimate is not null
-            || await ShouldAutoConfirmOnlineAsync(playerAccountId, cancellationToken);
+        // Подтверждает бронь клуб, а не код. В режиме «смотрит администратор» заявка ждёт стойку
+        // даже с замороженными деньгами: клуб так решил, и деньги этого решения не отменяют.
+        // В режиме «подтверждаем сами» действует прежнее правило — «свободный слот и есть чем
+        // платить», где замороженные деньги ответ более сильный, чем положительный баланс.
+        var autoConfirm = rules.ConfirmsWithoutOperator
+            && (estimate is not null || await HasSpendableFundsAsync(playerAccountId, cancellationToken));
         var reservation = new ReservationEntity
         {
             ReservationId = Guid.NewGuid(),
@@ -972,6 +971,12 @@ public sealed class EfReservationService(
             State = autoConfirm
                 ? ReservationStateNames.Confirmed
                 : ReservationStateNames.Pending,
+            // Заявка, которую смотрит стойка, несёт срок ответа: по нему идёт обратный отсчёт у
+            // игрока и таймер у администратора, и по нему же заявка снимается, если клуб промолчал.
+            RespondByUtc = autoConfirm
+                ? null
+                : RespondBy(now, request.StartsAtUtc, rules.Settings.RespondWithinMinutes),
+            ConfirmedAtUtc = autoConfirm ? now : null,
             Source = ReservationSourceNames.Online,
             Note = NormalizeText(request.Note),
             // Guid.Empty = self-service sentinel; no staff actor for online bookings.
@@ -1201,6 +1206,14 @@ public sealed class EfReservationService(
 
         var durationMinutes = (int)Math.Round((request.EndsAtUtc - request.StartsAtUtc).TotalMinutes);
 
+        var rules = await PlayerBookingRules.EvaluateAsync(
+            dbContext, organizationId, branchId, playerAccountId, timeProvider.GetUtcNow(), cancellationToken);
+        if (!rules.AcceptsBookings)
+        {
+            return ReservationServiceResult<IReadOnlyList<ReservationDto>>.Invalid(
+                PlayerBookingRules.BookingDisabledCode);
+        }
+
         var account = await dbContext.PlayerAccounts
             .AsNoTracking()
             .SingleOrDefaultAsync(
@@ -1247,12 +1260,25 @@ public sealed class EfReservationService(
                 BranchCapacity.NoSeatsAvailableCode);
         }
 
+        // Компания — это одна бронь, а не четыре: потолок новичка она занимает целиком один раз.
+        if (!rules.HasRoomForOneMoreBooking)
+        {
+            return ReservationServiceResult<IReadOnlyList<ReservationDto>>.Invalid(
+                PlayerBookingRules.ActiveReservationLimitCode);
+        }
+
         var pricing = await PriceOnlineBookingAsync(
             organizationId, branchId, request.TariffVersionId, durationMinutes, request.StartsAtUtc, now,
             cancellationToken);
         if (pricing.Error is not null)
         {
             return ReservationServiceResult<IReadOnlyList<ReservationDto>>.Invalid(pricing.Error);
+        }
+
+        if (rules.PrepaymentRequired && pricing.Estimate is null)
+        {
+            return ReservationServiceResult<IReadOnlyList<ReservationDto>>.Invalid(
+                PlayerBookingRules.PrepaymentRequiredCode);
         }
 
         // Денег должно хватить на ВСЮ компанию сразу. Забронировать три места из четырёх и
@@ -1268,8 +1294,8 @@ public sealed class EfReservationService(
             }
         }
 
-        var autoConfirm = pricing.Estimate is not null
-            || await ShouldAutoConfirmOnlineAsync(playerAccountId, cancellationToken);
+        var autoConfirm = rules.ConfirmsWithoutOperator
+            && (pricing.Estimate is not null || await HasSpendableFundsAsync(playerAccountId, cancellationToken));
         var groupId = Guid.NewGuid();
         var note = NormalizeText(request.Note);
         var reservations = new List<ReservationEntity>(request.SeatCount);
@@ -1291,6 +1317,10 @@ public sealed class EfReservationService(
                 State = autoConfirm
                     ? ReservationStateNames.Confirmed
                     : ReservationStateNames.Pending,
+                RespondByUtc = autoConfirm
+                    ? null
+                    : RespondBy(now, request.StartsAtUtc, rules.Settings.RespondWithinMinutes),
+                ConfirmedAtUtc = autoConfirm ? now : null,
                 Source = ReservationSourceNames.Online,
                 Note = note,
                 CreatedByStaffUserId = Guid.Empty,

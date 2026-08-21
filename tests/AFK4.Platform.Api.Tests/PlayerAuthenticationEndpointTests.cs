@@ -120,18 +120,11 @@ public sealed class PlayerAuthenticationEndpointTests
             IsActive = true,
             CreatedAtUtc = now
         });
-        var credential = new PlayerCredentialEntity
-        {
-            PlayerCredentialId = Guid.NewGuid(),
-            PlayerAccountId = playerId,
-            OrganizationId = orgId,
-            PhoneVerified = true,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
-        };
-        credential.PasswordHash = new PasswordHasher<PlayerCredentialEntity>().HashPassword(credential, pin);
-        db.PlayerCredentials.Add(credential);
         await db.SaveChangesAsync();
+
+        // PIN живёт на личности, а не на клубной карточке: войти за ПК теперь может человек, а не
+        // счёт. Карточка подшивается к нему тут же — так выглядит любой игрок после переноса.
+        await PlayerPinTestData.AttachPersonWithPinAsync(factory, playerId, "+992900000001", pin);
         return (orgId, playerId);
     }
 
@@ -182,43 +175,6 @@ public sealed class PlayerAuthenticationEndpointTests
             var tokenService = scope.ServiceProvider.GetRequiredService<IPlayerTokenService>();
             Assert.Null(await tokenService.ValidateAsync(accessToken, default));
         }
-    }
-
-    [Fact]
-    public async Task PlayerSignIn_WrongPin_LocksAfterFiveFailures()
-    {
-        await using var factory = new PlatformApiFactory();
-        var (orgId, playerId) = await SeedPlayerWithPinAsync(factory, "1234");
-        await using var scope = factory.Services.CreateAsyncScope();
-        var service = scope.ServiceProvider.GetRequiredService<IPlayerCredentialService>();
-        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-
-        for (var i = 0; i < 5; i++)
-        {
-            Assert.Null(await service.SignInAsync(
-                new PlayerSignInRequest(orgId, "+992900000001", "0000"), default));
-        }
-
-        var credential = await db.PlayerCredentials.SingleAsync(c => c.PlayerAccountId == playerId);
-        Assert.NotNull(credential.LockedUntilUtc);
-
-        // even the correct PIN is refused while locked
-        Assert.Null(await service.SignInAsync(
-            new PlayerSignInRequest(orgId, "+992900000001", "1234"), default));
-    }
-
-    [Fact]
-    public async Task PlayerSignIn_CorrectPin_IssuesTokens_AndResetsFailures()
-    {
-        await using var factory = new PlatformApiFactory();
-        var (orgId, _) = await SeedPlayerWithPinAsync(factory, "1234");
-        await using var scope = factory.Services.CreateAsyncScope();
-        var service = scope.ServiceProvider.GetRequiredService<IPlayerCredentialService>();
-
-        var result = await service.SignInAsync(
-            new PlayerSignInRequest(orgId, "+992900000001", "1234"), default);
-        Assert.NotNull(result);
-        Assert.False(string.IsNullOrWhiteSpace(result!.AccessToken));
     }
 
     [Fact]

@@ -2,6 +2,7 @@ using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Outbox;
 using AFK4.Platform.Api.Platform.Analytics;
 using AFK4.Platform.Api.Platform.Billing;
+using AFK4.Platform.Api.Players;
 using AFK4.Platform.Api.Reservations;
 using AFK4.Platform.Api.Sessions;
 using Microsoft.Extensions.Options;
@@ -21,6 +22,8 @@ public sealed class PlatformJobIntervalCatalog(
     IOptions<OutboxOptions> outboxOptions,
     AutoProtectionOptions autoProtectionOptions,
     ReservationNoShowOptions reservationNoShowOptions,
+    ReservationRequestExpiryOptions reservationRequestExpiryOptions,
+    ReputationSnapshotOptions reputationSnapshotOptions,
     IOptions<PlatformAnalyticsOptions> analyticsOptions)
 {
     public IReadOnlyDictionary<string, TimeSpan> Build() => new Dictionary<string, TimeSpan>(StringComparer.Ordinal)
@@ -35,6 +38,8 @@ public sealed class PlatformJobIntervalCatalog(
         [PlatformJobNames.SubscriptionSnapshots] = analyticsOptions.Value.SnapshotInterval,
         [PlatformJobNames.BranchSnapshots] = analyticsOptions.Value.SnapshotInterval,
         [PlatformJobNames.ReservationNoShow] = reservationNoShowOptions.TickInterval,
-        [PlatformJobNames.PlayerReminders] = notificationOptions.Value.PlayerReminderInterval
+        [PlatformJobNames.ReservationRequestExpiry] = reservationRequestExpiryOptions.TickInterval,
+        [PlatformJobNames.PlayerReminders] = notificationOptions.Value.PlayerReminderInterval,
+        [PlatformJobNames.ReputationSnapshot] = reputationSnapshotOptions.TickInterval
     };
 }

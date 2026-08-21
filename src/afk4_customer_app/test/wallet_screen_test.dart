@@ -62,8 +62,9 @@ Widget harness(PlayerApiClient api) => MaterialApp(
 PlayerApiClient clientWith(FakeHttpClient inner) =>
     PlayerApiClient(baseUrl: 'https://api', httpClient: inner);
 
-String _dashboard({int wallet = 120050, int debt = 0}) => jsonEncode({
+String _dashboard({int wallet = 120050, int held = 0, int debt = 0}) => jsonEncode({
   'walletBalance': {'currencyCode': 'TJS', 'minorUnits': wallet},
+  'heldBalance': {'currencyCode': 'TJS', 'minorUnits': held},
   'debtBalance': {'currencyCode': 'TJS', 'minorUnits': debt},
   'activeSession': null,
 });
@@ -289,5 +290,59 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Не удалось загрузить чек.'), findsOneWidget);
+  });
+
+  // Счёт открывается первым действием — бронью или пополнением, — и раздел денег обязан это
+  // заметить. Пока он этого не замечал, на месте кошелька оставался вечно мерцающий скелет:
+  // обещание карточки, которая уже не придёт.
+  testWidgets('открывшийся счёт заставляет раздел спросить кошелёк', (tester) async {
+    final http = _serve();
+    final api = clientWith(http);
+
+    Widget shell({required bool accountOpen}) => MaterialApp(
+      locale: const Locale('ru'),
+      localizationsDelegates: appLocalizationsDelegates,
+      supportedLocales: appSupportedLocales,
+      home: WalletScreen(
+        api: api,
+        phoneVerified: true,
+        features: const ['online_topup'],
+        accountOpen: accountOpen,
+        clock: () => _now,
+      ),
+    );
+
+    await tester.pumpWidget(shell(accountOpen: false));
+    await tester.pumpAndSettle();
+    expect(find.text('Здесь вы ещё не играли'), findsOneWidget);
+    expect(http.paths, isNot(contains('/api/me/dashboard')));
+
+    await tester.pumpWidget(shell(accountOpen: true));
+    await tester.pumpAndSettle();
+
+    expect(http.paths, contains('/api/me/dashboard'));
+    expect(find.text('Баланс кошелька'), findsOneWidget);
+  });
+
+  // Пополнить можно и в клубе, который игрока ещё не знает: этим счёт и открывается.
+  testWidgets('клуб без счёта всё равно даёт пополнить', (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      locale: const Locale('ru'),
+      localizationsDelegates: appLocalizationsDelegates,
+      supportedLocales: appSupportedLocales,
+      home: WalletScreen(
+        api: clientWith(_serve()),
+        phoneVerified: true,
+        features: const ['online_topup'],
+        accountOpen: false,
+        clock: () => _now,
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Пополнить'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Пополнить кошелёк'), findsOneWidget);
   });
 }

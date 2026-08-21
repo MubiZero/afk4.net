@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useI18n } from '@afk4/i18n';
 import { PlayerApiClient } from './api/playerApi';
-import type { PlayerSignInResponse } from './api/types';
+import type { MeDto, MyClubDto, PlatformPersonSessionResponse } from './api/types';
 import {
   readPlayerSession, writePlayerSession, clearPlayerSession,
-  playerSessionFromSignInResponse, type PlayerSession
+  playerSessionFromResponse, type PlayerSession
 } from './auth/playerTokenStore';
 import { resolvePlayerRoute, routePath, type PlayerRoute, type PlayerTab } from './routing';
 import { AppShell } from './components/AppShell';
@@ -20,6 +20,7 @@ import { PurchasesScreen } from './screens/purchases/PurchasesScreen';
 import { HistoryTabs } from './screens/history/HistoryTabs';
 import { ReservationsScreen } from './screens/reservations/ReservationsScreen';
 import { ProfileScreen } from './screens/profile/ProfileScreen';
+import { WelcomeScreen } from './screens/auth/WelcomeScreen';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '';
 
@@ -69,6 +70,37 @@ export function App() {
     fallbackOrganizationId: import.meta.env.VITE_DEMO_ORG_ID ?? '',
   });
 
+  // Клуб этой сборки известен только после загрузки брендирования, а клиент живёт с самого
+  // начала — поэтому клуб доносится до него, а не задаётся в конструкторе. Проставляется он в
+  // рендере, а не в эффекте: эффекты дочерних экранов выполняются раньше родительских, и первый
+  // же запрос дашборда ушёл бы без клуба — то есть показал бы «счёта тут нет» тому, у кого он есть.
+  const brandedOrganizationId = branding.status === 'ready' ? branding.organizationId : '';
+  api.updateOrganization(brandedOrganizationId);
+
+  // «Кто я и где у меня счета». Один клуб больше не подразумевается: приложение показывает счёт
+  // того клуба, чей сайт человек открыл, а список клубов нужен, чтобы этот счёт в нём найти.
+  const [me, setMe] = useState<MeDto | null>(null);
+  const reloadMe = useCallback(() => {
+    api.getMe().then(setMe).catch(() => { /* профиль догрузится при следующем действии */ });
+  }, [api]);
+  // Тихое продление токена меняет сессию, но не человека: перезапрашиваем личность на новый
+  // токен, а не на каждый её пересбор — иначе продление и запрос гоняли бы друг друга по кругу.
+  const meFetchedForTokenRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!session) {
+      meFetchedForTokenRef.current = null;
+      setMe(null);
+      return;
+    }
+    if (meFetchedForTokenRef.current === session.accessToken) return;
+    meFetchedForTokenRef.current = session.accessToken;
+    reloadMe();
+  }, [session, reloadMe]);
+
+  const currentClub: MyClubDto | null =
+    me?.clubs.find((club) => club.organizationId === brandedOrganizationId)
+    ?? (me?.clubs.length === 1 ? me.clubs[0] : null);
+
   // Keep route state in sync with browser/OS back-forward navigation.
   useEffect(() => {
     function onPopState() {
@@ -115,33 +147,52 @@ export function App() {
     });
   }, [onSessionChanged]);
 
-  const handleSignedIn = useCallback((response: PlayerSignInResponse) => {
-    onSessionChanged(playerSessionFromSignInResponse(response));
+  const handleSignedIn = useCallback((response: PlatformPersonSessionResponse) => {
+    onSessionChanged(playerSessionFromResponse(response));
   }, [onSessionChanged]);
 
+  // Имя спрошено — дальше человек попадает в обычное приложение, а не в экран имени на каждом входе.
+  const handleWelcomeDone = useCallback((displayName: string) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, displayName, profileCompleted: true };
+      writePlayerSession(next);
+      apiRef.current?.updateSession(next);
+      return next;
+    });
+    reloadMe();
+  }, [reloadMe]);
+
+  // Пока клуб этой сборки не известен, экраны не монтируются: их первые запросы ушли бы без
+  // клуба, а ответ на такой запрос — либо 409, либо чужой кошелёк.
+  if (branding.status === 'loading') {
+    return (
+      <main className="flex min-h-dvh items-center justify-center" role="status" aria-label={t('a11y.loading')}>
+        <div className="h-10 w-10 animate-pulse rounded-full bg-[var(--color-surface)]" />
+      </main>
+    );
+  }
+
   if (!session) {
-    if (branding.status === 'loading') {
-      return (
-        <main className="flex min-h-dvh items-center justify-center" role="status" aria-label={t('a11y.loading')}>
-          <div className="h-10 w-10 animate-pulse rounded-full bg-[var(--color-surface)]" />
-        </main>
-      );
-    }
     return (
       <SignInScreen
-        organizationId={branding.organizationId}
         brandName={branding.brandName}
-        signIn={(req) => api.signIn(req)}
+        startSignIn={(req) => api.startSignIn(req)}
+        confirmSignIn={(req) => api.confirmSignIn(req)}
         onSignedIn={handleSignedIn}
       />
     );
+  }
+
+  if (!session.profileCompleted) {
+    return <WelcomeScreen api={api} onDone={handleWelcomeDone} onLocaleChange={handleLocaleChange} />;
   }
 
   return (
     <ToastProvider>
       <AppShell active={tabForRoute(route)} onNavigate={navigate} features={features}>
         <OfflineBanner />
-        {route.kind === 'dashboard' && <DashboardScreen api={api} displayName={session.displayName} phoneVerified={session.phoneVerified} features={features} />}
+        {route.kind === 'dashboard' && <DashboardScreen api={api} displayName={me?.person.displayName ?? session.displayName} phoneVerified={session.phoneVerified} features={features} />}
         {route.kind === 'history' && (
           <>
             <HistoryTabs active="visits" onChange={(view) => navigateTo({ kind: view === 'purchases' ? 'purchases' : 'history' })} />
@@ -155,8 +206,8 @@ export function App() {
           </>
         )}
         {route.kind === 'receipt' && <ReceiptScreen api={api} sessionId={route.sessionId} onBack={() => navigateTo({ kind: 'history' })} />}
-        {route.kind === 'reservations' && <ReservationsScreen api={api} phoneVerified={session.phoneVerified} />}
-        {route.kind === 'profile' && <ProfileScreen api={api} onSignOut={signOut} onLocaleChange={handleLocaleChange} />}
+        {route.kind === 'reservations' && <ReservationsScreen api={api} phoneVerified={session.phoneVerified} branchId={currentClub?.homeBranchId ?? null} />}
+        {route.kind === 'profile' && <ProfileScreen api={api} person={me?.person ?? null} onPersonChanged={reloadMe} onSignOut={signOut} onLocaleChange={handleLocaleChange} />}
       </AppShell>
     </ToastProvider>
   );

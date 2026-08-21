@@ -44,6 +44,14 @@ public sealed class ReservationEntity
 
     public DateTimeOffset? SeatedAtUtc { get; set; }
 
+    // Докуда клуб обещал ответить на заявку и когда ответил. Срок ставится при создании заявки,
+    // ждущей решения администратора, и дальше ничего не значит: подтверждённую бронь никто не
+    // снимает по таймеру. Обе даты уезжают и оператору, и игроку — иначе у двух администраторов
+    // на разных машинах будут разные цифры, а у игрока третья.
+    public DateTimeOffset? RespondByUtc { get; set; }
+
+    public DateTimeOffset? ConfirmedAtUtc { get; set; }
+
     public int Version { get; set; } = 1;
 
     public Guid? StartedSessionId { get; set; }

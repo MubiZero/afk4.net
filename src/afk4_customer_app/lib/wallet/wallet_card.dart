@@ -17,14 +17,20 @@ class WalletCard extends StatefulWidget {
     super.key,
     required this.api,
     required this.walletBalance,
+    required this.heldBalance,
     required this.debtBalance,
     required this.phoneVerified,
     required this.features,
     this.onPhoneVerified,
+    this.onToppedUp,
   });
 
   final PlayerApiClient api;
   final Money walletBalance;
+
+  /// Придержанное под брони. Из остатка оно уже вычтено — карточка объясняет, куда делась
+  /// часть денег, а не показывает вторую копилку.
+  final Money heldBalance;
   final Money debtBalance;
   final bool phoneVerified;
 
@@ -36,6 +42,10 @@ class WalletCard extends StatefulWidget {
   /// Номер подтверждён — экрану выше нужно перечитать себя: подтверждение открывает
   /// пополнение и брони сразу, без повторного входа.
   final VoidCallback? onPhoneVerified;
+
+  /// Заявка на пополнение ушла. Ею открывается счёт в клубе, где его ещё не было, — и об
+  /// этом надо сказать наверх, иначе приложение продолжит считать клуб чужим.
+  final Future<void> Function()? onToppedUp;
 
   @override
   State<WalletCard> createState() => _WalletCardState();
@@ -81,6 +91,7 @@ class _WalletCardState extends State<WalletCard> {
     if (sent != true || !mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l.customerWalletSent)));
+    await widget.onToppedUp?.call();
     await _refreshIntents();
   }
 
@@ -151,6 +162,22 @@ class _WalletCardState extends State<WalletCard> {
                   locale: locale),
               style: theme.textTheme.displaySmall,
             ),
+            // Придержанное показывается, только когда оно есть: строка «придержано 0» на
+            // главной — шум. Когда есть, объясняет, почему остаток меньше ожидаемого.
+            if (widget.heldBalance.minorUnits > 0) ...[
+              const SizedBox(height: 4),
+              Text(
+                '${l.customerWalletHeld}: '
+                '${formatMoney(widget.heldBalance.minorUnits, widget.heldBalance.currencyCode, locale: locale)}',
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+              Text(
+                l.customerWalletHeldNote,
+                style:
+                    theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
             // Долг показывается, только когда он есть: строка «Долг: 0» на главной пугает зря.
             // Гасится он на кассе, поэтому карточка отправляет к стойке, а не обещает, что
             // пополнение кошелька его закроет — оно не закрывает.

@@ -28,7 +28,15 @@ public sealed record ReservationDto(
     Guid? TariffVersionId = null,
     string? TariffName = null,
     long? EstimatedCostMinorUnits = null,
-    string? CurrencyCode = null);
+    string? CurrencyCode = null,
+    // Докуда клуб обещал ответить на заявку и когда ответил. Срок есть только у заявки, которая
+    // ждёт решения стойки; подтверждённую бронь по таймеру никто не снимает.
+    DateTimeOffset? RespondByUtc = null,
+    DateTimeOffset? ConfirmedAtUtc = null,
+    // Личность за счётом, с которого пришла заявка. Клуб, решающий её судьбу, спрашивает сеть
+    // этим идентификатором, а не телефоном гостя. У заявки, записанной на стойке одним номером,
+    // счёта ещё нет — и называть некого.
+    Guid? PlatformPersonId = null);
 
 public sealed record ReservationSearchResultDto(
     IReadOnlyList<ReservationDto> Reservations,

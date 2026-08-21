@@ -183,6 +183,33 @@ export interface AssignDeviceSeatRequest extends Record<string, unknown> {
   seatId: Guid;
 }
 
+
+// Настройки приёма гостей филиала (BranchBookingSettingsDto). `updatedAtUtc === null` означает
+// «филиал ничего не настраивал» — значения не нулевые, а по умолчанию, и это разные вещи.
+export interface BranchBookingSettingsDto {
+  organizationId: Guid;
+  branchId: Guid;
+  acceptanceMode: string; // 'off' | 'manual' | 'auto'
+  respondWithinMinutes: number;
+  requirePrepaymentFromNewGuests: boolean;
+  maxActiveReservationsForNewGuests: number;
+  regularAfterVisits: number;
+  holdSeatAfterStartMinutes: number;
+  keepPrepaymentOnNoShow: boolean;
+  updatedAtUtc: string | null;
+}
+
+export interface UpdateBranchBookingSettingsRequest extends Record<string, unknown> {
+  organizationId: Guid;
+  acceptanceMode: string;
+  respondWithinMinutes: number;
+  requirePrepaymentFromNewGuests: boolean;
+  maxActiveReservationsForNewGuests: number;
+  regularAfterVisits: number;
+  holdSeatAfterStartMinutes: number;
+  keepPrepaymentOnNoShow: boolean;
+}
+
 export function createSettingsClient(api: PlatformApiClient) {
   return {
     getBranchProfile(branchId: Guid): Promise<BranchProfileDto> {
@@ -190,6 +217,12 @@ export function createSettingsClient(api: PlatformApiClient) {
     },
     updateBranchProfile(branchId: Guid, request: UpdateBranchProfileRequest): Promise<BranchProfileDto> {
       return api.patch<BranchProfileDto, UpdateBranchProfileRequest>(`branches/${branchId}/profile`, request);
+    },
+    getBookingSettings(branchId: Guid): Promise<BranchBookingSettingsDto> {
+      return api.get<BranchBookingSettingsDto>(`branches/${branchId}/booking-settings`);
+    },
+    updateBookingSettings(branchId: Guid, request: UpdateBranchBookingSettingsRequest): Promise<BranchBookingSettingsDto> {
+      return api.put<BranchBookingSettingsDto, UpdateBranchBookingSettingsRequest>(`branches/${branchId}/booking-settings`, request);
     },
     getStaffUsers(branchId: Guid): Promise<StaffUserDto[]> {
       return api.get<StaffUserDto[]>(`branches/${branchId}/staff`);

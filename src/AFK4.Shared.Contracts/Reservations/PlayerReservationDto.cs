@@ -22,4 +22,7 @@ public sealed record PlayerReservationDto(
     string? CurrencyCode = null,
     // Бронь на компанию: у всех мест группы он общий. Без него приложение показало бы компанию из
     // четырёх человек четырьмя одинаковыми строками, между которыми не видно разницы.
-    Guid? ReservationGroupId = null);
+    Guid? ReservationGroupId = null,
+    // Докуда клуб обещал ответить на заявку — по нему в приложении идёт обратный отсчёт. У
+    // подтверждённой брони его нет: отвечать больше не на что.
+    DateTimeOffset? RespondByUtc = null);

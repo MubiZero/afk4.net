@@ -1,11 +1,13 @@
 import type { PlayerSession } from '../auth/playerTokenStore';
-import { playerSessionFromSignInResponse } from '../auth/playerTokenStore';
+import { playerSessionFromResponse } from '../auth/playerTokenStore';
 import type {
-  PlayerSignInRequest, PlayerSignInResponse, PlayerDashboardDto,
+  PlatformPersonSessionResponse, RegistrationStartRequest, RegistrationStartedResponse,
+  RegistrationConfirmRequest, MeDto, MePersonDto, UpdateMyProfileRequest,
+  PlayerDashboardDto,
   CursorPage, PlayerVisitDto, PlayerVisitReceiptDto, PlayerPurchaseDto,
   PlayerProfileDto, UpdatePlayerProfileRequest,
   PlayerTopUpIntentRequest, PlayerTopUpIntentDto,
-  CreatePlayerReservationRequest, PlayerReservationDto
+  CreatePlayerReservationRequest, PlayerReservationDto, PlayerBookingRulesDto
 } from './types';
 
 interface PlayerFeaturesResponse { features: string[]; }
@@ -22,6 +24,8 @@ interface PlayerApiOptions {
   fetchImpl?: typeof fetch;
   session: PlayerSession | null;
   onSessionChanged: (session: PlayerSession | null) => void;
+  /** Клуб этой сборки (берётся из брендирования домена). Пусто — значит клуб не называем. */
+  organizationId?: string;
 }
 
 export class PlayerApiClient {
@@ -29,16 +33,43 @@ export class PlayerApiClient {
   private readonly fetchImpl: typeof fetch;
   private session: PlayerSession | null;
   private readonly onSessionChanged: (session: PlayerSession | null) => void;
+  private organizationId: string;
 
   constructor(options: PlayerApiOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, '');
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.session = options.session;
     this.onSessionChanged = options.onSessionChanged;
+    this.organizationId = options.organizationId ?? '';
   }
 
-  signIn(request: PlayerSignInRequest): Promise<PlayerSignInResponse> {
-    return this.publicPost<PlayerSignInResponse>('/api/public/player/sign-in', request);
+  /** Просьба прислать код. Тот же маршрут впускает и того, кто уже есть: разделить их значило бы
+   *  сказать звонящему, знаком ли нам его номер. */
+  startSignIn(request: RegistrationStartRequest): Promise<RegistrationStartedResponse> {
+    return this.publicPost<RegistrationStartedResponse>('/api/public/register/start', request);
+  }
+
+  confirmSignIn(request: RegistrationConfirmRequest): Promise<PlatformPersonSessionResponse> {
+    return this.publicPost<PlatformPersonSessionResponse>('/api/public/register/confirm', request);
+  }
+
+  /** «Кто я и где у меня счета» — единственный маршрут, которому клуб не нужен. */
+  getMe(): Promise<MeDto> {
+    return this.authedGet<MeDto>('/api/me');
+  }
+
+  updateMyProfile(request: UpdateMyProfileRequest): Promise<MePersonDto> {
+    return this.authedSend<MePersonDto>('PATCH', '/api/me', request);
+  }
+
+  /** Смена PIN не спрашивает старый: иначе выход был бы заперт ровно тому, кто его забыл. */
+  setPin(pin: string): Promise<void> {
+    return this.authedSendNoContent('PUT', '/api/me/pin', { pin });
+  }
+
+  getBookingRules(branchId: string): Promise<PlayerBookingRulesDto> {
+    return this.authedGet<PlayerBookingRulesDto>(
+      `/api/me/branches/${encodeURIComponent(branchId)}/booking-rules`);
   }
 
   getDashboard(): Promise<PlayerDashboardDto> {
@@ -104,6 +135,11 @@ export class PlayerApiClient {
     this.session = session;
   }
 
+  /** Клуб этой сборки узнаётся после загрузки брендирования, уже с живым клиентом. */
+  updateOrganization(organizationId: string): void {
+    this.organizationId = organizationId;
+  }
+
   private async publicPost<T>(path: string, body: unknown): Promise<T> {
     const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
       method: 'POST',
@@ -139,10 +175,31 @@ export class PlayerApiClient {
     return JSON.parse(await response.text()) as T;
   }
 
+  // Успех без тела (204). Разбирать пустую строку как JSON значило бы уронить вызов ровно там,
+  // где сервер ответил «сделано».
+  private async authedSendNoContent(method: string, path: string, body: unknown): Promise<void> {
+    const buildInit = (): RequestInit => ({
+      method,
+      headers: { ...this.buildHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    let response = await this.fetchImpl(`${this.baseUrl}${path}`, buildInit());
+    if (response.status === 401 && (await this.refreshOnce())) {
+      response = await this.fetchImpl(`${this.baseUrl}${path}`, buildInit());
+    }
+    if (!response.ok) throw await PlayerApiClient.toError(response);
+  }
+
   // GET requests carry no body, so no Content-Type — keeps them CORS-simple.
+  //
+  // Клуб называется заголовком на каждом запросе: токен теперь принадлежит человеку, а у человека
+  // клубов может быть несколько. Не назвать клуб — значит либо получить 409, либо (у того, у кого
+  // клуб один) молча попасть в него; назвать — значит всегда видеть кошелёк того клуба, чей сайт
+  // человек открыл.
   private buildHeaders(): Record<string, string> {
     const headers: Record<string, string> = {};
     if (this.session) headers.Authorization = `Bearer ${this.session.accessToken}`;
+    if (this.organizationId) headers['X-AFK4-Organization'] = this.organizationId;
     return headers;
   }
 
@@ -158,7 +215,8 @@ export class PlayerApiClient {
       this.onSessionChanged(null);
       return false;
     }
-    const next = playerSessionFromSignInResponse(JSON.parse(await response.text()) as PlayerSignInResponse);
+    const next = playerSessionFromResponse(
+      JSON.parse(await response.text()) as PlatformPersonSessionResponse);
     this.session = next;
     this.onSessionChanged(next);
     return true;

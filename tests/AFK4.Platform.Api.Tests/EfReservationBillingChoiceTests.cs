@@ -62,6 +62,8 @@ public sealed class EfReservationBillingChoiceTests
             MinimumBillableMinutes = minimumBillableMinutes, RoundingIncrementMinutes = roundingIncrementMinutes,
             EffectiveFromUtc = Start.AddYears(-1), RetiredAtUtc = retiredAtUtc
         });
+        // Файл про выбор тарифа, а не про правила приёма: филиал берёт бронь и без предоплаты.
+        db.BranchBookingSettings.Add(BranchBookingSettingsTestData.AcceptsAnyGuest(OrgId, BranchId, Start));
         await db.SaveChangesAsync();
     }
 
