@@ -58,7 +58,8 @@ jobs:
             "src/AFK4.PlatformControl.Web/",
             "src/AFK4.OrganizationAdmin.Web/",
             "src/AFK4.Customer.Web/",
-            "src/AFK4.SetupWizard.Web/"
+            "src/AFK4.SetupWizard.Web/",
+            "src/AFK4.Player.Shell.Web/"
           )
           $flutterPrefixes = @(
             ".github/workflows/pr-verification.yml",
@@ -209,13 +210,17 @@ jobs:
 
       # bun's --filter does not match the src/AFK4.*.Web workspaces, so iterate
       # the workspace dirs explicitly; each runs in its own dir to pick up its bunfig.
+      # The list must hold every workspace with a `test` script — a workspace missing here is
+      # not "not covered yet", it is a suite that goes red without anyone finding out.
       - name: Test web workspaces
         run: |
           set -e
           for dir in \
             packages/formatting packages/i18n packages/money \
+            packages/tokens packages/ui \
             src/AFK4.PlatformControl.Web src/AFK4.OrganizationAdmin.Web \
-            src/AFK4.Customer.Web src/AFK4.SetupWizard.Web; do
+            src/AFK4.Customer.Web src/AFK4.SetupWizard.Web \
+            src/AFK4.Player.Shell.Web; do
             echo "::group::test $dir"
             # Run each workspace's own `test` script, not a bare `bun test`: Organization Admin
             # splits App.test into its own bun process to dodge bun's cross-file mock.module leak
@@ -230,7 +235,8 @@ jobs:
           set -e
           for dir in \
             src/AFK4.PlatformControl.Web src/AFK4.OrganizationAdmin.Web \
-            src/AFK4.Customer.Web src/AFK4.SetupWizard.Web; do
+            src/AFK4.Customer.Web src/AFK4.SetupWizard.Web \
+            src/AFK4.Player.Shell.Web; do
             echo "::group::build $dir"
             (cd "$dir" && bun run build)
             echo "::endgroup::"

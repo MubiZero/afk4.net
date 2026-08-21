@@ -9,6 +9,14 @@ import type { PlatformApiClient } from '../api/platformApi';
 
 type FakeClient = Pick<PlatformApiClient, 'signIn'> & { twoFactor: { verify: (challengeToken: string, code: string) => Promise<unknown> } };
 
+// Окно, которое доживёт до экрана кода и истечёт уже на нём: хук добавляет к сроку допуск на
+// рассинхрон часов, поэтому его здесь заранее вычитают. Срок, мёртвый уже в момент выдачи, этот
+// сценарий проверить не может — экран кода при нём не успевает появиться вовсе, и «вернулись с
+// шага кода» становится гонкой, а не проверкой.
+function expiresInAfterTolerance(remainingMs: number): string {
+  return new Date(Date.now() + remainingMs - CLOCK_SKEW_TOLERANCE_MS).toISOString();
+}
+
 function buildClient(overrides: Partial<FakeClient> = {}): PlatformApiClient {
   const client: FakeClient = {
     signIn: overrides.signIn ?? (async () => { throw new Error('signIn not mocked'); }),
@@ -43,9 +51,11 @@ describe('SignIn — истечение окна подтверждения (Н�
         kind: 'challenge',
         challengeToken: 'chal-1',
         twoFactorConfigured: true,
-        // Deep in the past, well beyond the clock-skew tolerance — the test doesn't wait two
-        // real minutes for a naturally-expiring window.
-        expiresAtUtc: new Date(Date.now() - CLOCK_SKEW_TOLERANCE_MS - 60_000).toISOString()
+        // Человек успевает увидеть экран кода, и окно истекает под ним — ровно то, ради чего
+        // хук написан. Двух настоящих минут тест не ждёт, но и полумиллисекундной щели не
+        // оставляет: полсекунды переживают медленный раннер, а ожидание возврата ниже само
+        // подстраивается под него запасом по таймауту.
+        expiresAtUtc: expiresInAfterTolerance(500)
       })
     });
 
@@ -57,7 +67,11 @@ describe('SignIn — истечение окна подтверждения (Н�
 
     await screen.findByLabelText(/код/i);
 
-    await waitFor(() => expect(screen.getByLabelText('Логин или email')).toBeInTheDocument());
+    // Возврат на шаг пароля — с честной причиной, а не с «неверный код»: код человек, может, и
+    // набрал правильный, просто окно под ним умерло.
+    await waitFor(
+      () => expect(screen.getByLabelText('Логин или email')).toBeInTheDocument(),
+      { timeout: 3_000 });
     expect(screen.getByText('Время на подтверждение истекло. Войдите заново.')).toBeInTheDocument();
     expect(screen.queryByText(/неверный код/i)).not.toBeInTheDocument();
   });
