@@ -21,9 +21,9 @@ public sealed class ReputationSnapshotOptions
 /// во всей сети. Считает фон, а не запрос, — иначе клуб, опрашивающий счётчик каждую минуту,
 /// вычислил бы вечера человека у конкурента, не получив ни одного названия клуба.
 ///
-/// Источники чисел на волне 1: визит — завершённая сессия на любом счёте этой личности; неявка —
-/// бронь, снятая с причиной <c>no-show</c>. Отдельного состояния «не приехал» пока нет; когда оно
-/// появится, меняется запрос здесь, а не контракт.
+/// Источники чисел: визит — завершённая сессия на любом счёте этой личности; неявка — бронь в
+/// состоянии <c>no_show</c>. Отмена в это число не входит ни при какой причине: передумавший
+/// игрок и клуб, не ответивший на заявку, к неявке отношения не имеют.
 /// </summary>
 public sealed class ReputationSnapshotRunner(
     PlatformDbContext dbContext,
@@ -54,8 +54,7 @@ public sealed class ReputationSnapshotRunner(
             join account in dbContext.PlayerAccounts.AsNoTracking()
                 on reservation.PlayerAccountId equals (Guid?)account.PlayerAccountId
             where account.PlatformPersonId != null
-                && reservation.State == ReservationStateNames.Cancelled
-                && reservation.CancelReason == ReservationNoShowRunner.CancelReason
+                && reservation.State == ReservationStateNames.NoShow
             select account.PlatformPersonId,
             cancellationToken);
 

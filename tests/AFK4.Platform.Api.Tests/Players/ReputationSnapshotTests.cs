@@ -41,7 +41,7 @@ public sealed class ReputationSnapshotTests
             // Живая сессия визитом ещё не стала: человек за ПК прямо сейчас.
             AddSession(db, secondClubAccount, SessionStateNames.Active);
 
-            AddReservation(db, secondClubAccount, ReservationStateNames.Cancelled, "no-show");
+            AddReservation(db, secondClubAccount, ReservationStateNames.NoShow, string.Empty);
             // Отмена по инициативе игрока и молчание клуба неявкой не считаются.
             AddReservation(db, firstClubAccount, ReservationStateNames.Cancelled, "player-cancelled");
             AddReservation(db, firstClubAccount, ReservationStateNames.Cancelled, "request-expired");

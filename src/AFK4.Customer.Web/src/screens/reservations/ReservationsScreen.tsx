@@ -11,7 +11,8 @@ const STATE_KEYS: Record<string, MessageKey> = {
   pending: 'customer.reservations.statePending',
   confirmed: 'customer.reservations.stateConfirmed',
   seated: 'customer.reservations.stateSeated',
-  cancelled: 'customer.reservations.stateCancelled'
+  cancelled: 'customer.reservations.stateCancelled',
+  no_show: 'customer.reservations.stateNoShow'
 };
 
 interface ReservationsScreenProps {

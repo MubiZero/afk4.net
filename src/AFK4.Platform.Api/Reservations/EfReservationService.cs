@@ -2,6 +2,7 @@ using System.Data;
 using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Branches;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Shifts;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,11 @@ namespace AFK4.Platform.Api.Reservations;
 
 public sealed class EfReservationService(
     PlatformDbContext dbContext,
-    TimeProvider timeProvider) : IReservationService
+    TimeProvider timeProvider,
+    // Нужен единственному действию — отметке неявки, которой положено попасть в кассовую смену.
+    // Необязателен намеренно: сорок мест, где сервис создаётся в тестах, не имеют к смене
+    // отношения, а отсутствие смены — законный ответ и в бою («клуб в этот момент был закрыт»).
+    IOpenShiftResolver? openShiftResolver = null) : IReservationService
 {
     private const int DefaultLimit = 40;
     private const int MaxLimit = 100;
@@ -485,6 +490,63 @@ public sealed class EfReservationService(
         if (saveConflict is not null)
         {
             return saveConflict;
+        }
+
+        return ReservationServiceResult<ReservationDto>.Ok(
+            (await ProjectAsync([reservation], cancellationToken))[0]);
+    }
+
+    public async Task<ReservationServiceResult<ReservationDto>> MarkNoShowAsync(
+        Guid reservationId,
+        Guid actorStaffUserId,
+        MarkReservationNoShowRequest request,
+        CancellationToken cancellationToken)
+    {
+        var reservation = await LoadForWriteAsync(request.OrganizationId, reservationId, cancellationToken);
+        if (reservation is null)
+        {
+            return ReservationServiceResult<ReservationDto>.Missing("Reservation was not found.");
+        }
+
+        // Версия проверяется, только если её назвали: повторный клик по уже отмеченной неявке не
+        // должен выглядеть конфликтом версий — ответ на него тот же самый результат.
+        if (request.ExpectedVersion is { } expectedVersion
+            && GuardVersion(reservation, expectedVersion) is { } versionConflict)
+        {
+            return versionConflict;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        if (ReservationNoShow.WhyNot(reservation, now) is { } refusal)
+        {
+            return ReservationServiceResult<ReservationDto>.Invalid(refusal);
+        }
+
+        // Уже отмеченная неявка отвечает собой: повторный клик и вторая вкладка — не ошибка
+        // стойки, а обычная жизнь, и удерживать за одну неявку дважды нельзя.
+        if (reservation.State != ReservationStateNames.NoShow)
+        {
+            var settings = await BranchBookingSettingsDefaults.ResolveAsync(
+                dbContext, reservation.OrganizationId, reservation.BranchId, cancellationToken);
+
+            Guid? shiftId = null;
+            if (openShiftResolver is not null)
+            {
+                var openShift = await openShiftResolver.GetOpenShiftIdAsync(
+                    reservation.OrganizationId, reservation.BranchId, cancellationToken);
+                shiftId = openShift.Succeeded && openShift.Response != Guid.Empty
+                    ? openShift.Response
+                    : null;
+            }
+
+            await ReservationNoShow.MarkAsync(
+                dbContext, reservation, settings, shiftId, actorStaffUserId, now, cancellationToken);
+
+            var saveConflict = await SaveMutationAsync(reservation, cancellationToken);
+            if (saveConflict is not null)
+            {
+                return saveConflict;
+            }
         }
 
         return ReservationServiceResult<ReservationDto>.Ok(

@@ -36,7 +36,12 @@ public sealed record ReservationDto(
     // Личность за счётом, с которого пришла заявка. Клуб, решающий её судьбу, спрашивает сеть
     // этим идентификатором, а не телефоном гостя. У заявки, записанной на стойке одним номером,
     // счёта ещё нет — и называть некого.
-    Guid? PlatformPersonId = null);
+    Guid? PlatformPersonId = null,
+    // Чем кончилась бронь, в которую человек не приехал: когда это признали и сколько филиал
+    // оставил себе по своей же настройке. Сумма пустая, а не нулевая, когда не удерживали вовсе:
+    // ноль читался бы как «удержали нисколько», хотя удержания не было.
+    DateTimeOffset? NoShowAtUtc = null,
+    long? RetainedAmountMinorUnits = null);
 
 public sealed record ReservationSearchResultDto(
     IReadOnlyList<ReservationDto> Reservations,
