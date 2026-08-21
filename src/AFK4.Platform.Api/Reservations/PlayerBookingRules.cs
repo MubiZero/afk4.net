@@ -63,25 +63,33 @@ internal static class PlayerBookingRules
             Settings.HoldSeatAfterStartMinutes);
     }
 
+    /// <summary>
+    /// <paramref name="playerAccountId"/> пуст, когда счёта в этом клубе ещё нет: человек только
+    /// смотрит правила перед первой бронью. Считать ему нечего — ноль визитов и ноль броней, — и
+    /// это не заглушка, а правда: клубу он ровно тот новый гость, о котором говорят настройки.
+    /// </summary>
     public static async Task<Evaluation> EvaluateAsync(
         PlatformDbContext dbContext,
         Guid organizationId,
         Guid branchId,
-        Guid playerAccountId,
+        Guid? playerAccountId,
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
         var settings = await BranchBookingSettingsDefaults.ResolveAsync(
             dbContext, organizationId, branchId, cancellationToken);
 
-        var isNewGuest = settings.RegularAfterVisits > 0
-            && await CountVisitsAsync(dbContext, branchId, playerAccountId, cancellationToken)
-                < settings.RegularAfterVisits;
+        var visits = playerAccountId is { } account
+            ? await CountVisitsAsync(dbContext, branchId, account, cancellationToken)
+            : 0;
+        var isNewGuest = settings.RegularAfterVisits > 0 && visits < settings.RegularAfterVisits;
 
         return new Evaluation(
             settings,
             PrepaymentRequired: isNewGuest && settings.RequirePrepaymentFromNewGuests,
-            ActiveBookings: await CountActiveBookingsAsync(dbContext, playerAccountId, now, cancellationToken),
+            ActiveBookings: playerAccountId is { } booked
+                ? await CountActiveBookingsAsync(dbContext, booked, now, cancellationToken)
+                : 0,
             MaxActiveBookings: isNewGuest ? settings.MaxActiveReservationsForNewGuests : null);
     }
 

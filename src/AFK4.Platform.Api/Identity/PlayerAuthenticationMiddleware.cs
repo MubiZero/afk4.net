@@ -85,14 +85,16 @@ public sealed class PlayerAuthenticationMiddleware(RequestDelegate next)
                 person.PlatformPersonId);
         }
         else if (!IsPersonScopeRoute(httpContext.Request.Path)
-            && !(selection.OrganizationId is not null && httpContext.OpensClubAccount()))
+            && !(selection.OrganizationId is not null
+                && (httpContext.OpensClubAccount() || httpContext.AllowsGuestWithoutClubAccount())))
         {
             // Человек опознан, но клуба нет — это не «кто ты такой», а «в каком клубе».
             // Отвечать 401 здесь значит отправить приложение на повторный вход, из которого
             // оно вернётся ровно с тем же результатом.
             //
-            // Исключение одно: клуб назван, а счёта в нём нет, и маршрут — это действие, ради
-            // которого счёт и открывается. Такой запрос пропускается, а счёт заводит сам эндпоинт.
+            // Исключений два, и оба требуют названного клуба: маршрут-действие, ради которого
+            // счёт и открывается (счёт заводит сам эндпоинт), и маршрут-рассказ о клубе, который
+            // человек читает до первого действия и который счёта не открывает вовсе.
             httpContext.Response.StatusCode = StatusCodes.Status409Conflict;
             await httpContext.Response.WriteAsJsonAsync(
                 new { error = "club_not_selected" }, httpContext.RequestAborted);

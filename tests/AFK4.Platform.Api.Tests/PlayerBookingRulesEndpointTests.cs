@@ -3,10 +3,13 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Branches;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Identity;
+using AFK4.Platform.Api.Tests.Identity;
 using AFK4.Shared.Contracts.Branches;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Reservations;
 using AFK4.Shared.Contracts.Sessions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests;
@@ -156,6 +159,86 @@ public sealed class PlayerBookingRulesEndpointTests
         Assert.False(rules.PrepaymentRequired);
         Assert.Equal(4, rules.MaxActiveReservations);
         Assert.Equal(30, rules.HoldSeatAfterStartMinutes);
+    }
+
+    [Fact]
+    public async Task GuestWithoutAnAccountInThisClub_StillSeesTheRules()
+    {
+        await using var factory = new PlatformApiFactory();
+        var person = await PlatformPersonTestData.AddPersonAsync(factory, "+992900000801");
+        var club = await PlatformPersonTestData.AddClubWithoutAccountsAsync(factory, "Незнакомый клуб");
+        using var client = factory.CreateClient();
+        await AuthenticateAsPersonAsync(factory, client, person.PlatformPersonId, club.OrganizationId);
+
+        var rules = await client.GetFromJsonAsync<PlayerBookingRulesDto>(
+            $"/api/me/branches/{club.BranchId:D}/booking-rules");
+
+        // Правила приёма нужнее всего как раз тому, у кого счёта ещё нет: предоплата, ручной
+        // приём и потолок броней — это то, что он должен узнать до первой брони, а не после.
+        Assert.NotNull(rules);
+        Assert.Equal(club.BranchId, rules.BranchId);
+        Assert.True(rules.PrepaymentRequired);
+        Assert.Equal(0, rules.ActiveReservations);
+        Assert.Equal(1, rules.MaxActiveReservations);
+
+        // Чтение витрины счёта не заводит: карточки-призраки стойке не нужны.
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.False(await db.PlayerAccounts.AnyAsync(
+            account => account.OrganizationId == club.OrganizationId));
+    }
+
+    [Fact]
+    public async Task GuestWithoutAnAccount_AskingAboutAnotherClubsBranch_IsNotFound()
+    {
+        await using var factory = new PlatformApiFactory();
+        var person = await PlatformPersonTestData.AddPersonAsync(factory, "+992900000802");
+        var club = await PlatformPersonTestData.AddClubWithoutAccountsAsync(factory, "Незнакомый клуб");
+        var stranger = await PlatformPersonTestData.AddClubWithoutAccountsAsync(factory, "Чужой клуб");
+        using var client = factory.CreateClient();
+        await AuthenticateAsPersonAsync(factory, client, person.PlatformPersonId, club.OrganizationId);
+
+        var response = await client.GetAsync($"/api/me/branches/{stranger.BranchId:D}/booking-rules");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task WithoutAToken_TheRulesStayClosed_EvenForANamedClub()
+    {
+        await using var factory = new PlatformApiFactory();
+        var club = await PlatformPersonTestData.AddClubWithoutAccountsAsync(factory, "Незнакомый клуб");
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Add(
+            PlayerAuthenticationMiddleware.OrganizationHeader, club.OrganizationId.ToString());
+
+        var response = await client.GetAsync($"/api/me/branches/{club.BranchId:D}/booking-rules");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    /// <summary>
+    /// Человек опознан, клуб назван, счёта в нём нет — состояние, в котором приложение открывает
+    /// клуб впервые.
+    /// </summary>
+    private static async Task AuthenticateAsPersonAsync(
+        PlatformApiFactory factory,
+        HttpClient client,
+        Guid platformPersonId,
+        Guid organizationId)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var tokens = await scope.ServiceProvider.GetRequiredService<IPlatformPersonTokenService>()
+            .IssueAsync(
+                await db.PlatformPersons.SingleAsync(p => p.PlatformPersonId == platformPersonId),
+                pinnedAccount: null,
+                CancellationToken.None);
+
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", tokens.AccessToken);
+        client.DefaultRequestHeaders.Add(
+            PlayerAuthenticationMiddleware.OrganizationHeader, organizationId.ToString());
     }
 
     [Fact]
