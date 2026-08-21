@@ -117,6 +117,32 @@ public class PortalReadsEndpointTests
         // 40 min elapsed * 50/min = 2000 minor; allow +1 min rounding slack from wall-clock delta.
         Assert.InRange(dto.ActiveSession.AccruedCostMinorUnits!.Value, 2_000, 2_100);
         Assert.Equal("Seat 1", dto.ActiveSession.SeatName);
+        // По какой цене идёт счёт. Растущая сумма без ставки — это число, которое человек не может
+        // проверить: он видит, что платит, и не видит, за что.
+        Assert.Equal("Вечерний", dto.ActiveSession.TariffName);
+        Assert.Equal(3_000, dto.ActiveSession.PricePerHourMinorUnits);
+        Assert.Equal("Зал A", dto.ActiveSession.ZoneName);
+    }
+
+    // У сессии с оплаченным временем цена не менее важна: по ней человек решает, продлевать ли, и
+    // сравнивает с тем, что у него на кошельке.
+    [Fact]
+    public async Task Dashboard_WithFixedSession_AlsoNamesTheTariffAndItsHourlyPrice()
+    {
+        await using var factory = new PlatformApiFactory();
+        var p = await SeedPlayerAsync(factory, "1234");
+        await SeedActiveOpenSessionAsync(
+            factory, p, pricePerMinute: 50, startedMinutesAgo: 10, fixedMinutes: 60);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, p.OrgId, "+992900000001", "1234");
+
+        var dto = await (await client.GetAsync("/api/me/dashboard"))
+            .Content.ReadFromJsonAsync<PlayerDashboardDto>();
+
+        Assert.Equal("fixed", dto!.ActiveSession!.DurationMode);
+        Assert.Equal("Вечерний", dto.ActiveSession.TariffName);
+        Assert.Equal(3_000, dto.ActiveSession.PricePerHourMinorUnits);
+        Assert.Equal("Зал A", dto.ActiveSession.ZoneName);
     }
 
     [Fact]
@@ -398,26 +424,50 @@ public class PortalReadsEndpointTests
 
     // Seeds a seat, a tariff version, and an active OPEN session for the player.
     private static async Task SeedActiveOpenSessionAsync(
-        PlatformApiFactory factory, SeededPlayer p, long pricePerMinute, int startedMinutesAgo)
+        PlatformApiFactory factory,
+        SeededPlayer p,
+        long pricePerMinute,
+        int startedMinutesAgo,
+        int? fixedMinutes = null)
     {
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var seatId = Guid.NewGuid();
         var tariffVersionId = Guid.NewGuid();
+        var tariffId = Guid.NewGuid();
+        var zoneId = Guid.NewGuid();
+        db.Zones.Add(new ZoneEntity
+        {
+            ZoneId = zoneId,
+            OrganizationId = p.OrgId,
+            BranchId = p.BranchId,
+            Name = "Зал A",
+            SortOrder = 1,
+            CreatedAtUtc = Now
+        });
         db.Seats.Add(new SeatEntity
         {
             SeatId = seatId,
             OrganizationId = p.OrgId,
             BranchId = p.BranchId,
-            ZoneId = Guid.NewGuid(),
+            ZoneId = zoneId,
             Name = "Seat 1",
             SortOrder = 0,
+            CreatedAtUtc = Now
+        });
+        db.Tariffs.Add(new TariffEntity
+        {
+            TariffId = tariffId,
+            OrganizationId = p.OrgId,
+            BranchId = p.BranchId,
+            Name = "Вечерний",
+            IsActive = true,
             CreatedAtUtc = Now
         });
         db.TariffVersions.Add(new TariffVersionEntity
         {
             TariffVersionId = tariffVersionId,
-            TariffId = Guid.NewGuid(),
+            TariffId = tariffId,
             OrganizationId = p.OrgId,
             BranchId = p.BranchId,
             VersionNumber = 1,
@@ -442,7 +492,9 @@ public class PortalReadsEndpointTests
             State = "active",
             RequestedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-startedMinutesAgo),
             StartedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-startedMinutesAgo),
-            EndsAtUtc = null,
+            EndsAtUtc = fixedMinutes is { } minutes
+                ? DateTimeOffset.UtcNow.AddMinutes(-startedMinutesAgo).AddMinutes(minutes)
+                : null,
             UpdatedAtUtc = Now
         });
         await db.SaveChangesAsync();

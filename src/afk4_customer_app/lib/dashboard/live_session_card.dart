@@ -143,6 +143,32 @@ class _LiveSessionCardState extends State<LiveSessionCard> {
                   style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error),
                 ),
               ),
+            // По какой цене идёт счёт и где человек сидит. Одной строкой и приглушённо: это
+            // справка, а не то, ради чего смотрят на карточку, — но без неё растущая сумма
+            // остаётся числом, которое нечем проверить.
+            ...(() {
+              final parts = [
+                ?session.tariffName,
+                if (session.pricePerHourMinorUnits != null)
+                  l.customerDashboardPerHour(formatMoney(
+                    session.pricePerHourMinorUnits!,
+                    session.currencyCode,
+                    locale: Localizations.localeOf(context).languageCode,
+                  )),
+                ?session.zoneName,
+              ];
+              if (parts.isEmpty) return const <Widget>[];
+              return [
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    parts.join(' · '),
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                ),
+              ];
+            })(),
             // Оплаченная наперёд сессия не набегает по секундам — бегущая стоимость только
             // у открытой.
             if (!fixed && session.accruedCostMinorUnits != null)

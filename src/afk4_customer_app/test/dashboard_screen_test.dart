@@ -43,6 +43,9 @@ Map<String, dynamic> _openSession() => {
       'remainingSeconds': null,
       'accruedCostMinorUnits': 4500,
       'currencyCode': 'TJS',
+      'tariffName': 'Вечерний',
+      'pricePerHourMinorUnits': 3000,
+      'zoneName': 'Зал A',
     };
 
 Map<String, dynamic> _fixedSession({required int remainingSeconds}) => {
@@ -119,6 +122,20 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.textContaining('Долг'), findsOneWidget);
+    await unmount(tester);
+  });
+
+  // Растущая сумма без ставки — это число, которое человек не может проверить: он видит, что
+  // платит, и не видит, за что. Цена называется за час, а не за минуту: клуб продаёт часы.
+  testWidgets('живая сессия называет тариф, цену часа и зал', (tester) async {
+    await tester.pumpWidget(
+      harness(clientWith(_serve((_dashboardJson(session: _openSession()), 200)))));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Вечерний'), findsOneWidget);
+    expect(find.textContaining('30,00'), findsWidgets);
+    expect(find.textContaining('в час'), findsOneWidget);
+    expect(find.textContaining('Зал A'), findsOneWidget);
     await unmount(tester);
   });
 

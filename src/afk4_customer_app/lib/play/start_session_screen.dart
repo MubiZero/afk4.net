@@ -8,6 +8,7 @@ import '../api/idempotency.dart';
 import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
+import '../reservations/tariff_picker.dart';
 import '../theme/app_theme.dart';
 
 /// Сколько играть. Три ходовых варианта вместо ввода минут: игрок стоит посреди зала с
@@ -200,14 +201,25 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
+                // Играют сию секунду — значит и тариф нужен действующий сию секунду. Тариф вне
+                // своих часов не прячется: пропавший из списка «Утренний» читается как сбой, а
+                // названный со своими часами объясняет и себя, и почему сейчас его не взять.
+                // Выбрать его нельзя — иначе человек жмёт «Начать» и получает отказ сервера,
+                // так и не поняв, при чём тут утро.
                 for (final tariff in _tariffs)
                   ChoiceChip(
-                    label: Text(tariff.name),
+                    label: Text([
+                      tariff.name,
+                      ?tariffScheduleLabel(tariff, l),
+                      if (!tariff.appliesNow) l.customerTariffUnavailableNow,
+                    ].join(' · ')),
                     selected: tariff.tariffVersionId == _tariffId,
-                    onSelected: (_) {
-                      setState(() => _tariffId = tariff.tariffVersionId);
-                      _refreshQuote();
-                    },
+                    onSelected: tariff.appliesNow
+                        ? (_) {
+                            setState(() => _tariffId = tariff.tariffVersionId);
+                            _refreshQuote();
+                          }
+                        : null,
                   ),
               ],
             ),
