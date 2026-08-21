@@ -12,13 +12,17 @@ const readArb = (loc: string) => JSON.parse(readFileSync(join(arbDir, `app_${loc
 const LOCALES = ['ru', 'en', 'tg'] as const;
 // Те же префиксы, что в ARB_TARGETS генератора: строки приложения, общие подписи для экранных
 // читалок и общие с операторской частью названия исходов брони.
-const PREFIXES = ['customer.', 'a11y.', 'booking.'];
+const PREFIXES = ['customer.', 'a11y.', 'booking.', 'ledger.'];
 const appKeys = Object.keys(messages.ru).filter((key) => PREFIXES.some((p) => key.startsWith(p))).sort();
 
-// Точки в ключе — не идентификатор Dart, поэтому ARB получает camelCase-имена.
+// Точки и подчёркивания в ключе — не идентификатор Dart, поэтому ARB получает camelCase-имена.
 // Дублируем правило здесь намеренно: тест обязан ловить и ошибку в самом преобразовании.
 const toArbName = (key: string) =>
-  key.split('.').map((part, index) => (index === 0 ? part : part[0].toUpperCase() + part.slice(1))).join('');
+  key
+    .split(/[._]/)
+    .filter((part) => part.length > 0)
+    .map((part, index) => (index === 0 ? part : part[0].toUpperCase() + part.slice(1)))
+    .join('');
 
 it('каждая локаль ARB несёт ровно те же строки приложения, что и каталог', () => {
   for (const locale of LOCALES) {

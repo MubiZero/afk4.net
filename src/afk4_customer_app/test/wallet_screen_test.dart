@@ -69,7 +69,7 @@ String _dashboard({int wallet = 120050, int held = 0, int debt = 0}) => jsonEnco
   'activeSession': null,
 });
 
-FakeHttpClient _serve({String? visits, String? purchases, String? receipt, String? dashboard}) =>
+FakeHttpClient _serve({String? visits, String? purchases, String? receipt, String? dashboard, String? ledger}) =>
     FakeHttpClient((request) {
       final path = request.url.path;
       if (path.endsWith('/receipt')) {
@@ -78,6 +78,7 @@ FakeHttpClient _serve({String? visits, String? purchases, String? receipt, Strin
       if (path == '/api/me/dashboard') return (dashboard ?? _dashboard(), 200);
       if (path == '/api/me/visits') return (visits ?? _page([]), 200);
       if (path == '/api/me/purchases') return (purchases ?? _page([]), 200);
+      if (path == '/api/me/wallet/ledger') return (ledger ?? _page([]), 200);
       return ('[]', 200);
     });
 
@@ -126,6 +127,36 @@ void main() {
     expect(find.text('PC-07'), findsOneWidget);
     expect(find.textContaining('45,00'), findsOneWidget);
     expect(find.textContaining('2 ч 30 мин'), findsOneWidget);
+  });
+
+  // Визиты и покупки построены не на деньгах: пополнение, кешбэк и бонус за друга не видны там
+  // нигде. Человек видел, за что списали, и не видел, откуда пришло, — кошелёк не сходился.
+  testWidgets('движения по кошельку названы словами и со знаком', (tester) async {
+    await tester.pumpWidget(harness(clientWith(_serve(ledger: _page([
+      {
+        'ledgerEntryId': 'l1',
+        'entryType': 'top_up',
+        'amount': {'currencyCode': 'TJS', 'minorUnits': 20000},
+        'quantitySeconds': 0,
+        'createdAtUtc': '2026-09-12T07:00:00Z',
+      },
+      {
+        'ledgerEntryId': 'l2',
+        'entryType': 'reservation_no_show_fee',
+        'amount': {'currencyCode': 'TJS', 'minorUnits': -1500},
+        'quantitySeconds': 0,
+        'createdAtUtc': '2026-09-12T10:00:00Z',
+      },
+    ])))));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Деньги'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Пополнение'), findsOneWidget);
+    expect(find.textContaining('+200,00'), findsOneWidget);
+    expect(find.text('Удержано за неявку'), findsOneWidget);
+    expect(find.textContaining('−15,00'), findsOneWidget);
   });
 
   testWidgets('пустая история говорит об этом словами', (tester) async {

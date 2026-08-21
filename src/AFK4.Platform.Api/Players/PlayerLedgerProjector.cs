@@ -7,6 +7,7 @@ using AFK4.Platform.Api.Billing;
 using AFK4.Platform.Api.Common;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Billing;
+using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Common;
 using Microsoft.EntityFrameworkCore;
 
@@ -73,6 +74,84 @@ public static class PlayerLedgerFilter
 // Guid.CompareTo внутри LINQ Where). Проекция — через переиспользуемый LedgerBalanceProjector.ToDto.
 public static class PlayerLedgerProjector
 {
+    /// <summary>
+    /// Выписка глазами игрока: те же записи журнала, но без служебных и без внутренних полей.
+    ///
+    /// Скрытое отбирается ДО нарезки страницы, а не после: отфильтруй мы уже набранную страницу,
+    /// она приходила бы короче обещанного, а часть событий не показалась бы вовсе — курсор ушёл
+    /// бы дальше них.
+    /// </summary>
+    public static async Task<CursorPage<PlayerLedgerEntryDto>> GetPlayerLedgerPageAsync(
+        PlatformDbContext dbContext,
+        Guid playerAccountId,
+        string? before,
+        int? limit,
+        CancellationToken cancellationToken)
+    {
+        var pageSize = PlayerLedgerFilter.ClampLimit(limit);
+
+        // Заморозка под бронь и её снятие — одно событие без денежного итога. Показать их значит
+        // выдать «−15 c» и «+15 c», между которыми ничего не произошло, и заставить человека
+        // искать пропажу, которой нет: придержанное объясняет третье число кошелька.
+        //
+        // Реверс настоящего списания при этом остаётся: человеку вернули деньги, и он вправе
+        // это видеть.
+        var holdIds = dbContext.LedgerEntries
+            .Where(entry => entry.PlayerAccountId == playerAccountId
+                && entry.EntryType == LedgerEntryTypeNames.ReservationHold)
+            .Select(entry => entry.LedgerEntryId);
+
+        var query = dbContext.LedgerEntries
+            .AsNoTracking()
+            .Where(entry => entry.PlayerAccountId == playerAccountId
+                && entry.EntryType != LedgerEntryTypeNames.ReservationHold
+                && (entry.ReversesLedgerEntryId == null
+                    || !holdIds.Contains(entry.ReversesLedgerEntryId.Value)));
+
+        bool hasCursor = CursorToken.TryDecode(before, out var afterTs, out var afterId);
+        if (hasCursor)
+        {
+            query = query.Where(entry => entry.CreatedAtUtc <= afterTs);
+        }
+
+        var windowSize = hasCursor ? (pageSize + 1) * 2 : pageSize + 1;
+        var candidates = await query
+            .OrderByDescending(entry => entry.CreatedAtUtc)
+            .ThenByDescending(entry => entry.LedgerEntryId)
+            .Take(windowSize)
+            .ToListAsync(cancellationToken);
+
+        var entries = hasCursor
+            ? candidates
+                .Where(entry =>
+                    entry.CreatedAtUtc < afterTs ||
+                    (entry.CreatedAtUtc == afterTs && entry.LedgerEntryId.CompareTo(afterId) < 0))
+                .Take(pageSize + 1)
+                .ToList()
+            : candidates.Take(pageSize + 1).ToList();
+
+        var hasMore = entries.Count > pageSize;
+        if (hasMore)
+        {
+            entries.RemoveAt(entries.Count - 1);
+        }
+
+        var items = entries
+            .Select(entry => new PlayerLedgerEntryDto(
+                entry.LedgerEntryId,
+                entry.EntryType,
+                new MoneyDto(entry.CurrencyCode, entry.AmountMinorUnits),
+                entry.QuantitySeconds,
+                entry.CreatedAtUtc))
+            .ToList();
+
+        var nextCursor = hasMore && entries.Count > 0
+            ? CursorToken.Encode(entries[^1].CreatedAtUtc, entries[^1].LedgerEntryId)
+            : null;
+
+        return new CursorPage<PlayerLedgerEntryDto>(items, nextCursor);
+    }
+
     public static async Task<CursorPage<LedgerEntryDto>> GetLedgerPageAsync(
         PlatformDbContext dbContext,
         Guid playerAccountId,

@@ -367,6 +367,38 @@ class VisitReceipt {
 }
 
 /// Покупка в баре: когда, что и на сколько.
+/// Движение по кошельку: что случилось с деньгами и когда. Тип приходит кодом — приложение
+/// называет его словами из общего каталога, того же, что читает стойка.
+class PlayerLedgerEntry {
+  const PlayerLedgerEntry({
+    required this.ledgerEntryId,
+    required this.entryType,
+    required this.amountMinorUnits,
+    required this.currencyCode,
+    required this.quantitySeconds,
+    required this.createdAtUtc,
+  });
+
+  final String ledgerEntryId;
+  final String entryType;
+  final int amountMinorUnits;
+  final String currencyCode;
+
+  /// Сколько времени принесла или забрала запись: у пакетов и бонусных часов деньги — не вся
+  /// правда. Ноль у обычных денежных строк.
+  final int quantitySeconds;
+  final DateTime createdAtUtc;
+
+  factory PlayerLedgerEntry.fromJson(Map<String, dynamic> json) => PlayerLedgerEntry(
+        ledgerEntryId: json['ledgerEntryId'] as String,
+        entryType: json['entryType'] as String,
+        amountMinorUnits: ((json['amount'] as Map<String, dynamic>)['minorUnits'] as num).toInt(),
+        currencyCode: (json['amount'] as Map<String, dynamic>)['currencyCode'] as String,
+        quantitySeconds: (json['quantitySeconds'] as num?)?.toInt() ?? 0,
+        createdAtUtc: DateTime.parse(json['createdAtUtc'] as String),
+      );
+}
+
 class PlayerPurchase {
   const PlayerPurchase({
     required this.posSaleId,
