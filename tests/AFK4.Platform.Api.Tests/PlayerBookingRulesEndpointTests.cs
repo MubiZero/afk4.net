@@ -36,7 +36,7 @@ public sealed class PlayerBookingRulesEndpointTests
         var org = Guid.NewGuid();
         var branch = Guid.NewGuid();
         var player = Guid.NewGuid();
-        var phone = $"+99290000{(uint)player.GetHashCode() % 10_000:D4}";
+        var phone = TestPhones.Next();
 
         db.Organizations.Add(new OrganizationEntity { OrganizationId = org, Name = "Клуб", CreatedAtUtc = Now });
         db.Branches.Add(new BranchEntity

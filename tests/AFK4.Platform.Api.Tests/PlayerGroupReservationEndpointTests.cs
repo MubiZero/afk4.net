@@ -35,9 +35,7 @@ public class PlayerGroupReservationEndpointTests
         var player = Guid.NewGuid();
         var tariffId = Guid.NewGuid();
         var tariffVersionId = Guid.NewGuid();
-        // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
-        // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
-        var phone = $"+99290000{(uint)player.GetHashCode() % 10_000:D4}";
+        var phone = TestPhones.Next();
 
         db.Organizations.Add(new OrganizationEntity { OrganizationId = org, Name = "Group Test Org", CreatedAtUtc = Now });
         db.Branches.Add(new BranchEntity

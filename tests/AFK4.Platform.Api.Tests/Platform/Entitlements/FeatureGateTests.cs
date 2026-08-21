@@ -43,7 +43,7 @@ public sealed class FeatureGateTests
         var player = Guid.NewGuid();
         // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
         // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
-        var phone = $"+99291{(uint)player.GetHashCode() % 10_000_000:D7}";
+        var phone = TestPhones.Next();
 
         db.Organizations.Add(new OrganizationEntity
         {

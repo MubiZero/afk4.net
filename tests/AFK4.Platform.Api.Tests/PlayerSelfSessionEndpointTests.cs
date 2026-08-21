@@ -37,9 +37,7 @@ public class PlayerSelfSessionEndpointTests
         var orgId = Guid.NewGuid();
         var branchId = Guid.NewGuid();
         var playerId = Guid.NewGuid();
-        // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
-        // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
-        var phone = $"+99290001{(uint)playerId.GetHashCode() % 10_000:D4}";
+        var phone = TestPhones.Next();
         var deviceId = Guid.NewGuid();
         var seatId = Guid.NewGuid();
         var tariffVersionId = Guid.NewGuid();

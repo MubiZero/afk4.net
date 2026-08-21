@@ -25,9 +25,7 @@ public sealed class PlayerDeviceEndpointTests
         var orgId = sameClubAs?.OrgId ?? Guid.NewGuid();
         var branchId = Guid.NewGuid();
         var playerId = Guid.NewGuid();
-        // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
-        // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
-        var phone = $"+99290003{(uint)playerId.GetHashCode() % 10_000:D4}";
+        var phone = TestPhones.Next();
 
         if (sameClubAs is null)
         {
