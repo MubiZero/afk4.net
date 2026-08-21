@@ -7,7 +7,7 @@ import type { PlayerApiClient } from './api/playerApi';
 
 it('renders the dashboard in English under the en locale', async () => {
   const api = {
-    getDashboard: mock().mockResolvedValue({ walletBalance: { currencyCode: 'TJS', minorUnits: 0 }, debtBalance: { currencyCode: 'TJS', minorUnits: 0 }, activeSession: null }),
+    getDashboard: mock().mockResolvedValue({ walletBalance: { currencyCode: 'TJS', minorUnits: 0 }, heldBalance: { currencyCode: 'TJS', minorUnits: 0 }, debtBalance: { currencyCode: 'TJS', minorUnits: 0 }, activeSession: null }),
     getTopUpIntents: mock().mockResolvedValue([])
   } as unknown as PlayerApiClient;
   render(

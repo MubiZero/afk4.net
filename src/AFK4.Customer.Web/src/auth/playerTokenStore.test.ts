@@ -1,7 +1,7 @@
 import { it, expect, beforeEach } from 'bun:test';
 import {
   readPlayerSession, writePlayerSession, clearPlayerSession,
-  playerSessionFromSignInResponse, isPlayerAccessTokenExpired,
+  playerSessionFromResponse, isPlayerAccessTokenExpired,
   type PlayerSession
 } from './playerTokenStore';
 
@@ -18,8 +18,8 @@ function makeStorage(): Storage {
 }
 
 const sample = {
-  playerAccountId: 'p1', organizationId: 'org1', displayName: 'Фёдор',
-  phoneVerified: true,
+  platformPersonId: 'person1', playerAccountId: 'p1', organizationId: 'org1', displayName: 'Фёдор',
+  phoneVerified: true, profileCompleted: true,
   accessToken: 'a', accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z',
   refreshToken: 'r', refreshTokenExpiresAtUtc: '2999-02-01T00:00:00Z'
 } satisfies PlayerSession;
@@ -43,14 +43,33 @@ it('reads null when accessToken is missing', () => {
   expect(readPlayerSession(storage)).toBeNull();
 });
 
-it('maps a sign-in response into a session', () => {
-  const s = playerSessionFromSignInResponse({
-    playerAccountId: 'p1', organizationId: 'org1', displayName: 'Фёдор', phoneVerified: false,
+// Человек, зарегистрировавшийся дома, ещё не имеет счёта ни в одном клубе. Требовать клуб при
+// чтении значило бы выкидывать его из приложения на первой же перезагрузке страницы.
+it('сессия человека без клуба переживает перезагрузку', () => {
+  const homeless: PlayerSession = { ...sample, playerAccountId: null, organizationId: null };
+  writePlayerSession(homeless, storage);
+  expect(readPlayerSession(storage)).toEqual(homeless);
+});
+
+it('maps a session response into a stored session', () => {
+  const s = playerSessionFromResponse({
+    playerAccountId: null, organizationId: null, displayName: '', phoneVerified: true,
     accessToken: 'a', accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z',
-    refreshToken: 'r', refreshTokenExpiresAtUtc: '2999-02-01T00:00:00Z'
+    refreshToken: 'r', refreshTokenExpiresAtUtc: '2999-02-01T00:00:00Z',
+    platformPersonId: 'person1', preferredLocale: null, profileCompleted: false
   });
-  expect(s.playerAccountId).toBe('p1');
-  expect(s.phoneVerified).toBe(false);
+  expect(s.platformPersonId).toBe('person1');
+  expect(s.playerAccountId).toBeNull();
+  expect(s.profileCompleted).toBe(false);
+});
+
+// Продление отдаёт то же тело, что и вход, но сохранённая раньше сессия может не нести признак
+// «имя и язык спрошены». Считать его незаполненным значило бы гонять человека по экрану имени
+// на каждом входе.
+it('сессия без признака заполненности считается заполненной', () => {
+  const { profileCompleted: _dropped, ...withoutFlag } = sample;
+  storage.setItem('afk4.player.session', JSON.stringify(withoutFlag));
+  expect(readPlayerSession(storage)?.profileCompleted).toBe(true);
 });
 
 it('detects an expired access token', () => {

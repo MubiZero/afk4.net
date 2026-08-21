@@ -7,7 +7,8 @@ beforeEach(() => { globalThis.localStorage?.clear(); });
 
 function setSignedInSession() {
   localStorage.setItem('afk4.player.session', JSON.stringify({
-    playerAccountId: 'p1', organizationId: 'org1', displayName: 'Ф', phoneVerified: true,
+    platformPersonId: 'person1', playerAccountId: 'p1', organizationId: 'org1', displayName: 'Ф',
+    phoneVerified: true, profileCompleted: true,
     accessToken: 'tok', accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z',
     refreshToken: 'ref', refreshTokenExpiresAtUtc: '2999-02-01T00:00:00Z'
   }));
@@ -21,9 +22,12 @@ function mockFetchWithFeatures(
 ) {
   const dashboardBody = JSON.stringify({
     walletBalance: { currencyCode: 'TJS', minorUnits: 0 },
+    heldBalance: { currencyCode: 'TJS', minorUnits: 0 },
     debtBalance: { currencyCode: 'TJS', minorUnits: 0 },
     activeSession: null,
-    items: [], nextCursor: null
+    items: [], nextCursor: null,
+    person: { platformPersonId: 'person1', phoneNumber: '+992900000001', displayName: 'Ф', preferredLocale: 'ru', phoneVerified: true, pinSet: false, networkBanned: false },
+    clubs: []
   });
   return mock().mockImplementation(async (url: unknown) => {
     if (typeof url === 'string' && url.includes('/api/me/features')) {
@@ -39,12 +43,28 @@ function mockFetchWithFeatures(
 
 it('shows the sign-in screen when there is no session', () => {
   render(<I18nProvider><App /></I18nProvider>);
-  expect(screen.getByRole('button', { name: 'Войти' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Прислать код' })).toBeInTheDocument();
+  expect(screen.queryByLabelText(/пароль/i)).not.toBeInTheDocument();
+});
+
+// Имя и язык спрашиваются один раз, сразу после кода из SMS: без них администратор не знает,
+// кого сажает за ПК.
+it('спрашивает имя, пока человек его не назвал', () => {
+  localStorage.setItem('afk4.player.session', JSON.stringify({
+    platformPersonId: 'person1', playerAccountId: null, organizationId: null, displayName: '',
+    phoneVerified: true, profileCompleted: false,
+    accessToken: 'tok', accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z',
+    refreshToken: 'ref', refreshTokenExpiresAtUtc: '2999-02-01T00:00:00Z'
+  }));
+  render(<I18nProvider><App /></I18nProvider>);
+  expect(screen.getByRole('heading', { name: 'Как вас зовут?' })).toBeInTheDocument();
+  expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
 });
 
 it('shows the app shell + dashboard tab when a session exists', () => {
   globalThis.localStorage?.setItem('afk4.player.session', JSON.stringify({
-    playerAccountId: 'p1', organizationId: 'org1', displayName: 'Фёдор', phoneVerified: true,
+    platformPersonId: 'person1', playerAccountId: 'p1', organizationId: 'org1', displayName: 'Фёдор',
+    phoneVerified: true, profileCompleted: true,
     accessToken: 'a', accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z',
     refreshToken: 'r', refreshTokenExpiresAtUtc: '2999-02-01T00:00:00Z'
   }));
@@ -55,7 +75,8 @@ it('shows the app shell + dashboard tab when a session exists', () => {
 
 it('navigates to the reservations tab and renders its screen', async () => {
   localStorage.setItem('afk4.player.session', JSON.stringify({
-    playerAccountId: 'p1', organizationId: 'org1', displayName: 'Ф', phoneVerified: false,
+    platformPersonId: 'person1', playerAccountId: 'p1', organizationId: 'org1', displayName: 'Ф',
+    phoneVerified: false, profileCompleted: true,
     accessToken: 'tok', accessTokenExpiresAtUtc: '2999-01-01T00:00:00Z',
     refreshToken: 'ref', refreshTokenExpiresAtUtc: '2999-02-01T00:00:00Z'
   }));
@@ -64,10 +85,13 @@ it('navigates to the reservations tab and renders its screen', async () => {
   // fields; getFeatures reads features (all enabled here, so the reservations tab stays visible).
   const body = JSON.stringify({
     walletBalance: { currencyCode: 'TJS', minorUnits: 0 },
+    heldBalance: { currencyCode: 'TJS', minorUnits: 0 },
     debtBalance: { currencyCode: 'TJS', minorUnits: 0 },
     activeSession: null,
     items: [], nextCursor: null,
-    features: ['online_booking', 'loyalty', 'online_topup', 'player_shop']
+    features: ['online_booking', 'loyalty', 'online_topup', 'player_shop'],
+    person: { platformPersonId: 'person1', phoneNumber: '+992900000001', displayName: 'Ф', preferredLocale: 'ru', phoneVerified: true, pinSet: false, networkBanned: false },
+    clubs: []
   });
   globalThis.fetch = mock().mockResolvedValue({ ok: true, status: 200, text: async () => body }) as unknown as typeof fetch;
   render(<I18nProvider><App /></I18nProvider>);
@@ -116,4 +140,35 @@ it('не роняет экран, если ответ 200 пришёл без к
   expect(screen.getByText('Главная')).toBeInTheDocument();
   expect(within(nav).getAllByRole('button')).toHaveLength(4);
   expect(within(nav).getByRole('button', { name: 'Брони' })).toBeInTheDocument();
+});
+
+// Клуб этой сборки обязан быть известен клиенту до первого запроса экрана. Уйдя без него,
+// запрос получил бы 409 у человека с двумя клубами — то есть «счёта тут нет» тому, у кого он есть.
+it('первый же запрос дашборда называет клуб этой сборки', async () => {
+  setSignedInSession();
+  localStorage.setItem('afk4.player.organizationKey', 'cyberx');
+  const calls: Array<[string, RequestInit | undefined]> = [];
+  globalThis.fetch = mock().mockImplementation(async (url: unknown, init: unknown) => {
+    calls.push([String(url), init as RequestInit | undefined]);
+    if (String(url).includes('/branding')) {
+      return { ok: true, status: 200, text: async () => JSON.stringify({ organizationId: 'org-77', name: 'CyberX', logoUrl: null, accentColor: null }) };
+    }
+    return {
+      ok: true, status: 200, text: async () => JSON.stringify({
+        walletBalance: { currencyCode: 'TJS', minorUnits: 0 },
+        heldBalance: { currencyCode: 'TJS', minorUnits: 0 },
+        debtBalance: { currencyCode: 'TJS', minorUnits: 0 },
+        activeSession: null, items: [], nextCursor: null, features: [],
+        person: { platformPersonId: 'person1', phoneNumber: '+992900000001', displayName: 'Ф', preferredLocale: 'ru', phoneVerified: true, pinSet: false, networkBanned: false },
+        clubs: []
+      })
+    };
+  }) as unknown as typeof fetch;
+
+  render(<I18nProvider><App /></I18nProvider>);
+  await waitFor(() => expect(calls.some(([url]) => url.includes('/api/me/dashboard'))).toBe(true));
+  const dashboardCall = calls.find(([url]) => url.includes('/api/me/dashboard'));
+  const headers = dashboardCall?.[1]?.headers as Record<string, string>;
+  expect(headers['X-AFK4-Organization']).toBe('org-77');
+  localStorage.clear();
 });

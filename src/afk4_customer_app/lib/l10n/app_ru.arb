@@ -8,6 +8,7 @@
   "a11yLoadingReceipt": "Загрузка чека",
   "a11yLoadingReservations": "Загрузка броней",
   "a11yLoadingVisits": "Загрузка визитов",
+  "a11yReservationsRespondIn": "Клуб ответит через:",
   "a11ySessionElapsed": "Сессия идёт:",
   "a11ySessionRemaining": "Осталось времени:",
   "customerAchievementFirstVisit": "Первый визит",
@@ -124,7 +125,11 @@
   "customerDashboardBookSeat": "Забронировать место",
   "customerDashboardDebt": "Долг",
   "customerDashboardDebtNote": "Погасить долг можно на стойке клуба",
+  "customerDashboardHeld": "Придержано под брони",
+  "customerDashboardHeldNote": "Вернётся, если бронь отменить или клуб не ответит.",
   "customerDashboardLoadError": "Не удалось загрузить данные. Проверьте соединение.",
+  "customerDashboardNoClub": "Вы здесь ещё не начинали",
+  "customerDashboardNoClubNote": "Счёт в этом клубе откроется с первой брони или пополнения.",
   "customerDashboardNoSession": "Нет активной сессии",
   "customerDashboardSessionActive": "Сессия активна",
   "customerDashboardSessionEnded": "Время вышло",
@@ -318,6 +323,22 @@
     }
   },
   "customerPhoneTitle": "Подтверждение номера",
+  "customerPinCancel": "Отмена",
+  "customerPinChange": "Сменить PIN",
+  "customerPinField": "Новый PIN",
+  "customerPinForgotNote": "Старый PIN не спросим — забыли, просто задайте новый.",
+  "customerPinHint": "От 4 до 8 цифр",
+  "customerPinInvalid": "PIN — это от 4 до 8 цифр",
+  "customerPinIsSet": "PIN задан",
+  "customerPinNetworkNote": "PIN один на все клубы сети.",
+  "customerPinNotSet": "PIN пока не задан",
+  "customerPinNote": "Введите его на игровом ПК — и сядете сами, без администратора.",
+  "customerPinSave": "Сохранить",
+  "customerPinSaveError": "Не удалось сохранить PIN",
+  "customerPinSaved": "PIN сохранён",
+  "customerPinSaving": "Сохраняем PIN…",
+  "customerPinSet": "Задать PIN",
+  "customerPinTitle": "PIN для посадки за ПК",
   "customerPlayBusyOffline": "ПК выключен",
   "customerPlayBusyReservation": "Забронировано",
   "customerPlayBusySession": "Занято",
@@ -505,7 +526,17 @@
     }
   },
   "customerReservationsHoldNote": "Сумма брони удерживается на кошельке и вернётся, если бронь отменить",
+  "customerReservationsLimitReached": "Больше заявок сейчас не принимаем — дождитесь ответа по текущим.",
   "customerReservationsLoadError": "Не удалось загрузить брони.",
+  "customerReservationsModeManual": "Заявку смотрит администратор — ответит за {minutes, plural, one {{minutes} минуту} few {{minutes} минуты} many {{minutes} минут} other {{minutes} минуты}}.",
+  "@customerReservationsModeManual": {
+    "placeholders": {
+      "minutes": {
+        "type": "num"
+      }
+    }
+  },
+  "customerReservationsModeOff": "Этот филиал сейчас не принимает брони из приложения.",
   "customerReservationsNewTitle": "Новая бронь",
   "customerReservationsNoFunds": "На кошельке не хватает денег на эту бронь — пополните и попробуйте снова",
   "customerReservationsNoSeat": "Без места",
@@ -513,6 +544,7 @@
   "customerReservationsNone": "Броней пока нет",
   "customerReservationsNoneHint": "Бронь держит выбранный ПК к вашему приходу",
   "customerReservationsNotChosen": "Не выбрано",
+  "customerReservationsPrepayment": "Сумму брони придержим на кошельке до вашего прихода.",
   "customerReservationsPrice": "К оплате {amount}",
   "@customerReservationsPrice": {
     "placeholders": {
@@ -538,6 +570,16 @@
       }
     }
   },
+  "customerReservationsRespondIn": "Клуб ответит: осталось {clock}",
+  "@customerReservationsRespondIn": {
+    "placeholders": {
+      "clock": {
+        "type": "String"
+      }
+    }
+  },
+  "customerReservationsRespondNote": "Не ответит вовремя — заявка снимется, а деньги вернутся целиком.",
+  "customerReservationsRespondOver": "Срок ответа вышел — заявка вот-вот снимется, деньги вернутся.",
   "customerReservationsSeatNote": "Место назначит администратор клуба — вы получите его в подтверждении.",
   "customerReservationsSeats": "Сколько мест",
   "customerReservationsSeatsAlone": "Бронь на одного",
@@ -668,10 +710,21 @@
   "customerShopStatusPlaced": "Заказ принят, готовим",
   "customerShopTitle": "Заказ к месту",
   "customerShopTotal": "Итого",
+  "customerSigninAccountDisabled": "Этот номер закрыт. Обратитесь на стойку клуба.",
   "customerSigninByCode": "Войти по SMS-коду",
   "customerSigninByPassword": "Войти по паролю",
+  "customerSigninChangePhone": "Другой номер",
+  "customerSigninCode": "Код из SMS",
   "customerSigninCodeError": "Неверный код",
   "customerSigninCodeExpired": "Код устарел — запросите новый",
+  "customerSigninCodeLifetime": "Код действует {minutes, plural, one {{minutes} минуту} few {{minutes} минуты} many {{minutes} минут} other {{minutes} минуты}}.",
+  "@customerSigninCodeLifetime": {
+    "placeholders": {
+      "minutes": {
+        "type": "num"
+      }
+    }
+  },
   "customerSigninCodeNone": "Код не запрашивали или он уже использован",
   "customerSigninCodeSent": "Код отправлен на {phone}. Если такой игрок есть в клубе.",
   "@customerSigninCodeSent": {
@@ -681,13 +734,35 @@
       }
     }
   },
+  "customerSigninCodeSentTo": "Код отправлен на {phone}",
+  "@customerSigninCodeSentTo": {
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
   "customerSigninCodeTooMany": "Слишком много попыток — запросите новый код",
   "customerSigninError": "Неверный номер или пароль",
   "customerSigninNetworkError": "Нет связи с сервером. Проверьте интернет.",
+  "customerSigninNewHere": "Впервые здесь? Тоже вводите номер — спросим имя, и всё.",
   "customerSigninPassword": "PIN или пароль",
   "customerSigninPhone": "Телефон",
+  "customerSigninPhoneError": "Проверьте номер телефона",
+  "customerSigninResend": "Прислать код ещё раз",
+  "customerSigninResendIn": "Новый код можно запросить через {seconds} с",
+  "@customerSigninResendIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "customerSigninSendCode": "Прислать код",
+  "customerSigninSending": "Отправляем…",
   "customerSigninSubmit": "Войти",
   "customerSigninSubmitting": "Входим…",
+  "customerSigninSubtitle": "Номер телефона — это и есть ваш вход. Пришлём на него код.",
   "customerSigninTitle": "Вход",
   "customerTariffDayFri": "Пт",
   "customerTariffDayMon": "Пн",
@@ -726,5 +801,12 @@
   "customerWeekday4": "Четверг",
   "customerWeekday5": "Пятница",
   "customerWeekday6": "Суббота",
-  "customerWeekday7": "Воскресенье"
+  "customerWeekday7": "Воскресенье",
+  "customerWelcomeName": "Имя",
+  "customerWelcomeNameError": "Введите имя",
+  "customerWelcomeSaveError": "Не удалось сохранить. Попробуйте ещё раз.",
+  "customerWelcomeSaving": "Сохраняем…",
+  "customerWelcomeSubmit": "Продолжить",
+  "customerWelcomeSubtitle": "Имя увидит администратор, когда будет сажать вас за ПК.",
+  "customerWelcomeTitle": "Как вас зовут?"
 }
