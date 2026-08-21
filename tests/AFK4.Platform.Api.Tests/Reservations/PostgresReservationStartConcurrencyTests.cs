@@ -214,6 +214,7 @@ public sealed class PostgresReservationStartConcurrencyTests
             database.BranchId,
             database.StaffUserId,
             NormalRequest(database),
+            SessionOriginNames.Operator,
             CancellationToken.None);
         await Task.WhenAll(reservationTask, normalTask).WaitAsync(TimeSpan.FromSeconds(30));
 
@@ -388,6 +389,7 @@ public sealed class PostgresReservationStartConcurrencyTests
                 Guid actorStaffUserId,
                 StartGuestSessionRequest request,
                 bool actorCanApproveComp,
+                string origin,
                 CancellationToken cancellationToken)
             {
                 var stage = await inner.StageAsync(
@@ -395,6 +397,7 @@ public sealed class PostgresReservationStartConcurrencyTests
                     actorStaffUserId,
                     request,
                     actorCanApproveComp,
+                    origin,
                     cancellationToken);
                 if (Interlocked.Increment(ref calls) == 1)
                 {

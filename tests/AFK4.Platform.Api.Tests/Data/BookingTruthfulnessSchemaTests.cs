@@ -84,7 +84,7 @@ public sealed class BookingTruthfulnessSchemaTests
         string[] origins =
         [
             SessionOriginNames.Operator,
-            SessionOriginNames.PlayerPin,
+            SessionOriginNames.SelfService,
             SessionOriginNames.Reservation
         ];
 

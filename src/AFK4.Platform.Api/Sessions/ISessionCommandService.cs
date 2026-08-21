@@ -36,10 +36,15 @@ public sealed record SessionCommandServiceResult(
 
 public interface ISessionCommandService
 {
+    /// <param name="origin">
+    /// Откуда взялась сессия (<see cref="SessionOriginNames"/>) — решает маршрут, а не запрос.
+    /// Без умолчания намеренно: см. <see cref="ISessionStartWorkflow.StageAsync"/>.
+    /// </param>
     Task<SessionCommandServiceResult> StartGuestSessionAsync(
         Guid branchId,
         Guid actorStaffUserId,
         StartGuestSessionRequest request,
+        string origin,
         CancellationToken cancellationToken,
         // Anti-fraud §5.4: whether the actor may authorise a comp above the comp threshold
         // (holds ApproveMoneyAction). Supplied by the endpoint from the staff context.

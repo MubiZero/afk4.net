@@ -12,13 +12,16 @@ public static class SessionOriginNames
     /// <summary>Посадил администратор за стойкой.</summary>
     public const string Operator = "operator";
 
-    /// <summary>Игрок сел сам, назвав номер и сетевой PIN за игровым ПК.</summary>
-    public const string PlayerPin = "player_pin";
+    /// <summary>
+    /// Игрок сел сам. Именно «сам», а не «по PIN»: самопосадка идёт и из приложения, где никакого
+    /// PIN человек не набирал, — имя по механизму врало бы в самом поле, заведённом ради правды.
+    /// </summary>
+    public const string SelfService = "self_service";
 
     /// <summary>Сессия выросла из брони: человек пришёл на забронированное время.</summary>
     public const string Reservation = "reservation";
 
-    public static readonly string[] All = [Operator, PlayerPin, Reservation];
+    public static readonly string[] All = [Operator, SelfService, Reservation];
 
     public static bool IsSupported(string? origin) =>
         origin is not null && All.Contains(origin, StringComparer.Ordinal);

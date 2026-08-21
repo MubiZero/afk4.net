@@ -33,7 +33,7 @@ public sealed class EfSessionCommandServiceTests
             TariffRuleVersionId: "manual-v1",
             IdempotencyKey: "start-seat-1-20260513-1000");
 
-        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, SessionOriginNames.Operator, CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.NotNull(result.Response);
@@ -86,7 +86,7 @@ public sealed class EfSessionCommandServiceTests
             IsComp: true,
             CompReason: "short"); // < 8 chars
 
-        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, SessionOriginNames.Operator, CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Empty(await db.Sessions.ToListAsync());
@@ -108,7 +108,7 @@ public sealed class EfSessionCommandServiceTests
             IsComp: true,
             CompReason: "birthday gift for loyal guest");
 
-        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, SessionOriginNames.Operator, CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Empty(await db.Sessions.ToListAsync());
@@ -123,7 +123,7 @@ public sealed class EfSessionCommandServiceTests
         var service = CreateService(db, new RecordingCommandDispatchService(), billing);
         var request = CompRequest("start-comp-ok");
 
-        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, SessionOriginNames.Operator, CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.NotNull(result.Response);
@@ -143,7 +143,7 @@ public sealed class EfSessionCommandServiceTests
         var service = CreateService(db, new RecordingCommandDispatchService(), billing);
         var request = CompRequest("start-comp-over");
 
-        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, SessionOriginNames.Operator, CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Empty(await db.Sessions.ToListAsync());
@@ -159,7 +159,7 @@ public sealed class EfSessionCommandServiceTests
         var request = CompRequest("start-comp-over-ok");
 
         var result = await service.StartGuestSessionAsync(
-            TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None, actorCanApproveComp: true);
+            TestIds.BranchId, ActorStaffUserId, request, SessionOriginNames.Operator, CancellationToken.None, actorCanApproveComp: true);
 
         Assert.True(result.Succeeded);
         Assert.Equal(9000, (await db.Sessions.SingleAsync()).CompValueMinorUnits);
@@ -181,7 +181,7 @@ public sealed class EfSessionCommandServiceTests
             IsComp: true,
             CompReason: "birthday gift for loyal guest");
 
-        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, SessionOriginNames.Operator, CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Empty(await db.Sessions.ToListAsync());
@@ -203,7 +203,7 @@ public sealed class EfSessionCommandServiceTests
             IsComp: true,
             CompReason: "birthday gift for loyal guest");
 
-        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var result = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, SessionOriginNames.Operator, CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.Empty(await db.Sessions.ToListAsync());
@@ -236,8 +236,8 @@ public sealed class EfSessionCommandServiceTests
             TariffRuleVersionId: "manual-v1",
             IdempotencyKey: "start-seat-1-20260513-1000");
 
-        var first = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
-        var second = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, CancellationToken.None);
+        var first = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, SessionOriginNames.Operator, CancellationToken.None);
+        var second = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, request, SessionOriginNames.Operator, CancellationToken.None);
 
         Assert.True(second.Succeeded);
         Assert.NotNull(first.Response);
@@ -263,8 +263,8 @@ public sealed class EfSessionCommandServiceTests
             IdempotencyKey: "start-seat-1-20260513-1000");
         var differentRequest = firstRequest with { SeatId = TargetSeatId };
 
-        await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, firstRequest, CancellationToken.None);
-        var conflict = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, differentRequest, CancellationToken.None);
+        await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, firstRequest, SessionOriginNames.Operator, CancellationToken.None);
+        var conflict = await service.StartGuestSessionAsync(TestIds.BranchId, ActorStaffUserId, differentRequest, SessionOriginNames.Operator, CancellationToken.None);
 
         Assert.True(conflict.Conflict);
         Assert.Null(conflict.Response);
@@ -284,6 +284,7 @@ public sealed class EfSessionCommandServiceTests
             TestIds.BranchId,
             ActorStaffUserId,
         new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            SessionOriginNames.Operator,
             CancellationToken.None);
         Assert.NotNull(start.Response);
         dispatcher.Clear();
@@ -323,6 +324,7 @@ public sealed class EfSessionCommandServiceTests
             TestIds.BranchId,
             ActorStaffUserId,
             new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            SessionOriginNames.Operator,
             CancellationToken.None);
         Assert.NotNull(start.Response);
 
@@ -360,6 +362,7 @@ public sealed class EfSessionCommandServiceTests
             TestIds.BranchId,
             ActorStaffUserId,
         new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            SessionOriginNames.Operator,
             CancellationToken.None);
         Assert.NotNull(start.Response);
         dispatcher.Clear();
@@ -402,6 +405,7 @@ public sealed class EfSessionCommandServiceTests
             TestIds.BranchId,
             ActorStaffUserId,
             new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.True(result.Succeeded);
@@ -422,6 +426,7 @@ public sealed class EfSessionCommandServiceTests
             TestIds.BranchId,
             ActorStaffUserId,
             new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            SessionOriginNames.Operator,
             CancellationToken.None);
         Assert.NotNull(start.Response);
         dispatcher.Clear();
@@ -453,6 +458,7 @@ public sealed class EfSessionCommandServiceTests
             TestIds.BranchId,
             ActorStaffUserId,
             new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            SessionOriginNames.Operator,
             CancellationToken.None);
         Assert.NotNull(start.Response);
 
@@ -482,6 +488,7 @@ public sealed class EfSessionCommandServiceTests
             new StartGuestSessionRequest(
                 TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1",
                 SessionDurationModes.Open, null, Guid.NewGuid(), BillingModeNames.PostpaidDebt),
+            SessionOriginNames.Operator,
             CancellationToken.None);
 
         Assert.NotNull(start.Response);
@@ -502,6 +509,7 @@ public sealed class EfSessionCommandServiceTests
             new StartGuestSessionRequest(
                 TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1",
                 SessionDurationModes.Open, null, Guid.NewGuid(), BillingModeNames.PostpaidDebt),
+            SessionOriginNames.Operator,
             CancellationToken.None);
         Assert.NotNull(start.Response);
 
@@ -529,6 +537,7 @@ public sealed class EfSessionCommandServiceTests
             TestIds.BranchId,
             ActorStaffUserId,
             new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            SessionOriginNames.Operator,
             CancellationToken.None);
         Assert.NotNull(start.Response);
         dispatcher.Clear();
@@ -558,6 +567,7 @@ public sealed class EfSessionCommandServiceTests
             TestIds.BranchId,
             ActorStaffUserId,
             new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            SessionOriginNames.Operator,
             CancellationToken.None);
         Assert.NotNull(start.Response);
         dispatcher.Clear();
@@ -588,6 +598,7 @@ public sealed class EfSessionCommandServiceTests
             TestIds.BranchId,
             ActorStaffUserId,
             new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            SessionOriginNames.Operator,
             CancellationToken.None);
         Assert.NotNull(start.Response);
         var sessionId = start.Response.Session.SessionId;
@@ -642,6 +653,7 @@ public sealed class EfSessionCommandServiceTests
             TestIds.BranchId,
             ActorStaffUserId,
             new StartGuestSessionRequest(TestIds.OrganizationId, SeatId, "manual-v1", "start-seat-1", SessionDurationModes.Fixed, 60),
+            SessionOriginNames.Operator,
             CancellationToken.None);
         Assert.NotNull(start.Response);
         notifier.Events.Clear();

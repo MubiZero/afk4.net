@@ -185,6 +185,7 @@ internal static class SessionEndpoints
                 branchId,
                 authorization.StaffContext.StaffUserId,
                 request,
+                SessionOriginNames.Operator,
                 cancellationToken,
                 actorCanApproveComp: authorization.StaffContext.Permissions.Contains(OrganizationPermissionNames.ApproveMoneyAction));
 

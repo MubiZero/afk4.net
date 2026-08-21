@@ -58,6 +58,10 @@ public sealed class SessionEndpointTests
         Assert.Equal(AuditActionNames.StartSession, audit.Action);
         Assert.Equal(AuditOutcome.Succeeded, audit.Outcome);
         Assert.Equal(body.Session.SessionId.ToString("D"), audit.TargetId);
+
+        // Откуда взялась сессия, решает маршрут, а не запрос: иначе приложение назвалось бы стойкой.
+        var session = await dbContext.Sessions.SingleAsync(row => row.SessionId == body.Session.SessionId);
+        Assert.Equal(SessionOriginNames.Operator, session.Origin);
     }
 
     // Anti-fraud §5.4: an explicit comp routes to a first-class session.comp audit carrying its

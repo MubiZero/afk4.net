@@ -36,6 +36,7 @@ public sealed class EfSessionCommandService(
         Guid branchId,
         Guid actorStaffUserId,
         StartGuestSessionRequest request,
+        string origin,
         CancellationToken cancellationToken,
         bool actorCanApproveComp = false)
     {
@@ -68,10 +69,11 @@ public sealed class EfSessionCommandService(
                 result = await ExecuteInTransactionAsync(async () =>
                 {
                     stage = await sessionStartWorkflow.StageAsync(
-                    branchId,
+                        branchId,
                         actorStaffUserId,
                         request,
                         actorCanApproveComp,
+                        origin,
                         cancellationToken);
                     await dbContext.SaveChangesAsync(cancellationToken);
                     return stage.Result;
