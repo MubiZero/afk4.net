@@ -108,6 +108,9 @@ public sealed class Worker(
                 var agentNowUtc = timeProvider.GetUtcNow();
                 offlineGraceState.RecordSuccessfulContact(agentNowUtc, heartbeat.EffectiveGraceMinutes);
                 WarnOnClockDrift(heartbeat.ServerTimeUtc, agentNowUtc);
+                // Код для монитора приезжает с сердцебиением — оболочка покажет его, пока за ПК
+                // никто не сидит. Пустой он у занятой машины: звать к ней некого.
+                seatingCode = heartbeat.SeatingCode;
                 await HandleHeartbeatCommandsAsync(client, heartbeat.Commands, cancellationToken);
             }
 
@@ -268,6 +271,9 @@ public sealed class Worker(
         }
     }
 
+    /// <summary>Код, который оболочка показывает на простаивающем экране. Приезжает с сердцебиением.</summary>
+    private string? seatingCode;
+
     private PlayerShellStateDto CreatePlayerShellState(AgentRuntimeState runtimeState)
     {
         var agentOptions = options.Value;
@@ -291,6 +297,7 @@ public sealed class Worker(
             IsGraceMode: isGraceMode,
             WarningThresholdSeconds: threshold,
             Message: CreatePlayerShellMessage(runtimeState),
+            SeatingCode: seatingCode,
             LauncherApps: [],
             Locale: agentOptions.PreferredLocale,
             WarningKind: PlayerShellWarning.Classify(runtimeState.State, remainingSeconds, threshold, isGraceMode),

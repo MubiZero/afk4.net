@@ -392,6 +392,8 @@
   "customerPlayBusyOffline": "ПК выключен",
   "customerPlayBusyReservation": "Забронировано",
   "customerPlayBusySession": "Занято",
+  "customerPlayCode": "Код с экрана ПК",
+  "customerPlayCodeHint": "Шесть цифр, которые показывает свободный ПК",
   "customerPlayConfirm": "Начать за {amount}",
   "@customerPlayConfirm": {
     "placeholders": {
@@ -404,6 +406,7 @@
   "customerPlayErrFunds": "На кошельке не хватает денег на это время",
   "customerPlayErrGeneric": "Не удалось начать сессию. Попробуйте ещё раз.",
   "customerPlayErrTaken": "Место только что заняли — выберите другое",
+  "customerPlayErrCode": "Код не подошёл. Проверьте цифры на экране — он меняется каждые пару минут.",
   "customerPlayLoadError": "Не удалось загрузить места",
   "customerPlayNoSeats": "Свободных мест нет",
   "customerPlayNoSeatsHint": "Подойдите к стойке — администратор подскажет, когда освободится.",
@@ -412,6 +415,14 @@
   "customerPlayPickSeat": "Выберите свободное место",
   "customerPlayPickTariff": "Выберите тариф",
   "customerPlaySeat": "Место",
+  "customerPlaySeatsFree": "Свободных мест: {count}",
+  "@customerPlaySeatsFree": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "customerPlayStart": "Сесть за ПК",
   "customerPlayStartHint": "Начните игру без оператора",
   "customerPlayStarted": "Сессия началась — садитесь за {seat}",

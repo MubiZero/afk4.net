@@ -40,6 +40,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<DeviceEntity> Devices => Set<DeviceEntity>();
 
+    public DbSet<DeviceSeatingCodeEntity> DeviceSeatingCodes => Set<DeviceSeatingCodeEntity>();
+
     public DbSet<DeviceSeatAssignmentEntity> DeviceSeatAssignments => Set<DeviceSeatAssignmentEntity>();
 
     public DbSet<DeviceCredentialEntity> DeviceCredentials => Set<DeviceCredentialEntity>();
@@ -438,6 +440,17 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.ToTable("walls");
             entity.HasKey(wall => wall.WallId);
             entity.HasIndex(wall => new { wall.OrganizationId, wall.BranchId });
+        });
+
+        modelBuilder.Entity<DeviceSeatingCodeEntity>(entity =>
+        {
+            entity.ToTable("device_seating_codes");
+            // Один живой код на машину: перерисовывать монитор на каждый вопрос значит заставить
+            // человека набирать движущуюся мишень.
+            entity.HasKey(code => code.DeviceId);
+            entity.Property(code => code.Code).HasMaxLength(16).IsRequired();
+            // По коду ищут внутри клуба — этой парой и ищут.
+            entity.HasIndex(code => new { code.OrganizationId, code.Code });
         });
 
         modelBuilder.Entity<DeviceEntity>(entity =>

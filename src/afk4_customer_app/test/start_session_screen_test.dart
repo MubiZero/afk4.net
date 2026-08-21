@@ -100,7 +100,9 @@ void main() {
     expect(find.byType(FilledButton), findsNothing);
   });
 
-  testWidgets('свободные и занятые места видны вместе, с причиной занятости', (tester) async {
+  // Список мест перестал быть выбором: машину называет её собственный монитор. Но «есть ли
+  // вообще куда сесть» — вопрос живой, и ответ на него остаётся.
+  testWidgets('экран говорит, сколько мест свободно', (tester) async {
     final http = _serve(
       seats: jsonEncode([
         _seat(id: 's1', name: 'PC-01'),
@@ -111,16 +113,18 @@ void main() {
     await tester.pumpWidget(harness(http));
     await open(tester);
 
-    expect(find.text('PC-01'), findsOneWidget);
-    expect(find.text('PC-02'), findsOneWidget);
-    expect(find.text('Занято'), findsOneWidget);
-    expect(find.text('ПК выключен'), findsOneWidget);
+    expect(find.textContaining('Свободных мест: 1'), findsOneWidget);
+    // Выбирать место больше нечем: клик по «PC-01» ничего не значит и его на экране нет.
+    expect(find.text('PC-01'), findsNothing);
   });
 
   testWidgets('цена времени спрашивается у сервера и стоит на кнопке', (tester) async {
     final http = _serve(seats: jsonEncode([_seat(id: 's1', name: 'PC-01')]));
     await tester.pumpWidget(harness(http));
     await open(tester);
+    // Цену сервер считает сразу, а кнопка ждёт код: без него начинать нечего.
+    await tester.enterText(find.byType(TextField), '482913');
+    await tester.pumpAndSettle();
 
     expect(http.paths, contains('/api/me/reservations/quote'));
     expect(find.textContaining('Начать за'), findsOneWidget);
@@ -159,28 +163,48 @@ void main() {
     expect(chip.onSelected, isNull);
   });
 
-  testWidgets('старт уходит с выбранным ПК, тарифом и временем', (tester) async {
+  // Код с монитора — доказательство, что человек стоит перед этой машиной. Раньше здесь уходил
+  // идентификатор устройства, выбранный из списка, и занять ПК можно было не приходя в клуб.
+  testWidgets('старт уходит с кодом, тарифом и временем', (tester) async {
     final http = _serve(
       seats: jsonEncode([_seat(id: 's1', name: 'PC-01'), _seat(id: 's2', name: 'PC-02')]),
-      start: ('{}', 200),
+      start: ('{"session":{"seatId":"s2"}}', 200),
     );
     String? closedWith;
     await tester.pumpWidget(harness(http, onClosed: (result) => closedWith = result));
     await open(tester);
 
-    await tester.tap(find.text('PC-02'));
+    await tester.enterText(find.byType(TextField), '482913');
     await tester.pumpAndSettle();
     await tester.tap(find.textContaining('Начать за'));
     await tester.pumpAndSettle();
 
-    final started = http.bodies.firstWhere((body) => body.containsKey('deviceId'));
-    expect(started['deviceId'], 'device-s2');
+    final started = http.bodies.firstWhere((body) => body.containsKey('seatingCode'));
+    expect(started['seatingCode'], '482913');
     expect(started['tariffRuleVersionId'], 'v1');
     expect(started['durationMinutes'], 60);
     // Платное действие — ключ идемпотентности защищает от двойного списания.
     expect(started['idempotencyKey'], isA<String>());
-    // Экран возвращает имя места: игроку, стоящему посреди зала, нужно знать, куда садиться.
+    // Имя места подтверждает, что человек не ошибся монитором.
     expect(closedWith, 'PC-02');
+  });
+
+  // Код не подошёл — это не общий сбой: он истёк, набран с чужого экрана или с опечаткой, и
+  // человеку надо сказать, куда смотреть.
+  testWidgets('не подошедший код объясняется своими словами', (tester) async {
+    final http = _serve(
+      seats: jsonEncode([_seat(id: 's1', name: 'PC-01')]),
+      start: ('{"error":"seating_code_invalid"}', 400),
+    );
+    await tester.pumpWidget(harness(http));
+    await open(tester);
+
+    await tester.enterText(find.byType(TextField), '000000');
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('Начать за'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Код не подошёл'), findsOneWidget);
   });
 
   testWidgets('нехватка денег названа своей причиной', (tester) async {
@@ -191,6 +215,8 @@ void main() {
     await tester.pumpWidget(harness(http));
     await open(tester);
 
+    await tester.enterText(find.byType(TextField), '482913');
+    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('Начать за'));
     await tester.pumpAndSettle();
 
@@ -206,6 +232,8 @@ void main() {
     await tester.pumpWidget(harness(http));
     await open(tester);
 
+    await tester.enterText(find.byType(TextField), '482913');
+    await tester.pumpAndSettle();
     await tester.tap(find.textContaining('Начать за'));
     await tester.pumpAndSettle();
 
@@ -254,6 +282,11 @@ void main() {
     await tester.pumpWidget(harness(http));
     await open(tester);
 
+    // Сначала кнопка ждёт код: без машины начинать нечего, каким бы ни был тариф.
+    expect(find.widgetWithText(FilledButton, 'Код с экрана ПК'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), '482913');
+    await tester.pumpAndSettle();
     expect(find.text('Выберите тариф'), findsOneWidget);
 
     await tester.tap(find.text('Ночной'));

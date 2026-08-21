@@ -12,6 +12,17 @@ export function LockedScreen({ state, onRequestOperator }: Props) {
         AFK4<span style={{ color: '#2dd4a7' }}>.NET</span>
       </strong>
       <p style={{ color: '#9ca3af', fontSize: 20 }}>{state?.message ?? 'Экран заблокирован'}</p>
+      {/* Код набирают с этого экрана в телефоне — значит он должен читаться через весь зал и
+          быть самым крупным, что на нём есть. Приходит только у свободной машины: у занятой
+          сервер его не выдаёт, и звать сюда некого. */}
+      {state?.seatingCode && (
+        <div style={{ textAlign: 'center', display: 'grid', gap: 8 }}>
+          <p style={{ color: '#9ca3af', fontSize: 18, margin: 0 }}>Сесть с телефона — введите код</p>
+          <strong style={{ fontSize: 72, letterSpacing: 12, fontVariantNumeric: 'tabular-nums' }}>
+            {state.seatingCode}
+          </strong>
+        </div>
+      )}
       <button type="button" onClick={() => onRequestOperator()} style={{ background: 'none', border: '1px solid #2b5b84', color: '#9ca3af', borderRadius: 8, padding: '10px 18px' }}>
         Позвать оператора
       </button>

@@ -911,6 +911,7 @@ internal static class PlayerSelfServiceEndpoints
             IPlayerClubMembershipService clubMembership,
             PlatformDbContext dbContext,
             ISessionCommandService sessionCommandService,
+            EfSeatingCodeService seatingCodes,
             CancellationToken cancellationToken) =>
         {
             // Клуб известен ещё до счёта: человек стоит у конкретного ПК конкретного клуба.
@@ -920,10 +921,20 @@ internal static class PlayerSelfServiceEndpoints
                 ?? personContextAccessor.Current?.SelectedOrganizationId;
             if (organizationId is null) return Results.Unauthorized();
 
+            // Код с монитора и есть доказательство, что человек стоит перед этой машиной. Не
+            // подошёл — отвечаем одним отказом на все случаи: чужой клуб, истёкший код и опечатка
+            // снаружи неразличимы, иначе перебор шестизначных цифр становится осмысленным.
+            var deviceId = await seatingCodes.RedeemAsync(
+                organizationId.Value, request.SeatingCode, cancellationToken);
+            if (deviceId is null)
+            {
+                return Results.BadRequest(new { error = "seating_code_invalid" });
+            }
+
             var assignment = await (
                 from a in dbContext.DeviceSeatAssignments.AsNoTracking()
                 join d in dbContext.Devices.AsNoTracking() on a.DeviceId equals d.DeviceId
-                where a.DeviceId == request.DeviceId &&
+                where a.DeviceId == deviceId.Value &&
                       a.OrganizationId == organizationId &&
                       a.DetachedAtUtc == null &&
                       d.EnrollmentState == DeviceEnrollmentStateNames.Approved

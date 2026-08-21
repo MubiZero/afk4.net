@@ -392,6 +392,8 @@
   "customerPlayBusyOffline": "PC is off",
   "customerPlayBusyReservation": "Booked",
   "customerPlayBusySession": "Taken",
+  "customerPlayCode": "Code from the computer screen",
+  "customerPlayCodeHint": "Six digits shown by a free PC",
   "customerPlayConfirm": "Start for {amount}",
   "@customerPlayConfirm": {
     "placeholders": {
@@ -404,6 +406,7 @@
   "customerPlayErrFunds": "Your wallet doesn't cover this time",
   "customerPlayErrGeneric": "Couldn't start the session. Try again.",
   "customerPlayErrTaken": "That seat was just taken; pick another",
+  "customerPlayErrCode": "That code did not work. Check the screen — it changes every couple of minutes.",
   "customerPlayLoadError": "Couldn't load the seats",
   "customerPlayNoSeats": "No free seats",
   "customerPlayNoSeatsHint": "Ask at the desk; they'll tell you when one frees up.",
@@ -412,6 +415,14 @@
   "customerPlayPickSeat": "Pick a free seat",
   "customerPlayPickTariff": "Pick a rate",
   "customerPlaySeat": "Seat",
+  "customerPlaySeatsFree": "Free seats: {count}",
+  "@customerPlaySeatsFree": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "customerPlayStart": "Take a PC",
   "customerPlayStartHint": "Start playing without the operator",
   "customerPlayStarted": "Session started; take {seat}",

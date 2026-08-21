@@ -38,4 +38,10 @@ export interface PlayerShellState {
   launcherApps: LauncherApp[];
   locale: string;
   warningKind: string;
+  /**
+   * Код с этого монитора: человек набирает его в приложении и садится именно за эту машину.
+   * Пусто у занятой машины и при потере связи — показать старый код значит позвать человека
+   * туда, куда сервер его не пустит.
+   */
+  seatingCode?: string | null;
 }

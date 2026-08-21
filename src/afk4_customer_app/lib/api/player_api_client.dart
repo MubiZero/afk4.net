@@ -320,21 +320,28 @@ class PlayerApiClient {
     return list.map((item) => _parse(item, PlayerSeat.fromJson)).toList();
   }
 
-  /// Начинает сессию за выбранным компьютером. Платное действие, отсюда ключ идемпотентности.
+  /// Начинает сессию за компьютером, код которого игрок прочитал с монитора. Платное действие,
+  /// отсюда ключ идемпотентности.
   ///
-  /// 409 — не хватает денег или место успели занять, 404 — за местом нет машины.
-  Future<void> startSession({
-    required String deviceId,
+  /// Код, а не выбор из списка: он доказывает, что человек стоит перед этой машиной. 400 —
+  /// код не подошёл (истёк, чужой клуб или опечатка), 409 — не хватает денег или место успели
+  /// занять.
+  /// Возвращает место, за которым человек оказался: код называет машину, а имя места на экране
+  /// подтверждает, что он не ошибся монитором.
+  Future<String?> startSession({
+    required String seatingCode,
     required String tariffRuleVersionId,
     required int durationMinutes,
     required String idempotencyKey,
   }) async {
-    await sendJson('POST', '/api/me/sessions/start', {
-      'deviceId': deviceId,
+    final body = await sendJson('POST', '/api/me/sessions/start', {
+      'seatingCode': seatingCode,
       'tariffRuleVersionId': tariffRuleVersionId,
       'durationMinutes': durationMinutes,
       'idempotencyKey': idempotencyKey,
     });
+    final session = body['session'] as Map<String, dynamic>?;
+    return session?['seatId'] as String?;
   }
 
   /// Во сколько обойдётся бронь. Считает сервер: правила округления и минимума живут в биллинге,
