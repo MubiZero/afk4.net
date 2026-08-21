@@ -165,6 +165,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<EfDeviceEnrollmentService>();
 builder.Services.AddScoped<IDeviceEnrollmentService>(provider => provider.GetRequiredService<EfDeviceEnrollmentService>());
 builder.Services.AddScoped<IDeviceCredentialValidator>(provider => provider.GetRequiredService<EfDeviceEnrollmentService>());
+builder.Services.AddScoped<EfSeatingCodeService>();
 builder.Services.AddScoped<IDeviceCredentialLifecycleService, EfDeviceCredentialLifecycleService>();
 builder.Services.AddScoped<IDeviceCommandStore, EfDeviceCommandStore>();
 builder.Services.AddSingleton<IDeviceConnectionRegistry, InMemoryDeviceConnectionRegistry>();

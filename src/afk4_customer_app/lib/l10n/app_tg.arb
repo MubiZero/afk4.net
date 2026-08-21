@@ -392,6 +392,8 @@
   "customerPlayBusyOffline": "ПК хомӯш аст",
   "customerPlayBusyReservation": "Брон шудааст",
   "customerPlayBusySession": "Банд",
+  "customerPlayCode": "Рамз аз экрани компютер",
+  "customerPlayCodeHint": "Шаш рақам, ки компютери озод нишон медиҳад",
   "customerPlayConfirm": "Оғоз бо {amount}",
   "@customerPlayConfirm": {
     "placeholders": {
@@ -404,6 +406,7 @@
   "customerPlayErrFunds": "Дар ҳамён барои ин вақт маблағ намерасад",
   "customerPlayErrGeneric": "Сессияро оғоз кардан муяссар нашуд. Бори дигар кӯшиш кунед.",
   "customerPlayErrTaken": "Ин ҷойро ҳозир банд карданд — дигарашро интихоб кунед",
+  "customerPlayErrCode": "Рамз нашуд. Рақамҳоро дар экран санҷед — он ҳар ду дақиқа иваз мешавад.",
   "customerPlayLoadError": "Ҷойҳоро бор кардан муяссар нашуд",
   "customerPlayNoSeats": "Ҷои холӣ нест",
   "customerPlayNoSeatsHint": "Ба мизи қабул муроҷиат кунед — мегӯянд, кай холӣ мешавад.",
@@ -412,6 +415,14 @@
   "customerPlayPickSeat": "Ҷои холиро интихоб кунед",
   "customerPlayPickTariff": "Тарифро интихоб кунед",
   "customerPlaySeat": "Ҷой",
+  "customerPlaySeatsFree": "Ҷойҳои озод: {count}",
+  "@customerPlaySeatsFree": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "customerPlayStart": "Ба ПК нишастан",
   "customerPlayStartHint": "Бе оператор бозиро оғоз кунед",
   "customerPlayStarted": "Сессия оғоз шуд — ба {seat} нишинед",

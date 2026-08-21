@@ -9,7 +9,6 @@ import '../api/player_api_client.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../reservations/tariff_picker.dart';
-import '../theme/app_theme.dart';
 
 /// Сколько играть. Три ходовых варианта вместо ввода минут: игрок стоит посреди зала с
 /// телефоном в руке, и лишний выбор здесь стоит ему времени, а клубу — очереди на стойке.
@@ -36,7 +35,9 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
   List<TariffOption> _tariffs = const [];
   bool _loadFailed = false;
 
-  String? _seatId;
+  /// Код с монитора. Раньше здесь лежал выбранный из списка ПК — и занять машину можно было
+  /// не приходя в клуб.
+  final TextEditingController _code = TextEditingController();
   String? _tariffId;
   int _minutes = playDurationsMinutes.first;
 
@@ -64,7 +65,6 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
         // Единственный тариф выбирать не из чего, а свободное место чаще всего одно и то же —
         // предвыбор экономит два касания в ситуации, где игрок торопится.
         _tariffId ??= tariffs.length == 1 ? tariffs.single.tariffVersionId : _tariffId;
-        _seatId ??= seats.where((seat) => seat.isAvailable).firstOrNull?.seatId;
       });
       _refreshQuote();
     } on PlayerApiException {
@@ -101,9 +101,9 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
 
   Future<void> _start() async {
     final l = L.of(context);
-    final seat = _seats?.where((candidate) => candidate.seatId == _seatId).firstOrNull;
     final tariffId = _tariffId;
-    if (seat == null || tariffId == null) return;
+    final code = _code.text.trim();
+    if (tariffId == null || code.isEmpty) return;
 
     setState(() {
       _starting = true;
@@ -111,20 +111,27 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
     });
 
     try {
-      await widget.api.startSession(
-        deviceId: seat.deviceId,
+      final seatId = await widget.api.startSession(
+        seatingCode: code,
         tariffRuleVersionId: tariffId,
         durationMinutes: _minutes,
         idempotencyKey: newIdempotencyKey(),
       );
       if (!mounted) return;
       unawaited(HapticFeedback.mediumImpact());
-      Navigator.of(context).pop(seat.seatName);
+      // Имя места подтверждает, что человек не ошибся монитором: код он набрал с одного экрана,
+      // а сессия началась именно там, где он стоит.
+      final seatName = _seats
+          ?.where((seat) => seat.seatId == seatId)
+          .firstOrNull
+          ?.seatName;
+      Navigator.of(context).pop(seatName ?? l.customerPlayTitle);
     } on PlayerApiException catch (error) {
       if (!mounted) return;
       setState(() {
         _starting = false;
         _error = switch ((error.statusCode, error.message)) {
+          (_, 'seating_code_invalid') => l.customerPlayErrCode,
           (_, 'insufficient_balance') => l.customerPlayErrFunds,
           (409, _) => l.customerPlayErrTaken,
           _ => l.customerPlayErrGeneric,
@@ -182,17 +189,28 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(l.customerPlaySeat, style: theme.textTheme.titleSmall),
+          // Код набирают, а места показываются справкой: «есть ли вообще куда сесть». Выбирать
+          // из списка больше нечего — машину называет тот ПК, перед которым человек стоит.
+          Text(l.customerPlayCode, style: theme.textTheme.titleSmall),
           const SizedBox(height: 8),
-          for (final seat in seats)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _SeatTile(
-                seat: seat,
-                selected: seat.seatId == _seatId,
-                onTap: seat.isAvailable ? () => setState(() => _seatId = seat.seatId) : null,
-              ),
+          TextField(
+            controller: _code,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            autofocus: true,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: '000000',
+              helperText: l.customerPlayCodeHint,
+              counterText: '',
             ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            l.customerPlaySeatsFree(seats.where((seat) => seat.isAvailable).length.toString()),
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
           if (_tariffs.isNotEmpty) ...[
             const SizedBox(height: 16),
             Text(l.customerReservationsTariff, style: theme.textTheme.titleSmall),
@@ -251,7 +269,8 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
     final theme = Theme.of(context);
     final locale = Localizations.localeOf(context).languageCode;
     final quote = _quote;
-    final ready = _seatId != null && _tariffId != null;
+    final code = _code.text.trim();
+    final ready = code.length == 6 && _tariffId != null;
 
     return SafeArea(
       child: Padding(
@@ -269,9 +288,9 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
               // Выключенная кнопка обязана говорить, чего ждёт: без этого игрок жмёт по ней и
               // считает, что приложение сломалось.
               child: Text(
-                switch ((_starting, _seatId, _tariffId, quote)) {
+                switch ((_starting, code.length == 6 ? code : null, _tariffId, quote)) {
                   (true, _, _, _) => l.customerPlayStarting,
-                  (_, null, _, _) => l.customerPlayPickSeat,
+                  (_, null, _, _) => l.customerPlayCode,
                   (_, _, null, _) => l.customerPlayPickTariff,
                   (_, _, _, null) => l.customerPlayTitle,
                   (_, _, _, final ready) => l.customerPlayConfirm(
@@ -280,74 +299,6 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SeatTile extends StatelessWidget {
-  const _SeatTile({required this.seat, required this.selected, required this.onTap});
-
-  final PlayerSeat seat;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  String _reason(L l) => switch (seat.unavailableReason) {
-        'session' => l.customerPlayBusySession,
-        'reservation' => l.customerPlayBusyReservation,
-        _ => l.customerPlayBusyOffline,
-      };
-
-  @override
-  Widget build(BuildContext context) {
-    final l = L.of(context);
-    final theme = Theme.of(context);
-    final free = seat.isAvailable;
-
-    return Material(
-      color: selected
-          ? theme.colorScheme.secondaryContainer
-          : theme.colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(AppTheme.radiusControl),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusControl),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(
-                free ? Icons.desktop_windows_outlined : Icons.lock_outline,
-                // Занятое место видно и без цвета — иконкой и подписью: цвет один читать нельзя.
-                color: free ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(seat.seatName, style: theme.textTheme.titleMedium),
-                    if (seat.zoneName.isNotEmpty)
-                      Text(
-                        seat.zoneName,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                  ],
-                ),
-              ),
-              if (!free)
-                Text(
-                  _reason(l),
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                )
-              else if (selected)
-                Icon(Icons.check_circle, color: theme.colorScheme.primary),
-            ],
-          ),
         ),
       ),
     );

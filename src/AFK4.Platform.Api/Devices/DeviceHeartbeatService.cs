@@ -2,6 +2,7 @@ using System.Text.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Platform.Api.Sessions;
 using AFK4.Shared.Contracts.Devices;
+using AFK4.Shared.Contracts.Sessions;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -15,6 +16,7 @@ public sealed class DeviceHeartbeatService(
     IDeviceCommandDispatchService commandDispatchService,
     IOptions<SessionLeaseOptions> leaseOptions,
     IOptions<HeartbeatOptions> heartbeatOptions,
+    EfSeatingCodeService seatingCodes,
     TimeProvider timeProvider) : IDeviceHeartbeatService
 {
     public async Task<DeviceHeartbeatResponse> RecordHeartbeatAsync(
@@ -114,10 +116,27 @@ public sealed class DeviceHeartbeatService(
             .Select(branch => branch.GraceLeaseMinutes)
             .FirstOrDefaultAsync(cancellationToken);
 
+        // Код показывает только свободная машина: звать человека к занятой незачем, а показать
+        // код поверх чужой игры значит позвать к ней постороннего.
+        var busy = await dbContext.Sessions
+            .AsNoTracking()
+            .AnyAsync(
+                session => session.DeviceId == request.DeviceId
+                    && (session.State == SessionStateNames.Active
+                        || session.State == SessionStateNames.Paused
+                        || session.State == SessionStateNames.Ending),
+                cancellationToken);
+
+        var seatingCode = busy || !allowOperationalCommands
+            ? null
+            : await seatingCodes.IssueAsync(request.OrganizationId, request.DeviceId, cancellationToken);
+
         return new DeviceHeartbeatResponse(
             ServerTimeUtc: timeProvider.GetUtcNow(),
             HeartbeatIntervalSeconds: HeartbeatIntervalPolicy.Resolve(commands.Count > 0, heartbeatOptions.Value),
             Commands: commands,
-            EffectiveGraceMinutes: GraceLeasePolicy.Resolve(branchGraceMinutes, leaseOptions.Value.LeaseMinutes));
+            EffectiveGraceMinutes: GraceLeasePolicy.Resolve(branchGraceMinutes, leaseOptions.Value.LeaseMinutes),
+            SeatingCode: seatingCode?.Code,
+            SeatingCodeExpiresAtUtc: seatingCode?.ExpiresAtUtc);
     }
 }

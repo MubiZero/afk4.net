@@ -225,7 +225,7 @@ internal static class PlayerCatalogEndpoints
                         : !seat.IsOnline ? PlayerSeatUnavailableReasons.Offline
                         : null;
                     return new PlayerSeatDto(
-                        seat.SeatId, seat.DeviceId, seat.SeatName, seat.ZoneName, reason is null, reason);
+                        seat.SeatId, seat.SeatName, seat.ZoneName, reason is null, reason);
                 })
                 .ToList());
         }).RequireRateLimiting("player-me");

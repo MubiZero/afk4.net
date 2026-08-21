@@ -365,6 +365,7 @@ public sealed class DeviceHeartbeatServicePersistenceTests
                 TimeProvider.System),
             Microsoft.Extensions.Options.Options.Create(new SessionLeaseOptions { LeaseMinutes = 15 }),
             Microsoft.Extensions.Options.Options.Create(heartbeatOptions ?? new HeartbeatOptions()),
+            new EfSeatingCodeService(dbContext, TimeProvider.System),
             TimeProvider.System);
     }
 

@@ -15,4 +15,8 @@ public sealed record PlayerShellStateDto(
     IReadOnlyList<LauncherAppDto> LauncherApps,
     string Locale = "ru",
     string WarningKind = PlayerShellWarningKinds.None,
-    ShellBrandingDto? Branding = null);
+    ShellBrandingDto? Branding = null,
+    // Код с этого монитора: человек набирает его в приложении и садится именно за эту машину.
+    // Пусто, когда за ПК уже играют или связи с сервером нет — показать старый код значит
+    // позвать человека к машине, которую сервер ему не отдаст.
+    string? SeatingCode = null);

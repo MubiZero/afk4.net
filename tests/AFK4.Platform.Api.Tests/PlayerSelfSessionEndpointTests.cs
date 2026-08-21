@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Devices;
 using AFK4.Shared.Contracts.Install;
 using AFK4.Shared.Contracts.Players;
 using AFK4.Shared.Contracts.Sessions;
@@ -28,6 +29,19 @@ public class PlayerSelfSessionEndpointTests
     /// The tariff: 1000 minor/min, min=1 min. At 60 min the charge = 60_000 minor.
     /// walletMinorUnits=100_000 comfortably covers it; 100 does not.
     /// </summary>
+    /// <summary>
+    /// Код, который сейчас показал бы монитор этой машины. Тест им и представляется: человек,
+    /// стоящий перед экраном, набирает то же самое.
+    /// </summary>
+    private static async Task<string> SeatingCodeAsync(PlatformApiFactory factory, SelfStartContext ctx)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var issued = await new EfSeatingCodeService(db, TimeProvider.System)
+            .IssueAsync(ctx.OrgId, ctx.DeviceId, CancellationToken.None);
+        return issued!.Code;
+    }
+
     private static async Task<SelfStartContext> SeedSelfStartContextAsync(
         PlatformApiFactory factory, long walletMinorUnits)
     {
@@ -170,6 +184,45 @@ public class PlayerSelfSessionEndpointTests
             new AuthenticationHeaderValue("Bearer", tokens!.AccessToken);
     }
 
+    /// <summary>
+    /// Код с чужого монитора или снятый час назад — не «почти годный». Иначе фотография экрана
+    /// работает вечно, и вся затея с кодом теряет смысл.
+    /// </summary>
+    [Fact]
+    public async Task SelfStart_WithADeadCode_IsRefused()
+    {
+        await using var factory = new PlatformApiFactory(useRealSessionBilling: true);
+        var ctx = await SeedSelfStartContextAsync(factory, walletMinorUnits: 100_000);
+        using var client = factory.CreateClient();
+        await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
+
+        var code = await SeatingCodeAsync(factory, ctx);
+        await ExpireSeatingCodesAsync(factory);
+
+        var response = await client.PostAsJsonAsync("/api/me/sessions/start",
+            new PlayerSelfStartRequest(code, ctx.TariffRuleVersionId, 60, Guid.NewGuid().ToString("N")));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("seating_code_invalid", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        Assert.False(await db.Sessions.AnyAsync(session => session.PlayerAccountId == ctx.PlayerId));
+    }
+
+    /// <summary>Код живёт минуты — состарить его в тесте дешевле, чем ждать.</summary>
+    private static async Task ExpireSeatingCodesAsync(PlatformApiFactory factory)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        foreach (var code in await db.DeviceSeatingCodes.ToListAsync())
+        {
+            code.ExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1);
+        }
+
+        await db.SaveChangesAsync();
+    }
+
     [Fact]
     public async Task SelfStart_WithSufficientWallet_StartsSession()
     {
@@ -179,7 +232,7 @@ public class PlayerSelfSessionEndpointTests
         await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
 
         var response = await client.PostAsJsonAsync("/api/me/sessions/start",
-            new PlayerSelfStartRequest(ctx.DeviceId, ctx.TariffRuleVersionId, 60, Guid.NewGuid().ToString("N")));
+            new PlayerSelfStartRequest(await SeatingCodeAsync(factory, ctx), ctx.TariffRuleVersionId, 60, Guid.NewGuid().ToString("N")));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -202,7 +255,7 @@ public class PlayerSelfSessionEndpointTests
         await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
 
         var response = await client.PostAsJsonAsync("/api/me/sessions/start",
-            new PlayerSelfStartRequest(ctx.DeviceId, ctx.TariffRuleVersionId, 60, Guid.NewGuid().ToString("N")));
+            new PlayerSelfStartRequest(await SeatingCodeAsync(factory, ctx), ctx.TariffRuleVersionId, 60, Guid.NewGuid().ToString("N")));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -216,7 +269,7 @@ public class PlayerSelfSessionEndpointTests
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync("/api/me/sessions/start",
-            new PlayerSelfStartRequest(Guid.NewGuid(), Guid.NewGuid().ToString("D"), 60, Guid.NewGuid().ToString("N")));
+            new PlayerSelfStartRequest("000000", Guid.NewGuid().ToString("D"), 60, Guid.NewGuid().ToString("N")));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -230,7 +283,7 @@ public class PlayerSelfSessionEndpointTests
         await AuthenticateAsync(client, ctx.OrgId, ctx.Phone, "1234");
 
         var start = await client.PostAsJsonAsync("/api/me/sessions/start",
-            new PlayerSelfStartRequest(ctx.DeviceId, ctx.TariffRuleVersionId, 60, Guid.NewGuid().ToString("N")));
+            new PlayerSelfStartRequest(await SeatingCodeAsync(factory, ctx), ctx.TariffRuleVersionId, 60, Guid.NewGuid().ToString("N")));
         start.EnsureSuccessStatusCode();
         Guid sessionId;
         await using (var scope = factory.Services.CreateAsyncScope())
