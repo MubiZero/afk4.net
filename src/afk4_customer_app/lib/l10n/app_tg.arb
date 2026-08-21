@@ -161,6 +161,14 @@
   "customerDashboardNoClub": "Шумо ҳанӯз дар ин ҷо оғоз накардаед",
   "customerDashboardNoClubNote": "Ҳисоб дар ин клуб бо бронии аввал ё пуркунии аввал кушода мешавад.",
   "customerDashboardNoSession": "Сессияи фаъол нест",
+  "customerDashboardPerHour": "{price} дар як соат",
+  "@customerDashboardPerHour": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
   "customerDashboardSessionActive": "Сессия фаъол аст",
   "customerDashboardSessionEnded": "Вақт тамом шуд",
   "customerDashboardSessionEndingSoon": "Вақт ба охир мерасад",
@@ -864,6 +872,7 @@
   "customerTariffDayThu": "Пш",
   "customerTariffDayTue": "Сш",
   "customerTariffDayWed": "Чш",
+  "customerTariffUnavailableNow": "Ҳоло дастрас нест",
   "customerWalletAmount": "Маблағ",
   "customerWalletAmountError": "Маблағи аз сифр зиёдро ворид кунед",
   "customerWalletGate": "Барои онлайн пур кардани ҳамён рақами телефони худро тасдиқ кунед.",

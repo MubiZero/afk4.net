@@ -53,14 +53,45 @@ public static class PlayerDashboardProjector
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
-        var seatName = await dbContext.Seats
+        var place = await dbContext.Seats
             .AsNoTracking()
             .Where(seat => seat.SeatId == session.SeatId)
-            .Select(seat => seat.Name)
-            .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
+            .Select(seat => new
+            {
+                seat.Name,
+                ZoneName = dbContext.Zones
+                    .Where(zone => zone.ZoneId == seat.ZoneId)
+                    .Select(zone => zone.Name)
+                    .FirstOrDefault()
+            })
+            .FirstOrDefaultAsync(cancellationToken);
 
+        var seatName = place?.Name ?? string.Empty;
         var startedAtUtc = session.StartedAtUtc ?? now;
         var currencyCode = "TJS";
+
+        // Тариф читается один раз на оба режима: у сессии с оплаченным временем цена не менее
+        // важна, чем у открытой, — по ней человек решает, продлевать ли, и сравнивает с кошельком.
+        TariffVersionEntity? version = null;
+        string? tariffName = null;
+        if (Guid.TryParse(session.TariffRuleVersionId, out var tariffVersionId))
+        {
+            version = await dbContext.TariffVersions
+                .AsNoTracking()
+                .FirstOrDefaultAsync(v => v.TariffVersionId == tariffVersionId, cancellationToken);
+            if (version is not null)
+            {
+                currencyCode = version.CurrencyCode;
+                tariffName = await dbContext.Tariffs
+                    .AsNoTracking()
+                    .Where(tariff => tariff.TariffId == version.TariffId)
+                    .Select(tariff => tariff.Name)
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+        }
+
+        // Цена за час, а не за минуту: клуб продаёт часы, и в них же человек считает.
+        var pricePerHour = version is null ? (long?)null : version.PricePerMinuteMinorUnits * 60;
 
         // Fixed session: expose remaining time, no accrued cost.
         if (session.EndsAtUtc is not null)
@@ -68,31 +99,26 @@ public static class PlayerDashboardProjector
             var remaining = (int)Math.Max(0, (session.EndsAtUtc.Value - now).TotalSeconds);
             return new ActiveSessionDto(
                 session.SessionId, session.SeatId, seatName, startedAtUtc,
-                "fixed", remaining, null, currencyCode);
+                "fixed", remaining, null, currencyCode,
+                tariffName, pricePerHour, place?.ZoneName);
         }
 
         // Open tab: count-up accrued cost via the shared tariff primitive.
         long? accrued = null;
-        if (Guid.TryParse(session.TariffRuleVersionId, out var tariffVersionId))
+        if (version is not null)
         {
-            var version = await dbContext.TariffVersions
-                .AsNoTracking()
-                .FirstOrDefaultAsync(v => v.TariffVersionId == tariffVersionId, cancellationToken);
-            if (version is not null)
-            {
-                currencyCode = version.CurrencyCode;
-                var pricing = new TariffPricing(
-                    version.PricePerMinuteMinorUnits,
-                    version.MinimumBillableMinutes,
-                    version.RoundingIncrementMinutes,
-                    version.CurrencyCode);
-                var computation = TariffBilling.ComputeForElapsed(now - startedAtUtc, pricing);
-                accrued = computation?.AmountMinorUnits;
-            }
+            var pricing = new TariffPricing(
+                version.PricePerMinuteMinorUnits,
+                version.MinimumBillableMinutes,
+                version.RoundingIncrementMinutes,
+                version.CurrencyCode);
+            var computation = TariffBilling.ComputeForElapsed(now - startedAtUtc, pricing);
+            accrued = computation?.AmountMinorUnits;
         }
 
         return new ActiveSessionDto(
             session.SessionId, session.SeatId, seatName, startedAtUtc,
-            "open", null, accrued, currencyCode);
+            "open", null, accrued, currencyCode,
+            tariffName, pricePerHour, place?.ZoneName);
     }
 }

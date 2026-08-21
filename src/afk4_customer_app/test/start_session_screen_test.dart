@@ -127,6 +127,38 @@ void main() {
     expect(find.textContaining('15,00'), findsOneWidget);
   });
 
+  // Играют сию секунду — значит и тариф нужен действующий сию секунду. Тариф вне своих часов не
+  // прячется: пропавший из списка «Утренний» читается как сбой. Но и выбрать его нельзя, иначе
+  // человек жмёт «Начать» и получает отказ сервера, так и не поняв, при чём тут утро.
+  testWidgets('тариф вне своих часов назван, но не выбирается', (tester) async {
+    final http = _serve(
+      seats: jsonEncode([_seat(id: 's1', name: 'PC-01')]),
+      tariffs: jsonEncode([
+        {
+          'tariffId': 't1', 'tariffVersionId': 'v1', 'name': 'Утренний',
+          'tariffRuleVersionId': 'v1', 'versionNumber': 1, 'currencyCode': 'TJS',
+          'pricePerMinuteMinorUnits': 25, 'minimumBillableMinutes': 0,
+          'roundingIncrementMinutes': 1, 'effectiveFromUtc': '2026-01-01T00:00:00Z',
+          'appliesOnDaysMask': 0, 'appliesFromMinuteOfDay': 480, 'appliesToMinuteOfDay': 960,
+          'appliesNow': false,
+        },
+      ]),
+    );
+    await tester.pumpWidget(harness(http));
+    await open(tester);
+
+    expect(find.textContaining('Утренний'), findsOneWidget);
+    expect(find.textContaining('08:00–16:00'), findsOneWidget);
+    expect(find.textContaining('Сейчас недоступен'), findsOneWidget);
+
+    // На экране есть и другие чипы (места, длительность) — берём именно тарифный.
+    final chip = tester.widget<ChoiceChip>(find.ancestor(
+      of: find.textContaining('Утренний'),
+      matching: find.byType(ChoiceChip),
+    ));
+    expect(chip.onSelected, isNull);
+  });
+
   testWidgets('старт уходит с выбранным ПК, тарифом и временем', (tester) async {
     final http = _serve(
       seats: jsonEncode([_seat(id: 's1', name: 'PC-01'), _seat(id: 's2', name: 'PC-02')]),

@@ -27,6 +27,9 @@ class ActiveSession {
     required this.remainingSeconds,
     required this.accruedCostMinorUnits,
     required this.currencyCode,
+    this.tariffName,
+    this.pricePerHourMinorUnits,
+    this.zoneName,
   });
 
   final String sessionId;
@@ -37,6 +40,12 @@ class ActiveSession {
   final int? accruedCostMinorUnits;
   final String currencyCode;
 
+  /// По какой цене идёт счёт и где человек сидит. Пусто у сессии без тарифа — гостевой,
+  /// заведённой на стойке руками.
+  final String? tariffName;
+  final int? pricePerHourMinorUnits;
+  final String? zoneName;
+
   factory ActiveSession.fromJson(Map<String, dynamic> json) => ActiveSession(
         sessionId: json['sessionId'] as String,
         seatName: json['seatName'] as String,
@@ -46,6 +55,9 @@ class ActiveSession {
         remainingSeconds: (json['remainingSeconds'] as num?)?.toInt(),
         accruedCostMinorUnits: (json['accruedCostMinorUnits'] as num?)?.toInt(),
         currencyCode: json['currencyCode'] as String,
+        tariffName: json['tariffName'] as String?,
+        pricePerHourMinorUnits: (json['pricePerHourMinorUnits'] as num?)?.toInt(),
+        zoneName: json['zoneName'] as String?,
       );
 }
 
@@ -392,6 +404,7 @@ class TariffOption {
     required this.name,
     required this.pricePerMinuteMinorUnits,
     required this.currencyCode,
+    this.appliesNow = true,
     this.appliesOnDaysMask = 0,
     this.appliesFromMinuteOfDay,
     this.appliesToMinuteOfDay,
@@ -403,6 +416,10 @@ class TariffOption {
   final String currencyCode;
 
   /// Биты дней недели с понедельника (1) по воскресенье (64); 0 — каждый день.
+  /// Действует ли тариф прямо сейчас — по часам клуба, а не телефона. Важно там, где играть
+  /// начинают сию секунду; для брони на завтра ответ никакого значения не имеет.
+  final bool appliesNow;
+
   final int appliesOnDaysMask;
 
   /// Окно местного времени клуба, минуты от полуночи. Оба null — круглосуточно, начало больше
@@ -418,6 +435,7 @@ class TariffOption {
         name: json['name'] as String,
         pricePerMinuteMinorUnits: (json['pricePerMinuteMinorUnits'] as num).toInt(),
         currencyCode: json['currencyCode'] as String,
+        appliesNow: json['appliesNow'] as bool? ?? true,
         appliesOnDaysMask: (json['appliesOnDaysMask'] as num?)?.toInt() ?? 0,
         appliesFromMinuteOfDay: (json['appliesFromMinuteOfDay'] as num?)?.toInt(),
         appliesToMinuteOfDay: (json['appliesToMinuteOfDay'] as num?)?.toInt(),

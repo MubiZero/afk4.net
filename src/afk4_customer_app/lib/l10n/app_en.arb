@@ -161,6 +161,14 @@
   "customerDashboardNoClub": "You have not started here yet",
   "customerDashboardNoClubNote": "Your account at this club opens with the first booking or top-up.",
   "customerDashboardNoSession": "No active session",
+  "customerDashboardPerHour": "{price} per hour",
+  "@customerDashboardPerHour": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
   "customerDashboardSessionActive": "Session active",
   "customerDashboardSessionEnded": "Time is up",
   "customerDashboardSessionEndingSoon": "Time is running out",
@@ -864,6 +872,7 @@
   "customerTariffDayThu": "Thu",
   "customerTariffDayTue": "Tue",
   "customerTariffDayWed": "Wed",
+  "customerTariffUnavailableNow": "Not available right now",
   "customerWalletAmount": "Amount",
   "customerWalletAmountError": "Enter an amount greater than zero",
   "customerWalletGate": "To top up your wallet online, confirm your phone number.",

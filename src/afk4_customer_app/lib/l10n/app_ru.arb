@@ -161,6 +161,14 @@
   "customerDashboardNoClub": "Вы здесь ещё не начинали",
   "customerDashboardNoClubNote": "Счёт в этом клубе откроется с первой брони или пополнения.",
   "customerDashboardNoSession": "Нет активной сессии",
+  "customerDashboardPerHour": "{price} в час",
+  "@customerDashboardPerHour": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
   "customerDashboardSessionActive": "Сессия активна",
   "customerDashboardSessionEnded": "Время вышло",
   "customerDashboardSessionEndingSoon": "Время заканчивается",
@@ -864,6 +872,7 @@
   "customerTariffDayThu": "Чт",
   "customerTariffDayTue": "Вт",
   "customerTariffDayWed": "Ср",
+  "customerTariffUnavailableNow": "Сейчас недоступен",
   "customerWalletAmount": "Сумма",
   "customerWalletAmountError": "Введите сумму больше нуля",
   "customerWalletGate": "Чтобы пополнять кошелёк онлайн, подтвердите свой номер телефона.",
