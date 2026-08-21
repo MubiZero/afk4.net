@@ -424,56 +424,10 @@ public sealed class EfReservationSessionCoordinator(
                 error);
     }
 
-    private async Task<ReservationDto> ProjectAsync(
+    private Task<ReservationDto> ProjectAsync(
         ReservationEntity reservation,
-        CancellationToken cancellationToken)
-    {
-        var seat = reservation.SeatId is null
-            ? null
-            : await dbContext.Seats.AsNoTracking().SingleOrDefaultAsync(
-                candidate => candidate.SeatId == reservation.SeatId.Value,
-                cancellationToken);
-        var zoneName = seat is null
-            ? null
-            : await dbContext.Zones.AsNoTracking()
-                .Where(zone => zone.ZoneId == seat.ZoneId)
-                .Select(zone => zone.Name)
-                .SingleOrDefaultAsync(cancellationToken);
-
-        // Посаженная заявка называет ту же личность, что и заявка в списке: поле, которое
-        // исчезает после посадки, для стойки хуже, чем поле, которого нет.
-        var platformPersonId = reservation.PlayerAccountId is not { } playerAccountId
-            ? null
-            : await dbContext.PlayerAccounts.AsNoTracking()
-                .Where(account => account.PlayerAccountId == playerAccountId)
-                .Select(account => account.PlatformPersonId)
-                .SingleOrDefaultAsync(cancellationToken);
-
-        return new ReservationDto(
-            reservation.ReservationId,
-            reservation.OrganizationId,
-            reservation.BranchId,
-            reservation.PlayerAccountId,
-            reservation.SeatId,
-            seat?.Name,
-            zoneName,
-            reservation.CustomerName,
-            reservation.PhoneNumber,
-            reservation.StartsAtUtc,
-            reservation.EndsAtUtc,
-            Math.Max(1, (int)Math.Round((reservation.EndsAtUtc - reservation.StartsAtUtc).TotalMinutes)),
-            reservation.State,
-            reservation.Source,
-            reservation.Note,
-            reservation.CreatedAtUtc,
-            reservation.UpdatedAtUtc,
-            reservation.CancelledAtUtc,
-            reservation.CancelReason,
-            reservation.ReservationGroupId,
-            reservation.Version,
-            reservation.StartedSessionId,
-            PlatformPersonId: platformPersonId);
-    }
+        CancellationToken cancellationToken) =>
+        ReservationProjection.ProjectOneAsync(dbContext, reservation, cancellationToken);
 
     private async Task<ReservationSessionStartResult> VersionConflictAsync(
         Guid reservationId,
