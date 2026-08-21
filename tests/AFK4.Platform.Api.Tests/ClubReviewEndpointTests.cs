@@ -34,9 +34,7 @@ public sealed class ClubReviewEndpointTests
         var playerId = Guid.NewGuid();
         var seatId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
-        // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
-        // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
-        var phone = $"+99290002{(uint)playerId.GetHashCode() % 10_000:D4}";
+        var phone = TestPhones.Next();
 
         if (sameClubAs is null)
         {

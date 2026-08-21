@@ -51,9 +51,7 @@ public class PlayerBookingCapacityTests
         var zone = Guid.NewGuid();
         var tariffId = Guid.NewGuid();
         var tariffVersionId = Guid.NewGuid();
-        // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
-        // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
-        var phone = $"+99291000{(uint)player.GetHashCode() % 10_000:D4}";
+        var phone = TestPhones.Next();
 
         db.Organizations.Add(new OrganizationEntity
         {

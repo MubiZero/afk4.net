@@ -82,9 +82,7 @@ public class EskhataTopUpIntentTests
         var org = Guid.NewGuid();
         var branch = Guid.NewGuid();
         var player = Guid.NewGuid();
-        // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
-        // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
-        var phone = $"+99290000{(uint)player.GetHashCode() % 10_000:D4}";
+        var phone = TestPhones.Next();
 
         // IOrganizationEntitlements.IsEnabledAsync anchors on the Organizations row: without it,
         // the org is "unknown" and every feature (including online_topup) resolves to disabled.

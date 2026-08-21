@@ -31,9 +31,7 @@ public class PortalWritesEndpointTests
         var org = Guid.NewGuid();
         var branch = Guid.NewGuid();
         var player = Guid.NewGuid();
-        // Номер должен быть из одних цифр: вход нормализует его до E.164, и шестнадцатеричные
-        // буквы из Guid оставили бы меньше одиннадцати цифр — такой номер отвергается.
-        var phone = $"+99290000{(uint)player.GetHashCode() % 10_000:D4}";
+        var phone = TestPhones.Next();
 
         // IOrganizationEntitlements.IsEnabledAsync anchors on the Organizations row: without it,
         // the org is "unknown" and every feature (online_booking, online_topup, ...) resolves to
@@ -354,7 +352,7 @@ public class PortalWritesEndpointTests
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
 
         var playerId = Guid.NewGuid();
-        var phone = $"+99291000{(uint)playerId.GetHashCode() % 10_000:D4}";
+        var phone = TestPhones.Next();
         db.PlayerAccounts.Add(new PlayerAccountEntity
         {
             PlayerAccountId = playerId,
