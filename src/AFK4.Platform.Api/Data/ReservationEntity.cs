@@ -52,6 +52,25 @@ public sealed class ReservationEntity
 
     public DateTimeOffset? ConfirmedAtUtc { get; set; }
 
+    // Чем всё кончилось, когда кончилось не по-хорошему. Обе даты и сумма необязательны: у
+    // подавляющего большинства броней ни неявки, ни отказа не случилось.
+    //
+    // Удержанная сумма дублирует запись журнала `reservation_no_show_fee` намеренно: карточка
+    // заявки и полоса на экране оператора показывают её десятками за раз, и ходить за каждой в
+    // журнал значит платить запросом за строку списка.
+    public DateTimeOffset? NoShowAtUtc { get; set; }
+
+    public long? RetainedAmountMinorUnits { get; set; }
+
+    // Отказ клуба: когда, по какой причине из справочника и что администратор добавил словами.
+    // Код нужен, чтобы причину можно было посчитать и перевести на язык игрока; текст — чтобы
+    // человеку было что прочитать, когда кода не хватает.
+    public DateTimeOffset? RejectedAtUtc { get; set; }
+
+    public string? RejectReasonCode { get; set; }
+
+    public string? RejectReasonNote { get; set; }
+
     public int Version { get; set; } = 1;
 
     public Guid? StartedSessionId { get; set; }
