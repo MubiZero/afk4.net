@@ -8,13 +8,15 @@ import {
   createPreviewOperatorRealtimeClient,
   type OperatorRealtimeConnectionState,
   type OperatorRealtimeOptions,
-  type SessionLifecycleChangedDto
+  type SessionLifecycleChangedDto,
+  type ReservationChangedDto
 } from './operatorRealtime';
 import type { AuthStatus, OperatorConfig } from './operatorTypes';
 import {
   matchesRealtimeScope,
   matchesCommandResultScope,
   matchesLifecycleScope,
+  matchesReservationScope,
   findSeatForDeviceStatus,
   shouldReloadFloorMapAfterDeviceStatus,
   loadBackendFloorMapState
@@ -189,6 +191,15 @@ export function useOperatorRealtime({
         // The push is a hint: reconcile the floor map (authoritative seat + version) and the
         // dashboard KPIs against the backend rather than trusting the event's fields blindly.
         scheduleAuthoritativeFloorMapReload();
+        scheduleShellReconcile();
+      },
+      onReservationChanged: (change: ReservationChangedDto) => {
+        if (disposed || !matchesReservationScope(change, authSession, branchId)) {
+          return;
+        }
+
+        // Событие — подсказка, а не источник правды: полоса перечитывает брони у сервера. Иначе
+        // два администратора, каждый со своей лентой событий, разошлись бы в том, что видят.
         scheduleShellReconcile();
       }
     };

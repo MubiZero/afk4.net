@@ -367,6 +367,7 @@ builder.Services.Configure<HeartbeatOptions>(builder.Configuration.GetSection(He
 builder.Services.AddScoped<ISessionLeaseSigner, EcdsaSessionLeaseSigner>();
 builder.Services.AddScoped<IHeartbeatSessionCommandPlanner, EfHeartbeatSessionCommandPlanner>();
 builder.Services.AddScoped<ISessionLifecycleNotifier, SignalRSessionLifecycleNotifier>();
+builder.Services.AddScoped<IReservationChangeNotifier, SignalRReservationChangeNotifier>();
 builder.Services.AddScoped<IShopOrderService, EfShopOrderService>();
 builder.Services.AddScoped<IShopOrderWorkflow, EfShopOrderWorkflow>();
 builder.Services.AddScoped<IShopOrderNotifier, SignalRShopOrderNotifier>();

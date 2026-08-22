@@ -15,7 +15,10 @@ public sealed class EfReservationService(
     // Нужен единственному действию — отметке неявки, которой положено попасть в кассовую смену.
     // Необязателен намеренно: сорок мест, где сервис создаётся в тестах, не имеют к смене
     // отношения, а отсутствие смены — законный ответ и в бою («клуб в этот момент был закрыт»).
-    IOpenShiftResolver? openShiftResolver = null) : IReservationService
+    IOpenShiftResolver? openShiftResolver = null,
+    // Необязателен по той же причине, что и резолвер смены: сорок мест, где сервис создаётся в
+    // тестах, к живому экрану стойки отношения не имеют. В бою его подставляет DI.
+    IReservationChangeNotifier? reservationNotifier = null) : IReservationService
 {
     private const int DefaultLimit = 40;
     private const int MaxLimit = 100;
@@ -567,8 +570,36 @@ public sealed class EfReservationService(
             return saveConflict;
         }
 
+        await AnnounceAsync(reservation, ReservationChangeKinds.Rejected, now, cancellationToken);
+
         return ReservationServiceResult<ReservationDto>.Ok(
             (await ProjectAsync([reservation], cancellationToken))[0]);
+    }
+
+    /// <summary>
+    /// Рассказать стойке о том, что уже случилось. Зовётся только после удачного сохранения:
+    /// событие о правке, которой нет в базе, — это спор экрана с базой.
+    /// </summary>
+    private async Task AnnounceAsync(
+        ReservationEntity reservation, string kind, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        if (reservationNotifier is null)
+        {
+            return;
+        }
+
+        await reservationNotifier.NotifyAsync(
+            new ReservationChangedDto(
+                reservation.OrganizationId,
+                reservation.BranchId,
+                reservation.ReservationId,
+                reservation.SeatId,
+                kind,
+                reservation.State,
+                reservation.Version,
+                reservation.StartsAtUtc,
+                now),
+            cancellationToken);
     }
 
     public async Task<ReservationServiceResult<ReservationDto>> MarkNoShowAsync(

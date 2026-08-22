@@ -36,7 +36,8 @@ public sealed class ReservationNoShowOptions
 public sealed class ReservationNoShowRunner(
     PlatformDbContext dbContext,
     TimeProvider timeProvider,
-    IOpenShiftResolver openShiftResolver)
+    IOpenShiftResolver openShiftResolver,
+    IReservationChangeNotifier? notifier = null)
 {
     /// <summary>Один проход. Возвращает число разобранных броней.</summary>
     public async Task<int> RunOnceAsync(CancellationToken cancellationToken)
@@ -61,6 +62,7 @@ public sealed class ReservationNoShowRunner(
             return 0;
         }
 
+        var announcements = new List<(ReservationEntity Reservation, string Kind)>();
         var settingsByBranch = new Dictionary<Guid, BranchBookingSettingsDto>();
         var shiftByBranch = new Dictionary<Guid, Guid?>();
         var handled = 0;
@@ -97,6 +99,7 @@ public sealed class ReservationNoShowRunner(
                 reservation.UpdatedByStaffUserId = Guid.Empty;
                 reservation.UpdatedAtUtc = now;
                 reservation.Version++;
+                announcements.Add((reservation, ReservationChangeKinds.Expired));
                 handled++;
                 continue;
             }
@@ -115,6 +118,7 @@ public sealed class ReservationNoShowRunner(
             // неявка отличается от отмены, разъехались бы на первом же исправлении.
             await ReservationNoShow.MarkAsync(
                 dbContext, reservation, settings, shiftId, Guid.Empty, now, cancellationToken);
+            announcements.Add((reservation, ReservationChangeKinds.NoShow));
             handled++;
         }
 
@@ -124,6 +128,27 @@ public sealed class ReservationNoShowRunner(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        // Рассказываем после сохранения и только о том, что действительно поменялось.
+        if (notifier is not null)
+        {
+            foreach (var (reservation, kind) in announcements)
+            {
+                await notifier.NotifyAsync(
+                    new ReservationChangedDto(
+                        reservation.OrganizationId,
+                        reservation.BranchId,
+                        reservation.ReservationId,
+                        reservation.SeatId,
+                        kind,
+                        reservation.State,
+                        reservation.Version,
+                        reservation.StartsAtUtc,
+                        now),
+                    cancellationToken);
+            }
+        }
+
         return handled;
     }
 }

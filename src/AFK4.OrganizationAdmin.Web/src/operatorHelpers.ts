@@ -10,7 +10,7 @@ import { isAccessTokenExpired } from './auth/staffSessionStore';
 import { mapFloorMapDtoToState, seatStatusLabel, type FloorMapLoadStatus, type OperatorFloorMapState } from './floorMapState';
 import { saveFloorMapCache } from './floorMapCache';
 import { hasPermission, permissionNames } from './operatorPermissions';
-import type { DeviceCommandResultDto, DeviceStatusChangedDto, OperatorRealtimeConnectionState, SessionLifecycleChangedDto } from './operatorRealtime';
+import type { DeviceCommandResultDto, DeviceStatusChangedDto, OperatorRealtimeConnectionState, SessionLifecycleChangedDto, ReservationChangedDto } from './operatorRealtime';
 import type { SeatSummary, SeatTone } from './operatorData';
 import type {
   Feedback,
@@ -772,6 +772,22 @@ export function matchesCommandResultScope(result: DeviceCommandResultDto, sessio
 }
 
 export function matchesLifecycleScope(change: SessionLifecycleChangedDto, session: OperatorAuthSession, branchId: string): boolean {
+  return change.organizationId.toLowerCase() === session.organizationId.toLowerCase()
+    && change.branchId.toLowerCase() === branchId.toLowerCase();
+}
+
+/**
+ * Событие брони — про этот клуб и этот филиал?
+ *
+ * Отбор тот же, что у событий сессии, и по той же причине: хаб вещает всё, что происходит, а
+ * администратор смотрит на один филиал. Чужая заявка, дёрнувшая его полосу, — это шум, который
+ * читается как «кто-то трогает мои брони».
+ */
+export function matchesReservationScope(
+  change: ReservationChangedDto,
+  session: OperatorAuthSession,
+  branchId: string
+): boolean {
   return change.organizationId.toLowerCase() === session.organizationId.toLowerCase()
     && change.branchId.toLowerCase() === branchId.toLowerCase();
 }

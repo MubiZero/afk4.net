@@ -1,7 +1,9 @@
+import { matchesReservationScope } from './operatorHelpers';
 import { describe, expect, it } from 'bun:test';
 import {
   deviceCommandResultEventName,
   deviceStatusChangedEventName,
+  reservationChangedEventName,
   sessionLifecycleChangedEventName,
   shopOrderCreatedEventName,
   shopOrderUpdatedEventName,
@@ -54,6 +56,7 @@ describe('operator realtime client', () => {
     expect(connection.registeredEvents()).toEqual([
       deviceCommandResultEventName,
       deviceStatusChangedEventName,
+      reservationChangedEventName,
       sessionLifecycleChangedEventName,
       shopOrderCreatedEventName,
       shopOrderUpdatedEventName
@@ -205,3 +208,18 @@ class FakeSignalRConnection implements SignalRConnectionLike {
     this.reconnectedHandler?.('connection-1');
   }
 }
+
+// Хаб вещает всё, что происходит в организации, а администратор смотрит на один филиал. Чужая
+// заявка, дёрнувшая его полосу, читается как «кто-то трогает мои брони» — и это хуже, чем
+// секундная задержка, ради которой всё затевалось.
+it('reservation change from another branch is not this desk’s business', () => {
+  const session = { organizationId: 'ORG-1' } as Parameters<typeof matchesReservationScope>[1];
+  const change = (branchId: string) => ({
+    organizationId: 'org-1', branchId, reservationId: 'r1', seatId: null,
+    kind: 'rejected', state: 'rejected', version: 2,
+    startsAtUtc: '2026-09-20T19:00:00Z', observedAtUtc: '2026-09-20T17:00:00Z'
+  });
+
+  expect(matchesReservationScope(change('branch-a'), session, 'BRANCH-A')).toBe(true);
+  expect(matchesReservationScope(change('branch-b'), session, 'branch-a')).toBe(false);
+});
