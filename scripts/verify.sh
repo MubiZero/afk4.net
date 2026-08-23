@@ -300,7 +300,7 @@ printf '\n%s за %dм %02dс. Логи: %s\n' \
 
 if [ ${#failed[@]} -eq 0 ]; then
   if printf '%s\n' "${lanes[@]}" | grep -qx windows; then
-    echo "Windows-часть прогнана на $AFK4_WINDOWS_HOST. Не проверено нигде, кроме живого зала: само железо — ПК, мониторы, платёжный терминал."
+    echo "Windows-часть прогнана ${AFK4_WINDOWS_HOST:+на $AFK4_WINDOWS_HOST}${AFK4_WINDOWS_HOST:-на раннере GitHub}. Не проверено нигде, кроме живого зала: само железо — ПК, мониторы, платёжный терминал."
   else
     echo "Не проверено здесь: наборы WPF-оболочек (собираются, но не запускаются) и тесты, помеченные WindowsOnly."
     echo "Прогнать их: scripts/verify.sh windows — на раннере GitHub, или со своей машиной в AFK4_WINDOWS_HOST."
