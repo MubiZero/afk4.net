@@ -42,11 +42,19 @@ jobs:
 
       # Только то, чего не гоняет локальный прогон: наборы оболочек целиком и два набора, где
       # часть тестов помечена WindowsOnly и вне Windows сообщается пропущенной.
+      # По одному проекту за раз: `dotnet test` принимает ровно один — перечисленные подряд
+      # уезжают в MSBuild как несколько проектов, и он отказывается.
       - name: Test Windows-only parts
-        run: >
-          dotnet test
-          tests/AFK4.OrganizationAdmin.App.Tests
-          tests/AFK4.Player.Shell.Tests
-          tests/AFK4.Agent.Service.Tests
-          tests/AFK4.SetupWizard.Tests
-          --no-build -p:NuGetAudit=false -v minimal
+        run: |
+          $projects = @(
+            'tests/AFK4.OrganizationAdmin.App.Tests',
+            'tests/AFK4.Player.Shell.Tests',
+            'tests/AFK4.Agent.Service.Tests',
+            'tests/AFK4.SetupWizard.Tests'
+          )
+          foreach ($project in $projects) {
+            Write-Host "::group::test $project"
+            dotnet test $project --no-build -p:NuGetAudit=false -v minimal
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Write-Host "::endgroup::"
+          }

@@ -199,7 +199,14 @@ lane_windows() {
 
   # Только то, чего нет на этой машине: оболочки и наборы с тестами, помеченными WindowsOnly.
   # Остальное уже проверено дорожкой dotnet, и гонять его второй раз — тратить минуты впустую.
-  ssh "$host" "powershell -NoProfile -Command \"cd '$dir'; dotnet test tests/AFK4.OrganizationAdmin.App.Tests tests/AFK4.Player.Shell.Tests tests/AFK4.Agent.Service.Tests tests/AFK4.SetupWizard.Tests --no-build -v minimal -p:NuGetAudit=false\""
+  # По одному проекту за раз: `dotnet test` принимает ровно один, перечисленные подряд ломают
+  # MSBuild.
+  for project in \
+    tests/AFK4.OrganizationAdmin.App.Tests tests/AFK4.Player.Shell.Tests \
+    tests/AFK4.Agent.Service.Tests tests/AFK4.SetupWizard.Tests; do
+    echo "── $project"
+    ssh "$host" "powershell -NoProfile -Command \"cd '$dir'; dotnet test $project --no-build -v minimal -p:NuGetAudit=false\""
+  done
 }
 
 # Своей машины нет — гоняем Windows-часть на раннере GitHub и ждём здесь. Ветку не пушим сами:
@@ -261,7 +268,9 @@ fi
 declare -a pids=() names=()
 for lane in "${lanes[@]}"; do
   step "Дорожка $lane — пошла"
-  if [ "$lane" = web ]; then
+  # Уступают только те, кто ест процессор: windows-дорожка почти всё время ждёт сеть, а её
+  # помощники в отдельный bash не уезжают.
+  if [ "$lane" = web ] || [ "$lane" = windows ]; then
     ( "lane_$lane" ) >"$logs/$lane.log" 2>&1 &
   else
     ( nice -n 10 bash -c "$(declare -f "lane_$lane"); fast=$fast; PG_HOST=$PG_HOST; PG_PORT=$PG_PORT; PG_DB=$PG_DB; PG_USER=$PG_USER; lane_$lane" ) >"$logs/$lane.log" 2>&1 &
