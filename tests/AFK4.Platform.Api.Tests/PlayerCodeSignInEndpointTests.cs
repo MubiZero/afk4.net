@@ -42,7 +42,7 @@ public sealed class PlayerCodeSignInEndpointTests
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
         var org = Guid.NewGuid();
         var player = Guid.NewGuid();
-        var phone = "+9929" + Math.Abs(player.GetHashCode()).ToString("D8")[..8];
+        var phone = TestPhones.Next();
 
         db.Organizations.Add(new OrganizationEntity
         {
