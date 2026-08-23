@@ -6,7 +6,6 @@ using AFK4.OrganizationAdmin.App.Audit;
 using AFK4.OrganizationAdmin.App.Diagnostics;
 using AFK4.OrganizationAdmin.App.Devices;
 using AFK4.OrganizationAdmin.App.Mvvm;
-using AFK4.OrganizationAdmin.App.PilotSetup;
 using AFK4.OrganizationAdmin.App.Updates;
 using AFK4.Shared.Contracts.Identity;
 
@@ -18,7 +17,6 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
     private readonly UpdateStatusWorkspaceViewModel? updateStatus;
     private readonly AuditSearchWorkspaceViewModel? auditSearch;
     private readonly DiagnosticsWorkspaceViewModel? diagnostics;
-    private readonly PilotSetupWorkspaceViewModel? pilotSetup;
     private readonly RelayCommand selectPanelCommand;
     private string apiBaseUrlText = "http://localhost:5074";
     private string organizationIdText = string.Empty;
@@ -31,8 +29,7 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             technicianTools: null,
             new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient()),
             new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient()),
-            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()),
-            new PilotSetupWorkspaceViewModel(new UnconfiguredOperatorPilotSetupApiClient()))
+            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()))
     {
     }
 
@@ -44,8 +41,7 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             technicianTools,
             new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient()),
             new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient()),
-            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()),
-            new PilotSetupWorkspaceViewModel(new UnconfiguredOperatorPilotSetupApiClient()))
+            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()))
     {
     }
 
@@ -58,8 +54,7 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             technicianTools,
             updateStatus,
             new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient()),
-            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()),
-            new PilotSetupWorkspaceViewModel(new UnconfiguredOperatorPilotSetupApiClient()))
+            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()))
     {
     }
 
@@ -73,8 +68,7 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             technicianTools,
             updateStatus,
             auditSearch,
-            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()),
-            new PilotSetupWorkspaceViewModel(new UnconfiguredOperatorPilotSetupApiClient()))
+            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()))
     {
     }
 
@@ -84,31 +78,12 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
         UpdateStatusWorkspaceViewModel? updateStatus,
         AuditSearchWorkspaceViewModel? auditSearch,
         DiagnosticsWorkspaceViewModel? diagnostics)
-        : this(
-            permissions,
-            technicianTools,
-            updateStatus,
-            auditSearch,
-            diagnostics,
-            new PilotSetupWorkspaceViewModel(new UnconfiguredOperatorPilotSetupApiClient()))
-    {
-    }
-
-    public SettingsWorkspaceViewModel(
-        IReadOnlySet<string> permissions,
-        TechnicianDeviceWorkflowViewModel? technicianTools,
-        UpdateStatusWorkspaceViewModel? updateStatus,
-        AuditSearchWorkspaceViewModel? auditSearch,
-        DiagnosticsWorkspaceViewModel? diagnostics,
-        PilotSetupWorkspaceViewModel? pilotSetup)
     {
         this.technicianTools = technicianTools;
         this.updateStatus = updateStatus;
         this.auditSearch = auditSearch;
         this.diagnostics = diagnostics;
-        this.pilotSetup = pilotSetup;
         Panels = [];
-        pilotSetup?.ApplyPermissions(permissions);
         selectPanelCommand = new RelayCommand(
             parameter =>
             {
@@ -134,8 +109,6 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
 
     public DiagnosticsWorkspaceViewModel? Diagnostics => diagnostics;
 
-    public PilotSetupWorkspaceViewModel? PilotSetup => pilotSetup;
-
     public bool HasTechnicianTools => technicianTools is not null && Panels.Any(panel => panel.Key == "devices");
 
     public bool HasUpdateStatus => updateStatus is not null && Panels.Any(panel => panel.Key == "updates");
@@ -144,7 +117,6 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
 
     public bool HasDiagnostics => diagnostics is not null && Panels.Any(panel => panel.Key == "diagnostics");
 
-    public bool HasPilotSetup => pilotSetup is not null && Panels.Any(panel => panel.Key == "pilot-setup");
 
     public string ApiBaseUrlText
     {
@@ -194,19 +166,16 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
         updateStatus?.ApplyContext(organizationId, branchId);
         auditSearch?.ApplyContext(organizationId, branchId);
         diagnostics?.ApplyContext(organizationId, branchId);
-        pilotSetup?.ApplyContext(organizationId, branchId);
     }
 
     public void ApplyContext(Guid organizationId, Guid branchId, IReadOnlySet<string> permissions)
     {
         RebuildPanels(permissions);
-        pilotSetup?.ApplyPermissions(permissions);
         ApplyContext(organizationId, branchId);
     }
 
     public void ApplyPermissions(IReadOnlySet<string> permissions)
     {
-        pilotSetup?.ApplyPermissions(permissions);
         RebuildPanels(permissions);
     }
 
@@ -282,7 +251,6 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
             OrganizationPermissionNames.ManagePosCatalog,
             OrganizationPermissionNames.AssignDeviceSeat))
         {
-            AddPanel("pilot-setup", "Пилотная настройка", "Первичная настройка филиала");
         }
 
         SelectedPanel = Panels.FirstOrDefault(panel => panel.Key == selectedKey) ?? Panels.FirstOrDefault();
@@ -290,7 +258,6 @@ public sealed class SettingsWorkspaceViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(HasUpdateStatus));
         OnPropertyChanged(nameof(HasAuditSearch));
         OnPropertyChanged(nameof(HasDiagnostics));
-        OnPropertyChanged(nameof(HasPilotSetup));
     }
 
     private void AddPanel(string key, string label, string description)

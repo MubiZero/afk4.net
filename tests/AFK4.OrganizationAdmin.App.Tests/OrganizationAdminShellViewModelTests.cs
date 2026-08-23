@@ -103,18 +103,6 @@ public sealed class OrganizationAdminShellViewModelTests
     }
 
     [Fact]
-    public void ApplySignedInContext_WithPilotSetupPermission_ShowsSettings()
-    {
-        var shell = new OrganizationAdminShellViewModel();
-
-        shell.ApplySignedInContext(CreateContext(OrganizationPermissionNames.ManageBranchStaff));
-
-        Assert.Contains(shell.NavigationItems, item => item.Kind == OrganizationAdminWorkspaceKind.Settings);
-        Assert.Contains(shell.Settings.Panels, panel => panel.Key == "pilot-setup");
-        Assert.True(shell.Settings.PilotSetup?.CanSetupStaff);
-    }
-
-    [Fact]
     public void ApplySignedInContext_WithPlayerViewPermission_ShowsPlayers()
     {
         var shell = new OrganizationAdminShellViewModel();
