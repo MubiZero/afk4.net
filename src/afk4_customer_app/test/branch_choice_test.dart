@@ -231,7 +231,7 @@ void main() {
       expect(find.text('В какой зал вы придёте?'), findsOneWidget);
 
       await tester.enterText(find.byType(TextField).first, '50');
-      await tester.tap(find.widgetWithText(FilledButton, 'Запросить'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Внести на стойке'));
       await tester.pumpAndSettle();
 
       expect(http.paths, contains('/api/me/wallet/top-up-intent'));

@@ -242,6 +242,9 @@ class TopUpIntent {
     required this.currencyCode,
     required this.state,
     required this.isExpired,
+    this.method = 'counter',
+    this.deepLink,
+    this.payUrl,
   });
 
   final String paymentIntentId;
@@ -250,12 +253,24 @@ class TopUpIntent {
   final String state;
   final bool isExpired;
 
+  /// `counter` — деньги вносят на стойке, `eskhata` — платят из приложения банка.
+  final String method;
+
+  /// Ссылка, открывающая приложение банка. Null, если платят на стойке или банк её не дал.
+  final String? deepLink;
+
+  /// Страница оплаты в браузере — запасной путь для телефона без приложения банка.
+  final String? payUrl;
+
   factory TopUpIntent.fromJson(Map<String, dynamic> json) => TopUpIntent(
         paymentIntentId: json['paymentIntentId'] as String,
         amountMinorUnits: (json['amountMinorUnits'] as num).toInt(),
         currencyCode: json['currencyCode'] as String,
         state: json['state'] as String,
         isExpired: json['isExpired'] as bool? ?? false,
+        method: json['method'] as String? ?? 'counter',
+        deepLink: json['deepLink'] as String?,
+        payUrl: json['payUrl'] as String?,
       );
 }
 
@@ -1098,5 +1113,20 @@ class PlayerAchievement {
         unlockedAtUtc: json['unlockedAtUtc'] == null
             ? null
             : DateTime.parse(json['unlockedAtUtc'] as String).toUtc(),
+      );
+}
+
+/// Чем клуб принимает деньги прямо сейчас. Стойка — всегда: это наличные в кассе. Онлайн
+/// держится и на тарифе платформы, и на заведённом мерчанте банка, поэтому спрашивается у
+/// сервера, а не выводится в приложении.
+class TopUpMethods {
+  const TopUpMethods({required this.counter, required this.online});
+
+  final bool counter;
+  final bool online;
+
+  factory TopUpMethods.fromJson(Map<String, dynamic> json) => TopUpMethods(
+        counter: json['counter'] as bool? ?? true,
+        online: json['online'] as bool? ?? false,
       );
 }

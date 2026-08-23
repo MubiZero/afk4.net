@@ -44,6 +44,9 @@ dependencies:
   latlong2: ^0.10.1
   firebase_core: ^4.13.0
   firebase_messaging: ^16.5.0
+  # Уводит в приложение банка по ссылке вида eskhata://pay/… и открывает страницу оплаты,
+  # когда приложения банка на телефоне нет.
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
