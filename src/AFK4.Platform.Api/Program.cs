@@ -607,6 +607,7 @@ app.MapPlatformFeatureEndpoints();
 app.MapPlatformRoleEndpoints();
 app.MapPlatformAnnouncementEndpoints();
 app.MapPlatformOffboardingEndpoints();
+app.MapPlatformPeopleEndpoints();
 app.MapPlatformAdminDirectoryEndpoints();
 app.MapPlatformAdminTwoFactorEndpoints();
 app.MapPlatformBillingEndpoints(organizations);

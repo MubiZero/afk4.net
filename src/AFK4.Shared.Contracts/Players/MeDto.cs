@@ -18,7 +18,8 @@ public sealed record MePersonDto(
     string? PreferredLocale,
     bool PhoneVerified,
     bool PinSet,
-    bool NetworkBanned);
+    bool NetworkBanned,
+    string? NetworkBanReason);
 
 /// <summary>
 /// Один клуб глазами игрока: сколько можно потратить, сколько придержано под брони, сколько

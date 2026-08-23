@@ -70,7 +70,7 @@ FakeHttpClient _serve({String features = '{"features":["online_topup","online_bo
     });
 
 /// «Кто я и где у меня счета». `clubs` пуст — человек в этом клубе ещё ничего не делал.
-Me _me({bool hasAccountHere = true}) => Me.fromJson({
+Me _me({bool hasAccountHere = true, bool banned = false, String? banReason}) => Me.fromJson({
       'person': {
         'platformPersonId': 'pp1',
         'phoneNumber': '+992900000000',
@@ -78,7 +78,8 @@ Me _me({bool hasAccountHere = true}) => Me.fromJson({
         'preferredLocale': 'ru',
         'phoneVerified': true,
         'pinSet': false,
-        'networkBanned': false,
+        'networkBanned': banned,
+        'networkBanReason': banReason,
       },
       'clubs': [
         if (hasAccountHere)
@@ -113,6 +114,32 @@ Widget harness(FakeHttpClient http, {VoidCallback? onSignOut, Me? me}) => Materi
     );
 
 void main() {
+  // Сетевой запрет действует во всех разделах, поэтому и объясняется поверх всех: человек,
+  // которому платформа закрыла сеть, иначе видел бы отказы без причины и шёл спорить к стойке,
+  // которая его не закрывала.
+  testWidgets('запрет платформы объясняется поверх разделов, вместе с причиной', (tester) async {
+    await tester.pumpWidget(harness(
+      _serve(),
+      me: _me(banned: true, banReason: 'Подобрал чужой кошелёк'),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Платформа закрыла вход в сеть'), findsOneWidget);
+    expect(find.text('Причина: Подобрал чужой кошелёк'), findsOneWidget);
+
+    // Деньги при этом видно: они остаются деньгами человека.
+    expect(find.text('Баланс кошелька'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('без запрета полосы нет', (tester) async {
+    await tester.pumpWidget(harness(_serve(), me: _me()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Платформа закрыла вход в сеть'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('открывается на главной', (tester) async {
     await tester.pumpWidget(harness(_serve()));
     await tester.pumpAndSettle();

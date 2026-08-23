@@ -310,6 +310,16 @@ public static class AuditActionNames
 
     public const string ViewPlatformAdmins = "platform.admins.view";
 
+    // Сетевой запрет — самое сильное решение платформы о человеке, и единственное её решение,
+    // которое чувствует не клуб, а живой игрок. Пишутся оба конца: и запрет, и снятие.
+    public const string SetNetworkBan = "platform.people.network_ban.set";
+
+    public const string LiftNetworkBan = "platform.people.network_ban.lift";
+
+    // Спрос по точному номеру пишется, как и клубный спрос репутации, на сам факт чтения:
+    // иначе панель платформы была бы способом молча проверять номера.
+    public const string LookupNetworkPerson = "platform.people.lookup";
+
     public const string PlatformAdminInvited = "platform.admins.invited";
 
     public const string PlatformAdminUpdated = "platform.admins.updated";

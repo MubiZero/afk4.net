@@ -9,11 +9,16 @@ namespace AFK4.Platform.Api.Identity;
 /// Клуб, о котором идёт этот запрос, — независимо от того, есть ли у человека в нём счёт. Именно
 /// сюда открывается счёт, если запрос оказался первым действием.
 /// </param>
+/// <param name="NetworkBanned">
+/// Платформа закрыла человеку самообслуживание во всей сети. Читается на каждом запросе вместе с
+/// самой личностью: запрет обязан начать действовать сразу, а не со следующим входом.
+/// </param>
 public sealed record PlatformPersonContext(
     Guid PlatformPersonId,
     Guid? PinnedOrganizationId,
     bool PhoneVerified,
-    Guid? SelectedOrganizationId = null);
+    Guid? SelectedOrganizationId = null,
+    bool NetworkBanned = false);
 
 public interface IPlatformPersonContextAccessor
 {

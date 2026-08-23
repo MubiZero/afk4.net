@@ -60,6 +60,18 @@ public sealed class PlayerAuthenticationMiddleware(RequestDelegate next)
 
         personContextAccessor.Current = person;
 
+        // Сетевой запрет останавливает действия, а не зрение: деньги на кошельке остаются
+        // деньгами человека, и посмотреть на них он вправе. Проверка стоит здесь, а не в каждом
+        // маршруте по отдельности, потому что забыть её в одном новом маршруте — значит открыть
+        // запрещённому ровно ту дверь, ради которой всё и делалось.
+        if (person.NetworkBanned && httpContext.IsBlockedForBannedPerson())
+        {
+            httpContext.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await httpContext.Response.WriteAsJsonAsync(
+                new { error = "network_banned" }, httpContext.RequestAborted);
+            return;
+        }
+
         if (!TryReadRequestedOrganization(httpContext, out var requestedOrganizationId))
         {
             httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;

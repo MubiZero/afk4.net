@@ -90,6 +90,11 @@ public sealed class OpaquePlayerTokenService(PlatformDbContext dbContext, TimePr
             return null;
         }
 
+        if (await IsNetworkBannedAsync(account.PlatformPersonId, cancellationToken))
+        {
+            return null;
+        }
+
         stored.RevokedAtUtc = now;
         var credential = await dbContext.PlayerCredentials
             .SingleOrDefaultAsync(c => c.PlayerAccountId == account.PlayerAccountId, cancellationToken);
@@ -132,12 +137,27 @@ public sealed class OpaquePlayerTokenService(PlatformDbContext dbContext, TimePr
             return null;
         }
 
+        // Токен, выданный до появления личностей, не знает, чей он, — поэтому сетевой запрет для
+        // него не «только чтение», а конец: клиент возвращается на вход, получает нынешний токен
+        // личности и дальше живёт по общему правилу.
+        if (await IsNetworkBannedAsync(account.PlatformPersonId, cancellationToken))
+        {
+            return null;
+        }
+
         var credential = await dbContext.PlayerCredentials
             .AsNoTracking()
             .SingleOrDefaultAsync(c => c.PlayerAccountId == stored.PlayerAccountId, cancellationToken);
 
         return new PlayerContext(stored.PlayerAccountId, stored.OrganizationId, credential?.PhoneVerified ?? false);
     }
+
+    private async Task<bool> IsNetworkBannedAsync(Guid? platformPersonId, CancellationToken cancellationToken) =>
+        platformPersonId is { } personId
+        && await dbContext.PlatformPersons
+            .AsNoTracking()
+            .AnyAsync(person => person.PlatformPersonId == personId && person.NetworkBanAtUtc != null,
+                cancellationToken);
 
     private static (Guid TokenId, string Token) CreateToken()
     {

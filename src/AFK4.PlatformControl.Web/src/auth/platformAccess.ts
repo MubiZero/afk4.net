@@ -20,6 +20,7 @@ export type PlatformCapability =
   | 'admins.manage'
   | 'announcements.manage'
   | 'offboarding.manage'
+  | 'people.network_ban.manage'
   | 'health.read';
 
 const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
@@ -67,6 +68,7 @@ const CAPABILITY_PERMISSIONS: Record<PlatformCapability, readonly string[]> = {
   'admins.manage': ['platform.admins.manage'],
   'announcements.manage': ['platform.announcements.manage'],
   'offboarding.manage': ['platform.organizations.offboarding.manage'],
+  'people.network_ban.manage': ['platform.people.network_ban.manage'],
   'health.read': ['platform.health.view']
 };
 

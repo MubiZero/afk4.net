@@ -30,6 +30,16 @@
   "customerAchievementVeteranHint": "Пятьдесят визитов в клуб",
   "customerActionsBook": "Забронировать",
   "customerActionsOrder": "Заказать еду",
+  "customerBanHint": "Бронировать, садиться за ПК и пополнять счёт сейчас нельзя ни в одном клубе. Деньги на ваших счетах остаются вашими: их вернут или примут на стойке.",
+  "customerBanReason": "Причина: {reason}",
+  "@customerBanReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "customerBanTitle": "Платформа закрыла вход в сеть",
   "customerBranchErrGone": "Такого зала в сети больше нет — выберите другой.",
   "customerBranchErrRequired": "Сначала выберите зал, в который придёте.",
   "customerBranchHint": "В этом зале клуб заведёт ваш кошелёк и историю визитов.",
