@@ -12,7 +12,10 @@
 #   scripts/verify.sh              — только затронутые дорожки (как «Detect Relevant Changes»)
 #   scripts/verify.sh --all        — все дорожки
 #   scripts/verify.sh --fast       — без медленного хвоста (сборка Flutter web, сквозной сценарий)
-#   scripts/verify.sh dotnet web   — только названные дорожки
+#   scripts/verify.sh dotnet web   — только названные дорожки (dotnet | web | flutter | windows)
+#
+# Дорожка windows включается, только когда названа машина: AFK4_WINDOWS_HOST=user@адрес.
+# На той стороне нужен .NET SDK и OpenSSH-сервер; исходники едут `git archive` текущего коммита.
 set -uo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -35,7 +38,7 @@ for argument in "$@"; do
   case "$argument" in
     --all) all=1 ;;
     --fast) fast=1 ;;
-    dotnet|web|flutter) lanes+=("$argument") ;;
+    dotnet|web|flutter|windows) lanes+=("$argument") ;;
     -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
     *) echo "Неизвестный аргумент: $argument" >&2; exit 2 ;;
   esac
@@ -65,12 +68,16 @@ detect_lanes() {
         run_flutter=flutter ;;
     esac
   done <<< "$changed"
-  echo "$run_dotnet $run_web $run_flutter"
+  # Windows-дорожка идёт вместе с .NET и только если машина названа: без неё её нечем гонять.
+  local run_windows=''
+  [ -n "$run_dotnet" ] && [ -n "${AFK4_WINDOWS_HOST:-}" ] && run_windows=windows
+  echo "$run_dotnet $run_web $run_flutter $run_windows"
 }
 
 if [ ${#lanes[@]} -eq 0 ]; then
   if [ "$all" = 1 ]; then
     lanes=(dotnet web flutter)
+    [ -n "${AFK4_WINDOWS_HOST:-}" ] && lanes+=(windows)
   else
     read -r -a lanes <<< "$(detect_lanes)"
   fi
@@ -163,6 +170,29 @@ lane_web() {
   done
 }
 
+# Единственное, чего на macOS нет вовсе: наборы WPF-оболочек и тесты, зовущие инструменты
+# Windows. Дорожка включается, только когда названа машина:
+#
+#   export AFK4_WINDOWS_HOST=mubidev@192.168.64.5   # виртуалка или ПК в сети
+#   export AFK4_WINDOWS_DIR=C:/afk4-verify          # куда класть исходники (необязательно)
+#
+# На той стороне нужен .NET SDK и включённый OpenSSH-сервер. Исходники едут `git archive` —
+# только отслеживаемые файлы текущего коммита, без bin/obj и без секретов рабочего дерева.
+lane_windows() {
+  set -e
+  local host="${AFK4_WINDOWS_HOST}" dir="${AFK4_WINDOWS_DIR:-C:/afk4-verify}"
+
+  ssh "$host" "powershell -NoProfile -Command \"if (Test-Path '$dir') { Remove-Item -Recurse -Force '$dir' }; New-Item -ItemType Directory -Path '$dir' | Out-Null\""
+  git archive --format=tar HEAD | ssh "$host" "tar -xf - -C $dir"
+
+  # Сборка решения целиком — там, где WPF собирается по-настоящему, а не с EnableWindowsTargeting.
+  ssh "$host" "powershell -NoProfile -Command \"cd '$dir'; dotnet build AFK4.sln -v minimal -p:NuGetAudit=false\""
+
+  # Только то, чего нет на этой машине: оболочки и наборы с тестами, помеченными WindowsOnly.
+  # Остальное уже проверено дорожкой dotnet, и гонять его второй раз — тратить минуты впустую.
+  ssh "$host" "powershell -NoProfile -Command \"cd '$dir'; dotnet test tests/AFK4.OrganizationAdmin.App.Tests tests/AFK4.Player.Shell.Tests tests/AFK4.Agent.Service.Tests tests/AFK4.SetupWizard.Tests --no-build -v minimal -p:NuGetAudit=false\""
+}
+
 lane_flutter() {
   set -e
   cd src/afk4_customer_app
@@ -231,7 +261,12 @@ printf '\n%s за %dм %02dс. Логи: %s\n' \
   $((elapsed / 60)) $((elapsed % 60)) "$logs"
 
 if [ ${#failed[@]} -eq 0 ]; then
-  echo "Не проверено здесь: наборы WPF-оболочек (собираются, но не запускаются) и тесты, помеченные WindowsOnly. Это ворота Windows-джоба CI."
+  if printf '%s\n' "${lanes[@]}" | grep -qx windows; then
+    echo "Windows-часть прогнана на $AFK4_WINDOWS_HOST. Не проверено нигде, кроме живого зала: само железо — ПК, мониторы, платёжный терминал."
+  else
+    echo "Не проверено здесь: наборы WPF-оболочек (собираются, но не запускаются) и тесты, помеченные WindowsOnly. Это ворота Windows-джоба CI."
+    echo "Задай AFK4_WINDOWS_HOST=user@адрес, чтобы гонять и их (см. lane_windows в этом файле)."
+  fi
   [ "$fast" = 1 ] && echo "Пропущено по --fast: сквозной сценарий приложения и сборка Flutter web."
 fi
 
