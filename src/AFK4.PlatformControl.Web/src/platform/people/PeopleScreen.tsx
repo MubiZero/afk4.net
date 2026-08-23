@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/states';
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/i18n/I18nProvider';
+import type { MessageKey } from '@afk4/i18n';
 import { PlatformApiError } from '@/api/platformTransport';
 import type { NetworkPeopleApi } from '@/api/platformClients/people';
 import type { NetworkPerson } from '@/api/types';
@@ -47,7 +48,7 @@ export function PeopleScreen({ client }: { client: Client }) {
     }
   }
 
-  async function run(action: () => Promise<NetworkPerson>, successKey: string) {
+  async function run(action: () => Promise<NetworkPerson>, successKey: MessageKey) {
     if (pending) return;
     setPending(true);
     try {
@@ -149,7 +150,7 @@ export function PeopleScreen({ client }: { client: Client }) {
   );
 }
 
-function describeError(cause: unknown, t: (key: string) => string): string {
+function describeError(cause: unknown, t: (key: MessageKey) => string): string {
   if (cause instanceof PlatformApiError && cause.status === 400) {
     return t('platform.people.error.invalid');
   }
