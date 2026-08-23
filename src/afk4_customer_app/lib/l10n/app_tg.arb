@@ -30,6 +30,16 @@
   "customerAchievementVeteranHint": "Панҷоҳ ташриф ба клуб",
   "customerActionsBook": "Ҷой банд кардан",
   "customerActionsOrder": "Фармоиши хӯрок",
+  "customerBanHint": "Ҳоло дар ҳеҷ як клуб на ҷой банд карда метавонед, на пушти ПК нишаста метавонед, на ҳисобатонро пур карда метавонед. Пули ҳисобҳоятон аз они шумо мемонад: онро дар назди пешхон бармегардонанд ё қабул мекунанд.",
+  "customerBanReason": "Сабаб: {reason}",
+  "@customerBanReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "customerBanTitle": "Платформа даромади шуморо ба шабака пӯшид",
   "customerBranchErrGone": "Чунин толор дигар дар шабака нест — дигарашро интихоб кунед.",
   "customerBranchErrRequired": "Аввал толореро, ки ба он меоед, интихоб кунед.",
   "customerBranchHint": "Клуб дар ҳамин толор ҳамён ва таърихи ташрифҳои шуморо мекушояд.",

@@ -11,6 +11,7 @@ import '../push/push_service.dart';
 import '../profile/profile_screen.dart';
 import '../reservations/reservations_screen.dart';
 import '../wallet/wallet_screen.dart';
+import 'network_ban_note.dart';
 
 /// Разделы приложения. Порядок — это заявление о том, чем игрок пользуется чаще: сначала то,
 /// что происходит сейчас, потом деньги, в конце настройки.
@@ -214,12 +215,24 @@ class _AppShellState extends State<AppShell> {
     final index = sections.indexWhere((section) => section.$1 == _section);
     final selected = index < 0 ? 0 : index;
 
+    final person = widget.me?.person;
+
     return Scaffold(
       // Разделы держатся живыми: вернувшись на главную, игрок видит её сразу, а не заново
       // загружающийся экран.
-      body: IndexedStack(
-        index: selected,
-        children: [for (final (_, screen, _) in sections) screen],
+      body: Column(
+        children: [
+          // Сетевой запрет действует во всех разделах сразу, поэтому и объясняется поверх всех,
+          // а не на том экране, где человек первым получит отказ.
+          if (person != null && person.networkBanned)
+            NetworkBanNote(reason: person.networkBanReason),
+          Expanded(
+            child: IndexedStack(
+              index: selected,
+              children: [for (final (_, screen, _) in sections) screen],
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: DecoratedBox(
         // Волосяная линия сверху: без неё панель сливается с прокрученным под неё списком, и

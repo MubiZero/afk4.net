@@ -94,7 +94,7 @@ internal static class PlayerShopEndpoints
             if (player is null) return Results.Unauthorized();
             var result = await commerceCoordinator.CancelByPlayerAsync(player.PlayerAccountId, orderId, ct);
             return ToHttpResult(result);
-        }).RequireRateLimiting("player-me");
+        }).RequireRateLimiting("player-me").WorksWhenNetworkBanned();
     }
 
     private static IResult ToHttpResult(ShopOrderActionResult result)

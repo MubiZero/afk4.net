@@ -181,10 +181,6 @@ public sealed class PlatformPinVerificationTests
         var closed = await PlatformPersonTestData.AddPersonAsync(factory, "+992900000613", isActive: false);
         await SetPinAsync(factory, closed.PlatformPersonId, "1234");
 
-        var banned = await PlatformPersonTestData.AddPersonAsync(factory, "+992900000614");
-        await SetPinAsync(factory, banned.PlatformPersonId, "1234");
-        await BanAsync(factory, banned.PlatformPersonId);
-
         using var client = factory.CreateClient();
         var refusals = new List<HttpResponseMessage>
         {
@@ -192,8 +188,11 @@ public sealed class PlatformPinVerificationTests
             await SignInAsync(client, organizationId, "+992900000612", "1234"), // PIN не задан
             await SignInAsync(client, organizationId, "+992900000611", "9999"), // PIN неверен
             await SignInAsync(client, organizationId, "+992900000613", "1234"), // личность закрыта
-            await SignInAsync(client, organizationId, "+992900000614", "1234"), // сетевой запрет
         };
+
+        // Сетевого запрета в этом списке нет с 23.08.2026: запрещённого дверь пускает так же, как
+        // всех, и останавливает его первое же действие. Дверь, отвечающая ему иначе, была бы
+        // справочником «кто под запретом» — см. NetworkBanTests.TheDoorDoesNotTellWhoIsBanned.
 
         foreach (var refusal in refusals)
         {
@@ -231,17 +230,6 @@ public sealed class PlatformPinVerificationTests
             candidate => candidate.PlatformPersonId == platformPersonId);
         person.PinHash = new PasswordHasher<PlatformPersonEntity>().HashPassword(person, pin);
         person.PinSetAtUtc = PlatformPersonTestData.Now;
-        await db.SaveChangesAsync();
-    }
-
-    private static async Task BanAsync(PlatformApiFactory factory, Guid platformPersonId)
-    {
-        await using var scope = factory.Services.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var person = await db.PlatformPersons.SingleAsync(
-            candidate => candidate.PlatformPersonId == platformPersonId);
-        person.NetworkBanAtUtc = PlatformPersonTestData.Now;
-        person.NetworkBanReason = "перебор чужих карт";
         await db.SaveChangesAsync();
     }
 

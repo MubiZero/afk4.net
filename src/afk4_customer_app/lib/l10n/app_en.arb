@@ -30,6 +30,16 @@
   "customerAchievementVeteranHint": "Fifty visits to the club",
   "customerActionsBook": "Book a seat",
   "customerActionsOrder": "Order food",
+  "customerBanHint": "Booking, taking a PC and topping up are closed at every club for now. The money on your accounts stays yours: the desk will hand it back or take it.",
+  "customerBanReason": "Reason: {reason}",
+  "@customerBanReason": {
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "customerBanTitle": "The platform closed your network access",
   "customerBranchErrGone": "That hall is no longer part of the network — pick another one.",
   "customerBranchErrRequired": "Choose the hall you are coming to first.",
   "customerBranchHint": "The club opens your wallet and visit history at this hall.",

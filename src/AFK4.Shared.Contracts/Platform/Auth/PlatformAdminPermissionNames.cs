@@ -62,6 +62,13 @@ public static class PlatformAdminPermissionNames
     public const string ManageOffboarding = "platform.organizations.offboarding.manage";
 
     /// <summary>
+    /// Сетевой запрет человеку: закрыть или открыть ему самообслуживание во всей сети. Право
+    /// платформы и только её — клуб решает за свой клуб, закрывая у себя карточку, и дальше его
+    /// решения не идут. Поддержке не даётся по той же причине, по которой ей не даётся репутация.
+    /// </summary>
+    public const string ManageNetworkBans = "platform.people.network_ban.manage";
+
+    /// <summary>
     /// Все права платформы. Роль с полным доступом получает этот список целиком, панель
     /// показывает его как набор переключателей. Полнота стережётся тестом.
     /// </summary>
@@ -82,6 +89,7 @@ public static class PlatformAdminPermissionNames
         ManageOrganizationFeatures,
         ManageAnnouncements,
         ManageOffboarding,
+        ManageNetworkBans,
         ViewPlatformAudit,
         ViewBilling,
         ManagePlans,

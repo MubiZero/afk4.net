@@ -244,6 +244,9 @@ class _NewReservationSheetState extends State<NewReservationSheet> {
           // Клуб закрыл счёт: это не «время занято» и не сбой. Общий ответ здесь врал бы про
           // причину и звал попробовать другое время, которого не хватит.
           (_, 'club_account_closed') => l.customerClubErrClosed,
+          // Запрет платформы — не решение этого клуба и не сбой: другое время и другой клуб
+          // тут не помогут.
+          (_, 'network_banned') => l.customerBanTitle,
           (409, _) => l.customerReservationsConflict,
           _ => l.customerReservationsCreateError,
         };

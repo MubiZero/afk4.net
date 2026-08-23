@@ -131,6 +131,9 @@ class _StartSessionScreenState extends State<StartSessionScreen> {
       setState(() {
         _starting = false;
         _error = switch ((error.statusCode, error.message)) {
+          // Платформа закрыла человеку сеть: «попробуйте ещё раз» звало бы повторять то, что не
+          // выйдет ни с какого раза. Подробности — в полосе поверх разделов.
+          (_, 'network_banned') => l.customerBanTitle,
           (_, 'seating_code_invalid') => l.customerPlayErrCode,
           (_, 'insufficient_balance') => l.customerPlayErrFunds,
           (409, _) => l.customerPlayErrTaken,

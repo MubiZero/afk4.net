@@ -81,7 +81,11 @@ internal static class MeEndpoints
                     person.PreferredLocale,
                     person.PhoneVerifiedAtUtc is not null,
                     person.PinHash is not null,
-                    person.NetworkBanAtUtc is not null),
+                    person.NetworkBanAtUtc is not null,
+                    // Причина едет самому человеку: запрет, о котором он не может узнать, за что,
+                    // читается как поломка приложения — и он идёт спорить к стойке, которая его
+                    // не ставила.
+                    person.NetworkBanReason),
                 clubs));
         }).RequireRateLimiting("player-me");
 
@@ -137,7 +141,8 @@ internal static class MeEndpoints
                 person.PreferredLocale,
                 person.PhoneVerifiedAtUtc is not null,
                 person.PinHash is not null,
-                person.NetworkBanAtUtc is not null));
+                person.NetworkBanAtUtc is not null,
+                person.NetworkBanReason));
         }).RequireRateLimiting("player-me");
 
         // PIN задаётся и меняется только здесь: человек уже вошёл в приложение, и это не стоит ни

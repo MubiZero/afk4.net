@@ -801,7 +801,7 @@ internal static class PlayerSelfServiceEndpoints
             }
 
             return Results.Ok(result.Response!.Select(ToPlayerReservationDto).ToList());
-        }).RequireRateLimiting("player-me");
+        }).RequireRateLimiting("player-me").WorksWhenNetworkBanned();
 
         app.MapGet("/api/me/reservations", async (
             IPlayerContextAccessor playerContextAccessor,
@@ -902,7 +902,7 @@ internal static class PlayerSelfServiceEndpoints
             }
 
             return Results.Ok(ToPlayerReservationDto(result.Response!));
-        }).RequireRateLimiting("player-me");
+        }).RequireRateLimiting("player-me").WorksWhenNetworkBanned();
 
         app.MapPost("/api/me/sessions/start", async (
             PlayerSelfStartRequest request,

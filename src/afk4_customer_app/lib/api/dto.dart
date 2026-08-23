@@ -126,6 +126,7 @@ class MePerson {
     required this.phoneVerified,
     required this.pinSet,
     required this.networkBanned,
+    required this.networkBanReason,
   });
 
   final String platformPersonId;
@@ -136,6 +137,10 @@ class MePerson {
   final bool pinSet;
   final bool networkBanned;
 
+  /// За что закрыт вход. Запрет, о котором человек не может узнать причину, читается как
+  /// поломка приложения — и он идёт спорить к стойке, которая его не ставила.
+  final String? networkBanReason;
+
   factory MePerson.fromJson(Map<String, dynamic> json) => MePerson(
         platformPersonId: json['platformPersonId'] as String,
         phoneNumber: json['phoneNumber'] as String,
@@ -144,6 +149,7 @@ class MePerson {
         phoneVerified: json['phoneVerified'] as bool? ?? false,
         pinSet: json['pinSet'] as bool? ?? false,
         networkBanned: json['networkBanned'] as bool? ?? false,
+        networkBanReason: json['networkBanReason'] as String?,
       );
 }
 

@@ -59,7 +59,7 @@ internal static class PlayerDeviceEndpoints
             // Своё устройство снимается молча и повторно: удалять уже удалённое — не ошибка.
             await devices.RemoveAsync(player.PlayerAccountId, pushToken, cancellationToken);
             return Results.NoContent();
-        }).RequireRateLimiting("player-me");
+        }).RequireRateLimiting("player-me").WorksWhenNetworkBanned();
     }
 
     private static string? Trimmed(string? value)

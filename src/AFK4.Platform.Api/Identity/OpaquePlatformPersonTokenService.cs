@@ -145,7 +145,8 @@ public sealed class OpaquePlatformPersonTokenService(PlatformDbContext dbContext
         return new PlatformPersonContext(
             person.PlatformPersonId,
             stored.PinnedOrganizationId,
-            person.PhoneVerifiedAtUtc is not null);
+            person.PhoneVerifiedAtUtc is not null,
+            NetworkBanned: person.NetworkBanAtUtc is not null);
     }
 
     private Task<PlayerAccountEntity?> FindPinnedAccountAsync(

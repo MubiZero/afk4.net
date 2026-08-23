@@ -562,6 +562,19 @@ export interface PurgeOrganizationResult {
   clubAuditRecords: number;
 }
 
+/**
+ * Человек сети глазами платформы. Ни клубов, ни денег, ни визитов: это клубные сведения, и
+ * панель платформы не место, где их собирают в одну карточку.
+ */
+export interface NetworkPerson {
+  platformPersonId: string;
+  phoneNumber: string;
+  displayName: string;
+  registeredAtUtc: string;
+  networkBanAtUtc: string | null;
+  networkBanReason: string | null;
+}
+
 export interface PlatformAnnouncement {
   announcementId: string;
   title: string;
