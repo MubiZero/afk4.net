@@ -94,4 +94,10 @@ export class StaffAuthApi {
   resetByEmail(userNameOrEmail: string, code: string, newPassword: string) { return this.post<void>('api/auth/staff/reset-password', { userNameOrEmail, code, newPassword }); }
   forgotByPhone(phoneNumber: string) { return this.post<void>('api/auth/staff/forgot-password-by-phone', { phoneNumber }); }
   resetByPhone(phoneNumber: string, code: string, newPassword: string) { return this.post<void>('api/auth/staff/reset-password-by-phone', { phoneNumber, code, newPassword }); }
+
+  /** Приём приглашения: код из SMS и пароль, который человек придумывает себе сам. */
+  acceptInvite(phoneNumber: string, code: string, password: string) {
+    return this.post<{ organizationId: string; userName: string }>(
+      'api/staff/invites/accept', { phoneNumber, code, password });
+  }
 }

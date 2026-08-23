@@ -22,6 +22,8 @@ public sealed class StaffInvitePlanLimitTests
     private static EfStaffInviteService CreateService(PlatformDbContext db) =>
         new(db,
             new RecordingNotificationService(),
+            new AFK4.Platform.Api.Identity.PhoneOtp.RandomPhoneOtpGenerator(),
+            new AFK4.Platform.Api.Identity.PhoneOtp.Sha256PhoneOtpHasher(),
             new FixedTimeProvider(Now),
             Options.Create(new NotificationOptions { DefaultLocale = "ru" }),
             new EfPlanLimitGuard(db));
@@ -79,6 +81,11 @@ public sealed class StaffInvitePlanLimitTests
         await db.SaveChangesAsync();
     }
 
+    private static int phoneCounter;
+
+    /// <summary>Свой номер каждому приглашению: номер — глобальный вход, и повтор его занимает.</summary>
+    private static string NextPhone() => $"+9929{System.Threading.Interlocked.Increment(ref phoneCounter):D8}";
+
     [Fact]
     public async Task CreateInvite_RefusesWithNumbers_WhenBranchIsAtStaffLimit()
     {
@@ -88,7 +95,7 @@ public sealed class StaffInvitePlanLimitTests
         var service = CreateService(db);
 
         var result = await service.CreateInviteAsync(
-            organizationId, branchId, "newcashier", "New Cashier", "cashier@club.example", Roles, CancellationToken.None);
+            organizationId, branchId, "newcashier", "New Cashier", NextPhone(), "cashier@club.example", Roles, CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.NotNull(result.PlanLimit);
@@ -107,11 +114,11 @@ public sealed class StaffInvitePlanLimitTests
         var service = CreateService(db);
 
         var first = await service.CreateInviteAsync(
-            organizationId, branchId, "firstinvite", "First Invite", "first@club.example", Roles, CancellationToken.None);
+            organizationId, branchId, "firstinvite", "First Invite", NextPhone(), "first@club.example", Roles, CancellationToken.None);
         Assert.True(first.Succeeded);
 
         var second = await service.CreateInviteAsync(
-            organizationId, branchId, "secondinvite", "Second Invite", "second@club.example", Roles, CancellationToken.None);
+            organizationId, branchId, "secondinvite", "Second Invite", NextPhone(), "second@club.example", Roles, CancellationToken.None);
 
         Assert.False(second.Succeeded);
         Assert.NotNull(second.PlanLimit);
@@ -128,8 +135,9 @@ public sealed class StaffInvitePlanLimitTests
         var (organizationId, branchId) = await SeedOrganizationAsync(db, maxStaffUsersPerBranch: 5);
         var service = CreateService(db);
 
+        var phone = NextPhone();
         var created = await service.CreateInviteAsync(
-            organizationId, branchId, "newcashier", "New Cashier", "cashier@club.example", Roles, CancellationToken.None);
+            organizationId, branchId, "newcashier", "New Cashier", phone, "cashier@club.example", Roles, CancellationToken.None);
         Assert.True(created.Succeeded);
 
         await SeedActiveStaffUserAsync(db, organizationId, branchId);
@@ -137,7 +145,7 @@ public sealed class StaffInvitePlanLimitTests
         organization.LimitsJson = OrganizationLimitsJson.Serialize(new OrganizationLimitsDto(null, null, null, 1));
         await db.SaveChangesAsync();
 
-        var result = await service.AcceptInviteAsync(created.Code, "FreshPass123", CancellationToken.None);
+        var result = await service.AcceptInviteAsync(phone, created.Code, "FreshPass123", CancellationToken.None);
 
         Assert.False(result.Succeeded);
         Assert.NotNull(result.PlanLimit);
@@ -157,11 +165,12 @@ public sealed class StaffInvitePlanLimitTests
         await SeedActiveStaffUserAsync(db, organizationId, branchId);
         var service = CreateService(db);
 
+        var phone = NextPhone();
         var created = await service.CreateInviteAsync(
-            organizationId, branchId, "newcashier", "New Cashier", "cashier@club.example", Roles, CancellationToken.None);
+            organizationId, branchId, "newcashier", "New Cashier", phone, "cashier@club.example", Roles, CancellationToken.None);
         Assert.True(created.Succeeded);
 
-        var result = await service.AcceptInviteAsync(created.Code, "FreshPass123", CancellationToken.None);
+        var result = await service.AcceptInviteAsync(phone, created.Code, "FreshPass123", CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.Null(result.PlanLimit);
@@ -183,11 +192,12 @@ public sealed class StaffInvitePlanLimitTests
         await SeedActiveStaffUserAsync(db, organizationId, branchId);
         var service = CreateService(db);
 
+        var phone = NextPhone();
         var created = await service.CreateInviteAsync(
-            organizationId, branchId, "newcashier", "New Cashier", "cashier@club.example", Roles, CancellationToken.None);
+            organizationId, branchId, "newcashier", "New Cashier", phone, "cashier@club.example", Roles, CancellationToken.None);
         Assert.True(created.Succeeded);
 
-        var result = await service.AcceptInviteAsync(created.Code, "FreshPass123", CancellationToken.None);
+        var result = await service.AcceptInviteAsync(phone, created.Code, "FreshPass123", CancellationToken.None);
 
         Assert.True(result.Succeeded);
         Assert.Null(result.PlanLimit);

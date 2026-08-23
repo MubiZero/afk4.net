@@ -109,9 +109,17 @@ internal static partial class EndpointHelpers
             return "DisplayName is required.";
         }
 
-        if (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@', StringComparison.Ordinal))
+        // Телефон обязателен, почта — нет: приглашение едет SMS, а почты у администратора зала
+        // может не быть вовсе. Названная почта обязана быть похожей на почту.
+        if (PhoneNumberNormalizer.Normalize(request.PhoneNumber) is null)
         {
-            return "A valid Email is required to send the invite.";
+            return "A valid PhoneNumber is required to send the invite.";
+        }
+
+        if (request.Email is not null
+            && (string.IsNullOrWhiteSpace(request.Email) || !request.Email.Contains('@', StringComparison.Ordinal)))
+        {
+            return "Email must be a valid address when provided.";
         }
 
         return ValidateOrganizationRoleNames(request.RoleNames);

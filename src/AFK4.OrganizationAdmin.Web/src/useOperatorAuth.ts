@@ -35,7 +35,7 @@ export function useOperatorAuth(
   const [authStatus, setAuthStatus] = useState<AuthStatus>('checking');
   const [authSession, setAuthSession] = useState<OperatorAuthSession | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [authView, setAuthView] = useState<'signIn' | 'forgot'>('signIn');
+  const [authView, setAuthView] = useState<'signIn' | 'forgot' | 'invite'>('signIn');
   const [chooseClub, setChooseClub] = useState<ChooseClubState | null>(null);
 
   useEffect(() => {

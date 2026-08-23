@@ -244,8 +244,11 @@ Minimum bar:
    Document exactly how to create the first organization, branch, staff users,
    roles, zones, seats, devices, tariffs, POS products, and update channels for
    a pilot club. Staff-authorized setup APIs, the pilot setup script, and the
-   per-area `Управление` screens in Organization Admin exist; staff users are the
-   one part the UI cannot finish, because an invite has no redemption screen yet
+   per-area `Управление` screens in Organization Admin exist. Staff onboarding
+   closed on 2026-08-24: an invite now goes to a phone as a six-digit code and
+   is redeemed on the Organization Admin sign-in screen ("Меня пригласили
+   работать"), which leaves the new staff member with a verified phone and their
+   own password — no script and no shared password
    (see `docs/operations/pilot-branch-setup.md`). Club self-service onboarding now has
    backend install APIs, branch device admin APIs, owner-facing Platform Control
    screens on `main` and staging, separate admin/customer SPA builds, and a

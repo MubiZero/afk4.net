@@ -34,13 +34,16 @@ it was replaced by the `Управление` workspace, where each part of the 
 its own destination. A signed-in owner or branch manager with the permissions
 listed above sets a pilot branch up in this order:
 
-1. **Staff must come from the script, not the UI.** `Управление` ->
-   `Сотрудники и роли` issues an invite *code*, and nothing in the repository
-   redeems one: `POST /api/staff/invites/accept` has no screen in Organization
-   Admin, Platform Control's `/account-activation` is owner activation, and the
-   invite email carries a code rather than a link. Use the `Configure Branch`
-   script below, which POSTs to `/branches/{branchId}/staff` with a password and
-   yields an account that can sign in — which the `Verify` section then requires.
+1. **Сотрудники заводятся приглашением, а не скриптом** (с 24.08.2026).
+   `Управление` -> `Сотрудники и роли` -> `+ Сотрудник`: логин, имя в смене,
+   **номер телефона** и роли. На номер уходит SMS с шестизначным кодом; код
+   живёт сутки и виден владельцу тут же в форме — на случай, если SMS
+   задержалась.
+   Приглашённый открывает Organization Admin, жмёт «Меня пригласили работать»
+   на экране входа, вводит номер, код и свой пароль. После этого он входит по
+   номеру, как остальные сотрудники: телефон приходит уже подтверждённым.
+   Три неверных кода гасят приглашение — владелец приглашает заново.
+   Скрипт ниже остаётся для headless-установки и повторяемых прогонов.
 2. `Управление` -> `Залы и ПК` — one zone, then the seats in it.
 3. `Управление` -> `Тарифы и пакеты` — a tariff and its first version. Leave the
    hours empty unless the pilot is meant to test off-peak pricing: empty means

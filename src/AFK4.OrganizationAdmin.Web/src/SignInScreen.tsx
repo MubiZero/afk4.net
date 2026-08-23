@@ -24,7 +24,8 @@ export function SignInScreen({
   onSignIn,
   onChooseClub,
   onCancelChooseClub,
-  onForgotPassword
+  onForgotPassword,
+  onAcceptInvite
 }: {
   config: ReturnType<typeof getOperatorConfig>;
   authStatus: AuthStatus;
@@ -34,6 +35,7 @@ export function SignInScreen({
   onChooseClub: (organizationId: string) => Promise<void>;
   onCancelChooseClub: () => void;
   onForgotPassword: () => void;
+  onAcceptInvite: () => void;
 }) {
   const { t } = useI18n();
   const [mode, setMode] = useState<Mode>('phone');
@@ -279,6 +281,17 @@ export function SignInScreen({
             disabled={isBusy}
           >
             {mode === 'phone' ? t('op.auth.useCredentials') : t('op.auth.usePhone')}
+          </button>
+
+          {/* Новый сотрудник приходит сюда первым делом: пароля у него ещё нет, есть код из SMS.
+              Без этой ссылки приглашение было тупиком — код выдавался, а вводить его негде. */}
+          <button
+            type="button"
+            className="auth-link-inline auth-mode-switch"
+            onClick={onAcceptInvite}
+            disabled={isBusy}
+          >
+            {t('auth.invite.link')}
           </button>
         </form>
       </section>

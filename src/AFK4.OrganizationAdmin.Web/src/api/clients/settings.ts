@@ -23,6 +23,12 @@ export type DeviceSeatAssignmentDto = Record<string, unknown>;
 
 export interface CreateStaffInviteRequest extends Record<string, unknown> {
   organizationId: Guid;
+  userName: string;
+  displayName: string;
+  /** Куда уйдёт код приглашения. Обязателен: почты у администратора зала может не быть. */
+  phoneNumber: string;
+  email: string | null;
+  roleNames: string[];
 }
 
 export interface StaffInviteDto {

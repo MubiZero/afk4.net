@@ -1372,10 +1372,14 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(invite => invite.UserName).HasMaxLength(256).IsRequired();
             entity.Property(invite => invite.NormalizedUserName).HasMaxLength(256).IsRequired();
             entity.Property(invite => invite.DisplayName).HasMaxLength(160).IsRequired();
-            entity.Property(invite => invite.Email).HasMaxLength(320).IsRequired();
+            entity.Property(invite => invite.Email).HasMaxLength(320);
+            entity.Property(invite => invite.PhoneNumber).HasMaxLength(20).IsRequired();
+            entity.Property(invite => invite.NormalizedPhone).HasMaxLength(20).IsRequired();
             entity.Property(invite => invite.RoleNamesCsv).HasMaxLength(512).IsRequired();
-            entity.Property(invite => invite.TokenHash).IsRequired();
-            entity.HasIndex(invite => invite.TokenHash);
+            entity.Property(invite => invite.CodeHash).HasMaxLength(64).IsRequired();
+            // Приглашение ищут по номеру: код шестизначный, и искать по нему значит перебирать
+            // чужие приглашения этими же шестью цифрами.
+            entity.HasIndex(invite => invite.NormalizedPhone);
             entity.HasIndex(invite => new { invite.OrganizationId, invite.NormalizedUserName });
         });
 

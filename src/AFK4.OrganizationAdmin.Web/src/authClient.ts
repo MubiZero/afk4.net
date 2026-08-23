@@ -85,6 +85,11 @@ export function forgotPasswordByPhone(phoneNumber: string): Promise<void> {
   return api().forgotByPhone(phoneNumber);
 }
 
+export function acceptStaffInvite(
+  phoneNumber: string, code: string, password: string): Promise<{ organizationId: string; userName: string }> {
+  return api().acceptInvite(phoneNumber, code, password);
+}
+
 export function resetPasswordByPhone(phoneNumber: string, code: string, newPassword: string): Promise<void> {
   return api().resetByPhone(phoneNumber, code, newPassword);
 }
