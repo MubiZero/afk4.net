@@ -94,7 +94,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         AssertParameter(ast, "RolloutReason");
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public async Task RegisterUpdatePackageRequests_PostsRequestJsonWithBearerToken()
     {
         Directory.CreateDirectory(tempRoot);
@@ -155,7 +155,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Equal(requestBody, capturedRequest.Body);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public async Task RegisterUpdatePackageRequests_WithCreateRollouts_PostsDeviceRolloutForSelectedComponent()
     {
         Directory.CreateDirectory(tempRoot);
@@ -223,7 +223,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("0588fb59-3edb-4704-bbdb-094e12417cf1", capturedRequests[1].Body, StringComparison.Ordinal);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public async Task RegisterUpdatePackageRequests_WithBranchRollout_PostsRolloutWithoutDeviceTargets()
     {
         Directory.CreateDirectory(tempRoot);
@@ -289,7 +289,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.DoesNotContain("0588fb59-3edb-4704-bbdb-094e12417cf1", capturedRequests[1].Body, StringComparison.Ordinal);
     }
 
-    [Theory]
+    [WindowsOnlyTheory]
     [InlineData(500)]
     [InlineData(401)]
     public async Task RegisterUpdatePackageRequests_WhenPlatformReturnsError_ExitsNonZero(int statusCode)
@@ -331,7 +331,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Equal("""{"component":"agent-service"}""", await capturedRequestTask.WaitAsync(TimeSpan.FromSeconds(5)));
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void RegisterUpdatePackageRequests_WithoutAccessTokenSource_FailsClosed()
     {
         Directory.CreateDirectory(tempRoot);
@@ -350,7 +350,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("Specify exactly one access token source", result.StandardError + result.StandardOutput);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void RegisterUpdatePackageRequests_WithBothAccessTokenSources_FailsClosed()
     {
         Directory.CreateDirectory(tempRoot);
@@ -374,7 +374,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("Specify exactly one access token source", result.StandardError + result.StandardOutput);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public async Task RegisterUpdatePackageRequests_WithRequestDirectory_PostsRequestJsonInNameOrder()
     {
         var requestDirectory = Path.Combine(tempRoot, "requests");
@@ -441,7 +441,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.All(capturedRequests, request => Assert.Equal("Bearer test-token", request.Authorization));
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void RegisterUpdatePackageRequests_WithNonRequestJsonPath_FailsClosed()
     {
         Directory.CreateDirectory(tempRoot);
@@ -461,7 +461,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("RequestPath must reference *-request.json files.", result.StandardError + result.StandardOutput);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void RegisterUpdatePackageRequests_WithNonHttpPlatformBaseUrl_FailsClosed()
     {
         Directory.CreateDirectory(tempRoot);
@@ -889,7 +889,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("env:\n  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true", workflow, StringComparison.Ordinal);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void PublishClientMsiUpdates_InvokesPublisherForOperatorAgentAndPlayerShell()
     {
         Directory.CreateDirectory(tempRoot);
@@ -943,7 +943,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains(dotnetInvocations, invocation => invocation.Contains("player-shell-1.2.3-internal-request.json", StringComparison.Ordinal));
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void PublishClientMsiUpdates_WithHttpPut_UsesArtifactSpecificUrisAndSigningKeyEnvironmentName()
     {
         Directory.CreateDirectory(tempRoot);
@@ -1001,7 +1001,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("--artifact-public-uri|https://cdn.afk4.test/player-shell.msi", playerShellInvocation, StringComparison.Ordinal);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void PublishClientMsiUpdates_WithS3_UsesMinioArgumentsForAllComponents()
     {
         Directory.CreateDirectory(tempRoot);
@@ -1052,7 +1052,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
             invocation => invocation.Contains("--s3-stable-alias-object-key", StringComparison.Ordinal));
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void PublishClientMsiUpdates_WhenPublisherFails_ReturnsNonZeroWithComponentMessage()
     {
         Directory.CreateDirectory(tempRoot);
@@ -1086,7 +1086,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("AFK4.Update.Publisher failed for component", result.StandardError + result.StandardOutput);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void PublishClientMsiUpdates_WithUnsafeVersion_FailsBeforePublisher()
     {
         Directory.CreateDirectory(tempRoot);
@@ -1119,7 +1119,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.False(File.Exists(dotnetArgumentsPath));
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void PublishClientMsiUpdates_WithRelativePublicBaseUri_FailsWithClearMessage()
     {
         Directory.CreateDirectory(tempRoot);
@@ -1168,7 +1168,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("Sort-Object", script, StringComparison.Ordinal);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void SignClientPackages_WithPfxSource_InvokesSigntoolForExplicitPackage()
     {
         Directory.CreateDirectory(tempRoot);
@@ -1204,7 +1204,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains(packagePath, capturedArguments);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void SignClientPackages_WithCertificateStoreSource_InvokesSigntoolWithStoreArguments()
     {
         Directory.CreateDirectory(tempRoot);
@@ -1233,7 +1233,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains(packagePath, capturedArguments);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void SignClientPackages_WhenSigntoolReturnsNonZero_FailsPackage()
     {
         Directory.CreateDirectory(tempRoot);
@@ -1259,7 +1259,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("signtool failed for", result.StandardError + result.StandardOutput);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void SignClientPackages_WithPackagePathDirectory_FailsClosed()
     {
         Directory.CreateDirectory(tempRoot);
@@ -1288,7 +1288,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("was not found.", output);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void SignClientPackages_WithCertificatePathDirectory_FailsClosed()
     {
         Directory.CreateDirectory(tempRoot);
@@ -1317,7 +1317,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("was not found.", output);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void SignClientPackages_WithPackageDirectoryFile_FailsClosed()
     {
         Directory.CreateDirectory(tempRoot);
@@ -1340,7 +1340,7 @@ public sealed class ClientReleaseAutomationTests : IDisposable
         Assert.Contains("was not found.", output);
     }
 
-    [Fact]
+    [WindowsOnlyFact]
     public void SignClientPackages_WithoutExactlyOneSigningSource_FailsClosed()
     {
         Directory.CreateDirectory(tempRoot);
