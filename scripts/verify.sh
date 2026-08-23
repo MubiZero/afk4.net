@@ -121,13 +121,19 @@ lane_dotnet() {
   export AFK4_COMMERCE_TEST_POSTGRES="$connection"
   export AFK4_PLATFORM_ADMIN_POSTGRES_TEST_CONNECTION_STRING="$connection"
 
-  # Всё, что запускается вне Windows. За бортом остаются WPF-оболочки (их наборы вовсе не
-  # собираются на macOS) и агент: половина его тестов зовёт signtool и именованные каналы, то
-  # есть краснеет здесь не по делу. Оба набора остаются воротами CI, и об этом сказано в конце.
+  # Именованные каналы .NET на macOS ложатся в TMPDIR, а путь unix-сокета не длиннее 104
+  # символов — временный каталог macOS в него не влезает. Короткий TMPDIR возвращает в прогон
+  # тесты каналов агента; на Windows и в CI ничего не меняет.
+  export TMPDIR=/tmp
+
+  # Всё, что запускается вне Windows. За бортом остаются только наборы WPF-оболочек: они и
+  # собираются лишь под Windows. Тесты агента, зовущие powershell.exe и signtool.exe, помечены
+  # WindowsOnly — здесь они сообщаются пропущенными, а в Windows-джобе CI идут по-настоящему.
   for project in \
     tests/AFK4.Platform.Api.Tests tests/AFK4.Shared.Contracts.Tests \
-    tests/AFK4.BuildingBlocks.Tests tests/AFK4.Localization.Tests \
-    tests/AFK4.SetupWizard.Tests tests/AFK4.Update.Publisher.Tests; do
+    tests/AFK4.Agent.Service.Tests tests/AFK4.BuildingBlocks.Tests \
+    tests/AFK4.Localization.Tests tests/AFK4.SetupWizard.Tests \
+    tests/AFK4.Update.Publisher.Tests; do
     echo "── $project"
     dotnet test "$project" --no-build --nologo -v q -p:NuGetAudit=false
   done
@@ -225,7 +231,7 @@ printf '\n%s за %dм %02dс. Логи: %s\n' \
   $((elapsed / 60)) $((elapsed % 60)) "$logs"
 
 if [ ${#failed[@]} -eq 0 ]; then
-  echo "Не проверено здесь: Windows-часть — оболочки, агент и их тесты (собираются, но не запускаются). Это ворота CI."
+  echo "Не проверено здесь: наборы WPF-оболочек (собираются, но не запускаются) и тесты, помеченные WindowsOnly. Это ворота Windows-джоба CI."
   [ "$fast" = 1 ] && echo "Пропущено по --fast: сквозной сценарий приложения и сборка Flutter web."
 fi
 

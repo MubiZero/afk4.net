@@ -7,7 +7,7 @@ namespace AFK4.Agent.Service.Tests;
 
 public sealed class ExternalProcessAgentRestartSchedulerTests
 {
-    [Theory]
+    [WindowsOnlyTheory]
     [InlineData(UpdateComponentNames.AgentService)]
     [InlineData(UpdateComponentNames.PlayerShell)]
     [InlineData(UpdateComponentNames.OrganizationAdmin)]
