@@ -906,6 +906,13 @@
   "customerWalletLedgerError": "Не удалось загрузить движения",
   "customerWalletLedgerTab": "Деньги",
   "customerWalletNote": "Клуб зачислит сумму, когда подтвердит её на стойке.",
+  "customerWalletOnlineFailed": "Банк не провёл оплату. Деньги не списаны.",
+  "customerWalletOnlineNoApp": "Не удалось открыть оплату. Попробуйте ещё раз или внесите на стойке.",
+  "customerWalletOnlineNote": "Оплата онлайн зачисляется на кошелёк сразу. Заявку на стойку зачисляет администратор.",
+  "customerWalletOnlinePay": "Оплатить онлайн",
+  "customerWalletOnlineSlow": "Банк пока не ответил. Если оплата прошла, деньги зачислятся сами — проверьте баланс через пару минут.",
+  "customerWalletOnlineUnavailable": "Этот клуб сейчас не принимает оплату онлайн. Внесите на стойке.",
+  "customerWalletOnlineWaiting": "Ждём подтверждения банка…",
   "customerWalletPendingHint": "Заявка на {amount} ждёт зачисления",
   "@customerWalletPendingHint": {
     "placeholders": {
@@ -915,7 +922,7 @@
     }
   },
   "customerWalletQuick": "Быстрые суммы",
-  "customerWalletRequest": "Запросить",
+  "customerWalletRequest": "Внести на стойке",
   "customerWalletRequesting": "Отправка…",
   "customerWalletSendError": "Не удалось отправить заявку",
   "customerWalletSent": "Заявка на пополнение отправлена",

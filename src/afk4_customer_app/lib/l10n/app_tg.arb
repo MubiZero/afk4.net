@@ -906,6 +906,13 @@
   "customerWalletLedgerError": "Ҳаракатҳоро бор карда нашуд",
   "customerWalletLedgerTab": "Пул",
   "customerWalletNote": "Клуб маблағро пас аз тасдиқи он дар мизи қабул ворид мекунад.",
+  "customerWalletOnlineFailed": "Бонк пардохтро нагузаронд. Пул гирифта нашуд.",
+  "customerWalletOnlineNoApp": "Саҳифаи пардохт кушода нашуд. Аз нав кӯшиш кунед ё дар пешхон супоред.",
+  "customerWalletOnlineNote": "Пардохти онлайн фавран ба ҳамён меафтад. Дархости пешхонро маъмур ворид мекунад.",
+  "customerWalletOnlinePay": "Онлайн пардохт кардан",
+  "customerWalletOnlineSlow": "Бонк ҳанӯз ҷавоб надод. Агар пардохт гузашта бошад, пул худаш меояд — пас аз ду дақиқа бақияро бинед.",
+  "customerWalletOnlineUnavailable": "Ин клуб ҳоло пардохти онлайнро қабул намекунад. Дар пешхон супоред.",
+  "customerWalletOnlineWaiting": "Тасдиқи бонкро интизорем…",
   "customerWalletPendingHint": "Дархост барои {amount} интизори воридшавӣ аст",
   "@customerWalletPendingHint": {
     "placeholders": {
@@ -915,7 +922,7 @@
     }
   },
   "customerWalletQuick": "Маблағҳои тайёр",
-  "customerWalletRequest": "Дархост кардан",
+  "customerWalletRequest": "Дар пешхон супоридан",
   "customerWalletRequesting": "Фиристода истодаем…",
   "customerWalletSendError": "Дархостро фиристодан муяссар нашуд",
   "customerWalletSent": "Дархости пуркунӣ фиристода шуд",

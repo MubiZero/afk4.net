@@ -91,7 +91,7 @@ void main() {
 
     await openTopUp(tester);
     await tester.enterText(find.byType(TextField), '12,50');
-    await tester.tap(find.text('Запросить'));
+    await tester.tap(find.text('Внести на стойке'));
     await tester.pumpAndSettle();
 
     expect(http.bodies.single['amountMinorUnits'], 1250);
@@ -108,7 +108,7 @@ void main() {
 
     await openTopUp(tester);
     await tester.enterText(find.byType(TextField), '10');
-    await tester.tap(find.text('Запросить'));
+    await tester.tap(find.text('Внести на стойке'));
     await tester.pumpAndSettle();
 
     expect(http.bodies.single['currencyCode'], 'USD');
@@ -124,7 +124,7 @@ void main() {
     await openTopUp(tester);
     await tester.tap(find.widgetWithText(ActionChip, '100,00 с.'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Запросить'));
+    await tester.tap(find.text('Внести на стойке'));
     await tester.pumpAndSettle();
 
     expect(http.bodies.single['amountMinorUnits'], 10000);
@@ -140,7 +140,7 @@ void main() {
 
       await openTopUp(tester);
       await tester.enterText(find.byType(TextField), input);
-      await tester.tap(find.text('Запросить'));
+      await tester.tap(find.text('Внести на стойке'));
       await tester.pumpAndSettle();
 
       expect(http.bodies, isEmpty, reason: 'ввод «$input» не должен создавать заявку');

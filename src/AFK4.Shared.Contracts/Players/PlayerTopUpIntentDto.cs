@@ -17,3 +17,10 @@ public sealed record PlayerTopUpIntentDto(
     DateTimeOffset? GatewayExpiresAtUtc = null,
     string? Qr = null,
     string? DeepLink = null);
+
+/// <summary>
+/// Чем клуб принимает деньги прямо сейчас. Стойка — всегда: это наличные в кассе. Онлайн держится
+/// на двух вещах сразу — тариф платформы разрешает и у клуба заведён мерчант банка, — и приложение
+/// обязано узнать это до того, как предложит человеку кнопку.
+/// </summary>
+public sealed record PlayerTopUpMethodsDto(bool Counter, bool Online);

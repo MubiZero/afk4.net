@@ -448,6 +448,35 @@ internal static class PlayerSelfServiceEndpoints
                 DeepLink: AFK4.Platform.Api.Payments.Eskhata.EskhataDeepLink.FromInvoiceUrl(intent.GatewayPayUrl)));
         }).RequireRateLimiting("player-me").OpensClubAccount();
 
+        // Чем клуб принимает деньги. Спрашивается до того, как человек выбрал способ: кнопка,
+        // которая откажет, хуже отсутствующей кнопки.
+        app.MapGet("/api/me/wallet/top-up-methods", async (
+            IPlayerContextAccessor playerContextAccessor,
+            IOrganizationEntitlements entitlements,
+            AFK4.Platform.Api.Payments.Eskhata.IEskhataMerchantClientFactory eskhataClientFactory,
+            PlatformDbContext dbContext,
+            CancellationToken cancellationToken) =>
+        {
+            var player = playerContextAccessor.Current;
+            if (player is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            // Онлайн держится на двух вещах сразу, и обе спрашиваются здесь же: тариф платформы
+            // и живой мерчант банка. Проверять только одну значит обещать половину.
+            var planAllows = await entitlements.IsEnabledAsync(
+                player.OrganizationId, PlatformFeatureNames.OnlineTopUp, cancellationToken);
+            var online = planAllows
+                && await eskhataClientFactory.CreateForOrganizationAsync(
+                    player.OrganizationId, cancellationToken) is not null
+                && await ResolveEskhataMerchantIdAsync(
+                    dbContext, player.OrganizationId, cancellationToken) is not null;
+
+            // Стойка есть всегда: это наличные в кассе, им не нужен ни банк, ни тариф.
+            return Results.Ok(new PlayerTopUpMethodsDto(Counter: true, Online: online));
+        }).RequireRateLimiting("player-me");
+
         app.MapGet("/api/me/wallet/top-up-intents", async (
             IPlayerContextAccessor playerContextAccessor,
             PlatformDbContext dbContext,

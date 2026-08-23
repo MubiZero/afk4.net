@@ -32,7 +32,7 @@ it('submits a top-up request and shows it in the intent list', async () => {
   renderPanel(api, true);
   const amount = await screen.findByLabelText('Сумма');
   fireEvent.change(amount, { target: { value: '50' } });
-  fireEvent.click(screen.getByRole('button', { name: /запросить/i }));
+  fireEvent.click(screen.getByRole('button', { name: /внести на стойке/i }));
   await waitFor(() => expect(api.createTopUpIntent).toHaveBeenCalledWith({ amountMinorUnits: 5000, currencyCode: 'TJS' }));
   expect(await screen.findByText('Ожидает')).toBeInTheDocument();
 });

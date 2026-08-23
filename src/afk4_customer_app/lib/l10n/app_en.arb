@@ -906,6 +906,13 @@
   "customerWalletLedgerError": "Could not load the movements",
   "customerWalletLedgerTab": "Money",
   "customerWalletNote": "The club credits the amount once it confirms it at the desk.",
+  "customerWalletOnlineFailed": "The bank did not take the payment. Nothing was charged.",
+  "customerWalletOnlineNoApp": "The payment page could not be opened. Try again or pay at the desk.",
+  "customerWalletOnlineNote": "An online payment lands in your wallet right away. A counter request is credited by the desk.",
+  "customerWalletOnlinePay": "Pay online",
+  "customerWalletOnlineSlow": "The bank has not answered yet. If the payment went through, the money arrives on its own — check the balance in a couple of minutes.",
+  "customerWalletOnlineUnavailable": "This club is not taking online payments right now. Pay at the desk.",
+  "customerWalletOnlineWaiting": "Waiting for the bank…",
   "customerWalletPendingHint": "A request for {amount} is awaiting credit",
   "@customerWalletPendingHint": {
     "placeholders": {
@@ -915,7 +922,7 @@
     }
   },
   "customerWalletQuick": "Quick amounts",
-  "customerWalletRequest": "Request",
+  "customerWalletRequest": "Pay at the desk",
   "customerWalletRequesting": "Sending…",
   "customerWalletSendError": "Couldn't send the request",
   "customerWalletSent": "Top-up request sent",

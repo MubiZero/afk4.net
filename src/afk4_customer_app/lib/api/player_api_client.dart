@@ -476,13 +476,29 @@ class PlayerApiClient {
     required int amountMinorUnits,
     required String currencyCode,
     String? branchId,
+    String method = 'counter',
   }) async {
     final body = await sendJson('POST', '/api/me/wallet/top-up-intent', {
       'amountMinorUnits': amountMinorUnits,
       'currencyCode': currencyCode,
       'branchId': ?branchId,
+      'method': method,
     });
     return _parse(body, TopUpIntent.fromJson);
+  }
+
+  /// Чем клуб принимает деньги. Спрашивается до того, как игрок выбрал способ: кнопка,
+  /// которая откажет, хуже отсутствующей кнопки.
+  Future<TopUpMethods> topUpMethods() async {
+    return _parse(await sendJson('GET', '/api/me/wallet/top-up-methods'), TopUpMethods.fromJson);
+  }
+
+  /// Что банк думает о заявке: `paid`, `failed` или `pending`. Ответ «оплачено» приходит
+  /// только после того, как деньги зачислены в кошелёк.
+  Future<String> eskhataPaymentStatus(String paymentIntentId) async {
+    final body = await sendJson(
+        'POST', '/api/me/wallet/top-up-intents/$paymentIntentId/eskhata-status');
+    return body['payment'] as String? ?? 'pending';
   }
 
   /// Сообщить серверу, куда слать пуши. Ответ пустой — проверяем только, что он не отказ:
