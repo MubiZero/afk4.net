@@ -221,14 +221,18 @@ public sealed class PostgresReservationStartConcurrencyTests
         var reservationResult = await reservationTask;
         var normalResult = await normalTask;
         Assert.NotEqual(reservationResult.Succeeded, normalResult.Succeeded);
+        // Проигравший обязан сказать, ПОЧЕМУ он проиграл: «место занято» — это ответ, по которому
+        // стойка знает, что делать. Отказ в сообщении несёт код и текст самого проигравшего:
+        // 23.08.2026 этот тест упал в CI ровно здесь, и по голому «Expected: True» нельзя было
+        // сказать, чем именно ответил проигравший.
         if (reservationResult.Succeeded)
         {
-            Assert.True(normalResult.Conflict);
+            Assert.True(normalResult.Conflict, Refusal("обычный старт", normalResult));
             Assert.Equal("seat_occupied", normalResult.Code);
         }
         else
         {
-            Assert.True(reservationResult.Conflict);
+            Assert.True(reservationResult.Conflict, Refusal("старт по брони", reservationResult));
             Assert.Equal("seat_unavailable", reservationResult.Code);
         }
 
@@ -584,4 +588,16 @@ public sealed class PostgresReservationStartConcurrencyTests
     {
         public override DateTimeOffset GetUtcNow() => now;
     }
+    /// <summary>Как именно отказал проигравший — для сообщения упавшей проверки.</summary>
+    private static string Refusal(string who, SessionCommandServiceResult result) =>
+        Refusal(who, result.Succeeded, result.Conflict, result.NotFound, result.Code, result.Error);
+
+    private static string Refusal(string who, ReservationSessionStartResult result) =>
+        Refusal(who, result.Succeeded, result.Conflict, result.NotFound, result.Code, result.Error);
+
+    private static string Refusal(
+        string who, bool succeeded, bool conflict, bool notFound, string? code, string? error) =>
+        $"{who} проиграл гонку, но не сообщил о конфликте: Succeeded={succeeded}, " +
+        $"Conflict={conflict}, NotFound={notFound}, Code={code ?? "—"}, Error={error ?? "—"}";
+
 }
