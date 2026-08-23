@@ -141,11 +141,14 @@ describe('App', () => {
     const { container } = render(<App />);
     await screen.findByRole('heading', { name: /AFK4 Dushanbe/ });
     const footer = container.querySelector('.signals-strip');
-
     expect(footer).not.toBeNull();
+
+    // Зал доезжает вторым ответом, а не вместе с заголовком: синхронная проверка сразу после
+    // заголовка выигрывала гонку только на незагруженной машине, а под нагрузкой краснела —
+    // и краснела в чужом PR.
+    expect(await within(footer as HTMLElement).findByText('AFK4 Dushanbe · зал A')).toBeInTheDocument();
     expect(within(footer as HTMLElement).getByText('Иванов И.И.')).toBeInTheDocument();
     expect(within(footer as HTMLElement).getByText('Оператор')).toBeInTheDocument();
-    expect(within(footer as HTMLElement).getByText('AFK4 Dushanbe · зал A')).toBeInTheDocument();
     expect(within(footer as HTMLElement).getByText('2.45.1')).toBeInTheDocument();
     expect(within(footer as HTMLElement).queryByText(/Касса:/)).toBeNull();
   });

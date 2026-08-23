@@ -46,7 +46,7 @@ public sealed class PlayerPhoneVerificationEndpointTests
         var player = Guid.NewGuid();
         // Номер должен быть настоящим: нормализатор отвергает буквы, а `Guid.ToString("N")`
         // выдаёт шестнадцатеричные символы.
-        var phone = "+9929" + Math.Abs(player.GetHashCode()).ToString("D8")[..8];
+        var phone = TestPhones.Next();
 
         if (!await db.Organizations.AnyAsync(candidate => candidate.OrganizationId == org))
         {
