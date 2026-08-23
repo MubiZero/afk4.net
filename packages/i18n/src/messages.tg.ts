@@ -606,6 +606,7 @@ export const tg = {
   "customer.wallet.ledgerError": "Ҳаракатҳоро бор карда нашуд",
   "customer.wallet.ledgerTab": "Пул",
   "customer.wallet.note": "Клуб маблағро пас аз тасдиқи он дар мизи қабул ворид мекунад.",
+  "customer.wallet.online.busy": "Бонк ҳоло банд аст. Пас аз як дақиқа кӯшиш кунед ё дар пешхон супоред.",
   "customer.wallet.online.failed": "Бонк пардохтро нагузаронд. Пул гирифта нашуд.",
   "customer.wallet.online.noApp": "Саҳифаи пардохт кушода нашуд. Аз нав кӯшиш кунед ё дар пешхон супоред.",
   "customer.wallet.online.note": "Пардохти онлайн фавран ба ҳамён меафтад. Дархости пешхонро маъмур ворид мекунад.",

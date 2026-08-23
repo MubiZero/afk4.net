@@ -605,6 +605,7 @@
   "customer.wallet.ledgerError": "Не удалось загрузить движения",
   "customer.wallet.ledgerTab": "Деньги",
   "customer.wallet.note": "Клуб зачислит сумму, когда подтвердит её на стойке.",
+  "customer.wallet.online.busy": "Банк сейчас занят. Попробуйте через минуту или внесите на стойке.",
   "customer.wallet.online.failed": "Банк не провёл оплату. Деньги не списаны.",
   "customer.wallet.online.noApp": "Не удалось открыть оплату. Попробуйте ещё раз или внесите на стойке.",
   "customer.wallet.online.note": "Оплата онлайн зачисляется на кошелёк сразу. Заявку на стойку зачисляет администратор.",

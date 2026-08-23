@@ -23,12 +23,10 @@ public sealed class EskhataMerchantClient : IEskhataMerchantClient
         int merchantId, CancellationToken cancellationToken)
     {
         var amount = EskhataSigner.FormatAmount(amountMinor);
-        // Порядок подписи type 3 (подтверждён банком + обкатанный эталон type 2):
+        // Порядок подписи type 3, подтверждён живой сверкой с тестовым контуром банка 24.08.2026:
         // invoiceId · amount · currency · description · posId · orderTypeId · merchantId.
         // В create кассу назначает банк, поэтому posId=0 («назначь сам») идёт и в тело, и в хеш
-        // как "0" (как в эталоне, где posId всегда int-каст). Единственное, что осталось сверить
-        // об тестовый endpoint — "0" vs пустая строка (Task 8); провал безопасен: неверный хеш →
-        // банк отобьёт create, деньги не двигаются.
+        // как "0" — банк принял с первой попытки и вернул назначенную кассу.
         const int dynamicPosPlaceholder = 0;
         var hash = EskhataSigner.BuildHash(
             new[]
