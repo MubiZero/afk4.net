@@ -8,7 +8,6 @@ using AFK4.OrganizationAdmin.App.Devices;
 using AFK4.OrganizationAdmin.App.FloorMap;
 using AFK4.OrganizationAdmin.App.Hotkeys;
 using AFK4.OrganizationAdmin.App.Mvvm;
-using AFK4.OrganizationAdmin.App.PilotSetup;
 using AFK4.OrganizationAdmin.App.Players;
 using AFK4.OrganizationAdmin.App.Pos;
 using AFK4.OrganizationAdmin.App.Realtime;
@@ -57,14 +56,12 @@ public partial class MainWindow : Window
         var updateApiClient = new HttpOperatorUpdateApiClient(apiHttpClient, tokenStore);
         var auditApiClient = new HttpOperatorAuditApiClient(apiHttpClient, tokenStore);
         var diagnosticsApiClient = new HttpOperatorDiagnosticsApiClient(apiHttpClient, tokenStore);
-        var pilotSetupApiClient = new HttpOperatorPilotSetupApiClient(apiHttpClient, tokenStore);
         var settingsViewModel = new SettingsWorkspaceViewModel(
             new HashSet<string>(),
             new TechnicianDeviceWorkflowViewModel(deviceApiClient),
             new UpdateStatusWorkspaceViewModel(updateApiClient),
             new AuditSearchWorkspaceViewModel(auditApiClient),
-            new DiagnosticsWorkspaceViewModel(diagnosticsApiClient),
-            new PilotSetupWorkspaceViewModel(pilotSetupApiClient))
+            new DiagnosticsWorkspaceViewModel(diagnosticsApiClient))
         {
             ApiBaseUrlText = options.PlatformBaseUrl.ToString()
         };

@@ -7,7 +7,6 @@ using AFK4.OrganizationAdmin.App.Auth;
 using AFK4.OrganizationAdmin.App.Diagnostics;
 using AFK4.OrganizationAdmin.App.FloorMap;
 using AFK4.OrganizationAdmin.App.Mvvm;
-using AFK4.OrganizationAdmin.App.PilotSetup;
 using AFK4.OrganizationAdmin.App.Players;
 using AFK4.OrganizationAdmin.App.Pos;
 using AFK4.OrganizationAdmin.App.Settings;
@@ -378,8 +377,7 @@ public sealed class OrganizationAdminShellViewModel : INotifyPropertyChanged
             technicianTools: null,
             new UpdateStatusWorkspaceViewModel(new UnconfiguredOperatorUpdateApiClient()),
             new AuditSearchWorkspaceViewModel(new UnconfiguredOperatorAuditApiClient()),
-            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()),
-            new PilotSetupWorkspaceViewModel(new UnconfiguredOperatorPilotSetupApiClient()));
+            new DiagnosticsWorkspaceViewModel(new UnconfiguredOperatorDiagnosticsApiClient()));
     }
 
     private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)

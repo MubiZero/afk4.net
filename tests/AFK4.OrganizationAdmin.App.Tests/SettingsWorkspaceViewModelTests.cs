@@ -2,7 +2,6 @@ using AFK4.OrganizationAdmin.App.Devices;
 using AFK4.OrganizationAdmin.App.Settings;
 using AFK4.OrganizationAdmin.App.Audit;
 using AFK4.OrganizationAdmin.App.Diagnostics;
-using AFK4.OrganizationAdmin.App.PilotSetup;
 using AFK4.OrganizationAdmin.App.Updates;
 using AFK4.Shared.Contracts.Identity;
 
@@ -110,54 +109,6 @@ public sealed class SettingsWorkspaceViewModelTests
     }
 
     [Fact]
-    public void SettingsWorkspace_WithPilotSetupPermission_ExposesPilotSetupPanel()
-    {
-        var pilotSetup = new PilotSetupWorkspaceViewModel(new UnconfiguredOperatorPilotSetupApiClient());
-        var viewModel = new SettingsWorkspaceViewModel(
-            new HashSet<string> { OrganizationPermissionNames.ManageBranchStaff },
-            technicianTools: null,
-            updateStatus: null,
-            auditSearch: null,
-            diagnostics: null,
-            pilotSetup: pilotSetup);
-
-        Assert.True(viewModel.HasPilotSetup);
-        Assert.Same(pilotSetup, viewModel.PilotSetup);
-        Assert.Contains(viewModel.Panels, panel => panel.Key == "pilot-setup");
-    }
-
-    [Theory]
-    [InlineData(OrganizationPermissionNames.ManageBranchStaff, true, false, false, false, false)]
-    [InlineData(OrganizationPermissionNames.ManageLayout, false, true, false, false, false)]
-    [InlineData(OrganizationPermissionNames.ManageTariffs, false, false, true, false, false)]
-    [InlineData(OrganizationPermissionNames.ManagePosCatalog, false, false, false, true, false)]
-    [InlineData(OrganizationPermissionNames.AssignDeviceSeat, false, false, false, false, true)]
-    public void SettingsWorkspace_Constructor_ForwardsPilotSetupPermissions(
-        string permission,
-        bool canSetupStaff,
-        bool canSetupLayout,
-        bool canSetupTariff,
-        bool canSetupPos,
-        bool canAssignDeviceSeat)
-    {
-        var pilotSetup = new PilotSetupWorkspaceViewModel(new UnconfiguredOperatorPilotSetupApiClient());
-
-        _ = new SettingsWorkspaceViewModel(
-            new HashSet<string> { permission },
-            technicianTools: null,
-            updateStatus: null,
-            auditSearch: null,
-            diagnostics: null,
-            pilotSetup: pilotSetup);
-
-        Assert.Equal(canSetupStaff, pilotSetup.CanSetupStaff);
-        Assert.Equal(canSetupLayout, pilotSetup.CanSetupLayout);
-        Assert.Equal(canSetupTariff, pilotSetup.CanSetupTariff);
-        Assert.Equal(canSetupPos, pilotSetup.CanSetupPos);
-        Assert.Equal(canAssignDeviceSeat, pilotSetup.CanAssignDeviceSeat);
-    }
-
-    [Fact]
     public void SettingsWorkspace_WithDeviceCredentialPermission_ExposesTechnicianTools()
     {
         var technicianTools = new TechnicianDeviceWorkflowViewModel(new UnconfiguredOperatorDeviceApiClient());
@@ -196,27 +147,5 @@ public sealed class SettingsWorkspaceViewModelTests
         Assert.Equal(BranchId.ToString("D"), auditSearch.BranchIdText);
         Assert.Equal(OrganizationId.ToString("D"), diagnostics.OrganizationIdText);
         Assert.Equal(BranchId.ToString("D"), diagnostics.BranchIdText);
-    }
-
-    [Fact]
-    public void ApplyContext_UpdatesPilotSetupContextAndPermissions()
-    {
-        var pilotSetup = new PilotSetupWorkspaceViewModel(new UnconfiguredOperatorPilotSetupApiClient());
-        var viewModel = new SettingsWorkspaceViewModel(
-            new HashSet<string> { OrganizationPermissionNames.ManageLayout },
-            technicianTools: null,
-            updateStatus: null,
-            auditSearch: null,
-            diagnostics: null,
-            pilotSetup: pilotSetup);
-
-        viewModel.ApplyContext(
-            OrganizationId,
-            BranchId,
-            new HashSet<string> { OrganizationPermissionNames.ManageLayout });
-
-        Assert.Equal(OrganizationId.ToString("D"), pilotSetup.OrganizationIdText);
-        Assert.Equal(BranchId.ToString("D"), pilotSetup.BranchIdText);
-        Assert.True(pilotSetup.CanSetupLayout);
     }
 }
