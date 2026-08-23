@@ -57,19 +57,19 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
             new PilotSetupStaffUserViewModel(
                 "cashier.pilot@afk4.test",
                 "Pilot Cashier",
-                string.Empty,
+                "+992900000001",
                 "cashier.pilot@afk4.test",
                 "operator"),
             new PilotSetupStaffUserViewModel(
                 "technician.pilot@afk4.test",
                 "Pilot Technician",
-                string.Empty,
+                "+992900000002",
                 "technician.pilot@afk4.test",
                 "technician"),
             new PilotSetupStaffUserViewModel(
                 "supervisor.pilot@afk4.test",
                 "Pilot Supervisor",
-                string.Empty,
+                "+992900000003",
                 "supervisor.pilot@afk4.test",
                 "shift_supervisor")
         ];
