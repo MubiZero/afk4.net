@@ -906,6 +906,7 @@
   "customerWalletLedgerError": "Could not load the movements",
   "customerWalletLedgerTab": "Money",
   "customerWalletNote": "The club credits the amount once it confirms it at the desk.",
+  "customerWalletOnlineBusy": "The bank is busy right now. Try again in a minute or pay at the desk.",
   "customerWalletOnlineFailed": "The bank did not take the payment. Nothing was charged.",
   "customerWalletOnlineNoApp": "The payment page could not be opened. Try again or pay at the desk.",
   "customerWalletOnlineNote": "An online payment lands in your wallet right away. A counter request is credited by the desk.",

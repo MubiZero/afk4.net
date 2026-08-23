@@ -2,6 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Статус на 24.08.2026:** Phase 1 (бэкенд money-core) сделана и влита. Task 8 — живая сверка
+> порядка хеша об тестовый контур банка — выполнен: порядок в коде верен, `posId="0"` принят.
+> Phase 2 переписана под приложение на Flutter (Customer.Web перестал быть клиентом игрока), см.
+> `2026-08-24-online-topup-in-app.md`. Phase 3 (QR на экране игрового ПК) не начата.
+
 **Goal:** Построить онлайн-приём денег в кошелёк игрока через Eskhata Merchant (`orderTypeId=3`), переиспользуя money-path dcgate.
 
 **Architecture:** Новый HTTP-клиент с SHA-256-подписью (`IEskhataMerchantClient`) создаёт заказ в ЭМ; ответ даёт `qr` (киоск) и `invoiceUrl` (→ deeplink для мобилы). Пополнение живёт в существующем `PaymentIntentEntity` (`Method="eskhata"`, `invoiceId=PaymentIntentId`). Публичный webhook перепроверяет статус через `/orders/status` и кредитит кошелёк тем же `CreditOnlineTopUpAsync` (идемпотентно по intent-id). Money-path dcgate не изменяется.

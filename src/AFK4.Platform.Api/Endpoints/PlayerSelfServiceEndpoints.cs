@@ -414,13 +414,31 @@ internal static class PlayerSelfServiceEndpoints
                         statusCode: StatusCodes.Status409Conflict);
                 }
 
-                var order = await eskhataClient.CreateOrderAsync(
-                    intent.PaymentIntentId.ToString("N"),
-                    intent.AmountMinorUnits,
-                    intent.CurrencyCode == "TJS" ? "972" : intent.CurrencyCode,
-                    "AFK4 wallet top-up",
-                    merchantId.Value,
-                    cancellationToken);
+                AFK4.Platform.Api.Payments.Eskhata.EskhataCreateOrderResult order;
+                try
+                {
+                    order = await eskhataClient.CreateOrderAsync(
+                        intent.PaymentIntentId.ToString("N"),
+                        intent.AmountMinorUnits,
+                        intent.CurrencyCode == "TJS" ? "972" : intent.CurrencyCode,
+                        "AFK4 wallet top-up",
+                        merchantId.Value,
+                        cancellationToken);
+                }
+                catch (HttpRequestException)
+                {
+                    // Банк отказал в заказе. Самая частая причина при orderTypeId=3 — «отсутствует
+                    // свободная касса»: кассу выдаёт банк из своего пула, и пул бывает пуст
+                    // (проверено живой сверкой 24.08.2026, отпускает через полминуты). Это «занято,
+                    // подождите», а не «сломалось»: пятисотка звала бы человека повторять одно и то
+                    // же, вместо того чтобы подождать минуту или подойти к стойке.
+                    //
+                    // Заявка при этом не сохраняется: платить по ней нечем, а в списке кошелька она
+                    // выглядела бы как ожидающая оплата.
+                    return Results.Json(
+                        new { Error = "online_payment_busy" },
+                        statusCode: StatusCodes.Status409Conflict);
+                }
 
                 intent.GatewayPaymentId = order.OrderId;
                 intent.GatewayPayUrl = order.InvoiceUrl;

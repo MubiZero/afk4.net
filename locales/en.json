@@ -605,6 +605,7 @@
   "customer.wallet.ledgerError": "Could not load the movements",
   "customer.wallet.ledgerTab": "Money",
   "customer.wallet.note": "The club credits the amount once it confirms it at the desk.",
+  "customer.wallet.online.busy": "The bank is busy right now. Try again in a minute or pay at the desk.",
   "customer.wallet.online.failed": "The bank did not take the payment. Nothing was charged.",
   "customer.wallet.online.noApp": "The payment page could not be opened. Try again or pay at the desk.",
   "customer.wallet.online.note": "An online payment lands in your wallet right away. A counter request is credited by the desk.",

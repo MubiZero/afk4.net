@@ -155,6 +155,9 @@ class _TopUpSheetState extends State<TopUpSheet> with WidgetsBindingObserver {
           'network_banned' => l.customerBanTitle,
           // Клуб перестал принимать онлайн, пока лист был открыт: стойка при этом работает.
           'online_payment_unavailable' => l.customerWalletOnlineUnavailable,
+          // Касса банка занята — это ожидание, а не поломка: через минуту она освободится, а
+          // стойка принимает деньги прямо сейчас.
+          'online_payment_busy' => l.customerWalletOnlineBusy,
           _ => l.customerWalletSendError,
         });
       }

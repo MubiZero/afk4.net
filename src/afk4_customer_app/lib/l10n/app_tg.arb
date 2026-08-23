@@ -906,6 +906,7 @@
   "customerWalletLedgerError": "Ҳаракатҳоро бор карда нашуд",
   "customerWalletLedgerTab": "Пул",
   "customerWalletNote": "Клуб маблағро пас аз тасдиқи он дар мизи қабул ворид мекунад.",
+  "customerWalletOnlineBusy": "Бонк ҳоло банд аст. Пас аз як дақиқа кӯшиш кунед ё дар пешхон супоред.",
   "customerWalletOnlineFailed": "Бонк пардохтро нагузаронд. Пул гирифта нашуд.",
   "customerWalletOnlineNoApp": "Саҳифаи пардохт кушода нашуд. Аз нав кӯшиш кунед ё дар пешхон супоред.",
   "customerWalletOnlineNote": "Пардохти онлайн фавран ба ҳамён меафтад. Дархости пешхонро маъмур ворид мекунад.",

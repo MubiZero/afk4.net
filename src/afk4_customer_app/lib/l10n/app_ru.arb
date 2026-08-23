@@ -906,6 +906,7 @@
   "customerWalletLedgerError": "Не удалось загрузить движения",
   "customerWalletLedgerTab": "Деньги",
   "customerWalletNote": "Клуб зачислит сумму, когда подтвердит её на стойке.",
+  "customerWalletOnlineBusy": "Банк сейчас занят. Попробуйте через минуту или внесите на стойке.",
   "customerWalletOnlineFailed": "Банк не провёл оплату. Деньги не списаны.",
   "customerWalletOnlineNoApp": "Не удалось открыть оплату. Попробуйте ещё раз или внесите на стойке.",
   "customerWalletOnlineNote": "Оплата онлайн зачисляется на кошелёк сразу. Заявку на стойку зачисляет администратор.",
