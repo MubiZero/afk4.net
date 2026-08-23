@@ -25,15 +25,6 @@ public sealed class PlatformPinVerificationTests
 {
     private const string Phone = "+992900000601";
 
-    private sealed class MovableTimeProvider(DateTimeOffset start) : TimeProvider
-    {
-        private DateTimeOffset now = start;
-
-        public override DateTimeOffset GetUtcNow() => now;
-
-        public void Advance(TimeSpan by) => now = now.Add(by);
-    }
-
     [Fact]
     public async Task NetworkPin_SignsThePlayerIn_AndTheTokenWorks()
     {

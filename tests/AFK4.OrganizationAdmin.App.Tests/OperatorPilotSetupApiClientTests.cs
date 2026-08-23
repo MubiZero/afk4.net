@@ -50,6 +50,7 @@ public sealed class OperatorPilotSetupApiClientTests
             OrganizationId,
             "cashier.pilot@afk4.test",
             "Pilot Cashier",
+            "+992937380070",
             "cashier.pilot@afk4.test",
             ["cashier"]);
 
@@ -233,7 +234,7 @@ public sealed class OperatorPilotSetupApiClientTests
     public async Task UnconfiguredClient_ThrowsConfiguredMessageForEveryMethod()
     {
         IOperatorPilotSetupApiClient client = new UnconfiguredOperatorPilotSetupApiClient();
-        var staffRequest = new CreateStaffInviteRequest(OrganizationId, "user", "User", "user@club.example", ["cashier"]);
+        var staffRequest = new CreateStaffInviteRequest(OrganizationId, "user", "User", "+992937380070", "user@club.example", ["cashier"]);
         var zoneRequest = new CreateZoneRequest(OrganizationId, "Main Hall", 10);
         var seatRequest = new CreateSeatRequest(OrganizationId, ZoneId, "PC-001", 1);
         var tariffRequest = new CreateTariffRequest(OrganizationId, "Standard", "tariff-create-001");

@@ -34,6 +34,7 @@ function renderSignIn(config: OperatorConfig, onSignIn = mock(async () => {})) {
         onChooseClub={mock(async () => {})}
         onCancelChooseClub={mock(() => {})}
         onForgotPassword={mock(() => {})}
+        onAcceptInvite={mock(() => {})}
       />
     </I18nProvider>
   );

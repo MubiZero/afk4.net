@@ -1,12 +1,15 @@
 namespace AFK4.Shared.Contracts.Identity;
 
 /// <summary>
-/// Invite a new staff member by email; they set their own password on accept. This is the sole
-/// staff-onboarding path (inline-password creation has been removed).
+/// Приглашение сотрудника по номеру телефона: человек принимает его коротким кодом из SMS и сам
+/// задаёт себе пароль. Единственный путь завести сотрудника — заведение с готовым паролем убрано
+/// намеренно, чтобы пароль знал только его владелец.
 /// </summary>
+/// <param name="Email">Необязательна: назвали — уйдёт и письмо, не назвали — хватит SMS.</param>
 public sealed record CreateStaffInviteRequest(
     Guid OrganizationId,
     string UserName,
     string DisplayName,
-    string Email,
+    string PhoneNumber,
+    string? Email,
     IReadOnlyList<string> RoleNames);

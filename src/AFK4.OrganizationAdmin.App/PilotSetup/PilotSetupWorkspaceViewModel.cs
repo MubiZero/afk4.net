@@ -57,16 +57,19 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
             new PilotSetupStaffUserViewModel(
                 "cashier.pilot@afk4.test",
                 "Pilot Cashier",
+                "+992900000001",
                 "cashier.pilot@afk4.test",
                 "operator"),
             new PilotSetupStaffUserViewModel(
                 "technician.pilot@afk4.test",
                 "Pilot Technician",
+                "+992900000002",
                 "technician.pilot@afk4.test",
                 "technician"),
             new PilotSetupStaffUserViewModel(
                 "supervisor.pilot@afk4.test",
                 "Pilot Supervisor",
+                "+992900000003",
                 "supervisor.pilot@afk4.test",
                 "shift_supervisor")
         ];
@@ -333,7 +336,8 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
                             organizationId,
                             userName,
                             staffUser.DisplayName.Trim(),
-                            staffUser.Email.Trim(),
+                            staffUser.PhoneNumber.Trim(),
+                            string.IsNullOrWhiteSpace(staffUser.Email) ? null : staffUser.Email.Trim(),
                             [staffUser.RoleName.Trim()]),
                         cancellationToken);
 
@@ -588,7 +592,7 @@ public sealed class PilotSetupWorkspaceViewModel : INotifyPropertyChanged
             {
                 if (string.IsNullOrWhiteSpace(staffUser.UserName)
                     || string.IsNullOrWhiteSpace(staffUser.DisplayName)
-                    || string.IsNullOrWhiteSpace(staffUser.Email)
+                    || string.IsNullOrWhiteSpace(staffUser.PhoneNumber)
                     || string.IsNullOrWhiteSpace(staffUser.RoleName))
                 {
                     ErrorMessage = "Staff setup rows require username, display name, email, and role.";
@@ -715,13 +719,16 @@ public sealed class PilotSetupStaffUserViewModel : INotifyPropertyChanged
 {
     private string userName;
     private string displayName;
+    private string phoneNumber;
     private string email;
     private string roleName;
 
-    public PilotSetupStaffUserViewModel(string userName, string displayName, string email, string roleName)
+    public PilotSetupStaffUserViewModel(
+        string userName, string displayName, string phoneNumber, string email, string roleName)
     {
         this.userName = userName;
         this.displayName = displayName;
+        this.phoneNumber = phoneNumber;
         this.email = email;
         this.roleName = roleName;
     }
@@ -738,6 +745,13 @@ public sealed class PilotSetupStaffUserViewModel : INotifyPropertyChanged
     {
         get => displayName;
         set => SetField(ref displayName, value);
+    }
+
+    /// <summary>Номер, на который уйдёт код приглашения. Почта необязательна, номер — нет.</summary>
+    public string PhoneNumber
+    {
+        get => phoneNumber;
+        set => SetField(ref phoneNumber, value);
     }
 
     public string Email

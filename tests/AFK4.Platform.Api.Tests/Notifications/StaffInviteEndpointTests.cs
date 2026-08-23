@@ -12,15 +12,17 @@ namespace AFK4.Platform.Api.Tests;
 
 public sealed partial class StaffInviteEndpointTests
 {
-    [GeneratedRegex(@"[0-9a-fA-F]{32}\.[0-9A-Fa-f]{64}")]
-    private static partial Regex TokenPattern();
+    private const string InvitePhone = "+992937380071";
+
+    [GeneratedRegex(@"\b\d{6}\b")]
+    private static partial Regex CodePattern();
 
     private static async Task<string> ReadInviteCodeAsync(PlatformApiFactory factory)
     {
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
-        var row = await db.NotificationOutbox.SingleAsync(r => r.TemplateKey == NotificationTemplateKeys.StaffInvite);
-        var code = TokenPattern().Match(row.BodyText).Value;
+        var row = await db.NotificationOutbox.SingleAsync(r => r.TemplateKey == NotificationTemplateKeys.StaffInviteSms);
+        var code = CodePattern().Match(row.BodyText).Value;
         Assert.NotEmpty(code);
         return code;
     }
@@ -34,7 +36,7 @@ public sealed partial class StaffInviteEndpointTests
 
         var create = await client.PostAsJsonAsync(
             $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/staff/invites",
-            new CreateStaffInviteRequest(TestIds.OrganizationId, "new.cashier", "New Cashier", "new.cashier@club.example",
+            new CreateStaffInviteRequest(TestIds.OrganizationId, "new.cashier", "New Cashier", InvitePhone, "new.cashier@club.example",
                 [OrganizationRoleNames.Operator]));
         Assert.Equal(HttpStatusCode.OK, create.StatusCode);
         var dto = await create.Content.ReadFromJsonAsync<StaffInviteDto>();
@@ -44,7 +46,7 @@ public sealed partial class StaffInviteEndpointTests
         Assert.Equal(dto!.Code, code);
 
         var accept = await client.PostAsJsonAsync("/api/staff/invites/accept",
-            new AcceptStaffInviteRequest(code, "FreshPass123"));
+            new AcceptStaffInviteRequest(InvitePhone, code, "FreshPass123"));
         Assert.Equal(HttpStatusCode.OK, accept.StatusCode);
         var accepted = await accept.Content.ReadFromJsonAsync<AcceptStaffInviteResponse>();
         Assert.Equal(TestIds.OrganizationId, accepted!.OrganizationId);
@@ -64,7 +66,7 @@ public sealed partial class StaffInviteEndpointTests
 
         var response = await client.PostAsJsonAsync(
             $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/staff/invites",
-            new CreateStaffInviteRequest(TestIds.OrganizationId, "new.cashier", "New Cashier", "new.cashier@club.example",
+            new CreateStaffInviteRequest(TestIds.OrganizationId, "new.cashier", "New Cashier", InvitePhone, "new.cashier@club.example",
                 [OrganizationRoleNames.Operator]));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -80,21 +82,24 @@ public sealed partial class StaffInviteEndpointTests
         // "tech@afk4.test" is the seeded owner account — inviting the same username must fail.
         var response = await client.PostAsJsonAsync(
             $"/api/organizations/{TestIds.OrganizationId:D}/branches/{TestIds.BranchId:D}/staff/invites",
-            new CreateStaffInviteRequest(TestIds.OrganizationId, "tech@afk4.test", "Dup", "dup@club.example",
+            new CreateStaffInviteRequest(TestIds.OrganizationId, "tech@afk4.test", "Dup", InvitePhone, "dup@club.example",
                 [OrganizationRoleNames.Operator]));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
-    public async Task Accept_InvalidToken_Returns400()
+    // Номер, которого никто не приглашал, отвечает тем же, чем истёкшее приглашение: разные
+    // ответы превратили бы маршрут в проверялку «кого в этот клуб звали».
+    public async Task Accept_ForAPhoneNobodyInvited_AnswersLikeAnExpiredCode()
     {
         await using var factory = new PlatformApiFactory();
         using var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync("/api/staff/invites/accept",
-            new AcceptStaffInviteRequest("00000000000000000000000000000000.deadbeef", "FreshPass123"));
+            new AcceptStaffInviteRequest(InvitePhone, "000000", "FreshPass123"));
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Gone, response.StatusCode);
+        Assert.Contains("code_expired", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
     }
 }

@@ -246,7 +246,9 @@ public sealed class PlanLimitGuardTests
             DisplayName = "Новичок",
             Email = "newbie@example.test",
             RoleNamesCsv = OrganizationRoleNames.BranchManager,
-            TokenHash = [1, 2, 3],
+            PhoneNumber = "+992937380099",
+            NormalizedPhone = "992937380099",
+            CodeHash = "hash",
             CreatedAtUtc = Now,
             ExpiresAtUtc = Now.AddDays(7)
         });

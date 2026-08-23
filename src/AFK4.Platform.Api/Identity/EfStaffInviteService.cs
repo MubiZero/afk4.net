@@ -1,6 +1,5 @@
-using System.Security.Cryptography;
-using System.Text;
 using AFK4.Platform.Api.Data;
+using AFK4.Platform.Api.Identity.PhoneOtp;
 using AFK4.Platform.Api.Notifications;
 using AFK4.Platform.Api.Platform.Entitlements;
 using AFK4.Shared.Contracts.Notifications;
@@ -11,19 +10,27 @@ using Microsoft.Extensions.Options;
 namespace AFK4.Platform.Api.Identity;
 
 /// <summary>
-/// EF Core <see cref="IStaffInviteService"/>. Issues opaque single-use invite tokens (RNG ->
-/// SHA-256 stored, plaintext emailed once — mirrors <c>OpaqueStaffTokenService</c> /
-/// <see cref="EfStaffPasswordResetService"/>) and, on accept, creates the active staff user with
-/// their chosen password and the invited branch roles.
+/// Приглашение сотрудника по номеру телефона. Владелец называет номер и роли, человеку уходит SMS
+/// с шестизначным кодом, он вводит код и придумывает себе пароль — и получает счёт с уже
+/// подтверждённым телефоном, то есть входит номером, как все остальные сотрудники.
+///
+/// Пороги те же, что у сброса пароля по телефону: код шестизначный, живёт сутки, умирает после
+/// трёх неверных попыток. Второе приглашение на тот же номер гасит первое — иначе отозвать
+/// ошибочное приглашение было бы нечем.
 /// </summary>
 public sealed class EfStaffInviteService(
     PlatformDbContext db,
     INotificationService notifications,
+    IPhoneOtpGenerator codeGenerator,
+    IPhoneOtpHasher codeHasher,
     TimeProvider timeProvider,
     IOptions<NotificationOptions> options,
     IPlanLimitGuard planLimitGuard) : IStaffInviteService
 {
-    private static readonly TimeSpan TokenLifetime = TimeSpan.FromDays(7);
+    /// <summary>Сутки, а не неделя: шесть цифр, живущих неделю, перебираются спокойно.</summary>
+    private static readonly TimeSpan InviteLifetime = TimeSpan.FromHours(24);
+
+    private const int MaxAttempts = 3;
 
     private static readonly char[] RoleSeparator = [','];
 
@@ -35,10 +42,17 @@ public sealed class EfStaffInviteService(
         Guid branchId,
         string userName,
         string displayName,
-        string email,
+        string phoneNumber,
+        string? email,
         IReadOnlyList<string> roleNames,
         CancellationToken cancellationToken)
     {
+        var normalizedPhone = PhoneNumberNormalizer.Normalize(phoneNumber);
+        if (normalizedPhone is null)
+        {
+            return StaffInviteCreateResult.Failed("A valid phone number is required to send the invite.");
+        }
+
         var normalizedUserName = userName.Trim().ToUpperInvariant();
         var alreadyExists = await db.StaffUsers.AnyAsync(
             user => user.OrganizationId == organizationId && user.NormalizedUserName == normalizedUserName,
@@ -48,17 +62,37 @@ public sealed class EfStaffInviteService(
             return StaffInviteCreateResult.Failed("A staff user with this username already exists in the organization.");
         }
 
+        // Номер — глобальный вход сотрудника, и второй счёт на тот же номер сделал бы вход
+        // неоднозначным. Приглашать человека, который уже работает, незачем: ему меняют роли.
+        var phoneTaken = await db.StaffUsers.AnyAsync(
+            user => user.NormalizedPhone == normalizedPhone
+                && user.PhoneVerifiedAtUtc != null
+                && user.IsActive,
+            cancellationToken);
+        if (phoneTaken)
+        {
+            return StaffInviteCreateResult.Failed("This phone number already belongs to a staff member.");
+        }
+
         var planLimit = await planLimitGuard.CheckStaffUserAsync(organizationId, branchId, cancellationToken);
         if (planLimit is not null)
         {
             return StaffInviteCreateResult.PlanLimitReached(planLimit);
         }
 
+        // Приглашали заново — старое гасим здесь же: два живых кода на один номер означают, что
+        // отозвать ошибочное приглашение нечем.
+        var previous = await db.StaffInvites
+            .Where(invite => invite.NormalizedPhone == normalizedPhone && invite.AcceptedAtUtc == null)
+            .ToListAsync(cancellationToken);
+        db.StaffInvites.RemoveRange(previous);
+
         var roles = NormalizeRoles(roleNames);
         var now = timeProvider.GetUtcNow();
         var inviteId = Guid.NewGuid();
-        var plaintext = $"{inviteId:N}.{Convert.ToHexString(RandomNumberGenerator.GetBytes(32))}";
-        var expiresAtUtc = now + TokenLifetime;
+        var code = codeGenerator.Generate();
+        var expiresAtUtc = now + InviteLifetime;
+        var trimmedEmail = string.IsNullOrWhiteSpace(email) ? null : email.Trim();
 
         db.StaffInvites.Add(new StaffInviteEntity
         {
@@ -68,45 +102,90 @@ public sealed class EfStaffInviteService(
             UserName = userName.Trim(),
             NormalizedUserName = normalizedUserName,
             DisplayName = displayName.Trim(),
-            Email = email.Trim(),
+            PhoneNumber = "+" + normalizedPhone,
+            NormalizedPhone = normalizedPhone,
+            Email = trimmedEmail,
             RoleNamesCsv = string.Join(',', roles),
-            TokenHash = HashToken(plaintext),
+            CodeHash = codeHasher.Hash(code),
             CreatedAtUtc = now,
             ExpiresAtUtc = expiresAtUtc,
         });
         await db.SaveChangesAsync(cancellationToken);
 
-        var request = new NotificationRequest(
-            TemplateKey: NotificationTemplateKeys.StaffInvite,
-            Category: NotificationCategory.Transactional,
-            Recipient: new NotificationRecipient(Locale: options.DefaultLocale, EmailAddress: email.Trim()),
-            Tokens: new Dictionary<string, string>
-            {
-                ["displayName"] = displayName.Trim(),
-                ["code"] = plaintext,
-            },
-            IdempotencyKey: $"staff-invite:{inviteId:N}",
-            OrganizationId: organizationId,
-            BranchId: branchId);
-        await notifications.SendAsync(request, cancellationToken);
+        var tokens = new Dictionary<string, string>
+        {
+            ["displayName"] = displayName.Trim(),
+            ["code"] = code,
+        };
 
-        return StaffInviteCreateResult.Success(inviteId, plaintext, expiresAtUtc);
+        await notifications.SendAsync(
+            new NotificationRequest(
+                TemplateKey: NotificationTemplateKeys.StaffInviteSms,
+                Category: NotificationCategory.Transactional,
+                Recipient: new NotificationRecipient(
+                    Locale: options.DefaultLocale, PhoneNumber: "+" + normalizedPhone),
+                Tokens: tokens,
+                IdempotencyKey: $"staff-invite-sms:{inviteId:N}",
+                OrganizationId: organizationId,
+                BranchId: branchId,
+                PreferredChannels: [NotificationChannel.Sms]),
+            cancellationToken);
+
+        // Почта — довесок, а не путь: она есть не у каждого администратора зала.
+        if (trimmedEmail is not null)
+        {
+            await notifications.SendAsync(
+                new NotificationRequest(
+                    TemplateKey: NotificationTemplateKeys.StaffInvite,
+                    Category: NotificationCategory.Transactional,
+                    Recipient: new NotificationRecipient(
+                        Locale: options.DefaultLocale, EmailAddress: trimmedEmail),
+                    Tokens: tokens,
+                    IdempotencyKey: $"staff-invite:{inviteId:N}",
+                    OrganizationId: organizationId,
+                    BranchId: branchId),
+                cancellationToken);
+        }
+
+        return StaffInviteCreateResult.Success(inviteId, code, expiresAtUtc);
     }
 
-    public async Task<StaffInviteAcceptResult> AcceptInviteAsync(string token, string password, CancellationToken cancellationToken)
+    public async Task<StaffInviteAcceptResult> AcceptInviteAsync(
+        string phoneNumber, string code, string password, CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(token);
+        var normalizedPhone = PhoneNumberNormalizer.Normalize(phoneNumber);
+        if (normalizedPhone is null || string.IsNullOrWhiteSpace(code))
+        {
+            return StaffInviteAcceptResult.NoActiveInvite();
+        }
 
         var now = timeProvider.GetUtcNow();
-        var tokenHash = HashToken(token);
-
-        var candidates = await db.StaffInvites
-            .Where(invite => invite.AcceptedAtUtc == null && invite.ExpiresAtUtc > now)
-            .ToListAsync(cancellationToken);
-        var invite = candidates.SingleOrDefault(candidate => candidate.TokenHash.SequenceEqual(tokenHash));
+        var invite = await db.StaffInvites
+            .Where(candidate => candidate.NormalizedPhone == normalizedPhone && candidate.AcceptedAtUtc == null)
+            .OrderByDescending(candidate => candidate.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
         if (invite is null)
         {
-            return StaffInviteAcceptResult.Failed("The invite is invalid or has expired.");
+            return StaffInviteAcceptResult.NoActiveInvite();
+        }
+
+        if (invite.ExpiresAtUtc <= now)
+        {
+            return StaffInviteAcceptResult.Expired();
+        }
+
+        // Потолок попыток проверяется до сверки кода: иначе верный код после трёх промахов
+        // пускал бы, и счётчик не значил бы ничего.
+        if (invite.AttemptCount >= MaxAttempts)
+        {
+            return StaffInviteAcceptResult.TooManyAttempts();
+        }
+
+        if (codeHasher.Hash(PhoneOtpCode.KeepDigits(code)) != invite.CodeHash)
+        {
+            invite.AttemptCount++;
+            await db.SaveChangesAsync(cancellationToken);
+            return StaffInviteAcceptResult.InvalidCode(Math.Max(0, MaxAttempts - invite.AttemptCount));
         }
 
         var alreadyExists = await db.StaffUsers.AnyAsync(
@@ -132,6 +211,11 @@ public sealed class EfStaffInviteService(
             NormalizedUserName = invite.NormalizedUserName,
             DisplayName = invite.DisplayName,
             Email = invite.Email,
+            // Телефон приходит подтверждённым: код из SMS и есть доказательство, что номер его.
+            // Иначе приглашённый остался бы без входа по номеру — того самого, которым входят все.
+            Phone = invite.PhoneNumber,
+            NormalizedPhone = invite.NormalizedPhone,
+            PhoneVerifiedAtUtc = now,
             IsActive = true,
             CreatedAtUtc = now,
         };
@@ -165,5 +249,4 @@ public sealed class EfStaffInviteService(
             .OrderBy(role => role, StringComparer.Ordinal)
             .ToList();
 
-    private static byte[] HashToken(string token) => SHA256.HashData(Encoding.UTF8.GetBytes(token));
 }

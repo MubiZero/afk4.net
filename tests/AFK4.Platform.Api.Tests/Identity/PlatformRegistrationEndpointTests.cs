@@ -35,15 +35,6 @@ public sealed class PlatformRegistrationEndpointTests
     }
 
     /// <summary>Часы, которые можно двигать: кулдаун и часовой лимит иначе не проверить.</summary>
-    private sealed class MovableTimeProvider(DateTimeOffset start) : TimeProvider
-    {
-        private DateTimeOffset now = start;
-
-        public override DateTimeOffset GetUtcNow() => now;
-
-        public void Advance(TimeSpan by) => now = now.Add(by);
-    }
-
     private static PlatformApiFactory FactoryWith(
         RecordingSmsTransport recording, MovableTimeProvider? time = null) =>
         new(extraServices: services =>

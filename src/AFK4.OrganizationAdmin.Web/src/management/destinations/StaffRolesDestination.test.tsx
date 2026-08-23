@@ -163,7 +163,8 @@ describe('StaffRolesDestination', () => {
 
     fireEvent.change(screen.getByRole('textbox', { name: 'Логин для входа' }), { target: { value: 'operator2' } });
     fireEvent.change(screen.getByRole('textbox', { name: 'Имя в смене' }), { target: { value: 'Новый сотрудник' } });
-    fireEvent.change(screen.getByRole('textbox', { name: 'Email для приглашения' }), { target: { value: 'new@club.tj' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Телефон для приглашения' }), { target: { value: '+992937380070' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Email (необязательно)' }), { target: { value: 'new@club.tj' } });
     fireEvent.click(screen.getByRole('checkbox', { name: 'Оператор' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Управляющий' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Техник' }));
@@ -174,6 +175,7 @@ describe('StaffRolesDestination', () => {
       organizationId: 'org',
       userName: 'operator2',
       displayName: 'Новый сотрудник',
+      phoneNumber: '+992937380070',
       email: 'new@club.tj',
       roleNames: ['branch_manager', 'technician']
     }));

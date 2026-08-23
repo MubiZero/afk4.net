@@ -62,6 +62,7 @@ export function StaffRolesDestination({
   const [criticalAction, setCriticalAction] = useState<CriticalAction | null>(null);
   const [inviteUserName, setInviteUserName] = useState('operator');
   const [inviteDisplayName, setInviteDisplayName] = useState(() => t('op.settings.prefill.inviteDisplayName'));
+  const [invitePhone, setInvitePhone] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRoleNames, setInviteRoleNames] = useState<string[]>(['operator']);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
@@ -116,6 +117,7 @@ export function StaffRolesDestination({
   const openInvite = () => {
     setInviteUserName(`operator${staffRows.length + 1}`);
     setInviteDisplayName(t('op.settings.prefill.inviteDisplayName'));
+    setInvitePhone('');
     setInviteEmail('');
     setInviteRoleNames(['operator']);
     setInviteCode(null);
@@ -134,8 +136,11 @@ export function StaffRolesDestination({
 
       const userName = inviteUserName.trim();
       const displayName = inviteDisplayName.trim();
+      const phoneNumber = invitePhone.trim();
       const email = inviteEmail.trim();
-      if (!userName || !displayName || !email || inviteRoleNames.length === 0) {
+      // Телефон обязателен, почта — нет: код едет SMS, а почты у администратора зала может не
+      // быть вовсе.
+      if (!userName || !displayName || !phoneNumber || inviteRoleNames.length === 0) {
         throw new Error(t('op.settings.staff.error.fillInvite'));
       }
 
@@ -144,7 +149,8 @@ export function StaffRolesDestination({
         organizationId: nextBackend.session.organizationId,
         userName,
         displayName,
-        email,
+        phoneNumber,
+        email: email.length > 0 ? email : null,
         roleNames: inviteRoleNames
       });
       // Приглашённый появится в списке сотрудников только после того как примет приглашение и
@@ -493,7 +499,10 @@ export function StaffRolesDestination({
               <label>{t('op.settings.staff.displayName')}
                 <input value={inviteDisplayName} disabled={busy} onChange={(event) => setInviteDisplayName(event.currentTarget.value)} />
               </label>
-              <label>{t('op.settings.staff.email')}
+              <label>{t('op.settings.staff.phone')}
+                <input type="tel" inputMode="tel" placeholder="+992 93 738 00 70" value={invitePhone} disabled={busy} onChange={(event) => setInvitePhone(event.currentTarget.value)} />
+              </label>
+              <label>{t('op.settings.staff.emailOptional')}
                 <input type="email" value={inviteEmail} disabled={busy} onChange={(event) => setInviteEmail(event.currentTarget.value)} />
               </label>
               <fieldset className="mgmt-role-set">

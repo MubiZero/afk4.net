@@ -1,6 +1,9 @@
 namespace AFK4.Shared.Contracts.Identity;
 
-public sealed record AcceptStaffInviteRequest(string Token, string Password);
+/// <summary>
+/// Приём приглашения: номер, код из SMS и пароль, который человек придумывает себе сам.
+/// </summary>
+public sealed record AcceptStaffInviteRequest(string PhoneNumber, string Code, string Password);
 
-/// <summary>Returned on a successful accept so the client can route the new staff member to sign-in.</summary>
+/// <summary>Кем человек стал: клуб и его логин в нём.</summary>
 public sealed record AcceptStaffInviteResponse(Guid OrganizationId, string UserName);

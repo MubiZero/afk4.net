@@ -32,6 +32,9 @@ public static class NotificationTemplateKeys
     /// <summary>Staff invite email carrying the invite code; invitee sets their own password on accept (Stage 3, additive).</summary>
     public const string StaffInvite = "staff.invite";
 
+    /// <summary>Приглашение сотрудника коротким кодом. Основной путь: почта есть не у каждого.</summary>
+    public const string StaffInviteSms = "staff.invite_sms";
+
     /// <summary>Invoice issued to the organization owner (Stage 4 billing trigger).</summary>
     public const string InvoiceIssued = "invoice.issued";
 
@@ -72,5 +75,5 @@ public static class NotificationTemplateKeys
     public const string PlayerOrderReady = "player.order_ready";
 
     public static readonly IReadOnlyList<string> All =
-        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, PlayerSignInCode, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement, PlayerSessionEnding, PlayerReservationSoon, PlayerBalanceToppedUp, PlayerOrderReady];
+        [Test, StaffPasswordReset, StaffPhoneVerification, PlayerPhoneVerification, PlayerSignInCode, StaffPasswordResetSms, OrganizationOwnerInvite, StaffInvite, StaffInviteSms, InvoiceIssued, InvoicePaid, InvoiceOverdue, InvoiceDueSoon, ShiftDiscrepancy, LowStock, OwnerDailySummary, ScheduledReport, PlatformAnnouncement, PlayerSessionEnding, PlayerReservationSoon, PlayerBalanceToppedUp, PlayerOrderReady];
 }

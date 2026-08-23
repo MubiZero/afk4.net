@@ -182,6 +182,7 @@ internal static class StaffOnboardingEndpoints
                 branchId,
                 request.UserName,
                 request.DisplayName,
+                request.PhoneNumber,
                 request.Email,
                 request.RoleNames,
                 cancellationToken);
@@ -223,35 +224,43 @@ internal static class StaffOnboardingEndpoints
             return Results.Ok(new StaffInviteDto(result.StaffInviteId, result.Code, result.ExpiresAtUtc));
         });
 
+        // Приём приглашения. Отвечает теми же словами, что сброс пароля по телефону: человек по
+        // ту сторону тот же самый, и два разных языка отказов он читал бы как два разных сбоя.
         app.MapPost("/api/staff/invites/accept", async (
             AcceptStaffInviteRequest request,
             IStaffInviteService staffInviteService,
             CancellationToken cancellationToken) =>
         {
-            if (string.IsNullOrWhiteSpace(request.Token))
-            {
-                return Results.BadRequest(new { error = "Token is required." });
-            }
-
             var passwordValidation = ValidateStaffPassword(request.Password);
             if (passwordValidation is not null)
             {
                 return Results.BadRequest(new { error = passwordValidation });
             }
 
-            var result = await staffInviteService.AcceptInviteAsync(request.Token, request.Password, cancellationToken);
-            if (result.Succeeded)
-            {
-                return Results.Ok(new AcceptStaffInviteResponse(result.OrganizationId, result.UserName));
-            }
+            var result = await staffInviteService.AcceptInviteAsync(
+                request.PhoneNumber, request.Code, request.Password, cancellationToken);
 
             if (result.PlanLimit is not null)
             {
                 return Results.Conflict(new { Error = result.Error, result.PlanLimit.Code, PlanLimit = result.PlanLimit });
             }
 
-            return Results.BadRequest(new { error = result.Error });
-        });
+            return result.Status switch
+            {
+                StaffInviteAcceptStatus.Success => Results.Ok(
+                    new AcceptStaffInviteResponse(result.OrganizationId, result.UserName)),
+                StaffInviteAcceptStatus.InvalidCode => Results.Json(
+                    new { error = "invalid_code", remainingAttempts = result.RemainingAttempts },
+                    statusCode: StatusCodes.Status400BadRequest),
+                StaffInviteAcceptStatus.Expired => Results.Json(
+                    new { error = "code_expired" }, statusCode: StatusCodes.Status410Gone),
+                StaffInviteAcceptStatus.NoActiveInvite => Results.Json(
+                    new { error = "code_expired" }, statusCode: StatusCodes.Status410Gone),
+                StaffInviteAcceptStatus.TooManyAttempts => Results.Json(
+                    new { error = "too_many_attempts" }, statusCode: StatusCodes.Status429TooManyRequests),
+                _ => Results.BadRequest(new { error = result.Error }),
+            };
+        }).RequireRateLimiting("staff-reset");
 
     }
 }

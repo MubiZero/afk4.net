@@ -246,10 +246,19 @@ lane_flutter() {
 # читают веб-тесты.
 if printf '%s\n' "${lanes[@]}" | grep -qx -e web -e flutter; then
   step "Локализация сгенерирована заново"
-  if ! (cd packages/i18n && bun run gen) >"$logs/i18n.log" 2>&1 \
-     || ! git diff --exit-code -- locales src/afk4_customer_app/lib/l10n packages/i18n/src >>"$logs/i18n.log" 2>&1; then
+  # CI сравнивает с чистым деревом, здесь дерево обычно грязное — поэтому проверяется само
+  # свойство: перегенерация ничего не меняет. Так же ловит правку каталога без генерации и не
+  # ругается на работу, которую ещё не закоммитили.
+  generated="src/afk4_customer_app/lib/l10n packages/i18n/src"
+  before=$(git hash-object $(git ls-files $generated) | shasum)
+  if ! (cd packages/i18n && bun run gen) >"$logs/i18n.log" 2>&1; then
     tail -30 "$logs/i18n.log"
-    echo "Каталог правили без перегенерации: запусти (cd packages/i18n && bun run gen) и закоммить результат." >&2
+    exit 1
+  fi
+  after=$(git hash-object $(git ls-files $generated) | shasum)
+  if [ "$before" != "$after" ]; then
+    echo "Каталог правили без перегенерации: (cd packages/i18n && bun run gen) поменял вывод — закоммить его." >&2
+    git status --short -- $generated >&2
     exit 1
   fi
   echo "ок"

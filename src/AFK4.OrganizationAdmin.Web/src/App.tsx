@@ -13,6 +13,7 @@ import { MapSidePanel } from './MapSidePanel';
 import { ContextPanel } from './ContextPanel';
 import { CommandPalette } from './CommandPalette';
 import { ForgotPassword } from './ForgotPassword';
+import { AcceptInvite } from './AcceptInvite';
 import { WindowResizeHandles } from './WindowChrome';
 import { SignInScreen } from './SignInScreen';
 import { BlockedOrganizationScreen } from './BlockedOrganizationScreen';
@@ -357,6 +358,9 @@ function AppInner() {
     if (authView === 'forgot') {
       return <ForgotPassword onBackToSignIn={() => setAuthView('signIn')} />;
     }
+    if (authView === 'invite') {
+      return <AcceptInvite onBackToSignIn={() => setAuthView('signIn')} />;
+    }
     return (
       <SignInScreen
         config={config}
@@ -367,6 +371,7 @@ function AppInner() {
         onChooseClub={handleChooseClub}
         onCancelChooseClub={cancelChooseClub}
         onForgotPassword={() => setAuthView('forgot')}
+        onAcceptInvite={() => setAuthView('invite')}
       />
     );
   }
