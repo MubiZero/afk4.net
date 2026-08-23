@@ -14,8 +14,8 @@
 #   scripts/verify.sh --fast       — без медленного хвоста (сборка Flutter web, сквозной сценарий)
 #   scripts/verify.sh dotnet web   — только названные дорожки (dotnet | web | flutter | windows)
 #
-# Дорожка windows включается, только когда названа машина: AFK4_WINDOWS_HOST=user@адрес.
-# На той стороне нужен .NET SDK и OpenSSH-сервер; исходники едут `git archive` текущего коммита.
+# Дорожка windows сама не набивается — её зовут: `scripts/verify.sh windows`. Со своей машиной
+# в AFK4_WINDOWS_HOST она идёт по SSH, без неё — на Windows-раннере GitHub по требованию.
 set -uo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -68,7 +68,9 @@ detect_lanes() {
         run_flutter=flutter ;;
     esac
   done <<< "$changed"
-  # Windows-дорожка идёт вместе с .NET и только если машина названа: без неё её нечем гонять.
+  # Windows-дорожка идёт вместе с .NET, но сама не набивается: она либо стучится на чужую
+  # машину, либо тратит минуты GitHub, и решать это должен человек — `scripts/verify.sh windows`
+  # или AFK4_WINDOWS_HOST для своей машины.
   local run_windows=''
   [ -n "$run_dotnet" ] && [ -n "${AFK4_WINDOWS_HOST:-}" ] && run_windows=windows
   echo "$run_dotnet $run_web $run_flutter $run_windows"
@@ -171,15 +173,22 @@ lane_web() {
 }
 
 # Единственное, чего на macOS нет вовсе: наборы WPF-оболочек и тесты, зовущие инструменты
-# Windows. Дорожка включается, только когда названа машина:
+# Windows. Два способа их увидеть, и выбирается тот, что доступен:
 #
-#   export AFK4_WINDOWS_HOST=mubidev@192.168.64.5   # виртуалка или ПК в сети
-#   export AFK4_WINDOWS_DIR=C:/afk4-verify          # куда класть исходники (необязательно)
+#   1. Своя машина — виртуалка или ПК в сети. Быстрее, работает без интернета:
+#        export AFK4_WINDOWS_HOST=mubidev@192.168.64.5
+#        export AFK4_WINDOWS_DIR=C:/afk4-verify        # необязательно
+#      На той стороне нужен .NET SDK и включённый OpenSSH-сервер. Исходники едут `git archive` —
+#      только отслеживаемые файлы текущего коммита, без bin/obj и без секретов рабочего дерева.
 #
-# На той стороне нужен .NET SDK и включённый OpenSSH-сервер. Исходники едут `git archive` —
-# только отслеживаемые файлы текущего коммита, без bin/obj и без секретов рабочего дерева.
+#   2. Windows-раннер GitHub по требованию — когда своей машины нет. Мак при этом не грузится
+#      вовсе, а прогон идёт минуты, потому что гоняется только Windows-часть, а не все ворота PR.
 lane_windows() {
   set -e
+  if [ -z "${AFK4_WINDOWS_HOST:-}" ]; then
+    windows_on_github
+    return
+  fi
   local host="${AFK4_WINDOWS_HOST}" dir="${AFK4_WINDOWS_DIR:-C:/afk4-verify}"
 
   ssh "$host" "powershell -NoProfile -Command \"if (Test-Path '$dir') { Remove-Item -Recurse -Force '$dir' }; New-Item -ItemType Directory -Path '$dir' | Out-Null\""
@@ -191,6 +200,26 @@ lane_windows() {
   # Только то, чего нет на этой машине: оболочки и наборы с тестами, помеченными WindowsOnly.
   # Остальное уже проверено дорожкой dotnet, и гонять его второй раз — тратить минуты впустую.
   ssh "$host" "powershell -NoProfile -Command \"cd '$dir'; dotnet test tests/AFK4.OrganizationAdmin.App.Tests tests/AFK4.Player.Shell.Tests tests/AFK4.Agent.Service.Tests tests/AFK4.SetupWizard.Tests --no-build -v minimal -p:NuGetAudit=false\""
+}
+
+# Своей машины нет — гоняем Windows-часть на раннере GitHub и ждём здесь. Ветку не пушим сами:
+# пуш — это уже внешнее действие, и делать его молча за спиной у человека нельзя.
+windows_on_github() {
+  local branch commit run_id
+  branch=$(git rev-parse --abbrev-ref HEAD)
+  commit=$(git rev-parse HEAD)
+
+  if ! git branch -r --contains "$commit" 2>/dev/null | grep -q .; then
+    echo "Коммит $(git rev-parse --short HEAD) ещё не на origin — раннеру нечего забирать." >&2
+    echo "Запушь ветку (git push) или задай AFK4_WINDOWS_HOST=user@адрес, чтобы гонять у себя." >&2
+    return 1
+  fi
+
+  gh workflow run windows-checks.yml --ref "$branch"
+  sleep 5
+  run_id=$(gh run list --workflow windows-checks.yml --branch "$branch" --limit 1 --json databaseId -q '.[0].databaseId')
+  echo "Прогон GitHub: $(gh run view "$run_id" --json url -q .url)"
+  gh run watch "$run_id" --exit-status
 }
 
 lane_flutter() {
@@ -264,8 +293,8 @@ if [ ${#failed[@]} -eq 0 ]; then
   if printf '%s\n' "${lanes[@]}" | grep -qx windows; then
     echo "Windows-часть прогнана на $AFK4_WINDOWS_HOST. Не проверено нигде, кроме живого зала: само железо — ПК, мониторы, платёжный терминал."
   else
-    echo "Не проверено здесь: наборы WPF-оболочек (собираются, но не запускаются) и тесты, помеченные WindowsOnly. Это ворота Windows-джоба CI."
-    echo "Задай AFK4_WINDOWS_HOST=user@адрес, чтобы гонять и их (см. lane_windows в этом файле)."
+    echo "Не проверено здесь: наборы WPF-оболочек (собираются, но не запускаются) и тесты, помеченные WindowsOnly."
+    echo "Прогнать их: scripts/verify.sh windows — на раннере GitHub, или со своей машиной в AFK4_WINDOWS_HOST."
   fi
   [ "$fast" = 1 ] && echo "Пропущено по --fast: сквозной сценарий приложения и сборка Flutter web."
 fi
