@@ -172,6 +172,9 @@ function AppInner() {
   }, [activeSupportSession, config.platformBaseUrl]);
   const [accountPanelOpen, setAccountPanelOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Человек, выбранный в палитре: раздел клиентов открывается сразу на его карточке, а не на
+  // первом попавшемся. Строка поиска едет вместе с ним — иначе его не оказалось бы в списке.
+  const [openClient, setOpenClient] = useState<{ playerAccountId: string; search: string } | null>(null);
   // Токен «открыть запуск сессии» — растёт по клику на «+» свободной плитки; боковая панель
   // реагирует на изменение и открывает старт-диалог для выбранного места.
   const [startSeatToken, setStartSeatToken] = useState(0);
@@ -449,8 +452,14 @@ function AppInner() {
           <CommandPalette
             session={authSession}
             visibleWorkspaceIds={supportVisibleWorkspaceIds}
+            backend={backendContext}
             onNavigate={(id) => {
               setWorkspace(id);
+              setPaletteOpen(false);
+            }}
+            onOpenPerson={(person) => {
+              setOpenClient(person);
+              setWorkspace('players');
               setPaletteOpen(false);
             }}
             onClose={() => setPaletteOpen(false)}
@@ -507,6 +516,7 @@ function AppInner() {
             onSeatAction={handleSeatAction}
             onNavigate={setWorkspace}
             onOpenSeat={handleOpenSeat}
+            openClient={openClient}
           />
         </div>
 

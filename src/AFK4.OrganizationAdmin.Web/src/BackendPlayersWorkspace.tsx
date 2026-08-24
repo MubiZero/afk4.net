@@ -36,16 +36,23 @@ import { DcTopUpDialog } from './players/DcTopUpDialog';
 
 type PlayerActionId = 'topUp' | 'writeOffDebt' | 'booking' | 'newCard' | 'correction' | 'refund' | 'updateProfile' | 'toggleActive';
 
-export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCode: string; backend: OperatorBackendContext | null }) {
+export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
+  currencyCode: string;
+  backend: OperatorBackendContext | null;
+  // Кого открыть сразу: выбор из командной палитры. Строка поиска приезжает вместе с ним —
+  // раздел грузит список по ней, и без неё выбранного в списке могло бы не оказаться.
+  openClient?: { playerAccountId: string; search: string } | null;
+}) {
   const { t } = useI18n();
   // Снимок из кэша (если раздел уже открывали в этой сессии на этом филиале) → мгновенный возврат.
   const cacheKey = backend?.branchId ?? null;
   const cachedSnapshot = cacheKey !== null ? playersSnapshotCache.get(cacheKey) : undefined;
-  const [clientSearch, setClientSearch] = useState('');
+  const [clientSearch, setClientSearch] = useState(openClient?.search ?? '');
   const [activeSegment, setActiveSegment] = useState<ClientSegmentId>('all');
   const [newClientOpen, setNewClientOpen] = useState(false);
   const [payDebtOpen, setPayDebtOpen] = useState(false);
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(cachedSnapshot?.selectedId ?? null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(
+    openClient?.playerAccountId ?? cachedSnapshot?.selectedId ?? null);
   const [feedback, setFeedback] = useState<Feedback>(emptyFeedback);
   useFeedbackToasts(feedback);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>(backend === null ? 'fixture' : cachedSnapshot ? 'backend' : 'loading');
@@ -88,6 +95,14 @@ export function BackendPlayersWorkspace({ currencyCode, backend }: { currencyCod
   // проход по branch-wide sessions+reservations — таблица подсвечивает «сейчас» в каждой строке,
   // drawer берёт контекст выбранного из этой же карты (без per-client рефетча).
   const [liveContextByClient, setLiveContextByClient] = useState<Map<string, ClientLiveContext>>(() => new Map());
+
+  // Палитра может позвать другого человека, когда раздел уже открыт — тогда компонент не
+  // пересоздаётся, и начальные значения выше не сработали бы.
+  useEffect(() => {
+    if (!openClient) return;
+    setClientSearch(openClient.search);
+    setSelectedClientId(openClient.playerAccountId);
+  }, [openClient?.playerAccountId, openClient?.search]);
 
   useEffect(() => {
     if (backend === null) {
