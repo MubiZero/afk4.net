@@ -77,6 +77,17 @@
   "customerClubPickerDetails": "Details",
   "customerClubPickerEmpty": "No clubs found",
   "customerClubPickerError": "Could not load the club list",
+  "customerClubPickerFreeSeats": "{free} of {total} free",
+  "@customerClubPickerFreeSeats": {
+    "placeholders": {
+      "free": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "customerClubPickerMapEmpty": "No club has put itself on the map yet",
   "customerClubPickerMapHint": "Tap a pin to pick the club",
   "customerClubPickerMorePlaces": "{count, plural, one {{count} more hall} other {{count} more halls}}",
@@ -87,6 +98,7 @@
       }
     }
   },
+  "customerClubPickerNoFreeSeats": "No free seats",
   "customerClubPickerNoRating": "No ratings yet",
   "customerClubPickerOpen": "Choose",
   "customerClubPickerOpenAllDay": "Open around the clock",

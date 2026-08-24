@@ -117,6 +117,60 @@ void main() {
     expect(find.textContaining('RTX'), findsOneWidget); // только у первой зоны
   });
 
+  // Игрок открывает подробности, чтобы выбрать зону: «30 мест» в забитом зале и «30 мест»
+  // в пустом — одна и та же строка про разные вечера.
+  testWidgets('у открытого зала зоны показывают свободные места', (tester) async {
+    const hall = ClubPlace(
+      branchId: 'b1',
+      name: 'На Рудаки',
+      city: 'Душанбе',
+      zones: [
+        ClubZone(name: 'Основной зал', seatCount: 30, freeSeatCount: 7),
+        ClubZone(name: 'VIP', seatCount: 10, freeSeatCount: 0),
+      ],
+      workingHours: [
+        OpeningDay(dayOfWeek: 1, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+      ],
+    );
+    const club = Organization(
+      organizationId: '33333333-3333-3333-3333-333333333333',
+      slug: 'cyberx',
+      name: 'CyberX',
+      places: [hall],
+    );
+
+    await tester.pumpWidget(harness(club));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Свободно 7 из 30'), findsOneWidget);
+    expect(find.text('Свободных мест нет'), findsOneWidget);
+  });
+
+  // Ночью свободны все места — потому что зал закрыт.
+  testWidgets('у закрытого зала зоны показывают места, как раньше', (tester) async {
+    const hall = ClubPlace(
+      branchId: 'b1',
+      name: 'На Рудаки',
+      city: 'Душанбе',
+      zones: [ClubZone(name: 'Основной зал', seatCount: 30, freeSeatCount: 30)],
+      workingHours: [
+        OpeningDay(dayOfWeek: 1, isClosed: false, openTime: '12:00', closeTime: '23:00'),
+      ],
+    );
+    const club = Organization(
+      organizationId: '33333333-3333-3333-3333-333333333333',
+      slug: 'cyberx',
+      name: 'CyberX',
+      places: [hall],
+    );
+
+    await tester.pumpWidget(harness(club, now: DateTime(2026, 8, 24, 9)));
+    await tester.pumpAndSettle();
+
+    expect(find.text('30 мест'), findsOneWidget);
+    expect(find.textContaining('Свободно'), findsNothing);
+  });
+
   testWidgets('показывает расписание на неделю с выходным', (tester) async {
     await tester.pumpWidget(harness(_club));
     await tester.pumpAndSettle();

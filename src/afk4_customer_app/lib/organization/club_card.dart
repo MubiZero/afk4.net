@@ -80,11 +80,7 @@ class ClubCard extends StatelessWidget {
                               )),
                         highlighted: club.pricePerHourFromMinorUnits != null,
                       ),
-                      if (club.seatCount > 0)
-                        _Chip(
-                          icon: Icons.desktop_windows_outlined,
-                          label: l.customerClubPickerSeats(club.seatCount),
-                        ),
+                      ...?_seatsChip(context, club, clock()),
                       if (club.places.length > 1)
                         _Chip(
                           icon: Icons.apartment_outlined,
@@ -110,6 +106,37 @@ class ClubCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Места клуба: сколько свободно у открытых сейчас залов — или сколько их всего, когда клуб
+/// закрыт и свободны они все.
+///
+/// «40 мест» отвечает не на тот вопрос: сорок мест бывает и в забитом зале, а игрок выбирает
+/// клуб, чтобы в него поехать. Пусто — клуб не сказал даже, сколько у него мест.
+List<Widget>? _seatsChip(BuildContext context, Organization club, DateTime now) {
+  final l = L.of(context);
+  final open = club.seatsOpenNow(now);
+
+  if (open == null) {
+    return club.seatCount > 0
+        ? [
+            _Chip(
+              icon: Icons.desktop_windows_outlined,
+              label: l.customerClubPickerSeats(club.seatCount),
+            )
+          ]
+        : null;
+  }
+
+  return [
+    open.free == 0
+        ? _Chip(icon: Icons.do_not_disturb_on_outlined, label: l.customerClubPickerNoFreeSeats)
+        : _Chip(
+            icon: Icons.desktop_windows_outlined,
+            label: l.customerClubPickerFreeSeats('${open.free}', '${open.total}'),
+            highlighted: true,
+          )
+  ];
 }
 
 /// Фото зала с названием поверх него.

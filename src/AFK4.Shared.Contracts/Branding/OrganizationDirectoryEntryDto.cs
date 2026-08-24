@@ -38,7 +38,13 @@ public sealed record ClubPlaceDto(
     /// Залы этого клуба: сколько мест и на чём играют. По железу клубы и сравнивают.
     IReadOnlyList<ClubZoneDto>? Zones = null,
     /// Фото зала по порядку: обложка первой, дальше галерея. Пусто — клуб фото не прислал.
-    IReadOnlyList<string>? PhotoUrls = null);
+    IReadOnlyList<string>? PhotoUrls = null,
+    /// Всего мест в зале — сумма по его зонам.
+    int SeatCount = 0,
+    /// Сколько из них не занято прямо сейчас: ни сессии, ни чужой брони на ближайший час.
+    /// Считается независимо от расписания — «открыт ли зал» решает тот, кто показывает число.
+    int FreeSeatCount = 0);
 
-/// Зал клуба в витрине: название, сколько в нём мест и чем оснащён.
-public sealed record ClubZoneDto(string Name, int SeatCount, string? HardwareSummary);
+/// Зал клуба в витрине: название, сколько в нём мест, чем оснащён и сколько мест свободно.
+public sealed record ClubZoneDto(
+    string Name, int SeatCount, string? HardwareSummary, int FreeSeatCount = 0);

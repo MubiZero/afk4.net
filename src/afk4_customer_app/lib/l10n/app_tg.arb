@@ -77,6 +77,17 @@
   "customerClubPickerDetails": "Муфассал",
   "customerClubPickerEmpty": "Клуб ёфт нашуд",
   "customerClubPickerError": "Рӯйхати клубҳоро бор кардан нашуд",
+  "customerClubPickerFreeSeats": "{free} аз {total} ҷой озод",
+  "@customerClubPickerFreeSeats": {
+    "placeholders": {
+      "free": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
   "customerClubPickerMapEmpty": "Ҳанӯз ягон клуб дар харита нест",
   "customerClubPickerMapHint": "Барои интихоби клуб ба нуқта зер кунед",
   "customerClubPickerMorePlaces": "{count, plural, one {боз {count} толор} other {боз {count} толор}}",
@@ -87,6 +98,7 @@
       }
     }
   },
+  "customerClubPickerNoFreeSeats": "Ҷойи озод нест",
   "customerClubPickerNoRating": "Ҳанӯз баҳо нест",
   "customerClubPickerOpen": "Интихоб",
   "customerClubPickerOpenAllDay": "Шабонарӯзӣ кушода",

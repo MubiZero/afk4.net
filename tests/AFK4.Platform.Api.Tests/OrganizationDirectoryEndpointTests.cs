@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using AFK4.Platform.Api.Data;
 using AFK4.Shared.Contracts.Branding;
+using AFK4.Shared.Contracts.Reservations;
+using AFK4.Shared.Contracts.Sessions;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AFK4.Platform.Api.Tests;
@@ -387,6 +389,158 @@ public sealed class OrganizationDirectoryEndpointTests
         Assert.Equal(10, alpha.SeatCount);
         Assert.Equal(4800, beta.PricePerHourFromMinorUnits);
         Assert.Equal(4, beta.SeatCount);
+    }
+
+    /// Посадить человека за место зала: сессия в живом состоянии — первая из двух причин,
+    /// по которым место занято.
+    private static async Task SeatSomeoneAsync(PlatformApiFactory factory, string slug, int seatIndex)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var organizationId = db.Organizations.Single(o => o.Slug == slug).OrganizationId;
+        var seat = db.Seats.Where(s => s.OrganizationId == organizationId)
+            .OrderBy(s => s.SortOrder)
+            .Skip(seatIndex)
+            .First();
+
+        db.Sessions.Add(new SessionEntity
+        {
+            SessionId = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            BranchId = seat.BranchId,
+            SeatId = seat.SeatId,
+            DeviceId = Guid.NewGuid(),
+            CreatedByStaffUserId = Guid.NewGuid(),
+            State = SessionStateNames.Active,
+            RequestedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-30),
+            StartedAtUtc = DateTimeOffset.UtcNow.AddMinutes(-30)
+        });
+        await db.SaveChangesAsync();
+    }
+
+    /// Обещать место чужой броне — вторая причина: место свободно, но сесть на него нельзя.
+    private static async Task PromiseSeatToSomeoneAsync(
+        PlatformApiFactory factory,
+        string slug,
+        int seatIndex,
+        TimeSpan startsIn,
+        string state = ReservationStateNames.Confirmed)
+    {
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<PlatformDbContext>();
+        var organizationId = db.Organizations.Single(o => o.Slug == slug).OrganizationId;
+        var seat = db.Seats.Where(s => s.OrganizationId == organizationId)
+            .OrderBy(s => s.SortOrder)
+            .Skip(seatIndex)
+            .First();
+        var startsAt = DateTimeOffset.UtcNow.Add(startsIn);
+
+        db.Reservations.Add(new ReservationEntity
+        {
+            ReservationId = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            BranchId = seat.BranchId,
+            SeatId = seat.SeatId,
+            CustomerName = "Фаррух",
+            StartsAtUtc = startsAt,
+            EndsAtUtc = startsAt.AddHours(2),
+            State = state,
+            Source = "app",
+            CreatedByStaffUserId = Guid.NewGuid(),
+            CreatedAtUtc = DateTimeOffset.UtcNow,
+            UpdatedAtUtc = DateTimeOffset.UtcNow
+        });
+        await db.SaveChangesAsync();
+    }
+
+    /// «Сорок мест» отвечает не на тот вопрос: сорок мест бывает и в забитом зале. Игрок едет
+    /// туда, где есть куда сесть.
+    [Fact]
+    public async Task GetDirectory_CountsSeatsTakenByALiveSessionAsBusy()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedOrgAsync(factory, "cyberx", "CyberX");
+        await SeedShowcaseAsync(factory, "cyberx", seats: 5);
+        await SeatSomeoneAsync(factory, "cyberx", seatIndex: 0);
+        await SeatSomeoneAsync(factory, "cyberx", seatIndex: 1);
+        using var client = factory.CreateClient();
+
+        var body = await client.GetFromJsonAsync<OrganizationDirectoryEntryDto[]>("/api/public/organizations");
+
+        var place = Assert.Single(Assert.Single(body!).Places!);
+        Assert.Equal(5, place.SeatCount);
+        Assert.Equal(3, place.FreeSeatCount);
+        var zone = Assert.Single(place.Zones!);
+        Assert.Equal(5, zone.SeatCount);
+        Assert.Equal(3, zone.FreeSeatCount);
+    }
+
+    /// Место, обещанное чужой броне на ближайший час, стоит пустым — но приехать на него нельзя.
+    /// Показать его свободным значит позвать игрока туда, откуда его попросят встать.
+    [Fact]
+    public async Task GetDirectory_CountsSeatsPromisedToSomeoneElseAsBusy()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedOrgAsync(factory, "cyberx", "CyberX");
+        await SeedShowcaseAsync(factory, "cyberx", seats: 4);
+        await PromiseSeatToSomeoneAsync(factory, "cyberx", seatIndex: 0, startsIn: TimeSpan.FromMinutes(20));
+        await PromiseSeatToSomeoneAsync(factory, "cyberx", seatIndex: 1, startsIn: TimeSpan.FromMinutes(10),
+            state: ReservationStateNames.Pending);
+        using var client = factory.CreateClient();
+
+        var body = await client.GetFromJsonAsync<OrganizationDirectoryEntryDto[]>("/api/public/organizations");
+
+        Assert.Equal(2, Assert.Single(Assert.Single(body!).Places!).FreeSeatCount);
+    }
+
+    /// Бронь на вечер не занимает место днём: иначе клуб с плотным вечером выглядел бы забитым
+    /// всё время, и игрок, которому есть куда сесть прямо сейчас, туда бы не поехал.
+    [Fact]
+    public async Task GetDirectory_LeavesSeatsFreeUntilTheirBookingIsNear()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedOrgAsync(factory, "cyberx", "CyberX");
+        await SeedShowcaseAsync(factory, "cyberx", seats: 4);
+        await PromiseSeatToSomeoneAsync(factory, "cyberx", seatIndex: 0, startsIn: TimeSpan.FromHours(6));
+        using var client = factory.CreateClient();
+
+        var body = await client.GetFromJsonAsync<OrganizationDirectoryEntryDto[]>("/api/public/organizations");
+
+        Assert.Equal(4, Assert.Single(Assert.Single(body!).Places!).FreeSeatCount);
+    }
+
+    /// Тот же человек сел за место своей же брони — место занято один раз, а не дважды.
+    [Fact]
+    public async Task GetDirectory_CountsASeatTakenTwiceOnlyOnce()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedOrgAsync(factory, "cyberx", "CyberX");
+        await SeedShowcaseAsync(factory, "cyberx", seats: 3);
+        await SeatSomeoneAsync(factory, "cyberx", seatIndex: 0);
+        await PromiseSeatToSomeoneAsync(factory, "cyberx", seatIndex: 0, startsIn: TimeSpan.FromMinutes(5));
+        using var client = factory.CreateClient();
+
+        var body = await client.GetFromJsonAsync<OrganizationDirectoryEntryDto[]>("/api/public/organizations");
+
+        Assert.Equal(2, Assert.Single(Assert.Single(body!).Places!).FreeSeatCount);
+    }
+
+    /// Занятость одного клуба не должна вычитаться из мест другого.
+    [Fact]
+    public async Task GetDirectory_KeepsBusySeatsOfDifferentClubsApart()
+    {
+        await using var factory = new PlatformApiFactory();
+        await SeedOrgAsync(factory, "alpha", "Alpha");
+        await SeedShowcaseAsync(factory, "alpha", seats: 3);
+        await SeedOrgAsync(factory, "beta", "Beta");
+        await SeedShowcaseAsync(factory, "beta", seats: 3);
+        await SeatSomeoneAsync(factory, "alpha", seatIndex: 0);
+        using var client = factory.CreateClient();
+
+        var body = await client.GetFromJsonAsync<OrganizationDirectoryEntryDto[]>("/api/public/organizations");
+
+        Assert.Equal(2, Assert.Single(Assert.Single(body!, club => club.Slug == "alpha").Places!).FreeSeatCount);
+        Assert.Equal(3, Assert.Single(Assert.Single(body!, club => club.Slug == "beta").Places!).FreeSeatCount);
     }
 
     [Fact]
