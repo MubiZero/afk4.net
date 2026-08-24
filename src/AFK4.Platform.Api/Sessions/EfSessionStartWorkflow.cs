@@ -129,7 +129,12 @@ public sealed class EfSessionStartWorkflow(
             assignment.DeviceId,
             cancellationToken))
         {
-            return Invalid("Seat or device already has an active session.");
+            // Занятое место — это состояние, а не кривой запрос, и отвечать на него надо тем же,
+            // чем отвечают два других пути к той же правде: уникальный индекс на активном месте
+            // и отмена Serializable-транзакции (см. EfSessionCommandService.SeatOccupied). Иначе
+            // один и тот же занятый ПК получает то 409 с кодом, то 400 без него — в зависимости
+            // от того, успел ли соперник закоммитить раньше нашей проверки.
+            return Conflict("Seat or device already has an active session.", "seat_occupied");
         }
 
         var planLimit = await planLimitGuard.CheckConcurrentSessionAsync(
@@ -279,6 +284,9 @@ public sealed class EfSessionStartWorkflow(
 
     private static SessionStartStage Invalid(string error) =>
         new(SessionCommandServiceResult.Invalid(error), null, null);
+
+    private static SessionStartStage Conflict(string error, string code) =>
+        new(SessionCommandServiceResult.RequestConflict(error, code), null, null);
 
     private static string? NormalizeDurationMode(string? durationMode)
     {
