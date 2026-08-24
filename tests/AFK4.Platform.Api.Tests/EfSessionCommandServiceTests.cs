@@ -69,6 +69,37 @@ public sealed class EfSessionCommandServiceTests
         Assert.False(string.IsNullOrWhiteSpace(call.Request.Payload["sessionLease"]));
     }
 
+    /// Занятое место — это состояние, а не кривой запрос. Тот же занятый ПК отвечает 409 с кодом
+    /// `seat_occupied`, когда занятость находит уникальный индекс или отмена Serializable-транзакции
+    /// (гонка двух стартов); проверка перед вставкой обязана отвечать так же, иначе стойка получает
+    /// то 409 с кодом, то 400 без него в зависимости от того, кто успел закоммитить первым.
+    [Fact]
+    public async Task StartGuestSessionAsync_SeatAlreadyBusy_AnswersSeatOccupiedConflict()
+    {
+        await using var db = CreateDbContext();
+        await SeedLayoutAsync(db, includeTargetSeat: false);
+        var service = CreateService(db, new RecordingCommandDispatchService());
+        StartGuestSessionRequest Request(string idempotencyKey) => new(
+            TestIds.OrganizationId,
+            SeatId,
+            DurationMode: SessionDurationModes.Fixed,
+            DurationMinutes: 60,
+            TariffRuleVersionId: "manual-v1",
+            IdempotencyKey: idempotencyKey);
+
+        var first = await service.StartGuestSessionAsync(
+            TestIds.BranchId, ActorStaffUserId, Request("start-first"), SessionOriginNames.Operator, CancellationToken.None);
+        Assert.True(first.Succeeded);
+
+        var second = await service.StartGuestSessionAsync(
+            TestIds.BranchId, ActorStaffUserId, Request("start-second"), SessionOriginNames.Operator, CancellationToken.None);
+
+        Assert.False(second.Succeeded);
+        Assert.True(second.Conflict);
+        Assert.Equal("seat_occupied", second.Code);
+        Assert.Single(await db.Sessions.ToListAsync());
+    }
+
     // Anti-fraud §5.4: a comp (free) session must be explicit and reasoned. The control fires only on
     // the IsComp flag — the existing manual/guest path (no flag) is untouched.
     [Fact]
