@@ -258,11 +258,18 @@
   outline-offset: 1px;
 }
 
+/* Разделы палитры (экраны, люди) прокручиваются вместе: для того, кто набирает, это один
+   список, и раздельная прокрутка увела бы половину строк за край. */
+.command-palette-groups {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .command-palette-group {
   display: grid;
   gap: 4px;
-  min-height: 0;
-  overflow-y: auto;
 }
 
 .command-palette-heading {
@@ -294,6 +301,13 @@
 .command-palette-option.is-active,
 .command-palette-option:hover {
   background: var(--surface-hover);
+}
+
+/* Номер под именем: тёзок в клубной базе больше, чем кажется. */
+.command-palette-option-hint {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: 12px;
 }
 
 .command-palette-empty {

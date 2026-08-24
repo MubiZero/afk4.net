@@ -67,7 +67,7 @@ describe('CommandPalette', () => {
 
   it('shows a non-interactive "coming soon" entity block', () => {
     renderPalette(managerPerms);
-    const soon = screen.getByText('Поиск клиентов, ПК и чеков появится позже');
+    const soon = screen.getByText('Поиск ПК и чеков появится позже');
     expect(soon).toBeDefined();
     expect(soon.closest('button')).toBeNull();
   });

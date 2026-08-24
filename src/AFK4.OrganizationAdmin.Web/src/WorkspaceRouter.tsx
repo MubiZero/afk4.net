@@ -32,7 +32,8 @@ export function WorkspaceRouter({
   onPcControlAction,
   onSeatAction,
   onNavigate,
-  onOpenSeat
+  onOpenSeat,
+  openClient
 }: {
   workspace: WorkspaceId;
   session: OperatorAuthSession | null;
@@ -50,6 +51,8 @@ export function WorkspaceRouter({
   onSeatAction: ComponentProps<typeof MapWorkspace>['onSeatAction'];
   onNavigate: (workspace: WorkspaceId) => void;
   onOpenSeat: (seatId: string) => void;
+  // Кого открыть в разделе клиентов: выбор из командной палитры. null — обычный заход.
+  openClient?: { playerAccountId: string; search: string } | null;
 }) {
   const { t } = useI18n();
   return (
@@ -87,7 +90,9 @@ export function WorkspaceRouter({
       )}
       {workspace === 'cash' && <CashWorkspace currencyCode={currencyCode} backend={backend} session={session} />}
       {workspace === 'stock' && <StockWorkspace currencyCode={currencyCode} backend={backend} session={session} />}
-      {workspace === 'players' && <BackendPlayersWorkspace currencyCode={currencyCode} backend={backend} />}
+      {workspace === 'players' && (
+        <BackendPlayersWorkspace currencyCode={currencyCode} backend={backend} openClient={openClient} />
+      )}
       {workspace === 'management' && (
         <ManagementWorkspace backend={backend} session={session} currencyCode={currencyCode} />
       )}
