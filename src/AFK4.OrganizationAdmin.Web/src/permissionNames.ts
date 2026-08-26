@@ -59,5 +59,6 @@ export const permissionNames = {
   refundLedgerEntry: 'organization.billing.refund',
   managePaymentGateways: 'organization.payments.gateways.manage',
   manageLoyaltySettings: 'organization.loyalty.settings.manage',
-  manageNews: 'organization.news.manage'
+  manageNews: 'organization.news.manage',
+  manageTournaments: 'organization.tournaments.manage'
 } as const;

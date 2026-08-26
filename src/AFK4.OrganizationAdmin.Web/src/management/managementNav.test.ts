@@ -5,9 +5,9 @@ import { permissionNames } from '../operatorPermissions';
 const sessionWith = (perms: string[]) => ({ permissions: perms }) as never;
 
 describe('managementNav', () => {
-  it('lists exactly the eight destinations in order', () => {
+  it('lists exactly the nine destinations in order', () => {
     expect(managementDestinations.map((d) => d.id)).toEqual([
-      'club', 'booking', 'halls', 'tariffs', 'staff', 'goods', 'payments', 'news'
+      'club', 'booking', 'halls', 'tariffs', 'staff', 'goods', 'payments', 'news', 'events'
     ]);
   });
 

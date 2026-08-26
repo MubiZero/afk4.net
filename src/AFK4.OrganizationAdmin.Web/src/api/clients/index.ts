@@ -24,6 +24,7 @@ import { createReferralSettingsClient } from './referralSettings';
 import { createFeaturesClient } from './features';
 import { createEskhataConfigClient } from './eskhataConfig';
 import { createNewsClient } from './news';
+import { createTournamentClient } from './tournaments';
 import { createPlatformMessagesClient } from './platformMessages';
 import { createMediaClient } from './media';
 import { createDcTopUpClient } from './dcTopUps';
@@ -59,6 +60,7 @@ export function createOperatorApiClients(api: PlatformApiClient, organizationId:
     features: createFeaturesClient(organizationApi),
     eskhataConfig: createEskhataConfigClient(organizationApi),
     news: createNewsClient(organizationApi),
+    tournaments: createTournamentClient(organizationApi),
     platformMessages: createPlatformMessagesClient(organizationApi),
     media: createMediaClient(organizationApi),
     dcTopUps: createDcTopUpClient(organizationApi),
