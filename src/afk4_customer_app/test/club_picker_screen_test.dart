@@ -138,6 +138,106 @@ void main() {
     expect(find.text('Закрыто, откроется в 10:00'), findsOneWidget);
   });
 
+  // «40 мест» отвечает не на тот вопрос: сорок мест бывает и в забитом зале. Игрок едет
+  // туда, где есть куда сесть.
+  group('свободные места на карточке', () {
+    const week = [
+      OpeningDay(dayOfWeek: 1, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+      OpeningDay(dayOfWeek: 2, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+      OpeningDay(dayOfWeek: 3, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+      OpeningDay(dayOfWeek: 4, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+      OpeningDay(dayOfWeek: 5, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+      OpeningDay(dayOfWeek: 6, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+      OpeningDay(dayOfWeek: 7, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+    ];
+
+    Organization clubWith({required int seats, required int free}) => Organization(
+          organizationId: '55555555-5555-5555-5555-555555555555',
+          slug: 'cyberx',
+          name: 'CyberX',
+          seatCount: seats,
+          places: [
+            ClubPlace(
+              branchId: 'b1',
+              name: 'На Рудаки',
+              city: 'Душанбе',
+              workingHours: week,
+              seatCount: seats,
+              freeSeatCount: free,
+            ),
+          ],
+        );
+
+    Widget card(Organization club, DateTime now) => MaterialApp(
+          locale: const Locale('ru'),
+          localizationsDelegates: appLocalizationsDelegates,
+          supportedLocales: appSupportedLocales,
+          home: Scaffold(body: ClubCard(club: club, onTap: () {}, clock: () => now)),
+        );
+
+    testWidgets('у открытого клуба видно, сколько мест свободно', (tester) async {
+      await tester.pumpWidget(card(clubWith(seats: 40, free: 12), DateTime(2026, 8, 12, 14)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Свободно 12 из 40'), findsOneWidget);
+      expect(find.text('40 мест'), findsNothing);
+    });
+
+    // Забитый клуб не должен выглядеть так же, как клуб с одним свободным местом: игрок
+    // поедет и упрётся в очередь.
+    testWidgets('забитый клуб говорит об этом словами', (tester) async {
+      await tester.pumpWidget(card(clubWith(seats: 40, free: 0), DateTime(2026, 8, 12, 14)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Свободных мест нет'), findsOneWidget);
+    });
+
+    // Ночью свободны все места — потому что клуб закрыт. «Свободно 40 из 40» позвало бы
+    // игрока к запертой двери.
+    testWidgets('у закрытого клуба карточка говорит про места, как раньше', (tester) async {
+      await tester.pumpWidget(card(clubWith(seats: 40, free: 40), DateTime(2026, 8, 12, 5)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('40 мест'), findsOneWidget);
+      expect(find.textContaining('Свободно'), findsNothing);
+    });
+
+    // Сервер про занятость промолчал (старая сборка на той стороне) — «мест нет» здесь было бы
+    // выдуманным отказом, а не правдой.
+    testWidgets('без ответа про занятость карточка показывает всего мест', (tester) async {
+      const club = Organization(
+        organizationId: '66666666-6666-6666-6666-666666666666',
+        slug: 'cyberx',
+        name: 'CyberX',
+        seatCount: 40,
+        places: [
+          ClubPlace(
+            branchId: 'b1',
+            name: 'На Рудаки',
+            city: 'Душанбе',
+            workingHours: week,
+            seatCount: 40,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(card(club, DateTime(2026, 8, 12, 14)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('40 мест'), findsOneWidget);
+      expect(find.textContaining('Свободн'), findsNothing);
+    });
+
+    // Клуб, который не сказал даже, сколько у него мест, остаётся как был.
+    testWidgets('без чисел о местах карточка молчит', (tester) async {
+      await tester.pumpWidget(card(clubWith(seats: 0, free: 0), DateTime(2026, 8, 12, 14)));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('мест'), findsNothing);
+      expect(find.textContaining('Свободно'), findsNothing);
+    });
+  });
+
   // Расписания может не быть — придумывать за клуб часы работы значит отправить игрока
   // к закрытой двери.
   testWidgets('без расписания карточка о часах молчит', (tester) async {

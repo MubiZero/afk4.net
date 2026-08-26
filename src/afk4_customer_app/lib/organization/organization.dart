@@ -35,6 +35,24 @@ class Organization {
   final double? rating;
   final int reviewCount;
 
+  /// Места залов, открытых прямо сейчас: всего и сколько из них свободно.
+  ///
+  /// Закрытый зал в счёт не идёт: ночью в нём свободны все места, и «свободно 40 из 40»
+  /// позвало бы игрока к запертой двери. null — открытых залов с местами нет, и тогда
+  /// карточка говорит про места то же, что говорила всегда.
+  ({int total, int free})? seatsOpenNow(DateTime now) {
+    var total = 0;
+    var free = 0;
+    for (final place in places) {
+      if (place.seatCount == 0 || !place.isOpenAt(now)) continue;
+      // Про занятость хотя бы одного открытого зала не знаем — значит, не знаем и про сеть.
+      if (place.freeSeatCount == null) return null;
+      total += place.seatCount;
+      free += place.freeSeatCount!;
+    }
+    return total == 0 ? null : (total: total, free: free);
+  }
+
   /// Город, в котором клуб. Сеть может быть в нескольких — тогда показываем первый и считаем
   /// остальные: «Душанбе +2» честнее, чем один город, выданный за всю сеть.
   String? get city => places.isEmpty ? null : places.first.city;
@@ -109,6 +127,8 @@ class ClubPlace {
     this.longitude,
     this.workingHours = const [],
     this.zones = const [],
+    this.seatCount = 0,
+    this.freeSeatCount,
   });
 
   final String branchId;
@@ -132,7 +152,23 @@ class ClubPlace {
   /// Залы этого клуба: сколько мест и на чём играют.
   final List<ClubZone> zones;
 
+  /// Всего мест в зале и сколько из них не занято прямо сейчас. Сервер считает занятость
+  /// по сессиям и чужим броням, но про часы работы не спрашивает: закрытый зал свободен
+  /// целиком, и решать, показывать ли это число, тому, кто знает — открыт ли зал.
+  ///
+  /// null — сервер про занятость не сказал (старая сборка на той стороне). Ноль свободных и
+  /// «неизвестно» — разные вещи: показать «мест нет» вместо «не знаю» значит выдумать отказ.
+  final int seatCount;
+  final int? freeSeatCount;
+
   bool get hasPoint => latitude != null && longitude != null;
+
+  /// Открыт ли зал в этот момент. Тот же расчёт, что и у строки «Открыто до 23:00»:
+  /// два ответа на один вопрос на одном экране игрок читал бы как сбой.
+  bool isOpenAt(DateTime now) {
+    final kind = openingStatusAt(workingHours, now).kind;
+    return kind == OpeningStatusKind.openUntil || kind == OpeningStatusKind.openAllDay;
+  }
 
   /// Как зал зовут на экране. Пустое имя бывает у клуба, который его не задал: тогда за
   /// название работает город, а безымянной строки на экране не остаётся.
@@ -163,6 +199,8 @@ class ClubPlace {
         zones: (json['zones'] as List<dynamic>? ?? const [])
             .map((entry) => ClubZone.fromJson(entry as Map<String, dynamic>))
             .toList(growable: false),
+        seatCount: (json['seatCount'] as num?)?.toInt() ?? 0,
+        freeSeatCount: (json['freeSeatCount'] as num?)?.toInt(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -178,15 +216,25 @@ class ClubPlace {
         if (workingHours.isNotEmpty)
           'workingHours': workingHours.map((day) => day.toJson()).toList(),
         if (zones.isNotEmpty) 'zones': zones.map((zone) => zone.toJson()).toList(),
+        if (seatCount != 0) 'seatCount': seatCount,
+        if (freeSeatCount != null) 'freeSeatCount': freeSeatCount,
       };
 }
 
 /// Зал клуба: название, сколько в нём мест и чем оснащён.
 class ClubZone {
-  const ClubZone({required this.name, this.seatCount = 0, this.hardwareSummary});
+  const ClubZone({
+    required this.name,
+    this.seatCount = 0,
+    this.hardwareSummary,
+    this.freeSeatCount,
+  });
 
   final String name;
   final int seatCount;
+
+  /// Сколько мест зоны не занято прямо сейчас. null — сервер про занятость не сказал.
+  final int? freeSeatCount;
 
   /// Железо словами владельца. null — не указано, и выдумывать за него нечего.
   final String? hardwareSummary;
@@ -195,11 +243,13 @@ class ClubZone {
         name: json['name'] as String? ?? '',
         seatCount: (json['seatCount'] as num?)?.toInt() ?? 0,
         hardwareSummary: json['hardwareSummary'] as String?,
+        freeSeatCount: (json['freeSeatCount'] as num?)?.toInt(),
       );
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'seatCount': seatCount,
         if (hardwareSummary != null) 'hardwareSummary': hardwareSummary,
+        if (freeSeatCount != null) 'freeSeatCount': freeSeatCount,
       };
 }

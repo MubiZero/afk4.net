@@ -83,7 +83,7 @@ class ClubDetailsSheet extends StatelessWidget {
                       )),
                       accent: true,
                     ),
-                  if (only != null) _HallDetails(hall: only),
+                  if (only != null) _HallDetails(hall: only, clock: clock),
                   if (halls.length > 1) ...[
                     const SizedBox(height: 16),
                     Text(l.customerClubDetailsHalls, style: theme.textTheme.titleMedium),
@@ -186,7 +186,7 @@ class _HallTile extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: Text(hall.description!, style: theme.textTheme.bodyMedium),
                 ),
-              _HallDetails(hall: hall),
+              _HallDetails(hall: hall, clock: clock),
             ],
           ),
         ),
@@ -198,9 +198,10 @@ class _HallTile extends StatelessWidget {
 /// Зоны и расписание одного зала. Пустые списки объясняются словами: незаполненная витрина
 /// клуба и сбой загрузки не должны выглядеть одинаково.
 class _HallDetails extends StatelessWidget {
-  const _HallDetails({required this.hall});
+  const _HallDetails({required this.hall, required this.clock});
 
   final ClubPlace hall;
+  final DateTime Function() clock;
 
   @override
   Widget build(BuildContext context) {
@@ -217,7 +218,10 @@ class _HallDetails extends StatelessWidget {
         if (hall.zones.isEmpty)
           _Missing(l.customerClubDetailsZonesUnknown)
         else
-          for (final zone in hall.zones) _ZoneRow(zone: zone),
+          // Свободные места показываются только у открытого зала: ночью свободны все, и
+          // «свободно 20 из 20» позвало бы игрока к запертой двери.
+          for (final zone in hall.zones)
+            _ZoneRow(zone: zone, showFree: hall.isOpenAt(clock())),
         const SizedBox(height: 16),
         Text(l.customerClubDetailsHours, style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
@@ -277,14 +281,20 @@ class _Line extends StatelessWidget {
 /// Зона зала: сколько мест и на чём играют. Железо — то, по чему клубы и сравнивают: «сорок
 /// мест» ничего не говорит о том, пойдёт ли на них игра.
 class _ZoneRow extends StatelessWidget {
-  const _ZoneRow({required this.zone});
+  const _ZoneRow({required this.zone, this.showFree = false});
 
   final ClubZone zone;
+
+  /// Показывать ли, сколько мест зоны свободно. У закрытого зала свободны все — это правда,
+  /// которая вводит в заблуждение.
+  final bool showFree;
 
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
     final theme = Theme.of(context);
+    // Свободные места — только у открытого зала и только когда сервер про них сказал.
+    final free = showFree ? zone.freeSeatCount : null;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -296,9 +306,16 @@ class _ZoneRow extends StatelessWidget {
               Expanded(child: Text(zone.name, style: theme.textTheme.titleSmall)),
               if (zone.seatCount > 0)
                 Text(
-                  l.customerClubDetailsZoneSeats(zone.seatCount),
-                  style: theme.textTheme.labelMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  free == null
+                      ? l.customerClubDetailsZoneSeats(zone.seatCount)
+                      : free == 0
+                          ? l.customerClubPickerNoFreeSeats
+                          : l.customerClubPickerFreeSeats('$free', '${zone.seatCount}'),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: free != null && free > 0
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
             ],
           ),

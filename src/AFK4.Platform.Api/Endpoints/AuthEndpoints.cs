@@ -240,9 +240,11 @@ internal static class AuthEndpoints
         app.MapGet("/api/public/organizations", async (
             string? query,
             PlatformDbContext dbContext,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             const int maxResults = 50;
+            var now = timeProvider.GetUtcNow();
 
             var organizations = dbContext.Organizations
                 .AsNoTracking()
@@ -300,26 +302,81 @@ internal static class AuthEndpoints
                 .Select(group => new { ZoneId = group.Key, Count = group.Count() })
                 .ToListAsync(cancellationToken);
 
-            var places = branches.Select(b => new
+            // Сколько мест занято прямо сейчас. Игрок выбирает клуб, чтобы в него поехать, и
+            // «40 мест» отвечает на другой вопрос: сорок мест бывает и в забитом зале.
+            //
+            // Занято = за местом идёт сессия либо место обещано чужой броне на ближайший час.
+            // Ровно те же две причины, по которым клубный экран мест не даёт сесть
+            // (`/api/me/branches/{id}/seats`), — третью, погасший ПК, здесь не считаем: связь
+            // агента с сервером — это здоровье инфраструктуры, и мигнувшая сеть не должна
+            // объявлять полупустой клуб забитым.
+            var busySeats = await (
+                from session in dbContext.Sessions.AsNoTracking()
+                join seat in dbContext.Seats.AsNoTracking() on session.SeatId equals seat.SeatId
+                where branchIds.Contains(seat.BranchId)
+                    && (session.State == SessionStateNames.Active
+                        || session.State == SessionStateNames.Paused
+                        || session.State == SessionStateNames.Ending)
+                select new { seat.SeatId, seat.ZoneId })
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            var soon = now.AddHours(1);
+            var reservedSeats = await (
+                from reservation in dbContext.Reservations.AsNoTracking()
+                join seat in dbContext.Seats.AsNoTracking()
+                    on reservation.SeatId equals (Guid?)seat.SeatId
+                where branchIds.Contains(seat.BranchId)
+                    && (reservation.State == ReservationStateNames.Confirmed
+                        || reservation.State == ReservationStateNames.Pending)
+                    && reservation.StartsAtUtc < soon
+                    && reservation.EndsAtUtc > now
+                select new { seat.SeatId, seat.ZoneId })
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            // Одно место могло попасть в оба списка (сел раньше своей же брони) — считаем его
+            // занятым один раз, иначе свободных мест окажется меньше, чем их есть.
+            var takenByZone = busySeats.Concat(reservedSeats)
+                .DistinctBy(taken => taken.SeatId)
+                .GroupBy(taken => taken.ZoneId)
+                .ToDictionary(group => group.Key, group => group.Count());
+
+            int FreeInZone(Guid zoneId, int seatCount) =>
+                Math.Max(0, seatCount - (takenByZone.TryGetValue(zoneId, out var taken) ? taken : 0));
+
+            var places = branches.Select(b =>
             {
-                b.OrganizationId,
-                Place = new ClubPlaceDto(
-                    b.BranchId, b.Name, b.City, b.Address, b.Description,
-                    b.CoverImageUrl, b.Latitude, b.Longitude,
-                    AFK4.Platform.Api.Branches.BranchWorkingHours.Deserialize(b.WorkingHoursJson),
-                    zones.Where(zone => zone.BranchId == b.BranchId)
-                        .Select(zone => new ClubZoneDto(
-                            zone.Name,
-                            zoneSeatCounts.FirstOrDefault(count => count.ZoneId == zone.ZoneId)?.Count ?? 0,
-                            zone.HardwareSummary))
-                        .ToList(),
-                    // Обложка идёт первой: она выбрана владельцем как лицо зала, остальные —
-                    // за ней, в заданном им порядке.
-                    [
-                        .. string.IsNullOrWhiteSpace(b.CoverImageUrl) ? Array.Empty<string>() : [b.CoverImageUrl],
-                        .. AFK4.Platform.Api.Branches.BranchPhotos.Deserialize(b.PhotosJson)
-                            .Select(photo => photo.Url)
-                    ])
+                var hallZones = zones.Where(zone => zone.BranchId == b.BranchId)
+                    .Select(zone =>
+                    {
+                        var seatCount = zoneSeatCounts
+                            .FirstOrDefault(count => count.ZoneId == zone.ZoneId)?.Count ?? 0;
+                        return new ClubZoneDto(
+                            zone.Name, seatCount, zone.HardwareSummary, FreeInZone(zone.ZoneId, seatCount));
+                    })
+                    .ToList();
+
+                return new
+                {
+                    b.OrganizationId,
+                    Place = new ClubPlaceDto(
+                        b.BranchId, b.Name, b.City, b.Address, b.Description,
+                        b.CoverImageUrl, b.Latitude, b.Longitude,
+                        AFK4.Platform.Api.Branches.BranchWorkingHours.Deserialize(b.WorkingHoursJson),
+                        hallZones,
+                        // Обложка идёт первой: она выбрана владельцем как лицо зала, остальные —
+                        // за ней, в заданном им порядке.
+                        [
+                            .. string.IsNullOrWhiteSpace(b.CoverImageUrl) ? Array.Empty<string>() : [b.CoverImageUrl],
+                            .. AFK4.Platform.Api.Branches.BranchPhotos.Deserialize(b.PhotosJson)
+                                .Select(photo => photo.Url)
+                        ],
+                        // Числа зала — сумма его залов-зон, а не отдельный запрос: одно и то же
+                        // число, посчитанное дважды, рано или поздно разойдётся.
+                        hallZones.Sum(zone => zone.SeatCount),
+                        hallZones.Sum(zone => zone.FreeSeatCount))
+                };
             }).ToList();
 
             var seatCounts = await dbContext.Seats
@@ -331,7 +388,6 @@ internal static class AuthEndpoints
 
             // «Цена от» — по действующим версиям тарифов: снятые с публикации и ещё не вступившие
             // в силу обещали бы игроку цену, которую на кассе никто не назовёт.
-            var now = DateTimeOffset.UtcNow;
             var prices = await dbContext.TariffVersions
                 .AsNoTracking()
                 .Where(v => organizationIds.Contains(v.OrganizationId)
