@@ -185,6 +185,88 @@
   "customerDashboardSessionEndingSoon": "Time is running out",
   "customerDashboardSessionRemaining": "Remaining",
   "customerDashboardWelcome": "Welcome back",
+  "customerEventsCancel": "Not going",
+  "customerEventsCancelConfirmFree": "Your spot goes back to the others.",
+  "customerEventsCancelConfirmPaid": "The {price} entry fee returns to your wallet.",
+  "@customerEventsCancelConfirmPaid": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsCancelConfirmTitle": "Withdraw?",
+  "customerEventsCancelledByClub": "The club cancelled this event",
+  "customerEventsCancelledToast": "Withdrew from “{title}”",
+  "@customerEventsCancelledToast": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsConfirmFree": "Taking part is free.",
+  "customerEventsConfirmPaid": "{price} will be taken from your wallet. Withdraw before it starts and the money comes back.",
+  "@customerEventsConfirmPaid": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsConfirmTitle": "Sign up for “{title}”?",
+  "@customerEventsConfirmTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsDismiss": "Cancel",
+  "customerEventsErrCancelled": "The club cancelled this event",
+  "customerEventsErrFull": "No spots left",
+  "customerEventsErrFunds": "Your wallet does not cover the entry fee",
+  "customerEventsErrGeneric": "That did not work. Try again",
+  "customerEventsErrStarted": "The event has already started",
+  "customerEventsFee": "Entry {price}",
+  "@customerEventsFee": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsFree": "Free",
+  "customerEventsGoing": "{count, plural, one {{count} player} other {{count} players}}",
+  "@customerEventsGoing": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerEventsLoadError": "Could not load the events",
+  "customerEventsNoSpots": "No spots left",
+  "customerEventsNone": "The club has nothing planned yet",
+  "customerEventsRegister": "Sign up",
+  "customerEventsRegistered": "You are signed up",
+  "customerEventsRegisteredToast": "Signed up for “{title}”",
+  "@customerEventsRegisteredToast": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsSpotsLeft": "{count, plural, one {{count} spot left} other {{count} spots left}}",
+  "@customerEventsSpotsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerEventsTitle": "Club events",
   "customerHistoryDurationHoursMinutes": "{hours} h {minutes} min",
   "@customerHistoryDurationHoursMinutes": {
     "placeholders": {
@@ -964,5 +1046,7 @@
   "ledgerTypeReservationNoShowFee": "Kept for a no-show",
   "ledgerTypeReversal": "Reversal",
   "ledgerTypeTopUp": "Top-up",
+  "ledgerTypeTournamentEntryFee": "Event entry fee",
+  "ledgerTypeTournamentEntryRefund": "Entry fee returned",
   "ledgerTypeWalletPayment": "Wallet payment"
 }

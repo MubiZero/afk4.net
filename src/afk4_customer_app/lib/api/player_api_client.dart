@@ -276,6 +276,31 @@ class PlayerApiClient {
     return list.map((item) => _parse(item, PackageOption.fromJson)).toList();
   }
 
+  /// События зала: турниры и вечера, на которые ещё можно записаться, плюс отменённые из
+  /// тех, на которые игрок шёл, — весть об отмене обязана до него дойти.
+  Future<List<ClubEvent>> getEvents(String branchId) async {
+    final list = await getJsonList('/api/me/branches/${Uri.encodeComponent(branchId)}/tournaments');
+    return list.map((item) => _parse(item, ClubEvent.fromJson)).toList();
+  }
+
+  /// Записаться на событие. Взнос, если он есть, списывается с кошелька этого клуба.
+  ///
+  /// 409 несёт причину: `tournament_full` — мест нет, `insufficient_funds` — не хватает денег,
+  /// `tournament_already_started` — событие уже идёт, `tournament_already_registered` — запись
+  /// уже есть, `tournament_cancelled` — клуб событие отменил.
+  Future<ClubEvent> registerForEvent(String tournamentId) async {
+    final body = await sendJson(
+      'POST', '/api/me/tournaments/${Uri.encodeComponent(tournamentId)}/registration');
+    return _parse(body, ClubEvent.fromJson);
+  }
+
+  /// Сняться с события. До начала — взнос возвращается целиком.
+  Future<ClubEvent> cancelEventRegistration(String tournamentId) async {
+    final body = await sendJson(
+      'DELETE', '/api/me/tournaments/${Uri.encodeComponent(tournamentId)}/registration');
+    return _parse(body, ClubEvent.fromJson);
+  }
+
   /// «Приведи друга»: свой код, условия клуба и что уже вышло.
   Future<PlayerReferral> getReferral() async =>
       _parse(await getJson('/api/me/referral'), PlayerReferral.fromJson);
