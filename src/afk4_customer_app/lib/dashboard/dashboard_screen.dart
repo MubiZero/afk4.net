@@ -10,6 +10,7 @@ import '../loyalty/loyalty_screen.dart';
 import '../money/money.dart';
 import '../news/news_section.dart';
 import '../organization/organization.dart';
+import '../events/events_screen.dart';
 import '../packages/packages_screen.dart';
 import '../play/start_session_screen.dart';
 import '../progress/progress_screen.dart';
@@ -106,6 +107,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// список — то же самое, что звать в невозможное.
   bool _hasPackages = false;
 
+  /// Клуб что-то запланировал: турнир, ночь игры, чемпионат зала. Плитка по тому же правилу,
+  /// что и пакеты, — по факту, а не по флагу.
+  bool _hasEvents = false;
+
   /// Последний запрос не дошёл до сервера. Данные на экране остаются, но они с прошлого
   /// удачного ответа — молчать об этом значит показывать баланс, которому нельзя верить.
   bool _stale = false;
@@ -148,6 +153,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       });
       await _loadPackagesAvailability();
       await _loadReferralAvailability();
+      await _loadEventsAvailability();
     } on PlayerApiException {
       // Не узнали филиал — просто не предлагаем сесть самому. Всё остальное на экране работает.
     }
@@ -172,6 +178,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
       setState(() => _hasPackages = offers.isNotEmpty);
     } on PlayerApiException {
       // Прайс не спросился — плитку не показываем. Пакеты не то, ради чего стоит ронять главную.
+    }
+  }
+
+  Future<void> _loadEventsAvailability() async {
+    final branchId = _branchId;
+    if (branchId == null) return;
+    try {
+      final events = await widget.api.getEvents(branchId);
+      if (!mounted) return;
+      setState(() => _hasEvents = events.isNotEmpty);
+    } on PlayerApiException {
+      // Не спросилось — плитку не показываем. Вести на пустой список так же плохо, как звать
+      // в невозможное.
     }
   }
 
@@ -269,6 +288,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (bought == true) await _refresh();
   }
 
+  /// События клуба. Взнос уходит с кошелька, возврат приходит туда же — значит вернувшись,
+  /// игрок обязан увидеть настоящий баланс.
+  Future<void> _openEvents() async {
+    final branchId = _branchId;
+    if (branchId == null) return;
+    final walletChanged = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => EventsScreen(api: widget.api, branchId: branchId, clock: widget.clock),
+      ),
+    );
+    if (walletChanged == true) await _refresh();
+    if (mounted) await _loadEventsAvailability();
+  }
+
   void _openReferral() {
     Navigator.of(context).push<void>(
       MaterialPageRoute(builder: (_) => ReferralScreen(api: widget.api)),
@@ -348,6 +381,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: Icons.group_add_outlined,
             label: l.customerReferralTitle,
             onOpen: _openReferral,
+          ),
+        // События показываются, только когда клуб что-то запланировал: пустое расписание —
+        // такой же тупик, как список пакетов у клуба без пакетов.
+        if (_hasEvents && _branchId != null)
+          QuickAction(
+            icon: Icons.emoji_events_outlined,
+            label: l.customerEventsTitle,
+            onOpen: _openEvents,
           ),
         // Стаж есть у любого игрока и не зависит от возможностей клуба: он считается из
         // визитов, которые уже случились.

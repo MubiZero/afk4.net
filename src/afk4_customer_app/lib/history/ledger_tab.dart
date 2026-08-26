@@ -63,6 +63,8 @@ String ledgerTypeLabel(String entryType, L l) => switch (entryType) {
       'cashback' => l.ledgerTypeCashback,
       'referral_bonus' => l.ledgerTypeReferralBonus,
       'reservation_no_show_fee' => l.ledgerTypeReservationNoShowFee,
+      'tournament_entry_fee' => l.ledgerTypeTournamentEntryFee,
+      'tournament_entry_refund' => l.ledgerTypeTournamentEntryRefund,
       // Незнакомый тип показывается как есть: сырой код честнее выдуманного названия, а появиться
       // он может только у клиента старше сервера.
       _ => entryType,

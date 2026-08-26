@@ -16,6 +16,8 @@ public static class FeatureCatalog
         new(PlatformFeatureNames.OnlineTopUp, "Онлайн-пополнение",
             "Пополнение кошелька банковской картой.", EnabledByDefault: true),
         new(PlatformFeatureNames.PlayerShop, "Магазин и заказы игрока",
-            "Заказ еды и товаров с игрового места.", EnabledByDefault: true)
+            "Заказ еды и товаров с игрового места.", EnabledByDefault: true),
+        new(PlatformFeatureNames.Tournaments, "События и турниры",
+            "Расписание событий клуба и запись игрока со взносом с кошелька.", EnabledByDefault: true)
     ];
 }

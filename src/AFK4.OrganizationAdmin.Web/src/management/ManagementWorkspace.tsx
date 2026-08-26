@@ -23,6 +23,7 @@ import { BookingIntakeDestination } from './destinations/booking/BookingIntakeDe
 import { GoodsDestination } from './destinations/GoodsDestination';
 import { HallsDevicesDestination } from './destinations/HallsDevicesDestination';
 import { NewsDestination } from './destinations/NewsDestination';
+import { EventsDestination } from './destinations/EventsDestination';
 import { PaymentsLoyaltyDestination } from './destinations/PaymentsLoyaltyDestination';
 import { StaffRolesDestination } from './destinations/StaffRolesDestination';
 import { TariffsPackagesDestination } from './destinations/TariffsPackagesDestination';
@@ -152,6 +153,9 @@ export function ManagementWorkspace({
     }
     if (currentId === 'news') {
       return <NewsDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
+    }
+    if (currentId === 'events') {
+      return <EventsDestination backend={backend} session={session} currencyCode={currencyCode} onDirtyChange={setDirty} />;
     }
     if (currentId === 'halls') {
       return (

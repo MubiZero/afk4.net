@@ -17,6 +17,8 @@ public static class PlatformFeatureNames
 
     public const string PlayerShop = "player_shop";
 
+    public const string Tournaments = "tournaments";
+
     public static readonly IReadOnlyList<string> All =
-        [OnlineBooking, Loyalty, OnlineTopUp, PlayerShop];
+        [OnlineBooking, Loyalty, OnlineTopUp, PlayerShop, Tournaments];
 }

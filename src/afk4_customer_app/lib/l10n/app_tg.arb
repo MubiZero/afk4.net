@@ -197,6 +197,88 @@
   "customerDashboardSessionEndingSoon": "Вақт ба охир мерасад",
   "customerDashboardSessionRemaining": "Боқӣ мондааст",
   "customerDashboardWelcome": "Хуш омадед",
+  "customerEventsCancel": "Намеравам",
+  "customerEventsCancelConfirmFree": "Ҷой ба бозигари дигар мемонад.",
+  "customerEventsCancelConfirmPaid": "Пардохти {price} ба ҳамён бармегардад.",
+  "@customerEventsCancelConfirmPaid": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsCancelConfirmTitle": "Сабти ном бекор шавад?",
+  "customerEventsCancelledByClub": "Клуб чорабиниро бекор кард",
+  "customerEventsCancelledToast": "Сабти номи «{title}» бекор шуд",
+  "@customerEventsCancelledToast": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsConfirmFree": "Иштирок ройгон аст.",
+  "customerEventsConfirmPaid": "Аз ҳамён {price} гирифта мешавад. Агар пеш аз оғоз бекор кунед, пул бармегардад.",
+  "@customerEventsConfirmPaid": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsConfirmTitle": "Ба «{title}» сабти ном мешавед?",
+  "@customerEventsConfirmTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsDismiss": "Бекор",
+  "customerEventsErrCancelled": "Клуб ин чорабиниро бекор кард",
+  "customerEventsErrFull": "Ҷойи холӣ намондааст",
+  "customerEventsErrFunds": "Дар ҳамён барои пардохт маблағ намерасад",
+  "customerEventsErrGeneric": "Нашуд. Боз кӯшиш кунед",
+  "customerEventsErrStarted": "Чорабинӣ аллакай оғоз шуд",
+  "customerEventsFee": "Пардохт {price}",
+  "@customerEventsFee": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsFree": "Ройгон",
+  "customerEventsGoing": "{count, plural, one {{count} иштирокчӣ} other {{count} иштирокчӣ}}",
+  "@customerEventsGoing": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerEventsLoadError": "Чорабиниҳо бор карда нашуд",
+  "customerEventsNoSpots": "Ҷойи холӣ намондааст",
+  "customerEventsNone": "Клуб ҳанӯз чизе ба нақша нагирифтааст",
+  "customerEventsRegister": "Сабти ном",
+  "customerEventsRegistered": "Шумо сабти ном шудаед",
+  "customerEventsRegisteredToast": "Ба «{title}» сабти ном шудед",
+  "@customerEventsRegisteredToast": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsSpotsLeft": "{count, plural, one {{count} ҷой мондааст} other {{count} ҷой мондааст}}",
+  "@customerEventsSpotsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerEventsTitle": "Чорабиниҳои клуб",
   "customerHistoryDurationHoursMinutes": "{hours} соат {minutes} дақиқа",
   "@customerHistoryDurationHoursMinutes": {
     "placeholders": {
@@ -976,5 +1058,7 @@
   "ledgerTypeReservationNoShowFee": "Барои наомадан нигоҳ дошта шуд",
   "ledgerTypeReversal": "Сторно",
   "ledgerTypeTopUp": "Пуркунӣ",
+  "ledgerTypeTournamentEntryFee": "Пардохти чорабинӣ",
+  "ledgerTypeTournamentEntryRefund": "Баргардонидани пардохт",
   "ledgerTypeWalletPayment": "Пардохт аз ҳамён"
 }

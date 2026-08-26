@@ -1,5 +1,5 @@
-import { it, expect } from 'bun:test';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { it, expect, jest, afterEach } from 'bun:test';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 import { ToastProvider, useToast } from './toast';
 
 function Trigger() {
@@ -7,7 +7,16 @@ function Trigger() {
   return <button onClick={() => toast({ title: 'Заявка отправлена', variant: 'success' })}>go</button>;
 }
 
-it('shows a toast and auto-dismisses it', async () => {
+afterEach(() => {
+  jest.useRealTimers();
+});
+
+it('shows a toast and auto-dismisses it', () => {
+  // Время двигает тест, а не машина. Раньше здесь ждали настоящие пятьдесят миллисекунд, и на
+  // загруженной машине (три дорожки ворот разом) таймеры happy-dom голодали по двадцать секунд —
+  // тест краснел, ничего не сломав. Сломанное автоскрытие всё так же покраснеет: часы двигаются,
+  // а тост не исчезает.
+  jest.useFakeTimers();
   render(
     <ToastProvider autoDismissMs={50}>
       <Trigger />
@@ -15,13 +24,9 @@ it('shows a toast and auto-dismisses it', async () => {
   );
   fireEvent.click(screen.getByText('go'));
 
-  // Проверка появления — синхронная: тост рисуется тем же кликом, а `findByText` уступает
-  // событийный цикл, и на загруженной машине таймер успевал убрать тост до первого опроса.
   expect(screen.getByText('Заявка отправлена')).toBeInTheDocument();
-  // Запасы здесь не про ожидаемое время (таймеру хватает пятидесяти миллисекунд), а про
-  // занятую машину: когда рядом идут сборки, таймеры happy-dom голодают секундами. Сломанное
-  // автоскрытие упрётся в тот же потолок и покраснеет, просто не по случайности.
-  await waitFor(
-    () => expect(screen.queryByText('Заявка отправлена')).not.toBeInTheDocument(),
-    { timeout: 10_000 });
-}, 20_000);
+
+  act(() => { jest.advanceTimersByTime(50); });
+
+  expect(screen.queryByText('Заявка отправлена')).not.toBeInTheDocument();
+});

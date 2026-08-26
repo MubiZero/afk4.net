@@ -197,6 +197,88 @@
   "customerDashboardSessionEndingSoon": "Время заканчивается",
   "customerDashboardSessionRemaining": "Осталось",
   "customerDashboardWelcome": "С возвращением",
+  "customerEventsCancel": "Не пойду",
+  "customerEventsCancelConfirmFree": "Место освободится для другого игрока.",
+  "customerEventsCancelConfirmPaid": "Взнос {price} вернётся на кошелёк.",
+  "@customerEventsCancelConfirmPaid": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsCancelConfirmTitle": "Снять запись?",
+  "customerEventsCancelledByClub": "Клуб отменил событие",
+  "customerEventsCancelledToast": "Сняли с «{title}»",
+  "@customerEventsCancelledToast": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsConfirmFree": "Участие бесплатное.",
+  "customerEventsConfirmPaid": "С кошелька спишется {price}. Если снимете запись до начала, деньги вернутся.",
+  "@customerEventsConfirmPaid": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsConfirmTitle": "Записаться на «{title}»?",
+  "@customerEventsConfirmTitle": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsDismiss": "Отмена",
+  "customerEventsErrCancelled": "Клуб отменил это событие",
+  "customerEventsErrFull": "Мест больше нет",
+  "customerEventsErrFunds": "На кошельке не хватает денег на взнос",
+  "customerEventsErrGeneric": "Не получилось. Попробуйте ещё раз",
+  "customerEventsErrStarted": "Событие уже началось",
+  "customerEventsFee": "Взнос {price}",
+  "@customerEventsFee": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsFree": "Бесплатно",
+  "customerEventsGoing": "{count, plural, one {{count} участник} few {{count} участника} many {{count} участников} other {{count} участника}}",
+  "@customerEventsGoing": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerEventsLoadError": "Не удалось загрузить события",
+  "customerEventsNoSpots": "Мест больше нет",
+  "customerEventsNone": "Клуб пока ничего не запланировал",
+  "customerEventsRegister": "Записаться",
+  "customerEventsRegistered": "Вы записаны",
+  "customerEventsRegisteredToast": "Записали на «{title}»",
+  "@customerEventsRegisteredToast": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "customerEventsSpotsLeft": "{count, plural, one {осталось {count} место} few {осталось {count} места} many {осталось {count} мест} other {осталось {count} места}}",
+  "@customerEventsSpotsLeft": {
+    "placeholders": {
+      "count": {
+        "type": "num"
+      }
+    }
+  },
+  "customerEventsTitle": "События клуба",
   "customerHistoryDurationHoursMinutes": "{hours} ч {minutes} мин",
   "@customerHistoryDurationHoursMinutes": {
     "placeholders": {
@@ -976,5 +1058,7 @@
   "ledgerTypeReservationNoShowFee": "Удержано за неявку",
   "ledgerTypeReversal": "Сторно",
   "ledgerTypeTopUp": "Пополнение",
+  "ledgerTypeTournamentEntryFee": "Взнос за событие",
+  "ledgerTypeTournamentEntryRefund": "Возврат взноса",
   "ledgerTypeWalletPayment": "Оплата с кошелька"
 }

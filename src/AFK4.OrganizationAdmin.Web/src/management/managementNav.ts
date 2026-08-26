@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, CalendarCheck, MonitorCog, BadgeDollarSign, UsersRound, Boxes, CreditCard, Newspaper } from 'lucide-react';
+import { Building2, CalendarCheck, MonitorCog, BadgeDollarSign, UsersRound, Boxes, CreditCard, Newspaper, Trophy } from 'lucide-react';
 import type { MessageKey } from '@afk4/i18n';
 import type { OperatorAuthSession } from '../authClient';
 import { hasAnyPermission } from '../operatorPermissions';
@@ -7,7 +7,7 @@ import { permissionNames } from '../permissionNames';
 
 export type ManagementDestinationId =
   | 'club' | 'booking' | 'halls' | 'tariffs' | 'staff' | 'goods'
-  | 'payments' | 'news';
+  | 'payments' | 'news' | 'events';
 
 export interface ManagementDestination {
   id: ManagementDestinationId;
@@ -89,6 +89,13 @@ export const managementDestinations: readonly ManagementDestination[] = [
     subtitleKey: 'op.management.dest.news.subtitle',
     Icon: Newspaper,
     permissions: [permissionNames.manageNews]
+  },
+  {
+    id: 'events',
+    labelKey: 'op.management.dest.events',
+    subtitleKey: 'op.management.dest.events.subtitle',
+    Icon: Trophy,
+    permissions: [permissionNames.manageTournaments]
   }
 ];
 

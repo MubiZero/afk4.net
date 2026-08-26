@@ -16,6 +16,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<ClubReviewEntity> ClubReviews => Set<ClubReviewEntity>();
 
+    public DbSet<TournamentEntity> Tournaments => Set<TournamentEntity>();
+
+    public DbSet<TournamentRegistrationEntity> TournamentRegistrations => Set<TournamentRegistrationEntity>();
+
     public DbSet<BranchEntity> Branches => Set<BranchEntity>();
 
     public DbSet<EskhataMerchantConfigEntity> EskhataMerchantConfigs => Set<EskhataMerchantConfigEntity>();
@@ -247,6 +251,36 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(news => news.Body).HasMaxLength(4000).IsRequired();
             entity.Property(news => news.ImageUrl).HasMaxLength(2048);
             entity.HasIndex(news => news.OrganizationId);
+        });
+
+        modelBuilder.Entity<TournamentEntity>(entity =>
+        {
+            entity.ToTable("tournaments");
+            entity.HasKey(tournament => tournament.TournamentId);
+            entity.Property(tournament => tournament.Title).HasMaxLength(200).IsRequired();
+            entity.Property(tournament => tournament.Description).HasMaxLength(4000).IsRequired();
+            entity.Property(tournament => tournament.Discipline).HasMaxLength(100).IsRequired();
+            entity.Property(tournament => tournament.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(tournament => tournament.State).HasMaxLength(16).IsRequired();
+            entity.Property(tournament => tournament.CancelReason).HasMaxLength(500).IsRequired();
+            // Оба списка — «события зала по времени»: и стойка, и приложение спрашивают именно так.
+            entity.HasIndex(tournament => new { tournament.BranchId, tournament.StartsAtUtc });
+            entity.HasIndex(tournament => new { tournament.OrganizationId, tournament.State });
+        });
+
+        modelBuilder.Entity<TournamentRegistrationEntity>(entity =>
+        {
+            entity.ToTable("tournament_registrations");
+            entity.HasKey(registration => registration.TournamentRegistrationId);
+            entity.Property(registration => registration.State).HasMaxLength(16).IsRequired();
+            entity.Property(registration => registration.CurrencyCode).HasMaxLength(3).IsRequired();
+            // Одна живая запись на человека и событие. Уникальность в базе, а не проверка перед
+            // вставкой: два быстрых нажатия «Записаться» иначе спишут взнос дважды. Отменённые
+            // записи под ограничение не попадают — записаться заново после отмены можно.
+            entity.HasIndex(registration => new { registration.TournamentId, registration.PlayerAccountId })
+                .IsUnique()
+                .HasFilter("\"State\" = 'registered'");
+            entity.HasIndex(registration => registration.PlayerAccountId);
         });
 
         modelBuilder.Entity<ClubReviewEntity>(entity =>

@@ -529,6 +529,74 @@ class PackageOption {
       );
 }
 
+/// Событие клуба: турнир, ночь игры, чемпионат зала. Зеркало `PlayerTournamentDto`.
+class ClubEvent {
+  const ClubEvent({
+    required this.tournamentId,
+    required this.branchId,
+    required this.branchName,
+    required this.title,
+    required this.description,
+    required this.discipline,
+    required this.startsAtUtc,
+    required this.entryFeeMinorUnits,
+    required this.currencyCode,
+    required this.capacity,
+    required this.registeredCount,
+    required this.isRegistered,
+    required this.state,
+    required this.cancelReason,
+  });
+
+  final String tournamentId;
+  final String branchId;
+  final String branchName;
+  final String title;
+  final String description;
+
+  /// Игра словами клуба («Dota 2», «FIFA»). Пусто — клуб не уточнил.
+  final String discipline;
+  final DateTime startsAtUtc;
+
+  /// Взнос за участие. 0 — бесплатно, и это обычный случай для вечера, которым клуб просто
+  /// заполняет будний день.
+  final int entryFeeMinorUnits;
+  final String currencyCode;
+
+  /// Сколько человек берут. 0 — без ограничения.
+  final int capacity;
+  final int registeredCount;
+  final bool isRegistered;
+  final String state;
+
+  /// Почему клуб отменил. Пусто, пока событие в силе.
+  final String cancelReason;
+
+  bool get isCancelled => state == 'cancelled';
+
+  bool get isFree => entryFeeMinorUnits == 0;
+
+  /// Сколько мест осталось. null — потолка нет, и «осталось N» было бы выдумкой.
+  int? get freeSpots => capacity == 0 ? null : (capacity - registeredCount).clamp(0, capacity);
+
+  factory ClubEvent.fromJson(Map<String, dynamic> json) => ClubEvent(
+        tournamentId: json['tournamentId'] as String,
+        branchId: json['branchId'] as String,
+        branchName: json['branchName'] as String? ?? '',
+        title: json['title'] as String? ?? '',
+        description: json['description'] as String? ?? '',
+        discipline: json['discipline'] as String? ?? '',
+        startsAtUtc: DateTime.parse(json['startsAtUtc'] as String).toUtc(),
+        entryFeeMinorUnits: ((json['entryFee'] as Map<String, dynamic>?)?['minorUnits'] as num?)?.toInt() ?? 0,
+        currencyCode: (json['entryFee'] as Map<String, dynamic>?)?['currencyCode'] as String? ?? 'TJS',
+        capacity: (json['capacity'] as num?)?.toInt() ?? 0,
+        registeredCount: (json['registeredCount'] as num?)?.toInt() ?? 0,
+        isRegistered: json['isRegistered'] as bool? ?? false,
+        state: json['state'] as String? ?? '',
+        cancelReason: json['cancelReason'] as String? ?? '',
+      );
+}
+
 /// Купленный пакет с остатком времени.
 class PlayerPackage {
   const PlayerPackage({
