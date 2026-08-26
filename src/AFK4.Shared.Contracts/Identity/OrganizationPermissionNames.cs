@@ -118,4 +118,8 @@ public static class OrganizationPermissionNames
     public const string ManageLoyaltySettings = "organization.loyalty.settings.manage";
 
     public const string ManageNews = "organization.news.manage";
+
+    /// Заводить и отменять события клуба. Отдельно от новостей: событие возвращает деньги
+    /// при отмене, и это право сильнее права написать объявление.
+    public const string ManageTournaments = "organization.tournaments.manage";
 }

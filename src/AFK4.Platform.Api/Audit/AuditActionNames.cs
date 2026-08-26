@@ -304,6 +304,16 @@ public static class AuditActionNames
 
     public const string DeleteNews = "news.delete";
 
+    public const string CreateTournament = "tournament.create";
+
+    public const string UpdateTournament = "tournament.update";
+
+    public const string PublishTournament = "tournament.publish";
+
+    /// Отмена события возвращает взносы всем записавшимся — деньги ходят, значит запись в аудите
+    /// обязательна.
+    public const string CancelTournament = "tournament.cancel";
+
     public const string GrantPlatformSupportAccess = "platform.support_access.grant";
 
     public const string RevokePlatformSupportAccess = "platform.support_access.revoke";

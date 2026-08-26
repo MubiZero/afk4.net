@@ -30,4 +30,13 @@ public static class LedgerEntryTypeNames
     /// Пишется только если филиал так решил, и всегда после снятия заморозки.
     /// </summary>
     public const string ReservationNoShowFee = "reservation_no_show_fee";
+
+    /// <summary>Взнос за участие в событии клуба — списывается при записи.</summary>
+    public const string TournamentEntryFee = "tournament_entry_fee";
+
+    /// <summary>
+    /// Возврат взноса: игрок снялся до начала или клуб отменил событие. Отдельно от общего
+    /// возврата, чтобы в выписке было видно, за что деньги вернулись.
+    /// </summary>
+    public const string TournamentEntryRefund = "tournament_entry_refund";
 }

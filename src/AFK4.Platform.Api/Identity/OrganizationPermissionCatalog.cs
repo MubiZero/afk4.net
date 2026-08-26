@@ -64,7 +64,8 @@ public static class OrganizationPermissionCatalog
                 OrganizationPermissionNames.ViewBranches,
                 OrganizationPermissionNames.ManagePaymentGateways,
                 OrganizationPermissionNames.ManageLoyaltySettings,
-                OrganizationPermissionNames.ManageNews
+                OrganizationPermissionNames.ManageNews,
+                OrganizationPermissionNames.ManageTournaments
             },
             [OrganizationRoleNames.BranchManager] = new HashSet<string>
             {
