@@ -37,6 +37,13 @@ public sealed class PlatformPersonEntity
 
     public string? NetworkBanReason { get; set; }
 
+    /// <summary>
+    /// Видят ли друзья, что человек сейчас в зале. По умолчанию да: друга человек принял сам,
+    /// а список друзей, в котором никто никогда не «в зале», — это список без смысла. Выключается
+    /// одним переключателем и действует сразу на всех.
+    /// </summary>
+    public bool ShowsPresenceToFriends { get; set; } = true;
+
     public bool IsActive { get; set; } = true;
 
     public DateTimeOffset CreatedAtUtc { get; set; }

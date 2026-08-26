@@ -279,6 +279,45 @@
     }
   },
   "customerEventsTitle": "События клуба",
+  "customerFriendsAccept": "Принять",
+  "customerFriendsAddCta": "Позвать",
+  "customerFriendsAddHint": "Номер телефона — тот, который вы и так знаете",
+  "customerFriendsAddTitle": "Позвать в друзья",
+  "customerFriendsDecline": "Отклонить",
+  "customerFriendsDismiss": "Отмена",
+  "customerFriendsErrGeneric": "Не получилось. Попробуйте ещё раз",
+  "customerFriendsErrSelf": "Это ваш номер",
+  "customerFriendsInHall": "{club}, {hall}",
+  "@customerFriendsInHall": {
+    "placeholders": {
+      "club": {
+        "type": "String"
+      },
+      "hall": {
+        "type": "String"
+      }
+    }
+  },
+  "customerFriendsIncoming": "Зовут в друзья",
+  "customerFriendsLoadError": "Не удалось загрузить друзей",
+  "customerFriendsNone": "Друзей пока нет",
+  "customerFriendsNoneHint": "Позовите того, с кем играете: он увидит заявку в своём приложении.",
+  "customerFriendsNotInHall": "Не в зале",
+  "customerFriendsOutgoing": "Ждут ответа",
+  "customerFriendsRemove": "Убрать из друзей",
+  "customerFriendsRemoveHint": "Вы перестанете видеть друг друга в залах. Позвать снова можно в любой момент.",
+  "customerFriendsRemoveTitle": "Убрать {name} из друзей?",
+  "@customerFriendsRemoveTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "customerFriendsSent": "Заявка отправлена",
+  "customerFriendsTitle": "Друзья",
+  "customerFriendsVisibility": "Показывать друзьям, где я играю",
+  "customerFriendsVisibilityOffHint": "Друзья остаются, но в залах вас не видно.",
   "customerHistoryDurationHoursMinutes": "{hours} ч {minutes} мин",
   "@customerHistoryDurationHoursMinutes": {
     "placeholders": {

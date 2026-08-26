@@ -279,6 +279,45 @@
     }
   },
   "customerEventsTitle": "Чорабиниҳои клуб",
+  "customerFriendsAccept": "Қабул",
+  "customerFriendsAddCta": "Даъват",
+  "customerFriendsAddHint": "Рақами телефон — ҳамон, ки медонед",
+  "customerFriendsAddTitle": "Дӯстро даъват кардан",
+  "customerFriendsDecline": "Рад",
+  "customerFriendsDismiss": "Бекор",
+  "customerFriendsErrGeneric": "Нашуд. Боз кӯшиш кунед",
+  "customerFriendsErrSelf": "Ин рақами шумост",
+  "customerFriendsInHall": "{club}, {hall}",
+  "@customerFriendsInHall": {
+    "placeholders": {
+      "club": {
+        "type": "String"
+      },
+      "hall": {
+        "type": "String"
+      }
+    }
+  },
+  "customerFriendsIncoming": "Ба дӯстӣ даъват мекунанд",
+  "customerFriendsLoadError": "Дӯстон бор карда нашуд",
+  "customerFriendsNone": "Ҳанӯз дӯст нест",
+  "customerFriendsNoneHint": "Касеро, ки бо ӯ бозӣ мекунед, даъват кунед: дархост дар барномаи ӯ пайдо мешавад.",
+  "customerFriendsNotInHall": "Дар клуб нест",
+  "customerFriendsOutgoing": "Ҷавоб интизоранд",
+  "customerFriendsRemove": "Аз дӯстон хориҷ кардан",
+  "customerFriendsRemoveHint": "Шумо якдигарро дар клубҳо намебинед. Боз даъват кардан мумкин аст.",
+  "customerFriendsRemoveTitle": "{name}-ро аз дӯстон хориҷ мекунед?",
+  "@customerFriendsRemoveTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "customerFriendsSent": "Дархост фиристода шуд",
+  "customerFriendsTitle": "Дӯстон",
+  "customerFriendsVisibility": "Ба дӯстон нишон додан, ки дар куҷо бозӣ мекунам",
+  "customerFriendsVisibilityOffHint": "Дӯстон мемонанд, вале шуморо дар клуб касе намебинад.",
   "customerHistoryDurationHoursMinutes": "{hours} соат {minutes} дақиқа",
   "@customerHistoryDurationHoursMinutes": {
     "placeholders": {

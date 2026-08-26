@@ -279,6 +279,45 @@
     }
   },
   "customerEventsTitle": "Club events",
+  "customerFriendsAccept": "Accept",
+  "customerFriendsAddCta": "Invite",
+  "customerFriendsAddHint": "The phone number you already know",
+  "customerFriendsAddTitle": "Invite a friend",
+  "customerFriendsDecline": "Decline",
+  "customerFriendsDismiss": "Cancel",
+  "customerFriendsErrGeneric": "That did not work. Try again",
+  "customerFriendsErrSelf": "That is your own number",
+  "customerFriendsInHall": "{club}, {hall}",
+  "@customerFriendsInHall": {
+    "placeholders": {
+      "club": {
+        "type": "String"
+      },
+      "hall": {
+        "type": "String"
+      }
+    }
+  },
+  "customerFriendsIncoming": "Want to be friends",
+  "customerFriendsLoadError": "Could not load your friends",
+  "customerFriendsNone": "No friends yet",
+  "customerFriendsNoneHint": "Invite whoever you play with: the request shows up in their app.",
+  "customerFriendsNotInHall": "Not at a club",
+  "customerFriendsOutgoing": "Waiting for an answer",
+  "customerFriendsRemove": "Remove friend",
+  "customerFriendsRemoveHint": "You stop seeing each other at clubs. You can invite again any time.",
+  "customerFriendsRemoveTitle": "Remove {name} from your friends?",
+  "@customerFriendsRemoveTitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "customerFriendsSent": "Request sent",
+  "customerFriendsTitle": "Friends",
+  "customerFriendsVisibility": "Let friends see where I play",
+  "customerFriendsVisibilityOffHint": "Your friends stay, but nobody sees you at a club.",
   "customerHistoryDurationHoursMinutes": "{hours} h {minutes} min",
   "@customerHistoryDurationHoursMinutes": {
     "placeholders": {

@@ -11,6 +11,7 @@ import '../money/money.dart';
 import '../news/news_section.dart';
 import '../organization/organization.dart';
 import '../events/events_screen.dart';
+import '../friends/friends_screen.dart';
 import '../packages/packages_screen.dart';
 import '../play/start_session_screen.dart';
 import '../progress/progress_screen.dart';
@@ -302,6 +303,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (mounted) await _loadEventsAvailability();
   }
 
+  /// Друзья. Личность, а не клуб: список одинаков в любом клубе сети, поэтому плитка есть
+  /// всегда — как и «Стаж».
+  void _openFriends() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => FriendsScreen(api: widget.api)),
+    );
+  }
+
   void _openReferral() {
     Navigator.of(context).push<void>(
       MaterialPageRoute(builder: (_) => ReferralScreen(api: widget.api)),
@@ -396,6 +405,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           icon: Icons.military_tech_outlined,
           label: l.customerProgressTitle,
           onOpen: _openProgress,
+        ),
+        // Друзья тоже не зависят от клуба: они принадлежат человеку.
+        QuickAction(
+          icon: Icons.people_outline,
+          label: l.customerFriendsTitle,
+          onOpen: _openFriends,
         ),
       ];
 
