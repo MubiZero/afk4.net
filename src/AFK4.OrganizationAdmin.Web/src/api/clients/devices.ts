@@ -56,6 +56,11 @@ export function createDeviceClient(api: PlatformApiClient) {
     rotateDeviceCredential(deviceId: Guid): Promise<RotateDeviceCredentialResponse> {
       return api.post<RotateDeviceCredentialResponse>(`devices/${deviceId}/credentials/rotate`);
     },
+    /// Попросить машину сменить ключ самой: она сделает это ближайшим сердцебиением и не
+    /// потеряет связь. В отличие от rotateDeviceCredential, который отрезает её немедленно.
+    requestDeviceCredentialRotation(deviceId: Guid): Promise<void> {
+      return api.post<void>(`devices/${deviceId}/credentials/request-rotation`);
+    },
     revokeDeviceCredential(deviceId: Guid, credentialId: Guid): Promise<RevokeDeviceCredentialResponse> {
       return api.post<RevokeDeviceCredentialResponse>(`devices/${deviceId}/credentials/${credentialId}/revoke`);
     }

@@ -54,6 +54,7 @@ builder.Services.AddHttpClient("platform");
 builder.Services.AddHttpClient("updates", client => client.Timeout = Timeout.InfiniteTimeSpan);
 builder.Services.AddSingleton<ISessionLeaseStore, FileSessionLeaseStore>();
 builder.Services.AddSingleton<ICommandResultOutbox, FileCommandResultOutbox>();
+builder.Services.AddSingleton<IDeviceCredentialStore, FileDeviceCredentialStore>();
 builder.Services.AddSingleton<IAgentRuntimeStateStore, AgentRuntimeStateStore>();
 builder.Services.AddSingleton<SessionLeaseValidator>();
 builder.Services.AddSingleton<IWorkstationLockController, WorkstationLockController>();

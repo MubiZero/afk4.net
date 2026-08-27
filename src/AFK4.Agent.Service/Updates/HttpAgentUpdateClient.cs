@@ -7,7 +7,8 @@ namespace AFK4.Agent.Service.Updates;
 
 public sealed class HttpAgentUpdateClient(
     IHttpClientFactory httpClientFactory,
-    IOptions<AgentOptions> options) : IAgentUpdateClient
+    IOptions<AgentOptions> options,
+    IDeviceCredentialStore credentialStore) : IAgentUpdateClient
 {
     public async Task<UpdateCheckResult> CheckForUpdatesAsync(
         IReadOnlyList<DeviceComponentVersionDto> installedComponents,
@@ -75,9 +76,11 @@ public sealed class HttpAgentUpdateClient(
             Content = JsonContent.Create(request)
         };
 
-        if (!string.IsNullOrWhiteSpace(agentOptions.DeviceCredentialSecret))
+        // Ключ берётся из хранилища, а не из конфига: после смены в конфиге лежит старый.
+        var credentialSecret = credentialStore.Current;
+        if (!string.IsNullOrWhiteSpace(credentialSecret))
         {
-            message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, agentOptions.DeviceCredentialSecret);
+            message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, credentialSecret);
         }
 
         using var response = await client.SendAsync(message, cancellationToken);

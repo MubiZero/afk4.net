@@ -14,4 +14,8 @@ public sealed record DeviceHeartbeatResponse(
     //
     // null, когда за ПК уже играют: звать к занятой машине незачем.
     string? SeatingCode = null,
-    DateTimeOffset? SeatingCodeExpiresAtUtc = null);
+    DateTimeOffset? SeatingCodeExpiresAtUtc = null,
+    /// Клуб попросил сменить ключ этой машины. Агент меняет его сам и записывает новый — без
+    /// визита к ПК и без простоя. Едет сердцебиением по той же причине, что и код посадки:
+    /// вторая труба к тому же серверу за тем же самым ничего не добавила бы.
+    bool RotateCredential = false);

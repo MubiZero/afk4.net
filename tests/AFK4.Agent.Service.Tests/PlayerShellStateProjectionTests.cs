@@ -78,6 +78,7 @@ public sealed class PlayerShellStateProjectionTests
             new NoOpInstalledAppReporter(),
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
             TimeProvider.System);
 
         // Act

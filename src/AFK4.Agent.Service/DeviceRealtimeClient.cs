@@ -29,12 +29,16 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
     private readonly ISessionLeaseStore? leaseStore;
     private readonly ICommandResultOutbox? commandResultOutbox;
 
+    /// null у тех, кто про смену ключа не знает (тесты хаба): тогда берётся ключ из конфига.
+    private readonly IDeviceCredentialStore? credentialStore;
+
     public DeviceRealtimeClient(
         IOptions<AgentOptions> options,
         IDeviceCommandHandler commandHandler,
         ILogger<DeviceRealtimeClient> logger,
         ISessionLeaseStore leaseStore,
-        ICommandResultOutbox commandResultOutbox)
+        ICommandResultOutbox commandResultOutbox,
+        IDeviceCredentialStore credentialStore)
         : this(
             options,
             commandHandler,
@@ -45,7 +49,8 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
                 new HubConnectionBuilder()
                     .WithUrl(new Uri(options.Value.PlatformBaseUrl, "/hubs/devices"))
                     .WithAutomaticReconnect()
-                    .Build()))
+                    .Build()),
+            credentialStore)
     {
     }
 
@@ -64,8 +69,10 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
         ILogger<DeviceRealtimeClient> logger,
         ISessionLeaseStore? leaseStore,
         ICommandResultOutbox? commandResultOutbox,
-        IDeviceHubConnection connection)
+        IDeviceHubConnection connection,
+        IDeviceCredentialStore? credentialStore = null)
     {
+        this.credentialStore = credentialStore;
         this.options = options.Value;
         this.commandHandler = commandHandler;
         this.logger = logger;
@@ -92,7 +99,8 @@ public sealed class DeviceRealtimeClient : IDeviceRealtimeClient
 
     private Task RegisterDeviceAsync(CancellationToken cancellationToken)
     {
-        var request = DeviceConnectionRequestFactory.Create(options, DateTimeOffset.UtcNow, leaseStore);
+        var request = DeviceConnectionRequestFactory.Create(
+            options, DateTimeOffset.UtcNow, leaseStore, credentialStore?.Current);
         return connection.InvokeAsync(DeviceRealtimeMethods.RegisterDeviceAsync, request, cancellationToken);
     }
 

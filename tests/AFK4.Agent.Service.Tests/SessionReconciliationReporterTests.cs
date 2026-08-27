@@ -20,7 +20,8 @@ public sealed class SessionReconciliationReporterTests
         var reporter = new SessionReconciliationReporter(
             new TestHttpClientFactory(new HttpClient(handler)),
             Options.Create(CreateOptions()),
-            leaseStore);
+            leaseStore,
+            new InMemoryDeviceCredentialStore());
 
         var response = await reporter.ReportAsync(
             isLocked: false,
