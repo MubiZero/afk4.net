@@ -529,6 +529,91 @@ class PackageOption {
       );
 }
 
+/// Друг: имя и то, где он сейчас играет. Ни телефона, ни денег — дружба не даёт доступа
+/// к чужому счёту.
+class Friend {
+  const Friend({
+    required this.platformPersonId,
+    required this.displayName,
+    this.presence,
+  });
+
+  final String platformPersonId;
+  final String displayName;
+
+  /// Где он сейчас за ПК. null — не в зале либо скрыл присутствие; разницы снаружи нет
+  /// намеренно, иначе «скрыт» читалось бы как «он там, но прячется».
+  final FriendPresence? presence;
+
+  factory Friend.fromJson(Map<String, dynamic> json) => Friend(
+        platformPersonId: json['platformPersonId'] as String,
+        displayName: json['displayName'] as String? ?? '',
+        presence: json['presence'] == null
+            ? null
+            : FriendPresence.fromJson(json['presence'] as Map<String, dynamic>),
+      );
+}
+
+/// Клуб и зал, в которых друг сейчас играет.
+class FriendPresence {
+  const FriendPresence({required this.organizationName, required this.branchName});
+
+  final String organizationName;
+  final String branchName;
+
+  factory FriendPresence.fromJson(Map<String, dynamic> json) => FriendPresence(
+        organizationName: json['organizationName'] as String? ?? '',
+        branchName: json['branchName'] as String? ?? '',
+      );
+}
+
+/// Заявка в друзья — пришедшая или отправленная.
+class FriendRequest {
+  const FriendRequest({
+    required this.friendRequestId,
+    required this.platformPersonId,
+    required this.displayName,
+  });
+
+  final String friendRequestId;
+  final String platformPersonId;
+  final String displayName;
+
+  factory FriendRequest.fromJson(Map<String, dynamic> json) => FriendRequest(
+        friendRequestId: json['friendRequestId'] as String,
+        platformPersonId: json['platformPersonId'] as String,
+        displayName: json['displayName'] as String? ?? '',
+      );
+}
+
+/// Друзья целиком: принятые, пришедшие заявки, отправленные и видно ли меня самого.
+class FriendsView {
+  const FriendsView({
+    this.friends = const [],
+    this.incoming = const [],
+    this.outgoing = const [],
+    this.showsPresence = true,
+  });
+
+  final List<Friend> friends;
+  final List<FriendRequest> incoming;
+  final List<FriendRequest> outgoing;
+  final bool showsPresence;
+
+  factory FriendsView.fromJson(Map<String, dynamic> json) => FriendsView(
+        friends: (json['friends'] as List<dynamic>? ?? const [])
+            .map((entry) => Friend.fromJson(entry as Map<String, dynamic>))
+            .toList(growable: false),
+        incoming: (json['incoming'] as List<dynamic>? ?? const [])
+            .map((entry) => FriendRequest.fromJson(entry as Map<String, dynamic>))
+            .toList(growable: false),
+        outgoing: (json['outgoing'] as List<dynamic>? ?? const [])
+            .map((entry) => FriendRequest.fromJson(entry as Map<String, dynamic>))
+            .toList(growable: false),
+        showsPresence: json['showsPresence'] as bool? ?? true,
+      );
+}
+
 /// Событие клуба: турнир, ночь игры, чемпионат зала. Зеркало `PlayerTournamentDto`.
 class ClubEvent {
   const ClubEvent({

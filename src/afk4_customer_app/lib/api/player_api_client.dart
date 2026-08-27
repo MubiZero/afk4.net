@@ -276,6 +276,37 @@ class PlayerApiClient {
     return list.map((item) => _parse(item, PackageOption.fromJson)).toList();
   }
 
+  /// Друзья, заявки и мой переключатель видимости — одним ответом на весь экран.
+  Future<FriendsView> getFriends() async =>
+      _parse(await getJson('/api/me/friends'), FriendsView.fromJson);
+
+  /// Позвать в друзья по номеру.
+  ///
+  /// Ответ одинаков для любого чужого номера — по нему нельзя узнать, есть ли этот номер в
+  /// сети. 409 бывает только на свой собственный номер (`friend_self`).
+  Future<FriendsView> sendFriendRequest(String phoneNumber) async => _parse(
+      await sendJson('POST', '/api/me/friends/requests', {'phoneNumber': phoneNumber}),
+      FriendsView.fromJson);
+
+  Future<FriendsView> acceptFriendRequest(String friendRequestId) async => _parse(
+      await sendJson(
+          'POST', '/api/me/friends/requests/${Uri.encodeComponent(friendRequestId)}/accept'),
+      FriendsView.fromJson);
+
+  Future<FriendsView> declineFriendRequest(String friendRequestId) async => _parse(
+      await sendJson(
+          'POST', '/api/me/friends/requests/${Uri.encodeComponent(friendRequestId)}/decline'),
+      FriendsView.fromJson);
+
+  Future<FriendsView> removeFriend(String platformPersonId) async => _parse(
+      await sendJson('DELETE', '/api/me/friends/${Uri.encodeComponent(platformPersonId)}'),
+      FriendsView.fromJson);
+
+  /// Показывать ли друзьям, что я сейчас в зале. Один переключатель на всех.
+  Future<FriendsView> setPresenceVisible(bool showsPresence) async => _parse(
+      await sendJson('PATCH', '/api/me/friends/presence', {'showsPresence': showsPresence}),
+      FriendsView.fromJson);
+
   /// События зала: турниры и вечера, на которые ещё можно записаться, плюс отменённые из
   /// тех, на которые игрок шёл, — весть об отмене обязана до него дойти.
   Future<List<ClubEvent>> getEvents(String branchId) async {

@@ -48,6 +48,8 @@ const TG_IDENTICAL_TO_RU_ALLOWED = new Set<string>([
     'op.club.ph.latitude', 'op.club.ph.longitude',
     // «Марафон» — заимствование, в таджикском пишется так же.
     'customer.achievement.marathon',
+    // «{club}, {hall}» — две подстановки и запятая: переводить нечего.
+    'customer.friends.inHall',
     'op.command.stage.cashier', 'op.floor.duration.secShort', 'op.floor.remaining.pcOffline', 'op.helper.appVer.agent',
     'op.helper.appVer.shell', 'op.helper.audit.system', 'op.helper.billing.package', 'op.helper.deviceStatus.online',
     'op.helper.player.packageCount', 'op.helper.player.packageFallback', 'op.helper.player.platform', 'op.helper.player.tariffFallback',

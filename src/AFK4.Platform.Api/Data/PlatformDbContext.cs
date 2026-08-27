@@ -16,6 +16,8 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
 
     public DbSet<ClubReviewEntity> ClubReviews => Set<ClubReviewEntity>();
 
+    public DbSet<PersonFriendshipEntity> PersonFriendships => Set<PersonFriendshipEntity>();
+
     public DbSet<TournamentEntity> Tournaments => Set<TournamentEntity>();
 
     public DbSet<TournamentRegistrationEntity> TournamentRegistrations => Set<TournamentRegistrationEntity>();
@@ -251,6 +253,19 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(news => news.Body).HasMaxLength(4000).IsRequired();
             entity.Property(news => news.ImageUrl).HasMaxLength(2048);
             entity.HasIndex(news => news.OrganizationId);
+        });
+
+        modelBuilder.Entity<PersonFriendshipEntity>(entity =>
+        {
+            entity.ToTable("person_friendships");
+            entity.HasKey(friendship => friendship.PersonFriendshipId);
+            entity.Property(friendship => friendship.State).HasMaxLength(16).IsRequired();
+            // Одна строка на упорядоченную пару. Обратное направление ловится проверкой в сервисе:
+            // выразить «пара в любом порядке» индексом нельзя, а звать друг друга одновременно —
+            // не ошибка базы, а нормальное совпадение.
+            entity.HasIndex(friendship => new { friendship.RequesterPersonId, friendship.AddresseePersonId })
+                .IsUnique();
+            entity.HasIndex(friendship => friendship.AddresseePersonId);
         });
 
         modelBuilder.Entity<TournamentEntity>(entity =>
@@ -1464,6 +1479,10 @@ public sealed class PlatformDbContext(DbContextOptions<PlatformDbContext> option
             entity.Property(person => person.PreferredLocale).HasMaxLength(16);
             entity.Property(person => person.PinHash).HasMaxLength(512);
             entity.Property(person => person.NetworkBanReason).HasMaxLength(500);
+            // Умолчание пишется в саму колонку, а не только в поле класса: люди, заведённые до
+            // появления друзей, обязаны получить то же «видно друзьям», что и новые. Иначе первые
+            // пользователи молча оказались бы невидимыми, а разницу не объяснить ничем.
+            entity.Property(person => person.ShowsPresenceToFriends).HasDefaultValue(true);
             // Номер — это и есть личность: второй записи на тот же номер быть не может.
             entity.HasIndex(person => person.PhoneNumber).IsUnique();
         });
