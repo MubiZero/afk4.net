@@ -22,11 +22,12 @@ public sealed class PlayerApiAuthClient(HttpClient http) : IPlayerApiAuthClient
     public AuthSnapshot Current => current;
     public string? CurrentAccessToken => accessToken;
 
-    public async Task<AuthSnapshot> SignInAsync(Guid organizationId, string phoneNumber, string password, CancellationToken ct)
+    public async Task<AuthSnapshot> SignInAsync(
+        Guid organizationId, string phoneNumber, string password, Guid? branchId, CancellationToken ct)
     {
         var response = await http.PostAsJsonAsync(
             "/api/public/player/sign-in",
-            new PlayerSignInRequest(organizationId, phoneNumber, password),
+            new PlayerSignInRequest(organizationId, phoneNumber, password, branchId),
             Json,
             ct);
 
