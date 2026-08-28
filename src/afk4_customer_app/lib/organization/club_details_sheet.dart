@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../money/money.dart';
 import '../theme/app_theme.dart';
+import 'halls_line.dart';
 import 'opening_hours.dart';
 import 'organization.dart';
 
@@ -41,7 +42,7 @@ class ClubDetailsSheet extends StatelessWidget {
     // Единственный зал сети — это и есть клуб. Список из одной строки и вопрос «в каком
     // зале» над ним были бы выбором без выбора, поэтому такой клуб читается как раньше.
     final only = halls.length == 1 ? halls.single : null;
-    final subtitle = _subtitle(l, halls, only);
+    final subtitle = hallsLine(l, halls);
 
     return SafeArea(
       child: Padding(
@@ -111,18 +112,6 @@ class ClubDetailsSheet extends StatelessWidget {
     );
   }
 
-  /// Строка под названием клуба: у одного зала — его адрес, у сети — сколько залов и в каких
-  /// городах. Адрес одного зала на этом месте выдавал бы себя за адрес всей сети.
-  String _subtitle(L l, List<ClubPlace> halls, ClubPlace? only) {
-    if (only != null) return only.fullAddress;
-    if (halls.isEmpty) return '';
-
-    final cities = <String>[];
-    for (final hall in halls) {
-      if (hall.city.isNotEmpty && !cities.contains(hall.city)) cities.add(hall.city);
-    }
-    return l.customerClubDetailsHallsIn(halls.length, cities.join(', '));
-  }
 }
 
 /// Зал сети свёрнутой строкой: название, адрес и ответ на «открыт ли он сейчас». Зоны и

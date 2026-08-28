@@ -96,6 +96,55 @@ void main() {
     expect(find.text('Arena'), findsOneWidget);
   });
 
+  // Сеть — не первый её зал. Адрес, часы и описание принадлежат конкретному залу, и выданные
+  // за весь клуб они зовут игрока по адресу одного зала к часам другого.
+  testWidgets('карточка сети говорит про залы, а не про адрес и часы первого из них', (tester) async {
+    const network = Organization(
+      organizationId: '55555555-5555-5555-5555-555555555555',
+      slug: 'cyberx',
+      name: 'CyberX',
+      places: [
+        ClubPlace(
+          branchId: 'b1',
+          name: 'На Рудаки',
+          city: 'Душанбе',
+          address: 'пр. Рудаки, 1',
+          description: 'Зал с новыми видеокартами',
+          workingHours: [
+            OpeningDay(dayOfWeek: 1, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+            OpeningDay(dayOfWeek: 2, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+            OpeningDay(dayOfWeek: 3, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+            OpeningDay(dayOfWeek: 4, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+            OpeningDay(dayOfWeek: 5, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+            OpeningDay(dayOfWeek: 6, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+            OpeningDay(dayOfWeek: 7, isClosed: false, openTime: '10:00', closeTime: '23:00'),
+          ],
+        ),
+        ClubPlace(
+          branchId: 'b2',
+          name: 'В Худжанде',
+          city: 'Худжанд',
+          address: 'ул. Ленина, 5',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      locale: const Locale('ru'),
+      localizationsDelegates: appLocalizationsDelegates,
+      supportedLocales: appSupportedLocales,
+      home: Scaffold(
+        body: ClubCard(club: network, onTap: () {}, clock: () => DateTime(2026, 8, 12, 14)),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 зала · Душанбе, Худжанд'), findsOneWidget);
+    expect(find.text('Душанбе, пр. Рудаки, 1'), findsNothing);
+    expect(find.text('Открыто до 23:00'), findsNothing);
+    expect(find.text('Зал с новыми видеокартами'), findsNothing);
+  });
+
   // «Открыт ли он сейчас» игрок спрашивает до выхода из дома, и семь строк расписания на
   // карточке этот вопрос не закрывают.
   testWidgets('карточка отвечает, открыт ли клуб сейчас', (tester) async {
