@@ -152,7 +152,7 @@ export function BackendPlayersWorkspace({ currencyCode, backend, openClient }: {
   }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, clientSearch, currencyCode]);
 
   const selectedClient = clients.find((client) => client.playerAccountId === selectedClientId) ?? null;
-  const reputation = useReputation(backend, selectedClient?.phoneNumber ?? '');
+  const reputation = useReputation(backend, selectedClient?.phoneNumber ?? '', selectedClient?.platformPersonId ?? null);
 
   useEffect(() => {
     if (backend === null || selectedClient?.source !== 'backend' || !selectedClient.playerAccountId) {

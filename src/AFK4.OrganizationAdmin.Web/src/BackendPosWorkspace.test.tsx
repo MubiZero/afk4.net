@@ -27,7 +27,7 @@ const linkedPlayer = {
   createdAtUtc: '2026-07-14T08:00:00Z',
   lastActivityAtUtc: null,
   activePackageName: null,
-  activePackageRemainingMinutes: 0
+  activePackageRemainingMinutes: 0, platformPersonId: null, createdFromApp: false
 };
 const requestedUrls: string[] = [];
 const requestedBodies: unknown[] = [];

@@ -7,17 +7,21 @@ const lookupReputation = mock(async (_branchId: string, _phone: string) => ({
   networkVisits: 14, networkNoShows: 1, networkBanned: false, calculatedAtUtc: '2026-08-20T00:00:00Z'
 }));
 
+const reputationForPerson = mock(async (_branchId: string, _platformPersonId: string) => ({
+  networkVisits: 3, networkNoShows: 0, networkBanned: false, calculatedAtUtc: '2026-08-20T00:00:00Z'
+}));
+
 const actual = (globalThis as Record<string, unknown>).__afk4RealOperatorHelpers as Record<string, unknown>;
 mock.module('../operatorHelpers', () => ({
   ...actual,
-  createAuthenticatedOperatorClients: () => ({ players: { lookupReputation } })
+  createAuthenticatedOperatorClients: () => ({ players: { lookupReputation, reputationForPerson } })
 }));
 
 const { useReputation, clearReputationAnswers } = await import('./useReputation');
 const backend = { config: { platformBaseUrl: 'http://x' }, session: { accessToken: 't', organizationId: 'o1' }, branchId: 'b1' } as never;
 
-function Probe({ phone }: { phone: string }) {
-  const { state, ask } = useReputation(backend, phone);
+function Probe({ phone, personId = null }: { phone: string; personId?: string | null }) {
+  const { state, ask } = useReputation(backend, phone, personId);
   return (
     <div>
       <span data-testid="status">{state.status}</span>
@@ -28,10 +32,15 @@ function Probe({ phone }: { phone: string }) {
   );
 }
 
-const renderProbe = (phone: string) =>
-  render(<I18nProvider initialLocale="ru"><Probe phone={phone} /></I18nProvider>);
+const renderProbe = (phone: string, personId: string | null = null) =>
+  render(<I18nProvider initialLocale="ru"><Probe phone={phone} personId={personId} /></I18nProvider>);
 
-afterEach(() => { clearReputationAnswers(); lookupReputation.mockClear(); cleanup(); });
+afterEach(() => {
+  clearReputationAnswers();
+  lookupReputation.mockClear();
+  reputationForPerson.mockClear();
+  cleanup();
+});
 
 describe('useReputation', () => {
   it('не спрашивает сеть, пока карточку просто открыли: аудит не должен полниться пролистанными', async () => {
@@ -86,6 +95,33 @@ describe('useReputation', () => {
     act(() => { screen.getByRole('button').click(); });
     await act(async () => {});
     expect(lookupReputation).not.toHaveBeenCalled();
+    expect(reputationForPerson).not.toHaveBeenCalled();
+  });
+
+  it('без номера спрашивает по личности платформы: у карточки из приложения номера может не быть', async () => {
+    renderProbe('', 'p-1');
+    expect(screen.getByTestId('status')).toHaveTextContent('idle');
+    act(() => { screen.getByRole('button').click(); });
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('ready'));
+    expect(reputationForPerson).toHaveBeenCalledWith('b1', 'p-1');
+    expect(lookupReputation).not.toHaveBeenCalled();
+    expect(screen.getByTestId('visits')).toHaveTextContent('3');
+  });
+
+  it('номер сильнее личности: он же единственный ключ к карточке, заведённой стойкой до общего котла', async () => {
+    renderProbe('93 738 00 70', 'p-1');
+    act(() => { screen.getByRole('button').click(); });
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('ready'));
+    expect(lookupReputation).toHaveBeenCalledWith('b1', '+992937380070');
+    expect(reputationForPerson).not.toHaveBeenCalled();
+  });
+
+  it('ни номера, ни личности — спрашивать нечего', async () => {
+    renderProbe('', null);
+    expect(screen.getByTestId('status')).toHaveTextContent('noPhone');
+    act(() => { screen.getByRole('button').click(); });
+    await act(async () => {});
+    expect(reputationForPerson).not.toHaveBeenCalled();
   });
 
   it('упёршийся в лимит маршрута отказ объясняется человеческими словами', async () => {

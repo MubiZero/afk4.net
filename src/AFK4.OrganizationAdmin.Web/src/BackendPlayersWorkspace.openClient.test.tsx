@@ -17,7 +17,7 @@ const people = [
     createdAtUtc: '2026-08-01T00:00:00Z',
     lastActivityAtUtc: null,
     activePackageName: null,
-    activePackageRemainingMinutes: 0
+    activePackageRemainingMinutes: 0, platformPersonId: null, createdFromApp: false
   },
   {
     playerAccountId: 'p2',
@@ -30,7 +30,7 @@ const people = [
     createdAtUtc: '2026-08-02T00:00:00Z',
     lastActivityAtUtc: null,
     activePackageName: null,
-    activePackageRemainingMinutes: 0
+    activePackageRemainingMinutes: 0, platformPersonId: null, createdFromApp: false
   }
 ];
 

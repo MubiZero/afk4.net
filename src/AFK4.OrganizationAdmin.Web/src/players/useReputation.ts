@@ -18,8 +18,9 @@ export interface ReputationController {
   ask: () => void;
 }
 
-// Ответы сети за сессию. Сеть считает числа раз в сутки, поэтому второй запрос по тому же
-// номеру не узнал бы ничего нового — зато оставил бы вторую запись в аудите клуба.
+// Ответы сети за сессию. Сеть считает числа раз в сутки, поэтому второй запрос про того же
+// человека не узнал бы ничего нового — зато оставил бы вторую запись в аудите клуба.
+// Ключ — то, чем спрашивали: номер или личность платформы.
 const answers = new Map<string, PlayerReputationDto>();
 
 /** Только для тестов: сбросить накопленные за сессию ответы. */
@@ -36,42 +37,59 @@ export function clearReputationAnswers(): void {
  */
 export function useReputation(
   backend: OperatorBackendContext | null,
-  rawPhoneNumber: string
+  rawPhoneNumber: string,
+  platformPersonId: string | null = null
 ): ReputationController {
   const { t } = useI18n();
   const phone = reputationLookupPhone(rawPhoneNumber);
+  // Чем спрашиваем. Номер вперёд личности: он же и единственный способ узнать про человека,
+  // чью карточку стойка завела до общего котла и к платформе не привязала. Номера нет —
+  // спрашиваем по личности, если карточка её называет.
+  const asked: AskedBy | null = phone !== null
+    ? { kind: 'phone', value: phone }
+    : platformPersonId !== null ? { kind: 'person', value: platformPersonId } : null;
+  const key = asked === null ? null : `${asked.kind}:${asked.value}`;
+
   const initial = (): ReputationState => {
-    if (phone === null) return { status: 'noPhone' };
-    const known = answers.get(phone);
+    if (key === null) return { status: 'noPhone' };
+    const known = answers.get(key);
     return known ? { status: 'ready', reputation: known } : { status: 'idle' };
   };
   const [state, setState] = useState<ReputationState>(initial);
-  // Чей номер сейчас на экране. Ответ сети приходит асинхронно, а карточка за это время могла
+  // Про кого сейчас карточка. Ответ сети приходит асинхронно, а она за это время могла
   // переехать на другого человека — показать ему чужие числа хуже, чем не показать ничего.
-  const shownPhone = useRef(phone);
-  shownPhone.current = phone;
+  const shownKey = useRef(key);
+  shownKey.current = key;
 
   // Карточка переехала на другого человека — показываем его ответ (или предложение спросить),
   // а не оставшийся на экране чужой.
-  useEffect(() => { setState(initial()); }, [phone]);
+  useEffect(() => { setState(initial()); }, [key]);
 
   const ask = useCallback(() => {
-    if (backend === null || phone === null) return;
+    if (backend === null || asked === null || key === null) return;
     setState({ status: 'loading' });
-    createAuthenticatedOperatorClients(backend.config, backend.session).players
-      .lookupReputation(backend.branchId, phone)
+    const players = createAuthenticatedOperatorClients(backend.config, backend.session).players;
+    const answer = asked.kind === 'phone'
+      ? players.lookupReputation(backend.branchId, asked.value)
+      : players.reputationForPerson(backend.branchId, asked.value);
+    answer
       .then((reputation) => {
-        // Ответ кладём в память всегда — он верен для своего номера; на экран только если
-        // спрашивали именно про того, кто там сейчас.
-        answers.set(phone, reputation);
-        if (shownPhone.current === phone) setState({ status: 'ready', reputation });
+        // Ответ кладём в память всегда — он верен для того, про кого спрашивали; на экран
+        // только если карточка всё ещё про него.
+        answers.set(key, reputation);
+        if (shownKey.current === key) setState({ status: 'ready', reputation });
       })
       .catch((error) => {
-        if (shownPhone.current !== phone) return;
-        const key = reputationErrorKey(error);
-        setState({ status: 'failed', detail: key ? t(key) : projectOperatorError(error, t).detail });
+        if (shownKey.current !== key) return;
+        const failure = reputationErrorKey(error);
+        setState({
+          status: 'failed',
+          detail: failure ? t(failure) : projectOperatorError(error, t).detail
+        });
       });
-  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, phone, t]);
+  }, [backend?.branchId, backend?.config.platformBaseUrl, backend?.session.accessToken, key, t]);
 
   return { state, ask };
 }
+
+type AskedBy = { kind: 'phone' | 'person'; value: string };

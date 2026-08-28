@@ -47,7 +47,7 @@ function detail(state: string, onConfirm = () => {}, onStart = () => {}) {
     reservationId: 'r1', reservationGroupId: '', version: 2, state, source: 'operator',
     startMs: Date.now() + 60_000, endMs: Date.now() + 3_660_000, durationMinutes: 60,
     customerName: 'Мадина', phoneNumber: '+992900000000', note: '', playerAccountId: 'p1',
-    seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A', tone: state as 'pending', startedSessionId: '',
+    platformPersonId: '', seatId: 'a1', seatName: 'PC-01', zoneName: 'Зал A', tone: state as 'pending', startedSessionId: '',
     respondByMs: null
   };
   const props: BookingDrawerProps = {

@@ -11,7 +11,7 @@ afterEach(cleanup);
 const client: PlayerClientItem = {
   playerAccountId: 'p1', name: 'Фариза Назарова', status: 'active', isActive: true, balanceMinorUnits: 45000,
   debtMinorUnits: 0, last: '', tone: 'active', detail: '', phoneNumber: '+992 93 100 20 30', source: 'backend',
-  createdAtUtc: null, lastActivityAtUtc: null, activePackageName: null, activePackageRemainingMinutes: 0
+  createdAtUtc: null, lastActivityAtUtc: null, activePackageName: null, activePackageRemainingMinutes: 0, platformPersonId: null, createdFromApp: false
 };
 
 const noLiveContext: ClientLiveContext = { session: null, nextBooking: null };
@@ -63,6 +63,16 @@ describe('ClientDrawer', () => {
     renderDrawer();
     expect(screen.getByText('Фариза Назарова')).toBeInTheDocument();
     expect(screen.getByText('+992 93 100 20 30')).toBeInTheDocument();
+  });
+
+  it('называет карточку, заведённую самим игроком: стойка этого человека не оформляла', () => {
+    renderDrawer({ client: { ...client, createdFromApp: true } });
+    expect(screen.getByText('Из приложения')).toBeInTheDocument();
+  });
+
+  it('карточке, заведённой стойкой, метку «из приложения» не рисует', () => {
+    renderDrawer();
+    expect(screen.queryByText('Из приложения')).toBeNull();
   });
 
   it('shows an .ok context pill while a session is live', () => {

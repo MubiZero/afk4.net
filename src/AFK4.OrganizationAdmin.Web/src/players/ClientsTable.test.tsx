@@ -15,7 +15,7 @@ const client = (over: Partial<PlayerClientItem>): PlayerClientItem => ({
   playerAccountId: 'p1', name: 'Фариза Назарова', isActive: true, status: 'active', balanceMinorUnits: 45000,
   debtMinorUnits: 0, last: '', tone: 'active', detail: '', phoneNumber: '+992 93 100 20 30',
   source: 'backend', createdAtUtc: null, lastActivityAtUtc: null,
-  activePackageName: null, activePackageRemainingMinutes: 0, ...over
+  activePackageName: null, activePackageRemainingMinutes: 0, platformPersonId: null, createdFromApp: false, ...over
 });
 
 const segments: ClientSegment[] = [
@@ -112,7 +112,7 @@ describe('ClientsTable', () => {
   });
 
   it('shows the active package time bank when the client is not playing', () => {
-    renderTable({ clients: [client({ activePackageName: 'Ночной 5ч', activePackageRemainingMinutes: 150 })] });
+    renderTable({ clients: [client({ activePackageName: 'Ночной 5ч', activePackageRemainingMinutes: 150, platformPersonId: null, createdFromApp: false })] });
     const row = screen.getByRole('button', { name: /Фариза Назарова/ });
     expect(row).toHaveTextContent('Ночной 5ч');
     expect(row).toHaveTextContent('150 мин');

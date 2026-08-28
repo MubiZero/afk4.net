@@ -12,7 +12,7 @@ function request(over: Partial<BookingItem> = {}): BookingItem {
   return {
     reservationId: 'r1', reservationGroupId: '', version: 1, state: 'pending', source: 'online',
     startMs: NOW + 3_600_000, endMs: NOW + 7_200_000, durationMinutes: 60,
-    customerName: 'Камрон Р.', phoneNumber: '+992900000003', note: '', playerAccountId: '',
+    customerName: 'Камрон Р.', phoneNumber: '+992900000003', note: '', playerAccountId: '', platformPersonId: '',
     seatId: '', seatName: '', zoneName: '', tone: 'online', startedSessionId: '',
     respondByMs: NOW + 4 * 60_000 + 12_000,
     ...over

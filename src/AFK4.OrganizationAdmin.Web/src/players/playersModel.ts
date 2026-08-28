@@ -11,9 +11,9 @@ export { projectPlayerClient, playerPackageLabel, type PlayerClientItem } from '
 export function fixturePlayers(currencyCode: string, t: TFunc): PlayerClientItem[] {
   const example = t('op.helper.player.fixture.example');
   return [
-    { name: 'Madina S.', isActive: true, status: 'active', balanceMinorUnits: 46000, debtMinorUnits: 0, last: example, tone: 'active', detail: t('op.helper.player.fixture.localCard'), phoneNumber: '+992 90 555 22 11', source: 'fixture', createdAtUtc: null, lastActivityAtUtc: null, activePackageName: null, activePackageRemainingMinutes: 0 },
-    { name: 'Amir K.', isActive: true, status: 'active', balanceMinorUnits: 12000, debtMinorUnits: 0, last: example, tone: 'active', detail: formatMinorUnits(12000, currencyCode), phoneNumber: '', source: 'fixture', createdAtUtc: null, lastActivityAtUtc: null, activePackageName: null, activePackageRemainingMinutes: 0 },
-    { name: 'Olim K.', isActive: true, status: 'debt', balanceMinorUnits: 0, debtMinorUnits: 3500, last: example, tone: 'debt', detail: t('op.helper.player.fixture.debtDetail'), phoneNumber: '', source: 'fixture', createdAtUtc: null, lastActivityAtUtc: null, activePackageName: null, activePackageRemainingMinutes: 0 }
+    { name: 'Madina S.', isActive: true, status: 'active', balanceMinorUnits: 46000, debtMinorUnits: 0, last: example, tone: 'active', detail: t('op.helper.player.fixture.localCard'), phoneNumber: '+992 90 555 22 11', source: 'fixture', createdAtUtc: null, lastActivityAtUtc: null, activePackageName: null, activePackageRemainingMinutes: 0, platformPersonId: null, createdFromApp: false },
+    { name: 'Amir K.', isActive: true, status: 'active', balanceMinorUnits: 12000, debtMinorUnits: 0, last: example, tone: 'active', detail: formatMinorUnits(12000, currencyCode), phoneNumber: '', source: 'fixture', createdAtUtc: null, lastActivityAtUtc: null, activePackageName: null, activePackageRemainingMinutes: 0, platformPersonId: null, createdFromApp: false },
+    { name: 'Olim K.', isActive: true, status: 'debt', balanceMinorUnits: 0, debtMinorUnits: 3500, last: example, tone: 'debt', detail: t('op.helper.player.fixture.debtDetail'), phoneNumber: '', source: 'fixture', createdAtUtc: null, lastActivityAtUtc: null, activePackageName: null, activePackageRemainingMinutes: 0, platformPersonId: null, createdFromApp: false }
   ];
 }
 

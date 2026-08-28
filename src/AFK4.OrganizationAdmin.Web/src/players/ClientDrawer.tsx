@@ -1,5 +1,5 @@
 import { useI18n } from '@afk4/i18n';
-import { CalendarClock, Play, X } from 'lucide-react';
+import { CalendarClock, Play, Smartphone, X } from 'lucide-react';
 import { initials, type PlayerClientItem } from '../operatorHelpers';
 import type { LedgerEntryDto, PlayerPackageDto } from '../operatorApiClients';
 import { Money } from '../operatorPrimitives';
@@ -116,6 +116,14 @@ export function ClientDrawer({
       <div className="drawer-context">
         {isInactive && (
           <span className="status-pill neutral">{playerStatusLabel('inactive', t)}</span>
+        )}
+        {/* Откуда взялась карточка. Стойке это меняет разговор: человека, который завёл себя
+            сам из приложения, здесь никто не видел и документов его не сверял. */}
+        {client.createdFromApp && (
+          <span className="status-pill neutral" title={t('op.players.createdFromApp.hint')}>
+            <Smartphone size={12} aria-hidden="true" />
+            {t('op.players.createdFromApp')}
+          </span>
         )}
         {liveContext.session !== null ? (
           <span className="status-pill ok">
