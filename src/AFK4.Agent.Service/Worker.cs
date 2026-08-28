@@ -23,6 +23,7 @@ public sealed class Worker(
     IInstalledAppReporter installedAppReporter,
     IOfflineGraceState offlineGraceState,
     ICommandResultOutbox commandResultOutbox,
+    IDeviceCredentialStore credentialStore,
     TimeProvider timeProvider) : BackgroundService
 {
     private const int HeartbeatRetryIntervalSeconds = 10;
@@ -92,9 +93,10 @@ public sealed class Worker(
                 Content = JsonContent.Create(request)
             };
 
-            if (!string.IsNullOrWhiteSpace(agentOptions.DeviceCredentialSecret))
+            var credentialSecret = credentialStore.Current;
+            if (!string.IsNullOrWhiteSpace(credentialSecret))
             {
-                message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, agentOptions.DeviceCredentialSecret);
+                message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, credentialSecret);
             }
 
             var response = await client.SendAsync(message, cancellationToken);
@@ -111,6 +113,11 @@ public sealed class Worker(
                 // Код для монитора приезжает с сердцебиением — оболочка покажет его, пока за ПК
                 // никто не сидит. Пустой он у занятой машины: звать к ней некого.
                 seatingCode = heartbeat.SeatingCode;
+                if (heartbeat.RotateCredential)
+                {
+                    await TryRotateCredentialAsync(client, agentOptions, cancellationToken);
+                }
+
                 await HandleHeartbeatCommandsAsync(client, heartbeat.Commands, cancellationToken);
             }
 
@@ -127,6 +134,60 @@ public sealed class Worker(
         {
             logger.LogWarning(exception, "Heartbeat failed. Retrying without stopping the Agent Service.");
             return new HeartbeatOutcome(Succeeded: false, HeartbeatRetryIntervalSeconds);
+        }
+    }
+
+    /// <summary>
+    /// Клуб попросил сменить ключ — меняем его сами и записываем новый на диск.
+    ///
+    /// Сбой здесь не ломает ничего: старый ключ продолжает работать, просьба на сервере остаётся,
+    /// и следующее сердцебиение попробует снова. Именно поэтому смена не отзывает старый ключ
+    /// мгновенно — иначе неудачная запись оставляла бы ПК без входа.
+    /// </summary>
+    private async Task TryRotateCredentialAsync(
+        HttpClient client,
+        AgentOptions agentOptions,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var message = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"/api/devices/{agentOptions.DeviceId}/credentials/self-rotate")
+            {
+                Content = JsonContent.Create(new SelfRotateDeviceCredentialRequest(
+                    agentOptions.OrganizationId,
+                    agentOptions.BranchId,
+                    agentOptions.DeviceId))
+            };
+            message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, credentialStore.Current);
+
+            var response = await client.SendAsync(message, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            var rotated = await response.Content.ReadFromJsonAsync<RotateDeviceCredentialResponse>(
+                cancellationToken: cancellationToken);
+            if (rotated is null || string.IsNullOrWhiteSpace(rotated.CredentialSecret))
+            {
+                logger.LogWarning("Credential rotation returned no secret. Keeping the current credential.");
+                return;
+            }
+
+            credentialStore.Update(rotated.CredentialSecret);
+            logger.LogInformation(
+                "Device credential rotated for {DeviceId}. New credential {CredentialId}.",
+                agentOptions.DeviceId,
+                rotated.CredentialId);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Credential rotation failed. The current credential still works; retrying on the next heartbeat.");
         }
     }
 
@@ -181,7 +242,7 @@ public sealed class Worker(
                     Content = JsonContent.Create(result)
                 };
 
-                var credentialSecret = options.Value.DeviceCredentialSecret;
+                var credentialSecret = credentialStore.Current;
                 if (!string.IsNullOrWhiteSpace(credentialSecret))
                 {
                     message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, credentialSecret);

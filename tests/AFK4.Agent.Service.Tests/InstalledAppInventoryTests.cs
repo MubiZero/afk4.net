@@ -93,7 +93,8 @@ public sealed class InstalledAppInventoryTests
         using var handler = new CapturingInstalledAppReportHandler(reportAttempted);
         var reporter = new HttpInstalledAppReporter(
             new TestHttpClientFactory(new HttpClient(handler)),
-            Options.Create(CreateOptions()));
+            Options.Create(CreateOptions()),
+            new InMemoryDeviceCredentialStore());
 
         await reporter.ReportAsync(
             [

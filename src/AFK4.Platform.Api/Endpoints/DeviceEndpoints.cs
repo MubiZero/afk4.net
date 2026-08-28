@@ -349,6 +349,56 @@ internal static class DeviceEndpoints
             return Results.Ok(response);
         });
 
+        // Агент меняет свой ключ сам, предъявив действующий. Право клуба здесь ни при чём: это
+        // не человек за стойкой, а машина, которая уже доказала, что она эта машина.
+        app.MapPost("/api/devices/{deviceId:guid}/credentials/self-rotate", async (
+            Guid deviceId,
+            SelfRotateDeviceCredentialRequest request,
+            HttpContext httpContext,
+            IDeviceCredentialValidator credentialValidator,
+            IDeviceCredentialLifecycleService credentialLifecycleService,
+            IAuditRecordWriter auditRecordWriter,
+            CancellationToken cancellationToken) =>
+        {
+            if (deviceId != request.DeviceId)
+            {
+                return Results.BadRequest(new { Error = "Route deviceId must match request DeviceId." });
+            }
+
+            var credentialSecret = httpContext.Request.Headers[DeviceCredentialHeaders.CredentialSecret].SingleOrDefault();
+            if (!credentialValidator.ValidateApproved(
+                request.OrganizationId, request.BranchId, deviceId, credentialSecret))
+            {
+                return Results.Unauthorized();
+            }
+
+            var rotated = await credentialLifecycleService.RotateForAgentAsync(deviceId, cancellationToken);
+            if (rotated is null)
+            {
+                return Results.NotFound();
+            }
+
+            // Смена ключа — событие безопасности, и клуб должен видеть его в своём журнале, даже
+            // когда её сделала машина без человека.
+            await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+                OrganizationId: rotated.OrganizationId,
+                BranchId: rotated.BranchId,
+                ActorStaffUserId: null,
+                Action: AuditActionNames.RotateDeviceCredential,
+                TargetType: "DeviceCredential",
+                TargetId: rotated.CredentialId.ToString("D"),
+                Outcome: AuditOutcome.Succeeded,
+                SourceApp: "Agent",
+                DetailsJson: JsonSerializer.Serialize(new
+                {
+                    DeviceId = deviceId,
+                    Rotation = "self"
+                })),
+                cancellationToken);
+
+            return Results.Ok(rotated);
+        });
+
         app.MapPost("/api/devices/{deviceId:guid}/commands/{commandId:guid}/result", async (
             Guid deviceId,
             Guid commandId,
@@ -1733,6 +1783,76 @@ internal static class DeviceEndpoints
                 cancellationToken);
 
             return Results.Ok(rotated);
+        })
+            .AllowPlatformSupportAccess(OrganizationPermissionNames.RotateDeviceCredential);
+
+        // Гигиена: попросить машину сменить ключ самой. Ничего не отрезает — в отличие от
+        // соседнего `rotate`, который для украденного ПК.
+        organizations.MapPost("devices/{deviceId:guid}/credentials/request-rotation", async (
+            Guid deviceId,
+            PlatformDbContext dbContext,
+            IStaffContextAccessor staffContextAccessor,
+            StaffAuthorizationService authorizationService,
+            IAuditRecordWriter auditRecordWriter,
+            IDeviceCredentialLifecycleService credentialLifecycleService,
+            CancellationToken cancellationToken) =>
+        {
+            if (staffContextAccessor.Current is null)
+            {
+                return Results.Unauthorized();
+            }
+
+            var device = await dbContext.Devices
+                .AsNoTracking()
+                .SingleOrDefaultAsync(candidate => candidate.DeviceId == deviceId, cancellationToken);
+            if (device is null)
+            {
+                return Results.NotFound();
+            }
+
+            var authorization = await authorizationService.RequireBranchPermissionAsync(
+                device.BranchId,
+                OrganizationPermissionNames.RotateDeviceCredential,
+                cancellationToken);
+
+            if (!authorization.IsAllowed)
+            {
+                await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+                    OrganizationId: authorization.StaffContext!.OrganizationId,
+                    BranchId: device.BranchId,
+                    ActorStaffUserId: authorization.StaffContext.StaffUserId,
+                    Action: AuditActionNames.RequestDeviceCredentialRotation,
+                    TargetType: "Device",
+                    TargetId: deviceId.ToString("D"),
+                    Outcome: AuditOutcome.Denied,
+                    SourceApp: "PlatformApi",
+                    DetailsJson: JsonSerializer.Serialize(new
+                    {
+                        authorization.DenialReason
+                    })),
+                    cancellationToken);
+
+                return Results.StatusCode(StatusCodes.Status403Forbidden);
+            }
+
+            if (!await credentialLifecycleService.RequestRotationAsync(deviceId, cancellationToken))
+            {
+                return Results.NotFound();
+            }
+
+            await auditRecordWriter.WriteAsync(new AuditRecordWriteRequest(
+                OrganizationId: authorization.StaffContext!.OrganizationId,
+                BranchId: device.BranchId,
+                ActorStaffUserId: authorization.StaffContext.StaffUserId,
+                Action: AuditActionNames.RequestDeviceCredentialRotation,
+                TargetType: "Device",
+                TargetId: deviceId.ToString("D"),
+                Outcome: AuditOutcome.Succeeded,
+                SourceApp: "PlatformApi",
+                DetailsJson: "{}"),
+                cancellationToken);
+
+            return Results.Accepted();
         })
             .AllowPlatformSupportAccess(OrganizationPermissionNames.RotateDeviceCredential);
 

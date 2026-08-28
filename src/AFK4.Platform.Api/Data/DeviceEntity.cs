@@ -31,4 +31,11 @@ public sealed class DeviceEntity
     public bool IsOnline { get; set; }
 
     public bool IsLocked { get; set; }
+
+    /// <summary>
+    /// Клуб попросил перевыпустить ключ этой машины. Агент увидит просьбу в ближайшем
+    /// сердцебиении, перевыпустит ключ сам и запишет новый — без визита к ПК.
+    /// null — просьбы нет.
+    /// </summary>
+    public DateTimeOffset? CredentialRotationRequestedAtUtc { get; set; }
 }

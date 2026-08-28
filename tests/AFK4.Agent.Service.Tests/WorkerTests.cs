@@ -49,6 +49,7 @@ public sealed class WorkerTests
             new NoOpInstalledAppReporter(),
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -91,6 +92,7 @@ public sealed class WorkerTests
             new NoOpInstalledAppReporter(),
             graceState,
             new InMemoryCommandResultOutbox(),
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -134,6 +136,7 @@ public sealed class WorkerTests
             new NoOpInstalledAppReporter(),
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -186,6 +189,7 @@ public sealed class WorkerTests
             reporter,
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -239,6 +243,7 @@ public sealed class WorkerTests
             new RecordingInstalledAppReporter(calls),
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -291,6 +296,7 @@ public sealed class WorkerTests
             new NoOpInstalledAppReporter(),
             new OfflineGraceState(),
             commandResultOutbox,
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -347,6 +353,7 @@ public sealed class WorkerTests
             new NoOpInstalledAppReporter(),
             new OfflineGraceState(),
             commandResultOutbox,
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -390,6 +397,7 @@ public sealed class WorkerTests
             new NoOpInstalledAppReporter(),
             new OfflineGraceState(),
             new InMemoryCommandResultOutbox(),
+            new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret),
             TimeProvider.System);
 
         await worker.StartAsync(stopping.Token);
@@ -786,6 +794,167 @@ public sealed class WorkerTests
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = JsonContent.Create(response)
+            });
+        }
+    }
+
+    // ── Смена ключа машины ──────────────────────────────────────────────────────────────────
+    // Раньше ключ жил только в конфиге и менялся руками: перевыпуск означал поездку к каждому ПК.
+
+    private static IOptions<AgentOptions> RotationOptions() => Options.Create(new AgentOptions
+    {
+        PlatformBaseUrl = new Uri("https://platform.example"),
+        OrganizationId = Guid.Parse("0c04d6c0-bfa8-4e26-9263-fc0d307d0f08"),
+        BranchId = Guid.Parse("acfc0212-967f-4d84-94be-9003387b09c2"),
+        DeviceId = Guid.Parse("d76eff15-9cf9-4c30-a6d4-c05fd215793f"),
+        MachineName = "PC-001",
+        DeviceCredentialSecret = "old-secret"
+    });
+
+    private static Worker CreateWorker(
+        IOptions<AgentOptions> options,
+        HttpMessageHandler handler,
+        IDeviceCredentialStore credentialStore) =>
+        new(
+            NullLogger<Worker>.Instance,
+            new TestHttpClientFactory(new HttpClient(handler)),
+            options,
+            new ThrowingRealtimeClient(new InvalidOperationException("realtime unavailable")),
+            new InMemorySessionLeaseStore(),
+            new RecordingRuntimeStateStore(isLocked: false),
+            new NoOpGraceModeMonitor(),
+            new NoOpPlayerShellProcessSupervisor(),
+            new NoOpPlayerShellStatePublisher(),
+            new NoOpDeviceCommandHandler(options.Value),
+            new NoOpSessionReconciliationReporter(),
+            new StaticInstalledAppInventoryCollector([]),
+            new NoOpInstalledAppReporter(),
+            new OfflineGraceState(),
+            new InMemoryCommandResultOutbox(),
+            credentialStore,
+            TimeProvider.System);
+
+    // Ради этого всё и делается: просьба пришла сердцебиением — ключ сменился без человека.
+    [Fact]
+    public async Task RotationRequest_MakesTheAgentRotateAndKeepTheNewSecret()
+    {
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var rotated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var handler = new RotationHandler(rotated, stopping);
+        var options = RotationOptions();
+        var credentialStore = new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret);
+        var worker = CreateWorker(options, handler, credentialStore);
+
+        await worker.StartAsync(stopping.Token);
+        await rotated.Task.WaitAsync(WorkerObservationTimeout);
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.Equal("new-secret", credentialStore.Current);
+        Assert.Equal(["new-secret"], credentialStore.Updates);
+        // Менять ключ имеет право только та машина, которая предъявила действующий.
+        Assert.Equal("old-secret", handler.RotateCredentialSecret);
+    }
+
+    /// Сбой смены не должен ломать ничего: старый ключ ещё работает, просьба на сервере остаётся,
+    /// и следующее сердцебиение попробует снова. Записать «ничего» на место рабочего ключа —
+    /// это как раз то, что отрезало бы ПК.
+    [Fact]
+    public async Task FailedRotation_LeavesTheWorkingSecretAlone()
+    {
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var attempted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var handler = new RotationHandler(attempted, stopping, rotationStatus: HttpStatusCode.InternalServerError);
+        var options = RotationOptions();
+        var credentialStore = new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret);
+        var worker = CreateWorker(options, handler, credentialStore);
+
+        await worker.StartAsync(stopping.Token);
+        await attempted.Task.WaitAsync(WorkerObservationTimeout);
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.Equal("old-secret", credentialStore.Current);
+        Assert.Empty(credentialStore.Updates);
+    }
+
+    // Пока клуб не просил, лишних смен быть не должно: ключ меняется по делу, а не по расписанию.
+    [Fact]
+    public async Task WithoutARequest_TheAgentNeverRotates()
+    {
+        using var stopping = new CancellationTokenSource(WorkerStopTimeout);
+        var beat = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var handler = new RotationHandler(beat, stopping, rotateCredential: false);
+        var options = RotationOptions();
+        var credentialStore = new InMemoryDeviceCredentialStore(options.Value.DeviceCredentialSecret);
+        var worker = CreateWorker(options, handler, credentialStore);
+
+        await worker.StartAsync(stopping.Token);
+        await beat.Task.WaitAsync(WorkerObservationTimeout);
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.Empty(credentialStore.Updates);
+        Assert.Null(handler.RotateCredentialSecret);
+    }
+
+    /// Сервер, который просит сменить ключ, и выдаёт новый. Второе сердцебиение уже не просит:
+    /// так же, как настоящий сервер после выполненной просьбы.
+    private sealed class RotationHandler(
+        TaskCompletionSource observed,
+        CancellationTokenSource stopping,
+        bool rotateCredential = true,
+        HttpStatusCode rotationStatus = HttpStatusCode.OK) : HttpMessageHandler
+    {
+        private bool rotationServed;
+
+        public string? RotateCredentialSecret { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            var path = request.RequestUri!.AbsolutePath;
+
+            if (path.EndsWith("/credentials/self-rotate", StringComparison.Ordinal))
+            {
+                RotateCredentialSecret = request.Headers
+                    .GetValues(DeviceCredentialHeaders.CredentialSecret)
+                    .Single();
+                rotationServed = true;
+
+                var response = rotationStatus == HttpStatusCode.OK
+                    ? new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = JsonContent.Create(new RotateDeviceCredentialResponse(
+                            OrganizationId: Guid.NewGuid(),
+                            BranchId: Guid.NewGuid(),
+                            DeviceId: Guid.NewGuid(),
+                            CredentialId: Guid.NewGuid(),
+                            CredentialSecret: "new-secret",
+                            RotatedAtUtc: DateTimeOffset.Parse("2026-08-26T10:00:00Z")))
+                    }
+                    : new HttpResponseMessage(rotationStatus);
+
+                // Прогон останавливает не этот ответ, а следующее сердцебиение: агенту нужно
+                // успеть прочитать тело и записать ключ, а отмена посреди чтения — не проверка
+                // смены ключа, а проверка отмены.
+                return Task.FromResult(response);
+            }
+
+            var heartbeat = new DeviceHeartbeatResponse(
+                ServerTimeUtc: DateTimeOffset.Parse("2026-08-26T10:00:00Z"),
+                HeartbeatIntervalSeconds: 10,
+                Commands: [],
+                RotateCredential: rotateCredential && !rotationServed);
+
+            if (!rotateCredential || rotationServed)
+            {
+                // Просить больше нечего: либо не просили вовсе, либо смена уже состоялась.
+                observed.TrySetResult();
+                stopping.Cancel();
+            }
+
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(heartbeat)
             });
         }
     }

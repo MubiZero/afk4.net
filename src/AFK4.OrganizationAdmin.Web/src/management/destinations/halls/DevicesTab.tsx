@@ -171,6 +171,34 @@ export function DevicesTab({
     }
   };
 
+  /// Гигиена ключа: машина сменит его сама и останется на связи. Отдельная кнопка рядом с
+  /// «Выдать новый ключ» — потому что тот отрезает ПК до тех пор, пока ключ не впишут руками,
+  /// и годится для украденной машины, а не для планового обновления.
+  const requestRotation = async () => {
+    const label = t('op.settings.action.requestKeyRotation');
+    setBusy(true);
+    onFeedback({ label, state: 'pending' });
+    try {
+      const nextBackend = requireBackend(backend, t);
+      if (!hasPermission(nextBackend.session, permissionNames.rotateDeviceCredential)) {
+        throw new Error(t('op.settings.devices.error.noPermRotateKey'));
+      }
+
+      const deviceId = (selectedDeviceId ?? '').trim();
+      if (!isGuid(deviceId)) {
+        throw new Error(t('op.settings.devices.error.selectDevice'));
+      }
+
+      const apiClients = createAuthenticatedOperatorClients(nextBackend.config, nextBackend.session);
+      await apiClients.devices.requestDeviceCredentialRotation(deviceId);
+      onFeedback({ label, state: 'confirmed', detail: t('op.settings.devices.keyRotationRequested') });
+    } catch (error) {
+      onFeedback({ label, state: 'failed', detail: projectOperatorError(error, t).detail });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const confirmRevoke = async () => {
     if (!criticalAction || criticalAction.kind !== 'revoke') return;
     const label = t('op.settings.action.revokeKey');
@@ -373,8 +401,13 @@ export function DevicesTab({
                   )}
                   <div className="mgmt-form-actions">
                     {canRotateDeviceCredential && (
+                      <button type="button" className="ui-btn" disabled={busy} onClick={() => void requestRotation()}>
+                        <KeyRound size={14} aria-hidden="true" />{t('op.settings.action.requestKeyRotation')}
+                      </button>
+                    )}
+                    {canRotateDeviceCredential && (
                       <button type="button" className="ui-btn" disabled={busy} onClick={() => void rotateCredential()}>
-                        <KeyRound size={14} aria-hidden="true" />{t('op.settings.action.rotateKey')}
+                        {t('op.settings.action.rotateKey')}
                       </button>
                     )}
                     {canRevokeDeviceCredential && (

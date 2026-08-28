@@ -6,7 +6,8 @@ namespace AFK4.Agent.Service;
 
 public sealed class HttpInstalledAppReporter(
     IHttpClientFactory httpClientFactory,
-    IOptions<AgentOptions> options) : IInstalledAppReporter
+    IOptions<AgentOptions> options,
+    IDeviceCredentialStore credentialStore) : IInstalledAppReporter
 {
     public async Task ReportAsync(
         IReadOnlyCollection<InstalledAppSnapshot> apps,
@@ -25,9 +26,11 @@ public sealed class HttpInstalledAppReporter(
             Content = JsonContent.Create(report)
         };
 
-        if (!string.IsNullOrWhiteSpace(agentOptions.DeviceCredentialSecret))
+        // Ключ берётся из хранилища, а не из конфига: после смены в конфиге лежит старый.
+        var credentialSecret = credentialStore.Current;
+        if (!string.IsNullOrWhiteSpace(credentialSecret))
         {
-            message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, agentOptions.DeviceCredentialSecret);
+            message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, credentialSecret);
         }
 
         using var response = await client.SendAsync(message, cancellationToken);

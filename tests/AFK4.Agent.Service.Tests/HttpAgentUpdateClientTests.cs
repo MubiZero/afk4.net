@@ -17,7 +17,8 @@ public sealed class HttpAgentUpdateClientTests
         using var handler = new CapturingUpdateHandler(requestCaptured);
         var client = new HttpAgentUpdateClient(
             new TestHttpClientFactory(new HttpClient(handler)),
-            Options.Create(CreateOptions()));
+            Options.Create(CreateOptions()),
+            new InMemoryDeviceCredentialStore());
 
         var result = await client.CheckForUpdatesAsync(
             [new DeviceComponentVersionDto(UpdateComponentNames.AgentService, "1.2.2")],
@@ -41,7 +42,8 @@ public sealed class HttpAgentUpdateClientTests
         using var handler = new EmptyUpdateCheckHandler();
         var client = new HttpAgentUpdateClient(
             new TestHttpClientFactory(new HttpClient(handler)),
-            Options.Create(CreateOptions()));
+            Options.Create(CreateOptions()),
+            new InMemoryDeviceCredentialStore());
 
         var result = await client.CheckForUpdatesAsync(
             [],
@@ -59,7 +61,8 @@ public sealed class HttpAgentUpdateClientTests
         using var handler = new CapturingUpdateHandler(requestCaptured);
         var client = new HttpAgentUpdateClient(
             new TestHttpClientFactory(new HttpClient(handler)),
-            Options.Create(CreateOptions()));
+            Options.Create(CreateOptions()),
+            new InMemoryDeviceCredentialStore());
         var rolloutId = Guid.Parse("bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb");
         var packageId = Guid.Parse("aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa");
 

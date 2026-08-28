@@ -16,7 +16,8 @@ public interface ISessionReconciliationReporter
 public sealed class SessionReconciliationReporter(
     IHttpClientFactory httpClientFactory,
     IOptions<AgentOptions> options,
-    ISessionLeaseStore leaseStore) : ISessionReconciliationReporter
+    ISessionLeaseStore leaseStore,
+    IDeviceCredentialStore credentialStore) : ISessionReconciliationReporter
 {
     public async Task<SessionReconciliationResponse> ReportAsync(
         bool isLocked,
@@ -44,9 +45,11 @@ public sealed class SessionReconciliationReporter(
             Content = JsonContent.Create(request)
         };
 
-        if (!string.IsNullOrWhiteSpace(agentOptions.DeviceCredentialSecret))
+        // Ключ берётся из хранилища, а не из конфига: после смены в конфиге лежит старый.
+        var credentialSecret = credentialStore.Current;
+        if (!string.IsNullOrWhiteSpace(credentialSecret))
         {
-            message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, agentOptions.DeviceCredentialSecret);
+            message.Headers.Add(DeviceCredentialHeaders.CredentialSecret, credentialSecret);
         }
 
         using var response = await client.SendAsync(message, cancellationToken);

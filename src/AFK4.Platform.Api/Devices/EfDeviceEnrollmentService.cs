@@ -146,7 +146,12 @@ public sealed class EfDeviceEnrollmentService(
             return false;
         }
 
-        var credential = (
+        // Живых ключей у машины бывает два, а не один: после перевыпуска старый ещё некоторое
+        // время принимается, чтобы ПК, выключившийся в момент замены, не остался без входа
+        // (см. DeviceCredentialEntity.ExpiresAtUtc). Поэтому берём все подходящие и сверяем
+        // предъявленный с каждым, а не требуем ровно одного.
+        var now = timeProvider.GetUtcNow();
+        var credentials = (
             from candidate in dbContext.DeviceCredentials.AsNoTracking()
             join device in dbContext.Devices.AsNoTracking()
                 on candidate.DeviceId equals device.DeviceId
@@ -154,15 +159,16 @@ public sealed class EfDeviceEnrollmentService(
                 candidate.BranchId == branchId &&
                 candidate.DeviceId == deviceId &&
                 candidate.RevokedAtUtc == null &&
+                (candidate.ExpiresAtUtc == null || candidate.ExpiresAtUtc > now) &&
                 device.OrganizationId == organizationId &&
                 device.BranchId == branchId &&
                 (!requireApproved || device.EnrollmentState == DeviceEnrollmentStateNames.Approved)
             select candidate)
             .AsNoTracking()
-            .SingleOrDefault();
+            .ToList();
 
-        return credential is not null &&
-            DeviceCredentialSecrets.SecretMatches(credential.SecretHash, credentialSecret);
+        return credentials.Any(candidate =>
+            DeviceCredentialSecrets.SecretMatches(candidate.SecretHash, credentialSecret));
     }
 
     private async Task<string> CreateUniqueEnrollmentCodeAsync(CancellationToken cancellationToken)

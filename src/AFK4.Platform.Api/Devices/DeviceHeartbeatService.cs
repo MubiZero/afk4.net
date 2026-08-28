@@ -131,12 +131,17 @@ public sealed class DeviceHeartbeatService(
             ? null
             : await seatingCodes.IssueAsync(request.OrganizationId, request.DeviceId, cancellationToken);
 
+        var rotationRequested = device?.CredentialRotationRequestedAtUtc is not null;
+
         return new DeviceHeartbeatResponse(
             ServerTimeUtc: timeProvider.GetUtcNow(),
             HeartbeatIntervalSeconds: HeartbeatIntervalPolicy.Resolve(commands.Count > 0, heartbeatOptions.Value),
             Commands: commands,
             EffectiveGraceMinutes: GraceLeasePolicy.Resolve(branchGraceMinutes, leaseOptions.Value.LeaseMinutes),
             SeatingCode: seatingCode?.Code,
-            SeatingCodeExpiresAtUtc: seatingCode?.ExpiresAtUtc);
+            SeatingCodeExpiresAtUtc: seatingCode?.ExpiresAtUtc,
+            // Просьбу видит только машина, которую клуб уже принял: незаверенному ПК менять
+            // нечего, а просьба на нём выглядела бы как разрешение.
+            RotateCredential: allowOperationalCommands && rotationRequested);
     }
 }

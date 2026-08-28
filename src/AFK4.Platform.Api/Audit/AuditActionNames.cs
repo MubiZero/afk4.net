@@ -304,6 +304,10 @@ public static class AuditActionNames
 
     public const string DeleteNews = "news.delete";
 
+    /// Просьба клуба к машине сменить ключ самой. Отдельно от жёсткого перевыпуска: одно
+    /// отрезает ПК немедленно, другое — нет, и в журнале это должно читаться по-разному.
+    public const string RequestDeviceCredentialRotation = "device.credential.rotation.request";
+
     public const string CreateTournament = "tournament.create";
 
     public const string UpdateTournament = "tournament.update";
